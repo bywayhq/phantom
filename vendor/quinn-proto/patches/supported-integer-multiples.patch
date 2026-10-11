@@ -1,0 +1,24 @@
+diff --git a/src/config/transport.rs b/src/config/transport.rs
+--- a/src/config/transport.rs
++++ b/src/config/transport.rs
+@@ -296,7 +296,7 @@
+     /// whole milliseconds below 2^14 milliseconds. Defaults to 25 ms, the protocol default,
+     /// which is not advertised.
+     pub fn max_ack_delay(&mut self, value: Duration) -> Result<&mut Self, InvalidTransportLimit> {
+-        if value.as_millis() >= 1 << 14 || value.subsec_nanos() % 1_000_000 != 0 {
++        if value.as_millis() >= 1 << 14 || !value.subsec_nanos().is_multiple_of(1_000_000) {
+             return Err(InvalidTransportLimit::MaxAckDelay);
+         }
+         self.max_ack_delay = value;
+diff --git a/src/transport_parameters.rs b/src/transport_parameters.rs
+--- a/src/transport_parameters.rs
++++ b/src/transport_parameters.rs
+@@ -824,7 +824,7 @@
+ 
+     /// Reads a peer's parameter from its whole body
+     fn read(side: Side, r: &mut impl Buf) -> Result<Self, Error> {
+-        if r.remaining() < 4 || r.remaining() % 4 != 0 {
++        if r.remaining() < 4 || !r.remaining().is_multiple_of(4) {
+             return Err(Error::Malformed);
+         }
+         // RFC 9368 section 4: a zero Chosen or Available Version is a parsing failure. A

@@ -296,7 +296,7 @@ impl TransportConfig {
     /// whole milliseconds below 2^14 milliseconds. Defaults to 25 ms, the protocol default,
     /// which is not advertised.
     pub fn max_ack_delay(&mut self, value: Duration) -> Result<&mut Self, InvalidTransportLimit> {
-        if value.as_millis() >= 1 << 14 || value.subsec_nanos() % 1_000_000 != 0 {
+        if value.as_millis() >= 1 << 14 || !value.subsec_nanos().is_multiple_of(1_000_000) {
             return Err(InvalidTransportLimit::MaxAckDelay);
         }
         self.max_ack_delay = value;

@@ -26,6 +26,11 @@ require Rust 1.88. The fork follows Phantom's supported minimum; this does
 not establish upstream or per-feature compiler minima. Apply the patch
 immediately before `publish-identity.patch`.
 
+`supported-integer-multiples.patch` uses the unsigned `is_multiple_of` method,
+stable since Rust 1.87, for the existing whole-millisecond and version-body
+alignment checks. Apply it before `supported-rust-version.patch`; the guard
+order and accepted values stay unchanged.
+
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It

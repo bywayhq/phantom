@@ -824,7 +824,7 @@ impl VersionInformation {
 
     /// Reads a peer's parameter from its whole body
     fn read(side: Side, r: &mut impl Buf) -> Result<Self, Error> {
-        if r.remaining() < 4 || r.remaining() % 4 != 0 {
+        if r.remaining() < 4 || !r.remaining().is_multiple_of(4) {
             return Err(Error::Malformed);
         }
         // RFC 9368 section 4: a zero Chosen or Available Version is a parsing failure. A
