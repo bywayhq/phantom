@@ -490,7 +490,8 @@ where
                 return Poll::Ready(item.transpose());
             }
             match connection.poll_closed(context) {
-                Poll::Ready(Ok(())) => Poll::Ready(Ok(None)),
+                // Driving EOF updates the stream's queued data or error.
+                Poll::Ready(Ok(())) => body.poll_data(context).map(|item| item.transpose()),
                 Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
                 Poll::Pending => Poll::Pending,
             }
