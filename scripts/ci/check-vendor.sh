@@ -231,8 +231,9 @@ check_h3_patch_replay() {
       git -C "$candidate" apply "$PWD/vendor/h3/patches/$patch"
     fi
   done < vendor/h3/patches/series
+  bash scripts/ci/stage-h3-comparison.sh "$PWD" "$staging/comparison"
   diff -qr --exclude=.cargo-ok --exclude=Cargo.lock --exclude=PHANTOM.md \
-    --exclude=patches --exclude=target "$candidate" vendor/h3
+    --exclude=patches --exclude=target "$candidate" "$staging/comparison"
 }
 
 check_tungstenite_patch_replay() {
