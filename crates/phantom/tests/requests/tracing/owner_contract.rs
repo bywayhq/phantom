@@ -75,6 +75,7 @@ pub(super) async fn observe_head(
     let Some(control) = control.as_mut() else {
         return super::read_head(stream).await;
     };
+
     let reading = super::read_head(stream);
     tokio::pin!(reading);
     let head = poll_fn(|context| {
@@ -102,6 +103,7 @@ pub(super) async fn observe_release(
     let Some(control) = control else {
         return released.await;
     };
+
     tokio::pin!(released);
     poll_fn(|context| {
         let result = released.as_mut().poll(context);
@@ -160,7 +162,12 @@ impl Backup {
         let (release, released) = tokio::sync::oneshot::channel();
         self.release = Some(release);
         self.peer = Some(super::stalled_origin(listener, released, Some(control)));
-        self.abort = Some(self.peer.as_ref().ok_or("original peer missing")?.abort_handle());
+        self.abort = Some(
+            self.peer
+                .as_ref()
+                .ok_or("original peer missing")?
+                .abort_handle(),
+        );
         Ok(address)
     }
 
@@ -171,14 +178,23 @@ impl Backup {
         let client = self.raw_client.as_mut().ok_or("raw client missing")?;
         timeout(LIMIT, client.write_all(REQUEST_HEAD)).await??;
         timeout(LIMIT, self.state.wait_for(|state| state.waiting)).await??;
-        if self.abort.as_ref().ok_or("original peer witness missing")?.is_finished() {
+        if self
+            .abort
+            .as_ref()
+            .ok_or("original peer witness missing")?
+            .is_finished()
+        {
             return Err("original peer completed before the waiting operation".into());
         }
         Ok(())
     }
 
     async fn finished(&mut self) -> TestResult<()> {
-        timeout(OBSERVATION_LIMIT, self.state.wait_for(|state| state.destroyed)).await??;
+        timeout(
+            OBSERVATION_LIMIT,
+            self.state.wait_for(|state| state.destroyed),
+        )
+        .await??;
         let abort = self.abort.as_ref().ok_or("original peer witness missing")?;
         timeout(LIMIT, async {
             while !abort.is_finished() {
@@ -217,14 +233,25 @@ impl Backup {
         let capture = super::Capture::default();
         let error = timeout(
             LIMIT,
-            client.get(HttpProtocol::Http1, &format!("http://{address}/{}?private={}", private[0], private[1]))?
+            client
+                .get(
+                    HttpProtocol::Http1,
+                    &format!("http://{address}/{}?private={}", private[0], private[1]),
+                )?
                 .send()
                 .with_subscriber(capture.dispatch()),
-        ).await?.err().ok_or("faulted origin unexpectedly answered the actual caller")?;
+        )
+        .await?
+        .err()
+        .ok_or("faulted origin unexpectedly answered the actual caller")?;
         capture.assert_private(&private);
 
         let kind = error.kind();
-        timeout(LIMIT, self.state.wait_for(|state| state.read && state.fault_taken)).await??;
+        timeout(
+            LIMIT,
+            self.state.wait_for(|state| state.read && state.fault_taken),
+        )
+        .await??;
         self.finished().await?;
         Ok((Box::new(error), kind))
     }
@@ -263,16 +290,22 @@ impl Backup {
 }
 
 fn retains_fault(error: &(dyn Error + 'static), identity: &Arc<FailureIdentity>) -> TestResult<()> {
-    let original = error.downcast_ref::<io::Error>().ok_or("original serving I/O error was discarded")?;
+    let original = error
+        .downcast_ref::<io::Error>()
+        .ok_or("original serving I/O error was discarded")?;
     if original.kind() != io::ErrorKind::PermissionDenied {
         return Err("original serving I/O error kind changed".into());
     }
-    let cause = original.get_ref()
+
+    let cause = original
+        .get_ref()
         .and_then(|cause| cause.downcast_ref::<ServingFailure>())
         .ok_or("original typed serving cause was discarded")?;
+
     if !Arc::ptr_eq(&cause.0, identity) {
         return Err("original typed serving identity changed".into());
     }
+
     Ok(())
 }
 

@@ -127,7 +127,10 @@ impl ObservedStream {
         stream: SslStream<TcpStream>,
         observation: Option<WorkerObservation>,
     ) -> Self {
-        Self { stream, observation }
+        Self {
+            stream,
+            observation,
+        }
     }
 }
 
@@ -178,9 +181,7 @@ impl AsyncWrite for ObservedStream {
         if let Poll::Ready(Ok(())) = &result
             && let Some(observation) = &mut this.observation
         {
-            observation
-                .state
-                .send_modify(|state| state.shutdown = true);
+            observation.state.send_modify(|state| state.shutdown = true);
             if let Some(fault) = observation.fault.take() {
                 observation
                     .state
@@ -225,11 +226,7 @@ impl Backup {
             .add_cert(X509::from_der(&identity.root_der)?)?;
         connector.set_alpn_protos(super::tls_support::H1_ALPN)?;
         let ssl = connector.build().configure()?.into_ssl("127.0.0.1")?;
-        let socket = timeout(
-            CONTROL_LIMIT,
-            TcpStream::connect(self.witness()?.address),
-        )
-        .await??;
+        let socket = timeout(CONTROL_LIMIT, TcpStream::connect(self.witness()?.address)).await??;
         self.client = Some(SslStream::new(ssl, socket)?);
         let client = self.client.as_mut().ok_or("control TLS client missing")?;
         timeout(CONTROL_LIMIT, Pin::new(&mut *client).connect()).await??;

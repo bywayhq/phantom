@@ -35,10 +35,14 @@ async fn explicit_abort_stops_the_original_waiting_peer() -> TestResult<()> {
     let primary = async {
         backup.pending(control).await?;
         backup.peer.as_ref().ok_or("original peer missing")?.abort();
-        let error = backup.collect(Ok(None)).await.err()
+        let error = backup
+            .collect(Ok(None))
+            .await
+            .err()
             .ok_or("explicitly aborted original peer returned success")?;
         backup.closed().await?;
-        let cancelled = error.downcast_ref::<JoinError>()
+        let cancelled = error
+            .downcast_ref::<JoinError>()
             .ok_or("original abort result was replaced")?;
         assert!(cancelled.is_cancelled());
         Ok(())
@@ -65,7 +69,10 @@ async fn canonical_collection_keeps_the_completed_original_peer_error() -> TestR
     let primary = async {
         let (caller, _) = backup.caller_failure(control).await?;
         assert!(caller.is::<phantom::RequestError>());
-        let error = backup.collect(Ok(None)).await.err()
+        let error = backup
+            .collect(Ok(None))
+            .await
+            .err()
             .ok_or("completed peer failure was accepted")?;
         backup.finished().await?;
         retains_fault(error.as_ref(), &identity)
@@ -79,12 +86,18 @@ async fn real_caller_failure_keeps_the_completed_original_cleanup_cause() -> Tes
     let (mut backup, control, identity) = Backup::prepare(true);
     let primary = async {
         let (caller, kind) = backup.caller_failure(control).await?;
-        let error = backup.collect(Err(caller)).await.err()
+        let error = backup
+            .collect(Err(caller))
+            .await
+            .err()
             .ok_or("actual caller failure was discarded")?;
         backup.finished().await?;
-        let failures = error.downcast_ref::<FixtureFailures>()
+        let failures = error
+            .downcast_ref::<FixtureFailures>()
             .ok_or("caller failure discarded its already-completed peer failure")?;
-        let original_caller = failures.primary.downcast_ref::<phantom::RequestError>()
+        let original_caller = failures
+            .primary
+            .downcast_ref::<phantom::RequestError>()
             .ok_or("original typed caller error was replaced")?;
         assert_eq!(original_caller.kind(), kind);
         retains_fault(failures.cleanup.as_ref(), &identity)

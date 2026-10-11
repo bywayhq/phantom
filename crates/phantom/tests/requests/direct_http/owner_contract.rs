@@ -77,6 +77,7 @@ pub(super) async fn observe_head(
     let Some(control) = control.as_mut() else {
         return super::read_head(stream).await;
     };
+
     let reading = super::read_head(stream);
     tokio::pin!(reading);
     let head = poll_fn(|context| {
@@ -105,6 +106,7 @@ pub(super) async fn observe_byte(
     let Some(control) = control else {
         return stream.read_exact(byte).await.map(|_| ());
     };
+
     let reading = stream.read_exact(byte);
     tokio::pin!(reading);
     poll_fn(|context| {
@@ -161,7 +163,12 @@ impl Backup {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         self.peer = Some(super::streaming_origin(listener, Some(control)));
-        self.abort = Some(self.peer.as_ref().ok_or("original peer missing")?.abort_handle());
+        self.abort = Some(
+            self.peer
+                .as_ref()
+                .ok_or("original peer missing")?
+                .abort_handle(),
+        );
         Ok(address)
     }
 
@@ -172,14 +179,23 @@ impl Backup {
         let client = self.raw_client.as_mut().ok_or("raw client missing")?;
         timeout(LIMIT, client.write_all(REQUEST_HEAD)).await??;
         timeout(LIMIT, self.state.wait_for(|state| state.waiting)).await??;
-        if self.abort.as_ref().ok_or("original peer witness missing")?.is_finished() {
+        if self
+            .abort
+            .as_ref()
+            .ok_or("original peer witness missing")?
+            .is_finished()
+        {
             return Err("original peer completed before the waiting operation".into());
         }
         Ok(())
     }
 
     async fn finished(&mut self) -> TestResult<()> {
-        timeout(OBSERVATION_LIMIT, self.state.wait_for(|state| state.destroyed)).await??;
+        timeout(
+            OBSERVATION_LIMIT,
+            self.state.wait_for(|state| state.destroyed),
+        )
+        .await??;
         let abort = self.abort.as_ref().ok_or("original peer witness missing")?;
         timeout(LIMIT, async {
             while !abort.is_finished() {
@@ -216,13 +232,28 @@ impl Backup {
         let client = self.client.as_ref().ok_or("actual client missing")?;
         let error = timeout(
             LIMIT,
-            client.request(HttpProtocol::Http1, http::Method::POST, &format!("http://{address}/ownership"))?
-                .streaming_body(super::UnknownBody::new([b"alpha".as_slice(), b"beta".as_slice()]))
+            client
+                .request(
+                    HttpProtocol::Http1,
+                    http::Method::POST,
+                    &format!("http://{address}/ownership"),
+                )?
+                .streaming_body(super::UnknownBody::new([
+                    b"alpha".as_slice(),
+                    b"beta".as_slice(),
+                ]))
                 .send(),
-        ).await?.err().ok_or("faulted origin unexpectedly answered the actual caller")?;
+        )
+        .await?
+        .err()
+        .ok_or("faulted origin unexpectedly answered the actual caller")?;
 
         let kind = error.kind();
-        timeout(LIMIT, self.state.wait_for(|state| state.read && state.fault_taken)).await??;
+        timeout(
+            LIMIT,
+            self.state.wait_for(|state| state.read && state.fault_taken),
+        )
+        .await??;
         self.finished().await?;
         Ok((Box::new(error), kind))
     }
@@ -260,16 +291,22 @@ impl Backup {
 }
 
 fn retains_fault(error: &(dyn Error + 'static), identity: &Arc<FailureIdentity>) -> TestResult<()> {
-    let original = error.downcast_ref::<io::Error>().ok_or("original serving I/O error was discarded")?;
+    let original = error
+        .downcast_ref::<io::Error>()
+        .ok_or("original serving I/O error was discarded")?;
     if original.kind() != io::ErrorKind::PermissionDenied {
         return Err("original serving I/O error kind changed".into());
     }
-    let cause = original.get_ref()
+
+    let cause = original
+        .get_ref()
         .and_then(|cause| cause.downcast_ref::<ServingFailure>())
         .ok_or("original typed serving cause was discarded")?;
+
     if !Arc::ptr_eq(&cause.0, identity) {
         return Err("original typed serving identity changed".into());
     }
+
     Ok(())
 }
 

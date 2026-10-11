@@ -12,7 +12,11 @@ async fn dropping_a_fixed_response_caller_closes_its_original_pending_peer() -> 
     let identity = TestIdentity::generate()?;
     let (observation, mut backup, release) = Observation::pair(None);
     let primary = async {
-        let mut operation = Box::pin(fixed_response_observed(&identity, RESPONSE, Some(observation)));
+        let mut operation = Box::pin(fixed_response_observed(
+            &identity,
+            RESPONSE,
+            Some(observation),
+        ));
         tokio::select! {
             result = &mut operation => {
                 result?;
@@ -37,7 +41,11 @@ async fn a_fallible_fixed_response_caller_closes_its_original_pending_peer() -> 
     let identity = TestIdentity::generate()?;
     let (observation, mut backup, release) = Observation::pair(None);
     let primary = async {
-        let mut operation = Box::pin(fixed_response_observed(&identity, RESPONSE, Some(observation)));
+        let mut operation = Box::pin(fixed_response_observed(
+            &identity,
+            RESPONSE,
+            Some(observation),
+        ));
         tokio::select! {
             result = &mut operation => {
                 result?;
@@ -76,7 +84,11 @@ async fn caller_failure_keeps_a_completed_original_fixed_response_peer_cause() -
     );
     let (observation, mut backup, release) = Observation::pair(Some(fault));
     let primary = async {
-        let mut operation = Box::pin(fixed_response_observed(&identity, RESPONSE, Some(observation)));
+        let mut operation = Box::pin(fixed_response_observed(
+            &identity,
+            RESPONSE,
+            Some(observation),
+        ));
         tokio::select! {
             result = &mut operation => {
                 result?;
@@ -128,7 +140,11 @@ async fn healthy_fixed_response_collects_its_original_peer_and_literal_event() -
     let identity = TestIdentity::generate()?;
     let (observation, mut backup, release) = Observation::pair(None);
     let primary = async {
-        let mut operation = Box::pin(fixed_response_observed(&identity, RESPONSE, Some(observation)));
+        let mut operation = Box::pin(fixed_response_observed(
+            &identity,
+            RESPONSE,
+            Some(observation),
+        ));
         tokio::select! {
             result = &mut operation => {
                 result?;
@@ -164,7 +180,11 @@ async fn explicit_abort_closes_the_original_fixed_response_pending_peer() -> Tes
     let identity = TestIdentity::generate()?;
     let (observation, mut backup, release) = Observation::pair(None);
     let primary = async {
-        let mut operation = Box::pin(fixed_response_observed(&identity, RESPONSE, Some(observation)));
+        let mut operation = Box::pin(fixed_response_observed(
+            &identity,
+            RESPONSE,
+            Some(observation),
+        ));
         tokio::select! {
             result = &mut operation => {
                 result?;
