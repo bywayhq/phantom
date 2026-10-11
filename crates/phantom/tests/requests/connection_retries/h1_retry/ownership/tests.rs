@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use tokio::time::{Elapsed, timeout};
+use tokio::time::{error::Elapsed, timeout};
 
 use crate::support::tunnel_proxy::{connection_peer::FixtureFailures, finish_with_cleanup};
 
