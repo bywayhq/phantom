@@ -1,0 +1,286 @@
+{
+  "revision": "0194679221b1407ba297b620b0e7cb3a9b5fa5ec",
+  "base": "4c55e280b5655cc5b899301a2a2c02f3d0d14019",
+  "verdict": "Bounded behavior source-approved; two minor layout follow-ups required before final candidate approval. No runtime results.",
+  "findings": [
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_outcomes.rs",
+      "line": 5,
+      "severity": "minor",
+      "problem": "New local imports precede external Tokio import. Move Tokio before the local group."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_observation.rs",
+      "line": 55,
+      "severity": "minor",
+      "problem": "Separate each poll guard from its result return by a blank paragraph; same boundary occurs in the second receiver closure."
+    }
+  ],
+  "contracts": [
+    "Literal request/response source and payload checks precede actual front/reply Pending observations; this is UDP ownership evidence, not authenticated H3 evidence.",
+    "Backup exists before acquisition; parent registered synchronously and child handle published before coordinator next await. Single-client controls exercise exactly that published worker.",
+    "Actual PermissionDenied receiver error is consumed, destructor and is_finished witnessed before unchanged canonical stop is tested. Exact kind/Arc cause identity are downstream of missing-error baseline oracle.",
+    "Abandonment destructor and actual socket binds occur before explicit finite backup; sniffer positive uses actual existing aborting Drop.",
+    "All returned prerequisite/target errors combine with backup errors through actual finish_with_cleanup; no copied collector."
+  ],
+  "preservation": {
+    "parent_inverses": "Independent stdlib text reconstruction using inspected literal replacement data restored both complete base parents exactly; author validator itself not executed.",
+    "early_parent_inverse_sha256": "7b0dc40d85535d6ab4babba06a2afe3c81405319355f435f216e4170b15b275d",
+    "session_parent_inverse_sha256": "bd5d015a19f74ff18b7e5f43f46f05aba5aaa9479134212faeb4c0ea2ec934b4",
+    "old_four_controls": "Whole two old child files exact",
+    "ordinary": "None delegates original socket operations, forwarding/gate/delay and stop policies; full parent delta manually read.",
+    "static_attempt": "Initial reviewer parser ended a here-string at a code parenthesis and failed before proof; corrected delimiter parsing passed. No artifacts overwritten or source executed."
+  },
+  "forecast": {
+    "positive": 1,
+    "negative": 4,
+    "abandonment": "RelayDropDeadline at original214; socket reacquisition downstream",
+    "local_error": "missing error original190; typed cause assertions downstream"
+  },
+  "sources": [
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data.rs",
+      "blob": "9f26d67e46b1adcb3ddd4c526ff75b91167470c6",
+      "sha256": "a2277a3fb47196069a6ea4dcedcce788ead789b1a3c942d4085ce807b0584156",
+      "lines": 1225,
+      "manual_ranges": [
+        {
+          "last": 110,
+          "first": 1
+        },
+        {
+          "last": 287,
+          "first": 180
+        },
+        {
+          "last": 842,
+          "first": 736
+        },
+        {
+          "last": 1225,
+          "first": 1212
+        }
+      ],
+      "coverage": "Partial: whole changed relay functions, stop and selected original caller; no whole1225 credit"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption.rs",
+      "blob": "d8513ef0034158a75e7fd18fdd4a47fbac020385",
+      "sha256": "740ce75bffb2cfc6d2be5651a6a65a3b814e56c025f08824061a1ef72603c6ee",
+      "lines": 839,
+      "manual_ranges": [
+        {
+          "last": 55,
+          "first": 1
+        },
+        {
+          "last": 685,
+          "first": 571
+        }
+      ],
+      "coverage": "Partial: whole changed sniffer ownership/forwarding scopes; no whole839 credit"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_observation.rs",
+      "blob": "860eadfbe752c8b239dd4574f754aa93d4cfb221",
+      "sha256": "e8bf5783668b68bb43c55db02f3ed2a7959ff4b18fd3edc42d29aa18f3a7f470",
+      "lines": 128,
+      "manual_ranges": [
+        {
+          "last": 128,
+          "first": 1
+        }
+      ],
+      "coverage": "Whole new child manually read"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_outcomes.rs",
+      "blob": "cc993a9be6a81b4391b77c872649e54d8e7158d5",
+      "sha256": "e0bfcbff93d51bd46f2912962efa4c85f90bd3a08dc921e1c83a0e52e5391380",
+      "lines": 247,
+      "manual_ranges": [
+        {
+          "last": 247,
+          "first": 1
+        }
+      ],
+      "coverage": "Whole new child manually read"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption/relay_ownership.rs",
+      "blob": "62c2f87bc916152a5bc287618e1d1d09ba9fceef",
+      "sha256": "087d5a84e6365980788f07ddcbca447eaf6ad0b00fdb91236d100f583d5e097a",
+      "lines": 45,
+      "manual_ranges": [
+        {
+          "last": 45,
+          "first": 1
+        }
+      ],
+      "coverage": "Whole new child manually read"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_controls.rs",
+      "blob": "415e421088e0222e7965d7317d7e72a299ff925e",
+      "sha256": "0e8650b63551785f26f54d6fe05fd0567ee94bf86a3e4bc09f508e1d56115ed7",
+      "lines": 141,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 141
+        }
+      ],
+      "coverage": "Whole existing child read; exact base equality"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption/relay_controls.rs",
+      "blob": "cb18bc2e06f1694868a646ee867303b2a1dc2baa",
+      "sha256": "eec7b26e07d39b11b49a8f270ed3d414d314b5c11b499b91b7d5da32b1df235c",
+      "lines": 52,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 52
+        }
+      ],
+      "coverage": "Whole existing child read; exact base equality"
+    }
+  ],
+  "dependencies": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\task\\join_set.rs",
+      "sha256": "421b2f5af3e877a85fdd8920688f10e05e62cd75d2149c7db997277ffbf3074e",
+      "lines": 851,
+      "manual_ranges": [
+        [
+          129,
+          148
+        ],
+        [
+          293,
+          314
+        ],
+        [
+          459,
+          466
+        ],
+        [
+          591,
+          595
+        ]
+      ],
+      "coverage": "Partial resolved source only"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\abort.rs",
+      "sha256": "1bc8f5ba6aaff4d831519edc519172c8c58c567473e26b0d71a4b0b730afb99f",
+      "lines": 105,
+      "manual_ranges": [
+        [
+          25,
+          90
+        ]
+      ],
+      "coverage": "Partial resolved source only"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\notify.rs",
+      "sha256": "58995a30236252e2825f0311a08959635e8044ffe2796c0a59562dffbe008638",
+      "lines": 1412,
+      "manual_ranges": [
+        [
+          25,
+          47
+        ]
+      ],
+      "coverage": "Partial resolved source only"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\net\\udp.rs",
+      "sha256": "d949eee898f951b03397f1f18146d8098be49a5b6a039a467a42f8c6fd759b94",
+      "lines": 2358,
+      "manual_ranges": [
+        [
+          758,
+          795
+        ],
+        [
+          1287,
+          1331
+        ]
+      ],
+      "coverage": "Partial resolved source only"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "lines": 377,
+      "manual_ranges": [
+        [
+          10,
+          25
+        ],
+        [
+          357,
+          364
+        ]
+      ],
+      "coverage": "Partial resolved source only"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "lines": 268,
+      "manual_ranges": [
+        [
+          1,
+          164
+        ]
+      ],
+      "coverage": "Partial supporting source only"
+    },
+    {
+      "path": "crates/phantom-testkit/src/udp.rs",
+      "blob": "b129c6f7825137617ba650595e9c596dce9ba80f",
+      "sha256": "a6bbf5af9ac71f763c49dbd4106df049eeec41eee86c24a6439811f638e668a6",
+      "lines": 125,
+      "manual_ranges": [
+        [
+          1,
+          60
+        ]
+      ],
+      "coverage": "Partial supporting source only"
+    }
+  ],
+  "handoff_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-results-baseline-handoff-01946792.md",
+      "sha256": "dc661bebaf7d19fbd712494e473a2c246951875773b4cad44228b9ee91e569fc"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-results-baseline-handoff-01946792.json",
+      "sha256": "9e50e62af502caff6d9277d63e59a96fdd41c0faaa9d6532d47e8e46331655fb"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-results-baseline-handoff-01946792.diff",
+      "sha256": "1060324b6e61f844ce22ca6ecdc5b043449a34086a28214209984c17ba837ff8"
+    }
+  ],
+  "limits": [
+    "Controlled PermissionDenied at actual receiver boundary, not an OS-generated failure",
+    "Single actual client/receiver is the intentionally bounded backup scope",
+    "Backup abort/completion observation does not retrieve JoinSet outcomes or claim joined descendants",
+    "Drop requests abort; finite backup observation applies to exercised error paths, not synchronous Drop joining",
+    "No fresh whole parent coverage or all-H3 ownership closure",
+    "Sniffer typed result/stop remains open",
+    "Front bind/connect/send, reply sends/panics and multi-sibling cause aggregation remain later source slices",
+    "Adjacent raw serving/request tasks remain open",
+    "Expected Windows ICMP ConnectionReset branch unchanged; no new measured reset control",
+    "No measured five-test results yet"
+  ],
+  "independence": "Reviewer did not author this slice; earlier authorship of fallback/H3 license work supplies no approval authority for these controls.",
+  "required_root_verification": "Nine new+existing relay controls both hosts, broader ordinary modules, cargo fmt --check, strict HTTP3 test Clippy and Rust1.88 test check; integration full gate remains separate.",
+  "operations": "Read-only Git and source/stdlib text analysis; no runtime/imports/sockets/Cargo/checkers/formatter or tracked edits."
+}

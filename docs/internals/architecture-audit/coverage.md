@@ -171,6 +171,20 @@ selections. These checks do not establish a full workspace gate.
 
 ## Recent verification
 
+The [H3 relay baseline](h3-relay-baseline-root-native-fc224c8c.json)
+records the same nine methods on Windows and Linux at `fc224c8c`.
+Five pass and four fail. Both abandonment controls reach the original
+destruction deadline. Both completed-read controls observe their actual
+worker finish before the unchanged stop path discards its error.
+
+Socket reacquisition and original fault identity assertions after those
+failures remain uncredited. The controls exchange real UDP datagrams with
+controlled local faults. They do not establish an authenticated H3 exchange.
+Formatting and strict Clippy reject the new scaffold; Rust 1.88 checks pass.
+The [source review](h3-relay-named-contract-independent-addendum-604b1c29.json)
+preserves the earlier bounded reads and follow-ups. Scaffold corrections,
+the ownership remedy and final gates remain open.
+
 The [TCP and fallback checkpoint](origin-fallback-root-native-checkpoint-4c55e280.json)
 records the reviewed TCP worker-result repair on both hosts at `4c55e280`.
 All seven serving controls and all 27 ECH example methods pass. Strict

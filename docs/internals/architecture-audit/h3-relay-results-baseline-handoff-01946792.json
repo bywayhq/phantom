@@ -1,0 +1,204 @@
+{
+  "commit": "0194679221b1407ba297b620b0e7cb3a9b5fa5ec",
+  "base": "4c55e280b5655cc5b899301a2a2c02f3d0d14019",
+  "lane": "C:/code/phantom-worktrees/audit-h3-relay-results",
+  "branch": "lane/audit-h3-relay-results",
+  "kind": "Tests-first baseline; canonical ownership and outcome loss deliberately retained",
+  "signature": "G",
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "clean": true,
+  "sources": [
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data.rs",
+      "blob": "9f26d67e46b1adcb3ddd4c526ff75b91167470c6",
+      "lines": 1225,
+      "git_lf_sha256": "a2277a3fb47196069a6ea4dcedcce788ead789b1a3c942d4085ce807b0584156",
+      "manual_ranges": [
+        {
+          "last": 110,
+          "first": 1
+        },
+        {
+          "last": 287,
+          "first": 180
+        },
+        {
+          "last": 842,
+          "first": 736
+        },
+        {
+          "last": 1225,
+          "first": 1212
+        }
+      ],
+      "coverage": "Partial: whole changed relay functions, stop and selected original caller; no whole1225 credit"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption.rs",
+      "blob": "d8513ef0034158a75e7fd18fdd4a47fbac020385",
+      "lines": 839,
+      "git_lf_sha256": "740ce75bffb2cfc6d2be5651a6a65a3b814e56c025f08824061a1ef72603c6ee",
+      "manual_ranges": [
+        {
+          "last": 55,
+          "first": 1
+        },
+        {
+          "last": 685,
+          "first": 571
+        }
+      ],
+      "coverage": "Partial: whole changed sniffer ownership/forwarding scopes; no whole839 credit"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_observation.rs",
+      "blob": "860eadfbe752c8b239dd4574f754aa93d4cfb221",
+      "lines": 128,
+      "git_lf_sha256": "e8bf5783668b68bb43c55db02f3ed2a7959ff4b18fd3edc42d29aa18f3a7f470",
+      "manual_ranges": [
+        {
+          "last": 128,
+          "first": 1
+        }
+      ],
+      "coverage": "Whole new child manually read"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_outcomes.rs",
+      "blob": "cc993a9be6a81b4391b77c872649e54d8e7158d5",
+      "lines": 247,
+      "git_lf_sha256": "e0bfcbff93d51bd46f2912962efa4c85f90bd3a08dc921e1c83a0e52e5391380",
+      "manual_ranges": [
+        {
+          "last": 247,
+          "first": 1
+        }
+      ],
+      "coverage": "Whole new child manually read"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption/relay_ownership.rs",
+      "blob": "62c2f87bc916152a5bc287618e1d1d09ba9fceef",
+      "lines": 45,
+      "git_lf_sha256": "087d5a84e6365980788f07ddcbca447eaf6ad0b00fdb91236d100f583d5e097a",
+      "manual_ranges": [
+        {
+          "last": 45,
+          "first": 1
+        }
+      ],
+      "coverage": "Whole new child manually read"
+    }
+  ],
+  "preservation": {
+    "whole_parent_operation_inverses": "Both exactly restore4c55",
+    "other_tracked_paths": "No changes",
+    "validator_sha256": "5602ef559963cd182eca1fcc71c7359b6ccbe275c959f500e23b4ed49a36f210",
+    "stop_semantics": "Original stop_relay and sniffer Drop retained",
+    "validator": "validate-h3-relay-baseline-source-4c55e280.ps1",
+    "ordinary_path": "Original calls delegate with None, direct socket operation branch",
+    "old_controls": "Whole141 early child and52 session child exact; all4 methods preserved"
+  },
+  "forecast": [
+    {
+      "result": "FAIL",
+      "first_boundary": 214,
+      "cause": "Typed RelayDropDeadline after actual Pending and literal traffic; later rebind uncredited",
+      "method": "http3_early_data::relay_outcomes::abandoning_a_delaying_relay_releases_its_actual_receiver"
+    },
+    {
+      "result": "FAIL",
+      "first_boundary": 214,
+      "cause": "Same actual ownership contract; gate sender remains alive",
+      "method": "http3_early_data::relay_outcomes::abandoning_a_gated_relay_releases_its_actual_receiver"
+    },
+    {
+      "result": "FAIL",
+      "first_boundary": 190,
+      "cause": "Original stop returns unit success despite completed controlled receiver error; later kind/identity uncredited",
+      "method": "http3_early_data::relay_outcomes::stopping_a_delaying_relay_retains_its_completed_local_read_error"
+    },
+    {
+      "result": "FAIL",
+      "first_boundary": 190,
+      "cause": "Same completed receiver cause-retention contract",
+      "method": "http3_early_data::relay_outcomes::stopping_a_gated_relay_retains_its_completed_local_read_error"
+    },
+    {
+      "result": "PASS",
+      "cause": "Existing Drop abort owns actual front and reply tasks; actual socket reacquisition before backup",
+      "method": "http3_session_resumption::relay_ownership::dropping_a_hello_sniffer_releases_its_actual_pending_receiver"
+    }
+  ],
+  "dependencies": [
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/task/join_set.rs",
+      "manual_ranges": [
+        {
+          "last": 148,
+          "first": 129
+        },
+        {
+          "last": 314,
+          "first": 293
+        },
+        {
+          "last": 466,
+          "first": 459
+        },
+        {
+          "last": 595,
+          "first": 591
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/abort.rs",
+      "manual_ranges": [
+        {
+          "last": 90,
+          "first": 25
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/sync/notify.rs",
+      "manual_ranges": [
+        {
+          "last": 47,
+          "first": 25
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "coverage": "Supporting partial, real finish_with_cleanup implementation1–107 read",
+      "manual_ranges": [
+        {
+          "last": 164,
+          "first": 1
+        }
+      ]
+    }
+  ],
+  "checks": [
+    "Whole parent operation inverses PASS",
+    "Original control equality PASS",
+    "git diff --check0",
+    "Full changed-function and new-child manual review",
+    "No Cargo/runtime/formatter/checker/resource execution"
+  ],
+  "limitations": [
+    "Controlled PermissionDenied at actual receiver boundary, not an OS-generated failure",
+    "Single actual client/receiver is the intentionally bounded backup scope",
+    "Backup abort/completion observation does not retrieve JoinSet outcomes or claim joined descendants",
+    "Drop requests abort; finite backup observation applies to exercised error paths, not synchronous Drop joining",
+    "No fresh whole parent coverage or all-H3 ownership closure",
+    "Sniffer typed result/stop remains open",
+    "Front bind/connect/send, reply sends/panics and multi-sibling cause aggregation remain later source slices",
+    "Adjacent raw serving/request tasks remain open",
+    "Expected Windows ICMP ConnectionReset branch unchanged; no new measured reset control",
+    "No measured five-test results yet"
+  ]
+}

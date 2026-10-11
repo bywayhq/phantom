@@ -1,0 +1,7 @@
+# H3 baseline layout follow-up
+
+Signed clean b00ad7c586b19e804e3b4d66f0fada36ef7af70b addresses the independent review's minor layout findings without changing the baseline contracts. Tokio's external import now precedes local imports, and each poll closure separates its Pending guard from the returned outcome.
+
+Both whole-file inverses restore019 exactly. All other files, five control bodies and both parent operation inverses remain exact. The first forecast error-loss boundary shifts190→191 and lifetime boundary214→215 only because of the import grouping line. Original019 records remain immutable; forecast1PASS4FAIL has no runtime credit.
+
+Fresh manual review covered the complete four-addition/one-deletion diff and changed import/poll contexts in the JSON. Good Git signature, both required human identities and clean status were verified. Only source inverses and Git diff checking were performed; no Cargo, formatter, checker or runtime. The combined019+b00 candidate still requires independent source approval and both-host root causal execution.

@@ -1,0 +1,332 @@
+{
+  "revision": "fc224c8c7882493c8a3168da2e4907040c8cd65d",
+  "source_revision": "604b1c29feabab924c5ef8afd00d07272f62330b",
+  "terminal_handles": {
+    "windows": 26354,
+    "linux": 18887
+  },
+  "launcher": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\run-h3-relay-baseline-reviewed.sh",
+    "sha256": "a9fdd214dae45554544ee980dc7b25352ec2dda6377a1775dfe9604fd57c3b36"
+  },
+  "hosts": {
+    "windows": {
+      "methods": [
+        {
+          "name": "http3_early_data::relay_controls::cancelling_a_delayed_receiver_cancels_its_already_queued_packet",
+          "outcome": "ok"
+        },
+        {
+          "name": "http3_early_data::relay_controls::cancelling_a_delaying_relay_releases_both_observed_sockets",
+          "outcome": "ok"
+        },
+        {
+          "name": "http3_early_data::relay_controls::cancelling_a_gated_relay_releases_sockets_with_the_gate_sender_alive",
+          "outcome": "ok"
+        },
+        {
+          "name": "http3_early_data::relay_outcomes::abandoning_a_delaying_relay_releases_its_actual_receiver",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http3_early_data::relay_outcomes::abandoning_a_gated_relay_releases_its_actual_receiver",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http3_early_data::relay_outcomes::stopping_a_delaying_relay_retains_its_completed_local_read_error",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http3_early_data::relay_outcomes::stopping_a_gated_relay_retains_its_completed_local_read_error",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http3_session_resumption::relay_controls::cancelling_a_hello_sniffer_releases_both_observed_udp_sockets",
+          "outcome": "ok"
+        },
+        {
+          "name": "http3_session_resumption::relay_ownership::dropping_a_hello_sniffer_releases_its_actual_pending_receiver",
+          "outcome": "ok"
+        }
+      ],
+      "passed": 5,
+      "failed": 4,
+      "steps": {
+        "early": 101,
+        "sniffer": 0,
+        "fmt": 1,
+        "clippy": 101,
+        "msrv": 0
+      },
+      "runner_exit": 1
+    },
+    "linux": {
+      "methods": [
+        {
+          "name": "http3_early_data::relay_controls::cancelling_a_delayed_receiver_cancels_its_already_queued_packet",
+          "outcome": "ok"
+        },
+        {
+          "name": "http3_early_data::relay_controls::cancelling_a_delaying_relay_releases_both_observed_sockets",
+          "outcome": "ok"
+        },
+        {
+          "name": "http3_early_data::relay_controls::cancelling_a_gated_relay_releases_sockets_with_the_gate_sender_alive",
+          "outcome": "ok"
+        },
+        {
+          "name": "http3_early_data::relay_outcomes::abandoning_a_delaying_relay_releases_its_actual_receiver",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http3_early_data::relay_outcomes::abandoning_a_gated_relay_releases_its_actual_receiver",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http3_early_data::relay_outcomes::stopping_a_delaying_relay_retains_its_completed_local_read_error",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http3_early_data::relay_outcomes::stopping_a_gated_relay_retains_its_completed_local_read_error",
+          "outcome": "FAILED"
+        },
+        {
+          "name": "http3_session_resumption::relay_controls::cancelling_a_hello_sniffer_releases_both_observed_udp_sockets",
+          "outcome": "ok"
+        },
+        {
+          "name": "http3_session_resumption::relay_ownership::dropping_a_hello_sniffer_releases_its_actual_pending_receiver",
+          "outcome": "ok"
+        }
+      ],
+      "passed": 5,
+      "failed": 4,
+      "steps": {
+        "early": 101,
+        "sniffer": 0,
+        "fmt": 1,
+        "clippy": 101,
+        "msrv": 0
+      },
+      "runner_exit": 1
+    }
+  },
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data.rs",
+      "blob": "9f26d67e46b1adcb3ddd4c526ff75b91167470c6",
+      "sha256": "a2277a3fb47196069a6ea4dcedcce788ead789b1a3c942d4085ce807b0584156",
+      "bytes": 48740
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption.rs",
+      "blob": "d8513ef0034158a75e7fd18fdd4a47fbac020385",
+      "sha256": "740ce75bffb2cfc6d2be5651a6a65a3b814e56c025f08824061a1ef72603c6ee",
+      "bytes": 30625
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_observation.rs",
+      "blob": "8427da3f874bb644d995e3973960f752b85b686d",
+      "sha256": "98790145c3d3a7b6fd14065f9ea38226e5d83eeb3626209f0fb84ca4656adb66",
+      "bytes": 3503
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_outcomes.rs",
+      "blob": "e9e34919a375254e0a0a991fddf01896a6afba8e",
+      "sha256": "c275dc5d002dd52d553a37a2909a80e046de371e51642fd0173e7209cefbd7a1",
+      "bytes": 8482
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_session_resumption/relay_ownership.rs",
+      "blob": "62c2f87bc916152a5bc287618e1d1d09ba9fceef",
+      "sha256": "087d5a84e6365980788f07ddcbca447eaf6ad0b00fdb91236d100f583d5e097a",
+      "bytes": 1677
+    }
+  ],
+  "observed": [
+    "Actual literal UDP exchange and canonical front/reply Pending precede the four failures.",
+    "Both abandonment controls fail at concrete RelayDropDeadline before socket reacquisition assertions.",
+    "Both completed-read controls witness fault invocation, receiver destruction and actual task completion before canonical stop loses its result.",
+    "Existing three early relay controls, existing sniffer cancellation and new sniffer Drop positive pass.",
+    "Strict Clippy rejects eight expect() lock sites; formatting rejects wrapping/import order; Rust 1.88 test check passes."
+  ],
+  "root_read_scope": "Complete launcher, all ten step logs, twelve status/revision sidecars; both native handles terminal.",
+  "limits": [
+    "Negative baseline is not an ownership or error-propagation remedy.",
+    "Original fault kind/allocation and abandonment socket reacquisition after the failing assertions remain uncredited.",
+    "Controls use actual UDP fixtures with controlled local faults; no authenticated H3 exchange or natural OS fault is claimed.",
+    "Finite backup covers the single exercised receiver, without harvesting all descendant outcomes.",
+    "Scaffold quality corrections, ordinary module tests, final independent native review and full gates remain pending.",
+    "Parent source review remains historical complete review plus bounded reviewed changes; no fresh whole-parent read is added."
+  ],
+  "artifacts": [
+    {
+      "host": "windows",
+      "step": "early",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-windows.early.log",
+      "bytes": 2282,
+      "sha256": "4dc90a47eb5b82c022b1af03d6a52549bf4d9bdc2130ffb438761517fc026a04"
+    },
+    {
+      "host": "windows",
+      "step": "early",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-windows.early.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "host": "windows",
+      "step": "sniffer",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-windows.sniffer.log",
+      "bytes": 501,
+      "sha256": "5c33c39d3e2f226de4e4df17be25c97577ce8479301761738cf785ce5aa434c3"
+    },
+    {
+      "host": "windows",
+      "step": "sniffer",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-windows.sniffer.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "windows",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-windows.fmt.log",
+      "bytes": 6479,
+      "sha256": "ac1aa062bf57b1bba2bb90d15ed90b951a6b29ac65a65f8988df277ca963939a"
+    },
+    {
+      "host": "windows",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "host": "windows",
+      "step": "clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-windows.clippy.log",
+      "bytes": 4437,
+      "sha256": "95c6ee33de6adeb31d1d0e7247433ce9f8d0f7088529af353663d8f8a36ac5fb"
+    },
+    {
+      "host": "windows",
+      "step": "clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-windows.clippy.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "host": "windows",
+      "step": "msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-windows.msrv.log",
+      "bytes": 168,
+      "sha256": "c752a9af9ff0015e392e3ed1067407f1c44155c7d26f1ca00b96adb21454c2d3"
+    },
+    {
+      "host": "windows",
+      "step": "msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-windows.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "windows",
+      "step": "revision",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-windows.revision",
+      "bytes": 41,
+      "sha256": "73525d02cbc30512e6fe7bf6ded2e5a55b0e59ec2bac694e62a8f23483aab926"
+    },
+    {
+      "host": "windows",
+      "step": "runner-exit",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "host": "linux",
+      "step": "early",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-linux.early.log",
+      "bytes": 2288,
+      "sha256": "46f8e21e0c0ab519d4ae8cb33e68414b8bcb636d7c2f40a7e890ca61ea4c4ea6"
+    },
+    {
+      "host": "linux",
+      "step": "early",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-linux.early.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "host": "linux",
+      "step": "sniffer",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-linux.sniffer.log",
+      "bytes": 497,
+      "sha256": "0a85af1777ce05c64501bb005027e6748b26704c7af5b23fa28604410aa5c285"
+    },
+    {
+      "host": "linux",
+      "step": "sniffer",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-linux.sniffer.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-linux.fmt.log",
+      "bytes": 7194,
+      "sha256": "0c40382a9b1f80b9a89f838cda453e61fde2aa746d1c8676e3c95f195165d34c"
+    },
+    {
+      "host": "linux",
+      "step": "fmt",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "host": "linux",
+      "step": "clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-linux.clippy.log",
+      "bytes": 4447,
+      "sha256": "20b260a6c7ca3ff2f1a07903b276391e596c340a014d1a4d1c1d69840bba849e"
+    },
+    {
+      "host": "linux",
+      "step": "clippy",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-linux.clippy.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "host": "linux",
+      "step": "msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-linux.msrv.log",
+      "bytes": 177,
+      "sha256": "ece6c645bda154bc0202702f6ee7c72792dc1c0036fee3742ee99f842abcc950"
+    },
+    {
+      "host": "linux",
+      "step": "msrv",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-linux.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "host": "linux",
+      "step": "revision",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-linux.revision",
+      "bytes": 41,
+      "sha256": "73525d02cbc30512e6fe7bf6ded2e5a55b0e59ec2bac694e62a8f23483aab926"
+    },
+    {
+      "host": "linux",
+      "step": "runner-exit",
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-baseline-fc224c8c-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+# Named H3 relay contracts
+
+Clean signed604b1c29feabab924c5ef8afd00d07272f62330b addresses root's remaining baseline readability findings. The sole changed child now groups the parent wildcard with local imports after std/Tokio. RelayKind and ObservedContract explicitly name each of the four calls instead of requiring the reader to decode two booleans.
+
+The exact whole-file inverse restoresb00: remove the two enums, reverse the import move, substitute the two equivalent matches conditions and reverse the four literal call mappings. Every original UDP operation, actual Pending observation, one-shot fault, completion/destructor witness, timer, stop/error condition and backup operation remains. Both parent inverses and all four old controls remain exact4c55. The original019/b00 records and forecasts are preserved; current target boundaries are200/224, with no measured credit.
+
+Fresh manual review covered the whole delta and exact ranges in the JSON, including all four current method bodies. This is differential coverage of the257-line child rather than a new whole-child claim. Git reports a good signature and both required human identities. No Cargo, formatter, checker, runtime or resource action occurred. Independent review of019+b00+604 remains required before root native execution.

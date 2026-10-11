@@ -1,0 +1,48 @@
+{
+  "commit": "b00ad7c586b19e804e3b4d66f0fada36ef7af70b",
+  "parent": "0194679221b1407ba297b620b0e7cb3a9b5fa5ec",
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "signature": "G",
+  "clean": true,
+  "delta": "External Tokio import before local imports; two blank lines between Pending guards and returned poll outcomes",
+  "files": [
+    {
+      "manual_ranges": [
+        {
+          "first": 45,
+          "last": 59
+        },
+        {
+          "first": 73,
+          "last": 90
+        }
+      ],
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_observation.rs",
+      "blob": "8427da3f874bb644d995e3973960f752b85b686d",
+      "lines": 130
+    },
+    {
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 10
+        }
+      ],
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_outcomes.rs",
+      "blob": "8e1338e8b15ce872fc05fbd6016f4a1d48859660",
+      "lines": 248
+    }
+  ],
+  "whole_file_inverses": "Exact both to019",
+  "parent_operation_inverses": "Exact both to4c55",
+  "other_paths": "Unchanged",
+  "five_controls": "Unchanged",
+  "forecast": "Original1PASS4FAIL source forecast, first boundaries shift190→191 and214→215; no runtime",
+  "checks": [
+    "Source inverse PASS",
+    "git diff --check0",
+    "Good signature and human identity",
+    "No formatter/checker/Cargo/runtime"
+  ]
+}

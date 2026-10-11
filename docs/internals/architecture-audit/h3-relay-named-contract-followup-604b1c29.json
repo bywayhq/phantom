@@ -1,0 +1,33 @@
+{
+  "commit": "604b1c29feabab924c5ef8afd00d07272f62330b",
+  "parent": "b00ad7c586b19e804e3b4d66f0fada36ef7af70b",
+  "signature": "G",
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "clean": true,
+  "path": "crates/phantom/tests/http3/http3_early_data/relay_outcomes.rs",
+  "blob": "e9e34919a375254e0a0a991fddf01896a6afba8e",
+  "lines": 257,
+  "manual_ranges": [
+    {
+      "last": 12,
+      "first": 1
+    },
+    {
+      "last": 173,
+      "first": 130
+    },
+    {
+      "last": 257,
+      "first": 238
+    }
+  ],
+  "changes": "Move super wildcard to local group; replace two opaque boolean arguments with RelayKind and ObservedContract enums",
+  "inverse": "Whole file exactb00 after reversing import move and named enum/call substitutions",
+  "operations": "All actual UDP, Pending, fault, destructor, stop, backup and cause assertions preserved",
+  "other_paths": "Exactb00",
+  "old_controls": "Exact4c55",
+  "parent_operation_inverses": "Exact4c55",
+  "forecast": "1PASS4FAIL source only; current loss200/lifetime224, original019 andb00 boundaries preserved historically",
+  "verification": "Static text inverses/Git diff check only; no formatter/Cargo/runtime/checkers"
+}
