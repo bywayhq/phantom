@@ -163,7 +163,8 @@ async fn real_retry_caller_failure_keeps_the_completed_original_write_cause() ->
 }
 
 #[tokio::test]
-async fn original_collector_expiry_keeps_its_elapsed_and_closes_both_pending_tasks() -> TestResult<()> {
+async fn original_collector_expiry_keeps_its_elapsed_and_closes_both_pending_tasks()
+-> TestResult<()> {
     let (mut backup, request, server, _) = Backup::prepare(Mode::HoldResponse);
     // Exceeds setup/Pending (10s), four join phases (20s), and teardown (17s).
     let primary = match timeout(Duration::from_secs(60), async {
@@ -175,7 +176,10 @@ async fn original_collector_expiry_keeps_its_elapsed_and_closes_both_pending_tas
             .await
             .err()
             .ok_or("pending original retry collection completed without expiring")?;
-        assert!(error.is::<Elapsed>(), "original collector elapsed was replaced");
+        assert!(
+            error.is::<Elapsed>(),
+            "original collector elapsed was replaced"
+        );
         backup.destroyed().await
     })
     .await

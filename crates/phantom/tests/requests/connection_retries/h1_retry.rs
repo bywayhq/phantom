@@ -65,13 +65,17 @@ impl Exchange {
         control: Option<ownership::RequestControl>,
     ) -> Self {
         Self {
-            request: Some(ConnectionPeer::spawn(ownership::observe_request(request, control))),
+            request: Some(ConnectionPeer::spawn(ownership::observe_request(
+                request, control,
+            ))),
             server: None,
         }
     }
 
     pub(super) fn listen(&mut self, listener: TcpListener, control: Option<ownership::Control>) {
-        self.server = Some(ConnectionPeer::spawn(serve_one_chunked_request(listener, control)));
+        self.server = Some(ConnectionPeer::spawn(serve_one_chunked_request(
+            listener, control,
+        )));
     }
 
     pub(super) async fn response(&mut self) -> TestResult<Response<ResponseBody>> {
@@ -84,7 +88,10 @@ impl Exchange {
         Ok(joined??)
     }
 
-    pub(super) async fn finish<T>(mut self, caller: TestResult<T>) -> TestResult<(T, ServerOutput)> {
+    pub(super) async fn finish<T>(
+        mut self,
+        caller: TestResult<T>,
+    ) -> TestResult<(T, ServerOutput)> {
         let mut request_requested = false;
         let mut server_requested = false;
         if caller.is_err() {
