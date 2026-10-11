@@ -2490,6 +2490,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Stop Android capture setup when a required emulator or snapshot query fails,
+  even if its output looks valid. Keep successful missing-property checks and
+  their existing refusal rules.
+
 - Keep refused Android captures from stopping a browser. Own configuration
   uploads before they start, attempt cleanup actions independently, and keep
   the initiating error with cleanup failures. Repeated cleanup retries only

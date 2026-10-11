@@ -522,7 +522,7 @@ class AndroidSession:
         `require_snapshot`.
         """
         for name in EMULATOR_PROPERTIES:
-            if self.device.shell("getprop", name, check=False).strip() == "1":
+            if self.device.shell("getprop", name).strip() == "1":
                 self.require_snapshot()
                 return
         if self.launch.allow_physical_device or allowed_on_physical_device():
@@ -537,7 +537,7 @@ class AndroidSession:
         """Refuse an emulator without the snapshot marker, unless allowed."""
         if self.launch.allow_cold_boot or allowed_after_cold_boot():
             return
-        if self.device.shell("getprop", SNAPSHOT_PROPERTY, check=False).strip():
+        if self.device.shell("getprop", SNAPSHOT_PROPERTY).strip():
             return
         raise ColdBootRefused(
             f"the emulator has no {SNAPSHOT_PROPERTY} property, so it cold-booted "
