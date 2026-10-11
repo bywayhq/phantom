@@ -1,0 +1,7 @@
+# H3 relay scaffold follow-up
+
+The original570 source-approved forecast remains historical: root400a failed HTTP3 test compilation because FixtureFailures is not reexported from tunnel_proxy. The type is pub(crate) in the visible connection_peer module. This correction names that actual private owner without changing a shared API. No new two-control runtime credit or semantic ownership repair is claimed.
+
+Child1-25, supporting tunnel_proxy1-35 and connection_peer1-115; entire one-line diff. Whole child inverse restores570, retaining every method/helper/oracle and all other Git objects.
+
+Signed with both required human identities; lane clean at8da6022d. Static inverse and scoped diff checks pass. Independent review and fresh root verification remain required. Earlier570 and400a artifacts remain immutable.

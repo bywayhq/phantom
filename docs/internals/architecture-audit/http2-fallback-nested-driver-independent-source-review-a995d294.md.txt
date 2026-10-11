@@ -1,0 +1,9 @@
+# Fallback nested-driver independent source review
+
+No source blocker found in signed a995d294; approve bounded integration and unchanged nineteen-control verification. The complete changed function, collector, imports and typed deadline were read with the full semantic diff. The current268-line ConnectionPeer was read completely; reexports and Tokio runtime support were read partially. The397-line control owner reuses the fresh full read from the separate c3cf assessment and matches90c exactly.
+
+The actual driver is guarded before publication/body work. Original DATA, capacity and literal204 operations are preserved. Saving Received metadata before driver collection deliberately retains metadata errors with cleanup while preserving healthy output. Healthy work permits a natural20-second join. Earlier failures await completed actual inner errors or JoinError directly; pending tasks receive the existing requested five-second stop. Original primary and secondary objects remain in finish_with_cleanup.
+
+Whole parent inverse, exact control bytes, all outside-region/import bytes and other tracked objects pass. Both required human identities and signature are valid; lane clean. The review does not establish a fixed native result, a universal cancellation provenance policy, completed fault-combination coverage, or outer/accepted/sibling ownership. Drop requests abort and does not prove joined destruction. The original1efa destructor failure and historical84b backup errors remain immutable.
+
+Root must run the unchanged nineteen fallback methods on both hosts, then cargo fmt --check, strict all-feature HTTP3-test Clippy and Rust1.88 checks through the lock helper. Applicable integration gates remain pending; no vendored package changed.

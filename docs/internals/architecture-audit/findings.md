@@ -242,6 +242,19 @@ fallback result. See `quic-relay-root-native-baseline-400a900e.json`.
 
 ## Current proxy evidence
 
+At `a896be8b`, the A224 nested-driver repair passes all nineteen unchanged
+fallback methods on both hosts. The original cancellation negative now
+observes actual driver destruction and I/O closure before backup. Healthy
+upload/204 and explicit driver-abort controls remain green. Outer, unpolled,
+accepted and sibling ownership, A226 observations and final gates stay open.
+
+The corrected A223 scaffold executes nine early-data controls with three
+passes and six failures, plus two passing sniffer controls. The new sibling
+and external-cancellation negatives reach their original missing-error
+assertions. Later cause and task identities remain uncredited. Both hosts
+pass formatting, strict HTTP3-test Clippy and Rust 1.88 checks. See
+`relay-fallback-root-native-checkpoint-a896be8b.json`.
+
 At `2fb596ad`, all thirty cookie methods pass on Windows and Linux. The
 [root receipt](cookie-lifecycle-remedy-root-2fb596ad.md.txt) records the
 unchanged baseline roster, including ten previously failing controls.

@@ -1,0 +1,15 @@
+{
+  "revision": "8da6022d13029e2f29b7c230ffe4f4f90c843b3f",
+  "parent": "d398994b811f0f91cd7e28494ba53ef3d9df0dc6",
+  "path": "crates/phantom/tests/http3/http3_early_data/relay_observation.rs",
+  "blob": "2adb851396bfd74cdb92ec7bf41014e465c0039b",
+  "sha256": "22d72e511215b24ec840f201c6e7d67413e64f21ee9e80c776e0e82106616899",
+  "lines": 239,
+  "read_scope": "Observer21-51 and full three-line wrapping diff; complete root400a Windows format log. Prior whole237 observer read plus exact two-line differential binds current239, without a fresh whole239 claim.",
+  "inverse": "exact whole affected file",
+  "outside_scope": "all other tracked objects unchanged",
+  "identity": "G; author and committer Arya Alikhani <AryaAlikhani@icloud.com>",
+  "checks": "static inverse, full diff and git diff --check only; clean lane",
+  "qualification": "This applies exactly the retained formatter request to the existing io::Error expression. Literal error text and expression tokens remain unchanged apart from the formatter optional trailing comma. Whole inverse restores d398 observer exactly; all226 control bytes and every other Git object are unchanged. Root400a format1 remains preserved; no formatter or runtime was executed in this lane.",
+  "pending": "Independent source review, root actual compilation/format and unchanged control baseline; semantic remedy remains frozen."
+}

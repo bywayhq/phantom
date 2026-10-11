@@ -187,6 +187,21 @@ selections. These checks do not establish a full workspace gate.
 
 ## Recent verification
 
+The [relay and fallback checkpoint](relay-fallback-root-native-checkpoint-a896be8b.json)
+records the reviewed nested-driver repair on both hosts at `a896be8b`.
+All nineteen unchanged fallback methods pass, including actual cancellation,
+driver destruction and I/O closure before backup. The trusted upload and
+literal 204 response remain green. Formatting, strict HTTP3-test Clippy and
+Rust 1.88 checks pass.
+
+The corrected relay scaffold now executes nine early-data methods with three
+passes and six failures, plus two passing sniffer methods. The two new
+negatives reach discarded completed-sibling errors and discarded external
+cancellation. Their later original-cause and task-identity assertions remain
+unreached. The four original relay failures remain. These controls use real
+UDP traffic with controlled faults. Coordinator ownership, other fallback
+owners, malformed-wire observations and final gates remain open.
+
 The [QUIC and relay checkpoint](quic-relay-root-native-baseline-400a900e.json)
 records the corrected QUIC scaffold on both hosts at `400a900e`. The five
 QUIC controls have four passes and one causal missing-error failure after a

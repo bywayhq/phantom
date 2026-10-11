@@ -1,0 +1,127 @@
+{
+  "kind": "authored bounded nested HTTP2 body-driver owner remedy; independent source approval and native execution pending",
+  "revision": "a995d2940b7dda3b1ab38aed4c8832a6b047c50e",
+  "parent": "90c24b904ebe120e6937809d1c31a57a0098a73e",
+  "signature": "G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "blob": "55596c0774e2f26ba5c99f709e3719e71c176823",
+      "git_sha256": "e21bf250c42e9c76e0e73d8daf1a6c368581c40a971217522c313be07d1b4615",
+      "physical_sha256": "2158eebe6fb4533f7cde17056c4edcf6a164285fd5ef2464ce63b6cf501c7fe5",
+      "lines": 735,
+      "manual_scope": "partial current parent; complete changed function/collector and complete diff",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 43,
+          "sha256": "faae08b6072e6482d6cc6a36360742a732548b56c5e66943538705fa2203b1ee"
+        },
+        {
+          "first": 137,
+          "last": 227,
+          "sha256": "229fae52d210c960d1af3b9a771c546224b11706e85edef21f25deed31698e99"
+        },
+        {
+          "first": 236,
+          "last": 258,
+          "sha256": "98a85d979a23b7b49b65ce42fb2f403a35cae1277a767e879777e538d06963b9"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/driver_ownership.rs",
+      "blob": "1aae2eba93fe396d7e14992d9fe60a180b4ec6d0",
+      "git_sha256": "0fce194855cb1efe3600b00414928e2d03eafb7b1ad5e2a7af89deab5f549591",
+      "physical_sha256": "0fce194855cb1efe3600b00414928e2d03eafb7b1ad5e2a7af89deab5f549591",
+      "lines": 397,
+      "manual_scope": "whole397 read at frozen90c this session; current bytes exact90c",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 397,
+          "sha256": "0fce194855cb1efe3600b00414928e2d03eafb7b1ad5e2a7af89deab5f549591"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "git_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "physical_sha256": "515fc6080d43f01f8770ad4c4de3b6710d059ac4ff832765020cda53aa280053",
+      "lines": 268,
+      "manual_scope": "whole268 concrete owner freshly read this session",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 268,
+          "sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "blob": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "git_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "physical_sha256": "5f331f7943bda37a25511bef380c16564c9661b005d61f477bfcb6f0b13b14ba",
+      "lines": 629,
+      "manual_scope": "partial fresh actual public reexport contract",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 38,
+          "sha256": "9c34857cb112a51c09d40cf897a2807a547fad2d2e91a0a654493dac049b6e1f"
+        }
+      ]
+    }
+  ],
+  "source_diff_sha256": "b927cbd6b85c04360fe14443aaac55e20b43bcba69dab6457f503c13e94ea1da",
+  "preservation": {
+    "whole_file_reverse_hunk_exact": true,
+    "outside_serve_region_and_one_import_exact": true,
+    "all_parent_test_bodies_and_child_bytes_exact": true,
+    "all_other_tracked_paths_modes_exact": true,
+    "canonical_body_data_capacity_and_literal204_operations_exact": true
+  },
+  "design": [
+    "Actual original raw tokio::spawn driver is immediately adopted by ConnectionPeer before any fallible publication/body work. Original poll_closed remains the worker; mapping moves its original typed HTTP2 error into the existing TestResult box. Drop requests actual nested task abort.",
+    "Original body DATA/flow-control/literal204 logic runs into saved operation result. RecvStream remains in the outer scope through join/cleanup. Received metadata is constructed before driver collection so a metadata failure can be retained with a completed driver failure; healthy literal method/path/body unchanged.",
+    "Healthy operation permits actual natural driver completion and queued204 flushing under the existing20-second TEST_TIMEOUT. Original FallbackDeadline wraps actual Elapsed and any finite shutdown failure is retained.",
+    "On earlier operation failure or natural-join timeout, stop_http2_driver checks actual completion. Completed inner failure or JoinError including cancellation/panic is awaited directly and retained. Only a snapshot-pending task uses the existing requested abort/5-second stop contract.",
+    "finish_with_cleanup retains original operation plus actual driver/timeout/shutdown causes after all applicable explicit cleanup. No blanket I/O or HTTP2 classification waiver."
+  ],
+  "baseline": {
+    "root_revision": "1efa55d80753e5e1dcdd5ca5410ac378e090e50d",
+    "source_prerequisite": "root integrated90c actual-write witness, root confirmed both runners terminal",
+    "logs": [
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-windows.fallback.log",
+        "sha256": "3d5d3e7d7bcb5488c895fc9a25377976b0302ba8cc5daf4859dbfe9a7061a93d",
+        "bytes": 2492,
+        "scope": "whole focused baseline log freshly read by control author; not independent oracle reapproval",
+        "disposition": "19=18PASS1 DriverDropDeadline(Elapsed) FAIL; healthy204 and explicit nested abort/socket positive pass; no backup secondary envelope",
+        "unreached": "negative later actual I/O closure assertion"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-fallback-baseline-1efa55d8-linux.fallback.log",
+        "sha256": "2429693e1a9f2b01bb683983da1e51c6af1ef609b8f47ed80bf45380f0621157",
+        "bytes": 2498,
+        "scope": "whole focused baseline log freshly read by control author; not independent oracle reapproval",
+        "disposition": "19=18PASS1 DriverDropDeadline(Elapsed) FAIL; healthy204 and explicit nested abort/socket positive pass; no backup secondary envelope",
+        "unreached": "negative later actual I/O closure assertion"
+      }
+    ],
+    "historical84b": "Original READ-only witness primary DriverDropDeadline plus platform H2 I/O backup secondary remains immutable. The later90c I/O witness has its own baseline; no retroactive credit."
+  },
+  "forecast": "unchanged actual nested-parent cancellation control should observe nested destructor/socket closure; original healthy actual payload204 and explicit abort positives must remain. No measured fixed result exists.",
+  "limits": [
+    "No Cargo, runtime, imports of targets, formatter/lint/checker/resource probes executed.",
+    "No central docs/CHANGELOG/shared helper/caller/wire-control edits; root owns integration documentation and checks.",
+    "Parent review is explicitly partial plus full delta, not new whole parent/crate coverage.",
+    "ConnectionPeer Drop is abort-only, no join claim after exceptional parent destruction or outer timeout.",
+    "Nested task is acquired only after actual accepted H2 request; accepted-handshake/outer/unpolled-parent lifetimes and sibling collections require separate causal controls.",
+    "Completed cancellation/panic and simultaneous operation/driver failures are source-covered but not new independently measured regressions in the three existing controls.",
+    "Pending stop cancellation is deliberately requested cleanup; cancellation of an already-completed task remains actual JoinError.",
+    "Root must source-review independently then run unchanged19 and strict test-target format/lint/MSRV on the exact integrated candidate."
+  ]
+}

@@ -1,0 +1,147 @@
+{
+  "kind": "independent additive source prerequisite qualification and scaffold correction review",
+  "revision": "8da6022d13029e2f29b7c230ffe4f4f90c843b3f",
+  "import_revision": "d398994b811f0f91cd7e28494ba53ef3d9df0dc6",
+  "base": "5706afd3c93951536184b17ce0b18cc0893625e6",
+  "signatures": {
+    "d398994b811f0f91cd7e28494ba53ef3d9df0dc6": "G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com",
+    "8da6022d13029e2f29b7c230ffe4f4f90c843b3f": "G|Arya Alikhani|AryaAlikhani@icloud.com|Arya Alikhani|AryaAlikhani@icloud.com"
+  },
+  "verdict": "source-approved corrected baseline for fresh root two-control/retained checks; no causal runtime or semantic repair credit",
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_completion.rs",
+      "git_blob": "14394df70c6358f21f808c057fc3b4799a3cfd8f",
+      "git_sha256": "0b54d2f495195968082c99736dd5a9786ea5e356c90b6b96a0d9f36350ba6637",
+      "physical_sha256": "0b54d2f495195968082c99736dd5a9786ea5e356c90b6b96a0d9f36350ba6637",
+      "lines": 226,
+      "manual_scope": "partial fresh import/backup header; retained fresh whole226 at570 and exact inverse",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 25,
+          "sha256": "c35a3c9eda73d1bfaa593a4fe2636c0e1ed132014954e40043e8a82664bd317d"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/http3_early_data/relay_observation.rs",
+      "git_blob": "2adb851396bfd74cdb92ec7bf41014e465c0039b",
+      "git_sha256": "22d72e511215b24ec840f201c6e7d67413e64f21ee9e80c776e0e82106616899",
+      "physical_sha256": "22d72e511215b24ec840f201c6e7d67413e64f21ee9e80c776e0e82106616899",
+      "lines": 239,
+      "manual_scope": "partial fresh registry function; retained fresh whole237 at570 plus precise wrapping",
+      "ranges": [
+        {
+          "first": 21,
+          "last": 51,
+          "sha256": "8a23239eb2b7ce4a3ddb789d014d2e9193de56e5545b74140311d9cb2e6ec852"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy.rs",
+      "git_blob": "5ab2f72e6a892d7a4b2a19abae6419d6d10109ea",
+      "git_sha256": "11a2b217f867fb19b13d7806fb18518942300ee39b26fbc6c123280d0c90f354",
+      "physical_sha256": "5f331f7943bda37a25511bef380c16564c9661b005d61f477bfcb6f0b13b14ba",
+      "lines": 629,
+      "manual_scope": "partial fresh module visibility and reexport",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 35,
+          "sha256": "381d96e385c2428e30f43375ef037b3e169dbf82ee7e371f9a637cf3159bcd0e"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "git_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "physical_sha256": "515fc6080d43f01f8770ad4c4de3b6710d059ac4ff832765020cda53aa280053",
+      "lines": 268,
+      "manual_scope": "partial fresh aggregate type/fields/source/combination contract",
+      "ranges": [
+        {
+          "first": 73,
+          "last": 122,
+          "sha256": "1751f53e4fa8ae6d2be061925835304684ef5141e92b3bb53a218f779054f59a"
+        }
+      ]
+    }
+  ],
+  "preservation": {
+    "whole_child_import_inverse_exact_to570": true,
+    "whole_observer_wrapping_inverse_exact_tod398": true,
+    "two_control_bodies_and_every_other_child_byte_exact": true,
+    "all_other_tracked_paths_modes_exact": true,
+    "literal_poison_error_unchanged": true
+  },
+  "prior_approval_qualification": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-completion-baseline-independent-source-review-5706afd3.json",
+    "sha256": "3945b172f67490d2e031e00bb02cbb1f759d173622513ab59fc6cd3e8dcc3755",
+    "issue": "Independent570 source approval missed module namespace prerequisite. Immutable original report remains;400a E0432 means neither new control ran. No retrospective causal or compilation approval."
+  },
+  "assessment": [
+    "Actual tunnel_proxy exposes connection_peer as pub(crate), reexports only ConnectionPeer and finish_with_cleanup. FixtureFailures itself and both fields are pub(crate) in that visible child; corrected existing path resolves without shared API additions.",
+    "The one formatter wrapping preserves the same original io::Error expression/text; only whitespace and optional trailing argument comma change. Exact inverse proves observer behavior unchanged.",
+    "Both complete400a early logs show E0432 before HTTP3 tests. Both formatter logs show exactly the retained registry expression wrapping. No later typed error/JoinError id assertions receive runtime credit.",
+    "Earlier570 whole control/observer review and preservation remain useful bounded source evidence subject to the failed path prerequisite. Fresh correction scopes are partial and clearly separated."
+  ],
+  "limits": [
+    "No runtime, imports, Cargo, formatter/lint/checkers/resources executed.",
+    "No whole parent/support tree reread or semantic coordinator remedy.",
+    "Fresh cfgtest compile, paired unchanged controls and quality checks remain root-owned.",
+    "Original400a failure receipts and original570 report are unchanged; no two-control causal native credit yet."
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-fixture-import-scaffold-followup-d398994b.md",
+      "sha256": "bed0563b04267e3b8a9eb646a3ecf99ebdb8b566800c3b5c0d5c336edfff1406",
+      "bytes": 816,
+      "scope": "whole handoff freshly read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-fixture-import-scaffold-followup-d398994b.json",
+      "sha256": "b04cdc67efba7ad08ce257dd01f296506b37b88c383d6b915bdfb2254f9f7967",
+      "bytes": 1358,
+      "scope": "whole handoff freshly read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-registry-format-followup-8da6022d.md",
+      "sha256": "acf5426735f861cc0d115ae4296db87a099da9be8ebaea2a1200d8452874d472",
+      "bytes": 848,
+      "scope": "whole handoff freshly read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-relay-registry-format-followup-8da6022d.json",
+      "sha256": "817a64ee062c0d7a22c2491f2695220c43b40552fb6f723204e01a0914ca998f",
+      "bytes": 1391,
+      "scope": "whole handoff freshly read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-relay-baseline-400a900e-windows.early.log",
+      "sha256": "3f46cb67a29def9058b41585abb582a85da496edc1ee061d4b6b7f6d73861f40",
+      "bytes": 709,
+      "scope": "whole historical failed compilation/format log freshly read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-relay-baseline-400a900e-windows.fmt.log",
+      "sha256": "51eb1c66ab3de311e6e8d431fc9d0e46a34b8e8d88e7b5d89594768192b92a0c",
+      "bytes": 558,
+      "scope": "whole historical failed compilation/format log freshly read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-relay-baseline-400a900e-linux.early.log",
+      "sha256": "a53be27e646c36ad68a1df68b98513fda3ff8ab53b2b4087dabfadd37dce2d00",
+      "bytes": 719,
+      "scope": "whole historical failed compilation/format log freshly read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\quic-relay-baseline-400a900e-linux.fmt.log",
+      "sha256": "dae62436091ade6e8150cf5d7e31a74cc26584d000de33d11a295880a4bc19da",
+      "bytes": 608,
+      "scope": "whole historical failed compilation/format log freshly read"
+    }
+  ]
+}
