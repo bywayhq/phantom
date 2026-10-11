@@ -468,3 +468,68 @@ class LoopbackCleanupTests(unittest.IsolatedAsyncioTestCase):
             self.assertIs(result, first)
             self.assertIs(result.capture_cleanup_failure, second)
             await self.assert_transport_closed(resources)
+
+    async def test_nested_contexts_retain_both_actual_cleanup_failures(self):
+        original_cause = LookupError("original nested body cause")
+        primary = BodyFailure("controlled nested body failure")
+        primary.__cause__ = original_cause
+        inner_cleanup = WaitClosedFailure("inner error after actual QUIC termination")
+        outer_cleanup = WaitClosedFailure("outer error after actual QUIC termination")
+
+        async with ready_resources() as outer, ready_resources() as inner:
+
+            async def inner_body(client):
+                self.assert_ready(inner)
+                self.assertIsNot(client, outer.client)
+                self.assertIsNot(
+                    inner.client_endpoint.transport, outer.client_endpoint.transport
+                )
+                client.wait_failure = inner_cleanup
+                raise primary
+
+            async def outer_body(client):
+                self.assert_ready(outer)
+                client.wait_failure = outer_cleanup
+
+                propagated = await inner.target(inner_body)
+                self.assertIs(propagated, primary)
+                self.assertIs(propagated.__cause__, original_cause)
+                self.assertIs(propagated.capture_cleanup_failure, inner_cleanup)
+                self.assertTrue(inner.client.wait_returned)
+                self.assertTrue(inner.client.terminated)
+                await self.assert_transport_closed(inner)
+
+                raise propagated
+
+            result = await outer.outcome(outer.spawn_target(outer_body))
+            self.assertTrue(outer.client.wait_returned)
+            self.assertTrue(outer.client.terminated)
+            self.assertTrue(inner.client.terminated)
+            await self.assert_transport_closed(outer)
+            await self.assert_transport_closed(inner)
+
+            self.assertIs(result, primary)
+            self.assertIs(result.__cause__, original_cause)
+            self.assertIs(result.capture_cleanup_failure, inner_cleanup)
+            self.assertIs(inner_cleanup.capture_cleanup_failure, outer_cleanup)
+
+    async def test_same_body_and_cleanup_error_does_not_reference_itself(self):
+        original_cause = LookupError("original reused body cause")
+        primary = BodyFailure("controlled reused body failure")
+        primary.__cause__ = original_cause
+
+        async with ready_resources() as resources:
+
+            async def body(client):
+                self.assert_ready(resources)
+                client.wait_failure = primary
+                raise primary
+
+            result = await resources.outcome(resources.spawn_target(body))
+            self.assertTrue(resources.client.wait_returned)
+            self.assertTrue(resources.client.terminated)
+            await self.assert_transport_closed(resources)
+
+            self.assertIs(result, primary)
+            self.assertIs(result.__cause__, original_cause)
+            self.assertIsNot(getattr(result, "capture_cleanup_failure", None), primary)
