@@ -7,15 +7,6 @@
 //! headless, so their `User-Agent` names `HeadlessChrome`; the comparison
 //! uses the headful `Chrome` product.
 
-#[path = "request_templates/default_profile.rs"]
-mod default_profile;
-#[path = "request_templates/fixture.rs"]
-mod fixture;
-use crate::support::h3 as h3_support;
-use crate::support::tls as tls_support;
-#[path = "request_templates/wire.rs"]
-mod wire;
-
 use std::{
     error::Error,
     fmt,
@@ -46,11 +37,19 @@ use tokio::{
     time::{error::Elapsed, timeout},
 };
 
+use crate::support::{
+    h3 as h3_support, tls as tls_support, tunnel_proxy::finish_with_cleanup,
+};
 use fixture::{Capture, Fields};
 use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, accept_tls, read_head, tls_settings};
 use wire::{Priority, RecordingIo, headers_priority};
-use crate::support::tunnel_proxy::finish_with_cleanup;
+
+mod default_profile;
+mod fixture;
+mod owner_contract;
+mod reply_contract;
+mod wire;
 
 pub(crate) type TestResult<T> = tls_support::TestResult<T>;
 
@@ -1613,7 +1612,3 @@ async fn negotiated_template_without_http3_order_is_refused_only_on_quic_routes(
     assert!(head.starts_with(format!("CONNECT 127.0.0.1:{port} HTTP/1.1\r\n").as_bytes()));
     Ok(())
 }
-
-mod reply_contract;
-
-mod owner_contract;

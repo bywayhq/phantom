@@ -24,13 +24,13 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
-use super::{
-    H1_ALPN, Observed, OriginFailure as ObservationFailure, Server, TemplateOrigin,
-    TestIdentity, TestResult, read_head,
-};
 use crate::support::{
     tls::is_peer_gone,
     tunnel_proxy::{ConnectionPeer, connection_peer::FixtureFailures, finish_with_cleanup},
+};
+use super::{
+    H1_ALPN, Observed, OriginFailure as ObservationFailure, Server, TemplateOrigin,
+    TestIdentity, TestResult, read_head,
 };
 
 const CONTROL_LIMIT: Duration = Duration::from_secs(5);

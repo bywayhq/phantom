@@ -11,11 +11,11 @@ use phantom::{
 };
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 
+use crate::support::tls::accept_tls_stream;
 use super::{
     Observed, TEST_TIMEOUT, TestIdentity, TestResult, client_settings, http1_fields, read_head,
     serve_http1, serve_http2, serve_http3, tls_settings,
 };
-use crate::support::tls::accept_tls_stream;
 
 async fn bounded<T>(future: impl Future<Output = TestResult<T>>) -> TestResult<T> {
     timeout(TEST_TIMEOUT, future).await?
