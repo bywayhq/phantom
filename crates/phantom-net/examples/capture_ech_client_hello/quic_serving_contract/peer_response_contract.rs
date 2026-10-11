@@ -60,7 +60,13 @@ async fn tiny_peer_header_limit_retains_the_original_outgoing_response_error() -
         }
         .await;
         if let Err(prerequisite) = prerequisite {
-            return capture_errors(outcome.err().into_iter().chain(Some(prerequisite)).collect());
+            return capture_errors(
+                outcome
+                    .err()
+                    .into_iter()
+                    .chain(Some(prerequisite))
+                    .collect(),
+            );
         }
 
         let error = outcome

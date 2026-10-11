@@ -147,7 +147,10 @@ impl QuicCapture {
         self.configured_peer(builder).await
     }
 
-    async fn configured_peer(&mut self, mut builder: h3::client::Builder) -> CaptureResult<QuicPeer> {
+    async fn configured_peer(
+        &mut self,
+        mut builder: h3::client::Builder,
+    ) -> CaptureResult<QuicPeer> {
         timeout(CONTROL_TIMEOUT, async {
             let RawQuicPeer {
                 connection,

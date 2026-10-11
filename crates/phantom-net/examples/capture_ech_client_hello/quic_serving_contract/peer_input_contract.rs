@@ -106,7 +106,13 @@ async fn exercise(input: MalformedInput) -> TestResult {
         }
         .await;
 
-        capture_errors(outcome.err().into_iter().chain(prerequisite.err()).collect())
+        capture_errors(
+            outcome
+                .err()
+                .into_iter()
+                .chain(prerequisite.err())
+                .collect(),
+        )
     }
     .await;
     let cleanup = capture.stop().await;

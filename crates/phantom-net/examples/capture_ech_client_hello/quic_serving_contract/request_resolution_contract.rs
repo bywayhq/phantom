@@ -154,7 +154,13 @@ async fn finish_capture_retains_a_controlled_post_resolution_failure() -> TestRe
         }
         .await;
         if let Err(prerequisite) = prerequisite {
-            return capture_errors(outcome.err().into_iter().chain(Some(prerequisite)).collect());
+            return capture_errors(
+                outcome
+                    .err()
+                    .into_iter()
+                    .chain(Some(prerequisite))
+                    .collect(),
+            );
         }
 
         let error = outcome
