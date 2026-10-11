@@ -27,7 +27,7 @@ const CONTROL_TIMEOUT: Duration = Duration::from_secs(3);
 
 pub(super) struct QuicPeer {
     connection: quinn::Connection,
-    requests: h3::client::SendRequest<h3_quinn::OpenStreams, Bytes>,
+    pub(super) requests: h3::client::SendRequest<h3_quinn::OpenStreams, Bytes>,
     pub(super) worker: AbortHandle,
     captured: Arc<Captured>,
     slot: usize,
@@ -77,6 +77,12 @@ impl QuicPeer {
         .await?;
         Ok(())
     }
+}
+
+pub(super) struct RawQuicPeer {
+    pub(super) connection: quinn::Connection,
+    pub(super) worker: AbortHandle,
+    slot: usize,
 }
 
 #[derive(Default)]
@@ -132,29 +138,25 @@ impl QuicCapture {
     }
 
     pub(super) async fn peer(&mut self) -> CaptureResult<QuicPeer> {
-        timeout(CONTROL_TIMEOUT, async {
-            let server = self.server.as_ref().ok_or("QUIC server was not acquired")?;
-            let client = self.client.as_ref().ok_or("QUIC client was not acquired")?;
-            let connecting = client.connect(server.local_addr()?, HOSTNAME)?;
-            let incoming = server.accept().await.ok_or("QUIC listener stopped")?;
-            assert!(incoming.remote_address().ip().is_loopback());
-            // This exclusive acquisition does not await between reading and reserving the slot.
-            let slot = self
-                .captured
-                .slots
-                .lock()
-                .map_err(|error| super::QuicObservationFailure {
-                    boundary: "peer registration",
-                    diagnostic: error.to_string(),
-                })?
-                .quic
-                .len();
-            let worker = spawn_origin_quic(&mut self.tasks, incoming, Arc::clone(&self.captured));
-            let connection = connecting.await?;
-            self.connections.push(connection.clone());
+        self.configured_peer(h3::client::builder()).await
+    }
 
-            let (mut driver, requests) =
-                h3::client::new(h3_quinn::Connection::new(connection.clone())).await?;
+    pub(super) async fn peer_with_header_limit(&mut self, limit: u64) -> CaptureResult<QuicPeer> {
+        let mut builder = h3::client::builder();
+        builder.max_field_section_size(limit);
+        self.configured_peer(builder).await
+    }
+
+    async fn configured_peer(&mut self, mut builder: h3::client::Builder) -> CaptureResult<QuicPeer> {
+        timeout(CONTROL_TIMEOUT, async {
+            let RawQuicPeer {
+                connection,
+                worker,
+                slot,
+            } = self.raw_peer().await?;
+            let (mut driver, requests) = builder
+                .build(h3_quinn::Connection::new(connection.clone()))
+                .await?;
             self.drivers.spawn(async move {
                 let error = driver.wait_idle().await;
                 if error.is_h3_no_error() {
@@ -181,6 +183,37 @@ impl QuicCapture {
                 requests,
                 worker,
                 captured: Arc::clone(&self.captured),
+                slot,
+            })
+        })
+        .await?
+    }
+
+    pub(super) async fn raw_peer(&mut self) -> CaptureResult<RawQuicPeer> {
+        timeout(CONTROL_TIMEOUT, async {
+            let server = self.server.as_ref().ok_or("QUIC server was not acquired")?;
+            let client = self.client.as_ref().ok_or("QUIC client was not acquired")?;
+            let connecting = client.connect(server.local_addr()?, HOSTNAME)?;
+            let incoming = server.accept().await.ok_or("QUIC listener stopped")?;
+            assert!(incoming.remote_address().ip().is_loopback());
+            // This exclusive acquisition does not await between reading and reserving the slot.
+            let slot = self
+                .captured
+                .slots
+                .lock()
+                .map_err(|error| super::QuicObservationFailure {
+                    boundary: "peer registration",
+                    diagnostic: error.to_string(),
+                })?
+                .quic
+                .len();
+            let worker = spawn_origin_quic(&mut self.tasks, incoming, Arc::clone(&self.captured));
+            let connection = connecting.await?;
+            self.connections.push(connection.clone());
+
+            Ok(RawQuicPeer {
+                connection,
+                worker,
                 slot,
             })
         })

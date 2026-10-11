@@ -15,6 +15,8 @@ use crate::{Captured, HOSTNAME, capture_errors};
 
 mod capture_origin;
 mod observation_contract;
+mod peer_input_contract;
+mod peer_response_contract;
 pub(crate) mod response_delivery;
 
 pub(crate) struct QuicServingFault {
