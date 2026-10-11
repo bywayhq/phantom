@@ -66,6 +66,9 @@ class ObservedProtocol(QuicConnectionProtocol):
         self.pings = []
         self.close_failure = None
         self.close_timer_observation = None
+        self.observe_queued_transmit = False
+        self.close_queued_transmit_observation = None
+        self.queued_transmit_observations = []
         self.wait_failure = None
         self.close_returned = False
         self.wait_returned = False
@@ -95,14 +98,28 @@ class ObservedProtocol(QuicConnectionProtocol):
             self.pings.append(event.uid)
 
     def close(self, *args, **kwargs):
+        queued = self._transmit_task
         super().close(*args, **kwargs)
         self.close_returned = True
+        if self.observe_queued_transmit:
+            self.close_queued_transmit_observation = (queued, self._transmit_task)
+
         if self.close_failure is not None:
             self.close_timer_observation = (
                 self._timer,
                 self._timer is not None and not self._timer.cancelled(),
             )
             raise self.close_failure
+
+    def transmit(self):
+        super().transmit()
+        if self.observe_queued_transmit and self.close_returned:
+            self.queued_transmit_observations.append(
+                (
+                    self._timer,
+                    self._timer is not None and not self._timer.cancelled(),
+                )
+            )
 
     async def wait_closed(self):
         handle = None
@@ -555,5 +572,48 @@ class LoopbackCleanupTests(unittest.IsolatedAsyncioTestCase):
             self.assertIsInstance(timer, asyncio.TimerHandle)
             self.assertTrue(was_armed)
             self.assertTrue(timer.cancelled())
+
+            await self.assert_transport_closed(resources)
+
+    async def test_queued_stream_callback_does_not_rearm_after_failed_close(self):
+        failure = CloseFailure("controlled close after actual stream callback queued")
+        streams = []
+        queued = None
+        async with ready_resources() as resources:
+
+            async def body(client):
+                nonlocal queued
+                self.assert_ready(resources)
+                self.assertIsNone(client._transmit_task)
+
+                client.observe_queued_transmit = True
+                client.close_failure = failure
+
+                reader, writer = await client.create_stream()
+                streams.append((reader, writer))
+                writer.write(b"queued loopback stream")
+                queued = client._transmit_task
+                self.assertIsInstance(queued, asyncio.Handle)
+                self.assertFalse(queued.cancelled())
+                writer.close()
+
+            result = await resources.outcome(resources.spawn_target(body))
+            self.assertIs(result, failure)
+
+            before_close, after_close = (
+                resources.client.close_queued_transmit_observation
+            )
+            self.assertIs(before_close, queued)
+            self.assertIsNone(after_close)
+
+            await asyncio.sleep(0)
+            observations = resources.client.queued_transmit_observations
+            if not queued.cancelled():
+                self.assertTrue(observations)
+
+            for timer, was_armed in observations:
+                self.assertFalse(was_armed)
+                if timer is not None:
+                    self.assertTrue(timer.cancelled())
 
             await self.assert_transport_closed(resources)
