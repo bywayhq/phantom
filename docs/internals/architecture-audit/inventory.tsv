@@ -4,9 +4,9 @@ path	surface	review	evidence
 .claude/hooks/guard-command.sh	configuration	source-complete	maintainer-configuration-coverage.json#.claude/hooks/guard-command.sh
 .claude/settings.json	configuration	source-complete	maintainer-configuration-coverage.json#.claude/settings.json
 .claude/skills/browser-capture/SKILL.md	documentation	source-complete	instruction-authority-correction-independent-review-cb5a7d14.json: complete source and authority review; dynamic Windows port guidance; no browser execution
-.claude/skills/lane/SKILL.md	documentation	pending	
+.claude/skills/lane/SKILL.md	documentation	source-complete	maintainer-docs-independent-source-review-e57dade6.json: whole manual document review; supporting paths and historical service claims remain scoped
 .claude/skills/phantom-docs/SKILL.md	documentation	source-complete	instruction-authority-correction-independent-review-cb5a7d14.json: complete source and authority review; corrected obsolete opening rule; no skill invocation
-.claude/skills/vendor-refresh/SKILL.md	documentation	pending	
+.claude/skills/vendor-refresh/SKILL.md	documentation	source-complete	maintainer-docs-independent-source-review-e57dade6.json: whole manual document review; supporting paths and historical service claims remain scoped
 .config/nextest.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .dockerignore	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .gitattributes	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof. | maintainer-configuration-coverage.json#.gitattributes; evidence-attributes-independent-review-b1687d15.json; complete original/final/diff read and all-attribute equivalence; composed only attribute file at 45a3ad77
@@ -16,7 +16,7 @@ path	surface	review	evidence
 .github/ISSUE_TEMPLATE/proposal.yml	configuration	source-complete	consumer-configuration-coverage.json#.github/ISSUE_TEMPLATE/proposal.yml
 .github/codeql/codeql-config.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; instruction-authority-correction-independent-review-cb5a7d14.json: complete source/default-setup review; comments corrected, configuration bytes unchanged
 .github/dependabot.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
-.github/pull_request_template.md	documentation	pending	
+.github/pull_request_template.md	documentation	source-complete	maintainer-docs-independent-source-review-e57dade6.json: whole manual document review; supporting paths and historical service claims remain scoped
 .github/workflows/autobahn.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-04-coverage.json#.github/workflows/autobahn.yml; a52-production-independent-review.json#.github/workflows/autobahn.yml; new-tooling-source-pass-02-coverage.json#.github/workflows/autobahn.yml; a57-production-independent-review.json#.github/workflows/autobahn.yml; a57-shared-composition-independent-review.json#.github/workflows/autobahn.yml; a57-shared-composition-followup-review.json#.github/workflows/autobahn.yml; a53-composed-independent-review.json#.github/workflows/autobahn.yml; a53-composed-followup-independent-review.json#.github/workflows/autobahn.yml; client-examples-standards-review.json#/sources/36
 .github/workflows/benchmarks.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 .github/workflows/boringssl-native.yml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
@@ -39,7 +39,7 @@ Cargo.toml	configuration	source-complete	tooling-coverage.json: Whole file read 
 LICENSE-APACHE	configuration	source-complete	consumer-configuration-coverage.json#LICENSE-APACHE
 LICENSE-MIT	configuration	source-complete	consumer-configuration-coverage.json#LICENSE-MIT
 README.md	documentation	source-complete	docs-contract-coverage.json#README.md; client-examples-standards-review.json#/sources/18
-SECURITY.md	documentation	pending	
+SECURITY.md	documentation	source-complete	maintainer-docs-independent-source-review-e57dade6.json: whole manual document review; supporting paths and historical service claims remain scoped
 clippy.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 crates/phantom-net/Cargo.toml	crate	source-complete	net-manifest-examples-bench-continuation-coverage.json#crates/phantom-net/Cargo.toml; crate-boundary-standards-review.json#/source_reads/4; request-trailer-wire-independent-review.json#/records/27; net-address-proxy-platform-standards-review.json#/source_records/23
 crates/phantom-net/README.md	crate	source-complete	docs-contract-coverage.json#crates/phantom-net/README.md
@@ -3612,3 +3612,6 @@ docs/internals/architecture-audit/race-handler-overlap-paragraph-independent-fol
 docs/internals/architecture-audit/race-handler-overlap-fixed-independent-native-review-e57dade6.json	audit evidence	evidence-indexed	handler-overlap-root-checkpoint-e57dade6.json
 docs/internals/architecture-audit/race-handler-overlap-fixed-independent-native-review-e57dade6.md.txt	audit evidence	evidence-indexed	handler-overlap-root-checkpoint-e57dade6.json
 docs/internals/architecture-audit/handler-overlap-root-checkpoint-e57dade6.json	audit evidence	evidence-indexed	handler-overlap-root-checkpoint-e57dade6.json
+docs/internals/architecture-audit/maintainer-docs-independent-source-review-e57dade6.json	audit evidence	evidence-indexed	whole maintainer-document source or exact837 PR checkpoint evidence
+docs/internals/architecture-audit/maintainer-docs-independent-source-review-e57dade6.md.txt	audit evidence	evidence-indexed	whole maintainer-document source or exact837 PR checkpoint evidence
+docs/internals/architecture-audit/pr197-ci-success-837ff74d.json	audit evidence	evidence-indexed	whole maintainer-document source or exact837 PR checkpoint evidence

@@ -38,6 +38,14 @@ design. A new crate needs an actual consumer, dependency isolation, or a
 compilation boundary. Repeated names, file sizes and passing lints alone
 do not establish that need.
 
+## Maintainer documents
+
+The [maintainer document review](maintainer-docs-independent-source-review-e57dade6.json)
+records full manual reads of four documents: 252 lines covering lane ownership,
+vendor refresh, the PR template and security policy. Supporting code reads and
+historical service settings keep their stated limits. No new defect was found
+in these four documents; the broader documentation audit remains open.
+
 ## Public API inventories
 
 The [API inventory checkpoint](api-inventory-source-checkpoint-837ff74d.json)
@@ -73,6 +81,10 @@ Rust 1.88 compilation; Linux native test runs remain separate records.
 Independent review confirms the commands, terminal results and preserved logs.
 The capture suite retains slow-task and expected parser diagnostics. This gate
 does not cover later commits or close the remaining manual and combined reviews.
+
+The [PR checkpoint](pr197-ci-success-837ff74d.json) records all 43 checks
+passing at `837ff74d`, including Windows and macOS. Later commits need their
+own CI results before integration.
 
 The [TLS reader checkpoint](tls-peer-errors-root-checkpoint-c5fe57a8.json)
 records six passes and two local-reader cause failures per host before repair.

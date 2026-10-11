@@ -1,0 +1,511 @@
+{
+  "writer_correction": {
+    "original_writer": "C:\\code\\phantom\\target\\architecture-audit\\write-maintainer-docs-review-e57dade6.py",
+    "reason": "Original declaration Quinn PHANTOM28-45 exceeded actual44-line EOF; assertion failed before any report output. Original retained; additive explicit28-44 only, no45 credit."
+  },
+  "kind": "bounded manual maintainer-document source review",
+  "revision": "e57dade6f1e88712d19ffe2b9498aa9ebd7e42b9",
+  "decision": "No new supported defect in the four complete documents; recommended source-complete documentation disposition only.",
+  "documents": [
+    {
+      "path": ".claude/skills/lane/SKILL.md",
+      "git_blob": "0a386f6f6560dd500fa7d171de3b3e79f43b2b0d",
+      "physical_sha256": "978bbce907addd898a3d67f5feb58d0adf39378e7d849aed140e63eb2e01cda1",
+      "git_lf_sha256": "ec619e2b9d63b16c8635a60df77b64677d8642e5dde29a05ea778905567050b3",
+      "line_count": 45,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 45,
+          "lf_sha256": "ec619e2b9d63b16c8635a60df77b64677d8642e5dde29a05ea778905567050b3"
+        }
+      ]
+    },
+    {
+      "path": ".claude/skills/vendor-refresh/SKILL.md",
+      "git_blob": "345b912a3fbdd6d0d0d04f587790e815e0ea2553",
+      "physical_sha256": "eff7c0bc5a44392caa9ecda137a3fd6ba21afe4090d4604f2e1227df952de6e6",
+      "git_lf_sha256": "db5b1efccb706ad66857b9608f4f9cf2cc1b1558133326cead96f302e2f1538a",
+      "line_count": 48,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 48,
+          "lf_sha256": "db5b1efccb706ad66857b9608f4f9cf2cc1b1558133326cead96f302e2f1538a"
+        }
+      ]
+    },
+    {
+      "path": ".github/pull_request_template.md",
+      "git_blob": "c34e34c9597349014babd7cfa90f0bca3ebdc4ac",
+      "physical_sha256": "40d954ed313efd6858c992c6735caa6e1ea78e544b0155cb4d7db24d532b25df",
+      "git_lf_sha256": "9eef2f0d34d6b30d4768143b4cbc4cec1b3a3a4bc81282abd0600e03dcc2b7b5",
+      "line_count": 26,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 26,
+          "lf_sha256": "9eef2f0d34d6b30d4768143b4cbc4cec1b3a3a4bc81282abd0600e03dcc2b7b5"
+        }
+      ]
+    },
+    {
+      "path": "SECURITY.md",
+      "git_blob": "424fedfad3f8acd493abb54f947c6b8c4f5ffc1e",
+      "physical_sha256": "69a949930b71b857a7e8b15dbd2db6ba31b1892110f6aea094d123167e2c7389",
+      "git_lf_sha256": "6ba0374d4418cabc3758835f92e81039aa7bcb2adaaa996ac565d51b786dc441",
+      "line_count": 133,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 133,
+          "lf_sha256": "6ba0374d4418cabc3758835f92e81039aa7bcb2adaaa996ac565d51b786dc441"
+        }
+      ]
+    }
+  ],
+  "manual_document_lines": 252,
+  "supporting_sources": [
+    {
+      "path": "AGENTS.md",
+      "git_blob": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "physical_sha256": "61887031cf019147cdf81f5ae3c1667b67f14b342d8d7c1a233ecccd9b71d3eb",
+      "git_lf_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "line_count": 221,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 221,
+          "lf_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269"
+        }
+      ]
+    },
+    {
+      "path": ".claude/agents/gate-reviewer.md",
+      "git_blob": "9c575f1a541f0571c63db6db2793c331fef641ca",
+      "physical_sha256": "825427fdfe5fb5ff65c4fca8779f14b9414caaa32f99933afaf9758a021ef187",
+      "git_lf_sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf",
+      "line_count": 48,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 48,
+          "lf_sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf"
+        }
+      ]
+    },
+    {
+      "path": "docs/internals/documentation.md",
+      "git_blob": "afc3da64aa6bb6840c54563c0dcb246132c5cfaa",
+      "physical_sha256": "5b163b932317766497e0ea05b86e3906610bc46fc26afe4076f07136f60bd96f",
+      "git_lf_sha256": "82b0c24c97f32cf4454a13d2cbef132a537478919b790103d79b7782f1790297",
+      "line_count": 204,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 204,
+          "lf_sha256": "82b0c24c97f32cf4454a13d2cbef132a537478919b790103d79b7782f1790297"
+        }
+      ]
+    },
+    {
+      "path": "scripts/dev/with-cargo-lock.sh",
+      "git_blob": "58b0e5fdda526ad6d37328fb87fc4207ac6a73dc",
+      "physical_sha256": "df011173d12785cceee0489768b7ecf91be390636f5996d8a4f6ba21e020b2fc",
+      "git_lf_sha256": "df011173d12785cceee0489768b7ecf91be390636f5996d8a4f6ba21e020b2fc",
+      "line_count": 86,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 86,
+          "lf_sha256": "df011173d12785cceee0489768b7ecf91be390636f5996d8a4f6ba21e020b2fc"
+        }
+      ]
+    },
+    {
+      "path": ".github/codeql/codeql-config.yml",
+      "git_blob": "fce3800a648dace3c413cdf05ecd7d6ec86ed093",
+      "physical_sha256": "344f9a9932cf12a146d423ae7f9a4eb1b16d46d26c9ebe4242a341c0a25d2bcf",
+      "git_lf_sha256": "9eff99822ceb2dbc49a8260e444d941b99d5a8c754ea874d466d991e167cd4c2",
+      "line_count": 29,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 29,
+          "lf_sha256": "9eff99822ceb2dbc49a8260e444d941b99d5a8c754ea874d466d991e167cd4c2"
+        }
+      ]
+    },
+    {
+      "path": ".github/workflows/scorecard.yml",
+      "git_blob": "abc1968394ddd6f0d54fa125e0270559cedfe775",
+      "physical_sha256": "f598fdb7b406e17a4210eb7b04414561f5b61f041272c1867df2ce656c4a05eb",
+      "git_lf_sha256": "d73a3a720bf9e91c3474c7f8fbbeb3f2406f7f22454b632aa877019570434131",
+      "line_count": 46,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 46,
+          "lf_sha256": "d73a3a720bf9e91c3474c7f8fbbeb3f2406f7f22454b632aa877019570434131"
+        }
+      ]
+    },
+    {
+      "path": "docs/internals/vendoring.md",
+      "git_blob": "db87661fece7483db1b75fc6678d7c0086b6c7fd",
+      "physical_sha256": "b4e8dc91a17b65d240931800260cf662be3189d7e4617b69db31190c1c183740",
+      "git_lf_sha256": "a20585f4e628f60bfba43d18bbe81492f9fe2cde962dcf86baba546fa70bd3b5",
+      "line_count": 90,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 90,
+          "lf_sha256": "a20585f4e628f60bfba43d18bbe81492f9fe2cde962dcf86baba546fa70bd3b5"
+        }
+      ]
+    },
+    {
+      "path": "scripts/dev/README.md",
+      "git_blob": "76f91325e24a6b37640f47d762699c9b99404b34",
+      "physical_sha256": "8f63f7f1f9c01e5684031ef3090903ad0e5db608997cb494e19b153b4e1ef280",
+      "git_lf_sha256": "08da70c36669ddfe60f0465a31cab4d9e4ba95872efdfeb22468dd6d1e497785",
+      "line_count": 349,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 115,
+          "lf_sha256": "bc4ed2d4db4a24fce5aafcdec3ae7b1b9a892ec6fc2f63164e98f62faf980b36"
+        },
+        {
+          "start": 206,
+          "end": 265,
+          "lf_sha256": "e32414a6807c273bb442f7376c85d83a90bdb399a1cced81690c3eadaf86e05f"
+        }
+      ]
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "git_blob": "092b24c3b7f5f953889106da2457ae083d0f1dc5",
+      "physical_sha256": "9a78bd15ac2027f4e1ccc9b232f9672873d0c27ed013de16ff63a01814dddc28",
+      "git_lf_sha256": "ed1685fae9615c2acde4deab04f8cabc102151bb91193ae584a2bf25cdb9d5cc",
+      "line_count": 401,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "start": 207,
+          "end": 260,
+          "lf_sha256": "5764a9f4f4a3c1c5edd0f477f236aa4774c608b2a188ba73e48ea2fced5040ea"
+        }
+      ]
+    },
+    {
+      "path": "scripts/ci/check-vendor.sh",
+      "git_blob": "1b37be65d11c716bb0ac356de0f549f863e383fe",
+      "physical_sha256": "2e65d1730d99837fae4d20d2ad86f1795cd212ebda190939cf5e1a49c5ca175d",
+      "git_lf_sha256": "2e65d1730d99837fae4d20d2ad86f1795cd212ebda190939cf5e1a49c5ca175d",
+      "line_count": 427,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 78,
+          "lf_sha256": "5d4254d5dcbcdaa2e68d48bcb01db99e652993aa6caad25f69e686b2b2d34b05"
+        },
+        {
+          "start": 270,
+          "end": 313,
+          "lf_sha256": "941f80c579cf72d943a1153bd2b5a0c1e398c277836e4c736eb753f4510a9dac"
+        },
+        {
+          "start": 410,
+          "end": 427,
+          "lf_sha256": "4da4fb63481aab19be386b86f0fb01aa91c931c6e2eb11f7271fff39e340c2d8"
+        }
+      ]
+    },
+    {
+      "path": "scripts/ci/stage-btls-candidate.sh",
+      "git_blob": "cced0743ced79de6a5b148b8dc03a8508aeb6506",
+      "physical_sha256": "427a318e794759dbe20db984d2902c283ddafdd399fe2ff2f1f86df46fefae2d",
+      "git_lf_sha256": "427a318e794759dbe20db984d2902c283ddafdd399fe2ff2f1f86df46fefae2d",
+      "line_count": 161,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "start": 100,
+          "end": 161,
+          "lf_sha256": "0d59123951521166e6fb51b3781d75f4babc4e8c27c7bd518215450d043babcc"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/PHANTOM.md",
+      "git_blob": "b394a6b638ae748e85e49ed9e26497937331a950",
+      "physical_sha256": "b356cab6d792759988cb4dcb2df3805a8cfc4712f0526d1149173db3051f6bee",
+      "git_lf_sha256": "b356cab6d792759988cb4dcb2df3805a8cfc4712f0526d1149173db3051f6bee",
+      "line_count": 976,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "start": 17,
+          "end": 35,
+          "lf_sha256": "4bcf5fe0c6a786db5f036bee1fb3a5cc7ed15f2589c5f43c322e8b1cb6396352"
+        },
+        {
+          "start": 940,
+          "end": 959,
+          "lf_sha256": "ddb0678b4afbb004fecac888840157672eb0eed47627f393ebd221cced4dbd42"
+        }
+      ]
+    },
+    {
+      "path": "vendor/quinn/PHANTOM.md",
+      "git_blob": "bc22ddf50edd9e39ff9f2f21870b61f6919f1226",
+      "physical_sha256": "ad3da263d9d7093fb9c45f3ed55dfe1696754f0c3fc9766a9443d3803ae2c3ce",
+      "git_lf_sha256": "ad3da263d9d7093fb9c45f3ed55dfe1696754f0c3fc9766a9443d3803ae2c3ce",
+      "line_count": 44,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "start": 28,
+          "end": 44,
+          "lf_sha256": "d91b2db34277241c39e4c1910cb554b7b622c10da253201043282cd7d2830e2f"
+        }
+      ]
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "git_blob": "a863ab8e1a758b549d8be367d61f73ba8a57c4f5",
+      "physical_sha256": "217e60bfe75325c972a2da95dba4a7fd70fad8aa21a955af57a4db7a18048aab",
+      "git_lf_sha256": "2f6bae06533f982ee81787f7a2dbd2abc964d08d22243ec3dc65c4f34865251a",
+      "line_count": 520,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "start": 473,
+          "end": 520,
+          "lf_sha256": "9f8d197f200572e216a23d8f2e7e467f9148d80d7cd3b2d0522e6d7d568a1f0d"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.toml",
+      "git_blob": "afe4da81ed3c086fc88409f39cc75df49e5f0224",
+      "physical_sha256": "aef751b01995a18e3f00898bf275aefab97188603e5d391e10d4bc4b65bb518d",
+      "git_lf_sha256": "babffdbe9a05175e85db062062db5157a3fcab84dcd6fdf34c6cdaddf27c3047",
+      "line_count": 80,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 70,
+          "lf_sha256": "b7a383a0033c109bf541fe9946a590bab4fb64a7fbb4b0a7951f40061babc073"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/src/tls.rs",
+      "git_blob": "0b92a09028091b5f4f0402e08f6e29a24b9aa29b",
+      "physical_sha256": "1cc7e579ec39876648688149b92cb2764f2fe07e942f4505678d5733805f1a01",
+      "git_lf_sha256": "8cf0e34e27c5f6814bca05e1a9dce961925516a4f9a3396744d2d36f2133bd9a",
+      "line_count": 1360,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "start": 50,
+          "end": 88,
+          "lf_sha256": "55a98281b522379b77cfef99bd793e222fc6b858e223f76b5dd9aa1783f30f20"
+        }
+      ]
+    }
+  ],
+  "findings": [],
+  "assessment": [
+    {
+      "document": ".claude/skills/lane/SKILL.md",
+      "contract": "Same sibling worktree/branch, brief ownership, common Git-dir lock and review-after-rebase/full-gate-before-merge sequence as AGENTS and actual helper. Goal authorization overrides any redundant generic human-permission clause; this review requests no approval or settings change."
+    },
+    {
+      "document": ".claude/skills/vendor-refresh/SKILL.md",
+      "contract": "Delegates package-specific PHANTOM policy, patch order/identity/pins and exact source proof. Actual checker applies listed patches with checks, verifies archive hashes, stages exact Git revisions and runs focused locked Cargo. Replay compares relevant source with explicit packaging exclusions; do not read the short description as a checksum of every byte including locks, metadata and target."
+    },
+    {
+      "document": ".github/pull_request_template.md",
+      "contract": "Asks for observable acceptance, non-goals, relevant focused/wire/documentation/performance evidence and exact command results. Conditional evidence boxes do not claim all checks ran or substitute for gate enforcement."
+    },
+    {
+      "document": "SECURITY.md",
+      "contract": "Reporting/support expectations and experimental best-effort response policy are coherent. Current source has the previously reviewed exact policy blob. Local workspace member exclusions, exact renamed forks, DangerDisabled feature boundary, CodeQL exclusions/property requirement, Scorecard workflow and CI required aggregation support the local statements. Historical raw settings/publication records remain historical; no fresh service/publication or ruleset state asserted."
+    }
+  ],
+  "rejected_duplicate_candidates": [
+    "Do not refile resolved security SARIF omission: preserved additive511 correction and1613/569 reconciliation remain qualified; no fresh SARIF catalog or security graph audit occurred.",
+    "Do not refile former workflow staging/reader-banner concerns: current vendor-refresh blob equals approved536 source; actual pinned Git and checksummed archive staging description is preserved.",
+    "Package policy owns standalone-lock metadata and reviewed dependency changes; no unrecorded-source or current advisory safety conclusion follows from this document review."
+  ],
+  "historical_evidence": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\workflow-docs-remedy-independent-source-review-53625c24.md",
+      "sha256": "57c9609fe3cb66a83f59062424d5ecaf459c399af1c575cd322092655767dde5",
+      "bytes": 1021,
+      "fresh_read": "whole Markdown"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\workflow-docs-remedy-independent-source-review-53625c24.json",
+      "sha256": "b2024a701f8d3adee4c5fe086cc15d9a4ebba2957c8ef1b5bca91c6532473b65",
+      "bytes": 7055,
+      "fresh_read": "hash/selected machine metadata only; not whole manual JSON read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\standalone-vendor-lock-independent-source-review-569eb402.md",
+      "sha256": "a9de9ff12b2212565092eb92cb91e55795dc934448f6caf7028fb7a9386597f5",
+      "bytes": 1178,
+      "fresh_read": "whole Markdown"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\standalone-vendor-lock-independent-source-review-569eb402.json",
+      "sha256": "f87d9123a22463005e24f4b22f2ea25250acf3b43ae742851268514137d1a685",
+      "bytes": 24021,
+      "fresh_read": "hash/selected machine metadata only; not whole manual JSON read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\security-policy-independent-source-review-511ed0f9.md",
+      "sha256": "f0d451b4fea867a4f68aa30ba58e56094e7146bdd23b63b7e6402f38caf9a066",
+      "bytes": 3528,
+      "fresh_read": "whole Markdown"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\security-policy-independent-source-review-511ed0f9.json",
+      "sha256": "b2d3fa9797e68bf872445242ce13f9387d3e05c9f99a17542d032d18d24b4543",
+      "bytes": 9461,
+      "fresh_read": "hash/selected machine metadata only; not whole manual JSON read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\security-policy-evidence-correction-511ed0f9.md",
+      "sha256": "39d18d61c5e580caa2571c9d329590829adbbed45541f73a4e356785a3ff8ea4",
+      "bytes": 1479,
+      "fresh_read": "whole Markdown"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\security-policy-evidence-correction-511ed0f9.json",
+      "sha256": "de7c6342b562c99d2f0b04edae1baec27721d6effc3d28b28f2be76030193629",
+      "bytes": 9423,
+      "fresh_read": "hash/selected machine metadata only; not whole manual JSON read"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\security-advisory-source-reconciliation-1613ef43.md",
+      "sha256": "00ea4865a6b31c534c94a7e1b74a26e680ca930de9ebfff28f172efae88bd590",
+      "bytes": 5577,
+      "fresh_read": "whole Markdown"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\security-advisory-source-reconciliation-1613ef43.json",
+      "sha256": "9fd66f21ce6d2b78719616407520d2107cb9656e24af655f1213cb5812250da1",
+      "bytes": 30499,
+      "fresh_read": "hash/selected machine metadata only; not whole manual JSON read"
+    }
+  ],
+  "historical_raw": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\security-current-main-df2ae9b7\\main-ruleset.json",
+      "sha256": "2ccf7fa01297f327896e3f3db9ee10e6ded745cb3c2ebb31d3e3d1d3cf22f445",
+      "bytes": 851,
+      "fresh_read": "whole retained raw JSON",
+      "temporal_scope": "historical capture only; no live refresh"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\security-current-main-df2ae9b7\\codeql-default-setup.json",
+      "sha256": "a7040fedb2a400730a09d005cfdd4e0890af19ab23b4353cb81ef8ffa3f87d02",
+      "bytes": 261,
+      "fresh_read": "whole retained raw JSON",
+      "temporal_scope": "historical capture only; no live refresh"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\security-current-main-df2ae9b7\\repository-properties.json",
+      "sha256": "12215fa774ed59c172d5e3e5ab7ae0796825117131236db14b3f47f8727d0fd0",
+      "bytes": 92,
+      "fresh_read": "whole retained raw JSON",
+      "temporal_scope": "historical capture only; no live refresh"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\security-current-main-df2ae9b7\\releases.json",
+      "sha256": "a5338d955b09046ec0b16f3a9625b7955c763aae07dc722e474e6078745f932f",
+      "bytes": 4,
+      "fresh_read": "whole retained raw JSON",
+      "temporal_scope": "historical capture only; no live refresh"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\security-current-main-df2ae9b7\\crates-publication.json",
+      "sha256": "193289ce384136115d7b4f7261fa0c8d2a5e7c77c0f86042d781e3a47bcbbaaf",
+      "bytes": 890,
+      "fresh_read": "whole retained raw JSON",
+      "temporal_scope": "historical capture only; no live refresh"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\security-current-main-df2ae9b7\\private-vulnerability-reporting.json",
+      "sha256": "e5b2043d1d16bc89cbda8dff69f02be51264b30aeb1d1349b3a5c0c94632c8ee",
+      "bytes": 18,
+      "fresh_read": "whole retained raw JSON",
+      "temporal_scope": "historical capture only; no live refresh"
+    }
+  ],
+  "inventory": {
+    "path": "docs/internals/architecture-audit/inventory.tsv",
+    "git_sha256": "c5641e98a74c0de958c08e2495d599db14672f9be3b4f1fcd008c82205ca8b4a",
+    "read_scope": "four exact matched rows only; not whole inventory manual credit",
+    "rows": [
+      {
+        "path": ".claude/skills/lane/SKILL.md",
+        "current_row": ".claude/skills/lane/SKILL.md\tdocumentation\tpending\t",
+        "proposed_disposition": "source-complete documentation only; four actual full manual reads",
+        "source_binding_git_blob": "0a386f6f6560dd500fa7d171de3b3e79f43b2b0d"
+      },
+      {
+        "path": ".claude/skills/vendor-refresh/SKILL.md",
+        "current_row": ".claude/skills/vendor-refresh/SKILL.md\tdocumentation\tpending\t",
+        "proposed_disposition": "source-complete documentation only; four actual full manual reads",
+        "source_binding_git_blob": "345b912a3fbdd6d0d0d04f587790e815e0ea2553"
+      },
+      {
+        "path": ".github/pull_request_template.md",
+        "current_row": ".github/pull_request_template.md\tdocumentation\tpending\t",
+        "proposed_disposition": "source-complete documentation only; four actual full manual reads",
+        "source_binding_git_blob": "c34e34c9597349014babd7cfa90f0bca3ebdc4ac"
+      },
+      {
+        "path": "SECURITY.md",
+        "current_row": "SECURITY.md\tdocumentation\tpending\t",
+        "proposed_disposition": "source-complete documentation only; four actual full manual reads",
+        "source_binding_git_blob": "424fedfad3f8acd493abb54f947c6b8c4f5ffc1e"
+      }
+    ]
+  },
+  "verification": {
+    "clean_exact_revision_at_read_start_and_end": true,
+    "tracked_edits": false,
+    "target_imports": false,
+    "runtime_Cargo_checkers": false,
+    "settings_network_refresh": false,
+    "metadata_only": "read-only Git plus hash/range/EOF reconciliation; new exclusive scratch reports only"
+  },
+  "limits": [
+    "Four documents total252 lines were fully manually read; supporting sources have only the explicit whole/partial credit listed.",
+    "Skills were read as audited repository instructions, not invoked workflows.",
+    "No new default-feature, crate/API, package replay, dependency exploitability, actual private reporting service or exhaustive security approval.",
+    "No raw SARIF, full lockfiles or full CI workflow manual reread in this pass.",
+    "No main/merge or full-gate approval; root live native runs remain independent."
+  ],
+  "remaining_gates": "No changed documentation in this read-only pass. If root applies later prose changes, root runs python scripts/docs/check_docs.py and reviews the exact diff; final integrated gates remain root-owned."
+}
