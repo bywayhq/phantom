@@ -194,7 +194,10 @@ async fn destination_failure_keeps_its_cause_and_closes_the_pending_origin() -> 
     let mut backup = Backup::prepare(&identity, Faults::Destination).await?;
     let primary = async {
         backup.pending(&identity).await?;
-        backup.destination.fault_completed(DESTINATION_RESPONSE).await?;
+        backup
+            .destination
+            .fault_completed(DESTINATION_RESPONSE)
+            .await?;
         assert!(!backup.origin.abort.is_finished());
 
         let retained = match backup.collect(Ok(None)).await {
