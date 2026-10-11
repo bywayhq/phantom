@@ -1,7 +1,6 @@
 use std::{
     error::Error,
-    fmt,
-    io,
+    fmt, io,
     pin::Pin,
     sync::{
         Arc,
@@ -206,7 +205,12 @@ impl Backup {
         self.peer = Some(timeout(OBSERVATION_LIMIT, receiver).await??);
         self.returned.take();
         timeout(OBSERVATION_LIMIT, self.pending.wait_for(|pending| *pending)).await??;
-        if self.peer.as_ref().ok_or("actual peer missing")?.is_finished() {
+        if self
+            .peer
+            .as_ref()
+            .ok_or("actual peer missing")?
+            .is_finished()
+        {
             return Err("accepted peer completed before its held-read witness".into());
         }
 
@@ -214,7 +218,11 @@ impl Backup {
     }
 
     async fn closed(&mut self) -> TestResult {
-        timeout(OBSERVATION_LIMIT, self.destroyed.wait_for(|destroyed| *destroyed)).await??;
+        timeout(
+            OBSERVATION_LIMIT,
+            self.destroyed.wait_for(|destroyed| *destroyed),
+        )
+        .await??;
         let client = self.client.as_mut().ok_or("client owner missing")?;
         match timeout(OBSERVATION_LIMIT, client.read(&mut [0_u8; 1])).await? {
             Ok(0) => Ok(()),
@@ -396,7 +404,11 @@ async fn fault_result(boundary: FaultBoundary) -> TestResult {
                 .write_all(bytes),
         )
         .await??;
-        timeout(OBSERVATION_LIMIT, backup.reached.wait_for(|reached| *reached)).await??;
+        timeout(
+            OBSERVATION_LIMIT,
+            backup.reached.wait_for(|reached| *reached),
+        )
+        .await??;
         let outcome = backup.completed().await?;
         let outcome = match outcome {
             Ok(result) => result,

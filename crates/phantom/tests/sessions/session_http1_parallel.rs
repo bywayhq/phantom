@@ -58,7 +58,9 @@ impl Server {
         Self::start_observed(None).await
     }
 
-    async fn start_observed(mut observation: Option<owner_contract::PeerControl>) -> TestResult<Self> {
+    async fn start_observed(
+        mut observation: Option<owner_contract::PeerControl>,
+    ) -> TestResult<Self> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let (sender, events) = mpsc::unbounded_channel();
