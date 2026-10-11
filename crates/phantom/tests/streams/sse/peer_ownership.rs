@@ -26,7 +26,7 @@ use tokio_btls::SslStream;
 
 use crate::support::{
     tls::is_peer_gone,
-    tunnel_proxy::{FixtureFailures, finish_with_cleanup},
+    tunnel_proxy::{connection_peer::FixtureFailures, finish_with_cleanup},
 };
 
 use super::{TestResult, fixed_response_observed, tls_support::TestIdentity};
