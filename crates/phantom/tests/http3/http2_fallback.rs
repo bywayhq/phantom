@@ -40,6 +40,7 @@ use tls_support::{H2_ALPN, TestIdentity, TestResult, accept_tls_stream, tls_sett
 mod deadline_contract;
 mod driver_ownership;
 mod socks5;
+mod wire_contract;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(20);
 /// Long enough that a connection the client should not open would arrive.
