@@ -22,8 +22,8 @@ use http::{Method, Response, StatusCode};
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::{BodyExt, Full};
 use phantom::{
-    Client, HttpProtocol, RedirectPolicy, RequestErrorKind, RequestHeader, ResponseInfo,
-    RetryPolicy, profile::ClientProfile,
+    Client, HttpProtocol, RedirectPolicy, RequestErrorKind, ResponseInfo, RetryPolicy,
+    profile::ClientProfile,
 };
 use phantom_testkit::tcp::ReservedPort;
 use tokio::{
@@ -38,6 +38,8 @@ use tls_support::{
     H1_ALPN, H2_ALPN, TestIdentity, accept_tls_stream, client_builder, read_head, tls_settings,
 };
 use tracing_support::OutcomeSubscriber;
+
+mod h1_retry;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 // Covers two refused Windows loopback connects (about two seconds each) plus a
@@ -61,41 +63,27 @@ async fn request_retry_override_waits_for_observed_failure_before_exact_h1_dispa
             .retry_policy(RetryPolicy::none())
             .build()?;
         let subscriber = OutcomeSubscriber::default();
-        let request = client
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                &format!("http://{address}/retried"),
-            )?
-            .header(RequestHeader::new("X-First", "one"))
-            .header(RequestHeader::new("X-Repeat", "alpha"))
-            .header(RequestHeader::new("X-Repeat", "beta"))
-            .streaming_body(Full::new(Bytes::from_static(b"payload")))
-            .trailers(vec![
-                RequestHeader::new("X-Trailer", "first"),
-                RequestHeader::new("X-Trailer", "second"),
-            ])
-            .retry_policy(RetryPolicy::connection_failures(
-                NonZeroUsize::MIN,
-                RETRY_DELAY,
-            ));
-        let request_task = tokio::spawn(request.send().with_subscriber(subscriber.dispatch()));
+        let mut exchange = h1_retry::start(address, &client, &subscriber, None)?;
 
         wait_for_retry_reason(&subscriber).await?;
         let listener = reserved.listen()?;
-        let server = tokio::spawn(serve_one_chunked_request(listener));
+        exchange.listen(listener, None);
 
-        let response = request_task.await??;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        let info = response
-            .extensions()
-            .get::<ResponseInfo>()
-            .ok_or("response omitted retry metadata")?;
-        assert_eq!(info.protocol(), HttpProtocol::Http1);
-        assert_eq!(info.retries_performed(), 1);
-        response.into_body().collect().await?;
+        let caller = async {
+            let response = exchange.response().await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            let info = response
+                .extensions()
+                .get::<ResponseInfo>()
+                .ok_or("response omitted retry metadata")?;
+            assert_eq!(info.protocol(), HttpProtocol::Http1);
+            assert_eq!(info.retries_performed(), 1);
+            response.into_body().collect().await?;
+            Ok(())
+        }
+        .await;
 
-        let (head, framed, had_no_second_connection) = server.await??;
+        let ((), (head, framed, had_no_second_connection)) = exchange.finish(caller).await?;
         assert_eq!(
             head,
             format!(
@@ -650,19 +638,6 @@ impl Body for PollCountingBody {
     fn size_hint(&self) -> SizeHint {
         self.inner.size_hint()
     }
-}
-
-async fn serve_one_chunked_request(listener: TcpListener) -> TestResult<(Vec<u8>, Vec<u8>, bool)> {
-    let (mut stream, _) = listener.accept().await?;
-    let head = read_head(&mut stream).await?;
-    let mut framed = vec![0_u8; EXPECTED_CHUNKED_BODY.len()];
-    stream.read_exact(&mut framed).await?;
-    stream
-        .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
-        .await?;
-    stream.flush().await?;
-    let second = timeout(SECOND_CONNECTION_WINDOW, listener.accept()).await;
-    Ok((head, framed, second.is_err()))
 }
 
 async fn assert_pending<F>(mut future: Pin<&mut F>, message: &'static str) -> TestResult
