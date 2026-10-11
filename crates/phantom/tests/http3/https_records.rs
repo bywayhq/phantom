@@ -282,7 +282,10 @@ async fn failed_lookup_leaves_the_request_on_the_origin() -> TestResult<()> {
             drain(response).await?;
 
             if path == "/first" {
-                assert_eq!(lookup.completed().await?, Err(HttpsLookupErrorKind::Resolve));
+                assert_eq!(
+                    lookup.completed().await?,
+                    Err(HttpsLookupErrorKind::Resolve)
+                );
                 assert_eq!(lookup.calls(), 1);
             }
 

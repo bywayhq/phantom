@@ -76,8 +76,8 @@ impl HeldLookup {
         .await;
 
         let release_cleanup: TestResult<()> = async {
-            let released = timeout_at(deadline, self.release_result.wait_for(Option::is_some))
-                .await??;
+            let released =
+                timeout_at(deadline, self.release_result.wait_for(Option::is_some)).await??;
             released
                 .as_ref()
                 .ok_or("held lookup omitted its release result")?
@@ -209,7 +209,10 @@ async fn an_actual_result_stays_pending_until_released_then_selects_http3() -> T
         Some(fixture) => fixture.finish().await.map(|_| ()),
         None => Ok(()),
     };
-    finish_with_cleanup(finish_with_cleanup(primary, lookup_cleanup), fixture_cleanup)?;
+    finish_with_cleanup(
+        finish_with_cleanup(primary, lookup_cleanup),
+        fixture_cleanup,
+    )?;
     let observed = observations.ok_or("request sequence omitted its observations")?;
 
     assert_eq!(observed.first, HttpProtocol::Http2);

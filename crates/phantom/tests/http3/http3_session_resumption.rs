@@ -366,7 +366,10 @@ async fn a_failed_resumed_handshake_is_repeated_once_without_a_ticket() -> TestR
         let mut sniffer = match HelloSniffer::spawn(server.address).await {
             Ok(sniffer) => sniffer,
             Err(error) => {
-                return finish_with_cleanup(Err(error), stop_fixture_peer(server.task.take()).await);
+                return finish_with_cleanup(
+                    Err(error),
+                    stop_fixture_peer(server.task.take()).await,
+                );
             }
         };
         let mut retained_client = None;
@@ -427,7 +430,10 @@ async fn a_repeated_handshake_that_fails_is_not_repeated_again() -> TestResult<(
         let mut sniffer = match HelloSniffer::spawn(server.address).await {
             Ok(sniffer) => sniffer,
             Err(error) => {
-                return finish_with_cleanup(Err(error), stop_fixture_peer(server.task.take()).await);
+                return finish_with_cleanup(
+                    Err(error),
+                    stop_fixture_peer(server.task.take()).await,
+                );
             }
         };
         let mut retained_client = None;
@@ -474,7 +480,10 @@ async fn a_failed_handshake_without_a_ticket_is_not_repeated() -> TestResult<()>
         let mut sniffer = match HelloSniffer::spawn(server.address).await {
             Ok(sniffer) => sniffer,
             Err(error) => {
-                return finish_with_cleanup(Err(error), stop_fixture_peer(server.task.take()).await);
+                return finish_with_cleanup(
+                    Err(error),
+                    stop_fixture_peer(server.task.take()).await,
+                );
             }
         };
         let mut retained_client = None;

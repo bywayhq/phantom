@@ -33,13 +33,14 @@ pub(super) fn install(captured: &Captured, slot: usize) -> Result<(), QuicObserv
 
 pub(super) async fn completed(captured: &Captured, slot: usize) -> TestResult {
     let delivery = {
-        let delivery = captured
-            .quic_response_delivery
-            .lock()
-            .map_err(|error| QuicObservationFailure {
-                boundary: "client delivery",
-                diagnostic: error.to_string(),
-            })?;
+        let delivery =
+            captured
+                .quic_response_delivery
+                .lock()
+                .map_err(|error| QuicObservationFailure {
+                    boundary: "client delivery",
+                    diagnostic: error.to_string(),
+                })?;
         delivery
             .as_ref()
             .filter(|delivery| delivery.slot == slot)

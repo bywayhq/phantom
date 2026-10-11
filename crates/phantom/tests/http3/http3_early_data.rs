@@ -491,7 +491,10 @@ async fn resumed_connection_sends_get_early_and_holds_post() -> TestResult<()> {
                     gate.send_replace(true);
                     assert_eq!(arrived.recv().await, Some((path.to_owned(), true)));
                 }
-                request_peer.take().ok_or("request owner missing")?.await??;
+                request_peer
+                    .take()
+                    .ok_or("request owner missing")?
+                    .await??;
                 read_tx.send(())?;
                 closed.recv().await.ok_or("server stopped")?;
             }
@@ -619,7 +622,10 @@ async fn a_raced_alternative_sends_a_replay_safe_request_as_early_data() -> Test
                 assert_eq!(arrived.recv().await, Some((path.to_owned(), !early)));
                 gate.send_replace(true);
                 assert_eq!(
-                    request_peer.take().ok_or("request owner missing")?.await??,
+                    request_peer
+                        .take()
+                        .ok_or("request owner missing")?
+                        .await??,
                     Some(HttpProtocol::Http3)
                 );
                 read_tx.send(())?;
@@ -1182,13 +1188,10 @@ async fn concurrent_requests_share_one_resumed_connection() -> TestResult<()> {
         .await;
         let mut request_cleanup = Ok(());
         for request in requests {
-            request_cleanup = finish_with_cleanup(
-                request_cleanup,
-                stop_fixture_peer(Some(request)).await,
-            );
+            request_cleanup =
+                finish_with_cleanup(request_cleanup, stop_fixture_peer(Some(request)).await);
         }
-        let cleanup =
-            finish_with_cleanup(request_cleanup, stop_fixture_peer(server_peer).await);
+        let cleanup = finish_with_cleanup(request_cleanup, stop_fixture_peer(server_peer).await);
         let cleanup = finish_with_cleanup(cleanup, stop_relay(relay_task).await);
         drop(retained_client);
 
@@ -1331,5 +1334,5 @@ mod relay_completion;
 mod relay_controls;
 
 pub(super) mod relay_observation;
-pub(super) mod relay_peer;
 pub(super) mod relay_outcomes;
+pub(super) mod relay_peer;

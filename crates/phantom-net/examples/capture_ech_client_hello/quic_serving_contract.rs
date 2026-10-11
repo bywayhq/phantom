@@ -71,13 +71,14 @@ fn install_fault(
     captured: &Captured,
     fault: QuicServingFault,
 ) -> Result<(), QuicObservationFailure> {
-    let mut installed = captured
-        .quic_serving_fault
-        .lock()
-        .map_err(|error| QuicObservationFailure {
-            boundary: "fault installation",
-            diagnostic: error.to_string(),
-        })?;
+    let mut installed =
+        captured
+            .quic_serving_fault
+            .lock()
+            .map_err(|error| QuicObservationFailure {
+                boundary: "fault installation",
+                diagnostic: error.to_string(),
+            })?;
     response_delivery::install(captured, fault.slot)?;
     *installed = Some(fault);
     Ok(())
