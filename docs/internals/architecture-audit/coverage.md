@@ -195,6 +195,15 @@ The [source review](h3-relay-named-contract-independent-addendum-604b1c29.json)
 preserves the earlier bounded reads and follow-ups. Scaffold corrections,
 the ownership remedy and final gates remain open.
 
+The [corrected scaffold run](h3-fallback-controls-root-native-84b9e51a.json)
+preserves those nine outcomes on both hosts at `84b9e51a`. Strict Clippy and
+Rust 1.88 checks pass. The fallback selection passes eighteen methods and
+fails its new nested-driver destruction control after a trusted upload.
+Its original deadline remains the primary error. Backup also reports
+`ConnectionAborted` on Windows and `BrokenPipe` on Linux. The later client
+read-closure assertion remains unreached. Both formatting checks flag one
+fallback expression. Ownership repairs and final gates remain open.
+
 The [TCP and fallback checkpoint](origin-fallback-root-native-checkpoint-4c55e280.json)
 records the reviewed TCP worker-result repair on both hosts at `4c55e280`.
 All seven serving controls and all 27 ECH example methods pass. Strict

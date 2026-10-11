@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "revision": "af83050f93531503992b8929711d2aa7873440c9",
+  "parent": "604b1c29feabab924c5ef8afd00d07272f62330b",
+  "signature": "G",
+  "author_email": "AryaAlikhani@icloud.com",
+  "committer_email": "AryaAlikhani@icloud.com",
+  "disposition": "scaffold-only source handoff; independent source review and root repeat required",
+  "sources": [
+    {"path":"crates/phantom/tests/http3/http3_early_data.rs","git_blob":"0b2efe77842fbf2f26ae5b661301beabfe1b7b51","lines":1231,"manual_ranges":[[192,245],[255,260],[755,810],[813,829]],"coverage":"partial parent plus complete changed diff"},
+    {"path":"crates/phantom/tests/http3/http3_early_data/relay_observation.rs","git_blob":"da8dd1528447959a3ef6d624d6fc1b47a8443965","lines":175,"coverage":"whole173 manual read plus exact two blank insertions"},
+    {"path":"crates/phantom/tests/http3/http3_early_data/relay_outcomes.rs","git_blob":"96920050b42ede9e4f2a2631e1a09b4b91a14c27","lines":267,"coverage":"whole267 manual read plus one-line explicit result annotation"},
+    {"path":"crates/phantom/tests/http3/http3_session_resumption.rs","git_blob":"17b9d5d3e0d04a70198c13b8d495d1f118f0a3c4","lines":843,"manual_ranges":[[600,664]],"coverage":"partial parent plus complete changed diff"}
+  ],
+  "delta": {"files":4,"additions":127,"deletions":62},
+  "preservation": ["whole parent correction inverses exact604", "whole canonical parent inverses exact4c55", "four new early method bodies byte-exact", "whole new sniffer control byte-exact", "four old controls across two files byte-exact", "exercise inverse retains original operation and oracle sequence"],
+  "static_validator": "C:/code/phantom/target/architecture-audit/validate-h3-relay-poison-scaffold-source.ps1",
+  "checks": {"text_inverse":"PASS","git_show_check":"PASS","formatter":"NOT RUN; retained format output applied manually","cargo_clippy_msrv_runtime":"NOT RUN"},
+  "native_read_scope": ["complete h3-relay-baseline-fc224c8c-linux.fmt.log", "complete h3-relay-baseline-fc224c8c-linux.clippy.log"],
+  "root_reported_native_not_independently_reapproved": {"hosts":2,"selected":9,"pass":5,"causal_fail":4,"new_selected":5,"new_pass":1,"new_causal_fail":4,"format":1,"clippy":101,"msrv":0},
+  "poison_policy": ["fallible contextual io::Error at failed observation boundary", "retain real AbortHandle before reporting publication poison", "unit parent diagnostic and exit only for observation Some", "backup recovers handle but returns poison and timeout causes", "Drop requests abort and prints poison diagnostic", "no original PoisonError<MutexGuard> Send-object retention claim"],
+  "limitations": ["poison/error-combination branches source-only", "no ownership remedy", "no whole parent review promotion", "no joins beyond existing backup deadline", "original native red and quality receipts remain historical"]
+}

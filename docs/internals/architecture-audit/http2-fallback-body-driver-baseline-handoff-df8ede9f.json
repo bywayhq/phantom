@@ -1,0 +1,181 @@
+{
+  "commit": "df8ede9f199ef75f256ea0c256850676d4863752",
+  "base": "63487cf8b4f26f82f05606c109157a37333da823",
+  "branch": "lane/audit-fallback-ownership",
+  "lane": "C:\\code\\phantom-worktrees\\audit-fallback-ownership",
+  "kind": "Tests-first canonical nested-driver ownership baseline; no semantic ownership repair",
+  "signing": "Arya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>\nG",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "blob": "621abd7ab980e946c218e79dbc6ff46b98b759d2",
+      "git_lf_sha256": "fb89119d95b9b26dac9f0e912e0b4bda1785a9fab74ff76903c08bf151996ef4",
+      "physical_sha256": "909ecb1849ce1515b42df26c03be69c6bdf8dcf84a8c400ff3be01b6f3c0b386",
+      "lines": 703,
+      "read_scope": "Fresh whole base679 read before edits; complete observation diff and final changed serve scope read. Current whole owner preserved by inverse, no fresh whole current EOF claim."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/driver_ownership.rs",
+      "blob": "f64360094185038f7b29bfb51c35589929352454",
+      "git_lf_sha256": "8094f0fe90961b492da534f904f5b702b9cf7582dfeacbda1ac6c27a031352dd",
+      "physical_sha256": "8094f0fe90961b492da534f904f5b702b9cf7582dfeacbda1ac6c27a031352dd",
+      "lines": 343,
+      "read_scope": "Fresh whole1\u2013343 read after signing; exact final current source."
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "git_lf_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "physical_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "lines": 225,
+      "read_scope": "Whole current source freshly read (all lines); no whole supporting caller tree claim."
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "git_lf_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "physical_sha256": "515fc6080d43f01f8770ad4c4de3b6710d059ac4ff832765020cda53aa280053",
+      "lines": 268,
+      "read_scope": "Supporting contract1\u2013107 retained/fresh read at identical019 blob; rest not promoted from this baseline."
+    }
+  ],
+  "dependencies": [
+    {
+      "path": "vendor/btls/src/ssl/connector.rs",
+      "blob": "1e1b2272cb9cd72ac693c05df53c17df5c51cda8",
+      "sha256": "475d588e3ee1f466352df2f8ce49c145fc070b118aa0440062be461ea3f7b913",
+      "lines": 509,
+      "manual_ranges": [
+        [
+          65,
+          100
+        ],
+        [
+          115,
+          136
+        ],
+        [
+          291,
+          308
+        ],
+        [
+          500,
+          509
+        ]
+      ],
+      "coverage": "Partial resolved API source only"
+    },
+    {
+      "path": "vendor/http2/src/client.rs",
+      "blob": "49829c2b632e99525ca5309137fb6b52c0f5ee8e",
+      "sha256": "fcbc94877fa61c2b159330ea65f7cb1dfb95b5b965ead47fd500fe193c4c37bb",
+      "lines": 2126,
+      "manual_ranges": [
+        [
+          595,
+          626
+        ],
+        [
+          1633,
+          1649
+        ],
+        [
+          1824,
+          1860
+        ]
+      ],
+      "coverage": "Partial resolved API source only"
+    },
+    {
+      "path": "vendor/http2/src/share.rs",
+      "blob": "bfcfdf06e74b40a1f19270e7d47aebcd1963ae73",
+      "sha256": "c97846ee19ff3f4e916212ca0d70113c6dc584181b7015bf0893ae8eedfbe624",
+      "lines": 622,
+      "manual_ranges": [
+        [
+          327,
+          342
+        ],
+        [
+          422,
+          439
+        ]
+      ],
+      "coverage": "Partial resolved API source only"
+    },
+    {
+      "path": "vendor/http2/src/error.rs",
+      "blob": "dadfc575dea15d42863693350dbc6407d7892217",
+      "sha256": "3672088c73d124905e1924e9664fd1ad635167b87add376144c8ac13697982a7",
+      "lines": 274,
+      "manual_ranges": [
+        [
+          58,
+          80
+        ]
+      ],
+      "coverage": "Partial resolved API source only"
+    },
+    {
+      "path": "vendor/tokio-btls/src/lib.rs",
+      "blob": "f582e8808eb6a1f09c25261e2e4292188942bd26",
+      "sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "lines": 253,
+      "manual_ranges": [
+        [
+          201,
+          221
+        ]
+      ],
+      "coverage": "Partial resolved API source only"
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "blob": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "lines": 1792,
+      "manual_ranges": [
+        [
+          507,
+          538
+        ]
+      ],
+      "coverage": "Partial resolved API source only"
+    }
+  ],
+  "preservation": {
+    "whole_parent_inverse_exact": true,
+    "inverse_sha256": "f5fd043c07b2aa99d1531bac1cef4104edcba625fd7640a44431c3b25ed88c4d",
+    "outside_two_paths_unchanged": true,
+    "all_original_request_and_deadline_method_bodies": "Whole parent inverse and unchanged existing child blobs prove exact preservation.",
+    "None_path": "Original body operations through optional observer None; same actual poll_closed/body.data futures, flow-control, response and join order."
+  },
+  "prerequisites": [
+    "Generated CA validation and IP hostname verification; actual H2 ALPN checked.",
+    "Actual literal POST /upload and nonempty DATA payload through TLS/H2; END_STREAM retained false.",
+    "Original canonical body.data future polled Pending only after actual accumulated bytes equal payload.",
+    "Nested lifetime witness constructed before spawn; actual AbortHandle published synchronously before following await.",
+    "Actual nested and client drivers still unfinished before cancellation/explicit abort; sender, stream, response future and live runtime retained through target."
+  ],
+  "backup": "Concrete owner registered before acquisition. Parent/client tasks immediately ConnectionPeer-owned, actual nested handle stored independently. All normal/error results aggregate with finite parent stop, reread nested abort/completion and client stop. Drop only requests abort; no join claim for nested AbortHandle.",
+  "forecast": {
+    "passed": 2,
+    "failed": 1,
+    "negative": "ParentCancellation reaches actual acknowledged parent cancellation then typed DriverDropDeadline wrapping original Elapsed at child312. Client socket closure at318 is downstream/uncredited in predicted red.",
+    "positives": [
+      "Actual healthy END_STREAM upload and literal204 plus original Received method/path/payload",
+      "Actual nested AbortHandle abort causes destructor and real client read EOF/expected peer-close before backup"
+    ]
+  },
+  "error_policy": "Unexpected parent JoinError/inner error are returned as originals; expected requested parent cancellation acknowledged. Client connection I/O closure accepted only with actual EOF/expected peer-close read witness; other errors retained through cleanup aggregation.",
+  "limits": [
+    "Forecast only; no compilation or test result. Independent source review and both-host baseline required before ownership repair.",
+    "Controlled fixture ownership, no production fallback defect inference or H3/browser fidelity claim.",
+    "No new outer Drop/unpolled/timeout/sibling error contracts measured. Lifetime is prepared for unpolled nested future destruction but this slice first establishes actual Pending body.",
+    "Nested backup abort/completion is not outcome retrieval or all-descendant joining.",
+    "Later socket closure assertions uncredited until baseline reaches them; exact platform EOF behavior remains subject to actual positive run.",
+    "No healthy-wire weakenings, deadline changes, shared support/manifest/API edits or root integration."
+  ],
+  "read_correction": "First supporting connector attempt requested500\u2013513 beyond actual509 and failed; only corrected explicit500\u2013509 receives read credit.",
+  "operations": "Source edits, manual source reads, stdlib text/hash inverse and signed commit only. No Cargo, runtime, socket/child/network resources, target imports, formatter, Ruff or checkers."
+}

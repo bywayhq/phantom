@@ -1,0 +1,9 @@
+# H3 relay observation scaffold review
+
+Signed `af83050f93531503992b8929711d2aa7873440c9` is source-approved for the unchanged guarded nine-control baseline repeat. It reports active lock failures, retains the actual worker handle before reporting publication poison, and continues independent backup after observation failure. Unit parents emit a diagnostic and exit only in the observed Some path; their unchanged unit-result policy is not represented as returned error retention.
+
+Whole observation175, outcomes267 and unchanged sniffer45 were read, with complete four-file diff and bounded parent contexts. Reverse-hunk source checks reconstruct all four604 files exactly. Four control bodies and the entire sniffer control are byte-exact; outside files/modes remain exact. Earlier independent canonical inverse to4c55 remains retained, with no fresh whole-parent claim.
+
+Backup aborts the owner/current child, saves any poison error, waits for parent destruction under the unchanged five-second bound, then takes a stable child snapshot and observes requested termination. Initial/final observation failures and deadline errors are composed. AbortHandle completion is not join-result retrieval, and Drop is abort-only. No observer guard crosses an await.
+
+Poison and multi-error branches remain source-only. The original5PASS4FAIL and quality failures remain historical; no native result is granted here. Actual literal UDP exchange is not authenticated H3 evidence. No compiler, formatter, checker, target imports, resource probes or runtime ran. Root must repeat the unchanged controls/strict checks before a semantic ownership remedy.

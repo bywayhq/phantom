@@ -1,0 +1,66 @@
+{
+  "revision": "bd8ab3829987f730645bb02e90078954a10322be",
+  "parent": "df8ede9f199ef75f256ea0c256850676d4863752",
+  "decision": "approve bounded source for root causal baseline",
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "blob": "77f5b9bb03b9d3224b97170885c5cee2cedaf48b",
+      "git_lf_sha256": "f5b9d46cb4297d8909b176a11f4e9522e26b828561e227e764c8830269e762fc",
+      "physical_sha256": "91451ec2bd31fd8a74f3e012c44913287d82687a7b57d99e9a39ee8decc66ae9",
+      "eof": 700,
+      "manual_ranges": [
+        {
+          "first": 136,
+          "last": 192,
+          "sha256": "7603165d0fbd892ce3b4ff05ee97aabba5ed9fdeff841ecd7d781178331d0cb9"
+        }
+      ],
+      "reverse_hunk_inverse": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/driver_ownership.rs",
+      "blob": "d100515b6062323e90a9dbcbc67c2bbafeec8d2c",
+      "git_lf_sha256": "375e0af4fce5a0bdca2610f09c09ffcec180ba64dbe61890b526df541cb4878c",
+      "physical_sha256": "375e0af4fce5a0bdca2610f09c09ffcec180ba64dbe61890b526df541cb4878c",
+      "eof": 376,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 220,
+          "sha256": "1fc7b64377ba2ee11de910f2adc499a50d9e84f32b36e9c747ee79750b8d88fb"
+        },
+        {
+          "first": 283,
+          "last": 287,
+          "sha256": "4a09502baba2f7c7b72d0695803b765ca296f94133e1ef29ee3f5bf086a999de"
+        }
+      ],
+      "reverse_hunk_inverse": true
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\http2-fallback-driver-observation-followup-bd8ab382.md",
+      "sha256": "56e6b95002e9a2c2d6e1e889aa908727174902377e78fb7f974955d61bd67b30",
+      "read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\http2-fallback-driver-observation-followup-bd8ab382.json",
+      "sha256": "ce17f5f6d6f4b3a3a4fe7e82740835c70f5535881d86ba0c6cd4a8095be70ece",
+      "read": "whole"
+    }
+  ],
+  "diff_sha256": "16b644baa77008a4aadb27fe61559f17f4dcbeb9064096083d3161c41f9c2e21",
+  "signature": "G Arya Alikhani <AryaAlikhani@icloud.com> Arya Alikhani <AryaAlikhani@icloud.com>",
+  "three_control_bodies_exact": true,
+  "prior_report": "http2-fallback-body-driver-baseline-independent-source-review-df8ede9f",
+  "assessment": "Publication retains actual handle before returning phase-specific error; lookup returns poison failure; explicit backup attempts parent, recovered nested abort/completion, client independently and retains every observed result; Drop recovery only requests abort.",
+  "limits": [
+    "PoisonError guard identity cannot enter Send+Sync storage; errors name phase rather than falsely preserving raw guard identity",
+    "Fresh current changed owner/functions and whole diff; original whole343 child/support reads preserved, no fresh whole376 coverage",
+    "No poison runtime controls or compile/format proof performed",
+    "Forecast two positives and one typed abandonment deadline now345 remains unmeasured; later socket witness351 uncredited",
+    "No production ownership remedy, nested result retrieval, full gate or CI approval"
+  ]
+}
