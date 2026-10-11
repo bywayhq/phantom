@@ -51,6 +51,13 @@ in-memory streams, and this source pass adds no execution or final-gate result.
 
 ### Fixture contract controls
 
+The [observation and acquisition pass](observation-acquisition-root-source-pass-0340818c.json)
+records complete root reads of two more control owners, totaling 535 lines.
+They check named real ClientHello batches and transferred fixture task
+ownership. No new supported defect was found in these bounded reads.
+Supporting parent reads remain partial. This adds no execution or independent
+sign-off; the combined review remains required.
+
 The [deadline control pass](deadline-control-source-pass-c3cf32c7.json)
 records complete manual reads of four HTTPS-record control owners. Each
 checks entered expiry, a typed inner failure and ready success through its
