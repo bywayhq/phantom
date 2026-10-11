@@ -4010,3 +4010,5 @@ docs/internals/architecture-audit/origin-quic-serving-classification-design-b0c1
 crates/phantom/tests/http3/http2_fallback/deadline_contract.rs	source	source-complete	http2-fallback-deadline-combined-independent-source-review-63487cf8.json; fallback-deadline-remedy-root-native-4d99e490.json; whole96 child and preserved three controls
 docs/internals/architecture-audit/origin-fallback-tcp-native-metadata-independent-review-4c55e280.json	documentation	evidence-indexed	origin-fallback-tcp-native-metadata-independent-review-4c55e280.json
 docs/internals/architecture-audit/origin-fallback-tcp-native-metadata-independent-review-4c55e280.md.txt	documentation	evidence-indexed	origin-fallback-tcp-native-metadata-independent-review-4c55e280.json
+docs/internals/architecture-audit/fallback-deadline-remedy-independent-native-addendum-4d99e490.json	documentation	evidence-indexed	fallback-deadline-remedy-independent-native-addendum-4d99e490.json
+docs/internals/architecture-audit/fallback-deadline-remedy-independent-native-addendum-4d99e490.md.txt	documentation	evidence-indexed	fallback-deadline-remedy-independent-native-addendum-4d99e490.json

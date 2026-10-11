@@ -1,0 +1,275 @@
+{
+  "kind": "independent bounded native receipt review; no execution",
+  "revision": "4d99e490de7fefff6c0e9f73a3d7bd69972cb814",
+  "verdict": "Recorded focused selection and applicable format/test-Clippy/MSRV checks pass both hosts",
+  "terminal_authority": "Root reported handles84869/19302 terminal0; independent review checks immutable complete logs and sidecars, not fresh process polling",
+  "host_results": {
+    "windows": {
+      "passed": 16,
+      "elapsed_seconds": 12.69
+    },
+    "linux": {
+      "passed": 16,
+      "elapsed_seconds": 10.91
+    }
+  },
+  "roster": [
+    [
+      "http2_fallback::a_failed_handshake_after_early_data_falls_back_before_the_request_is_written",
+      "ok"
+    ],
+    [
+      "http2_fallback::a_failed_http2_attempt_returns_the_http2_error",
+      "ok"
+    ],
+    [
+      "http2_fallback::a_failure_after_the_request_was_sent_returns_the_http3_error",
+      "ok"
+    ],
+    [
+      "http2_fallback::a_handshake_past_four_seconds_falls_back",
+      "ok"
+    ],
+    [
+      "http2_fallback::a_handshake_past_the_connect_timeout_falls_back",
+      "ok"
+    ],
+    [
+      "http2_fallback::a_one_shot_streaming_body_returns_the_http3_error",
+      "ok"
+    ],
+    [
+      "http2_fallback::a_refused_quic_handshake_sends_the_request_over_http2",
+      "ok"
+    ],
+    [
+      "http2_fallback::deadline_contract::a_ready_fallback_operation_completes_before_the_deadline",
+      "ok"
+    ],
+    [
+      "http2_fallback::deadline_contract::a_ready_fallback_operation_keeps_its_original_inner_error",
+      "ok"
+    ],
+    [
+      "http2_fallback::deadline_contract::an_entered_pending_fallback_operation_retains_its_elapsed_cause",
+      "ok"
+    ],
+    [
+      "http2_fallback::socks5::a_refused_quic_handshake_through_socks5_sends_the_request_through_a_socks5_tunnel",
+      "ok"
+    ],
+    [
+      "http2_fallback::socks5::a_refused_socks5_udp_association_returns_the_http3_error_without_a_tunnel",
+      "ok"
+    ],
+    [
+      "http2_fallback::the_fallback_needs_an_http2_profile_and_a_tcp_route_before_any_io",
+      "ok"
+    ],
+    [
+      "http2_fallback::the_http2_attempt_uses_the_profiles_http2_recipe",
+      "ok"
+    ],
+    [
+      "http2_fallback::without_the_policy_a_refused_handshake_returns_the_http3_error",
+      "ok"
+    ],
+    [
+      "http2_fallback::zero_retry_cap_keeps_exact_http3_and_needs_no_http2_profile",
+      "ok"
+    ]
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "git_sha256": "f5fd043c07b2aa99d1531bac1cef4104edcba625fd7640a44431c3b25ed88c4d",
+      "same_as_independently_reviewed": "63487cf8b4f26f82f05606c109157a37333da823"
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/deadline_contract.rs",
+      "git_sha256": "5e2f109da9eb34b99ea8d9e1b44c9a04545fdc436586869fd7f2b258a72b6fb3",
+      "same_as_independently_reviewed": "63487cf8b4f26f82f05606c109157a37333da823"
+    }
+  ],
+  "artifact_bindings": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.fallback.log",
+      "sha256": "6a3ea07ffb2eee22a3adb3e99dc113e9abab0d21314cb48ae2832d7c4a312e6d",
+      "bytes": 1839,
+      "lines": 24,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.fallback.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "lines": 0,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.clippy.log",
+      "sha256": "a7052a80b863e6597564d544bfc1ebb70a5540c9e1c9e59db6061a4119924ebf",
+      "bytes": 1157,
+      "lines": 11,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.msrv.log",
+      "sha256": "24eb9bcc837fb59c2a5093b4a58754a27b58d21cde74198744f455f73beec413",
+      "bytes": 1051,
+      "lines": 10,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.revision",
+      "sha256": "ab35bf29378c56adf8a42e1092d7d6b4bb1db54426706ba802d837bcfe1e2234",
+      "bytes": 41,
+      "lines": 1,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.fallback.log",
+      "sha256": "de5f5858ce6378da9182405198e0c64a9d62ea6c8c910466f740b6b509152268",
+      "bytes": 1845,
+      "lines": 24,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.fallback.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "lines": 0,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.clippy.log",
+      "sha256": "9b62da37b5978373b3c7edcecc9e94233920f8f9bc92e18a234aed948508cac4",
+      "bytes": 1257,
+      "lines": 11,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.msrv.log",
+      "sha256": "b290570f1a729b639bc8d6ba464ab963899796d5896f6b291cf3f0313a97b51e",
+      "bytes": 1141,
+      "lines": 10,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.revision",
+      "sha256": "ab35bf29378c56adf8a42e1092d7d6b4bb1db54426706ba802d837bcfe1e2234",
+      "bytes": 41,
+      "lines": 1,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fallback-remedy-4d99e490-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2,
+      "lines": 1,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-fallback-remedy-reviewed.sh",
+      "sha256": "ed920e5108ca90dbee591fdd66160603039f57f9c36f0a08380a4a94a3e93365",
+      "bytes": 1645,
+      "lines": 43,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\architecture-audit\\docs\\internals\\architecture-audit\\fallback-deadline-remedy-root-native-4d99e490.json",
+      "sha256": "4e348d5f2258ea5627c911ddcaf98d622510236d665f5177651d8682cdd061f8",
+      "bytes": 7356,
+      "lines": 190,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.fallback.log",
+      "sha256": "df6883efcfaff8a1aa703ad91af846c9d8581365a438e5f5f19946c9d5a0da7c",
+      "bytes": 1947,
+      "lines": 29,
+      "read": "whole raw artifact"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.fallback.log",
+      "sha256": "8b7dc2b69f0ea5fd7a1d7bf89b79daaac4873d70693f79ad71e348c2eab78f8a",
+      "bytes": 2033,
+      "lines": 29,
+      "read": "whole raw artifact"
+    }
+  ],
+  "baseline_preserved": [
+    "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-windows.fallback.log",
+    "C:\\code\\phantom\\target\\architecture-audit\\origin-fallback-4c55e280-linux.fallback.log"
+  ],
+  "causal_comparison": "Original3 controls2PASS1missing-ElapsedFAIL; fixedall3PASS within16selection; typedsource/message/innererror/success assertions reached.",
+  "limits": [
+    "No target execution/imports, Cargo, formatter, checker, resource or network probes.",
+    "No whole workspace gate, PR/main CI, general task ownership, sibling aggregation or recipe wire/timing oracle closure.",
+    "The thirteen other ordinary/SOCKS fallback methods passing do not independently prove every wire assertion or observer readiness contract.",
+    "No new TCP execution credit for formatter-only ECH composition."
+  ]
+}
