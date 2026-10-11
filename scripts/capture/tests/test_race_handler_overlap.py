@@ -117,6 +117,46 @@ class HandlerOverlapTests(unittest.IsolatedAsyncioTestCase):
         finally:
             loop.set_exception_handler(original)
 
+    async def test_later_active_scope_keeps_filtering_after_earlier_scope_exits(self):
+        loop = asyncio.get_running_loop()
+        original = loop.get_exception_handler()
+        reports = []
+
+        def H(active_loop, context):
+            reports.append((active_loop, context))
+
+        active = []
+        loop.set_exception_handler(H)
+        try:
+            scope_a = race.capture_exception_handler()
+            scope_a.__enter__()
+            active.append(scope_a)
+            scope_b = race.capture_exception_handler()
+            scope_b.__enter__()
+            active.append(scope_b)
+
+            scope_a.__exit__(None, None, None)
+            active.remove(scope_a)
+            reset = ConnectionResetError("controlled reset in later active scope")
+            reset_context = await self.dispatch_failure(loop, reset)
+            forwarded_before_backup = list(reports)
+
+            scope_b.__exit__(None, None, None)
+            active.remove(scope_b)
+            restored_before_backup = loop.get_exception_handler()
+
+            self.assertFalse(
+                any(entry[1] is reset_context for entry in forwarded_before_backup),
+                "earlier scope exit removed the later active reset filter",
+            )
+            self.assertIs(restored_before_backup, H)
+        finally:
+            try:
+                for scope in reversed(active):
+                    scope.__exit__(None, None, None)
+            finally:
+                loop.set_exception_handler(original)
+
     async def test_active_scope_filters_resets_and_forwards_unrelated_context(self):
         loop = asyncio.get_running_loop()
         original = loop.get_exception_handler()
