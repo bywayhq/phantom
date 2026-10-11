@@ -224,12 +224,31 @@ async fn delaying_relay_observed(
                     }
                     let upstream = Arc::new(upstream);
                     upstreams.insert(client, Arc::clone(&upstream));
+                    let receiver = match &observation {
+                        Some(value) if value.observe_receivers.load(Ordering::SeqCst) => {
+                            match value.receiver(client) {
+                                Ok(receiver) => Some(receiver),
+                                Err(error) => {
+                                    eprintln!("relay receiver observation failed: {error}");
+                                    return;
+                                }
+                            }
+                        }
+                        _ => None,
+                    };
                     let worker = downstream_tasks.spawn(forward_delayed_observed(
                         Arc::clone(&upstream),
                         Arc::clone(&front),
                         client,
                         observation.clone(),
+                        receiver.clone(),
                     ));
+                    if let Some(receiver) = receiver
+                        && let Err(error) = receiver.publish(worker.clone())
+                    {
+                        eprintln!("relay receiver publication failed: {error}");
+                        return;
+                    }
                     if let Some(value) = &observation
                         && let Err(error) = value.publish_worker(worker)
                     {
@@ -246,7 +265,7 @@ async fn delaying_relay_observed(
 }
 
 async fn forward_delayed(upstream: Arc<UdpSocket>, front: Arc<UdpSocket>, client: SocketAddr) {
-    forward_delayed_observed(upstream, front, client, None).await
+    forward_delayed_observed(upstream, front, client, None, None).await
 }
 
 async fn forward_delayed_observed(
@@ -254,18 +273,21 @@ async fn forward_delayed_observed(
     front: Arc<UdpSocket>,
     client: SocketAddr,
     observation: Option<Arc<relay_observation::RelayObservation>>,
+    receiver: Option<Arc<relay_observation::ReceiverObservation>>,
 ) {
     let _lifetime = observation
         .as_ref()
         .map(|value| relay_observation::ReadLifetime::reply(Arc::clone(value)));
+    let _receiver_lifetime = receiver.clone().map(relay_observation::ReceiverLifetime);
     let mut datagram = vec![0; 65_535];
     let mut sends = JoinSet::new();
     loop {
         let received = tokio::select! {
             received = async {
-                match &observation {
-                    Some(value) => value.reply.recv(&upstream, &mut datagram).await,
-                    None => upstream.recv(&mut datagram).await,
+                match (&receiver, &observation) {
+                    (Some(receiver), _) => receiver.read.recv(&upstream, &mut datagram).await,
+                    (None, Some(value)) => value.reply.recv(&upstream, &mut datagram).await,
+                    (None, None) => upstream.recv(&mut datagram).await,
                 }
             } => received,
             completed = sends.join_next(), if !sends.is_empty() => {
@@ -787,13 +809,32 @@ async fn gated_relay_observed(
                     }
                     let upstream = Arc::new(upstream);
                     upstreams.insert(client, Arc::clone(&upstream));
+                    let receiver = match &observation {
+                        Some(value) if value.observe_receivers.load(Ordering::SeqCst) => {
+                            match value.receiver(client) {
+                                Ok(receiver) => Some(receiver),
+                                Err(error) => {
+                                    eprintln!("relay receiver observation failed: {error}");
+                                    return;
+                                }
+                            }
+                        }
+                        _ => None,
+                    };
                     let worker = downstream_tasks.spawn(forward_gated_observed(
                         Arc::clone(&upstream),
                         Arc::clone(&front),
                         client,
                         open.clone(),
                         observation.clone(),
+                        receiver.clone(),
                     ));
+                    if let Some(receiver) = receiver
+                        && let Err(error) = receiver.publish(worker.clone())
+                    {
+                        eprintln!("relay receiver publication failed: {error}");
+                        return;
+                    }
                     if let Some(value) = &observation
                         && let Err(error) = value.publish_worker(worker)
                     {
@@ -815,18 +856,21 @@ async fn forward_gated_observed(
     client: SocketAddr,
     mut open: tokio::sync::watch::Receiver<bool>,
     observation: Option<Arc<relay_observation::RelayObservation>>,
+    receiver: Option<Arc<relay_observation::ReceiverObservation>>,
 ) {
     let _lifetime = observation
         .as_ref()
         .map(|value| relay_observation::ReadLifetime::reply(Arc::clone(value)));
+    let _receiver_lifetime = receiver.clone().map(relay_observation::ReceiverLifetime);
     let mut held = std::collections::VecDeque::new();
     let mut datagram = vec![0; 65_535];
     loop {
         tokio::select! {
             received = async {
-                match &observation {
-                    Some(value) => value.reply.recv(&upstream, &mut datagram).await,
-                    None => upstream.recv(&mut datagram).await,
+                match (&receiver, &observation) {
+                    (Some(receiver), _) => receiver.read.recv(&upstream, &mut datagram).await,
+                    (None, Some(value)) => value.reply.recv(&upstream, &mut datagram).await,
+                    (None, None) => upstream.recv(&mut datagram).await,
                 }
             } => {
                 let Ok(len) = received else { return };
@@ -1225,6 +1269,7 @@ async fn stop_relay(task: JoinHandle<()>) -> TestResult<()> {
 }
 
 mod absence_controls;
+mod relay_completion;
 mod relay_controls;
 
 pub(super) mod relay_observation;

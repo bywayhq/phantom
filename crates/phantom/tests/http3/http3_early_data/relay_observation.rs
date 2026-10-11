@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     io,
     net::SocketAddr,
     sync::{
@@ -14,9 +15,36 @@ pub(crate) struct RelayObservation {
     pub(crate) front: ReadObservation,
     pub(crate) reply: ReadObservation,
     worker: Mutex<Option<AbortHandle>>,
+    receivers: Mutex<HashMap<SocketAddr, Arc<ReceiverObservation>>>,
+    pub(crate) observe_receivers: AtomicBool,
+}
+
+#[derive(Default)]
+pub(crate) struct ReceiverObservation {
+    pub(crate) read: ReadObservation,
+    worker: Mutex<Option<AbortHandle>>,
 }
 
 impl RelayObservation {
+    pub(crate) fn receiver(&self, client: SocketAddr) -> io::Result<Arc<ReceiverObservation>> {
+        let mut receivers = self
+            .receivers
+            .lock()
+            .map_err(|_| io::Error::other("relay receiver registry lock poisoned"))?;
+
+        Ok(Arc::clone(receivers.entry(client).or_default()))
+    }
+
+    pub(crate) fn receivers(&self) -> (Vec<Arc<ReceiverObservation>>, io::Result<()>) {
+        match self.receivers.lock() {
+            Ok(receivers) => (receivers.values().cloned().collect(), Ok(())),
+            Err(poisoned) => (
+                poisoned.into_inner().values().cloned().collect(),
+                Err(io::Error::other("relay receiver registry cleanup lock poisoned")),
+            ),
+        }
+    }
+
     pub(crate) fn publish_worker(&self, worker: AbortHandle) -> io::Result<()> {
         match self.worker.lock() {
             Ok(mut slot) => {
@@ -47,6 +75,40 @@ impl RelayObservation {
                 Err(io::Error::other("relay worker cleanup lock poisoned")),
             ),
         }
+    }
+}
+
+impl ReceiverObservation {
+    pub(crate) fn publish(&self, worker: AbortHandle) -> io::Result<()> {
+        match self.worker.lock() {
+            Ok(mut slot) => {
+                *slot = Some(worker);
+
+                Ok(())
+            }
+            Err(poisoned) => {
+                *poisoned.into_inner() = Some(worker);
+                Err(io::Error::other("relay receiver publication lock poisoned"))
+            }
+        }
+    }
+
+    pub(crate) fn worker(&self) -> (Option<AbortHandle>, io::Result<()>) {
+        match self.worker.lock() {
+            Ok(slot) => (slot.clone(), Ok(())),
+            Err(poisoned) => (
+                poisoned.into_inner().clone(),
+                Err(io::Error::other("relay receiver handle lock poisoned")),
+            ),
+        }
+    }
+}
+
+pub(crate) struct ReceiverLifetime(pub(crate) Arc<ReceiverObservation>);
+
+impl Drop for ReceiverLifetime {
+    fn drop(&mut self) {
+        self.0.read.destroyed.store(true, Ordering::SeqCst);
     }
 }
 
