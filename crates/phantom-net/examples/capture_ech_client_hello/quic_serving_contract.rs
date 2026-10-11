@@ -2,7 +2,7 @@ use std::{
     error::Error,
     fmt,
     sync::{
-        Arc, PoisonError,
+        Arc,
         atomic::{AtomicBool, Ordering},
     },
 };
@@ -33,7 +33,9 @@ pub(crate) fn observe_response(
     let mut fault = captured
         .quic_serving_fault
         .lock()
-        .unwrap_or_else(PoisonError::into_inner);
+        .map_err(|error| {
+            StreamError::Undefined(Box::new(QuicObservationFailure(error.to_string())))
+        })?;
     if fault.as_ref().is_some_and(|fault| fault.slot == slot) {
         let fault = fault.take().ok_or_else(|| {
             StreamError::Undefined("post-response fault was removed before observation".into())
@@ -44,6 +46,17 @@ pub(crate) fn observe_response(
 
     result
 }
+
+#[derive(Debug)]
+struct QuicObservationFailure(String);
+
+impl fmt::Display for QuicObservationFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "QUIC serving observation failed: {}", self.0)
+    }
+}
+
+impl Error for QuicObservationFailure {}
 
 #[derive(Debug)]
 struct LocalQuicServingFailure(Arc<()>);
@@ -173,7 +186,7 @@ async fn finish_capture_retains_a_local_quic_response_failure_beside_a_healthy_w
             .captured
             .quic_serving_fault
             .lock()
-            .unwrap_or_else(PoisonError::into_inner) = Some(QuicServingFault {
+            .map_err(|error| QuicObservationFailure(error.to_string()))? = Some(QuicServingFault {
             slot: 1,
             error: StreamError::Undefined(Box::new(LocalQuicServingFailure(Arc::clone(&identity)))),
             reached: Arc::clone(&reached),
