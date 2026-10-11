@@ -3,6 +3,7 @@ set -euo pipefail
 
 repository=${1:?usage: stage-h3-comparison.sh REPOSITORY DESTINATION}
 destination=${2:?usage: stage-h3-comparison.sh REPOSITORY DESTINATION}
+repository=$(cd "$repository" && pwd -P)
 source="$repository/vendor/h3"
 
 die() {
@@ -59,6 +60,7 @@ done
 # Compare the referenced license content, while leaving the checkout's Git
 # symlinks or Windows placeholders untouched.
 mkdir "$destination"
+destination=$(cd "$destination" && pwd -P)
 tar --exclude=target "${license_exclusions[@]}" -cf - -C "$source" . \
   | tar -xf - -C "$destination"
 for package in "${packages[@]}"; do
