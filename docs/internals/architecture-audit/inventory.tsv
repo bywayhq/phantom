@@ -4373,3 +4373,6 @@ docs/internals/architecture-audit/source-binding-interface-root-remedy-36c99fed.
 docs/internals/architecture-audit/netlog-middle-record-root-source-baseline-36c99fed.json	documentation	evidence-record	exact bounded source/native result; wider audit remains open
 docs/internals/architecture-audit/source-binding-interface-owner-remedy-independent-native-addendum-36c99fed.md.txt	documentation	evidence-record	independent exact interface native/root composition; broader audit open
 docs/internals/architecture-audit/source-binding-interface-owner-remedy-independent-native-addendum-36c99fed.json	documentation	evidence-record	independent exact interface native/root composition; broader audit open
+docs/internals/architecture-audit/netlog-record-controls-independent-source-review-d49c9ba7.md.txt	documentation	evidence-record	bounded exact malformed-record baseline; remedy remains open
+docs/internals/architecture-audit/netlog-record-controls-independent-source-review-d49c9ba7.json	documentation	evidence-record	bounded exact malformed-record baseline; remedy remains open
+docs/internals/architecture-audit/netlog-record-root-baseline-d49c9ba7.json	documentation	evidence-record	bounded exact malformed-record baseline; remedy remains open
