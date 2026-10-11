@@ -607,6 +607,12 @@ Each run, through `android_device.py`:
 5. afterwards stops the browser, removes the reverse ports and the debug
    configuration, and clears the debug app.
 
+Failed setup also cleans up the actions the session started. Cleanup tries
+the remaining actions after an error and reports failures with the original
+error. A refused launch leaves the device alone. Calling cleanup again
+retries only actions that raised an error. Direct `AndroidLaunch` callers
+must set `typing_attempts` to a positive count.
+
 The page load is therefore a typed address-bar navigation, and fixtures
 record `launch_mode=android-typed`. A page that another app opens through a
 `VIEW` intent has no user activation, and Chrome then leaves out

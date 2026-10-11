@@ -2490,6 +2490,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Keep refused Android captures from stopping a browser. Own configuration
+  uploads before they start, attempt cleanup actions independently, and keep
+  the initiating error with cleanup failures. Repeated cleanup retries only
+  actions that raised an error. Reject nonpositive Android launch attempts.
+
 - Reject infinite and NaN Alt-Svc capture timeouts before preparing resources
   or creating output directories. Zero and finite margins remain accepted.
 
