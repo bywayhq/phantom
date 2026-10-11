@@ -1,0 +1,330 @@
+{
+  "schema": "bounded-independent-source-review-v1",
+  "revision": "2ced723189107174d492783fca0d520b3cc9975c",
+  "parent": "c73aa46126e4d062ac958d5fb09587c988baf9e3",
+  "disposition": "approve two-control tests-only candidate for root causal/native verification",
+  "new_owner_blob": "443773281642aece43d2e740bf68a3265235c85b",
+  "controls": [
+    "test_h3_done_releases_the_original_healthy_held_h2_response",
+    "test_h3_done_keeps_the_actual_held_h2_send_failure_on_its_original_owner"
+  ],
+  "read_bindings": [
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_h3_deferred_response_classification.py",
+      "bytes": 17681,
+      "sha256": "350917e122ae59849e9fb5e44862f62dd6c594fee80196e4eac21d50fa78a602",
+      "lines": 448,
+      "scope": "whole new owner manual read",
+      "inclusive_manual_ranges": [
+        {
+          "start": 1,
+          "end": 235,
+          "sha256": "2a9c09084017fd877fe8ccfe73150d75e5c35e7fc3ffb7286a124dbdddd92ec6"
+        },
+        {
+          "start": 236,
+          "end": 448,
+          "sha256": "049bc7ac35fce7becd30442e2f88a779776cc4ba0c05c304cb9d48ca487dc8ff"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_deferred_response_classification.py",
+      "bytes": 9656,
+      "sha256": "9c09438205991ad78a7d3ae693e71f0973b697b84f25627cbffd4c1d4d8bec36",
+      "lines": 248,
+      "scope": "whole helper read",
+      "inclusive_manual_ranges": [
+        {
+          "start": 1,
+          "end": 248,
+          "sha256": "9c09438205991ad78a7d3ae693e71f0973b697b84f25627cbffd4c1d4d8bec36"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_error_classification.py",
+      "bytes": 16789,
+      "sha256": "2e576fd01992081afea523968ca13811bcdd451e089580885b2103a29d80ea57",
+      "lines": 428,
+      "scope": "supporting partial manual read",
+      "inclusive_manual_ranges": [
+        {
+          "start": 1,
+          "end": 301,
+          "sha256": "4721e7358f7288d1a337760c48ceda2d921a0c08e6d24194e506b6803cf3f1a5"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "bytes": 20333,
+      "sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+      "lines": 543,
+      "scope": "supporting partial manual read",
+      "inclusive_manual_ranges": [
+        {
+          "start": 43,
+          "end": 425,
+          "sha256": "c6d7253af5f1897a7a0c8ac4d7f4c175313d581ec7bfb07d7887cec2bda6a203"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "bytes": 56925,
+      "sha256": "aa77b84978c097d58e55f0b84fc70f4121253521b9435db7a576491b87df350c",
+      "lines": 1624,
+      "scope": "supporting partial manual read",
+      "inclusive_manual_ranges": [
+        {
+          "start": 271,
+          "end": 435,
+          "sha256": "7d9d68272d40ea8f9a3fdddd7b7be8e01629ea43651087f99996a2939e7b3c6b"
+        },
+        {
+          "start": 791,
+          "end": 1005,
+          "sha256": "73c3cf9e133a16a08103fbe81782fc6728ec691bc99557991be334417f5f0501"
+        },
+        {
+          "start": 1081,
+          "end": 1225,
+          "sha256": "e6689d71171d0adb00d3f55411339832059875720afa5e5451f2e0fd6c106355"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/reserved_ports.py",
+      "bytes": 1063,
+      "sha256": "eb28b1cd0dcf329fe1c782d210e20c1d4a5cc0979c6df45fb8700320621c9d07",
+      "lines": 32,
+      "scope": "whole helper read",
+      "inclusive_manual_ranges": [
+        {
+          "start": 1,
+          "end": 32,
+          "sha256": "eb28b1cd0dcf329fe1c782d210e20c1d4a5cc0979c6df45fb8700320621c9d07"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\6rc7taxPpAcVKXph\\Lib\\site-packages\\aioquic\\asyncio\\protocol.py",
+      "bytes": 10104,
+      "sha256": "107a63e1bc256fb41ef9360601b6fcd0581c85c9457fa31f9d0d21c2be340483",
+      "lines": 272,
+      "scope": "whole resolved owner manual read",
+      "inclusive_manual_ranges": [
+        {
+          "start": 1,
+          "end": 272,
+          "sha256": "107a63e1bc256fb41ef9360601b6fcd0581c85c9457fa31f9d0d21c2be340483"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\6rc7taxPpAcVKXph\\Lib\\site-packages\\aioquic\\asyncio\\server.py",
+      "bytes": 8738,
+      "sha256": "591b0563ec69b76d4d59b24f13daed57ad7562e90a18dbe3f51daa72e9009ef8",
+      "lines": 218,
+      "scope": "supporting resolved partial manual read",
+      "inclusive_manual_ranges": [
+        {
+          "start": 34,
+          "end": 158,
+          "sha256": "84e280c824d26d696b33b239d1d0959f7725df7f486ed91c2cf7a2fd33ab2937"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\6rc7taxPpAcVKXph\\Lib\\site-packages\\aioquic\\quic\\configuration.py",
+      "bytes": 4740,
+      "sha256": "7157c7aec8af55a1b77d174bb46ebad961cb8fe94e28aeff110ab72025e03c3b",
+      "lines": 163,
+      "scope": "whole resolved owner manual read",
+      "inclusive_manual_ranges": [
+        {
+          "start": 1,
+          "end": 163,
+          "sha256": "7157c7aec8af55a1b77d174bb46ebad961cb8fe94e28aeff110ab72025e03c3b"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\6rc7taxPpAcVKXph\\Lib\\site-packages\\aioquic\\quic\\connection.py",
+      "bytes": 143311,
+      "sha256": "67415116e940fc0fd41fc8e148ddc2c3b22feabc5e17d6ca6083308e5ddbf70b",
+      "lines": 3627,
+      "scope": "supporting resolved partial manual read",
+      "inclusive_manual_ranges": [
+        {
+          "start": 1440,
+          "end": 1459,
+          "sha256": "72ed2765f8e7a83c65ddb53aa07c6d8f24d8220d39fc5f6c40d17a18d90fae35"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\6rc7taxPpAcVKXph\\Lib\\site-packages\\aioquic\\tls.py",
+      "bytes": 78536,
+      "sha256": "c8b079d7be9a45f848ed3bd4dd05ea8756390eb9f33ed4f5602b0d148eacfcf1",
+      "lines": 2181,
+      "scope": "supporting resolved partial manual read",
+      "inclusive_manual_ranges": [
+        {
+          "start": 217,
+          "end": 292,
+          "sha256": "8932351a046a3aba0948683fe75d47ca6721715ac1c8389ecf645facd9770394"
+        },
+        {
+          "start": 1716,
+          "end": 1738,
+          "sha256": "bca43f8cffc3daa8ec555e4100c614bfddc27099e13cd0a2071782aa63e040c1"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\6rc7taxPpAcVKXph\\Lib\\site-packages\\aioquic\\h3\\connection.py",
+      "bytes": 45499,
+      "sha256": "01c3ba7619b352a1cd9572be54d1e87ad5b1c0f3d388c5456ce6dfce686a57f7",
+      "lines": 1244,
+      "scope": "supporting resolved partial manual read",
+      "inclusive_manual_ranges": [
+        {
+          "start": 530,
+          "end": 633,
+          "sha256": "2b15174ba11ee4e284ab454118a6c53043bc545b86dd06a083919ec754211568"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\6rc7taxPpAcVKXph\\Lib\\site-packages\\aioquic\\h3\\events.py",
+      "bytes": 2234,
+      "sha256": "4524d5726d5343e14f4efff541616e4338c91f171bb1a0bd1696976363723e08",
+      "lines": 100,
+      "scope": "supporting resolved partial manual read",
+      "inclusive_manual_ranges": [
+        {
+          "start": 1,
+          "end": 70,
+          "sha256": "12d6e014181548aff8d7564a0818259d4db5138fa4d2a6111eee9b7560c362d8"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/asyncio/base_events.py",
+      "bytes": 74341,
+      "sha256": "c6eae278db516bb7330204f7117ba4f80f200879c53d04a5e1e9c1131413c4f7",
+      "lines": 1934,
+      "scope": "supporting resolved partial manual read",
+      "inclusive_manual_ranges": [
+        {
+          "start": 1220,
+          "end": 1405,
+          "sha256": "c0e227ab96d5e0f543975561c333e3dc29f235b71e121c73638591ddc315def9"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\6rc7taxPpAcVKXph\\Lib\\site-packages\\aioquic-1.3.0.dist-info\\METADATA",
+      "bytes": 6500,
+      "sha256": "5fc1cf8e0a05862c63a24d84a4d63d8fc3c76c2008af9ea3536920ec5bc736e0",
+      "lines": 194,
+      "scope": "resolved version header only",
+      "inclusive_manual_ranges": [
+        {
+          "start": 1,
+          "end": 8,
+          "sha256": "4e0f583e3d63b09a1b3991b5f8c0c2548d8c95956feaaf6fd9708f4c2a0e2757"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-a191-h3-deferred-tests-handoff-2ced7231.md",
+      "bytes": 5288,
+      "sha256": "827e4463a38a8a30bae42a65d645ff403fa90d98f6468072b52512a8080450f0",
+      "lines": 87,
+      "scope": "whole author handoff manual read; author checks are not independently rerun",
+      "inclusive_manual_ranges": [
+        {
+          "start": 1,
+          "end": 87,
+          "sha256": "827e4463a38a8a30bae42a65d645ff403fa90d98f6468072b52512a8080450f0"
+        }
+      ]
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-a191-h3-deferred-tests-handoff-2ced7231.json",
+      "bytes": 5300,
+      "sha256": "0bc265aef3dac7b1baa239579ce3220586adf460d58c6d3d04d323dbdb49dac5",
+      "lines": 119,
+      "scope": "whole author handoff manual read; author checks are not independently rerun",
+      "inclusive_manual_ranges": [
+        {
+          "start": 1,
+          "end": 119,
+          "sha256": "0bc265aef3dac7b1baa239579ce3220586adf460d58c6d3d04d323dbdb49dac5"
+        }
+      ]
+    }
+  ],
+  "preserved": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "blob": "82be5d1c6feca94eb6da4e6c09295969962903c5",
+      "sha256": "aa77b84978c097d58e55f0b84fc70f4121253521b9435db7a576491b87df350c",
+      "scope": "byte identity; manual scopes separately declared"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_error_classification.py",
+      "blob": "292c7f5f460d4af15693b3602f0ce82ac6f5bc10",
+      "sha256": "2e576fd01992081afea523968ca13811bcdd451e089580885b2103a29d80ea57",
+      "scope": "byte identity; manual scopes separately declared"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_deferred_response_classification.py",
+      "blob": "80d885cc7263d2152466a8d2baa451429db347e4",
+      "sha256": "9c09438205991ad78a7d3ae693e71f0973b697b84f25627cbffd4c1d4d8bec36",
+      "scope": "byte identity; manual scopes separately declared"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_tls_read_classification.py",
+      "blob": "7308c87e58588a0ad0f910213e421cae16f1e598",
+      "sha256": "0cd92d074e6682c58a1488eb3c9bc44615b91bbad9d24f5eac5a56478ec177f3",
+      "scope": "byte identity; manual scopes separately declared"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "blob": "787afdf7889dd5eff116587aaee477d788924acb",
+      "sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+      "scope": "byte identity; manual scopes separately declared"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_accepted_lifecycle.py",
+      "blob": "ba2ee2ae4fe9df6fff6e0c48e8895f73e846dc31",
+      "sha256": "0870f2fdce15bb82dfd3d07b41c2309ee347a0573e23b4ecd6a3db80a8aae528",
+      "scope": "byte identity; manual scopes separately declared"
+    }
+  ],
+  "source_assessment": [
+    "Only new448-line file added; prior canonical and six source/control bindings remain unchanged",
+    "Generated certificate trust, required verifier, hostname and H3 ALPN flow into actual native TLS; actual response END_STREAM gates request completion",
+    "Healthy retained H2 first request and actual held read/task waiter precede authenticated H3 200/ok and204 release; datagram callback identity distinguishes H3 releaser from H2 response owner",
+    "Client socket retained before supplied-socket endpoint await; protocol retained before H3 construction and transport retained in connection_made before await completion",
+    "Normal close separately awaits actual client/server ConnectionTerminated state then closes transport; control assertions separately require close record0x0, transport state and native fd closure",
+    "Registered async backup exists before install/acquisition; finite close attempts, known timer/transmit cancellation, actual connection task/waiter and existing concrete resource backup remain visible on failure",
+    "Failure control requires original native legal-window-one FlowControlError on original held H2 owner, once-drained owner cause and no response error reassignment to successful H3 release"
+  ],
+  "limits": [
+    "Source-only: forecast healthy1/failure1 on old classifier and both pass on repaired classifier is not execution evidence",
+    "Private aioquic/asyncio witness fields are checked against resolved Python3.10/aioquic1.3.0 source; runtime behavior on both hosts still requires root checks",
+    "Transport.close is not equated to completed connection termination; cleanup failure/timeout branches remain undriven source paths",
+    "Inherited backup filters only the exact observed target task/error after target oracles; no blanket unexpected exception suppression",
+    "Canonical valid-origin server retains its existing close-reservation/rebind acquisition; no new general server acquisition or QUIC lifetime proof",
+    "No target imports, resource/runtime/Cargo execution, tracked mutation, whole canonical audit, live browser claim or final A191/full-gate approval"
+  ],
+  "required_root_verification": [
+    "Execute the unchanged two H3 controls on Windows/Linux with original classifier evidence retained; credit downstream exact-cause/tag/drain assertions only when reached",
+    "Run composed classification/deferred/TLS/ownership controls and applicable full capture suite plus pinned Ruff/docs checks before integration claims"
+  ]
+}

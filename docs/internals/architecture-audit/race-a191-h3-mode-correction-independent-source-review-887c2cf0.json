@@ -1,0 +1,45 @@
+{
+  "verdict": "approved for signing/integration and a new causal baseline run only",
+  "baseline": "beeba32bb96a146abe342a6afd27de67135c2516",
+  "correction": "887c2cf084ef48b98acb19d645151fc160fb5c22",
+  "manual_reads": [
+    {
+      "revision": "887c2cf084ef48b98acb19d645151fc160fb5c22",
+      "path": "scripts/capture/tests/test_alt_svc_race_h3_deferred_response_classification.py",
+      "blob": "53797631883891dc462e832b4a09f4c17283dc4d",
+      "sha256": "f4783379f3ac246be7afb819e924268aaed12ef48691a121bdaf13baec19b303",
+      "bytes": 17681,
+      "lines": 448,
+      "read_scope": "complete 1-448; complete two-literal diff"
+    },
+    {
+      "revision": "beeba32bb96a146abe342a6afd27de67135c2516",
+      "path": "scripts/capture/alt_svc_race.py",
+      "blob": "82be5d1c6feca94eb6da4e6c09295969962903c5",
+      "sha256": "aa77b84978c097d58e55f0b84fc70f4121253521b9435db7a576491b87df350c",
+      "bytes": 56925,
+      "lines": 1624,
+      "read_scope": "partial 1-175 and 926-990; QUIC_MODES, Scenario validation, UdpAlternative start/close"
+    }
+  ],
+  "preservation": {
+    "whole_file_inverse": true,
+    "two_test_ASTs_exact": true,
+    "canonical_parent_exact": true,
+    "changed_paths": [
+      "scripts/capture/tests/test_alt_svc_race_h3_deferred_response_classification.py"
+    ],
+    "two_changed_literals": "valid to serve in Scenario and delegation branch"
+  },
+  "historical_qualification": "The prior 2ced source approval missed Scenario validation. Both beeba H3 controls raise unsupported QUIC mode: valid before traffic. No retrospective H3 runtime or cause credit.",
+  "prior_immutable_review": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\race-a191-h3-deferred-independent-source-review-2ced7231.json",
+    "bytes": 14008,
+    "sha256": "caf4fc11f2660aefe623412665eb5360e0741101ca470347a1a6a7dddb1d3578"
+  },
+  "limits": [
+    "No corrected-revision native results reviewed here.",
+    "Existing control assertions and inputs beyond the mode correction remain unchanged.",
+    "No whole canonical owner, production, browser parity or integration gate approval."
+  ]
+}

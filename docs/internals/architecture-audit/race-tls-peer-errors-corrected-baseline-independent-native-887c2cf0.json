@@ -1,0 +1,250 @@
+{
+  "schema": 1,
+  "purpose": "Independent corrected eight-control baseline receipt",
+  "baseline": "887c2cf084ef48b98acb19d645151fc160fb5c22",
+  "source_bindings": [
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_tls_read_classification.py",
+      "baseline_blob": "7308c87e58588a0ad0f910213e421cae16f1e598",
+      "remedy_blob": "7308c87e58588a0ad0f910213e421cae16f1e598",
+      "canonical_lf_sha256": "0cd92d074e6682c58a1488eb3c9bc44615b91bbad9d24f5eac5a56478ec177f3",
+      "physical_sha256": "2554138c5d5ec3b283c5df717e7eb4e6d5ee03cadc73f2c530c497efa90741dd",
+      "manual_read": "complete file",
+      "lines": 209
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_deferred_response_classification.py",
+      "baseline_blob": "80d885cc7263d2152466a8d2baa451429db347e4",
+      "remedy_blob": "80d885cc7263d2152466a8d2baa451429db347e4",
+      "canonical_lf_sha256": "9c09438205991ad78a7d3ae693e71f0973b697b84f25627cbffd4c1d4d8bec36",
+      "physical_sha256": "666ce04c03e0b7f2a4a03299f6b84c37c972be9bb2c38888473d73807dfc7cf5",
+      "manual_read": "complete file",
+      "lines": 248
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_h3_deferred_response_classification.py",
+      "baseline_blob": "53797631883891dc462e832b4a09f4c17283dc4d",
+      "remedy_blob": "53797631883891dc462e832b4a09f4c17283dc4d",
+      "canonical_lf_sha256": "f4783379f3ac246be7afb819e924268aaed12ef48691a121bdaf13baec19b303",
+      "physical_sha256": "ac831a2685ae9bbfa1160c3ae89b0619fd44b1201334a70735c7e6a683f5927a",
+      "manual_read": "complete file",
+      "lines": 448
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_error_classification.py",
+      "baseline_blob": "292c7f5f460d4af15693b3602f0ce82ac6f5bc10",
+      "remedy_blob": "292c7f5f460d4af15693b3602f0ce82ac6f5bc10",
+      "canonical_lf_sha256": "2e576fd01992081afea523968ca13811bcdd451e089580885b2103a29d80ea57",
+      "physical_sha256": "55c4774900caa727dc467be926ec5b9c1b2cad90a956ad0b75936c645ac88cc5",
+      "manual_read": "complete file",
+      "lines": 428
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_accepted_lifecycle.py",
+      "baseline_blob": "ba2ee2ae4fe9df6fff6e0c48e8895f73e846dc31",
+      "remedy_blob": "ba2ee2ae4fe9df6fff6e0c48e8895f73e846dc31",
+      "canonical_lf_sha256": "0870f2fdce15bb82dfd3d07b41c2309ee347a0573e23b4ecd6a3db80a8aae528",
+      "physical_sha256": "037fa7dd3d043ec8061818acf0c4b93983f2459b71ea42e42196477075562144",
+      "manual_read": "complete file",
+      "lines": 265
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "baseline_blob": "787afdf7889dd5eff116587aaee477d788924acb",
+      "remedy_blob": "787afdf7889dd5eff116587aaee477d788924acb",
+      "canonical_lf_sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+      "physical_sha256": "4fb0ccab62f47f31516eb8291a41c2e104f4dbf7ab8596648e9891812b4f86d3",
+      "manual_read": "1-439 only; complete resource scaffold 1-407, initial control partial",
+      "lines": 543
+    }
+  ],
+  "raw_bindings": [
+    {
+      "file": "race-classification-deferred-corrected-baseline-887c2cf0-windows.log",
+      "sha256": "bc21990759221a37fde43114f544b0139a4042aa054e2882a0fc9aa8c39a7bc3",
+      "read": "complete"
+    },
+    {
+      "file": "race-classification-deferred-corrected-baseline-887c2cf0-windows.revision",
+      "sha256": "1af32543fd20fa6f02764a031de6971b735a259ed80a84e26b1988a6d9ac7754",
+      "read": "complete"
+    },
+    {
+      "file": "race-classification-deferred-corrected-baseline-887c2cf0-windows.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read": "complete"
+    },
+    {
+      "file": "race-classification-deferred-corrected-baseline-887c2cf0-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read": "complete"
+    },
+    {
+      "file": "race-classification-deferred-corrected-baseline-887c2cf0-linux.log",
+      "sha256": "32d27de52d92990ff4b9bca113fd569960f3566d429638b25d54c677b961702e",
+      "read": "complete"
+    },
+    {
+      "file": "race-classification-deferred-corrected-baseline-887c2cf0-linux.revision",
+      "sha256": "1af32543fd20fa6f02764a031de6971b735a259ed80a84e26b1988a6d9ac7754",
+      "read": "complete"
+    },
+    {
+      "file": "race-classification-deferred-corrected-baseline-887c2cf0-linux.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read": "complete"
+    },
+    {
+      "file": "race-classification-deferred-corrected-baseline-887c2cf0-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read": "complete"
+    },
+    {
+      "file": "run-race-classification-deferred-controls.sh",
+      "sha256": "96caaec2ba9e8eb96c1236a23d76b87b20890f87f6dfc35568dc0cb8b287dc24",
+      "read": "complete 32-line guarded runner",
+      "command": "uv run --no-project --python 3.10 --with aioquic==1.3.0 --with h2==4.4.1 --with hpack==4.2.0 python -m unittest three explicitly selected deferred H2/H3/TLS modules -v"
+    }
+  ],
+  "native": [
+    {
+      "host": "windows",
+      "revision": "887c2cf084ef48b98acb19d645151fc160fb5c22",
+      "command_exit": 1,
+      "runner_exit": 1,
+      "selected": 8,
+      "pass": 6,
+      "fail": 2,
+      "elapsed_seconds": "8.369",
+      "roster": [
+        {
+          "method": "test_other_h2_peer_keeps_a_held_response_failure_on_its_original_owner",
+          "outcome": "ok"
+        },
+        {
+          "method": "test_other_h2_peer_releases_the_original_healthy_held_response",
+          "outcome": "ok"
+        },
+        {
+          "method": "test_h3_done_keeps_the_actual_held_h2_send_failure_on_its_original_owner",
+          "outcome": "ok"
+        },
+        {
+          "method": "test_h3_done_releases_the_original_healthy_held_h2_response",
+          "outcome": "ok"
+        },
+        {
+          "method": "test_actual_malformed_tls_input_keeps_the_native_failure_on_its_partial_record",
+          "outcome": "ok"
+        },
+        {
+          "method": "test_actual_tls_prefix_eof_keeps_its_partial_record_without_failing_capture",
+          "outcome": "ok"
+        },
+        {
+          "method": "test_pending_reader_base_connection_error_keeps_its_original_local_cause",
+          "outcome": "FAIL"
+        },
+        {
+          "method": "test_pending_reader_ssl_error_keeps_its_original_local_cause",
+          "outcome": "FAIL"
+        }
+      ],
+      "target_failures": [
+        {
+          "line": 191,
+          "observed": "None",
+          "expected": "exact injected ConnectionError object",
+          "earlier_prerequisites": "actual trusted H2 200/ok; empty pending reader/Future ownership; retained accepted task/writer; same reader exception; task/listener/writer/handler-restoration cleanup assertions",
+          "later_unreached": 194
+        },
+        {
+          "line": 208,
+          "observed": "None",
+          "expected": "exact injected SSLError object",
+          "earlier_prerequisites": "same actual trusted H2, pending reader ownership and closure witnesses",
+          "later_unreached": 209
+        }
+      ],
+      "extra_errors_or_backup_failures": "none present in complete logs; no broader absence claim"
+    },
+    {
+      "host": "linux",
+      "revision": "887c2cf084ef48b98acb19d645151fc160fb5c22",
+      "command_exit": 1,
+      "runner_exit": 1,
+      "selected": 8,
+      "pass": 6,
+      "fail": 2,
+      "elapsed_seconds": "4.454",
+      "roster": [
+        {
+          "method": "test_other_h2_peer_keeps_a_held_response_failure_on_its_original_owner",
+          "outcome": "ok"
+        },
+        {
+          "method": "test_other_h2_peer_releases_the_original_healthy_held_response",
+          "outcome": "ok"
+        },
+        {
+          "method": "test_h3_done_keeps_the_actual_held_h2_send_failure_on_its_original_owner",
+          "outcome": "ok"
+        },
+        {
+          "method": "test_h3_done_releases_the_original_healthy_held_h2_response",
+          "outcome": "ok"
+        },
+        {
+          "method": "test_actual_malformed_tls_input_keeps_the_native_failure_on_its_partial_record",
+          "outcome": "ok"
+        },
+        {
+          "method": "test_actual_tls_prefix_eof_keeps_its_partial_record_without_failing_capture",
+          "outcome": "ok"
+        },
+        {
+          "method": "test_pending_reader_base_connection_error_keeps_its_original_local_cause",
+          "outcome": "FAIL"
+        },
+        {
+          "method": "test_pending_reader_ssl_error_keeps_its_original_local_cause",
+          "outcome": "FAIL"
+        }
+      ],
+      "target_failures": [
+        {
+          "line": 191,
+          "observed": "None",
+          "expected": "exact injected ConnectionError object",
+          "earlier_prerequisites": "actual trusted H2 200/ok; empty pending reader/Future ownership; retained accepted task/writer; same reader exception; task/listener/writer/handler-restoration cleanup assertions",
+          "later_unreached": 194
+        },
+        {
+          "line": 208,
+          "observed": "None",
+          "expected": "exact injected SSLError object",
+          "earlier_prerequisites": "same actual trusted H2, pending reader ownership and closure witnesses",
+          "later_unreached": 209
+        }
+      ],
+      "extra_errors_or_backup_failures": "none present in complete logs; no broader absence claim"
+    }
+  ],
+  "own_runtime_executed": false,
+  "source_contract": {
+    "backup_registered_before_acquisition": true,
+    "observation_before_backup": true,
+    "direct_task_exception_retrieval_before_capture_oracle": false,
+    "reader_exception_retrieval": "original reader.exception used for injected cause provenance, not task outcome theft",
+    "finite_backup": "real handles retained by CaptureResources/AcceptedResources/ClassificationPeer; H3 handles retained during constructor/connection_made; only exact deliberately failed target task/cause filtered after oracle",
+    "passes": "two healthy deferred controls; two expected actual FlowControlError owner-attribution controls; partial TLS EOF policy; native malformed-handshake policy"
+  },
+  "limits": [
+    "Controlled local pending-reader errors, not naturally arising OS failures",
+    "Six passes do not mean six healthy-only controls",
+    "No repaired source runtime credit",
+    "No full TLS reason taxonomy, untested local flush/BIO/ALPN or established TLS failure category coverage",
+    "No permanent leak, browser parity or full audit completion",
+    "Selected helpers manually read as indicated, not all capture sources"
+  ]
+}

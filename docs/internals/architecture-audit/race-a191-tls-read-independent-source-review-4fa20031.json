@@ -1,0 +1,129 @@
+{
+  "schema": "bounded-independent-tests-source-review-v1",
+  "revision": "4fa20031758b12a25f32bf022d122d298f05be4f",
+  "parent": "f68b9ea4fc1c0bae8789e747f79fbdd57cafafed",
+  "verdict": "approved-for-root-four-control-causal-execution",
+  "runtime_verified": false,
+  "complete_signed_diff_read": true,
+  "findings": [],
+  "sources": [
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_tls_read_classification.py",
+      "blob": "7308c87e58588a0ad0f910213e421cae16f1e598",
+      "sha256": "0cd92d074e6682c58a1488eb3c9bc44615b91bbad9d24f5eac5a56478ec177f3",
+      "lines": 209,
+      "manual_ranges": [
+        [
+          1,
+          209
+        ]
+      ],
+      "whole_manual_read": true
+    },
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "blob": "82be5d1c6feca94eb6da4e6c09295969962903c5",
+      "sha256": "aa77b84978c097d58e55f0b84fc70f4121253521b9435db7a576491b87df350c",
+      "lines": 1624,
+      "manual_ranges": [
+        [
+          439,
+          498
+        ]
+      ],
+      "whole_manual_read": false
+    }
+  ],
+  "reused_support_scope": "Classification428/accepted265 whole and startup43\u2013345 partial freshly read in preceding f68 source review at identical blobs; their registered backup and exact error filtering remain applicable. Canonical Http2Origin previously read501\u2013803 at identical757 source; no new whole parent credit.",
+  "supporting_CPython_partials": [
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\streams.py",
+      "sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "lines": 726,
+      "manual_partial_ranges": [
+        [
+          421,
+          429
+        ],
+        [
+          477,
+          503
+        ],
+        [
+          627,
+          701
+        ]
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\ssl.py",
+      "sha256": "1c6e62f53e0b4a80395a5f786c9718681b012fc1b6aacee7bc35385f9bbe882c",
+      "lines": 1562,
+      "manual_partial_ranges": [
+        [
+          903,
+          952
+        ]
+      ]
+    }
+  ],
+  "preserved_bindings": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "blob": "82be5d1c6feca94eb6da4e6c09295969962903c5",
+      "sha256": "aa77b84978c097d58e55f0b84fc70f4121253521b9435db7a576491b87df350c",
+      "exact_to_parent": true
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_error_classification.py",
+      "blob": "292c7f5f460d4af15693b3602f0ce82ac6f5bc10",
+      "sha256": "2e576fd01992081afea523968ca13811bcdd451e089580885b2103a29d80ea57",
+      "exact_to_parent": true
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_deferred_response_classification.py",
+      "blob": "06bcc3280ffece8e004142100ae1f7c07262531f",
+      "sha256": "f8efc874e53bfc3c77ee5ae68a34cb40f9ff7458e8be207846dbecb81bee80d8",
+      "exact_to_parent": true
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "blob": "787afdf7889dd5eff116587aaee477d788924acb",
+      "sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+      "exact_to_parent": true
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_accepted_lifecycle.py",
+      "blob": "ba2ee2ae4fe9df6fff6e0c48e8895f73e846dc31",
+      "sha256": "0870f2fdce15bb82dfd3d07b41c2309ee347a0573e23b4ecd6a3db80a8aae528",
+      "exact_to_parent": true
+    }
+  ],
+  "author_reports": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-a191-tls-read-tests-handoff-4fa20031.md",
+      "sha256": "9f9d96bcc203d3d9c5284d371f891bafe4e5d46e80c69aafdd1bba7811aa5bd4",
+      "bytes": 3670,
+      "manual_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-a191-tls-read-tests-handoff-4fa20031.json",
+      "sha256": "66529609c823aa7a7b1470f9fc2bb245ab5c375be3c7dc70c27800aca312b9f3",
+      "bytes": 2378,
+      "manual_read": true
+    }
+  ],
+  "commit_metadata": "4fa20031758b12a25f32bf022d122d298f05be4f\nf68b9ea4fc1c0bae8789e747f79fbdd57cafafed\nG\nArya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>\ntest(capture): separate TLS peer input from local reader faults",
+  "assessment": [
+    "Two positives establish a healthy trusted H2 peer before a distinct actual partial TLS peer: consumed prefix plus real EOF, or actual malformed plaintext consumed by the original native handshake. Native error is observed/rethrown without guessing a reason code.",
+    "Two negatives inject exact precreated ConnectionError/SSLError objects only at a real healthy H2 reader with empty buffer, non-done StreamReader waiter, same Task waiter and actual owner mapping. These are controlled local reader faults, not native TLS engine or OS fault claims.",
+    "Real startup/retained200ok, separate done204, three literal datagrams and actual pre-backup closure observations guard the cause oracles. Backup is registered before acquisition and retains actual peers; target results are not retrieved before capture outcome."
+  ],
+  "limits": [
+    "Forecast two positives/two lost-cause negatives only; malformed native shape and exact same-cause oracles require actual both-host runs.",
+    "No target imports/runtime/socket/process/Cargo/lint/format checks by reviewer.",
+    "Frozen parent f68 deferred observer remains defective; TLS controls do not install it. Deferred control execution separately requires reviewedc73 correction.",
+    "No broad TLS/ConnectionError classifier remedy, H3 deferred coverage, browser parity, full A191 or gate approval."
+  ],
+  "required_root_verification": "Execute all four unchanged controls on Windows/Linux using pinned Python/H2, retain exact first failure/prerequisite boundaries, then composed capture and applicable Ruff/format/docs/full gates."
+}

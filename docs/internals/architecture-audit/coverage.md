@@ -40,6 +40,23 @@ do not establish that need.
 
 ## Recent verification
 
+The [TLS reader checkpoint](tls-peer-errors-root-checkpoint-c5fe57a8.json)
+records six passes and two local-reader cause failures per host before repair.
+All eight unchanged controls pass at `c5fe57a8`, including the original
+cause identities and record tags. Deferred responses retain their original
+HTTP/2 owner when another HTTP/2 or HTTP/3 peer releases them.
+
+The full capture suite passes 534 methods on Windows and 523 on Linux,
+with eleven Windows-only skips. Independent comparison preserves all
+526 previous statuses, skip reasons and relative order. Windows has nine
+slow-task diagnostics; both hosts have six expected parser diagnostics.
+Separate independent source reviews cover the controls and their recorded
+scaffold corrections. The native reviewer authored the controls.
+
+The capture owner remains source-partial. Flush, BIO and ALPN failures,
+other established TLS/reset categories, concurrent handler scopes and
+final gates remain open. This record does not close all of A191.
+
 The [QUIC coordinator checkpoint](quic-coordinator-root-checkpoint-145552a1.json)
 records six causal failures among eight controls on each host before repair.
 The same eight controls pass after repair at `145552a1`, along with all

@@ -1,0 +1,43 @@
+{
+  "source_commit": "636a803163264ca90101895e2b653e234c6d8d46",
+  "baseline": "887c2cf084ef48b98acb19d645151fc160fb5c22",
+  "source_physical_canonical_pairs_checked": 6,
+  "source_git_blob_pairs_checked": 6,
+  "raw_bindings_checked": 9,
+  "author_bindings_checked": 5,
+  "dependency_bindings_checked": 2,
+  "current_owner_binding_checked": true,
+  "lane_clean_verified": true,
+  "native_or_imports_executed": false,
+  "correction": {
+    "artifact": "race-tls-peer-errors-corrected-baseline-independent-native-887c2cf0.json",
+    "field": "raw_bindings entry for run-race-classification-deferred-controls.sh: read",
+    "superseded": "complete 32-line guarded runner",
+    "corrected": "complete 31-line guarded runner",
+    "changed_raw_data": false,
+    "verdict_changed": false,
+    "actual_pinned_command": "uv run --no-project --python 3.10 --with aioquic==1.3.0 --with h2==4.4.1 --with hpack==4.2.0 python -m unittest scripts.capture.tests.test_alt_svc_race_deferred_response_classification scripts.capture.tests.test_alt_svc_race_h3_deferred_response_classification scripts.capture.tests.test_alt_svc_race_tls_read_classification -v"
+  },
+  "report_bindings": [
+    {
+      "file": "race-tls-peer-errors-corrected-baseline-independent-native-887c2cf0.md",
+      "sha256": "a0eae813ce365dfb978c3c705962cb21f77830a3b43b782da3582a55cbcdfffc",
+      "read": "complete"
+    },
+    {
+      "file": "race-tls-peer-errors-corrected-baseline-independent-native-887c2cf0.json",
+      "sha256": "bb3c927a18d5754d39273c9fb2ca15b51d5b87f4f44db81418b2614b8d743315",
+      "read": "complete"
+    },
+    {
+      "file": "race-tls-peer-errors-independent-source-review-636a8031.md",
+      "sha256": "b2e7f01364d60ee4924811cf3b604a9281ac6f29ba50f2ef9b968cffd6fbe22c",
+      "read": "complete"
+    },
+    {
+      "file": "race-tls-peer-errors-independent-source-review-636a8031.json",
+      "sha256": "367d439c5ae37ed704be1f853a874677001d6c32651d3878a41bc247b72b708a",
+      "read": "complete"
+    }
+  ]
+}

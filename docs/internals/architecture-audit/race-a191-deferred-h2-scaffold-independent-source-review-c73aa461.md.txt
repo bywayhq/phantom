@@ -1,0 +1,7 @@
+# Deferred H2 observer correction
+
+Approved for the two deferred H2 controls' root execution at `c73aa461`.
+
+The observer now accepts the actual caller failure list, delegates the real `collect_closed` API, and records only entries appended during that call. Exact object identities/order survive; no return value is invented. The four-line inverse restores the whole frozen f68 child, and both control bodies remain exact. Canonical source remains byte-identical.
+
+This partial differential review resolves the frozen f68 blocker; the historical request-changes report remains unchanged. Parent4fa's separate TLS controls are outside this approval. No runtime credit, full A191/gate closure or fresh whole-current-owner read is claimed. Root must execute both controls and applicable composed/pinned checks.
