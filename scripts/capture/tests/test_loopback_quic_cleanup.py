@@ -65,6 +65,7 @@ class ObservedProtocol(QuicConnectionProtocol):
         self.terminated = False
         self.pings = []
         self.close_failure = None
+        self.close_timer_observation = None
         self.wait_failure = None
         self.close_returned = False
         self.wait_returned = False
@@ -97,6 +98,10 @@ class ObservedProtocol(QuicConnectionProtocol):
         super().close(*args, **kwargs)
         self.close_returned = True
         if self.close_failure is not None:
+            self.close_timer_observation = (
+                self._timer,
+                self._timer is not None and not self._timer.cancelled(),
+            )
             raise self.close_failure
 
     async def wait_closed(self):
@@ -533,3 +538,22 @@ class LoopbackCleanupTests(unittest.IsolatedAsyncioTestCase):
             self.assertIs(result, primary)
             self.assertIs(result.__cause__, original_cause)
             self.assertIsNot(getattr(result, "capture_cleanup_failure", None), primary)
+
+    async def test_close_failure_cancels_actual_armed_quic_timer(self):
+        failure = CloseFailure("controlled error after actual QUIC timer armed")
+        async with ready_resources() as resources:
+
+            async def body(client):
+                self.assert_ready(resources)
+                client.close_failure = failure
+
+            result = await resources.outcome(resources.spawn_target(body))
+            self.assertIs(result, failure)
+            self.assertTrue(resources.client.close_returned)
+
+            timer, was_armed = resources.client.close_timer_observation
+            self.assertIsInstance(timer, asyncio.TimerHandle)
+            self.assertTrue(was_armed)
+            self.assertTrue(timer.cancelled())
+
+            await self.assert_transport_closed(resources)
