@@ -84,7 +84,13 @@ impl AsyncRead for ObservedStream {
 
         if matches!(&result, Poll::Ready(Ok(()))) {
             if !observed.filled().is_empty()
-                && matches!(&this.fault, Some(Fault { boundary: FaultBoundary::Read, .. }))
+                && matches!(
+                    &this.fault,
+                    Some(Fault {
+                        boundary: FaultBoundary::Read,
+                        ..
+                    })
+                )
                 && let Some(fault) = this.fault.take()
             {
                 this.reached.send_replace(true);
@@ -106,7 +112,13 @@ impl AsyncWrite for ObservedStream {
         let this = self.get_mut();
         let result = Pin::new(&mut this.stream).poll_write(context, bytes);
         if matches!(&result, Poll::Ready(Ok(length)) if *length != 0)
-            && matches!(&this.fault, Some(Fault { boundary: FaultBoundary::Write, .. }))
+            && matches!(
+                &this.fault,
+                Some(Fault {
+                    boundary: FaultBoundary::Write,
+                    ..
+                })
+            )
             && let Some(fault) = this.fault.take()
         {
             this.reached.send_replace(true);
@@ -139,7 +151,8 @@ impl Backup {
         let address = listener.local_addr()?;
         let (client, accepted) = timeout(LIMIT, async {
             tokio::try_join!(TcpStream::connect(address), listener.accept())
-        }).await??;
+        })
+        .await??;
         let (stream, _) = accepted;
         let (pending, pending_receiver) = watch::channel(false);
         let (destroyed, destroyed_receiver) = watch::channel(false);
@@ -153,14 +166,25 @@ impl Backup {
             ),
         });
 
-        let task = spawn(ObservedStream { stream, pending, destroyed, reached, fault });
+        let task = spawn(ObservedStream {
+            stream,
+            pending,
+            destroyed,
+            reached,
+            fault,
+        });
         let witness = task.abort_handle();
-        Ok((Self {
-            task: Some(task), witness, client,
-            pending: pending_receiver,
-            destroyed: destroyed_receiver,
-            reached: reached_receiver,
-        }, identity))
+        Ok((
+            Self {
+                task: Some(task),
+                witness,
+                client,
+                pending: pending_receiver,
+                destroyed: destroyed_receiver,
+                reached: reached_receiver,
+            },
+            identity,
+        ))
     }
 
     async fn pending(&mut self) -> TestResult {
@@ -169,17 +193,25 @@ impl Backup {
     }
 
     async fn destroyed(&mut self) -> TestResult {
-        timeout(OBSERVATION_LIMIT, self.destroyed.wait_for(|destroyed| *destroyed)).await??;
+        timeout(
+            OBSERVATION_LIMIT,
+            self.destroyed.wait_for(|destroyed| *destroyed),
+        )
+        .await??;
         timeout(LIMIT, async {
             while !self.witness.is_finished() {
                 tokio::task::yield_now().await;
             }
-        }).await?;
+        })
+        .await?;
         Ok(())
     }
 
     async fn joined(&mut self) -> TestResult {
-        let task = self.task.as_mut().ok_or("original runtime peer result missing")?;
+        let task = self
+            .task
+            .as_mut()
+            .ok_or("original runtime peer result missing")?;
         let joined = timeout(LIMIT, task).await?;
         self.task.take();
         joined?
@@ -219,7 +251,9 @@ impl Backup {
                 while !self.witness.is_finished() {
                     tokio::task::yield_now().await;
                 }
-            }).await.map_err(Into::into)
+            })
+            .await
+            .map_err(Into::into)
         };
         let closed = self.closed().await.map(|_| ());
         finish_with_cleanup(result, closed)
@@ -242,7 +276,9 @@ fn retains_fault(result: TestResult, identity: &Arc<FailureIdentity>) -> TestRes
     };
 
     if original.kind() != io::ErrorKind::PermissionDenied
-        || !original.get_ref().and_then(|cause| cause.downcast_ref::<ServingFailure>())
+        || !original
+            .get_ref()
+            .and_then(|cause| cause.downcast_ref::<ServingFailure>())
             .is_some_and(|cause| Arc::ptr_eq(&cause.0, identity))
     {
         return Err(error);
@@ -252,7 +288,8 @@ fn retains_fault(result: TestResult, identity: &Arc<FailureIdentity>) -> TestRes
 }
 
 #[tokio::test]
-async fn healthy_runtime_peer_returns_its_literal_response_and_completes_on_actual_eof() -> TestResult {
+async fn healthy_runtime_peer_returns_its_literal_response_and_completes_on_actual_eof()
+-> TestResult {
     let (mut backup, _) = Backup::bind(None).await?;
     let primary = async {
         backup.pending().await?;
@@ -264,24 +301,36 @@ async fn healthy_runtime_peer_returns_its_literal_response_and_completes_on_actu
 
         assert_eq!(received, RESPONSE);
         Ok(())
-    }.await;
+    }
+    .await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
 
 #[tokio::test]
-async fn explicit_abort_joins_and_destroys_the_original_runtime_peers_pending_socket() -> TestResult {
+async fn explicit_abort_joins_and_destroys_the_original_runtime_peers_pending_socket() -> TestResult
+{
     let (mut backup, _) = Backup::bind(None).await?;
     let primary = async {
         backup.pending().await?;
-        backup.task.as_ref().ok_or("original runtime peer missing")?.abort();
-        let task = backup.task.as_mut().ok_or("original runtime peer missing")?;
+        backup
+            .task
+            .as_ref()
+            .ok_or("original runtime peer missing")?
+            .abort();
+        let task = backup
+            .task
+            .as_mut()
+            .ok_or("original runtime peer missing")?;
         let joined = timeout(LIMIT, task).await?;
         backup.task.take();
         let cancellation = match joined {
             Err(error) if error.is_cancelled() => Ok(()),
             Err(error) => Err(error.into()),
-            Ok(result) => finish_with_cleanup(result, Err("runtime peer completed before requested abort".into())),
+            Ok(result) => finish_with_cleanup(
+                result,
+                Err("runtime peer completed before requested abort".into()),
+            ),
         };
         backup.destroyed().await?;
         let received = backup.closed().await?;
@@ -289,13 +338,15 @@ async fn explicit_abort_joins_and_destroys_the_original_runtime_peers_pending_so
         cancellation?;
         assert!(received.is_empty());
         Ok(())
-    }.await;
+    }
+    .await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
 
 #[tokio::test]
-async fn dropping_the_original_runtime_peer_handle_destroys_its_pending_socket_with_runtime_live() -> TestResult {
+async fn dropping_the_original_runtime_peer_handle_destroys_its_pending_socket_with_runtime_live()
+-> TestResult {
     let (mut backup, _) = Backup::bind(None).await?;
     let primary = async {
         backup.pending().await?;
@@ -306,7 +357,8 @@ async fn dropping_the_original_runtime_peer_handle_destroys_its_pending_socket_w
 
         assert!(received.is_empty());
         Ok(())
-    }.await;
+    }
+    .await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
@@ -329,7 +381,8 @@ async fn completed_fault(boundary: FaultBoundary) -> TestResult {
             }
         }
         retains_fault(original, &identity)
-    }.await;
+    }
+    .await;
     let cleanup = backup.stop().await;
     finish_with_cleanup(primary, cleanup)
 }
