@@ -927,13 +927,16 @@ async fn serve_h3(
     mut on_served: impl FnMut(),
     #[cfg(test)] observation: (&Captured, usize),
 ) -> CaptureResult<()> {
-    let Ok(Ok(mut h3)) = timeout(
+    let mut h3 = match timeout(
         HANDSHAKE_TIMEOUT,
         h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(connection)),
     )
     .await
-    else {
-        return Ok(());
+    {
+        Ok(Ok(h3)) => h3,
+        Ok(Err(error)) if h3_connection_peer_observation(&error) => return Ok(()),
+        Ok(Err(error)) => return Err(error.into()),
+        Err(_) => return Ok(()),
     };
     let mut served = false;
     loop {
@@ -942,8 +945,11 @@ async fn serve_h3(
         } else {
             HANDSHAKE_TIMEOUT
         };
-        let Ok(Ok(Some(resolver))) = timeout(wait, h3.accept()).await else {
-            return Ok(());
+        let resolver = match timeout(wait, h3.accept()).await {
+            Ok(Ok(Some(resolver))) => resolver,
+            Ok(Ok(None)) | Err(_) => return Ok(()),
+            Ok(Err(error)) if h3_input_connection_peer_observation(&error) => return Ok(()),
+            Ok(Err(error)) => return Err(error.into()),
         };
         let resolved = resolver.resolve_request().await;
         #[cfg(test)]
@@ -952,8 +958,35 @@ async fn serve_h3(
             observation.0,
             observation.1,
         );
-        let Ok((_, mut stream)) = resolved else {
-            return Ok(());
+        let (_, mut stream) = match resolved {
+            Ok(request) => request,
+            Err(error) => {
+                if matches!(&error, h3::error::StreamError::ConnectionError(_)) {
+                    // Resolver connection errors store a shared fatal; drive its close before Drop.
+                    match timeout(wait, h3.accept()).await {
+                        Ok(Err(_)) => {}
+                        Err(deadline) => {
+                            return capture_errors(vec![Box::new(error), Box::new(deadline)]);
+                        }
+                        Ok(Ok(unexpected)) => {
+                            let diagnostic = if unexpected.is_some() {
+                                "HTTP/3 fatal handoff accepted another request"
+                            } else {
+                                "HTTP/3 fatal handoff returned a graceful end"
+                            };
+                            drop(unexpected);
+                            return capture_errors(vec![
+                                Box::new(error),
+                                Box::new(io::Error::other(diagnostic)),
+                            ]);
+                        }
+                    }
+                }
+                if h3_request_peer_observation(&error) {
+                    return Ok(());
+                }
+                return Err(error.into());
+            }
         };
         let response = http::Response::builder()
             .status(200)
@@ -986,11 +1019,37 @@ async fn serve_h3(
     }
 }
 
+fn h3_request_peer_observation(error: &h3::error::StreamError) -> bool {
+    use h3::error::{Code, StreamError};
+
+    match error {
+        StreamError::ConnectionError(error) => h3_input_connection_peer_observation(error),
+        StreamError::StreamError { code, .. }
+            if matches!(*code, Code::H3_REQUEST_INCOMPLETE | Code::H3_MESSAGE_ERROR) =>
+        {
+            true
+        }
+        _ => h3_response_peer_observation(error),
+    }
+}
+
+fn h3_input_connection_peer_observation(error: &h3::error::ConnectionError) -> bool {
+    use h3::error::{Code, ConnectionError, LocalError};
+
+    matches!(
+        error,
+        ConnectionError::Local {
+            error: LocalError::Application { code, .. },
+            ..
+        } if matches!(
+            *code,
+            Code::H3_FRAME_UNEXPECTED | Code::H3_FRAME_ERROR | Code::QPACK_DECOMPRESSION_FAILED
+        )
+    ) || h3_connection_peer_observation(error)
+}
+
 fn h3_response_peer_observation(error: &h3::error::StreamError) -> bool {
-    use h3::{
-        error::{ConnectionError, StreamError},
-        quic::ConnectionErrorIncoming,
-    };
+    use h3::error::StreamError;
 
     if error.is_h3_no_error() {
         return true;
@@ -998,13 +1057,24 @@ fn h3_response_peer_observation(error: &h3::error::StreamError) -> bool {
 
     match error {
         StreamError::RemoteTerminate { .. } | StreamError::RemoteClosing => true,
-        StreamError::ConnectionError(ConnectionError::Timeout)
-        | StreamError::ConnectionError(ConnectionError::Remote(
+        StreamError::ConnectionError(error) => h3_connection_peer_observation(error),
+        _ => false,
+    }
+}
+
+fn h3_connection_peer_observation(error: &h3::error::ConnectionError) -> bool {
+    use h3::{error::ConnectionError, quic::ConnectionErrorIncoming};
+
+    if error.is_h3_no_error() {
+        return true;
+    }
+
+    match error {
+        ConnectionError::Timeout
+        | ConnectionError::Remote(
             ConnectionErrorIncoming::ApplicationClose { .. } | ConnectionErrorIncoming::Timeout,
-        )) => true,
-        StreamError::ConnectionError(ConnectionError::Remote(
-            ConnectionErrorIncoming::Undefined(cause),
-        )) => cause
+        ) => true,
+        ConnectionError::Remote(ConnectionErrorIncoming::Undefined(cause)) => cause
             .downcast_ref::<quinn::ConnectionError>()
             .is_some_and(|error| {
                 matches!(
