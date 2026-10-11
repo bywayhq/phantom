@@ -1,0 +1,40 @@
+# Session reuse owner repair: root composition
+
+Approve scoped immutable root source
+`6c55672da0c1581ecf1d5bb357a67a8396c2280a`. It imports reviewed author
+`fadb953c`/`b478e348` through `f94ca91b`/`bc1bcdb4`, on existing root
+`6c49e3616a3f4e87dbbd7c1e58d689a6c926ce43`, then applies formatting.
+The JSON binds all four final source blobs/hashes and prior independent approval.
+Native results are pending; 33 PASS / 0 FAIL remains a forecast.
+
+Read the complete root formatting diff (four files, 206 additions / 81 deletions)
+and complete author-to-root preformat differences. Pre-existing root formatting
+was preserved: wrapping in the original observation forwarding block and parent
+poll_closed, original formatted prior controls and local import ordering. The two
+conflict adaptations access first.server/second.server abort handles on the new
+concrete owner. Old spawn_independent import is removed while existing crate
+import order remains. The preformat differences are mechanical style; no additional
+worker, collector, timing, wire or error-policy change.
+
+Final formatting wraps calls/chains/signatures/arrays and inserts blocks around
+unchanged Err/Ok arms, plus optional trailing punctuation. Every string literal
+sequence in all four final files equals the reviewed author sequence. Manual diff
+read confirms unchanged original assertions, all 16 ownership controls (nine
+baseline, six initial remedy, one ready TLS control), real operation/fault and
+closure prerequisites, original sole handles, immediate guards, biased ready-first
+selection, original caller/TLS/H2 composition, finite joins/abort-rejoins and
+Client/body teardown before H2 driver completion. Existing unselected context
+remains the root baseline. Source approval retains all limitations from b478.
+
+Read the guarded runner. It verifies exact clean source before and after, refuses
+artifact reuse, preserves each command status, serializes Cargo, and runs session
+selection, formatting, strict requests/streams/sessions Clippy and Rust 1.88 checks
+on Windows/Linux. It is read only here. Full terminal logs and receipts must be
+independently read before native qualification.
+
+No edits, native, Cargo, formatter, checker, imports or probes executed. Root's
+paired checks and full integration gate remain required. Outer coordinator timeout
+or external Drop can preempt descendant collection; the safeguards do not prove
+all child outcomes joined. Finished foreign cancellation remains bounded coverage.
+Raw callers, proxy/upload/reset fixture owners and other deadline paths remain
+open. No full A236 closure, production defect, permanent leak or whole-gate claim.

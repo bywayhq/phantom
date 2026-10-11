@@ -2012,10 +2012,14 @@ and remaining uncertainty. Follow-up passes cover gaps before completion.
 The managed-ID SSE and H1 retry repairs pass 69 and 15 selected methods on
 both hosts. The capture reader passes 13 controls per host. Full capture
 discovery passes 661 methods on Windows and 650 with 11 skips on Linux.
-The separate session-reuse baseline still has five intended failures across 26
-methods per host. Its remediation and broader fixture ownership remain open.
+The separate session-reuse baseline had five intended failures across 26
+methods per host. Its reviewed peer repair now passes all 33 selected
+methods on both hosts. Raw request, proxy and upload owners remain open.
 See `owner-netlog-root-checkpoint-02cad4f2.json` for exact revisions and limits.
 These selected checks do not replace the full gate or current candidate CI.
+
+The session-reuse receipt `session-reuse-owner-root-checkpoint-6c55672d.json`
+records exact source, focused checks and remaining ownership limits.
 
 ## Next
 
