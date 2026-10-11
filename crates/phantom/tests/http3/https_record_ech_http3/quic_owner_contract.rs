@@ -4,6 +4,7 @@ use bytes::{Buf, Bytes};
 use http::{Method, Request, StatusCode, Uri, Version};
 use rustls::pki_types::CertificateDer;
 use tokio::{
+    net::UdpSocket,
     sync::{oneshot, watch},
     task::AbortHandle,
     time::timeout,
@@ -53,6 +54,7 @@ impl Drop for TaskObservation {
 pub(super) struct OriginObservation {
     pub(super) parent: TaskObservation,
     pub(super) child: ServingObservation,
+    pub(super) handshake: Option<oneshot::Sender<()>>,
 }
 
 pub(super) struct ServingObservation {
@@ -123,6 +125,33 @@ pub(super) async fn observe_accept<T>(
     .await
 }
 
+pub(super) async fn observe_connecting(
+    connecting: quinn::Connecting,
+    mut pending: Option<oneshot::Sender<()>>,
+) -> TestResult<Result<quinn::Connection, quinn::ConnectionError>> {
+    if pending.is_none() {
+        return Ok(connecting.await);
+    }
+
+    let mut connecting = Box::pin(connecting);
+    poll_fn(|context| {
+        let result = connecting.as_mut().poll(context);
+        if result.is_pending()
+            && let Some(sender) = pending.take()
+            && sender.send(()).is_err()
+        {
+            return Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::BrokenPipe,
+                "QUIC handshake observer closed",
+            )
+            .into()));
+        }
+
+        result.map(Ok)
+    })
+    .await
+}
+
 struct RequestSeen {
     method: Method,
     uri: Uri,
@@ -164,6 +193,7 @@ struct Backup {
     server: Option<quinn::Endpoint>,
     peer: Option<quinn::Endpoint>,
     outcome: Option<oneshot::Receiver<Option<h3::error::ConnectionError>>>,
+    bridge: Option<UdpSocket>,
 }
 
 impl Backup {
@@ -185,6 +215,7 @@ impl Backup {
                 server: None,
                 peer: None,
                 outcome: Some(outcome_receiver),
+                bridge: None,
             },
             OriginObservation {
                 parent,
@@ -194,6 +225,7 @@ impl Backup {
                     request: Some(request),
                     outcome: Some(outcome),
                 },
+                handshake: None,
             },
             pending_receiver,
             request_receiver,
@@ -244,6 +276,8 @@ impl Backup {
                     .map_err(Into::into),
             );
         }
+
+        drop(self.bridge.take());
 
         outcome
     }
@@ -502,5 +536,80 @@ async fn quic_finish_retains_the_completed_remote_h3_failure() -> TestResult<()>
 
     let error_code = finish_with_cleanup(result, cleanup)?;
     assert_eq!(error_code, u64::from(INTERNAL_ERROR));
+    Ok(())
+}
+
+#[tokio::test]
+async fn quic_finish_stops_its_actual_pending_handshake() -> TestResult<()> {
+    let (mut backup, mut observation, _pending, _request_seen) = Backup::new();
+    let (handshake_pending, pending) = oneshot::channel();
+    observation.handshake = Some(handshake_pending);
+    let result = async {
+        let identity = origin_identity()?;
+        let origin = backup.spawn(&identity, observation)?;
+        let origin_address = SocketAddr::from(([127, 0, 0, 1], origin.port));
+        let socket = phantom_testkit::udp::bind(SocketAddr::from(([127, 0, 0, 1], 0)))?;
+        socket.set_nonblocking(true)?;
+        backup.bridge = Some(UdpSocket::from_std(socket)?);
+        let bridge = backup
+            .bridge
+            .as_ref()
+            .ok_or("bridge socket was not retained")?;
+        let endpoint = client_endpoint(&identity)?;
+        backup.peer = Some(endpoint.clone());
+        let connecting = endpoint.connect(bridge.local_addr()?, ORIGIN_NAME)?;
+        let mut datagram = [0_u8; 65_535];
+        let (initial, client_address) =
+            timeout(DEADLINE, bridge.recv_from(&mut datagram)).await??;
+        if initial < 1_200 || client_address == origin_address {
+            return Err("bridge did not receive the actual client's Initial datagram".into());
+        }
+        let forwarded = timeout(
+            DEADLINE,
+            bridge.send_to(&datagram[..initial], origin_address),
+        )
+        .await??;
+        if forwarded != initial {
+            return Err("bridge did not forward the whole actual Initial datagram".into());
+        }
+        timeout(DEADLINE, async {
+            loop {
+                let (response, source) = bridge.recv_from(&mut datagram).await?;
+                if source == origin_address && response != 0 {
+                    return Ok::<_, Box<dyn std::error::Error + Send + Sync>>(());
+                }
+                if source != client_address || response == 0 {
+                    return Err("bridge received an unrelated or empty datagram".into());
+                }
+
+                let forwarded = bridge
+                    .send_to(&datagram[..response], origin_address)
+                    .await?;
+                if forwarded != response {
+                    return Err("bridge did not forward the whole client datagram".into());
+                }
+            }
+        })
+        .await??;
+
+        timeout(DEADLINE, pending).await??;
+
+        let outcome = timeout(DEADLINE, origin.finish(0, 0)).await;
+        Ok((outcome, connecting))
+    }
+    .await;
+    let (result, _connecting) = match result {
+        Ok((outcome, connecting)) => (
+            outcome.map_err(Into::into).and_then(|result| result),
+            Some(connecting),
+        ),
+        Err(error) => (Err(error), None),
+    };
+
+    let cleanup = backup.stop().await;
+
+    let (observed, tcp) = finish_with_cleanup(result, cleanup)?;
+    assert!(observed.is_empty());
+    assert_eq!(tcp, 0);
     Ok(())
 }

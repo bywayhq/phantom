@@ -275,9 +275,13 @@ impl QuicOrigin {
             .map(|observation| observation.parent.started.clone());
         let task = tokio::spawn(async move {
             let _observation = observation;
-            let (_serving_parent, mut child) = match serving_observation {
-                Some(observation) => (Some(observation.parent), Some(observation.child)),
-                None => (None, None),
+            let (_serving_parent, mut child, mut handshake) = match serving_observation {
+                Some(observation) => (
+                    Some(observation.parent),
+                    Some(observation.child),
+                    observation.handshake,
+                ),
+                None => (None, None, None),
             };
             let mut observed = Vec::new();
             let mut serving = Vec::new();
@@ -286,7 +290,7 @@ impl QuicOrigin {
                     incoming = endpoint.accept() => incoming.ok_or("endpoint closed")?,
                     _ = &mut stopped => break,
                 };
-                let (seen, connection) = observe(incoming).await?;
+                let (seen, connection) = observe(incoming, handshake.take()).await?;
                 observed.push(seen);
                 count.send_replace(observed.len());
                 if let Some(connection) = connection {
@@ -474,7 +478,10 @@ async fn serve_tcp(
     outcome
 }
 
-async fn observe(incoming: quinn::Incoming) -> TestResult<(Observed, Option<quinn::Connection>)> {
+async fn observe(
+    incoming: quinn::Incoming,
+    pending: Option<oneshot::Sender<()>>,
+) -> TestResult<(Observed, Option<quinn::Connection>)> {
     let mut connecting = incoming.accept()?;
     let data = timeout(TEST_TIMEOUT, connecting.handshake_data())
         .await??
@@ -483,7 +490,8 @@ async fn observe(incoming: quinn::Incoming) -> TestResult<(Observed, Option<quin
     let outer_server_name = ClientHelloSummary::from_handshake_bytes(data.client_hello())?
         .server_name()
         .map(|name| String::from_utf8_lossy(name).into_owned());
-    let (closed_with, connection) = match timeout(TEST_TIMEOUT, connecting).await? {
+    let connecting = quic_owner_contract::observe_connecting(connecting, pending);
+    let (closed_with, connection) = match timeout(TEST_TIMEOUT, connecting).await?? {
         Ok(connection) => (None, Some(connection)),
         Err(quinn::ConnectionError::ConnectionClosed(close)) => {
             (Some(u64::from(close.error_code)), None)
