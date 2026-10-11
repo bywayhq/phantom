@@ -329,6 +329,8 @@ class LaunchedBrowser:
         self.profile: Path | None = None
         self.process: subprocess.Popen[bytes] | None = None
         self.session: AndroidSession | None = None
+        self._exit_future: asyncio.Future[None] | None = None
+        self._exit_observed = False
 
     def android_launch(self) -> AndroidLaunch:
         if self.plan.profile_files:
@@ -441,6 +443,16 @@ class LaunchedBrowser:
         return tuple(failures)
 
 
+class BrowserExitSubmissionFailure(Exception):
+    """Retain an acquired browser when its cleanup worker cannot start."""
+
+    def __init__(self, browser: LaunchedBrowser, error: BaseException) -> None:
+        self.browser = browser
+        self.submission_error = error
+        self.__cause__ = error
+        super().__init__("browser cleanup worker could not start")
+
+
 class BrowserDriver:
     """Async context owning one launched browser, or one manual-open prompt."""
 
@@ -458,19 +470,76 @@ class BrowserDriver:
 
     async def __aexit__(self, *details: object) -> None:
         if self.browser is not None:
-            self.browser.__exit__(*details)
+            await exit_browser(self.browser, *details)
+
+
+def _browser_exit_future(
+    browser: LaunchedBrowser, *details: object
+) -> asyncio.Future[None]:
+    future = browser._exit_future
+    if future is None or (
+        future.done() and not future.cancelled() and future.exception() is not None
+    ):
+        loop = asyncio.get_running_loop()
+        future = loop.run_in_executor(None, browser.__exit__, *details)
+        browser._exit_future = future
+        browser._exit_observed = False
+
+    return future
+
+
+def _observe_abandoned_browser(
+    future: asyncio.Future, cancellation: asyncio.CancelledError, message: str
+) -> None:
+    def observe(completed: asyncio.Future) -> None:
+        try:
+            failure = completed.exception()
+        except asyncio.CancelledError as error:
+            failure = error
+
+        if failure is not None:
+            completed.get_loop().call_exception_handler(
+                {
+                    "message": message,
+                    "exception": failure,
+                    "future": completed,
+                    "cancellation": cancellation,
+                }
+            )
+
+    future.add_done_callback(observe)
+
+
+def _observe_browser_exit(
+    browser: LaunchedBrowser,
+    future: asyncio.Future[None],
+    cancellation: asyncio.CancelledError,
+) -> None:
+    if not browser._exit_observed:
+        browser._exit_observed = True
+        _observe_abandoned_browser(
+            future, cancellation, "abandoned browser exit failed"
+        )
+
+
+async def exit_browser(browser: LaunchedBrowser, *details: object) -> None:
+    """Finish blocking cleanup in one owned worker, even after cancellation."""
+    future = _browser_exit_future(browser, *details)
+    try:
+        await asyncio.shield(future)
+    except asyncio.CancelledError as cancellation:
+        _observe_browser_exit(browser, future, cancellation)
+        raise
 
 
 async def enter_browser(browser: LaunchedBrowser) -> LaunchedBrowser:
     """Launch `browser` from a coroutine without stalling its event loop.
 
-    A launch that takes turns can wait many seconds for the launch lock and
-    for Firefox to start. That wait runs in a worker thread, so the tool's
-    loopback server keeps answering, including the page Firefox requests
-    before its start checkpoint is written. Other launches only spawn a
-    process and stay on the loop, as before.
+    Android commands and Firefox's launch-lock wait run in a worker thread.
+    The loopback server keeps answering while either launch waits. Other
+    desktop launches only spawn a process and stay on the loop.
     """
-    if not browser.plan.takes_turns:
+    if not (browser.plan.android or browser.plan.takes_turns):
         return browser.__enter__()
     guard = threading.Lock()
     state = {"entered": False, "abandoned": False}
@@ -495,27 +564,17 @@ async def enter_browser(browser: LaunchedBrowser) -> LaunchedBrowser:
             state["abandoned"] = True
             entered = state["entered"]
         if entered:
-            browser.__exit__(type(primary), primary, primary.__traceback__)
+            try:
+                cleanup = _browser_exit_future(browser, None, None, None)
+            except BaseException as error:
+                failure = BrowserExitSubmissionFailure(browser, error)
+                raise_browser_failures(primary, (failure,))
+
+            _observe_browser_exit(browser, cleanup, primary)
         else:
-            cancellation = primary
-
-            def observe_abandoned(completed: asyncio.Future) -> None:
-                try:
-                    failure = completed.exception()
-                except asyncio.CancelledError as error:
-                    failure = error
-
-                if failure is not None:
-                    loop.call_exception_handler(
-                        {
-                            "message": "abandoned browser launch failed",
-                            "exception": failure,
-                            "future": completed,
-                            "cancellation": cancellation,
-                        }
-                    )
-
-            future.add_done_callback(observe_abandoned)
+            _observe_abandoned_browser(
+                future, primary, "abandoned browser launch failed"
+            )
         raise
 
 

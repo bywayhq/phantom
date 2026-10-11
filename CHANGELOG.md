@@ -2490,6 +2490,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Keep capture servers responding while Android browser commands or browser
+  cleanup waits. Caller cancellation leaves the cleanup worker owned until
+  completion and reports its failure with the original cancellation.
+
 - Stop Android capture setup when a required emulator or snapshot query fails,
   even if its output looks valid. Keep successful missing-property checks and
   their existing refusal rules.

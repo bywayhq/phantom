@@ -29,6 +29,7 @@ from .browser_launch import (
     browser_arguments,
     check_android_entry,
     enter_browser,
+    exit_browser,
     render_preferences,
     with_android_entry,
 )
@@ -1387,7 +1388,7 @@ class ProxyBrowserDriver:
 
         if self.browser is not None:
             try:
-                self.browser.__exit__(*details)
+                await exit_browser(self.browser, *details)
             except BaseException as error:
                 failures.append(error)
 

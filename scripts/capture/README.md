@@ -617,6 +617,11 @@ must set `typing_attempts` to a positive count.
 A failed emulator or snapshot query stops setup before changing the device.
 An absent property from a successful query still follows the refusal rules.
 
+Async capture drivers run Android commands and browser cleanup in workers.
+The capture server keeps responding during those waits. Cancelling the caller
+leaves cleanup running and reports a later failure through the loop's error
+handler. Another cleanup call waits for that worker while it is running.
+
 The page load is therefore a typed address-bar navigation, and fixtures
 record `launch_mode=android-typed`. A page that another app opens through a
 `VIEW` intent has no user activation, and Chrome then leaves out
