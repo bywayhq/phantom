@@ -1,0 +1,218 @@
+{
+  "kind": "bounded source-only A191 cross-peer retirement attribution investigation",
+  "revision": "919582a0c8f8b4a6ce24d076d7b5f46baf1c632c",
+  "requested_filename": "scripts/capture/capture_alt_svc_race.py absent; canonical actual scripts/capture/alt_svc_race.py",
+  "source_bindings": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "revision": "919582a0c8f8b4a6ce24d076d7b5f46baf1c632c",
+      "blob": "6fdee4be64e8cead44433a345145071f689e0574",
+      "lines": 1657,
+      "git_lf_sha256": "775a771809206011ebad2b6a8d59c161ec6d93de78d2dddd7e42344f40730165",
+      "manual_ranges": [
+        {
+          "first": 271,
+          "last": 895,
+          "lf_sha256": "534da69fbbf347e704fcbaceae6c25601a091fe58ce3890482f86dc77e1eb0b1"
+        },
+        {
+          "first": 1131,
+          "last": 1238,
+          "lf_sha256": "d912b3d0080b57d9ae9896522b8718d1215c032171fc50a13ce3daef0698efe2"
+        }
+      ],
+      "scope": "partial actual canonical owner/routing/TLS/TCP/QUIC and capture cleanup"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_deferred_response_classification.py",
+      "revision": "919582a0c8f8b4a6ce24d076d7b5f46baf1c632c",
+      "blob": "80d885cc7263d2152466a8d2baa451429db347e4",
+      "lines": 248,
+      "git_lf_sha256": "9c09438205991ad78a7d3ae693e71f0973b697b84f25627cbffd4c1d4d8bec36",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 248,
+          "lf_sha256": "9c09438205991ad78a7d3ae693e71f0973b697b84f25627cbffd4c1d4d8bec36"
+        }
+      ],
+      "scope": "fresh whole helper/control source"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_error_classification.py",
+      "revision": "919582a0c8f8b4a6ce24d076d7b5f46baf1c632c",
+      "blob": "292c7f5f460d4af15693b3602f0ce82ac6f5bc10",
+      "lines": 428,
+      "git_lf_sha256": "2e576fd01992081afea523968ca13811bcdd451e089580885b2103a29d80ea57",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 290,
+          "lf_sha256": "0bef48659be9288643e03f283218b6edf022e0385650f63cbf889bb08288bebf"
+        }
+      ],
+      "scope": "fresh stated partials only"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "revision": "919582a0c8f8b4a6ce24d076d7b5f46baf1c632c",
+      "blob": "787afdf7889dd5eff116587aaee477d788924acb",
+      "lines": 543,
+      "git_lf_sha256": "048cd17410002e8d33cee2b23725ea008ef6533855cc1ae1adbbfd9991e67082",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 439,
+          "lf_sha256": "0fc1fdcaeee3294e3eca64685ee1c0755aa10a6bfafeecb33bb677426a9071ca"
+        }
+      ],
+      "scope": "fresh stated partials only"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_accepted_lifecycle.py",
+      "revision": "919582a0c8f8b4a6ce24d076d7b5f46baf1c632c",
+      "blob": "ba2ee2ae4fe9df6fff6e0c48e8895f73e846dc31",
+      "lines": 265,
+      "git_lf_sha256": "0870f2fdce15bb82dfd3d07b41c2309ee347a0573e23b4ecd6a3db80a8aae528",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 169,
+          "lf_sha256": "ca0157b07d960888643cb72283b93989b7117c9fc339c047bc3ada5474d6f51f"
+        }
+      ],
+      "scope": "fresh stated partials only"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race.py",
+      "revision": "919582a0c8f8b4a6ce24d076d7b5f46baf1c632c",
+      "blob": "5464805c0fb267187871e53b4d0b6296c72be327",
+      "lines": 439,
+      "git_lf_sha256": "68a51452a4f1429964d904592cc62e8d900383249594f464b9ad521ac3565589",
+      "manual_ranges": [
+        {
+          "first": 318,
+          "last": 325,
+          "lf_sha256": "32c471148aa13d5a675bb413589edec135b892668de6a0acc218038ae0d68989"
+        },
+        {
+          "first": 340,
+          "last": 439,
+          "lf_sha256": "0dff0d2a55c0f179c5aaf75395b15ed9e7add6f4f0c2ead0b77a6b2748a811fb"
+        }
+      ],
+      "scope": "fresh stated partials only"
+    }
+  ],
+  "dependency_bindings": [
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/asyncio/streams.py",
+      "lines": 726,
+      "raw_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "manual_ranges": [
+        {
+          "first": 300,
+          "last": 347,
+          "lf_sha256": "7d3f259f14f780181892c85698c3a10ef7329438e5ac3e461106fceafadc2ddc"
+        }
+      ],
+      "scope": "local pinned CPython3.10 source or version-verified h2 4.4.1 copy; partial except tiny h2 version file; no fresh runtime environment selection claim"
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/asyncio/sslproto.py",
+      "lines": 739,
+      "raw_sha256": "8da7cf9187e6e99cfc4331fb273673a2a7968c4323680add7b3c3e3e669cddde",
+      "manual_ranges": [
+        {
+          "first": 376,
+          "last": 394,
+          "lf_sha256": "e6ca414baf9b1ac195b23d004b729982575c02a00f898d073440bc7a775f0154"
+        },
+        {
+          "first": 601,
+          "last": 635,
+          "lf_sha256": "102225d5c30e8b3ad87c4637eaf94d7cedd2ed68b7ba5b7848da580afcf7ad40"
+        }
+      ],
+      "scope": "local pinned CPython3.10 source or version-verified h2 4.4.1 copy; partial except tiny h2 version file; no fresh runtime environment selection claim"
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/ssl.py",
+      "lines": 1562,
+      "raw_sha256": "1c6e62f53e0b4a80395a5f786c9718681b012fc1b6aacee7bc35385f9bbe882c",
+      "manual_ranges": [
+        {
+          "first": 919,
+          "last": 951,
+          "lf_sha256": "5281ce629e088efc173a4ef16f3cb80af939d6b44d414727defd1c483c333b16"
+        }
+      ],
+      "scope": "local pinned CPython3.10 source or version-verified h2 4.4.1 copy; partial except tiny h2 version file; no fresh runtime environment selection claim"
+    },
+    {
+      "path": "C:/Users/arya/AppData/Local/uv/cache/archive-v0/Cb8pxac121u-FcpG/Lib/site-packages/h2/__init__.py",
+      "lines": 6,
+      "raw_sha256": "1baaac023c2da4d25451ad290ea0909519ca9eeef92b9dc13cfc61f338252bae",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 6,
+          "lf_sha256": "1baaac023c2da4d25451ad290ea0909519ca9eeef92b9dc13cfc61f338252bae"
+        }
+      ],
+      "scope": "local pinned CPython3.10 source or version-verified h2 4.4.1 copy; partial except tiny h2 version file; no fresh runtime environment selection claim"
+    },
+    {
+      "path": "C:/Users/arya/AppData/Local/uv/cache/archive-v0/Cb8pxac121u-FcpG/Lib/site-packages/h2/events.py",
+      "lines": 675,
+      "raw_sha256": "ae36193d2ffac6f8cc9c06a4ed51db607c93aa5f206e314327952495c5df9bb1",
+      "manual_ranges": [
+        {
+          "first": 562,
+          "last": 588,
+          "lf_sha256": "7c783e0c15a2f2b2537b61dbc3de33884fe5d8a0eb21671d058242ca62cc07dd"
+        }
+      ],
+      "scope": "local pinned CPython3.10 source or version-verified h2 4.4.1 copy; partial except tiny h2 version file; no fresh runtime environment selection claim"
+    },
+    {
+      "path": "C:/Users/arya/AppData/Local/uv/cache/archive-v0/Cb8pxac121u-FcpG/Lib/site-packages/h2/connection.py",
+      "lines": 2117,
+      "raw_sha256": "8283e14ad0875ecdd5d94fbd4c4111e3c08d298ef80ae6b3ff223c1ce1aa8e09",
+      "manual_ranges": [
+        {
+          "first": 1893,
+          "last": 1911,
+          "lf_sha256": "adb9adfae94088c4b3a59114e4e0ce2da1f7a6db08db95ac350f5c24d0d1f249"
+        }
+      ],
+      "scope": "local pinned CPython3.10 source or version-verified h2 4.4.1 copy; partial except tiny h2 version file; no fresh runtime environment selection claim"
+    }
+  ],
+  "finding": {
+    "status": "source-supported, runtime unmeasured",
+    "owner": "Http2Origin.serve_h2 nested retire753-759",
+    "cause": "B request Origin.request399-402 iterates actual A-retirer. A stream.write throws; no A owner catch, so error enters B handle727/733, tags B.failure and rethrows ordinary RuntimeError. A.failure unset and later callbacks skipped. Raw cause still retained via B task→collect_closed→capture cleanup, so not necessarily silently lost.",
+    "peer_policy": "Concrete reset/aborted/brokenpipe thrown by cross-peer callback may be tagged/suppressed on B; natural occurrence unmeasured. A clean read EOF removes its callback and is intentional healthy closure, not this defect.",
+    "bounded_scope": "Same-peer /learn-retire already executes under its own handler; /done held responder has original owner boundary. H3 retired close is delayed call_later and requires separate future lifetime/handler study."
+  },
+  "contract": "Unexpected local retirement write error belongs to original A TcpRecord and retains exact cause through owner collection; unrelated B /retire response stays healthy and remaining retirement callbacks still run. Expected clean EOF remains success; preserve original response/GOAWAY order and fixture format.",
+  "design": {
+    "owner": "New sibling test file only, future lane assigned by root. Reuse concrete ClassificationPeer/AcceptedResources/CaptureResources helpers, no unittest inheritance or duplicate owner.",
+    "healthy": "Retain actual trusted TLS/H2 A and literal200/ok, live canonical raw read waiter; B actual /retire while A pending, literal200/retire/Alt-Svc plus decoded actual A GOAWAY(NO_ERROR,laststream1). Distinct actual tasks/writers/records, A and B retired/healthy, all resources closed before backup.",
+    "clean_eof": "After A actual trusted prime, close its client normally and wait actual server task done/record closed plus A callback removal; B /retire succeeds and remains healthy. No injected reset category and no claim natural disconnect raises specific exception.",
+    "negative": "Adapter wraps actual A TlsStream.write only at the real GOAWAY operation under actual B handler; call canonical TLS/write first, retain actual GOAWAY payload/decoder witness then throw one exact LocalRetireWriteFailure with pre-existing cause. This is controlled post-write local failure, not natural OS send provenance. Record actual executing B task and original A stream/record. Capture raw failure before any task.result/exception observation.",
+    "closure": "Existing actual capture_run/scaffold cleanup after B request and /done; full control includes startup/done connections, but exactly A/B concurrent target peers. Explicitly do not claim only2 total accepted records. Pre-backup inspect accepted tasks done/writersclosed/server handler and closure maps drained, listening sockets closed, handler restored and cause captured.",
+    "oracle": "Before target require actual B literal response/A GOAWAY, readiness, distinct cross-task attribution and real closure. First target A.failure must LocalRetireWriteFailure; later B.failureNone, B.retired and exact raw cause once from canonical collect. Source forecasts A.failureNone/Bfailure tagged; later assertions uncredited until execution.",
+    "backup": "Register wrapper backup before install/acquisition; reuse finite helper backup. Only after capture/identity oracle inspect known failed B task to remove exact observed task/cause from backup roster; preserve all unknown failure and backup error causes. Explicit response-reader Tasks retained/cancelled/awaited with finite timeout.",
+    "needed_api_read": "h2 4.4.1 GOAWAY decoder creates ConnectionTerminated/error_code/last_stream_id and clears outbound client data; no client request afterGOAWAY. A client may close after receivedGOAWAY before original driver /done uses separate peer."
+  },
+  "remedy_candidate": "After causal baseline, put original-owner retirement failure handling beside closure as existing respond pattern: tag A, retain actual unexpected cause once, continue other retire callbacks. Expected peer-close handling needs explicit actual controls rather than blanket catch. No generic routing wrapper or silent retry.",
+  "limits": [
+    "No source edit/import/runtime/resources/Ruff/checker/Cargo/network/push.",
+    "No measured retirement defect or A191 closure.",
+    "Deferred-H3/timed retire lifetime separate.",
+    "Only explicit whole/partial source scopes; version file does not prove runtime resolved environment.",
+    "Backup/global cancellation promises not expanded."
+  ]
+}

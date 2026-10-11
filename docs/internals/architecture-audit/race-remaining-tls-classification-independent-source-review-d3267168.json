@@ -1,0 +1,290 @@
+{
+  "kind": "independent bounded remaining A191 TLS source review",
+  "revision": "d3267168cc11cd4567d7997a4e7bc46be4a6404b",
+  "canonical_blob": "6fdee4be64e8cead44433a345145071f689e0574",
+  "verdict": "source-supported assessment; no additional swallowing defect established; conditional annotation and primary-ordering candidates remain unmeasured",
+  "input_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-remaining-tls-classification-source-assessment-8b544ea1.md",
+      "sha256": "2f5e7af4cb6c872f9324fc0590a7c1c6d6e2a490d9ce603746be21f4ce9295b9",
+      "read_scope": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-remaining-tls-classification-source-assessment-8b544ea1.json",
+      "sha256": "0de9554e9ec4bf442de60d840f1bb1378137614c2840f473b1a3011733291e1b",
+      "read_scope": "whole"
+    }
+  ],
+  "original_bindings_validation": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "blob": "6fdee4be64e8cead44433a345145071f689e0574",
+      "lines": 1657,
+      "sha256_lf": "775a771809206011ebad2b6a8d59c161ec6d93de78d2dddd7e42344f40730165",
+      "historical_range_hashes_verified": 3
+    },
+    {
+      "path": "scripts/capture/http2_session.py",
+      "blob": "2e575460760edae882e2f8f3f5bb1834af5df7df",
+      "lines": 1154,
+      "sha256_lf": "947bdd8f07a3982e1c8e6b08b886486e0e0befe14c6bd97e907b920ee78973d6",
+      "historical_range_hashes_verified": 2
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_tls_read_classification.py",
+      "blob": "7308c87e58588a0ad0f910213e421cae16f1e598",
+      "lines": 209,
+      "sha256_lf": "0cd92d074e6682c58a1488eb3c9bc44615b91bbad9d24f5eac5a56478ec177f3",
+      "historical_range_hashes_verified": 1
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_accepted_lifecycle.py",
+      "blob": "ba2ee2ae4fe9df6fff6e0c48e8895f73e846dc31",
+      "lines": 265,
+      "sha256_lf": "0870f2fdce15bb82dfd3d07b41c2309ee347a0573e23b4ecd6a3db80a8aae528",
+      "historical_range_hashes_verified": 1
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/ssl.py",
+      "blob": null,
+      "lines": 1562,
+      "sha256_lf": "1c6e62f53e0b4a80395a5f786c9718681b012fc1b6aacee7bc35385f9bbe882c",
+      "historical_range_hashes_verified": 3
+    },
+    {
+      "path": "C:/Users/arya/AppData/Local/uv/cache/archive-v0/Cb8pxac121u-FcpG/Lib/site-packages/h2/exceptions.py",
+      "blob": null,
+      "lines": 194,
+      "sha256_lf": "dc49b798b310047c58a4e2a868f74a0861469fc03dadef4006d51d2a56376d93",
+      "historical_range_hashes_verified": 1
+    },
+    {
+      "path": "C:/Users/arya/AppData/Local/uv/cache/archive-v0/Cb8pxac121u-FcpG/Lib/site-packages/h2/connection.py",
+      "blob": null,
+      "lines": 2117,
+      "sha256_lf": "8283e14ad0875ecdd5d94fbd4c4111e3c08d298ef80ae6b3ff223c1ce1aa8e09",
+      "historical_range_hashes_verified": 1
+    }
+  ],
+  "fresh_manual_sources": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "git_blob": "6fdee4be64e8cead44433a345145071f689e0574",
+      "lines": 1657,
+      "git_lf_sha256": "775a771809206011ebad2b6a8d59c161ec6d93de78d2dddd7e42344f40730165",
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 280,
+          "last": 290,
+          "sha256_git_lf": "cf567161f82b0bc6e010a9411267018be516c6232795841caf65c480008ff4e6"
+        },
+        {
+          "first": 439,
+          "last": 508,
+          "sha256_git_lf": "53d64cd2ef12053644d894bb54d148a86e4e2e0f67e13d47977f7adb94ffd594"
+        },
+        {
+          "first": 511,
+          "last": 817,
+          "sha256_git_lf": "3a2c3230bc5afaaadef62f8d410ae82faf1ace488409308e4456bc1f1c23c293"
+        },
+        {
+          "first": 1115,
+          "last": 1287,
+          "sha256_git_lf": "08d23174c64c046643ea46a64da36e0b918c9fa979735892a78060f40bd8affc"
+        },
+        {
+          "first": 1372,
+          "last": 1436,
+          "sha256_git_lf": "613f417e175aa75f70249f50ecca802f64bb3a4966547c327a8aa6ac7319dc7d"
+        },
+        {
+          "first": 1510,
+          "last": 1657,
+          "sha256_git_lf": "9ae627ffde0d623a6dde423902e818e834230fb167f99c4c33c15b3980a33480"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/http2_session.py",
+      "git_blob": "2e575460760edae882e2f8f3f5bb1834af5df7df",
+      "lines": 1154,
+      "git_lf_sha256": "947bdd8f07a3982e1c8e6b08b886486e0e0befe14c6bd97e907b920ee78973d6",
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 33,
+          "last": 79,
+          "sha256_git_lf": "c99e9871f39a850dd0fe4bf5c59086c240d9db45b0530bf6a01ec7524fd43147"
+        },
+        {
+          "first": 96,
+          "last": 142,
+          "sha256_git_lf": "1aad9a949fce6c2bb6e9ebe646c85d52f20a51fe5a46d9c5c99da29570f8cd1f"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_tls_read_classification.py",
+      "git_blob": "7308c87e58588a0ad0f910213e421cae16f1e598",
+      "lines": 209,
+      "git_lf_sha256": "0cd92d074e6682c58a1488eb3c9bc44615b91bbad9d24f5eac5a56478ec177f3",
+      "scope": "fresh whole",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 209,
+          "sha256_git_lf": "0cd92d074e6682c58a1488eb3c9bc44615b91bbad9d24f5eac5a56478ec177f3"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_accepted_lifecycle.py",
+      "git_blob": "ba2ee2ae4fe9df6fff6e0c48e8895f73e846dc31",
+      "lines": 265,
+      "git_lf_sha256": "0870f2fdce15bb82dfd3d07b41c2309ee347a0573e23b4ecd6a3db80a8aae528",
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 236,
+          "last": 265,
+          "sha256_git_lf": "a379ecfb98e8910562c945b1d4db5fb9d22e649080e1c05f5819a282bffcbc8a"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\ssl.py",
+      "lines": 1562,
+      "raw_sha256": "1c6e62f53e0b4a80395a5f786c9718681b012fc1b6aacee7bc35385f9bbe882c",
+      "lf_sha256": "1c6e62f53e0b4a80395a5f786c9718681b012fc1b6aacee7bc35385f9bbe882c",
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 98,
+          "last": 115,
+          "sha256_lf": "efa648419288ef3e0825f01d5f5df6d0cfeac78312d402b7c22e3c970d215e80"
+        },
+        {
+          "first": 500,
+          "last": 534,
+          "sha256_lf": "f37345cefd6d4c0f93b43e4094e009073d65a04dd7ca6895fe3d8939e80ecc12"
+        },
+        {
+          "first": 829,
+          "last": 995,
+          "sha256_lf": "05e7fe5726736db7202dcf160f16767e3ade1759d51a28a17a2be92f19631350"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\futures.py",
+      "lines": 426,
+      "raw_sha256": "5bc3d79ef36d9253beb8fb636acbbba061cd6b1c6a82a3100b9a31d4321ea097",
+      "lf_sha256": "5bc3d79ef36d9253beb8fb636acbbba061cd6b1c6a82a3100b9a31d4321ea097",
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 187,
+          "last": 224,
+          "sha256_lf": "895c3597053338db71feb0dad5a8e2c285400a529119c88362958c18354aecbf"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\tasks.py",
+      "lines": 946,
+      "raw_sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "lf_sha256": "b3bccb5346d370059d20191cfec96e15bb07442c3aae9ce9c717190a8d8920c7",
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 215,
+          "last": 275,
+          "sha256_lf": "22e83cec532f49534482fd0be9da9ba0956010a8297989828a10fc7cbe96f78f"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\streams.py",
+      "lines": 726,
+      "raw_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "lf_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 324,
+          "last": 343,
+          "sha256_lf": "39883609a9851e41f9ff648473ff49dd7f50f8e9dc830fa210a7f81e17a07b6a"
+        },
+        {
+          "first": 418,
+          "last": 435,
+          "sha256_lf": "9aef2c9adad7a9c1ae87a55dcd1b4087c3b8bb199ac2151c9c2cfd3a191dd4c1"
+        },
+        {
+          "first": 627,
+          "last": 677,
+          "sha256_lf": "90e6a6c0b5895d183973a8603b9afaf3a81a9509eb0f913b983dccd153ea4986"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\Cb8pxac121u-FcpG\\Lib\\site-packages\\h2\\exceptions.py",
+      "lines": 194,
+      "raw_sha256": "dc49b798b310047c58a4e2a868f74a0861469fc03dadef4006d51d2a56376d93",
+      "lf_sha256": "dc49b798b310047c58a4e2a868f74a0861469fc03dadef4006d51d2a56376d93",
+      "scope": "fresh whole",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 194,
+          "sha256_lf": "dc49b798b310047c58a4e2a868f74a0861469fc03dadef4006d51d2a56376d93"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\Cb8pxac121u-FcpG\\Lib\\site-packages\\h2\\connection.py",
+      "lines": 2117,
+      "raw_sha256": "8283e14ad0875ecdd5d94fbd4c4111e3c08d298ef80ae6b3ff223c1ce1aa8e09",
+      "lf_sha256": "8283e14ad0875ecdd5d94fbd4c4111e3c08d298ef80ae6b3ff223c1ce1aa8e09",
+      "scope": "fresh partial",
+      "manual_ranges": [
+        {
+          "first": 1501,
+          "last": 1580,
+          "sha256_lf": "cffbfce73fb887def7588e8c8470d1e09ef1957adad67681986e40cb6a44608c"
+        }
+      ]
+    }
+  ],
+  "runtime": "none; existing measured receipts not renewed",
+  "findings": [],
+  "source_candidates": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "lines": [
+        716,
+        741
+      ],
+      "candidate": "constructor skips failure/closed_ms record finalization",
+      "status": "source-obvious annotation boundary; accepted Task cause retained; no demonstrated false publication or tag requirement"
+    },
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "lines": [
+        727,
+        741
+      ],
+      "candidate": "simultaneous body error and finally writer.close error changes top-level Task error",
+      "status": "conditional primary-ordering candidate; earlier object remains context; no measured combination/total loss"
+    }
+  ],
+  "limits": [
+    "canonical/support partial only",
+    "no native _ssl/OpenSSL/MemoryBIO or accelerated asyncio C read",
+    "no universal remote provenance inferred from stage or exception class",
+    "no whole A191 closure, policy widening, regression execution or overall gate approval"
+  ],
+  "evidence_note": "original stale full1638 denial corrected to actual1657; no whole-source credit transferred"
+}

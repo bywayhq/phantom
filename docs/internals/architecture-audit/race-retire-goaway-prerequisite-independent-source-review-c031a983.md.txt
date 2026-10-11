@@ -1,0 +1,11 @@
+# Retirement GOAWAY prerequisite follow-up
+
+Source-approved frozen `c031a983` with original `9e82cda7` for root three-control causal execution. No new source blocker.
+
+The two positive exchanges set wait_for_goaway=True and continue receiving until actual same-client ConnectionTerminated, before writer close. The write-failure baseline setsFalse because its target fault prevents B retirement. Original three method bodies and positive/negative assertions are byte-exact; target moves309→313 solely from scaffold lines.
+
+Independent full-file inverse restores both prior owners exactly; defaultFalse preserves all earlier callers. Existing literal response/data acknowledgement and cleanup are unchanged. Cached h2 GOAWAY clears outbound bytes, data_to_send does not introduce a closed-state transition, ended-stream acknowledgements are tolerated and the six-byte response is below normal update threshold. CPython writer/drain still propagate real transport errors. This does not establish arbitrary larger-body post-GOAWAY behavior.
+
+Fresh full delta and bounded current changed functions; prior whole322 and canonical partial review remain separate historical evidence. Shared helper548 is preserved by inverse, not freshly whole-read. Prior canonical handler authorship remains disclosed. The original prerequisite finding/report is retained; this follow-up resolves it prospectively.
+
+No runtime, target imports, native resources, Ruff, Cargo, checkers or tracked edits. Two-pass/one-failure outcome remains forecast; root must run unchanged3 on Windows/Linux and inspect exact causal prerequisites before repair. Later314–326 assertions are unmeasured. Pinned Ruff lint/format and composed capture verification remain root-owned; no vendor or full-gate approval.

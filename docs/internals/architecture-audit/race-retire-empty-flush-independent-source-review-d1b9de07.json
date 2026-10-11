@@ -1,0 +1,125 @@
+{
+  "kind": "independent empty response-flush baseline correction review",
+  "revision": "d1b9de07006c1c580d029005f05ea4892cc31ae1",
+  "parent": "d3267168cc11cd4567d7997a4e7bc46be4a6404b",
+  "verdict": "Behavior source-approved for root corrected-three-control causal execution, with one blank paragraph boundary needed before final composition. No corrected native outcome exists yet.",
+  "findings": [
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "line": 186,
+      "severity": "minor",
+      "problem": "Decoded-event handling and subsequent encoding/flushing are distinct operations without a paragraph boundary.",
+      "fix": "Add exactly one blank line after goaway_received=True at185, before pending=client.data_to_send()."
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "C:\\code\\phantom-worktrees\\audit-race-retire-remedy\\scripts\\capture\\tests\\test_alt_svc_race_startup_lifecycle.py",
+      "actual_lines": 550,
+      "git_blob": "0b17943d7784972671d5303f562439200e5ba7f0",
+      "canonical_sha256": "a9ebf90a16d5c590bccef3bf43a6c88abf585dd898aac6b9ad6a4eb815359c28",
+      "physical_sha256": "8b3641b18d09cd0c9afdb74fcfbd5c9c29622acc41d50a80d09fb7f40dd474e3",
+      "manual_scope": "partial",
+      "read_ranges": [
+        {
+          "first": 130,
+          "last": 207,
+          "canonical_sha256": "d1cd1687297a84ac67d8418a6ff114b90b248f896a156502773641e76d5afbb8"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\uv\\cache\\archive-v0\\Cb8pxac121u-FcpG\\Lib\\site-packages\\h2\\connection.py",
+      "actual_lines": 2117,
+      "git_blob": null,
+      "canonical_sha256": "8283e14ad0875ecdd5d94fbd4c4111e3c08d298ef80ae6b3ff223c1ce1aa8e09",
+      "physical_sha256": "8283e14ad0875ecdd5d94fbd4c4111e3c08d298ef80ae6b3ff223c1ce1aa8e09",
+      "manual_scope": "partial",
+      "read_ranges": [
+        {
+          "first": 1398,
+          "last": 1431,
+          "canonical_sha256": "d83e7bde888d2a3f0b77857ddfd1b9960d97f3da13f77407b8d1c3e2d6cce41d"
+        },
+        {
+          "first": 1893,
+          "last": 1911,
+          "canonical_sha256": "adb9adfae94088c4b3a59114e4e0ce2da1f7a6db08db95ac350f5c24d0d1f249"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Roaming\\uv\\python\\cpython-3.10-windows-x86_64-none\\Lib\\asyncio\\streams.py",
+      "actual_lines": 726,
+      "git_blob": null,
+      "canonical_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "physical_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "manual_scope": "partial",
+      "read_ranges": [
+        {
+          "first": 324,
+          "last": 371,
+          "canonical_sha256": "daa58cd5bdbf381af54e974bfc677085340191971518c6e71c351165b8e11f25"
+        }
+      ]
+    }
+  ],
+  "preservation": {
+    "entire_owner_inverse_exact": true,
+    "retirement326_git_bytes_exact": true,
+    "sole_changed_path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+    "new_source_lines": 550,
+    "old_source_lines": 548,
+    "commit": "Arya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>\nG\ntest(capture): skip empty H2 response flushes",
+    "status": ""
+  },
+  "semantics": "Obtain exact pending bytes once; empty result performs no write or drain. Nonempty result preserves the actual same bytes, bounded drain and all original exception handling. Initial preface/request flush, response bytes/END_STREAM and optional actual GOAWAY witness remain unchanged. Default callers intentionally acquire the same empty-output guard; no assertion they are byte-exact in that path.",
+  "diagnostic_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-pending-diagnostic-d3267168-linux.log",
+      "bytes": 7779,
+      "sha256": "eecf9a4332cde3c5d2d5da8cc6a6e82163bc1c5bbbdbdd1c405309ad1fd3c2a3",
+      "read": "whole raw log/guards fresh; diagnostic script/runner previous whole source approval retained"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-pending-diagnostic-d3267168-linux.revision",
+      "bytes": 41,
+      "sha256": "6f5cc47cba32d52cc0702b94f936ad22cc8e46c6eefcdab007843dc399c14ede",
+      "read": "whole raw log/guards fresh; diagnostic script/runner previous whole source approval retained"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-pending-diagnostic-d3267168-linux.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read": "whole raw log/guards fresh; diagnostic script/runner previous whole source approval retained"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-pending-diagnostic-d3267168-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "read": "whole raw log/guards fresh; diagnostic script/runner previous whole source approval retained"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\inspect-race-retire-pending-state-d3267168.py",
+      "bytes": 2061,
+      "sha256": "0d54388cd345d2d11bda79c5ff170804250e75277d09aca4b41bb107d69d1f18",
+      "read": "whole raw log/guards fresh; diagnostic script/runner previous whole source approval retained"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-race-retire-pending-diagnostic-d3267168.sh",
+      "bytes": 918,
+      "sha256": "582c5e8e4e9676f83593770a7ede9c5adcc318f576f641ef4590f2a2362173d4",
+      "read": "whole raw log/guards fresh; diagnostic script/runner previous whole source approval retained"
+    }
+  ],
+  "diagnostic_scope": "Separate Linux one-method d326 diagnostic: ended=True,status200,body6/literalretire=True,last_pending length0/settings_ack=False; actual helper187 drain raises ConnectionResetError. Test then fails traffic prerequisite227 and cleanup also fails, retaining ConnectionReset and LocalRetireWriteFailure. Exactly one selected method, two unittest failure entries. This does not retro-credit original Linux run or later attribution313.",
+  "read_scope": "Fresh full4add/2del diff and current complete changed h2_exchange130-207; cached H2 and CPython partial ranges. Previous full retirement322 and c031 method326 review stay historical; unchanged retirement preserved by exact Git identity. No fresh whole550 shared-helper read.",
+  "independence": "Prior reviewer authored canonical loop-handler overlap code and earlier fixture work; this independent review concerns another author signed helper delta. Supporting code remains qualified partial.",
+  "limits": [
+    "No swallowing of nonempty write/drain errors; a future native nonempty transport error remains a prerequisite failure.",
+    "No arbitrary post-GOAWAY protocol support, OS error exclusion or natural retirement fault claimed.",
+    "Corrected three-control outcome remains unmeasured, first attribution313/later314-326 require root native evidence."
+  ],
+  "checks": "Read-only source/Git and standard-library metadata/inverse proof. No target imports, runtime, sockets/processes, Ruff, Cargo, checkers, tracked edit or push.",
+  "root_required": "Root paragraph-only composition and CHANGELOG, pinned Ruff lint/format, corrected3 on Windows/Linux before canonical retirement remedy. Full gate/open A191 boundaries remain separate."
+}

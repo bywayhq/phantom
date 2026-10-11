@@ -1,0 +1,51 @@
+# Remaining TLS classification boundaries
+
+Source-only assessment at `8b544ea1c164171e2d7b3ce59e065245ccccedf3`, canonical
+blob `6fdee4be64e8cead44433a345145071f689e0574`. No additional concrete local
+swallowing defect established within the inspected TLS operation catches.
+
+TlsStream's handshake marker is assigned only around native do_handshake SSLError
+or its generated partial-EOF ConnectionError. WantRead progresses by real input.
+Flush, incoming BIO.write and ALPN access are outside that marker. Local reader,
+flush/BIO/ALPN exceptions reach the original accepted record and re-raise into its
+owned Task collector. Established TLS read accepts ZeroReturn closure; other SSL
+errors propagate. Clean EOF and the three reset categories have explicit peer
+policies. Their class is not proof that every occurrence arose naturally on wire.
+
+TLS write/BIO/transport failures propagate through inline serving or the original
+held-response owner. The responder retains raw failures; only StreamClosed abandons
+that response. Incoming receive_data ProtocolError is a separate invalid-peer
+record policy. FlowControlError shares that superclass but outgoing response
+failure is retained. The actual h2 class hierarchy and receive boundary were read.
+
+The shared server_context advertises h2 and http/1.1. This capture handler records
+non-h2/None ALPN and closes that peer; it does not dispatch HTTP/1 or silently fall
+back. Accessor/setup exceptions remain local failures. Generation/context setup
+errors occur before serving and outer capture retains its initiating object and
+closes prior reservations. Already-closing transport flush intentionally omits
+further bytes; this establishes neither delivery nor a new local failure.
+
+Two qualified boundaries remain. TlsStream construction precedes the record
+try/finally, so a MemoryBIO/wrap_bio error bypasses failure/closed_ms annotation.
+The accepted owner still retains the actual Task/writer and observes/closes them.
+The existing escaped-constructor control asserts raw cause, not those record tags.
+No natural constructor failure or new silent cause loss is established here.
+Separately, if body failure and writer.close failure coincide, the unguarded finally
+close can become the top-level Task error. Python context retains the prior cause;
+no actual double-failure outcome was exercised or remedied by this pass.
+
+CPython3.10 source alias resolves to3.10.20. SSLObject delegates read/write/ALPN/
+handshake to native _ssl; MemoryBIO is imported from it. The native implementation
+was not read. Thus this report does not prove all native handshake SSL errors are
+remote-caused, WANT_WRITE impossible or full write consumption universal. The
+current classification policy is stage-specific; it must not be widened to hide
+unrelated local errors. Installed h2 copy is version4.4.1 from the prior version
+binding; no fresh runtime selection/import occurred.
+
+Fresh manual ranges and exact Git/LF/physical hashes are in JSON. Whole TLS control
+source was read, not executed. Prior837 assessment is preserved; its branch
+reconciliation is consistent with this pass. Cross-peer retirement now has a
+separate frozen baseline and retains its own review/runtime gates. Handler
+concurrency and snapshot scope remain separate. No new tests/framework/remedy,
+tracked edits, imports, checkers, native resources, Cargo or network. Root's dirty
+shared metadata was preserved. No whole A191, full gate or main approval.

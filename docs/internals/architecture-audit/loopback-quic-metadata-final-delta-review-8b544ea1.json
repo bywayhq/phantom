@@ -1,0 +1,112 @@
+{
+  "kind": "final additive metadata delta/gate-reviewer disposition",
+  "revision": "8b544ea1c164171e2d7b3ce59e065245ccccedf3",
+  "verdict": "No remaining supported blocker; approve exact corrected metadata snapshot for root commit with normal documentation/diff/signature checks.",
+  "proof": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-metadata-final-delta-review-8b544ea1-proof.json",
+    "sha256": "86dee193bf56e665fbf4260c8a71c7c5e9e7e5b7dcae22a7c3ef2cadd2efa2d6"
+  },
+  "writer": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\record-loopback-quic-metadata-correction-8b544ea1.py",
+    "sha256": "22eba2916f37255ffccc2767823f042e6135c7dc4df127dacb2c1cd04ef3870e",
+    "lines": 60,
+    "executed_by_reviewer": false
+  },
+  "snapshot": [
+    {
+      "path": "docs\\internals\\architecture-audit\\coverage.md",
+      "sha256": "af4dcd30c6877932915b0135c4caf9aa1ce053b2e7e89adef46533265d0dfd83"
+    },
+    {
+      "path": "docs\\internals\\architecture-audit\\findings.md",
+      "sha256": "221d0e92e8fa8c365d746946a9030079ea74594203edf20fc018677941569019"
+    },
+    {
+      "path": "docs\\internals\\architecture-audit\\inventory.tsv",
+      "sha256": "7ac55e1b2e2d7c6ca0ccd35203314be7c9a6a53f458fc7c203bdc44b7f46ec52"
+    },
+    {
+      "path": "docs\\internals\\architecture-audit\\loopback-quic-root-checkpoint-8b544ea1.json",
+      "sha256": "ff1ec15fd6a3253b7e80f51c1a4bc1d0a5148734bce62ca18b296597c1cbaf3f"
+    }
+  ],
+  "correction_verified": {
+    "path": "scripts/capture/alt_svc_race.py",
+    "git_blob": "6fdee4be64e8cead44433a345145071f689e0574",
+    "canonical_sha256": "775a771809206011ebad2b6a8d59c161ec6d93de78d2dddd7e42344f40730165",
+    "actual_eof": 1657,
+    "fresh_manual_range": [
+      1641,
+      1657
+    ],
+    "range_sha256": "36b1b6bb8114bdffd02eca2dbc7c1c60239b4f4e7e489d8561d7f7488f9feb22",
+    "original_invalid_range_preserved": [
+      1641,
+      1658
+    ],
+    "no_line1658_credit": true,
+    "original_report_hash_verified": true
+  },
+  "imports": {
+    "original64_exact": true,
+    "added4_exact": [
+      {
+        "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\small-capture-helpers-caller-range-correction-8b544ea1.json",
+        "repository_path": "docs/internals/architecture-audit/small-capture-helpers-caller-range-correction-8b544ea1.json",
+        "bytes": 1236,
+        "sha256": "0f2352c2422b9c30df0381fdcea46be58bcbf23cbbcb9e78e9a189468ca30f9e"
+      },
+      {
+        "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\small-capture-helpers-caller-range-correction-8b544ea1.md",
+        "repository_path": "docs/internals/architecture-audit/small-capture-helpers-caller-range-correction-8b544ea1.md.txt",
+        "bytes": 603,
+        "sha256": "3e1ed124f4bf50ef117963fe8e6e65279574a5025c4ee6ac72a641c8631ac0d8"
+      },
+      {
+        "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-metadata-independent-review-8b544ea1.json",
+        "repository_path": "docs/internals/architecture-audit/loopback-quic-metadata-independent-review-8b544ea1.json",
+        "bytes": 4377,
+        "sha256": "d1b5938e1f0859a6d4939be75286e50fb394d766e0ef98f8862f3e5a25d506a6"
+      },
+      {
+        "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\loopback-quic-metadata-independent-review-8b544ea1.md",
+        "repository_path": "docs/internals/architecture-audit/loopback-quic-metadata-independent-review-8b544ea1.md.txt",
+        "bytes": 3165,
+        "sha256": "2bef69d713c8ccd89dd6e30ab1e437020526208b5f10914871d9090fde09469c"
+      }
+    ],
+    "total": 68
+  },
+  "inventory": {
+    "before": 3639,
+    "initial_after": 3705,
+    "corrected_after": 3709,
+    "unique": true,
+    "old_paths_order_preserved": true,
+    "existing_updates": 5,
+    "new_source": 1,
+    "evidence_rows": 69,
+    "prior65_surface_normalization": "documentation -> audit evidence"
+  },
+  "unchanged": {
+    "raw_artifacts": 23,
+    "source_records": 6,
+    "coverage_findings_initial_hashes": true,
+    "source_control_runtime_bytes": true
+  },
+  "initial_review_issue_disposition": "Only supporting partial EOF defect resolved additively; initial request-changes record remains immutable.",
+  "source_scope": "Fresh manual tail17 lines only, full correction writer/additive pair/receipt additions and final coverage/findings diff; source identities and inventory/import accounting checked statically. No whole owner read promoted.",
+  "independence": "Metadata reconciliation separate from reviewer-authored native addendum; no rerun or second runtime measurement.",
+  "limitations": [
+    "No later CI/current full workspace gate/main approval.",
+    "619 whole disposition remains prior559 plus exact60 delta; four supporting helper/test whole reports bound, callers partial.",
+    "Historical unprinted backup annotations and callback/exception-graph/wait limits unchanged.",
+    "First static delta attempt expected coverage wrapping after initial proof, but identical hashes show wrap already present; corrected check records actual snapshot.",
+    "Initial attempted correction filename omitted caller and was absent; actual caller-range correction files were then read completely, with no nonexistent file read credit."
+  ],
+  "remaining_root_checks": [
+    "python scripts/docs/check_docs.py and final diff check",
+    "Required signed human metadata commit",
+    "Normal later integration gates; no native rerun or vendor check solely for metadata"
+  ]
+}

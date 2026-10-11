@@ -1,0 +1,300 @@
+{
+  "kind": "independent corrected retirement native baseline addendum",
+  "revision": "957047138aa75f54d2ab76a523becb415dbf1f11",
+  "source_bindings": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "blob": "6fdee4be64e8cead44433a345145071f689e0574",
+      "git_lf_sha256": "775a771809206011ebad2b6a8d59c161ec6d93de78d2dddd7e42344f40730165",
+      "lines": 1657,
+      "same_as_d326": true
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_retire_attribution.py",
+      "blob": "6ab4f9b9d4f4f12e9310c7d8f517443377c7af70",
+      "git_lf_sha256": "0e9815cdc661a4ce4f698a2de75dbafd24e37d274edb30c05b671abbf07f0b91",
+      "lines": 326,
+      "same_as_d326": true
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "blob": "4154852eae5edb020db6165a028f39404acc1de5",
+      "git_lf_sha256": "74c7d60e6423419d814f6e1c669ca1dd3d2de0947eebb4933256eb9e0ed603cc",
+      "lines": 551,
+      "same_as_d326": false
+    }
+  ],
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-linux.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-linux.focused.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-linux.focused.log",
+      "raw_sha256": "6d0ceccddd508ed0ec2d0200906cb4f604bc2e0e9d004857bb9f8983a306727e",
+      "lines": 24,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-linux.revision",
+      "raw_sha256": "b3e930e8eb7211388966603329df50f6009b5659e3d6b237adcbd3e96be94c8d",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-linux.ruff-check.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-linux.ruff-check.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-linux.ruff-format.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-linux.ruff-format.log",
+      "raw_sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-linux.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-windows.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-windows.focused.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-windows.focused.log",
+      "raw_sha256": "4d7c0091878e4428c8716b37571762182bf9b77af7de888844a8600425a56cf3",
+      "lines": 24,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-windows.revision",
+      "raw_sha256": "b3e930e8eb7211388966603329df50f6009b5659e3d6b237adcbd3e96be94c8d",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-windows.ruff-check.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-windows.ruff-check.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-windows.ruff-format.exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-windows.ruff-format.log",
+      "raw_sha256": "553f6d1aef0f7ca2d27d7a2f0ebe111915ec50911e0d736853590823a6d15a86",
+      "lines": 16,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-windows.runner-exit",
+      "raw_sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-quality-fixed-95704713-windows.check.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-quality-fixed-95704713-windows.check.log",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-quality-fixed-95704713-windows.format.exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-quality-fixed-95704713-windows.format.log",
+      "raw_sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-quality-fixed-95704713-windows.revision",
+      "raw_sha256": "b3e930e8eb7211388966603329df50f6009b5659e3d6b237adcbd3e96be94c8d",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-quality-fixed-95704713-windows.runner-exit",
+      "raw_sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-race-retire-baseline-reviewed.sh",
+      "raw_sha256": "32515b505a83d912c644893ef53f6e117536d22d0db0253fb98237ef1c385a5a",
+      "lines": 38,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-retire-quality-fixed-95704713.sh",
+      "raw_sha256": "4c3babfd4cc69b0c06c7074c3ffb0f2c1813f28341d45ae9e669896153b3efc4",
+      "lines": 25,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-helper-line-endings-completion-95704713-windows.json",
+      "raw_sha256": "325c49309f8d7d998045eee869433858805783844c37cdce2b6b2e278df6df57",
+      "lines": 20,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\normalize-retire-helper-line-endings-95704713.py",
+      "raw_sha256": "26ee7938d2c3ed847d27ee35c12707f8dee500ae0825c7e93a2ae3e63db93c75",
+      "lines": 29,
+      "read_scope": "whole text"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-helper-line-endings-95704713-windows.before.py.txt",
+      "raw_sha256": "1375370f75884b63c7ad34140ee958b6b30e734c08a1ace10b72ff354ae0ca57",
+      "lines": 551,
+      "read_scope": "byte/hash only, no fresh whole source reading"
+    }
+  ],
+  "rosters": {
+    "windows": [
+      [
+        "test_clean_eof_removes_callback_before_other_peer_retirement",
+        "ok"
+      ],
+      [
+        "test_other_peer_keeps_retirement_write_failure_on_original_owner",
+        "FAIL"
+      ],
+      [
+        "test_other_peer_retires_two_healthy_actual_h2_connections",
+        "ok"
+      ]
+    ],
+    "linux": [
+      [
+        "test_clean_eof_removes_callback_before_other_peer_retirement",
+        "ok"
+      ],
+      [
+        "test_other_peer_keeps_retirement_write_failure_on_original_owner",
+        "FAIL"
+      ],
+      [
+        "test_other_peer_retires_two_healthy_actual_h2_connections",
+        "ok"
+      ]
+    ]
+  },
+  "verdict": "both hosts causal missing original-owner tag; bounded three-method baseline evidence approved",
+  "results": {
+    "windows": {
+      "selected": 3,
+      "pass": 2,
+      "fail": 1,
+      "seconds": 2.754,
+      "focused_exit": 1,
+      "check_exit": 0,
+      "original_format_exit": 1,
+      "runner_exit": 1
+    },
+    "linux": {
+      "selected": 3,
+      "pass": 2,
+      "fail": 1,
+      "seconds": 1.688,
+      "focused_exit": 1,
+      "check_exit": 0,
+      "original_format_exit": 0,
+      "runner_exit": 1
+    },
+    "windows_quality_followup": {
+      "tests_selected": 0,
+      "check_exit": 0,
+      "format_exit": 0,
+      "runner_exit": 0
+    }
+  },
+  "reached": "actual prerequisites309\u2013311 then missing tag313",
+  "unreached": [
+    314,
+    326
+  ],
+  "fresh_manual_source_ranges": {
+    "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py": [
+      [
+        144,
+        205
+      ],
+      [
+        343,
+        394
+      ]
+    ],
+    "scripts/capture/tests/test_alt_svc_race_retire_attribution.py": [
+      [
+        210,
+        326
+      ]
+    ]
+  },
+  "preservation": {
+    "canonical_and_retirement_byte_exact_d326": true,
+    "startup_existing_method_AST_exact": true,
+    "before_sha256": "1375370f75884b63c7ad34140ee958b6b30e734c08a1ace10b72ff354ae0ca57",
+    "canonical_sha256": "74c7d60e6423419d814f6e1c669ca1dd3d2de0947eebb4933256eb9e0ed603cc",
+    "uniform_crlf_sha256": "efaa2a0486d876009773d7a6b40ab79e2ebfc9f08f86f0feb9a9b094e8ecdd29"
+  },
+  "limitations": [
+    "no newer peer-reset controls",
+    "old Linux invalid prerequisite not retroactively causal",
+    "original Windows format1 preserved",
+    "normalization execution outcome sourced to completion record, no separate raw execution log",
+    "later identity/exactly-once oracles unreached",
+    "no remedy/full gate/A191 closure"
+  ]
+}

@@ -1,0 +1,7 @@
+# Retirement remedy root composition review
+
+Approved the staged three-file composition atop 52298d4a7b911cc049180ca483342fd5e928623c for signing and root verification. The canonical index blob d53421f1dfc47e3e65384414e4c2879084cb2e8a is byte-exact to independently reviewed d360. Root’s prior owner equals its author parent. All six retirement controls and the approved empty-flush startup helper are unchanged.
+
+The three-line CHANGELOG addition and five-line README addition are the sole documentation changes; removing each reproduces its prior file exactly. Their wording limits continuation to ordinary errors, so uncaught BaseException interruptions are not promised to continue. Fresh manual documentation context is README 1309–1380 and CHANGELOG 2485–2507; whole-document coverage is not claimed.
+
+The working diff is empty and only these three paths are staged (24 additions, four deletions). Prior prewrite guard failures and line-ending diagnostic noise are process history, not source evidence. The source approval and earlier causal/prerequisite limits remain unchanged. No tests, imports, probes, lint or checkers were run by this reviewer. Root still owns unchanged six-method and composed capture verification, lint/format/docs checks and the later integration gate. No broad A191 or main approval is granted.

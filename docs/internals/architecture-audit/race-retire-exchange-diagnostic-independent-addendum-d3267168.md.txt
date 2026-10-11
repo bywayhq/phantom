@@ -1,0 +1,7 @@
+# Separate Linux retirement exchange diagnostic
+
+The distinct diagnostic run at exactd326 exposes the actual `/retire` failure boundary: h2_exchange187 final writer.drain → CPython StreamWriter.drain371 → _drain_helper167 raises ConnectionResetError('Connection lost'). This is measured only in this diagnostic run; it does not retroactively establish the same frame for the original Linux baseline.
+
+I read the complete observer, launcher, full diagnostic log and all three sidecars. The observer delegates the canonical exchange once, prints the actual path/type/traceback, and rethrows the same error. It does not change the fixture source or mark missing traffic successful. The single selected negative still fails prerequisite309→227 and then its async backup, giving two failure entries for one method. Target313 remains unreached. The original LookupError/LocalRetireWriteFailure and capture ConnectionReset traceback/backup chain remain preserved; printed traces do not substitute for exact object-identity assertions.
+
+The runner checks exact revision/clean before and after, retains exit1 and final runner1. This identifies a concrete prerequisite path for the author's baseline-scaffold correction, not Linux target causality, a canonical remedy, permanent resource leak or general protocol defect. No execution, import, checker, socket, Cargo or tracked edit occurred in this independent review. Both earlier baseline and runner-count correction reports remain immutable.

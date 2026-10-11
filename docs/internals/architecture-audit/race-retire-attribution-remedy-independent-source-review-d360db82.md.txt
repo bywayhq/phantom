@@ -1,0 +1,13 @@
+# Bounded retirement owner source review
+
+Approved d360db826ce5dcac11f308727afb6fcb277a3e5c for root composition and unchanged six-control verification. No source blocker was found. Both commit identities use the required human iCloud address and the signature is good.
+
+The concrete retirement-error list keeps unexpected ordinary write failures on the original record and retains the exact object for cleanup. Expected reset, abort and broken-pipe errors remain record tags under the established disconnect policy. The original guard, timestamp and pending-data/GOAWAY order are preserved. These handled errors let later callbacks run; BaseException interruptions remain uncaught. The synchronous collector extends then clears the retained batch, and the timestamp guard prevents repeating the callback fault.
+
+Fresh manual scope is the complete current Http2Origin class at 511–837, route 351–424, cleanup/retention 1128–1299, the whole frozen 374-line control and complete applicable instructions. The canonical owner has 1669 lines; this is a partial owner review. Whole-file byte inversion reconstructs its parent exactly after the three permitted delta sites are removed. All six controls and all outside paths are unchanged.
+
+The proposed README must say “Other ordinary errors fail the capture after cleanup” and “These errors do not stop retirement of the remaining connections.” Continuation must not imply KeyboardInterrupt, SystemExit or cancellation is caught. Staged prose still needs review. Root owns the CHANGELOG.
+
+The prior six-method baseline outcome is root-announced context, not a new independent raw-log review: original A-tag315 is causal; three added disconnect controls stopped at B-GOAWAY/traffic prerequisites with backup EOF, so their A-tag340 assertions have no baseline credit. Fixed object/cause/exact-once and expected disconnect assertions require new native results. Multiple simultaneous faults and interruptions remain qualified source-only branches.
+
+The reviewer previously authored a supporting loop-handler repair; this retirement fix is another agent’s work. Historical resolved H2/CPython partial reads remain historical, not fresh whole dependency coverage. No target imports, resource probes, tests, Ruff, Cargo or checkers ran. Root still owns both-host focused/composed capture verification, lint/format and docs checks; the final integration gate and A191 breadth remain open.

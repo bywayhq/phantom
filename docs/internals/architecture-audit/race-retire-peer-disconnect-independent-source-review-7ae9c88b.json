@@ -1,0 +1,149 @@
+{
+  "kind": "independent controlled retirement disconnect baseline source review",
+  "revision": "7ae9c88b87dda3698bc5079ef894690360adc43c",
+  "parent": "d1b9de07006c1c580d029005f05ea4892cc31ae1",
+  "root_helper_composition": "957047138aa75f54d2ab76a523becb415dbf1f11",
+  "verdict": "Source-approved tests-only baseline for root both-host six-control execution before canonical repair. No new supported blocker.",
+  "findings": [],
+  "sources": [
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_retire_attribution.py",
+      "revision": "7ae9c88b87dda3698bc5079ef894690360adc43c",
+      "git_blob": "111e515f54b93c7791dfcf6817849b7b8abaec42",
+      "actual_lines": 374,
+      "canonical_sha256": "0ac6bf651226d1857f47d2852742f2abd8380d60d1641b7827f33acef9ad1c9f",
+      "physical_sha256": "9ede772e14df3ac3c036fb45db126c3e56eac220c04db4977154d518e97c6b86",
+      "manual_scope": "whole",
+      "read_ranges": [
+        {
+          "first": 1,
+          "last": 374,
+          "canonical_sha256": "0ac6bf651226d1857f47d2852742f2abd8380d60d1641b7827f33acef9ad1c9f"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "revision": "7ae9c88b87dda3698bc5079ef894690360adc43c",
+      "git_blob": "6fdee4be64e8cead44433a345145071f689e0574",
+      "actual_lines": 1657,
+      "canonical_sha256": "775a771809206011ebad2b6a8d59c161ec6d93de78d2dddd7e42344f40730165",
+      "physical_sha256": "fe7a519cc244e3d9cc616cd631ad9641a5a87bf21376998ab2c7f382bc3725e3",
+      "manual_scope": "partial",
+      "read_ranges": [
+        {
+          "first": 374,
+          "last": 405,
+          "canonical_sha256": "717f92b47a5821aa0c55314264e7a82a5cc0080d391cbb2f920d2e8cc9ac242b"
+        },
+        {
+          "first": 576,
+          "last": 611,
+          "canonical_sha256": "e3160bf3e57c3549b728e5f373d917f75b7bf363c12bca7f792f0e516a3b441c"
+        },
+        {
+          "first": 709,
+          "last": 817,
+          "canonical_sha256": "849bf674518c6436a5ef11e4d87b05abbe05cadcc26ccf734214207494a2fee6"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "revision": "957047138aa75f54d2ab76a523becb415dbf1f11",
+      "git_blob": "4154852eae5edb020db6165a028f39404acc1de5",
+      "actual_lines": 551,
+      "canonical_sha256": "74c7d60e6423419d814f6e1c669ca1dd3d2de0947eebb4933256eb9e0ed603cc",
+      "physical_sha256": null,
+      "manual_scope": "partial",
+      "read_ranges": [
+        {
+          "first": 130,
+          "last": 208,
+          "canonical_sha256": "3df30a8ace0821c3308a3513ddf39bbf2975cddc4a42b6231670957230beb73e"
+        }
+      ]
+    },
+    {
+      "path": ".claude/agents/gate-reviewer.md",
+      "revision": "7ae9c88b87dda3698bc5079ef894690360adc43c",
+      "git_blob": "9c575f1a541f0571c63db6db2793c331fef641ca",
+      "actual_lines": 48,
+      "canonical_sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf",
+      "physical_sha256": "825427fdfe5fb5ff65c4fca8779f14b9414caaa32f99933afaf9758a021ef187",
+      "manual_scope": "whole",
+      "read_ranges": [
+        {
+          "first": 1,
+          "last": 48,
+          "canonical_sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf"
+        }
+      ]
+    },
+    {
+      "path": "AGENTS.md",
+      "revision": "7ae9c88b87dda3698bc5079ef894690360adc43c",
+      "git_blob": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "actual_lines": 221,
+      "canonical_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "physical_sha256": "61887031cf019147cdf81f5ae3c1667b67f14b342d8d7c1a233ecccd9b71d3eb",
+      "manual_scope": "partial",
+      "read_ranges": [
+        {
+          "first": 66,
+          "last": 144,
+          "canonical_sha256": "b435909d1d974af7af97dd35cb6a5c557be64c4ffda01b5179fd593c24b70c96"
+        }
+      ]
+    }
+  ],
+  "author_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-peer-disconnect-baseline-handoff-7ae9c88b.md",
+      "sha256": "43fb6a31bfbccbf5536e8d78cc0d1dadae28d8b7a6c842fc43c0ccff8b518ea4",
+      "read": "whole handoff/diff"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-peer-disconnect-baseline-handoff-7ae9c88b.json",
+      "sha256": "fe2599ee0c29a4e7b8c3f19447162bfee2d82bb1b7ef7e8bbe09d2b4282f4d8b",
+      "read": "whole handoff/diff"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-peer-disconnect-baseline-handoff-7ae9c88b.diff",
+      "sha256": "501217f6d4e8337fde678bbdc27966e0a4aa2aa909caf8b552a9a07c44ddcdc3",
+      "read": "whole handoff/diff"
+    }
+  ],
+  "preservation": {
+    "entire326_parent_inverse_exact": true,
+    "three_original_method_source_bytes_exact": true,
+    "sole_changed_path": "scripts/capture/tests/test_alt_svc_race_retire_attribution.py",
+    "root957_helper_equivalence": "Only separately approved paragraph blank distinguishes root helper from author helper; same empty-output guard and actual optional GOAWAY wait.",
+    "canonical_root957_and_author_exact": true,
+    "commit": "Arya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>\nG\ntest(capture): cover retired peer disconnect attribution",
+    "status": ""
+  },
+  "new_controls": {
+    "count": 3,
+    "literal_types": [
+      "ConnectionResetError",
+      "ConnectionAbortedError",
+      "BrokenPipeError"
+    ],
+    "fault": "Actual original A TLS write delegates, complete real GOAWAY parsed, exact fault retained then raised inside triggering B task; local controlled error, not natural OS provenance.",
+    "primary": "No initiating fault installed for peer-disconnect; captured primary must remainNone, literal A category expected, B healthy/retired/GOAWAY and collected errors empty.",
+    "ownership": "Same earlier actual owners/backup; async cleanup registration before install/acquisition. No new detached task or earlier task exception/result retrieval.",
+    "first_checks": "Exact one injected object at335-336 precedes shared traffic/closure337. A-tag340 and no-primary347/empty-collector348 depend on those prerequisites.",
+    "forecast": "Canonical fault can prematurely end B before GOAWAY. Missing B GOAWAY/traffic337 is a possible first baseline failure, not credited as reaching A tag340. Original local-error control stays byte-exact with shifted target315."
+  },
+  "limits": [
+    "Fresh whole374 new owner and full49add/1del diff; canonical and root helper supporting sources are partial. Existing ClassificationPeer/AcceptedResources/CaptureResources review reused historically, no new whole-helper credit.",
+    "Root957 baseline measurements in author handoff are retained attribution from author/root; this task did not independently read those rawlogs and does not nativeapprove them.",
+    "No controlled error demonstrates natural reset/abort/broken-pipe generation or full transport connection_lost.",
+    "Root corrected helper avoids empty drain errors, but every actual nonempty write/drain failure remains visible as prerequisite failure.",
+    "No wholeA191, cleanup beyond budgets, H3 retirement, main integration or full-gate approval."
+  ],
+  "independence": "Reviewer previously authored canonical loop-handler overlap repair and reviewed reused scaffolds. Independent new retirement tests/delta review is bounded; no claim of wholly independently authored support.",
+  "checks": "Source/Git and standard-library byte inverse/metadata only; no target imports, native/runtime/resources, Ruff, Cargo/checkers, tracked edits or push.",
+  "root_required": "Integrate tests with exact root957 helper, run six methods on Windows/Linux, classify actual prerequisite/target sites before canonical repair; pinned Ruff check/format and composed capture suite remain root-owned. No vendor touched."
+}

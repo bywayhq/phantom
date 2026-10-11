@@ -1,0 +1,20 @@
+{
+  "revision": "957047138aa75f54d2ab76a523becb415dbf1f11",
+  "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+  "before": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-helper-line-endings-95704713-windows.before.py.txt",
+    "sha256": "1375370f75884b63c7ad34140ee958b6b30e734c08a1ace10b72ff354ae0ca57",
+    "crlf": 547,
+    "lf": 551
+  },
+  "after": {
+    "sha256": "efaa2a0486d876009773d7a6b40ab79e2ebfc9f08f86f0feb9a9b094e8ecdd29",
+    "crlf": 551,
+    "lf": 551
+  },
+  "canonical_sha256": "74c7d60e6423419d814f6e1c669ca1dd3d2de0947eebb4933256eb9e0ed603cc",
+  "original_writer": "normalize-retire-helper-line-endings-95704713.py",
+  "original_writer_result": "failed at post-write clean-status assertion after writing uniform CRLF; original mixed bytes preserved; original report was not created",
+  "completion": "Explicitly staged the identical canonical source to refresh index metadata; no staged diff or new source commit",
+  "scope": "Windows working-file line endings only; no canonical source or assertion changes. Original failing format evidence retained. New quality check is separate."
+}

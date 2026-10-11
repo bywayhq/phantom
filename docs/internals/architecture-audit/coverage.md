@@ -61,6 +61,23 @@ coverage, fresh generator output or downstream compilation.
 
 ## Recent verification
 
+The [retirement checkpoint](retirement-root-checkpoint-83f793cf.json)
+records six passing connection-retirement controls on both hosts at `13ba3a93`.
+The full capture suite passes 554 methods on Windows and 543 on Linux, with
+eleven unchanged platform skips. Every previous method retains its status,
+relative order and skip text. Both formatting checks flag one exception-list
+layout. The separate correction at `83f793cf` passes the six controls and
+capture-wide lint and formatting on both hosts. Full-suite execution remains
+bound to `13ba3a93`.
+
+Ordinary retirement write errors retain their original connection and allow
+the remaining connections to retire. Expected disconnects keep record tags;
+other ordinary errors retain their original objects for cleanup reporting.
+The controls inject faults after actual writes. They do not establish natural
+OS-fault behavior or browser parity. Historical prerequisite failures and
+additive corrections remain recorded. Broader error classification, whole
+capture-owner review and final integration gates remain open.
+
 The [loopback QUIC checkpoint](loopback-quic-root-checkpoint-8b544ea1.json)
 records ten passing native cleanup controls on both hosts.
 The full capture suite passes 548 methods on Windows and 537 on Linux, with

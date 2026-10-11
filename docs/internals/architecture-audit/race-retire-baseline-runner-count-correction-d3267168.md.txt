@@ -1,0 +1,3 @@
+# Retirement runner count correction
+
+The original native addendum describes the fully read runner as39 lines. Actual immutable run-race-retire-baseline-reviewed.sh has38 lines, as its original raw_artifacts record already reports. Correct only that prose/read_scope count to38. The complete runner was read, but no nonexistent39th line receives credit. All source bindings, raw hashes, host results and Windows-causal/Linux-prerequisite distinctions remain unchanged. Original reports remain immutable.

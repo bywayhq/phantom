@@ -1,0 +1,88 @@
+{
+  "kind": "independent staged source/doc composition approval",
+  "base": "52298d4a7b911cc049180ca483342fd5e928623c",
+  "author_revision": "d360db826ce5dcac11f308727afb6fcb277a3e5c",
+  "verdict": "APPROVED staged three-file composition for signing and bounded native verification",
+  "staged_paths": [
+    "CHANGELOG.md",
+    "scripts/capture/README.md",
+    "scripts/capture/alt_svc_race.py"
+  ],
+  "staged_stat": [
+    "3\t0\tCHANGELOG.md",
+    "5\t0\tscripts/capture/README.md",
+    "16\t4\tscripts/capture/alt_svc_race.py"
+  ],
+  "diff_sha256": "fff7f14aeae4b4866caf3b7b7a8f096fb8a029f4649d7a1c98a40631056c5665",
+  "working_diff_empty": true,
+  "bindings": [
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "index_blob": "d53421f1dfc47e3e65384414e4c2879084cb2e8a",
+      "actual_lines": 1669,
+      "git_lf_sha256": "42f7414db8442af545d5a007d7f1420dd8d5e8ccd5e9dc7906ec0b7deb627663",
+      "manual_scope": "staged full semantic diff; parent manual scopes in immutable d360 source report",
+      "manual_ranges": []
+    },
+    {
+      "path": "CHANGELOG.md",
+      "index_blob": "99c40eb517a38b0e39856e630639df1589f95028",
+      "actual_lines": 2876,
+      "git_lf_sha256": "aafa7120aa4134c8ea6f806e42914cb8e12ab86be54f55a19afc756e5f93d725",
+      "manual_scope": "partial changed section and full three-line addition",
+      "manual_ranges": [
+        {
+          "first": 2485,
+          "last": 2507,
+          "git_lf_sha256": "4b2b915441bad21118e76f6651f38fda1b1b787a69389774cb043d774208641c"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/README.md",
+      "index_blob": "fd4e1736aa26f6f7afefed4bcdb092372afbab1d",
+      "actual_lines": 1856,
+      "git_lf_sha256": "72a71fd4ef37cb2b66f12764734458019086ca8bc239e499b29a6c3f6098bcb6",
+      "manual_scope": "partial Alt-Svc context and full five-line addition",
+      "manual_ranges": [
+        {
+          "first": 1309,
+          "last": 1380,
+          "git_lf_sha256": "ed0b081debaeea23b913e2e1333c87809019e30393e59c99e5d7d2c691f1ad22"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_retire_attribution.py",
+      "index_blob": "111e515f54b93c7791dfcf6817849b7b8abaec42",
+      "actual_lines": 374,
+      "git_lf_sha256": "0ac6bf651226d1857f47d2852742f2abd8380d60d1641b7827f33acef9ad1c9f",
+      "manual_scope": "full equality only; whole manual 374-line read in source review",
+      "manual_ranges": []
+    }
+  ],
+  "preservation": {
+    "canonical_index_equals_reviewed_d360": true,
+    "root_previous_canonical_equals_author_parent": true,
+    "all_six_controls_unchanged": true,
+    "startup_helper_unchanged": "4154852eae5edb020db6165a028f39404acc1de5",
+    "both_document_inverse_exact": true,
+    "only_three_paths_staged": true
+  },
+  "source_review": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-attribution-remedy-independent-source-review-d360db82.json",
+    "sha256": "1ed469005b6337aa46b9a675b94cfd6243a8ec5e86aed9455d35171b2799b5cf"
+  },
+  "claims": {
+    "ordinary_errors_continuation": "README and CHANGELOG constrain continuation to handled ordinary errors",
+    "interruption": "no BaseException continuation promise",
+    "native": "none newly run or approved; six unchanged focused plus broader capture still required",
+    "prior_baseline": "522 failures and their prerequisite limits are preserved in the source review"
+  },
+  "process_corrections": "Root reported two prewrite doc-writer guard failures and a core.autocrlf override producing diagnostic diff noise. These are not treated as source changes or successful verification; the actual staged logical bytes are bound here. No configuration was modified by this reviewer.",
+  "limits": [
+    "Partial docs/owner supporting review, no whole README or CHANGELOG coverage.",
+    "No natural failure provenance, browser parity, full A191 closure, main merge or final gate approval.",
+    "No tracked/index mutations or native/runtime/checker executions by this reviewer."
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "kind": "independent staged empty-flush source composition approval",
+  "head": "d3267168cc11cd4567d7997a4e7bc46be4a6404b",
+  "reviewed_author_revision": "d1b9de07006c1c580d029005f05ea4892cc31ae1",
+  "verdict": "Approved exact staged two-file composition for root corrected three-control baseline execution. No native or full-gate approval.",
+  "index_bindings": [
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "index_blob": "4154852eae5edb020db6165a028f39404acc1de5",
+      "canonical_sha256": "74c7d60e6423419d814f6e1c669ca1dd3d2de0947eebb4933256eb9e0ed603cc",
+      "actual_lines": 551,
+      "fresh_read": "whole staged diff and local changed helper/entry scope only; unchanged control is identity preservation"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "index_blob": "02cf3d712d16592bfb0cfe77c2f6fa752112bea4",
+      "canonical_sha256": "1985ca23e5048434bac441bceeebd64cfca458eabc79c5fac440c7639c37315e",
+      "actual_lines": 2873,
+      "fresh_read": "whole staged diff and local changed helper/entry scope only; unchanged control is identity preservation"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_retire_attribution.py",
+      "index_blob": "6ab4f9b9d4f4f12e9310c7d8f517443377c7af70",
+      "canonical_sha256": "0e9815cdc661a4ce4f698a2de75dbafd24e37d274edb30c05b671abbf07f0b91",
+      "actual_lines": 326,
+      "fresh_read": "whole staged diff and local changed helper/entry scope only; unchanged control is identity preservation"
+    }
+  ],
+  "cached_diff_sha256": "b115f05e78c8607d71d073953f7dd97a2167a16aa47c3f271c671d28d17992d1",
+  "preservation": {
+    "helper_diff_from_author": "Exactly requested blank before pending; removing it restores entire reviewed author source",
+    "changelog": "Exact two-line Fixed entry addition only; removal restores previous entire changelog",
+    "retirement326": "Index bytes equal parent; all method assertions preserved",
+    "working_diff_empty": true
+  },
+  "line_endings": "Canonical Git/index LF bindings are authoritative. No configuration changed by reviewer; reported earlier wrong autocrlf override/diff noise is not source evidence and is not promoted.",
+  "historical_report": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-empty-flush-independent-source-review-d1b9de07.json",
+    "sha256": "6b9d9d9b31fccc6ad6a65c21a4f7d5ddf64f3f18765385c7ffa231a6e4d75bf9"
+  },
+  "scope": "Fresh whole cached diff, index composition/inverse and unchanged-control identity. Earlier partial current helper/dependencies remain historical; no new whole-owner manual credit.",
+  "limits": "Original Linux baseline remains prerequisite-failed; source correction outcome and target313/later314-326 still need unchanged root native3 bothhosts. No canonical retirement remedy included.",
+  "checks": "Read-only Git/index/source plus standard-library metadata writing only; no target imports, runtime, Ruff, Cargo, checkers or tracked edits."
+}

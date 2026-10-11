@@ -1,0 +1,59 @@
+{
+  "kind": "separate Linux diagnostic native evidence addendum",
+  "revision": "d3267168cc11cd4567d7997a4e7bc46be4a6404b",
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\inspect-race-retire-exchange-boundary-d3267168.py",
+      "sha256": "3d934630b1e438e55bc9475bde2a84767eb00e3288be0760d00da94e73ff7ddf",
+      "bytes": 990,
+      "lines": 27
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-race-retire-exchange-diagnostic-d3267168.sh",
+      "sha256": "cb160ec14b521f25e9070968e6dae728d350235dccc4fe148c8be0d7a8da859a",
+      "bytes": 923,
+      "lines": 17
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-exchange-diagnostic-d3267168-linux.log",
+      "sha256": "042cc913a855307c7a2b5921834f90e6daff62e50154550f749a3b304fc93f6b",
+      "bytes": 7701,
+      "lines": 116
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-exchange-diagnostic-d3267168-linux.revision",
+      "sha256": "6f5cc47cba32d52cc0702b94f936ad22cc8e46c6eefcdab007843dc399c14ede",
+      "bytes": 41,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-exchange-diagnostic-d3267168-linux.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-exchange-diagnostic-d3267168-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2,
+      "lines": 1
+    }
+  ],
+  "fresh_manual_scope": "Complete observer/runner/log/sidecars; no new source/dependency whole-read claim.",
+  "measured_boundary": "EXCHANGE_BOUNDARY /retire ConnectionResetError: startup_lifecycle.py187 wait_for(writer.drain()) -> Linux CPython3.10 streams.py371 -> _drain_helper167 ConnectionResetError(Connection lost)",
+  "selection": {
+    "unique_methods": 1,
+    "pass": 0,
+    "failure_entries": 2,
+    "seconds": 0.153,
+    "exit": 1,
+    "runner_exit": 1
+  },
+  "target_scope": "313 remains unreached; prerequisite227 and backup failure persist. No retroactive initial-Linux boundary claim.",
+  "observer": "Delegates captured original h2_exchange once, prints actual exception traceback and bare rethrows. No target-success fallback or canonical source change.",
+  "limits": [
+    "Printed cause/backup chains preserved; exact identity target not reached.",
+    "No timing root cause beyond measured call boundary, canonical repair, universal resource closure or production protocol claim.",
+    "No runtime/import/native/socket/checker/Cargo/tracked mutation by reviewer."
+  ]
+}

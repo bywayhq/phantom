@@ -1,0 +1,219 @@
+{
+  "kind": "tests-only controlled peer-disconnect baseline handoff",
+  "revision": "7ae9c88b87dda3698bc5079ef894690360adc43c",
+  "parent": "d1b9de07006c1c580d029005f05ea4892cc31ae1",
+  "branch": "lane/audit-race-retire-remedy",
+  "owned_paths": [
+    "scripts/capture/tests/test_alt_svc_race_retire_attribution.py"
+  ],
+  "signature": "G",
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "subject": "test(capture): cover retired peer disconnect attribution",
+  "source_bindings": [
+    {
+      "revision": "d1b9de07006c1c580d029005f05ea4892cc31ae1",
+      "path": "scripts/capture/tests/test_alt_svc_race_retire_attribution.py",
+      "blob": "6ab4f9b9d4f4f12e9310c7d8f517443377c7af70",
+      "lf_sha256": "0e9815cdc661a4ce4f698a2de75dbafd24e37d274edb30c05b671abbf07f0b91",
+      "actual_lines": 326,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 326,
+          "lf_sha256": "0e9815cdc661a4ce4f698a2de75dbafd24e37d274edb30c05b671abbf07f0b91"
+        }
+      ]
+    },
+    {
+      "revision": "7ae9c88b87dda3698bc5079ef894690360adc43c",
+      "path": "scripts/capture/tests/test_alt_svc_race_retire_attribution.py",
+      "blob": "111e515f54b93c7791dfcf6817849b7b8abaec42",
+      "lf_sha256": "0ac6bf651226d1857f47d2852742f2abd8380d60d1641b7827f33acef9ad1c9f",
+      "actual_lines": 374,
+      "manual_ranges": [
+        {
+          "first": 36,
+          "last": 43,
+          "lf_sha256": "d9b625df4bee05fccdda6afdb4ac893bcac5bb17997d785e4888b7253d4e4945"
+        },
+        {
+          "first": 66,
+          "last": 84,
+          "lf_sha256": "bfb4c1413e92b4d8ea3132c6f753b5b887fe0f3c2cea53cb7405cfff5c94fc49"
+        },
+        {
+          "first": 127,
+          "last": 167,
+          "lf_sha256": "5fe7737893be7676ef768a187f6e14ddebb0e6c1a2863c01e7ffaf2a822a2cdd"
+        },
+        {
+          "first": 329,
+          "last": 374,
+          "lf_sha256": "11fffe4e3d11d111675d46348dbd09f9e0299ce19d0f4fd36e84fc8fa6c4e433"
+        }
+      ]
+    },
+    {
+      "revision": "d1b9de07006c1c580d029005f05ea4892cc31ae1",
+      "path": "scripts/capture/alt_svc_race.py",
+      "blob": "6fdee4be64e8cead44433a345145071f689e0574",
+      "lf_sha256": "775a771809206011ebad2b6a8d59c161ec6d93de78d2dddd7e42344f40730165",
+      "actual_lines": 1657,
+      "manual_ranges": [
+        {
+          "first": 340,
+          "last": 439,
+          "lf_sha256": "be840ee40709d3e575c23c0e0af354c6fed27af96b4fce4bc8e815f1ca952dd4"
+        },
+        {
+          "first": 439,
+          "last": 508,
+          "lf_sha256": "53d64cd2ef12053644d894bb54d148a86e4e2e0f67e13d47977f7adb94ffd594"
+        },
+        {
+          "first": 511,
+          "last": 817,
+          "lf_sha256": "3a2c3230bc5afaaadef62f8d410ae82faf1ace488409308e4456bc1f1c23c293"
+        }
+      ]
+    }
+  ],
+  "method_preservation": [
+    {
+      "original_first": 274,
+      "original_last": 287,
+      "current_first": 276,
+      "current_last": 289,
+      "equal": true,
+      "lf_sha256": "c7f49dea8e4673cc3e33b99d14c5303c6c5b44d086a643a5334a9ee243f32b62"
+    },
+    {
+      "original_first": 289,
+      "original_last": 303,
+      "current_first": 291,
+      "current_last": 305,
+      "equal": true,
+      "lf_sha256": "64214fbe77714ae5fd515835c4ee7b75fd94c5b815abc6d6093dc00d6f798d42"
+    },
+    {
+      "original_first": 305,
+      "original_last": 326,
+      "current_first": 307,
+      "current_last": 328,
+      "equal": true,
+      "lf_sha256": "26b6e9e680c844e60d50832d1f23fc3bc5fbc90927ac5f1b85aeea9194071971"
+    }
+  ],
+  "proofs": {
+    "whole326_inverse": true,
+    "canonical_unchanged": true,
+    "all_outside_paths_unchanged": true,
+    "three_original_method_bodies_exact": true,
+    "original_case_operations_preserved": "write-failure adds passive retained exact injection observation only; healthy/clean-EOF original branches unchanged"
+  },
+  "measured_prior_corrected_baseline": {
+    "revision": "957047138aa75f54d2ab76a523becb415dbf1f11",
+    "root_announced_terminal": true,
+    "windows": "3 selected, 2PASS, 1 targetFAIL313,2.754s",
+    "linux": "3 selected, 2PASS, 1 targetFAIL313,1.688s",
+    "backup_failure": "none in either complete focused log",
+    "downstream_after313": "not credited",
+    "applies_to_new_controls": false,
+    "raw_bindings": [
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-windows.focused.log",
+        "sha256": "4d7c0091878e4428c8716b37571762182bf9b77af7de888844a8600425a56cf3",
+        "read_scope": "whole log or receipt read"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-windows.revision",
+        "sha256": "b3e930e8eb7211388966603329df50f6009b5659e3d6b237adcbd3e96be94c8d",
+        "read_scope": "whole log or receipt read"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-windows.focused.exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "read_scope": "whole log or receipt read"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-windows.exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "read_scope": "whole log or receipt read"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-windows.runner-exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "read_scope": "whole log or receipt read"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-linux.focused.log",
+        "sha256": "6d0ceccddd508ed0ec2d0200906cb4f604bc2e0e9d004857bb9f8983a306727e",
+        "read_scope": "whole log or receipt read"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-linux.revision",
+        "sha256": "b3e930e8eb7211388966603329df50f6009b5659e3d6b237adcbd3e96be94c8d",
+        "read_scope": "whole log or receipt read"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-linux.focused.exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "read_scope": "whole log or receipt read"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-linux.exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "read_scope": "whole log or receipt read"
+      },
+      {
+        "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-95704713-linux.runner-exit",
+        "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "read_scope": "whole log or receipt read"
+      }
+    ]
+  },
+  "new_controls": {
+    "count": 3,
+    "methods": [
+      "test_other_peer_keeps_reset_on_original_retired_connection",
+      "test_other_peer_keeps_abort_on_original_retired_connection",
+      "test_other_peer_keeps_broken_pipe_on_original_retired_connection"
+    ],
+    "controlled_types": [
+      "ConnectionResetError",
+      "ConnectionAbortedError",
+      "BrokenPipeError"
+    ],
+    "fault_boundary": "existing adapter calls actual canonical A TLS write, decodes the complete GOAWAY, retains actual stream/triggering B task/frame and exact error object, then raises that original object",
+    "no_initiating_primary": true,
+    "expected_tags": "literal strings supplied independently by each control, never calculated from handler policy",
+    "closure_oracles": "existing actual accepted tasks/writers, listener closure and handler restoration snapshot before registered finite backup",
+    "wire_oracles": "real trusted H2 A200/ok, B200/retire, done204, actual A GOAWAY0/1 and actual decoded B GOAWAY",
+    "first_new_injection_oracle": 335,
+    "first_shared_traffic_call": 337,
+    "original_tag_oracle": 340,
+    "no_primary_oracle": 347,
+    "empty_collected_outcomes_oracle": 348,
+    "backup": "unchanged original; registered before acquisition, original and backup failures retained; known target error filtered only after observation"
+  },
+  "forecast": {
+    "measured": false,
+    "current_source": "new disconnect controls likely fail at missing real B GOAWAY or traffic337 because current A fault escapes into B; category340 and later assertions may remain unreached",
+    "original_negative": "unchanged expected attribution313 failure",
+    "healthy": "original actual healthy and clean EOF remain retained positive controls",
+    "scope": "controlled local post-write phase/policy, not naturally generated OS failure provenance"
+  },
+  "checks": {
+    "diff_check": "PASS",
+    "mechanical_inverse": "PASS",
+    "manual_readability": "new helper separates acquisition, traffic/injection and independent owner/error assertions; concrete three methods use original literal types",
+    "runtime": "NOT RUN",
+    "Ruff": "NOT RUN",
+    "Cargo": "NOT RUN",
+    "target_imports": "NONE",
+    "independent_review": "PENDING",
+    "canonical_remedy": "NOT AUTHORED"
+  },
+  "diff_lf_sha256": "501217f6d4e8337fde678bbdc27966e0a4aa2aa909caf8b552a9a07c44ddcdc3"
+}

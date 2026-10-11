@@ -1,0 +1,145 @@
+{
+  "kind": "tests-only scaffold follow-up handoff",
+  "revision": "c031a9839b57d836e7dc6f0f545b29533f727846",
+  "parent": "9e82cda79cbae18bdbdddc2870078e48dbb8b705",
+  "branch": "lane/audit-race-retire-baseline",
+  "owned_paths": [
+    "scripts/capture/tests/test_alt_svc_race_retire_attribution.py",
+    "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py"
+  ],
+  "insertions": 12,
+  "deletions": 3,
+  "commit_identity": "both Arya Alikhani <AryaAlikhani@icloud.com>",
+  "signature": "G",
+  "source_bindings": [
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_retire_attribution.py",
+      "absolute_path": "C:/code/phantom-worktrees/audit-race-retire-baseline/scripts/capture/tests/test_alt_svc_race_retire_attribution.py",
+      "git_blob": "6ab4f9b9d4f4f12e9310c7d8f517443377c7af70",
+      "lf_sha256": "0e9815cdc661a4ce4f698a2de75dbafd24e37d274edb30c05b671abbf07f0b91",
+      "physical_sha256": "0e9815cdc661a4ce4f698a2de75dbafd24e37d274edb30c05b671abbf07f0b91",
+      "actual_lines": 326,
+      "manual_ranges": [
+        {
+          "first": 127,
+          "last": 165,
+          "lf_sha256": "1fe09ac8e0c5a7e1285d1253d1b7ef0876e24637dbcc32a828ef066cc9ac14b3"
+        },
+        {
+          "first": 274,
+          "last": 326,
+          "lf_sha256": "e2f52fc1b5129a41ea08e9a7dec0dd34d8edb8cf63ddfa2c1393d3c5540f3ea1"
+        }
+      ]
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "absolute_path": "C:/code/phantom-worktrees/audit-race-retire-baseline/scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "git_blob": "789b42f892b6b6a2578257528a2bc76b94eeb7d4",
+      "lf_sha256": "5d9fb2a39fb1c940a844d95f8877f08356e3544f17e225dc0ba079279a7c1506",
+      "physical_sha256": "a33fc342e1c8a24a162a1df2bbd1ac9e0fecf207510ffb936ebc76e05183ddcc",
+      "actual_lines": 548,
+      "manual_ranges": [
+        {
+          "first": 130,
+          "last": 205,
+          "lf_sha256": "8b5cced7df55d2d83492f456f8576c0f808d1908f3bcf8ccda2e7da952b1192b"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/AppData/Local/uv/cache/archive-v0/Cb8pxac121u-FcpG/Lib/site-packages/h2/connection.py",
+      "absolute_path": "C:/Users/arya/AppData/Local/uv/cache/archive-v0/Cb8pxac121u-FcpG/Lib/site-packages/h2/connection.py",
+      "git_blob": null,
+      "lf_sha256": "8283e14ad0875ecdd5d94fbd4c4111e3c08d298ef80ae6b3ff223c1ce1aa8e09",
+      "physical_sha256": "8283e14ad0875ecdd5d94fbd4c4111e3c08d298ef80ae6b3ff223c1ce1aa8e09",
+      "actual_lines": 2117,
+      "manual_ranges": [
+        {
+          "first": 1345,
+          "last": 1426,
+          "lf_sha256": "b9a65878c05e32ea77b686f1ea5b3f23870c8e21375521e7f26abe837443809b"
+        },
+        {
+          "first": 1893,
+          "last": 1911,
+          "lf_sha256": "adb9adfae94088c4b3a59114e4e0ce2da1f7a6db08db95ac350f5c24d0d1f249"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/asyncio/streams.py",
+      "absolute_path": "C:/Users/arya/AppData/Roaming/uv/python/cpython-3.10-windows-x86_64-none/Lib/asyncio/streams.py",
+      "git_blob": null,
+      "lf_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "physical_sha256": "48139784fe1e262ebea7ff72effd32c228f031399a12e0fbe27c0e770bc598e2",
+      "actual_lines": 726,
+      "manual_ranges": [
+        {
+          "first": 147,
+          "last": 182,
+          "lf_sha256": "a1d4f9edde1ee89882c76731a931fb842db4c30a9b3fc285e6c3ebd975f66acd"
+        },
+        {
+          "first": 300,
+          "last": 389,
+          "lf_sha256": "d1fce885038983922716468a490053c90a743815c713cdf5bc1352508b893757"
+        }
+      ]
+    }
+  ],
+  "read_scope": "Full changed h2_exchange and retirement caller, full12+/3- diff, all3 unchanged method bodies reread; prior322 full authored source retained with mechanical inverse. No fresh whole548/326 source-credit claim.",
+  "preservation": {
+    "whole543_helper_inverse": "passed by removing only parameter/local flag/condition/EOF guard/event branch",
+    "whole322_test_inverse": "passed by reversing sole expanded call",
+    "all3_method_bytes_exact": true,
+    "method_suffix_lf_sha256": "e2f52fc1b5129a41ea08e9a7dec0dd34d8edb8cf63ddfa2c1393d3c5540f3ea1",
+    "all_other_tracked_paths_exact": true,
+    "canonical_capture_and_accounting_unchanged": true,
+    "diff_lf_sha256": "b94131be0a74084995b0dc4584e7c22cf9e0bb2a866c68c1dce342984ca58501"
+  },
+  "behavior": {
+    "default": "wait_for_goaway=False; original stop at END_STREAM, response and owned cleanup unchanged",
+    "enabled": "same actual client receives until END_STREAM and actual ConnectionTerminated; each read bounded5s, caller capture15s",
+    "actual_witness": "original observer stores unmodified raw B event from canonical receive_data; no manufactured events",
+    "callers": "only healthy and cleanEOF retirement set True; known fault setsFalse because canonical BGOAWAY absent on baseline",
+    "eof": "ended+required witness but EOF raises retirement peer closed before GOAWAY; pre-END_STREAM EOF keeps original error",
+    "post_goaway": "h2 receiving GOAWAY clears outbound buffer; data_to_send is buffer extraction without connection-state guard. Existing write/drain still delegates real transport and preserves reader/connection loss errors. Source inspection is not runtime safety proof."
+  },
+  "current_control_ranges": [
+    {
+      "first": 274,
+      "last": 287
+    },
+    {
+      "first": 289,
+      "last": 303
+    },
+    {
+      "first": 305,
+      "last": 326
+    }
+  ],
+  "current_first_negative_target": 313,
+  "forecast": "unmeasured healthy+cleanEOF PASS; controlled cross-peer attribution FAIL313; downstream314–326 uncredited",
+  "checks": [
+    "Git diffcheck0",
+    "signed identity G",
+    "clean lane",
+    "both whole-file inverses and exact3 method suffix passed"
+  ],
+  "not_run": [
+    "target imports",
+    "AST compilation",
+    "Ruff",
+    "native/resources",
+    "Cargo",
+    "network"
+  ],
+  "limitations": [
+    "Original9e82 handoff and additive range correction immutable; follow-up supersedes source positions only.",
+    "Installed h2/CPython source copies read; fresh interpreter/environment selection not performed.",
+    "No new classifier remedy or wholeA191 closure.",
+    "Independent review and root causal native verification required; no merge/fullgate credit."
+  ]
+}

@@ -1,0 +1,262 @@
+{
+  "kind": "independent bounded retirement attribution baseline native assessment",
+  "revision": "d3267168cc11cd4567d7997a4e7bc46be4a6404b",
+  "verdict": "Windows target attribution defect reproduced; Linux negative is prerequisite-masked and has independent backup failure. Cross-platform causal baseline not approved. Two positives pass both.",
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-linux.exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-linux.focused.exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-linux.focused.log",
+      "bytes": 6986,
+      "lines": 105,
+      "sha256": "68fbe5382a58ef6860339c577bdce05db97d517b44cdbceb16b34664691bff02"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-linux.revision",
+      "bytes": 41,
+      "lines": 1,
+      "sha256": "6f5cc47cba32d52cc0702b94f936ad22cc8e46c6eefcdab007843dc399c14ede"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-linux.ruff-check.exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-linux.ruff-check.log",
+      "bytes": 19,
+      "lines": 1,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-linux.ruff-format.exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-linux.ruff-format.log",
+      "bytes": 26,
+      "lines": 1,
+      "sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-linux.runner-exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-windows.exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-windows.focused.exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-windows.focused.log",
+      "bytes": 1962,
+      "lines": 24,
+      "sha256": "810575ad4e8a63bcaebf22e8101043903f352eef07585ec26c19208948781333"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-windows.revision",
+      "bytes": 41,
+      "lines": 1,
+      "sha256": "6f5cc47cba32d52cc0702b94f936ad22cc8e46c6eefcdab007843dc399c14ede"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-windows.ruff-check.exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-windows.ruff-check.log",
+      "bytes": 19,
+      "lines": 1,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-windows.ruff-format.exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-windows.ruff-format.log",
+      "bytes": 26,
+      "lines": 1,
+      "sha256": "3bc53bf3e981a98a34a852e175bf9b77af841edea74fca595d9aedcbaf9a4938"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\race-retire-baseline-d3267168-windows.runner-exit",
+      "bytes": 2,
+      "lines": 1,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-race-retire-baseline-reviewed.sh",
+      "bytes": 1729,
+      "lines": 38,
+      "sha256": "32515b505a83d912c644893ef53f6e117536d22d0db0253fb98237ef1c385a5a"
+    }
+  ],
+  "host_results": {
+    "windows": {
+      "methods": [
+        {
+          "name": "scripts.capture.tests.test_alt_svc_race_retire_attribution.RetireAttributionTests.test_clean_eof_removes_callback_before_other_peer_retirement",
+          "status": "ok"
+        },
+        {
+          "name": "scripts.capture.tests.test_alt_svc_race_retire_attribution.RetireAttributionTests.test_other_peer_keeps_retirement_write_failure_on_original_owner",
+          "status": "FAIL"
+        },
+        {
+          "name": "scripts.capture.tests.test_alt_svc_race_retire_attribution.RetireAttributionTests.test_other_peer_retires_two_healthy_actual_h2_connections",
+          "status": "ok"
+        }
+      ],
+      "seconds": 2.925,
+      "reported_failure_entries": 1,
+      "focused_exit": 1,
+      "ruff_check": 0,
+      "ruff_format": 0,
+      "runner_exit": 1,
+      "warnings_recorded": false
+    },
+    "linux": {
+      "methods": [
+        {
+          "name": "scripts.capture.tests.test_alt_svc_race_retire_attribution.RetireAttributionTests.test_clean_eof_removes_callback_before_other_peer_retirement",
+          "status": "ok"
+        },
+        {
+          "name": "scripts.capture.tests.test_alt_svc_race_retire_attribution.RetireAttributionTests.test_other_peer_keeps_retirement_write_failure_on_original_owner",
+          "status": "FAIL"
+        },
+        {
+          "name": "scripts.capture.tests.test_alt_svc_race_retire_attribution.RetireAttributionTests.test_other_peer_retires_two_healthy_actual_h2_connections",
+          "status": "ok"
+        }
+      ],
+      "seconds": 1.148,
+      "reported_failure_entries": 2,
+      "focused_exit": 1,
+      "ruff_check": 0,
+      "ruff_format": 0,
+      "runner_exit": 1,
+      "warnings_recorded": false
+    }
+  },
+  "source_bindings": [
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_retire_attribution.py",
+      "git_blob": "6ab4f9b9d4f4f12e9310c7d8f517443377c7af70",
+      "canonical_sha256": "0e9815cdc661a4ce4f698a2de75dbafd24e37d274edb30c05b671abbf07f0b91",
+      "lines": 326,
+      "fresh_manual_ranges": [
+        {
+          "first": 1,
+          "last": 326,
+          "canonical_sha256": "0e9815cdc661a4ce4f698a2de75dbafd24e37d274edb30c05b671abbf07f0b91"
+        }
+      ],
+      "scope": "whole current test"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_startup_lifecycle.py",
+      "git_blob": "789b42f892b6b6a2578257528a2bc76b94eeb7d4",
+      "canonical_sha256": "5d9fb2a39fb1c940a844d95f8877f08356e3544f17e225dc0ba079279a7c1506",
+      "lines": 548,
+      "fresh_manual_ranges": [
+        {
+          "first": 130,
+          "last": 205,
+          "canonical_sha256": "8b5cced7df55d2d83492f456f8576c0f808d1908f3bcf8ccda2e7da952b1192b"
+        },
+        {
+          "first": 340,
+          "last": 391,
+          "canonical_sha256": "e5a208c86e2103080162299573e4988d498dee9961189b3eae39ab9b5e0d1e8c"
+        }
+      ],
+      "scope": "partial supporting source"
+    },
+    {
+      "path": "scripts/capture/tests/test_alt_svc_race_error_classification.py",
+      "git_blob": "292c7f5f460d4af15693b3602f0ce82ac6f5bc10",
+      "canonical_sha256": "2e576fd01992081afea523968ca13811bcdd451e089580885b2103a29d80ea57",
+      "lines": 428,
+      "fresh_manual_ranges": [
+        {
+          "first": 185,
+          "last": 278,
+          "canonical_sha256": "00b36ce5821056de264c07fbf8208b22625dd65e6fa67b8ca0596a11c6f72a11"
+        }
+      ],
+      "scope": "partial supporting source"
+    },
+    {
+      "path": "scripts/capture/alt_svc_race.py",
+      "git_blob": "6fdee4be64e8cead44433a345145071f689e0574",
+      "canonical_sha256": "775a771809206011ebad2b6a8d59c161ec6d93de78d2dddd7e42344f40730165",
+      "lines": 1657,
+      "fresh_manual_ranges": [
+        {
+          "first": 315,
+          "last": 372,
+          "canonical_sha256": "184be0dd081d27939eb98802ef944612fc0db28778f264553b33fb7062e2315f"
+        },
+        {
+          "first": 374,
+          "last": 407,
+          "canonical_sha256": "1bc0aa6b88e6e74908d2e2fd132390a6076ea761c4b8069ffe71a6035368a5ba"
+        },
+        {
+          "first": 711,
+          "last": 804,
+          "canonical_sha256": "20f1797ff85d98d333ed4d1cb1275a94502ab15907df5c65ef451a4359a499a4"
+        }
+      ],
+      "scope": "partial supporting source"
+    }
+  ],
+  "preservation": "Current326 test and548 startup helper match exact reviewed c031; canonical1657 equals8b. Historical9e/c031/range correction artifacts preserved; no target or source execution.",
+  "read_scope": "Both complete focused logs, all four complete Ruff logs, twelve sidecars and entire39-line runner manually read; current326 test whole and supporting scopes listed. A combined supporting/handoff output truncated metadata only; no full author-handoff/dependency review claimed.",
+  "reached": {
+    "windows": "Negative reaches313 after309 traffic/cleanup and310 literal GOAWAY and311 original retired marker: original record.failure is None rather than LocalRetireWriteFailure. Literal original retained GET200/ok, startup200/ok, retire200/retire, done204, independent actual tasks/writers/records, ALPN, UDP receipts, owned cleanup and restored handler prerequisites passed.",
+    "linux": "Negative reaches309 -> helper227: h2_exchanges contains only startup200/ok, lacks retire200/retire and done204. Earlier212-226 pass including distinct actual origin/transport/record/task and retirement response header observation plus original retained exchange. Later235-254 UDP/done/closure/handler assertions and310-326 GOAWAY/attribution/identity/cause/collector assertions uncredited.",
+    "positives": "Clean EOF callback removal and healthy two-peer retirement methods pass on both hosts; no inferred negative-path credit follows."
+  },
+  "unreached": {
+    "windows": "314-326 other-peer failure absence/retired marker, observed exact injected object, original cause and exact once collected outcome; not credited.",
+    "linux": "Target313 entirely unreached; two printed failure entries are one test prerequisite failure plus its async backup failure, not two target methods or retries."
+  },
+  "linux_backup": "Trace retains LookupError original retirement write cause -> LocalRetireWriteFailure injected object at startup backup382, and ConnectionResetError(Connection lost) from capture backup350, then concrete backup assertion wrappers. Source backup retains actual failure objects in lists/tuple plus cause chain. Formatting establishes class/message/cause chain but not a successful exact object-identity oracle. No zero-backup-error claim or causal ordering explanation is inferred from the traceback alone.",
+  "guard_contract": "Exact HEAD/clean before and after; runner records focus failure1, independent Ruff0, outer1 then clean/head checks before runner1. Authoritative root terminal notices match completed metadata.",
+  "limits": [
+    "No Linux target causality or both-host repaired-helper approval.",
+    "No guessed network timing, permanent leak, production/library protocol bug, natural OS fault or whole-capture/final-gate/CI claim.",
+    "Injected failure raised after delegating actual TlsStream.write; local controlled error rather than manufactured native network error.",
+    "No runtime, import, socket, checker, Ruff, native, Cargo, tracked change, rerun or push.",
+    "Partial canonical/caller/support ranges do not imply whole parent or dependency read."
+  ]
+}

@@ -1,0 +1,11 @@
+# Retirement empty-flush correction
+
+Signed frozen `d1b9de07` is behavior source-approved for root corrected three-control baseline execution. One minor touched-scope paragraph fix is required: insert a blank before pending=client.data_to_send() at186, separating event decoding from encoding/flushing.
+
+The helper consumes data_to_send once and writes/drains only actual nonempty bytes. Nonempty errors propagate through unchanged primary/finally cleanup; there is no catch suppressing a transport error. Initial request flush, optional B GOAWAY witness, literal response and all retirement326 bytes remain exact. Entire550 helper inverse restores548 parent. Existing callers intentionally receive this empty-flush guard.
+
+Fresh complete Linux pending diagnostic atd326 shows decoded END_STREAM,200,literal6-byte retire and empty last output, followed by actual drain ConnectionReset at187. One selected method produces a prerequisite failure227 plus cleanup failure, with both ConnectionReset and LocalRetireWriteFailure retained. This separate diagnostic does not retroactively make original Linux baseline causal, nor credit attribution313 or later314–326.
+
+Fresh full diff and changed function130–207; H2/CPython partial semantics checked. Prior whole322/current326 control review is retained separately; no fresh whole550 helper coverage. Previous shared canonical authorship remains disclosed.
+
+No native/imports/resources/Ruff/Cargo/checker or tracked edits. Root must compose the paragraph fix and changelog, run pinned Ruff checks and unchanged3 on both hosts before canonical repair. No wholeA191 or full-gate approval.
