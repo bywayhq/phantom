@@ -1,9 +1,15 @@
-use std::time::Duration;
+use std::{error::Error, fmt, time::Duration};
 
 use http_body_util::BodyExt;
-use phantom::{HttpProtocol, dns::HttpsRecordResolver};
+use phantom::{
+    HttpProtocol,
+    dns::{HttpsLookupErrorKind, HttpsRecordResolver},
+};
 use phantom_testkit::dns::DnsServer;
-use tokio::{sync::watch, time::timeout};
+use tokio::{
+    sync::watch,
+    time::{Instant, timeout_at},
+};
 
 use super::{
     H3_RECORD, LookupOutcome, ObservedLookup, bounded, client_builder, identity, observe_resolver,
@@ -12,6 +18,17 @@ use super::{
 use crate::support::{tls::TestResult, tunnel_proxy::finish_with_cleanup};
 
 const CLEANUP_TIMEOUT: Duration = Duration::from_secs(5);
+
+#[derive(Debug)]
+struct HeldLookupFailure(HttpsLookupErrorKind);
+
+impl fmt::Display for HeldLookupFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "held lookup failed during cleanup: {:?}", self.0)
+    }
+}
+
+impl Error for HeldLookupFailure {}
 
 struct LookupRelease(watch::Sender<bool>);
 
@@ -51,16 +68,25 @@ impl HeldLookup {
             return Ok(());
         }
 
-        timeout(CLEANUP_TIMEOUT, async {
-            let _outcome = self.lookup.completed().await?;
-            let released = self.release_result.wait_for(Option::is_some).await?;
+        let deadline = Instant::now() + CLEANUP_TIMEOUT;
+        let lookup_cleanup: TestResult<()> = async {
+            let outcome = timeout_at(deadline, self.lookup.completed()).await??;
+            outcome.map_err(|kind| HeldLookupFailure(kind).into())
+        }
+        .await;
+
+        let release_cleanup: TestResult<()> = async {
+            let released = timeout_at(deadline, self.release_result.wait_for(Option::is_some))
+                .await??;
             released
                 .as_ref()
                 .ok_or("held lookup omitted its release result")?
                 .clone()?;
-            TestResult::Ok(())
-        })
-        .await?
+            Ok(())
+        }
+        .await;
+
+        finish_with_cleanup(lookup_cleanup, release_cleanup)
     }
 }
 
