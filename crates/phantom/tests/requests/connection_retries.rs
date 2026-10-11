@@ -39,6 +39,7 @@ use tls_support::{
 use tracing_support::OutcomeSubscriber;
 
 mod h1_retry;
+mod terminal_status;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 // Covers two refused Windows loopback connects (about two seconds each) plus a
@@ -111,16 +112,7 @@ async fn terminal_http_status_is_not_retried() -> TestResult {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await?;
-            let head = read_head(&mut stream).await?;
-            stream
-                .write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n")
-                .await?;
-            stream.flush().await?;
-            let second = timeout(SECOND_CONNECTION_WINDOW, listener.accept()).await;
-            Ok::<_, Box<dyn Error + Send + Sync>>((head, second.is_err()))
-        });
+        let server = terminal_status::spawn(listener, None);
 
         let client = Client::builder(ClientProfile::new(tls_settings()))
             .retry_policy(RetryPolicy::connection_failures(
@@ -129,22 +121,14 @@ async fn terminal_http_status_is_not_retried() -> TestResult {
             ))
             .build()?;
         let subscriber = OutcomeSubscriber::default();
-        let response = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/terminal"))?
-            .send()
-            .with_subscriber(subscriber.dispatch())
-            .await?;
-
-        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-        let info = response
-            .extensions()
-            .get::<ResponseInfo>()
-            .ok_or("response omitted retry metadata")?;
-        assert_eq!(info.protocol(), HttpProtocol::Http1);
-        assert_eq!(info.retries_performed(), 0);
-        response.into_body().collect().await?;
-
-        let (head, had_no_second_connection) = server.await??;
+        let caller = terminal_status::caller(
+            &client,
+            &format!("http://{address}/terminal"),
+            &subscriber,
+        )
+        .await;
+        let (_body, (head, had_no_second_connection)) =
+            terminal_status::collect(caller, server).await?;
         assert_eq!(
             head,
             format!("GET /terminal HTTP/1.1\r\nHost: {address}\r\n\r\n").as_bytes()
