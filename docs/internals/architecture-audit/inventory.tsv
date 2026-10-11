@@ -1849,14 +1849,14 @@ tests/downstream/public-api/src/lib.rs	configuration	source-complete	consumer-co
 tests/downstream/public-api/src/wire.rs	configuration	source-complete	consumer-configuration-coverage.json#tests/downstream/public-api/src/wire.rs
 tests/downstream/public-api/src/workflows.rs	configuration	source-complete	consumer-configuration-coverage.json#tests/downstream/public-api/src/workflows.rs
 tests/public-api/README.md	documentation	source-complete	docs-contract-coverage.json#tests/public-api/README.md; canonical-api-signed-rebind.json#/additional_records/0
-tests/public-api/phantom-http-all.txt	configuration	pending	
-tests/public-api/phantom-net-all.txt	configuration	pending	
-tests/public-api/phantom-profile-all.txt	configuration	pending	
-tests/public-api/phantom-quic-btls-all.txt	configuration	pending	
-tests/public-api/phantom-quic-btls-default.txt	configuration	pending	
-tests/public-api/phantom-quic-btls-keylog.txt	configuration	pending	
-tests/public-api/phantom-quic-btls-server.txt	configuration	pending	
-tests/public-api/phantom-testkit-all.txt	configuration	pending	
+tests/public-api/phantom-http-all.txt	configuration	source-complete	api-inventory-source-checkpoint-837ff74d.json#tests/public-api/phantom-http-all.txt
+tests/public-api/phantom-net-all.txt	configuration	source-complete	api-inventory-source-checkpoint-837ff74d.json#tests/public-api/phantom-net-all.txt
+tests/public-api/phantom-profile-all.txt	configuration	source-complete	api-inventory-source-checkpoint-837ff74d.json#tests/public-api/phantom-profile-all.txt
+tests/public-api/phantom-quic-btls-all.txt	configuration	source-complete	api-inventory-source-checkpoint-837ff74d.json#tests/public-api/phantom-quic-btls-all.txt
+tests/public-api/phantom-quic-btls-default.txt	configuration	source-complete	api-inventory-source-checkpoint-837ff74d.json#tests/public-api/phantom-quic-btls-default.txt
+tests/public-api/phantom-quic-btls-keylog.txt	configuration	source-complete	api-inventory-source-checkpoint-837ff74d.json#tests/public-api/phantom-quic-btls-keylog.txt
+tests/public-api/phantom-quic-btls-server.txt	configuration	source-complete	api-inventory-source-checkpoint-837ff74d.json#tests/public-api/phantom-quic-btls-server.txt
+tests/public-api/phantom-testkit-all.txt	configuration	source-complete	api-inventory-source-checkpoint-837ff74d.json#tests/public-api/phantom-testkit-all.txt
 vendor/btls/Cargo.lock	vendor-boundary	pending	discovery only; manual review pending
 vendor/btls/Cargo.toml	vendor-boundary	source-complete	new-tooling-source-pass-01-coverage.json#vendor/btls/Cargo.toml; vendor-reviewed-records.json#vendor/btls/Cargo.toml
 vendor/btls/PHANTOM.md	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/btls/PHANTOM.md
@@ -3585,3 +3585,10 @@ docs/internals/architecture-audit/race-tls-peer-errors-pass-classification-corre
 docs/internals/architecture-audit/race-tls-peer-errors-pass-classification-correction-636a8031.json	audit evidence	evidence-indexed	tls-peer-errors-root-checkpoint-c5fe57a8.json
 docs/internals/architecture-audit/tls-peer-errors-root-checkpoint-c5fe57a8.json	audit evidence	evidence-indexed	independent source/native reports and raw receipts
 docs/internals/architecture-audit/tls-peer-errors-inventory-completion-c5fe57a8.json	audit evidence	evidence-indexed	tls-peer-errors-root-checkpoint-c5fe57a8.json
+docs/internals/architecture-audit/configuration-quic-api-inventory-independent-source-review-c5fe57a8.json	audit evidence	evidence-indexed	api-inventory-source-checkpoint-837ff74d.json
+docs/internals/architecture-audit/configuration-quic-api-inventory-independent-source-review-c5fe57a8.md.txt	audit evidence	evidence-indexed	api-inventory-source-checkpoint-837ff74d.json
+docs/internals/architecture-audit/profile-testkit-api-inventory-independent-source-review-743120eb.json	audit evidence	evidence-indexed	api-inventory-source-checkpoint-837ff74d.json
+docs/internals/architecture-audit/profile-testkit-api-inventory-independent-source-review-743120eb.md.txt	audit evidence	evidence-indexed	api-inventory-source-checkpoint-837ff74d.json
+docs/internals/architecture-audit/http-net-api-inventory-independent-source-review-837ff74d.json	audit evidence	evidence-indexed	api-inventory-source-checkpoint-837ff74d.json
+docs/internals/architecture-audit/http-net-api-inventory-independent-source-review-837ff74d.md.txt	audit evidence	evidence-indexed	api-inventory-source-checkpoint-837ff74d.json
+docs/internals/architecture-audit/api-inventory-source-checkpoint-837ff74d.json	audit evidence	evidence-indexed	three independent source reviews and exact inventory bindings

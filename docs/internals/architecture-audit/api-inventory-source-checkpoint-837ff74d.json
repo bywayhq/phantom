@@ -1,0 +1,127 @@
+{
+  "revision": "837ff74d312928d8a25fa6a7f5c3974dbc21c4a0",
+  "kind": "bounded generated public API source review checkpoint",
+  "original_inventory_sha256": "4f8c5eefb37d5f8e3ae93caa9ba778f5b2a8cb2029ec103bafb026c251e9abc5",
+  "sources": [
+    {
+      "path": "tests/public-api/phantom-quic-btls-default.txt",
+      "git_blob": "966fdbc0efcf88ffa1c4a81a94b5a47bd65b32af",
+      "canonical_sha256": "2bac9d3bb5dc817ee08203b567b3d57cfff80f1e57f0aa48f576962de12be976",
+      "physical_sha256": "2bac9d3bb5dc817ee08203b567b3d57cfff80f1e57f0aa48f576962de12be976",
+      "lines": 150,
+      "disposition": "source-complete for the generated inventory only",
+      "report": "configuration-quic-api-inventory-independent-source-review-c5fe57a8.json"
+    },
+    {
+      "path": "tests/public-api/phantom-quic-btls-keylog.txt",
+      "git_blob": "d4bfd020c307fa26893bfdd392b65890564d49af",
+      "canonical_sha256": "def937083a48c7400dd46ad9aa1f898f7976bf204998ba9d651cdb8121022c55",
+      "physical_sha256": "def937083a48c7400dd46ad9aa1f898f7976bf204998ba9d651cdb8121022c55",
+      "lines": 173,
+      "disposition": "source-complete for the generated inventory only",
+      "report": "configuration-quic-api-inventory-independent-source-review-c5fe57a8.json"
+    },
+    {
+      "path": "tests/public-api/phantom-quic-btls-server.txt",
+      "git_blob": "e96c428a648ee1f8b7d5d1a57bfedff20434f3e5",
+      "canonical_sha256": "ad240e046ea0308ec025055379e6174cfa5dc4980e4f61db2a31ce3606e942ca",
+      "physical_sha256": "ad240e046ea0308ec025055379e6174cfa5dc4980e4f61db2a31ce3606e942ca",
+      "lines": 168,
+      "disposition": "source-complete for the generated inventory only",
+      "report": "configuration-quic-api-inventory-independent-source-review-c5fe57a8.json"
+    },
+    {
+      "path": "tests/public-api/phantom-quic-btls-all.txt",
+      "git_blob": "0b6ceb8c630501d2defa716e299f3e56c070c051",
+      "canonical_sha256": "f705d8626730989eabaa6e5074630b80704f447cd21572ddc7084e8851dc3ff6",
+      "physical_sha256": "f705d8626730989eabaa6e5074630b80704f447cd21572ddc7084e8851dc3ff6",
+      "lines": 191,
+      "disposition": "source-complete for the generated inventory only",
+      "report": "configuration-quic-api-inventory-independent-source-review-c5fe57a8.json"
+    },
+    {
+      "path": "tests/public-api/phantom-profile-all.txt",
+      "git_blob": "3a21499eb454499ee44b52a2945add2df4223799",
+      "canonical_sha256": "5cbcc6790c8593f54bfec3e1cc08541c7cdb1d26be75f55ae445ec33ba079589",
+      "physical_sha256": "5cbcc6790c8593f54bfec3e1cc08541c7cdb1d26be75f55ae445ec33ba079589",
+      "lines": 918,
+      "disposition": "source-complete for the generated inventory only",
+      "report": "profile-testkit-api-inventory-independent-source-review-743120eb.json"
+    },
+    {
+      "path": "tests/public-api/phantom-testkit-all.txt",
+      "git_blob": "ed8a702a14afb74bd7509d111c3fba106fdaed6f",
+      "canonical_sha256": "583716d641bd04b8e535589adfd941aea0466c37b2b46bce949d98491d90363e",
+      "physical_sha256": "583716d641bd04b8e535589adfd941aea0466c37b2b46bce949d98491d90363e",
+      "lines": 410,
+      "disposition": "source-complete for the generated inventory only",
+      "report": "profile-testkit-api-inventory-independent-source-review-743120eb.json"
+    },
+    {
+      "path": "tests/public-api/phantom-http-all.txt",
+      "git_blob": "7a9eb34b0b2ad43916370011b42020688f963597",
+      "canonical_sha256": "049709c63de80907889a170fb0a9a3a15466f7d185cb21ad478c68f7654b91ce",
+      "physical_sha256": "049709c63de80907889a170fb0a9a3a15466f7d185cb21ad478c68f7654b91ce",
+      "lines": 1046,
+      "disposition": "source-complete for the generated inventory only",
+      "report": "http-net-api-inventory-independent-source-review-837ff74d.json"
+    },
+    {
+      "path": "tests/public-api/phantom-net-all.txt",
+      "git_blob": "ed6b8f13282bdf11707dfef4dda31591fa94e9fd",
+      "canonical_sha256": "7c9bd3e60eb96a5877d8319e67e471db78e983b6a9b9882f3299f66a5c7598fd",
+      "physical_sha256": "7c9bd3e60eb96a5877d8319e67e471db78e983b6a9b9882f3299f66a5c7598fd",
+      "lines": 1250,
+      "disposition": "source-complete for the generated inventory only",
+      "report": "http-net-api-inventory-independent-source-review-837ff74d.json"
+    }
+  ],
+  "independent_imports": [
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\configuration-quic-api-inventory-independent-source-review-c5fe57a8.json",
+      "repository_path": "docs/internals/architecture-audit/configuration-quic-api-inventory-independent-source-review-c5fe57a8.json",
+      "sha256": "74c8657c80a67a6ec08a5a4c495ecbadf55cce028e8dcd485e8a24b5ae6a3b1b",
+      "bytes": 13455
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\configuration-quic-api-inventory-independent-source-review-c5fe57a8.md",
+      "repository_path": "docs/internals/architecture-audit/configuration-quic-api-inventory-independent-source-review-c5fe57a8.md.txt",
+      "sha256": "6db35bba74434f927048d986fa3fc42ee4055a03fcceba9b434db41e1c853d33",
+      "bytes": 1819
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\profile-testkit-api-inventory-independent-source-review-743120eb.json",
+      "repository_path": "docs/internals/architecture-audit/profile-testkit-api-inventory-independent-source-review-743120eb.json",
+      "sha256": "7d75450a9df5633cb9acc78ddb17ffc9b1aca8a0ebf7fe0e50a303a58f54fcd3",
+      "bytes": 17564
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\profile-testkit-api-inventory-independent-source-review-743120eb.md",
+      "repository_path": "docs/internals/architecture-audit/profile-testkit-api-inventory-independent-source-review-743120eb.md.txt",
+      "sha256": "c95dda0bd89f92566cf6dbdc8e50e7cb07e4263f7523562a85da78f5a6567896",
+      "bytes": 1707
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\http-net-api-inventory-independent-source-review-837ff74d.json",
+      "repository_path": "docs/internals/architecture-audit/http-net-api-inventory-independent-source-review-837ff74d.json",
+      "sha256": "543b34dd0ed203f59fe0169f0dd166fbf14dbde5d9e1d1cff93628af0fee195b",
+      "bytes": 18479
+    },
+    {
+      "scratch_path": "C:\\code\\phantom\\target\\architecture-audit\\http-net-api-inventory-independent-source-review-837ff74d.md",
+      "repository_path": "docs/internals/architecture-audit/http-net-api-inventory-independent-source-review-837ff74d.md.txt",
+      "sha256": "d1248f02689fe56de9b7e27db2af5f8bd8b58939dc871975ecd99416fabebd7c",
+      "bytes": 1875
+    }
+  ],
+  "keylog_documentation_remedy": {
+    "signed_root_commit": "794e6e6ff5dbc274307b7ce49cc901b7ec217ab1",
+    "scope": "Optional public Zeroize trait documentation; original source review records the omission. The independently reviewed identity rebind is retained separately in scratch."
+  },
+  "limits": [
+    "These eight complete manual reads establish generated inventory coverage, not complete declaring implementation coverage.",
+    "Only explicit source ranges in imported reviews have source-read credit; supporting partial records remain partial.",
+    "No new generator, feature compilation, downstream build, runtime, Send/Sync or final architecture approval is inferred.",
+    "The source disposition of each generated inventory was pending before this checkpoint."
+  ]
+}

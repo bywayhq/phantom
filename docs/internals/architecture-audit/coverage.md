@@ -38,6 +38,19 @@ design. A new crate needs an actual consumer, dependency isolation, or a
 compilation boundary. Repeated names, file sizes and passing lints alone
 do not establish that need.
 
+## Public API inventories
+
+The [API inventory checkpoint](api-inventory-source-checkpoint-837ff74d.json)
+records complete manual reads of all eight generated inventories: 4,306 lines.
+Each record binds the actual file to its independent review and current source
+object. Supporting implementation reads retain their stated partial ranges.
+
+The review found an omitted optional `zeroize::Zeroize` trait boundary in
+the keylog documentation. The signed correction at `794e6e6f` updates both
+READMEs and the changelog. The other inventory slices found no new supported
+API defect. These source reviews do not establish whole-crate implementation
+coverage, fresh generator output or downstream compilation.
+
 ## Recent verification
 
 The [TLS reader checkpoint](tls-peer-errors-root-checkpoint-c5fe57a8.json)
