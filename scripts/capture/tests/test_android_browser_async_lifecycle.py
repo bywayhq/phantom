@@ -136,22 +136,40 @@ class CommandDevice(OfflineDevice):
         super().__init__()
         self.command: HostCommand | None = None
         self.selected = False
+        self.cleanup_failure: BaseException | None = None
+        self.cleanup_raised: BaseException | None = None
 
     def run(self, *arguments: str, check: bool = True) -> str:
         command = self.command
         if command is not None and arguments == command.arguments and not self.selected:
             self.selected = True
             command.invoke()
-        return super().run(*arguments, check=check)
+
+        result = super().run(*arguments, check=check)
+        if arguments == STOP and self.selected and self.cleanup_failure is not None:
+            failure = self.cleanup_failure
+            self.cleanup_failure = None
+            self.cleanup_raised = failure
+            raise failure
+
+        return result
 
 
 class ProgressMonitor:
-    def __init__(self, loop: asyncio.AbstractEventLoop, command: HostCommand) -> None:
+    def __init__(
+        self,
+        loop: asyncio.AbstractEventLoop,
+        command: HostCommand,
+        *,
+        hold_after_progress: bool = False,
+    ) -> None:
         self.loop = loop
         self.command = command
         self.callback = threading.Event()
         self.done = threading.Event()
         self.stop = threading.Event()
+        self.observed = threading.Event()
+        self.hold_after_progress = hold_after_progress
         self.progress_before_release = False
         self.child_alive_before_release = False
         self.gate_closed_before_release = False
@@ -181,6 +199,10 @@ class ProgressMonitor:
                 process is not None and process.poll() is None
             )
             self.gate_closed_before_release = not self.command.release.exists()
+            self.observed.set()
+            if self.hold_after_progress and self.progress_before_release:
+                if not self.stop.wait(READY_SECONDS):
+                    raise TimeoutError("held Android entry was not released")
         except BaseException as failure:
             self.failure = failure
         finally:
@@ -211,6 +233,7 @@ class ProgressMonitor:
 class SubmittedWorker:
     def __init__(self) -> None:
         self.exited = threading.Event()
+        self.completed = asyncio.Event()
         self.future: asyncio.Future | None = None
         self.failure: BaseException | None = None
 
@@ -238,6 +261,7 @@ class AndroidAsyncResources:
         self.previous_handler = self.loop.get_exception_handler()
         self.actual_executor = self.loop.run_in_executor
         self.backup_started = False
+        self.expected_worker_failure: BaseException | None = None
 
     def prepare(self) -> None:
         self.directory = tempfile.TemporaryDirectory(prefix="android-host-command-")
@@ -270,6 +294,7 @@ class AndroidAsyncResources:
                 worker.exited.set()
 
         worker.future = self.actual_executor(executor, observe)
+        worker.future.add_done_callback(lambda _: worker.completed.set())
         return worker.future
 
     def report(self, loop, details: dict) -> None:
@@ -286,18 +311,28 @@ class AndroidAsyncResources:
             return ProxyBrowserDriver(plan, URL, auth=False)
         return browser_launch.BrowserDriver(plan, URL)
 
-    def arm(self, arguments: tuple[str, ...], *, monitor: bool) -> None:
+    def arm(
+        self,
+        arguments: tuple[str, ...],
+        *,
+        monitor: bool,
+        hold_after_progress: bool = False,
+    ) -> None:
         self.case.assertIsNone(self.command)
         self.case.assertIsNotNone(self.directory)
         self.command = HostCommand(Path(self.directory.name), arguments)
         self.device.command = self.command
         if monitor:
-            self.monitor = ProgressMonitor(self.loop, self.command)
+            self.monitor = ProgressMonitor(
+                self.loop, self.command, hold_after_progress=hold_after_progress
+            )
             self.monitor.start()
         else:
             self.command.allow_completion()
 
-    def assert_completed_before_backup(self) -> None:
+    def assert_completed_before_backup(
+        self, *, expected_failure: BaseException | None = None
+    ) -> None:
         self.case.assertFalse(self.backup_started)
         self.case.assertFalse(self.device.backup_started)
         command = self.command
@@ -315,15 +350,16 @@ class AndroidAsyncResources:
             self.case.assertTrue(worker.exited.is_set())
             self.case.assertTrue(worker.future.done())
             self.case.assertFalse(worker.future.cancelled())
-            self.case.assertIsNone(worker.failure)
-            self.case.assertIsNone(worker.future.exception())
+            self.case.assertIs(worker.failure, expected_failure)
+            self.case.assertIs(worker.future.exception(), expected_failure)
 
         self.case.assertEqual(self.device.commands[-5:], CLEANUP_COMMANDS)
         self.case.assertEqual(self.device.files, {})
         self.case.assertEqual(self.device.ports, set())
         self.case.assertIsNone(self.device.debug_app)
         self.case.assertFalse(self.device.running)
-        self.case.assertEqual(self.reports, [])
+        if expected_failure is None:
+            self.case.assertEqual(self.reports, [])
 
     def assert_progress(self) -> None:
         monitor = self.monitor
@@ -363,7 +399,8 @@ class AndroidAsyncResources:
             try:
                 await asyncio.wait_for(asyncio.shield(worker.future), WAIT_SECONDS)
             except BaseException as failure:
-                failures.append(failure)
+                if failure is not self.expected_worker_failure:
+                    failures.append(failure)
         if self.command is not None and self.device.selected:
             try:
                 if not self.command.finished.is_set():
