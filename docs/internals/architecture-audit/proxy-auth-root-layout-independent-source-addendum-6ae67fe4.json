@@ -1,0 +1,30 @@
+{
+  "revision": "6ae67fe4f25d3dfce7e1e0df6988fad67525cdf6",
+  "parent": "b3db2b7c9e4c06387588e65694515a4ef9f9b1ea",
+  "decision": "source-approved mechanical formatter addendum only",
+  "whole_diff_read": true,
+  "regions": 3,
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_auth.rs",
+      "prior_blob": "0c6a8160e1cd94e48b72e397f3dca7b33ccfded7",
+      "final_blob": "e0cb866d2adb740d8e09b6c9e45ee0b81aa18a6c",
+      "preimage_exact_ce591064": true,
+      "preservation": "whole whitespace comparison exact"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_auth/ownership_contract.rs",
+      "prior_blob": "4d5ed1de0e07b6a81083295caf626aca5296b302",
+      "final_blob": "d70091592f0d29495fb4361ccf4d70ea5b2cd331",
+      "preimage_exact_ce591064": true,
+      "preservation": "whole literal import inverse exact; optional trailing comma removed"
+    }
+  ],
+  "signature": "G",
+  "identities": "Arya Alikhani <AryaAlikhani@icloud.com>, both",
+  "source_approval_reference": "proxy-auth-owned-remedy-independent-source-review-ce591064",
+  "native_credit": false,
+  "fresh_whole_owner_credit": false,
+  "qualification": "Optional trailing import comma removed; no whitespace-only or all-token equality claim",
+  "limits": "All earlier bounded join, cancellation and outer deadline qualifications retained"
+}

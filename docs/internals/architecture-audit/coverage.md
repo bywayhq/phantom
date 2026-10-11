@@ -40,6 +40,17 @@ do not establish that need.
 
 ### Combined capture, discovery and relay repairs
 
+The [fatal-input baseline](fatal-template-root-baseline-54cbca60.json)
+records all 39 capture methods and 43 template methods on both hosts.
+Capture passes 35 methods. Three malformed requests receive a normal close,
+and the controlled resolution error is discarded. Template passes 42
+methods. Its oversized-head error is missing after socket closure and
+listener release. All earlier positive contracts in both selections pass.
+
+Strict target Clippy and Rust 1.88 checks pass. HTTP formatting passes;
+three new fatal-control regions need formatting. Original failures remain
+bound to this revision. Semantic repairs and final gates remain pending.
+
 The [resolution checkpoint](peer-resolution-root-native-3fb68a34.json)
 records four proxy methods passing on both hosts after the owner repair.
 The original destruction, socket, rebind and simultaneous-cause assertions

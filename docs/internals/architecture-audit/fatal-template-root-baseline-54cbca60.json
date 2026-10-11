@@ -1,0 +1,376 @@
+{
+  "revision": "54cbca601291cd7e658440bd196a9f50b1eaa5e0",
+  "hosts": [
+    {
+      "host": "windows",
+      "handle": 70974,
+      "terminal_exit": 1,
+      "steps": {
+        "quic": 101,
+        "templates": 101,
+        "http-fmt": 0,
+        "net-fmt": 1,
+        "net-clippy": 0,
+        "net-msrv": 0,
+        "requests-clippy": 0,
+        "requests-msrv": 0
+      },
+      "quic": {
+        "passed": 35,
+        "failed": 4
+      },
+      "templates": {
+        "passed": 42,
+        "failed": 1
+      }
+    },
+    {
+      "host": "linux",
+      "handle": 63679,
+      "terminal_exit": 1,
+      "steps": {
+        "quic": 101,
+        "templates": 101,
+        "http-fmt": 0,
+        "net-fmt": 1,
+        "net-clippy": 0,
+        "net-msrv": 0,
+        "requests-clippy": 0,
+        "requests-msrv": 0
+      },
+      "quic": {
+        "passed": 35,
+        "failed": 4
+      },
+      "templates": {
+        "passed": 42,
+        "failed": 1
+      }
+    }
+  ],
+  "raw_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.quic.log",
+      "bytes": 5893,
+      "sha256": "f35b4456a9c4bc93df05f6d6192b48184c6396244650b169d74d544a636e2ac3"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.quic.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.templates.log",
+      "bytes": 4709,
+      "sha256": "5b090b00f0f1cebe37d39d31dda67aa5dfdbdf54b759e581706c5b37f0db4fc5"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.templates.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.http-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.http-fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.net-fmt.log",
+      "bytes": 1807,
+      "sha256": "655bfb38277b8c7e426c0c3995c481bba84c0ca956e5e0e5e2b85940c89dc06e"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.net-fmt.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.net-clippy.log",
+      "bytes": 72,
+      "sha256": "6f94b17ba046fc3d0819330f1192caccb9d3bb19ba3288711e363e97855a9518"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.net-clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.net-msrv.log",
+      "bytes": 72,
+      "sha256": "b295cfeaaf8e1f948fdce11e8289d785a1983d9f746c60c322cdc557e46121d1"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.net-msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.requests-clippy.log",
+      "bytes": 168,
+      "sha256": "46475d413ef5014b4e512bd3a6cd7e6969be67c61251919abae68f0fd8534c6b"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.requests-clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.requests-msrv.log",
+      "bytes": 168,
+      "sha256": "ba004a5aed0bff7f4e697fc7c1b3d11eb2ae79958747c6835c0b295a4010a339"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.requests-msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.revision",
+      "bytes": 41,
+      "sha256": "8725c7c33e749d0018b3505b8bf2e8f23899415c7ebe6b1ab9d3748f94a8f829"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.quic.log",
+      "bytes": 5899,
+      "sha256": "d2dd4a5a35e9459ca588893b17233a0ee02487d1d910676963aef13389bf4b8d"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.quic.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.templates.log",
+      "bytes": 4715,
+      "sha256": "b77922744d6462708fd61c7550bea96fa827af474b827e67ef74da5653937551"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.templates.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.http-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.http-fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.net-fmt.log",
+      "bytes": 2001,
+      "sha256": "7c3ac7ef0ecdf3b01d4837016d9262a8752963bcb2f0308c20d423bea1664fe4"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.net-fmt.exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.net-clippy.log",
+      "bytes": 72,
+      "sha256": "9a30d54c8b16d7e49510b182028079bca120aeebb7d662e88f8566e6196a49f6"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.net-clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.net-msrv.log",
+      "bytes": 72,
+      "sha256": "45d8f7d972875790a6cec7ca48e9acc17c5af68372da1940633becec3b4cd60a"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.net-msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.requests-clippy.log",
+      "bytes": 177,
+      "sha256": "0f03f353b398262dbab2ef5f796650b6098b91a17d7b045b310c94cc244dda32"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.requests-clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.requests-msrv.log",
+      "bytes": 177,
+      "sha256": "3a2ab96e9fcf8e4295e7bf2de1944e93e61cd7a46abcdd4d88a877202410b7ff"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.requests-msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.revision",
+      "bytes": 41,
+      "sha256": "8725c7c33e749d0018b3505b8bf2e8f23899415c7ebe6b1ab9d3748f94a8f829"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\fatal-template-baseline-54cbca60-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-fatal-template-baseline.sh",
+      "bytes": 2271,
+      "sha256": "6ddb2f33f2aca74a890d398bf724992733038aac202cd84720c7020db1dab066"
+    }
+  ],
+  "imports": [
+    {
+      "path": "docs/internals/architecture-audit/proxy-auth-root-layout-independent-source-addendum-6ae67fe4.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\proxy-auth-root-layout-independent-source-addendum-6ae67fe4.md",
+      "sha256": "58faea22f76c5083f78844f6a6bedd64086e23e5a8e23c69ecd0c62783306586"
+    },
+    {
+      "path": "docs/internals/architecture-audit/proxy-auth-root-layout-independent-source-addendum-6ae67fe4.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\proxy-auth-root-layout-independent-source-addendum-6ae67fe4.json",
+      "sha256": "a3940c5f5c33153c2acc91efc43bda588183f12199f74a661d6b6513d8816375"
+    },
+    {
+      "path": "docs/internals/architecture-audit/peer-resolution-independent-native-review-3fb68a34.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\peer-resolution-independent-native-review-3fb68a34.md",
+      "sha256": "e790f586ecde89ee1fb1ca9452a293415e1da454899ed0fddf2d8c7ca41ca070"
+    },
+    {
+      "path": "docs/internals/architecture-audit/peer-resolution-independent-native-review-3fb68a34.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\peer-resolution-independent-native-review-3fb68a34.json",
+      "sha256": "c304685ca15ae03f761be521a9da69bd1be72818bef8d9dd8f48e782cbdb5296"
+    },
+    {
+      "path": "docs/internals/architecture-audit/peer-resolution-root-format-independent-source-addendum-b7aac25d.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\peer-resolution-root-format-independent-source-addendum-b7aac25d.md",
+      "sha256": "63f7f4c2dab72e245088b15b3016cab38a826b17b20965faf6850df373f887ba"
+    },
+    {
+      "path": "docs/internals/architecture-audit/peer-resolution-root-format-independent-source-addendum-b7aac25d.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\peer-resolution-root-format-independent-source-addendum-b7aac25d.json",
+      "sha256": "ea03d86399b950c7b16639d8d74dd1d61024ac6a8ef54d7615f1800210bc8b0f"
+    },
+    {
+      "path": "docs/internals/architecture-audit/request-template-reply-baseline-handoff-faec687b.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\request-template-reply-baseline-handoff-faec687b.md",
+      "sha256": "03fa09b90dd252533d434a67c185a2c8ae1990b275f8d13de8c9ef0abdb870f9"
+    },
+    {
+      "path": "docs/internals/architecture-audit/request-template-reply-baseline-handoff-faec687b.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\request-template-reply-baseline-handoff-faec687b.json",
+      "sha256": "98443e4457368191bd2a4a6c816e1e5b56117e3fefcf829c03f3603662053e47"
+    },
+    {
+      "path": "docs/internals/architecture-audit/request-template-reply-resource-followup-b6f1053d.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\request-template-reply-resource-followup-b6f1053d.md",
+      "sha256": "ae61b913e6d3ec74f9cdeadd10c07f1ac51c22b6fb8e4e66e3f74be0cd215853"
+    },
+    {
+      "path": "docs/internals/architecture-audit/request-template-reply-resource-followup-b6f1053d.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\request-template-reply-resource-followup-b6f1053d.json",
+      "sha256": "908de09812a9db18517259fbc2cd03e6ba996fffbf48b0c8a75f837eb4aa46ab"
+    },
+    {
+      "path": "docs/internals/architecture-audit/request-template-reply-baseline-independent-source-review-b6f1053d.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\request-template-reply-baseline-independent-source-review-b6f1053d.md",
+      "sha256": "91e24522a3f999109d44bef5262d8a631750ba18db8db29023e866ac07ecf523"
+    },
+    {
+      "path": "docs/internals/architecture-audit/request-template-reply-baseline-independent-source-review-b6f1053d.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\request-template-reply-baseline-independent-source-review-b6f1053d.json",
+      "sha256": "6f3fbf5239f28b973fde0b2461001b126332fb99f47cedbc47dbcdd296079d86"
+    },
+    {
+      "path": "docs/internals/architecture-audit/origin-quic-request-fatal-baseline-handoff-08f501c4.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-request-fatal-baseline-handoff-08f501c4.md",
+      "sha256": "a240fde2ea2193e0387ce9cb8435680739ff52c074056620dbc5d1519f40f31f"
+    },
+    {
+      "path": "docs/internals/architecture-audit/origin-quic-request-fatal-baseline-handoff-08f501c4.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-request-fatal-baseline-handoff-08f501c4.json",
+      "sha256": "396f6ee9f56f240a09557dbcb90c10941600051ce20a171c8ca5c911de6f2142"
+    },
+    {
+      "path": "docs/internals/architecture-audit/origin-quic-request-fatal-baseline-independent-source-review-08f501c4.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-request-fatal-baseline-independent-source-review-08f501c4.md",
+      "sha256": "be843bf53950350c3511805e3cdc8129dbe3cd57a8de2102db09ea67bec84d08"
+    },
+    {
+      "path": "docs/internals/architecture-audit/origin-quic-request-fatal-baseline-independent-source-review-08f501c4.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-request-fatal-baseline-independent-source-review-08f501c4.json",
+      "sha256": "316fa34230094487bb214c860aeb3d2f7fdef98b8b1c6dd8ec94a7b7f8b6395d"
+    },
+    {
+      "path": "docs/internals/architecture-audit/origin-quic-full-fatal-handoff-design-addendum-08f501c4.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-full-fatal-handoff-design-addendum-08f501c4.md",
+      "sha256": "afe9fc822c12f11a9c349100342b1a199ecf980088ecde550394dac62747a462"
+    },
+    {
+      "path": "docs/internals/architecture-audit/origin-quic-full-fatal-handoff-design-addendum-08f501c4.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\origin-quic-full-fatal-handoff-design-addendum-08f501c4.json",
+      "sha256": "894a13db66ce1d9a6ca5b6265f2b49702b43a21138a95ff64d4dca87d8caafe8"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/requests/request_templates/reply_contract.rs",
+      "lines": 219,
+      "sha256": "477ab11885ad8929a15b5b2ed8bf510e6e30b4e0c26cd7ff96f1d739c0d5cc57",
+      "scope": "whole root and independent child read"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/request_fatal_contract.rs",
+      "lines": 123,
+      "sha256": "6010a2c110a3e343feea8aebe396e4361eb9ec7385c2e2ac4ef1d6840a028a4c",
+      "scope": "whole root and independent child read"
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_templates.rs",
+      "lines": 1431,
+      "sha256": "5bb86364d5217d30cf8ba43ee73130c35359f230ae6eaab819670788ecb7bf63",
+      "scope": "bounded owner/module delta; previous whole coverage unchanged"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract.rs",
+      "lines": 292,
+      "sha256": "6c2cb8470fb713a3200bc975f66bc6224d84e3a03660f8ddd248354c51061f92",
+      "scope": "bounded owner/module delta; previous whole coverage unchanged"
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+      "lines": 1517,
+      "sha256": "840a9a28be9f459f6fff8bd0e42a1f52d14fde310479917f328fb640a61f26e7",
+      "scope": "bounded owner/module delta; previous whole coverage unchanged"
+    }
+  ],
+  "root_review": "All sixteen complete logs, twenty sidecars and actual launcher read after both handles terminal. Exact revision and clean-tree guards passed on both hosts.",
+  "observed": [
+    "All39 capture-example methods execute: original35 positives pass; DATA before HEADERS, truncated HEADERS and malformed QPACK receive actual H3_NO_ERROR256, instead of their required fatal codes.",
+    "Both new fatal controls retain the actual wrong close after later collector, record, healthy/partial and resource prerequisites; no separate prerequisite/backup error was printed.",
+    "Controlled actual-resolution failure is discarded; its later typed payload and Arc assertions remain unreached.",
+    "All43 template methods execute: all41 earlier methods and actual clean-EOF count/socket/rebind positive pass. Actual oversized head fails its missing-error187 oracle after worker/socket/rebind prerequisites; later kind/message assertions remain unreached.",
+    "Both strict net and requests Clippy/MSRV checks pass. HTTP package formatting passes; net formatting identifies three regions only in new fatal child."
+  ],
+  "limits": [
+    "Causal baseline, not a passing candidate or integration gate.",
+    "No natural backend fault, full A222/A230/A235 closure, outer cancellation/panic or universal descendant reaping claim.",
+    "No new proxy execution at this revision; its earlier four passing methods remain bound to3fb.",
+    "Incoming semantic repair and template original read-error remedy require separate source review and rerun."
+  ]
+}

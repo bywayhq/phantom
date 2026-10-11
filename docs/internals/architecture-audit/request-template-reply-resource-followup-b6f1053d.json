@@ -1,0 +1,79 @@
+{
+  "kind": "authored-controls-resource-followup",
+  "finding": "A234",
+  "base": "faec687b506fa56ab2cb89346b0ef7309b051df9",
+  "commit": "b6f1053d5720799ae2463307443a12b5fce39bac",
+  "identity": [
+    "b6f1053d5720799ae2463307443a12b5fce39bac",
+    "Arya Alikhani",
+    "AryaAlikhani@icloud.com",
+    "Arya Alikhani",
+    "AryaAlikhani@icloud.com",
+    "G",
+    "test(templates): observe reply socket closure before cleanup"
+  ],
+  "source_bindings": [
+    {
+      "path": "C:/code/phantom-worktrees/audit-template-replies/crates/phantom/tests/requests/request_templates/reply_contract.rs",
+      "git_blob": "42c7c9185740712a204cced6dc2a78376cd83b21",
+      "physical_sha256": "e2ab00bc216faa9fa464c7754333579a61c865df9c6d97a74592a263b4256005",
+      "canonical_lf_sha256": "477ab11885ad8929a15b5b2ed8bf510e6e30b4e0c26cd7ff96f1d739c0d5cc57",
+      "lines": 219,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 219,
+          "canonical_sha256": "477ab11885ad8929a15b5b2ed8bf510e6e30b4e0c26cd7ff96f1d739c0d5cc57"
+        }
+      ]
+    },
+    {
+      "path": "C:/code/phantom-worktrees/audit-template-replies/vendor/tokio-btls/src/lib.rs",
+      "git_blob": "f582e8808eb6a1f09c25261e2e4292188942bd26",
+      "physical_sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "canonical_lf_sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "lines": 253,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "first": 190,
+          "last": 224,
+          "canonical_sha256": "3a9e3c94969af6ad9507e286cb2bd1aba142ce7cb76cc173fe85cf3cbf0de6ec"
+        }
+      ]
+    }
+  ],
+  "initial_immutable_handoff": {
+    ".md": "03fa09b90dd252533d434a67c185a2c8ae1990b275f8d13de8c9ef0abdb870f9",
+    ".json": "98443e4457368191bd2a4a6c816e1e5b56117e3fefcf829c03f3603662053e47",
+    ".diff": "53d07d952c9bfddb28f18a59a542047a4f81158ed1afe4d6ca96588c9dfeda22"
+  },
+  "static_proof": {
+    "whole_child_inverse_exact": true,
+    "inverse_sha256": "0aeec2d9d217a650889e9b1f8f17db8be33a293fe47f1cd05de2bd6f04933a58",
+    "original_child_sha256": "0aeec2d9d217a650889e9b1f8f17db8be33a293fe47f1cd05de2bd6f04933a58",
+    "two_test_method_suffix_bytes_exact": true,
+    "parent_unchanged": true,
+    "entire_original_parent_suffix_inverse_exact": true,
+    "outside_child_git_diff_empty": true
+  },
+  "locations": {
+    "closed_read": 90,
+    "listener_rebind": 101,
+    "original_worker_result": 162,
+    "resource_observation": 163,
+    "backup": 171,
+    "first_forecast_negative": 187
+  },
+  "contract": "After original worker join, observe actual client EOF or shared expected peer-gone I/O and rebind the original listener address while the client and runtime remain live, before target validation and independent backup.",
+  "failure_composition": "An unexpected client I/O or rebind/deadline failure is composed with the already-captured original worker Result; independent backup still runs. Original worker errors are not erased by resource prerequisites.",
+  "limits": [
+    "No Cargo/native/formatter/checker/target import/resource execution.",
+    "Forecast remains clean EOF positive and actual malformed-head missing-error negative, conditional on real resource prerequisites.",
+    "Actual closure/rebind cannot be claimed before native logs; joined worker alone is not the independent client-side observation.",
+    "Original faec source/report is immutable; this adds resource prerequisites before the original oracle.",
+    "Broader default raw worker ownership A235 remains open; Drop requests abort rather than join."
+  ],
+  "diff_sha256": "c4764058d8765dafd6816c9fe9d82022dd7ce5ad9f05d0f2c41f46f720f8081f"
+}

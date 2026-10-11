@@ -1,0 +1,13 @@
+# Request-template reply baseline handoff
+
+Commit `faec687b506fa56ab2cb89346b0ef7309b051df9` adds two controls for A234 and leaves the original helper defect intact for baseline execution. Both required human identities and signature G are verified.
+
+Only `crates/phantom/tests/requests/request_templates.rs` and its new natural child `crates/phantom/tests/requests/request_templates/reply_contract.rs` change. Removing the neutral two-line module suffix restores all 1429 original parent lines exactly. Every other existing tree entry is unchanged. Earlier 41 template contracts are preserved by source identity, not a fresh execution result.
+
+The new child was read completely, 1–185. Parent reads are 1–90, 1020–1075, 1200–1347 and added registration1430–1431. The canonical helper is1238–1258. The JSON binds accurate EOFs, whole or partial reads, physical and canonical hashes, and resolved interface ranges. Full TLS and ConnectionPeer owners were read; resolved TLS/Tokio interfaces have bounded supporting reads.
+
+Both controls require actual trusted TLS, HTTP/1.1 ALPN and the exact first GET/204 exchange. The negative sends a real32KiB unterminated second head while retaining the client. Its first forecast failure is missing worker error at153; later original I/O kind/message assertions remain unexecuted. Clean EOF uses actual TLS shutdown and requires count1. These are source forecasts only.
+
+Backup is registered before acquisition and adopts the original helper handle immediately. Original worker result132 precedes backup137. Independent finite cleanup preserves actual unexpected worker/JoinError/Elapsed causes and composes target/oracle failures. Drop requests abort and is not joining. This initial checkpoint has no independent socket closure/rebind oracle; root requested a separately signed follow-up after the frozen commit.
+
+No Cargo, native test, formatter, project checker, target import or resource probe was run. Root still owns independent source review and paired baseline, formatting, strict requests-target Clippy and Rust1.88 checks. A235 broader raw parent ownership remains separate. The initial unsaved writer construction failed with a nested string SyntaxError before outputs; this corrected writer creates exclusive immutable evidence.

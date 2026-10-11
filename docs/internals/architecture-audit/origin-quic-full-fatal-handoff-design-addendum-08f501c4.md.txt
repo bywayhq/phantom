@@ -1,0 +1,42 @@
+# Full resolver fatal handoff qualification
+
+This additive source design is bound to `08f501c44a1feec2b77296f8617577fbd2948ed2`; the canonical owner is
+unchanged from `fd5972c05ac0597be4af9b2b5f07e2f99424248b`. Preserve the initial source design and the fd597
+HeaderTooBig correction. This receipt replaces only the insufficient
+FRAME_UNEXPECTED-only driver step and clarifies the incoming policy.
+
+Every actual resolver ConnectionError producer stores the first shared
+fatal before returning its StreamError wrapper. That includes request
+frame/QPACK errors and outgoing 431 encoder or QUIC connection failures.
+Undefined, HeaderTooBig and stream-only errors do not establish that shared
+state. The shared OnceLock never clears. Public accept first polls the
+shared fatal, closes with its original code and returns its driver view
+before request/control work. Immediate Drop otherwise sends H3_NO_ERROR.
+
+The repair should retain the original resolver wrapper and drive one
+bounded public accept for every actual ConnectionError. Ordinary Err is
+confirmation of the same shared first cause, rather than an extra failure.
+Return the original unmatched error unchanged. Retain actual Elapsed or
+unexpected Some/None as an additional handoff cause, with finite ownership
+of a returned resolver. Keep explicit setup/accept/resolution matches,
+existing timeouts, graceful None and expected peer/idle observations.
+
+Parser-produced FRAME_UNEXPECTED, FRAME_ERROR and QPACK_DECOMPRESSION_FAILED
+can have a narrow incoming policy. The new two literal controls must be
+measured before repair. Critical-stream errors can also originate in local
+backend writes; setup settings can be local configuration; internal errors
+can be local encoder faults. Preserve those original ambiguous causes.
+HeaderTooBig must remain original because the same resolution call can
+return it from outgoing 431 response encoding. Do not classify by broad
+Local/Remote/Undefined labels or use an invented shared-state API.
+
+A separate source reviewer freshly checked the resolved producer/consumer
+path and supports this full drive. Final semantic source remains uncommitted
+and requires independent review. Root reports the fd597 typed local-cause
+control now reaches its intended failure on both hosts; this agent has not
+read those native logs and gives no independent runtime credit.
+
+Outgoing semantics, all old controls, capture format and handshake policy
+remain unchanged. Other input codes, STOP_SENDING, naturally occurring local
+resource faults and complete A222 coverage remain open. No source edit or
+execution was performed by this design report.

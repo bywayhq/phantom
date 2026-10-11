@@ -1,0 +1,321 @@
+{
+  "kind": "additive incoming fatal handoff design qualification",
+  "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+  "canonical_same_as": "fd5972c05ac0597be4af9b2b5f07e2f99424248b",
+  "sources": [
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/request_fatal_contract.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "95676d1e70ef01f55f69140995edb0671918745d",
+      "git_lf_sha256": "6010a2c110a3e343feea8aebe396e4361eb9ec7385c2e2ac4ef1d6840a028a4c",
+      "actual_eof": 123,
+      "manual_scope": "fresh whole manual read",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 123,
+          "sha256": "6010a2c110a3e343feea8aebe396e4361eb9ec7385c2e2ac4ef1d6840a028a4c"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "c771d0f181c7dd4b776eea4c28a0efa2523ac34e",
+      "git_lf_sha256": "a73b08fe1033cada57c18581ca57bca7763aaf2a1805e105bd93579fa8a9bb44",
+      "actual_eof": 291,
+      "manual_scope": "prior whole 290 plus exact one-line registry addition",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 291,
+          "sha256": "a73b08fe1033cada57c18581ca57bca7763aaf2a1805e105bd93579fa8a9bb44"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "45ce8a3abcb1d6f8bd492550778aac612df1b539",
+      "git_lf_sha256": "840a9a28be9f459f6fff8bd0e42a1f52d14fde310479917f328fb640a61f26e7",
+      "actual_eof": 1517,
+      "manual_scope": "fresh bounded serving and outgoing-policy read; no whole-owner credit",
+      "ranges": [
+        {
+          "first": 923,
+          "last": 1022,
+          "sha256": "750a6ed14532bf1a04b630889534ab3fa1c4e4c9a21a60d71e3ac9f4ed7a4de1"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/capture_origin.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "42616ea35095ae012ee794f2b4a511969cf5aa71",
+      "git_lf_sha256": "e226c31889b5583daee93140f69959dc0af5a2c8962bf8cada68ec92a86eca83",
+      "actual_eof": 309,
+      "manual_scope": "fresh whole concrete acquisition, closure and backup owner read",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 309,
+          "sha256": "e226c31889b5583daee93140f69959dc0af5a2c8962bf8cada68ec92a86eca83"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/peer_input_contract.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "c148fef3b56949dc684f547d4f15afc6f427af72",
+      "git_lf_sha256": "510e18e725d615bec78358d32a0843f7fdabaa782b06dcbb04f6cb621e09f0fb",
+      "actual_eof": 115,
+      "manual_scope": "fresh whole existing literal-input control read",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 115,
+          "sha256": "510e18e725d615bec78358d32a0843f7fdabaa782b06dcbb04f6cb621e09f0fb"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/proto/frame.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "93ef45f43cf45dcc7e048ab50ab3906e4707fd24",
+      "git_lf_sha256": "9925fb8800b17bdae4bcbf383381737a76ec9a29d0f22f62deec4d7b688cbb9e",
+      "actual_eof": 928,
+      "manual_scope": "fresh bounded frame wire decoder read",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 190,
+          "sha256": "ecfd8eb795d9e3807a701fe2f435932e54def99a56f5593813751118c7936cee"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/frame.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "22b1f2af5f9eac71e4df5cce9ffb72a4170f633e",
+      "git_lf_sha256": "057759f271ced1115d98d2e0a81e59e95565d70eeb34dbf8f11c3c9e5704ee92",
+      "actual_eof": 1442,
+      "manual_scope": "fresh bounded incomplete-frame handling and decoder reads",
+      "ranges": [
+        {
+          "first": 95,
+          "last": 205,
+          "sha256": "b23db98c8cdb5432ef2135abb6e57895ebfdda41383b915e95921924ab1b47cd"
+        },
+        {
+          "first": 360,
+          "last": 400,
+          "sha256": "af53aa9521209caa97bd8ab9b4483d93a1c7228dc4bba9b00c3c6dac45f267a3"
+        },
+        {
+          "first": 455,
+          "last": 570,
+          "sha256": "c0b75009a439e6a5d19a26a16708b3811a0ea35407744b052c6dfbe2ae91ddc6"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/qpack/block.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "4ea0e2706ec455ca9a9e81e9b00d91c48140dc20",
+      "git_lf_sha256": "1c4cd090b80d68e6b33dd8e65e7596b1b2a5a082dcde2830f20a2891a3dcb401",
+      "actual_eof": 600,
+      "manual_scope": "fresh bounded field-section prefix decoder read",
+      "ranges": [
+        {
+          "first": 165,
+          "last": 220,
+          "sha256": "ba34c17b96ba5b63b34aa532c14e3ee481b58a85754707eed67c0a4d5930bfd1"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/qpack/prefix_int.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "13a56ac9be84268422f159d244117a015adcda69",
+      "git_lf_sha256": "2ed81abf66ac99336d653e0854dfda74cc27e42b9d21e255dd1cb147a6857191",
+      "actual_eof": 178,
+      "manual_scope": "fresh bounded prefix integer decoder read",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 100,
+          "sha256": "d97e6ccccf10cb5bccdcbb5c83590fc12527ff87df70693855b5099c60a7c05d"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/qpack/decoder.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "d7db5ce278a5c60bf7d302b846feab345fb618ea",
+      "git_lf_sha256": "048cc767194d26d3907140dea01b1e2e91023b441f657a3b70505b282631c41c",
+      "actual_eof": 973,
+      "manual_scope": "fresh bounded stateless decoder and error conversions read",
+      "ranges": [
+        {
+          "first": 300,
+          "last": 435,
+          "sha256": "536533f86ef027c87c780d430d4c9cdbbec2371fd8f493c69f5d38d22cf98bb4"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/server/request.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "0afeb6ccad0b9a5f32e21a4c12ca1f54e7cdc6c7",
+      "git_lf_sha256": "152d982c1c758b2e84e9363b8b96ca21b5d921bdc23c4fb049dcbbba37ba31a8",
+      "actual_eof": 273,
+      "manual_scope": "fresh initial resolver plus prior whole-bound 431 and resolution body read",
+      "ranges": [
+        {
+          "first": 70,
+          "last": 148,
+          "sha256": "2bce374f8737a8946cb207f17b71de963dd5603dd4b7b9a3a30dc053f03e5bd4"
+        },
+        {
+          "first": 197,
+          "last": 272,
+          "sha256": "18945778aa0cd0fba7f749c600211b6f4cf5df79193cadbd93d5d3e6bc0bcb22"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/error/connection_error_creators.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "081a9405a069aad0fa267c70896d6fcc5f090301",
+      "git_lf_sha256": "047ad6c9146e8a0b047e247dd8045a1f17f314fe054bc0206d65d3f499faaedf",
+      "actual_eof": 220,
+      "manual_scope": "fresh bounded shared-fatal producer/consumer and frame error mapping read",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 145,
+          "sha256": "dd2de6b69ddfb9394054e6b294aa0d4070ace3bd1f4e32e80b77006528a9a9e3"
+        },
+        {
+          "first": 194,
+          "last": 220,
+          "sha256": "b7909773a0c08be044d03b8fa04692abd520e7e6a23f08fd32c07e97a788f3c7"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/server/connection.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "3e52e9d2fa70c7ce7b677615d2efeedb9cca67ac",
+      "git_lf_sha256": "99fd53da8bb7f2b9abb4240877ee26def80daa79a6f509f5e643b98565c908f8",
+      "actual_eof": 337,
+      "manual_scope": "fresh bounded public accept path plus prior whole-bound Drop read",
+      "ranges": [
+        {
+          "first": 120,
+          "last": 250,
+          "sha256": "ec6b7a52afeae0c85e66e6d67053cae13924f8c9b1439ce0a5af9d95c4c144f6"
+        },
+        {
+          "first": 300,
+          "last": 330,
+          "sha256": "89595848f7c1ad435a641f95155df5bff690af5e52c08145021d61cee4990412"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/connection.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "c1cd66f8f01d2c59614c4b51a8de24b3170c8c1a",
+      "git_lf_sha256": "4dcb920942472566e00058643c6096ef6d55fdae0cf2a23b75b66792181dfc0a",
+      "actual_eof": 2093,
+      "manual_scope": "fresh bounded control-driver entry read; other earlier supporting reads remain partial",
+      "ranges": [
+        {
+          "first": 1170,
+          "last": 1195,
+          "sha256": "e3703a81fff0f9f38a340e903e1d84d9845f986ba6664212d19a5ea12d38600a"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/shared_state.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "a852254768822ee4902a4a20cbf65db269bc4841",
+      "git_lf_sha256": "cb43596b9eb8d90552e2ac35f76ed1061e28f7569a0ccea6c790aec49039cb21",
+      "actual_eof": 123,
+      "manual_scope": "fresh whole first-error ownership read",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 123,
+          "sha256": "cb43596b9eb8d90552e2ac35f76ed1061e28f7569a0ccea6c790aec49039cb21"
+        }
+      ]
+    },
+    {
+      "path": "vendor/h3/h3/src/server/stream.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "e2461fc6923a3ff656af3cbfb2579ebcaea00cb5",
+      "git_lf_sha256": "d3c54e6a3bfbb7d24d1ff0ae1ef49e9215f03c2d9cf939471e05cb0875f8b717",
+      "actual_eof": 266,
+      "manual_scope": "prior bounded response encoding and 431 outgoing error provenance read",
+      "ranges": [
+        {
+          "first": 136,
+          "last": 225,
+          "sha256": "387b9be8c4f740fa5819d070a28dd8c1cd5e02a89ac3497f26b94baa244a4057"
+        }
+      ]
+    },
+    {
+      "path": "vendor/quinn-proto/src/connection/mod.rs",
+      "revision": "08f501c44a1feec2b77296f8617577fbd2948ed2",
+      "git_blob": "96462d5137fbc552ee6b8ed47d0877208f7f62d1",
+      "git_lf_sha256": "25162c05689e2d1d3338c36b09d75518210650da59534d7b5f9f40ef5d8f1974",
+      "actual_eof": 4462,
+      "manual_scope": "prior bounded transport first-close retention read",
+      "ranges": [
+        {
+          "first": 1292,
+          "last": 1329,
+          "sha256": "53fa7451b1fd4da2129281817b73c752329ebd0e35e4e59d717ecfaa56297e30"
+        }
+      ]
+    }
+  ],
+  "preserved_initial_report": "origin-quic-incoming-fatal-source-design-638fc806",
+  "supersedes": [
+    "Initial FRAME_UNEXPECTED-only drive is incomplete: every actual resolver StreamError::ConnectionError must drive the actual shared fatal before H3 Drop.",
+    "Initial incoming HeaderTooBig acceptance is rejected: resolution can return the outgoing 431 encoder peer-budget HeaderTooBig before producing incoming HeaderTooBig, so preserve the original ambiguous variant."
+  ],
+  "producer_proof": [
+    "Request frame/protocol/QPACK failure uses handle_connection_error_on_stream, storing first ErrorOrigin and waking driver before wrapping ConnectionError.",
+    "431 stateless encoder error uses the same shared setter; 431 QUIC ConnectionErrorIncoming also stores shared fatal before wrapping it. Undefined/header-size/stream-only failures are separate and do not establish shared state.",
+    "SharedState OnceLock retains the first error; it has no clearing API."
+  ],
+  "consumer_proof": "Public server accept enters poll_control, whose inner poll_control first polls shared connection_error; Ready(Err) aborts QPACK work and closes with the original fatal code before any subsequent request/control work. The regular returned error is the driver view of the same first shared cause, not a second independent failure.",
+  "proposed_repair": [
+    "Use explicit setup/accept/resolution result matches. Keep existing deadlines, graceful None and documented peer/idle observations; return original unmatched errors.",
+    "For every actual resolver ConnectionError, retain that original StreamError and invoke one bounded public h3.accept while the real driver remains on stack.",
+    "Normal Err confirms shared fatal drive: expected source-proven peer input can remain partial success; unmatched local/internal failure returns the original wrapper unchanged.",
+    "Elapsed or unexpected Some/None is an independent handoff prerequisite failure: compose original wrapper with actual Elapsed or concrete invariant error, and retain finite ownership of any returned resolver.",
+    "Do not have a blanket Local/Remote/Undefined branch. Candidate parser-code policy is FRAME_UNEXPECTED, FRAME_ERROR and QPACK_DECOMPRESSION_FAILED at source-proven incoming phases; new controls establish the latter two before repair.",
+    "Critical-stream failures can be peer EOF/reset or unknown local backend/write-zero, so retain ambiguous original causes. Setup settings can be local decoder configuration; retain ambiguity. Internal encoder/backend errors remain failures.",
+    "Keep existing outgoing policy, handshake/ECH observations and capture format untouched. No private shared-state API, connection clone, copied accept loop or generic owner framework."
+  ],
+  "review_coordination": "Separate source reviewer freshly read resolved producers/consumers and supports driving every resolver ConnectionError. Final frozen repair still requires independent review.",
+  "root_reported_measurement_not_independent_receipt": "Root reports fd597 control at signed 3fb68a34 reaches intended missing-original-error on both hosts; root controls and quality runs were still live at notification. This agent has not independently read native logs or run anything.",
+  "acceptance": [
+    "Unchanged typed Undefined payload identity passes through actual collector.",
+    "Unchanged FRAME_UNEXPECTED oracle and new literal FRAME_ERROR/QPACK_DECOMPRESSION_FAILED oracles pass after real closure prerequisites.",
+    "All old 37 methods remain exact in controls checkpoint and all original input/outgoing oracles remain exact in semantic repair.",
+    "Original unmatched cause survives driver deadline/invariant failure composition; setup/accept local failures are not silently ignored."
+  ],
+  "open": [
+    "Additional SETTINGS/ID/excessive-load/critical-stream input policy requires phase-specific controls.",
+    "STOP_SENDING needs independently approved actual pending-response witness.",
+    "No broad natural-resource failure, external unavailable task handle policy, whole serving/publication coverage or full A222 closure claim."
+  ],
+  "runtime_or_semantic_source_change_in_this_report": false
+}

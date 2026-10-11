@@ -1,0 +1,55 @@
+{
+  "revision": "b7aac25df23eb643a7f3ad023f040060b51c2db3",
+  "base": "b948a5ff03178b481c772a3cbe148bd310933f6f",
+  "disposition": "source-approved mechanical formatting only",
+  "blockers": [],
+  "signature": "G",
+  "author_committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "clean_at_review": true,
+  "full_changed_diff_read": true,
+  "source_bindings": [
+    {
+      "inverse_exact": true,
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/capture_origin.rs",
+      "before_blob": "42616ea35095ae012ee794f2b4a511969cf5aa71",
+      "lines": 312,
+      "sha256": "80ecbcbbfd3fcd76988597f8717a0206fb59d4d34479d88ec1d83f1f2ba1f90d",
+      "after_blob": "482ec3ecacf4aee8dc5f2f7f38130dab4634af32"
+    },
+    {
+      "inverse_exact": true,
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/peer_input_contract.rs",
+      "before_blob": "c148fef3b56949dc684f547d4f15afc6f427af72",
+      "lines": 121,
+      "sha256": "17ad430d108f11e870d73d3352d1648181490364a92abe331de0cd7b748bd22d",
+      "after_blob": "19aca2b48f34159601af37932c87a507043b4006"
+    },
+    {
+      "inverse_exact": true,
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/peer_response_contract.rs",
+      "before_blob": "a24ff59eb8a29efa10dbe3493aa583d3151c579d",
+      "lines": 96,
+      "sha256": "4e5a6b7f4a96184b39654887f3e2f26e03e92cbd8f4bd878a2935f0f5130b301",
+      "after_blob": "6d96d0f09d354ec9ad48646bbfdf6c63a38cf001"
+    },
+    {
+      "inverse_exact": true,
+      "path": "crates/phantom-net/examples/capture_ech_client_hello/quic_serving_contract/request_resolution_contract.rs",
+      "before_blob": "6084a8a7617da5983806a0168b8609a3da3eac30",
+      "lines": 186,
+      "sha256": "30bf2547433f66a687258eec4fdda6157564b8080d3fa3a5e8303e6939f733db",
+      "after_blob": "1b7b9e6c905ab7d9f2546e544e2d3de628c1c7d0"
+    }
+  ],
+  "regions": 4,
+  "whole_source_inverse_exact": true,
+  "fresh_whole_owner_read": false,
+  "changes": "line wrapping and optional trailing commas only",
+  "preserved_native": "peer-resolution-independent-native-review-3fb68a34",
+  "limits": [
+    "original net formatting failure at 3fb remains historical",
+    "no native/format execution by reviewer",
+    "no fresh whole source credit",
+    "earlier expiry/outer cancellation and classification limits unchanged"
+  ]
+}

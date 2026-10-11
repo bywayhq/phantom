@@ -1,0 +1,5 @@
+# Root proxy layout addendum
+
+No source blocker was found in signed6ae67fe4f25d3dfce7e1e0df6988fad67525cdf6. Its complete two-file diff contains exactly three formatter regions: two condition wraps in finish_result and one local import wrap. The latter removes the optional trailing comma after ProxyReturn, so this is operation-preserving formatter output, not literally whitespace-only or token-identical. Whole-parent whitespace comparison and the whole-child literal import inverse pass. Direct diff reading establishes that no literal value, operation, assertion or statement order changed. Both preimage blobs equal independently approved ce591064. Signature G and both required human identities were verified.
+
+This binds the earlier proxy-auth-owned-remedy-independent-source-review-ce591064 to the root's formatted source. It adds no fresh whole-owner read, runtime, formatter execution or native result. The earlier five-second outer deadline, per-peer timeout, abort-only fallback, cancellation-provenance and incomplete reaping limits remain unchanged. Root still owns actual focused/quality verification and integration.
