@@ -2490,6 +2490,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Reject negative and nonfinite Android capture hold times before launch.
+  Scope `android_run.py --allow-cold-boot` to its launch, preserving the
+  environment in both launch and print-only modes.
+
 - Stop Android capture navigation when a required focus query, screen dump or
   screen read fails. Failed observations no longer authorize onboarding taps
   or Enter from stale screen contents.

@@ -566,6 +566,7 @@ the `onboarded` snapshot. It tells them apart by the `debug.phantom.snapshot`
 property, which is set in guest memory before the snapshot is saved; see
 [The `onboarded` snapshot](android/README.md#the-onboarded-snapshot).
 `PHANTOM_ANDROID_ALLOW_COLD_BOOT=1` or `--allow-cold-boot` overrides it.
+The flag applies only to that launch and leaves the environment unchanged.
 
 `startup_capture.py` and `chrome_ech.py` take desktop browsers only, and
 `proxy_route.py` refuses the authentication scenarios for an Android
@@ -681,6 +682,9 @@ preferences; a tool that needs files in the Firefox profile, such as
 The TLS and HTTP/2 startup examples only listen. Start one on a free
 loopback port, then open its URL on the device with `android_run.py`, which
 runs one launch as above and stops the browser after `--hold` seconds:
+
+The hold defaults to eight seconds. It must be finite and nonnegative;
+zero stops the browser immediately after opening the page.
 
 ```sh
 ANDROID_SERIAL=emulator-5556 uv run --no-project --python 3.10 \

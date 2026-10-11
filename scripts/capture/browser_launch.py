@@ -265,6 +265,8 @@ class LaunchPlan:
     # Host TCP ports the device reaches on its own 127.0.0.1 through
     # `adb reverse`, besides those the URL and switches name.
     android_reverse_ports: tuple[int, ...] = ()
+    # Allow this launch on an emulator without a marked snapshot.
+    android_allow_cold_boot: bool = False
 
     @property
     def launch_mode(self) -> str:
@@ -352,6 +354,7 @@ class LaunchedBrowser:
             preferences,
             entry=self.plan.android_entry,
             allow_physical_device=self.plan.android_allow_physical_device,
+            allow_cold_boot=self.plan.android_allow_cold_boot,
             reverse=self.plan.android_reverse_ports,
         )
 
