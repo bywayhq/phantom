@@ -958,7 +958,8 @@ async fn serve_h3(
         }
         .await;
         #[cfg(test)]
-        let sent = tests::quic_serving_contract::observe_response(sent, observation.0, observation.1);
+        let sent =
+            tests::quic_serving_contract::observe_response(sent, observation.0, observation.1);
 
         if sent.is_ok() && !served {
             served = true;

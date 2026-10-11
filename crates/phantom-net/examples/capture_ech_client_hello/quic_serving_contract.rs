@@ -31,15 +31,12 @@ pub(crate) fn observe_response(
         return result;
     }
 
-    let mut fault = captured
-        .quic_serving_fault
-        .lock()
-        .map_err(|error| {
-            StreamError::Undefined(Box::new(QuicObservationFailure {
-                boundary: "response consumption",
-                diagnostic: error.to_string(),
-            }))
-        })?;
+    let mut fault = captured.quic_serving_fault.lock().map_err(|error| {
+        StreamError::Undefined(Box::new(QuicObservationFailure {
+            boundary: "response consumption",
+            diagnostic: error.to_string(),
+        }))
+    })?;
     if fault.as_ref().is_some_and(|fault| fault.slot == slot) {
         let fault = fault.take().ok_or_else(|| {
             StreamError::Undefined("post-response fault was removed before observation".into())
@@ -69,7 +66,10 @@ impl fmt::Display for QuicObservationFailure {
 
 impl Error for QuicObservationFailure {}
 
-fn install_fault(captured: &Captured, fault: QuicServingFault) -> Result<(), QuicObservationFailure> {
+fn install_fault(
+    captured: &Captured,
+    fault: QuicServingFault,
+) -> Result<(), QuicObservationFailure> {
     *captured
         .quic_serving_fault
         .lock()
@@ -118,7 +118,11 @@ async fn finish_capture_observes_two_healthy_registered_quic_workers() -> TestRe
         assert!(first.worker.is_finished());
         assert!(second.worker.is_finished());
         assert_eq!(
-            capture.dns.as_ref().ok_or("DNS owner missing")?.descriptions(),
+            capture
+                .dns
+                .as_ref()
+                .ok_or("DNS owner missing")?
+                .descriptions(),
             [format!("A {HOSTNAME}")]
         );
         let (tcp, quic) = capture.captured.take();
@@ -130,7 +134,10 @@ async fn finish_capture_observes_two_healthy_registered_quic_workers() -> TestRe
             quic.iter()
                 .all(|record| record.outer_server_name.as_deref() == Some(HOSTNAME.as_bytes()))
         );
-        assert!(quic.iter().all(|record| record.extension_types.contains(&16)));
+        assert!(
+            quic.iter()
+                .all(|record| record.extension_types.contains(&16))
+        );
         assert!(quic.iter().all(|record| record.request_served));
         assert!(capture.captured.page_served());
         Ok(())
@@ -167,7 +174,11 @@ async fn finish_capture_keeps_an_idle_handshaken_quic_peer_beside_a_healthy_work
         assert!(healthy.worker.is_finished());
         assert!(idle.worker.is_finished());
         assert_eq!(
-            capture.dns.as_ref().ok_or("DNS owner missing")?.descriptions(),
+            capture
+                .dns
+                .as_ref()
+                .ok_or("DNS owner missing")?
+                .descriptions(),
             [format!("A {HOSTNAME}")]
         );
         let (tcp, quic) = capture.captured.take();
@@ -229,7 +240,11 @@ async fn finish_capture_retains_a_local_quic_response_failure_beside_a_healthy_w
             assert!(healthy.worker.is_finished());
             assert!(faulted.worker.is_finished());
             assert_eq!(
-                capture.dns.as_ref().ok_or("DNS owner missing")?.descriptions(),
+                capture
+                    .dns
+                    .as_ref()
+                    .ok_or("DNS owner missing")?
+                    .descriptions(),
                 [format!("A {HOSTNAME}")]
             );
             let (tcp, quic) = capture.captured.take();
