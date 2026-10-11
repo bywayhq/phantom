@@ -1,0 +1,193 @@
+{
+  "kind": "author tests-only causal baseline handoff",
+  "revision": "4a8968d6ee4609b120ce22abead6db601abcff42",
+  "parent": "e57dade6f1e88712d19ffe2b9498aa9ebd7e42b9",
+  "lane": "C:\\code\\phantom-worktrees\\audit-exact-ech-finish-baseline",
+  "owned_paths": [
+    "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs"
+  ],
+  "commit_identity": [
+    "4a8968d6ee4609b120ce22abead6db601abcff42",
+    "e57dade6f1e88712d19ffe2b9498aa9ebd7e42b9",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "G",
+    "test(http3): require exact ECH finish to stop pending handshakes"
+  ],
+  "sources": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+      "blob": "a51fe953d10a5275f2f507bb37e0756837a0990c",
+      "lines": 280,
+      "git_sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90",
+      "physical_sha256": "8b8bd0f43aae9b12dbcc822f383f070f8bdcaa36cd43be506024b7113b84b229",
+      "manual_read_scope": "whole current owner; complete original and final source and full diff read",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 280,
+          "sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "blob": "cdb7cb02a76bbbbb2f23374efc708c3716840bcf",
+      "lines": 640,
+      "git_sha256": "4a7ce0c4183f5938107702c23fd16ebe1be4b13c20dbbc7037551ac0c360f157",
+      "physical_sha256": "3299c38dbc0d761158941b309f8197de09ad777f3cf854a05d4cba2a1c4c6267",
+      "manual_read_scope": "whole unchanged canonical owner, continuously read in two bounded chunks",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 639,
+          "sha256": "1d04eadceab0e8ed8a07ccd4fc52e63429ff98fa04cbcba14c90e39c5bc547b8"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "lines": 268,
+      "git_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "physical_sha256": "515fc6080d43f01f8770ad4c4de3b6710d059ac4ff832765020cda53aa280053",
+      "manual_read_scope": "whole concrete ownership/error combiner source",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 268,
+          "sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "blob": "77d9cea3979091b21e5671ee019c263951e497ad",
+      "lines": 273,
+      "git_sha256": "45ab2b2f74d41c86c76d3b70d84777a6c6b8fa9f99d7b85f7a4e5e23284e837d",
+      "physical_sha256": "55309432cff34da4a19fe3c05049ac6b27eaf7097e5e47c25fb3d57971423c37",
+      "manual_read_scope": "partial actual accepted handshake and ClientHello acquisition",
+      "ranges": [
+        {
+          "first": 184,
+          "last": 213,
+          "sha256": "4229ae35a501b7ebf879fd27fc613e9419610c8c2ff6593a3f18a05f488dbe76"
+        }
+      ]
+    },
+    {
+      "path": "AGENTS.md",
+      "blob": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "lines": 221,
+      "git_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "physical_sha256": "61887031cf019147cdf81f5ae3c1667b67f14b342d8d7c1a233ecccd9b71d3eb",
+      "manual_read_scope": "whole applicable repository agreement",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 221,
+          "sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269"
+        }
+      ]
+    },
+    {
+      "path": ".claude/agents/gate-reviewer.md",
+      "blob": "9c575f1a541f0571c63db6db2793c331fef641ca",
+      "lines": 48,
+      "git_sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf",
+      "physical_sha256": "825427fdfe5fb5ff65c4fca8779f14b9414caaa32f99933afaf9758a021ef187",
+      "manual_read_scope": "whole review policy; this task explicitly authorizes bounded authorship",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 48,
+          "sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\timeout.rs",
+      "lines": 249,
+      "sha256": "5b1b20cb77de63fb5071b696ac644706a9749e0aeb6dbea57220834cba6dc953",
+      "manual_read_scope": "partial actual resolved source",
+      "ranges": [
+        {
+          "first": 179,
+          "last": 227,
+          "sha256": "231c8ea210a396406111eb70f56593d6d909923257a7f3718f3c24cf7e897df5"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\error.rs",
+      "lines": 198,
+      "sha256": "0c84e9189f351c6e1eb0c5865b9df84a928ed4602b06fd5c2e71fb7c43eb1e27",
+      "manual_read_scope": "partial actual resolved source",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 91,
+          "sha256": "10125546906b47dad8fc8caeb4bbe45c9d42d071a392d862f48768ee5bda61b4"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\error.rs",
+      "lines": 123,
+      "sha256": "48dee729b01f8fe1eeea99b516ce99b76733c01e49e788b3764ab478acef1837",
+      "manual_read_scope": "partial actual resolved source",
+      "ranges": [
+        {
+          "first": 100,
+          "last": 123,
+          "sha256": "d84b35739d074cfe2dff4411bc5ba2f8c23cf0de77a4ce7996e753def137759d"
+        }
+      ]
+    }
+  ],
+  "preservation": {
+    "complete_original_owner_inverse": true,
+    "original_lines": 194,
+    "original_sha256": "83ab9a6c60baab1eb0d09bc35c479328cf2e323a1af8066bf62b01475701957d",
+    "inverse_sha256": "83ab9a6c60baab1eb0d09bc35c479328cf2e323a1af8066bf62b01475701957d",
+    "both_original_controls_and_all_helper_bytes_exact": true,
+    "all_other_tracked_paths_unchanged": true
+  },
+  "control": {
+    "name": "finishing_an_origin_stops_its_actual_pending_handshake",
+    "prerequisites": "unchanged driven_origin: trusted real H1 GET, 200/HTTP1.1/Http1/ok; held actual second TCP handshake polls canonical future Pending",
+    "target": "borrow pinned actual Origin.finish under independent 2-second watchdog after readiness; timeout does not drop owner",
+    "pre_backup": "only completed normal finish is followed by finite destructor and peer EOF/concrete peer-gone observations while client/socket/runtime remain live",
+    "backup": "always request abort; on incomplete finish finitely poll original finish and destructor; retain unexpected errors and both outcomes with existing finish_with_cleanup",
+    "forecast_only": "NormalFinishDeadline retaining original Elapsed; later pre-backup destruction/socket observations uncredited until normal finish completes",
+    "outer_safety_bound_seconds": 16,
+    "target_and_backup_step_seconds": 2
+  },
+  "checks": {
+    "git_diff_check": 0,
+    "inverse": "passed",
+    "signed_clean_commit": true,
+    "format_parse_compile_lint_native": "not executed; root owns formatting and both-host causal verification"
+  },
+  "limits": [
+    "No owner remedy or canonical operation changes.",
+    "No pending-serving-child or QUIC beyond-budget claim.",
+    "Backup abort is separate from normal-finish proof; Drop-only abort is not joined cleanup.",
+    "Only cancellation returned after this control explicitly requests backup abort is accepted during backup; other completed errors retained.",
+    "No production defect, protocol fidelity, whole-codebase, final gate, or integration approval."
+  ],
+  "diff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-baseline-handoff-4a8968d6.diff",
+    "sha256": "2e1e03f755fa81440e002095fb4d76d6f27607ae1c48d9b7eaed5d12394c3a08"
+  },
+  "writer": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\write-exact-ech-normal-finish-handoff-4a8968d6.py",
+    "sha256": "468749c699c27b0c678231f4a5bfa0c78c225e8e4320fb839cbc6d9b514adcbf"
+  },
+  "markdown": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-baseline-handoff-4a8968d6.md",
+    "sha256": "ec476820f1227d13bafbab252b7f427a353ecc114e059ff663bb78e362aef221"
+  }
+}

@@ -1,0 +1,457 @@
+{
+  "schema": "phantom.independent_fixed_native_review.v1",
+  "revision": "e8069b4232fedbf883da90dbee69e0a9018128d6",
+  "parent_baseline": "15c0dc791b25f41bf97b84e055de52ebe47f846a",
+  "source_approved_revision": "6fc7c21ba4a85ec3f28bc0186389fcb1a478a2cd",
+  "disposition": "fixed exact-ECH26-method selection verified both hosts; quality/fullgate pending",
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-fixed-e8069b42-windows.log",
+      "bytes": 3864,
+      "sha256": "7ba31e56508f2d1c58fcde9116fa1e2f18c958cc31f889f432e6406a86dfdfd1",
+      "line_count": 33,
+      "manual_read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-fixed-e8069b42-windows.revision",
+      "bytes": 41,
+      "sha256": "31e6e7f89a7284b727fe54d9b00d7c2ca8d42bc47d7c85f7a1b2dedb44309b86",
+      "line_count": 1,
+      "manual_read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-fixed-e8069b42-windows.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "manual_read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-fixed-e8069b42-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "manual_read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-fixed-e8069b42-linux.log",
+      "bytes": 3874,
+      "sha256": "38610c72d99085061cecaf24c437dd07765becd820326e36bd0bce24300b8cb3",
+      "line_count": 33,
+      "manual_read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-fixed-e8069b42-linux.revision",
+      "bytes": 41,
+      "sha256": "31e6e7f89a7284b727fe54d9b00d7c2ca8d42bc47d7c85f7a1b2dedb44309b86",
+      "line_count": 1,
+      "manual_read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-fixed-e8069b42-linux.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "manual_read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-fixed-e8069b42-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "line_count": 1,
+      "manual_read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-exact-ech-normal-finish-fixed-e8069b42.sh",
+      "bytes": 1527,
+      "sha256": "08dd2d0dd61608fb35940d3e71e8dc579b79b849d2bcd84aff9debcde01f3c77",
+      "line_count": 32,
+      "manual_read": "whole"
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "aggregate_blob": "938a7da2f8375125c044dfc6599c41d10559cbce",
+      "reviewed_blob": "938a7da2f8375125c044dfc6599c41d10559cbce",
+      "raw_git_sha256": "cb3a20754939f466dc7fcf33fde27b612e50bccf2e3713516c950723c06db49b",
+      "line_count": 648,
+      "exact_reviewed_bytes": true,
+      "unchanged_from_baseline": false
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+      "aggregate_blob": "a51fe953d10a5275f2f507bb37e0756837a0990c",
+      "reviewed_blob": "a51fe953d10a5275f2f507bb37e0756837a0990c",
+      "raw_git_sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90",
+      "line_count": 280,
+      "exact_reviewed_bytes": true,
+      "unchanged_from_baseline": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs",
+      "aggregate_blob": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+      "reviewed_blob": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+      "raw_git_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "line_count": 59,
+      "exact_reviewed_bytes": true,
+      "unchanged_from_baseline": true
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/serving_contract.rs",
+      "aggregate_blob": "3e47c46a3041497bbf999c497a5e5938855fca26",
+      "reviewed_blob": "3e47c46a3041497bbf999c497a5e5938855fca26",
+      "raw_git_sha256": "0aaa000c67b90f91557c3602342fabdc99891facc39d4f8391c7f9bdb94c0a70",
+      "line_count": 269,
+      "exact_reviewed_bytes": true,
+      "unchanged_from_baseline": true
+    }
+  ],
+  "source_patch_equal_to_approved": true,
+  "composition_only_canonical_and_changelog": true,
+  "signed_identity": "Arya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>\nG",
+  "expected_category_counts": {
+    "ordinary": 18,
+    "owner": 3,
+    "deadline": 3,
+    "serving": 2
+  },
+  "hosts": {
+    "windows": {
+      "roster": [
+        {
+          "name": "https_record_ech_exact::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS",
+          "seconds": "1.165"
+        },
+        {
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS",
+          "seconds": "1.165"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_through_a_proxy_sends_no_ech",
+          "status": "PASS",
+          "seconds": "1.178"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_through_a_proxy_sends_no_ech",
+          "status": "PASS",
+          "seconds": "1.189"
+        },
+        {
+          "name": "https_record_ech_exact::owner_contract::explicitly_aborting_an_origin_destroys_its_actual_pending_handshake",
+          "status": "PASS",
+          "seconds": "1.217"
+        },
+        {
+          "name": "https_record_ech_exact::serving_contract::finishing_an_origin_retains_two_completed_serving_io_failures",
+          "status": "PASS",
+          "seconds": "1.242"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_through_a_proxy_sends_no_ech",
+          "status": "PASS",
+          "seconds": "1.251"
+        },
+        {
+          "name": "https_record_ech_exact::owner_contract::finishing_an_origin_stops_its_actual_pending_handshake",
+          "status": "PASS",
+          "seconds": "1.292"
+        },
+        {
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS",
+          "seconds": "1.302"
+        },
+        {
+          "name": "https_record_ech_exact::serving_contract::finishing_an_origin_preserves_successful_serving_observations",
+          "status": "PASS",
+          "seconds": "1.307"
+        },
+        {
+          "name": "https_record_ech_exact::owner_contract::abandoning_an_origin_stops_its_actual_pending_handshake",
+          "status": "PASS",
+          "seconds": "1.325"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_through_a_proxy_sends_no_ech",
+          "status": "PASS",
+          "seconds": "1.334"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_with_ech_connects_to_an_overridden_name",
+          "status": "PASS",
+          "seconds": "1.724"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_offers_the_records_ech",
+          "status": "PASS",
+          "seconds": "5.196"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_offers_the_records_ech",
+          "status": "PASS",
+          "seconds": "5.421"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_offers_the_records_ech",
+          "status": "PASS",
+          "seconds": "5.677"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_without_the_field_keeps_grease",
+          "status": "PASS",
+          "seconds": "5.696"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_without_the_field_keeps_grease",
+          "status": "PASS",
+          "seconds": "5.718"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_retries_a_rejection_once",
+          "status": "PASS",
+          "seconds": "5.721"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_without_the_field_keeps_grease",
+          "status": "PASS",
+          "seconds": "5.721"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_retries_a_rejection_once",
+          "status": "PASS",
+          "seconds": "5.729"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_offers_the_records_ech",
+          "status": "PASS",
+          "seconds": "5.744"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_without_the_field_keeps_grease",
+          "status": "PASS",
+          "seconds": "5.787"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_retries_a_rejection_once",
+          "status": "PASS",
+          "seconds": "5.796"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_retries_a_rejection_once",
+          "status": "PASS",
+          "seconds": "5.829"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_takes_the_record_for_its_alpn_offer",
+          "status": "PASS",
+          "seconds": "7.997"
+        }
+      ],
+      "summary": "Summary [   7.998s] 26 tests run: 26 passed, 314 skipped",
+      "nextest_exit": 0,
+      "guarded_runner_exit": 0,
+      "skipped": 314,
+      "reported_warning_or_error_headers": 0
+    },
+    "linux": {
+      "roster": [
+        {
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_retains_its_typed_inner_failure",
+          "status": "PASS",
+          "seconds": "0.029"
+        },
+        {
+          "name": "https_record_ech_exact::deadline_contract::an_entered_pending_operation_retains_its_elapsed_cause",
+          "status": "PASS",
+          "seconds": "0.029"
+        },
+        {
+          "name": "https_record_ech_exact::deadline_contract::a_completed_operation_is_accepted_before_the_deadline",
+          "status": "PASS",
+          "seconds": "0.038"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_through_a_proxy_sends_no_ech",
+          "status": "PASS",
+          "seconds": "0.075"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_through_a_proxy_sends_no_ech",
+          "status": "PASS",
+          "seconds": "0.102"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_through_a_proxy_sends_no_ech",
+          "status": "PASS",
+          "seconds": "0.122"
+        },
+        {
+          "name": "https_record_ech_exact::owner_contract::abandoning_an_origin_stops_its_actual_pending_handshake",
+          "status": "PASS",
+          "seconds": "0.122"
+        },
+        {
+          "name": "https_record_ech_exact::owner_contract::finishing_an_origin_stops_its_actual_pending_handshake",
+          "status": "PASS",
+          "seconds": "0.122"
+        },
+        {
+          "name": "https_record_ech_exact::owner_contract::explicitly_aborting_an_origin_destroys_its_actual_pending_handshake",
+          "status": "PASS",
+          "seconds": "0.129"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_through_a_proxy_sends_no_ech",
+          "status": "PASS",
+          "seconds": "0.138"
+        },
+        {
+          "name": "https_record_ech_exact::serving_contract::finishing_an_origin_preserves_successful_serving_observations",
+          "status": "PASS",
+          "seconds": "0.170"
+        },
+        {
+          "name": "https_record_ech_exact::serving_contract::finishing_an_origin_retains_two_completed_serving_io_failures",
+          "status": "PASS",
+          "seconds": "0.179"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_without_the_field_keeps_grease",
+          "status": "PASS",
+          "seconds": "0.480"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_retries_a_rejection_once",
+          "status": "PASS",
+          "seconds": "0.481"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_offers_the_records_ech",
+          "status": "PASS",
+          "seconds": "0.499"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http2_with_ech_connects_to_an_overridden_name",
+          "status": "PASS",
+          "seconds": "0.504"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_without_the_field_keeps_grease",
+          "status": "PASS",
+          "seconds": "0.559"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_without_the_field_keeps_grease",
+          "status": "PASS",
+          "seconds": "0.562"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_offers_the_records_ech",
+          "status": "PASS",
+          "seconds": "0.571"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_retries_a_rejection_once",
+          "status": "PASS",
+          "seconds": "0.572"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_offers_the_records_ech",
+          "status": "PASS",
+          "seconds": "0.580"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_offers_the_records_ech",
+          "status": "PASS",
+          "seconds": "0.584"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_without_the_field_keeps_grease",
+          "status": "PASS",
+          "seconds": "0.585"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_over_exact_http2_retries_a_rejection_once",
+          "status": "PASS",
+          "seconds": "0.587"
+        },
+        {
+          "name": "https_record_ech_exact::exact_http1_retries_a_rejection_once",
+          "status": "PASS",
+          "seconds": "0.592"
+        },
+        {
+          "name": "https_record_ech_exact::websocket_opening_takes_the_record_for_its_alpn_offer",
+          "status": "PASS",
+          "seconds": "0.840"
+        }
+      ],
+      "summary": "Summary [   0.843s] 26 tests run: 26 passed, 314 skipped",
+      "nextest_exit": 0,
+      "guarded_runner_exit": 0,
+      "skipped": 314,
+      "reported_warning_or_error_headers": 0
+    }
+  },
+  "prior_records": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-independent-native-addendum-15c0dc79.json",
+      "sha256": "9572451fd2c3e6a6e25d58c8260889411e796b9dae965b24c4a48d744e063577"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-remedy-independent-source-review-6fc7c21b.json",
+      "sha256": "c018c4f85500e53567d813200eec2ee92a251a478becfa82cd0765392babc825"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-remedy-range-validation-addendum-6fc7c21b.json",
+      "sha256": "aa2c597cba299d236593c6f5f3013ab951426662608696a2a9df1363a9e7a9df"
+    }
+  ],
+  "manual_child_reads": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs",
+      "range": [
+        1,
+        59
+      ],
+      "scope": "fresh whole"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/serving_contract.rs",
+      "range": [
+        1,
+        269
+      ],
+      "scope": "fresh whole"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+      "range": [
+        1,
+        280
+      ],
+      "scope": "prior immediate whole read, byte-exact rebind; no duplicate fresh credit"
+    }
+  ],
+  "newly_reached_normal_finish_oracles": [
+    "pre-backup worker destruction",
+    "pre-backup retained socket EOF or actual peer-gone category"
+  ],
+  "serving_typed_outcomes_reached": [
+    "FixtureFailures",
+    "PermissionDenied and exact connection1 Arc identity",
+    "InvalidData and exact connection2 Arc identity"
+  ],
+  "quality_pending": true,
+  "executions_by_reviewer": 0,
+  "limits": [
+    "Only26 exact module methods;314 excluded",
+    "No complete A180/A181 or transitive whole-owner coverage claim",
+    "No strict Clippy/MSRV or fullgate claim before completed additional logs",
+    "No current CI/main/push approval"
+  ],
+  "markdown_sha256": "8673ca0fcbc4a5594a8d869999f8d7ae5fbf5c69ac6d4dc8faad5b82646b19bf"
+}

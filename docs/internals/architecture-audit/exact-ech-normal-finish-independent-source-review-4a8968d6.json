@@ -1,0 +1,278 @@
+{
+  "kind": "independent source approval for tests-only causal execution",
+  "revision": "4a8968d6ee4609b120ce22abead6db601abcff42",
+  "parent": "e57dade6f1e88712d19ffe2b9498aa9ebd7e42b9",
+  "decision": "APPROVE test source for root formatting/compilation and causal execution; minor evidence qualification below",
+  "source_findings": [],
+  "evidence_findings": [
+    {
+      "severity": "minor",
+      "path": "exact-ech-normal-finish-baseline-handoff-4a8968d6.{md,json}",
+      "problem": "Canonical source has640 lines ending mod serving_contract; Markdown says whole639 and JSON whole scope range is1–639 despite line_count640.",
+      "correction": "Preserve historical artifacts; add qualification author original manual range1–639 does not include line640. This independent pass reads1–640; do not transfer that read credit to author."
+    }
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+      "git_blob": "a51fe953d10a5275f2f507bb37e0756837a0990c",
+      "physical_sha256": "8b8bd0f43aae9b12dbcc822f383f070f8bdcaa36cd43be506024b7113b84b229",
+      "lf_sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90",
+      "line_count": 280,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": null,
+          "lf_sha256": "136c8b3ccde757376e5904f85ec17c83c1c8bf1cb507aa9994fc85113f4d9e72"
+        },
+        {
+          "start": 280,
+          "end": null,
+          "lf_sha256": "1ec67657ee24bd93e81797eb1eee6a3982e930622e8a6ea7ce05538528b654bd"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "git_blob": "cdb7cb02a76bbbbb2f23374efc708c3716840bcf",
+      "physical_sha256": "3299c38dbc0d761158941b309f8197de09ad777f3cf854a05d4cba2a1c4c6267",
+      "lf_sha256": "4a7ce0c4183f5938107702c23fd16ebe1be4b13c20dbbc7037551ac0c360f157",
+      "line_count": 640,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": null,
+          "lf_sha256": "61749af48c65039c46f7fbcf7fe5033c60305c7e31c76ea9da090bde6a007e54"
+        },
+        {
+          "start": 640,
+          "end": null,
+          "lf_sha256": "ace017ee189183df51edbf6b60713d15c746002a4ef7bd5ef2e54a144eaaddaf"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "physical_sha256": "515fc6080d43f01f8770ad4c4de3b6710d059ac4ff832765020cda53aa280053",
+      "lf_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "line_count": 268,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": null,
+          "lf_sha256": "5100a66c50c0ce2ec9e7b74911a1e6e472e60d199f9c97f96e441ef7743a781a"
+        },
+        {
+          "start": 268,
+          "end": null,
+          "lf_sha256": "f29ca3b4be9221b51424b82031bad59e4f03beef9fcac4494cfba4d56f0276c8"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs",
+      "git_blob": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+      "physical_sha256": "576473339cfe5ccb75a936636f4a849f156601cbed7f54dfd836db36ab6928b9",
+      "lf_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+      "line_count": 59,
+      "manual_scope": "whole",
+      "ranges": [
+        {
+          "start": 1,
+          "end": null,
+          "lf_sha256": "1fc20068bc046335583be7371200f072008c52d96dd23f6fb26452e39d719b3c"
+        },
+        {
+          "start": 67,
+          "end": null,
+          "lf_sha256": "ff8e9312fe69624d97d4dfd9efa4761fbace647e97d051e7fe0874e81f50fdb9"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "git_blob": "77d9cea3979091b21e5671ee019c263951e497ad",
+      "physical_sha256": "55309432cff34da4a19fe3c05049ac6b27eaf7097e5e47c25fb3d57971423c37",
+      "lf_sha256": "45ab2b2f74d41c86c76d3b70d84777a6c6b8fa9f99d7b85f7a4e5e23284e837d",
+      "line_count": 273,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 60,
+          "lf_sha256": "b01814bfb6823425bb190a3e78d61e27d3fcc69de9531f237e79549576e49b1f"
+        },
+        {
+          "start": 184,
+          "end": 245,
+          "lf_sha256": "bc97807956624160ee0b983ee8689c4b6045b26d23c5350ae50a41d348d0a6c2"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "git_blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "physical_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "lf_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "line_count": 225,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "start": 211,
+          "end": null,
+          "lf_sha256": "d5b9fab34d604b99a9fe5ecbd79c358426f109b502747ea1134d00338c63f8d9"
+        },
+        {
+          "start": 225,
+          "end": null,
+          "lf_sha256": "031a73b8cf769cf1cb144edc8bf2f2eae448c87a375e2e71d7a56aa9b25fc79a"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "git_blob": "82675002c9aa286e2724ba59868f20c370546881",
+      "physical_sha256": "2e5d931fd2a49ca53292ea644fb00040a81ea969e22b843eb63ba48171db6319",
+      "lf_sha256": "bc74e82987e224e21e923efc8ff63dcf5fae4f4c1d82f438a01e243918263df0",
+      "line_count": 2772,
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "start": 2218,
+          "end": null,
+          "lf_sha256": "babd72fcb31228cccec9c874384b3cfa3f665b21e5c762b3d7fb460fbdd2fc1e"
+        },
+        {
+          "start": 2233,
+          "end": null,
+          "lf_sha256": "fd1a014a086db8b3675bf3f252e44703c809c2bca9f6ca5de65e9dba5bf447ad"
+        }
+      ]
+    }
+  ],
+  "resolved_tokio_partial_bindings": [
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/time/timeout.rs",
+      "sha256": "5b1b20cb77de63fb5071b696ac644706a9749e0aeb6dbea57220834cba6dc953",
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "start": 160,
+          "end": null,
+          "lf_sha256": "3551b40335932a77c03570a2b26026bd8fa7e57973e8bb041e5baae24f806902"
+        },
+        {
+          "start": 249,
+          "end": null,
+          "lf_sha256": "e672c41b0b2fcdebfbf2bb76e205ae664fdfe11aa57cac62b2e5dd03ddc39255"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/error.rs",
+      "sha256": "0c84e9189f351c6e1eb0c5865b9df84a928ed4602b06fd5c2e71fb7c43eb1e27",
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "start": 1,
+          "end": null,
+          "lf_sha256": "29715cb7324ae494ca41b3a0e6f88cbdcfb36a731b2e27776813561c1c3fc650"
+        },
+        {
+          "start": 91,
+          "end": null,
+          "lf_sha256": "fbe5b9375b3d9ff8bdfcc47c56d2a20ddc500289201c131ca8bed0221f76e1ef"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/time/error.rs",
+      "sha256": "48dee729b01f8fe1eeea99b516ce99b76733c01e49e788b3764ab478acef1837",
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "start": 100,
+          "end": null,
+          "lf_sha256": "d92ef2d7bc85d0f94b4cee664f53e5c65b285cfb2141b8813b60e39b80c46a64"
+        },
+        {
+          "start": 123,
+          "end": null,
+          "lf_sha256": "99d421d774221f95cc7bd267d004d170df72fbe87276fa95f9bb0afb2c2b5145"
+        }
+      ]
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/join.rs",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "manual_scope": "partial",
+      "ranges": [
+        {
+          "start": 187,
+          "end": 230,
+          "lf_sha256": "2f2605bb9c4c69a609c8ed1baf0516edb042c6709f144faf5efbe8062f848e17"
+        },
+        {
+          "start": 290,
+          "end": 349,
+          "lf_sha256": "193a1101bdef4c428dd26e6502a5caacf8dde7bc3f4b825d3d69b8fb457b508d"
+        }
+      ]
+    }
+  ],
+  "author_handoff": [
+    {
+      "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-handoff-4a8968d6.md",
+      "sha256": "ec476820f1227d13bafbab252b7f427a353ecc114e059ff663bb78e362aef221"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-handoff-4a8968d6.json",
+      "sha256": "3dc6c025bc34f27427d593fba7c1de0608c96512a2b2dea0856ae1dc7329e9bf"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-handoff-4a8968d6.diff",
+      "sha256": "2e1e03f755fa81440e002095fb4d76d6f27607ae1c48d9b7eaed5d12394c3a08"
+    }
+  ],
+  "checks": {
+    "all_author_six_repository_bindings_and_ranges_valid": true,
+    "all_author_three_dependency_hashes_and_ranges_valid": true,
+    "artifact_md_diff_writer_hashes_valid": true,
+    "original_194_line_inverse_exact": true,
+    "original_inverse_sha256": "83ab9a6c60baab1eb0d09bc35c479328cf2e323a1af8066bf62b01475701957d",
+    "only_owned_control_path_changed": true,
+    "old_helpers_and_two_control_bodies_exact": true,
+    "signed_human_author_committer_both_icloud": true,
+    "signature": "Good SSH ED25519 principal alexanderaryaalikhani@gmail.com",
+    "clean_lane": true
+  },
+  "contract": {
+    "readiness": "driven_origin229–280: actual trusted H1 GET,200/HTTP1.1/Http1/bodyok; canonical observer37–55 polls actual try_handshake Pending after held socket sends0x16; no fabricated completed handshake",
+    "actual_owner_gap": "Canonical228–245 select stops only listener acquisition; pending actual handshake awaited outside stop select; finish305–312 signals then awaits parent.",
+    "watchdog": "Control116–123 pins actual owned finish but lends &mut to2s timeout; timeout owns reference rather than actual future, no owner drop on target deadline. Tokio Timeout polls future before delay, does not establish hard scheduler preemption.",
+    "pre_backup": "125–141 on actual finish completion (including failure): actual destruction then TCP read EOF/concrete peer-gone before abort143, held client/socket remain live. Normal deadline skips those observations; no credit on forecast failure.",
+    "backup": "143–166 request abort always, only incomplete finish finitely repolled, cancellation classification accepted after explicit own abort, other raw error or timeout retained; destruction then observed under separate finite timeout.",
+    "cause_retention": "Concrete NormalFinishDeadline holds originalElapsed and exposes source; actual finish_with_cleanup retains original primary/secondary error boxes, nested failures retain both; no synthesized JoinError.",
+    "wrapper_necessity": "Distinct normal-stop watchdog context from outer acquisition/safety deadline and backup deadlines; simple local error type adds recoverable typedsource, no generic lifecycle abstraction.",
+    "standards": "Focused observable name, paragraphs separate acquisition/normalstop/prebackup/backup/release; module280lines with own fixture helpers; no wire/config/production change."
+  },
+  "forecasts": {
+    "unmeasured": true,
+    "new_control": "NormalFinishDeadline after actual pending handshake; raw source forecast only",
+    "old_controls": "Two unchanged abandon/abort controls: no new runtime credit",
+    "later_oracles_uncredited_on_forecast_timeout": true
+  },
+  "limitations": [
+    "No target imports, resources, runtime, Cargo, checker, formatting, lint or parsing runs in this review",
+    "No whole facade, ClientHello parser, TLS, serving-child or QUIC-budget source credit",
+    "16s outer watchdog can supersede unfinished inner work on its safety branch; RAII abort is requested, not a universal joined-cleanup guarantee",
+    "Native readiness and original cause/destruction/socket observations must be established by root on both hosts",
+    "No canonical remedy, whole A180/A181 closure, full gate, push or main approval"
+  ],
+  "instructions": "Applicable AGENTS, gate-reviewer, documentation rules and attached standards retained previous whole reads; skills not invoked",
+  "remaining_gates": "Root formatting, focused compile/lint/MSRV and unchanged three-control native baselines on Windows/Linux, followed by independently reviewed remedy and exact integration gates."
+}

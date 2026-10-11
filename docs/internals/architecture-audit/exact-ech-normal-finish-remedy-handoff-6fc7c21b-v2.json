@@ -1,0 +1,420 @@
+{
+  "kind": "author source-only narrow exact ECH normal-finish remedy handoff",
+  "revision": "6fc7c21ba4a85ec3f28bc0186389fcb1a478a2cd",
+  "parent": "15c0dc791b25f41bf97b84e055de52ebe47f846a",
+  "tree": "2ff9f0875d603a200e3b48e74b3393d64aac2211",
+  "lane": "C:/code/phantom-worktrees/audit-exact-ech-finish-remedy",
+  "branch": "lane/audit-exact-ech-finish-remedy",
+  "owned_paths": [
+    "crates/phantom/tests/http3/https_record_ech_exact.rs"
+  ],
+  "commit": {
+    "subject": "fix(http3): stop pending exact ECH handshakes during finish",
+    "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "signature": "Good SSH ED25519 principal alexanderaryaalikhani@gmail.com"
+  },
+  "sources": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "git_blob": "938a7da2f8375125c044dfc6599c41d10559cbce",
+      "physical_sha256": "d4f9d444554ccd978f6a3ef31b6f249b02b8094afeea507771a9b564e2e11cf8",
+      "lf_sha256": "cb3a20754939f466dc7fcf33fde27b612e50bccf2e3713516c950723c06db49b",
+      "lines": 648,
+      "manual_scope": "whole baseline1–640 and whole final1–648, full changed function and complete diff",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 648,
+          "lf_sha256": "cb3a20754939f466dc7fcf33fde27b612e50bccf2e3713516c950723c06db49b"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+      "git_blob": "a51fe953d10a5275f2f507bb37e0756837a0990c",
+      "physical_sha256": "9194e1838dc1de130fd756dbbe880fef1eb7ad6ff9fb8ff43c0bd339e96ea4d2",
+      "lf_sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90",
+      "lines": 280,
+      "manual_scope": "whole unchanged frozen control",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 280,
+          "lf_sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/serving_contract.rs",
+      "git_blob": "3e47c46a3041497bbf999c497a5e5938855fca26",
+      "physical_sha256": "7ad046e5dd557d8dd1ea05538bef8486026062053a076b75fa7d1997aa0aefd6",
+      "lf_sha256": "0aaa000c67b90f91557c3602342fabdc99891facc39d4f8391c7f9bdb94c0a70",
+      "lines": 269,
+      "manual_scope": "whole unchanged serving controls and adapters",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 269,
+          "lf_sha256": "0aaa000c67b90f91557c3602342fabdc99891facc39d4f8391c7f9bdb94c0a70"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "physical_sha256": "515fc6080d43f01f8770ad4c4de3b6710d059ac4ff832765020cda53aa280053",
+      "lf_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "lines": 268,
+      "manual_scope": "whole current concrete task/drain/error combiner",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 268,
+          "lf_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "git_blob": "77d9cea3979091b21e5671ee019c263951e497ad",
+      "physical_sha256": "55309432cff34da4a19fe3c05049ac6b27eaf7097e5e47c25fb3d57971423c37",
+      "lf_sha256": "45ab2b2f74d41c86c76d3b70d84777a6c6b8fa9f99d7b85f7a4e5e23284e837d",
+      "lines": 273,
+      "manual_scope": "partial actual accepted handshake acquisition and TLS result classification",
+      "ranges": [
+        {
+          "start": 184,
+          "end": 231,
+          "lf_sha256": "f66daa4f3ac70ac15af83c5643a638e72603b2e04d8ff9cb8111cb3859e2a34f"
+        }
+      ]
+    },
+    {
+      "path": "AGENTS.md",
+      "git_blob": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "physical_sha256": "61887031cf019147cdf81f5ae3c1667b67f14b342d8d7c1a233ecccd9b71d3eb",
+      "lf_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "lines": 221,
+      "manual_scope": "whole current agreement",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 221,
+          "lf_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269"
+        }
+      ]
+    },
+    {
+      "path": "CLAUDE.md",
+      "git_blob": "d1caac8f2b77920c3895033a85b07e7af44c5e9e",
+      "physical_sha256": "07bbe723529ce56470e4b2ab17a545e2177650c8e25601af4dbcf2a1fb16abf1",
+      "lf_sha256": "e3f251ae145e9f88d307953fae199547d21218365e0e4099f8511a5cc801c9af",
+      "lines": 24,
+      "manual_scope": "whole current supplement",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 24,
+          "lf_sha256": "e3f251ae145e9f88d307953fae199547d21218365e0e4099f8511a5cc801c9af"
+        }
+      ]
+    }
+  ],
+  "resolved_dependency": {
+    "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/macros/select.rs",
+    "physical_sha256": "a1f6cb8d20a378653f2dda59d7137567b07896d76051c19e471812aab86e5229",
+    "manual_scope": "partial resolved Tokio1.53.1 docs/lifecycle/fairness/cancellation and macro tuple ownership/branch poll/drop",
+    "ranges": [
+      {
+        "start": 1,
+        "end": 230,
+        "lf_sha256": "343e4f1aa3f4af03b4bc7a75c0cf146e39bd5adedda081f56b65146513ce1cc3"
+      },
+      {
+        "start": 601,
+        "end": 815,
+        "lf_sha256": "ed54f46ac6b37aa3380e963f8adff931f170325042ac4cab21d0069c5a9c29eb"
+      }
+    ]
+  },
+  "contract": {
+    "scope": "Only canonical240–254 replace seven-line old await block with local actual handshake result and two-branch stop select. No imports, controls or handshake operation changes.",
+    "completion": "Biased handshake-first branch retains the original result/error if that current poll returns Ready even when stop is ready. No universal scheduling/fairness or synchronous-progress promise.",
+    "cancellation": "If actual handshake is Pending and stop ready, select owns then drops its losing handshake future/TCP state before branch break; intentional shutdown abandons partial ClientHello, never retries or reuses it.",
+    "serving": "Break reaches unchanged listener release and serving drain276–300; already-finished serving tasks are awaited without new abort; only still-running tasks use original stop policy; original failure composition remains.",
+    "wire": "Original try_handshake calls, observer, ECH rejection/partial-peer classification, observed push, serving operation bodies and bytes unchanged outside stop selection.",
+    "non_goals": "No pending-serving controls, QUIC cleanup budgets, new classifier, generic owner abstraction, test deadline/API or central docs changes."
+  },
+  "preservation": {
+    "whole_640_line_inverse_exact": true,
+    "old_canonical_git_blob": "cdb7cb02a76bbbbb2f23374efc708c3716840bcf",
+    "old_canonical_lf_sha256": "4a7ce0c4183f5938107702c23fd16ebe1be4b13c20dbbc7037551ac0c360f157",
+    "inverse_method": "Replace exactly new240–254 block with old240–246 block; reproduces complete baseline LF source",
+    "all_other_tracked_paths_exact": true,
+    "owner_contract_blob": "a51fe953d10a5275f2f507bb37e0756837a0990c",
+    "all_three_owner_controls_deadlines_assertions_exact": true,
+    "serving_and_deadline_control_files_exact": true,
+    "entire_operation_bodies_outside_handshake_stop_block_exact": true
+  },
+  "baseline": {
+    "revision": "15c0dc791b25f41bf97b84e055de52ebe47f846a",
+    "root_reported_handles_terminal": true,
+    "records": [
+      {
+        "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-15c0dc79-windows.log",
+        "sha256": "b433c1628dbd072da1ea6d294dd75d3656876055f04e7e1a9b2270076a3abf8c",
+        "read_scope": "whole recorded file, terminal root completion independently supplied"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-15c0dc79-windows.revision",
+        "sha256": "458add38535bae9e9dc6e3a7e9e202d2cb799ef6bc873d887f770a1929f1fd14",
+        "read_scope": "whole recorded file, terminal root completion independently supplied"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-15c0dc79-windows.exit",
+        "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+        "read_scope": "whole recorded file, terminal root completion independently supplied"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-15c0dc79-windows.runner-exit",
+        "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+        "read_scope": "whole recorded file, terminal root completion independently supplied"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-15c0dc79-linux.log",
+        "sha256": "724d51ddae0c8e9a4a3cfab00853aa2bd96bc46df2bc06eba646b492816ec68f",
+        "read_scope": "whole recorded file, terminal root completion independently supplied"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-15c0dc79-linux.revision",
+        "sha256": "458add38535bae9e9dc6e3a7e9e202d2cb799ef6bc873d887f770a1929f1fd14",
+        "read_scope": "whole recorded file, terminal root completion independently supplied"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-15c0dc79-linux.exit",
+        "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+        "read_scope": "whole recorded file, terminal root completion independently supplied"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-15c0dc79-linux.runner-exit",
+        "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+        "read_scope": "whole recorded file, terminal root completion independently supplied"
+      }
+    ],
+    "observed_logs": "Full both logs/sidecars read:3 selected each,2PASS,1 NormalFinishDeadline(Elapsed(())) FAIL; nextest and runner exits100; no backup composition failure in returned cause; post-normalfinish destruction/socket oracles skipped/uncredited.",
+    "qualification": "Root owns execution; author only reads recorded artifacts, no fresh native run. Existing two methods pass, new control fails after readiness under its unchanged source contract."
+  },
+  "forecast": {
+    "remedy_unexecuted": true,
+    "three_original_owner_controls": "forecast3PASS, not measured",
+    "new_expected_oracles": "Normal finish resolves before2s watchdog; actual destructor and socket closure observed before backup; raw completed/error policy preserved in source only until controls run",
+    "ready_result_stop_tie": "source assessed, no simultaneous-ready native control",
+    "completed_serving_controls": "unchanged concrete2-method successful/failure identity controls, root still must execute composed selection"
+  },
+  "checks": [
+    "Read clean exactparent at start",
+    "Whole baseline/current canonical and supporting ranges manually read",
+    "Exact inverse PASS",
+    "Git diffcheck0 and staged diffcheck0",
+    "One owned path only:13insertions5deletions",
+    "Good signed human identity",
+    "Clean frozen lane"
+  ],
+  "source_operations": "Read-only Git/file/hash reconciliation; one owned source edit and signed commit. No Cargo/native/format/lint/checkers/parsing/target imports/socket/network probes.",
+  "central_docs": "Root owns CHANGELOG/shared audit evidence after verification; none edited in lane",
+  "independence": "Authored self-review; independent vendor review pending",
+  "limits": [
+    "No remedy native result or complete A180/A181 closure",
+    "Drop/select cancellation is cooperative; no universal deadline for task/finalizer shutdown",
+    "Abandoning partial ClientHello discards progress intentionally at shutdown; no cancellation-safe resume claim",
+    "Existing ordinary serving classification and budget paths remain separate",
+    "No push, merge, release or main/full-gate approval"
+  ],
+  "diff": {
+    "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-remedy-handoff-6fc7c21b.diff",
+    "sha256": "b02854d5739aa2dcaeb1adc18e3fbbd0db6d4798433d2408f24d518787c3ebff"
+  },
+  "evidence_serialization_correction": {
+    "supersedes_initial_source_range_fields": true,
+    "initial_json_sha256": "8e1a9c0aca26114f27aabf47994bd78ddf6e3375450280a516bd8e2263e4f865",
+    "initial_md_sha256": "44a4f6606ccd9abf56b71033a4fb044a63039846ad240ef204cc7806e2d7c967",
+    "initial_diff_remains_valid": true,
+    "reason": "PowerShell flattened one-tuple range arrays, generating null end fields. Corrected explicit typed start/end bindings now validated against actual EOF, LF bytes and Git objects. CLAUDE.md actual whole EOF is24, freshly read via complete original command; initial unusable32 declaration grants no32-line credit.",
+    "source_and_verdict_unchanged": true,
+    "originals_preserved": true
+  },
+  "prior_independent_review_range_correction": {
+    "original_json_path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-independent-source-review-4a8968d6.json",
+    "original_json_sha256": "489803fe7c18cc61e5c970afea53c24711297bc21445efb30b96f015a1630108",
+    "corrected_source_bindings": [
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+        "git_blob": "a51fe953d10a5275f2f507bb37e0756837a0990c",
+        "physical_sha256": "8b8bd0f43aae9b12dbcc822f383f070f8bdcaa36cd43be506024b7113b84b229",
+        "lf_sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90",
+        "line_count": 280,
+        "manual_scope": "whole",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 280,
+            "lf_sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90"
+          }
+        ]
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+        "git_blob": "cdb7cb02a76bbbbb2f23374efc708c3716840bcf",
+        "physical_sha256": "3299c38dbc0d761158941b309f8197de09ad777f3cf854a05d4cba2a1c4c6267",
+        "lf_sha256": "4a7ce0c4183f5938107702c23fd16ebe1be4b13c20dbbc7037551ac0c360f157",
+        "line_count": 640,
+        "manual_scope": "whole",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 640,
+            "lf_sha256": "4a7ce0c4183f5938107702c23fd16ebe1be4b13c20dbbc7037551ac0c360f157"
+          }
+        ]
+      },
+      {
+        "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+        "git_blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+        "physical_sha256": "515fc6080d43f01f8770ad4c4de3b6710d059ac4ff832765020cda53aa280053",
+        "lf_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+        "line_count": 268,
+        "manual_scope": "whole",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 268,
+            "lf_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd"
+          }
+        ]
+      },
+      {
+        "path": "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs",
+        "git_blob": "42467eb02ad58ac6d2cf0d3ef325a786bb7f8a06",
+        "physical_sha256": "576473339cfe5ccb75a936636f4a849f156601cbed7f54dfd836db36ab6928b9",
+        "lf_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3",
+        "line_count": 59,
+        "manual_scope": "whole",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 59,
+            "lf_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3"
+          }
+        ]
+      },
+      {
+        "path": "crates/phantom/tests/support/ech.rs",
+        "git_blob": "77d9cea3979091b21e5671ee019c263951e497ad",
+        "physical_sha256": "55309432cff34da4a19fe3c05049ac6b27eaf7097e5e47c25fb3d57971423c37",
+        "lf_sha256": "45ab2b2f74d41c86c76d3b70d84777a6c6b8fa9f99d7b85f7a4e5e23284e837d",
+        "line_count": 273,
+        "manual_scope": "partial",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 60,
+            "lf_sha256": "b01814bfb6823425bb190a3e78d61e27d3fcc69de9531f237e79549576e49b1f"
+          },
+          {
+            "start": 184,
+            "end": 245,
+            "lf_sha256": "bc97807956624160ee0b983ee8689c4b6045b26d23c5350ae50a41d348d0a6c2"
+          }
+        ]
+      },
+      {
+        "path": "crates/phantom/tests/support/tls.rs",
+        "git_blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+        "physical_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+        "lf_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+        "line_count": 225,
+        "manual_scope": "partial",
+        "ranges": [
+          {
+            "start": 211,
+            "end": 225,
+            "lf_sha256": "46996d3cae96a15022161ed5bc6e2a608e7e0581334d24c06ab3df74fa1568c4"
+          }
+        ]
+      },
+      {
+        "path": "Cargo.lock",
+        "git_blob": "82675002c9aa286e2724ba59868f20c370546881",
+        "physical_sha256": "2e5d931fd2a49ca53292ea644fb00040a81ea969e22b843eb63ba48171db6319",
+        "lf_sha256": "bc74e82987e224e21e923efc8ff63dcf5fae4f4c1d82f438a01e243918263df0",
+        "line_count": 2772,
+        "manual_scope": "partial",
+        "ranges": [
+          {
+            "start": 2218,
+            "end": 2233,
+            "lf_sha256": "05f4c7ab92b5f3127e6d3c3f0b3b7fc3ecac0efbdc0840ce65aa15efaf2716cc"
+          }
+        ]
+      }
+    ],
+    "corrected_resolved_dependency_bindings": [
+      {
+        "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/time/timeout.rs",
+        "sha256": "5b1b20cb77de63fb5071b696ac644706a9749e0aeb6dbea57220834cba6dc953",
+        "manual_scope": "partial",
+        "ranges": [
+          {
+            "start": 160,
+            "end": 249,
+            "lf_sha256": "3d4e5d7eb5905a030574cee1243e8e8b44fe5f14ba436f2558abfc5085448557"
+          }
+        ]
+      },
+      {
+        "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/error.rs",
+        "sha256": "0c84e9189f351c6e1eb0c5865b9df84a928ed4602b06fd5c2e71fb7c43eb1e27",
+        "manual_scope": "partial",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 91,
+            "lf_sha256": "10125546906b47dad8fc8caeb4bbe45c9d42d071a392d862f48768ee5bda61b4"
+          }
+        ]
+      },
+      {
+        "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/time/error.rs",
+        "sha256": "48dee729b01f8fe1eeea99b516ce99b76733c01e49e788b3764ab478acef1837",
+        "manual_scope": "partial",
+        "ranges": [
+          {
+            "start": 100,
+            "end": 123,
+            "lf_sha256": "d84b35739d074cfe2dff4411bc5ba2f8c23cf0de77a4ce7996e753def137759d"
+          }
+        ]
+      },
+      {
+        "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/join.rs",
+        "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+        "manual_scope": "partial",
+        "ranges": [
+          {
+            "start": 187,
+            "end": 230,
+            "lf_sha256": "2f2605bb9c4c69a609c8ed1baf0516edb042c6709f144faf5efbe8062f848e17"
+          },
+          {
+            "start": 290,
+            "end": 349,
+            "lf_sha256": "193a1101bdef4c428dd26e6502a5caacf8dde7bc3f4b825d3d69b8fb457b508d"
+          }
+        ]
+      }
+    ],
+    "scope": "Correct prior machine range serialization only. Actual prior bounded reads, full-file blobs/hashes, original valid author range checks and test-source approval unchanged; no new independent remedy approval or fresh whole-source credit.",
+    "original_preserved": true
+  }
+}

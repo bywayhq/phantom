@@ -1,0 +1,443 @@
+{
+  "observed_at": "2026-10-11T03:46:46.5646828Z",
+  "repository": "bywayhq/phantom",
+  "pull_request": 197,
+  "response": {
+    "headRefOid": "7d47406fe0a9332bd55fd24f2d4168ae4e223d0c",
+    "isDraft": true,
+    "state": "OPEN",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:31:05Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414180/job/114378715805",
+        "name": "Selected client suite",
+        "startedAt": "2026-10-11T03:27:03Z",
+        "status": "COMPLETED",
+        "workflowName": "Autobahn WebSocket conformance"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:36:21Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414110/job/114378715356",
+        "name": "Native tests and BoGo",
+        "startedAt": "2026-10-11T03:27:03Z",
+        "status": "COMPLETED",
+        "workflowName": "BoringSSL native"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:27:09Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378716034",
+        "name": "Classify changes",
+        "startedAt": "2026-10-11T03:27:03Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:27:46Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108412441/job/114378713058",
+        "name": "Analyze (actions)",
+        "startedAt": "2026-10-11T03:27:02Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:31:06Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414177/job/114378716033",
+        "name": "Lint fuzz targets",
+        "startedAt": "2026-10-11T03:27:03Z",
+        "status": "COMPLETED",
+        "workflowName": "Parser fuzzing"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:30:26Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414195/job/114378715762",
+        "name": "H3 client endpoint",
+        "startedAt": "2026-10-11T03:27:03Z",
+        "status": "COMPLETED",
+        "workflowName": "QUIC interoperability"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:27:40Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414158/job/114378715758",
+        "name": "phantom-quic-btls under ASan",
+        "startedAt": "2026-10-11T03:27:03Z",
+        "status": "COMPLETED",
+        "workflowName": "Sanitizers"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:30:51Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414210/job/114378715707",
+        "name": "TLS 1.2 and TLS 1.3 client smoke",
+        "startedAt": "2026-10-11T03:27:03Z",
+        "status": "COMPLETED",
+        "workflowName": "TLS-Anvil client conformance"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:29:25Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414283/job/114378716042",
+        "name": "Linux selected suite",
+        "startedAt": "2026-10-11T03:27:03Z",
+        "status": "COMPLETED",
+        "workflowName": "WPT EventSource conformance"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:28:05Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108412441/job/114378712984",
+        "name": "Analyze (javascript-typescript)",
+        "startedAt": "2026-10-11T03:27:03Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:29:04Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414158/job/114378715629",
+        "name": "HTTP/3 loopback under ASan",
+        "startedAt": "2026-10-11T03:27:04Z",
+        "status": "COMPLETED",
+        "workflowName": "Sanitizers"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:30:20Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414283/job/114378716187",
+        "name": "macOS selected suite",
+        "startedAt": "2026-10-11T03:27:07Z",
+        "status": "COMPLETED",
+        "workflowName": "WPT EventSource conformance"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:27:51Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108412441/job/114378713055",
+        "name": "Analyze (python)",
+        "startedAt": "2026-10-11T03:27:02Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:34:39Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108412441/job/114378713067",
+        "name": "Analyze (rust)",
+        "startedAt": "2026-10-11T03:27:03Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:27:13Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378716039",
+        "name": "Documentation",
+        "startedAt": "2026-10-11T03:27:03Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:34:07Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414177/job/114378716231",
+        "name": "alt_svc_snapshot under ASan",
+        "startedAt": "2026-10-11T03:29:27Z",
+        "status": "COMPLETED",
+        "workflowName": "Parser fuzzing"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:32:32Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414177/job/114378716212",
+        "name": "client_hello under ASan",
+        "startedAt": "2026-10-11T03:27:03Z",
+        "status": "COMPLETED",
+        "workflowName": "Parser fuzzing"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:33:36Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414177/job/114378716229",
+        "name": "cookie_jar under ASan",
+        "startedAt": "2026-10-11T03:29:05Z",
+        "status": "COMPLETED",
+        "workflowName": "Parser fuzzing"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:36:36Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414177/job/114378716239",
+        "name": "cookie_snapshot under ASan",
+        "startedAt": "2026-10-11T03:30:13Z",
+        "status": "COMPLETED",
+        "workflowName": "Parser fuzzing"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:35:57Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414177/job/114378716236",
+        "name": "ech_config_list under ASan",
+        "startedAt": "2026-10-11T03:29:37Z",
+        "status": "COMPLETED",
+        "workflowName": "Parser fuzzing"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:35:35Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414177/job/114378716228",
+        "name": "http1_response under ASan",
+        "startedAt": "2026-10-11T03:29:08Z",
+        "status": "COMPLETED",
+        "workflowName": "Parser fuzzing"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:33:18Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414177/job/114378716224",
+        "name": "http_connect_response under ASan",
+        "startedAt": "2026-10-11T03:27:03Z",
+        "status": "COMPLETED",
+        "workflowName": "Parser fuzzing"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:33:34Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414177/job/114378716238",
+        "name": "http2_frame under ASan",
+        "startedAt": "2026-10-11T03:27:11Z",
+        "status": "COMPLETED",
+        "workflowName": "Parser fuzzing"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:33:35Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414177/job/114378716128",
+        "name": "https_record under ASan",
+        "startedAt": "2026-10-11T03:27:03Z",
+        "status": "COMPLETED",
+        "workflowName": "Parser fuzzing"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:32:36Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414177/job/114378716218",
+        "name": "proxy_basic_challenge under ASan",
+        "startedAt": "2026-10-11T03:27:03Z",
+        "status": "COMPLETED",
+        "workflowName": "Parser fuzzing"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:33:35Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414177/job/114378716237",
+        "name": "quic_transport_parameters under ASan",
+        "startedAt": "2026-10-11T03:27:03Z",
+        "status": "COMPLETED",
+        "workflowName": "Parser fuzzing"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:36:41Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378736941",
+        "name": "Quality",
+        "startedAt": "2026-10-11T03:30:27Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:29:49Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378736905",
+        "name": "Features",
+        "startedAt": "2026-10-11T03:27:14Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:33:39Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378736984",
+        "name": "Downstream",
+        "startedAt": "2026-10-11T03:31:06Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:34:41Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378737011",
+        "name": "Vendor (btls)",
+        "startedAt": "2026-10-11T03:30:21Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:29:06Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378736992",
+        "name": "Vendor (h3)",
+        "startedAt": "2026-10-11T03:28:06Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:29:35Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378736990",
+        "name": "Vendor (http2)",
+        "startedAt": "2026-10-11T03:27:48Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:33:05Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378737067",
+        "name": "Vendor (quinn)",
+        "startedAt": "2026-10-11T03:32:34Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:33:36Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378737034",
+        "name": "Vendor (quinn-proto)",
+        "startedAt": "2026-10-11T03:32:38Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:32:56Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378737047",
+        "name": "Vendor (tokio-btls)",
+        "startedAt": "2026-10-11T03:31:08Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:30:11Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378737014",
+        "name": "Vendor (tokio-tungstenite)",
+        "startedAt": "2026-10-11T03:29:51Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:32:59Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378737061",
+        "name": "Vendor (tungstenite)",
+        "startedAt": "2026-10-11T03:30:53Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:33:38Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378737059",
+        "name": "Vendor (wreq-proto)",
+        "startedAt": "2026-10-11T03:32:57Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:41:15Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378736963",
+        "name": "Platform (macos-latest)",
+        "startedAt": "2026-10-11T03:30:43Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:39:37Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378736962",
+        "name": "Platform (windows-latest)",
+        "startedAt": "2026-10-11T03:27:53Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:30:35Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114378736938",
+        "name": "MSRV",
+        "startedAt": "2026-10-11T03:27:42Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:41:21Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/actions/runs/38108414170/job/114380986091",
+        "name": "CI required",
+        "startedAt": "2026-10-11T03:41:17Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-11T03:27:40Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/bywayhq/phantom/runs/114378812106",
+        "name": "CodeQL",
+        "startedAt": "2026-10-11T03:27:38Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "url": "https://github.com/bywayhq/phantom/pull/197"
+  }
+}

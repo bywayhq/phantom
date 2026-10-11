@@ -1,0 +1,273 @@
+{
+  "kind": "author source-only narrow exact ECH normal-finish remedy handoff",
+  "revision": "6fc7c21ba4a85ec3f28bc0186389fcb1a478a2cd",
+  "parent": "15c0dc791b25f41bf97b84e055de52ebe47f846a",
+  "tree": "2ff9f0875d603a200e3b48e74b3393d64aac2211",
+  "lane": "C:/code/phantom-worktrees/audit-exact-ech-finish-remedy",
+  "branch": "lane/audit-exact-ech-finish-remedy",
+  "owned_paths": [
+    "crates/phantom/tests/http3/https_record_ech_exact.rs"
+  ],
+  "commit": {
+    "subject": "fix(http3): stop pending exact ECH handshakes during finish",
+    "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "signature": "Good SSH ED25519 principal alexanderaryaalikhani@gmail.com"
+  },
+  "sources": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "git_blob": "938a7da2f8375125c044dfc6599c41d10559cbce",
+      "physical_sha256": "d4f9d444554ccd978f6a3ef31b6f249b02b8094afeea507771a9b564e2e11cf8",
+      "lf_sha256": "cb3a20754939f466dc7fcf33fde27b612e50bccf2e3713516c950723c06db49b",
+      "lines": 648,
+      "manual_scope": "whole baseline1–640 and whole final1–648, full changed function and complete diff",
+      "ranges": [
+        {
+          "start": 1,
+          "end": null,
+          "lf_sha256": "61749af48c65039c46f7fbcf7fe5033c60305c7e31c76ea9da090bde6a007e54"
+        },
+        {
+          "start": 648,
+          "end": null,
+          "lf_sha256": "e0bc179f3e318158f6cc419ace9344f90aa329556d75ca7984f0c26a15e78289"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+      "git_blob": "a51fe953d10a5275f2f507bb37e0756837a0990c",
+      "physical_sha256": "9194e1838dc1de130fd756dbbe880fef1eb7ad6ff9fb8ff43c0bd339e96ea4d2",
+      "lf_sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90",
+      "lines": 280,
+      "manual_scope": "whole unchanged frozen control",
+      "ranges": [
+        {
+          "start": 1,
+          "end": null,
+          "lf_sha256": "136c8b3ccde757376e5904f85ec17c83c1c8bf1cb507aa9994fc85113f4d9e72"
+        },
+        {
+          "start": 280,
+          "end": null,
+          "lf_sha256": "1ec67657ee24bd93e81797eb1eee6a3982e930622e8a6ea7ce05538528b654bd"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/serving_contract.rs",
+      "git_blob": "3e47c46a3041497bbf999c497a5e5938855fca26",
+      "physical_sha256": "7ad046e5dd557d8dd1ea05538bef8486026062053a076b75fa7d1997aa0aefd6",
+      "lf_sha256": "0aaa000c67b90f91557c3602342fabdc99891facc39d4f8391c7f9bdb94c0a70",
+      "lines": 269,
+      "manual_scope": "whole unchanged serving controls and adapters",
+      "ranges": [
+        {
+          "start": 1,
+          "end": null,
+          "lf_sha256": "5100a66c50c0ce2ec9e7b74911a1e6e472e60d199f9c97f96e441ef7743a781a"
+        },
+        {
+          "start": 269,
+          "end": null,
+          "lf_sha256": "0bee52b5eb88f0e0d81dff8a203ae75829a8c3a362f5bdf1cd2520463929aed3"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "physical_sha256": "515fc6080d43f01f8770ad4c4de3b6710d059ac4ff832765020cda53aa280053",
+      "lf_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "lines": 268,
+      "manual_scope": "whole current concrete task/drain/error combiner",
+      "ranges": [
+        {
+          "start": 1,
+          "end": null,
+          "lf_sha256": "5100a66c50c0ce2ec9e7b74911a1e6e472e60d199f9c97f96e441ef7743a781a"
+        },
+        {
+          "start": 268,
+          "end": null,
+          "lf_sha256": "f29ca3b4be9221b51424b82031bad59e4f03beef9fcac4494cfba4d56f0276c8"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "git_blob": "77d9cea3979091b21e5671ee019c263951e497ad",
+      "physical_sha256": "55309432cff34da4a19fe3c05049ac6b27eaf7097e5e47c25fb3d57971423c37",
+      "lf_sha256": "45ab2b2f74d41c86c76d3b70d84777a6c6b8fa9f99d7b85f7a4e5e23284e837d",
+      "lines": 273,
+      "manual_scope": "partial actual accepted handshake acquisition and TLS result classification",
+      "ranges": [
+        {
+          "start": 184,
+          "end": null,
+          "lf_sha256": "198e218172bbe30abba8538e8049c8e15b25e7ac5998d0f5e0b932ebea007acd"
+        },
+        {
+          "start": 231,
+          "end": null,
+          "lf_sha256": "02a4628efa9aff9b8baab676b7a91fc666e1a26ef81281db739286d23769f92c"
+        }
+      ]
+    },
+    {
+      "path": "AGENTS.md",
+      "git_blob": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "physical_sha256": "61887031cf019147cdf81f5ae3c1667b67f14b342d8d7c1a233ecccd9b71d3eb",
+      "lf_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "lines": 221,
+      "manual_scope": "whole current agreement",
+      "ranges": [
+        {
+          "start": 1,
+          "end": null,
+          "lf_sha256": "476dfc90359fa680c23cc65ab83facdb5c77658c8307cb8a09eb840d269339db"
+        },
+        {
+          "start": 221,
+          "end": null,
+          "lf_sha256": "96bd3bf9ff524ddc68a9a6cca62f25176c4dcfc8aa5cf04b41f521786129a4f9"
+        }
+      ]
+    },
+    {
+      "path": "CLAUDE.md",
+      "git_blob": "d1caac8f2b77920c3895033a85b07e7af44c5e9e",
+      "physical_sha256": "07bbe723529ce56470e4b2ab17a545e2177650c8e25601af4dbcf2a1fb16abf1",
+      "lf_sha256": "e3f251ae145e9f88d307953fae199547d21218365e0e4099f8511a5cc801c9af",
+      "lines": 24,
+      "manual_scope": "whole current supplement",
+      "ranges": [
+        {
+          "start": 1,
+          "end": null,
+          "lf_sha256": "d3f33de3f33fe825a2ce91e4ddacff3fb9ecee91dffca50eb42e294996460d89"
+        },
+        {
+          "start": 32,
+          "end": null,
+          "lf_sha256": "c5ce57d9096fe031651d2f6188baff245f612d314791aeafb629e0f87e2c7b6f"
+        }
+      ]
+    }
+  ],
+  "resolved_dependency": {
+    "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/macros/select.rs",
+    "physical_sha256": "a1f6cb8d20a378653f2dda59d7137567b07896d76051c19e471812aab86e5229",
+    "manual_scope": "partial resolved Tokio1.53.1 docs/lifecycle/fairness/cancellation and macro tuple ownership/branch poll/drop",
+    "ranges": [
+      {
+        "start": 1,
+        "end": 230,
+        "lf_sha256": "343e4f1aa3f4af03b4bc7a75c0cf146e39bd5adedda081f56b65146513ce1cc3"
+      },
+      {
+        "start": 601,
+        "end": 815,
+        "lf_sha256": "ed54f46ac6b37aa3380e963f8adff931f170325042ac4cab21d0069c5a9c29eb"
+      }
+    ]
+  },
+  "contract": {
+    "scope": "Only canonical240–254 replace seven-line old await block with local actual handshake result and two-branch stop select. No imports, controls or handshake operation changes.",
+    "completion": "Biased handshake-first branch retains the original result/error if that current poll returns Ready even when stop is ready. No universal scheduling/fairness or synchronous-progress promise.",
+    "cancellation": "If actual handshake is Pending and stop ready, select owns then drops its losing handshake future/TCP state before branch break; intentional shutdown abandons partial ClientHello, never retries or reuses it.",
+    "serving": "Break reaches unchanged listener release and serving drain276–300; already-finished serving tasks are awaited without new abort; only still-running tasks use original stop policy; original failure composition remains.",
+    "wire": "Original try_handshake calls, observer, ECH rejection/partial-peer classification, observed push, serving operation bodies and bytes unchanged outside stop selection.",
+    "non_goals": "No pending-serving controls, QUIC cleanup budgets, new classifier, generic owner abstraction, test deadline/API or central docs changes."
+  },
+  "preservation": {
+    "whole_640_line_inverse_exact": true,
+    "old_canonical_git_blob": "cdb7cb02a76bbbbb2f23374efc708c3716840bcf",
+    "old_canonical_lf_sha256": "4a7ce0c4183f5938107702c23fd16ebe1be4b13c20dbbc7037551ac0c360f157",
+    "inverse_method": "Replace exactly new240–254 block with old240–246 block; reproduces complete baseline LF source",
+    "all_other_tracked_paths_exact": true,
+    "owner_contract_blob": "a51fe953d10a5275f2f507bb37e0756837a0990c",
+    "all_three_owner_controls_deadlines_assertions_exact": true,
+    "serving_and_deadline_control_files_exact": true,
+    "entire_operation_bodies_outside_handshake_stop_block_exact": true
+  },
+  "baseline": {
+    "revision": "15c0dc791b25f41bf97b84e055de52ebe47f846a",
+    "root_reported_handles_terminal": true,
+    "records": [
+      {
+        "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-15c0dc79-windows.log",
+        "sha256": "b433c1628dbd072da1ea6d294dd75d3656876055f04e7e1a9b2270076a3abf8c",
+        "read_scope": "whole recorded file, terminal root completion independently supplied"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-15c0dc79-windows.revision",
+        "sha256": "458add38535bae9e9dc6e3a7e9e202d2cb799ef6bc873d887f770a1929f1fd14",
+        "read_scope": "whole recorded file, terminal root completion independently supplied"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-15c0dc79-windows.exit",
+        "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+        "read_scope": "whole recorded file, terminal root completion independently supplied"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-15c0dc79-windows.runner-exit",
+        "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+        "read_scope": "whole recorded file, terminal root completion independently supplied"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-15c0dc79-linux.log",
+        "sha256": "724d51ddae0c8e9a4a3cfab00853aa2bd96bc46df2bc06eba646b492816ec68f",
+        "read_scope": "whole recorded file, terminal root completion independently supplied"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-15c0dc79-linux.revision",
+        "sha256": "458add38535bae9e9dc6e3a7e9e202d2cb799ef6bc873d887f770a1929f1fd14",
+        "read_scope": "whole recorded file, terminal root completion independently supplied"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-15c0dc79-linux.exit",
+        "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+        "read_scope": "whole recorded file, terminal root completion independently supplied"
+      },
+      {
+        "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-baseline-15c0dc79-linux.runner-exit",
+        "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+        "read_scope": "whole recorded file, terminal root completion independently supplied"
+      }
+    ],
+    "observed_logs": "Full both logs/sidecars read:3 selected each,2PASS,1 NormalFinishDeadline(Elapsed(())) FAIL; nextest and runner exits100; no backup composition failure in returned cause; post-normalfinish destruction/socket oracles skipped/uncredited.",
+    "qualification": "Root owns execution; author only reads recorded artifacts, no fresh native run. Existing two methods pass, new control fails after readiness under its unchanged source contract."
+  },
+  "forecast": {
+    "remedy_unexecuted": true,
+    "three_original_owner_controls": "forecast3PASS, not measured",
+    "new_expected_oracles": "Normal finish resolves before2s watchdog; actual destructor and socket closure observed before backup; raw completed/error policy preserved in source only until controls run",
+    "ready_result_stop_tie": "source assessed, no simultaneous-ready native control",
+    "completed_serving_controls": "unchanged concrete2-method successful/failure identity controls, root still must execute composed selection"
+  },
+  "checks": [
+    "Read clean exactparent at start",
+    "Whole baseline/current canonical and supporting ranges manually read",
+    "Exact inverse PASS",
+    "Git diffcheck0 and staged diffcheck0",
+    "One owned path only:13insertions5deletions",
+    "Good signed human identity",
+    "Clean frozen lane"
+  ],
+  "source_operations": "Read-only Git/file/hash reconciliation; one owned source edit and signed commit. No Cargo/native/format/lint/checkers/parsing/target imports/socket/network probes.",
+  "central_docs": "Root owns CHANGELOG/shared audit evidence after verification; none edited in lane",
+  "independence": "Authored self-review; independent vendor review pending",
+  "limits": [
+    "No remedy native result or complete A180/A181 closure",
+    "Drop/select cancellation is cooperative; no universal deadline for task/finalizer shutdown",
+    "Abandoning partial ClientHello discards progress intentionally at shutdown; no cancellation-safe resume claim",
+    "Existing ordinary serving classification and budget paths remain separate",
+    "No push, merge, release or main/full-gate approval"
+  ],
+  "diff": {
+    "path": "C:/code/phantom/target/architecture-audit/exact-ech-normal-finish-remedy-handoff-6fc7c21b.diff",
+    "sha256": "b02854d5739aa2dcaeb1adc18e3fbbd0db6d4798433d2408f24d518787c3ebff"
+  }
+}

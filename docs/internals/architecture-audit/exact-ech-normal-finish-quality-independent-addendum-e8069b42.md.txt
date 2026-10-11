@@ -1,0 +1,7 @@
+# Exact ECH focused quality addendum
+
+Both Windows and Linux completed strict Clippy and Rust 1.88 checks for the all-feature `phantom-http` HTTP3 test target at exact revision e8069b4232fedbf883da90dbee69e0a9018128d6. All four command exits and both guarded runner exits are zero. The four full logs contain successful completion and no warning or error headers.
+
+The complete runner and all logs/revision/status sidecars were read manually. Its exact-HEAD and clean-checkout guards run before execution and after each command. The current local checkout was also exact and clean when read. The paired JSON binds every raw artifact by SHA256 and actual inclusive read range.
+
+This supplements the immutable 26-method fixed native assessment; it does not overwrite it or add source-wide coverage. These are focused test-target checks, not workspace or full-gate approval. The runner contains no formatting step, so no new Linux formatting result is claimed. No native commands, imports or checkers were executed by this review.

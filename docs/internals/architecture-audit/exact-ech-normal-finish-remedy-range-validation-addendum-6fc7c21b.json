@@ -1,0 +1,256 @@
+{
+  "kind": "independent additive complete v2 range validation",
+  "source_revision": "6fc7c21ba4a85ec3f28bc0186389fcb1a478a2cd",
+  "historical_source_revision": "4a8968d6ee4609b120ce22abead6db601abcff42",
+  "records": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "revision": "6fc7c21b",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 648,
+          "lf_sha256": "cb3a20754939f466dc7fcf33fde27b612e50bccf2e3713516c950723c06db49b"
+        }
+      ],
+      "raw_sha256": "cb3a20754939f466dc7fcf33fde27b612e50bccf2e3713516c950723c06db49b"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+      "revision": "6fc7c21b",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 280,
+          "lf_sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90"
+        }
+      ],
+      "raw_sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/serving_contract.rs",
+      "revision": "6fc7c21b",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 269,
+          "lf_sha256": "0aaa000c67b90f91557c3602342fabdc99891facc39d4f8391c7f9bdb94c0a70"
+        }
+      ],
+      "raw_sha256": "0aaa000c67b90f91557c3602342fabdc99891facc39d4f8391c7f9bdb94c0a70"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "6fc7c21b",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 268,
+          "lf_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd"
+        }
+      ],
+      "raw_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd"
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "revision": "6fc7c21b",
+      "ranges": [
+        {
+          "start": 184,
+          "end": 231,
+          "lf_sha256": "f66daa4f3ac70ac15af83c5643a638e72603b2e04d8ff9cb8111cb3859e2a34f"
+        }
+      ],
+      "raw_sha256": "45ab2b2f74d41c86c76d3b70d84777a6c6b8fa9f99d7b85f7a4e5e23284e837d"
+    },
+    {
+      "path": "AGENTS.md",
+      "revision": "6fc7c21b",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 221,
+          "lf_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269"
+        }
+      ],
+      "raw_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269"
+    },
+    {
+      "path": "CLAUDE.md",
+      "revision": "6fc7c21b",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 24,
+          "lf_sha256": "e3f251ae145e9f88d307953fae199547d21218365e0e4099f8511a5cc801c9af"
+        }
+      ],
+      "raw_sha256": "e3f251ae145e9f88d307953fae199547d21218365e0e4099f8511a5cc801c9af"
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/macros/select.rs",
+      "revision": null,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 230,
+          "lf_sha256": "343e4f1aa3f4af03b4bc7a75c0cf146e39bd5adedda081f56b65146513ce1cc3"
+        },
+        {
+          "start": 601,
+          "end": 815,
+          "lf_sha256": "ed54f46ac6b37aa3380e963f8adff931f170325042ac4cab21d0069c5a9c29eb"
+        }
+      ],
+      "raw_sha256": "a1f6cb8d20a378653f2dda59d7137567b07896d76051c19e471812aab86e5229"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+      "revision": "4a8968d6",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 280,
+          "lf_sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90"
+        }
+      ],
+      "raw_sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "revision": "4a8968d6",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 640,
+          "lf_sha256": "4a7ce0c4183f5938107702c23fd16ebe1be4b13c20dbbc7037551ac0c360f157"
+        }
+      ],
+      "raw_sha256": "4a7ce0c4183f5938107702c23fd16ebe1be4b13c20dbbc7037551ac0c360f157"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "4a8968d6",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 268,
+          "lf_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd"
+        }
+      ],
+      "raw_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd"
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs",
+      "revision": "4a8968d6",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 59,
+          "lf_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3"
+        }
+      ],
+      "raw_sha256": "c1cbac05eb0f991750377db9d17970054b4538202842b4b64299318fcaab3ea3"
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "revision": "4a8968d6",
+      "ranges": [
+        {
+          "start": 1,
+          "end": 60,
+          "lf_sha256": "b01814bfb6823425bb190a3e78d61e27d3fcc69de9531f237e79549576e49b1f"
+        },
+        {
+          "start": 184,
+          "end": 245,
+          "lf_sha256": "bc97807956624160ee0b983ee8689c4b6045b26d23c5350ae50a41d348d0a6c2"
+        }
+      ],
+      "raw_sha256": "45ab2b2f74d41c86c76d3b70d84777a6c6b8fa9f99d7b85f7a4e5e23284e837d"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "4a8968d6",
+      "ranges": [
+        {
+          "start": 211,
+          "end": 225,
+          "lf_sha256": "46996d3cae96a15022161ed5bc6e2a608e7e0581334d24c06ab3df74fa1568c4"
+        }
+      ],
+      "raw_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af"
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "4a8968d6",
+      "ranges": [
+        {
+          "start": 2218,
+          "end": 2233,
+          "lf_sha256": "05f4c7ab92b5f3127e6d3c3f0b3b7fc3ecac0efbdc0840ce65aa15efaf2716cc"
+        }
+      ],
+      "raw_sha256": "bc74e82987e224e21e923efc8ff63dcf5fae4f4c1d82f438a01e243918263df0"
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/time/timeout.rs",
+      "revision": null,
+      "ranges": [
+        {
+          "start": 160,
+          "end": 249,
+          "lf_sha256": "3d4e5d7eb5905a030574cee1243e8e8b44fe5f14ba436f2558abfc5085448557"
+        }
+      ],
+      "raw_sha256": "5b1b20cb77de63fb5071b696ac644706a9749e0aeb6dbea57220834cba6dc953"
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/error.rs",
+      "revision": null,
+      "ranges": [
+        {
+          "start": 1,
+          "end": 91,
+          "lf_sha256": "10125546906b47dad8fc8caeb4bbe45c9d42d071a392d862f48768ee5bda61b4"
+        }
+      ],
+      "raw_sha256": "0c84e9189f351c6e1eb0c5865b9df84a928ed4602b06fd5c2e71fb7c43eb1e27"
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/time/error.rs",
+      "revision": null,
+      "ranges": [
+        {
+          "start": 100,
+          "end": 123,
+          "lf_sha256": "d84b35739d074cfe2dff4411bc5ba2f8c23cf0de77a4ce7996e753def137759d"
+        }
+      ],
+      "raw_sha256": "48dee729b01f8fe1eeea99b516ce99b76733c01e49e788b3764ab478acef1837"
+    },
+    {
+      "path": "C:/Users/arya/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.53.1/src/runtime/task/join.rs",
+      "revision": null,
+      "ranges": [
+        {
+          "start": 187,
+          "end": 230,
+          "lf_sha256": "2f2605bb9c4c69a609c8ed1baf0516edb042c6709f144faf5efbe8062f848e17"
+        },
+        {
+          "start": 290,
+          "end": 349,
+          "lf_sha256": "193a1101bdef4c428dd26e6502a5caacf8dde7bc3f4b825d3d69b8fb457b508d"
+        }
+      ],
+      "raw_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7"
+    }
+  ],
+  "total_records": 19,
+  "total_ranges": 22,
+  "manual_read_credit_added": false,
+  "original_reports_preserved": true,
+  "v2_json_sha256": "0b82edd79b8da47df6aa0b37f5c2a5d954450dea90643a4c079bfd194b289d9c",
+  "markdown_sha256": "6f1ac5f3f038d74f6fe6d9ec4e9decbfc476774cf58fccb7fcbc48c43901bbd4"
+}

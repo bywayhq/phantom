@@ -1,0 +1,142 @@
+{
+  "schema": "phantom.independent_source_review.v1",
+  "revision": "6fc7c21ba4a85ec3f28bc0186389fcb1a478a2cd",
+  "parent": "15c0dc791b25f41bf97b84e055de52ebe47f846a",
+  "disposition": "source approved for bounded integration and focused verification",
+  "findings": [],
+  "signed_identity": "Arya Alikhani <AryaAlikhani@icloud.com>\nArya Alikhani <AryaAlikhani@icloud.com>\nG",
+  "clean": true,
+  "manual_reads": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "git_blob": "938a7da2f8375125c044dfc6599c41d10559cbce",
+      "raw_sha256": "cb3a20754939f466dc7fcf33fde27b612e50bccf2e3713516c950723c06db49b",
+      "line_count": 648,
+      "manual_scope": "partial including complete changed Origin implementation",
+      "ranges": [
+        {
+          "first": 127,
+          "last": 165,
+          "raw_range_sha256": "4468af69fb11f2d57de6cc9ae859595ad7d1531794d2fba8b84f6e57da040752"
+        },
+        {
+          "first": 194,
+          "last": 327,
+          "raw_range_sha256": "077cca6853eb7b26a2b30f8b4edbbc0386a160be0b6b88fb503dee0f091cc724"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/ech.rs",
+      "git_blob": "77d9cea3979091b21e5671ee019c263951e497ad",
+      "raw_sha256": "45ab2b2f74d41c86c76d3b70d84777a6c6b8fa9f99d7b85f7a4e5e23284e837d",
+      "line_count": 273,
+      "manual_scope": "partial actual complete try_handshake/start functions",
+      "ranges": [
+        {
+          "first": 184,
+          "last": 231,
+          "raw_range_sha256": "f66daa4f3ac70ac15af83c5643a638e72603b2e04d8ff9cb8111cb3859e2a34f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+      "git_blob": "a51fe953d10a5275f2f507bb37e0756837a0990c",
+      "raw_sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90",
+      "line_count": 280,
+      "manual_scope": "whole at parent15c immediately preceding native review; current exact rebind",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 280,
+          "raw_range_sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "raw_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "line_count": 268,
+      "manual_scope": "partial immediately preceding review; current exact rebind",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 155,
+          "raw_range_sha256": "e81c76aabd5d828696a588c89cf685343784aa182f38311e9c747f4cb31f973c"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\macros\\select.rs",
+      "raw_sha256": "a1f6cb8d20a378653f2dda59d7137567b07896d76051c19e471812aab86e5229",
+      "line_count": 1414,
+      "manual_scope": "partial docs and branch ownership/poll/drop implementation",
+      "ranges": [
+        {
+          "first": 1,
+          "last": 155,
+          "raw_range_sha256": "73d9d862061f9012938a76039fd4d7f1b361dfe70e4f3987817aa4ae105818ee"
+        },
+        {
+          "first": 638,
+          "last": 770,
+          "raw_range_sha256": "05971f2bf247597bd0661d85a97d336d4fd06640d83bee499370d45cd970b3dd"
+        },
+        {
+          "first": 798,
+          "last": 810,
+          "raw_range_sha256": "80c5a9a6fcedfeb21ee1495505d944af099bd813ea581a9fa2494f0bd9c179d3"
+        }
+      ]
+    }
+  ],
+  "whole640_inverse_exact": true,
+  "all_other_tree_entries_exact": true,
+  "owner280_serving269_deadline_controls_exact": true,
+  "source_sha256": "cb3a20754939f466dc7fcf33fde27b612e50bccf2e3713516c950723c06db49b",
+  "diff_sha256": "b02854d5739aa2dcaeb1adc18e3fbbd0db6d4798433d2408f24d518787c3ebff",
+  "author_artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-remedy-handoff-6fc7c21b.md",
+      "sha256": "44a4f6606ccd9abf56b71033a4fb044a63039846ad240ef204cc7806e2d7c967",
+      "read_scope": "whole prose/diff; JSON fully parsed and relevant fields inspected"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-remedy-handoff-6fc7c21b.json",
+      "sha256": "8e1a9c0aca26114f27aabf47994bd78ddf6e3375450280a516bd8e2263e4f865",
+      "read_scope": "whole prose/diff; JSON fully parsed and relevant fields inspected"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-remedy-handoff-6fc7c21b-v2.md",
+      "sha256": "775371e50f987da62c6c7ca9e89ed3bce7eccd609ff26349209248c4aebf5f97",
+      "read_scope": "whole prose/diff; JSON fully parsed and relevant fields inspected"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-remedy-handoff-6fc7c21b-v2.json",
+      "sha256": "0b82edd79b8da47df6aa0b37f5c2a5d954450dea90643a4c079bfd194b289d9c",
+      "read_scope": "whole prose/diff; JSON fully parsed and relevant fields inspected"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-remedy-handoff-6fc7c21b.diff",
+      "sha256": "b02854d5739aa2dcaeb1adc18e3fbbd0db6d4798433d2408f24d518787c3ebff",
+      "read_scope": "whole prose/diff; JSON fully parsed and relevant fields inspected"
+    }
+  ],
+  "author_v2_source_ranges_valid": true,
+  "baseline_native_pair": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-independent-native-addendum-15c0dc79.json",
+    "sha256": "9572451fd2c3e6a6e25d58c8260889411e796b9dae965b24c4a48d744e063577"
+  },
+  "forecast_only": "three unchanged controls pass, including normal-finish destruction/socket checks",
+  "executions": 0,
+  "limits": [
+    "No fresh whole648 parent or whole transitive support credit",
+    "Ready result priority means actual current poll; no universal fairness/deadline guarantee",
+    "Partial ClientHello intentionally abandoned on stop; no resume safety claim",
+    "Unchanged serving descendant policy/budget remains separate",
+    "No fixed native/fullgate/main/current-CI proof"
+  ],
+  "markdown_sha256": "85071612d2d1b491562cda38604a93ce056665e5ac1b3b731190a76f6b876ebb"
+}

@@ -61,6 +61,15 @@ coverage, fresh generator output or downstream compilation.
 
 ## Recent verification
 
+The [exact ECH finish checkpoint](exact-ech-normal-finish-root-checkpoint-e8069b42.json)
+records the pending-handshake shutdown failure and repair. All 26 exact-module
+tests pass on both hosts, including destruction and socket closure before backup.
+Focused strict Clippy and Rust 1.88 checks pass. Serving cancellation and QUIC
+budget boundaries remain open.
+
+The [PR checkpoint](pr197-ci-success-7d47406f.json) records all 43 checks passing
+at `7d47406f`, including Windows and macOS. It does not cover later local work.
+
 The [handler overlap checkpoint](handler-overlap-root-checkpoint-e57dade6.json)
 records two causal failures per host before repair. All four unchanged controls
 and twenty related methods pass on both hosts at `e57dade6`. The full capture

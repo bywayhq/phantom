@@ -567,7 +567,7 @@ crates/phantom/tests/http3/http3_session_resumption/relay_controls.rs	source	sou
 crates/phantom/tests/http3/http3_upgrade.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/4
 crates/phantom/tests/http3/http3_upgrade_socks5.rs	crate	source-complete	client-http3-integration-standards-review.json#/source_records/4
 crates/phantom/tests/http3/https_record_ech.rs	crate	source-complete	confirmed-lifecycle-batch-5973305d.json: earlier whole parent plus exact signed deltas, preserved wire statements and independent source review; bounded parallel ownership repair
-crates/phantom/tests/http3/https_record_ech_exact.rs	crate	pending	
+crates/phantom/tests/http3/https_record_ech_exact.rs	crate	source-complete	exact-ech-normal-finish-root-checkpoint-e8069b42.json: bounded complete source review; unchanged causal and composed controls verified; broader ownership/final gates open
 crates/phantom/tests/http3/https_record_ech_http3.rs	crate	source-complete	quic-coordinator-root-checkpoint-145552a1.json: whole 1018-line owner independently reviewed at a874; exact source through tested 145; broader lifecycle and final gates remain open
 crates/phantom/tests/http3/https_records.rs	crate	pending	
 crates/phantom/tests/http3/main.rs	crate	source-complete	client-http3-integration-standards-review.json#/source_records/0; alt-svc-race-fixture-independent-review.json#/source_records/3
@@ -3615,3 +3615,26 @@ docs/internals/architecture-audit/handler-overlap-root-checkpoint-e57dade6.json	
 docs/internals/architecture-audit/maintainer-docs-independent-source-review-e57dade6.json	audit evidence	evidence-indexed	whole maintainer-document source or exact837 PR checkpoint evidence
 docs/internals/architecture-audit/maintainer-docs-independent-source-review-e57dade6.md.txt	audit evidence	evidence-indexed	whole maintainer-document source or exact837 PR checkpoint evidence
 docs/internals/architecture-audit/pr197-ci-success-837ff74d.json	audit evidence	evidence-indexed	whole maintainer-document source or exact837 PR checkpoint evidence
+crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs	test	source-complete	exact-ech-normal-finish-root-checkpoint-e8069b42.json: bounded complete source review; unchanged causal and composed controls verified; broader ownership/final gates open
+docs/internals/architecture-audit/exact-ech-normal-finish-baseline-handoff-4a8968d6.md.txt	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-baseline-handoff-4a8968d6.json	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-scope-correction-4a8968d6.md.txt	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-scope-correction-4a8968d6.json	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-independent-source-review-4a8968d6.md.txt	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-independent-source-review-4a8968d6.json	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-independent-native-addendum-15c0dc79.md.txt	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-independent-native-addendum-15c0dc79.json	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-remedy-handoff-6fc7c21b.md.txt	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-remedy-handoff-6fc7c21b.json	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-remedy-handoff-6fc7c21b-v2.md.txt	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-remedy-handoff-6fc7c21b-v2.json	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-remedy-independent-source-review-6fc7c21b.md.txt	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-remedy-independent-source-review-6fc7c21b.json	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-remedy-range-validation-addendum-6fc7c21b.md.txt	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-remedy-range-validation-addendum-6fc7c21b.json	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-fixed-independent-native-review-e8069b42.md.txt	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-fixed-independent-native-review-e8069b42.json	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-quality-independent-addendum-e8069b42.md.txt	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-quality-independent-addendum-e8069b42.json	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/pr197-ci-success-7d47406f.json	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json
+docs/internals/architecture-audit/exact-ech-normal-finish-root-checkpoint-e8069b42.json	audit evidence	evidence-indexed	exact-ech-normal-finish-root-checkpoint-e8069b42.json

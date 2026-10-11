@@ -1,0 +1,262 @@
+{
+  "schema": "phantom.independent_native_baseline.v1",
+  "revision": "15c0dc791b25f41bf97b84e055de52ebe47f846a",
+  "reviewed_source_revision": "4a8968d6ee4609b120ce22abead6db601abcff42",
+  "disposition": "normal-finish typed deadline causally confirmed both hosts; bounded remedy evidence accepted",
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-baseline-15c0dc79-windows.log",
+      "bytes": 2525,
+      "sha256": "b433c1628dbd072da1ea6d294dd75d3656876055f04e7e1a9b2270076a3abf8c",
+      "lines": 47,
+      "manual_read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-baseline-15c0dc79-windows.revision",
+      "bytes": 41,
+      "sha256": "458add38535bae9e9dc6e3a7e9e202d2cb799ef6bc873d887f770a1929f1fd14",
+      "lines": 1,
+      "manual_read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-baseline-15c0dc79-windows.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "lines": 1,
+      "manual_read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-baseline-15c0dc79-windows.runner-exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "lines": 1,
+      "manual_read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-baseline-15c0dc79-linux.log",
+      "bytes": 2585,
+      "sha256": "724d51ddae0c8e9a4a3cfab00853aa2bd96bc46df2bc06eba646b492816ec68f",
+      "lines": 47,
+      "manual_read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-baseline-15c0dc79-linux.revision",
+      "bytes": 41,
+      "sha256": "458add38535bae9e9dc6e3a7e9e202d2cb799ef6bc873d887f770a1929f1fd14",
+      "lines": 1,
+      "manual_read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-baseline-15c0dc79-linux.exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "lines": 1,
+      "manual_read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-baseline-15c0dc79-linux.runner-exit",
+      "bytes": 4,
+      "sha256": "eea8254c7500ba3de996aa8ad6af399183f04e17d4a8102fde539dbc93a90012",
+      "lines": 1,
+      "manual_read": "whole"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-exact-ech-normal-finish-controls.sh",
+      "bytes": 1493,
+      "sha256": "7324e7be3e36ffed8aa333fb4602cd5528bc780dab365d3c5131d3aa6fc61c5e",
+      "lines": 32,
+      "manual_read": "whole"
+    }
+  ],
+  "source_reads": [
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact/owner_contract.rs",
+      "git_blob": "a51fe953d10a5275f2f507bb37e0756837a0990c",
+      "raw_git_sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90",
+      "lines": 280,
+      "bytes_exact_to_source_review": true,
+      "fresh_manual_scope": "whole",
+      "inclusive_ranges": [
+        {
+          "first": 1,
+          "last": 280,
+          "raw_range_sha256": "a054f74396e4218cba662124e50947a1c94527ea6e3fb68f5a3ba21f44615e90"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/https_record_ech_exact.rs",
+      "git_blob": "cdb7cb02a76bbbbb2f23374efc708c3716840bcf",
+      "raw_git_sha256": "4a7ce0c4183f5938107702c23fd16ebe1be4b13c20dbbc7037551ac0c360f157",
+      "lines": 640,
+      "bytes_exact_to_source_review": true,
+      "fresh_manual_scope": "partial",
+      "inclusive_ranges": [
+        {
+          "first": 194,
+          "last": 323,
+          "raw_range_sha256": "1f803a25b0e8a3caa061e664d268415d0ed377c4acad5481f7a938f8e0449de2"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "raw_git_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "lines": 268,
+      "bytes_exact_to_source_review": true,
+      "fresh_manual_scope": "partial",
+      "inclusive_ranges": [
+        {
+          "first": 1,
+          "last": 155,
+          "raw_range_sha256": "e81c76aabd5d828696a588c89cf685343784aa182f38311e9c747f4cb31f973c"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "git_blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "raw_git_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "lines": 225,
+      "bytes_exact_to_source_review": true,
+      "fresh_manual_scope": "partial",
+      "inclusive_ranges": [
+        {
+          "first": 211,
+          "last": 225,
+          "raw_range_sha256": "46996d3cae96a15022161ed5bc6e2a608e7e0581334d24c06ab3df74fa1568c4"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\timeout.rs",
+      "raw_sha256": "5b1b20cb77de63fb5071b696ac644706a9749e0aeb6dbea57220834cba6dc953",
+      "fresh_manual_scope": "partial",
+      "inclusive_ranges": [
+        {
+          "first": 191,
+          "last": 226,
+          "raw_range_sha256": "30e13e13275246237848b52b54be82d53b1e766b9ddbe2309f46ce5707355b0a"
+        }
+      ]
+    }
+  ],
+  "hosts": {
+    "windows": {
+      "unique_initial_roster": [
+        [
+          "PASS",
+          "0.042",
+          "https_record_ech_exact::owner_contract::abandoning_an_origin_stops_its_actual_pending_handshake"
+        ],
+        [
+          "PASS",
+          "0.046",
+          "https_record_ech_exact::owner_contract::explicitly_aborting_an_origin_destroys_its_actual_pending_handshake"
+        ],
+        [
+          "FAIL",
+          "2.055",
+          "https_record_ech_exact::owner_contract::finishing_an_origin_stops_its_actual_pending_handshake"
+        ]
+      ],
+      "passes": 2,
+      "causal_failure": 1,
+      "raw_nextest_exit": 100,
+      "guarded_runner_exit": 100,
+      "outer_tool_exit_reported_by_root": 1,
+      "selected_skipped": 337,
+      "failure_payload": "NormalFinishDeadline(Elapsed(()))",
+      "duplicated_final_failure_report_not_extra_method": true,
+      "no_compile_or_setup_error": true,
+      "no_warning_header": true
+    },
+    "linux": {
+      "unique_initial_roster": [
+        [
+          "PASS",
+          "0.082",
+          "https_record_ech_exact::owner_contract::explicitly_aborting_an_origin_destroys_its_actual_pending_handshake"
+        ],
+        [
+          "PASS",
+          "0.085",
+          "https_record_ech_exact::owner_contract::abandoning_an_origin_stops_its_actual_pending_handshake"
+        ],
+        [
+          "FAIL",
+          "2.088",
+          "https_record_ech_exact::owner_contract::finishing_an_origin_stops_its_actual_pending_handshake"
+        ]
+      ],
+      "passes": 2,
+      "causal_failure": 1,
+      "raw_nextest_exit": 100,
+      "guarded_runner_exit": 100,
+      "outer_tool_exit_reported_by_root": 1,
+      "selected_skipped": 337,
+      "failure_payload": "NormalFinishDeadline(Elapsed(()))",
+      "duplicated_final_failure_report_not_extra_method": true,
+      "no_compile_or_setup_error": true,
+      "no_warning_header": true
+    }
+  },
+  "prior_immutable_reports": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-baseline-handoff-4a8968d6.md",
+      "sha256": "ec476820f1227d13bafbab252b7f427a353ecc114e059ff663bb78e362aef221",
+      "read_scope": "whole prose / fully parsed JSON"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-baseline-handoff-4a8968d6.json",
+      "sha256": "3dc6c025bc34f27427d593fba7c1de0608c96512a2b2dea0856ae1dc7329e9bf",
+      "read_scope": "whole prose / fully parsed JSON"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-independent-source-review-4a8968d6.md",
+      "sha256": "5b66cd6d587dfe3d35f7447b14084cdb49b5990680a28f5011737ecf1e8f624b",
+      "read_scope": "whole prose / fully parsed JSON"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-independent-source-review-4a8968d6.json",
+      "sha256": "489803fe7c18cc61e5c970afea53c24711297bc21445efb30b96f015a1630108",
+      "read_scope": "whole prose / fully parsed JSON"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-scope-correction-4a8968d6.md",
+      "sha256": "b24d04b20ccdb0e323c5a243d9df839b7f6d8669960cda77e21dfa5ab968c53a",
+      "read_scope": "whole prose / fully parsed JSON"
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\exact-ech-normal-finish-scope-correction-4a8968d6.json",
+      "sha256": "e8b31351ae910c6fb3f58b074439d3b90f8f8871e2398c74458d342aeba89b1a",
+      "read_scope": "whole prose / fully parsed JSON"
+    }
+  ],
+  "reached_prerequisites": [
+    "actual trusted H1 GET",
+    "200 HTTP1.1/public Http1/body ok",
+    "held accepted TCP",
+    "actual canonical handshake Pending",
+    "borrowed normal finish watchdog"
+  ],
+  "unreached_on_normal_finish_deadline": [
+    "pre-backup worker destruction",
+    "pre-backup socket EOF or typed peer-gone"
+  ],
+  "backup_scope": "explicit abort then finite finish repoll and destruction; unwrapped deadline implies no returned cleanup failure",
+  "manual_coverage": "full two 47-line logs, six one-line sidecars and 32-line runner; whole 280 control, canonical/support partials",
+  "clean_revision_current": true,
+  "execution_by_reviewer": 0,
+  "source_edits": 0,
+  "limitations": [
+    "No broad ownership closure",
+    "No native dependency source fingerprint verification",
+    "No whole 640 fresh read in this pass",
+    "No normal-finish socket closure credit",
+    "No retry/additional test count from duplicate final failure output",
+    "No full integration/current-CI/main approval"
+  ],
+  "markdown_sha256": "a8de03d2b537954f83da2c5d6aefaa51a15dc0ca135962d2af09d9bdf636b17a"
+}
