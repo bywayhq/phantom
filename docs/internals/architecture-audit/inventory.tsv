@@ -641,7 +641,7 @@ crates/phantom/tests/requests/timeouts.rs	crate	pending
 crates/phantom/tests/requests/tracing.rs	crate	source-complete	remaining-fixture-root-source-pass-b9dc4bcf.json#crates/phantom/tests/requests/tracing.rs; controls, repair and independent review pending
 crates/phantom/tests/requests/trust_anchor_orders.rs	crate	source-complete	complete root manual source review; exact unchanged 2cea08af binding: recent-evidence-checkpoint-2cea08af.json#/unchanged_complete_source_bindings/3
 crates/phantom/tests/requests/unprocessed_replay.rs	crate	pending	
-crates/phantom/tests/sessions/dns_overrides.rs	crate	source-complete	remaining-fixture-root-source-pass-b9dc4bcf.json#crates/phantom/tests/sessions/dns_overrides.rs; controls, repair and independent review pending
+crates/phantom/tests/sessions/dns_overrides.rs	crate	source-complete	remaining-fixture-root-source-pass-b9dc4bcf.json#crates/phantom/tests/sessions/dns_overrides.rs; controls, repair and independent review pending; dns-origin-owner-root-remedy-a02978a3.json: root whole825/694 and mechanical diff; independent exact source gate/addendum; all27 each host pass; DNS deadline/final gates open
 crates/phantom/tests/sessions/early_data_server.rs	crate	pending	
 crates/phantom/tests/sessions/http2_connections.rs	crate	pending	
 crates/phantom/tests/sessions/http3_connections.rs	crate	pending	
@@ -663,7 +663,7 @@ crates/phantom/tests/sessions/websocket_resumption.rs	crate	pending
 crates/phantom/tests/streams/environment_routes.rs	crate	source-complete	current exact full source binding at 1e23deb9: environment-peer-cleanup-independent-review-d92aeaf1.json#/sources/3
 crates/phantom/tests/streams/environment_routes/ownership_controls.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact full source binding at 1e23deb9: environment-peer-cleanup-independent-review-d92aeaf1.json#/sources/4
 crates/phantom/tests/streams/main.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/9
-crates/phantom/tests/streams/sse.rs	crate	pending	
+crates/phantom/tests/streams/sse.rs	crate	source-complete	sse-parent-root-source-pass-90a7f148.json: whole318 root read; appended50 controls/source map independently gated and paired verified; A239 lifecycle repair pending
 crates/phantom/tests/streams/sse/idle.rs	crate	source-complete	remaining-fixture-root-source-pass-b9dc4bcf.json#crates/phantom/tests/streams/sse/idle.rs; controls, repair and independent review pending
 crates/phantom/tests/streams/sse/polling.rs	crate	source-complete	remaining-fixture-root-source-pass-b9dc4bcf.json#crates/phantom/tests/streams/sse/polling.rs; controls, repair and independent review pending
 crates/phantom/tests/streams/sse/reconnect.rs	crate	pending	
@@ -4238,6 +4238,6 @@ docs/internals/architecture-audit/fatal-template-root-remedy-a3095217.json	audit
 crates/phantom/tests/sessions/session/upload_contract.rs	crate	source-complete	upload-stream-root-remedy-63306d62.json: root whole294 original read plus complete mechanical formatter diff; independent whole306 read; causal baseline and remedy both hosts; bounded collector contract only
 crates/phantom/tests/sessions/session_http1_parallel/request_ownership.rs	crate	source-complete	fixture-remedy-root-checks-4bf6000f.json: root whole495 approved child plus full formatter diff; all8 controls and retained methods pass both hosts; broader ownership/final gates open
 crates/phantom/tests/support/deadline.rs	crate	source-complete	fixture-policy-root-checks-4149587f.json: root whole concrete28-line deadline cause owner; bounded causal checks; broader owners/final gates pending
-crates/phantom/tests/sessions/dns_overrides/owner_contract.rs	crate	source-complete	fixture-policy-root-checks-4149587f.json: root whole original541-line controls plus complete mechanical formatter diff; selected-worker scope only; bounded causal checks; broader owners/final gates pending
+crates/phantom/tests/sessions/dns_overrides/owner_contract.rs	crate	source-complete	fixture-policy-root-checks-4149587f.json: root whole original541-line controls plus complete mechanical formatter diff; selected-worker scope only; bounded causal checks; broader owners/final gates pending; dns-origin-owner-root-remedy-a02978a3.json: root whole825/694 and mechanical diff; independent exact source gate/addendum; all27 each host pass; DNS deadline/final gates open
 crates/phantom/tests/streams/sse/idle/peer_close.rs	crate	source-complete	fixture-policy-root-checks-4149587f.json: root whole193-line actual pending TCP read observer; bounded causal checks; broader owners/final gates pending
 crates/phantom/tests/streams/sse/idle/peer_close/tests.rs	crate	source-complete	fixture-policy-root-checks-4149587f.json: root whole101-line original controls plus complete mechanical formatter diff; bounded causal checks; broader owners/final gates pending

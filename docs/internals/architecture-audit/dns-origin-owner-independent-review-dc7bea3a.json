@@ -1,0 +1,263 @@
+{
+  "revision": "dc7bea3a2df2de89f4b7a814f550da5bb9c815dc",
+  "parent": "93c6aedd0af1554549ce2ca18e2042a08bb0684c",
+  "verdict": "source-approved with minor readability follow-ups; native candidate unmeasured",
+  "lane": "C:/code/phantom-worktrees/audit-dns-origin-owners",
+  "signature": "G",
+  "author": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "committer": "Arya Alikhani <AryaAlikhani@icloud.com>",
+  "lane_clean": true,
+  "whole_source_scope": [
+    "dns_overrides.rs 1-825",
+    "owner_contract.rs 1-694",
+    "complete two-file diff"
+  ],
+  "focused_scope": [
+    "parent owners 50-273",
+    "ordinary callers 293-421 and 508-715",
+    "closing coordinator/worker 430-480",
+    "keepalive coordinator/worker 724-771",
+    "child actual adapter 105-177",
+    "child unique result modes 184-387",
+    "child old oracles 389-570",
+    "child coordinator controls 572-694"
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/sessions/dns_overrides.rs",
+      "blob": "ef396ad40ac5760eb2c822f6d8d5c7a899e7bd0c",
+      "lines": 825,
+      "lf_bytes": 29345,
+      "lf_sha256": "5ad456dd54f23a87079bc1764d43d616ab0cf099eb165d5eb3a4e2f39172d5fb"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/dns_overrides.rs",
+      "blob": "db449cd18db793e35befc6416e0324e538578acc",
+      "lines": 585,
+      "lf_bytes": 20570,
+      "lf_sha256": "5c8ab8f06c0df362fa8402c9299a2c712c9e2ad84e789f78c2b1aa30b4d9efab"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/dns_overrides/owner_contract.rs",
+      "blob": "6e70e36914eaa67dbd6d578e558d82094f1790dd",
+      "lines": 694,
+      "lf_bytes": 25514,
+      "lf_sha256": "12f617c4033a85b8d1c3d543d8c0d1579e2dbc8f4907fba8ef01c6e627ff35c0"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/dns_overrides/owner_contract.rs",
+      "blob": "e0c22adeaf99b2f676e8cd8abacd5f64ec282d3e",
+      "lines": 541,
+      "lf_bytes": 18804,
+      "lf_sha256": "0fe555f8a110529b2fd21e4e9d3c86a2c36d218ec0a5868458fc7f1eb6f417fc"
+    }
+  ],
+  "preservation": {
+    "files": [
+      {
+        "path": "crates/phantom/tests/sessions/dns_overrides.rs",
+        "blob": "ef396ad40ac5760eb2c822f6d8d5c7a899e7bd0c",
+        "lines": 825,
+        "lf_bytes": 29345,
+        "lf_sha256": "5ad456dd54f23a87079bc1764d43d616ab0cf099eb165d5eb3a4e2f39172d5fb"
+      },
+      {
+        "path": "crates/phantom/tests/sessions/dns_overrides.rs",
+        "blob": "db449cd18db793e35befc6416e0324e538578acc",
+        "lines": 585,
+        "lf_bytes": 20570,
+        "lf_sha256": "5c8ab8f06c0df362fa8402c9299a2c712c9e2ad84e789f78c2b1aa30b4d9efab"
+      },
+      {
+        "path": "crates/phantom/tests/sessions/dns_overrides/owner_contract.rs",
+        "blob": "6e70e36914eaa67dbd6d578e558d82094f1790dd",
+        "lines": 694,
+        "lf_bytes": 25514,
+        "lf_sha256": "12f617c4033a85b8d1c3d543d8c0d1579e2dbc8f4907fba8ef01c6e627ff35c0"
+      },
+      {
+        "path": "crates/phantom/tests/sessions/dns_overrides/owner_contract.rs",
+        "blob": "e0c22adeaf99b2f676e8cd8abacd5f64ec282d3e",
+        "lines": 541,
+        "lf_bytes": 18804,
+        "lf_sha256": "0fe555f8a110529b2fd21e4e9d3c86a2c36d218ec0a5868458fc7f1eb6f417fc"
+      }
+    ],
+    "controls_and_oracles": [
+      {
+        "function": "closing_response",
+        "exact": true,
+        "oldLength": 584,
+        "newLength": 584
+      },
+      {
+        "function": "closing_worker_returns_its_literal_response_after_an_actual_pending_read",
+        "exact": true,
+        "oldLength": 608,
+        "newLength": 608
+      },
+      {
+        "function": "explicit_abort_destroys_the_closing_origins_actual_pending_worker",
+        "exact": true,
+        "oldLength": 453,
+        "newLength": 453
+      },
+      {
+        "function": "aborting_the_closing_coordinator_destroys_its_actual_pending_worker",
+        "exact": true,
+        "oldLength": 432,
+        "newLength": 432
+      },
+      {
+        "function": "closing_worker_retains_its_original_completed_read_failure",
+        "exact": true,
+        "oldLength": 151,
+        "newLength": 151
+      },
+      {
+        "function": "closing_worker_retains_its_original_completed_write_failure",
+        "exact": true,
+        "oldLength": 153,
+        "newLength": 153
+      },
+      {
+        "function": "healthy_keepalive_worker_completes_after_its_clients_literal_response_and_eof",
+        "exact": true,
+        "oldLength": 626,
+        "newLength": 626
+      },
+      {
+        "function": "explicit_abort_destroys_the_keepalive_origins_actual_pending_worker",
+        "exact": true,
+        "oldLength": 452,
+        "newLength": 452
+      },
+      {
+        "function": "keepalive_worker_retains_its_original_completed_read_failure",
+        "exact": true,
+        "oldLength": 156,
+        "newLength": 156
+      },
+      {
+        "function": "keepalive_worker_retains_its_original_completed_write_failure",
+        "exact": true,
+        "oldLength": 158,
+        "newLength": 158
+      }
+    ],
+    "old_controls_count": 9,
+    "observed_stream_exact": true,
+    "old_assertions_count": 21,
+    "new_assertions_count": 21,
+    "old_assertions_sequence_exact": true,
+    "oracle_helpers": [
+      {
+        "name": "closing_fault",
+        "exact": true,
+        "oldLength": 718,
+        "newLength": 718
+      },
+      {
+        "name": "keep_alive_fault",
+        "exact": true,
+        "oldLength": 1050,
+        "newLength": 1050
+      },
+      {
+        "name": "closing_response",
+        "exact": true,
+        "oldLength": 584,
+        "newLength": 584
+      },
+      {
+        "name": "retains_fault",
+        "exact": true,
+        "oldLength": 615,
+        "newLength": 615
+      },
+      {
+        "name": "expected_caller_close",
+        "exact": true,
+        "oldLength": 706,
+        "newLength": 706
+      }
+    ]
+  },
+  "baseline": {
+    "revision": "4149587fba32a490290fa8313d2a208899bf4af9",
+    "windows": {
+      "failed": 5,
+      "passed": 15,
+      "total": 20,
+      "exit": 101
+    },
+    "linux": {
+      "failed": 5,
+      "passed": 15,
+      "total": 20,
+      "exit": 101
+    },
+    "artifacts": [
+      {
+        "file": "fixture-policy-controls-4149587f-windows.dns.log",
+        "sha256": "c7be02c20a1a7802aa338b85b4f0f495a727262fa53278ad1fec5b2fbb820182",
+        "read_complete": true
+      },
+      {
+        "file": "fixture-policy-controls-4149587f-windows.dns.exit",
+        "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+        "read_complete": true
+      },
+      {
+        "file": "fixture-policy-controls-4149587f-windows.revision",
+        "sha256": "4de47dbacf396501ab5ed81246485ea6a0e29ea150c95f6cd6dbe8e2913a557b",
+        "read_complete": true
+      },
+      {
+        "file": "fixture-policy-controls-4149587f-linux.dns.log",
+        "sha256": "ab65e203d04c628b3f62484a7f1edf195db91e604d7828165357cbbed50827ad",
+        "read_complete": true
+      },
+      {
+        "file": "fixture-policy-controls-4149587f-linux.dns.exit",
+        "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+        "read_complete": true
+      },
+      {
+        "file": "fixture-policy-controls-4149587f-linux.revision",
+        "sha256": "4de47dbacf396501ab5ed81246485ea6a0e29ea150c95f6cd6dbe8e2913a557b",
+        "read_complete": true
+      }
+    ]
+  },
+  "candidate_forecast": {
+    "all_pass_expected": true,
+    "windows": 27,
+    "linux": 27,
+    "executed": false
+  },
+  "blockers": [],
+  "minor_followups": [
+    {
+      "file": "dns_overrides.rs",
+      "issue": "Explain ignored stop sender failure: original coordinator join follows and retains its outcome",
+      "line": 133
+    },
+    {
+      "file": "dns_overrides/owner_contract.rs",
+      "issue": "Separate crate support and super import groups",
+      "line": 22
+    }
+  ],
+  "open_scope": [
+    "A233 DNS bounded original Elapsed string mapping 818-825",
+    "runtime ownership and complete architecture audit",
+    "native candidate compile/lint/MSRV/paired validation"
+  ],
+  "source_edits": false,
+  "cargo": false,
+  "formatter": false,
+  "project_checkers": false,
+  "native_probes": false,
+  "md_sha256": "323fe77d7cbacaf3763202630802aa7fbcbb9efa35d66eda97a55595fddff1cf"
+}

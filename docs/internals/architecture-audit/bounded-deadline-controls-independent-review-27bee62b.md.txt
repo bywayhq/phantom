@@ -1,0 +1,31 @@
+# Bounded deadline controls: independent source gate
+
+Approve tests-only `27bee62bf013ed5c8c146cd02115cff0a23b3eff`, parent
+`90a7f148bcbaadb2a1ce9c3718b7f0fcbd4a0342`. No blocker or minor finding in
+appended scope. Good signature/human identities verified. Read all260 appended
+lines, the four canonical bounded helpers, H2 idle next and module registrations.
+Canonical prefix comparisons confirm all four original files remain exact.
+JSON binds exact blobs, LF byte hashes and actual manual read ranges.
+
+The five negatives poll the actual canonical timeout wrapper Pending first.
+Four confirm the underlying operation entered; H2 idle next polls its actual
+receiver while the original sender remains live. They advance unchanged periods:
+parallel10s, authority5s, H2idle20s, SSE5s and H2event5s. Each requires the
+unchanged contextual message plus original typed Tokio Elapsed in its source.
+All five old maps remain string-only, so source forecast is five negative
+failures, not five repaired paths.
+
+Ten positives check unchanged ready-success/error behavior and H2 event edges.
+Ready PermissionDenied preserves original kind/message. The real channel keeps
+exact GoAway connection3,last_stream7,payload[4,2]. Dropping its sender makes
+closed-channel None distinctly `the origin stopped`, with no timeout source.
+Resolved Tokio1.53.1 Timeout polls the original future before the timer; its
+unbounded receiver polls actual channel state. The controls exercise these
+contracts without copying a timeout helper or constructing fake Elapsed.
+
+Sessions registers the three modules; streams registers SSE under its feature.
+Forecast five negative failures/ten positive passes remains unmeasured. No
+Cargo/native, formatter, project checker or probe was run, no source was edited,
+and no root native result is claimed. Integration owns paired execution and
+subsequent semantic repair. Runtime lane remains clean/frozen at4bf6000f during
+this review; this narrow gate does not audit the original whole files.

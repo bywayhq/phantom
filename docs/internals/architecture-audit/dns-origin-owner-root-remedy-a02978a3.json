@@ -1,0 +1,282 @@
+{
+  "revision": "a02978a39fb09849f84c74f9654518b51cc9bcaa",
+  "approved_lane_revision": "dc7bea3a2df2de89f4b7a814f550da5bb9c815dc",
+  "paired_baseline": "fixture-policy-root-checks-4149587f.json: DNS15pass/5fail on each host, all11 old methods and4 positives pass.",
+  "results_each_host": {
+    "dns": {
+      "pass": 27,
+      "fail": 0
+    },
+    "idle": 11,
+    "direct": 3,
+    "tracing": 3,
+    "session": 3
+  },
+  "parallel_results": {
+    "windows": 27,
+    "linux": 26
+  },
+  "root_read": "All eighteen terminal logs and twenty-two sidecars, complete guarded locked runner and three source handoffs/reviews read. Formatting, focused three-target strict Clippy and Rust1.88 pass without warnings on both hosts; clean exact revision guards finish and both runners exit0.",
+  "source": "Root whole825 parent and694 child at approved dc7 read. Import conflict contains only earlier formatting/import grouping; exact approved blobs restored before root formatter. Full mechanical diff, two reviewer minor comment/grouping fixes and equivalent four-line caller let-chain read; independent addendum confirms unchanged literals/control policies. Ordinary owned vector retains sole original worker results, selected backup mode transfers the sole handle, cancellation safeguards abort descendants, all finite cleanup outcomes compose with caller outcome.",
+  "artifacts": [
+    {
+      "file": "run-dns-origin-remedy.sh",
+      "sha256": "d3b71b3f57f8033ca574b39e759eb235e455528535f92fa9d95bacc2af6c83af",
+      "bytes": 2525
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.parallel.log",
+      "sha256": "adcb6dd111253cfc1ef94fbc8ae85954b60def7bae0b5d6ffe6a9c08c6417701",
+      "bytes": 3191
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.parallel.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.dns.log",
+      "sha256": "841a2fd1655b5bc1d3ca0a399ebace4a8e2dfd5a2885e399171511b05d149fdd",
+      "bytes": 2942
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.dns.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.idle.log",
+      "sha256": "80e40dbd55702650583b9b352ae8ed1f59828a04b8bf09f945eda54f96d7aac0",
+      "bytes": 1146
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.idle.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.direct.log",
+      "sha256": "bf2203c9b49824f496c5914f5f027c688ea690c7d7c987159f619a95046d6226",
+      "bytes": 503
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.direct.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.tracing.log",
+      "sha256": "2c71cd94860f5f693b36a1696a47023e659798f80db3cc38f89bb2363a5ecfe8",
+      "bytes": 491
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.tracing.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.session.log",
+      "sha256": "b50349f09b92f209140ac381f8c5b5795bc172af5659b664fcaac55a9268d252",
+      "bytes": 491
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.session.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.clippy.log",
+      "sha256": "65a10361878d0acfe599a32cb1a5cf586fae164d61012044e8b0b895005cf003",
+      "bytes": 168
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.msrv.log",
+      "sha256": "98cbaf1b51e27e2dc617d7ab8fbe211b88648e86667bab25f0e108b3c1207e7a",
+      "bytes": 167
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.revision",
+      "sha256": "0845c80e8345b2fdbdb1d381d525518a1b73837c65b1aedfcca27fc333cb928c",
+      "bytes": 41
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.parallel.log",
+      "sha256": "6daab4dd75335b6eff743c3dd01011fc6405d08a9de4b6e345f147ef3c6a1d22",
+      "bytes": 3089
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.parallel.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.dns.log",
+      "sha256": "af4285ce145dd2f5d22fa261bd36a00b1100952f7d2fa6ba89df9fbeecd8abf2",
+      "bytes": 2938
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.dns.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.idle.log",
+      "sha256": "b15c4d81fe68f45cf6ec6df15d36007d5176cabcd2c54f9ab6619fbfe5503847",
+      "bytes": 1142
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.idle.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.direct.log",
+      "sha256": "710c1cb0a345c03e0053f8e9be6dafbdeb9f17f0a8bbb86c3d0e0ef2b3192426",
+      "bytes": 499
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.direct.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.tracing.log",
+      "sha256": "2b178fcae48e0bc39069c734a823131368e1bfa748615d4dd7e42cf47e9ec7dc",
+      "bytes": 487
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.tracing.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.session.log",
+      "sha256": "90d09ecf76b8b3fb769c7cda5bde150b1b0b22cad5f630222650b5bb7fd8e3d3",
+      "bytes": 487
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.session.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.clippy.log",
+      "sha256": "ad9c45f65159b01ebe23cec3d1c4ab93ce49a8608639918b4e18f39cc284a7bf",
+      "bytes": 178
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.msrv.log",
+      "sha256": "7ea0cb244f6128cc2c27dd9f2c761e97e02cb09e406788e14ab18fa517f6b75e",
+      "bytes": 178
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.revision",
+      "sha256": "0845c80e8345b2fdbdb1d381d525518a1b73837c65b1aedfcca27fc333cb928c",
+      "bytes": 41
+    },
+    {
+      "file": "dns-origin-remedy-a02978a3-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    }
+  ],
+  "independent_source_reviews": [
+    {
+      "file": "dns-origin-owner-remedy-handoff-dc7bea3a.md.txt",
+      "sha256": "fb4350899a912c19b0ff97c5996b2127e6fbe41d5b036af6d7caf6c5dd2b2dea",
+      "bytes": 4916
+    },
+    {
+      "file": "dns-origin-owner-remedy-handoff-dc7bea3a.json",
+      "sha256": "4e2f93f11b4736e3f6dd918aa8bc0741b2b466e3a2b62d8c2d30401a10a7994f",
+      "bytes": 4221
+    },
+    {
+      "file": "dns-origin-owner-independent-review-dc7bea3a.md.txt",
+      "sha256": "323fe77d7cbacaf3763202630802aa7fbcbb9efa35d66eda97a55595fddff1cf",
+      "bytes": 5483
+    },
+    {
+      "file": "dns-origin-owner-independent-review-dc7bea3a.json",
+      "sha256": "91232ab2d175d1a3ac07104e21d1c1e1f66e3d45976f1a7c81ee41336c9ad26e",
+      "bytes": 8227
+    },
+    {
+      "file": "dns-origin-owner-review-addendum-a02978a3.md.txt",
+      "sha256": "a01f7056a434e8a3426c8a3ac5dc1718df29ff5857097f4908e551c6e77e94ce",
+      "bytes": 2029
+    },
+    {
+      "file": "dns-origin-owner-review-addendum-a02978a3.json",
+      "sha256": "d10b67ab8806d56d3a90170dd2b5dcede7bb33ff9831664834b5a706bd2e96c7",
+      "bytes": 4083
+    }
+  ],
+  "preliminary_quality_failure": {
+    "scope": "Windows40e strict Clippy rejected one new nested if; the equivalent let-chain is verified at a029.",
+    "artifacts": [
+      {
+        "file": "dns-origin-remedy-40e147bd-windows.clippy.log",
+        "sha256": "a7610ae243393292fc2942f07cc65601d3ea871256f9814df21ed53243e535de",
+        "bytes": 1046
+      },
+      {
+        "file": "dns-origin-remedy-40e147bd-windows.clippy.exit",
+        "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+        "bytes": 4
+      }
+    ]
+  },
+  "limits": [
+    "No full integration/platform/PR/main closure for this candidate.",
+    "Injected read/write errors establish fixture policy, not naturally occurring network defects or production defects.",
+    "Drop requests abort; asynchronous join after an outer cleanup deadline is not proven.",
+    "DNS contextual deadline still needs A233 cause retention.",
+    "The extra Windows Firefox method can skip its guarded IPv6 branch."
+  ]
+}

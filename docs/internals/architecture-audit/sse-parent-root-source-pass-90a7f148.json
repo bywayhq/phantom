@@ -1,0 +1,12 @@
+{
+  "revision": "90a7f148bcbaadb2a1ce9c3718b7f0fcbd4a0342",
+  "path": "crates/phantom/tests/streams/sse.rs",
+  "lines": 318,
+  "sha256_lf": "dec8e5b1f7d6e86acab2123aaa83e3ed38ef50c7232ed7e4336248f5588afa0b",
+  "root_manual_read": "Complete318-line parent read, original request/decoder privacy and category assertions, HTTP1 chunk framing, H2 driver-until-client-drop, H3 done-channel lifetime, fixed response raw worker and outer5s timeout. Existing raw worker owners cross fallible callers and need A239 repairs. The later50-line baseline controls and static source-cause remedy are independently gated and paired verified separately.",
+  "disposition": "source-complete; A239 repairs and full verification remain open",
+  "limits": [
+    "Does not cover untouched reconnect/request children.",
+    "No natural transport failure or whole-production defect claim."
+  ]
+}
