@@ -25,6 +25,8 @@ use tokio_btls::SslStream;
 
 use tls_support::{H1_ALPN, TestIdentity, client_builder, read_head, tls_settings};
 
+mod owner_contract;
+
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
@@ -53,6 +55,10 @@ struct Server {
 
 impl Server {
     async fn start() -> TestResult<Self> {
+        Self::start_observed(None).await
+    }
+
+    async fn start_observed(mut observation: Option<owner_contract::PeerControl>) -> TestResult<Self> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let (sender, events) = mpsc::unbounded_channel();
@@ -62,7 +68,15 @@ impl Server {
                 if sender.send(Event::Accepted(accepted)).is_err() {
                     return;
                 }
-                tokio::spawn(serve(stream, accepted, sender.clone()));
+                if let Some(control) = observation.take() {
+                    let (stream, returned) = control.attach(stream);
+                    let peer = tokio::spawn(serve(stream, accepted, sender.clone()));
+                    if let Err(peer) = returned.send(peer) {
+                        peer.abort();
+                    }
+                } else {
+                    tokio::spawn(serve(stream, accepted, sender.clone()));
+                }
                 accepted += 1;
             }
         });
@@ -107,7 +121,11 @@ impl Drop for Server {
     }
 }
 
-async fn serve(mut stream: TcpStream, connection: usize, events: mpsc::UnboundedSender<Event>) {
+async fn serve(
+    mut stream: impl tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+    connection: usize,
+    events: mpsc::UnboundedSender<Event>,
+) -> TestResult {
     while let Ok(head) = read_head(&mut stream).await {
         let path = request_path(&head);
         if events.send(Event::Request { connection, path }).is_err()
@@ -116,9 +134,10 @@ async fn serve(mut stream: TcpStream, connection: usize, events: mpsc::Unbounded
                 .await
                 .is_err()
         {
-            return;
+            return Ok(());
         }
     }
+    Ok(())
 }
 
 async fn serve_tls(tcp: TcpStream, acceptor: SslAcceptor) -> TestResult {
