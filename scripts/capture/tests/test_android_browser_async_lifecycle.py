@@ -168,7 +168,7 @@ class ProgressMonitor:
         self.callback = threading.Event()
         self.done = threading.Event()
         self.stop = threading.Event()
-        self.observed = threading.Event()
+        self.observed = asyncio.Event()
         self.hold_after_progress = hold_after_progress
         self.progress_before_release = False
         self.child_alive_before_release = False
@@ -199,10 +199,13 @@ class ProgressMonitor:
                 process is not None and process.poll() is None
             )
             self.gate_closed_before_release = not self.command.release.exists()
-            self.observed.set()
-            if self.hold_after_progress and self.progress_before_release:
-                if not self.stop.wait(READY_SECONDS):
-                    raise TimeoutError("held Android entry was not released")
+            self.loop.call_soon_threadsafe(self.observed.set)
+            if (
+                self.hold_after_progress
+                and self.progress_before_release
+                and not self.stop.wait(READY_SECONDS)
+            ):
+                raise TimeoutError("held Android entry was not released")
         except BaseException as failure:
             self.failure = failure
         finally:

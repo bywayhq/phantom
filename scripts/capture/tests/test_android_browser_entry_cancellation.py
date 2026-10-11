@@ -33,8 +33,7 @@ class AndroidEntryCancellation:
             raise
 
     async def wait_for_observation(self) -> None:
-        while not self.resources.monitor.observed.is_set():
-            await asyncio.sleep(0.01)
+        await self.resources.monitor.observed.wait()
 
     async def cancel_held_entry(
         self, cleanup_failure: BaseException | None = None
