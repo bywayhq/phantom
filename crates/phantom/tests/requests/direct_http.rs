@@ -1,8 +1,5 @@
 //! Public direct plaintext HTTP/1.1 integration tests.
 
-use crate::support::h3 as h3_support;
-use crate::support::tls as tls_support;
-
 use std::{
     collections::VecDeque,
     convert::Infallible,
@@ -27,6 +24,7 @@ use tokio::{
     time::timeout,
 };
 
+use crate::support::{deadline::FixtureDeadline, h3 as h3_support, tls as tls_support};
 use h3_support::client_settings;
 use tls_support::{TestResult, read_head, tls_settings};
 
@@ -411,9 +409,9 @@ async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(TEST_TIMEOUT, future)
-        .await
-        .map_err(|_| "direct HTTP test exceeded its deadline")?
+    timeout(TEST_TIMEOUT, future).await.map_err(|elapsed| {
+        FixtureDeadline::new("direct HTTP test exceeded its deadline", elapsed)
+    })?
 }
 
 #[cfg(test)]

@@ -36,7 +36,10 @@ use tokio::{
     time::timeout,
 };
 
-use crate::support::tls::{TestResult, read_head, tls_settings};
+use crate::support::{
+    deadline::FixtureDeadline,
+    tls::{TestResult, read_head, tls_settings},
+};
 
 #[derive(Clone, Default)]
 struct Capture {
@@ -198,7 +201,9 @@ fn client() -> TestResult<Client> {
 async fn bounded<F: Future<Output = TestResult<()>>>(future: F) -> TestResult<()> {
     timeout(Duration::from_secs(15), future)
         .await
-        .map_err(|_| "tracing wire test exceeded its deadline")?
+        .map_err(|elapsed| {
+            FixtureDeadline::new("tracing wire test exceeded its deadline", elapsed)
+        })?
 }
 
 #[tokio::test]

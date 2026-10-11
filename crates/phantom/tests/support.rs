@@ -6,6 +6,8 @@
 
 #[path = "support/client_certificate.rs"]
 pub(crate) mod client_certificate;
+#[path = "support/deadline.rs"]
+pub(crate) mod deadline;
 #[cfg(feature = "https-records")]
 #[path = "support/ech.rs"]
 pub(crate) mod ech;

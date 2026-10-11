@@ -23,7 +23,7 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
-use crate::support::tls as tls_support;
+use crate::support::{deadline::FixtureDeadline, tls as tls_support};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, client_builder, read_head, test_client};
 
 mod proxy_auth;
@@ -559,7 +559,7 @@ where
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "session test exceeded its deadline")?
+        .map_err(|elapsed| FixtureDeadline::new("session test exceeded its deadline", elapsed))?
 }
 
 #[cfg(test)]
