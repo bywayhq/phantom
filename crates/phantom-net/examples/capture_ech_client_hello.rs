@@ -898,9 +898,7 @@ async fn record_quic(
         #[cfg(test)]
         (&captured, slot),
     )
-    .await;
-
-    Ok(())
+    .await
 }
 
 /// Describes how a QUIC handshake ended, with the peer's close code in hex.
@@ -922,14 +920,14 @@ async fn serve_h3(
     connection: quinn::Connection,
     mut on_served: impl FnMut(),
     #[cfg(test)] observation: (&Captured, usize),
-) {
+) -> CaptureResult<()> {
     let Ok(Ok(mut h3)) = timeout(
         HANDSHAKE_TIMEOUT,
         h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(connection)),
     )
     .await
     else {
-        return;
+        return Ok(());
     };
     let mut served = false;
     loop {
@@ -939,18 +937,15 @@ async fn serve_h3(
             HANDSHAKE_TIMEOUT
         };
         let Ok(Ok(Some(resolver))) = timeout(wait, h3.accept()).await else {
-            return;
+            return Ok(());
         };
         let Ok((_, mut stream)) = resolver.resolve_request().await else {
-            return;
+            return Ok(());
         };
-        let Ok(response) = http::Response::builder()
+        let response = http::Response::builder()
             .status(200)
             .header("content-type", "text/html")
-            .body(())
-        else {
-            return;
-        };
+            .body(())?;
         let sent = async {
             stream.send_response(response).await?;
             stream.send_data(Bytes::from_static(PAGE)).await?;
@@ -961,10 +956,51 @@ async fn serve_h3(
         let sent =
             tests::quic_serving_contract::observe_response(sent, observation.0, observation.1);
 
+        if let Err(error) = &sent
+            && !h3_response_peer_observation(error)
+        {
+            return sent.map_err(Into::into);
+        }
+
         if sent.is_ok() && !served {
             served = true;
             on_served();
         }
+    }
+}
+
+fn h3_response_peer_observation(error: &h3::error::StreamError) -> bool {
+    use h3::{
+        error::{ConnectionError, StreamError},
+        quic::ConnectionErrorIncoming,
+    };
+
+    if error.is_h3_no_error() {
+        return true;
+    }
+
+    match error {
+        StreamError::RemoteTerminate { .. } | StreamError::RemoteClosing => true,
+        StreamError::ConnectionError(ConnectionError::Timeout)
+        | StreamError::ConnectionError(ConnectionError::Remote(
+            ConnectionErrorIncoming::ApplicationClose { .. } | ConnectionErrorIncoming::Timeout,
+        )) => true,
+        StreamError::ConnectionError(ConnectionError::Remote(
+            ConnectionErrorIncoming::Undefined(cause),
+        )) => cause
+            .downcast_ref::<quinn::ConnectionError>()
+            .is_some_and(|error| {
+                matches!(
+                    error,
+                    quinn::ConnectionError::VersionMismatch
+                        | quinn::ConnectionError::TransportError(_)
+                        | quinn::ConnectionError::ConnectionClosed(_)
+                        | quinn::ConnectionError::ApplicationClosed(_)
+                        | quinn::ConnectionError::Reset
+                        | quinn::ConnectionError::TimedOut
+                )
+            }),
+        _ => false,
     }
 }
 

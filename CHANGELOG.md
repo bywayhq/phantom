@@ -2495,6 +2495,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Retain local QUIC response failures in the ECH capture server. Unexpected
+  response errors keep their original type and cause through capture shutdown.
+
 - Report local TCP serving failures from the ECH capture server instead of
   publishing a successful capture. Keep completed worker failures alongside
   the error that initiated shutdown.
