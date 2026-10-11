@@ -136,3 +136,21 @@ async fn real_interface_caller_failure_keeps_the_completed_original_serving_caus
     .await;
     finish_with_cleanup(primary, backup.stop().await)
 }
+
+#[tokio::test]
+async fn capability_skip_keeps_the_completed_original_interface_origin_cause() -> TestResult<()> {
+    let (mut backup, control, identity) = Backup::prepare(true);
+    let primary = async {
+        let (caller, _) = backup.caller_failure(control).await?;
+        assert!(caller.is::<super::super::super::RequestError>());
+        let error = backup
+            .collect(Ok(Outcome::CapabilityUnavailable))
+            .await
+            .err()
+            .ok_or("capability skip discarded its completed original interface-origin cause")?;
+        backup.finished().await?;
+        retains_fault(error.as_ref(), &identity)
+    }
+    .await;
+    finish_with_cleanup(primary, backup.stop().await)
+}
