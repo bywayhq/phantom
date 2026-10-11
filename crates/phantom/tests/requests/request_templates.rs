@@ -1427,3 +1427,5 @@ async fn negotiated_template_without_http3_order_is_refused_only_on_quic_routes(
     assert!(head.starts_with(format!("CONNECT 127.0.0.1:{port} HTTP/1.1\r\n").as_bytes()));
     Ok(())
 }
+
+mod reply_contract;
