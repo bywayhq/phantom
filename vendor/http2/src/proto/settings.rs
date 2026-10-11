@@ -108,6 +108,7 @@ impl Settings {
         }
     }
 
+    #[cfg(feature = "unstable")]
     pub(crate) fn apply_initial_peer_settings<T, B, C, P>(
         &mut self,
         frame: frame::Settings,

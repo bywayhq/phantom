@@ -624,6 +624,7 @@ async fn full_codec_does_not_repeat_idle_close_self_wake() {
     assert_eq!(wake_count.load(Ordering::SeqCst), 1);
 }
 
+#[cfg(feature = "unstable")]
 #[tokio::test]
 async fn seeded_peer_limits_apply_to_the_first_request() {
     let (client_io, _peer_io) = duplex(16 * 1024);
@@ -662,6 +663,7 @@ async fn seeded_peer_limits_apply_to_the_first_request() {
     assert_eq!(send.capacity(), 0, "seeded stream window was not applied");
 }
 
+#[cfg(feature = "unstable")]
 #[tokio::test]
 async fn extended_connect_readiness_is_immediate_for_enabled_seed() {
     let (client_io, _peer_io) = duplex(16 * 1024);
@@ -803,6 +805,7 @@ async fn extended_connect_readiness_wakes_when_peer_closes_before_settings() {
     .expect("readiness EOF test timed out");
 }
 
+#[cfg(feature = "unstable")]
 #[tokio::test]
 async fn seeded_peer_settings_change_first_headers_without_an_ack() {
     timeout(Duration::from_secs(2), async {
@@ -859,6 +862,7 @@ async fn seeded_peer_settings_change_first_headers_without_an_ack() {
     .expect("seeded-settings wire test timed out");
 }
 
+#[cfg(feature = "unstable")]
 #[tokio::test]
 async fn seed_controls_whether_a_non_settings_first_peer_frame_is_valid() {
     timeout(Duration::from_secs(2), async {
@@ -898,6 +902,7 @@ async fn seed_controls_whether_a_non_settings_first_peer_frame_is_valid() {
     .expect("initial peer frame test timed out");
 }
 
+#[cfg(feature = "unstable")]
 #[tokio::test]
 async fn seeded_sticky_settings_reject_later_disable() {
     timeout(Duration::from_secs(2), async {
@@ -1165,6 +1170,7 @@ async fn retained_initial_stream_limit_holds_until_the_peer_states_one() {
     .expect("retained stream limit test timed out");
 }
 
+#[cfg(feature = "unstable")]
 #[tokio::test]
 async fn retained_initial_stream_limit_holds_through_a_seed_without_a_limit() {
     timeout(Duration::from_secs(5), async {
@@ -1222,6 +1228,7 @@ async fn initial_stream_limit_is_lifted_by_settings_without_a_limit_by_default()
     .expect("default stream limit test timed out");
 }
 
+#[cfg(feature = "unstable")]
 #[tokio::test]
 async fn initial_stream_id_numbers_requests_from_it() {
     timeout(Duration::from_secs(5), async {

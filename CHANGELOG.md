@@ -2490,6 +2490,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Compile the HTTP/2 fork's default-feature targets without requiring its
+  `unstable` APIs. The HTTP/2 and HTTP/1 forks move to `-phantom.14`.
+
 - Preserve local reader failures during Alt-Svc race capture while retaining
   expected partial TLS handshake records.
 

@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.13`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.14`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -851,6 +851,25 @@ leaves resets of active streams unchanged. The package regression in
 joins the client and server drivers after closure, then sends CANCEL and
 requires the original I/O error. The existing reset-before-close regression
 continues to check that a live peer receives CANCEL.
+
+## Default-feature compilation
+
+`default-feature-compilation.patch` limits peer-settings seed and custom
+initial-stream-ID tests to `unstable`, matching their builder methods. Their
+operation bodies and assertions remain unchanged. Ordinary client tests keep
+their existing feature availability.
+
+The handshake needs a mutable connection only when it applies a peer-settings
+seed. The patch also limits four frame and settings members to `unstable`:
+their public exposure or sole internal caller already requires that feature.
+It preserves the default receive and send paths.
+
+Check both feature selections when changing these guards:
+
+```sh
+cargo check --manifest-path vendor/http2/Cargo.toml --all-targets --locked
+cargo test --manifest-path vendor/http2/Cargo.toml --locked --lib -- --skip hpack::test::fixture
+```
 
 ## Refreshing the vendor copy
 

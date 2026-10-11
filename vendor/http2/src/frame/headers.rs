@@ -371,6 +371,7 @@ impl Headers {
         self.header_block.is_over_size
     }
 
+    #[cfg(feature = "unstable")]
     pub fn into_parts(self) -> (Pseudo, HeaderMap) {
         (self.header_block.pseudo, self.header_block.fields)
     }
