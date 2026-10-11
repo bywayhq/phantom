@@ -106,7 +106,7 @@ class H3DeferredPeer:
 
         class ValidOriginUdp(observed_udp):
             async def start(alternative, sock):
-                if alternative.mode == "valid":
+                if alternative.mode == "serve":
                     await ORIGINAL_UDP.start(alternative, sock)
                 else:
                     await super().start(sock)
@@ -235,7 +235,7 @@ class H3DeferredPeer:
 
         resources.stack.enter_context(patch.object(race, "BrowserDriver", H3Driver))
         scenario = race.Scenario(
-            "h3-release", "H3 held response", "valid", (), ("blackhole", "blackhole")
+            "h3-release", "H3 held response", "serve", (), ("blackhole", "blackhole")
         )
 
         async def actual_capture():
