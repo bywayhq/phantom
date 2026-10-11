@@ -81,7 +81,7 @@ impl Visit for Values {
 impl Capture {
     fn dispatch(&self) -> Dispatch {
         let dispatch = Dispatch::new(self.clone());
-        ::tracing::callsite::rebuild_interest_cache();
+        ::tracing::dispatcher::with_default(&dispatch, ::tracing::callsite::rebuild_interest_cache);
         dispatch
     }
 
