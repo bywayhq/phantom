@@ -609,7 +609,8 @@ impl HelloSniffer {
                         None => front.recv_from(&mut buffer).await,
                     }
                 }
-                .await else {
+                .await
+                else {
                     return;
                 };
                 let datagram = &buffer[..len];
@@ -642,8 +643,11 @@ impl HelloSniffer {
                             });
                             forward_replies(reply_back, reply_front, from).await;
                         });
-                        if let Some(value) = &observation {
-                            *value.worker.lock().expect("relay worker lock poisoned") = Some(worker);
+                        if let Some(value) = &observation
+                            && let Err(error) = value.publish_worker(worker)
+                        {
+                            eprintln!("sniffer worker observation failed: {error}");
+                            return;
                         }
                         clients.insert(from, Arc::clone(&back));
                         back

@@ -2,8 +2,8 @@ use std::{error::Error, fmt, io};
 
 use tokio::task::AbortHandle;
 
-use crate::support::tunnel_proxy::finish_with_cleanup;
 use super::*;
+use crate::support::tunnel_proxy::finish_with_cleanup;
 use relay_observation::RelayObservation;
 
 const OBSERVATION_LIMIT: Duration = Duration::from_secs(2);
@@ -25,52 +25,52 @@ impl RelayBackup {
         self.owner = Some(owner);
     }
 
-    fn abort(&self) {
+    fn abort(&self) -> TestResult<()> {
         if let Some(owner) = &self.owner {
             owner.abort();
         }
-        if let Some(worker) = &*self
-            .observation
-            .worker
-            .lock()
-            .expect("relay worker lock poisoned")
-        {
+        let (worker, outcome) = self.observation.cleanup_worker();
+        if let Some(worker) = worker {
             worker.abort();
         }
+
+        outcome.map_err(Into::into)
     }
 
     pub(crate) async fn finish(&self) -> TestResult<()> {
-        self.abort();
-        timeout(Duration::from_secs(5), async {
-            while self.owner.as_ref().is_some_and(|owner| !owner.is_finished()) {
+        let outcome = self.abort();
+        let mut observed: TestResult<()> = Ok(());
+        let stopped = timeout(Duration::from_secs(5), async {
+            while self
+                .owner
+                .as_ref()
+                .is_some_and(|owner| !owner.is_finished())
+            {
                 tokio::task::yield_now().await;
             }
 
             // Parent destruction prevents any further child publication.
-            self.abort();
-            loop {
-                let finished = self
-                    .observation
-                    .worker
-                    .lock()
-                    .expect("relay worker lock poisoned")
-                    .as_ref()
-                    .is_none_or(AbortHandle::is_finished);
-                if finished {
-                    break;
-                }
+            let (worker, result) = self.observation.cleanup_worker();
+            observed = result.map_err(Into::into);
+            if let Some(worker) = &worker {
+                worker.abort();
+            }
+            while worker.as_ref().is_some_and(|worker| !worker.is_finished()) {
                 tokio::task::yield_now().await;
             }
         })
-        .await?;
+        .await
+        .map_err(Into::into);
 
-        Ok(())
+        finish_with_cleanup(finish_with_cleanup(outcome, observed), stopped)
     }
 }
 
 impl Drop for RelayBackup {
     fn drop(&mut self) {
-        self.abort();
+        if let Err(error) = self.abort() {
+            eprintln!("relay backup Drop could not observe its worker normally: {error}");
+        }
     }
 }
 
@@ -123,7 +123,11 @@ pub(crate) async fn exchange(
 
 pub(crate) async fn pending_front(observation: &RelayObservation) -> TestResult<()> {
     timeout(Duration::from_secs(5), async {
-        while !observation.front.pending_after_packet.load(Ordering::SeqCst) {
+        while !observation
+            .front
+            .pending_after_packet
+            .load(Ordering::SeqCst)
+        {
             tokio::task::yield_now().await;
         }
     })
@@ -149,8 +153,12 @@ async fn exercise(kind: RelayKind, contract: ObservedContract) -> TestResult<()>
         let client = phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?;
         let (gate, open) = tokio::sync::watch::channel(true);
         let (address, task) = if matches!(kind, RelayKind::Gated) {
-            gated_relay_observed(target.local_addr()?, open, Some(Arc::clone(&backup.observation)))
-                .await?
+            gated_relay_observed(
+                target.local_addr()?,
+                open,
+                Some(Arc::clone(&backup.observation)),
+            )
+            .await?
         } else {
             delaying_relay_observed(target.local_addr()?, Some(Arc::clone(&backup.observation)))
                 .await?
@@ -160,17 +168,19 @@ async fn exercise(kind: RelayKind, contract: ObservedContract) -> TestResult<()>
         let upstream = exchange(&client, &target, address).await?;
         pending_front(&backup.observation).await?;
         timeout(Duration::from_secs(5), async {
-            while !backup.observation.reply.pending_after_packet.load(Ordering::SeqCst) {
+            while !backup
+                .observation
+                .reply
+                .pending_after_packet
+                .load(Ordering::SeqCst)
+            {
                 tokio::task::yield_now().await;
             }
         })
         .await?;
         let worker = backup
             .observation
-            .worker
-            .lock()
-            .expect("relay worker lock poisoned")
-            .clone()
+            .worker()?
             .ok_or("relay did not publish its actual receiver")?;
         if worker.is_finished() || task.is_finished() {
             return Err("relay completed before its pending ownership observation".into());
@@ -181,7 +191,7 @@ async fn exercise(kind: RelayKind, contract: ObservedContract) -> TestResult<()>
             backup.observation.reply.fail_next_read(io::Error::new(
                 io::ErrorKind::PermissionDenied,
                 LocalReadFailure(Arc::clone(&marker)),
-            ));
+            ))?;
             timeout(Duration::from_secs(5), async {
                 while !worker.is_finished() {
                     tokio::task::yield_now().await;

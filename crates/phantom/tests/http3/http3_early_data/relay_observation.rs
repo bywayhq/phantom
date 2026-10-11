@@ -13,7 +13,41 @@ use tokio::{net::UdpSocket, sync::Notify, task::AbortHandle};
 pub(crate) struct RelayObservation {
     pub(crate) front: ReadObservation,
     pub(crate) reply: ReadObservation,
-    pub(crate) worker: Mutex<Option<AbortHandle>>,
+    worker: Mutex<Option<AbortHandle>>,
+}
+
+impl RelayObservation {
+    pub(crate) fn publish_worker(&self, worker: AbortHandle) -> io::Result<()> {
+        match self.worker.lock() {
+            Ok(mut slot) => {
+                *slot = Some(worker);
+
+                Ok(())
+            }
+            Err(poisoned) => {
+                // Retain the acquired handle even when observation fails.
+                *poisoned.into_inner() = Some(worker);
+                Err(io::Error::other("relay worker publication lock poisoned"))
+            }
+        }
+    }
+
+    pub(crate) fn worker(&self) -> io::Result<Option<AbortHandle>> {
+        self.worker
+            .lock()
+            .map(|slot| slot.clone())
+            .map_err(|_| io::Error::other("relay worker observation lock poisoned"))
+    }
+
+    pub(crate) fn cleanup_worker(&self) -> (Option<AbortHandle>, io::Result<()>) {
+        match self.worker.lock() {
+            Ok(slot) => (slot.clone(), Ok(())),
+            Err(poisoned) => (
+                poisoned.into_inner().clone(),
+                Err(io::Error::other("relay worker cleanup lock poisoned")),
+            ),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -27,18 +61,29 @@ pub(crate) struct ReadObservation {
 }
 
 impl ReadObservation {
-    pub(crate) fn fail_next_read(&self, error: io::Error) {
-        *self.fault.lock().expect("read fault lock poisoned") = Some(error);
+    pub(crate) fn fail_next_read(&self, error: io::Error) -> io::Result<()> {
+        *self
+            .fault
+            .lock()
+            .map_err(|_| io::Error::other("relay read fault installation lock poisoned"))? =
+            Some(error);
         self.wake.notify_one();
+
+        Ok(())
     }
 
-    fn fault(&self) -> Option<io::Error> {
-        let error = self.fault.lock().expect("read fault lock poisoned").take();
+    fn fault(&self) -> io::Result<Option<io::Error>> {
+        let error = self
+            .fault
+            .lock()
+            .map_err(|_| io::Error::other("relay read fault consumption lock poisoned"))?
+            .take();
+
         if error.is_some() {
             self.invoked.store(true, Ordering::SeqCst);
         }
 
-        error
+        Ok(error)
     }
 
     pub(crate) async fn recv_from(
@@ -66,7 +111,7 @@ impl ReadObservation {
     }
 
     pub(crate) async fn recv(&self, socket: &UdpSocket, bytes: &mut [u8]) -> io::Result<usize> {
-        if let Some(error) = self.fault() {
+        if let Some(error) = self.fault()? {
             return Err(error);
         }
 
@@ -88,7 +133,7 @@ impl ReadObservation {
                     return result;
                 }
                 () = self.wake.notified() => {
-                    if let Some(error) = self.fault() {
+                    if let Some(error) = self.fault()? {
                         return Err(error);
                     }
                 }

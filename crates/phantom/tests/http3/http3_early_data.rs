@@ -192,9 +192,9 @@ async fn delaying_relay_observed(
     )?);
     let address = front.local_addr()?;
     let task = tokio::spawn(async move {
-        let _lifetime = observation.as_ref().map(|value| {
-            relay_observation::ReadLifetime::front(Arc::clone(value))
-        });
+        let _lifetime = observation
+            .as_ref()
+            .map(|value| relay_observation::ReadLifetime::front(Arc::clone(value)));
         let mut upstreams: HashMap<SocketAddr, Arc<UdpSocket>> = HashMap::new();
         let mut datagram = vec![0; 65_535];
         let mut downstream_tasks = JoinSet::new();
@@ -230,8 +230,11 @@ async fn delaying_relay_observed(
                         client,
                         observation.clone(),
                     ));
-                    if let Some(value) = &observation {
-                        *value.worker.lock().expect("relay worker lock poisoned") = Some(worker);
+                    if let Some(value) = &observation
+                        && let Err(error) = value.publish_worker(worker)
+                    {
+                        eprintln!("relay worker observation failed: {error}");
+                        return;
                     }
                     upstream
                 }
@@ -252,9 +255,9 @@ async fn forward_delayed_observed(
     client: SocketAddr,
     observation: Option<Arc<relay_observation::RelayObservation>>,
 ) {
-    let _lifetime = observation.as_ref().map(|value| {
-        relay_observation::ReadLifetime::reply(Arc::clone(value))
-    });
+    let _lifetime = observation
+        .as_ref()
+        .map(|value| relay_observation::ReadLifetime::reply(Arc::clone(value)));
     let mut datagram = vec![0; 65_535];
     let mut sends = JoinSet::new();
     loop {
@@ -752,9 +755,9 @@ async fn gated_relay_observed(
     )?);
     let address = front.local_addr()?;
     let task = tokio::spawn(async move {
-        let _lifetime = observation.as_ref().map(|value| {
-            relay_observation::ReadLifetime::front(Arc::clone(value))
-        });
+        let _lifetime = observation
+            .as_ref()
+            .map(|value| relay_observation::ReadLifetime::front(Arc::clone(value)));
         let mut upstreams: HashMap<SocketAddr, Arc<UdpSocket>> = HashMap::new();
         let mut datagram = vec![0; 65_535];
         let mut downstream_tasks = JoinSet::new();
@@ -791,8 +794,11 @@ async fn gated_relay_observed(
                         open.clone(),
                         observation.clone(),
                     ));
-                    if let Some(value) = &observation {
-                        *value.worker.lock().expect("relay worker lock poisoned") = Some(worker);
+                    if let Some(value) = &observation
+                        && let Err(error) = value.publish_worker(worker)
+                    {
+                        eprintln!("relay worker observation failed: {error}");
+                        return;
                     }
                     upstream
                 }
@@ -810,9 +816,9 @@ async fn forward_gated_observed(
     mut open: tokio::sync::watch::Receiver<bool>,
     observation: Option<Arc<relay_observation::RelayObservation>>,
 ) {
-    let _lifetime = observation.as_ref().map(|value| {
-        relay_observation::ReadLifetime::reply(Arc::clone(value))
-    });
+    let _lifetime = observation
+        .as_ref()
+        .map(|value| relay_observation::ReadLifetime::reply(Arc::clone(value)));
     let mut held = std::collections::VecDeque::new();
     let mut datagram = vec![0; 65_535];
     loop {
