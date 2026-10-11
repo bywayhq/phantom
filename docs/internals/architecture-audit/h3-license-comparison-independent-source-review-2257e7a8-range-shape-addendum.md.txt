@@ -1,0 +1,1 @@
+Original review preserved. Its single-range JSON entries serialized as flat start/end arrays. This addendum supplies explicit start/end objects for the same valid reads; no source, coverage or source-approval change.

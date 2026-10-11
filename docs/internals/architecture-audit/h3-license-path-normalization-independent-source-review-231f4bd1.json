@@ -1,0 +1,31 @@
+{
+  "revision": "231f4bd1409a50fed49c679530567b996ec17b43",
+  "parent": "2257e7a89c2dbf308f1cf493ca639473ac1fffb7",
+  "disposition": "Source approved for bounded paired verification; no source blocker",
+  "helper_blob": "1ea81aab938fc14ce25ab4651f02219dd47e5652",
+  "test_blob": "dcc37611e82169109ee824115455c902f9cf81e7",
+  "reads": [
+    {
+      "path": "scripts/ci/stage-h3-comparison.sh",
+      "start": 1,
+      "end": 68,
+      "scope": "whole"
+    },
+    {
+      "path": "scripts/ci/check-vendor.sh",
+      "start": 195,
+      "end": 237,
+      "scope": "partial"
+    }
+  ],
+  "full_diff_read": true,
+  "whole_helper_inverse_equal": true,
+  "identity": "G; both Arya Alikhani <AryaAlikhani@icloud.com>",
+  "baseline_windows_log_sha256": "563aeab7163edb3bc1a8ad1026c629473498ec49491dd9e1b06ce87efb91a1c8",
+  "limits": [
+    "Windows baseline5pass2tar-path failure2symlink-privilege skips preserved",
+    "No runtime, checker, Cargo, imports or resource probe",
+    "Unchanged213-line tests retain prior whole review, not fresh whole read in this follow-up",
+    "Native paired verification still required"
+  ]
+}

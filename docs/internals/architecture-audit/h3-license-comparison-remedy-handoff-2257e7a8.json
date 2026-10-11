@@ -1,0 +1,288 @@
+{
+  "revision": "2257e7a89c2dbf308f1cf493ca639473ac1fffb7",
+  "parent": "5f55754897ba91d5d862fb8f03dfe78cb19f9337",
+  "lane": "C:\\code\\phantom-worktrees\\audit-h3-license-replay",
+  "disposition": "Authored source remedy; independent review and runtime verification pending.",
+  "identity": [
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "Arya Alikhani <AryaAlikhani@icloud.com>",
+    "G",
+    "fix(ci): compare H3 license links without checkout symlinks"
+  ],
+  "changed_paths": [
+    "scripts/ci/check-vendor.sh",
+    "scripts/ci/stage-h3-comparison.sh",
+    "scripts/dev/tests/test_h3_comparison.py"
+  ],
+  "sources": [
+    {
+      "path": "scripts/ci/check-vendor.sh",
+      "git_blob": "b03ec31640ba730e2bca65da7a1f7f76f58b351d",
+      "physical_sha256": "3f5dc992a9cb07fd94a12046dbf03213bb3bf4f5d562fcb2ae2eff6908a7a056",
+      "canonical_sha256": "3f5dc992a9cb07fd94a12046dbf03213bb3bf4f5d562fcb2ae2eff6908a7a056",
+      "lines": 428,
+      "manual_ranges": [
+        [
+          195,
+          237
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "scripts/ci/stage-h3-comparison.sh",
+      "git_blob": "8cc83a4ffeba38efa7bc7d284d337d9f7a210800",
+      "physical_sha256": "213db807eb37def291e520495eb53a9967f210f7453dd50bb0bee1a76413136f",
+      "canonical_sha256": "213db807eb37def291e520495eb53a9967f210f7453dd50bb0bee1a76413136f",
+      "lines": 66,
+      "manual_ranges": [
+        [
+          1,
+          66
+        ]
+      ],
+      "scope": "whole"
+    },
+    {
+      "path": "scripts/dev/tests/test_h3_comparison.py",
+      "git_blob": "dcc37611e82169109ee824115455c902f9cf81e7",
+      "physical_sha256": "d151c19588f39baaabf133f7af8894ece5c7648e8022c841bd50687b1aecfbff",
+      "canonical_sha256": "d151c19588f39baaabf133f7af8894ece5c7648e8022c841bd50687b1aecfbff",
+      "lines": 213,
+      "manual_ranges": [
+        [
+          1,
+          213
+        ]
+      ],
+      "scope": "whole"
+    },
+    {
+      "path": "scripts/dev/tests/test_ci_checks.py",
+      "git_blob": "9b291d4ee7624cbf7ebd356a88d61896258840fd",
+      "physical_sha256": "ca54f44581b75ca7141c39cc4b05674c240eb45e014cdbb475d83de5d139e417",
+      "canonical_sha256": "bf191b75eaeaf7c389b5eb8bb0ceaca250a403254b01b225b312837dd9d526ed",
+      "lines": 114,
+      "manual_ranges": [
+        [
+          1,
+          114
+        ]
+      ],
+      "scope": "whole"
+    },
+    {
+      "path": "scripts/dev/tests/test_cargo_lock.py",
+      "git_blob": "82e6860f70c688e158dddf7e4c9b99a9831545a3",
+      "physical_sha256": "5d3a340d17ccc455c9095a8b85a2bf400233fe628d46c53c75995364162f3cd9",
+      "canonical_sha256": "25b459445df21d178581d0fea9d1fd1feca9f569cdf9813c2a6cc122b80fc490",
+      "lines": 227,
+      "manual_ranges": [
+        [
+          1,
+          65
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "scripts/ci/stage-btls-candidate.sh",
+      "git_blob": "cced0743ced79de6a5b148b8dc03a8508aeb6506",
+      "physical_sha256": "427a318e794759dbe20db984d2902c283ddafdd399fe2ff2f1f86df46fefae2d",
+      "canonical_sha256": "427a318e794759dbe20db984d2902c283ddafdd399fe2ff2f1f86df46fefae2d",
+      "lines": 161,
+      "manual_ranges": [
+        [
+          1,
+          44
+        ],
+        [
+          106,
+          161
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "vendor/h3/PHANTOM.md",
+      "git_blob": "661134bbab12f1d8dafd65a1c2596261f2dae212",
+      "physical_sha256": "f9d9efe060d762cd9609327d4b67bb7ecdddda426b69db65d4fc214757e88e58",
+      "canonical_sha256": "f9d9efe060d762cd9609327d4b67bb7ecdddda426b69db65d4fc214757e88e58",
+      "lines": 568,
+      "manual_ranges": [
+        [
+          1,
+          28
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "git_blob": "092b24c3b7f5f953889106da2457ae083d0f1dc5",
+      "physical_sha256": "29b6d5bf92c7b2d175aba7a2b4da7914071001de102ddc0d8f775fcd9d3308f1",
+      "canonical_sha256": "ed1685fae9615c2acde4deab04f8cabc102151bb91193ae584a2bf25cdb9d5cc",
+      "lines": 401,
+      "manual_ranges": [
+        [
+          210,
+          217
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "AGENTS.md",
+      "git_blob": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "physical_sha256": "61887031cf019147cdf81f5ae3c1667b67f14b342d8d7c1a233ecccd9b71d3eb",
+      "canonical_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "lines": 221,
+      "manual_ranges": [
+        [
+          1,
+          221
+        ]
+      ],
+      "scope": "whole"
+    },
+    {
+      "path": ".claude/agents/gate-reviewer.md",
+      "git_blob": "9c575f1a541f0571c63db6db2793c331fef641ca",
+      "physical_sha256": "825427fdfe5fb5ff65c4fca8779f14b9414caaa32f99933afaf9758a021ef187",
+      "canonical_sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf",
+      "lines": 48,
+      "manual_ranges": [
+        [
+          1,
+          48
+        ]
+      ],
+      "scope": "whole"
+    },
+    {
+      "path": ".gitattributes",
+      "git_blob": "ade195e3e6d49e890ea8afbc59979132c87aa365",
+      "physical_sha256": "62a44c9226c01fda2a39126ba43a6152263c20d0d35f724dd645420831f65f1b",
+      "canonical_sha256": "7e69208cda6e6edaab7779e9cdacba042aea39ca994d84664c20b3292ce21ec1",
+      "lines": 10,
+      "manual_ranges": [
+        [
+          1,
+          10
+        ]
+      ],
+      "scope": "whole"
+    }
+  ],
+  "external_sources": [
+    {
+      "path": "C:\\Program Files\\Git\\mingw64\\share\\doc\\git-doc\\git-ls-files.html",
+      "sha256": "c480590369d1cd575c3aef60355baf68123abd2bcc7af87d69d41d068477a1ae",
+      "lines": 941,
+      "manual_ranges": [
+        [
+          761,
+          782
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "C:\\Program Files\\Git\\mingw64\\share\\doc\\git-doc\\git-update-index.html",
+      "sha256": "89f7bf79fc9b3f2e5ddc1c57614138e129cee53b9288ae5fdcdeb34849768e15",
+      "lines": 1238,
+      "manual_ranges": [
+        [
+          758,
+          782
+        ]
+      ],
+      "scope": "partial"
+    }
+  ],
+  "license_entries": [
+    {
+      "path": "vendor/h3/h3/LICENSE",
+      "mode": "120000",
+      "target": "../LICENSE",
+      "physical_sha256": "1e881ecf2862d01e6e5bc2b861e46886d2a6fb01499c0c508a209a7271b13cf2",
+      "git_blob": "ea5b60640b01f74e295037aa8a6b7d4ea278a739"
+    },
+    {
+      "path": "vendor/h3/h3-datagram/LICENSE",
+      "mode": "120000",
+      "target": "../LICENSE",
+      "physical_sha256": "1e881ecf2862d01e6e5bc2b861e46886d2a6fb01499c0c508a209a7271b13cf2",
+      "git_blob": "ea5b60640b01f74e295037aa8a6b7d4ea278a739"
+    },
+    {
+      "path": "vendor/h3/h3-quinn/LICENSE",
+      "mode": "120000",
+      "target": "../LICENSE",
+      "physical_sha256": "1e881ecf2862d01e6e5bc2b861e46886d2a6fb01499c0c508a209a7271b13cf2",
+      "git_blob": "ea5b60640b01f74e295037aa8a6b7d4ea278a739"
+    },
+    {
+      "path": "vendor/h3/h3-webtransport/LICENSE",
+      "mode": "120000",
+      "target": "../LICENSE",
+      "physical_sha256": "1e881ecf2862d01e6e5bc2b861e46886d2a6fb01499c0c508a209a7271b13cf2",
+      "git_blob": "ea5b60640b01f74e295037aa8a6b7d4ea278a739"
+    }
+  ],
+  "baseline": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\qlog-packaging-a4e49732-windows.vendor-h3.log",
+    "sha256": "e51c1c76afeb9c3d498b5aec1aca2e541121029e082e90e654bcde2926460488",
+    "lines": 4,
+    "scope": "whole retained log read; four license comparison failures"
+  },
+  "diff": {
+    "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-comparison-remedy-handoff-2257e7a8.diff",
+    "sha256": "15884a8933afa5880f013f141cbb5562b6b146840a567f9960c5b4d732afdcb2"
+  },
+  "preservation": {
+    "entire_checker_inverse_exact": true,
+    "all_other_tree_entries_exact": true,
+    "unchanged_existing_tree_entries": 3896,
+    "archive_checksum_and_patch_replay_unchanged": true,
+    "comparator_exclusions_unchanged": true
+  },
+  "writer_attempt": {
+    "original_path": "C:\\code\\phantom\\target\\architecture-audit\\write-h3-license-handoff-2257e7a8.py",
+    "original_sha256": "40d5748c0ef448d832918a23c5dfd26fa87f128aaf6eae70192dcd4eee99956c",
+    "limitation": "Initial source-only writer stopped before any report/diff writes because test_ci_checks.py actual EOF114 differed from an assumed131. Corrected separate writer credits fresh whole114 only. The actual-scopes writer then stopped after creating the exact diff, before MD/JSON, due to an undefined metadata variable; this final distinct writer verifies/reuses that immutable diff without overwriting it."
+  },
+  "static": {
+    "python_ast_parsed": true,
+    "test_methods": [
+      "test_placeholders_materialize_full_license_without_changing_source",
+      "test_actual_symlinks_materialize_the_same_full_license",
+      "test_wrong_checkout_symlink_target_is_rejected",
+      "test_wrong_tracked_mode_is_rejected",
+      "test_wrong_tracked_target_is_rejected",
+      "test_extra_tracked_link_is_rejected",
+      "test_wrong_placeholder_bytes_are_rejected",
+      "test_git_failures_are_reported_without_creating_comparison",
+      "test_changed_full_license_remains_visible_to_comparison"
+    ],
+    "target_imports": false,
+    "native_execution": false,
+    "shellcheck": false,
+    "ruff": false,
+    "cargo": false,
+    "tests_executed": false
+  },
+  "design": [
+    "Validate the exact four indexed mode120000 stage0 entries and literal blob target bytes.",
+    "Validate actual symlink targets or ten-byte regular placeholders before copying.",
+    "Do not create symlinks in staging: omit only the validated four link entries, then copy shared full license content into their places.",
+    "Exclude target directories from the comparison copy, preserving all other source bytes; full final comparator continues to compare all LICENSE files.",
+    "Checked Git metadata commands fail explicitly; shell pipeline uses pipefail; caller owns and removes staging."
+  ],
+  "limits": [
+    "Nine controls are source-only, not measured successes. Actual-symlink controls skip hosts unable to create their fixture symlinks; placeholder tests remain available without privilege.",
+    "No vendor files, runtime code, package manifests, locks, central documentation or changelog changed.",
+    "Copy mechanics and Windows replay still require actual paired verification. No whole checker or vendor-tree manual review claimed.",
+    "Root owns CHANGELOG, independent review, ShellCheck0.11.0, Ruff, dev tests and H3 archive/patch replay plus packaging checks."
+  ]
+}

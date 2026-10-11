@@ -555,14 +555,14 @@ crates/phantom/tests/http3/alt_svc_race.rs	crate	pending
 crates/phantom/tests/http3/alt_svc_race/fixture_controls.rs	source	pending	continued-source-review-reconciliation.json#/discovered_rows/5
 crates/phantom/tests/http3/connect_udp.rs	crate	source-complete	integration-support-standards-review.json#/selected_caller_records/2; masque-boundary-standards-review.json#/source_reads/7; proxy-test-owner-root-standards-review-96ee6074.json#/source_records/0
 crates/phantom/tests/http3/connect_udp/origin_tasks.rs	crate	source-complete	connect-udp-origin-remedy-independent-review-b78b51d1.json#/source_records/1; full authored owner read and independent current owner read; current bytes unchanged
-crates/phantom/tests/http3/http2_fallback.rs	crate	pending	client-http3-integration-standards-review.json#/source_records/9
+crates/phantom/tests/http3/http2_fallback.rs	crate	source-complete	client-http3-integration-standards-review.json#/source_records/9; http2-fallback-owner-independent-source-review-664383e0.json; coverage.md#client-test-coverage-reconciliation
 crates/phantom/tests/http3/http2_fallback/socks5.rs	crate	source-complete	client-http3-integration-standards-review.json#/source_records/5; current exact whole-read binding: socks-target-observation-second-independent-review-81c61f13.json#/sources/7
 crates/phantom/tests/http3/http3.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/5
-crates/phantom/tests/http3/http3_early_data.rs	crate	pending	h3-early-fixture-independent-review.json#/source_records/3
+crates/phantom/tests/http3/http3_early_data.rs	crate	source-complete	h3-early-fixture-independent-review.json#/source_records/3; client-test-coverage-reconciliation-9b4e6f6f.json#/files/13
 crates/phantom/tests/http3/http3_early_data/absence_controls.rs	source	source-complete	h3-early-fixture-independent-review.json#/source_records/0
 crates/phantom/tests/http3/http3_early_data/relay_controls.rs	source	source-complete	h3-early-fixture-independent-review.json#/source_records/1
-crates/phantom/tests/http3/http3_retries.rs	crate	pending	h3-early-fixture-independent-review.json#/source_records/6
-crates/phantom/tests/http3/http3_session_resumption.rs	crate	pending	h3-early-fixture-independent-review.json#/source_records/5
+crates/phantom/tests/http3/http3_retries.rs	crate	source-complete	h3-early-fixture-independent-review.json#/source_records/6; client-test-coverage-reconciliation-9b4e6f6f.json#/files/14
+crates/phantom/tests/http3/http3_session_resumption.rs	crate	source-complete	h3-early-fixture-independent-review.json#/source_records/5; client-test-coverage-reconciliation-9b4e6f6f.json#/files/15
 crates/phantom/tests/http3/http3_session_resumption/relay_controls.rs	source	source-complete	h3-early-fixture-independent-review.json#/source_records/2
 crates/phantom/tests/http3/http3_upgrade.rs	crate	source-complete	current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/4
 crates/phantom/tests/http3/http3_upgrade_socks5.rs	crate	source-complete	client-http3-integration-standards-review.json#/source_records/4
@@ -2159,13 +2159,13 @@ crates/phantom-net/src/http2/tests/request_body_cancellation/teardown_characteri
 crates/phantom/tests/http3/connect_udp/observation_contract.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/1
 crates/phantom/tests/http3/connect_udp/origin_failures.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/2
 crates/phantom/tests/http3/connect_udp/origin_ownership.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/3
-crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/4
-crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/5
-crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/6
-crates/phantom/tests/requests/cookie_crumbs/capture_input.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/7
-crates/phantom/tests/requests/cookie_crumbs/fixture_contract.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/8
-crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h2.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/9
-crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h3.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/10
+crates/phantom/tests/proxies/proxy_h2/deadline_contract.rs	crate	source-complete	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/4; client-test-coverage-reconciliation-9b4e6f6f.json#/files/17
+crates/phantom/tests/proxies/proxy_h2/decoder_contract.rs	crate	source-complete	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/5; client-test-coverage-reconciliation-9b4e6f6f.json#/files/18
+crates/phantom/tests/proxies/proxy_h2_multiplex/deadline_contract.rs	crate	source-complete	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/6; client-test-coverage-reconciliation-9b4e6f6f.json#/files/20
+crates/phantom/tests/requests/cookie_crumbs/capture_input.rs	crate	source-complete	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/7; client-test-coverage-reconciliation-9b4e6f6f.json#/files/0
+crates/phantom/tests/requests/cookie_crumbs/fixture_contract.rs	crate	source-complete	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/8; client-test-coverage-reconciliation-9b4e6f6f.json#/files/1
+crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h2.rs	crate	source-complete	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/9; client-test-coverage-reconciliation-9b4e6f6f.json#/files/2
+crates/phantom/tests/requests/cookie_crumbs/fixture_contract/h3.rs	crate	source-complete	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/10; client-test-coverage-reconciliation-9b4e6f6f.json#/files/3
 crates/phantom/tests/streams/websocket/routing/peer_contract.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/11
 crates/phantom/tests/streams/websocket_http3/masque_diagnostics.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/12
 crates/phantom/tests/support/http3_upgrade/owner_results/acquisition_contract.rs	crate	pending	tracked source discovery; recent-evidence-checkpoint-2cea08af.json#/discovery_records/13
@@ -2931,7 +2931,7 @@ docs/internals/architecture-audit/root-driver-stream-source-49c0aad0.md.txt	docu
 docs/internals/architecture-audit/cookie-lifecycle-remedy-native-independent-addendum-2fb596ad.md.txt	documentation	pending	Exact independent native evidence import; discovery is not whole-report semantic review.
 docs/internals/architecture-audit/cookie-lifecycle-remedy-native-independent-addendum-2fb596ad.json	documentation	pending	Exact independent native evidence import; discovery is not whole-report semantic review.
 crates/phantom/tests/proxies/proxy/peer_completion.rs	crate	source-complete	Exact complete prior manual review retained unchanged at659e5576: trust-rejection-baseline-independent-source-review-4ba228ae.json#/source_records/2; current identity/range reconciliation: trust-capture-checkpoint-659e5576.json#/unchanged_complete_source_bindings; no fresh semantic credit from comparison, remedies/final gates remain separate.
-crates/phantom/tests/proxies/proxy_h2/connection_contract.rs	crate	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
+crates/phantom/tests/proxies/proxy_h2/connection_contract.rs	crate	source-complete	Current discovery or exact evidence import; no new semantic coverage from inventory membership.; client-test-coverage-reconciliation-9b4e6f6f.json#/files/19
 crates/phantom/tests/proxies/proxy_h2/driver_contract.rs	crate	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
 crates/phantom/tests/proxies/proxy_h2/relay_contract.rs	crate	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
 crates/phantom/tests/proxies/proxy_h2/stream_contract.rs	crate	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
@@ -2941,7 +2941,7 @@ crates/phantom/tests/proxies/proxy_h2_multiplex/outcome_contract.rs	crate	pendin
 crates/phantom/tests/proxies/proxy_h2_multiplex/peer_contract.rs	crate	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
 crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs	crate	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
 crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs	crate	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
-crates/phantom/tests/requests/h3_received_order.rs	crate	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
+crates/phantom/tests/requests/h3_received_order.rs	crate	source-complete	Current discovery or exact evidence import; no new semantic coverage from inventory membership.; client-test-coverage-reconciliation-9b4e6f6f.json#/files/11
 crates/phantom/tests/requests/trust_anchor_orders/observation_contract.rs	crate	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
 docs/internals/architecture-audit/connect-lifecycle-remedy-native-independent-addendum-602284c2-corrected.json	documentation	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
 docs/internals/architecture-audit/connect-lifecycle-remedy-native-independent-addendum-602284c2-corrected.md.txt	documentation	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
@@ -2980,10 +2980,10 @@ docs/internals/architecture-audit/trust-observer-remedy-independent-source-revie
 docs/internals/architecture-audit/trust-observer-remedy-native-1ac70fe1.json	documentation	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
 docs/internals/architecture-audit/trust-observer-remedy-native-1ac70fe1.md.txt	documentation	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
 vendor/h3/patches/ordered-received-request-headers.patch	documentation	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.
-crates/phantom/tests/requests/client_hints/deadline_contract.rs	crate	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
-crates/phantom/tests/requests/client_hints/hint_values.rs	crate	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
-crates/phantom/tests/requests/client_hints/received_order.rs	crate	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
-crates/phantom/tests/requests/cookies/deadline_contract.rs	crate	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
+crates/phantom/tests/requests/client_hints/deadline_contract.rs	crate	source-complete	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.; client-test-coverage-reconciliation-9b4e6f6f.json#/files/7
+crates/phantom/tests/requests/client_hints/hint_values.rs	crate	source-complete	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.; client-test-coverage-reconciliation-9b4e6f6f.json#/files/8
+crates/phantom/tests/requests/client_hints/received_order.rs	crate	source-complete	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.; client-test-coverage-reconciliation-9b4e6f6f.json#/files/9
+crates/phantom/tests/requests/cookies/deadline_contract.rs	crate	source-complete	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.; client-test-coverage-reconciliation-9b4e6f6f.json#/files/5
 docs/internals/architecture-audit/h2-lifecycle-baseline-native-independent-addendum-3e48645c.json	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
 docs/internals/architecture-audit/h2-lifecycle-baseline-native-independent-addendum-3e48645c.md.txt	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
 docs/internals/architecture-audit/request-hint-observers-baseline-native-732d3006.json	documentation	pending	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.
@@ -3025,8 +3025,8 @@ docs/internals/architecture-audit/request-h2-checkpoint-native-121bbf19.md.txt	d
 docs/internals/architecture-audit/request-session-deadline-native-independent-addendum-85f2d58b.json	documentation	pending	Discovered source or exact evidence preservation; no semantic coverage from inventory membership.
 docs/internals/architecture-audit/request-session-deadline-native-independent-addendum-85f2d58b.md.txt	documentation	pending	Discovered source or exact evidence preservation; no semantic coverage from inventory membership.
 crates/phantom/tests/proxies/proxy_h2/connect_peer.rs	crate	pending	Discovered source or exact evidence preservation; inventory membership gives no semantic review credit.
-crates/phantom/tests/requests/cookies/redirect_drivers.rs	crate	pending	Discovered source or exact evidence preservation; inventory membership gives no semantic review credit.
-crates/phantom/tests/requests/cookies/task_ownership.rs	crate	pending	Discovered source or exact evidence preservation; inventory membership gives no semantic review credit.
+crates/phantom/tests/requests/cookies/redirect_drivers.rs	crate	source-complete	Discovered source or exact evidence preservation; inventory membership gives no semantic review credit.; client-test-coverage-reconciliation-9b4e6f6f.json#/files/6
+crates/phantom/tests/requests/cookies/task_ownership.rs	crate	source-complete	Discovered source or exact evidence preservation; inventory membership gives no semantic review credit.; client-test-coverage-reconciliation-9b4e6f6f.json#/files/4
 docs/internals/architecture-audit/connect-registry-compiler-followup-a0d2c622.json	documentation	pending	Discovered source or exact evidence preservation; inventory membership gives no semantic review credit.
 docs/internals/architecture-audit/connect-registry-compiler-followup-a0d2c622.md.txt	documentation	pending	Discovered source or exact evidence preservation; inventory membership gives no semantic review credit.
 docs/internals/architecture-audit/connect-registry-compiler-independent-source-review-a0d2c622.json	documentation	pending	Discovered source or exact evidence preservation; inventory membership gives no semantic review credit.
@@ -3085,7 +3085,7 @@ docs/internals/architecture-audit/hint-remaining-source-review-2489815a-final.js
 docs/internals/architecture-audit/hint-remaining-source-review-2489815a-final.md.txt	documentation	pending	Discovered exact evidence record; inventory membership gives no semantic review credit.
 docs/internals/architecture-audit/request-h2-checkpoint-independent-native-addendum-d983ad7e.json	documentation	pending	Discovered exact evidence record; inventory membership gives no semantic review credit.
 docs/internals/architecture-audit/request-h2-checkpoint-independent-native-addendum-d983ad7e.md.txt	documentation	pending	Discovered exact evidence record; inventory membership gives no semantic review credit.
-crates/phantom/tests/requests/client_hints/quiet_contract.rs	crate	pending	Discovered exact evidence record or control source; inventory membership gives no semantic review credit.
+crates/phantom/tests/requests/client_hints/quiet_contract.rs	crate	source-complete	Discovered exact evidence record or control source; inventory membership gives no semantic review credit.; client-test-coverage-reconciliation-9b4e6f6f.json#/files/10
 docs/internals/architecture-audit/capture-session-source-standards-review-42858688.json	documentation	pending	Discovered exact evidence record or control source; inventory membership gives no semantic review credit.
 docs/internals/architecture-audit/capture-session-source-standards-review-42858688.md.txt	documentation	pending	Discovered exact evidence record or control source; inventory membership gives no semantic review credit.
 docs/internals/architecture-audit/cookie-remedy-independent-native-addendum-42858688.json	documentation	pending	Discovered exact evidence record or control source; inventory membership gives no semantic review credit.
@@ -3817,7 +3817,7 @@ crates/phantom/tests/http3/https_record_ech_exact/deadline_contract.rs	source	pe
 crates/phantom/tests/http3/https_record_ech_http3/deadline_contract.rs	source	pending	inventory discovery at 802517fa; no review credit
 crates/phantom/tests/http3/https_records/deadline_contract.rs	source	pending	inventory discovery at 802517fa; no review credit
 crates/phantom/tests/proxies/proxy/trust_rejection/root_difference.rs	source	pending	inventory discovery at 802517fa; no review credit
-crates/phantom/tests/requests/prepared_bodies/uploads/lifecycle_contract.rs	source	pending	inventory discovery at 802517fa; no review credit
+crates/phantom/tests/requests/prepared_bodies/uploads/lifecycle_contract.rs	source	source-complete	inventory discovery at 802517fa; no review credit; client-test-coverage-reconciliation-9b4e6f6f.json#/files/12
 docs/internals/architecture-audit/android-async-baseline-root-217dff2d.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
 docs/internals/architecture-audit/android-async-child-interpreter-scaffold-followup-5a99e2a1.json	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
 docs/internals/architecture-audit/android-async-child-interpreter-scaffold-followup-5a99e2a1.md.txt	audit-evidence	evidence-record	inventory discovery at 802517fa; no review credit
@@ -3944,3 +3944,36 @@ scripts/capture/tests/test_android_run_contracts.py	source	source-complete	andro
 scripts/capture/tests/test_proxy_child_cleanup.py	source	source-complete	android-worker-ui-cli-root-checkpoint-a68e171c.json#/source_bindings
 docs/internals/architecture-audit/android-completion-metadata-independent-review-a68e171c.json	documentation	evidence-indexed	android-completion-metadata-independent-review-a68e171c.json
 docs/internals/architecture-audit/android-completion-metadata-independent-review-a68e171c.md.txt	documentation	evidence-indexed	android-completion-metadata-independent-review-a68e171c.json
+docs/internals/architecture-audit/client-test-coverage-reconciliation-9b4e6f6f.json	documentation	evidence-indexed	client-test-coverage-reconciliation-9b4e6f6f.json
+docs/internals/architecture-audit/client-test-coverage-reconciliation-9b4e6f6f.md.txt	documentation	evidence-indexed	client-test-coverage-reconciliation-9b4e6f6f.json
+docs/internals/architecture-audit/convenience-owner-coverage-reconciliation-c6d63211.json	documentation	evidence-indexed	convenience-owner-coverage-reconciliation-c6d63211.json
+docs/internals/architecture-audit/convenience-owner-coverage-reconciliation-c6d63211.md.txt	documentation	evidence-indexed	convenience-owner-coverage-reconciliation-c6d63211.json
+docs/internals/architecture-audit/convenience-pacing-independent-source-review-bc8a6f18.json	documentation	evidence-indexed	convenience-pacing-independent-source-review-bc8a6f18.json
+docs/internals/architecture-audit/convenience-pacing-independent-source-review-bc8a6f18.md.txt	documentation	evidence-indexed	convenience-pacing-independent-source-review-bc8a6f18.json
+docs/internals/architecture-audit/convenience-pacing-remedy-handoff-bc8a6f18.json	documentation	evidence-indexed	convenience-pacing-remedy-handoff-bc8a6f18.json
+docs/internals/architecture-audit/convenience-pacing-remedy-handoff-bc8a6f18.md.txt	documentation	evidence-indexed	convenience-pacing-remedy-handoff-bc8a6f18.json
+docs/internals/architecture-audit/convenience-teardown-metadata-independent-review-da2ddd20.json	documentation	evidence-indexed	convenience-teardown-metadata-independent-review-da2ddd20.json
+docs/internals/architecture-audit/convenience-teardown-metadata-independent-review-da2ddd20.md.txt	documentation	evidence-indexed	convenience-teardown-metadata-independent-review-da2ddd20.json
+docs/internals/architecture-audit/h3-license-comparison-independent-native-addendum-9d6e0e14.json	documentation	evidence-indexed	h3-license-comparison-independent-native-addendum-9d6e0e14.json
+docs/internals/architecture-audit/h3-license-comparison-independent-native-addendum-9d6e0e14.md.txt	documentation	evidence-indexed	h3-license-comparison-independent-native-addendum-9d6e0e14.json
+docs/internals/architecture-audit/h3-license-comparison-independent-source-review-2257e7a8-range-shape-addendum.json	documentation	evidence-indexed	h3-license-comparison-independent-source-review-2257e7a8-range-shape-addendum.json
+docs/internals/architecture-audit/h3-license-comparison-independent-source-review-2257e7a8-range-shape-addendum.md.txt	documentation	evidence-indexed	h3-license-comparison-independent-source-review-2257e7a8-range-shape-addendum.json
+docs/internals/architecture-audit/h3-license-comparison-independent-source-review-2257e7a8.json	documentation	evidence-indexed	h3-license-comparison-independent-source-review-2257e7a8.json
+docs/internals/architecture-audit/h3-license-comparison-independent-source-review-2257e7a8.md.txt	documentation	evidence-indexed	h3-license-comparison-independent-source-review-2257e7a8.json
+docs/internals/architecture-audit/h3-license-comparison-remedy-handoff-2257e7a8.json	documentation	evidence-indexed	h3-license-comparison-remedy-handoff-2257e7a8.json
+docs/internals/architecture-audit/h3-license-comparison-remedy-handoff-2257e7a8.md.txt	documentation	evidence-indexed	h3-license-comparison-remedy-handoff-2257e7a8.json
+docs/internals/architecture-audit/h3-license-path-normalization-followup-handoff-231f4bd1.json	documentation	evidence-indexed	h3-license-path-normalization-followup-handoff-231f4bd1.json
+docs/internals/architecture-audit/h3-license-path-normalization-followup-handoff-231f4bd1.md.txt	documentation	evidence-indexed	h3-license-path-normalization-followup-handoff-231f4bd1.json
+docs/internals/architecture-audit/h3-license-path-normalization-independent-native-addendum-17ad91de.json	documentation	evidence-indexed	h3-license-path-normalization-independent-native-addendum-17ad91de.json
+docs/internals/architecture-audit/h3-license-path-normalization-independent-native-addendum-17ad91de.md.txt	documentation	evidence-indexed	h3-license-path-normalization-independent-native-addendum-17ad91de.json
+docs/internals/architecture-audit/h3-license-path-normalization-independent-source-review-231f4bd1.json	documentation	evidence-indexed	h3-license-path-normalization-independent-source-review-231f4bd1.json
+docs/internals/architecture-audit/h3-license-path-normalization-independent-source-review-231f4bd1.md.txt	documentation	evidence-indexed	h3-license-path-normalization-independent-source-review-231f4bd1.json
+docs/internals/architecture-audit/h3-received-order-baseline-independent-review-41ce0759.json	documentation	evidence-indexed	h3-received-order-baseline-independent-review-41ce0759.json
+docs/internals/architecture-audit/h3-received-order-baseline-independent-review-41ce0759.md.txt	documentation	evidence-indexed	h3-received-order-baseline-independent-review-41ce0759.json
+docs/internals/architecture-audit/http2-fallback-owner-independent-source-review-664383e0.json	documentation	evidence-indexed	http2-fallback-owner-independent-source-review-664383e0.json
+docs/internals/architecture-audit/http2-fallback-owner-independent-source-review-664383e0.md.txt	documentation	evidence-indexed	http2-fallback-owner-independent-source-review-664383e0.json
+docs/internals/architecture-audit/http2-teardown-source-9d6e0e14.json	documentation	evidence-indexed	http2-teardown-source-9d6e0e14.json
+docs/internals/architecture-audit/request-deadline-baseline-independent-source-review-f92f1ea7.json	documentation	evidence-indexed	request-deadline-baseline-independent-source-review-f92f1ea7.json
+docs/internals/architecture-audit/request-deadline-baseline-independent-source-review-f92f1ea7.md.txt	documentation	evidence-indexed	request-deadline-baseline-independent-source-review-f92f1ea7.json
+scripts/ci/stage-h3-comparison.sh	source	source-complete	h3-license-path-normalization-independent-source-review-231f4bd1.json
+scripts/dev/tests/test_h3_comparison.py	source	source-complete	h3-license-comparison-independent-source-review-2257e7a8.json; h3-license-path-normalization-independent-native-addendum-17ad91de.json

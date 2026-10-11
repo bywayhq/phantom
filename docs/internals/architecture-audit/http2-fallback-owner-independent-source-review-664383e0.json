@@ -1,0 +1,524 @@
+{
+  "revision": "664383e057c49739cc185f3c1a51bb003d7e4c65",
+  "writer_qualification": "Initial writer rejected oversized supporting ranges1\u2013149 and1\u2013103 before emitting any report. Actual supporting EOFs116/98 were measured and the corrected writer credits only1\u2013116/1\u201398. Original failed writer remains immutable.",
+  "requested_path_correction": "Requested top-level crates/phantom/tests/http2_fallback.rs is absent. Actual registered pending owner is crates/phantom/tests/http3/http2_fallback.rs.",
+  "verdict": "Fresh whole661 manual source disposition complete, with supported fixture ownership/cause/oracle findings. No remedy, runtime or production approval.",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "revision": "664383e057c49739cc185f3c1a51bb003d7e4c65",
+      "blob": "af44973fc3349b52402a05accd39c90bc5b2543c",
+      "lines": 661,
+      "git_sha256": "212bffa1f7d4fccc42b9ea008b2fdab1379c831b4b9632b3211f7490733a0dbb",
+      "physical_sha256": "040451afc01cbf73249c76123e3b27486592e0966b65569b8ade4199dbedb9ca",
+      "manual_classification": "whole",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 661,
+          "sha256": "212bffa1f7d4fccc42b9ea008b2fdab1379c831b4b9632b3211f7490733a0dbb"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/main.rs",
+      "revision": "664383e057c49739cc185f3c1a51bb003d7e4c65",
+      "blob": "d53f2961c2a217b83b002d8b664c104582a2d6c3",
+      "lines": 30,
+      "git_sha256": "605168d0b1788e7d11594039158b1c8fc1519c50df5a1932beeda73d91188acf",
+      "physical_sha256": "36a4ede48b006c664ab6f922910f51475183b5028cb80a6a1cefd403648c0b35",
+      "manual_classification": "whole",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 30,
+          "sha256": "605168d0b1788e7d11594039158b1c8fc1519c50df5a1932beeda73d91188acf"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/shared_port.rs",
+      "revision": "664383e057c49739cc185f3c1a51bb003d7e4c65",
+      "blob": "fc74f947d542d51dab7cc20a56371190d053f362",
+      "lines": 67,
+      "git_sha256": "5e0a9902556cb04d861ec29bc80d803dcf3a6cb6eb115eac9afdca1adcbe6ec5",
+      "physical_sha256": "358d2f43b33c3e1d6c60c3b05bdc6a595cfd1176b2f38850430f15e76ad56d4b",
+      "manual_classification": "whole",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 67,
+          "sha256": "5e0a9902556cb04d861ec29bc80d803dcf3a6cb6eb115eac9afdca1adcbe6ec5"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "664383e057c49739cc185f3c1a51bb003d7e4c65",
+      "blob": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "lines": 116,
+      "git_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "physical_sha256": "904fab09dd544dada45735919f9c914c7b4f7ea4fb8fdba3944d79ae45b8be70",
+      "manual_classification": "partial",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 116,
+          "sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/h2.rs",
+      "revision": "664383e057c49739cc185f3c1a51bb003d7e4c65",
+      "blob": "31e897aaf72747b99e5197f7e1359686d8e4582c",
+      "lines": 98,
+      "git_sha256": "96530754b80297f5445656ea0abff1e74d62ac2b4263f66c5e789a99ab5bdc52",
+      "physical_sha256": "7d6576a98c0a5e04ab55bc70bbd3d0f194bd3e7af8279da58225354930fd9187",
+      "manual_classification": "partial",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 98,
+          "sha256": "96530754b80297f5445656ea0abff1e74d62ac2b4263f66c5e789a99ab5bdc52"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "664383e057c49739cc185f3c1a51bb003d7e4c65",
+      "blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "lines": 225,
+      "git_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "physical_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "manual_classification": "partial",
+      "manual_ranges": [
+        {
+          "first": 86,
+          "last": 225,
+          "sha256": "c2a5144a0b269c4434dc916d6d7bfbc0e9f7aaefd7332f51844b1be4648b6f29"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "664383e057c49739cc185f3c1a51bb003d7e4c65",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "lines": 268,
+      "git_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "physical_sha256": "570f76cda99513c55669e5ddfb798f0acbd409fb6eebeea043558dbe7ccc9a8d",
+      "manual_classification": "partial",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 117,
+          "sha256": "64500e19429afcc319c0ede17066a7c5f28fd68c32c1f34094d25f33104864b7"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback/socks5.rs",
+      "revision": "664383e057c49739cc185f3c1a51bb003d7e4c65",
+      "blob": "e253723ec43623dfcf5f7e1725b2f1ceb10c44e1",
+      "lines": 168,
+      "git_sha256": "5662a837cd5f07343b8266369f78fdd4e02af9b95d15efbdfdc9134020e543b5",
+      "physical_sha256": "98eeb574ae3dcb6a5f963094f69989575ae5c3a5deec81e719dda4d34d7694e8",
+      "manual_classification": "partial",
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 112,
+          "sha256": "2e75d612ca573ad052504d3a31bd1f4e162c1501cce5a885e4d189fabacfeb79"
+        },
+        {
+          "first": 124,
+          "last": 168,
+          "sha256": "20e2df24016b14e6b45b1f22c5b7f363d7d1de168bdc0212bc4eb64098509c50"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/request/attempt.rs",
+      "revision": "664383e057c49739cc185f3c1a51bb003d7e4c65",
+      "blob": "fad10d7f056af2dab30e360dd533807399a91901",
+      "lines": 1409,
+      "git_sha256": "dae9ce8102ad1f6e365dc78063d7138809fd857efa3fc5defd34c3321283daf6",
+      "physical_sha256": "cfa9f39e7b1f7a9b38e0928cba78d7a5e838f9c7eef337574271bb0d8be8cbd1",
+      "manual_classification": "partial",
+      "manual_ranges": [
+        {
+          "first": 221,
+          "last": 275,
+          "sha256": "236c8abcc5c5630fe5c4b5d300791088da6a00f05021f894590de44519c70c7b"
+        },
+        {
+          "first": 614,
+          "last": 634,
+          "sha256": "631cb12ce1d4ac4e1e61cc73c4698ffce0f912644708d3046a119a8de54d4cc8"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/request.rs",
+      "revision": "664383e057c49739cc185f3c1a51bb003d7e4c65",
+      "blob": "0c9a467e5e56e24e3374f923a6fe7b7a8464a33f",
+      "lines": 2359,
+      "git_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "physical_sha256": "0b0319a9008f94d4307516db5c140e879fd433993bb50ffc14d0340133c3012b",
+      "manual_classification": "partial",
+      "manual_ranges": [
+        {
+          "first": 1568,
+          "last": 1606,
+          "sha256": "e198cbe56092f8ea74dc97a42483127ca1ea4ec8ee4088ac15ac7c4b4ba28f0d"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/error.rs",
+      "revision": "664383e057c49739cc185f3c1a51bb003d7e4c65",
+      "blob": "f25f0724e5f17d51049baa47b5e13e02433d5e98",
+      "lines": 1553,
+      "git_sha256": "18564dc5a711b5c8186a24d17d2b3c53ac15be6ae4930a2e168c37505302e916",
+      "physical_sha256": "d69b4fac9964ef650bdd1b50725cf247b1e3849100edc705fb7da96a3df51e42",
+      "manual_classification": "partial",
+      "manual_ranges": [
+        {
+          "first": 1231,
+          "last": 1263,
+          "sha256": "d031fddb979969888fa957b159672c528a40c5db386f9d4f09fddede6bb2d85c"
+        },
+        {
+          "first": 1401,
+          "last": 1420,
+          "sha256": "20c73f028639e395b4f460a137968be4217875e86e6c0de61aa9007187fd0735"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/src/retry.rs",
+      "revision": "664383e057c49739cc185f3c1a51bb003d7e4c65",
+      "blob": "e5f1a7f24feb039533e5e28a1332ec9af190a45b",
+      "lines": 800,
+      "git_sha256": "89e01fce494b9fd64b61f99b685ebb9bc71e93cf8ead4a1759d8067679f266d5",
+      "physical_sha256": "95152c6b5d337e28d42de3784804ecf4a1795bf4dd816e165a971e8a63056c49",
+      "manual_classification": "partial",
+      "manual_ranges": [
+        {
+          "first": 255,
+          "last": 306,
+          "sha256": "48ac331cc1b4f78a8716075a14f959d9904d51c95ac4a0faaff61878636ba276"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "revision": "664383e057c49739cc185f3c1a51bb003d7e4c65",
+      "blob": "191df38f55d5f90a0b4009db02934f59de12dbf0",
+      "lines": 139,
+      "git_sha256": "3afb1d5d14aae01d46bc423b0acac739529609223df5c6fc3894e5adcf1656c5",
+      "physical_sha256": "b859f14ed1eee31802c4015ae149f1f9f394c7624e570bd67a7d4eaf429aba0a",
+      "manual_classification": "partial",
+      "manual_ranges": [
+        {
+          "first": 81,
+          "last": 96,
+          "sha256": "b775db007f8f9f4e903e06869f4dbf14a382c44f744ea560c691d72d52e2b525"
+        }
+      ]
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "664383e057c49739cc185f3c1a51bb003d7e4c65",
+      "blob": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "lines": 1792,
+      "git_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "physical_sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "manual_classification": "partial",
+      "manual_ranges": [
+        {
+          "first": 501,
+          "last": 543,
+          "sha256": "a590298bf7c6eaa3f9d47b047120661eab0f322a3419cc8a93b17c1374da12f5"
+        }
+      ]
+    },
+    {
+      "path": "vendor/quinn/src/endpoint.rs",
+      "revision": "664383e057c49739cc185f3c1a51bb003d7e4c65",
+      "blob": "1bf82c0ed88f9af8b6b48a655f4a5b3a4140ce10",
+      "lines": 879,
+      "git_sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "physical_sha256": "a63bf8516128c5dd7ac7fb2e63450886873990f2084ff91b39737c4cf41c6c32",
+      "manual_classification": "partial",
+      "manual_ranges": [
+        {
+          "first": 164,
+          "last": 181,
+          "sha256": "36c67a79bbb6347b48dd54a5a2909823fd77b9482e596789aa28da1e74bad1cd"
+        },
+        {
+          "first": 299,
+          "last": 332,
+          "sha256": "d73461dd4146f3e90ac7efeac67f0217e1e32a5aa1b7ea6876b10146a211e48b"
+        },
+        {
+          "first": 718,
+          "last": 743,
+          "sha256": "cf0312d52f97c9305e28304c691c7ca2f776dee0dcc6eb673250f156166f2161"
+        }
+      ]
+    }
+  ],
+  "resolved_dependencies": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "lines": 377,
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "manual_classification": "partial",
+      "manual_ranges": [
+        {
+          "first": 11,
+          "last": 34,
+          "sha256": "f0bc31378bf266954b1afa4a0b7ad9aa8f8fe6531bb31ef3ea7ed364dd8b0f35"
+        },
+        {
+          "first": 210,
+          "last": 233,
+          "sha256": "700e7b34b013cf98942caf80181f0037cc3d22e02bd08e836a921ab225c91951"
+        },
+        {
+          "first": 352,
+          "last": 369,
+          "sha256": "4da6d763dd7ada512b0a00e341223f558f29caba93646d7f66e2a9ef96765aa2"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\timeout.rs",
+      "lines": 249,
+      "sha256": "5b1b20cb77de63fb5071b696ac644706a9749e0aeb6dbea57220834cba6dc953",
+      "manual_classification": "partial",
+      "manual_ranges": [
+        {
+          "first": 17,
+          "last": 47,
+          "sha256": "fc8a45f4c076d801e56a2fc24cab4d63b7593c1f1e5f3f0b7f6a8096653334d2"
+        }
+      ]
+    }
+  ],
+  "historical_scope": {
+    "path": "C:\\code\\phantom-worktrees\\architecture-audit\\docs\\internals\\architecture-audit\\client-http3-integration-standards-review.json",
+    "sha256": "f9053e1e9bab8c037d2b654aa3533567e75d9e404655afa9e206bc4becb393c2",
+    "prior_revision": "c8aae33a525ef97d1bd1a4f8ec6b7dfdeedf6255",
+    "prior_read_ranges": [
+      [
+        1,
+        184
+      ]
+    ],
+    "current_blob_equal": true,
+    "qualification": "Retained record9 is partial1\u2013184, despite its enclosing prose broadly saying six whole files. Fresh whole661 credit belongs only to this report; original remains unchanged."
+  },
+  "findings": [
+    {
+      "id": "FALLBACK-OWNER",
+      "severity": "major",
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "ranges": [
+        [
+          143,
+          158
+        ],
+        [
+          192,
+          214
+        ],
+        [
+          357,
+          379
+        ],
+        [
+          461,
+          482
+        ],
+        [
+          532,
+          562
+        ],
+        [
+          586,
+          608
+        ]
+      ],
+      "problem": "Raw outer JoinHandles and the nested HTTP/2 connection driver remain unowned across fallible work and cancellation. Dropping an early-failed or timed-out caller detaches them. The QUIC loop discards accepted-child handles, and success aborts its parent without awaiting destruction. Sequential joins skip remaining sibling outcomes after an earlier failure.",
+      "repair": "Immediately adopt real workers with the established concrete owner; parent owns every nested driver/handshake task. Explicit finite cleanup observes completed results and combines every sibling with the original operation failure. Drop requests abort only; do not claim joining from Drop.",
+      "control_plan": "Use actual canonical serve_http2 with authenticated H2 and nonempty DATA followed by an original body.data future observed Pending. Destroy the enclosing operation while retaining actual client/socket/runtime and independent finite backup; observe driver destruction before backup. Separately retain real completed distinct sibling errors through the actual collector. Mechanical extraction may expose the existing canonical task registration; no copied worker."
+    },
+    {
+      "id": "FALLBACK-DEADLINE",
+      "severity": "major",
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "ranges": [
+        [
+          177,
+          184
+        ]
+      ],
+      "problem": "The twenty-second bound replaces original tokio::time::error::Elapsed with a string. This loses the recoverable typed cause and is distinct from the previously repaired HTTPS-record wrappers.",
+      "repair": "Keep the exact context and20-second budget in an owner-local typed error whose source is the original Elapsed; retain ordinary inner errors unchanged.",
+      "control_plan": "Poll the actual bounded future to Pending before paused-clock advancement. Require the existing context and actual Elapsed in its source chain. Include ready-operation and distinct inner-error identity positives; no networking credit from synthetic timer controls."
+    },
+    {
+      "id": "FALLBACK-SETTINGS",
+      "severity": "minor",
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "ranges": [
+        [
+          430,
+          436
+        ],
+        [
+          485,
+          498
+        ]
+      ],
+      "problem": "The recipe observer reads but does not validate the literal HTTP/2 preface or SETTINGS stream ID, and discards the remainder from as_chunks::<6>(). An expected24-byte settings prefix plus1\u20135 malformed trailing bytes satisfies the equality assertion.",
+      "repair": "Validate the literal preface, stream-zero SETTINGS and empty chunk remainder before exact ordered recipe comparison. Retain existing literal expected settings and priority oracle.",
+      "control_plan": "Use a bounded literal malformed-wire observer control if a minimal parser seam is needed; preserve healthy raw exchange. This is an assertion-contract gap, not evidence that the client emitted malformed frames."
+    }
+  ],
+  "qualified_observation_gaps": [
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "ranges": [
+        [
+          350,
+          381
+        ],
+        [
+          384,
+          398
+        ]
+      ],
+      "gap": "The configured300ms test accepts every elapsed duration below4seconds; an immediate unrelated setup failure followed by healthy H2 also satisfies it. No actual pending Initial/Connect-phase trigger is observed.",
+      "next_contract": "Require actual unfinished QUIC setup and independently observed connect-timeout transition before successful H2. Do not add a nominal duration/sleep as the sole witness."
+    },
+    {
+      "path": "crates/phantom/tests/http3/http2_fallback.rs",
+      "ranges": [
+        [
+          521,
+          609
+        ]
+      ],
+      "gap": "The resumed-failure test never observes an offered/accepted ticket or actual early-data packet dispatch. Its current assertions establish first H3 response, changed untrusted server configuration and later H2 POST payload, which also describe a full-handshake failure.",
+      "next_contract": "Retain healthy H3 priming and independently observe actual resumed early-data dispatch before the failed handshake, while retaining zero H3 POST processing and exact H2 payload. Related A71 evidence applies to another module, not this specific method."
+    }
+  ],
+  "per_method_trace": [
+    {
+      "method": "a_refused_quic_handshake_sends_the_request_over_http2",
+      "lines": [
+        186,
+        221
+      ],
+      "contract": "Actual refusal plus H2 POST/204/path/body, ResponseInfo Http2 and zero setup retries; both peers joined only after success."
+    },
+    {
+      "method": "without_the_policy_a_refused_handshake_returns_the_http3_error",
+      "lines": [
+        223,
+        243
+      ],
+      "contract": "Actual refused handshake, error protocolHttp3, then finite TCP quiet observation; no typed cause assertion beyond protocol."
+    },
+    {
+      "method": "a_one_shot_streaming_body_returns_the_http3_error",
+      "lines": [
+        245,
+        267
+      ],
+      "contract": "One-shot body with explicit fallback still returns Http3 and opens no TCP within the finite window; actual refusal peer joined."
+    },
+    {
+      "method": "a_failure_after_the_request_was_sent_returns_the_http3_error",
+      "lines": [
+        269,
+        306
+      ],
+      "contract": "Actual resolved H3 request precedes server ApplicationClose0x102; Http3 error and quiet TCP required; raw peer joins success only."
+    },
+    {
+      "method": "the_fallback_needs_an_http2_profile_and_a_tcp_route_before_any_io",
+      "lines": [
+        308,
+        348
+      ],
+      "contract": "Typed preflight ProtocolUnavailable/UnsupportedRoute with Http2 attribution; both unused local listeners observed for finite300ms windows, not eternal no-I/O."
+    },
+    {
+      "method": "a_handshake_past_the_connect_timeout_falls_back",
+      "lines": [
+        384,
+        398
+      ],
+      "contract": "Healthy H2 after held unaccepted QUIC setup; configured timing trigger has the qualified gap above."
+    },
+    {
+      "method": "a_handshake_past_four_seconds_falls_back",
+      "lines": [
+        401,
+        412
+      ],
+      "contract": "Healthy H2 with measured elapsed3.9\u201310seconds bounds; no browser or exact inactivity-timer parity claim."
+    },
+    {
+      "method": "the_http2_attempt_uses_the_profiles_http2_recipe",
+      "lines": [
+        456,
+        504
+      ],
+      "contract": "Actual raw H2 status200, ordered SETTINGS recipe and HEADERS priority bit; malformed remainder/preface gap above. Actual no-extra-request claim is not made."
+    },
+    {
+      "method": "a_failed_handshake_after_early_data_falls_back_before_the_request_is_written",
+      "lines": [
+        521,
+        612
+      ],
+      "contract": "First H3 response and later untrusted-handshake H2 POST/body; early-data attribution gap and unowned children remain."
+    },
+    {
+      "method": "a_failed_http2_attempt_returns_the_http2_error",
+      "lines": [
+        614,
+        639
+      ],
+      "contract": "Actual QUIC refusal then TCP connect failure yields typed Connect/Http2; TCP listener is dropped rather than held as a refused-port reservation. No contention flake measured."
+    },
+    {
+      "method": "zero_retry_cap_keeps_exact_http3_and_needs_no_http2_profile",
+      "lines": [
+        641,
+        661
+      ],
+      "contract": "Zero caller retry cap disables fallback without H2 profile; actual refusal and finite unused TCP listener observation."
+    }
+  ],
+  "standards": "Domain grouping and test names are focused; same-number dual transport uses established bounded shared-port candidates and loopback-only binding. Local crate imports at4\u20137 precede standard/external imports; reorder only when this owner is touched. No unsafe or new protocol fallback was introduced by this review.",
+  "duplicate_reconciliation": "Current ledger A180/A181/A182 concern HTTPS-record/ECH fixtures and A69/A71 other H3 relays/dispatch. These findings bind this distinct unchanged fallback owner; no existing repair is reopened or credited here. Root assigns ledger identities.",
+  "limits": [
+    "No target import, native execution, Cargo, formatter, checker, resource or process probe.",
+    "Supporting source is partial except explicitly whole main/shared_port; no whole-crate, transitive owner or fresh child-module coverage.",
+    "No measured task lifetime beyond runtime/process teardown, infinite leak, TLS defect, retry defect or scheduling flake.",
+    "The acquisition retry exhaustion string and quiet-listener error attribution remain source limitations; no artificial OS-failure control proposed.",
+    "Existing new controls/remedies require independent review and root causal execution before integration."
+  ],
+  "future_root_verification": [
+    "Focused http3::http2_fallback selection on both platforms after any baseline/remedy.",
+    "cargo fmt --check; strict http3 target Clippy; Rust1.88 check through scripts/dev/with-cargo-lock.sh.",
+    "Integration gate and docs check remain root-owned; no vendor source touched by this report."
+  ]
+}

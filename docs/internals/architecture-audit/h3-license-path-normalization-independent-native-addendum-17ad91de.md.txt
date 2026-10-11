@@ -1,0 +1,7 @@
+# H3 path normalization fixed native addendum
+
+Confirmed exact17ad91de603ee5737f91911255b74126bb521961: Linux9/9 controls pass; Windows7 pass and the same two actual WinError1314 symlink-privilege skips. Both H3 vendor commands and pinned Ruff check/format pass; Linux ShellCheck0. Both complete guarded runners return0 with exact revision and clean final guard. The46-line unchanged launcher and all26 artifacts were read and hashed.
+
+Both complete365-line vendor logs were manually read in1–190/191–365 chunks. All eleven selected groups pass,285 successful invocations with overlap rather than all379 unique tests. No warnings or errors appear in these fixed command outputs. These are bounded package/checker results, not a full workspace gate or current CI claim.
+
+The same213-line test object and checker remain exact; helper equals independently reviewed231f. Windows's formerly failing two controls now complete, so their literal materialized-license/source-preservation and changed-license comparison assertions are reached. Historical9d6 failures and privilege skips are retained in the separate baseline addendum. No source change, target import, runtime or checker was performed by this reviewer.

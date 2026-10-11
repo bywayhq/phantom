@@ -62,6 +62,20 @@ Lexical joins own the request and peer futures. These contracts retain the
 selected first error; they do not establish simultaneous-error aggregation.
 The layout change adds no behavioral test or fresh native result.
 
+### Client test coverage reconciliation
+
+The [client test reconciliation](client-test-coverage-reconciliation-9b4e6f6f.json)
+binds twelve unchanged files to retained complete source reviews. Eight other
+files retain complete historical reads plus reviewed current differences.
+Root verifies their current objects and reads those differences. This adds
+source coverage for twenty inventory entries without refreshing native results.
+
+The [fallback fixture review](http2-fallback-owner-independent-source-review-664383e0.json)
+supplies the missing whole-file read for the 661-line fallback owner. It finds
+task ownership, deadline-cause and wire-observer gaps. These and the remaining
+H3 relay error paths still need controls and repairs; source coverage does not
+close those findings.
+
 ## Maintainer documents
 
 The [maintainer document review](maintainer-docs-independent-source-review-e57dade6.json)
@@ -139,6 +153,21 @@ children and pipes where their individual records state that scope. Expected
 child disconnects are accepted at two fixture closure waits; unrelated errors
 remain reported. These results do not establish hardware acceptance, natural
 hold duration, universal thread joining or the final workspace gate.
+
+## H3 vendor comparison
+
+The [fixed comparison receipt](h3-license-path-normalization-independent-native-addendum-17ad91de.json)
+records the license-link repair at `17ad91de` on both hosts. Linux passes all
+nine controls. Windows passes seven and skips two actual-symlink controls
+because the host cannot create symlinks. Both vendor checks and pinned Python
+lint and formatting pass. Linux also passes pinned ShellCheck.
+
+The helper validates exact tracked link targets and checkout representations,
+then compares the referenced full license text. It leaves the checkout intact.
+The original Windows path failures remain in the
+[baseline receipt](h3-license-comparison-independent-native-addendum-9d6e0e14.json).
+The 285 successful filtered vendor test invocations include overlapping
+selections. These checks do not establish a full workspace gate.
 
 ## Recent verification
 

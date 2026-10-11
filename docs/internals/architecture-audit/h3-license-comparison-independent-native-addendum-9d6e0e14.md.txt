@@ -1,0 +1,9 @@
+# H3 comparison native addendum
+
+Bounded results at exact 9d6e0e144eb8554d138b2c35f91d9cb233711cb5 are confirmed from both complete control/vendor logs, all short logs and statuses, and the complete 46-line guarded launcher. Linux runs all nine comparison controls successfully, Ruff check/format and ShellCheck0; Windows has five passes, two failures and two explicit WinError1314 symlink skips. Both full H3 vendor commands exit0. Final clean/head guards and runner sidecars are present: Linux0, Windows1.
+
+Windows failures occur at test97/189 because GNU tar cannot open the C:\Users destination. Later exact materialization/source-preservation and changed-license comparison assertions are unreached in those two controls. The passing negative controls still reject extra links, failed Git commands, placeholder bytes, index modes and index targets. The two symlink tests are skipped for actual host privilege, not counted as passes. Linux exercises all nine.
+
+Whole vendor logs were read in untruncated ranges1–200/201–376 Linux and1–200/201–387 Windows. Their test groups all pass; overlapping filtered invocations are not summed into unique-test coverage. Windows package-cache wait diagnostics remain visible. The tested checker/helper/tests Git objects equal the independently reviewed2257 objects. The separately approved231f normalization has not run in these historical artifacts.
+
+This adds no fresh source-wide, browser, capture, full-gate or current-CI claim. No target execution, imports, checker or tracked changes occurred. All26 native artifacts and the launcher are hashed in the paired JSON.

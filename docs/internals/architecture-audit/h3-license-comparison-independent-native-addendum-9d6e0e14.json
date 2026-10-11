@@ -1,0 +1,187 @@
+{
+  "revision": "9d6e0e144eb8554d138b2c35f91d9cb233711cb5",
+  "disposition": "Linux complete bounded selection passed; Windows staging controls require the separately reviewed path correction",
+  "manual_reads": [
+    {
+      "path": "C:/code/phantom/target/architecture-audit/run-h3-license-fixed-reviewed.sh",
+      "end": 46,
+      "start": 1
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h3-license-fixed-9d6e0e14-linux.vendor.log",
+      "end": 376,
+      "start": 1
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/h3-license-fixed-9d6e0e14-windows.vendor.log",
+      "end": 387,
+      "start": 1
+    }
+  ],
+  "all_control_logs_and_short_artifacts_manually_read": true,
+  "artifact_count": 26,
+  "artifacts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-linux.controls.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-linux.controls.log",
+      "sha256": "82a042628b5ccd687e676c31640f7c7be22e2fc7c301ba8864f4136602218c53",
+      "lines": 14
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-linux.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-linux.revision",
+      "sha256": "dbfe3c716e341a45c556c5a6fc9fb9898cf3d2103ca8e4c630787a48dba3059a",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-linux.ruff-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-linux.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-linux.ruff-format.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-linux.ruff-format.log",
+      "sha256": "fd2299c9f1c6dc869070883e281051bfe93aacf66c1a3b0069f45b4aa410ca50",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-linux.shell-version.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-linux.shell-version.log",
+      "sha256": "fc9eec16b4191d058a295813ca9afbe9d2b37b59975da860170726be162a3924",
+      "lines": 4
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-linux.shellcheck.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-linux.shellcheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "lines": 0
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-linux.vendor.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-linux.vendor.log",
+      "sha256": "4126889d0a6c8c85f4caa03f6dcb63549f8fb3e17cdaed1f990cc5932e39e610",
+      "lines": 376
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-windows.controls.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-windows.controls.log",
+      "sha256": "563aeab7163edb3bc1a8ad1026c629473498ec49491dd9e1b06ce87efb91a1c8",
+      "lines": 34
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-windows.exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-windows.revision",
+      "sha256": "dbfe3c716e341a45c556c5a6fc9fb9898cf3d2103ca8e4c630787a48dba3059a",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-windows.ruff-check.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-windows.ruff-check.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-windows.ruff-format.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-windows.ruff-format.log",
+      "sha256": "fd2299c9f1c6dc869070883e281051bfe93aacf66c1a3b0069f45b4aa410ca50",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-windows.vendor.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "lines": 1
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\h3-license-fixed-9d6e0e14-windows.vendor.log",
+      "sha256": "4ed89383893a669a7e4fd545a874f8fbf30617feed302eb049932ada58624375",
+      "lines": 387
+    }
+  ],
+  "launcher_sha256": "ac748c49851bc939ca26beeeb64c11f5a11b76ead595c4d96f07a2fb02dda03b",
+  "results": {
+    "windows": {
+      "controls": "5 PASS, 2 FAIL, 2 privilege SKIP",
+      "ruff_check": 0,
+      "runner": 1,
+      "vendor": 0,
+      "ruff_format": 0
+    },
+    "linux": {
+      "ruff_check": 0,
+      "shellcheck": 0,
+      "ruff_format": 0,
+      "controls": "9 PASS",
+      "runner": 0,
+      "vendor": 0
+    }
+  },
+  "source_bindings": {
+    "helper": "8cc83a4ffeba38efa7bc7d284d337d9f7a210800",
+    "tests": "dcc37611e82169109ee824115455c902f9cf81e7",
+    "equal_2257": true,
+    "checker": "b03ec31640ba730e2bca65da7a1f7f76f58b351d"
+  },
+  "limits": [
+    "Two Windows controls stop at tar stage returncode 2 before later literal bytes/diff assertions.",
+    "Two actual symlink controls skipped with WinError1314.",
+    "Vendor selections overlap; no summed unique-test or full workspace gate credit.",
+    "Windows package-cache wait diagnostics retained; no warnings/errors in the vendor command logs.",
+    "231f path correction has source approval only in separate record; no retroactive Windows pass.",
+    "No execution, checker, target import or tracked mutation by this reviewer."
+  ]
+}

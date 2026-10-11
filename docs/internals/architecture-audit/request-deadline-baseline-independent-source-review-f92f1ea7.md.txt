@@ -1,0 +1,15 @@
+# Independent request-session deadline baseline review
+
+Approve signed f92f1ea7 for root causal baseline execution. Both complete new
+children (70/61 lines), complete parent insertion diff, actual wrapper bodies,
+five-second constants, feature/lock entries and resolved timer/source contracts
+were read. The controls require real inner polling, actual timer expiry, original
+operation context and typed Elapsed. Ready37 and typed PermissionDenied controls
+provide four positives. Two missing-Elapsed failures remain source predictions.
+
+Removing only natural registrations reconstructs both original parents exactly,
+including all25 existing methods. Whole-current parent review is not inferred.
+No tasks, sockets, dependencies, fixture repair or Cargo execution were added.
+Other ownership findings, native verification and full gates remain open.
+
+JSON SHA256: `ea957041b5e0323d4ded542203a825b7b8cd4c9f05ad1181ceaf05a2fb5646df`.

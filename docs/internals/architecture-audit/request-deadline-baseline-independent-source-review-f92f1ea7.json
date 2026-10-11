@@ -1,0 +1,191 @@
+{
+  "revision": "f92f1ea7f764d3703efc455f4a4a7e5c74b007e3",
+  "parent": "d0a45c1eaefb523552975306d0909b3b61fe5867",
+  "decision": "approve six causal deadline controls for root baseline execution",
+  "source_records": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "f92f1ea7f764d3703efc455f4a4a7e5c74b007e3",
+      "git_blob_oid": "4b8bdbaf800b4935a39e33fde02172c116c40853",
+      "raw_sha256": "5e84bf6d83dfce1e11780adeb92da19ce7df2e600271bf1439798f9b149506bc",
+      "line_count": 724,
+      "scope": "fresh supporting partial/current registration read only",
+      "read_ranges": [
+        {
+          "start": 35,
+          "end": 52,
+          "raw_sha256": "61ae8b7e598d4824f9dd3abd385ec3358d15be055b92a8dcd01d674126d51d3b"
+        },
+        {
+          "start": 710,
+          "end": 724,
+          "raw_sha256": "0c4bc64f023ba185ad0500511aebe6a79b65302a4d78ded6754b49f52b31f77e"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "revision": "f92f1ea7f764d3703efc455f4a4a7e5c74b007e3",
+      "git_blob_oid": "a0d28b66432aac7d7e9a3bde45e36aae22f89404",
+      "raw_sha256": "a559d1028712b28bd5501057c40437eb83c3b5ba7da438f5ce27c84a56a75e88",
+      "line_count": 1281,
+      "scope": "fresh supporting partial/current registration read only",
+      "read_ranges": [
+        {
+          "start": 33,
+          "end": 44,
+          "raw_sha256": "b8f01fd2cc0cfc2d6b41fd45516fb832378b96e35d431f73b1a77606270966f5"
+        },
+        {
+          "start": 1263,
+          "end": 1281,
+          "raw_sha256": "3f957cd8a4015f939d79e5032ff1d0ee833c77982563525d0f760347e2a20d33"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies/deadline_contract.rs",
+      "revision": "f92f1ea7f764d3703efc455f4a4a7e5c74b007e3",
+      "git_blob_oid": "de87e89e6787a37c6681dab0c14c873c36573167",
+      "raw_sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a",
+      "line_count": 70,
+      "scope": "fresh full current child manual read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 70,
+          "raw_sha256": "33c75f3797585d63edd7a94d0e6997c0f634a59a5f900b97b0097987be925a9a"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints/deadline_contract.rs",
+      "revision": "f92f1ea7f764d3703efc455f4a4a7e5c74b007e3",
+      "git_blob_oid": "4f0c70d43f139c5580589605ebe85bcb41834478",
+      "raw_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f",
+      "line_count": 61,
+      "scope": "fresh full current child manual read",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 61,
+          "raw_sha256": "be0b888d501d320d43ac7d3aef9e2294921ddb1cfcfdb3a41c1b2ef5c2b5255f"
+        }
+      ]
+    },
+    {
+      "path": "crates/phantom/Cargo.toml",
+      "revision": "f92f1ea7f764d3703efc455f4a4a7e5c74b007e3",
+      "git_blob_oid": "70d83316bba459472bbc3e3808660aae57dfab98",
+      "raw_sha256": "9a59cadf2361027d21620fd4f1ee566eb2014c88244a63eb62c9a1eec3dec5e4",
+      "line_count": 138,
+      "scope": "fresh supporting partial/current registration read only",
+      "read_ranges": [
+        {
+          "start": 66,
+          "end": 72,
+          "raw_sha256": "fd3005b667d85b7481a54322d18b54e74a6c331f7d31f73dae11d214d7b58dee"
+        }
+      ]
+    },
+    {
+      "path": "Cargo.lock",
+      "revision": "f92f1ea7f764d3703efc455f4a4a7e5c74b007e3",
+      "git_blob_oid": "edb197bac55416167b2930de96fb7d68c122bd2d",
+      "raw_sha256": "358a39d8d54c72f001b6285d66763073fd036f48cd07a0e881174fe3c22602d4",
+      "line_count": 2772,
+      "scope": "fresh supporting partial/current registration read only",
+      "read_ranges": [
+        {
+          "start": 2219,
+          "end": 2227,
+          "raw_sha256": "0ea7d810bab69d0ccb6870ed5a243a7ab67fb3f80ef71d2b3e2f4b402d6e93c6"
+        }
+      ]
+    }
+  ],
+  "resolved_registry_records": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\timeout.rs",
+      "git_blob_oid": null,
+      "raw_sha256": "5b1b20cb77de63fb5071b696ac644706a9749e0aeb6dbea57220834cba6dc953",
+      "line_count": 249,
+      "scope": "local resolved registry source manually read partial",
+      "read_ranges": [
+        {
+          "start": 185,
+          "end": 240,
+          "raw_sha256": "23850c32d1321a1bccdbd9463250323a1cee8788beaabb1ebf48d3c65fbc91e6"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\error.rs",
+      "git_blob_oid": null,
+      "raw_sha256": "48dee729b01f8fe1eeea99b516ce99b76733c01e49e788b3764ab478acef1837",
+      "line_count": 123,
+      "scope": "local resolved small source manually read full",
+      "read_ranges": [
+        {
+          "start": 1,
+          "end": 123,
+          "raw_sha256": "48dee729b01f8fe1eeea99b516ce99b76733c01e49e788b3764ab478acef1837"
+        }
+      ]
+    }
+  ],
+  "preservation": [
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "original_methods": 8,
+      "whole_original_reconstruction_equal": true,
+      "scope": "byte preservation only, no independent whole parent review"
+    },
+    {
+      "path": "crates/phantom/tests/requests/client_hints.rs",
+      "original_methods": 17,
+      "whole_original_reconstruction_equal": true,
+      "scope": "byte preservation only, no independent whole parent review"
+    }
+  ],
+  "new_methods": [
+    "crates/phantom/tests/requests/cookies/deadline_contract.rs:the_actual_bound_returns_a_ready_success",
+    "crates/phantom/tests/requests/cookies/deadline_contract.rs:the_actual_bound_keeps_a_ready_inner_error",
+    "crates/phantom/tests/requests/cookies/deadline_contract.rs:the_actual_five_second_bound_keeps_elapsed_and_context",
+    "crates/phantom/tests/requests/client_hints/deadline_contract.rs:the_actual_bound_returns_a_ready_success",
+    "crates/phantom/tests/requests/client_hints/deadline_contract.rs:the_actual_bound_keeps_a_ready_inner_error",
+    "crates/phantom/tests/requests/client_hints/deadline_contract.rs:the_actual_five_second_bound_keeps_elapsed_and_context"
+  ],
+  "forecast": {
+    "positive": 4,
+    "missing_elapsed_negative": 2,
+    "executed": false
+  },
+  "observations": [
+    "Both ordinary wrappers retain the five-second constant and existing contextual text; only natural child registrations added to their parents.",
+    "Ready positives demonstrate observed37 success and actual boxed io PermissionDenied plus literal context unchanged.",
+    "Paused controls use real wrapper/timer, entered pending inner operation and elapsed >= actual TEST_TIMEOUT before contextual string and concrete Elapsed source traversal.",
+    "Resolved Timeout first polls inner future, then actual Sleep returns concrete Elapsed; inherited test-util feature permits paused-clock runtime controls.",
+    "No fixture, task, socket, new dependency or implementation remedy introduced; controlled pending wrapper behavior is separate from live network behavior."
+  ],
+  "findings": [],
+  "limits": [
+    "No Cargo, compilation, lint, MSRV or native execution by independent reviewer. Four positives/two final missing-Elapsed failures remain source predictions.",
+    "Complete child131 lines read; current parent/helper reads partial. Removing registration exactly reconstructs historical parents, not new full source credit.",
+    "Registry source has no Git blob; raw hashes and actual ranges are explicit.",
+    "Initial follow-up terminal read requested error.rs through131 and reached actual EOF123; tool returned IndexError after printing123. Report records actual1\u2013123 only, no nonexistent coverage.",
+    "Other request-session ownership and operation findings remain outside this signed checkpoint; main/full gates remain open."
+  ],
+  "handoff_evidence": [
+    {
+      "path": "request-deadline-baseline-handoff-f92f1ea7.md",
+      "sha256": "9bad0ecafa9a110247f75303240fc85a0c278b675e9285a9aa541680f51a9953",
+      "scope": "complete handoff manually read, six source identity/range records independently validated"
+    },
+    {
+      "path": "request-deadline-baseline-handoff-f92f1ea7.json",
+      "sha256": "303371d9ec4e48d20cd619e09b3318bf661571a4cb0d76d123b28643eefd3775",
+      "scope": "complete handoff manually read, six source identity/range records independently validated"
+    }
+  ]
+}

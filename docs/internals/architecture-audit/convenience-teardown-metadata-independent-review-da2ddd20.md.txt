@@ -1,0 +1,9 @@
+# Convenience and teardown metadata review
+
+Approved exact da2ddd20ae0a882ce1fb385b84e1dcf231849a89 as bounded source-coverage metadata. All six report imports equal their original bytes; the complete nine-path change contains only those imports, the40-line root teardown record, coverage prose and three inventory replacements. All3,946 inventory rows retain original path order and unique paths; no rows were added, removed or otherwise changed. Required human identities and G signature are verified.
+
+Both current convenience parent objects equal the externally approved bc8 objects. The whole336/398 baseline plus independently reviewed six/eight blank additions supports current342/406 coverage; both peer children retain their whole172/147 bindings. This reviewer authored the baseline/pacing and does not independently reapprove that source: the separate independent bc8 report supplies the differential approval. Its complete115-line record and prose were read here.
+
+The teardown record binds actual170-line owner object fbea03fc, whole1–170 root manual coverage, with parent1–55 and ShutdownPeer402–480 explicitly partial. Coverage repeats that boundary and the in-memory/no-new-execution limitation. This metadata review validates the source object, EOF and recorded scope, without claiming a new independent whole-owner read or transferring root manual credit.
+
+Lexical first-error behavior and lack of simultaneous-error proof remain explicit. No native results or broader findings are promoted. Whole coverage/inventory diff, root record and retained prose were read; baseline JSON source fields and hashes were inspected. No runtime, target imports, checker, source/index edits or integration actions occurred.
