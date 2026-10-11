@@ -3,11 +3,6 @@
 //! The server counts the tickets clients present through its session store,
 //! so each test observes resumption from the peer's side of the wire.
 
-use crate::support::h3 as h3_support;
-use crate::support::masque as masque_support;
-use crate::support::socks5_udp as socks5_udp_support;
-use crate::support::tls as tls_support;
-
 use std::{
     collections::{BTreeMap, HashMap},
     future::Future,
@@ -31,8 +26,16 @@ use rustls::server::{ServerSessionMemoryCache, StoresServerSessions};
 use tokio::{
     net::{TcpListener, UdpSocket},
     sync::mpsc,
-    task::{JoinHandle, JoinSet},
     time::timeout,
+};
+
+use crate::{
+    http3_early_data::relay_peer::{RelayPeer, RelayWorkers, drain_deadline, stop_fixture_peer},
+    support::{
+        h3 as h3_support, masque as masque_support, socks5_udp as socks5_udp_support,
+        tls as tls_support,
+        tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+    },
 };
 
 use h3_support::client_settings;
@@ -291,7 +294,7 @@ struct ScriptedServer {
     attempts: Arc<AtomicUsize>,
     read: mpsc::UnboundedSender<()>,
     drained: mpsc::UnboundedReceiver<()>,
-    task: JoinHandle<TestResult<()>>,
+    task: Option<ConnectionPeer<TestResult<()>>>,
 }
 
 impl ScriptedServer {
@@ -303,7 +306,7 @@ impl ScriptedServer {
         let task_attempts = Arc::clone(&attempts);
         let (read, mut read_rx) = mpsc::unbounded_channel::<()>();
         let (drained_tx, drained) = mpsc::unbounded_channel();
-        let task = tokio::spawn(async move {
+        let task = ConnectionPeer::spawn(async move {
             for attempt in script {
                 let incoming = endpoint.accept().await.ok_or("HTTP/3 endpoint closed")?;
                 task_attempts.fetch_add(1, Ordering::SeqCst);
@@ -329,12 +332,13 @@ impl ScriptedServer {
             }
             Ok(())
         });
+
         Ok(Self {
             address,
             attempts,
             read,
             drained,
-            task,
+            task: Some(task),
         })
     }
 
@@ -359,34 +363,51 @@ async fn a_failed_resumed_handshake_is_repeated_once_without_a_ticket() -> TestR
             &identity,
             vec![Attempt::Serve, Attempt::FailHandshake, Attempt::Serve],
         )?;
-        let sniffer = HelloSniffer::spawn(server.address).await?;
-        let session = resuming_client(&identity)?;
-        let uri = format!("https://{}/", sniffer.address);
-
-        send(session.get(HttpProtocol::Http3, &uri)?).await?;
-        server.close_served().await?;
-        // The second request presents the ticket, fails its handshake, and
-        // completes on one repeated attempt over the same route.
-        send(session.get(HttpProtocol::Http3, &uri)?).await?;
-        server.close_served().await?;
-
-        assert_eq!(server.attempts(), 3);
-        let hellos = sniffer.hellos();
-        let [fresh, resumed, retry] = hellos.as_slice() else {
-            return Err(format!("expected three ClientHellos, saw {}", hellos.len()).into());
+        let mut sniffer = match HelloSniffer::spawn(server.address).await {
+            Ok(sniffer) => sniffer,
+            Err(error) => {
+                return finish_with_cleanup(Err(error), stop_fixture_peer(server.task.take()).await);
+            }
         };
-        assert!(!fresh.contains(&PRE_SHARED_KEY));
-        assert_eq!(resumed.last(), Some(&PRE_SHARED_KEY));
-        assert!(!retry.contains(&PRE_SHARED_KEY));
-        // Apart from the ticket, the repeated attempt makes the same offer.
-        let without_ticket: Vec<u16> = resumed
-            .iter()
-            .copied()
-            .filter(|extension| *extension != PRE_SHARED_KEY)
-            .collect();
-        assert_eq!(sorted(&without_ticket), sorted(retry));
-        server.task.await??;
-        Ok(())
+        let mut retained_client = None;
+        let outcome: TestResult<()> = async {
+            let session = resuming_client(&identity)?;
+            retained_client = Some(session.clone());
+            let uri = format!("https://{}/", sniffer.address);
+
+            send(session.get(HttpProtocol::Http3, &uri)?).await?;
+            server.close_served().await?;
+            // The second request presents the ticket, fails its handshake, and
+            // completes on one repeated attempt over the same route.
+            send(session.get(HttpProtocol::Http3, &uri)?).await?;
+            server.close_served().await?;
+
+            assert_eq!(server.attempts(), 3);
+            let hellos = sniffer.hellos();
+            let [fresh, resumed, retry] = hellos.as_slice() else {
+                return Err(format!("expected three ClientHellos, saw {}", hellos.len()).into());
+            };
+            assert!(!fresh.contains(&PRE_SHARED_KEY));
+            assert_eq!(resumed.last(), Some(&PRE_SHARED_KEY));
+            assert!(!retry.contains(&PRE_SHARED_KEY));
+            // Apart from the ticket, the repeated attempt makes the same offer.
+            let without_ticket: Vec<u16> = resumed
+                .iter()
+                .copied()
+                .filter(|extension| *extension != PRE_SHARED_KEY)
+                .collect();
+            assert_eq!(sorted(&without_ticket), sorted(retry));
+            server.task.take().ok_or("server owner missing")?.await??;
+            Ok(())
+        }
+        .await;
+        let cleanup = finish_with_cleanup(
+            stop_fixture_peer(server.task.take()).await,
+            sniffer.task.stop().await,
+        );
+        drop(retained_client);
+
+        finish_with_cleanup(outcome, cleanup)
     })
     .await
 }
@@ -403,27 +424,44 @@ async fn a_repeated_handshake_that_fails_is_not_repeated_again() -> TestResult<(
                 Attempt::FailHandshake,
             ],
         )?;
-        let sniffer = HelloSniffer::spawn(server.address).await?;
-        let session = resuming_client(&identity)?;
-        let uri = format!("https://{}/", sniffer.address);
+        let mut sniffer = match HelloSniffer::spawn(server.address).await {
+            Ok(sniffer) => sniffer,
+            Err(error) => {
+                return finish_with_cleanup(Err(error), stop_fixture_peer(server.task.take()).await);
+            }
+        };
+        let mut retained_client = None;
+        let outcome: TestResult<()> = async {
+            let session = resuming_client(&identity)?;
+            retained_client = Some(session.clone());
+            let uri = format!("https://{}/", sniffer.address);
 
-        send(session.get(HttpProtocol::Http3, &uri)?).await?;
-        server.close_served().await?;
-        let result = session.get(HttpProtocol::Http3, &uri)?.send().await;
-        assert!(
-            result.is_err(),
-            "a failed repeated handshake produced a response"
+            send(session.get(HttpProtocol::Http3, &uri)?).await?;
+            server.close_served().await?;
+            let result = session.get(HttpProtocol::Http3, &uri)?.send().await;
+            assert!(
+                result.is_err(),
+                "a failed repeated handshake produced a response"
+            );
+
+            assert_eq!(server.attempts(), 3);
+            let hellos = sniffer.hellos();
+            let presented: Vec<bool> = hellos
+                .iter()
+                .map(|hello| hello.contains(&PRE_SHARED_KEY))
+                .collect();
+            assert_eq!(presented, [false, true, false]);
+            server.task.take().ok_or("server owner missing")?.await??;
+            Ok(())
+        }
+        .await;
+        let cleanup = finish_with_cleanup(
+            stop_fixture_peer(server.task.take()).await,
+            sniffer.task.stop().await,
         );
+        drop(retained_client);
 
-        assert_eq!(server.attempts(), 3);
-        let hellos = sniffer.hellos();
-        let presented: Vec<bool> = hellos
-            .iter()
-            .map(|hello| hello.contains(&PRE_SHARED_KEY))
-            .collect();
-        assert_eq!(presented, [false, true, false]);
-        server.task.await??;
-        Ok(())
+        finish_with_cleanup(outcome, cleanup)
     })
     .await
 }
@@ -432,24 +470,41 @@ async fn a_repeated_handshake_that_fails_is_not_repeated_again() -> TestResult<(
 async fn a_failed_handshake_without_a_ticket_is_not_repeated() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        let server = ScriptedServer::spawn(&identity, vec![Attempt::FailHandshake])?;
-        let sniffer = HelloSniffer::spawn(server.address).await?;
-        let session = resuming_client(&identity)?;
-        let uri = format!("https://{}/", sniffer.address);
-
-        let result = session.get(HttpProtocol::Http3, &uri)?.send().await;
-        assert!(result.is_err(), "a failed handshake produced a response");
-
-        // The request has failed, so any repeated attempt would already have
-        // reached the server.
-        assert_eq!(server.attempts(), 1);
-        let hellos = sniffer.hellos();
-        let [hello] = hellos.as_slice() else {
-            return Err(format!("expected one ClientHello, saw {}", hellos.len()).into());
+        let mut server = ScriptedServer::spawn(&identity, vec![Attempt::FailHandshake])?;
+        let mut sniffer = match HelloSniffer::spawn(server.address).await {
+            Ok(sniffer) => sniffer,
+            Err(error) => {
+                return finish_with_cleanup(Err(error), stop_fixture_peer(server.task.take()).await);
+            }
         };
-        assert!(!hello.contains(&PRE_SHARED_KEY));
-        server.task.await??;
-        Ok(())
+        let mut retained_client = None;
+        let outcome: TestResult<()> = async {
+            let session = resuming_client(&identity)?;
+            retained_client = Some(session.clone());
+            let uri = format!("https://{}/", sniffer.address);
+
+            let result = session.get(HttpProtocol::Http3, &uri)?.send().await;
+            assert!(result.is_err(), "a failed handshake produced a response");
+
+            // The request has failed, so any repeated attempt would already have
+            // reached the server.
+            assert_eq!(server.attempts(), 1);
+            let hellos = sniffer.hellos();
+            let [hello] = hellos.as_slice() else {
+                return Err(format!("expected one ClientHello, saw {}", hellos.len()).into());
+            };
+            assert!(!hello.contains(&PRE_SHARED_KEY));
+            server.task.take().ok_or("server owner missing")?.await??;
+            Ok(())
+        }
+        .await;
+        let cleanup = finish_with_cleanup(
+            stop_fixture_peer(server.task.take()).await,
+            sniffer.task.stop().await,
+        );
+        drop(retained_client);
+
+        finish_with_cleanup(outcome, cleanup)
     })
     .await
 }
@@ -571,7 +626,7 @@ async fn serve_one(
 struct HelloSniffer {
     address: SocketAddr,
     hellos: Arc<Mutex<Vec<Vec<u16>>>>,
-    task: JoinHandle<()>,
+    task: RelayPeer,
 }
 
 impl HelloSniffer {
@@ -589,73 +644,77 @@ impl HelloSniffer {
         let address = front.local_addr()?;
         let hellos = Arc::new(Mutex::new(Vec::new()));
         let task_hellos = Arc::clone(&hellos);
-        let task = tokio::spawn(async move {
+        let task = RelayPeer::spawn(|mut stopping| async move {
             let _lifetime = observation.as_ref().map(|value| {
                 crate::http3_early_data::relay_observation::ReadLifetime::front(Arc::clone(value))
             });
             let mut clients: HashMap<SocketAddr, Arc<UdpSocket>> = HashMap::new();
             let mut streams: HashMap<Vec<u8>, CryptoStream> = HashMap::new();
             let mut buffer = vec![0; 65_535];
-            let mut replies = JoinSet::new();
-            loop {
-                while let Some(completed) = replies.try_join_next() {
-                    if completed.is_err() {
-                        return;
-                    }
-                }
-                let Ok((len, from)) = async {
-                    match &observation {
-                        Some(value) => value.front.recv_from(&front, &mut buffer).await,
-                        None => front.recv_from(&mut buffer).await,
-                    }
-                }
-                .await
-                else {
-                    return;
-                };
-                let datagram = &buffer[..len];
-                if let Some((dcid, frames)) = initial_crypto_frames(datagram) {
-                    let stream = streams.entry(dcid).or_default();
-                    if let Some(extensions) = stream.add(frames) {
-                        lock(&task_hellos).push(extensions);
-                    }
-                }
-                let back = match clients.get(&from) {
-                    Some(back) => Arc::clone(back),
-                    None => {
-                        let Ok(back) =
-                            phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())
-                        else {
-                            return;
+            let mut replies = RelayWorkers::new();
+            let (outcome, deadline): (TestResult<()>, tokio::time::Instant) = tokio::select! {
+                biased;
+                outcome = async {
+                    loop {
+                        let (len, from) = tokio::select! {
+                            biased;
+                            completed = replies.completed(), if !replies.is_empty() => {
+                                completed?;
+                                continue;
+                            }
+                            received = async {
+                                match &observation {
+                                    Some(value) => value.front.recv_from(&front, &mut buffer).await,
+                                    None => front.recv_from(&mut buffer).await,
+                                }
+                            } => received?,
                         };
-                        if back.connect(server).await.is_err() {
-                            return;
+                        let datagram = &buffer[..len];
+                        if let Some((dcid, frames)) = initial_crypto_frames(datagram) {
+                            let stream = streams.entry(dcid).or_default();
+                            if let Some(extensions) = stream.add(frames) {
+                                lock(&task_hellos).push(extensions);
+                            }
                         }
-                        let back = Arc::new(back);
-                        let reply_back = Arc::clone(&back);
-                        let reply_front = Arc::clone(&front);
-                        let reply_observation = observation.clone();
-                        let worker = replies.spawn(async move {
-                            let _lifetime = reply_observation.as_ref().map(|value| {
-                                crate::http3_early_data::relay_observation::ReadLifetime::reply(
-                                    Arc::clone(value),
-                                )
-                            });
-                            forward_replies(reply_back, reply_front, from).await;
-                        });
-                        if let Some(value) = &observation
-                            && let Err(error) = value.publish_worker(worker)
-                        {
-                            eprintln!("sniffer worker observation failed: {error}");
-                            return;
-                        }
-                        clients.insert(from, Arc::clone(&back));
-                        back
+                        let back = match clients.get(&from) {
+                            Some(back) => Arc::clone(back),
+                            None => {
+                                let back = phantom_testkit::udp::bind_tokio(
+                                    (Ipv4Addr::LOCALHOST, 0).into(),
+                                )?;
+                                back.connect(server).await?;
+                                let back = Arc::new(back);
+                                let reply_back = Arc::clone(&back);
+                                let reply_front = Arc::clone(&front);
+                                let reply_observation = observation.clone();
+                                let worker = replies.spawn_operation(async move {
+                                    let _lifetime = reply_observation.as_ref().map(|value| {
+                                        crate::http3_early_data::relay_observation::ReadLifetime::reply(
+                                            Arc::clone(value),
+                                        )
+                                    });
+                                    forward_replies(reply_back, reply_front, from).await
+                                });
+                                if let Some(value) = &observation {
+                                    value.publish_worker(worker)?;
+                                }
+                                clients.insert(from, Arc::clone(&back));
+
+                                back
+                            }
+                        };
+                        back.send(datagram).await?;
                     }
-                };
-                let _ = back.send(datagram).await;
-            }
+                } => (outcome, drain_deadline()),
+                stopped = &mut stopping => match stopped {
+                    Ok(deadline) => (Ok(()), deadline),
+                    Err(error) => (Err(error.into()), drain_deadline()),
+                },
+            };
+
+            finish_with_cleanup(outcome, replies.finish(deadline).await)
         });
+
         Ok(Self {
             address,
             hellos,
@@ -674,16 +733,20 @@ impl Drop for HelloSniffer {
     }
 }
 
-async fn forward_replies(back: Arc<UdpSocket>, front: Arc<UdpSocket>, client: SocketAddr) {
+async fn forward_replies(
+    back: Arc<UdpSocket>,
+    front: Arc<UdpSocket>,
+    client: SocketAddr,
+) -> TestResult<()> {
     let mut buffer = vec![0; 65_535];
     loop {
         match back.recv(&mut buffer).await {
             Ok(len) => {
-                let _ = front.send_to(&buffer[..len], client).await;
+                front.send_to(&buffer[..len], client).await?;
             }
             // Windows reports an earlier ICMP port-unreachable here.
             Err(error) if error.kind() == std::io::ErrorKind::ConnectionReset => {}
-            Err(_) => return,
+            Err(error) => return Err(error.into()),
         }
     }
 }

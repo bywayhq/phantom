@@ -20,7 +20,7 @@ async fn round_trip(
     Ok(upstream)
 }
 
-async fn abort_and_join(task: JoinHandle<()>) -> TestResult<()> {
+async fn abort_and_join(task: ConnectionPeer<TestResult<()>>) -> TestResult<()> {
     task.abort();
     let error = task
         .await
@@ -58,7 +58,7 @@ async fn cancelling_a_delaying_relay_releases_both_observed_sockets() -> TestRes
 
         let upstream = round_trip(&client, &target, relay).await?;
 
-        abort_and_join(task).await?;
+        abort_and_join(task.into_aborted_task()).await?;
         let _front = reacquire(relay).await?;
         let _upstream = reacquire(upstream).await?;
         Ok(())
@@ -77,7 +77,7 @@ async fn cancelling_a_gated_relay_releases_sockets_with_the_gate_sender_alive() 
         let upstream = round_trip(&client, &target, relay).await?;
         gate.send_replace(false);
 
-        abort_and_join(task).await?;
+        abort_and_join(task.into_aborted_task()).await?;
         let _front = reacquire(relay).await?;
         let _upstream = reacquire(upstream).await?;
         // Retain the sender through both binds: dropping it must not be what
@@ -98,7 +98,7 @@ async fn cancelling_a_delayed_receiver_cancels_its_already_queued_packet() -> Te
         let upstream_address = upstream.local_addr()?;
         let front = Arc::new(socket()?);
         let front_address = front.local_addr()?;
-        let task = tokio::spawn(forward_delayed(
+        let task = ConnectionPeer::spawn(forward_delayed(
             Arc::clone(&upstream),
             Arc::clone(&front),
             client.local_addr()?,
