@@ -628,8 +628,8 @@ crates/phantom/tests/requests/request_conveniences.rs	crate	source-complete	conv
 crates/phantom/tests/requests/request_conveniences/peer_contract.rs	crate	source-complete	convenience-peer-children-root-review-48c41af8.md.txt; convenience-peer-children-standards-review-48c41af8.json
 crates/phantom/tests/requests/request_templates.rs	crate	pending	
 crates/phantom/tests/requests/request_templates/default_profile.rs	crate	pending	
-crates/phantom/tests/requests/request_templates/fixture.rs	crate	pending	
-crates/phantom/tests/requests/request_templates/wire.rs	crate	pending	
+crates/phantom/tests/requests/request_templates/fixture.rs	crate	source-complete	template-session-root-source-pass-da262bae.json#/source_records/0; whole manual source read; supported findings and verification remain open
+crates/phantom/tests/requests/request_templates/wire.rs	crate	source-complete	template-session-root-source-pass-da262bae.json#/source_records/1; whole manual source read; supported findings and verification remain open
 crates/phantom/tests/requests/response_conveniences.rs	crate	source-complete	convenience-owner-coverage-reconciliation-c6d63211.json; convenience-pacing-independent-source-review-bc8a6f18.json; coverage.md#request-and-response-convenience-tests
 crates/phantom/tests/requests/response_conveniences/peer_contract.rs	crate	source-complete	convenience-peer-children-root-review-48c41af8.md.txt; convenience-peer-children-standards-review-48c41af8.json
 crates/phantom/tests/requests/send_futures.rs	crate	source-complete	client-request-api-standards-review.json#/source_records/3
@@ -644,12 +644,12 @@ crates/phantom/tests/sessions/dns_overrides.rs	crate	pending
 crates/phantom/tests/sessions/early_data_server.rs	crate	pending	
 crates/phantom/tests/sessions/http2_connections.rs	crate	pending	
 crates/phantom/tests/sessions/http3_connections.rs	crate	pending	
-crates/phantom/tests/sessions/main.rs	crate	pending	
+crates/phantom/tests/sessions/main.rs	crate	source-complete	template-session-root-source-pass-da262bae.json#/source_records/2; whole manual source read; supported findings and verification remain open
 crates/phantom/tests/sessions/negotiated.rs	crate	pending	
 crates/phantom/tests/sessions/negotiated_parallel.rs	crate	pending	
 crates/phantom/tests/sessions/runtimes.rs	crate	pending	
 crates/phantom/tests/sessions/session.rs	crate	pending	
-crates/phantom/tests/sessions/session/proxy_auth.rs	crate	pending	
+crates/phantom/tests/sessions/session/proxy_auth.rs	crate	source-complete	template-session-root-source-pass-da262bae.json#/source_records/3; whole manual source read; supported findings and verification remain open
 crates/phantom/tests/sessions/session_http1.rs	crate	pending	
 crates/phantom/tests/sessions/session_http1_parallel.rs	crate	pending	
 crates/phantom/tests/sessions/session_http2_authority.rs	crate	pending	
@@ -4120,3 +4120,4 @@ docs/internals/architecture-audit/https-record-discovery-completion-design-400a9
 docs/internals/architecture-audit/quic-response-root-native-checkpoint-0b018777.json	evidence	pending	root native checkpoint; revision=0b01877760aec6e821730ed09cc9af98aa82c9fe; sha256=6117a58457513a46c3cdbc39ae6195ad6b62e294768404b2da72e273abacf373
 docs/internals/architecture-audit/origin-quic-response-delivery-source-diagnosis-ee623151.json	evidence	retained	Exact diagnosis import; source mismatch and proposal only, not a verified remedy; SHA256 548a6d3498c797afc5bd6bb011650c848142a901388ebb0b4fe30e26fb4530ea
 docs/internals/architecture-audit/origin-quic-response-delivery-source-diagnosis-ee623151.md.txt	evidence	retained	Exact diagnosis import; source mismatch and proposal only, not a verified remedy; SHA256 2e5ccbaa76937a1bc754535f3c73f99a33235a769cba4fd17e1428d9e334cf75
+docs/internals/architecture-audit/template-session-root-source-pass-da262bae.json	evidence	retained	Exact root source review; not runtime or independent signoff

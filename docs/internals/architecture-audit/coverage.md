@@ -202,6 +202,13 @@ selections. These checks do not establish a full workspace gate.
 
 ## Recent verification
 
+The [template and session source review](template-session-root-source-pass-da262bae.json)
+covers four previously pending files, totaling 389 lines. The capture reader
+needs strict hex and duplicate-record rejection. The authenticated proxy
+session test needs peer ownership across failures and sibling collection.
+The wire observer and session module index have separate bounded dispositions.
+This source pass adds no runtime or independent review result.
+
 The [outgoing QUIC checkpoint](quic-response-root-native-checkpoint-0b018777.json)
 records the response-error repair at `0b018777` on Windows and Linux.
 Both hosts pass four of five QUIC controls and 31 of 32 example methods.
