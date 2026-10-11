@@ -207,8 +207,7 @@ impl Backup {
         control: Control,
     ) -> TestResult<(Box<dyn Error + Send + Sync>, super::super::RequestErrorKind)> {
         let address = self.bind(control).await?;
-        self.request_client =
-            Some(super::super::Client::builder(super::super::profile()).build()?);
+        self.request_client = Some(super::super::Client::builder(super::super::profile()).build()?);
         let client = self
             .request_client
             .as_ref()

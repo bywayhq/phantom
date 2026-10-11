@@ -13,7 +13,10 @@ async fn healthy_original_interface_origin_keeps_its_literal_response_and_peer()
     let (mut backup, control, _) = Backup::prepare(false);
     let primary = async {
         backup.pending(control).await?;
-        let client = backup.client.as_mut().ok_or("original raw client missing")?;
+        let client = backup
+            .client
+            .as_mut()
+            .ok_or("original raw client missing")?;
         let expected = client.local_addr()?;
         timeout(LIMIT, client.write_all(REQUEST)).await??;
         let peer = backup
@@ -21,7 +24,10 @@ async fn healthy_original_interface_origin_keeps_its_literal_response_and_peer()
             .await?
             .ok_or("healthy original interface-origin was skipped")?;
         let mut response = vec![0_u8; RESPONSE.len()];
-        let client = backup.client.as_mut().ok_or("original raw client missing")?;
+        let client = backup
+            .client
+            .as_mut()
+            .ok_or("original raw client missing")?;
         timeout(LIMIT, client.read_exact(&mut response)).await??;
         backup.closed().await?;
         assert_eq!(response, RESPONSE);
@@ -106,7 +112,8 @@ async fn canonical_interface_collection_keeps_the_completed_original_io_cause() 
 }
 
 #[tokio::test]
-async fn real_interface_caller_failure_keeps_the_completed_original_serving_cause() -> TestResult<()> {
+async fn real_interface_caller_failure_keeps_the_completed_original_serving_cause() -> TestResult<()>
+{
     let (mut backup, control, identity) = Backup::prepare(true);
     let primary = async {
         let (caller, kind) = backup.caller_failure(control).await?;
