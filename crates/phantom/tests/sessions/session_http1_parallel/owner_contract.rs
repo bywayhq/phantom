@@ -247,7 +247,10 @@ impl Backup {
     }
 
     async fn stop(&mut self) -> TestResult {
-        self.server.take();
+        let coordinator = match self.server.take() {
+            Some(server) => server.shutdown().await,
+            None => Ok(()),
+        };
         let publication = if self.peer.is_none() {
             if let Some(receiver) = self.returned.as_mut() {
                 match timeout(BACKUP_LIMIT, receiver).await {
@@ -273,7 +276,8 @@ impl Backup {
             }
             match timeout(BACKUP_LIMIT, peer).await {
                 Ok(Ok(result)) => result,
-                Ok(Err(error)) if requested && error.is_cancelled() => Ok(()),
+                // The Server owner may already have requested this cancellation.
+                Ok(Err(error)) if error.is_cancelled() => Ok(()),
                 Ok(Err(error)) => Err(error.into()),
                 Err(error) => Err(error.into()),
             }
@@ -281,7 +285,7 @@ impl Backup {
             Ok(())
         };
         self.client.take();
-        finish_with_cleanup(publication, outcome)
+        finish_with_cleanup(coordinator, finish_with_cleanup(publication, outcome))
     }
 }
 

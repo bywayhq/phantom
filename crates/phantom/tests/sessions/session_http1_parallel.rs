@@ -1,9 +1,8 @@
 //! Parallel HTTP/1.1 connections per origin and route.
 
-use crate::support::tls as tls_support;
-
 use std::{future::Future, net::Ipv4Addr, net::SocketAddr, num::NonZeroUsize, time::Duration};
 
+use btls::ssl::{Ssl, SslAcceptor};
 use http_body_util::BodyExt;
 use phantom::{
     Client, ClientBuilder, HttpProtocol, HttpProxy, ResponseBody, Route,
@@ -15,14 +14,16 @@ use phantom::{
 use tokio::{
     io::AsyncWriteExt,
     net::{TcpListener, TcpStream},
-    sync::mpsc,
-    task::JoinHandle,
+    sync::{mpsc, oneshot},
+    task::AbortHandle,
     time::timeout,
 };
-
-use btls::ssl::{Ssl, SslAcceptor};
 use tokio_btls::SslStream;
 
+use crate::support::{
+    tls as tls_support,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+};
 use tls_support::{H1_ALPN, TestIdentity, client_builder, read_head, tls_settings};
 
 mod owner_contract;
@@ -50,7 +51,18 @@ enum Event {
 struct Server {
     address: SocketAddr,
     events: mpsc::UnboundedReceiver<Event>,
-    task: JoinHandle<()>,
+    stop: oneshot::Sender<()>,
+    task: ConnectionPeer<TestResult>,
+}
+
+struct ObservedPeer {
+    abort: AbortHandle,
+}
+
+impl Drop for ObservedPeer {
+    fn drop(&mut self) {
+        self.abort.abort();
+    }
 }
 
 impl Server {
@@ -58,35 +70,32 @@ impl Server {
         Self::start_observed(None).await
     }
 
-    async fn start_observed(
-        mut observation: Option<owner_contract::PeerControl>,
-    ) -> TestResult<Self> {
+    async fn start_observed(observation: Option<owner_contract::PeerControl>) -> TestResult<Self> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let (sender, events) = mpsc::unbounded_channel();
-        let task = tokio::spawn(async move {
-            let mut accepted = 0;
-            while let Ok((stream, _)) = listener.accept().await {
-                if sender.send(Event::Accepted(accepted)).is_err() {
-                    return;
-                }
-                if let Some(control) = observation.take() {
-                    let (stream, returned) = control.attach(stream);
-                    let peer = tokio::spawn(serve(stream, accepted, sender.clone()));
-                    if let Err(peer) = returned.send(peer) {
-                        peer.abort();
-                    }
-                } else {
-                    tokio::spawn(serve(stream, accepted, sender.clone()));
-                }
-                accepted += 1;
-            }
-        });
+        let (stop, stopped) = oneshot::channel();
+        let task = ConnectionPeer::spawn(accept_connections(listener, sender, observation, stopped));
         Ok(Self {
             address,
             events,
+            stop,
             task,
         })
+    }
+
+    async fn shutdown(self) -> TestResult {
+        let Self {
+            events: _events,
+            stop,
+            mut task,
+            ..
+        } = self;
+
+        // The coordinator may already have failed; its join retains that error.
+        let _ = stop.send(());
+
+        timeout(TEST_TIMEOUT, &mut task).await??
     }
 
     fn uri(&self, path: &str) -> String {
@@ -117,10 +126,55 @@ impl Server {
     }
 }
 
-impl Drop for Server {
-    fn drop(&mut self) {
-        self.task.abort();
+async fn accept_connections(
+    listener: TcpListener,
+    sender: mpsc::UnboundedSender<Event>,
+    mut observation: Option<owner_contract::PeerControl>,
+    mut stopped: oneshot::Receiver<()>,
+) -> TestResult {
+    let mut peers = Vec::new();
+    let mut observed = Vec::new();
+    let primary = async {
+        let mut accepted = 0;
+        loop {
+            let (stream, _) = tokio::select! {
+                biased;
+                _ = &mut stopped => return Ok(()),
+                accepted = listener.accept() => accepted?,
+            };
+            sender.send(Event::Accepted(accepted))?;
+
+            if let Some(control) = observation.take() {
+                let (stream, returned) = control.attach(stream);
+                let peer = tokio::spawn(serve(stream, accepted, sender.clone()));
+                observed.push(ObservedPeer {
+                    abort: peer.abort_handle(),
+                });
+                if let Err(peer) = returned.send(peer) {
+                    peers.push(ConnectionPeer::from_task(peer));
+                    return Err("accepted peer observation receiver closed".into());
+                }
+            } else {
+                peers.push(ConnectionPeer::spawn(serve(stream, accepted, sender.clone())));
+            }
+            accepted += 1;
+        }
     }
+    .await;
+
+    drop(listener);
+    drop(observed);
+    for peer in &peers {
+        if !peer.is_finished() {
+            peer.abort();
+        }
+    }
+
+    let mut cleanup = Ok(());
+    for peer in peers {
+        cleanup = finish_with_cleanup(cleanup, peer.stop().await);
+    }
+    finish_with_cleanup(primary, cleanup)
 }
 
 async fn serve(
@@ -128,18 +182,19 @@ async fn serve(
     connection: usize,
     events: mpsc::UnboundedSender<Event>,
 ) -> TestResult {
-    while let Ok(head) = read_head(&mut stream).await {
+    loop {
+        let head = match read_head(&mut stream).await {
+            Ok(head) => head,
+            Err(error) if tls_support::is_peer_gone(&error) => return Ok(()),
+            Err(error) => return Err(error.into()),
+        };
+
         let path = request_path(&head);
-        if events.send(Event::Request { connection, path }).is_err()
-            || stream
-                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\ndone")
-                .await
-                .is_err()
-        {
-            return Ok(());
-        }
+        events.send(Event::Request { connection, path })?;
+        stream
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\ndone")
+            .await?;
     }
-    Ok(())
 }
 
 async fn serve_tls(tcp: TcpStream, acceptor: SslAcceptor) -> TestResult {
@@ -200,8 +255,8 @@ where
 
 #[tokio::test]
 async fn concurrent_requests_open_connections_up_to_the_bound_then_wait() -> TestResult {
-    bounded(async {
-        let mut server = Server::start().await?;
+    let mut server = Server::start().await?;
+    let primary = bounded(async {
         // The builder bound replaces the recipe's six connections.
         let client = builder(profile().with_http1(chrome::v154_http1()))
             .max_concurrent_http1_requests_per_origin(bound(2)?)
@@ -236,13 +291,15 @@ async fn concurrent_requests_open_connections_up_to_the_bound_then_wait() -> Tes
         server.assert_quiet().await?;
         Ok(())
     })
-    .await
+    .await;
+
+    finish_with_cleanup(primary, server.shutdown().await)
 }
 
 #[tokio::test]
 async fn idle_connection_is_reused_before_another_opens() -> TestResult {
-    bounded(async {
-        let mut server = Server::start().await?;
+    let mut server = Server::start().await?;
+    let primary = bounded(async {
         let client = builder(profile().with_http1(chrome::v154_http1())).build()?;
 
         let first = hold(&client, &server.uri("first")).await?;
@@ -266,7 +323,9 @@ async fn idle_connection_is_reused_before_another_opens() -> TestResult {
         server.assert_quiet().await?;
         Ok(())
     })
-    .await
+    .await;
+
+    finish_with_cleanup(primary, server.shutdown().await)
 }
 
 /// Chromium's 300-second idle timeout, shortened so the test can wait it out:
@@ -339,10 +398,13 @@ async fn connection_idle_past_the_idle_timeout_is_replaced_by_the_next_request()
 
 #[tokio::test]
 async fn bound_is_counted_per_route_to_one_origin() -> TestResult {
-    bounded(async {
+    let mut first_proxy = Server::start().await?;
+    let mut second_proxy = match Server::start().await {
+        Ok(proxy) => proxy,
+        Err(error) => return finish_with_cleanup(Err(error), first_proxy.shutdown().await),
+    };
+    let primary = bounded(async {
         let origin = "http://origin.test/";
-        let mut first_proxy = Server::start().await?;
-        let mut second_proxy = Server::start().await?;
         let first_route =
             Route::http_proxy(HttpProxy::new(&format!("http://{}", first_proxy.address))?);
         let second_route =
@@ -382,15 +444,19 @@ async fn bound_is_counted_per_route_to_one_origin() -> TestResult {
         assert_eq!(first_proxy.next_request().await?, (0, "queued".to_owned()));
         Ok(())
     })
-    .await
+    .await;
+
+    let first_cleanup = first_proxy.shutdown().await;
+    let second_cleanup = second_proxy.shutdown().await;
+    finish_with_cleanup(primary, finish_with_cleanup(first_cleanup, second_cleanup))
 }
 
 #[tokio::test]
 async fn named_recipe_opens_six_connections_to_one_origin() -> TestResult {
-    bounded(async {
-        for recipe in [chrome::v154_http1(), firefox::v157_http1()] {
-            assert_eq!(recipe.max_connections_per_origin.get(), 6);
-            let mut server = Server::start().await?;
+    for recipe in [chrome::v154_http1(), firefox::v157_http1()] {
+        assert_eq!(recipe.max_connections_per_origin.get(), 6);
+        let mut server = Server::start().await?;
+        let primary = bounded(async {
             let client = builder(profile().with_http1(recipe)).build()?;
 
             let mut held = Vec::new();
@@ -413,16 +479,19 @@ async fn named_recipe_opens_six_connections_to_one_origin() -> TestResult {
                 finish(response).await?;
             }
             finish(timeout(TEST_TIMEOUT, seventh).await???).await?;
-        }
-        Ok(())
-    })
-    .await
+            Ok(())
+        })
+        .await;
+
+        finish_with_cleanup(primary, server.shutdown().await)?;
+    }
+    Ok(())
 }
 
 #[tokio::test]
 async fn profile_without_http1_policy_keeps_one_connection_per_origin() -> TestResult {
-    bounded(async {
-        let mut server = Server::start().await?;
+    let mut server = Server::start().await?;
+    let primary = bounded(async {
         let client = builder(profile()).build()?;
 
         let first = hold(&client, &server.uri("first")).await?;
@@ -438,7 +507,9 @@ async fn profile_without_http1_policy_keeps_one_connection_per_origin() -> TestR
         server.assert_quiet().await?;
         Ok(())
     })
-    .await
+    .await;
+
+    finish_with_cleanup(primary, server.shutdown().await)
 }
 
 #[tokio::test]
@@ -532,8 +603,8 @@ fn custom_profile_carries_its_own_http1_bound() -> TestResult {
 #[cfg(windows)]
 #[tokio::test]
 async fn a_firefox_profile_keeps_the_slower_backup_connection_for_later_requests() -> TestResult {
-    bounded(async {
-        let mut server = Server::start().await?;
+    let mut server = Server::start().await?;
+    let primary = bounded(async {
         let port = server.address.port();
         // `[::1]` at the same port stays bound without listening, so its
         // connect is refused; a host without IPv6 loopback skips the test.
@@ -581,5 +652,7 @@ async fn a_firefox_profile_keeps_the_slower_backup_connection_for_later_requests
         drop(unlistened);
         Ok(())
     })
-    .await
+    .await;
+
+    finish_with_cleanup(primary, server.shutdown().await)
 }
