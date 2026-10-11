@@ -331,6 +331,9 @@ struct Captured {
     serving_fault: Mutex<Option<tests::origin_serving_contract::ServingFault>>,
     #[cfg(test)]
     quic_serving_fault: Mutex<Option<tests::quic_serving_contract::QuicServingFault>>,
+    #[cfg(test)]
+    quic_response_delivery:
+        Mutex<Option<tests::quic_serving_contract::response_delivery::ResponseDelivery>>,
 }
 
 impl Captured {
@@ -953,8 +956,12 @@ async fn serve_h3(
         }
         .await;
         #[cfg(test)]
-        let sent =
-            tests::quic_serving_contract::observe_response(sent, observation.0, observation.1);
+        let sent = tests::quic_serving_contract::response_delivery::observe_response_delivery(
+            sent,
+            observation.0,
+            observation.1,
+        )
+        .await;
 
         if let Err(error) = &sent
             && !h3_response_peer_observation(error)

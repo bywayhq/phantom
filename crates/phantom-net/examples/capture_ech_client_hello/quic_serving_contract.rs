@@ -15,6 +15,7 @@ use crate::{Captured, HOSTNAME, capture_errors};
 
 mod capture_origin;
 mod observation_contract;
+pub(crate) mod response_delivery;
 
 pub(crate) struct QuicServingFault {
     slot: usize,
@@ -70,13 +71,15 @@ fn install_fault(
     captured: &Captured,
     fault: QuicServingFault,
 ) -> Result<(), QuicObservationFailure> {
-    *captured
+    let mut installed = captured
         .quic_serving_fault
         .lock()
         .map_err(|error| QuicObservationFailure {
             boundary: "fault installation",
             diagnostic: error.to_string(),
-        })? = Some(fault);
+        })?;
+    response_delivery::install(captured, fault.slot)?;
+    *installed = Some(fault);
     Ok(())
 }
 

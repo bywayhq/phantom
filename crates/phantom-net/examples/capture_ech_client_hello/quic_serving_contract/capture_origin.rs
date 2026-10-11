@@ -29,6 +29,8 @@ pub(super) struct QuicPeer {
     connection: quinn::Connection,
     requests: h3::client::SendRequest<h3_quinn::OpenStreams, Bytes>,
     pub(super) worker: AbortHandle,
+    captured: Arc<Captured>,
+    slot: usize,
 }
 
 impl QuicPeer {
@@ -50,6 +52,7 @@ impl QuicPeer {
                 }
             }
             assert_eq!(body, PAGE);
+            super::response_delivery::completed(&self.captured, self.slot).await?;
             Ok(())
         })
         .await?
@@ -135,6 +138,17 @@ impl QuicCapture {
             let connecting = client.connect(server.local_addr()?, HOSTNAME)?;
             let incoming = server.accept().await.ok_or("QUIC listener stopped")?;
             assert!(incoming.remote_address().ip().is_loopback());
+            // This exclusive acquisition does not await between reading and reserving the slot.
+            let slot = self
+                .captured
+                .slots
+                .lock()
+                .map_err(|error| super::QuicObservationFailure {
+                    boundary: "peer registration",
+                    diagnostic: error.to_string(),
+                })?
+                .quic
+                .len();
             let worker = spawn_origin_quic(&mut self.tasks, incoming, Arc::clone(&self.captured));
             let connection = connecting.await?;
             self.connections.push(connection.clone());
@@ -166,6 +180,8 @@ impl QuicCapture {
                 connection,
                 requests,
                 worker,
+                captured: Arc::clone(&self.captured),
+                slot,
             })
         })
         .await?
