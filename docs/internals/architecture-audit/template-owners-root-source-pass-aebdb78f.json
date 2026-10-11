@@ -1,0 +1,69 @@
+{
+  "revision": "aebdb78f58771bfcd442c8094855b8d3b43ee0c8",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/requests/request_templates.rs",
+      "lines": 1429,
+      "ranges": [
+        [
+          1,
+          720
+        ],
+        [
+          721,
+          1100
+        ],
+        [
+          1101,
+          1429
+        ]
+      ],
+      "scope": "whole root manual read",
+      "canonical_sha256": "ab8e2c31f6f17474af43d62c935ba88b0958469b56860b957f77b0e47a31b044"
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_templates/default_profile.rs",
+      "lines": 304,
+      "ranges": [
+        [
+          1,
+          304
+        ]
+      ],
+      "scope": "whole root manual read",
+      "canonical_sha256": "28db80e36be022ab9fd5cda9394255ff3ea71f34e9f63bd5178ffb92f3037f7c"
+    }
+  ],
+  "lines_read": 1733,
+  "imports": [
+    {
+      "path": "docs/internals/architecture-audit/request-template-parent-independent-source-assessment-8490d46d.md.txt",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\request-template-parent-independent-source-assessment-8490d46d.md",
+      "sha256": "3f783416e3690df5ca1e192a3b77ec7be0f34796afcfbcacbb8eafa84918b6e4"
+    },
+    {
+      "path": "docs/internals/architecture-audit/request-template-parent-independent-source-assessment-8490d46d.json",
+      "original": "C:\\code\\phantom\\target\\architecture-audit\\request-template-parent-independent-source-assessment-8490d46d.json",
+      "sha256": "f1dc8ad93eeb55cd0c62e8634547d628f87103bafc6cf72aef68b274c582dc2b"
+    }
+  ],
+  "confirmed_findings": [
+    "A234",
+    "A235"
+  ],
+  "extended_finding": "A233",
+  "review": [
+    "Raw origin/proxy server handles cross fallible build, template, request and body operations. A consuming timeout can detach the original task; no natural or permanent leak was measured.",
+    "H2 drives its connection inline; H3 retains its connection on the original stack. Completion channels help only after reaching their wait. No detached nested driver was established in these helpers.",
+    "Canonical serve_http1_replies ignores every original read_head failure. The shared reader retains actual InvalidData at its 32KiB bound; the caller converts it into an ordinary count.",
+    "Two template request waits replace Elapsed with protocol-context strings. Preserve original messages and periods while retaining typed causes; runtime controls remain required.",
+    "Current capture, priority, cookie-neighbor and credential-stripping assertions were manually reviewed. Captured field-side claims remain separate from source-only neighbors; no universal browser or duplicate-header inference follows.",
+    "Local aliases and module declarations precede standard/external imports in the parent. Fix documented grouping when touching this owner; explicit path attributes are valid and not a discovery defect."
+  ],
+  "limits": [
+    "The oversized-head control is being authored separately and has not run.",
+    "Earlier 41-method execution remains bound to its retained revision and does not validate these exceptional paths.",
+    "Supporting TLS source was read but this receipt grants no new inventory promotion outside the two named owners.",
+    "No final architecture review, full gate or main integration is established."
+  ]
+}

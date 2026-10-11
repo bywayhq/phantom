@@ -123,6 +123,21 @@ confirms the recorded QUIC and proxy failures. Its count correction names
 16 logs and 20 sidecars, plus the separate launcher. No extra observations
 or fixed-source approval follow from that correction.
 
+### Request-template fixture owners
+
+The [source pass](template-owners-root-source-pass-aebdb78f.json) records
+complete reads of the parent and default-profile child, totaling 1,733
+lines. The independent assessment binds the same unchanged sources.
+Raw server handles cross fallible operations. The HTTP/1.1 reply loop
+discards malformed-head errors, and two waits discard their timer cause.
+A233, A234 and A235 remain open pending controls, fixes and verification.
+
+H2 drives its connection inline. H3 retains its connection on the worker
+stack. Completion channels cover their final wait, not every earlier phase.
+No permanent leak was measured. Cookie assertions distinguish captured
+field positions from source-only neighbors. This pass adds no execution
+or final lifecycle approval.
+
 ### Relay fixture control children
 
 The [source pass](relay-children-root-source-pass-a7048ed0.json) covers two

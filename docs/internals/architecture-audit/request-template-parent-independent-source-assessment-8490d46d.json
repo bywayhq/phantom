@@ -1,0 +1,488 @@
+{
+  "kind": "independent bounded source assessment; no execution",
+  "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/requests/request_templates.rs",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "ba75cd3e103b6b3fc76a0f530de06c76ab3a6863",
+      "sha256": "ab8e2c31f6f17474af43d62c935ba88b0958469b56860b957f77b0e47a31b044",
+      "lines": 1429,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 1429,
+          "sha256": "ab8e2c31f6f17474af43d62c935ba88b0958469b56860b957f77b0e47a31b044"
+        }
+      ],
+      "whole_manual_read": true,
+      "note": "Whole1429 read in complete outputs1-370,371-730,731-1080,1081-1429. No truncated output credited."
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_templates/default_profile.rs",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "c25c4c1f077535bbbe382e802bf10a7bb21c96ba",
+      "sha256": "28db80e36be022ab9fd5cda9394255ff3ea71f34e9f63bd5178ffb92f3037f7c",
+      "lines": 304,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 304,
+          "sha256": "28db80e36be022ab9fd5cda9394255ff3ea71f34e9f63bd5178ffb92f3037f7c"
+        }
+      ],
+      "whole_manual_read": true,
+      "note": "Fresh manual read of listed source scope."
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_templates/fixture.rs",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "375c67888839174487b72bcdaa38b9572e2337aa",
+      "sha256": "6954b94f991b422fc79d444ba8cda7f00a8d9719922a000640c4afc94e986a87",
+      "lines": 212,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 212,
+          "sha256": "6954b94f991b422fc79d444ba8cda7f00a8d9719922a000640c4afc94e986a87"
+        }
+      ],
+      "whole_manual_read": true,
+      "note": "Fresh manual read of listed source scope."
+    },
+    {
+      "path": "crates/phantom/tests/requests/request_templates/wire.rs",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "b210f7a8896435f8e8998f12eb4e2642f277b148",
+      "sha256": "639c9cb85d1105da0914fefdc53b2ac936d7d7719e4ce6cf098955b92f286fad",
+      "lines": 97,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 97,
+          "sha256": "639c9cb85d1105da0914fefdc53b2ac936d7d7719e4ce6cf098955b92f286fad"
+        }
+      ],
+      "whole_manual_read": true,
+      "note": "Fresh manual read of listed source scope."
+    },
+    {
+      "path": "crates/phantom/tests/requests/main.rs",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "73bfc4aaf7ed5bbbfbe0131a890b3b420f3c543c",
+      "sha256": "89805f5877f757a3bc401a38932d96d301bc36c31333e73bb123ba6ff7ff4308",
+      "lines": 42,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 42,
+          "sha256": "89805f5877f757a3bc401a38932d96d301bc36c31333e73bb123ba6ff7ff4308"
+        }
+      ],
+      "whole_manual_read": true,
+      "note": "Fresh manual read of listed source scope."
+    },
+    {
+      "path": "crates/phantom-profile/src/cookie.rs",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "a4ed117382e4808a7f82884cdad16c0b1488e0b5",
+      "sha256": "49301e9b17a95fa7be7e529242f8f0e208df8689b34d519ade7e616d2225b6ac",
+      "lines": 82,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 82,
+          "sha256": "49301e9b17a95fa7be7e529242f8f0e208df8689b34d519ade7e616d2225b6ac"
+        }
+      ],
+      "whole_manual_read": true,
+      "note": "Fresh manual read of listed source scope."
+    },
+    {
+      "path": "crates/phantom/src/request/attempt.rs",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "fad10d7f056af2dab30e360dd533807399a91901",
+      "sha256": "dae9ce8102ad1f6e365dc78063d7138809fd857efa3fc5defd34c3321283daf6",
+      "lines": 1409,
+      "manual_ranges": [
+        {
+          "first": 648,
+          "last": 777,
+          "sha256": "10de77116c878af3e21ede1a7f326e5349305c53291b77025e07c25e534bec75"
+        },
+        {
+          "first": 826,
+          "last": 955,
+          "sha256": "142d1f7c736162fe211bbdbaf29702163f38c9079e63d4a1ac400b5d3762e5c5"
+        },
+        {
+          "first": 947,
+          "last": 1185,
+          "sha256": "5c3408e27dee334a25ef3545e7bf2edb5be212392ff262571bba6f3272207a7f"
+        }
+      ],
+      "whole_manual_read": false,
+      "note": "Fresh manual read of listed source scope."
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookies.rs",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "4cd90e8b2c16ffca6ef8354efc44df7d681bef9b",
+      "sha256": "cc08ec93f61357e01f73b1edace9f11ff04dd73952fcfb41e9b3af5ff6ac7307",
+      "lines": 1008,
+      "manual_ranges": [
+        {
+          "first": 513,
+          "last": 602,
+          "sha256": "766f43e4b0bb84523bb75abdbe951a062edb13eb0c3973a8f58933dec7491bcc"
+        }
+      ],
+      "whole_manual_read": false,
+      "note": "Fresh manual read of listed source scope."
+    },
+    {
+      "path": "crates/phantom/tests/requests/cookie_crumbs.rs",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "a32bc494fcb27a261c33e30d547b40f5b2750624",
+      "sha256": "0eeb7b4b2307ebe2838e11bbc29ef3e84d1ab406184364a5e396625ad683d4c2",
+      "lines": 825,
+      "manual_ranges": [
+        {
+          "first": 200,
+          "last": 317,
+          "sha256": "01a90ea14b99a7ac8dde3dde6a9419aa957c1c96161821b99a842e145e297f30"
+        }
+      ],
+      "whole_manual_read": false,
+      "note": "Fresh manual read of listed source scope."
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "lines": 225,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 119,
+          "sha256": "015278feafff42ead82bc453fb8606bbb2c96d5575f41ab60b3b6903e085dc92"
+        },
+        {
+          "first": 196,
+          "last": 225,
+          "sha256": "8090ecbcca0a405279c8e6d19bfefc1cf9cdf151e824691d4b6cd1c449410c40"
+        }
+      ],
+      "whole_manual_read": false,
+      "note": "Fresh manual read of listed source scope."
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "lines": 116,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 116,
+          "sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e"
+        }
+      ],
+      "whole_manual_read": true,
+      "note": "Fresh manual read of listed source scope."
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "lines": 268,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 112,
+          "sha256": "d6aabd8a4d4a413544d0c7f1e3645597bfa6d7f88a7513d9e74a8b3fb3ee540b"
+        }
+      ],
+      "whole_manual_read": false,
+      "note": "Fresh manual read of listed source scope."
+    },
+    {
+      "path": "vendor/http2/src/server.rs",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "72bab066152cb12bfa9de59a8bafb6cfd98b91f1",
+      "sha256": "acd1e2d805072c2f536b3abdd9eb6d20997522f53c6c6fdaa1ef7e7a1d91727a",
+      "lines": 1792,
+      "manual_ranges": [
+        {
+          "first": 511,
+          "last": 548,
+          "sha256": "b470a9c7834000dea9379545504d57f052971b641ee7ca6f0589186957774ad5"
+        }
+      ],
+      "whole_manual_read": false,
+      "note": "Fresh manual read of listed source scope."
+    },
+    {
+      "path": "vendor/tokio-btls/src/lib.rs",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "f582e8808eb6a1f09c25261e2e4292188942bd26",
+      "sha256": "a18d520e3fe33ffffc9802acec971e9b2ac0bed6a9192c258e02dec57ac82a57",
+      "lines": 253,
+      "manual_ranges": [
+        {
+          "first": 186,
+          "last": 246,
+          "sha256": "2e14ca4b7fd3b1103c893f156fdbab864cb54a17832cd96d6d057e2b3b63c022"
+        }
+      ],
+      "whole_manual_read": false,
+      "note": "Fresh manual read of listed source scope."
+    },
+    {
+      "path": "AGENTS.md",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "lines": 221,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 135,
+          "sha256": "9593642111b0bb90cf87082296bea54cfa247dbd8a7f829ebe9a8148923ad3e6"
+        }
+      ],
+      "whole_manual_read": false,
+      "note": "Fresh manual read of listed source scope."
+    },
+    {
+      "path": "docs/internals/architecture-audit/template-session-root-source-pass-da262bae.json",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "9b3f90d0e7848a2957b618a01fc828f0122ddb41",
+      "sha256": "1e520f77fa436773a89b59568938bb100e85e9b941df828181c781895cf5951b",
+      "lines": 99,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 99,
+          "sha256": "1e520f77fa436773a89b59568938bb100e85e9b941df828181c781895cf5951b"
+        }
+      ],
+      "whole_manual_read": true,
+      "note": "Fresh manual read of listed source scope."
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "270853c61542d9fb2608483f901f50c6bf202b6c",
+      "sha256": "9175aa4f4e8f0114b1854ca679460adb6675fdc8215b6a64384da109bea34127",
+      "lines": 1326,
+      "manual_ranges": [
+        {
+          "first": 230,
+          "last": 236,
+          "sha256": "f6be2aa364ac06a671a80a232727e42a990974e4aa5742109593945cea4961b6"
+        }
+      ],
+      "whole_manual_read": false,
+      "note": "Bounded ledger rows A224,A229,A230 plus whole-file targeted search only; not a whole manual ledger read."
+    },
+    {
+      "path": "docs/internals/architecture-audit/inventory.tsv",
+      "revision": "8490d46ddc3662f47f8e1ba52d416ac39da40b04",
+      "blob": "c12013b2b168a1bd5e6ffe53ea6c5b74bdb3e4c7",
+      "sha256": "1fb4a9be1fae958f8369970662ffc8c0d42eb6f7dad69c0bf70e8873bc1731bc",
+      "lines": 4154,
+      "manual_ranges": [
+        {
+          "first": 629,
+          "last": 632,
+          "sha256": "372d46647c51c33c1263447e75df372d9ecda1489d03254881abfc2ee5e039cc"
+        }
+      ],
+      "whole_manual_read": false,
+      "note": "Bounded pending parent/default-profile and completed fixture/wire entries; not whole inventory review."
+    }
+  ],
+  "resolved_partial_bindings": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "physical_sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "lines": 377,
+      "whole_manual_read": false,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 160,
+          "sha256": "bc8e2799dc352090254eff35016643f35639a930e07401736ddd596022556958"
+        },
+        {
+          "first": 331,
+          "last": 375,
+          "sha256": "7c6d6ff6ebd1f04cbc8115dc15c3e7291d80467f681a4c80e713dc69152289de"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\time\\timeout.rs",
+      "physical_sha256": "5b1b20cb77de63fb5071b696ac644706a9749e0aeb6dbea57220834cba6dc953",
+      "lines": 249,
+      "whole_manual_read": false,
+      "manual_ranges": [
+        {
+          "first": 1,
+          "last": 170,
+          "sha256": "ab2c0754ba20d2d7b966e1cde8142157f715b26762a2bb7b66330f7c3c761688"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\sync\\oneshot.rs",
+      "physical_sha256": "0068b57b942098cfc23ed2b7b68f7727acf3a0642fb311d6103f1d2790aeffd1",
+      "lines": 1609,
+      "whole_manual_read": false,
+      "manual_ranges": [
+        {
+          "first": 871,
+          "last": 892,
+          "sha256": "5cbfb4a833ac369b068547b2e3b4887e96f5ee2b1d6dce36a4166308dccdb155"
+        },
+        {
+          "first": 1245,
+          "last": 1340,
+          "sha256": "1212b9c8005a93122e6470238299c7f88970fc65b75121d79c0e0faabe8a389e"
+        }
+      ]
+    },
+    {
+      "path": "C:\\Users\\arya\\.codex\\attachments\\656c565d-fcf9-467b-9a2c-3b25963c0d49\\Pasted text.txt",
+      "physical_sha256": "d217d3998f60c468d350775d1917aed4046f67fcb522de43fc1cc25bcd5417b4",
+      "lines": 268,
+      "whole_manual_read": false,
+      "manual_ranges": [
+        {
+          "first": 71,
+          "last": 155,
+          "sha256": "888203f9f47328d08a6e497dc0a20cf1b44be8d0cdfda680f24ee30d586591be"
+        }
+      ]
+    }
+  ],
+  "whole_owned_manual_scope": {
+    "parent_lines": 1429,
+    "default_profile_lines": 304
+  },
+  "derived_selected_method_count": {
+    "crates/phantom/tests/requests/request_templates.rs": 29,
+    "crates/phantom/tests/requests/request_templates/default_profile.rs": 8,
+    "crates/phantom/tests/requests/request_templates/fixture.rs": 4
+  },
+  "total_selected_methods": 41,
+  "runtime_credit": "No logs or commands executed/reviewed here. Parent-reported both-host41 result at3b is separate, not this source receipt and not failure-branch proof.",
+  "findings": [
+    {
+      "key": "template-peer-ownership",
+      "severity": "major",
+      "disposition": "Supported source occurrence; no runtime reproduction in this pass.",
+      "locations": [
+        {
+          "path": "crates/phantom/tests/requests/request_templates.rs",
+          "first": 260,
+          "last": 295
+        },
+        {
+          "path": "crates/phantom/tests/requests/request_templates.rs",
+          "first": 640,
+          "last": 673
+        },
+        {
+          "path": "crates/phantom/tests/requests/request_templates.rs",
+          "first": 1029,
+          "last": 1082
+        },
+        {
+          "path": "crates/phantom/tests/requests/request_templates.rs",
+          "first": 1271,
+          "last": 1337
+        },
+        {
+          "path": "crates/phantom/tests/requests/request_templates.rs",
+          "first": 1403,
+          "last": 1426
+        },
+        {
+          "path": "crates/phantom/tests/requests/request_templates/default_profile.rs",
+          "first": 39,
+          "last": 71
+        },
+        {
+          "path": "crates/phantom/tests/requests/request_templates/default_profile.rs",
+          "first": 217,
+          "last": 261
+        }
+      ],
+      "cause": "Raw server/proxy JoinHandles span fallible configuration, build, prepared-template, send and body operations. Success-only joins are skipped on error; moving raw handles into timeout detaches them on expiry. The resolved JoinHandle contract establishes detachment and lost result, not permanent/natural resource leakage.",
+      "qualification": "H2/H3 completion receivers wake when sender is dropped, once those workers reach their completion wait; that mitigates some paths but does not cancel earlier accept/TLS/request phases or collect completed peer causes. Runtime teardown may cancel detached work. No independent sibling spawn exists inside single H2/H3 origin worker.",
+      "remedy": "Immediately adopt each actual spawned task in existing concrete ConnectionPeer and retain client through explicit finite cleanup. Save operation outcome, independently collect/stop peer, and compose original causes with existing finish_with_cleanup. Keep original wire/order/observer algorithms. No generic framework.",
+      "regression_contract": "Healthy actual HTTP/1/2/3 fields/204 positives. A separate actual pending accepted/read witness with original AbortHandle and destructor/socket observation must precede cancellation/backup. A completed post-wire typed peer error plus a separate original caller error must remain individually identifiable after helper return. Instrument only actual canonical phases; do not duplicate server algorithms or infer lifetime from spawn alone."
+    },
+    {
+      "key": "template-reply-read-classification",
+      "severity": "major",
+      "disposition": "Supported source suppression; deliberate EOF policy must be retained.",
+      "locations": [
+        {
+          "path": "crates/phantom/tests/requests/request_templates.rs",
+          "first": 1238,
+          "last": 1258
+        }
+      ],
+      "cause": "serve_http1_replies treats every read_head error as successful completion. read_head itself returns InvalidData at32768 bytes and propagates read failures, so these are silently converted to Ok(request_count) along with intended final disconnect. Count alone cannot establish no partial extra request bytes.",
+      "remedy": "Give this concrete fixture an explicit head-versus-clean-disconnect policy. Retain expected peer closure, return original unrelated read/bound failures, and distinguish incomplete head if that contract is required. Do not blanket change shared read_head or runtime HTTP parsing.",
+      "regression_contract": "After a real trusted first GET/literal204, healthy client EOF remains a success count1. A second actual32768-byte unterminated head must retain the canonical InvalidData error, not Ok(1). If local-reader identity coverage is required, inject a typed original I/O cause only after actual read Pending and require exact contained marker before finite backup. Test malformed trusted-fixture input, not claim a production parser vulnerability."
+    },
+    {
+      "key": "template-import-layout",
+      "severity": "minor",
+      "disposition": "Confirmed standards-only layout.",
+      "locations": [
+        {
+          "path": "crates/phantom/tests/requests/request_templates.rs",
+          "first": 10,
+          "last": 46
+        }
+      ],
+      "cause": "Module declarations and two local support aliases precede standard/external imports. Attached standards require imports before module declarations and std/external/local grouping.",
+      "remedy": "Move unchanged imports into ordered groups before declarations; preserve identities, attributes and body bytes. No behavioral tests for a literal layout-only inverse."
+    }
+  ],
+  "ledger_reconciliation": [
+    "A229 is the existing fixture decode/duplicate-key finding. Current whole212 fixture includes its repaired ASCII/duplicate checks and four tests; no new rediscovery ID assigned.",
+    "A230 is the authenticated session proxy child owner/result finding, not these request-template parent/default-profile occurrences. Its separate corrected independent review is preserved elsewhere.",
+    "A84/A90/A152/A176 describe already repaired other request/cookie/body owners. These raw template owners remain pending in frozen inventory629-630; no existing row marks their source occurrence repaired. Root decides aggregation/IDs."
+  ],
+  "candidate_dispositions": [
+    "serve_http2 drives poll_closed inline; no detached nested driver was found. Its done channel intentionally stops driving after the client collected its response. If a terminal error and done are both ready, select can choose done. This is a remaining simultaneous-outcome coverage candidate: establish a post-response actual terminal-error policy/control before prescribing semantic changes.",
+    "serve_http3 keeps returned H3 connection on stack through response finish and completion wait; no separately spawned sibling driver exists in this fixture. Endpoint/task exceptional Drop remains under the raw outer-owner finding.",
+    "Ignored client_done send/receiver outcome is a completion signal, not a request/error result. Dropped sender wakes receiver; no automatic new finding solely because let_ appears.",
+    "Existing child path attributes are redundant but currently valid because default_profile/fixture/wire have no newly misplaced plain external child. They are not the explicitly banned foo/tests.rs arrangement. No compilation-path defect claimed.",
+    "One raw redirect task owns both listeners and serves hops serially. This is outer-owner cancellation/result scope, not two separately detached sibling tasks. No source basis for a sibling-collector defect here.",
+    "Trusted fixture HTTP/1 field decoder returns UTF8/delimiter errors; HTTP/2 priority reader bounds its slices after actual server parse and returns poison errors. Their simplified input rules are not production request parser contracts. Header order comparisons are literal observations under distinct-field fixture assumptions, not universal duplicate-map order proof.",
+    "The large parent is an integration test file; size alone does not violate the inline private unit-test rule. No arbitrary split/crate reorganization prescribed. Body stages are generally readable; only concrete import/module placement reported."
+  ],
+  "cookie_and_order_assessment": [
+    "Actual parent compares full ordered fields to retained fixtures and H2 HEADERS priority; default child separately checks inherited/caller/opt-out/default-credential redirect behavior. Caller-provided values come from captures only where template declares caller slots.",
+    "Cookie tests require exactly one literal probe cookie and compare only shared field sides to actual SSE/H1 captures. H2 neighbor assertions and revalidation comments explicitly acknowledge recipe/source scope where no matching capture exists.",
+    "Actual route_attempt_headers expands the template, injects automatic jar cookie using first matching ASCII-insensitive placement neighbor, then dispatch prepares hints. Caller Cookie suppresses automatic injection; protocol casing is explicit. Read supporting scopes only, not entire request implementation.",
+    "Existing cookies placement consumer observes actual HTTP/1 field order using concrete owned peer. cookie_crumbs replay compares emitted order and HPACK cookie representation under its owned recorder. These are supporting consumers, not new runtime results."
+  ],
+  "limits": [
+    "No tracked source edits, Cargo/native/compiler/test, project checker/lint/formatter, target imports or resource/network probes.",
+    "Source findings need actual causal controls and independent remedy review before remediation credit.",
+    "No natural/permanent leak, production wire defect, security exploitability, universal malformed-parser or complete cleanup claim.",
+    "Whole parent/default/fixture/wire scopes explicit. Production request, cookie consumers, TLS and dependency reads are bounded; no transitive whole-crate credit.",
+    "No native retest necessary for read-only source audit. Root owns any future scoped controls, fixes and full gate."
+  ]
+}

@@ -626,8 +626,8 @@ crates/phantom/tests/requests/query_authorization/peer_ownership.rs	crate	source
 crates/phantom/tests/requests/redirects.rs	crate	pending	
 crates/phantom/tests/requests/request_conveniences.rs	crate	source-complete	convenience-owner-coverage-reconciliation-c6d63211.json; convenience-pacing-independent-source-review-bc8a6f18.json; coverage.md#request-and-response-convenience-tests
 crates/phantom/tests/requests/request_conveniences/peer_contract.rs	crate	source-complete	convenience-peer-children-root-review-48c41af8.md.txt; convenience-peer-children-standards-review-48c41af8.json
-crates/phantom/tests/requests/request_templates.rs	crate	pending	
-crates/phantom/tests/requests/request_templates/default_profile.rs	crate	pending	
+crates/phantom/tests/requests/request_templates.rs	crate	source-complete	template-owners-root-source-pass-aebdb78f.json#sources; whole root and independent manual reads; A233/A234/A235 remain open
+crates/phantom/tests/requests/request_templates/default_profile.rs	crate	source-complete	template-owners-root-source-pass-aebdb78f.json#sources; whole root and independent manual reads; A233/A234/A235 remain open
 crates/phantom/tests/requests/request_templates/fixture.rs	crate	source-complete	template-session-root-source-pass-da262bae.json#/source_records/0; whole manual source read; supported findings and verification remain open
 crates/phantom/tests/requests/request_templates/wire.rs	crate	source-complete	template-session-root-source-pass-da262bae.json#/source_records/1; whole manual source read; supported findings and verification remain open
 crates/phantom/tests/requests/response_conveniences.rs	crate	source-complete	convenience-owner-coverage-reconciliation-c6d63211.json; convenience-pacing-independent-source-review-bc8a6f18.json; coverage.md#request-and-response-convenience-tests
@@ -4181,3 +4181,6 @@ docs/internals/architecture-audit/peer-phase-baseline-independent-native-review-
 docs/internals/architecture-audit/peer-phase-baseline-independent-native-review-638fc806.json	audit evidence	evidence-indexed	session-owners-root-source-pass-28e9eb8a.json#imports: byte-exact bounded independent source/native report
 docs/internals/architecture-audit/session-owners-root-source-pass-28e9eb8a.json	audit evidence	evidence-indexed	root manual source read and exact binding; confirmed findings remain open
 docs/internals/architecture-audit/relay-children-root-source-pass-a7048ed0.json	audit evidence	evidence-indexed	root manually read two complete unchanged children; source bindings and evidence limits retained
+docs/internals/architecture-audit/request-template-parent-independent-source-assessment-8490d46d.md.txt	audit evidence	evidence-indexed	byte-exact independent source assessment; root read MD and whole current owners; no native approval
+docs/internals/architecture-audit/request-template-parent-independent-source-assessment-8490d46d.json	audit evidence	evidence-indexed	byte-exact independent source assessment; root read MD and whole current owners; no native approval
+docs/internals/architecture-audit/template-owners-root-source-pass-aebdb78f.json	audit evidence	evidence-indexed	whole current root source reads and exact unchanged independent bindings; no new native execution
