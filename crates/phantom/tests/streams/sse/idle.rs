@@ -14,7 +14,7 @@ use tracing::instrument::WithSubscriber;
 use super::{
     TestResult,
     polling::read,
-    tls_support::{H1_ALPN, TestIdentity, client_builder, read_head, test_client},
+    tls_support::{H1_ALPN, TestIdentity, client_builder, is_peer_gone, read_head, test_client},
     tracing_support::OutcomeSubscriber,
 };
 
@@ -292,7 +292,9 @@ async fn accept_tls_reusable(
 async fn await_peer_close(stream: &mut (impl tokio::io::AsyncRead + Unpin)) -> TestResult<()> {
     let mut byte = [0_u8; 1];
     match stream.read(&mut byte).await {
-        Ok(0) | Err(_) => Ok(()),
+        Ok(0) => Ok(()),
+        Err(error) if is_peer_gone(&error) => Ok(()),
+        Err(error) => Err(error.into()),
         Ok(_) => Err("idle response received unexpected client bytes".into()),
     }
 }
