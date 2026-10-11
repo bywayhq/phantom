@@ -164,7 +164,7 @@ impl ObservedStream {
             });
             if let Some(notice) = control.body_notice.take() {
                 // A finished original request no longer needs the poll wake hint.
-                drop(notice.send(()));
+                let _ = notice.send(());
             }
         }
     }
@@ -411,8 +411,12 @@ impl Backup {
         )
         .await?;
         let address = self.address.ok_or("original retry address missing")?;
-        let rebound = TcpListener::bind(address).await?;
-        assert_eq!(rebound.local_addr()?, address);
+        // A closed connection can leave its port in TIME_WAIT after task teardown.
+        let refused = timeout(LIMIT, TcpStream::connect(address))
+            .await?
+            .err()
+            .ok_or("original retry listener still accepts connections")?;
+        assert_eq!(refused.kind(), io::ErrorKind::ConnectionRefused);
         Ok(())
     }
 
