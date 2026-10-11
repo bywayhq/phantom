@@ -20,8 +20,8 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
-use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use super::*;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 
 const READY_LIMIT: Duration = Duration::from_secs(5);
 const DROP_LIMIT: Duration = Duration::from_secs(2);
@@ -32,6 +32,21 @@ pub(super) struct DriverObservation {
     destroyed: AtomicBool,
     body_pending: AtomicBool,
     client_closed: AtomicBool,
+}
+
+impl DriverObservation {
+    pub(super) fn publish(&self, driver: AbortHandle) -> TestResult<()> {
+        match self.driver.lock() {
+            Ok(mut observed) => {
+                *observed = Some(driver);
+                Ok(())
+            }
+            Err(poison) => {
+                *poison.into_inner() = Some(driver);
+                Err(io::Error::other("driver publication observation lock poisoned").into())
+            }
+        }
+    }
 }
 
 pub(super) struct DriverLifetime(pub(super) Arc<DriverObservation>);
@@ -120,12 +135,13 @@ impl DriverBackup {
         }
     }
 
-    fn driver(&self) -> Option<AbortHandle> {
-        self.observation
+    fn driver(&self) -> TestResult<Option<AbortHandle>> {
+        Ok(self
+            .observation
             .driver
             .lock()
-            .expect("driver observation lock poisoned")
-            .clone()
+            .map_err(|_| io::Error::other("driver lookup observation lock poisoned"))?
+            .clone())
     }
 
     async fn finish(&mut self) -> TestResult<()> {
@@ -134,7 +150,15 @@ impl DriverBackup {
             None => Ok(()),
         };
 
-        let nested: TestResult<()> = if let Some(driver) = self.driver() {
+        let (driver, observed): (_, TestResult<()>) = match self.observation.driver.lock() {
+            Ok(observed) => (observed.clone(), Ok(())),
+            Err(poison) => (
+                poison.into_inner().clone(),
+                Err(io::Error::other("driver backup observation lock poisoned").into()),
+            ),
+        };
+
+        let nested: TestResult<()> = if let Some(driver) = driver {
             driver.abort();
             timeout(READY_LIMIT, async {
                 while !driver.is_finished() {
@@ -152,7 +176,10 @@ impl DriverBackup {
             None => Ok(()),
         };
 
-        finish_with_cleanup(finish_with_cleanup(parent, nested), client)
+        finish_with_cleanup(
+            finish_with_cleanup(parent, finish_with_cleanup(observed, nested)),
+            client,
+        )
     }
 }
 
@@ -161,7 +188,13 @@ impl Drop for DriverBackup {
         if let Some(parent) = &self.parent {
             parent.abort();
         }
-        if let Some(driver) = self.driver() {
+
+        let driver = match self.observation.driver.lock() {
+            Ok(observed) => observed.clone(),
+            Err(poison) => poison.into_inner().clone(),
+        };
+
+        if let Some(driver) = driver {
             driver.abort();
         }
         if let Some(client) = &self.client {
@@ -250,7 +283,7 @@ async fn exercise(contract: ObservedContract) -> TestResult<()> {
             }
         })
         .await?;
-        let driver = backup.driver().ok_or("body driver was not published")?;
+        let driver = backup.driver()?.ok_or("body driver was not published")?;
         if driver.is_finished()
             || backup
                 .client

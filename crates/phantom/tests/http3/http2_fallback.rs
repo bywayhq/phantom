@@ -160,10 +160,7 @@ async fn serve_http2_observed(
         poll_fn(|context| connection.poll_closed(context)).await
     });
     if let Some(value) = &observation {
-        *value
-            .driver
-            .lock()
-            .expect("driver observation lock poisoned") = Some(driver.abort_handle());
+        value.publish(driver.abort_handle())?;
     }
 
     let (parts, mut body) = request.into_parts();
