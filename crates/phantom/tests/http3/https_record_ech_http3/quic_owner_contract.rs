@@ -374,11 +374,17 @@ async fn a_verified_quic_peer_receives_the_literal_h3_response() -> TestResult<(
         Ok((uri, seen, response, observed, tcp, destroyed, peer))
     }
     .await;
-    let cleanup = backup.stop().await;
-    let (uri, seen, (response, body), observed, tcp, destroyed, _peer) =
-        finish_with_cleanup(result, cleanup)?;
+    let (result, _peer) = match result {
+        Ok((uri, seen, response, observed, tcp, destroyed, peer)) => (
+            destroyed.map(|()| (uri, seen, response, observed, tcp)),
+            Some(peer),
+        ),
+        Err(error) => (Err(error), None),
+    };
 
-    destroyed?;
+    let cleanup = backup.stop().await;
+    let (uri, seen, (response, body), observed, tcp) = finish_with_cleanup(result, cleanup)?;
+
     assert_eq!(seen.method, Method::GET);
     assert_eq!(seen.uri.to_string(), uri);
     assert_eq!(seen.version, Version::HTTP_3);
@@ -402,10 +408,14 @@ async fn explicit_quic_finish_destroys_the_pending_h3_handler() -> TestResult<()
         Ok((observed, tcp, destroyed, peer))
     }
     .await;
-    let cleanup = backup.stop().await;
-    let (observed, tcp, destroyed, _peer) = finish_with_cleanup(result, cleanup)?;
+    let (result, _peer) = match result {
+        Ok((observed, tcp, destroyed, peer)) => (destroyed.map(|()| (observed, tcp)), Some(peer)),
+        Err(error) => (Err(error), None),
+    };
 
-    destroyed?;
+    let cleanup = backup.stop().await;
+    let (observed, tcp) = finish_with_cleanup(result, cleanup)?;
+
     assert_eq!(tcp, 0);
     assert_observed(&observed);
     Ok(())
@@ -423,10 +433,14 @@ async fn dropping_the_quic_origin_destroys_its_pending_h3_handler() -> TestResul
         Ok((destroyed, peer))
     }
     .await;
-    let cleanup = backup.stop().await;
-    let (destroyed, _peer) = finish_with_cleanup(result, cleanup)?;
+    let (result, _peer) = match result {
+        Ok((destroyed, peer)) => (destroyed, Some(peer)),
+        Err(error) => (Err(error), None),
+    };
 
-    destroyed
+    let cleanup = backup.stop().await;
+
+    finish_with_cleanup(result, cleanup)
 }
 
 #[tokio::test]
@@ -461,24 +475,32 @@ async fn quic_finish_retains_the_completed_remote_h3_failure() -> TestResult<()>
         Ok((outcome, peer))
     }
     .await;
-    let cleanup = backup.stop().await;
-    let (outcome, _peer) = finish_with_cleanup(result, cleanup)?;
+    let (result, _peer) = match result {
+        Ok((outcome, peer)) => (Ok(outcome), Some(peer)),
+        Err(error) => (Err(error), None),
+    };
 
-    let error = outcome
-        .err()
-        .ok_or("QUIC origin discarded its completed remote H3 failure")?;
-    let mut cause: &(dyn std::error::Error + 'static) = error.as_ref();
-    loop {
-        if let Some(h3::error::ConnectionError::Remote(
-            h3::quic::ConnectionErrorIncoming::ApplicationClose { error_code },
-        )) = cause.downcast_ref::<h3::error::ConnectionError>()
-        {
-            assert_eq!(*error_code, u64::from(INTERNAL_ERROR));
-            return Ok(());
+    let result = result.and_then(|outcome| {
+        let error = outcome
+            .err()
+            .ok_or("QUIC origin discarded its completed remote H3 failure")?;
+        let mut cause: &(dyn std::error::Error + 'static) = error.as_ref();
+        loop {
+            if let Some(h3::error::ConnectionError::Remote(
+                h3::quic::ConnectionErrorIncoming::ApplicationClose { error_code },
+            )) = cause.downcast_ref::<h3::error::ConnectionError>()
+            {
+                return Ok(*error_code);
+            }
+
+            cause = cause
+                .source()
+                .ok_or("QUIC finish omitted the typed remote H3 application code")?;
         }
+    });
+    let cleanup = backup.stop().await;
 
-        cause = cause
-            .source()
-            .ok_or("QUIC finish omitted the typed remote H3 application code")?;
-    }
+    let error_code = finish_with_cleanup(result, cleanup)?;
+    assert_eq!(error_code, u64::from(INTERNAL_ERROR));
+    Ok(())
 }
