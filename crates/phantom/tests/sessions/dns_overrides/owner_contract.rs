@@ -676,10 +676,10 @@ async fn keepalive_coordinator_fault(boundary: FaultBoundary) -> TestResult<()> 
         timeout(LIMIT, backup.reached.wait_for(|reached| *reached)).await??;
         backup.coordinator_worker_destroyed().await?;
         let oracle = retains_fault(backup.joined_coordinator().await, &identity);
-        if let Err(error) = caller {
-            if !expected_caller_close(error.as_ref()) {
-                return finish_with_cleanup(oracle, Err(error));
-            }
+        if let Err(error) = caller
+            && !expected_caller_close(error.as_ref())
+        {
+            return finish_with_cleanup(oracle, Err(error));
         }
         oracle
     }
