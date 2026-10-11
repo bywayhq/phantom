@@ -102,8 +102,26 @@ finding was added by this pass.
 
 The [independent capture review](template-session-capture-independent-source-native-review-3b39526f.md.txt)
 also corrects one supporting range in the earlier root report: the library
-capture source ends at line 237. The retained `199–245` citation receives
-credit only for `199–237`; the original report remains preserved.
+capture source ends at line 237. The retained `199â€“245` citation receives
+credit only for `199â€“237`; the original report remains preserved.
+
+### Runtime and parallel-session fixture owners
+
+The [source pass](session-owners-root-source-pass-28e9eb8a.json) records
+complete current reads of two owners, totaling 933 lines. An independent
+manual pass binds the same source. Listener and child failures disappear,
+parallel accepted/request tasks lack eager ownership, and four timeout
+mappings remove the timer cause. A231, A232 and A233 require controls and
+repairs. Local import grouping also needs correction in the touched owners.
+
+The dedicated origin runtime bounds its tasks' lifetime when dropped.
+This review establishes neither a permanent leak nor a measured false green
+in quiet-window assertions. Supporting reads retain their bounded scope.
+
+The [independent paired baseline review](peer-phase-baseline-independent-native-review-638fc806.md.txt)
+confirms the recorded QUIC and proxy failures. Its count correction names
+16 logs and 20 sidecars, plus the separate launcher. No extra observations
+or fixed-source approval follow from that correction.
 
 ### HTTP/2 backend teardown controls
 

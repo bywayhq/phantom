@@ -647,11 +647,11 @@ crates/phantom/tests/sessions/http3_connections.rs	crate	pending
 crates/phantom/tests/sessions/main.rs	crate	source-complete	template-session-root-source-pass-da262bae.json#/source_records/2; whole manual source read; supported findings and verification remain open
 crates/phantom/tests/sessions/negotiated.rs	crate	pending	
 crates/phantom/tests/sessions/negotiated_parallel.rs	crate	pending	
-crates/phantom/tests/sessions/runtimes.rs	crate	pending	
+crates/phantom/tests/sessions/runtimes.rs	crate	source-complete	session-owners-root-source-pass-28e9eb8a.json#sources: root whole current and independent exact source; A231/A232/A233 open; no native or whole lifecycle credit
 crates/phantom/tests/sessions/session.rs	crate	pending	
 crates/phantom/tests/sessions/session/proxy_auth.rs	crate	source-complete	template-session-root-source-pass-da262bae.json#/source_records/3; whole manual source read; supported findings and verification remain open; peer-phase-baseline-root-native-638fc806.json#sources: exact whole root read and independent bounded source review; native failures retained; no whole lifecycle closure
 crates/phantom/tests/sessions/session_http1.rs	crate	pending	
-crates/phantom/tests/sessions/session_http1_parallel.rs	crate	pending	
+crates/phantom/tests/sessions/session_http1_parallel.rs	crate	source-complete	session-owners-root-source-pass-28e9eb8a.json#sources: root whole current and independent exact source; A231/A232/A233 open; no native or whole lifecycle credit
 crates/phantom/tests/sessions/session_http2_authority.rs	crate	pending	
 crates/phantom/tests/sessions/session_http2_idle.rs	crate	pending	
 crates/phantom/tests/sessions/session_http2_lifecycle.rs	crate	pending	
@@ -4175,3 +4175,8 @@ docs/internals/architecture-audit/peer-phase-combined-independent-source-review-
 docs/internals/architecture-audit/peer-phase-combined-independent-source-review-638fc806.md.txt	audit evidence	evidence-indexed	peer-phase-baseline-root-native-638fc806.json#imports: immutable byte-exact report or prior-candidate CI snapshot; scope and historical rejection preserved
 docs/internals/architecture-audit/pr197-ci-snapshot-8490d46d-green.json	audit evidence	evidence-indexed	peer-phase-baseline-root-native-638fc806.json#imports: immutable byte-exact report or prior-candidate CI snapshot; scope and historical rejection preserved
 docs/internals/architecture-audit/peer-phase-baseline-root-native-638fc806.json	audit evidence	evidence-indexed	root inspected complete paired logs and terminal handles; bounded evidence, no final gate credit
+docs/internals/architecture-audit/runtime-parallel-session-owner-source-review-77ead920.md.txt	audit evidence	evidence-indexed	session-owners-root-source-pass-28e9eb8a.json#imports: byte-exact bounded independent source/native report
+docs/internals/architecture-audit/runtime-parallel-session-owner-source-review-77ead920.json	audit evidence	evidence-indexed	session-owners-root-source-pass-28e9eb8a.json#imports: byte-exact bounded independent source/native report
+docs/internals/architecture-audit/peer-phase-baseline-independent-native-review-638fc806.md.txt	audit evidence	evidence-indexed	session-owners-root-source-pass-28e9eb8a.json#imports: byte-exact bounded independent source/native report
+docs/internals/architecture-audit/peer-phase-baseline-independent-native-review-638fc806.json	audit evidence	evidence-indexed	session-owners-root-source-pass-28e9eb8a.json#imports: byte-exact bounded independent source/native report
+docs/internals/architecture-audit/session-owners-root-source-pass-28e9eb8a.json	audit evidence	evidence-indexed	root manual source read and exact binding; confirmed findings remain open

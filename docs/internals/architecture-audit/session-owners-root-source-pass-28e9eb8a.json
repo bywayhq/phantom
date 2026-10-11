@@ -1,0 +1,78 @@
+{
+  "revision": "28e9eb8ab7edec69b601fb74f2d1ac329b99835f",
+  "kind": "two complete root source reads with independently bound earlier manual pass",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/sessions/runtimes.rs",
+      "revision": "28e9eb8ab7edec69b601fb74f2d1ac329b99835f",
+      "lines": 369,
+      "canonical_sha256": "76b6f14978932da15052080418eaa95d1d0fce78af507bfb4a4346f5d054793f",
+      "root_read": "whole untruncated current owner",
+      "independent_read": "whole frozen owner unchanged at current revision",
+      "root_ranges": [
+        [
+          1,
+          369
+        ]
+      ]
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1_parallel.rs",
+      "revision": "28e9eb8ab7edec69b601fb74f2d1ac329b99835f",
+      "lines": 564,
+      "canonical_sha256": "03b097b7094d9251cb86f0d17ba08bf3b4c3ca063792e145edd357166c547154",
+      "root_read": "whole untruncated current owner",
+      "independent_read": "whole frozen owner unchanged at current revision",
+      "root_ranges": [
+        [
+          1,
+          282
+        ],
+        [
+          283,
+          564
+        ]
+      ]
+    }
+  ],
+  "lines_read": 933,
+  "imports": [
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\runtime-parallel-session-owner-source-review-77ead920.md",
+      "destination": "docs/internals/architecture-audit/runtime-parallel-session-owner-source-review-77ead920.md.txt",
+      "bytes": 3745,
+      "sha256": "fe7d2e922b2b8abfd72b6e36eb221e9f7771676c144d3c6dc631e833e1335bd9"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\runtime-parallel-session-owner-source-review-77ead920.json",
+      "destination": "docs/internals/architecture-audit/runtime-parallel-session-owner-source-review-77ead920.json",
+      "bytes": 13143,
+      "sha256": "a1b11d9dbed74c9cb14d18d6f342829d8a4ba7188256581f1a76c52cde2f1253"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\peer-phase-baseline-independent-native-review-638fc806.md",
+      "destination": "docs/internals/architecture-audit/peer-phase-baseline-independent-native-review-638fc806.md.txt",
+      "bytes": 3833,
+      "sha256": "e9fbe607da748da03ac27789f2446802590c72b9e33a5bf4803724a53204b680"
+    },
+    {
+      "source": "C:\\code\\phantom\\target\\architecture-audit\\peer-phase-baseline-independent-native-review-638fc806.json",
+      "destination": "docs/internals/architecture-audit/peer-phase-baseline-independent-native-review-638fc806.json",
+      "bytes": 30677,
+      "sha256": "f47cbf1f704238d30d6c59ca67089cd3cab9d88ebd986fe0564ee8c518c37a93"
+    }
+  ],
+  "confirmed_source_findings": [
+    "A231: ignored completed and listener/serving peer outcomes",
+    "A232: accept-only abort and raw request/descendant ownership in parallel-session fixture",
+    "A233: four textual timeout mappings remove original Elapsed"
+  ],
+  "readability": "Local-before-standard imports need correction in these touched owners. No arbitrary split or crate extraction follows from file size.",
+  "limits": [
+    "No new runtime checks. Dedicated Runtime drop bounds runtime fixture lifetime; discarded results do not establish a permanent leak.",
+    "No measured quiet-window false green, scheduler flake or production/client behavior defect.",
+    "Supporting and resolved-source ranges retain the agent report limits; root reads of these two owners do not promote their callers.",
+    "Source review is complete for these files, not lifecycle or remedy verification."
+  ],
+  "retained_native_review": "Independent exact638fc806 baseline review adds no fixed-source claim; count-label correction retained: 16 logs plus20 sidecars, separate launcher artifact37."
+}

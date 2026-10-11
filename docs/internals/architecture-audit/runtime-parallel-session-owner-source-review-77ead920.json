@@ -1,0 +1,302 @@
+{
+  "revision": "77ead920d5d400b44643a69cc7a72cb3c1d80933",
+  "review": "read-only manual source and standards disposition",
+  "owned_source_read": [
+    {
+      "path": "crates/phantom/tests/sessions/runtimes.rs",
+      "blob": "fc3b6adc2cec86547f75c475f93005f00721ec62",
+      "git_sha256": "76b6f14978932da15052080418eaa95d1d0fce78af507bfb4a4346f5d054793f",
+      "physical_sha256": "56dd275a08ac398c621b6cfdc061cd1e7a2a525a2b2b50d72d0911890a530c34",
+      "physical_lf_equals_frozen": true,
+      "lines": 369,
+      "manual_ranges": [
+        [
+          1,
+          190
+        ],
+        [
+          191,
+          369
+        ]
+      ],
+      "scope": "whole"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1_parallel.rs",
+      "blob": "0793f7cd0985b3f87e223de833a0fc4a88ab1204",
+      "git_sha256": "03b097b7094d9251cb86f0d17ba08bf3b4c3ca063792e145edd357166c547154",
+      "physical_sha256": "23261ed51e30c1ab9c6b72d5007fc6c134b22cbd0877d004eb518db73a4de99f",
+      "physical_lf_equals_frozen": true,
+      "lines": 564,
+      "manual_ranges": [
+        [
+          1,
+          190
+        ],
+        [
+          191,
+          380
+        ],
+        [
+          381,
+          564
+        ]
+      ],
+      "scope": "whole"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/main.rs",
+      "blob": "f6d84bc61e80c5233ec9f84f75f4a8e5dc3798d1",
+      "git_sha256": "52ef323a9fa143a79728046cb6ae63fa26c836fda738f3ddf771602228cd27cf",
+      "physical_sha256": "eca1fb4bf67fb62912f064248c3b0928b78b2964cb464254585853b302c5f212",
+      "physical_lf_equals_frozen": true,
+      "lines": 29,
+      "manual_ranges": [
+        [
+          1,
+          29
+        ]
+      ],
+      "scope": "whole"
+    },
+    {
+      "path": "crates/phantom/tests/support/tls.rs",
+      "blob": "71fa1686f682377bc7a849604215e64ebbbb6471",
+      "git_sha256": "ab0057fa6cc12f94f12d25768d7139442e240f3c392a21774f48e5740885c3af",
+      "physical_sha256": "bd550dd88d5cfc77509e9ae1feabbed20a350959ab33e5ffd08fda4b76897105",
+      "physical_lf_equals_frozen": true,
+      "lines": 225,
+      "manual_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "git_sha256": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "physical_sha256": "570f76cda99513c55669e5ddfb798f0acbd409fb6eebeea043558dbe7ccc9a8d",
+      "physical_lf_equals_frozen": true,
+      "lines": 268,
+      "manual_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "blob": "270853c61542d9fb2608483f901f50c6bf202b6c",
+      "git_sha256": "9175aa4f4e8f0114b1854ca679460adb6675fdc8215b6a64384da109bea34127",
+      "physical_sha256": "447464be3502e4860043bb9dbf688f4adcc28b84644098219aa09926273fda69",
+      "physical_lf_equals_frozen": true,
+      "lines": 1326,
+      "manual_ranges": [
+        [
+          179,
+          195
+        ],
+        [
+          226,
+          236
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "Cargo.lock",
+      "blob": "ac169e9c6d03b57c20e6bd2d334cca2743b6e260",
+      "git_sha256": "5c2b386e916ded1d8d62181161f8e6c0c7f752a70b67087db9c0b2a3f0d1c321",
+      "physical_sha256": "5c2b386e916ded1d8d62181161f8e6c0c7f752a70b67087db9c0b2a3f0d1c321",
+      "physical_lf_equals_frozen": true,
+      "lines": 2772,
+      "manual_ranges": [
+        [
+          2215,
+          2227
+        ]
+      ],
+      "scope": "partial"
+    },
+    {
+      "path": "crates/phantom/tests/support/h3.rs",
+      "blob": "f0929a029dccd3bcaebf222e424a9868752f4987",
+      "git_sha256": "d063a88c6f7574959d6899c0105fc99c5a56f4665088f503c7d8ba1ed0bc712e",
+      "physical_sha256": "904fab09dd544dada45735919f9c914c7b4f7ea4fb8fdba3944d79ae45b8be70",
+      "physical_lf_equals_frozen": true,
+      "lines": 116,
+      "manual_ranges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "scope": "whole"
+    },
+    {
+      "path": "AGENTS.md",
+      "blob": "8a24b6ee5038fc07aeb56fac27e039f51be0f32a",
+      "git_sha256": "3cf311b8cf799c8b6305976f5a8f7ba97afa378391aecf2b22e8966eda2e2269",
+      "physical_sha256": "61887031cf019147cdf81f5ae3c1667b67f14b342d8d7c1a233ecccd9b71d3eb",
+      "physical_lf_equals_frozen": true,
+      "lines": 221,
+      "manual_ranges": [
+        [
+          1,
+          221
+        ]
+      ],
+      "scope": "whole"
+    },
+    {
+      "path": ".claude/agents/gate-reviewer.md",
+      "blob": "9c575f1a541f0571c63db6db2793c331fef641ca",
+      "git_sha256": "3f6206f0226e2a5176814776c5ca53deea78a22462f1f0593ff895a9fa5e44bf",
+      "physical_sha256": "825427fdfe5fb5ff65c4fca8779f14b9414caaa32f99933afaf9758a021ef187",
+      "physical_lf_equals_frozen": true,
+      "lines": 48,
+      "manual_ranges": [
+        [
+          1,
+          48
+        ]
+      ],
+      "scope": "whole"
+    }
+  ],
+  "dependencies": [
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\runtime.rs",
+      "sha256": "67b4fae038519f2cfb85e57d8a3b0dbcfbb38a1b0875d67742854039ade1b0d7",
+      "lines": 588,
+      "manual_ranges": [
+        [
+          31,
+          85
+        ],
+        [
+          500,
+          519
+        ]
+      ],
+      "scope": "partial",
+      "resolved": "Tokio 1.53.1 bound to frozen Cargo.lock lines 2218-2222"
+    },
+    {
+      "path": "C:\\Users\\arya\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\tokio-1.53.1\\src\\runtime\\task\\join.rs",
+      "sha256": "85484895de0c7f38a6ce49cb42ed4ba7b680b674deaf27aeb77467dc987b3ee7",
+      "lines": 377,
+      "manual_ranges": [
+        [
+          9,
+          33
+        ],
+        [
+          221,
+          266
+        ],
+        [
+          355,
+          366
+        ]
+      ],
+      "scope": "partial",
+      "resolved": "Tokio 1.53.1 bound to frozen Cargo.lock lines 2218-2222"
+    }
+  ],
+  "findings": [
+    {
+      "key": "peer-outcomes",
+      "severity": "major",
+      "paths": [
+        "runtimes.rs:66-149",
+        "runtimes.rs:324-339",
+        "session_http1_parallel.rs:59-71",
+        "session_http1_parallel.rs:110-142",
+        "session_http1_parallel.rs:431-446"
+      ],
+      "problem": "Accept/serving JoinHandles are discarded; H2/H3/TLS returned errors are unobserved and H1 read/write errors are collapsed into loop termination. Healthy client assertions do not collect every peer outcome.",
+      "qualification": "The dedicated Origin Runtime bounds task lifetime on runtime destruction; this is completed-error retention evidence, not a claim of a permanent leak.",
+      "proposal": "Acquire concrete task owners at spawn, retain completed results and JoinErrors, and explicitly collect all peers alongside the request primary. A real healthy request before a distinct post-operation worker fault can prove the missing cause boundary."
+    },
+    {
+      "key": "parallel-ownership",
+      "severity": "major",
+      "paths": [
+        "session_http1_parallel.rs:55-71",
+        "session_http1_parallel.rs:104-107",
+        "session_http1_parallel.rs:197-209",
+        "session_http1_parallel.rs:272-312",
+        "session_http1_parallel.rs:342-352",
+        "session_http1_parallel.rs:380-393",
+        "session_http1_parallel.rs:409-414",
+        "session_http1_parallel.rs:431-487"
+      ],
+      "problem": "Server Drop aborts only its accept task; accepted children remain detached. Spawned request handles and the separate TLS accept task cross later fallible operations or by-value timeouts without a cleanup owner.",
+      "qualification": "Drop requests cancellation without awaiting it. Source does not establish natural leakage, unbounded lifetime, or a production defect; the enclosing integration runtime can later destroy tasks.",
+      "proposal": "Use concrete eager guards for acquired tasks and accepted descendants. Observe actual pending read/handshake plus child destruction and socket closure before an independent finite backup. Keep completed external cancellation/panic failures; suppress only cancellation explicitly requested for pending cleanup."
+    },
+    {
+      "key": "deadline-causes",
+      "severity": "major",
+      "paths": [
+        "runtimes.rs:172",
+        "runtimes.rs:269",
+        "runtimes.rs:297",
+        "session_http1_parallel.rs:177"
+      ],
+      "problem": "Four timeout mappings discard the original Tokio Elapsed and return text only.",
+      "qualification": "Other timeout uses that propagate Elapsed and quiet-window expiry used as a successful negative observation are separate contracts.",
+      "proposal": "Keep the current periods and literal messages in a private typed error with original Elapsed source. Test actual original future Pending before expiry, ready success and exact inner-error preservation."
+    },
+    {
+      "key": "import-groups",
+      "severity": "minor",
+      "paths": [
+        "runtimes.rs:10-11",
+        "session_http1_parallel.rs:3",
+        "session_http1_parallel.rs:23-26"
+      ],
+      "problem": "Local support aliases precede standard/external imports; btls/tokio_btls imports follow the Tokio block in the parallel owner.",
+      "qualification": "Mechanical standards grouping only; no behavioral failure follows from the ordering.",
+      "proposal": "Place standard, external and local groups consistently without changing operation bodies."
+    }
+  ],
+  "observation_qualifications": [
+    "Quiet-window request admission checks spawn a task then time its JoinHandle without an independent actual request-future Pending witness. This is an observation-strength gap, not a demonstrated false positive. Add a wrapper that polls the original send future and signals actual Pending before starting the existing quiet interval.",
+    "Runtime counts increment at actual accepted TCP/QUIC arrival, not completed authentication; successful status/body requests independently establish the healthy path. The kept current-thread runtime is intentionally retained without further driving, rather than secretly running in the background.",
+    "The scoped thread is joined by std::thread::scope on every scope exit; its request has its own finite timeout. The panic mapping at runtimes.rs:363 loses the original panic payload, but no panic was observed.",
+    "The two-second idle sleep is an explicit elapsed idle-policy trigger with a real replacement connection and original socket EOF assertion. It is not a readiness barrier. No platform reset classification waiver is proposed without a separate concrete witness.",
+    "The TLS cancellation case witnesses actual accepted TCP streams and actual cancelled request JoinHandles; it does not observe parsed ClientHello or canonical handshake Pending. The later healthy responses and accepted indices are real positives.",
+    "The custom-profile debug-string assertion checks applied configuration representation only. It is not three-request admission evidence, and no ignored production setting is inferred."
+  ],
+  "ledger_reconciliation": "A180/A181/A182 cover ECH fixture scopes; A221/A222 capture serving scopes; A223/A224/A225 cover relay/fallback fixtures; A230 covers authenticated proxy sessions. No existing row inspected names these two owners. New finding IDs remain with integration owner.",
+  "inventory_disposition": {
+    "runtimes.rs": "whole manual source read with supported findings; no lifecycle approval",
+    "session_http1_parallel.rs": "whole manual source read with supported findings; no lifecycle approval"
+  },
+  "independence": "Reviewer did not author these two test owners. Supporting ConnectionPeer is reused elsewhere; fresh supporting read is only 1-116, not a fresh whole-support or production review.",
+  "verification": {
+    "executed": false,
+    "repository_edits": false,
+    "native_or_checkers": false,
+    "source_bindings_only": true
+  },
+  "limits": [
+    "No tests, Cargo, project checkers, resource probes, target imports or production runtime execution.",
+    "No complete crate, pool/transport implementation, dependency, transitive callers or lifecycle approval.",
+    "No observed natural peer failure, permanent leak, cache defect, scheduler flake or browser parity result.",
+    "Root must review separate causal controls before remedies; whole source-read disposition does not close findings."
+  ],
+  "future_integration_checks": [
+    "Via scripts/dev/with-cargo-lock.sh: sessions target filters for runtimes and session_http1_parallel on both Windows/Linux.",
+    "cargo fmt --check; strict sessions-test Clippy/all features; Rust 1.88 sessions-test check.",
+    "Integration owner retains applicable full gate; no vendor files changed by this review."
+  ],
+  "read_note": "Whole target files were read in bounded untruncated chunks. Cached Tokio ranges were read directly. A mistaken lookup for docs/internals/code-style.md returned missing; it supplies no authority or coverage credit."
+}
