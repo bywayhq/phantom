@@ -2490,6 +2490,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Update standalone vendor validation locks to fixed h2, rustls, serde_with,
+  and event-listener versions.
+
 - Make HTTPS-record QUIC test origins stop pending work and retain serving
   failures during shutdown.
 
