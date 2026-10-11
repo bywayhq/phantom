@@ -45,6 +45,7 @@ use std::{
 };
 
 use btls::{
+    error::ErrLib,
     hpke::HpkeKey,
     pkey::PKey,
     ssl::{
@@ -56,8 +57,8 @@ use btls::{
 use bytes::Bytes;
 use phantom_quic_btls::{QuicServerConfig, ServerHandshakeData};
 use phantom_testkit::tls::{
-    CaptureLimits, ClientHelloSummary, EchOuterExtension, TEST_ECH_KEYS, capture_client_hello,
-    ech_config, ech_config_list,
+    CaptureError, CaptureLimits, ClientHelloDecodeError, ClientHelloSummary, EchOuterExtension,
+    TEST_ECH_KEYS, capture_client_hello, ech_config, ech_config_list,
 };
 use rcgen::{CertificateParams, ExtendedKeyUsagePurpose, KeyPair, KeyUsagePurpose};
 use tokio::{
@@ -167,13 +168,13 @@ async fn main() -> CaptureResult<()> {
                 accepted = origin.accept() => {
                     let (tcp, peer) = accepted?;
                     require_loopback(peer.ip(), "origin peer")?;
-                    let slot = captured.reserve_tcp();
-                    let (acceptor, captured) = (origin_acceptor.clone(), Arc::clone(&captured));
-                    tasks.spawn(async move {
-                        if let Err(error) = record_tcp(tcp, acceptor, captured, slot).await {
-                            eprintln!("TCP connection from {peer} failed: {error}");
-                        }
-                    });
+                    spawn_origin_tcp(
+                        &mut tasks,
+                        tcp,
+                        peer,
+                        origin_acceptor.clone(),
+                        Arc::clone(&captured),
+                    );
                     arrivals += 1;
                     last_event = Instant::now();
                 }
@@ -606,6 +607,21 @@ fn write_client_hello_fields(
     }
 }
 
+fn spawn_origin_tcp(
+    tasks: &mut JoinSet<()>,
+    tcp: TcpStream,
+    peer: SocketAddr,
+    acceptor: SslAcceptor,
+    captured: Arc<Captured>,
+) {
+    let slot = captured.reserve_tcp();
+    tasks.spawn(async move {
+        if let Err(error) = record_tcp(tcp, acceptor, captured, slot).await {
+            eprintln!("TCP connection from {peer} failed: {error}");
+        }
+    });
+}
+
 /// Records one TCP connection's ClientHello and handshake, then serves the
 /// page, storing the record in `slot` before and after serving.
 async fn record_tcp(
@@ -663,9 +679,94 @@ async fn record_tcp(
     let serving = serve_page(&mut tls).await;
     #[cfg(test)]
     let serving = tests::origin_serving_contract::observe_serving(serving, &captured, slot);
-    connection.request_served = serving.unwrap_or(false);
+    connection.request_served = matches!(serving, Ok(true));
     captured.store_tcp(slot, connection);
-    Ok(())
+    match serving {
+        Ok(_) => Ok(()),
+        Err(error) if is_origin_peer_observation(&error) => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn is_origin_peer_observation(mut error: &(dyn Error + 'static)) -> bool {
+    loop {
+        if let Some(error) = error.downcast_ref::<CaptureError>() {
+            return match error {
+                CaptureError::Io(error) => is_origin_peer_observation(error),
+                CaptureError::DeadlineExceeded
+                | CaptureError::TruncatedInput
+                | CaptureError::RecordTooLarge { .. }
+                | CaptureError::RecordLimitExceeded { .. }
+                | CaptureError::WireLimitExceeded { .. }
+                | CaptureError::HandshakeLimitExceeded { .. }
+                | CaptureError::NonHandshakeRecord { .. }
+                | CaptureError::EmptyHandshakeFragment
+                | CaptureError::UnexpectedHandshakeType { .. }
+                | CaptureError::TrailingBytes { .. } => true,
+                _ => false,
+            };
+        }
+        if let Some(error) = error.downcast_ref::<ClientHelloDecodeError>() {
+            return matches!(
+                error,
+                ClientHelloDecodeError::UnexpectedHandshakeType { .. }
+                    | ClientHelloDecodeError::Truncated { .. }
+                    | ClientHelloDecodeError::LengthOutOfRange { .. }
+                    | ClientHelloDecodeError::InvalidVectorLength { .. }
+                    | ClientHelloDecodeError::DuplicateExtension { .. }
+                    | ClientHelloDecodeError::TrailingHandshakeBytes { .. }
+                    | ClientHelloDecodeError::TrailingClientHelloBytes { .. }
+                    | ClientHelloDecodeError::TrailingExtensionBytes { .. }
+                    | ClientHelloDecodeError::EmptyAlpnProtocol
+                    | ClientHelloDecodeError::EmptyServerName { .. }
+                    | ClientHelloDecodeError::DuplicateServerNameType { .. }
+            );
+        }
+        if let Some(io) = error.downcast_ref::<io::Error>() {
+            if matches!(
+                io.kind(),
+                io::ErrorKind::UnexpectedEof
+                    | io::ErrorKind::ConnectionReset
+                    | io::ErrorKind::ConnectionAborted
+                    | io::ErrorKind::BrokenPipe
+            ) {
+                return true;
+            }
+            match io.get_ref() {
+                Some(cause) => {
+                    error = cause;
+                    continue;
+                }
+                None => return false,
+            }
+        }
+        if let Some(ssl) = error.downcast_ref::<btls::ssl::Error>() {
+            if ssl.code() == ErrorCode::ZERO_RETURN
+                || (ssl.code() == ErrorCode::SYSCALL
+                    && ssl.io_error().is_none()
+                    && ssl.ssl_error().is_none())
+            {
+                return true;
+            }
+            // The pinned BoringSSL client sends ECH_REQUIRED after rejecting
+            // ECH: ERR_LIB_SSL=16, SSL_R_TLSV1_ALERT_ECH_REQUIRED=1121.
+            if ssl.code() == ErrorCode::SSL
+                && ssl.ssl_error().is_some_and(|stack| {
+                    !stack.errors().is_empty()
+                        && stack
+                            .errors()
+                            .iter()
+                            .all(|error| error.library_reason(ErrLib(16)) == Some(1121))
+                })
+            {
+                return true;
+            }
+        }
+        match error.source() {
+            Some(cause) => error = cause,
+            None => return false,
+        }
+    }
 }
 
 #[derive(Clone)]

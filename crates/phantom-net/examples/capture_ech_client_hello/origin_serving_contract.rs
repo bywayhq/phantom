@@ -294,3 +294,5 @@ async fn record_tcp_retains_a_local_post_serving_failure_beside_a_healthy_peer()
 
     with_backup(result, cleanup)
 }
+
+mod owner_contract;
