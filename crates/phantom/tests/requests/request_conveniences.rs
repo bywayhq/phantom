@@ -115,23 +115,31 @@ async fn redirects_strip_hook_credentials_without_running_hooks_again() -> TestR
         let hook_authorization = authorization.clone();
         let cookie = format!("private={canary:x}");
         let hook_cookie = cookie.clone();
+
         let first = async move {
             let (mut stream, _) = source.accept().await?;
             let head = String::from_utf8(read_head(&mut stream).await?)?;
+
             stream.write_all(format!("HTTP/1.1 302 Found\r\nLocation: http://{target_address}/next\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").as_bytes()).await?;
+
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
         };
+
         let second = async move {
             let (mut stream, _) = target.accept().await?;
             let head = String::from_utf8(read_head(&mut stream).await?)?;
+
             stream.write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n").await?;
+
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
         };
+
         let peer = async move { tokio::try_join!(first, second) };
 
         let ((first, second), calls) = exchange_peer(peer, async {
             let calls = Arc::new(AtomicUsize::new(0));
             let hook_calls = calls.clone();
+
             let client = Client::builder(ClientProfile::new(tls_settings()))
                 .base_url(&format!("http://{source_address}/api/"))?
                 .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
@@ -142,6 +150,7 @@ async fn redirects_strip_hook_credentials_without_running_hooks_again() -> TestR
                 }).build()?;
 
             client.get(HttpProtocol::Http1, "start")?.send().await?.into_body().collect_with_limit(0).await?;
+
             Ok(calls)
         })
         .await?;
@@ -151,6 +160,7 @@ async fn redirects_strip_hook_credentials_without_running_hooks_again() -> TestR
         assert!(!second.to_ascii_lowercase().contains("cookie:"));
         assert!(cookie_transition(&first, &second, &cookie));
         assert_eq!(calls.load(Ordering::Relaxed), 1);
+
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
     }).await?
 }
@@ -160,6 +170,7 @@ async fn invalid_hooks_and_changed_prepared_metadata_fail_before_connecting() ->
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let uri = format!("http://{}/", listener.local_addr()?);
     let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
+
     let error = client
         .get(HttpProtocol::Http1, &uri)?
         .header_hook(|_| {
@@ -171,9 +182,11 @@ async fn invalid_hooks_and_changed_prepared_metadata_fail_before_connecting() ->
         .await
         .err()
         .ok_or("hook unexpectedly succeeded")?;
+
     assert_eq!(error.kind(), RequestErrorKind::HeaderHook);
     assert!(!format!("{error:?} {error}").contains("canary"));
     assert!(std::error::Error::source(&error).is_some());
+
     for remove in [false, true] {
         let error = client
             .request(HttpProtocol::Http1, phantom::Method::POST, &uri)?
@@ -193,13 +206,16 @@ async fn invalid_hooks_and_changed_prepared_metadata_fail_before_connecting() ->
             .await
             .err()
             .ok_or("invalid metadata unexpectedly succeeded")?;
+
         assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
     }
+
     assert!(
         timeout(Duration::from_millis(50), listener.accept())
             .await
             .is_err()
     );
+
     Ok(())
 }
 

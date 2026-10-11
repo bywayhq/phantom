@@ -119,15 +119,19 @@ async fn status_error_keeps_the_unread_body_and_all_metadata() -> TestResult<()>
     )
     .await?;
     let metadata = Metadata::record(&mut response)?;
+
     let mut error = error_for_status(response)
         .err()
         .ok_or("error status accepted")?;
+
     assert_eq!(error.status(), StatusCode::SERVICE_UNAVAILABLE);
     metadata.check(error.response());
     assert!(!format!("{error:?} {error}").contains("sensitive"));
     assert!(!format!("{error:?} {error}").contains("preserved"));
+
     error.response_mut().extensions_mut().insert(42_u32);
     let response = response_bytes(error.into_response(), 6).await?;
+
     metadata.check(&response);
     assert_eq!(response.extensions().get::<u32>(), Some(&42));
     assert_eq!(response.body(), b"denied".as_slice());
@@ -175,22 +179,28 @@ async fn decoded_data_limit_returns_metadata_and_the_original_typed_body_error()
     let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
     encoder.write_all(&data)?;
     let encoded = encoder.finish()?;
+
     assert!(encoded.len() < 100);
+
     let headers = format!(
         "Content-Encoding: gzip\r\nContent-Length: {}\r\n",
         encoded.len()
     );
+
     let mut response = exchange(
         wire("200 OK", &headers, &encoded),
         ContentDecoding::advertised(4096),
     )
     .await?;
     let metadata = Metadata::record(&mut response)?;
+
     let mut error = response_bytes(response, 100)
         .await
         .err()
         .ok_or("decoded limit ignored")?;
+
     assert_eq!(error.kind(), ResponseReadErrorKind::Body);
+
     let original = error.request_error().ok_or("body cause missing")?;
     assert_eq!(original.kind(), RequestErrorKind::ResponseBodyLimit);
     assert!(std::ptr::eq(
@@ -200,10 +210,13 @@ async fn decoded_data_limit_returns_metadata_and_the_original_typed_body_error()
             .ok_or("direct body source missing")?,
         original
     ));
+
     metadata.check(error.response());
     assert!(!format!("{error:?} {error}").contains("sensitive"));
+
     error.response_mut().extensions_mut().insert(42_u32);
     let response = error.into_response();
+
     metadata.check(&response);
     assert_eq!(response.extensions().get::<u32>(), Some(&42));
 
@@ -342,10 +355,12 @@ async fn invalid_json_keeps_metadata_and_its_typed_source() -> TestResult<()> {
     )
     .await?;
     let metadata = Metadata::record(&mut response)?;
+
     let error = phantom::response_json::<Vec<u32>>(response, 5)
         .await
         .err()
         .ok_or("invalid JSON accepted")?;
+
     assert_eq!(error.kind(), ResponseReadErrorKind::Json);
     assert!(error.request_error().is_none());
     assert!(
@@ -355,15 +370,18 @@ async fn invalid_json_keeps_metadata_and_its_typed_source() -> TestResult<()> {
     );
     metadata.check(error.response());
     assert!(!format!("{error:?} {error}").contains("sensitive"));
+
     let response = exchange(
         wire("200 OK", "Content-Length: 5\r\n", b"[1,2,"),
         ContentDecoding::none(),
     )
     .await?;
+
     let error = phantom::response_json::<Vec<u32>>(response, 4)
         .await
         .err()
         .ok_or("JSON input limit ignored")?;
+
     assert_eq!(error.kind(), ResponseReadErrorKind::Body);
     assert_eq!(
         error.request_error().ok_or("body cause missing")?.kind(),
