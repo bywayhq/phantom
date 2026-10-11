@@ -14,6 +14,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Require Rust 1.88 for the standalone Quinn and H3 forks. Migrate: use
+  Rust 1.88 or newer and update exact Quinn/proto pins from `-phantom.4`
+  to `-phantom.5`, and H3 family pins from `-phantom.13` to `-phantom.14`.
+  Phantom's workspace already requires Rust 1.88.
+
 - Preserve decoded ordinary header order on received HTTP/3 requests in
   `h3::ext::OrderedHeaders`, including interleaved duplicates. Migrate:
   callers using the H3 backend opt-in feature must use the named
