@@ -592,8 +592,13 @@ async fn send_with_setup_rejection_stops_its_acquired_origin() -> TestResult<()>
         let target = target?;
         let oracle: TestResult<()> = async {
             setup_identity(&target, &identity)?;
-            backup.wait_for(|value| value.accept_pending).await?;
+            let acquired = backup.snapshot()?;
+            if acquired.address.is_none() || acquired.abort.is_none() {
+                return Err("setup rejection did not acquire the original template worker".into());
+            }
+
             backup.destroyed().await?;
+            backup.completed().await?;
             backup.rebind().await
         }
         .await;
@@ -624,8 +629,13 @@ async fn default_observe_setup_rejection_stops_its_acquired_origin() -> TestResu
         let target = target?;
         let oracle: TestResult<()> = async {
             setup_identity(&target, &identity)?;
-            backup.wait_for(|value| value.accept_pending).await?;
+            let acquired = backup.snapshot()?;
+            if acquired.address.is_none() || acquired.abort.is_none() {
+                return Err("setup rejection did not acquire the original template worker".into());
+            }
+
             backup.destroyed().await?;
+            backup.completed().await?;
             backup.rebind().await
         }
         .await;
