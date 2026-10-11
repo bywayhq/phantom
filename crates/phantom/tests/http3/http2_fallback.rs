@@ -506,11 +506,9 @@ async fn serve_raw_http2(
     let mut preface = [0; 24];
     stream.read_exact(&mut preface).await?;
     if &preface != b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n" {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "invalid HTTP/2 client preface",
-        )
-        .into());
+        return Err(
+            io::Error::new(io::ErrorKind::InvalidData, "invalid HTTP/2 client preface").into(),
+        );
     }
 
     let settings = loop {
