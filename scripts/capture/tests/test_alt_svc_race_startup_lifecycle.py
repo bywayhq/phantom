@@ -127,7 +127,7 @@ class CaptureResources:
                 "blackhole listener did not receive the literal datagram"
             )
 
-    async def h2_exchange(self, server, path):
+    async def h2_exchange(self, server, path, *, wait_for_goaway=False):
         context = ssl.create_default_context()
         context.load_verify_locations(
             cadata=server.certificate.certificate_pem.decode()
@@ -164,9 +164,12 @@ class CaptureResources:
             status = None
             body = bytearray()
             ended = False
-            while not ended:
+            goaway_received = False
+            while not ended or (wait_for_goaway and not goaway_received):
                 data = await asyncio.wait_for(reader.read(65536), DEADLINE)
                 if not data:
+                    if ended and wait_for_goaway:
+                        raise EOFError("retirement peer closed before GOAWAY")
                     raise EOFError("startup H2 response ended before END_STREAM")
                 for event in client.receive_data(data):
                     if isinstance(event, h2.events.ResponseReceived):
@@ -178,6 +181,8 @@ class CaptureResources:
                         )
                     elif isinstance(event, h2.events.StreamEnded):
                         ended = True
+                    elif isinstance(event, h2.events.ConnectionTerminated):
+                        goaway_received = True
                 writer.write(client.data_to_send())
                 await asyncio.wait_for(writer.drain(), DEADLINE)
 

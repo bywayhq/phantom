@@ -144,7 +144,11 @@ class RetirePeers:
                     raise AssertionError("clean EOF retained its retirement callback")
 
             self.fail_write = case == "write-failure"
-            result = await self.peer.resources.h2_exchange(original.server, "/retire")
+            result = await self.peer.resources.h2_exchange(
+                original.server,
+                "/retire",
+                wait_for_goaway=case != "write-failure",
+            )
             if result != ("/retire", b"200", b"retire"):
                 raise AssertionError(
                     "other peer did not receive the retirement response"
