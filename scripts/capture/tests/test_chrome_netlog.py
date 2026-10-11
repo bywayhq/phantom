@@ -3,7 +3,6 @@ import unittest
 
 from scripts.capture.chrome_netlog import NetLog
 
-
 CONSTANTS = {
     "logEventTypes": {"HTTP_STREAM_JOB_CONTROLLER": 1},
     "logSourceType": {"HTTP_STREAM_JOB_CONTROLLER": 1},
