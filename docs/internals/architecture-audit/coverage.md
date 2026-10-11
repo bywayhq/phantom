@@ -74,6 +74,14 @@ reads remain partial. This source pass adds no execution or final-gate result.
 
 ### Request and response convenience tests
 
+The [query and plaintext source pass](query-plaintext-root-source-pass-be322378.json)
+covers both complete parents, totaling 1,034 lines. Their contracts compare
+literal request targets, header order, redirect state and decoded bodies.
+Lexical joins own both futures and retain the selected first error.
+No new supported code defect was found in these parents. This adds no native
+result or fresh browser capture comparison; supporting implementations and
+independent combined review retain their separate scopes.
+
 The [convenience source review](convenience-owner-coverage-reconciliation-c6d63211.json)
 covers both complete parents and their peer-contract children. The
 [independent layout review](convenience-pacing-independent-source-review-bc8a6f18.json)

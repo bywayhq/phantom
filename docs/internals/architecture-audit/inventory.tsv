@@ -615,13 +615,13 @@ crates/phantom/tests/requests/expect_continue.rs	crate	pending
 crates/phantom/tests/requests/expect_continue/http3.rs	crate	pending	
 crates/phantom/tests/requests/main.rs	crate	source-complete	client-request-api-standards-review.json#/source_records/11
 crates/phantom/tests/requests/ping_failure_replay.rs	crate	pending	
-crates/phantom/tests/requests/plaintext_templates.rs	crate	pending	
+crates/phantom/tests/requests/plaintext_templates.rs	crate	source-complete	; query-plaintext-root-source-pass-be322378.json; complete manual root read, first-error lexical ownership and literal observations, no new execution
 crates/phantom/tests/requests/plaintext_templates/peer_ownership.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/10
 crates/phantom/tests/requests/prepared_bodies.rs	crate	source-complete	prepared-body-ownership-remedy-independent-review-b56ff2e8.json: complete updated owner; prepared-body-remedy-independent-native-0418ee46.json: all19 pass each host. Final gates pending.
 crates/phantom/tests/requests/prepared_bodies/slots.rs	crate	source-complete	prepared-body-ownership-remedy-independent-review-b56ff2e8.json: complete updated owner; literal length validated before allocation. All19 pass each host0418; no huge allocation attempted; final gates pending.
 crates/phantom/tests/requests/prepared_bodies/trailers.rs	crate	source-complete	prepared-body-ownership-remedy-independent-review-b56ff2e8.json: complete updated owner; all19 pass each host0418; final gates pending.
 crates/phantom/tests/requests/prepared_bodies/uploads.rs	crate	source-complete	prepared-body-ownership-remedy-independent-review-b56ff2e8.json: complete updated owner; eager future ownership and explicit finite cleanup; all19 pass each host0418; final gates pending.
-crates/phantom/tests/requests/query_authorization.rs	crate	pending	
+crates/phantom/tests/requests/query_authorization.rs	crate	source-complete	; query-plaintext-root-source-pass-be322378.json; complete manual root read, first-error lexical ownership and literal observations, no new execution
 crates/phantom/tests/requests/query_authorization/peer_ownership.rs	crate	source-complete	historical discovery-only disposition replaced by the following current read; current exact whole manual anchor at 1f4c1749: current-proxy-source-bindings-1f4c1749.json#/source_records/11
 crates/phantom/tests/requests/redirects.rs	crate	pending	
 crates/phantom/tests/requests/request_conveniences.rs	crate	source-complete	convenience-owner-coverage-reconciliation-c6d63211.json; convenience-pacing-independent-source-review-bc8a6f18.json; coverage.md#request-and-response-convenience-tests
@@ -4106,3 +4106,4 @@ docs/internals/architecture-audit/quic-relay-native-metadata-independent-review-
 docs/internals/architecture-audit/quic-relay-native-metadata-independent-review-8ce05b16.md.txt	evidence	pending	byte-exact import; original=C:/code/phantom/target/architecture-audit/quic-relay-native-metadata-independent-review-8ce05b16.md; sha256=34850b7857af2901abd1780dcef948cbed7fc86e53fbdb28b903328b0c0d7e80
 docs/internals/architecture-audit/relay-fallback-root-native-checkpoint-a896be8b.json	evidence	pending	root native checkpoint; revision=a896be8b1cd07b654e913182ae938d64abf787fb; sha256=ba6689e024d1a52f3f49df9a7d5e0c872fda01cfb2267b566a7c62bd0ad80425
 docs/internals/architecture-audit/observation-acquisition-root-source-pass-0340818c.json	evidence	pending	root manual source pass; sha256=44d302835ac8012ae53f01471ef678d18004341fc883c7a8bd0186e00edde4a7
+docs/internals/architecture-audit/query-plaintext-root-source-pass-be322378.json	evidence	pending	root manual source pass; sha256=671ca0d2548d4740c8adb0d2bfff13e98a1de687191dcf60744503ce7a8bcfce
