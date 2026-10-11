@@ -123,6 +123,18 @@ confirms the recorded QUIC and proxy failures. Its count correction names
 16 logs and 20 sidecars, plus the separate launcher. No extra observations
 or fixed-source approval follow from that correction.
 
+### Relay fixture control children
+
+The [source pass](relay-children-root-source-pass-a7048ed0.json) covers two
+complete unchanged children, totaling 431 lines. Literal bidirectional
+traffic precedes relay shutdown. The completed-outcome control observes
+actual CONNECT and response traffic before testing caller cleanup.
+
+The read fault is injected. Its observation copies the error kind and text,
+not object identity. The truncated-preface case uses an in-memory stream.
+This pass adds no test execution, parent review or complete lifecycle claim.
+No new confirmed finding was added.
+
 ### HTTP/2 backend teardown controls
 
 The [teardown source review](http2-teardown-source-9d6e0e14.json) covers the
