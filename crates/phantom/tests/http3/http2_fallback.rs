@@ -31,6 +31,7 @@ use crate::support::h2 as h2_support;
 use crate::support::h3 as h3_support;
 use crate::support::shared_port;
 use crate::support::tls as tls_support;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 
 use h2_support::{read_frame, write_frame};
 use h3_support::{client_settings, quic_server};
@@ -157,38 +158,72 @@ async fn serve_http2_observed(
         .map(|value| driver_ownership::DriverLifetime(Arc::clone(value)));
     let driver = tokio::spawn(async move {
         let _lifetime = lifetime;
-        poll_fn(|context| connection.poll_closed(context)).await
+        poll_fn(|context| connection.poll_closed(context))
+            .await
+            .map_err(Into::into)
     });
-    if let Some(value) = &observation {
-        value.publish(driver.abort_handle())?;
-    }
-
+    let mut driver: ConnectionPeer<TestResult<()>> = ConnectionPeer::from_task(driver);
     let (parts, mut body) = request.into_parts();
-    let mut received = Vec::new();
-    while let Some(chunk) = match &observation {
-        Some(value) => driver_ownership::body_data(&mut body, &received, value).await,
-        None => body.data().await,
-    } {
-        let chunk = chunk?;
-        body.flow_control().release_capacity(chunk.len())?;
-        received.extend_from_slice(&chunk);
+
+    let result: TestResult<Received> = async {
+        if let Some(value) = &observation {
+            value.publish(driver.abort_handle())?;
+        }
+
+        let mut received = Vec::new();
+        while let Some(chunk) = match &observation {
+            Some(value) => driver_ownership::body_data(&mut body, &received, value).await,
+            None => body.data().await,
+        } {
+            let chunk = chunk?;
+            body.flow_control().release_capacity(chunk.len())?;
+            received.extend_from_slice(&chunk);
+        }
+
+        respond.send_response(
+            Response::builder()
+                .status(StatusCode::NO_CONTENT)
+                .body(())?,
+            true,
+        )?;
+
+        Ok(Received {
+            method: parts.method,
+            path: parts
+                .uri
+                .path_and_query()
+                .ok_or("HTTP/2 request omitted :path")?
+                .to_string(),
+            body: Bytes::from(received),
+        })
     }
-    respond.send_response(
-        Response::builder()
-            .status(StatusCode::NO_CONTENT)
-            .body(())?,
-        true,
-    )?;
-    driver.await??;
-    Ok(Received {
-        method: parts.method,
-        path: parts
-            .uri
-            .path_and_query()
-            .ok_or("HTTP/2 request omitted :path")?
-            .to_string(),
-        body: Bytes::from(received),
-    })
+    .await;
+
+    let completed = if result.is_ok() {
+        match timeout(TEST_TIMEOUT, &mut driver).await {
+            Ok(Ok(result)) => result,
+            Ok(Err(error)) => Err(error.into()),
+            Err(error) => finish_with_cleanup(
+                Err(FallbackDeadline(error).into()),
+                stop_http2_driver(driver).await,
+            ),
+        }
+    } else {
+        stop_http2_driver(driver).await
+    };
+
+    finish_with_cleanup(result, completed)
+}
+
+async fn stop_http2_driver(driver: ConnectionPeer<TestResult<()>>) -> TestResult<()> {
+    if driver.is_finished() {
+        match driver.await {
+            Ok(result) => result,
+            Err(error) => Err(error.into()),
+        }
+    } else {
+        driver.stop().await
+    }
 }
 
 async fn no_tcp_connection(listener: &TcpListener) -> TestResult<()> {
