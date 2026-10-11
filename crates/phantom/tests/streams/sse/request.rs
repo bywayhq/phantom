@@ -26,6 +26,7 @@ use super::{
     tls_support::{H1_ALPN, accept_tls, read_head, test_client},
 };
 
+mod managed_id_cycle;
 mod owner_contract;
 
 type CrossOriginPeer = ConnectionPeer<TestResult<Vec<String>>>;
@@ -200,51 +201,37 @@ async fn check_managed_id_cycle(
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
-            let mut stream = accept_tls(listener, acceptor).await?;
-            let mut heads = Vec::new();
-            for body in ["id: first\ndata: one\n\n", "id:\ndata: two\n\n"] {
-                heads.push(String::from_utf8(read_head(&mut stream).await?)?);
-                let head = format!(
-                    "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\
-                     Accept-CH: last-event-id\r\nCritical-CH: last-event-id\r\nContent-Length: {}\r\n\r\n",
-                    body.len()
-                );
-                stream.write_all(head.as_bytes()).await?;
-                stream.write_all(body.as_bytes()).await?;
-                stream.flush().await?;
+        let server = managed_id_cycle::spawn(listener, acceptor, None);
+
+        let caller: TestResult<managed_id_cycle::Caller> = async {
+            let mut profile = ClientProfile::new(super::tls_support::tls_settings())
+                .with_request_template(template);
+            if let Some(hints) = hints {
+                profile = profile.with_client_hints(hints);
             }
-            heads.push(String::from_utf8(read_head(&mut stream).await?)?);
-            stream
-                .write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
-                .await?;
-            stream.shutdown().await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(heads)
-        });
-        let mut profile = ClientProfile::new(super::tls_support::tls_settings())
-            .with_request_template(template);
-        if let Some(hints) = hints {
-            profile = profile.with_client_hints(hints);
+            let client = Client::builder(profile)
+                .add_root_certificate_der(identity.root_der.clone())
+                .build()?;
+            let mut events = client
+                .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
+                .initial_retry(Duration::ZERO)
+                .max_reconnects(2)
+                .connect()
+                .await?
+                .into_body();
+
+            let first = events.next_event().await?.ok_or("first event missing")?;
+            assert_eq!(first.id(), "first");
+            let second = events.next_event().await?.ok_or("reset event missing")?;
+            assert_eq!(second.id(), "");
+            assert_eq!(events.last_event_id(), "");
+            assert_eq!(events.next_event().await?, None);
+
+            Ok(Some((events, client)))
         }
-        let client = Client::builder(profile)
-            .add_root_certificate_der(identity.root_der.clone())
-            .build()?;
-        let mut events = client
-            .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
-            .initial_retry(Duration::ZERO)
-            .max_reconnects(2)
-            .connect()
-            .await?
-            .into_body();
+        .await;
 
-        let first = events.next_event().await?.ok_or("first event missing")?;
-        assert_eq!(first.id(), "first");
-        let second = events.next_event().await?.ok_or("reset event missing")?;
-        assert_eq!(second.id(), "");
-        assert_eq!(events.last_event_id(), "");
-        assert_eq!(events.next_event().await?, None);
-
-        let heads = server.await??;
+        let (_caller, heads) = managed_id_cycle::collect(caller, server).await?;
         for (index, head) in heads.iter().enumerate() {
             let fields = head
                 .lines()
