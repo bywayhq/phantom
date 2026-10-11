@@ -2495,6 +2495,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Report local TCP serving failures from the ECH capture server instead of
+  publishing a successful capture. Keep completed worker failures alongside
+  the error that initiated shutdown.
+
 - Check the full H3 license text when Windows checks out license symlinks as
   placeholder files. Vendor checks still reject changed link targets or
   license text.
