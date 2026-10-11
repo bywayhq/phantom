@@ -19,12 +19,15 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWriteExt, ReadBuf},
     net::{TcpListener, TcpStream},
     sync::{oneshot, watch},
-    task::{AbortHandle, JoinError},
-    time::{error::Elapsed, timeout},
+    task::AbortHandle,
+    time::timeout,
 };
 use tokio_btls::SslStream;
 
-use super::{H1_ALPN, Observed, Server, TestIdentity, TestResult, read_head};
+use super::{
+    H1_ALPN, Observed, OriginFailure as ObservationFailure, Server, TemplateOrigin,
+    TestIdentity, TestResult, read_head,
+};
 use crate::support::{
     tls::is_peer_gone,
     tunnel_proxy::{ConnectionPeer, connection_peer::FixtureFailures, finish_with_cleanup},
@@ -44,6 +47,7 @@ pub(super) struct Snapshot {
     head_failure: Option<(io::ErrorKind, String)>,
     destroyed: bool,
     joined: bool,
+    owner_requested_stop: bool,
     transfer_failed: bool,
 }
 
@@ -57,6 +61,29 @@ pub(super) struct Observation {
 impl Observation {
     pub(super) fn signals(&self) -> Signals {
         self.signals.clone()
+    }
+
+    pub(super) fn record_worker(&self, task: &Server) {
+        self.signals
+            .send_modify(|value| value.abort = Some(task.abort_handle()));
+    }
+
+    pub(super) fn record_stop(&self) {
+        self.signals.send_modify(|value| value.owner_requested_stop = true);
+    }
+
+    pub(super) fn record_join(&self) {
+        self.signals.send_modify(|value| value.joined = true);
+    }
+
+    pub(super) fn transfer_worker(&mut self, task: Server) {
+        if let Some(sender) = self.transfer.take()
+            && let Err(task) = sender.send(task)
+        {
+            task.abort();
+            self.signals
+                .send_modify(|value| value.transfer_failed = true);
+        }
     }
 }
 
@@ -150,97 +177,10 @@ pub(super) async fn observe_head(
     .await
 }
 
-pub(super) struct ObservedServer {
-    task: Option<Server>,
-    observation: Option<Observation>,
-}
-
-pub(super) fn adopt(task: Server, observation: Option<Observation>) -> ObservedServer {
-    if let Some(value) = &observation {
-        value
-            .signals
-            .send_modify(|snapshot| snapshot.abort = Some(task.abort_handle()));
-    }
-
-    ObservedServer {
-        task: Some(task),
-        observation,
-    }
-}
-
-impl Drop for ObservedServer {
-    fn drop(&mut self) {
-        let Some(task) = self.task.take() else {
-            return;
-        };
-        let Some(observation) = self.observation.as_mut() else {
-            return;
-        };
-        if let Some(sender) = observation.transfer.take()
-            && let Err(task) = sender.send(task)
-        {
-            task.abort();
-            observation
-                .signals
-                .send_modify(|value| value.transfer_failed = true);
-        }
-    }
-}
-
-impl Future for ObservedServer {
-    type Output = Result<TestResult<Observed>, JoinError>;
-
-    fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = self.get_mut();
-        let Some(task) = this.task.as_mut() else {
-            return Poll::Ready(Ok(Err(ObservationFailure::PolledAfterCompletion.into())));
-        };
-        let result = Pin::new(task).poll(context);
-        if result.is_ready() {
-            drop(this.task.take());
-            if let Some(value) = &this.observation {
-                value.signals.send_modify(|snapshot| snapshot.joined = true);
-            }
-        }
-
-        result
-    }
-}
-
-#[derive(Debug)]
-enum ObservationFailure {
-    Transfer,
-    MissingWorker,
-    PolledAfterCompletion,
-    OriginDropDeadline(Elapsed),
-}
-
-impl fmt::Display for ObservationFailure {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
-            Self::Transfer => "template observation transfer failed",
-            Self::MissingWorker => "template observation did not transfer its original worker",
-            Self::PolledAfterCompletion => "template worker join was polled after completion",
-            Self::OriginDropDeadline(_) => {
-                "template origin Drop did not destroy its actual pending worker"
-            }
-        })
-    }
-}
-
-impl Error for ObservationFailure {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            Self::OriginDropDeadline(error) => Some(error),
-            _ => None,
-        }
-    }
-}
-
 struct Backup {
     state: watch::Receiver<Snapshot>,
     transfer: Option<oneshot::Receiver<Server>>,
-    server: Option<ObservedServer>,
+    server: Option<TemplateOrigin>,
     client: Option<SslStream<TcpStream>>,
 }
 
@@ -331,7 +271,7 @@ impl Backup {
 
         let (url, task) =
             super::serve_http1_observed(&identity, Some(observation.signals())).await?;
-        self.server = Some(adopt(task, Some(observation)));
+        self.server = Some(TemplateOrigin::new(task, Some(observation)));
 
         let uri: http::Uri = url.parse()?;
         let address: SocketAddr = uri
@@ -422,7 +362,11 @@ impl Backup {
 
             match timeout(CONTROL_LIMIT, &mut peer).await {
                 Ok(Ok(result)) => result.map(|_| ()),
-                Ok(Err(error)) if requested_stop && error.is_cancelled() => Ok(()),
+                Ok(Err(error))
+                    if (requested_stop || snapshot.owner_requested_stop) && error.is_cancelled() =>
+                {
+                    Ok(())
+                }
                 Ok(Err(error)) => Err(error.into()),
                 Err(error) => Err(error.into()),
             }

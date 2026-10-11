@@ -61,25 +61,37 @@ pub(super) async fn observe_with_owner(
         HttpProtocol::Http3 => serve_http3(&identity, wait_for_client)?,
         _ => return Err("no origin for this protocol".into()),
     };
-    let server = super::owner_contract::adopt(server, observation);
+    let server = super::TemplateOrigin::new(server, observation);
 
-    let profile = ClientProfile::new(tls_settings())
-        .with_http2(chrome::v154_http2())
-        .with_http3(client_settings())
-        .with_request_template(template("inherited"));
-    let client = Client::builder(profile)
-        .add_root_certificate_der(identity.root_der.clone())
-        .build()?;
-    let request = if negotiated {
-        client.get_negotiated(&url)?
-    } else {
-        client.get(protocol, &url)?
-    };
-    let response = configure(request)?.send().await?;
-    assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    response.into_body().collect().await?;
-    let _ = client_done.send(());
-    server.await?
+    let operation: TestResult<Client> = async {
+        let profile = ClientProfile::new(tls_settings())
+            .with_http2(chrome::v154_http2())
+            .with_http3(client_settings())
+            .with_request_template(template("inherited"));
+        let client = Client::builder(profile)
+            .add_root_certificate_der(identity.root_der.clone())
+            .build()?;
+        let request = if negotiated {
+            client.get_negotiated(&url)?
+        } else {
+            client.get(protocol, &url)?
+        };
+        let response = configure(request)?.send().await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        let _ = client_done.send(());
+        Ok(client)
+    }
+    .await;
+
+    match operation {
+        Ok(client) => {
+            let observed = server.complete(Ok(())).await;
+            drop(client);
+            observed
+        }
+        Err(error) => server.complete(Err(error)).await,
+    }
 }
 
 #[tokio::test]

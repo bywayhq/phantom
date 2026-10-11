@@ -17,10 +17,14 @@ use crate::support::tls as tls_support;
 mod wire;
 
 use std::{
-    future::poll_fn,
+    error::Error,
+    fmt,
+    future::{Future, poll_fn},
     net::Ipv4Addr,
     num::NonZeroUsize,
+    pin::Pin,
     sync::{Arc, Mutex},
+    task::{Context, Poll},
     time::Duration,
 };
 
@@ -35,16 +39,23 @@ use phantom::{
         browser::{brave, chrome, edge, firefox, opera},
     },
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
+use tokio::{
+    io::AsyncWriteExt,
+    net::TcpListener,
+    sync::oneshot,
+    time::{error::Elapsed, timeout},
+};
 
 use fixture::{Capture, Fields};
 use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, accept_tls, read_head, tls_settings};
 use wire::{Priority, RecordingIo, headers_priority};
+use crate::support::tunnel_proxy::finish_with_cleanup;
 
 pub(crate) type TestResult<T> = tls_support::TestResult<T>;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
+const ORIGIN_JOIN_TIMEOUT: Duration = Duration::from_secs(5);
 
 macro_rules! fixture {
     ($path:literal) => {
@@ -297,28 +308,40 @@ async fn send_with_observed(
         HttpProtocol::Http3 => serve_http3(&identity, wait_for_client)?,
         _ => return Err("no test origin for this protocol".into()),
     };
-    let server = owner_contract::adopt(server, observation);
+    let server = TemplateOrigin::new(server, observation);
 
-    let mut profile = ClientProfile::new(tls_settings())
-        .with_http2(browser.http2.clone())
-        .with_http3(client_settings())
-        .with_cookie_placement(cookie_placement);
-    if let Some(hints) = &browser.hints {
-        profile = profile.with_client_hints(hints.clone());
+    let operation: TestResult<Client> = async {
+        let mut profile = ClientProfile::new(tls_settings())
+            .with_http2(browser.http2.clone())
+            .with_http3(client_settings())
+            .with_cookie_placement(cookie_placement);
+        if let Some(hints) = &browser.hints {
+            profile = profile.with_client_hints(hints.clone());
+        }
+        let builder = Client::builder(profile).add_root_certificate_der(identity.root_der.clone());
+        let client = configure(builder, &url)?.build()?;
+
+        let response = client
+            .get(protocol, &url)?
+            .template(&PreparedRequestTemplate::new(template)?)
+            .headers(caller)
+            .send()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        let _ = client_done.send(());
+        Ok(client)
     }
-    let builder = Client::builder(profile).add_root_certificate_der(identity.root_der.clone());
-    let client = configure(builder, &url)?.build()?;
+    .await;
 
-    let response = client
-        .get(protocol, &url)?
-        .template(&PreparedRequestTemplate::new(template)?)
-        .headers(caller)
-        .send()
-        .await?;
-    assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    response.into_body().collect().await?;
-    let _ = client_done.send(());
-    server.await?
+    match operation {
+        Ok(client) => {
+            let observed = server.complete(Ok(())).await;
+            drop(client);
+            observed
+        }
+        Err(error) => server.complete(Err(error)).await,
+    }
 }
 
 fn protocol_fields(
@@ -334,6 +357,124 @@ fn protocol_fields(
 }
 
 type Server = tokio::task::JoinHandle<TestResult<Observed>>;
+
+struct TemplateOrigin {
+    task: Option<Server>,
+    observation: Option<owner_contract::Observation>,
+}
+
+impl TemplateOrigin {
+    fn new(task: Server, observation: Option<owner_contract::Observation>) -> Self {
+        if let Some(value) = &observation {
+            value.record_worker(&task);
+        }
+
+        Self {
+            task: Some(task),
+            observation,
+        }
+    }
+
+    async fn complete(mut self, operation: TestResult<()>) -> TestResult<Observed> {
+        let requested_stop = operation.is_err()
+            && self.task.as_ref().is_some_and(|task| !task.is_finished());
+        if requested_stop && let Some(task) = &self.task {
+            if let Some(observation) = &self.observation {
+                observation.record_stop();
+            }
+            task.abort();
+        }
+
+        let joined = timeout(ORIGIN_JOIN_TIMEOUT, &mut self).await;
+        match (operation, joined) {
+            (Ok(()), Ok(Ok(result))) => result,
+            (Ok(()), Ok(Err(error))) => Err(error.into()),
+            (Ok(()), Err(error)) => Err(error.into()),
+            (Err(primary), Ok(Ok(result))) => {
+                finish_with_cleanup(Err(primary), result.map(|_| ()))
+            }
+            (Err(primary), Ok(Err(error))) if requested_stop && error.is_cancelled() => {
+                Err(primary)
+            }
+            (Err(primary), Ok(Err(error))) => {
+                finish_with_cleanup(Err(primary), Err(error.into()))
+            }
+            (Err(primary), Err(error)) => {
+                finish_with_cleanup(Err(primary), Err(error.into()))
+            }
+        }
+    }
+}
+
+impl Drop for TemplateOrigin {
+    fn drop(&mut self) {
+        let Some(task) = self.task.take() else {
+            return;
+        };
+
+        if !task.is_finished() {
+            if let Some(observation) = &self.observation {
+                observation.record_stop();
+            }
+            task.abort();
+        }
+
+        if let Some(observation) = &mut self.observation {
+            observation.transfer_worker(task);
+        }
+    }
+}
+
+impl Future for TemplateOrigin {
+    type Output = Result<TestResult<Observed>, tokio::task::JoinError>;
+
+    fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.get_mut();
+        let Some(task) = this.task.as_mut() else {
+            return Poll::Ready(Ok(Err(OriginFailure::PolledAfterCompletion.into())));
+        };
+
+        let result = Pin::new(task).poll(context);
+        if result.is_ready() {
+            drop(this.task.take());
+            if let Some(value) = &this.observation {
+                value.record_join();
+            }
+        }
+
+        result
+    }
+}
+
+#[derive(Debug)]
+enum OriginFailure {
+    Transfer,
+    MissingWorker,
+    PolledAfterCompletion,
+    OriginDropDeadline(Elapsed),
+}
+
+impl fmt::Display for OriginFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Transfer => "template observation transfer failed",
+            Self::MissingWorker => "template observation did not transfer its original worker",
+            Self::PolledAfterCompletion => "template worker join was polled after completion",
+            Self::OriginDropDeadline(_) => {
+                "template origin Drop did not destroy its actual pending worker"
+            }
+        })
+    }
+}
+
+impl Error for OriginFailure {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::OriginDropDeadline(error) => Some(error),
+            _ => None,
+        }
+    }
+}
 
 async fn serve_http1(identity: &TestIdentity) -> TestResult<(String, Server)> {
     serve_http1_observed(identity, None).await
