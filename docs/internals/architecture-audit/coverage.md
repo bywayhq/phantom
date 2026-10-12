@@ -2440,8 +2440,13 @@ The later total-timeout assertion is unreached. The proposed remedy bounds
 stage input to 16 KiB, a pump to eight passes and a body poll to eight
 pumps. Buffered work yields with a wake and checks its deadlines. Independent
 review caught an idle-expiry ordering error at ready EOF; `92db927f`
-corrects it while retaining the total deadline. The composed remedy still
-needs native verification. These quotas cannot preempt a running codec call.
+corrects it while retaining the total deadline. At `faa675f7`, both hosts
+pass six body controls, seventeen request-body methods, thirty-nine codec
+methods and twenty-one content-decoding integration methods. The integration
+methods exercise HTTP/1, HTTP/2 and HTTP/3. Formatting, strict linting and
+Rust 1.88 pass. Both runners are terminal; root reads every log and checks
+clean exact source separately afterward. These quotas cannot preempt a
+running codec call. Final combined gates remain open.
 
 ### Remaining raw stale-worker baseline
 
@@ -2466,6 +2471,27 @@ Linux, macOS and Windows. Each reports the same six raw stale-worker
 failures. Windows passes 4,310 of 4,316 methods, macOS 4,294 of 4,300,
 and Linux 4,293 of 4,299. These known open fixture defects block merging;
 the targeted production fixes do not establish a green combined gate.
+
+### Capture-tool ownership follow-up
+
+The complete reads of `alt_svc_race.py` and `proxy_route.py` at
+`800c9bdc` preserve the accepted TLS and browser-context repairs in their
+original scope. The enclosing owners have further defects: partial proxy
+listener acquisition is outside cleanup, accepted proxy handlers lack a
+collected task owner, and unexpected local failures can become capture notes.
+Completed oversized HTTP/1 heads bypass their own limit. The shared proxy
+TLS reader treats unrelated connection and SSL failures as EOF. Callable
+and CLI duration inputs also accept non-finite values. Source repairs and
+focused controls are in progress; none has executed yet.
+
+The race H3 callback can set successful completion before a held response
+fails. Its original local error has no collected owner. Aggregate connection,
+request and UDP-peer records need bounds, and ended H2 proxy tunnels remain
+in their map. Proxy IPv6 listen addresses disagree with the direct page URL.
+The Unix browser cleanup census ignores a failed `ps` command. These remain
+source-confirmed findings. A per-connection 16 MiB byte cap already exists;
+this pass does not claim unbounded individual proxy buffering or a native
+resource measurement.
 
 ## Next
 
