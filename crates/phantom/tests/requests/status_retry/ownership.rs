@@ -300,7 +300,7 @@ impl Observation {
         self.serving_cause(error.as_ref())
     }
 
-    fn serving_cause(&self, error: &(dyn Error + Send + Sync)) -> TestResult {
+    fn serving_cause(&self, error: &(dyn Error + Send + Sync + 'static)) -> TestResult {
         let io = error
             .downcast_ref::<io::Error>()
             .ok_or("missing original serving I/O cause")?;
