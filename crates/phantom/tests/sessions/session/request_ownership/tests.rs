@@ -36,8 +36,10 @@ async fn healthy_cold_request_pair_keeps_barrier_streams_paths_and_204() -> Test
         timeout(LIMIT, &mut caller).await??;
         Ok(())
     }.await;
+
     drop(caller);
     drop(session);
+
     let primary: TestResult<()> = async {
         primary?;
         let requests = fixture.cold_result(Ok(())).await?;
@@ -49,6 +51,7 @@ async fn healthy_cold_request_pair_keeps_barrier_streams_paths_and_204() -> Test
         assert_eq!(paths, ["/first".to_owned(), "/second".to_owned()]);
         fixture.closed().await
     }.await;
+
     finish_with_cleanup(primary, fixture.stop().await)
 }
 
@@ -68,7 +71,9 @@ async fn healthy_independent_request_pair_keeps_both_original_h2_results() -> Te
         assert_eq!(requests, [vec![(1, "/first".to_owned())], vec![(1, "/second".to_owned())]]);
         fixture.closed().await
     }.await;
+
     drop(caller);
+
     finish_with_cleanup(primary, fixture.stop().await)
 }
 
@@ -79,13 +84,16 @@ async fn dropping_actual_pending_request_caller_destroys_both_sends_before_backu
     let second = test_client(&fixture.identity, true)?;
     let mut caller = Box::pin(independent_requests(first, second, fixture.address, fixture.control.take()));
     let primary: TestResult<()> = fixture.pending(&mut caller, [true, true], &[1, 1]).await;
+
     drop(caller);
+
     let primary: TestResult<()> = async {
         primary?;
         fixture.requests_destroyed([true, true]).await?;
         fixture.independent_result(Ok(())).await?;
         fixture.closed().await
     }.await;
+
     finish_with_cleanup(primary, fixture.stop().await)
 }
 
@@ -103,14 +111,17 @@ async fn actual_request_deadline_destroys_both_pending_sends_before_backup() -> 
         assert!(std::error::Error::source(deadline).is_some_and(|source| source.is::<tokio::time::error::Elapsed>()));
         Ok(())
     }.await;
+
     drop(caller);
     drop(session);
+
     let primary: TestResult<()> = async {
         primary?;
         fixture.requests_destroyed([true, true]).await?;
         fixture.cold_result(Ok(())).await?;
         fixture.closed().await
     }.await;
+
     finish_with_cleanup(primary, fixture.stop().await)
 }
 
@@ -129,14 +140,17 @@ async fn first_original_request_error_destroys_its_actual_pending_sibling() -> T
         retains_request(error.as_ref(), RequestErrorKind::InvalidUri)?;
         Ok(())
     }.await;
+
     drop(caller);
     drop(session);
+
     let primary: TestResult<()> = async {
         primary?;
         fixture.requests_destroyed([true, true]).await?;
         fixture.cold_result(Ok(())).await?;
         fixture.closed().await
     }.await;
+
     finish_with_cleanup(primary, fixture.stop().await)
 }
 
@@ -159,7 +173,9 @@ async fn two_completed_original_request_errors_keep_both_distinct_causes() -> Te
         retains_request(failures.primary.as_ref(), RequestErrorKind::InvalidUri)?;
         retains_request(failures.cleanup.as_ref(), RequestErrorKind::UnsupportedScheme)
     }.await;
+
     drop(caller);
+
     finish_with_cleanup(primary, fixture.stop().await)
 }
 
@@ -187,8 +203,10 @@ async fn cold_caller_error_keeps_its_completed_original_h2_serving_cause() -> Te
         fixture.release_collection()?;
         timeout(LIMIT, &mut caller).await.map_err(Into::into)
     }.await;
+
     drop(caller);
     drop(session);
+
     let primary: TestResult<()> = async {
         let result = caller_result?;
         let error = fixture.cold_result(result).await.err().ok_or("invalid cold caller succeeded")?;
@@ -202,6 +220,7 @@ async fn cold_caller_error_keeps_its_completed_original_h2_serving_cause() -> Te
         assert_eq!(io.to_string(), FAILURE);
         Ok(())
     }.await;
+
     finish_with_cleanup(primary, fixture.stop().await)
 }
 
@@ -311,6 +330,7 @@ impl Fixture {
         if counts.len() != self.holds.len() {
             return Err("held actual peer count changed".into());
         }
+
         for (hold, count) in self.holds.iter_mut().zip(counts) {
             drive_until(caller, async {
                 timeout(LIMIT, hold.observed.wait_for(|state| state.requests.len() == *count
@@ -318,6 +338,7 @@ impl Fixture {
                 Ok(())
             }).await?;
         }
+
         if self.requests.borrow().tasks.iter().enumerate().any(|(index, task)| required[index] && task.is_finished()) {
             return Err("original pending request task finished before the target operation".into());
         }
@@ -347,6 +368,7 @@ impl Fixture {
     async fn requests_destroyed(&mut self, required: [bool; 2]) -> TestResult<()> {
         timeout(OBSERVATION_LIMIT, self.requests.wait_for(|state| required.iter().enumerate()
             .all(|(index, required)| !required || state.destroyed[index]))).await??;
+
         timeout(LIMIT, async {
             while self.requests.borrow().tasks.iter().enumerate()
                 .any(|(index, task)| required[index] && !task.is_finished()) {

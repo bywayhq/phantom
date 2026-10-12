@@ -153,6 +153,7 @@ impl AsyncRead for Stream {
                 _ => {}
             }
         }
+
         if result.is_pending()
             && let Some(control) = &mut this.control
             && control.fault.is_some()
@@ -240,9 +241,11 @@ async fn serve_held(
         Some(hold) => serve_requests_held(stream, count, Some(hold)).await,
         None => serve_requests(stream, count).await,
     };
+
     if let Some(observed) = observed {
         observed.completed(&result);
     }
+
     result
 }
 

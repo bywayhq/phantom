@@ -142,6 +142,7 @@ fn spawn_request(
             }
             result
         }).await;
+
         task_observed.0.send_modify(|state| {
             state.ready[index] = true;
             if let Err(error) = &result
@@ -152,6 +153,7 @@ fn spawn_request(
                     .is_some_and(|source| source.is::<http::uri::InvalidUri>());
             }
         });
+
         result
     });
     observed.0.send_modify(|state| state.tasks.push(task.abort_handle()));
@@ -181,6 +183,7 @@ async fn cold_requests(
     if let Some(collect_after) = collect_after {
         collect_after.await?;
     }
+
     first.await??;
     second.await??;
     Ok(())
@@ -200,6 +203,7 @@ async fn independent_requests(
     if let Some(collect_after) = collect_after {
         collect_after.await?;
     }
+
     first.await??;
     second.await??;
     Ok(())
@@ -222,6 +226,7 @@ fn request_inputs(
 
 async fn finish_cold(caller: TestResult<()>, server: reuse_ownership::Server) -> TestResult<reuse_ownership::Requests> {
     caller?;
+
     Ok(server.await??)
 }
 

@@ -417,6 +417,7 @@ async fn serve_requests_held(
             respond.send_response(Response::builder().status(204).body(())?, true)?;
         }
     }
+
     if let Some(hold) = &mut hold {
         hold.accepted(&requests);
         let released = poll_fn(|context| {
@@ -425,15 +426,18 @@ async fn serve_requests_held(
                 Poll::Ready(Ok(())) => return Poll::Ready(Ok(false)),
                 Poll::Pending => hold.driver_pending(),
             }
+
             hold.poll_release(context).map(|result| result.map(|()| true))
         }).await?;
         if !released {
             return Ok(requests);
         }
+
         for mut respond in responses {
             respond.send_response(Response::builder().status(204).body(())?, true)?;
         }
     }
+
     poll_fn(|context| reuse_ownership::poll_closed(&mut connection, observed.as_ref(), context))
         .await?;
     Ok(requests)
