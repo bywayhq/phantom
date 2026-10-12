@@ -851,5 +851,43 @@ where
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "DNS override integration test exceeded its deadline")?
+        .map_err(|elapsed| {
+            crate::support::deadline::FixtureDeadline::new(
+                "DNS override integration test exceeded its deadline",
+                elapsed,
+            )
+        })?
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::Cell, future::poll_fn, task::Poll};
+
+    use super::{TEST_TIMEOUT, TestResult, bounded};
+
+    #[tokio::test(start_paused = true)]
+    async fn entered_pending_deadline_retains_its_original_elapsed() -> TestResult<()> {
+        let entered = Cell::new(false);
+        let operation = bounded(poll_fn(|_| {
+            entered.set(true);
+            Poll::<TestResult<()>>::Pending
+        }));
+        tokio::pin!(operation);
+        assert!(futures_util::poll!(&mut operation).is_pending());
+        assert!(entered.get(), "the actual operation was not polled");
+        tokio::time::advance(TEST_TIMEOUT).await;
+
+        let error = operation.await.err().ok_or("pending operation succeeded")?;
+        assert_eq!(
+            error.to_string(),
+            "DNS override integration test exceeded its deadline"
+        );
+        assert!(
+            error
+                .source()
+                .is_some_and(|source| source.is::<tokio::time::error::Elapsed>()),
+            "the DNS fixture deadline discarded its original Elapsed"
+        );
+        Ok(())
+    }
 }
