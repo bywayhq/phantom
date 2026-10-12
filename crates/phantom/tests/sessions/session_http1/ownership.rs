@@ -442,3 +442,6 @@ pub(super) async fn collect_peer<T: Send + 'static, O>(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod budget_tests;

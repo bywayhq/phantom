@@ -369,7 +369,7 @@ where
     }
 }
 
-fn original_uri_failure(error: &(dyn std::error::Error + 'static)) -> TestResult {
+pub(super) fn original_uri_failure(error: &(dyn std::error::Error + 'static)) -> TestResult {
     if let Some(original) = error.downcast_ref::<RequestError>() {
         assert_eq!(original.kind(), RequestErrorKind::InvalidUri);
         assert!(
