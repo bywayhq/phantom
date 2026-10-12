@@ -2359,7 +2359,15 @@ adoption races remain source-reviewed rather than newly measured. Full
 integration gates and current candidate CI remain open. A further source
 read confirms transient activity can skip reset without scheduling another
 sweep, retaining the preference until unrelated pruning or eviction. This
-lifecycle gap remains open and the reference wording now qualifies it.
+lifecycle gap has a source-reviewed remedy composed at `ddb906ed`. At
+`e9df18a9`, both hosts run five prune controls: the existing three pass and
+the two new controls fail at the missing recheck assertions. The first
+fails before setup Drop; the second reaches setup Drop and an empty pool.
+Later reset assertions are unreached. An explicit `TestResult` annotation
+fixes the earlier baseline compiler error without changing the controls.
+The remedy schedules one recheck after a rejected empty observation and
+a new check when the last active owner leaves empty. Native verification
+of this remedy remains pending.
 
 Separate exact and negotiated pools retain different setup and admission
 contracts. Declared template slots and send-time header hooks also serve
@@ -2375,7 +2383,10 @@ retry and SSE files. Independent review confirms the extracted request unit
 tests are identical after deindentation, preserving all twenty tests and
 private access. No expressions or runtime behavior change. The timeout
 rustdoc now names the existing clock boundary after initial header preparation
-and synchronous hooks. Combined compilation and existing tests remain pending.
+and synchronous hooks. At `956067f6`, both hosts pass the 109 request
+methods, including the twenty extracted methods and twelve SSE request
+cases. Formatting, strict linting and Rust 1.88 also pass. Full gates
+remain pending.
 
 The next cookie boundary read confirms A254. Backend stores and metadata keys
 omit the schemeful partition site, allowing trustworthy HTTP and HTTPS
@@ -2387,7 +2398,21 @@ pass, while the four new controls fail at the expected storage, deletion,
 import and export counts. Their later assertions do not execute. The
 independently reviewed repair includes the schemeful site in canonical keys
 and backend stores, keeps snapshot representation unchanged, and removes
-empty partition stores. Remedy verification and final gates remain open.
+empty partition stores. At `956067f6`, both hosts pass all 51 cookie
+methods, including all four baseline controls and the new empty-store
+resource control. The later replacement, ordering and roundtrip assertions
+now execute and pass. Formatting, strict linting and Rust 1.88 pass. Root
+and independent review read all logs and verify clean exact source after
+both runners finish. This establishes the bounded cookie remedy, with
+final gates still open.
+
+The production streaming pass confirms A255: the HTTP/3 body worker drops
+its task handle, so an upload panic after an early response head loses its
+original `JoinError`. The body reader receives a source-less local error.
+The proposed repair retains the actual handle and observes it after event
+channel closure. Existing cancellation and bounded stream cleanup remain
+unchanged. Source review and native baseline/remedy verification remain
+open.
 
 ### Remaining raw stale-worker baseline
 

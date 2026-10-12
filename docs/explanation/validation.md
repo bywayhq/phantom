@@ -1944,9 +1944,9 @@ Differences from the browsers:
   origin and route, shared by the origin's pool entries on every runtime,
   as per-origin admission is. A prune of the client's timer forgets it when
   none of those entries has a connection, setup, or slower attempt left,
-  provided no activity intervenes during the sweep. Transient activity can
-  skip this reset without scheduling another sweep, retaining the preference
-  until later pruning or pool entry eviction.
+  provided no activity intervenes during the sweep. Intervening activity
+  schedules another check after one second. If setup remains active then,
+  its completion schedules a check when the entry becomes empty.
   Firefox drops it with the connection entry at the same kind of prune,
   but it notices a server's close of an idle connection at once and stops
   its timer when no connection is left, where Phantom notices the close

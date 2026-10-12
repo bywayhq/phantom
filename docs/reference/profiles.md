@@ -404,8 +404,8 @@ without response data before it stops taking new requests and closes.
   limit. Each time it fires, it also drops idle HTTP/1.1 connections the
   server already closed. It forgets the address family of an origin with
   no connections, setup, or slower attempt if no activity intervenes during
-  the sweep. Intervening activity can retain that preference until later
-  pruning or pool entry eviction.
+  the sweep. Intervening activity schedules another check. Setup or connections
+  that leave an empty origin also schedule one.
 - `Http2Settings::validate` accepts 1 to 65,535 seconds, the range Firefox
   allows.
 
