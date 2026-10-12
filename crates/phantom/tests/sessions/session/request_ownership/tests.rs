@@ -123,6 +123,7 @@ async fn first_original_request_error_destroys_its_actual_pending_sibling() -> T
     let primary: TestResult<()> = async {
         fixture.pending(&mut caller, [false, true], &[1]).await?;
         fixture.ready(&mut caller, [true, false]).await?;
+        fixture.original_syntax_failure()?;
         fixture.release_collection()?;
         let error = timeout(LIMIT, &mut caller).await?.err().ok_or("invalid first request succeeded")?;
         retains_request(error.as_ref(), RequestErrorKind::InvalidUri)?;
@@ -149,6 +150,8 @@ async fn two_completed_original_request_errors_keep_both_distinct_causes() -> Te
     let primary: TestResult<()> = async {
         fixture.ready(&mut caller, [true, true]).await?;
         fixture.requests_destroyed([true, true]).await?;
+        fixture.original_syntax_failure()?;
+        assert_eq!(fixture.requests.borrow().kinds[1], Some(RequestErrorKind::UnsupportedScheme));
         fixture.release_collection()?;
         let error = timeout(LIMIT, &mut caller).await?.err().ok_or("two invalid requests succeeded")?;
         let failures = error.downcast_ref::<FixtureFailures>()
@@ -169,6 +172,7 @@ async fn cold_caller_error_keeps_its_completed_original_h2_serving_cause() -> Te
     let caller_result: TestResult<TestResult<()>> = async {
         fixture.pending(&mut caller, [false, true], &[1]).await?;
         fixture.ready(&mut caller, [true, false]).await?;
+        fixture.original_syntax_failure()?;
         fixture.fail_serving()?;
         let observed = &mut fixture.holds[0].observed;
         drive_until(&mut caller, async {
@@ -179,6 +183,7 @@ async fn cold_caller_error_keeps_its_completed_original_h2_serving_cause() -> Te
             Some((io::ErrorKind::PermissionDenied, FAILURE.to_owned())));
         fixture.server_finished(&mut caller).await?;
         fixture.ready(&mut caller, [true, true]).await?;
+        assert!(fixture.requests.borrow().kinds[1].is_some(), "original second request did not retain an actual request failure");
         fixture.release_collection()?;
         timeout(LIMIT, &mut caller).await.map_err(Into::into)
     }.await;
@@ -282,6 +287,14 @@ impl Fixture {
 
     fn targets(&mut self, targets: [String; 2]) -> TestResult<()> {
         self.control.as_mut().ok_or("original request control missing")?.targets = Some(targets);
+        Ok(())
+    }
+
+    fn original_syntax_failure(&self) -> TestResult<()> {
+        let original = self.requests.borrow();
+        if original.kinds[0] != Some(RequestErrorKind::InvalidUri) || !original.syntax_sources[0] {
+            return Err("original first request did not retain its actual URI syntax failure".into());
+        }
         Ok(())
     }
 

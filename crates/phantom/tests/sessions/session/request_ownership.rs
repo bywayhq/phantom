@@ -7,7 +7,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use phantom::Client;
+use phantom::{Client, RequestError, RequestErrorKind};
 use tokio::{
     net::TcpListener,
     sync::{Barrier, oneshot, watch},
@@ -90,6 +90,8 @@ impl ResponseHold {
 struct RequestState {
     pending: [bool; 2],
     ready: [bool; 2],
+    kinds: [Option<RequestErrorKind>; 2],
+    syntax_sources: [bool; 2],
     destroyed: [bool; 2],
     tasks: Vec<AbortHandle>,
 }
@@ -140,7 +142,16 @@ fn spawn_request(
             }
             result
         }).await;
-        task_observed.0.send_modify(|state| state.ready[index] = true);
+        task_observed.0.send_modify(|state| {
+            state.ready[index] = true;
+            if let Err(error) = &result
+                && let Some(original) = error.downcast_ref::<RequestError>()
+            {
+                state.kinds[index] = Some(original.kind());
+                state.syntax_sources[index] = original.source()
+                    .is_some_and(|source| source.is::<http::uri::InvalidUri>());
+            }
+        });
         result
     });
     observed.0.send_modify(|state| state.tasks.push(task.abort_handle()));
