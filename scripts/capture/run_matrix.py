@@ -31,7 +31,11 @@ from pathlib import Path
 
 from .browser_launch import FIREFOX_START_LIMIT_SECONDS, LAUNCH_LOCK_DIRECTORY
 from .fixture_file import write_atomically
-from .process_container import ProcessContainer, stop_processes_naming
+from .process_container import (
+    ProcessContainer,
+    ProcessContainerStopped,
+    stop_processes_naming,
+)
 
 # Shared by every runner on the host, so launches take turns across runners
 # too. Each job's TEMP points elsewhere, so the path is fixed here.
@@ -831,11 +835,15 @@ def run_attempt(
                 container.start()
             else:
                 end_attempt(container, temporary)
-            code = container.process.wait(timeout=timeout)
+            code = container.wait(timeout=timeout)
         except subprocess.TimeoutExpired as error:
             failure = error
             code = None
             detail = f"timed out after {timeout:g}s"
+        except ProcessContainerStopped as error:
+            failure = error
+            code = None
+            detail = "stopped"
         except BaseException as error:
             failure = error
             raise

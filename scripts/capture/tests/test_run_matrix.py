@@ -688,9 +688,8 @@ class CleanupFailureTests(unittest.TestCase):
             (item,) = expand_manifest(
                 manifest(fake_capture()), base=root, tools=FAKE_TOOLS
             )
-            process = mock.Mock()
-            process.wait.return_value = 0
-            container = mock.Mock(process=process)
+            container = mock.Mock()
+            container.wait.return_value = 0
             item.outputs[0].parent.mkdir(parents=True, exist_ok=True)
             item.outputs[0].write_bytes(b"format=fake\n")
             records = CompletionRecords(root / "work" / "completed")
@@ -1420,8 +1419,7 @@ def container_awaiting(path: Path, seconds: float = 60) -> type[ProcessContainer
     The tool joins the container first, as in a real attempt. A busy host can
     take longer than a short job timeout to start the fake tool's interpreter
     and its child, and a timeout before then would prove nothing about the
-    child. The wait ends early if the tool exits, and never raises, so the
-    runner still ends the attempt.
+    child. A stop ends this wait. Setup and cleanup failures stay visible.
     """
 
     class Awaiting(ProcessContainer):
@@ -1430,12 +1428,15 @@ def container_awaiting(path: Path, seconds: float = 60) -> type[ProcessContainer
             if not started:
                 return False
             deadline = time.monotonic() + seconds
-            while (
-                not path.exists()
-                and self.process.poll() is None
-                and time.monotonic() < deadline
-            ):
-                time.sleep(0.05)
+            try:
+                while (
+                    not path.exists()
+                    and self.poll() is None
+                    and time.monotonic() < deadline
+                ):
+                    time.sleep(0.05)
+            except run_matrix.ProcessContainerStopped:
+                return False
             return True
 
     return Awaiting

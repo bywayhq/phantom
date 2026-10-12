@@ -2,6 +2,7 @@ import contextlib
 import ctypes
 import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -131,7 +132,7 @@ class ProcessContainerTests(unittest.TestCase):
         process.poll.return_value = 0
         with (
             mock.patch.object(process_container, "_kernel32", return_value=kernel),
-            mock.patch.object(ctypes, "get_last_error", side_effect=[5, 6, 7, 8, 9]),
+            mock.patch.object(ctypes, "get_last_error", return_value=5),
             mock.patch.object(
                 process_container, "_bootstrap_command", return_value=["tool"]
             ),
@@ -149,7 +150,7 @@ class ProcessContainerTests(unittest.TestCase):
                 error.winerror
                 for _operation, error in raised.exception.cleanup_error.failures
             ],
-            [6, 7],
+            [5, 5],
         )
         self.assertEqual(
             kernel.CloseHandle.call_args_list,
@@ -174,7 +175,7 @@ class ProcessContainerTests(unittest.TestCase):
         container = ProcessContainer([sys.executable, "-c", "pass"])
         denied = PermissionError("group termination denied")
         try:
-            container.process.wait(timeout=30)
+            container.wait(timeout=30)
             with (
                 mock.patch.object(os, "killpg", side_effect=denied),
                 self.assertRaises(process_container.ProcessCleanupError) as raised,
@@ -184,9 +185,93 @@ class ProcessContainerTests(unittest.TestCase):
             self.assertIs(raised.exception.failures[0][1], denied)
             self.assertIs(raised.exception.container, container)
             self.assertFalse(container._group_stopped)
+            self.assertIsNone(container._process.returncode)
             self.assertFalse(container.start())
         finally:
             container.close()
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows native handle identity")
+    def test_invalid_job_handle_is_reported_without_retrying_its_number(self) -> None:
+        process = mock.Mock()
+        process.poll.return_value = 0
+        kernel = mock.Mock()
+        kernel.CloseHandle.return_value = False
+        with (
+            mock.patch.object(process_container, "_kernel32", return_value=kernel),
+            mock.patch.object(ctypes, "get_last_error", return_value=6),
+            mock.patch.object(
+                process_container, "_bootstrap_command", return_value=["tool"]
+            ),
+            mock.patch.object(
+                process_container.subprocess, "Popen", return_value=process
+            ),
+            mock.patch.object(process_container, "_windows_job", return_value=41),
+        ):
+            container = ProcessContainer(["tool"])
+            with self.assertRaises(process_container.ProcessCleanupError) as raised:
+                container.close()
+            original = raised.exception.failures[0][1]
+
+            self.assertEqual(original.winerror, 6)
+            self.assertIsNone(container.job)
+            with self.assertRaises(process_container.ProcessCleanupError) as repeated:
+                container.close()
+            self.assertIs(repeated.exception.failures[0][1], original)
+            kernel.CloseHandle.assert_called_once_with(41)
+            self.assertFalse(container._cleanup_complete)
+
+    @unittest.skipIf(sys.platform == "win32", "POSIX process group identity")
+    def test_parent_eof_ends_custodian_and_reaped_group_is_never_signalled(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            marker = Path(directory) / "tool-started"
+            container = ProcessContainer(
+                [
+                    sys.executable,
+                    "-c",
+                    "from pathlib import Path; import sys,time; "
+                    "Path(sys.argv[1]).write_text('started'); time.sleep(60)",
+                    str(marker),
+                ]
+            )
+            try:
+                wait_for_file(marker)
+                container._gate.close()
+                container._gate = None
+                # Deliberately violate private ownership after observing EOF.
+                # This must leave a reported loss, never a numeric PGID retry.
+                self.assertEqual(
+                    container._process.wait(timeout=30), -signal.SIGKILL
+                )
+                with mock.patch.object(os, "killpg") as kill_group:
+                    with self.assertRaises(process_container.ProcessCleanupError):
+                        container.close()
+                    with self.assertRaises(process_container.ProcessCleanupError):
+                        container.close()
+                    kill_group.assert_not_called()
+            finally:
+                if container._process.returncode is not None:
+                    with self.assertRaises(process_container.ProcessCleanupError):
+                        container.close()
+                else:
+                    container.close()
+            self.assertTrue(container._group_lost)
+            self.assertFalse(container._cleanup_complete)
+
+    @unittest.skipIf(sys.platform == "win32", "POSIX custodian launch")
+    def test_tool_launch_failure_keeps_errno_and_unreaped_group_owner(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            missing = str(Path(directory) / "missing-tool")
+            container = ProcessContainer([missing])
+            try:
+                with self.assertRaises(FileNotFoundError) as raised:
+                    container.wait(timeout=10)
+
+                self.assertEqual(raised.exception.errno, 2)
+                self.assertEqual(raised.exception.filename, missing)
+                self.assertIs(raised.exception.container, container)
+                self.assertIsNone(container._process.returncode)
+            finally:
+                container.close()
 
     def test_containment_is_still_reported_after_close(self) -> None:
         container = ProcessContainer(
@@ -199,17 +284,18 @@ class ProcessContainerTests(unittest.TestCase):
             container.close()
 
         self.assertTrue(container.contained)
-        self.assertIsNotNone(container.process.poll())
+        with self.assertRaises(process_container.ProcessContainerStopped):
+            container.poll()
         self.assertFalse(container.start())
 
     def test_close_is_safe_after_the_process_exits(self) -> None:
         container = ProcessContainer([sys.executable, "-c", "pass"])
         container.start()
-        container.process.wait(timeout=30)
+        container.wait(timeout=30)
         container.close()
         container.close()
 
-        self.assertEqual(container.process.returncode, 0)
+        self.assertEqual(container.poll(), 0)
 
     def test_eof_or_wrong_gate_byte_never_starts_the_tool(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -251,7 +337,7 @@ class ProcessContainerTests(unittest.TestCase):
             )
             try:
                 container.start()
-                self.assertEqual(container.process.wait(timeout=30), 7)
+                self.assertEqual(container.wait(timeout=30), 7)
                 self.assertEqual(
                     json.loads(output.read_text()),
                     [
@@ -297,9 +383,9 @@ class ProcessContainerTests(unittest.TestCase):
             bootstrap = OwnedWindowsProcess(int(marker.read_text()))
             cleanup.callback(bootstrap.close)
             self.assertTrue(bootstrap.in_job(container.job))
-            self.assertEqual(int(marker.read_text()), container.process.pid)
+            self.assertEqual(int(marker.read_text()), container.pid)
             container.start()
-            self.assertEqual(container.process.wait(timeout=30), 0)
+            self.assertEqual(container.wait(timeout=30), 0)
 
     @unittest.skipUnless(sys.platform == "win32", "Windows job boundary")
     def test_site_code_and_tool_wait_until_assignment_and_release(self) -> None:
@@ -333,7 +419,7 @@ class ProcessContainerTests(unittest.TestCase):
                 self.assertFalse(site_marker.exists())
                 self.assertFalse(tool_marker.exists())
                 container.start()
-                self.assertEqual(container.process.wait(timeout=30), 0)
+                self.assertEqual(container.wait(timeout=30), 0)
                 self.assertEqual(site_marker.read_text(), "site")
                 self.assertEqual(tool_marker.read_text(), "0")
             finally:
@@ -379,7 +465,7 @@ class ProcessContainerTests(unittest.TestCase):
         )
         try:
             container.start()
-            self.assertEqual(container.process.wait(timeout=30), 0xC0000142)
+            self.assertEqual(container.wait(timeout=30), 0xC0000142)
         finally:
             container.close()
 
@@ -409,7 +495,8 @@ class ProcessContainerTests(unittest.TestCase):
             with self.assertRaisesRegex(OSError, "gate write failed"):
                 container.start()
             self.assertIsNone(container.job)
-            self.assertIsNotNone(container.process.poll())
+            with self.assertRaises(process_container.ProcessContainerStopped):
+                container.poll()
             self.assertFalse(container.start())
         finally:
             container.close()
