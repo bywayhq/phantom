@@ -21,7 +21,9 @@ use crate::support::{
     tunnel_proxy::{ConnectionPeer, connection_peer::FixtureFailures, finish_with_cleanup},
 };
 
-use super::{TEST_TIMEOUT, TestResult, accept_tls, request_ownership, serve_requests, serve_requests_held};
+use super::{
+    TEST_TIMEOUT, TestResult, accept_tls, request_ownership, serve_requests, serve_requests_held,
+};
 
 pub(super) type Requests = Vec<(u32, String)>;
 pub(super) type Server = ConnectionPeer<TestResult<Requests>>;
@@ -107,7 +109,11 @@ pub(super) struct Stream {
 
 impl Stream {
     fn new(stream: SslStream<TcpStream>, control: Option<Control>) -> Self {
-        Self { stream, control, held: None }
+        Self {
+            stream,
+            control,
+            held: None,
+        }
     }
 
     fn holding(mut self, hold: Option<&request_ownership::ResponseHold>) -> Self {
@@ -235,7 +241,9 @@ async fn serve_held(
     control: Option<Control>,
     hold: Option<request_ownership::ResponseHold>,
 ) -> TestResult<Requests> {
-    let observed = hold.as_ref().map(request_ownership::ResponseHold::observation);
+    let observed = hold
+        .as_ref()
+        .map(request_ownership::ResponseHold::observation);
     let stream = Stream::new(stream, control).holding(hold.as_ref());
     let result = match hold {
         Some(hold) => serve_requests_held(stream, count, Some(hold)).await,
@@ -251,7 +259,11 @@ async fn serve_held(
 
 pub(super) fn request_fault_control(fault: io::Error, armed: oneshot::Receiver<()>) -> Control {
     let (state, _) = watch::channel(State::default());
-    Control { observed: Observation(state), fault: Some(fault), armed }
+    Control {
+        observed: Observation(state),
+        fault: Some(fault),
+        armed,
+    }
 }
 
 pub(super) async fn collect(caller: TestResult<()>, server: Server) -> TestResult<Requests> {
@@ -311,8 +323,15 @@ fn spawn_independent_observed(
     collect_after: Option<oneshot::Receiver<()>>,
     second_accept_after: Option<oneshot::Receiver<()>>,
 ) -> IndependentServer {
-    spawn_independent_controlled(listener, acceptor, control, second_control, collect_after,
-        second_accept_after, [None, None])
+    spawn_independent_controlled(
+        listener,
+        acceptor,
+        control,
+        second_control,
+        collect_after,
+        second_accept_after,
+        [None, None],
+    )
 }
 
 fn spawn_independent_controlled(
@@ -334,7 +353,9 @@ fn spawn_independent_controlled(
             result = accept_tls(&listener, &acceptor) => result?,
             _ = &mut stop => return Ok(None),
         };
-        let mut first = ReuseChild::new(ConnectionPeer::spawn(serve_held(first, 1, control, first_hold)));
+        let mut first = ReuseChild::new(ConnectionPeer::spawn(serve_held(
+            first, 1, control, first_hold,
+        )));
         if let Some(observed) = &observed {
             observed
                 .0
@@ -414,7 +435,12 @@ fn spawn_independent_controlled(
                 return finish_with_cleanup(Err(error), cleanup);
             }
         };
-        let mut second = ReuseChild::new(ConnectionPeer::spawn(serve_held(second, 1, second_control, second_hold)));
+        let mut second = ReuseChild::new(ConnectionPeer::spawn(serve_held(
+            second,
+            1,
+            second_control,
+            second_hold,
+        )));
         if let Some(observed) = &observed {
             observed
                 .0

@@ -427,8 +427,10 @@ async fn serve_requests_held(
                 Poll::Pending => hold.driver_pending(),
             }
 
-            hold.poll_release(context).map(|result| result.map(|()| true))
-        }).await?;
+            hold.poll_release(context)
+                .map(|result| result.map(|()| true))
+        })
+        .await?;
         if !released {
             return Ok(requests);
         }

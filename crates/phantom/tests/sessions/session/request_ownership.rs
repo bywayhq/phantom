@@ -78,11 +78,15 @@ impl ResponseHold {
     }
 
     pub(super) fn driver_pending(&self) {
-        self.observed.0.send_modify(|state| state.driver_pending = true);
+        self.observed
+            .0
+            .send_modify(|state| state.driver_pending = true);
     }
 
     pub(super) fn poll_release(&mut self, context: &mut Context<'_>) -> Poll<TestResult<()>> {
-        Pin::new(&mut self.release).poll(context).map(|result| result.map_err(Into::into))
+        Pin::new(&mut self.release)
+            .poll(context)
+            .map(|result| result.map_err(Into::into))
     }
 }
 
@@ -106,7 +110,9 @@ struct RequestLife {
 
 impl Drop for RequestLife {
     fn drop(&mut self) {
-        self.observed.0.send_modify(|state| state.destroyed[self.index] = true);
+        self.observed
+            .0
+            .send_modify(|state| state.destroyed[self.index] = true);
     }
 }
 
@@ -133,15 +139,21 @@ fn spawn_request(
 
     let task_observed = observed.clone();
     let task = tokio::spawn(async move {
-        let _life = RequestLife { observed: task_observed.clone(), index };
+        let _life = RequestLife {
+            observed: task_observed.clone(),
+            index,
+        };
         let mut request = Box::pin(request);
         let result = poll_fn(|context| {
             let result = request.as_mut().poll(context);
             if result.is_pending() {
-                task_observed.0.send_modify(|state| state.pending[index] = true);
+                task_observed
+                    .0
+                    .send_modify(|state| state.pending[index] = true);
             }
             result
-        }).await;
+        })
+        .await;
 
         task_observed.0.send_modify(|state| {
             state.ready[index] = true;
@@ -149,14 +161,17 @@ fn spawn_request(
                 && let Some(original) = error.downcast_ref::<RequestError>()
             {
                 state.kinds[index] = Some(original.kind());
-                state.syntax_sources[index] = original.source()
+                state.syntax_sources[index] = original
+                    .source()
                     .is_some_and(|source| source.is::<http::uri::InvalidUri>());
             }
         });
 
         result
     });
-    observed.0.send_modify(|state| state.tasks.push(task.abort_handle()));
+    observed
+        .0
+        .send_modify(|state| state.tasks.push(task.abort_handle()));
     task
 }
 
@@ -165,7 +180,11 @@ async fn cold_requests(
     address: SocketAddr,
     control: Option<RequestControl>,
 ) -> TestResult<()> {
-    let RequestInputs { targets, observed, collect_after } = request_inputs(address, control);
+    let RequestInputs {
+        targets,
+        observed,
+        collect_after,
+    } = request_inputs(address, control);
     let start = std::sync::Arc::new(Barrier::new(3));
     let [first_target, second_target] = targets;
     let first = spawn_request(
@@ -195,7 +214,11 @@ async fn independent_requests(
     address: SocketAddr,
     control: Option<RequestControl>,
 ) -> TestResult<()> {
-    let RequestInputs { targets, observed, collect_after } = request_inputs(address, control);
+    let RequestInputs {
+        targets,
+        observed,
+        collect_after,
+    } = request_inputs(address, control);
     let [first_target, second_target] = targets;
     let first = spawn_request(send(first_client, first_target), observed.clone(), 0);
     let second = spawn_request(send(second_client, second_target), observed, 1);
@@ -209,22 +232,29 @@ async fn independent_requests(
     Ok(())
 }
 
-fn request_inputs(
-    address: SocketAddr,
-    control: Option<RequestControl>,
-) -> RequestInputs {
-    let defaults = [format!("https://{address}/first"), format!("https://{address}/second")];
+fn request_inputs(address: SocketAddr, control: Option<RequestControl>) -> RequestInputs {
+    let defaults = [
+        format!("https://{address}/first"),
+        format!("https://{address}/second"),
+    ];
     match control {
         Some(control) => RequestInputs {
             targets: control.targets.unwrap_or(defaults),
             observed: Some(control.observed),
             collect_after: Some(control.collect_after),
         },
-        None => RequestInputs { targets: defaults, observed: None, collect_after: None },
+        None => RequestInputs {
+            targets: defaults,
+            observed: None,
+            collect_after: None,
+        },
     }
 }
 
-async fn finish_cold(caller: TestResult<()>, server: reuse_ownership::Server) -> TestResult<reuse_ownership::Requests> {
+async fn finish_cold(
+    caller: TestResult<()>,
+    server: reuse_ownership::Server,
+) -> TestResult<reuse_ownership::Requests> {
     caller?;
 
     Ok(server.await??)
@@ -281,7 +311,9 @@ pub(super) async fn independent() -> TestResult<()> {
     .await
     {
         Ok(result) => result,
-        Err(elapsed) => Err(FixtureDeadline::new("session test exceeded its deadline", elapsed).into()),
+        Err(elapsed) => {
+            Err(FixtureDeadline::new("session test exceeded its deadline", elapsed).into())
+        }
     };
 
     let mut connections = reuse_ownership::collect_independent(caller, server).await?;
