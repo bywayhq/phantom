@@ -390,9 +390,18 @@ async fn serve_requests(
     stream: reuse_ownership::Stream,
     count: usize,
 ) -> TestResult<Vec<(u32, String)>> {
+    serve_requests_held(stream, count, None).await
+}
+
+async fn serve_requests_held(
+    stream: reuse_ownership::Stream,
+    count: usize,
+    mut hold: Option<request_ownership::ResponseHold>,
+) -> TestResult<Vec<(u32, String)>> {
     let observed = stream.observation();
     let mut connection = ::http2::server::handshake(stream).await?;
     let mut requests = Vec::with_capacity(count);
+    let mut responses = Vec::new();
     for _ in 0..count {
         let (request, mut respond) = connection
             .accept()
@@ -402,7 +411,28 @@ async fn serve_requests(
             respond.stream_id().as_u32(),
             request.uri().path().to_owned(),
         ));
-        respond.send_response(Response::builder().status(204).body(())?, true)?;
+        if hold.is_some() {
+            responses.push(respond);
+        } else {
+            respond.send_response(Response::builder().status(204).body(())?, true)?;
+        }
+    }
+    if let Some(hold) = &mut hold {
+        hold.accepted(&requests);
+        let released = poll_fn(|context| {
+            match reuse_ownership::poll_closed(&mut connection, observed.as_ref(), context) {
+                Poll::Ready(Err(error)) => return Poll::Ready(Err(error.into())),
+                Poll::Ready(Ok(())) => return Poll::Ready(Ok(false)),
+                Poll::Pending => hold.driver_pending(),
+            }
+            hold.poll_release(context).map(|result| result.map(|()| true))
+        }).await?;
+        if !released {
+            return Ok(requests);
+        }
+        for mut respond in responses {
+            respond.send_response(Response::builder().status(204).body(())?, true)?;
+        }
     }
     poll_fn(|context| reuse_ownership::poll_closed(&mut connection, observed.as_ref(), context))
         .await?;

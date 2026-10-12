@@ -21,7 +21,7 @@ use crate::support::{
     tunnel_proxy::{ConnectionPeer, connection_peer::FixtureFailures, finish_with_cleanup},
 };
 
-use super::{TEST_TIMEOUT, TestResult, accept_tls, serve_requests};
+use super::{TEST_TIMEOUT, TestResult, accept_tls, request_ownership, serve_requests, serve_requests_held};
 
 pub(super) type Requests = Vec<(u32, String)>;
 pub(super) type Server = ConnectionPeer<TestResult<Requests>>;
@@ -102,11 +102,17 @@ pub(super) struct Control {
 pub(super) struct Stream {
     stream: SslStream<TcpStream>,
     control: Option<Control>,
+    held: Option<request_ownership::HoldObservation>,
 }
 
 impl Stream {
     fn new(stream: SslStream<TcpStream>, control: Option<Control>) -> Self {
-        Self { stream, control }
+        Self { stream, control, held: None }
+    }
+
+    fn holding(mut self, hold: Option<&request_ownership::ResponseHold>) -> Self {
+        self.held = hold.map(request_ownership::ResponseHold::observation);
+        self
     }
 
     pub(super) fn observation(&self) -> Option<Observation> {
@@ -124,6 +130,9 @@ impl Drop for Stream {
                 .0
                 .send_modify(|state| state.destroyed = true);
         }
+        if let Some(held) = &self.held {
+            held.destroyed();
+        }
     }
 }
 
@@ -134,7 +143,16 @@ impl AsyncRead for Stream {
         buffer: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
         let this = self.get_mut();
+        let before = buffer.filled().len();
+        let can_read = buffer.remaining() != 0;
         let result = Pin::new(&mut this.stream).poll_read(context, buffer);
+        if let Some(held) = &this.held {
+            match &result {
+                Poll::Pending => held.read_pending(),
+                Poll::Ready(Ok(())) if can_read && before == buffer.filled().len() => held.closed(),
+                _ => {}
+            }
+        }
         if result.is_pending()
             && let Some(control) = &mut this.control
             && control.fault.is_some()
@@ -194,10 +212,43 @@ pub(super) fn spawn_server(
     count: usize,
     control: Option<Control>,
 ) -> Server {
+    spawn_server_held(listener, acceptor, count, control, None)
+}
+
+pub(super) fn spawn_server_held(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    count: usize,
+    control: Option<Control>,
+    hold: Option<request_ownership::ResponseHold>,
+) -> Server {
     ConnectionPeer::spawn(async move {
         let stream = accept_tls(&listener, &acceptor).await?;
-        serve_requests(Stream::new(stream, control), count).await
+        serve_held(stream, count, control, hold).await
     })
+}
+
+async fn serve_held(
+    stream: SslStream<TcpStream>,
+    count: usize,
+    control: Option<Control>,
+    hold: Option<request_ownership::ResponseHold>,
+) -> TestResult<Requests> {
+    let observed = hold.as_ref().map(request_ownership::ResponseHold::observation);
+    let stream = Stream::new(stream, control).holding(hold.as_ref());
+    let result = match hold {
+        Some(hold) => serve_requests_held(stream, count, Some(hold)).await,
+        None => serve_requests(stream, count).await,
+    };
+    if let Some(observed) = observed {
+        observed.completed(&result);
+    }
+    result
+}
+
+pub(super) fn request_fault_control(fault: io::Error, armed: oneshot::Receiver<()>) -> Control {
+    let (state, _) = watch::channel(State::default());
+    Control { observed: Observation(state), fault: Some(fault), armed }
 }
 
 pub(super) async fn collect(caller: TestResult<()>, server: Server) -> TestResult<Requests> {
@@ -241,6 +292,14 @@ pub(super) fn spawn_independent(
     spawn_independent_observed(listener, acceptor, control, None, None, None)
 }
 
+pub(super) fn spawn_independent_held(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    holds: [request_ownership::ResponseHold; 2],
+) -> IndependentServer {
+    spawn_independent_controlled(listener, acceptor, None, None, None, None, holds.map(Some))
+}
+
 fn spawn_independent_observed(
     listener: TcpListener,
     acceptor: SslAcceptor,
@@ -249,6 +308,20 @@ fn spawn_independent_observed(
     collect_after: Option<oneshot::Receiver<()>>,
     second_accept_after: Option<oneshot::Receiver<()>>,
 ) -> IndependentServer {
+    spawn_independent_controlled(listener, acceptor, control, second_control, collect_after,
+        second_accept_after, [None, None])
+}
+
+fn spawn_independent_controlled(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    control: Option<Control>,
+    second_control: Option<Control>,
+    collect_after: Option<oneshot::Receiver<()>>,
+    second_accept_after: Option<oneshot::Receiver<()>>,
+    holds: [Option<request_ownership::ResponseHold>; 2],
+) -> IndependentServer {
+    let [first_hold, second_hold] = holds;
     let (shutdown, mut stop) = oneshot::channel();
     let task = ConnectionPeer::spawn(async move {
         let observed = control.as_ref().map(|control| control.observed.clone());
@@ -258,10 +331,7 @@ fn spawn_independent_observed(
             result = accept_tls(&listener, &acceptor) => result?,
             _ = &mut stop => return Ok(None),
         };
-        let mut first = ReuseChild::new(ConnectionPeer::spawn(serve_requests(
-            Stream::new(first, control),
-            1,
-        )));
+        let mut first = ReuseChild::new(ConnectionPeer::spawn(serve_held(first, 1, control, first_hold)));
         if let Some(observed) = &observed {
             observed
                 .0
@@ -341,10 +411,7 @@ fn spawn_independent_observed(
                 return finish_with_cleanup(Err(error), cleanup);
             }
         };
-        let mut second = ReuseChild::new(ConnectionPeer::spawn(serve_requests(
-            Stream::new(second, second_control),
-            1,
-        )));
+        let mut second = ReuseChild::new(ConnectionPeer::spawn(serve_held(second, 1, second_control, second_hold)));
         if let Some(observed) = &observed {
             observed
                 .0
