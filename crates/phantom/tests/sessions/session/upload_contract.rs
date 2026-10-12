@@ -168,6 +168,18 @@ impl Exchange {
         joined?
     }
 
+    async fn close_upload_write(&mut self) -> TestResult<()> {
+        let driver = self.driver.take().ok_or("upload driver missing")?;
+        driver.stop().await?;
+
+        // The cloned socket keeps TCP alive after the driver stops writing.
+        self.writer
+            .as_ref()
+            .ok_or("client socket missing")?
+            .shutdown(Shutdown::Write)?;
+        Ok(())
+    }
+
     async fn stop(&mut self) -> TestResult<()> {
         let server_requested = self
             .server
@@ -258,11 +270,7 @@ async fn incomplete_upload_retains_its_stream_error_after_actual_tcp_eof() -> Te
     let mut exchange = Exchange::default();
     let primary = async {
         exchange.start().await?;
-        exchange
-            .writer
-            .as_ref()
-            .ok_or("client socket missing")?
-            .shutdown(Shutdown::Write)?;
+        exchange.close_upload_write().await?;
         timeout(LIMIT, exchange.eof.wait_for(|eof| *eof)).await??;
         let UploadObservation {
             collected,
