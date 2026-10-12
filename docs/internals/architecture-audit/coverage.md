@@ -3,6 +3,51 @@
 Use this matrix to see which paths have been examined and what remains.
 Pending means that discovery or assignment has not established review.
 
+## Capture and DNS completion batch
+
+At `86fd68bc`, shared HTTP/2 and WebSocket capture owns acquired listeners,
+handlers and writers through shutdown. It retains original cancellation and
+cleanup causes, enforces finite record and decoded-output limits, and keeps
+IPv6 URLs and browser routes consistent. Offline HTTP/2 analysis has one
+module. Process containers retain retryable cleanup owners and original
+launch, worker and reporting failures. Snapshot comparison rejects malformed
+normalized extensions, duplicate extensions and invalid declared counts.
+The existing retained Firefox control also rejects input parsing failures.
+Listener proof covers attached transports; pre-attachment backend accepts
+remain outside it. Finite cleanup waits retain unfinished owners and cannot
+preempt blocking native callbacks. A late process worker cannot acquire after
+stopped admission; this does not prove every native thread has finished.
+
+DNS fixture consumers now collect completion after their original assertions.
+The raw reply worker retains its original task through a borrowed deadline.
+Earlier failing or cancelled consumers still use Drop cancellation without
+asynchronous joining; completion is cooperative.
+
+Independent source reviews cover these repairs and their composition. On
+Windows, the affected Python selection runs 191 methods with four platform
+skips; on Linux it runs 191 with eleven. Both hosts pass all 101 selected
+DNS/ECH tests, capture lint, docs, Rust formatting, strict all-target and
+all-feature Clippy, and Rust 1.88 checks. Root and an independent reader
+inspect the logs and separately bind both clean checkouts to this revision.
+These are focused checks; the full integration gate remains open.
+
+The full capture attempt at `56988708` failed two cancellation/backup-cleanup
+controls and import sorting. After the source correction, `fb7ea503` passed
+103 affected methods on each host but failed an unused-binding lint. The
+combined batch above resolves that lint and passes the affected controls.
+Original failed logs remain in the audit scratchpad.
+
+Root and independent whole-file reads of `quic_packet_diff.py` and its tests
+find no additional defect within bounded QUIC v1 capture analysis. Caller
+review covers packet acquisition, authenticated analysis and cleanup. This
+does not establish general frame validation, secure erasure or browser parity.
+
+CI at pushed `0a49baa1` passes 41 checks and fails the macOS platform job and
+its aggregate requirement. The keepalive test's assertions pass, but nextest
+reports retained output handles. Source review finds no child process or
+output-pipe owner in that test and has not established a cause. Preserve the
+200 ms leak threshold; later candidate CI and final integration remain open.
+
 ## Current repair batch
 
 - At `6d0dcced`, all 31 focused upload, connection-peer, request and reuse
