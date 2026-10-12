@@ -321,7 +321,9 @@ async fn status_retry_repeats_a_buffered_streaming_body() -> TestResult {
     );
     for request in &received {
         assert!(
-            request.head.to_ascii_lowercase()
+            request
+                .head
+                .to_ascii_lowercase()
                 .contains("\r\ncontent-length: 7\r\n")
         );
         assert_eq!(request.body, b"payload");
