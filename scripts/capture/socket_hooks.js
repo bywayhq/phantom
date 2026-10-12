@@ -22,11 +22,36 @@ let connectExHooked = false;
 // connect waits for Windows' SYN retransmissions (about two seconds) instead
 // of failing at once. The browser's IPv4 fallback timer then shows.
 let slowIpv6Refusal = false;
+let configured = false;
+let hooksReady = false;
+
+if (Process.platform !== "windows" || Process.arch !== "x64" || Process.pointerSize !== 8) {
+  throw new Error("socket hooks require Windows x64");
+}
 
 recv("config", (message) => {
+  if (typeof message.slow_ipv6_refusal !== "boolean") {
+    throw new Error("socket hook config requires slow_ipv6_refusal boolean");
+  }
   slowIpv6Refusal = message.slow_ipv6_refusal === true;
+  configured = true;
   report("config", { slow_ipv6_refusal: slowIpv6Refusal });
+  acknowledgeReady();
 });
+
+function acknowledgeReady() {
+  if (!configured || !hooksReady) {
+    return;
+  }
+  Interceptor.flush();
+  report("ready", {
+    pid: Process.id,
+    arch: Process.arch,
+    platform: Process.platform,
+    modules: ["ws2_32.dll", "dnsapi.dll"],
+    slow_ipv6_refusal: slowIpv6Refusal,
+  });
+}
 
 function hex(pointer, length) {
   if (pointer.isNull() || length <= 0) {
@@ -78,7 +103,7 @@ function attach(module, name, callbacks) {
   const address = module.findExportByName(name);
   if (address === null) {
     report("hook-missing", { module: module.name, function: name });
-    return;
+    throw new Error(`required socket hook is unavailable: ${module.name}!${name}`);
   }
   Interceptor.attach(address, callbacks);
 }
@@ -372,9 +397,12 @@ function hookModule(module) {
 
 for (const name of ["ws2_32.dll", "dnsapi.dll"]) {
   const module = Process.findModuleByName(name);
-  if (module !== null) {
-    hookModule(module);
+  if (module === null) {
+    report("hook-missing", { module: name, function: "<module>" });
+    throw new Error(`required socket hook module is not loaded: ${name}`);
   }
+  hookModule(module);
 }
 Process.attachModuleObserver({ onAdded: hookModule });
-report("ready", { pid: Process.id, arch: Process.arch });
+hooksReady = true;
+acknowledgeReady();

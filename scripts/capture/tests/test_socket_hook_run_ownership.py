@@ -50,6 +50,7 @@ class RunOwners:
         self.hold_start = False
         self.finish_page = True
         self.order = []
+        self.stop_requests = []
         self.reports = []
         self.actual_server = asyncio.start_server
         self.actual_profile = tempfile.mkdtemp
@@ -90,6 +91,9 @@ class RunOwners:
                 owners.order.append("stop")
                 if owners.stop_error is not None:
                     raise owners.stop_error
+
+            def request_stop(self):
+                owners.stop_requests.append(tuple(owners.order))
 
             def snapshot(self):
                 return list(self.reports)

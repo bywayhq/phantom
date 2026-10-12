@@ -51,6 +51,10 @@ NETWORK_SERVICE_SWITCH = "--utility-sub-type=network.mojom.NetworkService"
 MAX_REQUEST_HEAD = 64 * 1024
 # Existing profile cleanup permits two 60-second commands and a 5-second join.
 _RUN_CLEANUP_SECONDS = 150.0
+_HOOK_CHILD_LIMIT = 64
+_HOOK_REPORT_LIMIT = 100_000
+_HOOK_READY_SECONDS = 10.0
+_HOOK_NATIVE_CLEANUP_SECONDS = 15.0
 # A name that public DNS resolves to 127.0.0.1, so a lookup leaves the
 # browser's resolver while the connection stays on loopback.
 LOOKUP_HOST = "127.0.0.1.nip.io"
@@ -691,11 +695,10 @@ def _socket_hook_switches(extra: Sequence[str]) -> tuple[str, ...]:
 class HookedBrowser:
     """A browser spawned under Frida with child gating, on a fresh profile.
 
-    The browser process and every child it starts are held until resumed.
-    The network service child gets the agent before it resumes, so the hooks
-    see its first socket. Only the processes this object spawned are ended:
-    the spawned browser by its process ID, then any process whose command
-    line names this run's temporary profile.
+    The spawned browser's direct children are held until resumed. The network
+    service must acknowledge configuration and installed hooks before resume.
+    The agent requires Windows x64 and already loaded Winsock and DNS modules.
+    Shutdown retains native sessions, pending children and unfinished workers.
     """
 
     def __init__(
@@ -717,71 +720,403 @@ class HookedBrowser:
         self._lock = threading.Lock()
         self._sessions: list[Any] = []
         self._pid: int | None = None
+        self._network_pid: int | None = None
         self._device: Any = None
         self._worker: threading.Thread | None = None
         self._stopping = threading.Event()
+        self._ready = threading.Event()
+        self._frida: Any = None
+        self._cancellable: Any = None
+        self._accepting = False
+        self._subscribed = False
+        self._child_count = 0
+        self._child_pids: set[int] = set()
+        self._scripts: list[Any] = []
+        self._pending_children: tuple[Any, ...] = ()
+        self._failure: BaseException | None = None
+        self._cleanup_failures: list[BaseException] = []
+        self._stopped = False
 
     def start(self) -> None:
         import frida  # noqa: PLC0415 - only a capture needs Frida
 
+        self._frida = frida
         self.frida_version = frida.__version__
-        self._device = frida.get_local_device()
-        self._device.on("child-added", self._on_child_added)
-        self._worker = threading.Thread(target=self._gate_children, daemon=True)
-        self._worker.start()
-        self._pid = self._device.spawn([str(self.executable), *self.arguments])
-        session = self._device.attach(self._pid)
-        self._sessions.append(session)
-        session.enable_child_gating()
-        self._device.resume(self._pid)
+        with self._lock:
+            self._cancellable = frida.Cancellable()
+            if self._stopping.is_set():
+                self._cancellable.cancel()
+
+        with self._cancellable:
+            self._device = frida.get_local_device()
+            self._subscribed = True
+            self._device.on("child-added", self._on_child_added)
+            with self._lock:
+                self._accepting = not self._stopping.is_set()
+
+            self._worker = threading.Thread(target=self._gate_children, daemon=False)
+            self._worker.start()
+            self._pid = self._device.spawn([str(self.executable), *self.arguments])
+            session = self._device.attach(self._pid)
+            with self._lock:
+                self._sessions.append(session)
+
+            session.enable_child_gating()
+            self._device.resume(self._pid)
+
+        deadline = time.monotonic() + _HOOK_READY_SECONDS
+        while not self._ready.wait(0.1):
+            if self._stopping.is_set():
+                with self._lock:
+                    failure = self._failure
+
+                if failure is not None:
+                    raise failure
+
+                raise RuntimeError("socket hook startup was stopped before readiness")
+
+            if time.monotonic() >= deadline:
+                raise TimeoutError("socket hook configuration readiness deadline elapsed")
 
     def _on_child_added(self, child: Any) -> None:
-        self._children.put(child)
+        try:
+            with self._lock:
+                if child.parent_pid != self._pid:
+                    return
+
+                if not self._accepting:
+                    return
+
+                if self._child_count >= _HOOK_CHILD_LIMIT:
+                    raise _SocketHookChildLimit(self, child)
+
+                self._child_count += 1
+                self._child_pids.add(child.pid)
+                self._children.put_nowait(child)
+        except BaseException as error:
+            self._retain_failure(error)
+
+    def request_stop(self) -> None:
+        with self._lock:
+            self._accepting = False
+            self._stopping.set()
+            cancellable = self._cancellable
+
+        if cancellable is not None:
+            cancellable.cancel()
+
+    def _retain_failure(self, error: BaseException) -> None:
+        with self._lock:
+            if self._failure is None:
+                self._failure = error
+
+        try:
+            self.request_stop()
+        except BaseException as stop_error:
+            with self._lock:
+                if not self._cleanup_failures:
+                    self._cleanup_failures.append(stop_error)
 
     def _gate_children(self) -> None:
-        source = AGENT.read_text(encoding="utf-8")
-        while not self._stopping.is_set():
-            try:
-                child = self._children.get(timeout=0.2)
-            except queue.Empty:
-                continue
-            try:
-                if is_network_service(child.argv) and self.network_service_argv is None:
-                    self.network_service_argv = list(child.argv)
-                    session = self._device.attach(child.pid)
-                    self._sessions.append(session)
-                    script = session.create_script(source)
+        try:
+            source = AGENT.read_text(encoding="utf-8")
+            while not self._stopping.is_set():
+                try:
+                    child = self._children.get(timeout=0.2)
+                except queue.Empty:
+                    continue
+
+                with self._cancellable:
+                    self._instrument_child(child, source)
+        except BaseException as error:
+            locally_cancelled = (
+                self._stopping.is_set()
+                and isinstance(error, self._frida.OperationCancelledError)
+                and self._cancellable.is_cancelled
+            )
+            if not locally_cancelled:
+                self._retain_failure(error)
+
+    def _instrument_child(self, child: Any, source: str) -> None:
+        if self._stopping.is_set():
+            return
+
+        if is_network_service(child.argv):
+            if self.network_service_argv is not None:
+                raise RuntimeError("socket hook network service restarted during capture")
+
+            self.network_service_argv = list(child.argv)
+            self._network_pid = child.pid
+            session = self._device.attach(child.pid)
+            with self._lock:
+                self._sessions.append(session)
+
+            if self._stopping.is_set():
+                self._detach_after_stop(session)
+                return
+
+            script = session.create_script(source)
+            with self._lock:
+                stopped = self._stopping.is_set()
+                if not stopped:
+                    self._scripts.append(script)
                     script.on("message", self._on_message)
-                    script.load()
-                    script.post({"type": "config", **self.config})
-                self._device.resume(child.pid)
-            except Exception as error:  # noqa: BLE001 - recorded; the fixture shows it
-                self.errors.append(f"child {child.pid}: {error}")
-                with contextlib.suppress(Exception):
-                    self._device.resume(child.pid)
+
+            if stopped:
+                self._detach_after_stop(session)
+                return
+
+            script.load()
+            script.post({"type": "config", **self.config})
+            deadline = time.monotonic() + _HOOK_READY_SECONDS
+            while not self._ready.wait(0.1):
+                if self._stopping.is_set():
+                    return
+
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("socket hook child readiness deadline elapsed")
+
+        if not self._stopping.is_set():
+            self._device.resume(child.pid)
+
+    def _detach_after_stop(self, session: Any) -> None:
+        _, error = self._cleanup_native(
+            session.detach, time.monotonic() + _HOOK_NATIVE_CLEANUP_SECONDS
+        )
+        if error is not None:
+            with self._lock:
+                self._cleanup_failures.append(error)
 
     def _on_message(self, message: dict[str, Any], _data: object) -> None:
-        with self._lock:
-            if message.get("type") == "send":
-                self.reports.append(message["payload"])
-            else:
-                self.errors.append(json.dumps(message, sort_keys=True))
+        try:
+            with self._lock:
+                if self._failure is not None:
+                    return
+
+                if message.get("type") != "send":
+                    raise _SocketHookAgentFailure(message)
+
+                payload = message["payload"]
+                if payload["kind"] in ("hook-missing", "hook-failure"):
+                    raise _SocketHookAgentFailure(message)
+
+                if self._stopped:
+                    return
+
+                if len(self.reports) >= _HOOK_REPORT_LIMIT:
+                    raise RuntimeError("socket hook report limit exceeded")
+
+                self.reports.append(payload)
+                if payload["kind"] == "ready":
+                    if (
+                        payload.get("arch") != "x64"
+                        or payload.get("pid") != self._network_pid
+                        or payload.get("platform") != "windows"
+                        or payload.get("modules") != ["ws2_32.dll", "dnsapi.dll"]
+                        or payload.get("slow_ipv6_refusal")
+                        is not self.config.get("slow_ipv6_refusal", False)
+                    ):
+                        raise _SocketHookAgentFailure(message)
+
+                    self._ready.set()
+        except BaseException as error:
+            self._retain_failure(error)
 
     def snapshot(self) -> list[dict[str, Any]]:
         with self._lock:
-            return list(self.reports)
+            failures = (self._failure, *self._cleanup_failures)
+            stopped = self._stopped
+            reports = list(self.reports)
+
+        raise_browser_failures(None, tuple(error for error in failures if error is not None))
+        if not stopped or (self._worker is not None and self._worker.is_alive()):
+            raise _SocketHookChildrenPending(self)
+
+        if not self._ready.is_set():
+            raise RuntimeError("socket hook capture has no acknowledged network service")
+
+        return reports
 
     def stop(self) -> None:
-        self._stopping.set()
-        for session in self._sessions:
-            with contextlib.suppress(Exception):
-                session.detach()
-        if self._pid is not None and self._device is not None:
-            with contextlib.suppress(Exception):
-                self._device.kill(self._pid)
-        terminate_profile_processes(self.profile)
+        failures = []
+        try:
+            self.request_stop()
+        except BaseException as error:
+            failures.append(error)
+
+        if self._subscribed:
+            try:
+                self._device.off("child-added", self._on_child_added)
+                self._subscribed = False
+            except BaseException as error:
+                failures.append(error)
+
+        deadline = time.monotonic() + _HOOK_NATIVE_CLEANUP_SECONDS
+        if self._pid is not None:
+            _, error = self._cleanup_native(self._device.kill, deadline, self._pid)
+            if error is not None and not isinstance(error, self._frida.ProcessNotFoundError):
+                failures.append(error)
+
+        if self._device is not None:
+            pending, error = self._cleanup_native(self._device.enumerate_pending_children, deadline)
+            if error is not None:
+                failures.append(error)
+            else:
+                with self._lock:
+                    self._pending_children = tuple(
+                        child for child in pending
+                        if child.parent_pid == self._pid or child.parent_pid in self._child_pids
+                    )
+
+        with self._lock:
+            pids = self._child_pids | {child.pid for child in self._pending_children}
+            failure = self._failure
+            if isinstance(failure, _SocketHookChildLimit):
+                pids.add(failure.child.pid)
+
+        for pid in sorted(pids):
+            _, error = self._cleanup_native(self._device.kill, deadline, pid)
+            if error is not None and not isinstance(error, self._frida.ProcessNotFoundError):
+                failures.append(error)
+
         if self._worker is not None:
-            self._worker.join(timeout=5)
+            try:
+                self._worker.join(timeout=5)
+            except BaseException as error:
+                failures.append(error)
+
+            if self._worker.is_alive():
+                failures.append(_SocketHookChildrenPending(self))
+
+        with self._lock:
+            sessions = tuple(self._sessions)
+            scripts = tuple(self._scripts)
+
+        for session in sessions:
+            _, error = self._cleanup_native(session.detach, deadline)
+            if error is not None:
+                failures.append(error)
+
+        for script in scripts:
+            try:
+                script.off("message", self._on_message)
+            except BaseException as error:
+                failures.append(error)
+
+        try:
+            terminate_profile_processes(self.profile)
+        except BaseException as error:
+            failures.append(error)
+
+        with self._lock:
+            self._stopped = self._worker is None or not self._worker.is_alive()
+            self._cleanup_failures.extend(failures)
+            failures = [self._failure, *self._cleanup_failures]
+
+        if self._cleanup_failures:
+            failures.append(_SocketHookCleanupIncomplete(self))
+
+        raise_browser_failures(None, tuple(error for error in failures if error is not None))
+
+    def _cleanup_native(
+        self, operation: Any, deadline: float, *arguments: Any
+    ) -> tuple[Any, BaseException | None]:
+        try:
+            cancellable = self._frida.Cancellable()
+        except BaseException as error:
+            return None, error
+
+        cancellation_failures = []
+        expired = threading.Event()
+
+        def cancel() -> None:
+            expired.set()
+            try:
+                cancellable.cancel()
+            except BaseException as error:
+                cancellation_failures.append(error)
+
+        remaining = min(1.0, max(0.0, deadline - time.monotonic()))
+        timer = threading.Timer(remaining, cancel)
+        timer.daemon = False
+        error = None
+        result = None
+        try:
+            if remaining == 0:
+                cancel()
+            else:
+                timer.start()
+
+            result = operation(*arguments, cancellable=cancellable)
+        except BaseException as failure:
+            error = failure
+        finally:
+            try:
+                timer.cancel()
+            except BaseException as failure:
+                cancellation_failures.append(failure)
+
+            if timer.ident is not None:
+                try:
+                    timer.join(timeout=1)
+                except BaseException as failure:
+                    cancellation_failures.append(failure)
+
+        if timer.is_alive():
+            pending = _SocketHookCleanupPending(self, timer, cancellable, operation, arguments)
+            cancellation_failures.append(pending)
+
+        if expired.is_set():
+            cancellation_failures.append(TimeoutError("socket hook native cleanup deadline elapsed"))
+
+        try:
+            raise_browser_failures(error, tuple(cancellation_failures))
+        except BaseException as failure:
+            return result, failure
+
+        return result, None
+
+
+class _SocketHookAgentFailure(RuntimeError):
+    def __init__(self, message: dict[str, Any]) -> None:
+        self.message = message
+        super().__init__("socket hook agent failed readiness or execution")
+
+
+class _SocketHookChildLimit(RuntimeError):
+    def __init__(self, owner: HookedBrowser, child: Any) -> None:
+        self.owner = owner
+        self.child = child
+        super().__init__("socket hook child limit exceeded")
+
+
+class _SocketHookChildrenPending(RuntimeError):
+    def __init__(self, owner: HookedBrowser) -> None:
+        self.owner = owner
+        super().__init__("socket hook child worker has not finished cleanup")
+
+
+class _SocketHookCleanupIncomplete(RuntimeError):
+    def __init__(self, owner: HookedBrowser) -> None:
+        self.owner = owner
+        super().__init__("socket hook browser retains failed cleanup owners")
+
+
+class _SocketHookCleanupPending(RuntimeError):
+    def __init__(
+        self,
+        owner: HookedBrowser,
+        timer: threading.Timer,
+        cancellable: Any,
+        operation: Any,
+        arguments: tuple[Any, ...],
+    ) -> None:
+        self.owner = owner
+        self.timer = timer
+        self.cancellable = cancellable
+        self.operation = operation
+        self.arguments = arguments
+        super().__init__("socket hook native cleanup cancellation has not finished")
 
 
 @dataclass
@@ -860,6 +1195,10 @@ async def run_once(
     deadline = asyncio.get_running_loop().time() + _RUN_CLEANUP_SECONDS
     if worker is not None:
         worker.stop_requested.set()
+        try:
+            worker.browser.request_stop()
+        except BaseException as error:
+            cleanup.append(error)
 
     listeners = [listener for listener in (target, server) if listener is not None]
     for listener in listeners:
