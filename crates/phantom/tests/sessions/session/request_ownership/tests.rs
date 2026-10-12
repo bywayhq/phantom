@@ -571,7 +571,10 @@ impl Fixture {
         )
         .await
         .map_err(|elapsed| {
-            FixtureDeadline::new("original request futures remained live after caller exit", elapsed)
+            FixtureDeadline::new(
+                "original request futures remained live after caller exit",
+                elapsed,
+            )
         })??;
 
         timeout(LIMIT, async {
