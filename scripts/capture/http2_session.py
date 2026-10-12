@@ -1068,7 +1068,9 @@ class CaptureServer:
         self.run: CaptureRun | None = None
         self.servers: list[asyncio.Server] = []
         self.writers: set[asyncio.StreamWriter] = set()
-        self.handlers: dict[asyncio.Task[None], tuple[CaptureRun, bool]] = {}
+        self.handlers: dict[
+            asyncio.Task[None], tuple[CaptureRun, bool, BaseException | None]
+        ] = {}
         self.writer_waits: dict[asyncio.Task[None], asyncio.StreamWriter] = {}
         self.listener_waits: dict[asyncio.Task[None], tuple[asyncio.Server, bool]] = {}
         self.protocol_waits: dict[asyncio.Task[None], CaptureProtocol] = {}
@@ -1379,9 +1381,9 @@ class CaptureServer:
             for task in pending:
                 # Keep uncollected owners after the finite waiting period.
                 if task in self.handlers:
-                    run, cancel_requested = self.handlers[task]
+                    run, cancel_requested, original = self.handlers[task]
                     if not cancel_requested:
-                        self.handlers[task] = (run, task.cancel())
+                        self.handlers[task] = (run, task.cancel(), original)
             if not cancelling and asyncio.get_running_loop().time() < deadline:
                 cancelling = True
                 continue
@@ -1391,16 +1393,18 @@ class CaptureServer:
             if not task.done():
                 continue
 
-            self.handlers.pop(task)
+            _, _, original = self.handlers.pop(task)
 
             try:
                 task.result()
             except asyncio.CancelledError as error:
                 # cancel() does not establish whether another owner cancelled first.
+                if original is not None:
+                    error = original
                 failures.append(error)
 
-                # Task.result() can reconstruct a cancellation on Python 3.10.
-                # Its context retains the coroutine's original cleanup cause.
+                # The handler retains the original cause before Task.result()
+                # can reconstruct a cancellation on Python 3.10.
                 seen = set()
                 while id(error) not in seen:
                     seen.add(id(error))
@@ -1411,7 +1415,7 @@ class CaptureServer:
                         break
                     error = error.__context__
             except BaseException as error:
-                failures.append(error)
+                failures.append(original if original is not None else error)
 
         for task in list(self.writer_waits):
             if not task.done():
@@ -1525,7 +1529,7 @@ class CaptureServer:
                 self.failed(error, run)
             run.done.set()
         else:
-            self.handlers[task] = (run, False)
+            self.handlers[task] = (run, False, None)
             try:
                 task.add_done_callback(self._handler_finished)
             except BaseException as error:
@@ -1536,7 +1540,7 @@ class CaptureServer:
         if admission is None:
             return
 
-        run, cancel_requested = admission
+        run, cancel_requested, original = admission
         if not task.cancelled() and task.exception() is None:
             return
 
@@ -1548,13 +1552,13 @@ class CaptureServer:
         try:
             task.result()
         except BaseException as error:
-            self.failed(error, run)
+            self.failed(original if original is not None else error, run)
 
     def accept(
         self, listener: str, writer: asyncio.StreamWriter
     ) -> tuple[CaptureRun, ConnectionRecord, int]:
         # Admission retains this task and its run before the coroutine starts.
-        run, _ = self.handlers[asyncio.current_task()]
+        run, _, _ = self.handlers[asyncio.current_task()]
         record = ConnectionRecord(listener=listener, accepted=run.now())
         run.connections.append(record)
         return run, record, len(run.connections) - 1
@@ -1603,7 +1607,15 @@ class CaptureServer:
         if cleanup and primary is None:
             primary = peer_failure
 
-        raise_capture_failures(primary, tuple(cleanup))
+        try:
+            raise_capture_failures(primary, tuple(cleanup))
+        except BaseException as error:
+            # Keep one authoritative failure with the handler until collection.
+            # A cancelled Task may return a new exception to each observer.
+            task = asyncio.current_task()
+            run, cancel_requested, _ = self.handlers[task]
+            self.handlers[task] = (run, cancel_requested, error)
+            raise
 
     def release(self, writer: asyncio.StreamWriter) -> None:
         if not writer.transport.is_closing():

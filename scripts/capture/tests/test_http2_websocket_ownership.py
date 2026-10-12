@@ -392,6 +392,7 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_late_original_reader_failure_prevents_fixture_publication(self):
         failure = OSError(5, "injected accepted reader failure")
+        self.expected_failures.append(failure)
 
         async def fail(connection):
             connection.reader.set_exception(failure)
