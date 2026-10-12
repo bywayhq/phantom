@@ -86,6 +86,16 @@ def fake_capture(**fields):
 
 
 class ManifestTests(unittest.TestCase):
+    def test_nonfinite_timeouts_are_refused_before_jobs_are_created(self) -> None:
+        for timeout in (float("nan"), float("inf"), float("-inf"), 10**400):
+            with self.subTest(timeout=timeout):
+                with self.assertRaisesRegex(ManifestError, "timeout must be a finite"):
+                    expand_manifest(
+                        manifest(fake_capture(timeout=timeout)),
+                        base=Path("/repo"),
+                        tools=FAKE_TOOLS,
+                    )
+
     def test_each_browser_and_scenario_becomes_one_job(self) -> None:
         jobs = expand_manifest(
             manifest(
@@ -550,6 +560,59 @@ class ScheduleTests(unittest.TestCase):
 
         self.assertEqual(interrupted, [True])
         self.assertEqual([r.status for r in results], ["stopped", "not-run"])
+
+    def test_a_failed_thread_start_stops_and_joins_the_running_worker(self) -> None:
+        entered = threading.Event()
+        release = threading.Event()
+        finished = threading.Event()
+        stopped = threading.Event()
+        start = threading.Thread.start
+        started_threads = []
+        start_error = RuntimeError("worker thread refused")
+        cleanup_error = OSError("independent profile sweep failed")
+
+        def run(item: Job) -> JobResult:
+            entered.set()
+            release.wait(10)
+            finished.set()
+            return JobResult(item, "stopped", [Attempt(False, 0.1, "stopped")])
+
+        def start_worker(thread):
+            if started_threads:
+                self.assertTrue(entered.wait(10))
+                raise start_error
+            started_threads.append(thread)
+            return start(thread)
+
+        def stop_workers() -> None:
+            release.set()
+            raise cleanup_error
+
+        try:
+            with mock.patch.object(threading.Thread, "start", start_worker):
+                results = schedule(
+                    [job("running"), job("refused"), job("waiting")],
+                    run,
+                    limit=2,
+                    stopped=stopped,
+                    on_interrupt=stop_workers,
+                )
+            self.assertTrue(stopped.is_set())
+            self.assertTrue(finished.is_set())
+            self.assertFalse(started_threads[0].is_alive())
+            self.assertEqual(
+                [result.status for result in results], ["failed", "failed", "not-run"]
+            )
+            self.assertIs(results[0].attempts[-1].failure, cleanup_error)
+            combined = results[1].attempts[-1].failure
+            self.assertIs(combined.failures[0][1], start_error)
+            self.assertIs(combined.failures[1][1], cleanup_error)
+        finally:
+            release.set()
+            stopped.set()
+            for thread in started_threads:
+                thread.join(10)
+        self.assertTrue(all(not thread.is_alive() for thread in started_threads))
 
     def test_long_shared_jobs_start_first_and_exclusive_jobs_last(self) -> None:
         jobs = [
@@ -1484,6 +1547,62 @@ class SubprocessTests(unittest.TestCase):
         self.assertEqual(result.status, "ok")
         log = Path(result.attempts[0].log).read_text()
         self.assertNotIn("refused the job object", log)
+
+    @unittest.skipIf(sys.platform == "win32", "POSIX post-spawn completion pipe")
+    def test_post_spawn_constructor_failure_still_sweeps_and_retains_the_owner(
+        self,
+    ) -> None:
+        (item,) = expand_manifest(
+            manifest(fake_capture(scenarios=["hang"])),
+            base=self.root,
+            tools=FAKE_TOOLS,
+        )
+        pid_file = item.output_dir / "grandchild.pid"
+        attempts = Attempts()
+        construction_error = OSError("completion pipe close interrupted")
+        sweep_error = OSError("independent profile sweep failed")
+        owners = []
+
+        class FailingAfterSpawn(ProcessContainer):
+            def _close_status_pipe(self, attribute) -> None:
+                super()._close_status_pipe(attribute)
+                if attribute == "_status_writer" and not owners:
+                    owners.append(self)
+                    wait_for_file(pid_file)
+                    raise construction_error
+
+        try:
+            with (
+                mock.patch.object(run_matrix, "ProcessContainer", FailingAfterSpawn),
+                mock.patch.object(
+                    run_matrix, "stop_processes_naming", side_effect=sweep_error
+                ) as sweep,
+                self.assertRaises(run_matrix.CleanupError) as raised,
+            ):
+                run_matrix.run_attempt(
+                    item,
+                    1,
+                    self.root / "work",
+                    shared_host=False,
+                    limit=1,
+                    attempts=attempts,
+                )
+            owner = owners[0]
+            temporary = self.root / "work" / "tmp" / attempt_directory(item.id, 1)
+            sweep.assert_called_once_with(temporary)
+            self.assertIs(raised.exception.failures[0][1], construction_error)
+            self.assertIs(raised.exception.failures[1][1].failures[0][1], sweep_error)
+            self.assertIs(construction_error.container, owner)
+            self.assertEqual(list(attempts.running.values()), [(owner, temporary)])
+            self.assertTrue(ended_within(int(pid_file.read_text())))
+
+            with mock.patch.object(run_matrix, "stop_processes_naming") as retry:
+                attempts.stop()
+            retry.assert_called_once_with(temporary)
+            self.assertFalse(attempts.running)
+        finally:
+            for owner in owners:
+                owner.close()
 
     def test_launches_take_turns_only_beside_other_jobs(self) -> None:
         def lock_dir(*captures, limit):

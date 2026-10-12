@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import shlex
@@ -455,8 +456,12 @@ def expand_capture(
         isinstance(timeout, bool)
         or not isinstance(timeout, (int, float))
         or timeout <= 0
+        or timeout > sys.float_info.max
+        or not math.isfinite(timeout)
     ):
-        raise ManifestError(f"{where}.timeout must be a positive number of seconds")
+        raise ManifestError(
+            f"{where}.timeout must be a finite positive number of seconds"
+        )
     arguments = ("--operating-system", operating_system, *extra)
     jobs = []
     for name in names:
@@ -727,12 +732,13 @@ def _raise_cleanup_failures(failures: Sequence[tuple[str, BaseException]]) -> No
     raise failure from failures[0][1]
 
 
-def end_attempt(container: ProcessContainer, temporary: Path) -> None:
+def end_attempt(container: ProcessContainer | None, temporary: Path) -> None:
     failures = []
-    try:
-        container.close()
-    except BaseException as error:
-        failures.append(("close process container", error))
+    if container is not None:
+        try:
+            container.close()
+        except BaseException as error:
+            failures.append(("close process container", error))
 
     # A browser outside the container still names the attempt's directory.
     try:
@@ -747,7 +753,7 @@ class Attempts:
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
-        self.running: dict[str, tuple[ProcessContainer, Path]] = {}
+        self.running: dict[str, tuple[ProcessContainer | None, Path]] = {}
         self.stopped = threading.Event()
 
     def add(self, name: str, container: ProcessContainer, temporary: Path) -> bool:
@@ -762,6 +768,13 @@ class Attempts:
         with self.lock:
             self.running.pop(name, None)
 
+    def retain(
+        self, name: str, container: ProcessContainer | None, temporary: Path
+    ) -> None:
+        """Keep failed cleanup owned even when batch cancellation has begun."""
+        with self.lock:
+            self.running[name] = (container, temporary)
+
     def stop(self) -> None:
         """Start no more attempts and end every running attempt's processes."""
         with self.lock:
@@ -773,6 +786,8 @@ class Attempts:
                 end_attempt(container, temporary)
             except BaseException as error:
                 failures.append((name, error))
+            else:
+                self.remove(name)
         _raise_cleanup_failures(failures)
 
 
@@ -823,14 +838,20 @@ def run_attempt(
     begin = time.perf_counter()
     detail = ""
     with log.open("wb") as output:
-        container = ProcessContainer(
-            job.command(sys.executable, netlog),
-            stdout=output,
-            stderr=subprocess.STDOUT,
-            env=environment,
-        )
+        container = None
         failure = None
         try:
+            try:
+                container = ProcessContainer(
+                    job.command(sys.executable, netlog),
+                    stdout=output,
+                    stderr=subprocess.STDOUT,
+                    env=environment,
+                )
+            except BaseException as error:
+                # Construction can fail after acquiring the native owner.
+                container = getattr(error, "container", None)
+                raise
             if attempts.add(name, container, temporary):
                 container.start()
             else:
@@ -851,6 +872,7 @@ def run_attempt(
             try:
                 end_attempt(container, temporary)
             except BaseException as cleanup:
+                attempts.retain(name, container, temporary)
                 if failure is not None:
                     _raise_cleanup_failures(
                         (("run attempt", failure), ("end attempt", cleanup))
@@ -920,9 +942,9 @@ def schedule(
 
     Jobs start in the given order: a job waits for a free slot, and an
     exclusive job also waits until nothing else runs and holds every slot.
-    Once `stopped` is set no job starts; Ctrl+C calls `on_interrupt`, which
-    should set it and end the running attempts. Jobs that never started are
-    reported as "not-run".
+    Once `stopped` is set no job starts; Ctrl+C or dispatch failure calls
+    `on_interrupt`, which should end the running attempts. A failed thread
+    start is reported as "failed". Other unstarted jobs are "not-run".
     """
     if limit < 1:
         raise ValueError("the concurrency limit must be positive")
@@ -932,6 +954,7 @@ def schedule(
     exclusive_running = False
     results: dict[int, JobResult] = {}
     threads: list[threading.Thread] = []
+    start_failure: tuple[int, BaseException] | None = None
 
     def worker(index: int, job: Job) -> None:
         nonlocal running, exclusive_running
@@ -950,7 +973,7 @@ def schedule(
             report(result)
 
     def dispatch() -> None:
-        nonlocal running, exclusive_running
+        nonlocal running, exclusive_running, start_failure
         for index, job in enumerate(jobs):
             with condition:
                 # Short waits keep Ctrl+C deliverable on Windows.
@@ -967,7 +990,21 @@ def schedule(
             thread = threading.Thread(target=worker, args=(index, job), daemon=True)
             # Listed first, so a Ctrl+C right after the start still joins it.
             threads.append(thread)
-            thread.start()
+            try:
+                thread.start()
+            except BaseException as error:
+                if thread.ident is None and not isinstance(error, KeyboardInterrupt):
+                    start_failure = (index, error)
+                    with condition:
+                        results[index] = JobResult(
+                            job,
+                            "failed",
+                            [Attempt(False, 0.0, repr(error), failure=error)],
+                        )
+                        running -= 1
+                        exclusive_running = False
+                        condition.notify_all()
+                raise
 
     def join() -> None:
         # Dispatch has ended, so a thread not started yet never will be; its
@@ -981,7 +1018,7 @@ def schedule(
     try:
         dispatch()
         join()
-    except KeyboardInterrupt:
+    except BaseException as dispatch_error:
         # Cancellation is established. Another Ctrl+C must not interrupt the
         # bounded owner cleanup or leave workers running outside its result.
         previous_handler = None
@@ -1004,9 +1041,25 @@ def schedule(
         finally:
             if previous_handler is not None:
                 signal.signal(signal.SIGINT, previous_handler)
+        if (
+            not isinstance(dispatch_error, KeyboardInterrupt)
+            and (start_failure is None or dispatch_error is not start_failure[1])
+        ):
+            if cleanup_error is not None:
+                _raise_cleanup_failures(
+                    (
+                        ("dispatch capture jobs", dispatch_error),
+                        ("stop capture jobs", cleanup_error),
+                    )
+                )
+            raise
 
     if cleanup_error is not None:
         failures = dict.fromkeys(interrupted_indices, cleanup_error)
+        if start_failure is not None:
+            # An unattributed callback failure still needs an outcome when
+            # no worker was running at the failed start.
+            failures[start_failure[0]] = cleanup_error
         if isinstance(cleanup_error, CleanupError):
             named_failures = {}
             matched_names = set()
