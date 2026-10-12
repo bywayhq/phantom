@@ -2346,14 +2346,20 @@ Independent source review confirms A253: a prune can clear an origin's
 address-family memory after a real connection starts. Each entry's empty
 observation precedes the final reset under a different mutex. A newly
 registered runtime key can also be omitted. The affected production blobs
-are unchanged at `cce7aca5`. Reproduction and the complete activity/reset
-repair remain pending. Stable all-empty pruning must still clear memory.
+are unchanged at `cce7aca5`. At `bf0af1f8`, both Windows and Linux run the
+two real-pool controls: the reopened origin loses its family while retaining
+its live connection lease, and the stable-empty companion passes. Formatting,
+strict linting and Rust 1.88 pass. The complete activity/reset repair is now
+composed for verification. Stable all-empty pruning must still clear memory.
 
 Separate exact and negotiated pools retain different setup and admission
 contracts. Declared template slots and send-time header hooks also serve
 different callers. Inspection does not justify merging these mechanisms or
-adding a crate. Complete redirect, retry and SSE interaction review remains
-in progress.
+adding a crate. The subsequent request lifecycle review reads eighteen whole
+files through URL and header preparation, redirects, retries, buffered replay
+and SSE ownership. It finds concrete import, test-placement and paragraph
+cleanup, with no new causal production defect. Cookie dependency matching,
+transport drivers and the remaining explicit source ranges stay open.
 
 ### Remaining raw stale-worker baseline
 

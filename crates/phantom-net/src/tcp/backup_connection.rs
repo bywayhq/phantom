@@ -63,8 +63,22 @@ impl AddressFamily {
 #[doc(hidden)]
 #[derive(Clone, Default)]
 pub struct AddressFamilyMemory {
-    family: Arc<Mutex<Option<AddressFamily>>>,
+    state: Arc<Mutex<FamilyState>>,
 }
+
+#[derive(Default)]
+struct FamilyState {
+    family: Option<AddressFamily>,
+    // A held snapshot keeps its identity alive, preventing wraparound or reuse.
+    activity: Arc<()>,
+}
+
+/// An observation of one origin's connection activity.
+///
+/// This is a seam for the facade's pools, not supported API.
+#[doc(hidden)]
+#[derive(Clone, Debug)]
+pub struct AddressFamilySnapshot(Arc<()>);
 
 impl AddressFamilyMemory {
     /// A memory with no family yet.
@@ -76,7 +90,10 @@ impl AddressFamilyMemory {
     /// The remembered family, if any.
     #[must_use]
     pub fn family(&self) -> Option<AddressFamily> {
-        *self.family.lock().unwrap_or_else(PoisonError::into_inner)
+        self.state
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .family
     }
 
     /// Remembers `family` as the first successful connection would.
@@ -84,11 +101,34 @@ impl AddressFamilyMemory {
         self.record(family, true);
     }
 
-    /// Forgets the family, as Firefox drops the connection entry of an
-    /// origin with no connection left at its next prune
-    /// (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:2614-2618`).
-    pub fn forget(&self) {
-        *self.family.lock().unwrap_or_else(PoisonError::into_inner) = None;
+    /// Captures activity before a pool inspects its entries for pruning.
+    ///
+    /// Capture under the registry lock that also publishes new entries.
+    #[must_use]
+    pub fn snapshot(&self) -> AddressFamilySnapshot {
+        let state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        AddressFamilySnapshot(Arc::clone(&state.activity))
+    }
+
+    /// Reports entry publication, new setup or slower-attempt adoption.
+    ///
+    /// Call under the registry or entry lock before publishing that activity.
+    pub fn mark_active(&self) {
+        self.state
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .activity = Arc::new(());
+    }
+
+    /// Forgets an empty origin only if its activity has not changed since
+    /// `snapshot`. A snapshot from another memory never clears this one.
+    ///
+    /// The comparison and reset are atomic with activity and connection records.
+    pub fn forget_if_unchanged(&self, snapshot: &AddressFamilySnapshot) {
+        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        if Arc::ptr_eq(&state.activity, &snapshot.0) {
+            state.family = None;
+        }
     }
 
     /// Records the family of a connection to `address` that just
@@ -98,9 +138,11 @@ impl AddressFamilyMemory {
     }
 
     fn record(&self, connected: AddressFamily, switched_family: bool) {
-        let mut family = self.family.lock().unwrap_or_else(PoisonError::into_inner);
-        if switched_family || family.is_none() {
-            *family = Some(connected);
+        let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        state.activity = Arc::new(());
+
+        if switched_family || state.family.is_none() {
+            state.family = Some(connected);
         }
     }
 }

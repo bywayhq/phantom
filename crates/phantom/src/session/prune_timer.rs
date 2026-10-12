@@ -8,7 +8,7 @@ use std::{
     time::Duration,
 };
 
-use phantom_net::tcp::AddressFamilyMemory;
+use phantom_net::tcp::{AddressFamilyMemory, AddressFamilySnapshot};
 use tokio::{task::AbortHandle, time::Instant};
 use tracing::debug;
 
@@ -30,6 +30,7 @@ pub(super) trait PrunedEntry: Send + Sync {
 
     /// The address family memory the key shares with the other runtimes'
     /// keys of its origin, for a key that remembers one.
+    /// The memory stays the same for this entry's lifetime.
     fn address_family(&self) -> Option<&Arc<AddressFamilyMemory>>;
 }
 
@@ -127,6 +128,13 @@ impl PruneTimer {
     pub(super) fn register(&self, entry: Weak<dyn PrunedEntry>) {
         let mut state = self.lock();
         state.entries.retain(|entry| entry.strong_count() > 0);
+
+        if let Some(entry) = entry.upgrade()
+            && let Some(family) = entry.address_family()
+        {
+            family.mark_active();
+        }
+
         state.entries.push(entry);
     }
 
@@ -177,39 +185,60 @@ impl PruneTimer {
 
     /// Prunes every pool key and sets the timer for the soonest expiry left.
     pub(super) fn fire(self: &Arc<Self>) {
-        let entries = {
+        let (entries, mut families) = {
             let mut state = self.lock();
             state.wake_at = None;
             state.task = None;
             state.entries.retain(|entry| entry.strong_count() > 0);
-            state.entries.clone()
+
+            let entries: Vec<_> = state.entries.iter().filter_map(Weak::upgrade).collect();
+            let mut families: Vec<(Arc<AddressFamilyMemory>, AddressFamilySnapshot, bool)> =
+                Vec::new();
+
+            // Registration uses this same lock, so a new runtime entry
+            // either joins this snapshot or invalidates its family token.
+            for entry in &entries {
+                let Some(family) = entry.address_family() else {
+                    continue;
+                };
+
+                if !families
+                    .iter()
+                    .any(|(memory, _, _)| Arc::ptr_eq(memory, family))
+                {
+                    families.push((Arc::clone(family), family.snapshot(), true));
+                }
+            }
+
+            (entries, families)
         };
         let now = Instant::now();
         let mut next: Option<Duration> = None;
-        // Each memory, and whether every live key that shares it is empty.
-        let mut families: Vec<(Arc<AddressFamilyMemory>, bool)> = Vec::new();
-        for entry in entries.iter().filter_map(Weak::upgrade) {
+        for entry in &entries {
             let pruned = entry.prune(now, self.http1_limit);
             next = match (next, pruned.next) {
                 (Some(soonest), Some(left)) => Some(soonest.min(left)),
                 (soonest, left) => soonest.or(left),
             };
+
             let Some(family) = entry.address_family() else {
                 continue;
             };
-            match families
+
+            if let Some((_, _, empty)) = families
                 .iter_mut()
-                .find(|(memory, _)| Arc::ptr_eq(memory, family))
+                .find(|(memory, _, _)| Arc::ptr_eq(memory, family))
             {
-                Some((_, empty)) => *empty &= pruned.empty,
-                None => families.push((Arc::clone(family), pruned.empty)),
+                *empty &= pruned.empty;
             }
         }
-        for (memory, empty) in families {
+
+        for (memory, snapshot, empty) in families {
             if empty {
-                memory.forget();
+                memory.forget_if_unchanged(&snapshot);
             }
         }
+
         let Some(next) = next else {
             return;
         };

@@ -5,7 +5,7 @@ use phantom_net::tcp::AddressFamily;
 use phantom_profile::{ClientProfile, browser::firefox};
 use tokio::time::timeout;
 
-use super::super::{Http1ConnectionMode, Http1Pool, PoolKey};
+use super::super::{Checkout, Http1ConnectionMode, Http1Pool, PoolKey};
 use crate::{Client, HttpProtocol, Route, authority::Endpoint, session::prune_timer::PruneTimer};
 use fixture::{PruneRace, TestResult, WAIT};
 
@@ -14,6 +14,7 @@ mod fixture;
 #[derive(Clone, Copy)]
 enum OriginState {
     Reconnected,
+    Pending,
     Empty,
 }
 
@@ -25,6 +26,11 @@ async fn pruning_keeps_the_family_of_a_connection_opened_after_its_empty_snapsho
 #[tokio::test]
 async fn pruning_forgets_the_family_when_the_origin_stays_empty() -> TestResult {
     check_family(OriginState::Empty).await
+}
+
+#[tokio::test]
+async fn pruning_keeps_the_family_of_setup_reserved_after_its_empty_snapshot() -> TestResult {
+    check_family(OriginState::Pending).await
 }
 
 async fn check_family(state: OriginState) -> TestResult {
@@ -75,6 +81,22 @@ async fn check_family(state: OriginState) -> TestResult {
             return Err("origin was not empty after actual expired-socket closure".into());
         }
 
+        let pending = if matches!(state, OriginState::Pending) {
+            let Checkout::Reserved(reservation) = origin.connections.checkout(false) else {
+                return Err("empty origin did not reserve new connection setup".into());
+            };
+
+            if origin.connections.lock().leased != 1
+                || origin.connections.family.family() != Some(AddressFamily::Ipv4)
+            {
+                return Err("pending setup did not retain the priming family and reservation".into());
+            }
+
+            Some(reservation)
+        } else {
+            None
+        };
+
         let held = match state {
             OriginState::Reconnected => {
                 let response = client.request(HttpProtocol::Http1, Method::GET, &format!("{url}/held"))?
@@ -96,7 +118,7 @@ async fn check_family(state: OriginState) -> TestResult {
 
                 Some(response)
             }
-            OriginState::Empty => None,
+            OriginState::Pending | OriginState::Empty => None,
         };
 
         race.resume()?;
@@ -112,6 +134,15 @@ async fn check_family(state: OriginState) -> TestResult {
                     Ok(())
                 }
             }
+            OriginState::Pending => {
+                if origin.connections.lock().leased != 1 {
+                    Err("pending setup ended before the family target".into())
+                } else if origin.connections.family.family() != Some(AddressFamily::Ipv4) {
+                    Err("prune forgot the family of actual pending connection setup".into())
+                } else {
+                    Ok(())
+                }
+            }
             OriginState::Empty => {
                 if origin.connections.family.family().is_some() {
                     Err("prune retained the family of an origin that stayed empty".into())
@@ -122,6 +153,7 @@ async fn check_family(state: OriginState) -> TestResult {
         };
 
         drop(held);
+        drop(pending);
         target
     }).await;
     let outcome = match operation {

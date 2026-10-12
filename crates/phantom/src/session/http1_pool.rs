@@ -981,6 +981,8 @@ impl EntryConnections {
             let mut set = self.lock();
             let id = set.next_spare;
             set.next_spare = set.next_spare.wrapping_add(1);
+
+            self.family.mark_active();
             set.spares.push(Spare {
                 id,
                 progress,
@@ -1065,6 +1067,11 @@ impl EntryConnections {
         } else {
             set.idle.pop().map(|idle| idle.connection)
         };
+
+        if idle.is_none() {
+            self.family.mark_active();
+        }
+
         set.leased += 1;
         let reservation = Reservation {
             connections: Arc::clone(self),

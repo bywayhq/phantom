@@ -1635,6 +1635,8 @@ impl EntryConnections {
             let mut state = self.lock();
             let id = state.next_spare;
             state.next_spare = state.next_spare.wrapping_add(1);
+
+            self.family.mark_active();
             state.spares.push(Spare {
                 id,
                 progress,
@@ -1860,6 +1862,7 @@ impl EntryConnections {
                 }))
             }
             None => {
+                self.family.mark_active();
                 state.connecting += 1;
                 Checkout::Reserved(Reservation {
                     connections: Arc::clone(self),

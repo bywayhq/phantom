@@ -457,6 +457,58 @@ fn the_first_connection_sets_the_family_and_only_a_switch_replaces_it() {
     assert_eq!(memory.family(), Some(AddressFamily::Ipv6));
 
     let shared = memory.clone();
-    shared.forget();
+    shared.forget_if_unchanged(&shared.snapshot());
     assert_eq!(memory.family(), None);
+}
+
+#[test]
+fn setup_activity_keeps_the_family_before_a_connection_is_recorded() {
+    let memory = AddressFamilyMemory::new();
+    memory.remember(AddressFamily::Ipv4);
+    let snapshot = memory.snapshot();
+
+    memory.mark_active();
+    memory.forget_if_unchanged(&snapshot);
+
+    assert_eq!(memory.family(), Some(AddressFamily::Ipv4));
+
+    memory.forget_if_unchanged(&memory.snapshot());
+    assert_eq!(memory.family(), None);
+}
+
+#[test]
+fn recording_the_same_family_through_a_clone_invalidates_the_snapshot() {
+    let memory = AddressFamilyMemory::new();
+    memory.record_connection(&v4(1), false);
+    let snapshot = memory.snapshot();
+    let shared = memory.clone();
+
+    shared.record_connection(&v4(2), false);
+    memory.forget_if_unchanged(&snapshot);
+
+    assert_eq!(memory.family(), Some(AddressFamily::Ipv4));
+}
+
+#[test]
+fn a_family_switch_invalidates_the_previous_snapshot() {
+    let memory = AddressFamilyMemory::new();
+    memory.record_connection(&v4(1), false);
+    let snapshot = memory.snapshot();
+
+    memory.record_connection(&v6(1), true);
+    memory.forget_if_unchanged(&snapshot);
+
+    assert_eq!(memory.family(), Some(AddressFamily::Ipv6));
+}
+
+#[test]
+fn another_origins_snapshot_does_not_clear_a_remembered_family() {
+    let memory = AddressFamilyMemory::new();
+    memory.remember(AddressFamily::Ipv6);
+    let other = AddressFamilyMemory::new();
+    let snapshot = other.snapshot();
+
+    memory.forget_if_unchanged(&snapshot);
+
+    assert_eq!(memory.family(), Some(AddressFamily::Ipv6));
 }

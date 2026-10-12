@@ -14,6 +14,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Make address-family pruning conditional on connection activity. Migrate:
+  integrations using the hidden `AddressFamilyMemory::forget` seam must
+  capture `snapshot()` under the registry lock before inspecting entries and call
+  `forget_if_unchanged(&snapshot)` after finding them empty. Call
+  `mark_active()` under the registry or entry lock before publishing new
+  entries, setup reservations or slower attempts.
+
 - Require Rust 1.88 for the standalone Quinn and H3 forks. Migrate: use
   Rust 1.88 or newer and update exact Quinn/proto pins from `-phantom.4`
   to `-phantom.5`, and H3 family pins from `-phantom.13` to `-phantom.14`.
@@ -2494,6 +2501,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   rejected early data each make one for their retry.
 
 ### Fixed
+
+- Preserve Firefox TCP address-family memory when an origin becomes active
+  during idle pruning. New setup, runtime entries and slower attempts
+  invalidate the pruning observation. Origins that stay empty still forget
+  their remembered family.
 
 - Retain local QUIC response failures in the ECH capture server. Unexpected
   response errors keep their original type and cause through capture shutdown.
