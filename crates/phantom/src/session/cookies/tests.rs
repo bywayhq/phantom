@@ -603,6 +603,86 @@ fn trustworthy_origin_may_overlay_its_own_secure_cookie() -> Result<(), Box<dyn 
     Ok(())
 }
 
+#[test]
+fn schemeful_partitions_keep_same_name_cookies_and_replace_only_their_own()
+-> Result<(), Box<dyn std::error::Error>> {
+    let jar = CookieJar::default();
+    for (url, value) in [
+        ("http://app.localhost/", "http"),
+        ("https://app.localhost/", "https"),
+    ] {
+        jar.set_cookie(
+            url,
+            &format!("id={value}-host; Secure; Partitioned; Path=/"),
+        )?;
+        jar.set_cookie(
+            url,
+            &format!("id={value}-domain; Secure; Partitioned; Domain=app.localhost; Path=/"),
+        )?;
+    }
+
+    assert_eq!(jar.len(), 4);
+    assert_eq!(
+        send(&jar, "http://app.localhost/")?.as_deref(),
+        Some("id=http-host; id=http-domain")
+    );
+    assert_eq!(
+        send(&jar, "https://app.localhost/")?.as_deref(),
+        Some("id=https-host; id=https-domain")
+    );
+
+    jar.set_cookie(
+        "http://app.localhost/",
+        "id=updated; Secure; Partitioned; Path=/",
+    )?;
+
+    assert_eq!(jar.len(), 4);
+    assert_eq!(
+        send(&jar, "http://app.localhost/")?.as_deref(),
+        Some("id=updated; id=http-domain")
+    );
+    assert_eq!(
+        send(&jar, "https://app.localhost/")?.as_deref(),
+        Some("id=https-host; id=https-domain")
+    );
+    Ok(())
+}
+
+#[test]
+fn expired_partitioned_cookies_delete_only_their_schemeful_partition()
+-> Result<(), Box<dyn std::error::Error>> {
+    let jar = CookieJar::default();
+    let host = "id=host; Secure; Partitioned; Path=/";
+    let domain = "id=domain; Secure; Partitioned; Domain=app.localhost; Path=/";
+    jar.set_cookie("https://app.localhost/", host)?;
+    jar.set_cookie("https://app.localhost/", domain)?;
+
+    for cookie in [host, domain] {
+        jar.set_cookie("http://app.localhost/", &format!("{cookie}; Max-Age=0"))?;
+    }
+
+    assert_eq!(jar.len(), 2);
+    assert_eq!(
+        send(&jar, "https://app.localhost/")?.as_deref(),
+        Some("id=host; id=domain")
+    );
+    assert_eq!(send(&jar, "http://app.localhost/")?, None);
+
+    jar.set_cookie("http://app.localhost/", host)?;
+    jar.set_cookie("http://app.localhost/", domain)?;
+    for cookie in [host, domain] {
+        jar.set_cookie("https://app.localhost/", &format!("{cookie}; Max-Age=0"))?;
+    }
+
+    assert_eq!(jar.len(), 2);
+    assert_eq!(
+        send(&jar, "http://app.localhost/")?.as_deref(),
+        Some("id=host; id=domain")
+    );
+    assert_eq!(send(&jar, "https://app.localhost/")?, None);
+    Ok(())
+}
+
 fn rejected(result: Result<(), CookieError>, message: &'static str) -> CookieError {
     match result {
         Ok(()) => panic!("{message}"),
