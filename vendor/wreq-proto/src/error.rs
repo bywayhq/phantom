@@ -292,11 +292,7 @@ impl Error {
     }
 
     pub(super) fn new_h2(cause: ::http2::Error) -> Error {
-        let kind = if cause.is_io() {
-            Kind::Io
-        } else {
-            Kind::Http2
-        };
+        let kind = if cause.is_io() { Kind::Io } else { Kind::Http2 };
 
         Error::new(kind).with(cause)
     }

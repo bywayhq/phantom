@@ -1,20 +1,17 @@
 diff --git a/src/error.rs b/src/error.rs
-index 28f6ab55..a8d1f8e1 100644
+index 28f6ab55..2a31fe1f 100644
 --- a/src/error.rs
 +++ b/src/error.rs
-@@ -292,11 +292,13 @@ impl Error {
+@@ -292,11 +292,9 @@ impl Error {
      }
  
      pub(super) fn new_h2(cause: ::http2::Error) -> Error {
 -        if cause.is_io() {
 -            Error::new_io(cause.into_io().expect("http2::Error::is_io"))
-+        let kind = if cause.is_io() {
-+            Kind::Io
-         } else {
+-        } else {
 -            Error::new(Kind::Http2).with(cause)
 -        }
-+            Kind::Http2
-+        };
++        let kind = if cause.is_io() { Kind::Io } else { Kind::Http2 };
 +
 +        Error::new(kind).with(cause)
      }
@@ -49,10 +46,10 @@ index f7b9210e..d78a3840 100644
 +mod tests;
 diff --git a/src/proto/http2/tests.rs b/src/proto/http2/tests.rs
 new file mode 100644
-index 00000000..6ab6d785
+index 00000000..d6931a0e
 --- /dev/null
 +++ b/src/proto/http2/tests.rs
-@@ -0,0 +1,217 @@
+@@ -0,0 +1,220 @@
 +use std::{
 +    error::Error as StdError,
 +    fmt,
@@ -137,7 +134,9 @@ index 00000000..6ab6d785
 +        .source()
 +        .and_then(|cause| cause.downcast_ref::<http2::Error>())
 +        .expect("public HTTP/2 error owner missing");
-+    let original = public_h2.get_io().expect("public original I/O cause missing");
++    let original = public_h2
++        .get_io()
++        .expect("public original I/O cause missing");
 +    let public_source = public
 +        .find_source::<io::Error>()
 +        .expect("public source traversal lost the original I/O cause");
@@ -192,7 +191,8 @@ index 00000000..6ab6d785
 +            assert_eq!(request.uri().path(), "/original-cause");
 +            assert_eq!(request.method(), http::Method::GET);
 +            assert!(request.body().is_end_stream());
-+            arm.send(fault).expect("original read fault receiver closed");
++            arm.send(fault)
++                .expect("original read fault receiver closed");
 +            (connection, request, response)
 +        };
 +        let (driver, peer) = tokio::join!(connection, peer);

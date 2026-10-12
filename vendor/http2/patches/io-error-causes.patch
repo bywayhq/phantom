@@ -10,10 +10,10 @@ index 16c06ac0..155b849d 100644
 +mod io_causes;
 diff --git a/src/client/tests/io_causes.rs b/src/client/tests/io_causes.rs
 new file mode 100644
-index 00000000..425e0bbf
+index 00000000..e2721ed7
 --- /dev/null
 +++ b/src/client/tests/io_causes.rs
-@@ -0,0 +1,190 @@
+@@ -0,0 +1,191 @@
 +use std::{
 +    fmt,
 +    future::Future,
@@ -102,7 +102,8 @@ index 00000000..425e0bbf
 +            accept_client_handshake(&mut peer_io).await;
 +            read_request_headers(&mut peer_io, 1).await;
 +            read_request_headers(&mut peer_io, 3).await;
-+            arm.send(fault).expect("original read fault receiver closed");
++            arm.send(fault)
++                .expect("original read fault receiver closed");
 +            peer_io
 +        };
 +        let (driver, peer_io) = tokio::join!(connection, peer);

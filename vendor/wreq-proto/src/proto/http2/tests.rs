@@ -82,7 +82,9 @@ fn assert_original_sources<'a>(public: &'a Error, upgraded: &io::Error) -> &'a i
         .source()
         .and_then(|cause| cause.downcast_ref::<http2::Error>())
         .expect("public HTTP/2 error owner missing");
-    let original = public_h2.get_io().expect("public original I/O cause missing");
+    let original = public_h2
+        .get_io()
+        .expect("public original I/O cause missing");
     let public_source = public
         .find_source::<io::Error>()
         .expect("public source traversal lost the original I/O cause");
@@ -137,7 +139,8 @@ async fn failed_connection(fault: io::Error) -> [http2::Error; 2] {
             assert_eq!(request.uri().path(), "/original-cause");
             assert_eq!(request.method(), http::Method::GET);
             assert!(request.body().is_end_stream());
-            arm.send(fault).expect("original read fault receiver closed");
+            arm.send(fault)
+                .expect("original read fault receiver closed");
             (connection, request, response)
         };
         let (driver, peer) = tokio::join!(connection, peer);

@@ -86,7 +86,8 @@ async fn failed_connection(fault: io::Error) -> [crate::Error; 3] {
             accept_client_handshake(&mut peer_io).await;
             read_request_headers(&mut peer_io, 1).await;
             read_request_headers(&mut peer_io, 3).await;
-            arm.send(fault).expect("original read fault receiver closed");
+            arm.send(fault)
+                .expect("original read fault receiver closed");
             peer_io
         };
         let (driver, peer_io) = tokio::join!(connection, peer);
