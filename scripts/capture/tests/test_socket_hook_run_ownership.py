@@ -153,7 +153,9 @@ class RunOwners:
 
     async def call(self, scenario, extra=()):
         try:
-            self.result = await hooks.run_once(scenario, Path("controlled-browser"), extra)
+            self.result = await hooks.run_once(
+                scenario, Path("controlled-browser"), extra
+            )
         except BaseException as error:
             self.primary = error
             raise
@@ -248,9 +250,11 @@ class SocketHookRunOwnershipTests(unittest.IsolatedAsyncioTestCase):
 
             return await observe_server(callback, host, selected_port, **kwargs)
 
-        with patch.object(hooks.asyncio, "start_server", collide):
-            with self.assertRaises(OSError) as raised:
-                await owners.call(hooks.SCENARIOS["happy-eyeballs"])
+        with (
+            patch.object(hooks.asyncio, "start_server", collide),
+            self.assertRaises(OSError) as raised,
+        ):
+            await owners.call(hooks.SCENARIOS["happy-eyeballs"])
 
         self.assertEqual(len(bind_errors), 1)
         self.assertIs(raised.exception, bind_errors[0])
@@ -271,9 +275,11 @@ class SocketHookRunOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 profile_errors.append(error)
                 raise
 
-        with patch.object(hooks.tempfile, "mkdtemp", blocked_profile):
-            with self.assertRaises(OSError) as raised:
-                await owners.call(hooks.SCENARIOS["single"])
+        with (
+            patch.object(hooks.tempfile, "mkdtemp", blocked_profile),
+            self.assertRaises(OSError) as raised,
+        ):
+            await owners.call(hooks.SCENARIOS["single"])
 
         self.assertEqual(len(profile_errors), 1)
         self.assertIs(raised.exception, profile_errors[0])
@@ -310,7 +316,9 @@ class SocketHookRunOwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(owners.removed, owners.profiles)
         self.assertTrue(all(not profile.exists() for profile in owners.profiles))
 
-    async def test_start_stop_and_independent_wait_profile_failures_keep_original_causes(self):
+    async def test_start_stop_and_independent_wait_profile_failures_keep_original_causes(
+        self,
+    ):
         scenario = self.dual_scenario()
         owners = self.owners()
         owners.start_error = LookupError("controlled original browser start failure")
@@ -356,7 +364,9 @@ class SocketHookRunOwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(owners.removed, owners.profiles)
         self.assertTrue(all(not profile.exists() for profile in owners.profiles))
 
-    async def test_repeated_cancellation_keeps_completed_listener_and_browser_failures(self):
+    async def test_repeated_cancellation_keeps_completed_listener_and_browser_failures(
+        self,
+    ):
         scenario = self.dual_scenario()
         owners = self.owners()
         owners.start_error = LookupError("controlled original browser start failure")
@@ -401,7 +411,9 @@ class SocketHookRunOwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(owners.removed, owners.profiles)
         self.assertTrue(all(not path.exists() for path in owners.profiles))
 
-    async def test_cancelled_held_start_retains_worker_until_actual_stop_and_removal(self):
+    async def test_cancelled_held_start_retains_worker_until_actual_stop_and_removal(
+        self,
+    ):
         owners = self.owners()
         owners.hold_start = True
         owners.stop_error = OSError("controlled late original browser stop failure")
@@ -418,7 +430,9 @@ class SocketHookRunOwnershipTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(hooks, "_RUN_CLEANUP_SECONDS", 0.05):
             owners.caller = asyncio.create_task(owners.call(hooks.SCENARIOS["single"]))
             await asyncio.wait_for(owners.started.wait(), DEADLINE)
-            owners.caller.cancel("controlled pending original browser start cancellation")
+            owners.caller.cancel(
+                "controlled pending original browser start cancellation"
+            )
             with self.assertRaises(asyncio.CancelledError):
                 await asyncio.wait_for(owners.caller, DEADLINE)
 
@@ -491,9 +505,11 @@ class SocketHookRunOwnershipTests(unittest.IsolatedAsyncioTestCase):
 
             return actual_submit(executor, function, *args)
 
-        with patch.object(owners.loop, "run_in_executor", submit):
-            with self.assertRaises(RuntimeError) as raised:
-                await owners.call(hooks.SCENARIOS["single"])
+        with (
+            patch.object(owners.loop, "run_in_executor", submit),
+            self.assertRaises(RuntimeError) as raised,
+        ):
+            await owners.call(hooks.SCENARIOS["single"])
 
         self.assertIs(raised.exception, failure)
         self.assert_closed(owners)
@@ -535,4 +551,3 @@ class SocketHookRunOwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.assert_closed(owners)
         self.assertFalse(owners.profiles)
         self.assertIsNone(owners.browser)
-

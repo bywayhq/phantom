@@ -2523,6 +2523,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Keep socket-hook cleanup running after partial startup fails. Retain the
+  initiating error and independent listener, browser and profile failures.
+
 - Preserve local HTTP/3 callback and held-response errors in race captures,
   including errors after the page reports completion. Stop owned callbacks
   before returning the capture result.

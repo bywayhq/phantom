@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from .browser_failures import raise_browser_failures
 from .browser_launch import (
     CLIENT_NAMES,
     DESKTOP_CHROMIUM_BROWSERS,
@@ -47,6 +48,8 @@ FORMAT = "phantom-socket-hooks-v1"
 AGENT = Path(__file__).with_name("socket_hooks.js")
 NETWORK_SERVICE_SWITCH = "--utility-sub-type=network.mojom.NetworkService"
 MAX_REQUEST_HEAD = 64 * 1024
+# Existing profile cleanup permits two 60-second commands and a 5-second join.
+_RUN_CLEANUP_SECONDS = 150.0
 # A name that public DNS resolves to 127.0.0.1, so a lookup leaves the
 # browser's resolver while the connection stays on loopback.
 LOOKUP_HOST = "127.0.0.1.nip.io"
@@ -786,41 +789,141 @@ async def run_once(
     scenario: Scenario, executable: Path, extra: Sequence[str]
 ) -> tuple[RunResult, list[str]]:
     origin = Origin(scenario)
-    server = await asyncio.start_server(
-        origin.handle, "127.0.0.1", 0, limit=MAX_REQUEST_HEAD
-    )
-    origin.port = server.sockets[0].getsockname()[1]
+    server = None
     target = None
-    if scenario.target_host is not None:
-        target = await asyncio.start_server(
-            origin.handle, "127.0.0.1", 0, limit=MAX_REQUEST_HEAD
-        )
-        origin.target_port = target.sockets[0].getsockname()[1]
-        if not localhost_ipv6_free(origin.target_port):
-            server.close()
-            target.close()
-            raise RuntimeError(f"[::1]:{origin.target_port} is in use")
-    url = f"http://127.0.0.1:{origin.port}/"
-    profile = Path(tempfile.mkdtemp(prefix="phantom-capture-profile-"))
-    arguments = chromium_arguments(profile, url, headless=True, extra=extra)
-    arguments = merged_disabled_features(arguments, scenario.disabled_features)
-    config = {"slow_ipv6_refusal": scenario.slow_ipv6_refusal}
-    browser = HookedBrowser(executable, arguments, profile, config)
+    profile = None
+    worker = None
+    primary = None
+    cleanup = []
     timed_out = False
+
     try:
-        async with server:
-            await asyncio.to_thread(browser.start)
+        server = await asyncio.start_server(
+            origin.handle, "127.0.0.1", 0, limit=MAX_REQUEST_HEAD, start_serving=False
+        )
+        origin.port = server.sockets[0].getsockname()[1]
+        await server.start_serving()
+
+        if scenario.target_host is not None:
+            target = await asyncio.start_server(
+                origin.handle,
+                "127.0.0.1",
+                0,
+                limit=MAX_REQUEST_HEAD,
+                start_serving=False,
+            )
+            origin.target_port = target.sockets[0].getsockname()[1]
+            await target.start_serving()
+
+            if not localhost_ipv6_free(origin.target_port):
+                raise RuntimeError(f"[::1]:{origin.target_port} is in use")
+
+        url = f"http://127.0.0.1:{origin.port}/"
+        profile = Path(tempfile.mkdtemp(prefix="phantom-capture-profile-"))
+        arguments = chromium_arguments(profile, url, headless=True, extra=extra)
+        arguments = merged_disabled_features(arguments, scenario.disabled_features)
+        config = {"slow_ipv6_refusal": scenario.slow_ipv6_refusal}
+        browser = HookedBrowser(executable, arguments, profile, config)
+        worker = _SocketHookBrowserOwner(browser, profile)
+        await worker.start()
+
+        try:
+            await asyncio.wait_for(origin.done.wait(), scenario.limit_seconds)
+        except asyncio.TimeoutError:
+            timed_out = True
+        await asyncio.sleep(1.0)
+    except BaseException as error:
+        primary = error
+
+    deadline = asyncio.get_running_loop().time() + _RUN_CLEANUP_SECONDS
+    if worker is not None:
+        worker.stop_requested.set()
+
+    listeners = [listener for listener in (target, server) if listener is not None]
+    for listener in listeners:
+        try:
+            listener.close()
+        except BaseException as error:
+            cleanup.append(error)
+
+    for listener in listeners:
+        operation = None
+        try:
+            operation = listener.wait_closed()
+            waiter = asyncio.create_task(operation)
+        except BaseException as error:
+            cleanup.append(error)
+            if operation is not None:
+                try:
+                    operation.close()
+                except BaseException as close_error:
+                    cleanup.append(close_error)
+            continue
+
+        requested = False
+        while not waiter.done():
+            remaining = max(0.0, deadline - asyncio.get_running_loop().time())
             try:
-                await asyncio.wait_for(origin.done.wait(), scenario.limit_seconds)
-            except asyncio.TimeoutError:
-                timed_out = True
-            await asyncio.sleep(1.0)
-    finally:
-        await asyncio.to_thread(browser.stop)
-        shutil.rmtree(profile, ignore_errors=True)
-        if target is not None:
-            target.close()
-            await target.wait_closed()
+                _, pending = await asyncio.wait((waiter,), timeout=remaining)
+            except BaseException as error:
+                interrupted = isinstance(
+                    error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+                )
+                if primary is None and interrupted:
+                    primary = error
+                else:
+                    cleanup.append(error)
+
+                if interrupted and asyncio.get_running_loop().time() < deadline:
+                    continue
+
+                requested = not waiter.done() and waiter.cancel()
+                break
+
+            if pending:
+                cleanup.append(
+                    asyncio.TimeoutError(
+                        "socket hook listener cleanup deadline elapsed"
+                    )
+                )
+                requested = not waiter.done() and waiter.cancel()
+                break
+
+        if requested and not waiter.done():
+            try:
+                await asyncio.wait((waiter,), timeout=0)
+            except BaseException as error:
+                if primary is None and isinstance(
+                    error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+                ):
+                    primary = error
+                else:
+                    cleanup.append(error)
+
+        if not waiter.done():
+            cleanup.append(
+                _SocketHookListenerPending(listener, waiter, requested, primary)
+            )
+            continue
+
+        try:
+            waiter.result()
+        except asyncio.CancelledError as error:
+            if not requested:
+                cleanup.append(error)
+        except BaseException as error:
+            cleanup.append(error)
+
+    if worker is not None and worker.future is not None:
+        cleanup.extend(await worker.finish(deadline, primary))
+    elif profile is not None:
+        try:
+            shutil.rmtree(profile)
+        except BaseException as error:
+            cleanup.append(error)
+
+    raise_browser_failures(primary, tuple(cleanup))
+
     result = RunResult(
         browser.snapshot(),
         origin,
@@ -830,6 +933,181 @@ async def run_once(
         browser.frida_version,
     )
     return result, arguments
+
+
+class _SocketHookListenerPending(RuntimeError):
+    def __init__(
+        self,
+        listener: asyncio.Server,
+        waiter: asyncio.Task[None],
+        requested: bool,
+        primary: BaseException | None,
+    ) -> None:
+        self.listener = listener
+        self.waiter = waiter
+        self.requested = requested
+        self.primary = primary
+        self.error: BaseException | None = None
+        waiter.add_done_callback(self._finished)
+        super().__init__("socket hook listener waiter has not finished cleanup")
+
+    def _finished(self, completed: asyncio.Task[None]) -> None:
+        try:
+            completed.result()
+        except asyncio.CancelledError as error:
+            if not self.requested:
+                self.error = error
+        except BaseException as error:
+            self.error = error
+
+        if self.error is not None:
+            completed.get_loop().call_exception_handler(
+                {
+                    "message": "socket hook listener cleanup failed after caller exit",
+                    "exception": self.error,
+                    "primary": self.primary,
+                    "future": completed,
+                    "owner": self,
+                }
+            )
+
+
+class _SocketHookBrowserOwner:
+    """Keep blocking start, stop and profile removal in one owned worker."""
+
+    def __init__(self, browser: HookedBrowser, profile: Path) -> None:
+        self.browser = browser
+        self.profile = profile
+        self.loop = asyncio.get_running_loop()
+        self.started = self.loop.create_future()
+        self.stop_requested = threading.Event()
+        self.future: asyncio.Future[None] | None = None
+        self.start_error: BaseException | None = None
+        self.notification_error: BaseException | None = None
+        self.stop_error: BaseException | None = None
+        self.profile_error: BaseException | None = None
+
+    async def start(self) -> None:
+        self.future = self.loop.run_in_executor(None, self._run)
+        await asyncio.wait(
+            (self.started, self.future), return_when=asyncio.FIRST_COMPLETED
+        )
+        if self.start_error is not None:
+            raise self.start_error
+
+        if self.notification_error is not None:
+            raise self.notification_error
+
+        if self.future.done():
+            self.future.result()
+
+    def _run(self) -> None:
+        try:
+            try:
+                self.browser.start()
+            except BaseException as error:
+                self.start_error = error
+
+            try:
+                self.loop.call_soon_threadsafe(self.started.set_result, None)
+            except BaseException as error:
+                self.notification_error = error
+
+            if self.start_error is None and self.notification_error is None:
+                self.stop_requested.wait()
+        finally:
+            try:
+                self.browser.stop()
+            except BaseException as error:
+                self.stop_error = error
+
+            try:
+                shutil.rmtree(self.profile)
+            except BaseException as error:
+                self.profile_error = error
+
+    def failures(self, primary: BaseException | None) -> tuple[BaseException, ...]:
+        errors = [
+            self.start_error,
+            self.notification_error,
+            self.stop_error,
+            self.profile_error,
+        ]
+
+        try:
+            self.future.result()
+        except BaseException as error:
+            errors.append(error)
+
+        return tuple(
+            error for error in errors if error is not None and error is not primary
+        )
+
+    async def finish(
+        self, deadline: float, primary: BaseException | None
+    ) -> tuple[BaseException, ...]:
+        try:
+            remaining = max(0.0, deadline - self.loop.time())
+            _, pending = await asyncio.wait((self.future,), timeout=remaining)
+        except BaseException as error:
+            if self.future.done():
+                failures = self.failures(primary)
+                if error is not primary and all(
+                    error is not failure for failure in failures
+                ):
+                    return (*failures, error)
+
+                return failures
+
+            return self._retain_pending(error, primary)
+
+        if pending:
+            error = asyncio.TimeoutError("socket hook browser cleanup deadline elapsed")
+            return self._retain_pending(error, primary)
+
+        return self.failures(primary)
+
+    def _retain_pending(
+        self, error: BaseException, primary: BaseException | None
+    ) -> tuple[BaseException, ...]:
+        pending = _SocketHookWorkerPending(self, error)
+        interrupted = isinstance(
+            error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+        )
+        initiating = primary
+        if initiating is None and interrupted:
+            initiating = error
+
+        self.future.add_done_callback(
+            lambda completed: self._report_late_failure(completed, initiating)
+        )
+        if interrupted and error is not primary:
+            return (error, pending)
+
+        return (pending,)
+
+    def _report_late_failure(
+        self, completed: asyncio.Future[None], primary: BaseException | None
+    ) -> None:
+        failures = self.failures(primary)
+        if failures:
+            self.loop.call_exception_handler(
+                {
+                    "message": "socket hook browser cleanup failed after caller exit",
+                    "exception": failures[0],
+                    "failures": failures,
+                    "primary": primary,
+                    "future": completed,
+                    "owner": self,
+                }
+            )
+
+
+class _SocketHookWorkerPending(RuntimeError):
+    def __init__(self, owner: _SocketHookBrowserOwner, error: BaseException) -> None:
+        self.owner = owner
+        self.__cause__ = error
+        super().__init__("socket hook browser worker has not finished cleanup")
 
 
 def portable_argv(argv: Sequence[str] | None, profile_text: str) -> str:

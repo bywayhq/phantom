@@ -230,7 +230,8 @@ class LaunchTests(unittest.TestCase):
         self.assertEqual(fields["hook_agent_sha256"], file_digest(AGENT))
         self.assertEqual(fields["hook_agent_extension_sha256"], file_digest(EXTENSION))
         self.assertEqual(
-            fields["capture_tool_sha256"], file_digest(Path(firefox_socket_hooks.__file__))
+            fields["capture_tool_sha256"],
+            file_digest(Path(firefox_socket_hooks.__file__)),
         )
         self.assertEqual(fields["decoder_sha256"], file_digest(DECODER))
 
