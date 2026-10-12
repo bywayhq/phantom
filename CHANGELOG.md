@@ -2503,6 +2503,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Keep proxy capture listeners and connection tasks owned through failure
+  and cleanup. Preserve local errors before returning capture results,
+  reject oversized completed request headers and non-finite durations,
+  and propagate unexpected TLS and connection read failures.
 - Keep stale-connection test workers owned through caller failure, Drop
   and timeout. Retain completed serving failures alongside caller errors.
 

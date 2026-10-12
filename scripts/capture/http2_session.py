@@ -366,7 +366,7 @@ class PlainChannel:
     async def read_raw(self) -> bytes:
         try:
             return await self.reader.read(READ_SIZE)
-        except ConnectionError:
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
             return b""
 
     async def read(self) -> bytes:
@@ -401,20 +401,28 @@ class TlsChannel(PlainChannel):
         self.outgoing = ssl.MemoryBIO()
         self.tls = context.wrap_bio(self.incoming, self.outgoing, server_side=True)
         self.record.client_hello = ClientHello()
+        self.peer_handshake_failure: BaseException | None = None
 
     async def handshake(self) -> None:
         while True:
             try:
                 self.tls.do_handshake()
+            except ssl.SSLWantReadError:
+                pass
+            except ssl.SSLError as error:
+                self.peer_handshake_failure = error
+                raise
+            else:
                 await self.flush()
                 self.record.alpn = self.tls.selected_alpn_protocol()
                 return
-            except ssl.SSLWantReadError:
-                pass
+
             await self.flush()
             data = await self.read_raw()
             if not data:
-                raise ConnectionError("client closed during the TLS handshake")
+                error = ConnectionError("client closed during the TLS handshake")
+                self.peer_handshake_failure = error
+                raise error
             self.record.client_hello.feed(data)
             self.incoming.write(data)
 
@@ -436,7 +444,7 @@ class TlsChannel(PlainChannel):
                     return b""
                 self.incoming.write(raw)
                 continue
-            except (ssl.SSLZeroReturnError, ssl.SSLError):
+            except ssl.SSLZeroReturnError:
                 data = b""
             await self.flush()
             self.tap(data)
