@@ -2503,6 +2503,26 @@ independent review read all eight logs and exits, then separately observe
 clean exact sources after both runners terminate. The baseline remains
 red. All fifteen worker owners, typed deadlines, body bounds, quiet-read
 errors and H3 lifetime-channel handling still require repair and verification.
+
+At `2a03a835`, all thirty methods pass on Windows and Linux: the sixteen
+ordinary contracts, twelve unchanged ownership controls and two new reader
+boundaries. All fifteen original workers have immediate retained guards
+outside the caller's deadline. Explicit cleanup retains original worker,
+caller and Elapsed causes. H3 distinguishes release from shutdown and
+closes the retained endpoint before peer cancellation, with finite idle
+cleanup. Its strict ApplicationClosed `0x100`, destruction and socket-close
+assertions now complete before backup. The readers reject an oversized
+frame before payload allocation and cap accumulated body and close-tail
+bytes.
+
+Formatting, strict linting and Rust 1.88 pass on both hosts. Root and
+independent review read all eight logs and exits, then separately observe
+clean exact sources after both runners terminate. The earlier `231d5379`
+sixteen-pass/twelve-failure baseline and its lint failure remain preserved.
+External Drop cannot asynchronously join, and an unfinished foreign
+cancellation racing local cleanup is unmeasured. Shared support readers
+outside these owned fixtures and final combined gates remain open.
+
 ### Capture-tool ownership follow-up
 
 The complete reads of `alt_svc_race.py` and `proxy_route.py` at
