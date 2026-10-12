@@ -1,9 +1,12 @@
 //! HTTP/1.1 session connection lifecycle tests.
 
-use crate::support::tls as tls_support;
-
 use std::{
-    error::Error, future::Future, net::Ipv4Addr, num::NonZeroUsize, pin::Pin, time::Duration,
+    error::Error,
+    future::{Future, poll_fn},
+    net::Ipv4Addr,
+    num::NonZeroUsize,
+    pin::Pin,
+    time::Duration,
 };
 
 use btls::ssl::{Ssl, SslAcceptor};
@@ -16,6 +19,8 @@ use tokio::{
     time::timeout,
 };
 use tokio_btls::SslStream;
+
+use crate::support::tls as tls_support;
 
 use tls_support::{H1_ALPN, TestIdentity, client_builder, read_head, test_client};
 
@@ -89,36 +94,7 @@ async fn canonical_and_unicode_equivalent_hosts_reuse_one_connection() -> TestRe
 
 #[tokio::test]
 async fn client_requests_reuse_one_connection() -> TestResult {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
-            let mut stream = accept_one(&listener, &acceptor).await?;
-            for _ in 0..2 {
-                read_head(&mut stream).await?;
-                stream
-                    .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
-                    .await?;
-            }
-            Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
-
-        let client = test_client(&identity, false)?;
-        for path in ["first", "second"] {
-            client
-                .get(HttpProtocol::Http1, &format!("https://{address}/{path}"))?
-                .send()
-                .await?
-                .into_body()
-                .collect()
-                .await?;
-        }
-        server.await??;
-        Ok(())
-    })
-    .await
+    ownership::reuse_requests(None).await
 }
 
 #[cfg(feature = "danger-disable-verification")]
@@ -519,10 +495,38 @@ async fn accept_one(
     listener: &TcpListener,
     acceptor: &SslAcceptor,
 ) -> TestResult<SslStream<TcpStream>> {
+    accept_one_observed(listener, acceptor, None).await
+}
+
+async fn accept_one_observed(
+    listener: &TcpListener,
+    acceptor: &SslAcceptor,
+    observed: Option<&ownership::Observation>,
+) -> TestResult<SslStream<TcpStream>> {
     let (tcp, _) = listener.accept().await?;
+    if let Some(observed) = observed {
+        observed.accepted();
+    }
+
     let ssl = Ssl::new(acceptor.context())?;
     let mut stream = SslStream::new(ssl, tcp)?;
-    Pin::new(&mut stream).accept().await?;
+
+    if let Some(observed) = observed {
+        let accepting = Pin::new(&mut stream).accept();
+        tokio::pin!(accepting);
+        poll_fn(|context| {
+            let result = accepting.as_mut().poll(context);
+            if result.is_pending() {
+                observed.handshake_pending();
+            }
+
+            result
+        })
+        .await?;
+    } else {
+        Pin::new(&mut stream).accept().await?;
+    }
+
     Ok(stream)
 }
 
@@ -534,3 +538,5 @@ where
         .await
         .map_err(|_| "HTTP/1 session test exceeded deadline")?
 }
+
+mod ownership;
