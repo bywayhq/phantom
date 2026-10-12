@@ -733,6 +733,7 @@ async fn a_failed_handshake_after_early_data_falls_back_before_the_request_is_wr
         let untrusted_config = early_data_quic_config(&untrusted)?;
         let (read_tx, read) = oneshot::channel::<()>();
         let (failing_tx, failing) = oneshot::channel();
+        let (rejected_tx, rejected) = oneshot::channel();
         let (stop_tx, stop_rx) = oneshot::channel::<()>();
         stop = Some(stop_tx);
         quic_server = Some(ConnectionPeer::spawn(async move {
@@ -760,12 +761,20 @@ async fn a_failed_handshake_after_early_data_falls_back_before_the_request_is_wr
                 // handshake after the client has sent its early data.
                 quic.set_server_config(Some(untrusted_config));
                 let _ = failing_tx.send(());
+                let mut rejected_tx = Some(rejected_tx);
                 while let Some(incoming) = quic.accept().await {
                     // An untrusted issuer sends TLS unknown_ca (48), carried as
                     // QUIC CRYPTO_ERROR 0x130. Other handshake failures stay errors.
                     match incoming.await {
                         Err(quinn::ConnectionError::ConnectionClosed(close))
-                            if u64::from(close.error_code) == 0x130 => {}
+                            if u64::from(close.error_code) == 0x130 =>
+                        {
+                            if let Some(observer) = rejected_tx.take() {
+                                observer
+                                    .send(())
+                                    .map_err(|_| "handshake rejection observer closed")?;
+                            }
+                        }
                         Err(error) => return Err(error.into()),
                         Ok(_) => return Err("the untrusted QUIC handshake completed".into()),
                     }
@@ -824,6 +833,7 @@ async fn a_failed_handshake_after_early_data_falls_back_before_the_request_is_wr
 
         response.into_body().collect().await?;
         drop(client);
+        rejected.await?;
         let received = join_worker(&mut served).await?;
         assert_eq!(received.path, "/post");
         assert_eq!(received.body, "payload");
