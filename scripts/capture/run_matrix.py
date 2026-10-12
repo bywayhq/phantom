@@ -958,6 +958,17 @@ def schedule(
 
     def worker(index: int, job: Job) -> None:
         nonlocal running, exclusive_running
+        with condition:
+            # A start interrupted before identity publication can arrive late.
+            if index in results:
+                return
+            if stopped.is_set():
+                results[index] = JobResult(job, "not-run")
+                running -= 1
+                if job.exclusive:
+                    exclusive_running = False
+                condition.notify_all()
+                return
         try:
             result = run(job)
         except BaseException as error:
@@ -1007,8 +1018,8 @@ def schedule(
                 raise
 
     def join() -> None:
-        # Dispatch has ended, so a thread not started yet never will be; its
-        # job is reported as not run.
+        # Join only observed started threads. An interrupted start can still
+        # enter worker later, where stopped admission prevents a new attempt.
         for thread in threads:
             while thread.ident is not None and thread.is_alive():
                 thread.join(0.2)

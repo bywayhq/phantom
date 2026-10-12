@@ -614,6 +614,66 @@ class ScheduleTests(unittest.TestCase):
                 thread.join(10)
         self.assertTrue(all(not thread.is_alive() for thread in started_threads))
 
+    def test_a_worker_delayed_before_identity_cannot_acquire_after_shutdown(self) -> None:
+        parked = threading.Event()
+        release = threading.Event()
+        finished = threading.Event()
+        stopped = threading.Event()
+        entered = mock.Mock(return_value=JobResult(job("delayed"), "ok"))
+        threads = []
+        failures = []
+        interruption = KeyboardInterrupt("start interrupted before identity")
+
+        class DelayedWorker(threading.Thread):
+            def _bootstrap(self):
+                parked.set()
+                try:
+                    if not release.wait(10):
+                        failures.append("bootstrap release timed out")
+                        return
+                    super()._bootstrap()
+                finally:
+                    finished.set()
+
+            def start(self):
+                threads.append(self)
+
+                def interrupt_wait(*_args, **_kwargs):
+                    self_test.assertTrue(parked.wait(10))
+                    raise interruption
+
+                with mock.patch.object(self._started, "wait", interrupt_wait):
+                    super().start()
+
+        self_test = self
+        try:
+            with mock.patch.object(threading, "Thread", DelayedWorker):
+                results = schedule(
+                    [job("delayed", exclusive=True), job("waiting")],
+                    entered,
+                    limit=1,
+                    stopped=stopped,
+                )
+            self.assertTrue(stopped.is_set())
+            self.assertIsNone(threads[0].ident)
+            self.assertEqual(
+                [result.status for result in results], ["not-run", "not-run"]
+            )
+            entered.assert_not_called()
+
+            release.set()
+            self.assertTrue(finished.wait(10))
+            self.assertFalse(failures)
+            entered.assert_not_called()
+        finally:
+            stopped.set()
+            release.set()
+            if threads:
+                self.assertTrue(finished.wait(10))
+                if threads[0].ident is not None:
+                    threads[0].join(10)
+        self.assertFalse(threads[0].is_alive())
+
     def test_long_shared_jobs_start_first_and_exclusive_jobs_last(self) -> None:
         jobs = [
             job("short", estimate=1),
