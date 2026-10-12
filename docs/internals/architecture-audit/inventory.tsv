@@ -1727,13 +1727,13 @@ scripts/capture/fixture_file.py	tool	source-complete	loopback-quic-root-checkpoi
 scripts/capture/hooks-requirements.in	tool	source-complete	netlog-middle-record-root-source-baseline-36c99fed.json: whole bounded owner/configuration read; NetLog malformed-record remedy remains open
 scripts/capture/hooks-requirements.txt	tool	source-complete	netlog-middle-record-root-source-baseline-36c99fed.json: whole bounded owner/configuration read; NetLog malformed-record remedy remains open
 scripts/capture/http2_preface_ping.py	tool	pending	
-scripts/capture/http2_session.py	tool	pending	
+scripts/capture/http2_session.py	tool	source-partial	coverage.md#capture-tool-ownership-follow-up: complete changed channel owners reviewed at 39c6fb8f; full capture suite and focused quality pass both hosts with eleven Linux skips; remaining unchanged module paths pending
 scripts/capture/http2_websocket.py	tool	pending	
 scripts/capture/http3_wire.py	tool	pending	
 scripts/capture/http_lifecycle.py	tool	pending	
 scripts/capture/ip_literal_client_hello.py	tool	pending	
 scripts/capture/process_container.py	tool	pending	
-scripts/capture/proxy_route.py	tool	source-partial	proxy-browser-context-root-fixed-59634fd7.json: changed owner1239-1528, independent source/native reviews; remaining parent paths pending
+scripts/capture/proxy_route.py	tool	source-complete	coverage.md#capture-tool-ownership-follow-up: whole parent source at 800c9bdc and complete root/independent changed owner review at 39c6fb8f; full capture suite passes both hosts with eleven Linux skips; A263/A264 and final gates open
 scripts/capture/quic_flight.py	tool	source-complete	cli-logical-source-root-checkpoint-b08163ee.json: complete root/independent owner reads; current objects and blank-only delta bound; no analyzer or browser credit
 scripts/capture/quic_packet_diff.py	tool	pending	
 scripts/capture/quic_resumption.py	tool	pending	
@@ -4573,6 +4573,6 @@ crates/phantom/tests/requests/stale_connection_replay/ownership/raw_fixture.rs	c
 crates/phantom/tests/requests/stale_connection_replay/ownership/raw_tests.rs	crate	source-complete	coverage.md#remaining-raw-stale-worker-baseline: whole root and independent source at 304ee690; all28 stale methods and focused quality pass both hosts; final gates open
 crates/phantom/tests/requests/stale_connection_replay/ownership/raw_tests/causes.rs	crate	source-complete	coverage.md#remaining-raw-stale-worker-baseline: whole root and independent source at 304ee690; all28 stale methods and focused quality pass both hosts; final gates open
 crates/phantom/tests/requests/stale_connection_replay/ownership/raw_tests/causes/mixed_deadline.rs	crate	source-complete	coverage.md#remaining-raw-stale-worker-baseline: whole root and independent source at 304ee690; actual held request and original mixed causes pass both hosts; final gates open
-scripts/capture/tests/test_proxy_capture_ownership.py\ttest\tsource-complete\tcoverage.md#capture-tool-ownership-follow-up: whole root and independent source39c6fb8f; capture suite687 and focused quality pass both hosts with11Linux skips; final gates open
-scripts/capture/tests/test_proxy_capture_limits.py\ttest\tsource-complete\tcoverage.md#capture-tool-ownership-follow-up: whole root and independent source39c6fb8f; capture suite687 and focused quality pass both hosts with11Linux skips; final gates open
-scripts/capture/tests/test_http2_session_channels.py\ttest\tsource-complete\tcoverage.md#capture-tool-ownership-follow-up: whole root and independent source39c6fb8f; capture suite687 and focused quality pass both hosts with11Linux skips; final gates open
+scripts/capture/tests/test_proxy_capture_ownership.py	test	source-complete	coverage.md#capture-tool-ownership-follow-up: whole root and independent source39c6fb8f; capture suite687 and focused quality pass both hosts with11Linux skips; final gates open
+scripts/capture/tests/test_proxy_capture_limits.py	test	source-complete	coverage.md#capture-tool-ownership-follow-up: whole root and independent source39c6fb8f; capture suite687 and focused quality pass both hosts with11Linux skips; final gates open
+scripts/capture/tests/test_http2_session_channels.py	test	source-complete	coverage.md#capture-tool-ownership-follow-up: whole root and independent source39c6fb8f; capture suite687 and focused quality pass both hosts with11Linux skips; final gates open
