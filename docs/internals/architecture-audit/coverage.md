@@ -2029,6 +2029,14 @@ The receipt `terminal-status-owner-root-checkpoint-f8a009cf.json` preserves
 the earlier invalid prerequisite, corrected baseline and independent reviews.
 Thirteen raw tasks and other setup, deadline and accept paths remain open.
 
+The status-retry body assertions pass all 18 selected methods on Windows
+and Linux at `cabbe4dd`. Both assertions reject a changed second recorded
+body and pass after source restoration. This checks the assertions against
+actual received bytes; it does not establish a production corruption defect.
+Focused quality passes. The initial formatting failure remains recorded in
+`status-retry-body-oracle-independent-native-review-cabbe4dd.json`.
+Task ownership, serving errors and full integration checks remain open.
+
 ## Next
 
 - [Audit plan](../architecture-audit.md): acceptance and verification.

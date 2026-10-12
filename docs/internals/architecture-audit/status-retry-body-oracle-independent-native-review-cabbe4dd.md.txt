@@ -1,0 +1,11 @@
+# Status retry body oracle native qualification
+
+Qualify the bounded body oracle at `cabbe4dd94b5f0dee343578bcf9d76ec98ad5220`. Windows and Linux each pass all18 selected methods, zero failures or ignored tests. Formatting, strict three-target Clippy, Rust1.88 and guarded runners all exit zero without warnings. Initial e89218-pass results and its sole formatting failure remain preserved.
+
+Both controlled observation mutations fail the exact owned and buffered literal-body assertions: Xayload differs from payload. Only the second actual seven-byte read record changes. First body, heads, count and Content-Length remain unchanged; earlier assertions pass before the second-body oracle fails. This measures assertion sensitivity, not wire corruption or a production defect.
+
+Exact source bytes are restored on both hosts. Both guarded restored runs pass the two real methods. Read-only Git/hash inspection confirms clean exact cabbe and original974e43 source hash on Windows and Linux. Root reported an early Linux restored launch rejected by the dirty-source guard; the independently reviewed final receipts come from the later successful guarded run.
+
+All original/final logs, mutation/restored logs, sidecars, metadata and scripts read independently. Bindings and artifact hashes are in JSON. Reviewer ran no native checks and made no source edits.
+
+Task ownership and ignored fixture failures remain open. No macOS, full gate, CI or whole audit closure is established. Continue those remedies and run the full integration gate and applicable CI before merge.
