@@ -1,0 +1,9 @@
+# Runtime request deadline cause: independent native acceptance
+
+Accepted bounded remedy at d7005deae5fa7995ae56dface1d6041d63d507aa. Independently read all eight full step logs and twelve sidecars after root-reported actual Windows28744/Linux8894 terminal0, and independently verified current root and Linux mirror clean at exactd700 post-terminal. Both previously reviewed whole guarded scripts/source gates apply. No reviewer native/checker/formatter or source mutation occurred.
+
+Both hosts: all21 selected methods pass, zero failed/ignored; Windows290/Linux289 filtered. Actual tests, package format, strict requests/streams/sessions Clippy, Rust1.88 and whole runner all0, with no warnings. All16 earlier runtime/coordinator/peer methods and two real send/hook positive controls remain passing.
+
+All three unchanged actual-send deadline controls now pass after the same original ten-second operation. Transparent actual Pending, complete original GET head, literal original purpose and original Elapsed source are reached. Original ready status/body/request receipt and actual HeaderHook/OperationFailure Arc identity remain intact. Baseline0dec18P3F and its exact reached causal failures/quality0 remain preserved rather than overwritten.
+
+This accepts the one-helper fixture deadline-cause remedy. It does not establish full lifecycle closure for historical raw H2/H3/held/thread origins, whole outer wall-clock bounds, cancellation races, acquisition/parser cases, or full integration. Broader A231/A232/A233 and final gates remain open.

@@ -2133,6 +2133,47 @@ These are fixture repairs. Queued ownership, cancellation races, other raw
 workers, acquisition and parser paths, full gates and candidate CI remain
 open. No whole-workspace or final architecture approval follows.
 
+### Runtime deadlines and queued HTTP/1 verification
+
+At `0dec79bb`, all 16 earlier runtime methods and two new positive controls
+pass on both hosts. Three actual request deadline controls fail after the
+original send enters Pending and its complete GET head is received. The
+original ten-second deadline loses Elapsed. At `d7005dea`, all 21 selected
+methods pass with the original error source retained. Ready response/body
+and hook-error payload identity also pass. This verifies the shared request
+deadline helper; raw H2/H3, held and thread-origin ownership remains open.
+See `runtime-send-deadline-baseline-independent-native-review-0dec79bb.json`
+and `runtime-send-deadline-remedy-independent-native-review-d7005dea.json`.
+
+The real cooperative-budget control at `ad366637` fails on both hosts.
+It observes the original peer Pending, externally cancels that peer, waits
+for destruction and completion, then exhausts the actual scheduling budget.
+The completed join returns Pending. Collection retains only the URI error;
+the final composed-cause guard fails before JoinError and task-ID checks.
+No socket-closure oracle belongs to this control. See
+`session-http1-peer-budget-baseline-independent-native-review-ad366637.json`.
+
+At `0fad2783`, all 19 HTTP/1 methods pass on both hosts, but strict Clippy
+rejects the oversized Ready variant. That checkpoint is behavior evidence
+with a quality failure. Boxing the moved result changes three expressions.
+At `86e7ab92`, all 19 methods and focused quality checks pass on both hosts.
+All nine ordinary methods and eight earlier controls retain their contracts.
+The three queued cleanup failures now reach their later observations before
+backup. The unchanged budget control retains the original URI/parser error
+and actual cancelled JoinError with its original task ID. The added queued
+control retains a completed foreign cancellation with the original
+five-second Elapsed and joins both tasks. It does not assert a task ID.
+See `session-http1-queued-remedy-independent-native-review-0fad2783.json`
+and `session-http1-queued-boxed-remedy-independent-native-review-86e7ab92.json`.
+
+Package formatting, strict requests/streams/sessions Clippy and Rust 1.88
+checks pass on both accepted revisions. These are fixture repairs. Cleanup
+can add a separate finite interval after the original caller deadline.
+External Drop requests abort but cannot asynchronously join or report
+errors. Unfinished foreign/local cancellation races, other raw peers,
+acquisition and parser paths, remaining deadline mappings, final combined
+review, full gates and candidate CI remain open.
+
 ## Next
 
 - [Audit plan](../architecture-audit.md): acceptance and verification.

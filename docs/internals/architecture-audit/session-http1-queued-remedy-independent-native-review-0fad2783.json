@@ -1,0 +1,148 @@
+{
+  "revision": "0fad278309506fde90ee6c6958057042eefcdf67",
+  "decision": "qualified behavior passes; strict lint blocks final acceptance",
+  "full_logs_read": 8,
+  "receipts_read": 12,
+  "root_clean_exact_post_terminal": true,
+  "linux_clean_exact_post_terminal": true,
+  "hosts": {
+    "windows": {
+      "msrv_exit": 0,
+      "test_exit": 0,
+      "filtered": 294,
+      "selected": 19,
+      "clippy_exit": 101,
+      "passed": 19,
+      "ignored": 0,
+      "failed": 0,
+      "runner_exit": 1,
+      "fmt_exit": 0
+    },
+    "linux": {
+      "msrv_exit": 0,
+      "test_exit": 0,
+      "filtered": 293,
+      "selected": 19,
+      "clippy_exit": 101,
+      "passed": 19,
+      "ignored": 0,
+      "failed": 0,
+      "runner_exit": 1,
+      "fmt_exit": 0
+    }
+  },
+  "strict_lint": {
+    "kind": "large_enum_variant",
+    "ready_bytes_min": 560,
+    "pending_bytes_min": 8
+  },
+  "unchanged_old_controls_pass": 8,
+  "unchanged_budget_target_pass": true,
+  "new_actual_foreign_cancel_deadline_target_pass": true,
+  "representation_fix_supported": true,
+  "reviewer_native": false,
+  "whole_goal_closed": false,
+  "artifacts": [
+    {
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "name": "http1-queued-remedy-0fad2783-linux.clippy.exit"
+    },
+    {
+      "bytes": 1165,
+      "sha256": "224a303e014f9965515882b676425d499c8a392706a0ca61304956cc7374a219",
+      "name": "http1-queued-remedy-0fad2783-linux.clippy.log"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "http1-queued-remedy-0fad2783-linux.fmt.exit"
+    },
+    {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "http1-queued-remedy-0fad2783-linux.fmt.log"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "http1-queued-remedy-0fad2783-linux.msrv.exit"
+    },
+    {
+      "bytes": 178,
+      "sha256": "05cc42c2403a5a30bd70d82cb069a8952498f9be59c437962989a9e98d1951c2",
+      "name": "http1-queued-remedy-0fad2783-linux.msrv.log"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "http1-queued-remedy-0fad2783-linux.retry.exit"
+    },
+    {
+      "bytes": 2267,
+      "sha256": "bc92763bf8413efdddc59af7de30eb8ea8ac9eb8dccf83718f47e2af5719b379",
+      "name": "http1-queued-remedy-0fad2783-linux.retry.log"
+    },
+    {
+      "bytes": 41,
+      "sha256": "62d6c9b2c94a16e6ecfcbcc82669b61e571375e070b2375fb784dceabe90ca26",
+      "name": "http1-queued-remedy-0fad2783-linux.revision"
+    },
+    {
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "name": "http1-queued-remedy-0fad2783-linux.runner-exit"
+    },
+    {
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "name": "http1-queued-remedy-0fad2783-windows.clippy.exit"
+    },
+    {
+      "bytes": 1155,
+      "sha256": "c369351ffc906c85619210481f186233c44991946299e24624012393fb6a7264",
+      "name": "http1-queued-remedy-0fad2783-windows.clippy.log"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "http1-queued-remedy-0fad2783-windows.fmt.exit"
+    },
+    {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "http1-queued-remedy-0fad2783-windows.fmt.log"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "http1-queued-remedy-0fad2783-windows.msrv.exit"
+    },
+    {
+      "bytes": 168,
+      "sha256": "64bc526a528a2f97ed68dde03059f9276c1034e75e886010abb0bdd8f455aa65",
+      "name": "http1-queued-remedy-0fad2783-windows.msrv.log"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "http1-queued-remedy-0fad2783-windows.retry.exit"
+    },
+    {
+      "bytes": 2261,
+      "sha256": "c8d468660787310cee1d5376c3239d8eb8155a7325335779a4b5b625fc98a27d",
+      "name": "http1-queued-remedy-0fad2783-windows.retry.log"
+    },
+    {
+      "bytes": 41,
+      "sha256": "62d6c9b2c94a16e6ecfcbcc82669b61e571375e070b2375fb784dceabe90ca26",
+      "name": "http1-queued-remedy-0fad2783-windows.revision"
+    },
+    {
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "name": "http1-queued-remedy-0fad2783-windows.runner-exit"
+    }
+  ],
+  "markdown_sha256": "2cb423fc5a956dc6b2de547d57613c91df0f5d4d4bf473a9937fd6772db8a810"
+}

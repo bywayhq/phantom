@@ -1,0 +1,9 @@
+# Boxed queued outcome: exact independent source gate
+
+Approved clean signed 86e7ab9251fa5f83125fc0127f93dca4aa726132 atop lint-qualified 0fad278309506fde90ee6c6958057042eefcdf67 for fresh paired verification. Read entire sole3+/3- diff and both full fresh guarded scripts. Prior whole five-file source review remains applicable. No reviewer native/checker/formatter or source mutation occurred.
+
+Only ownership.rs changes Ready(JoinedOutcome) to Ready(Box<JoinedOutcome>), boxes the actual moved result after original JoinHandle Ready, and consumes *result once after the same Consumed transition. Real Response/RequestError/JoinError ownership, abort/finish ordering, actual observer join timing and stable cause composition remain. No clone, lint allow, outcome suppression, clock/oracle weakening or speculative framework is added. All original tests, peer/queued/budget controls and other files are unchanged.
+
+Fresh runner is byte-identical to prior full-H1 remedy runner after only prefix substitution. All serial selection/format/strict three-target Clippy/Rust1.88 steps retain locks, twenty no-overwrite artifacts and whole clean/exact revision guards. Sync requires clean0fad mirror, unique bundle and exact86 detached revision. Prior0fad19P with sole large_enum_variant Clippy101/runner1 remains immutable and is not called final acceptance.
+
+New compilation/control/quality results and post-terminal clean bindings require actual paired receipts. Broader owner/deadline/acquisition/race/parser paths, A236/A233 and final integration remain open.

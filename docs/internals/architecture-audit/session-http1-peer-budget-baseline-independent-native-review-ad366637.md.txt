@@ -1,0 +1,11 @@
+# Completed peer cancellation: independent causal baseline
+
+Qualified exact ad3666372a6c11af12e5cff6830d0b954dc37579 paired baseline. Read all eight complete logs and twelve receipts, previously read exact whole source and both scripts, and independently verified post-terminal root and Linux mirror clean at exactad366. Root reports Windows11809/Linux32602 terminal1; both actual runner receipts are1. No reviewer native/checker/formatter or repository mutation occurred.
+
+Both hosts select one actual control: zero pass, one fail, zero ignored. Windows311/Linux310 are filtered. Tests101; package format0, strict requests/streams/sessions Clippy0, Rust1.88 check0; runner1. Quality has no warnings. Whole four-step clean/revision guards complete.
+
+Both actual failures are FixtureFailures with primary "completed original foreign peer cancellation was discarded after cooperative Pending" and cleanup the retained original InvalidUri RequestError. Reviewed source order establishes reached prerequisites: original active-body read Pending/no destruction, external abort of that same peer, original task finished/worker destroyed, original URI kind/parser source validation, real public budget exhaustion, and actual finished retained join Pending immediately before canonical collection. The unexpected Ready prerequisite branch would preserve a different composed failure and does not produce this observed target.
+
+The returned canonical outcome retains original caller error alone. Final composed-cause downcast fails before its final URI, actual cancelled JoinError and original task-ID assertions. Those later target checks are unreached, although initial original caller validation passed. No socket oracle or natural/permanent leak is measured. Original serving outcome was suppressed by local-stop provenance at the cooperative Pending boundary.
+
+The narrow source-supported correction is adding !server.is_finished() to the single-Pending local-abort intent guard. The separately approved2c queued-owner remedy may also be composed after this completed clean binding, but each exact final composition and fresh paired measurements are still required. Historical039 bounded peer passes and compiler-failed9c/no-tests remain retained. Unfinished foreign/local races, wider raw owners, deadlines, full gates and broader A236/A233 stay open.

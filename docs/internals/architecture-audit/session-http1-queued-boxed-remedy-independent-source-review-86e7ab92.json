@@ -1,0 +1,24 @@
+{
+  "revision": "86e7ab9251fa5f83125fc0127f93dca4aa726132",
+  "parent": "0fad278309506fde90ee6c6958057042eefcdf67",
+  "decision": "approve exact representation correction for paired verification",
+  "changed_files": 1,
+  "added": 3,
+  "removed": 3,
+  "source": {
+    "blob": "1cef03cf0be6fc7746ea5e95aac40e2f1c965d0b",
+    "path": "crates/phantom/tests/sessions/session_http1/ownership.rs",
+    "lf_sha256": "1c5af2348ae8dcd98c26eeb6060d0f97518a62105b9bddafe022d3369ff0ba60"
+  },
+  "controls_changed": false,
+  "root_clean_at_review": true,
+  "signature": "G",
+  "runner_only_prefix_delta": true,
+  "scripts": {
+    "sync_sha256": "c938e0dae02574bbc1ee49aa31a5b244f7add65f1159cd4c668c8a402f2152b8",
+    "runner_sha256": "673d29aecc2a6f12a4dbbf86d8cc9be23cecca8101729aa7f91608e07dcb9075"
+  },
+  "native_by_reviewer": false,
+  "whole_goal_closed": false,
+  "markdown_sha256": "ebd2d44810865d3df231f20d6aa927d342972ed6c3d01ebfa6ec92de44b76c29"
+}

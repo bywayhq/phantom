@@ -1,0 +1,144 @@
+{
+  "revision": "d7005deae5fa7995ae56dface1d6041d63d507aa",
+  "baseline": "0dec79bb524c170bcda6f70823d510145c5d603e",
+  "decision": "accept bounded deadline cause remedy",
+  "full_logs_read": 8,
+  "receipts_read": 12,
+  "clean_exact_root_post_terminal": true,
+  "clean_exact_linux_post_terminal": true,
+  "hosts": {
+    "linux": {
+      "selected": 21,
+      "clippy_exit": 0,
+      "fmt_exit": 0,
+      "ignored": 0,
+      "passed": 21,
+      "runner_exit": 0,
+      "test_exit": 0,
+      "filtered": 289,
+      "failed": 0,
+      "msrv_exit": 0
+    },
+    "windows": {
+      "selected": 21,
+      "clippy_exit": 0,
+      "fmt_exit": 0,
+      "ignored": 0,
+      "passed": 21,
+      "runner_exit": 0,
+      "test_exit": 0,
+      "filtered": 290,
+      "failed": 0,
+      "msrv_exit": 0
+    }
+  },
+  "original_methods_passed": 16,
+  "new_ready_positive_methods_passed": 2,
+  "unchanged_original_elapsed_targets_passed": 3,
+  "warnings": false,
+  "reviewer_native_run": false,
+  "whole_goal_closed": false,
+  "artifacts": [
+    {
+      "bytes": 2,
+      "name": "runtime-send-deadline-remedy-d7005dea-linux.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 177,
+      "name": "runtime-send-deadline-remedy-d7005dea-linux.clippy.log",
+      "sha256": "c69698fad5b3fe04053dd5866e30d09297a79dbd1f0bc66217e50cef5a0ac00c"
+    },
+    {
+      "bytes": 2,
+      "name": "runtime-send-deadline-remedy-d7005dea-linux.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 0,
+      "name": "runtime-send-deadline-remedy-d7005dea-linux.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2,
+      "name": "runtime-send-deadline-remedy-d7005dea-linux.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 177,
+      "name": "runtime-send-deadline-remedy-d7005dea-linux.msrv.log",
+      "sha256": "80106a77a5b9222b50d1717f122eaac7c8a64de702878a6c1373f3db3ead052d"
+    },
+    {
+      "bytes": 2,
+      "name": "runtime-send-deadline-remedy-d7005dea-linux.retry.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 2692,
+      "name": "runtime-send-deadline-remedy-d7005dea-linux.retry.log",
+      "sha256": "393626790a767e938f7b34a96d14ca9a4585a967f58518ed240605297ec63509"
+    },
+    {
+      "bytes": 41,
+      "name": "runtime-send-deadline-remedy-d7005dea-linux.revision",
+      "sha256": "b5a088fd00ac2714b2541d8162d51c2795ca2ca1495bb930a439abd4581cd93e"
+    },
+    {
+      "bytes": 2,
+      "name": "runtime-send-deadline-remedy-d7005dea-linux.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 2,
+      "name": "runtime-send-deadline-remedy-d7005dea-windows.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 167,
+      "name": "runtime-send-deadline-remedy-d7005dea-windows.clippy.log",
+      "sha256": "aeeced417c09712a7a4df35d6bd1ee9df295fa35e9c5abbededecc66f43284a5"
+    },
+    {
+      "bytes": 2,
+      "name": "runtime-send-deadline-remedy-d7005dea-windows.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 0,
+      "name": "runtime-send-deadline-remedy-d7005dea-windows.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 2,
+      "name": "runtime-send-deadline-remedy-d7005dea-windows.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 167,
+      "name": "runtime-send-deadline-remedy-d7005dea-windows.msrv.log",
+      "sha256": "e28e70a360335f456ec48ab56f97bf57a1cc77980f493867a6f4636c5f1cc61b"
+    },
+    {
+      "bytes": 2,
+      "name": "runtime-send-deadline-remedy-d7005dea-windows.retry.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "bytes": 2686,
+      "name": "runtime-send-deadline-remedy-d7005dea-windows.retry.log",
+      "sha256": "c9ae3fd5ea681892d80002f212d4164068badc4b0bf5a978063fd93e9a5c98f5"
+    },
+    {
+      "bytes": 41,
+      "name": "runtime-send-deadline-remedy-d7005dea-windows.revision",
+      "sha256": "b5a088fd00ac2714b2541d8162d51c2795ca2ca1495bb930a439abd4581cd93e"
+    },
+    {
+      "bytes": 2,
+      "name": "runtime-send-deadline-remedy-d7005dea-windows.runner-exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    }
+  ],
+  "markdown_sha256": "93d91b169802d41cd5e8e209d0d608f8030ce61180eb96c46e07b6576401cc38"
+}
