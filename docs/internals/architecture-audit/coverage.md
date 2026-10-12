@@ -2695,6 +2695,31 @@ managed-profile arguments and historical provenance. The pinned Frida
 native cancellation and callback contracts still need resolution. No
 Frida execution, fresh browser capture or live acceptance is claimed.
 
+The socket-hook acquisition baseline at `3c037031` fails on both hosts:
+a real second-listener bind failure and a real profile-creation failure
+leave the first listener serving. The original operating-system errors
+remain available. The repair at `8d8c3864` passes ten owner controls, but
+two positive controls stop at a test wrapper's missing return. Its helper
+correction at `96c1363a` passes all twelve controls on Windows and Linux.
+Both also pass all 32 existing socket-hook tests, lint, format and docs
+checks. Root and independent review read all ten logs and exits, then
+separately confirm both clean checkouts at the exact revision.
+
+A273 is locally verified for partial acquisition, repeated caller
+cancellation and independent cleanup failures. The tests retain original
+resources and error identities before backup cleanup. They do not establish
+preemption of a blocked Frida call or closure of accepted origin handlers;
+A274 and A275 remain open. A278 now separates historical source digests
+from current fixture-rendering digests. The 21 Chromium and six Firefox
+captures retain their bytes and historical claims. No new capture ran.
+
+All 43 reported PR checks pass at `613f5cc3`, including Windows and macOS.
+The macOS job runs all 4,319 workspace methods successfully, including the
+earlier failing sibling-destruction control. Its successful run does not
+identify the historical BrokenPipe phase or establish a shutdown remedy.
+A271 and final integration remain open. This CI revision precedes the
+socket-hook changes above.
+
 The Unix census repair at `ad13642f` checks the original process result
 before interpreting absence and retains stderr. Its focused control calls
 the real process runner with a harmless child that exits 23. The original
