@@ -11,7 +11,7 @@ use phantom::{
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::TcpListener,
-    time::timeout,
+    time::{Instant, timeout, timeout_at},
 };
 use tracing::instrument::WithSubscriber;
 
@@ -116,71 +116,77 @@ async fn fresh_http1_close_is_not_replayed() -> TestResult {
 
 #[tokio::test]
 async fn stale_reuse_replay_skips_post() -> TestResult {
-    bounded(async {
-        let (address, server) = spawn_single_stale_server(None).await?;
-        let mut server = Some(server);
-        let client = replaying_client()?;
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let mut server = None;
+    let mut client = None;
 
-        let (stale, had_no_extra_connection) = complete(&mut server, async {
-            prime(&client, &format!("http://{address}/prime")).await?;
-            let result = client
-                .request(
-                    HttpProtocol::Http1,
-                    Method::POST,
-                    &format!("http://{address}/submit"),
-                )?
-                .body(Bytes::from_static(b"payload"))
-                .send()
-                .await;
+    let caller = bounded_until(deadline, async {
+        let (address, peer) = spawn_single_stale_server(None).await?;
+        server = Some(peer);
+        let client = client.insert(replaying_client()?);
 
-            let error = result.err().ok_or("stale POST was answered")?;
-            assert_eq!(error.kind(), RequestErrorKind::Http1);
-            Ok(())
-        })
-        .await?;
+        prime(client, &format!("http://{address}/prime")).await?;
+        let result = client
+            .request(
+                HttpProtocol::Http1,
+                Method::POST,
+                &format!("http://{address}/submit"),
+            )?
+            .body(Bytes::from_static(b"payload"))
+            .send()
+            .await;
 
-        assert!(stale.head.starts_with(b"POST /submit HTTP/1.1\r\n"));
-        assert!(
-            had_no_extra_connection,
-            "a non-idempotent request was replayed"
-        );
+        let error = result.err().ok_or("stale POST was answered")?;
+        assert_eq!(error.kind(), RequestErrorKind::Http1);
         Ok(())
     })
-    .await
+    .await;
+
+    let (stale, had_no_extra_connection) = complete(&mut server, caller, deadline).await?;
+
+    assert!(stale.head.starts_with(b"POST /submit HTTP/1.1\r\n"));
+    assert!(
+        had_no_extra_connection,
+        "a non-idempotent request was replayed"
+    );
+    Ok(())
 }
 
 #[tokio::test]
 async fn stale_reuse_replay_refuses_one_shot_streaming_body() -> TestResult {
-    bounded(async {
-        let (address, server) = spawn_single_stale_server(None).await?;
-        let mut server = Some(server);
-        let client = replaying_client()?;
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let mut server = None;
+    let mut client = None;
 
-        let (stale, had_no_extra_connection) = complete(&mut server, async {
-            prime(&client, &format!("http://{address}/prime")).await?;
-            let result = client
-                .request(
-                    HttpProtocol::Http1,
-                    Method::PUT,
-                    &format!("http://{address}/upload"),
-                )?
-                .streaming_body(Full::new(Bytes::from_static(b"payload")))
-                .send()
-                .await;
+    let caller = bounded_until(deadline, async {
+        let (address, peer) = spawn_single_stale_server(None).await?;
+        server = Some(peer);
+        let client = client.insert(replaying_client()?);
 
-            // The original transport error is returned, not a body-replay error.
-            let error = result.err().ok_or("stale streaming upload was answered")?;
-            assert_eq!(error.kind(), RequestErrorKind::Http1);
-            Ok(())
-        })
-        .await?;
+        prime(client, &format!("http://{address}/prime")).await?;
+        let result = client
+            .request(
+                HttpProtocol::Http1,
+                Method::PUT,
+                &format!("http://{address}/upload"),
+            )?
+            .streaming_body(Full::new(Bytes::from_static(b"payload")))
+            .send()
+            .await;
 
-        assert!(stale.head.starts_with(b"PUT /upload HTTP/1.1\r\n"));
-        assert_eq!(stale.framed_body, b"payload");
-        assert!(had_no_extra_connection, "a one-shot body was replayed");
+        // The original transport error is returned, not a body-replay error.
+        let error = result.err().ok_or("stale streaming upload was answered")?;
+        assert_eq!(error.kind(), RequestErrorKind::Http1);
         Ok(())
     })
-    .await
+    .await;
+
+    let (stale, had_no_extra_connection) = complete(&mut server, caller, deadline).await?;
+
+    assert!(stale.head.starts_with(b"PUT /upload HTTP/1.1\r\n"));
+    assert_eq!(stale.framed_body, b"payload");
+    assert!(had_no_extra_connection, "a one-shot body was replayed");
+    Ok(())
 }
 
 #[tokio::test]
@@ -367,35 +373,38 @@ async fn stale_reuse_replay_is_observable() -> TestResult {
 
 #[tokio::test]
 async fn stale_reuse_is_not_replayed_by_default() -> TestResult {
-    bounded(async {
-        let (address, server) = spawn_single_stale_server(None).await?;
-        let mut server = Some(server);
-        let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
-        let subscriber = OutcomeSubscriber::default();
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let mut server = None;
+    let mut client = None;
+    let subscriber = OutcomeSubscriber::default();
 
-        let (_, had_no_extra_connection) = complete(&mut server, async {
-            prime(&client, &format!("http://{address}/prime")).await?;
-            let result = client
-                .get(HttpProtocol::Http1, &format!("http://{address}/default"))?
-                .send()
-                .with_subscriber(subscriber.dispatch())
-                .await;
+    let caller = bounded_until(deadline, async {
+        let (address, peer) = spawn_single_stale_server(None).await?;
+        server = Some(peer);
+        let client = client.insert(Client::builder(ClientProfile::new(tls_settings())).build()?);
 
-            let error = result.err().ok_or("stale request was answered")?;
-            assert_eq!(error.kind(), RequestErrorKind::Http1);
-            Ok(())
-        })
-        .await?;
+        prime(client, &format!("http://{address}/prime")).await?;
+        let result = client
+            .get(HttpProtocol::Http1, &format!("http://{address}/default"))?
+            .send()
+            .with_subscriber(subscriber.dispatch())
+            .await;
 
-        assert!(had_no_extra_connection, "default policy replayed a request");
-        assert!(
-            subscriber
-                .reused_connection_replays_for("client.request")
-                .is_empty()
-        );
+        let error = result.err().ok_or("stale request was answered")?;
+        assert_eq!(error.kind(), RequestErrorKind::Http1);
         Ok(())
     })
-    .await
+    .await;
+
+    let (_, had_no_extra_connection) = complete(&mut server, caller, deadline).await?;
+
+    assert!(had_no_extra_connection, "default policy replayed a request");
+    assert!(
+        subscriber
+            .reused_connection_replays_for("client.request")
+            .is_empty()
+    );
+    Ok(())
 }
 
 #[tokio::test]
@@ -532,6 +541,18 @@ where
     F: Future<Output = TestResult>,
 {
     timeout(TEST_TIMEOUT, future).await.map_err(|elapsed| {
+        FixtureDeadline::new(
+            "stale-connection replay test exceeded its deadline",
+            elapsed,
+        )
+    })?
+}
+
+async fn bounded_until<F>(deadline: Instant, future: F) -> TestResult
+where
+    F: Future<Output = TestResult>,
+{
+    timeout_at(deadline, future).await.map_err(|elapsed| {
         FixtureDeadline::new(
             "stale-connection replay test exceeded its deadline",
             elapsed,

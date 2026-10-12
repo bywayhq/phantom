@@ -11,10 +11,10 @@ use tokio::{
     net::{TcpListener, TcpStream},
     sync::watch,
     task::yield_now,
-    time::{error::Elapsed, timeout},
+    time::{Instant, error::Elapsed, timeout},
 };
 
-use super::super::{bounded, prime, replaying_client};
+use super::super::{bounded_until, prime, replaying_client};
 use super::{Mode, Observation, TEST_TIMEOUT, TestResult, complete, spawn_single_stale_server};
 use crate::support::deadline::FixtureDeadline;
 use crate::support::tls::{is_peer_gone, read_head};
@@ -29,9 +29,13 @@ async fn original_deadline_retains_the_completed_stale_serving_failure() -> Test
     let mut held = None;
     let mut held_pending_before_deadline = false;
 
-    let observed = async {
-        let client = replaying_client()?;
-        timeout(TEST_TIMEOUT, prime(&client, &format!("http://{address}/prime")))
+    let observed =
+        async {
+            let client = replaying_client()?;
+            timeout(
+                TEST_TIMEOUT,
+                prime(&client, &format!("http://{address}/prime")),
+            )
             .await
             .map_err(|elapsed| {
                 FixtureDeadline::new(
@@ -40,85 +44,89 @@ async fn original_deadline_retains_the_completed_stale_serving_failure() -> Test
                 )
             })??;
 
-        observation
-            .wait(
-                "mixed stale deadline completed flush prerequisite exceeded its deadline",
-                |state| state.primed && state.fault_taken && state.destroyed,
-            )
-            .await?;
-
-        timeout(TEST_TIMEOUT, async {
-            while !server
-                .as_ref()
-                .ok_or("original mixed stale task missing")?
-                .is_finished()
-            {
-                yield_now().await;
-            }
-            TestResult::Ok(())
-        })
-        .await
-        .map_err(|elapsed| {
-            FixtureDeadline::new(
-                "mixed stale deadline original finished prerequisite exceeded its deadline",
-                elapsed,
-            )
-        })??;
-
-        held = Some(HeldRequest::spawn().await?);
-        let held_address = held.as_ref().ok_or("held HTTP peer missing")?.address;
-        let error = bounded(async {
-            complete(&mut server, async {
-                let request = client
-                    .get(HttpProtocol::Http1, &format!("http://{held_address}/held-deadline"))?
-                    .send();
-                tokio::pin!(request);
-
-                tokio::select! {
-                    result = &mut request => {
-                        let _response = result?;
-                        return Err("held HTTP response arrived before its Pending prerequisite".into());
-                    }
-                    result = held
-                        .as_mut()
-                        .ok_or("held HTTP peer missing during caller")?
-                        .wait_pending() => {
-                            result?;
-                            held_pending_before_deadline = true;
-                        }
-                }
-
-                let _response = request.await?;
-                Ok(())
-            })
-            .await?;
-            Ok(())
-        })
-        .await
-        .err()
-        .ok_or("actual held HTTP caller escaped its original deadline")?;
-
-        let checked = async {
-            if !held_pending_before_deadline {
-                return Err("held HTTP prerequisite did not complete inside the original deadline".into());
-            }
-
-            held.as_mut()
-                .ok_or("held HTTP peer missing after caller deadline")?
-                .wait_pending()
+            observation
+                .wait(
+                    "mixed stale deadline completed flush prerequisite exceeded its deadline",
+                    |state| state.primed && state.fault_taken && state.destroyed,
+                )
                 .await?;
 
-            deadline_and_serving_causes(&observation, error.as_ref())?;
-            observation.no_backup()
-        }
+            timeout(TEST_TIMEOUT, async {
+                while !server
+                    .as_ref()
+                    .ok_or("original mixed stale task missing")?
+                    .is_finished()
+                {
+                    yield_now().await;
+                }
+                TestResult::Ok(())
+            })
+            .await
+            .map_err(|elapsed| {
+                FixtureDeadline::new(
+                    "mixed stale deadline original finished prerequisite exceeded its deadline",
+                    elapsed,
+                )
+            })??;
+
+            held = Some(HeldRequest::spawn().await?);
+            let held_address = held.as_ref().ok_or("held HTTP peer missing")?.address;
+            let deadline = Instant::now() + TEST_TIMEOUT;
+
+            let caller = bounded_until(deadline, async {
+            let request = client
+                .get(HttpProtocol::Http1, &format!("http://{held_address}/held-deadline"))?
+                .send();
+            tokio::pin!(request);
+
+            tokio::select! {
+                result = &mut request => {
+                    let _response = result?;
+                    return Err("held HTTP response arrived before its Pending prerequisite".into());
+                }
+                result = held
+                    .as_mut()
+                    .ok_or("held HTTP peer missing during caller")?
+                    .wait_pending() => {
+                        result?;
+                        held_pending_before_deadline = true;
+                    }
+            }
+
+            let _response = request.await?;
+            Ok(())
+        })
         .await;
 
-        match checked {
-            Ok(()) => Ok(()),
-            Err(validation) => finish_with_cleanup(Err(validation), Err(error)),
+            let error = complete(&mut server, caller, deadline)
+                .await
+                .err()
+                .ok_or("actual held HTTP caller escaped its original deadline")?;
+
+            let checked = async {
+                if !held_pending_before_deadline {
+                    return Err(
+                        "held HTTP prerequisite did not complete inside the original deadline"
+                            .into(),
+                    );
+                }
+
+                held.as_mut()
+                    .ok_or("held HTTP peer missing after caller deadline")?
+                    .wait_pending()
+                    .await?;
+
+                deadline_and_serving_causes(&observation, error.as_ref())?;
+                observation.no_backup()
+            }
+            .await;
+
+            match checked {
+                Ok(()) => Ok(()),
+                Err(validation) => finish_with_cleanup(Err(validation), Err(error)),
+            }
         }
-    }
-    .await;
+        .await;
 
     let original_cleanup = observation.backup(&mut server, None).await;
     let held_cleanup = match held {

@@ -1,8 +1,6 @@
 use std::{
     error::Error,
-    fmt,
-    future::Future,
-    io,
+    fmt, io,
     net::{Ipv4Addr, SocketAddr},
     pin::Pin,
     sync::{
@@ -17,7 +15,7 @@ use tokio::{
     net::{TcpListener, TcpStream},
     sync::watch,
     task::AbortHandle,
-    time::timeout,
+    time::{Instant, timeout, timeout_at},
 };
 
 use super::{
@@ -32,35 +30,75 @@ pub(super) type Server = ConnectionPeer<TestResult<(ReceivedRequest, bool)>>;
 
 pub(super) async fn complete(
     server: &mut Option<Server>,
-    caller: impl Future<Output = TestResult>,
+    caller: TestResult,
+    deadline: Instant,
 ) -> TestResult<(ReceivedRequest, bool)> {
-    let mut server = server.take().ok_or("original stale server missing")?;
+    let Some(mut server) = server.take() else {
+        return match caller {
+            Ok(()) => Err("original stale server missing".into()),
+            Err(error) => Err(error),
+        };
+    };
 
-    let caller = caller.await;
-
-    let requested = caller.is_err() && !server.is_finished();
+    // A finished foreign cancellation stays an error. Concurrent aborts of an
+    // unfinished task cannot identify which cancellation request won.
+    let mut requested = caller.is_err() && !server.is_finished();
     if requested {
         server.abort();
     }
 
-    let joined = timeout(TEST_TIMEOUT, &mut server).await.map_err(|elapsed| {
-        FixtureDeadline::new(
-            "stale-replay original worker completion exceeded its deadline",
-            elapsed,
-        )
-    });
+    let join_deadline = if caller.is_ok() {
+        deadline
+    } else {
+        Instant::now() + TEST_TIMEOUT
+    };
 
-    match caller {
-        Ok(()) => joined??,
-        Err(primary) => {
-            let cleanup = match joined {
+    match timeout_at(join_deadline, &mut server).await {
+        Ok(Ok(result)) => match caller {
+            Ok(()) => result,
+            Err(primary) => finish_with_cleanup(Err(primary), result.map(|_| ())),
+        },
+        Ok(Err(error)) => match caller {
+            Ok(()) => Err(error.into()),
+            Err(primary) => {
+                let cleanup = if requested && error.is_cancelled() {
+                    Ok(())
+                } else {
+                    Err(error.into())
+                };
+
+                finish_with_cleanup(Err(primary), cleanup)
+            }
+        },
+        Err(elapsed) => {
+            let purpose = if caller.is_ok() {
+                "stale-connection replay test exceeded its deadline"
+            } else {
+                "stale-replay original worker completion exceeded its deadline"
+            };
+            let deadline_error = FixtureDeadline::new(purpose, elapsed).into();
+            let failure = match caller {
+                Ok(()) => Err(deadline_error),
+                Err(primary) => finish_with_cleanup(Err(primary), Err(deadline_error)),
+            };
+
+            if !server.is_finished() {
+                requested = true;
+                server.abort();
+            }
+
+            let cleanup = match timeout(TEST_TIMEOUT, &mut server).await {
                 Ok(Ok(result)) => result.map(|_| ()),
                 Ok(Err(error)) if requested && error.is_cancelled() => Ok(()),
                 Ok(Err(error)) => Err(error.into()),
-                Err(error) => Err(error.into()),
+                Err(elapsed) => Err(FixtureDeadline::new(
+                    "stale-replay original worker final cleanup exceeded its deadline",
+                    elapsed,
+                )
+                .into()),
             };
 
-            finish_with_cleanup(Err(primary), cleanup)
+            finish_with_cleanup(failure, cleanup)
         }
     }
 }

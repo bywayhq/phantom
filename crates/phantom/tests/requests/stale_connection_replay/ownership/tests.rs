@@ -3,10 +3,10 @@ use std::error::Error;
 use phantom::{HttpProtocol, RequestError, RequestErrorKind};
 use tokio::{
     task::yield_now,
-    time::{error::Elapsed, timeout},
+    time::{Instant, error::Elapsed, timeout},
 };
 
-use super::super::{bounded, prime, replaying_client};
+use super::super::{bounded_until, prime, replaying_client};
 use super::{
     Mode, Observation, TEST_TIMEOUT, TestResult, complete, pending, spawn_single_stale_server,
 };
@@ -40,7 +40,11 @@ async fn caller_failure_closes_the_actual_primed_stale_socket() -> TestResult {
     let (_, mut server, mut stream, mut observation) = pending().await?;
 
     let observed = async {
-        let error = complete(&mut server, invalid_uri())
+        let deadline = Instant::now() + TEST_TIMEOUT;
+
+        let caller = bounded_until(deadline, invalid_uri()).await;
+
+        let error = complete(&mut server, caller, deadline)
             .await
             .err()
             .ok_or("invalid URI succeeded")?;
@@ -67,17 +71,15 @@ async fn original_deadline_closes_the_actual_primed_stale_socket() -> TestResult
 
     let observed = async {
         let client = replaying_client()?;
-        let error = bounded(async {
-            complete(
-                &mut server,
-                prime(&client, &format!("http://{address}/prime")),
-            )
-            .await?;
-            Ok(())
-        })
-        .await
-        .err()
-        .ok_or("actual held stale exchange escaped its deadline")?;
+        let deadline = Instant::now() + TEST_TIMEOUT;
+
+        let caller =
+            bounded_until(deadline, prime(&client, &format!("http://{address}/prime"))).await;
+
+        let error = complete(&mut server, caller, deadline)
+            .await
+            .err()
+            .ok_or("actual held stale exchange escaped its deadline")?;
 
         if error.to_string() != "stale-connection replay test exceeded its deadline" {
             return Err("original stale-replay deadline message changed".into());
@@ -104,17 +106,15 @@ async fn original_deadline_retains_its_actual_elapsed_cause() -> TestResult {
 
     let observed = async {
         let client = replaying_client()?;
-        let error = bounded(async {
-            complete(
-                &mut server,
-                prime(&client, &format!("http://{address}/prime")),
-            )
-            .await?;
-            Ok(())
-        })
-        .await
-        .err()
-        .ok_or("actual held stale exchange escaped its deadline")?;
+        let deadline = Instant::now() + TEST_TIMEOUT;
+
+        let caller =
+            bounded_until(deadline, prime(&client, &format!("http://{address}/prime"))).await;
+
+        let error = complete(&mut server, caller, deadline)
+            .await
+            .err()
+            .ok_or("actual held stale exchange escaped its deadline")?;
 
         if !error.is::<Elapsed>() && !error.source().is_some_and(|source| source.is::<Elapsed>()) {
             return Err("original stale-replay Elapsed cause was lost".into());
@@ -153,13 +153,15 @@ async fn completion_retains_the_actual_stale_prime_flush_failure() -> TestResult
 
     let observed = async {
         let client = replaying_client()?;
-        let error = complete(
-            &mut server,
-            prime(&client, &format!("http://{address}/prime")),
-        )
-        .await
-        .err()
-        .ok_or("actual stale prime flush failure was discarded")?;
+        let deadline = Instant::now() + TEST_TIMEOUT;
+
+        let caller =
+            bounded_until(deadline, prime(&client, &format!("http://{address}/prime"))).await;
+
+        let error = complete(&mut server, caller, deadline)
+            .await
+            .err()
+            .ok_or("actual stale prime flush failure was discarded")?;
 
         observation
             .wait(
@@ -211,7 +213,11 @@ async fn completion_retains_the_actual_caller_and_completed_stale_errors() -> Te
             )
         })??;
 
-        let error = complete(&mut server, invalid_uri())
+        let deadline = Instant::now() + TEST_TIMEOUT;
+
+        let caller = bounded_until(deadline, invalid_uri()).await;
+
+        let error = complete(&mut server, caller, deadline)
             .await
             .err()
             .ok_or("invalid URI succeeded")?;
