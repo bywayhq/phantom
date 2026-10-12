@@ -123,7 +123,7 @@ async fn client_requests_reuse_one_connection() -> TestResult {
 
 #[cfg(feature = "danger-disable-verification")]
 #[tokio::test]
-async fn disabled_authentication_replaces_connections_without_session_resumption() -> TestResult {
+async fn disabled_authentication_completes_requests_on_replacement_connections() -> TestResult {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
