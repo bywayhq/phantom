@@ -1,0 +1,134 @@
+{
+  "causal_target_destruction_failures": 4,
+  "causal_discarded_postflush_error_failures": 1,
+  "sidecars_fully_read": 12,
+  "revision": "d35ac16e8f67f2c6375e964b6d8e5591292c3ee7",
+  "whole_audit_closed": false,
+  "native_executed_by_reviewer": false,
+  "positive_controls_passed": 2,
+  "backup_observed_after_target": true,
+  "retained_error_kind_type_marker_assertions_unreached": true,
+  "artifacts": [
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "status-child-baseline-d35ac16e-linux.clippy.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "af07812a0c0a4f98da8515f0555c51e74c2d7ab4dd0302c19df48a4e12f767e9",
+      "name": "status-child-baseline-d35ac16e-linux.clippy.log",
+      "bytes": 178
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "status-child-baseline-d35ac16e-linux.fmt.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "status-child-baseline-d35ac16e-linux.fmt.log",
+      "bytes": 0
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "status-child-baseline-d35ac16e-linux.msrv.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "a58226439866e41030a75c92e0eca4127cbc3e4d218fda4b4f8ea6bbb06d2a56",
+      "name": "status-child-baseline-d35ac16e-linux.msrv.log",
+      "bytes": 178
+    },
+    {
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "name": "status-child-baseline-d35ac16e-linux.retry.exit",
+      "bytes": 4
+    },
+    {
+      "sha256": "8f34dd5614b3bd61245eab74bff7d7a5a0310e5a4717f34bf52f162d4260f3fd",
+      "name": "status-child-baseline-d35ac16e-linux.retry.log",
+      "bytes": 4070
+    },
+    {
+      "sha256": "62606bbfc20876a4aaf6fe437315eb2b983593f6c544c1dd64a34f6146c3c984",
+      "name": "status-child-baseline-d35ac16e-linux.revision",
+      "bytes": 41
+    },
+    {
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "name": "status-child-baseline-d35ac16e-linux.runner-exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "status-child-baseline-d35ac16e-windows.clippy.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "2a0043b45ae3afa22b1bc10546c6cac3380ceb9dca77cd7c463cc73a112ac406",
+      "name": "status-child-baseline-d35ac16e-windows.clippy.log",
+      "bytes": 168
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "status-child-baseline-d35ac16e-windows.fmt.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "status-child-baseline-d35ac16e-windows.fmt.log",
+      "bytes": 0
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "status-child-baseline-d35ac16e-windows.msrv.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "57d6cdbd1b85ef71448900858533cb7d8a824de7044a31b2321e23f36f1bc303",
+      "name": "status-child-baseline-d35ac16e-windows.msrv.log",
+      "bytes": 168
+    },
+    {
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "name": "status-child-baseline-d35ac16e-windows.retry.exit",
+      "bytes": 4
+    },
+    {
+      "sha256": "1ada94e77c36bd045c8070c8c0124c27149e28082343d87d489ffc577057a9fc",
+      "name": "status-child-baseline-d35ac16e-windows.retry.log",
+      "bytes": 4064
+    },
+    {
+      "sha256": "62606bbfc20876a4aaf6fe437315eb2b983593f6c544c1dd64a34f6146c3c984",
+      "name": "status-child-baseline-d35ac16e-windows.revision",
+      "bytes": 41
+    },
+    {
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "name": "status-child-baseline-d35ac16e-windows.runner-exit",
+      "bytes": 2
+    }
+  ],
+  "decision": "qualified five-causal-failure baseline; bounded semantic remedy may begin",
+  "each_host": {
+    "selected": 25,
+    "retry_exit": 101,
+    "ignored": 0,
+    "passed": 20,
+    "filtered": 530,
+    "fmt_exit": 0,
+    "runner_exit": 1,
+    "msrv_exit": 0,
+    "failed": 5,
+    "clippy_exit": 0
+  },
+  "markdown_sha256": "0234905b0c4cf42569be817a69435ccfea652ede71968783d62fafff7c7e8e60",
+  "sync_sha256": "41ed145c093109c516d8fb1a23352616ba13760aedefc42d6d7c57ba5bc342c2",
+  "semantic_remedy": false,
+  "current_root_and_mirror_clean_verified": true,
+  "logs_fully_read": 8,
+  "failed_control_socket_assertions_unreached": true,
+  "original_contracts_passed": 18,
+  "runner_sha256": "aeb32325476fa8517149886662ef841bb32bafdcb4ba1ebcf790512f547ee5b7"
+}

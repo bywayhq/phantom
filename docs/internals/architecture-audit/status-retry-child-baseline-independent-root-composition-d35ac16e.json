@@ -1,0 +1,29 @@
+{
+  "markdown_sha256": "0ad9ffbbef034099af110b4dfa9b1da4d97d7d36f1bde35196a9933611a93a71",
+  "semantic_delta": false,
+  "author_revision": "244db03308a82fdd0c24e2b77a758a1214a81a72",
+  "clean_verified": true,
+  "original_contracts": 18,
+  "owner_remedy": false,
+  "complete_root_observer_read": 456,
+  "signature": "G",
+  "revision": "d35ac16e8f67f2c6375e964b6d8e5591292c3ee7",
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/requests/status_retry.rs",
+      "sha256": "84447af3978be46dcc28ada7ca8c9fa23cf11f79b35ad70769d5aa5804059583",
+      "blob": "c32d37219eee671f8379e00ae0090c59b94d7e63"
+    },
+    {
+      "path": "crates/phantom/tests/requests/status_retry/ownership.rs",
+      "sha256": "0ce40732099ab01fdc40c0e83ce5b35c661a3f05e2031c4fa964e584a0087b7a",
+      "blob": "038478eebab43bdfad6899cbbc6fbba3668c4cbd"
+    }
+  ],
+  "diagnostic_original_elapsed_preserved": true,
+  "native_performed": false,
+  "full_author_to_root_diff_read": true,
+  "independent_controls": 7,
+  "complete_root_owner_read": 840,
+  "decision": "approve baseline root composition for measurement"
+}

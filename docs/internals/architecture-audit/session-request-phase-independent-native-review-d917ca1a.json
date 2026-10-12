@@ -1,0 +1,147 @@
+{
+  "causal_discarded_completed_error_failures": 2,
+  "full_logs_read": 8,
+  "current_root_and_linux_clean_verified": true,
+  "markdown_sha256": "3dc066b602ac0e05ac00f8c1611ee24dd5c6db3895d2c1b8816998687d076a6d",
+  "old_90_compilation_failure_preserved": true,
+  "controls_sha256": "f87378a1c923db29deb8ad72ccb11277d382cb6c0719332d71c467e3d1748433",
+  "artifacts": [
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "session-request-phase-d917ca1a-linux.clippy.exit"
+    },
+    {
+      "bytes": 178,
+      "sha256": "1b06e612cc45b5dfeb51e1862e6fb3ac640839b78d0a2541e781684e3247e29f",
+      "name": "session-request-phase-d917ca1a-linux.clippy.log"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "session-request-phase-d917ca1a-linux.fmt.exit"
+    },
+    {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "session-request-phase-d917ca1a-linux.fmt.log"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "session-request-phase-d917ca1a-linux.msrv.exit"
+    },
+    {
+      "bytes": 178,
+      "sha256": "cb6fda5f62809eae29689fe0f2305dbe9297179b005b08435c00e946041361a2",
+      "name": "session-request-phase-d917ca1a-linux.msrv.log"
+    },
+    {
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "name": "session-request-phase-d917ca1a-linux.retry.exit"
+    },
+    {
+      "bytes": 2907,
+      "sha256": "f7db78c19856b5cb62b3725ccc4fd7ccb31b1aaf8b35f475108f479d5f298acd",
+      "name": "session-request-phase-d917ca1a-linux.retry.log"
+    },
+    {
+      "bytes": 41,
+      "sha256": "e34dfa5dc22aba2faec7d2fbed8cf571a60f13d4ac2601ac1d63ee35716f614b",
+      "name": "session-request-phase-d917ca1a-linux.revision"
+    },
+    {
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "name": "session-request-phase-d917ca1a-linux.runner-exit"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "session-request-phase-d917ca1a-windows.clippy.exit"
+    },
+    {
+      "bytes": 168,
+      "sha256": "25536d389b1cef4f8dc6a5e16afa1af7bf264b946a5f0bca6743dab3139dd76a",
+      "name": "session-request-phase-d917ca1a-windows.clippy.log"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "session-request-phase-d917ca1a-windows.fmt.exit"
+    },
+    {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "session-request-phase-d917ca1a-windows.fmt.log"
+    },
+    {
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "session-request-phase-d917ca1a-windows.msrv.exit"
+    },
+    {
+      "bytes": 168,
+      "sha256": "b389c66f7e9fc36383256e482ead9dccb3da546f8f12fd75de258bb717114bb3",
+      "name": "session-request-phase-d917ca1a-windows.msrv.log"
+    },
+    {
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "name": "session-request-phase-d917ca1a-windows.retry.exit"
+    },
+    {
+      "bytes": 2901,
+      "sha256": "0c64a8bc181f4f4320808c868357ef2dcc58f71bd0e42c65b02fa5f870ef34d7",
+      "name": "session-request-phase-d917ca1a-windows.retry.log"
+    },
+    {
+      "bytes": 41,
+      "sha256": "e34dfa5dc22aba2faec7d2fbed8cf571a60f13d4ac2601ac1d63ee35716f614b",
+      "name": "session-request-phase-d917ca1a-windows.revision"
+    },
+    {
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "name": "session-request-phase-d917ca1a-windows.runner-exit"
+    }
+  ],
+  "decision": "qualified five-causal-failure baseline; semantic remedy may begin",
+  "sync_sha256": "87a8729e25f68230a9b12f958f66db295f0115d5187b888b268c065128d8bb59",
+  "old_469_phase_ambiguity_and_clippy_failure_preserved": true,
+  "controls_blob": "da17d385650dd1e5647c16b761c240ad0161d4ec",
+  "full_sidecars_read": 12,
+  "semantic_remedy": false,
+  "whole_audit_closed": false,
+  "native_executed_by_reviewer": false,
+  "runner_sha256": "af476b0bc9f0922f235419052c81695e4242758096d8d2c274822749b3416e93",
+  "hosts": {
+    "linux": {
+      "msrv_exit": 0,
+      "runner_exit": 1,
+      "passed": 2,
+      "failed": 5,
+      "ignored": 0,
+      "filtered": 289,
+      "fmt_exit": 0,
+      "selected": 7,
+      "retry_exit": 101,
+      "clippy_exit": 0
+    },
+    "windows": {
+      "msrv_exit": 0,
+      "runner_exit": 1,
+      "passed": 2,
+      "failed": 5,
+      "ignored": 0,
+      "filtered": 290,
+      "fmt_exit": 0,
+      "selected": 7,
+      "retry_exit": 101,
+      "clippy_exit": 0
+    }
+  },
+  "revision": "d917ca1ae8a7e69e789556c5b5bfae48244470f8",
+  "causal_lifecycle_failures": 3
+}

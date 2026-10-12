@@ -2037,6 +2037,28 @@ Focused quality passes. The initial formatting failure remains recorded in
 `status-retry-body-oracle-independent-native-review-cabbe4dd.json`.
 Task ownership, serving errors and full integration checks remain open.
 
+The request-caller baseline at `d917ca1a` has two healthy passes and five
+qualified failures on each host. Three reach the original request destruction
+watch after caller exit. Two reach discarded completed request or H2 causes.
+Earlier `90e4387c` does not compile; `4697a57b` retains three ambiguous
+timeouts and one lint failure. The later phase controls resolve that ambiguity
+without changing owners. See `session-request-phase-independent-native-review-d917ca1a.json`.
+
+The scripted status baseline at `d35ac16e` passes eighteen old contracts and
+two positives per host. Four accepted TCP/TLS child destruction controls fail
+after their prerequisites; one consumed post-flush serving error is discarded.
+The failed controls do not reach their socket or retained-error assertions.
+Both baselines pass formatting, strict affected Clippy and Rust 1.88 checks.
+Their fixtures still require ownership repairs. Full gates and CI remain open.
+See `status-child-baseline-independent-native-review-d35ac16e.json`.
+
+A whole source review of the 536-line HTTP/1 session fixture confirms nine
+raw server owners and two queued request handles with incomplete cleanup.
+Its deadline loses the original timeout cause. The disabled-authentication
+test observes replacement requests but does not observe session resumption.
+These extend A236/A233 and qualify the test title; no production defect or
+native outcome is claimed. See `session-http1-whole-owner-independent-source-disposition-d35ac16e.json`.
+
 ## Next
 
 - [Audit plan](../architecture-audit.md): acceptance and verification.
