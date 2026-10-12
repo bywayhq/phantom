@@ -13,15 +13,6 @@ from scripts.capture.browser_failures import BrowserLaunchFailures
 DEADLINE = 5.0
 
 
-class RejectedSwitches(list):
-    def __init__(self, error):
-        super().__init__(["--controlled-switch"])
-        self.error = error
-
-    def __iter__(self):
-        raise self.error
-
-
 class OriginLoopback:
     def __init__(self):
         self.stack = ExitStack()
@@ -110,11 +101,10 @@ class OriginLoopback:
 
     async def call_run(self, failure):
         try:
-            await hooks.run_once(
-                hooks.SCENARIOS["single"],
-                Path("unused-browser"),
-                RejectedSwitches(failure),
-            )
+            with patch.object(hooks.tempfile, "mkdtemp", side_effect=failure):
+                await hooks.run_once(
+                    hooks.SCENARIOS["single"], Path("unused-browser"), ()
+                )
         except BaseException as error:
             self.caller_error = error
 
@@ -185,10 +175,10 @@ class OriginOwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(peer.server_writer.is_closing())
         self.assertEqual(await asyncio.wait_for(peer.reader.read(1), DEADLINE), b"")
 
-    async def test_caller_input_failure_closes_its_actual_pending_origin_handler(self):
+    async def test_profile_creation_failure_closes_its_actual_pending_origin_handler(self):
         peer = self.peer()
         peer.install_run()
-        failure = LookupError("controlled original caller argument failure")
+        failure = LookupError("controlled original profile creation failure")
 
         await peer.call_run(failure)
 
@@ -196,11 +186,11 @@ class OriginOwnershipTests(unittest.IsolatedAsyncioTestCase):
         await self.assert_closed(peer)
         self.assertEqual(peer.origin.open_count, 0)
 
-    async def test_completed_original_read_failure_survives_caller_input_failure(self):
+    async def test_completed_original_read_failure_survives_profile_creation_failure(self):
         peer = self.peer()
         peer.install_run()
         peer.injected = OSError(errno.EIO, "controlled original accepted reader failure")
-        failure = LookupError("controlled original caller argument failure")
+        failure = LookupError("controlled original profile creation failure")
 
         await peer.call_run(failure)
 
