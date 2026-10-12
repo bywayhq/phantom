@@ -1,0 +1,19 @@
+# Request-owner remedy: independent paired native review
+
+Decision: accept the bounded request-owner repair at signed30e4999bdf34a6a21cc0eb199f0a7cb85fcd315e. Both hosts pass all41 selected controls, including the six formerly causal baseline failures. Broader A236 remains open; this is not a whole-crate ownership or full integration acceptance.
+
+Read scope: all eight full step logs and twelve terminal receipts, complete staged runner/sync reviewed before execution, exact root composition against immutable788, original eight control bodies and resolved actual future/barrier/peer/error interfaces. Root and Linux mirror were independently read clean at exact30e after both terminal runs and before any subsequent source composition.
+
+Windows and Linux each41PASS0FAIL0ignored, with257 and256 filtered respectively. Test, formatting, strict requests/streams/sessions Clippy and Rust1.88 exits are all0; logs contain no warnings or failures. Both whole runners exit0. Exact revision and clean guards bracket all four steps, with unique no-overwrite artifact paths.
+
+The same eight method bodies used in measured3aa baseline35P6causalF remain byte-exact. Both original healthy controls and the33 previously passing selected contracts continue to pass. Actual callerDrop, actual expiry and original first-error controls now witness both real request futures destroyed before backup; their later original peer-result and socket-closure checks also pass. Requests are owned lexically rather than detached raw task handles. The observer records actual future entry/Pending/Ready/destruction; backup has no request tasks to abort and cannot supply target destruction.
+
+The completed-two-error control retains both distinct original RequestError causes, including InvalidUri's actual parser source and UnsupportedScheme. The original H2 serving-cause control retains the caller's original InvalidUri/parser and actual completed H2 I/O PermissionDenied/message. The added held mixed control retains completed original InvalidUri/parser alongside the real caller FixtureDeadline and original Elapsed, then passes original-future destruction, peer-result and socket-closure assertions before backup. These assertions were unreached at baseline3aa and are now reached and passing. Causes come from real original operations and moved results, not copied errors or synthetic futures.
+
+The observer-free original cold and independent tests retain real barrier participation, response204, literal paths, stream IDs and separate-client behavior. Existing owner and child control blobs remain unchanged. No public/runtime/vendor/wire change was introduced.
+
+Source bindings: owner blob bd78412a7dd1db64aa26eb080a9890f823b75e9c, SHA25641548d803f9c24008bc9afb3ac6f5a13e9c1720fc0bfae8188fe710076256900; controls blob1559954ebfb5427249d4cc0d6b85957490caca96, SHA25634ec2ca20bae310867662fef676c2baad93470a0936b679f687d5f4a8bc682b4. The companion JSON binds all20 evidence artifacts and both scripts.
+
+Historical qualifications remain: root90 had E0106 with no test execution; root469's three lifecycle failures were phase ambiguous and strict Clippy was limited by needless_question_mark; d917 and3aa establish named causal phases separately. The current run repairs this bounded selection. It does not measure ready/deadline races, three-way request/request/deadline aggregation, collection-channel failure, externalDrop error reporting, inherited peer cancellation/cleanup expiry or outer watchdog destruction. Original absolute five-second setup/caller deadline precedes finite collection; unchanged total wall-time is not claimed. H1/raw shared-cap/unprocessed replay and other fixture owners remain separate work, and full gate/CI remain required.
+
+Reviewer actions: read-only source/Git/artifact inspection and scratch reports. No reviewer Cargo/native execution, source mutation, formatter/checker/probe, import or push.

@@ -1,0 +1,166 @@
+{
+  "schema": "independent_native_review_v1",
+  "revision": "aeea9a48c7b05aaf89fad33fc93052b79a4fc0a4",
+  "decision": "bounded_scripted_status_owner_remedy_accepted",
+  "eight_full_logs_read": true,
+  "twelve_terminal_sidecars_read": true,
+  "root_and_mirror_clean_exact_verified": true,
+  "per_host": {
+    "filtered": 530,
+    "failed": 0,
+    "warnings": 0,
+    "strict_three_target_clippy_exit": 0,
+    "runner_exit": 0,
+    "rust188_exit": 0,
+    "selected": 29,
+    "passed": 29,
+    "ignored": 0,
+    "tests_exit": 0,
+    "fmt_exit": 0
+  },
+  "baseline": {
+    "revision": "d35ac16e8f67f2c6375e964b6d8e5591292c3ee7",
+    "passed": 20,
+    "selected": 25,
+    "causal_failures": 5
+  },
+  "old_methods_preserved": 18,
+  "old_control_bodies_byte_exact": 7,
+  "new_methods_passed": 4,
+  "new_control_qualifications": [
+    "controlled post-success read/write fault markers and caller results",
+    "actual fresh/partial head/body half-close classification",
+    "finished foreign original cancellation JoinError and task ID",
+    "actual parser caller plus original postflush marker"
+  ],
+  "formerly_unreached_original_error_and_socket_assertions_now_pass": true,
+  "historical_5b0": "sole E0521; fmt0; no tests executed",
+  "open": [
+    "accept/TLS/partial acquisition",
+    "multiple ready errors/pending siblings",
+    "panic/poison/exhaustion",
+    "cleanup expiry plus later-ready outcome",
+    "concurrent cancellation",
+    "other cause combinations",
+    "specific disconnect retirement",
+    "externalDrop/runtime-shutdown reporting",
+    "permissive CL and allocation/lossy decoding",
+    "raw shared-cap owner",
+    "full gate/CI"
+  ],
+  "broader_findings_closed": false,
+  "artifacts": [
+    {
+      "name": "run-status-child-remedy.sh",
+      "bytes": 1730,
+      "sha256": "602bea0731102178403e316b574e02bd8362627a920ea81f4b4a9dbdb1c20890"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-linux.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-linux.clippy.log",
+      "bytes": 177,
+      "sha256": "ccaf242a0e820b5ae808c9a75ad26e7f568c16993e4aec096b2c9fcea95d6fe8"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-linux.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-linux.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-linux.msrv.log",
+      "bytes": 178,
+      "sha256": "89b1eb37e5d19b283660d38709d62175478379c78e0e14a4d934d30d0dac2a07"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-linux.retry.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-linux.retry.log",
+      "bytes": 2868,
+      "sha256": "702387b8f010084d71be8ada978ba3a2644e1d8da56dd962c463b8228d0fdd9c"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-linux.revision",
+      "bytes": 41,
+      "sha256": "c52a434a6fbbfe0da0028f1fdb03fee98119244848f60f165781a43945b3e496"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-windows.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-windows.clippy.log",
+      "bytes": 168,
+      "sha256": "6cac1e88ae08ba9395915612c8c65a2cb6c01f139348539d15db4bf5d71b1dde"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-windows.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-windows.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-windows.msrv.log",
+      "bytes": 168,
+      "sha256": "15b60509d9550af65050f451a960c3fc1708247003a38d86f719c69bd3ddb541"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-windows.retry.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-windows.retry.log",
+      "bytes": 2862,
+      "sha256": "1fdc40aed53fa7c0b673e6acbcbbdcc2931ea1a6583a21ce8d8bfe4256788cb5"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-windows.revision",
+      "bytes": 41,
+      "sha256": "c52a434a6fbbfe0da0028f1fdb03fee98119244848f60f165781a43945b3e496"
+    },
+    {
+      "name": "status-child-remedy-aeea9a48-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "name": "sync-status-child-remedy-aeea9a48.sh",
+      "bytes": 489,
+      "sha256": "0ed08be250b31433ee8972f25405265171d4249cc02c591f09db8a7b0e138ea0"
+    }
+  ],
+  "reviewer_executed_native": false,
+  "md_sha256": "ada370f0ad7190d1c71826e838e8314891957350a3501fdc7b06927b3d94bf2e"
+}

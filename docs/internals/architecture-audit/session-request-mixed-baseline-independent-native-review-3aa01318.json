@@ -1,0 +1,156 @@
+{
+  "schema": "independent_native_review_v1",
+  "revision": "3aa013180137b9732b383d0f15bcbde3de1ecac4",
+  "decision": "qualified_six_causal_baseline_failures_remedy_unmeasured",
+  "full_logs_read": 8,
+  "sidecars_read": 12,
+  "scripts_read": 2,
+  "clean_exact_root_and_mirror_verified": true,
+  "per_host": {
+    "retry_exit": 101,
+    "failed": 6,
+    "rust188_exit": 0,
+    "fmt_exit": 0,
+    "passed": 35,
+    "runner_exit": 1,
+    "ignored": 0,
+    "selected": 41,
+    "strict_three_target_clippy_exit": 0
+  },
+  "filtered": {
+    "windows": 257,
+    "linux": 256
+  },
+  "causes": [
+    "three actual future destruction target phases",
+    "discarded completed original second request cause",
+    "discarded completed original H2 serving cause",
+    "discarded completed original request cause across real held caller deadline"
+  ],
+  "new_mixed_control": {
+    "later_combined_type_and_cause_assertions": "unreached",
+    "actual_uri_parser_metadata_reached": true,
+    "failure": "caller deadline discarded the completed original request error",
+    "actual_pending_and_ready_prerequisites_reached": true,
+    "later_target_cleanup_peer_and_socket_assertions": "unreached"
+  },
+  "historical": {
+    "root90": "compiler prerequisite only; no tests executed",
+    "d917": "named target phases with quality0",
+    "root469": "three ambiguous Elapsed lifecycle failures; strict Clippy limitation"
+  },
+  "reviewer_executed_native": false,
+  "artifacts": [
+    {
+      "name": "run-session-request-mixed-baseline.sh",
+      "sha256": "3c70968655a031580eaef4b7de9ae6a5183fa2a0086c9685b3a9c45d992c7100",
+      "bytes": 1736
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-linux.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-linux.clippy.log",
+      "sha256": "37afd5f84a50ca41eed56a83a1a37988b1964073d4088eee0bfda8d24cd8de49",
+      "bytes": 177
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-linux.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-linux.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-linux.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-linux.msrv.log",
+      "sha256": "d475e29259fc125bb83b340899751e8120deed0d965cb15c46c74904d09e841c",
+      "bytes": 177
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-linux.retry.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-linux.retry.log",
+      "sha256": "5050be7a137256964915136b716331a7b708e849a3a827363336d2d6d8645466",
+      "bytes": 6716
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-linux.revision",
+      "sha256": "d9b7086fa8e00b1cad81ee2967d9079590b3b2e6182af7e5dd98472894265628",
+      "bytes": 41
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-linux.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-windows.clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-windows.clippy.log",
+      "sha256": "76d0cd875ed4f984364d348523dec38b5a583100ddaa70076983bee0246af798",
+      "bytes": 168
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-windows.fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-windows.fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-windows.msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-windows.msrv.log",
+      "sha256": "8b5d63c181be9437740be554fbf14c7606596bddce585a6e4656fe3a6bdf7231",
+      "bytes": 168
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-windows.retry.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "bytes": 4
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-windows.retry.log",
+      "sha256": "499e1bfe7f8460a3d072a01cdba031f4a8ead5da2187daa741539e8a0dff66f5",
+      "bytes": 6710
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-windows.revision",
+      "sha256": "d9b7086fa8e00b1cad81ee2967d9079590b3b2e6182af7e5dd98472894265628",
+      "bytes": 41
+    },
+    {
+      "name": "session-request-mixed-baseline-3aa01318-windows.runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "bytes": 2
+    },
+    {
+      "name": "sync-session-request-mixed-baseline-3aa01318.sh",
+      "sha256": "8a218259c9cae10a5c719833692ad9264052e9f33753584e726dce8d0bcf15ac",
+      "bytes": 511
+    }
+  ],
+  "md_sha256": "6c9179298ced0809ab3546cf0df309c0703191455231a8e383e604538a61bd78"
+}

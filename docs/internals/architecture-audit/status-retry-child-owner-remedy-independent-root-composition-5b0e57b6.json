@@ -1,0 +1,43 @@
+{
+  "schema": "independent_root_composition_v1",
+  "revision": "5b0e57b6e09cce26bf75261a13423b2e71a11595",
+  "parent": "30e4999bdf34a6a21cc0eb199f0a7cb85fcd315e",
+  "author": "a485f486c3aee92c1a1e7cee9b2da404eadf97cb",
+  "decision": "approved_for_paired_measurement",
+  "signed_clean_root_verified": true,
+  "full_mechanical_diff_read": true,
+  "author_semantic_review": "status-retry-child-owner-remedy-independent-source-review-a485f486",
+  "files": 2,
+  "added": 427,
+  "removed": 66,
+  "lines": {
+    "owner": 990,
+    "observer": 667
+  },
+  "original_control_bodies_byte_exact": 7,
+  "original_contracts_preserved": 18,
+  "new_methods_unmeasured": 4,
+  "raw_shared_cap_full_method_byte_exact": true,
+  "accepted_request_remedy_diff_exit": 0,
+  "bindings": {
+    "owner_sha256": "6fbdeb05ee1d92da96122ea59d923a311d5ffb23c494c8a03167f5567e43794a",
+    "observer_blob": "b7cb15d9450a426664a3c8ed3eac072761216ad1",
+    "owner_blob": "25f986340454aff435ac4516f6cf192d237e6fbf",
+    "observer_sha256": "1b2a3fcbf744ef19295dbfae4c5958f269c240831709530c4f1cfa881b0e88f6"
+  },
+  "scripts": [
+    {
+      "name": "run-status-child-remedy.sh",
+      "sha256": "602bea0731102178403e316b574e02bd8362627a920ea81f4b4a9dbdb1c20890",
+      "full_read": true
+    },
+    {
+      "name": "sync-status-child-remedy-5b0e57b6.sh",
+      "sha256": "b51f4e01a22960516a6419b92f99b4511972f1da05ca5ba3f0743bbe0864c8ab",
+      "full_read": true
+    }
+  ],
+  "native": "unmeasured",
+  "reviewer_executed_native": false,
+  "md_sha256": "8f186153d8cf0cc397c29f551dd57d45d2eb1d7b405d6bfb4eb98440c6eef9ac"
+}

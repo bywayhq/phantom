@@ -2014,7 +2014,7 @@ both hosts. The capture reader passes 13 controls per host. Full capture
 discovery passes 661 methods on Windows and 650 with 11 skips on Linux.
 The separate session-reuse baseline had five intended failures across 26
 methods per host. Its reviewed peer repair now passes all 33 selected
-methods on both hosts. Raw request, proxy and upload owners remain open.
+methods on both hosts. Raw proxy, upload and HTTP/1 owners remain open.
 See `owner-netlog-root-checkpoint-02cad4f2.json` for exact revisions and limits.
 These selected checks do not replace the full gate or current candidate CI.
 
@@ -2049,7 +2049,7 @@ two positives per host. Four accepted TCP/TLS child destruction controls fail
 after their prerequisites; one consumed post-flush serving error is discarded.
 The failed controls do not reach their socket or retained-error assertions.
 Both baselines pass formatting, strict affected Clippy and Rust 1.88 checks.
-Their fixtures still require ownership repairs. Full gates and CI remain open.
+These are pre-repair observations. Full gates and CI remain open.
 See `status-child-baseline-independent-native-review-d35ac16e.json`.
 
 A whole source review of the 536-line HTTP/1 session fixture confirms nine
@@ -2058,6 +2058,32 @@ Its deadline loses the original timeout cause. The disabled-authentication
 test observes replacement requests but does not observe session resumption.
 These extend A236/A233 and qualify the test title; no production defect or
 native outcome is claimed. See `session-http1-whole-owner-independent-source-disposition-d35ac16e.json`.
+
+The request-caller repair at `30e4999b` passes all 41 selected session
+methods on Windows and Linux. The mixed baseline at `3aa01318` had 35 passes
+and six causal failures. The same eight control bodies now pass actual
+request destruction, both original request errors, the original H2 serving
+cause and the completed request cause alongside the real caller deadline.
+Later peer and socket checks pass before backup. Focused formatting, strict
+Clippy and Rust 1.88 checks pass. See
+`session-request-owner-remedy-independent-native-review-30e4999b.json`.
+Earlier compiler and phase qualifications remain in the baseline records.
+The five-second setup/caller deadline precedes finite peer collection.
+These checks do not measure every race or the total cleanup duration.
+
+The scripted status repair at `aeea9a48` passes all 29 selected methods on
+both hosts. All eighteen original contracts and seven unchanged controls
+pass after the five causal baseline failures. Four added methods pass
+actual read/write fault retention, fresh versus truncated request EOF,
+finished foreign cancellation and original caller/flush cause composition.
+Focused quality passes. The earlier `5b0e57b6` compile failure executed no
+tests; the correction changes one error-object lifetime annotation. See
+`status-child-owner-remedy-independent-native-review-aeea9a48.json`.
+Raw shared-cap ownership, decoder bounds, acquisition failures and wider
+cleanup races remain open. These checks do not replace full gates or CI.
+
+The HTTP/1 disabled-authentication test title now describes replacement
+requests. Its body does not establish session-resumption behavior.
 
 ## Next
 

@@ -1,0 +1,52 @@
+{
+  "schema": "independent_source_review_v1",
+  "revision": "a485f486c3aee92c1a1e7cee9b2da404eadf97cb",
+  "parent": "244db03308a82fdd0c24e2b77a758a1214a81a72",
+  "decision": "bounded_semantic_approved_native_unmeasured",
+  "full_source_lines": {
+    "observer": 668,
+    "owner": 988
+  },
+  "full_diff": {
+    "files": 2,
+    "added": 425,
+    "removed": 63
+  },
+  "old_methods": 18,
+  "old_control_bodies_byte_exact": 7,
+  "new_unmeasured_methods": 4,
+  "bindings": {
+    "owner_sha256": "ac97f33d916730ba7e8010fbbdadcb9e7fb1e9025f14de5ddf6dbd0d3ce14f0f",
+    "observer_blob": "f412212f2696bf917e8fcc779c14e2518921a49c",
+    "owner_blob": "df5e3b339df5dc7ccf6b1a8b43393b04a7daac87",
+    "observer_sha256": "edcafe234d75b2b1cfa828c86fc255a4f0c21ec275d5ed13f7257bd310b72d5f"
+  },
+  "approved": [
+    "real original coordinator and accepted-child owners",
+    "publication under seal lock",
+    "no lock across await",
+    "all stop requests before joins",
+    "original causes retained via existing typed composition",
+    "specific cancellation provenance",
+    "same common2s finite join deadline",
+    "later ready handles polled despite earlier expiry",
+    "actual original seven control phases and18contracts"
+  ],
+  "open": [
+    "paired native originals25 and new4",
+    "concurrent cancellation race",
+    "finite join expiry and externalDrop/runtime-shutdown reporting",
+    "multiple children/ready failures/pending siblings",
+    "accept/TLS/partial acquisition",
+    "panic/poison/exhaustion",
+    "deadline plus later ready cause",
+    "specific disconnect qualification",
+    "permissive invalid Content-Length default and unbounded allocation",
+    "lossy head conversion",
+    "raw shared-cap owner and outer deadline",
+    "full gate/CI"
+  ],
+  "broader_findings_closed": false,
+  "reviewer_executed_native": false,
+  "md_sha256": "8822ca6721f5d550ca34f313358018d6f68d70aa074f0a94ed9bd69fba66224b"
+}
