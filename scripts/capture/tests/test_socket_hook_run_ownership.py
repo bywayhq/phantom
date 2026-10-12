@@ -294,24 +294,30 @@ class SocketHookRunOwnershipTests(unittest.IsolatedAsyncioTestCase):
             with self.subTest(switch=switch):
                 owners = self.owners()
 
-                with self.assertRaisesRegex(ValueError, "managed profile"):
-                    await owners.call(hooks.SCENARIOS["single"], (switch,))
+                try:
+                    with self.assertRaisesRegex(ValueError, "managed profile"):
+                        await owners.call(hooks.SCENARIOS["single"], (switch,))
 
-                self.assertFalse(owners.servers)
-                self.assertFalse(owners.profiles)
-                self.assertIsNone(owners.browser)
+                    self.assertFalse(owners.servers)
+                    self.assertFalse(owners.profiles)
+                    self.assertIsNone(owners.browser)
+                finally:
+                    await owners.backup()
 
     async def test_positional_url_and_terminator_are_rejected_before_acquisition(self):
         for switch in ("http://127.0.0.1:1/", "--"):
             with self.subTest(switch=switch):
                 owners = self.owners()
 
-                with self.assertRaisesRegex(ValueError, "browser-switch"):
-                    await owners.call(hooks.SCENARIOS["single"], (switch,))
+                try:
+                    with self.assertRaisesRegex(ValueError, "browser-switch"):
+                        await owners.call(hooks.SCENARIOS["single"], (switch,))
 
-                self.assertFalse(owners.servers)
-                self.assertFalse(owners.profiles)
-                self.assertIsNone(owners.browser)
+                    self.assertFalse(owners.servers)
+                    self.assertFalse(owners.profiles)
+                    self.assertIsNone(owners.browser)
+                finally:
+                    await owners.backup()
 
     async def test_argument_failure_closes_both_listeners_and_removes_the_profile(self):
         scenario = self.dual_scenario()
