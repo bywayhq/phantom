@@ -395,3 +395,43 @@ async fn cancelling_http2_serving_releases_its_actual_body_driver() -> TestResul
 async fn explicitly_aborting_the_pending_body_driver_releases_its_socket() -> TestResult<()> {
     exercise(ObservedContract::ExplicitDriverAbort).await
 }
+
+#[tokio::test]
+async fn a_rejected_upload_releases_its_tcp_and_quic_fixture_listeners() -> TestResult<()> {
+    let mut address = None;
+    let error = upload_with_fallback("/upload#fragment", &mut address)
+        .await
+        .err()
+        .ok_or("a fragmented upload URI was accepted")?;
+    let request_error = error
+        .downcast_ref::<phantom::RequestError>()
+        .ok_or("the rejected upload lost its original request error")?;
+    assert_eq!(request_error.kind(), RequestErrorKind::InvalidTarget);
+
+    let address = address.ok_or("the upload did not acquire its fixture listeners")?;
+    let rebound = timeout(READY_LIMIT, async {
+        loop {
+            let tcp = match TcpListener::bind(address).await {
+                Ok(tcp) => tcp,
+                Err(error) if error.kind() == io::ErrorKind::AddrInUse => {
+                    tokio::task::yield_now().await;
+                    continue;
+                }
+                Err(error) => return Err(error.into()),
+            };
+
+            match phantom_testkit::udp::bind_tokio(address) {
+                Ok(udp) => return TestResult::Ok((tcp, udp)),
+                Err(error) if error.kind() == io::ErrorKind::AddrInUse => {
+                    drop(tcp);
+                    tokio::task::yield_now().await;
+                }
+                Err(error) => return Err(error.into()),
+            }
+        }
+    })
+    .await??;
+    assert_eq!(rebound.0.local_addr()?, address);
+    assert_eq!(rebound.1.local_addr()?, address);
+    Ok(())
+}

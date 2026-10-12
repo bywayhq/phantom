@@ -44,6 +44,7 @@ mod socks5;
 mod wire_contract;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(20);
+const CLEANUP_TIMEOUT: Duration = Duration::from_secs(5);
 /// Long enough that a connection the client should not open would arrive.
 const QUIET_WINDOW: Duration = Duration::from_millis(300);
 
@@ -231,7 +232,8 @@ async fn stop_http2_driver(driver: ConnectionPeer<TestResult<()>>) -> TestResult
 async fn no_tcp_connection(listener: &TcpListener) -> TestResult<()> {
     match timeout(QUIET_WINDOW, listener.accept()).await {
         Err(_) => Ok(()),
-        Ok(_) => Err("the client opened a TCP connection".into()),
+        Ok(Ok(_)) => Err("the client opened a TCP connection".into()),
+        Ok(Err(error)) => Err(error.into()),
     }
 }
 
@@ -259,15 +261,68 @@ where
         .map_err(FallbackDeadline)?
 }
 
-#[tokio::test]
-async fn a_refused_quic_handshake_sends_the_request_over_http2() -> TestResult<()> {
-    bounded(async {
+/// Keeps ownership across a cancelled wait and removes only observed tasks.
+async fn join_worker<T: Send + 'static>(
+    worker: &mut Option<ConnectionPeer<TestResult<T>>>,
+) -> TestResult<T> {
+    let outcome = worker.as_mut().ok_or("fallback worker owner absent")?.await;
+    drop(worker.take());
+
+    match outcome {
+        Ok(result) => result,
+        Err(error) => Err(error.into()),
+    }
+}
+
+async fn stop_worker<T: Send + 'static>(
+    worker: &mut Option<ConnectionPeer<TestResult<T>>>,
+) -> TestResult<()> {
+    let Some(mut worker) = worker.take() else {
+        return Ok(());
+    };
+
+    let requested_stop = !worker.is_finished();
+    if requested_stop {
+        worker.abort();
+    }
+
+    match timeout(CLEANUP_TIMEOUT, &mut worker).await {
+        Ok(Ok(result)) => result.map(|_| ()),
+        Ok(Err(error)) if requested_stop && error.is_cancelled() => Ok(()),
+        Ok(Err(error)) => Err(error.into()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+/// Lets a signalled parent collect its children before forcing cancellation.
+async fn finish_signalled_worker<T: Send + 'static>(
+    worker: &mut Option<ConnectionPeer<TestResult<T>>>,
+) -> TestResult<()> {
+    if worker.is_none() {
+        return Ok(());
+    }
+
+    // The SOCKS parent can stop two children, each with its own deadline.
+    match timeout(CLEANUP_TIMEOUT * 3, join_worker(worker)).await {
+        Ok(result) => result.map(|_| ()),
+        Err(error) => finish_with_cleanup(Err(error.into()), stop_worker(worker).await),
+    }
+}
+
+async fn upload_with_fallback(
+    path: &str,
+    address: &mut Option<SocketAddr>,
+) -> TestResult<Received> {
+    let mut refused = None;
+    let mut served = None;
+    let primary = match timeout(TEST_TIMEOUT, async {
         let identity = TestIdentity::generate()?;
         let Origin { port, quic, tcp } = Origin::bind(&identity).await?;
-        let url = format!("https://127.0.0.1:{port}/upload");
-        let refused = tokio::spawn(async move { refuse(&quic, 1).await });
+        *address = Some(SocketAddr::from((Ipv4Addr::LOCALHOST, port)));
+        let url = format!("https://127.0.0.1:{port}{path}");
+        refused = Some(ConnectionPeer::spawn(async move { refuse(&quic, 1).await }));
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let served = tokio::spawn(serve_http2(tcp, acceptor));
+        served = Some(ConnectionPeer::spawn(serve_http2(tcp, acceptor)));
 
         let client = client(&identity, true)?;
         let response = client
@@ -277,33 +332,51 @@ async fn a_refused_quic_handshake_sends_the_request_over_http2() -> TestResult<(
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::NO_CONTENT);
+
         let info = response
             .extensions()
             .get::<ResponseInfo>()
             .ok_or("response omitted ResponseInfo")?;
         assert_eq!(info.protocol(), HttpProtocol::Http2);
         assert_eq!(info.retries_performed(), 0);
+
         response.into_body().collect().await?;
         drop(client);
 
-        refused.await??;
-        let received = served.await??;
-        assert_eq!(received.method, Method::POST);
-        assert_eq!(received.path, "/upload");
-        assert_eq!(received.body, "payload");
-        Ok(())
+        join_worker(&mut refused).await?;
+        join_worker(&mut served).await
     })
     .await
+    {
+        Ok(result) => result,
+        Err(error) => Err(FallbackDeadline(error).into()),
+    };
+
+    let cleanup = stop_worker(&mut refused).await;
+    let cleanup = finish_with_cleanup(cleanup, stop_worker(&mut served).await);
+
+    finish_with_cleanup(primary, cleanup)
+}
+
+#[tokio::test]
+async fn a_refused_quic_handshake_sends_the_request_over_http2() -> TestResult<()> {
+    let received = upload_with_fallback("/upload", &mut None).await?;
+
+    assert_eq!(received.method, Method::POST);
+    assert_eq!(received.path, "/upload");
+    assert_eq!(received.body, "payload");
+    Ok(())
 }
 
 #[tokio::test]
 async fn without_the_policy_a_refused_handshake_returns_the_http3_error() -> TestResult<()> {
-    bounded(async {
+    let mut refused = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let origin = Origin::bind(&identity).await?;
         let url = origin.url("/refused");
         let Origin { quic, tcp, .. } = origin;
-        let refused = tokio::spawn(async move { refuse(&quic, 1).await });
+        refused = Some(ConnectionPeer::spawn(async move { refuse(&quic, 1).await }));
 
         let error = client(&identity, true)?
             .get(HttpProtocol::Http3, &url)?
@@ -312,20 +385,25 @@ async fn without_the_policy_a_refused_handshake_returns_the_http3_error() -> Tes
             .err()
             .ok_or("a refused handshake returned a response")?;
         assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
-        refused.await??;
+        join_worker(&mut refused).await?;
         no_tcp_connection(&tcp).await
     })
-    .await
+    .await;
+
+    let cleanup = stop_worker(&mut refused).await;
+
+    finish_with_cleanup(primary, cleanup)
 }
 
 #[tokio::test]
 async fn a_one_shot_streaming_body_returns_the_http3_error() -> TestResult<()> {
-    bounded(async {
+    let mut refused = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let origin = Origin::bind(&identity).await?;
         let url = origin.url("/stream");
         let Origin { quic, tcp, .. } = origin;
-        let refused = tokio::spawn(async move { refuse(&quic, 1).await });
+        refused = Some(ConnectionPeer::spawn(async move { refuse(&quic, 1).await }));
 
         let error = client(&identity, true)?
             .request(HttpProtocol::Http3, Method::POST, &url)?
@@ -336,20 +414,25 @@ async fn a_one_shot_streaming_body_returns_the_http3_error() -> TestResult<()> {
             .err()
             .ok_or("a refused handshake returned a response")?;
         assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
-        refused.await??;
+        join_worker(&mut refused).await?;
         no_tcp_connection(&tcp).await
     })
-    .await
+    .await;
+
+    let cleanup = stop_worker(&mut refused).await;
+
+    finish_with_cleanup(primary, cleanup)
 }
 
 #[tokio::test]
 async fn a_failure_after_the_request_was_sent_returns_the_http3_error() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let origin = Origin::bind(&identity).await?;
         let url = origin.url("/sent");
         let Origin { quic, tcp, .. } = origin;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let incoming = quic.accept().await.ok_or("QUIC endpoint closed")?;
             let connection = incoming.await?;
             let mut h3 = h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(
@@ -365,7 +448,7 @@ async fn a_failure_after_the_request_was_sent_returns_the_http3_error() -> TestR
             // have acted on it.
             connection.close(quinn::VarInt::from_u32(0x102), b"");
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
+        }));
 
         let error = client(&identity, true)?
             .get(HttpProtocol::Http3, &url)?
@@ -375,10 +458,14 @@ async fn a_failure_after_the_request_was_sent_returns_the_http3_error() -> TestR
             .err()
             .ok_or("a closed connection returned a response")?;
         assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
-        server.await??;
+        join_worker(&mut server).await?;
         no_tcp_connection(&tcp).await
     })
-    .await
+    .await;
+
+    let cleanup = stop_worker(&mut server).await;
+
+    finish_with_cleanup(primary, cleanup)
 }
 
 #[tokio::test]
@@ -428,63 +515,72 @@ async fn the_fallback_needs_an_http2_profile_and_a_tcp_route_before_any_io() -> 
 async fn fall_back_from_an_unanswered_handshake(
     timeouts: Option<RequestTimeoutOverrides>,
 ) -> TestResult<Duration> {
-    let identity = TestIdentity::generate()?;
-    let Origin { port, quic, tcp } = Origin::bind(&identity).await?;
-    let served = tokio::spawn(serve_http2(tcp, identity.acceptor(H2_ALPN)?));
+    let mut served = None;
+    let primary = match timeout(TEST_TIMEOUT, async {
+        let identity = TestIdentity::generate()?;
+        let Origin { port, quic, tcp } = Origin::bind(&identity).await?;
+        served = Some(ConnectionPeer::spawn(serve_http2(
+            tcp,
+            identity.acceptor(H2_ALPN)?,
+        )));
 
-    let client = client(&identity, true)?;
-    let mut request = client
-        .get(
-            HttpProtocol::Http3,
-            &format!("https://127.0.0.1:{port}/quiet"),
-        )?
-        .retry_policy(fallback());
-    if let Some(timeouts) = timeouts {
-        request = request.timeouts(timeouts);
-    }
-    let started = Instant::now();
-    let response = request.send().await?;
-    let elapsed = started.elapsed();
-    let info = response
-        .extensions()
-        .get::<ResponseInfo>()
-        .ok_or("response omitted ResponseInfo")?;
-    assert_eq!(info.protocol(), HttpProtocol::Http2);
-    response.into_body().collect().await?;
-    drop(client);
-    assert_eq!(served.await??.path, "/quiet");
-    drop(quic);
-    Ok(elapsed)
+        let client = client(&identity, true)?;
+        let mut request = client
+            .get(
+                HttpProtocol::Http3,
+                &format!("https://127.0.0.1:{port}/quiet"),
+            )?
+            .retry_policy(fallback());
+        if let Some(timeouts) = timeouts {
+            request = request.timeouts(timeouts);
+        }
+
+        let started = Instant::now();
+        let response = request.send().await?;
+        let elapsed = started.elapsed();
+        let info = response
+            .extensions()
+            .get::<ResponseInfo>()
+            .ok_or("response omitted ResponseInfo")?;
+        assert_eq!(info.protocol(), HttpProtocol::Http2);
+
+        response.into_body().collect().await?;
+        drop(client);
+        assert_eq!(join_worker(&mut served).await?.path, "/quiet");
+        drop(quic);
+        Ok(elapsed)
+    })
+    .await
+    {
+        Ok(result) => result,
+        Err(error) => Err(FallbackDeadline(error).into()),
+    };
+
+    finish_with_cleanup(primary, stop_worker(&mut served).await)
 }
 
 #[tokio::test]
 async fn a_handshake_past_the_connect_timeout_falls_back() -> TestResult<()> {
-    bounded(async {
-        let elapsed = fall_back_from_an_unanswered_handshake(Some(
-            RequestTimeoutOverrides::disabled()
-                .connect(TimeoutOverride::Limit(Duration::from_millis(300))),
-        ))
-        .await?;
-        assert!(
-            elapsed < Duration::from_secs(4),
-            "fell back after {elapsed:?}"
-        );
-        Ok(())
-    })
-    .await
+    let elapsed = fall_back_from_an_unanswered_handshake(Some(
+        RequestTimeoutOverrides::disabled()
+            .connect(TimeoutOverride::Limit(Duration::from_millis(300))),
+    ))
+    .await?;
+    assert!(
+        elapsed < Duration::from_secs(4),
+        "fell back after {elapsed:?}"
+    );
+    Ok(())
 }
 
 #[tokio::test]
 async fn a_handshake_past_four_seconds_falls_back() -> TestResult<()> {
-    bounded(async {
-        let elapsed = fall_back_from_an_unanswered_handshake(None).await?;
-        assert!(
-            elapsed >= Duration::from_millis(3_900) && elapsed < Duration::from_secs(10),
-            "fell back after {elapsed:?}"
-        );
-        Ok(())
-    })
-    .await
+    let elapsed = fall_back_from_an_unanswered_handshake(None).await?;
+    assert!(
+        elapsed >= Duration::from_millis(3_900) && elapsed < Duration::from_secs(10),
+        "fell back after {elapsed:?}"
+    );
+    Ok(())
 }
 
 /// What one HTTP/2 connection's client sent before its first request.
@@ -553,16 +649,18 @@ async fn serve_raw_http2(
 
 #[tokio::test]
 async fn the_http2_attempt_uses_the_profiles_http2_recipe() -> TestResult<()> {
-    bounded(async {
+    let mut refused = None;
+    let mut served = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let Origin { port, quic, tcp } = Origin::bind(&identity).await?;
-        let refused = tokio::spawn(async move { refuse(&quic, 1).await });
+        refused = Some(ConnectionPeer::spawn(async move { refuse(&quic, 1).await }));
         let (done, wait_for_done) = oneshot::channel();
-        let served = tokio::spawn(serve_raw_http2(
+        served = Some(ConnectionPeer::spawn(serve_raw_http2(
             tcp,
             identity.acceptor(H2_ALPN)?,
             wait_for_done,
-        ));
+        )));
 
         let response = client(&identity, true)?
             .get(
@@ -575,9 +673,9 @@ async fn the_http2_attempt_uses_the_profiles_http2_recipe() -> TestResult<()> {
         assert_eq!(response.status(), StatusCode::OK);
         response.into_body().collect().await?;
         let _ = done.send(());
-        refused.await??;
+        join_worker(&mut refused).await?;
 
-        let start = served.await??;
+        let start = join_worker(&mut served).await?;
         // `chrome::v154_http2`: HEADER_TABLE_SIZE 65536, ENABLE_PUSH 0,
         // INITIAL_WINDOW_SIZE 6291456, MAX_HEADER_LIST_SIZE 262144, in order.
         let expected: [(u16, u32); 4] = [(1, 65_536), (2, 0), (4, 6_291_456), (6, 262_144)];
@@ -598,7 +696,12 @@ async fn the_http2_attempt_uses_the_profiles_http2_recipe() -> TestResult<()> {
         assert_ne!(start.headers_flags & 0x20, 0);
         Ok(())
     })
-    .await
+    .await;
+
+    let cleanup = stop_worker(&mut refused).await;
+    let cleanup = finish_with_cleanup(cleanup, stop_worker(&mut served).await);
+
+    finish_with_cleanup(primary, cleanup)
 }
 
 fn early_data_quic_config(identity: &TestIdentity) -> TestResult<quinn::ServerConfig> {
@@ -619,7 +722,10 @@ fn early_data_quic_config(identity: &TestIdentity) -> TestResult<quinn::ServerCo
 #[tokio::test]
 async fn a_failed_handshake_after_early_data_falls_back_before_the_request_is_written()
 -> TestResult<()> {
-    bounded(async {
+    let mut quic_server = None;
+    let mut served = None;
+    let mut stop = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let untrusted = TestIdentity::generate()?;
         let Origin { port, quic, tcp } = Origin::bind(&identity).await?;
@@ -627,37 +733,51 @@ async fn a_failed_handshake_after_early_data_falls_back_before_the_request_is_wr
         let untrusted_config = early_data_quic_config(&untrusted)?;
         let (read_tx, read) = oneshot::channel::<()>();
         let (failing_tx, failing) = oneshot::channel();
-        let quic_server = tokio::spawn(async move {
-            let incoming = quic.accept().await.ok_or("QUIC endpoint closed")?;
-            let connection = incoming.await?;
-            let mut h3 = h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(
-                connection.clone(),
-            ))
-            .await?;
-            let resolver = h3
-                .accept()
-                .await?
-                .ok_or("client closed before sending a request")?;
-            let (_, mut stream) = resolver.resolve_request().await?;
-            stream
-                .send_response(Response::builder().status(StatusCode::OK).body(())?)
+        let (stop_tx, stop_rx) = oneshot::channel::<()>();
+        stop = Some(stop_tx);
+        quic_server = Some(ConnectionPeer::spawn(async move {
+            let operation = async {
+                let incoming = quic.accept().await.ok_or("QUIC endpoint closed")?;
+                let connection = incoming.await?;
+                let mut h3 = h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(
+                    connection.clone(),
+                ))
                 .await?;
-            stream.finish().await?;
-            let _ = read.await;
-            connection.close(0u32.into(), b"served");
-            drop(h3);
-            quic.wait_idle().await;
-            // A certificate the client does not trust fails the next
-            // handshake after the client has sent its early data.
-            quic.set_server_config(Some(untrusted_config));
-            let _ = failing_tx.send(());
-            while let Some(incoming) = quic.accept().await {
-                tokio::spawn(async move {
-                    let _ = incoming.await;
-                });
+                let resolver = h3
+                    .accept()
+                    .await?
+                    .ok_or("client closed before sending a request")?;
+                let (_, mut stream) = resolver.resolve_request().await?;
+                stream
+                    .send_response(Response::builder().status(StatusCode::OK).body(())?)
+                    .await?;
+                stream.finish().await?;
+                let _ = read.await;
+                connection.close(0u32.into(), b"served");
+                drop(h3);
+                quic.wait_idle().await;
+                // A certificate the client does not trust fails the next
+                // handshake after the client has sent its early data.
+                quic.set_server_config(Some(untrusted_config));
+                let _ = failing_tx.send(());
+                while let Some(incoming) = quic.accept().await {
+                    // An untrusted issuer sends TLS unknown_ca (48), carried as
+                    // QUIC CRYPTO_ERROR 0x130. Other handshake failures stay errors.
+                    match incoming.await {
+                        Err(quinn::ConnectionError::ConnectionClosed(close))
+                            if u64::from(close.error_code) == 0x130 => {}
+                        Err(error) => return Err(error.into()),
+                        Ok(_) => return Err("the untrusted QUIC handshake completed".into()),
+                    }
+                }
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+            };
+            tokio::select! {
+                biased;
+                result = operation => result,
+                _ = stop_rx => Ok(()),
             }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
+        }));
 
         let profile = ClientProfile::new(tls_settings())
             .with_http2(chrome::v154_http2())
@@ -681,7 +801,10 @@ async fn a_failed_handshake_after_early_data_falls_back_before_the_request_is_wr
         let _ = read_tx.send(());
         failing.await?;
 
-        let served = tokio::spawn(serve_http2(tcp, identity.acceptor(H2_ALPN)?));
+        served = Some(ConnectionPeer::spawn(serve_http2(
+            tcp,
+            identity.acceptor(H2_ALPN)?,
+        )));
         // A POST waits for the resumed handshake before it is written.
         let response = client
             .request(
@@ -698,25 +821,32 @@ async fn a_failed_handshake_after_early_data_falls_back_before_the_request_is_wr
             .get::<ResponseInfo>()
             .ok_or("response omitted ResponseInfo")?;
         assert_eq!(info.protocol(), HttpProtocol::Http2);
+
         response.into_body().collect().await?;
         drop(client);
-        let received = served.await??;
+        let received = join_worker(&mut served).await?;
         assert_eq!(received.path, "/post");
         assert_eq!(received.body, "payload");
-        quic_server.abort();
         Ok(())
     })
-    .await
+    .await;
+
+    drop(stop.take());
+    let cleanup = finish_signalled_worker(&mut quic_server).await;
+    let cleanup = finish_with_cleanup(cleanup, stop_worker(&mut served).await);
+
+    finish_with_cleanup(primary, cleanup)
 }
 
 #[tokio::test]
 async fn a_failed_http2_attempt_returns_the_http2_error() -> TestResult<()> {
-    bounded(async {
+    let mut refused = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let Origin { port, quic, tcp } = Origin::bind(&identity).await?;
         // The TCP port refuses connections, so the HTTP/2 attempt fails too.
         drop(tcp);
-        let refused = tokio::spawn(async move { refuse(&quic, 1).await });
+        refused = Some(ConnectionPeer::spawn(async move { refuse(&quic, 1).await }));
 
         let error = client(&identity, true)?
             .get(
@@ -730,20 +860,26 @@ async fn a_failed_http2_attempt_returns_the_http2_error() -> TestResult<()> {
             .ok_or("a refused TCP port returned a response")?;
         assert_eq!(error.protocol(), Some(HttpProtocol::Http2));
         assert_eq!(error.kind(), RequestErrorKind::Connect);
-        refused.await??;
+        join_worker(&mut refused).await?;
         Ok(())
     })
-    .await
+    .await;
+
+    let cleanup = stop_worker(&mut refused).await;
+
+    finish_with_cleanup(primary, cleanup)
 }
 
 #[tokio::test]
 async fn zero_retry_cap_keeps_exact_http3_and_needs_no_http2_profile() -> TestResult<()> {
-    bounded(async {
+    let mut refused = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let origin = Origin::bind(&identity).await?;
         let url = origin.url("/no-fallback");
         let Origin { quic, tcp, .. } = origin;
-        let refused = tokio::spawn(async move { refuse(&quic, 1).await });
+        refused = Some(ConnectionPeer::spawn(async move { refuse(&quic, 1).await }));
+
         let error = client(&identity, false)?
             .get(HttpProtocol::Http3, &url)?
             .retry_policy(fallback().with_max_retries(Some(0)))
@@ -752,8 +888,12 @@ async fn zero_retry_cap_keeps_exact_http3_and_needs_no_http2_profile() -> TestRe
             .err()
             .ok_or("a refused handshake returned a response")?;
         assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
-        refused.await??;
+        join_worker(&mut refused).await?;
         no_tcp_connection(&tcp).await
     })
-    .await
+    .await;
+
+    let cleanup = stop_worker(&mut refused).await;
+
+    finish_with_cleanup(primary, cleanup)
 }
