@@ -725,10 +725,10 @@ fn retains_request(
     Ok(())
 }
 
-fn request_cause(
-    error: &(dyn std::error::Error + 'static),
+fn request_cause<'a>(
+    error: &'a (dyn std::error::Error + 'static),
     kind: RequestErrorKind,
-) -> Option<&RequestError> {
+) -> Option<&'a RequestError> {
     if let Some(original) = error.downcast_ref::<RequestError>() {
         return (original.kind() == kind).then_some(original);
     }
