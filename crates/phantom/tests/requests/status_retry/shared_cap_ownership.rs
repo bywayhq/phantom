@@ -21,8 +21,8 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf},
     net::{TcpListener, TcpStream},
     sync::watch,
-    task::{AbortHandle, JoinHandle},
-    time::timeout,
+    task::{AbortHandle, JoinError},
+    time::{Instant, timeout, timeout_at},
 };
 
 use super::{
@@ -30,50 +30,113 @@ use super::{
     request_lines, status_retry,
 };
 use crate::support::deadline::FixtureDeadline;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 
 const OBSERVATION_LIMIT: Duration = Duration::from_secs(2);
 
 type Records = [ReceivedRequest; 5];
+type Peer = ConnectionPeer<TestResult<Records>>;
 
 pub(super) async fn exchange() -> TestResult {
-    bounded(async {
-        let (address, server) = start_server(None).await?;
-        let records = complete(server, request(address)).await?;
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let (address, server) = timeout_at(deadline, start_server(None)).await??;
+    let records = complete(deadline, server, request(address)).await?;
 
-        assert_eq!(
-            request_lines(&records),
-            [
-                "GET /prime HTTP/1.1",
-                "GET /start HTTP/1.1",
-                "GET /start HTTP/1.1",
-                "GET /start HTTP/1.1",
-                "GET /final HTTP/1.1",
-            ]
-        );
-        Ok(())
-    })
-    .await
-}
-
-async fn bounded<T>(future: impl Future<Output = TestResult<T>>) -> TestResult<T> {
-    timeout(Duration::from_secs(10), future).await?
+    assert_eq!(
+        request_lines(&records),
+        [
+            "GET /prime HTTP/1.1",
+            "GET /start HTTP/1.1",
+            "GET /start HTTP/1.1",
+            "GET /start HTTP/1.1",
+            "GET /final HTTP/1.1",
+        ]
+    );
+    Ok(())
 }
 
 async fn complete(
-    server: JoinHandle<TestResult<Records>>,
+    deadline: Instant,
+    mut server: Peer,
     caller: impl Future<Output = TestResult>,
 ) -> TestResult<Records> {
-    caller.await?;
-    server.await?
+    let mut serving = None;
+    let operation = timeout_at(deadline, async {
+        caller.await?;
+        serving = Some((&mut server).await);
+        TestResult::Ok(())
+    })
+    .await;
+
+    let caller = match operation {
+        Ok(result) => result,
+        Err(elapsed) => Err(elapsed.into()),
+    };
+
+    let serving = match serving {
+        Some(joined) => serving_outcome(joined, false),
+        None => collect_server(&mut server, caller.is_err()).await,
+    };
+    let (records, cleanup) = match serving {
+        Ok(records) => (records, Ok(())),
+        Err(error) => (None, Err(error)),
+    };
+
+    finish_with_cleanup(caller, cleanup)?;
+    records.ok_or_else(|| "shared-cap original request records missing".into())
 }
 
-async fn start_server(
-    control: Option<Control>,
-) -> TestResult<(SocketAddr, JoinHandle<TestResult<Records>>)> {
+async fn collect_server(server: &mut Peer, stop: bool) -> TestResult<Option<Records>> {
+    let mut requested = stop && !server.is_finished();
+    if requested {
+        server.abort();
+    }
+
+    match timeout(OBSERVATION_LIMIT, &mut *server).await {
+        Ok(joined) => serving_outcome(joined, requested),
+        Err(elapsed) => {
+            if !server.is_finished() {
+                server.abort();
+                requested = true;
+            }
+
+            let cleanup = match timeout(OBSERVATION_LIMIT, server).await {
+                Ok(joined) => serving_outcome(joined, requested).map(|_| ()),
+                Err(elapsed) => Err(FixtureDeadline::new(
+                    "shared-cap backup task collection exceeded its deadline",
+                    elapsed,
+                )
+                .into()),
+            };
+
+            finish_with_cleanup(
+                Err(FixtureDeadline::new(
+                    "shared-cap task collection exceeded its deadline",
+                    elapsed,
+                )
+                .into()),
+                cleanup,
+            )
+        }
+    }
+}
+
+fn serving_outcome(
+    joined: Result<TestResult<Records>, JoinError>,
+    requested: bool,
+) -> TestResult<Option<Records>> {
+    match joined {
+        Ok(result) => result.map(Some),
+        Err(error) if requested && error.is_cancelled() => Ok(None),
+        Err(error) => Err(error.into()),
+    }
+}
+
+async fn start_server(control: Option<Control>) -> TestResult<(SocketAddr, Peer)> {
     let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let state = control.as_ref().map(|control| control.state.clone());
-    let server = tokio::spawn(async move {
+    let server = ConnectionPeer::spawn(async move {
         let _lifetime = control
             .as_ref()
             .map(|control| Lifetime(control.state.clone()));
@@ -307,8 +370,13 @@ impl Observation {
         let read = timeout(OBSERVATION_LIMIT, stream.read(&mut [0_u8; 1]))
             .await
             .map_err(|elapsed| FixtureDeadline::new(socket_purpose, elapsed))?;
-        assert!(matches!(read, Ok(0)) || matches!(read, Err(ref error) if is_peer_gone(error)));
-        Ok(())
+
+        match read {
+            Ok(0) => Ok(()),
+            Err(error) if is_peer_gone(&error) => Ok(()),
+            Err(error) => Err(error.into()),
+            Ok(_) => Err("shared-cap socket returned bytes instead of closing".into()),
+        }
     }
 
     async fn backup_stop(&mut self, stream: &mut TcpStream) -> TestResult {
@@ -338,23 +406,25 @@ impl Observation {
         let io = error
             .downcast_ref::<io::Error>()
             .ok_or("shared-cap original serving I/O cause was lost")?;
-        assert_eq!(io.kind(), io::ErrorKind::PermissionDenied);
+
+        if io.kind() != io::ErrorKind::PermissionDenied {
+            return Err("shared-cap original serving I/O kind changed".into());
+        }
 
         let failure = io
             .get_ref()
             .and_then(|error| error.downcast_ref::<ServingFailure>())
             .ok_or("shared-cap original serving payload was lost")?;
-        assert!(Arc::ptr_eq(&failure.0, &self.marker));
+
+        if !Arc::ptr_eq(&failure.0, &self.marker) {
+            return Err("shared-cap original serving payload identity changed".into());
+        }
+
         Ok(())
     }
 }
 
-async fn pending() -> TestResult<(
-    SocketAddr,
-    JoinHandle<TestResult<Records>>,
-    TcpStream,
-    Observation,
-)> {
+async fn pending() -> TestResult<(SocketAddr, Peer, TcpStream, Observation)> {
     let (control, mut observation) = Observation::control(Mode::Healthy);
     let (address, server) = start_server(Some(control)).await?;
     let stream = TcpStream::connect(address).await?;
@@ -369,228 +439,4 @@ async fn pending() -> TestResult<(
 }
 
 #[cfg(test)]
-mod tests {
-    use std::{error::Error, sync::atomic::Ordering};
-
-    use http::StatusCode;
-    use http_body_util::BodyExt;
-    use phantom::{HttpProtocol, RequestError, RequestErrorKind};
-    use tokio::{
-        task::yield_now,
-        time::{error::Elapsed, timeout},
-    };
-
-    use super::{
-        Mode, OBSERVATION_LIMIT, Observation, TestResult, bounded, complete, pending,
-        plain_builder, start_server,
-    };
-    use crate::support::deadline::FixtureDeadline;
-    use crate::support::tunnel_proxy::connection_peer::FixtureFailures;
-    use crate::support::tunnel_proxy::finish_with_cleanup;
-
-    #[tokio::test]
-    async fn handle_drop_closes_the_actual_pending_shared_cap_socket() -> TestResult {
-        let (_, server, mut stream, mut observation) = pending().await?;
-
-        drop(server);
-        let observed = observation
-            .closed(
-                &mut stream,
-                "shared-cap server destruction after handle Drop exceeded its deadline",
-                "shared-cap socket closure after handle Drop exceeded its deadline",
-            )
-            .await;
-        assert!(
-            !observation
-                .state
-                .borrow()
-                .backup_requested
-                .load(Ordering::Acquire)
-        );
-
-        let backup = observation.backup_stop(&mut stream).await;
-        finish_with_cleanup(observed, backup)
-    }
-
-    #[tokio::test]
-    async fn caller_failure_closes_the_actual_pending_shared_cap_socket() -> TestResult {
-        let (_, server, mut stream, mut observation) = pending().await?;
-
-        let error = complete(server, invalid_uri())
-            .await
-            .err()
-            .ok_or("invalid URI succeeded")?;
-        caller_cause(error.as_ref())?;
-
-        let observed = observation
-            .closed(
-                &mut stream,
-                "shared-cap server destruction after caller failure exceeded its deadline",
-                "shared-cap socket closure after caller failure exceeded its deadline",
-            )
-            .await;
-        assert!(
-            !observation
-                .state
-                .borrow()
-                .backup_requested
-                .load(Ordering::Acquire)
-        );
-
-        let backup = observation.backup_stop(&mut stream).await;
-        finish_with_cleanup(observed, backup)
-    }
-
-    #[tokio::test]
-    async fn completion_retains_the_actual_shared_cap_prime_flush_error() -> TestResult {
-        let (control, mut observation) = Observation::control(Mode::FailPrimeFlush);
-        let (address, server) = start_server(Some(control)).await?;
-
-        let result = complete(server, prime_request(address)).await;
-        observation
-            .wait(
-                "shared-cap prime flush fault consumption and destruction exceeded its deadline",
-                |state| state.flushed && state.fault_taken && state.destroyed,
-            )
-            .await?;
-
-        let error = result
-            .err()
-            .ok_or("shared-cap prime flush error was discarded")?;
-        observation.serving_cause(error.as_ref())
-    }
-
-    #[tokio::test]
-    async fn explicit_backup_abort_closes_the_actual_pending_shared_cap_socket() -> TestResult {
-        let (_, server, mut stream, mut observation) = pending().await?;
-
-        observation.backup_stop(&mut stream).await?;
-        assert!(
-            observation
-                .state
-                .borrow()
-                .backup_requested
-                .load(Ordering::Acquire)
-        );
-
-        let result = timeout(OBSERVATION_LIMIT, server)
-            .await
-            .map_err(|elapsed| {
-                FixtureDeadline::new("shared-cap backup join exceeded its deadline", elapsed)
-            })?;
-        assert!(matches!(result, Err(error) if error.is_cancelled()));
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn completion_retains_the_actual_caller_and_completed_shared_cap_errors() -> TestResult {
-        let (control, mut observation) = Observation::control(Mode::FailPrimeFlush);
-        let (address, server) = start_server(Some(control)).await?;
-
-        prime_request(address).await?;
-        observation
-            .wait(
-                "shared-cap completed prime flush fault prerequisite exceeded its deadline",
-                |state| state.flushed && state.fault_taken && state.destroyed,
-            )
-            .await?;
-
-        timeout(OBSERVATION_LIMIT, async {
-            while !server.is_finished() {
-                yield_now().await;
-            }
-        })
-        .await
-        .map_err(|elapsed| {
-            FixtureDeadline::new(
-                "shared-cap original server completion prerequisite exceeded its deadline",
-                elapsed,
-            )
-        })?;
-
-        let error = complete(server, invalid_uri())
-            .await
-            .err()
-            .ok_or("invalid URI succeeded")?;
-
-        let caller = match error.downcast_ref::<FixtureFailures>() {
-            Some(failures) => failures.primary.as_ref(),
-            None => error.as_ref(),
-        };
-        caller_cause(caller)?;
-
-        let failures = error
-            .downcast_ref::<FixtureFailures>()
-            .ok_or("shared-cap caller and completed serving failure were not both retained")?;
-        observation.serving_cause(failures.cleanup.as_ref())
-    }
-
-    #[tokio::test]
-    async fn exchange_deadline_closes_the_actual_pending_shared_cap_socket() -> TestResult {
-        let (address, server, mut stream, mut observation) = pending().await?;
-
-        let error = bounded(complete(server, prime_request(address)))
-            .await
-            .err()
-            .ok_or("blocked shared-cap exchange succeeded")?;
-        error
-            .downcast_ref::<Elapsed>()
-            .ok_or("original shared-cap exchange deadline was lost")?;
-
-        let observed = observation
-            .closed(
-                &mut stream,
-                "shared-cap server destruction after exchange deadline exceeded its deadline",
-                "shared-cap socket closure after exchange deadline exceeded its deadline",
-            )
-            .await;
-        assert!(
-            !observation
-                .state
-                .borrow()
-                .backup_requested
-                .load(Ordering::Acquire)
-        );
-
-        let backup = observation.backup_stop(&mut stream).await;
-        finish_with_cleanup(observed, backup)
-    }
-
-    async fn invalid_uri() -> TestResult {
-        let client = plain_builder().build()?;
-
-        let _response = client
-            .get(HttpProtocol::Http1, "http://127.0.0.1/invalid uri")?
-            .send()
-            .await?;
-        Ok(())
-    }
-
-    fn caller_cause(error: &(dyn Error + Send + Sync + 'static)) -> TestResult {
-        let request = error
-            .downcast_ref::<RequestError>()
-            .ok_or("original caller type changed")?;
-        assert_eq!(request.kind(), RequestErrorKind::InvalidUri);
-        assert!(
-            request
-                .source()
-                .is_some_and(|source| source.is::<http::uri::InvalidUri>())
-        );
-        Ok(())
-    }
-
-    async fn prime_request(address: std::net::SocketAddr) -> TestResult {
-        let client = plain_builder().build()?;
-
-        let response = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/prime"))?
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(
-            response.into_body().collect().await?.to_bytes().as_ref(),
-            b"ok"
-        );
-        Ok(())
-    }
-}
+mod tests;
