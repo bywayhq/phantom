@@ -1,0 +1,5 @@
+# Independent HTTP/1 peer compiler prerequisite
+
+Exact paired source `9c901b3e37b4fdbe8bf2b76797d6829ff9c6d0e1` failed compilation on both hosts. Read all eight full step logs and twelve sidecars. The tests, strict requests/streams/sessions Clippy and Rust 1.88 steps each exited 101 with the sole E0599 at ownership.rs:416: the returned Poll has no ready method. Formatting exited 0; whole runners exited 1 after final revision/clean guards. No test executable ran and there is no runtime, causal or repaired-control result for this revision.
+
+The earlier source approval preserved the intended single poll but missed this invalid API use. Replace it with an explicit match mapping Ready(original result) to Ready(Some(original result)) and Pending to Ready(None). Exact correction/runner approval and fresh uniquely named paired artifacts remain required. Preserve these original failed logs; no historical baseline is reclassified. This reviewer executed no native commands and changed no repository source.

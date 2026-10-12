@@ -1,0 +1,163 @@
+{
+  "schema": "independent_native_review_v1",
+  "revision": "0398751fffaf08bf0a086683cc25fbcd2f6ef757",
+  "decision": "accept_bounded_peer_remedy_keep_queued_and_broader_scope_open",
+  "full_logs_read": 8,
+  "full_sidecars_read": 12,
+  "whole_runner_and_sync_previously_read": true,
+  "current_post_terminal_binding": {
+    "root_clean": true,
+    "linux_head": "0398751fffaf08bf0a086683cc25fbcd2f6ef757",
+    "linux_clean": true,
+    "root_head": "0398751fffaf08bf0a086683cc25fbcd2f6ef757"
+  },
+  "hosts": {
+    "windows": {
+      "ignored": 0,
+      "fmt_exit": 0,
+      "tests_exit": 101,
+      "failed": 3,
+      "selected": 17,
+      "filtered": 289,
+      "clippy_exit": 0,
+      "msrv_exit": 0,
+      "passed": 14,
+      "runner_exit": 1
+    },
+    "linux": {
+      "ignored": 0,
+      "fmt_exit": 0,
+      "tests_exit": 101,
+      "failed": 3,
+      "selected": 17,
+      "filtered": 288,
+      "clippy_exit": 0,
+      "msrv_exit": 0,
+      "passed": 14,
+      "runner_exit": 1
+    }
+  },
+  "original_contracts_pass": 9,
+  "unchanged_peer_controls_pass": 5,
+  "unchanged_queued_controls_fail": 3,
+  "later_peer_oracles_reached": [
+    "Original peer destruction/finish and separately retained socket closure before backup",
+    "FixtureDeadline original Elapsed source",
+    "Actual completed TLS and InvalidUri/parser typed composed causes and original TLS message"
+  ],
+  "queued_later_oracles_unreached": [
+    "Drop/held expiry finish and socket checks",
+    "Local abort close-origin checks"
+  ],
+  "historical_9c": {
+    "sole_error": "E0599",
+    "executed_tests": 0,
+    "runtime_result": false
+  },
+  "integration_green_claim": false,
+  "broad_closure": false,
+  "artifacts": [
+    {
+      "sha256": "e4eac09c0a4161ad8071d22c83809e2e73ea7749ccea67db04146a2ccef1f71b",
+      "name": "session-http1-peer-remedy-0398751f-windows.retry.log",
+      "bytes": 3081
+    },
+    {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "session-http1-peer-remedy-0398751f-windows.fmt.log",
+      "bytes": 0
+    },
+    {
+      "sha256": "29ad9b66c1a1964bae255dfed254b27800f98fde9ec32f73c35db019738927da",
+      "name": "session-http1-peer-remedy-0398751f-windows.clippy.log",
+      "bytes": 168
+    },
+    {
+      "sha256": "f960cbb8f6c9acf1191c91d3523ea444ae249afc4de9e18c15a82fc943a3ebb0",
+      "name": "session-http1-peer-remedy-0398751f-windows.msrv.log",
+      "bytes": 168
+    },
+    {
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "name": "session-http1-peer-remedy-0398751f-windows.retry.exit",
+      "bytes": 4
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "session-http1-peer-remedy-0398751f-windows.fmt.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "session-http1-peer-remedy-0398751f-windows.clippy.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "session-http1-peer-remedy-0398751f-windows.msrv.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "d64db40e6e45df373e1b62411b6a9f9c09b2cb1c19710c5942be90a0dd596338",
+      "name": "session-http1-peer-remedy-0398751f-windows.revision",
+      "bytes": 41
+    },
+    {
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "name": "session-http1-peer-remedy-0398751f-windows.runner-exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "6e81c2155f44fc7576bdd5da5bec6e8dd6e48bde62596072aa97ed1c9fe490fa",
+      "name": "session-http1-peer-remedy-0398751f-linux.retry.log",
+      "bytes": 3087
+    },
+    {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "session-http1-peer-remedy-0398751f-linux.fmt.log",
+      "bytes": 0
+    },
+    {
+      "sha256": "09bec2242057535c960e713799c4ba86e564fabcf26eaf7b5b565812f4e34f45",
+      "name": "session-http1-peer-remedy-0398751f-linux.clippy.log",
+      "bytes": 178
+    },
+    {
+      "sha256": "7fcc15352099e4632a57e5a57e972e00ff3623f3eff0d846a5386b3fab639054",
+      "name": "session-http1-peer-remedy-0398751f-linux.msrv.log",
+      "bytes": 178
+    },
+    {
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "name": "session-http1-peer-remedy-0398751f-linux.retry.exit",
+      "bytes": 4
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "session-http1-peer-remedy-0398751f-linux.fmt.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "session-http1-peer-remedy-0398751f-linux.clippy.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "session-http1-peer-remedy-0398751f-linux.msrv.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "d64db40e6e45df373e1b62411b6a9f9c09b2cb1c19710c5942be90a0dd596338",
+      "name": "session-http1-peer-remedy-0398751f-linux.revision",
+      "bytes": 41
+    },
+    {
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "name": "session-http1-peer-remedy-0398751f-linux.runner-exit",
+      "bytes": 2
+    }
+  ],
+  "reviewer_native_execution": false,
+  "md_sha256": "8ebd5429f7228d96f348b165215d791224ca6036289dcd38194132f1f2added1"
+}

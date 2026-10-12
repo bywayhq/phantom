@@ -1,0 +1,11 @@
+# Independent shared-cap root composition
+
+Approve exact clean signed `13dedda4dbd6aa4c88994ad9285a6eca06932fce`, parent `0398751fffaf08bf0a086683cc25fbcd2f6ef757`, for paired measurement. Read full current parent 1-442 and child 1-420, the complete parent revision delta, full approved-author-to-root delta and both complete staged scripts. Only the two approved shared-cap files changed; all existing root status/request/runtime/H1 sources remain unchanged.
+
+The approved 75443d92 extraction and db699b80 semantics are preserved. Author-to-root delta is only import reorder and three line wraps. Direct original ten-second operation Elapsed, retained actual original serving owner/joined-result slot outside timeout, five original exchange records and retry/status/metadata contracts remain intact. Six prior controls preserve their exact predicates with the previously approved explicit deadline/owner plumbing; they are not all claimed byte-exact against the historical baseline. The two new controls retain the actual Pending request plus separate held peer/completed original flush error boundary and actual already-completed foreign JoinError/task identity.
+
+Parent blob `ffdda0b2a00fe949c34f7fad9f04db5b27cba64a`, UTF-8/LF SHA256 `354c32b59612bda4f0229ee389b847918a055be44a22a8c49c7d8e132628e13e`; child blob `366b01a5221f21c4ce982ae26397a20fab3895c6`, SHA256 `0b1fbec6230cb6f090e583f55c95b99f7c080e5acf090d0d8129c73d134d1893`.
+
+Runner SHA256 `a7e669da814233012d0a0786d5d596356e70e995a306e2903aedfaf3c49c3b49`; new sync SHA256 `d9338debfe83ad3d7f7baabc616ef264479d6804c1fab90d3fcd99875d59af0a`. Runner selects all status_retry tests serially, followed by package formatting, strict requests/streams/sessions Clippy and Rust 1.88 checks, each Cargo step locked. Whole-run clean/revision guards and unique no-overwrite artifacts surround all four steps. Sync requires clean exact Linux 039 before fetching the unique bundle and detaching exact 13dedda4.
+
+Expected selection counts are unmeasured. All substantive race/Drop/panic/acquisition/I/O/double-cleanup-expiry qualifications remain. Ten seconds bounds the operation; collection can add two plus two seconds. This is source approval, not native or integration proof. No reviewer native/compiler/formatter/checker/probe or source/repository mutation occurred.

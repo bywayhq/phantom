@@ -2094,6 +2094,45 @@ Focused formatting, strict Clippy and Rust 1.88 checks pass. See
 `session-http1-peer-baseline-independent-native-review-bb1769ff.json`.
 The repair, queued request joins, other peer paths and full gates remain open.
 
+### HTTP/1 and shared retry-cap verification
+
+The queued HTTP/1 baseline at `b47e3ab5` passes nine original methods and
+has eight causal failures per host. Three concern queued request destruction
+and an uncollected sibling result. The other five concern peer ownership and
+error causes. The held five-second selection expires after actual Pending
+and Capacity observations; it is not an ordinary Capacity-request timeout.
+See `session-http1-queued-baseline-independent-native-review-b47e3ab5.json`.
+
+The bounded peer repair at `0398751f` passes all nine original methods and
+five unchanged peer controls on Windows and Linux. Original destruction,
+socket closure, Elapsed and composed TLS/URI causes pass before backup.
+Three unchanged queued controls still fail. The earlier `9c901b3e` compiler
+failure executes no tests. See
+`session-http1-peer-remedy-independent-native-review-0398751f.json`.
+
+A separate source finding shows that exhausted scheduler budget can make a
+finished join report Pending. The peer collector can then mislabel an
+already completed external cancellation as local. The prior controls did
+not exercise this condition. Its correction and causal control remain open.
+See `session-http1-peer-cooperative-budget-independent-source-finding-13dedda4.json`.
+
+The shared-cap baseline at `acdbf923` passes 31 of 35 selected methods on
+each host. Four causal controls fail before later cleanup or cause checks.
+The repair at `13dedda4` passes all 37 selected methods on both hosts:
+29 prior status contracts, six prior shared-cap controls and two new cause
+controls. The four original failures now reach their later oracles before
+backup. Original serving errors retain their payload identity. The added
+controls retain the original deadline with a completed serving failure and
+an already completed external cancellation with its original task ID.
+See `shared-cap-owner-remedy-independent-native-review-13dedda4.json`.
+
+Focused formatting, strict Clippy and Rust 1.88 checks pass for both repairs.
+The shared-cap operation has ten seconds; collection can add two seconds
+and backup another two. The new timed caller has no received-head oracle.
+These are fixture repairs. Queued ownership, cancellation races, other raw
+workers, acquisition and parser paths, full gates and candidate CI remain
+open. No whole-workspace or final architecture approval follows.
+
 ## Next
 
 - [Audit plan](../architecture-audit.md): acceptance and verification.

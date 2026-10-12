@@ -1,0 +1,189 @@
+{
+  "schema": "independent_native_baseline_disposition_v1",
+  "revision": "acdbf923cc8f7b01d78d0f97103169347af34f20",
+  "decision": "four_bounded_causal_failures_qualified_remedy_authorized",
+  "both_hosts": {
+    "selected": 35,
+    "passed": 31,
+    "failed": 4,
+    "ignored": 0,
+    "filtered": 530,
+    "prior_status_passes": 29,
+    "shared_cap_positive_passes": 2,
+    "retry_exit": 101,
+    "fmt_exit": 0,
+    "strict_three_target_clippy_exit": 0,
+    "rust_1_88_exit": 0,
+    "runner_exit": 1
+  },
+  "artifacts": [
+    {
+      "host": "windows",
+      "artifact": "retry.log",
+      "sha256": "d0c4fe627c1e97b7aa54adc4aba5210c49f2384fa6cece6da25fd59bfc5f4ba4",
+      "complete_read": true
+    },
+    {
+      "host": "windows",
+      "artifact": "fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "complete_read": true
+    },
+    {
+      "host": "windows",
+      "artifact": "clippy.log",
+      "sha256": "e1870a882dfef22d39db095bea451d124e626923db3aa3bc7702a444729119be",
+      "complete_read": true
+    },
+    {
+      "host": "windows",
+      "artifact": "msrv.log",
+      "sha256": "80a28df1e78f498ed901b1c849b6cbca3e558d209a6beaa71126d1ae074c99a3",
+      "complete_read": true
+    },
+    {
+      "host": "windows",
+      "artifact": "retry.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "complete_read": true
+    },
+    {
+      "host": "windows",
+      "artifact": "fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "complete_read": true
+    },
+    {
+      "host": "windows",
+      "artifact": "clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "complete_read": true
+    },
+    {
+      "host": "windows",
+      "artifact": "msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "complete_read": true
+    },
+    {
+      "host": "windows",
+      "artifact": "revision",
+      "sha256": "8eb1707a50f40308b43a561986408c09b0d20a2a21a299a836e093d6664936ca",
+      "complete_read": true
+    },
+    {
+      "host": "windows",
+      "artifact": "runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "complete_read": true
+    },
+    {
+      "host": "linux",
+      "artifact": "retry.log",
+      "sha256": "fb5199dd737345ff6114cb1c362f83e8a54c7f6c6a9f41a92e758d27fb05cec6",
+      "complete_read": true
+    },
+    {
+      "host": "linux",
+      "artifact": "fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "complete_read": true
+    },
+    {
+      "host": "linux",
+      "artifact": "clippy.log",
+      "sha256": "6363c708daa36ffcaaea4cd766a66a169d8d631e69a0d0777b097d5e7b022a47",
+      "complete_read": true
+    },
+    {
+      "host": "linux",
+      "artifact": "msrv.log",
+      "sha256": "c1fd299c1c2e3cd73a697f593d03854f950c4eadec63433ebd4fa7a9ae7cd8dd",
+      "complete_read": true
+    },
+    {
+      "host": "linux",
+      "artifact": "retry.exit",
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "complete_read": true
+    },
+    {
+      "host": "linux",
+      "artifact": "fmt.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "complete_read": true
+    },
+    {
+      "host": "linux",
+      "artifact": "clippy.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "complete_read": true
+    },
+    {
+      "host": "linux",
+      "artifact": "msrv.exit",
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "complete_read": true
+    },
+    {
+      "host": "linux",
+      "artifact": "revision",
+      "sha256": "8eb1707a50f40308b43a561986408c09b0d20a2a21a299a836e093d6664936ca",
+      "complete_read": true
+    },
+    {
+      "host": "linux",
+      "artifact": "runner-exit",
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "complete_read": true
+    }
+  ],
+  "scripts": [
+    {
+      "name": "run-shared-cap-baseline.sh",
+      "sha256": "f96cdae0e4f93a1d726cabe4026675d6c7454af5f1027aae606e834265688b70",
+      "complete_read": true
+    },
+    {
+      "name": "sync-shared-cap-baseline-acdbf923.sh",
+      "sha256": "5551e74bdbc1f1c1769376aa2d0942a76842c29ff3774f5cfea9d21355cc5b17",
+      "complete_read": true
+    }
+  ],
+  "current_binding": {
+    "windows_head_exact": true,
+    "windows_crates_unchanged": true,
+    "windows_later_docs_dirty": true,
+    "linux_clean_exact": true,
+    "whole_runner_clean_guards_passed": true
+  },
+  "qualified_failure_targets": [
+    {
+      "control": "handle_drop_closes_the_actual_pending_shared_cap_socket",
+      "phase": "Named original server destruction after handle Drop",
+      "later_socket": "unreached before backup"
+    },
+    {
+      "control": "caller_failure_closes_the_actual_pending_shared_cap_socket",
+      "prerequisite": "Actual InvalidUri/parser after real accepted Pending original read",
+      "phase": "Named original server destruction after caller failure",
+      "later_socket": "unreached before backup"
+    },
+    {
+      "control": "exchange_deadline_closes_the_actual_pending_shared_cap_socket",
+      "prerequisite": "Actual ten-second bounded exchange returned direct original Elapsed",
+      "phase": "Named original server destruction after exchange deadline",
+      "later_socket": "unreached before backup"
+    },
+    {
+      "control": "completion_retains_the_actual_caller_and_completed_shared_cap_errors",
+      "prerequisite": "Actual prime response/flush/fault/destruction/server completion and actual URI/parser",
+      "phase": "Combined caller and completed serving cause absent",
+      "later_original_marker": "unreached in this control, separately passed by positive"
+    }
+  ],
+  "backup_target_separation_retained": true,
+  "broader_findings_remain_open": true,
+  "reviewer_executed_native": false,
+  "md_sha256": "d5a7e283f3fa54d6882b7d34e79826c1897f677ecafcfb24b5973e0d3d9c2ad8"
+}

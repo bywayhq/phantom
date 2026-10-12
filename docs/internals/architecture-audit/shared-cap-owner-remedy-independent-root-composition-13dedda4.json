@@ -1,0 +1,44 @@
+{
+  "schema": "independent_root_composition_review_v1",
+  "revision": "13dedda4dbd6aa4c88994ad9285a6eca06932fce",
+  "parent": "0398751fffaf08bf0a086683cc25fbcd2f6ef757",
+  "author_revision": "75443d92472d071c44e1badd3865ffd0a8a37fd0",
+  "semantic_revision": "db699b80e55f836b12bfdc40ae344898247434b9",
+  "signature": "G",
+  "root_observed_clean": true,
+  "decision": "approve_exact_composition_and_guarded_measurement",
+  "full_current_parent_and_child_read": true,
+  "full_parent_diff_read": true,
+  "full_author_to_root_diff_read": true,
+  "author_root_delta": "import reorder and three line wraps",
+  "outside_owned_sources_unchanged": true,
+  "bindings": [
+    {
+      "lines": 442,
+      "blob": "ffdda0b2a00fe949c34f7fad9f04db5b27cba64a",
+      "lf_sha256": "354c32b59612bda4f0229ee389b847918a055be44a22a8c49c7d8e132628e13e",
+      "path": "crates/phantom/tests/requests/status_retry/shared_cap_ownership.rs"
+    },
+    {
+      "lines": 420,
+      "blob": "366b01a5221f21c4ce982ae26397a20fab3895c6",
+      "lf_sha256": "0b1fbec6230cb6f090e583f55c95b99f7c080e5acf090d0d8129c73d134d1893",
+      "path": "crates/phantom/tests/requests/status_retry/shared_cap_ownership/tests.rs"
+    }
+  ],
+  "runner": {
+    "sha256": "a7e669da814233012d0a0786d5d596356e70e995a306e2903aedfaf3c49c3b49",
+    "name": "run-shared-cap-owner-remedy.sh",
+    "full_read": true
+  },
+  "sync": {
+    "sha256": "d9338debfe83ad3d7f7baabc616ef264479d6804c1fab90d3fcd99875d59af0a",
+    "name": "sync-shared-cap-owner-remedy-13dedda4.sh",
+    "full_read": true,
+    "required_clean_mirror": "0398751fffaf08bf0a086683cc25fbcd2f6ef757"
+  },
+  "native": "pending",
+  "broad_closure": false,
+  "reviewer_native_execution": false,
+  "md_sha256": "30d7de492e1c5fdb99b4e2891c5f0259cb5f27abe5383f3f3393baa8217e84e3"
+}

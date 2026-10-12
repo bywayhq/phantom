@@ -1,0 +1,144 @@
+{
+  "schema": "independent_native_review_v1",
+  "revision": "13dedda4dbd6aa4c88994ad9285a6eca06932fce",
+  "decision": "accept_bounded_shared_cap_owner_remedy",
+  "full_logs_read": 8,
+  "full_sidecars_read": 12,
+  "whole_source_lines": [
+    442,
+    420
+  ],
+  "whole_scripts_previously_read": true,
+  "root_post_terminal_clean_exact": true,
+  "linux_post_terminal_clean_exact": true,
+  "hosts": [
+    "windows",
+    "linux"
+  ],
+  "per_host": {
+    "failed": 0,
+    "runner_exit": 0,
+    "warnings": 0,
+    "filtered": 530,
+    "selected": 37,
+    "tests_exit": 0,
+    "msrv_exit": 0,
+    "ignored": 0,
+    "clippy_exit": 0,
+    "passed": 37,
+    "fmt_exit": 0
+  },
+  "preserved_status_contracts": 29,
+  "prior_shared_cap_controls_pass": 6,
+  "prior_four_causal_targets_and_later_oracles_reached": true,
+  "new_actual_cause_controls_pass": 2,
+  "new_mixed_received_head_claim": false,
+  "completed_foreign_cancellation_task_id_measured": true,
+  "concurrent_cancellation_or_coop_budget_claim": false,
+  "broad_closure": false,
+  "full_integration": "pending",
+  "artifacts": [
+    {
+      "sha256": "3aa2258a712b06a3da1b7fd9df556354a27d6c46dbd69806b099c4f92b759e2f",
+      "name": "shared-cap-owner-remedy-13dedda4-windows.retry.log",
+      "bytes": 3807
+    },
+    {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "shared-cap-owner-remedy-13dedda4-windows.fmt.log",
+      "bytes": 0
+    },
+    {
+      "sha256": "7a854d6580c1f6f61440904aa54028117a28664d6887355c16075efd5b7fd2b9",
+      "name": "shared-cap-owner-remedy-13dedda4-windows.clippy.log",
+      "bytes": 168
+    },
+    {
+      "sha256": "ab0e433e4301186beb301edc8c6328880f76c216ebfc5189a74dae48f7d61682",
+      "name": "shared-cap-owner-remedy-13dedda4-windows.msrv.log",
+      "bytes": 168
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "shared-cap-owner-remedy-13dedda4-windows.retry.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "shared-cap-owner-remedy-13dedda4-windows.fmt.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "shared-cap-owner-remedy-13dedda4-windows.clippy.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "shared-cap-owner-remedy-13dedda4-windows.msrv.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "35221e064175eaa507c068e5a3810701da2ca6b543a9e041b305a9f309047129",
+      "name": "shared-cap-owner-remedy-13dedda4-windows.revision",
+      "bytes": 41
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "shared-cap-owner-remedy-13dedda4-windows.runner-exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "4bd4e7889a863840543956f7448f3c658201c086587fbfd86e55fa423320dece",
+      "name": "shared-cap-owner-remedy-13dedda4-linux.retry.log",
+      "bytes": 3813
+    },
+    {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "name": "shared-cap-owner-remedy-13dedda4-linux.fmt.log",
+      "bytes": 0
+    },
+    {
+      "sha256": "c8b6d923c94ad1c90c0338a88bd3c61bbe33073f9eddac9bc5d00b33ffb1667b",
+      "name": "shared-cap-owner-remedy-13dedda4-linux.clippy.log",
+      "bytes": 178
+    },
+    {
+      "sha256": "e0d37b396d9e2b4c1fc5b76fadd216fca571ed8921d477a7daee06852ef5a976",
+      "name": "shared-cap-owner-remedy-13dedda4-linux.msrv.log",
+      "bytes": 178
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "shared-cap-owner-remedy-13dedda4-linux.retry.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "shared-cap-owner-remedy-13dedda4-linux.fmt.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "shared-cap-owner-remedy-13dedda4-linux.clippy.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "shared-cap-owner-remedy-13dedda4-linux.msrv.exit",
+      "bytes": 2
+    },
+    {
+      "sha256": "35221e064175eaa507c068e5a3810701da2ca6b543a9e041b305a9f309047129",
+      "name": "shared-cap-owner-remedy-13dedda4-linux.revision",
+      "bytes": 41
+    },
+    {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "name": "shared-cap-owner-remedy-13dedda4-linux.runner-exit",
+      "bytes": 2
+    }
+  ],
+  "reviewer_native_execution": false,
+  "md_sha256": "8f1d5686ae44b38de0d828339b4ffe60f8999202089e7860119bb292ba66babb"
+}
