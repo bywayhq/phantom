@@ -1,0 +1,11 @@
+# Corrected terminal baseline native qualification
+
+Revision `7decd344bacc842069d0e2de56bf19408d51636e`. Both guarded host runs are terminal: 21 selected,17 passed,four failed. All four intended causal checks now reach their target assertions. No authority/URI prerequisite failure remains.
+
+Original Pending peer Drop and real caller-error cleanup each reach their original Elapsed closure oracle. The real caller plus completed original flush fault reports the missing original cause. Actual second accept Pending/configured fault reports its original error reduced to a boolean. All15 prior selected methods plus healthy and explicit-abort controls pass. This qualifies the bounded semantic repair stage; it does not qualify repaired behavior.
+
+All eight full logs and12 receipts independently read and hashed. Retry exits101 and runner exits1 on both hosts. Strict three-target Clippy and Rust1.88 checks exit zero without warnings. Formatting exits1 on both hosts solely because the longer input call at ownership.rs273 needs wrapping. Preserve this quality failure; require passing formatting on the repaired candidate.
+
+Four immutable source bindings, all20 raw artifact hashes, guarded runner/sync and prior composition bindings are in JSON. Correction to prior composition prose: clean revision guards bracket the complete four-step run, rather than each individual step. Receipt reuse is rejected.
+
+Historical b531 partial baseline remains preserved. No native execution or source edits were performed for this review. Preserve all six control oracles and old wire during bounded repair, then independently review and run both-host remedy/quality checks. Other raw request owners, setup and watchdog/cancellation boundaries remain open. No production defect, permanent leak, whole A244, or full gate closure claim.

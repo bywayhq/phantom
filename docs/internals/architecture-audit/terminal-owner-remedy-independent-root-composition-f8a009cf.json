@@ -1,0 +1,106 @@
+{
+  "revision": "f8a009cfe3fc36aa0dece7bd1ae96a595658a2f5",
+  "baseline": "b4e6c3c2e52fd7737616cdcacb585b228ed56e53",
+  "author_revision": "e37a70cbdbaf885676369afae67156735a53da41",
+  "import": "75538daa121b657b73238935a26e3578eb284197",
+  "decision": "approve exact bounded root source composition for paired native qualification",
+  "semantic_findings": [],
+  "manual_read": "Full 665-line parent, 109-line terminal worker/collector, 342-line unchanged observer, 173-line seven controls; complete import and mechanical diffs; owner/deadline shared contracts and guarded runner",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/requests/connection_retries.rs",
+      "blob": "16c2711fb1f395a6e8ee652e63106724de85ac40",
+      "sha256_lf": "b0d5a7935e180546a60b7d2cd89574b6177ec8e87cd057fdeb50166726c2980e",
+      "lines": 665
+    },
+    {
+      "path": "crates/phantom/tests/requests/connection_retries/terminal_status.rs",
+      "blob": "5349e38071ce4c758cc672c0eeb6aa1074a56007",
+      "sha256_lf": "79433b8805eaf6e8baaaf089ecdc20fca2fd4422198403539811896fd125c4ff",
+      "lines": 109
+    },
+    {
+      "path": "crates/phantom/tests/requests/connection_retries/terminal_status/ownership.rs",
+      "blob": "0fedf8202c93e829c5dce7d5ff3a14ad7867e3d4",
+      "sha256_lf": "298c9e28e356d158de5a491d3dfcc190fdd14e1e7763af38290d517f9cc4ac3c",
+      "lines": 342
+    },
+    {
+      "path": "crates/phantom/tests/requests/connection_retries/terminal_status/ownership/tests.rs",
+      "blob": "33ee55be97aef21459f417c35e3f09686e43584c",
+      "sha256_lf": "93b05abdc0f340fc7808f8925f1b8bdb1dd4eccd79362f70a656cbca70d484b7",
+      "lines": 173
+    },
+    {
+      "path": "crates/phantom/tests/requests/connection_retries/h1_retry.rs",
+      "blob": "a781868a793295fbafe2a8267f7f668fb4492b36",
+      "sha256_lf": "75d030de2edf459799c92e873d4caa03b2f3b76a6d3271760dceddfa2eab5cf2",
+      "lines": 217
+    },
+    {
+      "path": "crates/phantom/tests/requests/connection_retries/h1_retry/ownership.rs",
+      "blob": "a8796c33d9f4275475d76f37e50fc7950a68de2c",
+      "sha256_lf": "0c4cff4b7f44b0d57fcaf4176946ed18244fd6ed64037cd7881db45f4bf01922",
+      "lines": 502
+    },
+    {
+      "path": "crates/phantom/tests/requests/connection_retries/h1_retry/ownership/tests.rs",
+      "blob": "9e0661bb352eac5f7a8d6de17ef91ec6a7d8b5ff",
+      "sha256_lf": "10c841275483b8b792ff6e6e921d80dd861229f266295b81e344c9359c643d1d",
+      "lines": 191
+    },
+    {
+      "path": "crates/phantom/tests/support/deadline.rs",
+      "blob": "fa1664fd6b035a66e2f757408680bd69ca0a9e23",
+      "sha256_lf": "2901aa2ce14a22c268ab559c2d4ed16f5a6da4712f70f89eca6d874a47ef42d8",
+      "lines": 27
+    },
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "sha256_lf": "0c76cfabc1b240fbd659c336e7d8384734e3cd5c334ee37953220069f56e78fd",
+      "lines": 268
+    }
+  ],
+  "preservation": {
+    "old_wire": "Literal503, exact GET/Host ordering, status/HTTP1/retries0/body and noRetry trace assertions, 100ms no-second window, 500ms retry",
+    "observer_and_three_h1_files": "No baseline-to-candidate diff",
+    "later_seven_methods_and_helpers_exact": true,
+    "six_old_control_bodies_exact_prefix": true,
+    "parent_import_matches_author": "Empty author-to-import parent diff"
+  },
+  "composition": "Four requested paragraphs corrected; parent and new-control wrapping plus expression-equivalent Err arm braces only. Import conflict resolution parent matches author blob.",
+  "signatures": "Both root import and mechanical commits G; author and committer Arya Alikhani <AryaAlikhani@icloud.com>; clean exact root verified",
+  "runtime_contracts": [
+    "Original peer guarded immediately, outside same absolute5s setup/caller budget",
+    "Healthy concreteClient/body/subscriber retained through collection and wire assertions",
+    "Caller error locally aborts observed unfinished original; finished IO/panic/foreign cancel moved and composed",
+    "Original borrowed join has5s, only expiry aborts and independently rejoins5s; originalElapsed retained; Ready moved once",
+    "Actual secondaccept I/O cause returned; only100ms timeout is expected absence"
+  ],
+  "new_control": "Actual original accepted read Pending; independent12s observer waits canonical collector expiry, original Elapsed source, destruction/completion/socket EOF or supported peer-gone and listener refusal before backup",
+  "runner": {
+    "path": "C:/code/phantom/target/architecture-audit/run-terminal-owner-remedy.sh",
+    "sha256": "3c6810a7b047532b3d088179811fe89ac6a5bcaa643610f8d59968856ac96cdb",
+    "guard": "Clean exact revision before and after complete four-step run; receipt reuse rejected; separate step exits plus terminal runner receipt",
+    "checks": [
+      "Bothhost22 retry methods single-thread",
+      "Format only phantom-http",
+      "Strict requests streams sessions Clippy allfeatures locked",
+      "Rust1.88 same3targets allfeatures locked"
+    ]
+  },
+  "native": "Not yet executed for candidate;22PASS forecast remains unmeasured",
+  "execution": "Read-only source/Git and scratch reports only; no native/Cargo/formatter/checker/probe/import/source edits",
+  "boundaries": [
+    "External collector drop aborts without async collection",
+    "Final cleanup watchdog and concurrent foreign-cancel provenance qualified",
+    "Remaining seven raw owner methods13tasks, other setup/deadline/accept paths open",
+    "Private fixture only; no production API/vendor/user-visible behavior change",
+    "No whole A244/audit/full-gate closure"
+  ],
+  "required_next": [
+    "Paired native candidate22 +quality logs/receipts independently read",
+    "Full scripts/dev/gate.sh exact rebased candidate plus applicable platform/PR/main CI before merge"
+  ]
+}

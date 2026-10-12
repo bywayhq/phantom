@@ -2021,6 +2021,14 @@ These selected checks do not replace the full gate or current candidate CI.
 The session-reuse receipt `session-reuse-owner-root-checkpoint-6c55672d.json`
 records exact source, focused checks and remaining ownership limits.
 
+The terminal-status repair passes all 22 selected retry methods on Windows
+and Linux at `f8a009cf`. Four unchanged controls fail for their intended
+causes before repair and pass afterward. The added collector-expiry control
+also passes. Formatting, focused strict Clippy and Rust 1.88 checks pass.
+The receipt `terminal-status-owner-root-checkpoint-f8a009cf.json` preserves
+the earlier invalid prerequisite, corrected baseline and independent reviews.
+Thirteen raw tasks and other setup, deadline and accept paths remain open.
+
 ## Next
 
 - [Audit plan](../architecture-audit.md): acceptance and verification.

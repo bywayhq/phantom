@@ -1,0 +1,13 @@
+# Terminal status baseline qualification
+
+Revision: `b5316f107520956b934e733ff5c4ea55d5fb3a8d`.
+
+Both guarded host runs are terminal: 21 selected, 17 passed, four failed. Only two failures establish the intended ownership/result baseline: the original Pending peer Drop closure oracle reports `Elapsed`, and the original second accept configured typed failure is reduced to a boolean.
+
+Both caller controls stop at the prerequisite assertion in `ownership.rs:283`: actual `InvalidAuthority`, expected `InvalidUri`. Their target closure and completed-cause aggregation oracles were not reached. The historical source approval and forecast remain preserved; these runs do not establish four causal failures.
+
+All eight complete logs and 12 sidecars were read independently. Both retry commands exit 101 and guarded runners exit 1. Formatting, strict requests/streams/sessions Clippy, and Rust 1.88 checks exit zero on both hosts, without warnings. All 20 raw artifact hashes, four immutable tested source blobs, prior composition hash, and guarded runner/sync bindings are in the JSON pair.
+
+The original `http://[` input fails authority validation before URI syntax parsing. The approved printable-path correction, `http://127.0.0.1/invalid uri`, has a valid authority and reaches the pinned HTTP parser's space rejection. Review that signed literal-only checkpoint and rerun all 21 controls on both hosts before semantic repair.
+
+This is a partial tests-only baseline qualification. No source or native execution was performed for this review. No remediation, production defect, permanent leak, whole A244, or full gate closure is claimed. Remaining raw owners and interrupted cleanup/result boundaries stay open.
