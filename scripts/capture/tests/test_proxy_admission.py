@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from h2.config import H2Configuration
 from h2.connection import H2Connection
-from h2.events import DataReceived, ResponseReceived, StreamEnded
+from h2.events import DataReceived, RemoteSettingsChanged, ResponseReceived, StreamEnded
 
 from scripts.capture.proxy_route import (
     MAX_RUN_CONNECTIONS,
@@ -225,30 +225,50 @@ class ProxyAdmissionTests(unittest.IsolatedAsyncioTestCase):
         writer.write(client.data_to_send())
 
         async def exchange_requests():
-            for index in range(MAX_RUN_REQUESTS):
-                stream = index * 2 + 1
-                client.send_headers(
-                    stream,
-                    [
-                        (b":method", b"GET"),
-                        (b":authority", b"origin.phantom.test:9"),
-                        (b":scheme", b"http"),
-                        (b":path", b"/x"),
-                    ],
-                    end_stream=True,
+            settings_received = False
+            while not settings_received:
+                data = await reader.read(65536)
+                self.assertTrue(data)
+                settings_received = any(
+                    isinstance(event, RemoteSettingsChanged)
+                    for event in client.receive_data(data)
                 )
+
+            batch_size = 32
+            self.assertGreaterEqual(
+                client.remote_settings.max_concurrent_streams, batch_size
+            )
+            for start in range(0, MAX_RUN_REQUESTS, batch_size):
+                stop = min(start + batch_size, MAX_RUN_REQUESTS)
+                expected = set(range(start * 2 + 1, stop * 2 + 1, 2))
+                for stream in sorted(expected):
+                    client.send_headers(
+                        stream,
+                        [
+                            (b":method", b"GET"),
+                            (b":authority", b"origin.phantom.test:9"),
+                            (b":scheme", b"http"),
+                            (b":path", b"/x"),
+                        ],
+                        end_stream=True,
+                    )
                 writer.write(client.data_to_send())
-                completed = False
-                while not completed:
+                responses = set()
+                completed = set()
+                while completed != expected:
                     data = await reader.read(65536)
                     self.assertTrue(data)
                     for event in client.receive_data(data):
                         if isinstance(event, ResponseReceived):
+                            self.assertIn(event.stream_id, expected)
+                            self.assertNotIn(event.stream_id, responses)
                             self.assertEqual(dict(event.headers)[b":status"], b"404")
-                        elif (
-                            isinstance(event, StreamEnded) and event.stream_id == stream
-                        ):
-                            completed = True
+                            responses.add(event.stream_id)
+                        elif isinstance(event, StreamEnded):
+                            self.assertIn(event.stream_id, expected)
+                            self.assertNotIn(event.stream_id, completed)
+                            completed.add(event.stream_id)
+                self.assertEqual(responses, expected)
 
         await asyncio.wait_for(exchange_requests(), DEADLINE)
         self.assertEqual(len(run.requests), MAX_RUN_REQUESTS)
