@@ -402,8 +402,10 @@ without response data before it stops taking new requests and closes.
   exception: it closes only when the next tunnel replaces it.
 - A profile with an HTTP/2 limit runs this timer even without an HTTP/1.1
   limit. Each time it fires, it also drops idle HTTP/1.1 connections the
-  server already closed, and forgets the remembered address family of an
-  origin with no connections, as Firefox's prune does.
+  server already closed. It forgets the address family of an origin with
+  no connections, setup, or slower attempt if no activity intervenes during
+  the sweep. Intervening activity can retain that preference until later
+  pruning or pool entry eviction.
 - `Http2Settings::validate` accepts 1 to 65,535 seconds, the range Firefox
   allows.
 

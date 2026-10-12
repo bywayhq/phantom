@@ -864,9 +864,9 @@ impl Client {
     /// store only a cookie a response could have stored.
     ///
     /// Expired entries are dropped, a later entry with the same name, domain,
-    /// path, and host-only and partitioned flags wins, and expiry is rounded
-    /// down to a second and never extended. Cookies the jar already holds
-    /// take precedence, as does a held `Secure` cookie that an entry from an
+    /// path, host-only flag, and schemeful partition site wins. Expiry is
+    /// rounded down to a second and never extended. Cookies the jar already
+    /// holds take precedence, as does a held `Secure` cookie that an entry from an
     /// untrustworthy origin would overlay. Imported cookies rank as created
     /// and used before every held cookie. The jar's count limits admit
     /// imported cookies up to each limit instead of evicting, so capacity

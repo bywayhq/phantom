@@ -683,6 +683,46 @@ fn expired_partitioned_cookies_delete_only_their_schemeful_partition()
     Ok(())
 }
 
+#[test]
+fn empty_schemeful_partition_stores_do_not_accumulate() -> Result<(), Box<dyn std::error::Error>> {
+    let jar = CookieJar::with_limits(CookieLimits::new(nonzero(4096), nonzero(100), nonzero(1)));
+    for index in 0..8 {
+        jar.set_cookie(
+            &format!("http://app{index}.localhost/"),
+            "id=gone; Secure; Partitioned; Max-Age=0",
+        )?;
+    }
+
+    assert!(jar.is_empty());
+    assert!(jar.state.lock().stores.partitioned.is_empty());
+
+    jar.set_cookie("http://app.localhost/", "id=http; Secure; Partitioned")?;
+    jar.set_cookie("https://app.localhost/", "id=https; Secure; Partitioned")?;
+
+    assert_eq!(jar.len(), 1);
+    assert_eq!(jar.state.lock().stores.partitioned.len(), 1);
+    assert_eq!(send(&jar, "http://app.localhost/")?, None);
+    assert_eq!(
+        send(&jar, "https://app.localhost/")?.as_deref(),
+        Some("id=https")
+    );
+
+    jar.set_cookie(
+        "https://app.localhost/",
+        "id=gone; Secure; Partitioned; Max-Age=0",
+    )?;
+
+    assert!(jar.is_empty());
+    assert!(jar.state.lock().stores.partitioned.is_empty());
+
+    jar.set_cookie("http://app.localhost/", "id=http; Secure; Partitioned")?;
+    jar.clear();
+
+    assert!(jar.is_empty());
+    assert!(jar.state.lock().stores.partitioned.is_empty());
+    Ok(())
+}
+
 fn rejected(result: Result<(), CookieError>, message: &'static str) -> CookieError {
     match result {
         Ok(()) => panic!("{message}"),

@@ -14,14 +14,14 @@ use url::{Host, Url};
 // the `http` and `https` URLs the jar receives.
 use crate::request::secure_context::is_potentially_trustworthy;
 
-mod snapshot;
-mod types;
-
 pub use snapshot::{
     CookieSameSite, CookieSnapshot, CookieSnapshotEntry, CookieSnapshotError,
     CookieSnapshotErrorKind, CookieSourceScheme,
 };
 pub use types::{CookieError, CookieErrorKind, CookieLimits};
+
+mod snapshot;
+mod types;
 
 /// Bounded, thread-safe in-memory cookie jar.
 ///
@@ -205,52 +205,114 @@ struct JarState {
     next_access: u64,
 }
 
-/// Cookie stores split by host-only flag and partition.
-///
-/// Partitioned cookies live apart so that a partitioned and an unpartitioned
-/// cookie with the same name, domain, and path coexist, as in Chromium's
-/// separate partitioned-cookie map.
+/// Cookie stores split by host-only flag and schemeful partition site.
 #[derive(Default)]
 struct Stores {
     host: CookieStore,
     domain: CookieStore,
-    partitioned_host: CookieStore,
-    partitioned_domain: CookieStore,
+    partitioned: HashMap<String, PartitionStores>,
+}
+
+#[derive(Default)]
+struct PartitionStores {
+    host: CookieStore,
+    domain: CookieStore,
+}
+
+impl PartitionStores {
+    fn is_empty(&self) -> bool {
+        self.host.iter_any().next().is_none() && self.domain.iter_any().next().is_none()
+    }
 }
 
 impl Stores {
-    fn get_mut(&mut self, host_only: bool, partitioned: bool) -> &mut CookieStore {
-        match (host_only, partitioned) {
-            (true, false) => &mut self.host,
-            (false, false) => &mut self.domain,
-            (true, true) => &mut self.partitioned_host,
-            (false, true) => &mut self.partitioned_domain,
+    fn insert(
+        &mut self,
+        key: &CookieKey,
+        cookie: Cookie<'static>,
+        url: &Url,
+    ) -> Result<StoreAction, cookie_store::CookieError> {
+        let store = match key.partition_site.as_deref() {
+            Some(site) => {
+                let stores = self.partitioned.entry(site.to_owned()).or_default();
+                if key.host_only {
+                    &mut stores.host
+                } else {
+                    &mut stores.domain
+                }
+            }
+            None => {
+                if key.host_only {
+                    &mut self.host
+                } else {
+                    &mut self.domain
+                }
+            }
+        };
+        let result = store.insert(cookie, url);
+
+        if result.is_err() {
+            self.remove_empty_partition(key.partition_site.as_deref());
         }
+
+        result
     }
 
     fn unpartitioned(&self) -> [&CookieStore; 2] {
         [&self.host, &self.domain]
     }
 
-    fn all(&self) -> [(&CookieStore, bool); 4] {
-        [
-            (&self.host, false),
-            (&self.domain, false),
-            (&self.partitioned_host, true),
-            (&self.partitioned_domain, true),
-        ]
+    fn all(&self) -> impl Iterator<Item = (&CookieStore, Option<&str>)> {
+        [(&self.host, None), (&self.domain, None)]
+            .into_iter()
+            .chain(self.partitioned.iter().flat_map(|(site, stores)| {
+                [
+                    (&stores.host, Some(site.as_str())),
+                    (&stores.domain, Some(site.as_str())),
+                ]
+            }))
     }
 
     fn remove(&mut self, key: &CookieKey) {
-        self.get_mut(key.host_only, key.partitioned)
-            .remove(&key.domain, &key.path, &key.name);
+        let store = match key.partition_site.as_deref() {
+            Some(site) => {
+                let Some(stores) = self.partitioned.get_mut(site) else {
+                    return;
+                };
+
+                if key.host_only {
+                    &mut stores.host
+                } else {
+                    &mut stores.domain
+                }
+            }
+            None => {
+                if key.host_only {
+                    &mut self.host
+                } else {
+                    &mut self.domain
+                }
+            }
+        };
+        store.remove(&key.domain, &key.path, &key.name);
+        self.remove_empty_partition(key.partition_site.as_deref());
+    }
+
+    fn remove_empty_partition(&mut self, site: Option<&str>) {
+        if let Some(site) = site
+            && self
+                .partitioned
+                .get(site)
+                .is_some_and(PartitionStores::is_empty)
+        {
+            self.partitioned.remove(site);
+        }
     }
 
     fn clear(&mut self) {
         self.host.clear();
         self.domain.clear();
-        self.partitioned_host.clear();
-        self.partitioned_domain.clear();
+        self.partitioned.clear();
     }
 }
 
@@ -274,17 +336,12 @@ impl JarState {
             cookie,
             key,
             source_scheme,
-            partition_site,
             ..
         } = candidate;
         let quota_domain = quota_domain(&key.domain);
         let secure = cookie.secure() == Some(true);
 
-        let action = match self
-            .stores
-            .get_mut(key.host_only, key.partitioned)
-            .insert(cookie, url)
-        {
+        let action = match self.stores.insert(&key, cookie, url) {
             Ok(action) => action,
             Err(cookie_store::CookieError::Expired) => {
                 self.metadata.remove(&key);
@@ -292,6 +349,7 @@ impl JarState {
             }
             Err(error) => return Err(cookie_store_error(error)),
         };
+
         if matches!(action, StoreAction::ExpiredExisting) {
             self.stores.remove(&key);
             self.metadata.remove(&key);
@@ -316,7 +374,6 @@ impl JarState {
                 last_access,
                 quota_domain: quota_domain.clone(),
                 secure,
-                partition_site,
                 source_scheme,
             },
         );
@@ -388,27 +445,28 @@ impl JarState {
         let site = schemeful_site(url);
         let request = secure_context_url(url);
         let mut cookies = Vec::new();
-        for (store, partitioned) in self.stores.all() {
+        for (store, partition_site) in self.stores.all() {
+            if partition_site.is_some_and(|partition| partition != site) {
+                continue;
+            }
+
             for cookie in store.matches(&request) {
-                let Ok(key) = CookieKey::from_cookie(cookie, partitioned) else {
+                let Ok(key) = CookieKey::from_cookie(cookie, partition_site) else {
                     continue;
                 };
+
                 let Some(metadata) = self.metadata.get(&key) else {
                     continue;
                 };
-                if metadata
-                    .partition_site
-                    .as_ref()
-                    .is_some_and(|partition| *partition != site)
-                {
-                    continue;
-                }
+
                 cookies.push((metadata.sequence, key, cookie));
             }
         }
+
         if cookies.is_empty() {
             return None;
         }
+
         // Chromium's CookieMonster::CookieSorter: longer paths first, then
         // creation order.
         cookies.sort_by(|(left_sequence, left, _), (right_sequence, right, _)| {
@@ -445,12 +503,11 @@ impl JarState {
         let expired = self
             .stores
             .all()
-            .into_iter()
-            .flat_map(|(store, partitioned)| {
+            .flat_map(|(store, partition_site)| {
                 store
                     .iter_any()
                     .filter(|cookie| cookie.is_expired())
-                    .filter_map(move |cookie| CookieKey::from_cookie(cookie, partitioned).ok())
+                    .filter_map(move |cookie| CookieKey::from_cookie(cookie, partition_site).ok())
             })
             .collect::<Vec<_>>();
         for key in expired {
@@ -476,8 +533,6 @@ struct Candidate {
     source_scheme: CookieSourceScheme,
     /// Whether the setting URL is a potentially trustworthy origin.
     trustworthy: bool,
-    /// Top-level site of a `Partitioned` cookie.
-    partition_site: Option<String>,
 }
 
 impl Candidate {
@@ -496,9 +551,12 @@ impl Candidate {
                 error,
             )
         })?;
+
         validate_policy(&raw, url)?;
+
         let partitioned = raw.partitioned() == Some(true);
         let mut cookie = Cookie::try_from_raw_cookie(&raw, url).map_err(cookie_store_error)?;
+
         if is_public_suffix(&cookie.domain) {
             let host = url.host_str().unwrap_or_default();
             let domain = cookie.domain.as_cow().unwrap_or_default();
@@ -512,13 +570,15 @@ impl Candidate {
                 ));
             }
         }
-        let key = CookieKey::from_cookie(&cookie, partitioned)?;
+
+        let partition_site = partitioned.then(|| schemeful_site(url));
+        let key = CookieKey::from_cookie(&cookie, partition_site.as_deref())?;
+
         Ok(Self {
             cookie: cookie.into_owned(),
             key,
             source_scheme: CookieSourceScheme::of(url),
             trustworthy: is_potentially_trustworthy(url),
-            partition_site: partitioned.then(|| schemeful_site(url)),
         })
     }
 
@@ -544,23 +604,24 @@ struct CookieKey {
     path: String,
     name: String,
     host_only: bool,
-    partitioned: bool,
+    partition_site: Option<String>,
 }
 
 impl CookieKey {
-    fn from_cookie(cookie: &Cookie<'_>, partitioned: bool) -> Result<Self, CookieError> {
+    fn from_cookie(cookie: &Cookie<'_>, partition_site: Option<&str>) -> Result<Self, CookieError> {
         let domain = cookie.domain.as_cow().ok_or_else(|| {
             CookieError::new(
                 CookieErrorKind::InvalidSetCookie,
                 "cookie domain was not resolved",
             )
         })?;
+
         Ok(Self {
             domain: domain.into_owned(),
             path: cookie.path.to_string(),
             name: cookie.name().to_owned(),
             host_only: matches!(&cookie.domain, CookieDomain::HostOnly(_)),
-            partitioned,
+            partition_site: partition_site.map(str::to_owned),
         })
     }
 }
@@ -573,8 +634,6 @@ struct CookieMetadata {
     /// Registrable domain the per-domain limit counts against.
     quota_domain: String,
     secure: bool,
-    /// Top-level site of a `Partitioned` cookie.
-    partition_site: Option<String>,
     /// Scheme of the URL that set the cookie.
     source_scheme: CookieSourceScheme,
 }

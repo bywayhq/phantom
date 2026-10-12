@@ -2356,7 +2356,10 @@ runners finish with formatting, strict linting and Rust 1.88 passing. Root
 reads every log and separately verifies clean exact source on both hosts;
 independent review accepts these results. Late registration and negotiated
 adoption races remain source-reviewed rather than newly measured. Full
-integration gates and current candidate CI remain open.
+integration gates and current candidate CI remain open. A further source
+read confirms transient activity can skip reset without scheduling another
+sweep, retaining the preference until unrelated pruning or eviction. This
+lifecycle gap remains open and the reference wording now qualifies it.
 
 Separate exact and negotiated pools retain different setup and admission
 contracts. Declared template slots and send-time header hooks also serve
@@ -2379,7 +2382,12 @@ omit the schemeful partition site, allowing trustworthy HTTP and HTTPS
 localhost partitions to replace or expire each other's same-named cookie.
 Snapshot import collides at its duplicate and held-key filters too. Matching
 still filters the stored partition, so no outgoing credential leak is claimed.
-Reproduction and the complete key/storage repair remain pending.
+At `e8fcdb93`, both hosts run 50 cookie methods: the 46 earlier methods
+pass, while the four new controls fail at the expected storage, deletion,
+import and export counts. Their later assertions do not execute. The
+independently reviewed repair includes the schemeful site in canonical keys
+and backend stores, keeps snapshot representation unchanged, and removes
+empty partition stores. Remedy verification and final gates remain open.
 
 ### Remaining raw stale-worker baseline
 
