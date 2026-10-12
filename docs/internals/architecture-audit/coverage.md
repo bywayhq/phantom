@@ -2334,6 +2334,45 @@ results. Incomplete H2 receive closure, strict request parsing and finite
 fixture budgets still need contract controls. Findings A251 and A252 remain
 open alongside the remaining lifecycle, proxy and streaming source passes.
 
+### Production admission and address-family pruning
+
+The production reassessment at `5aa2f5bb` reads all six manifests and five
+public crate roots, admission, stream counting, the prune timer, shared
+address-family registry and H2 connection selection. Pool, TCP, request and
+WebSocket callers have bounded reads. This does not establish complete
+driver, proxy, QUIC or combined architecture coverage.
+
+Independent source review confirms A253: a prune can clear an origin's
+address-family memory after a real connection starts. Each entry's empty
+observation precedes the final reset under a different mutex. A newly
+registered runtime key can also be omitted. The affected production blobs
+are unchanged at `cce7aca5`. Reproduction and the complete activity/reset
+repair remain pending. Stable all-empty pruning must still clear memory.
+
+Separate exact and negotiated pools retain different setup and admission
+contracts. Declared template slots and send-time header hooks also serve
+different callers. Inspection does not justify merging these mechanisms or
+adding a crate. Complete redirect, retry and SSE interaction review remains
+in progress.
+
+### Remaining raw stale-worker baseline
+
+At `44c4ab8b`, both hosts run 27 stale-replay methods: 21 pass and six fail.
+All eighteen prior contracts and three new positive controls pass. Four
+failures reach worker destruction after real priming and caller Drop,
+failure or timeout. Two reach the missing combined caller/worker error.
+Later socket assertions and returned combined-cause identity checks are
+unreached. These failures establish fixture gaps, not production leaks.
+
+Formatting and Rust 1.88 pass at that revision; strict linting fails on one
+owned-result expression. Its correction at `cce7aca5` preserves the actual
+success and error values. Formatting, strict three-target linting and Rust
+1.88 pass on Windows and Linux. The first Linux launcher and diagnostic
+wrapper fail on a trailing carriage return; the corrected LF runner exits
+zero with all three checks passing. The historical baseline stays intact.
+The six regressions, acquisition and parser paths, and full gates remain
+open.
+
 ## Next
 
 - [Audit plan](../architecture-audit.md): acceptance and verification.

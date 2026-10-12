@@ -6,6 +6,7 @@ use tokio::io::{DuplexStream, duplex};
 use super::{Checkout, EntryConnections, Http1ConnectionMode, Http1Pool, PoolKey};
 use crate::{Route, authority::Endpoint};
 
+mod prune_family;
 mod slower_connection;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
