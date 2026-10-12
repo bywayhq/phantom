@@ -2434,8 +2434,14 @@ gzip name or comment without producing final response bytes. The pipeline
 loops on intermediate progress and the body checks its deadline only after
 data output. This can monopolize a body poll despite a zero final-byte cap.
 The stages keep bounded buffers, so no retained-buffer explosion is claimed.
-Bounded work per poll and deadline checks during no-output progress need
-a remedy and native verification.
+At `800c9bdc`, the buffered-body control fails on Windows and Linux at
+its first poll: the valid empty body completes instead of yielding.
+The later total-timeout assertion is unreached. The proposed remedy bounds
+stage input to 16 KiB, a pump to eight passes and a body poll to eight
+pumps. Buffered work yields with a wake and checks its deadlines. Independent
+review caught an idle-expiry ordering error at ready EOF; `92db927f`
+corrects it while retaining the total deadline. The composed remedy still
+needs native verification. These quotas cannot preempt a running codec call.
 
 ### Remaining raw stale-worker baseline
 
@@ -2454,6 +2460,12 @@ wrapper fail on a trailing carriage return; the corrected LF runner exits
 zero with all three checks passing. The historical baseline stays intact.
 The six regressions, acquisition and parser paths, and full gates remain
 open.
+
+At pushed checkpoint `ee164f59`, PR #197 runs the full workspace tests on
+Linux, macOS and Windows. Each reports the same six raw stale-worker
+failures. Windows passes 4,310 of 4,316 methods, macOS 4,294 of 4,300,
+and Linux 4,293 of 4,299. These known open fixture defects block merging;
+the targeted production fixes do not establish a green combined gate.
 
 ## Next
 

@@ -2503,6 +2503,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Yield while decoding compressed response headers that produce no body
+  data. Check body deadlines between work quotas and before completion.
+
 - Preserve the original HTTP/3 response-body worker failure as the local
   error source when an upload panics after an early response head.
 

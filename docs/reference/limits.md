@@ -37,6 +37,12 @@ explains how Phantom limits the state a client keeps.
 | Limit on waiting for another negotiated handshake | Waits until it ends | `ClientBuilder::negotiated_setup_wait_limit` |
 | Cargo features | None | See [Getting started](../getting-started.md#optional-features) |
 
+Content decoding limits each stage input to 16 KiB and each pump to eight
+passes. A body poll handles at most eight pumps before yielding. Buffered
+work that produces no data checks idle and total deadlines when it yields.
+Completed bodies still check the total deadline. These quotas bound work
+between checks; they cannot interrupt a codec call already running.
+
 Some requests are sent again by default.
 [Retries and replays](../guides/retries.md) lists each case. A bodyless HTTP/2
 GET refused by `GOAWAY(NO_ERROR)` is always

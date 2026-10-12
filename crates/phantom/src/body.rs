@@ -5,16 +5,20 @@ use std::{
     task::{Context, Poll},
 };
 
+use bytes::{Bytes, BytesMut};
+use http::HeaderMap;
+use http_body::{Body, Frame, SizeHint};
+use phantom_net::{http1::Http1Body, http2::Http2Body, http3::Http3Body};
+
 use crate::{
     HttpProtocol, RequestError,
     authority::RequestOrigin,
     content_coding::{ContentDecoder, Pump},
     timeout::{ResponseTimeouts, TimeoutBudget},
 };
-use bytes::{Bytes, BytesMut};
-use http::HeaderMap;
-use http_body::{Body, Frame, SizeHint};
-use phantom_net::{http1::Http1Body, http2::Http2Body, http3::Http3Body};
+
+/// Bounds ready wire frames that produce no decoded data in one body poll.
+const MAXIMUM_DECODING_PUMPS: usize = 8;
 
 /// Read a response body frame by frame or collect it with a byte limit.
 ///
@@ -206,7 +210,14 @@ impl ResponseBody {
         &mut self,
         context: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Bytes>, RequestError>>> {
-        loop {
+        for _ in 0..MAXIMUM_DECODING_PUMPS {
+            if let Some(timeouts) = self.timeouts.as_mut()
+                && let Poll::Ready(error) = timeouts.poll_total_expired(context)
+            {
+                self.close();
+                return Poll::Ready(Some(Err(error)));
+            }
+
             let Some(ContentState::Decode(decoder)) = self.content.as_mut() else {
                 return Poll::Ready(None);
             };
@@ -233,12 +244,9 @@ impl ResponseBody {
                     }
                     return Poll::Ready(Some(Ok(Frame::data(data))));
                 }
-                Ok(Pump::Finished) => {
-                    let trailers = self.held_trailers.take();
-                    self.close();
-                    return Poll::Ready(trailers.map(|trailers| Ok(Frame::trailers(trailers))));
-                }
+                Ok(Pump::Finished) => return self.finish_decoding(context),
                 Ok(Pump::NeedInput) => {}
+                Ok(Pump::Yield) => return self.yield_decoding(context),
             }
 
             let protocol = self.protocol();
@@ -277,6 +285,46 @@ impl ResponseBody {
                 }
             }
         }
+
+        self.yield_decoding(context)
+    }
+
+    /// No returned data satisfies idle while buffered decoding yields.
+    fn yield_decoding(
+        &mut self,
+        context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Bytes>, RequestError>>> {
+        if let Some(ContentState::Decode(decoder)) = self.content.as_ref()
+            && decoder.is_finished()
+        {
+            return self.finish_decoding(context);
+        }
+
+        if let Some(timeouts) = self.timeouts.as_mut()
+            && let Poll::Ready(error) = timeouts.poll_expired(context)
+        {
+            self.close();
+            return Poll::Ready(Some(Err(error)));
+        }
+
+        context.waker().wake_by_ref();
+        Poll::Pending
+    }
+
+    fn finish_decoding(
+        &mut self,
+        context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Bytes>, RequestError>>> {
+        if let Some(timeouts) = self.timeouts.as_mut()
+            && let Poll::Ready(error) = timeouts.poll_total_expired(context)
+        {
+            self.close();
+            return Poll::Ready(Some(Err(error)));
+        }
+
+        let trailers = self.held_trailers.take();
+        self.close();
+        Poll::Ready(trailers.map(|trailers| Ok(Frame::trailers(trailers))))
     }
 
     const fn protocol(&self) -> HttpProtocol {
@@ -439,183 +487,4 @@ impl Body for ResponseBody {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::{
-        pin::Pin,
-        task::{Context, Poll, Waker},
-        time::Duration,
-    };
-
-    use bytes::Bytes;
-    use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
-    use http_body::Body;
-    use phantom_net::{
-        http1::Http1Connection,
-        request::{OriginForm, RequestHeader},
-    };
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
-    use super::{ResponseBody, checked_body_length};
-    use crate::{
-        ContentDecoding, HttpProtocol, RequestErrorKind, RequestTimeouts, TimeoutPhase,
-        content_coding::{AdvertisedContentCodings, ContentDecodingPlan, plan},
-        timeout::TimeoutBudget,
-    };
-
-    #[tokio::test(start_paused = true)]
-    async fn stacked_header_work_yields_then_observes_the_total_deadline()
-    -> Result<(), Box<dyn std::error::Error>> {
-        // Valid empty gzip: FNAME, a long nonzero name, then empty DEFLATE
-        // and the zero CRC32/ISIZE footer. Only intermediate bytes expand.
-        let mut gzip = vec![0x1f, 0x8b, 8, 8, 0, 0, 0, 0, 0, 255];
-        gzip.resize(10 + (4 << 20), b'n');
-        gzip.push(0);
-        gzip.extend_from_slice(&[3, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-        let encoded = zstd::encode_all(gzip.as_slice(), 3)?;
-        let advertised = AdvertisedContentCodings::from_request_headers(&[RequestHeader::new(
-            "accept-encoding",
-            "gzip, zstd",
-        )])?;
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            header::CONTENT_ENCODING,
-            HeaderValue::from_static("gzip, zstd"),
-        );
-
-        let mut decoder = match plan(
-            ContentDecoding::advertised(0),
-            advertised,
-            &Method::GET,
-            StatusCode::OK,
-            &headers,
-            false,
-            HttpProtocol::Http1,
-        ) {
-            ContentDecodingPlan::Decode(decoder, _) => decoder,
-            ContentDecodingPlan::Reject(error) => return Err(error.into()),
-            ContentDecodingPlan::Passthrough => return Err("stacked body was not decoded".into()),
-        };
-        decoder.push(Bytes::from(encoded));
-        decoder.end_input();
-        let mut body = ResponseBody {
-            inner: None,
-            timeouts: None,
-            content: None,
-            held_trailers: None,
-            origin: None,
-        };
-        body.decode_content(decoder);
-        body.apply_timeouts(
-            TimeoutBudget::new(RequestTimeouts::new().total(Duration::from_secs(1)))?,
-            HttpProtocol::Http1,
-        )?;
-
-        let mut context = Context::from_waker(Waker::noop());
-        let first = Pin::new(&mut body).poll_frame(&mut context);
-        assert!(
-            first.is_pending(),
-            "stacked header work finished in one poll: {first:?}"
-        );
-        assert!(!body.is_end_stream());
-
-        tokio::time::advance(Duration::from_secs(2)).await;
-        let result = Pin::new(&mut body).poll_frame(&mut context);
-        let Poll::Ready(Some(Err(error))) = result else {
-            panic!("yielded header work escaped the total deadline: {result:?}");
-        };
-        assert_eq!(error.kind(), RequestErrorKind::Timeout);
-        assert_eq!(error.timeout_phase(), Some(TimeoutPhase::Total));
-        assert!(body.is_end_stream());
-        Ok(())
-    }
-
-    #[tokio::test(start_paused = true)]
-    async fn buffered_wire_data_cannot_outlive_the_total_deadline()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let mut body =
-            buffered_wire_body(RequestTimeouts::new().total(Duration::from_secs(1))).await?;
-
-        tokio::time::advance(Duration::from_secs(2)).await;
-        let mut context = Context::from_waker(Waker::noop());
-        let result = Pin::new(&mut body).poll_frame(&mut context);
-
-        let Poll::Ready(Some(Err(error))) = result else {
-            panic!("buffered data escaped the total deadline: {result:?}");
-        };
-        assert_eq!(error.kind(), RequestErrorKind::Timeout);
-        assert_eq!(error.timeout_phase(), Some(TimeoutPhase::Total));
-        assert!(body.is_end_stream());
-        Ok(())
-    }
-
-    #[tokio::test(start_paused = true)]
-    async fn ready_wire_data_satisfies_an_expired_idle_limit()
-    -> Result<(), Box<dyn std::error::Error>> {
-        for idle in [Duration::ZERO, Duration::from_secs(1)] {
-            let mut body = buffered_wire_body(
-                RequestTimeouts::new()
-                    .read_idle(idle)
-                    .total(Duration::from_secs(10)),
-            )
-            .await?;
-
-            tokio::time::advance(Duration::from_secs(2)).await;
-            let mut context = Context::from_waker(Waker::noop());
-            let result = Pin::new(&mut body).poll_frame(&mut context);
-
-            let Poll::Ready(Some(Ok(frame))) = result else {
-                panic!("ready data failed its idle limit: {result:?}");
-            };
-            assert_eq!(frame.into_data().map_err(|_| "expected data")?, "ok");
-        }
-        Ok(())
-    }
-
-    async fn buffered_wire_body(
-        policy: RequestTimeouts,
-    ) -> Result<super::ResponseBody, Box<dyn std::error::Error>> {
-        let (stream, mut peer) = tokio::io::duplex(1024);
-        let server = tokio::spawn(async move {
-            let mut head = Vec::new();
-            loop {
-                head.push(peer.read_u8().await?);
-                if head.ends_with(b"\r\n\r\n") {
-                    break;
-                }
-            }
-            peer.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
-                .await?;
-            Ok::<_, std::io::Error>(())
-        });
-        let connection = Http1Connection::connect(stream).await?;
-        let response = connection
-            .send_get(
-                OriginForm::parse("/")?,
-                vec![RequestHeader::new("Host", "example.test")],
-            )
-            .await?;
-        server.await??;
-        let mut body = super::ResponseBody::http1(response.into_body());
-        body.apply_timeouts(TimeoutBudget::new(policy)?, HttpProtocol::Http1)?;
-        Ok(body)
-    }
-
-    #[test]
-    fn collection_limit_is_inclusive() -> Result<(), Box<dyn std::error::Error>> {
-        assert_eq!(checked_body_length(3, 2, 5)?, 5);
-        Ok(())
-    }
-
-    #[test]
-    fn collection_limit_rejects_excess_and_arithmetic_overflow() {
-        let Err(excess) = checked_body_length(3, 3, 5) else {
-            panic!("excess length was accepted");
-        };
-        assert_eq!(excess.kind(), RequestErrorKind::ResponseBodyLimit);
-
-        let Err(overflow) = checked_body_length(usize::MAX, 1, usize::MAX) else {
-            panic!("overflowing length was accepted");
-        };
-        assert_eq!(overflow.kind(), RequestErrorKind::ResponseBodyLimit);
-    }
-}
+mod tests;

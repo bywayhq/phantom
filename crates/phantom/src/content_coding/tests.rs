@@ -84,6 +84,7 @@ fn decode_chunks(
                 None => decoder.end_input(),
             },
             Pump::Finished => return Ok(decoded),
+            Pump::Yield => {}
         }
     }
 }
@@ -468,6 +469,27 @@ fn stacked_gzip_then_br_decodes_in_reverse_application_order() -> TestResult {
 }
 
 #[test]
+fn a_large_stacked_gzip_name_completes_at_zero_cap_and_still_rejects_trailing_bytes() -> TestResult
+{
+    let gzip = flate2::GzBuilder::new()
+        .filename(vec![b'n'; 4 << 20])
+        .write(Vec::new(), Compression::default())
+        .finish()?;
+    let codings = [ContentCoding::Gzip, ContentCoding::Zstd];
+    let encoded = zstd(&gzip)?;
+    assert!(decode_chunks(&codings, [encoded], 0)?.data.is_empty());
+
+    let mut trailing = gzip;
+    trailing.push(0);
+    let encoded = zstd(&trailing)?;
+    let Err(error) = decode_chunks(&codings, [encoded], 0) else {
+        return Err("large stacked gzip name hid bytes after its member".into());
+    };
+    assert_eq!(error.kind(), RequestErrorKind::ContentDecoding);
+    Ok(())
+}
+
+#[test]
 fn decoded_frames_never_exceed_frame_size() -> TestResult {
     let data = vec![b'a'; DECODED_FRAME_BYTES * 5 + 3];
     for (coding, encoded) in [
@@ -514,6 +536,7 @@ fn high_ratio_stream_fails_at_limit_without_buffering_beyond_one_frame() -> Test
                 assert!(data.len() <= DECODED_FRAME_BYTES);
                 total += data.len();
             }
+            Ok(Pump::Yield) => {}
             Ok(other) => return Err(format!("unexpected {other:?}").into()),
             Err(error) => {
                 assert_eq!(error.kind(), RequestErrorKind::ResponseBodyLimit);
