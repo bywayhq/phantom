@@ -1742,8 +1742,8 @@ scripts/capture/reserved_ports.py	tool	source-complete	loopback-quic-root-checkp
 scripts/capture/run_matrix.py	tool	pending	
 scripts/capture/snapshot.py	tool	pending	
 scripts/capture/snapshot_compare.py	tool	pending	
-scripts/capture/socket_hooks.js	tool	pending	
-scripts/capture/socket_hooks.py	tool	pending	
+scripts/capture/socket_hooks.js	tool	source-complete	coverage.md: whole root and independent manual owner reads at cccad0ff; A273-A278 remediation and pinned Frida native interfaces remain open; no live capture claim
+scripts/capture/socket_hooks.py	tool	source-complete	coverage.md: whole root and independent manual owner reads at cccad0ff; A273-A278 remediation and pinned Frida native interfaces remain open; no live capture claim
 scripts/capture/sse_reconnect.py	tool	pending	
 scripts/capture/startup_capture.py	tool	pending	
 scripts/capture/tests/fake_capture_tool.py	tool	pending	
@@ -1773,7 +1773,7 @@ scripts/capture/tests/test_quic_resumption.py	tool	pending
 scripts/capture/tests/test_reserved_ports.py	tool	source-complete	loopback-quic-root-checkpoint-8b544ea1.json#source_records
 scripts/capture/tests/test_run_matrix.py	tool	pending	
 scripts/capture/tests/test_snapshot.py	tool	pending	
-scripts/capture/tests/test_socket_hooks.py	tool	pending	
+scripts/capture/tests/test_socket_hooks.py	tool	source-complete	coverage.md: whole root and independent manual owner reads at cccad0ff; A273-A278 remediation and pinned Frida native interfaces remain open; no live capture claim
 scripts/capture/tests/test_sse_reconnect.py	tool	pending	
 scripts/capture/tests/test_startup_capture.py	tool	pending	
 scripts/capture/tests/test_tls_resumption.py	tool	pending	

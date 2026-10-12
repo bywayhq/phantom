@@ -2609,6 +2609,16 @@ returns a shutdown timeout before its later cleanup assertions. Its exact
 QUIC wait phase remains unmeasured. Corrections must preserve the original
 limit, error identity, ownership and closure assertions.
 
+The corrected race prerequisites at `13e6fb83` pass 87 of 88 methods on
+both hosts. The remaining rejection observer is installed after the
+listener captures its callback. The corrected pre-start observer at
+`cccad0ff` passes all 88 methods on Windows and Linux. Lint and format
+pass on both. Root and independent review read all six logs and exits,
+then separately bind both clean checkouts to that exact revision. The
+UDP, configured-H2 target boundary and rejected-writer controls retain
+their original failure identities, quotas and cleanup assertions.
+Historical failures remain recorded above. Final combined gates remain open.
+
 Whole root and independent reads of `http2_session.py` and
 `http2_websocket.py` identify separate shared-owner findings. Partial
 second-listener failure loses the first listener. Accepted asynchronous
@@ -2639,8 +2649,36 @@ same `Io(BrokenPipe)`. Windows and the other independent PR jobs pass;
 the dependent `CI required` check fails with macOS.
 The original operation phase remains unreported. A source-reviewed
 diagnostic records the first held-peer I/O error phase and retains the
-original typed failure. It has not yet been measured or pushed; A271 and
+returned serving error. The diagnostic is measured locally below; A271 and
 the merge gate remain open.
+
+At `13e6fb83`, the request-ownership suite passes its original eight
+methods on both hosts. The ninth, diagnostic control records an actual
+read failure with `PermissionDenied`, then fails because the H2 dependency
+replaces its typed payload with text. All sixteen reuse controls and
+format, strict Clippy, MSRV, Python quality and docs checks pass on both.
+The complete eighteen logs and exits and separate clean source bindings
+are independently reviewed. This local evidence does not identify the
+macOS BrokenPipe phase or close A271.
+
+A272 records the separate production cause loss. The private H2 error
+stores only a kind and optional string. Actual connection-to-stream
+fanout therefore loses custom causes and native error codes. The public
+error also stops cause traversal. Root and independent source review trace
+these conversions and actual stream-state callers. Retaining one shared
+original I/O error is a proposed remedy; canonical vendor checks and
+native multi-stream verification remain required.
+
+Whole root and independent source reads at `cccad0ff` cover
+`socket_hooks.py`, `socket_hooks.js` and `test_socket_hooks.py`. The pass
+examines decoding, recording, origin handlers, process and child ownership,
+configuration, publication and historical fixture checks. Source hashes
+are `8c13ac9d`, `db340e8c` and `81db18e2`, respectively. A273–A278 record
+partial-acquisition cleanup, unobserved worker and handler outcomes,
+aggregate bounds, required-hook acknowledgement and architecture checks,
+managed-profile arguments and historical provenance. The pinned Frida
+native cancellation and callback contracts still need resolution. No
+Frida execution, fresh browser capture or live acceptance is claimed.
 
 The Unix census repair at `ad13642f` checks the original process result
 before interpreting absence and retains stderr. Its focused control calls
