@@ -2729,6 +2729,25 @@ methods skipped there. Python lint and format checks pass on both hosts.
 Independent source review accepts the cause and control. This is no claim
 of an actual failing `ps` command or a shorter cleanup duration.
 
+### Upload shutdown and current PR checks
+
+At `668c5d6e`, the macOS job passes 4,318 of 4,319 workspace tests. The
+incomplete-upload control returns native `BrokenPipe` code 32. This is a
+different control from A271; the log does not identify its failing phase.
+
+The source repair at `21ad5c50` stops and collects the original client H2
+driver before sending FIN through its retained TCP socket. Driver failures
+still propagate. The server's actual pending read, EOF, stream error and
+collector error assertions remain unchanged. A concurrent client write after
+shutdown is a source-supported explanation, not a measured macOS cause.
+
+Windows and Linux each pass two upload, four peer-owner, nine request-owner
+and sixteen reuse controls. Workspace formatting, strict sessions-target
+Clippy and the default-feature sessions target on Rust 1.88 pass on both.
+Root and independent review read all fourteen logs and exits, then separately
+confirm clean checkouts at the exact revision. Fresh macOS CI and final
+workspace gates remain required. A271 remains open.
+
 ## Next
 
 - [Audit plan](../architecture-audit.md): acceptance and verification.
