@@ -531,6 +531,60 @@ class ScheduleTests(unittest.TestCase):
                     runner.join(10)
                 self.assertFalse(runner.is_alive())
 
+    def test_a_failed_report_keeps_both_causes_and_releases_the_waiting_job(self) -> None:
+        cases = (
+            (None, BrokenPipeError("progress output closed")),
+            (OSError("original attempt failed"), SystemExit("report interrupted")),
+        )
+        for primary, failure in cases:
+            with self.subTest(failure=type(failure).__name__):
+                reported = []
+
+                def run(item: Job) -> JobResult:
+                    if item.id == "first":
+                        return JobResult(
+                            item,
+                            "failed" if primary is not None else "ok",
+                            [
+                                Attempt(
+                                    primary is None,
+                                    0.25,
+                                    "original detail",
+                                    "log",
+                                    primary,
+                                )
+                            ],
+                        )
+                    return JobResult(item, "ok", [Attempt(True, 0.1)])
+
+                def report(result: JobResult) -> None:
+                    reported.append(result.job.id)
+                    if result.job.id == "first":
+                        raise failure
+
+                results = schedule(
+                    [job("first", exclusive=True), job("waiting")],
+                    run,
+                    limit=1,
+                    report=report,
+                )
+
+                self.assertEqual(
+                    [result.status for result in results], ["failed", "ok"]
+                )
+                self.assertEqual(reported, ["first", "waiting"])
+                outcome = results[0].attempts[-1]
+                self.assertFalse(outcome.ok)
+                self.assertEqual(outcome.seconds, 0.25)
+                self.assertEqual(outcome.log, "log")
+                self.assertIn("original detail; report failed:", outcome.detail)
+                if primary is None:
+                    self.assertIs(outcome.failure, failure)
+                else:
+                    self.assertIsInstance(outcome.failure, run_matrix.CleanupError)
+                    self.assertIs(outcome.failure.failures[0][1], primary)
+                    self.assertIs(outcome.failure.failures[1][1], failure)
+
     def test_ctrl_c_stops_the_batch_and_reports_unstarted_jobs(self) -> None:
         stopped = threading.Event()
         started = threading.Event()

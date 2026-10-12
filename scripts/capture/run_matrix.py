@@ -944,7 +944,8 @@ def schedule(
     exclusive job also waits until nothing else runs and holds every slot.
     Once `stopped` is set no job starts; Ctrl+C or dispatch failure calls
     `on_interrupt`, which should end the running attempts. A failed thread
-    start is reported as "failed". Other unstarted jobs are "not-run".
+    start or progress report marks its job "failed". Other unstarted jobs
+    are "not-run".
     """
     if limit < 1:
         raise ValueError("the concurrency limit must be positive")
@@ -981,7 +982,26 @@ def schedule(
             if job.exclusive:
                 exclusive_running = False
             condition.notify_all()
-            report(result)
+            try:
+                report(result)
+            except BaseException as error:
+                result.status = "failed"
+                detail = f"report failed: {error}"
+                if result.attempts:
+                    outcome = result.attempts[-1]
+                    outcome.ok = False
+                    outcome.failure = (
+                        CleanupError(
+                            (("run attempt", outcome.failure), ("report result", error))
+                        )
+                        if outcome.failure is not None
+                        else error
+                    )
+                    outcome.detail = (
+                        f"{outcome.detail}; {detail}" if outcome.detail else detail
+                    )
+                else:
+                    result.attempts.append(Attempt(False, 0.0, detail, failure=error))
 
     def dispatch() -> None:
         nonlocal running, exclusive_running, start_failure
