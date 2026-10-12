@@ -14,7 +14,9 @@ use http::{
 use phantom_profile::{Http3CookieCrumbs, Http3PseudoHeader, Http3RequestSettings};
 
 use super::{Http3Error, Http3ErrorKind, OriginForm, RequestHeader};
-use crate::request::{RequestBody, RequestBodyMetadata, is_continue_expectation};
+use crate::request::{
+    RequestBody, RequestBodyMetadata, is_continue_expectation, is_forbidden_trailer,
+};
 
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
 pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
@@ -740,24 +742,9 @@ impl PreparedTrailers {
             let mut value = HeaderValue::from_bytes(trailer.value())
                 .map_err(|_| invalid("HTTP/3 request trailer value is invalid"))?;
             value.set_sensitive(trailer.is_sensitive());
-            if name == CONTENT_LENGTH
-                || name == TE
-                || matches!(
-                    name.as_str(),
-                    "authorization"
-                        | "cache-control"
-                        | "content-encoding"
-                        | "content-range"
-                        | "content-type"
-                        | "max-forwards"
-                        | "proxy-authorization"
-                        | "set-cookie"
-                )
-            {
+            if is_forbidden_trailer(&name) {
                 return Err(invalid("HTTP/3 request contains a forbidden trailer field"));
             }
-            validate_field(&name, &value)
-                .map_err(|_| invalid("HTTP/3 request contains a forbidden trailer field"))?;
             fields
                 .try_append(&name, value.clone())
                 .map_err(|_| invalid("HTTP/3 request trailers exceed HeaderMap capacity"))?;

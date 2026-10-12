@@ -4,15 +4,14 @@ use ::http2::ext::{OrderedHeaders, Protocol};
 use http::{
     HeaderMap, HeaderValue, Method, Request, Uri, Version,
     header::{
-        AUTHORIZATION, CACHE_CONTROL, CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE,
-        CONTENT_TYPE, EXPECT, HOST, HeaderName, MAX_FORWARDS, PROXY_AUTHORIZATION, SET_COOKIE, TE,
-        TRAILER, TRANSFER_ENCODING, UPGRADE,
+        CONNECTION, CONTENT_LENGTH, EXPECT, HOST, HeaderName, TE, TRAILER, TRANSFER_ENCODING,
+        UPGRADE,
     },
     uri::Authority,
 };
 
 use super::{Http2Error, OriginForm, RequestBody, RequestBodyMetadata, RequestHeader};
-use crate::request::is_continue_expectation;
+use crate::request::{is_continue_expectation, is_forbidden_trailer};
 
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
 pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
@@ -409,26 +408,6 @@ impl ValidatedHeaders {
 fn is_forbidden_header(name: &HeaderName) -> bool {
     name == HOST
         || name == CONNECTION
-        || name == TRANSFER_ENCODING
-        || name == UPGRADE
-        || name == TRAILER
-        || name.as_str() == "keep-alive"
-        || name.as_str() == "proxy-connection"
-}
-
-fn is_forbidden_trailer(name: &HeaderName) -> bool {
-    name == HOST
-        || name == AUTHORIZATION
-        || name == CACHE_CONTROL
-        || name == CONNECTION
-        || name == CONTENT_ENCODING
-        || name == CONTENT_LENGTH
-        || name == CONTENT_RANGE
-        || name == CONTENT_TYPE
-        || name == MAX_FORWARDS
-        || name == PROXY_AUTHORIZATION
-        || name == SET_COOKIE
-        || name == TE
         || name == TRANSFER_ENCODING
         || name == UPGRADE
         || name == TRAILER

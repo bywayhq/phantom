@@ -150,8 +150,7 @@ pub(crate) struct ClientInner {
     /// Profile position of the jar's `Cookie` field.
     #[cfg(feature = "cookies")]
     pub(crate) cookie_placement: CookiePlacement,
-    pub(crate) route: Route,
-    route_explicit: bool,
+    route: Option<Route>,
     environment_proxies: Option<crate::EnvironmentProxies>,
     /// Profile CONNECT fields for HTTP proxy routes that set none.
     pub(crate) proxy_connect: Option<Arc<ProxyConnectTemplate>>,
@@ -213,11 +212,13 @@ impl ClientInner {
         if let Some(route) = request_route {
             return route.clone();
         }
-        if self.route_explicit {
-            return self.route.clone();
+
+        if let Some(route) = &self.route {
+            return route.clone();
         }
+
         self.environment_proxies.as_ref().map_or_else(
-            || self.route.clone(),
+            || Route::Direct,
             |proxies| proxies.route_for(scheme, endpoint),
         )
     }
@@ -396,13 +397,12 @@ impl Client {
             server_authentication: ServerAuthentication::default(),
             proxy_additional_roots: Vec::new(),
             proxy_server_authentication: ServerAuthentication::default(),
-            route: Route::Direct,
-            route_explicit: false,
+            route: None,
             environment_proxies: None,
             options: ClientOptions::default(),
             preemptive_proxy_authentication: true,
             http2_proxy_connections_per_route: NonZeroUsize::MIN,
-            dns_cache: None,
+            dns_cache: DnsCacheChoice::Profile,
             host_overrides: Vec::new(),
             address_resolver: None,
             source_binding: SourceBinding::new(),
@@ -699,15 +699,12 @@ pub struct ClientBuilder {
     server_authentication: ServerAuthentication,
     proxy_additional_roots: Vec<Box<[u8]>>,
     proxy_server_authentication: ServerAuthentication,
-    route: Route,
-    route_explicit: bool,
+    route: Option<Route>,
     environment_proxies: Option<crate::EnvironmentProxies>,
     options: ClientOptions,
     preemptive_proxy_authentication: bool,
     http2_proxy_connections_per_route: NonZeroUsize,
-    /// The caller's address cache choice: `None` keeps the profile's, and
-    /// `Some(None)` turns caching off.
-    dns_cache: Option<Option<DnsCacheSettings>>,
+    dns_cache: DnsCacheChoice,
     /// Host names as the caller wrote them, answered with fixed addresses;
     /// a later entry for the same name wins.
     host_overrides: Vec<(Box<str>, Vec<IpAddr>)>,
@@ -723,6 +720,13 @@ pub struct ClientBuilder {
     key_log_capacity: Option<NonZeroUsize>,
     #[cfg(feature = "diagnostics")]
     qlog_dir: Option<std::path::PathBuf>,
+}
+
+#[derive(Debug)]
+enum DnsCacheChoice {
+    Profile,
+    Disabled,
+    Custom(DnsCacheSettings),
 }
 
 impl fmt::Debug for ClientBuilder {
@@ -757,8 +761,8 @@ impl fmt::Debug for ClientBuilder {
                 "proxy_server_authentication",
                 &self.proxy_server_authentication,
             )
-            .field("route", &self.route)
-            .field("route_explicit", &self.route_explicit)
+            .field("route", self.route.as_ref().unwrap_or(&Route::Direct))
+            .field("route_explicit", &self.route.is_some())
             .field("environment_proxies", &self.environment_proxies.is_some())
             .field(
                 "preemptive_proxy_authentication",
@@ -814,6 +818,7 @@ impl ClientBuilder {
             .push(crate::header_hook::HeaderHook::new(hook));
         self
     }
+
     /// Adds a DER-encoded certificate to the bundled public trust roots.
     ///
     /// By default only the bundled public roots are trusted. Certificate and
@@ -908,8 +913,7 @@ impl ClientBuilder {
     /// The default is [`Route::Direct`]. [`RequestBuilder::route`] overrides
     /// it for one request.
     pub fn route(mut self, route: Route) -> Self {
-        self.route = route;
-        self.route_explicit = true;
+        self.route = Some(route);
         self
     }
 
@@ -1006,14 +1010,14 @@ impl ClientBuilder {
     /// its own. The client does not watch for network changes as browsers do;
     /// [`Client::clear_dns_cache`] forgets every answer.
     pub fn dns_cache(mut self, settings: DnsCacheSettings) -> Self {
-        self.dns_cache = Some(Some(settings));
+        self.dns_cache = DnsCacheChoice::Custom(settings);
         self
     }
 
     /// Resolves the host of every new connection, even when the profile
     /// caches addresses.
     pub fn no_dns_cache(mut self) -> Self {
-        self.dns_cache = Some(None);
+        self.dns_cache = DnsCacheChoice::Disabled;
         self
     }
 
@@ -1331,12 +1335,14 @@ impl ClientBuilder {
         for (origin, certificate) in &self.origin_certificates {
             let endpoint = certificate_origin(origin)?;
             self.check_signature_schemes(certificate)?;
+
             origins.retain(|(mapped, _)| {
                 mapped.port() != endpoint.port()
                     || !mapped.host().eq_ignore_ascii_case(endpoint.host())
             });
             origins.push((endpoint, certificate.clone()));
         }
+
         Ok(origins)
     }
 
@@ -1360,6 +1366,7 @@ impl ClientBuilder {
         {
             return Ok(None);
         }
+
         let mut resolver = HostResolver::new();
         if let Some(address_resolver) = &self.address_resolver {
             let address_resolver = match self.profile.udp() {
@@ -1368,9 +1375,11 @@ impl ClientBuilder {
             };
             resolver = resolver.with_resolver(address_resolver);
         }
+
         if let Some(settings) = dns_cache {
             resolver = resolver.with_cache(settings);
         }
+
         for (host, addresses) in &self.host_overrides {
             // The same parser canonicalizes request and proxy hosts, so the
             // key matches the name a connector resolves.
@@ -1381,14 +1390,16 @@ impl ClientBuilder {
             };
             resolver = resolver.with_override(&host, addresses.iter().copied());
         }
+
         Ok(Some(resolver))
     }
 
     /// Returns the address cache settings the client will use, if any.
     fn dns_cache_settings(&self) -> Option<&DnsCacheSettings> {
         match &self.dns_cache {
-            Some(choice) => choice.as_ref(),
-            None => self.profile.dns_cache(),
+            DnsCacheChoice::Profile => self.profile.dns_cache(),
+            DnsCacheChoice::Disabled => None,
+            DnsCacheChoice::Custom(settings) => Some(settings),
         }
     }
 
@@ -2032,7 +2043,7 @@ impl ClientBuilder {
             })
             .transpose()
             .map_err(BuildError::http3)?;
-        if proxy_authentication_disabled && matches!(self.route, Route::ConnectUdp(_)) {
+        if proxy_authentication_disabled && matches!(self.route, Some(Route::ConnectUdp(_))) {
             return Err(BuildError::invalid_policy(
                 "disabled proxy server authentication is not supported for CONNECT-UDP",
             ));
@@ -2044,9 +2055,10 @@ impl ClientBuilder {
         )?;
         let secure_proxy_requested = self
             .route
-            .as_http_proxy()
+            .as_ref()
+            .and_then(Route::as_http_proxy)
             .is_some_and(|proxy| proxy.uses_tls())
-            || matches!(&self.route, Route::ConnectUdp(proxy) if proxy.tcp_protocol().is_some())
+            || matches!(&self.route, Some(Route::ConnectUdp(proxy)) if proxy.tcp_protocol().is_some())
             || self
                 .environment_proxies
                 .as_ref()
@@ -2187,7 +2199,6 @@ impl ClientBuilder {
             #[cfg(feature = "cookies")]
             cookie_placement: self.profile.cookie_placement().clone(),
             route: self.route,
-            route_explicit: self.route_explicit,
             environment_proxies: self.environment_proxies,
             proxy_connect: self.profile.proxy_connect().cloned().map(Arc::new),
             #[cfg(feature = "websocket")]
@@ -2198,14 +2209,17 @@ impl ClientBuilder {
             #[cfg(feature = "diagnostics")]
             key_log,
         };
+
         if self.preemptive_proxy_authentication {
             let cache = ProxyCredentialCache::new();
             inner.bind_proxy_credentials(&cache);
             inner.proxy_credentials = Some(cache);
         }
+
         if let Some(resolver) = host_resolver {
             inner.bind_host_resolver(resolver);
         }
+
         inner.bind_http2_proxy_pools();
         self.options.apply_http3_early_data(&mut inner);
         inner.bind_certificate_origins(&certificate_origins);

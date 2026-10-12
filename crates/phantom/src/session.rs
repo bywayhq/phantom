@@ -6,6 +6,16 @@ use crate::{
 #[cfg(feature = "sse")]
 use crate::{HttpProtocol, RequestError, SseRequestBuilder};
 
+pub use alt_svc::{
+    AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry,
+    AltSvcSnapshotError, AltSvcSnapshotErrorKind,
+};
+#[cfg(feature = "cookies")]
+pub use cookies::{
+    CookieError, CookieErrorKind, CookieJar, CookieLimits, CookieSameSite, CookieSnapshot,
+    CookieSnapshotEntry, CookieSnapshotError, CookieSnapshotErrorKind, CookieSourceScheme,
+};
+
 mod address_families;
 mod admission;
 pub(crate) mod alt_svc;
@@ -20,50 +30,6 @@ mod http3_connections;
 pub(crate) mod http3_pool;
 mod prune_timer;
 mod stream_count;
-
-/// A future boxed by [`box_send`].
-pub(crate) type SendBox<'a, T> =
-    std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
-
-/// Boxes `future` as a `Send` trait object.
-///
-/// The connector futures are deep: a request future nests the request path,
-/// the pool, and the connector state machines, and proving the whole nest
-/// `Send` exceeds the compiler's default recursion limit
-/// (rust-lang/rust#159228), in this crate and in a caller that spawns a
-/// request. A trait object ends that proof where it is created, so each
-/// existing box on the request and connection setup paths uses this helper
-/// instead of `Box::pin`.
-pub(crate) fn box_send<'a, T>(
-    future: impl std::future::Future<Output = T> + Send + 'a,
-) -> SendBox<'a, T> {
-    Box::pin(future)
-}
-
-/// The runtime the calling task runs on, which every pool key includes.
-///
-/// A connection's driver runs on the runtime that opened it and stops being
-/// polled once that runtime is dropped or no longer driven, as a
-/// current-thread runtime is after `block_on` returns. Keying pools by
-/// runtime keeps a client that outlives a runtime from sending on such a
-/// connection, where the request would never be answered. Per-origin
-/// admission and learned protocol state use the key without its runtime, so
-/// they stay per origin across runtimes.
-fn current_runtime() -> Option<tokio::runtime::Id> {
-    tokio::runtime::Handle::try_current()
-        .ok()
-        .map(|runtime| runtime.id())
-}
-
-pub use alt_svc::{
-    AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry,
-    AltSvcSnapshotError, AltSvcSnapshotErrorKind,
-};
-#[cfg(feature = "cookies")]
-pub use cookies::{
-    CookieError, CookieErrorKind, CookieJar, CookieLimits, CookieSameSite, CookieSnapshot,
-    CookieSnapshotEntry, CookieSnapshotError, CookieSnapshotErrorKind, CookieSourceScheme,
-};
 
 const DEFAULT_MAX_RETAINED_HTTP1_CONNECTIONS: NonZeroUsize = match NonZeroUsize::new(32) {
     Some(value) => value,
@@ -100,6 +66,41 @@ const DEFAULT_MAX_CLIENT_HINT_ORIGINS: NonZeroUsize = match NonZeroUsize::new(64
     Some(value) => value,
     None => NonZeroUsize::MIN,
 };
+
+/// A future boxed by [`box_send`].
+pub(crate) type SendBox<'a, T> =
+    std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
+
+/// Boxes `future` as a `Send` trait object.
+///
+/// The connector futures are deep: a request future nests the request path,
+/// the pool, and the connector state machines, and proving the whole nest
+/// `Send` exceeds the compiler's default recursion limit
+/// (rust-lang/rust#159228), in this crate and in a caller that spawns a
+/// request. A trait object ends that proof where it is created, so each
+/// existing box on the request and connection setup paths uses this helper
+/// instead of `Box::pin`.
+pub(crate) fn box_send<'a, T>(
+    future: impl std::future::Future<Output = T> + Send + 'a,
+) -> SendBox<'a, T> {
+    Box::pin(future)
+}
+
+/// The runtime the calling task runs on, which every pool key includes.
+///
+/// A connection's driver runs on the runtime that opened it and stops being
+/// polled once that runtime is dropped or no longer driven, as a
+/// current-thread runtime is after `block_on` returns. Keying pools by
+/// runtime keeps a client that outlives a runtime from sending on such a
+/// connection, where the request would never be answered. Per-origin
+/// admission and learned protocol state use the key without its runtime, so
+/// they stay per origin across runtimes.
+fn current_runtime() -> Option<tokio::runtime::Id> {
+    tokio::runtime::Handle::try_current()
+        .ok()
+        .map(|runtime| runtime.id())
+}
+
 pub(crate) struct ClientOptions {
     pub(crate) redirect_policy: RedirectPolicy,
     pub(crate) retry_policy: RetryPolicy,
