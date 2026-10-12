@@ -13,10 +13,11 @@ use crate::support::{
     tunnel_proxy::{connection_peer::FixtureFailures, finish_with_cleanup},
 };
 
+use super::super::bounded;
 use super::{
     H2_ALPN, HeldState, HoldObservation, Ipv4Addr, RequestControl, RequestObservation,
-    RequestState, ResponseHold, TEST_TIMEOUT, TestIdentity, TestResult, bounded, cold_requests,
-    finish_cold, independent_requests, reuse_ownership, test_client, timed_cold_requests,
+    RequestState, ResponseHold, TEST_TIMEOUT, TestIdentity, TestResult, cold_requests, finish_cold,
+    independent_requests, reuse_ownership, test_client, timed_cold_requests,
 };
 
 const LIMIT: Duration = Duration::from_secs(5);
@@ -436,9 +437,6 @@ struct Fixture {
 
 impl Drop for Fixture {
     fn drop(&mut self) {
-        for task in &self.requests.borrow().tasks {
-            task.abort();
-        }
         self.server_abort.abort();
     }
 }
@@ -528,7 +526,7 @@ impl Fixture {
             timeout(
                 LIMIT,
                 requests.wait_for(|state| {
-                    state.tasks.len() == 2
+                    state.entered.iter().all(|entered| *entered)
                         && required.iter().enumerate().all(|(index, required)| {
                             !required
                                 || (state.pending[index]
@@ -541,6 +539,7 @@ impl Fixture {
             Ok(())
         })
         .await?;
+
         if counts.len() != self.holds.len() {
             return Err("held actual peer count changed".into());
         }
@@ -562,18 +561,15 @@ impl Fixture {
             .await?;
         }
 
-        if self
-            .requests
-            .borrow()
-            .tasks
-            .iter()
-            .enumerate()
-            .any(|(index, task)| required[index] && task.is_finished())
-        {
+        let requests = self.requests.borrow();
+        if required.iter().enumerate().any(|(index, required)| {
+            *required && (requests.ready[index] || requests.destroyed[index])
+        }) {
             return Err(
-                "original pending request task finished before the target operation".into(),
+                "original pending request future finished before the target operation".into(),
             );
         }
+
         Ok(())
     }
 
@@ -631,20 +627,6 @@ impl Fixture {
                 elapsed,
             )
         })??;
-
-        timeout(LIMIT, async {
-            while self
-                .requests
-                .borrow()
-                .tasks
-                .iter()
-                .enumerate()
-                .any(|(index, task)| required[index] && !task.is_finished())
-            {
-                tokio::task::yield_now().await;
-            }
-        })
-        .await?;
         Ok(())
     }
 
@@ -716,9 +698,6 @@ impl Fixture {
     }
 
     async fn stop(&mut self) -> TestResult<()> {
-        for task in &self.requests.borrow().tasks {
-            task.abort();
-        }
         let requested = !self.server_abort.is_finished();
         self.server_abort.abort();
         let joined = match self.server.take() {
@@ -736,15 +715,9 @@ impl Fixture {
             },
             None => Ok(()),
         };
+
         let finished: TestResult<()> = timeout(LIMIT, async {
-            while !self.server_abort.is_finished()
-                || self
-                    .requests
-                    .borrow()
-                    .tasks
-                    .iter()
-                    .any(|task| !task.is_finished())
-            {
+            while !self.server_abort.is_finished() {
                 tokio::task::yield_now().await;
             }
             Ok(())
@@ -752,6 +725,7 @@ impl Fixture {
         .await
         .map_err(Into::into)
         .and_then(|result| result);
+
         finish_with_cleanup(joined, finished)
     }
 }
