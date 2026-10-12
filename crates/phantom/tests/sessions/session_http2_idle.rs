@@ -192,7 +192,7 @@ async fn serve_frames(
     loop {
         // Keep the same pending read across release events: a release must
         // never restart a partially consumed frame.
-        let reading = read_idle_frame(&mut reader);
+        let reading = read_idle_frame(&mut reader, answered != 0);
         tokio::pin!(reading);
         let frame = loop {
             tokio::select! {
@@ -247,13 +247,16 @@ async fn serve_frames(
     }
 }
 
-async fn read_idle_frame<R: AsyncBufRead + Unpin>(reader: &mut R) -> TestResult<Option<Frame>> {
-    // Only a disconnect between complete frames is expected after the
-    // client finishes. Truncated headers and payloads keep their I/O errors.
+async fn read_idle_frame<R: AsyncBufRead + Unpin>(
+    reader: &mut R,
+    answered: bool,
+) -> TestResult<Option<Frame>> {
+    // Only a disconnect between complete frames after a request is expected.
+    // Pre-request EOF and truncated frames keep the original read error.
     match reader.fill_buf().await {
-        Ok([]) => return Ok(None),
+        Ok([]) if answered => return Ok(None),
         Ok(_) => {}
-        Err(error) if tls_support::is_peer_gone(&error) => return Ok(None),
+        Err(error) if answered && tls_support::is_peer_gone(&error) => return Ok(None),
         Err(error) => return Err(error.into()),
     }
     Ok(Some(read_frame(reader).await?))
@@ -534,7 +537,7 @@ mod tests {
             writer.write_all(&bytes).await?;
             writer.shutdown().await?;
             let mut reader = BufReader::new(reader);
-            let error = super::read_idle_frame(&mut reader)
+            let error = super::read_idle_frame(&mut reader, true)
                 .await
                 .err()
                 .ok_or("a truncated frame was accepted")?;
@@ -555,12 +558,23 @@ mod tests {
         super::write_frame(&mut writer, super::GOAWAY, 0, 0, &[0; 8]).await?;
         writer.shutdown().await?;
         let mut reader = BufReader::new(reader);
-        let frame = super::read_idle_frame(&mut reader)
+        let frame = super::read_idle_frame(&mut reader, true)
             .await?
             .ok_or("the complete frame was discarded")?;
         assert_eq!(frame.kind, super::GOAWAY);
         assert_eq!(frame.payload, vec![0; 8]);
-        assert!(super::read_idle_frame(&mut reader).await?.is_none());
+        assert!(super::read_idle_frame(&mut reader, true).await?.is_none());
+        let error = super::read_idle_frame(&mut reader, false)
+            .await
+            .err()
+            .ok_or("pre-request EOF was accepted")?;
+        assert_eq!(
+            error
+                .downcast_ref::<io::Error>()
+                .ok_or("the pre-request I/O cause changed")?
+                .kind(),
+            io::ErrorKind::UnexpectedEof,
+        );
         Ok(())
     }
 
