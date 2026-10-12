@@ -1,5 +1,7 @@
 """Exercise the concrete browser owner at controlled native API boundaries."""
 
+import asyncio
+import subprocess
 import sys
 import tempfile
 import threading
@@ -12,6 +14,7 @@ from unittest.mock import patch
 
 from scripts.capture import socket_hooks as hooks
 from scripts.capture.browser_failures import BrowserLaunchFailures
+from scripts.capture.tests.test_socket_hook_run_ownership import RunOwners
 
 WAIT_SECONDS = 5.0
 READY = {
@@ -109,6 +112,28 @@ class NativeSession:
             raise self.detach_error
 
 
+class NativeProcess:
+    def __init__(self, device, pid):
+        self.device = device
+        self.pid = pid
+        self.exited = threading.Event()
+        self.closed = False
+
+    def wait(self, deadline):
+        return self.exited.wait(max(0.0, deadline - time.monotonic()))
+
+    def close(self):
+        self.closed = True
+
+    def terminate(self):
+        self.device.killed.append(self.pid)
+        if self.pid in self.device.kill_errors:
+            raise self.device.kill_errors[self.pid]
+
+        if self.pid not in self.device.not_retiring:
+            self.exited.set()
+
+
 class NativeDevice:
     def __init__(self):
         self.script = NativeScript()
@@ -124,6 +149,9 @@ class NativeDevice:
         self.attach_cancellable = None
         self.pending_children = []
         self.pending_queried_after_root_kill = False
+        self.kill_errors = {}
+        self.not_retiring = set()
+        self.processes = {pid: NativeProcess(self, pid) for pid in (10, 11)}
         self.child = SimpleNamespace(pid=11, parent_pid=10, argv=["browser", hooks.NETWORK_SERVICE_SWITCH])
 
     def on(self, signal, callback):
@@ -163,9 +191,6 @@ class NativeDevice:
         elif pid == 11:
             self.child_resumed.set()
 
-    def kill(self, pid, *, cancellable):
-        self.killed.append(pid)
-
     def enumerate_pending_children(self, *, cancellable):
         self.pending_queried_after_root_kill = 10 in self.killed
         return self.pending_children
@@ -188,13 +213,21 @@ class BrowserBoundary:
             __version__="controlled 17.9.10 interface",
             Cancellable=NativeCancellation,
             OperationCancelledError=CancelledNativeCall,
-            ProcessNotFoundError=ProcessLookupError,
             get_local_device=lambda: self.device,
         )
         self.stack.enter_context(patch.dict(sys.modules, {"frida": module}))
         self.stack.enter_context(
+            patch.object(hooks, "_SocketHookProcess", self.process)
+        )
+        self.stack.enter_context(
             patch.object(hooks, "terminate_profile_processes", self.profile_cleaned.append)
         )
+
+    def process(self, pid):
+        if pid not in self.device.processes:
+            self.device.processes[pid] = NativeProcess(self.device, pid)
+
+        return self.device.processes[pid]
 
     def start(self):
         def run():
@@ -270,6 +303,7 @@ class SocketHookBrowserOwnershipTests(unittest.TestCase):
         self.assertTrue(all(session.detached for session in boundary.device.sessions.values()))
         self.assertEqual(set(boundary.device.killed), {10, 11})
         self.assertEqual(boundary.profile_cleaned, [boundary.browser.profile])
+        self.assertTrue(all(process.closed for process in boundary.device.processes.values()))
 
     def test_missing_required_hook_retains_the_original_message_and_never_resumes(self):
         boundary = self.boundary()
@@ -322,7 +356,7 @@ class SocketHookBrowserOwnershipTests(unittest.TestCase):
         boundary.stop()
 
         child_session = boundary.device.sessions[11]
-        self.assertIn(child_session, boundary.browser._sessions)
+        self.assertIn(child_session, boundary.browser._sessions.values())
         self.assertTrue(child_session.detached)
         self.assertNotIn(11, boundary.device.resumed)
         self.assertFalse(boundary.browser._worker.is_alive())
@@ -371,7 +405,7 @@ class SocketHookBrowserOwnershipTests(unittest.TestCase):
             for pid in range(14, 100):
                 boundary.browser._on_child_added(SimpleNamespace(pid=pid, parent_pid=10, argv=[]))
 
-        self.assertEqual(boundary.browser._child_pids, {11, 12})
+        self.assertEqual(set(boundary.browser._children_by_pid), {11, 12})
         self.assertEqual(boundary.browser._child_count, 2)
         self.assertIsInstance(boundary.browser._failure, hooks._SocketHookChildLimit)
         self.assertIs(boundary.browser._failure.child, rejected)
@@ -379,11 +413,19 @@ class SocketHookBrowserOwnershipTests(unittest.TestCase):
             boundary.browser._on_message({"type": "error", "description": "late event"}, None)
 
         self.assertEqual(boundary.browser.reports, [READY])
-        with self.assertRaises(hooks._SocketHookChildLimit):
+        with self.assertRaises(BrowserLaunchFailures) as stopped:
             boundary.stop()
 
-        self.assertEqual(set(boundary.device.killed), {10, 11, 12, 13})
+        self.assertIs(stopped.exception.cleanup[0], boundary.browser._failure)
+        self.assertNotIn(13, boundary.device.killed)
+        self.assertIn(10, boundary.device.killed)
+        self.assertIn(11, boundary.device.killed)
         self.assertFalse(boundary.browser._worker.is_alive())
+        unknown = stopped.exception.cleanup[1]
+        self.assertIsInstance(unknown, hooks._SocketHookIdentityUnknown)
+        self.assertTrue(any(child is rejected for child in unknown.children))
+        self.assertFalse(boundary.device.sessions[10].detached)
+        self.assertFalse(boundary.browser._profile_retired)
 
     def test_actual_pending_roster_retains_unadmitted_run_children_only(self):
         boundary = self.boundary()
@@ -394,14 +436,21 @@ class SocketHookBrowserOwnershipTests(unittest.TestCase):
 
         boundary.browser.request_stop()
         boundary.browser._on_child_added(run_child)
-        self.assertNotIn(12, boundary.browser._child_pids)
-        boundary.stop()
+        self.assertNotIn(12, boundary.browser._children_by_pid)
+        with self.assertRaises(BrowserLaunchFailures) as stopped:
+            boundary.stop()
 
         self.assertTrue(boundary.device.pending_queried_after_root_kill)
         self.assertEqual(boundary.browser._pending_children, (run_child,))
-        self.assertEqual(boundary.device.killed, [10, 11, 12])
+        self.assertEqual(boundary.device.killed, [10, 11])
         self.assertNotIn(99, boundary.device.killed)
-        self.assertTrue(all(session.detached for session in boundary.device.sessions.values()))
+        unknown = stopped.exception.cleanup[0]
+        self.assertIsInstance(unknown, hooks._SocketHookIdentityUnknown)
+        self.assertEqual(unknown.children, (run_child,))
+        self.assertIs(unknown.owner, boundary.browser)
+        self.assertFalse(boundary.device.sessions[10].detached)
+        self.assertTrue(boundary.device.sessions[11].detached)
+        self.assertFalse(boundary.browser._profile_retired)
 
     def test_cleanup_deadline_keeps_the_original_native_cancellation_separately(self):
         boundary = self.boundary()
@@ -459,3 +508,245 @@ class SocketHookBrowserOwnershipTests(unittest.TestCase):
 
         self.assertIs(snapshot.exception.message, message)
         self.assertEqual(boundary.browser.reports, [READY])
+
+    def test_failed_root_kill_retains_child_gating_and_cleans_independent_owners(self):
+        boundary = self.boundary()
+        boundary.ready()
+        original = OSError("original root kill failure")
+        boundary.device.kill_errors[10] = original
+        with (
+            patch.object(hooks, "_HOOK_NATIVE_CLEANUP_SECONDS", 0.1),
+            self.assertRaises(BrowserLaunchFailures) as stopped,
+        ):
+            boundary.stop()
+
+        self.assertIs(stopped.exception.cleanup[0], original)
+        pending = stopped.exception.cleanup[1]
+        self.assertIsInstance(pending, hooks._SocketHookProcessPending)
+        self.assertIs(pending.owner, boundary.browser)
+        self.assertEqual(pending.pid, 10)
+        self.assertIs(pending.process, boundary.device.processes[10])
+        self.assertFalse(boundary.device.sessions[10].detached)
+        self.assertTrue(boundary.device.sessions[11].detached)
+        self.assertEqual(boundary.device.killed, [10, 11])
+        self.assertEqual(boundary.profile_cleaned, [boundary.browser.profile])
+        self.assertFalse(boundary.browser._worker.is_alive())
+        self.assertFalse(boundary.browser._stopped)
+        self.assertFalse(boundary.device.processes[10].closed)
+        self.assertFalse(boundary.browser._profile_retired)
+
+        with self.assertRaises(BrowserLaunchFailures) as snapshot:
+            boundary.browser.snapshot()
+
+        self.assertEqual(snapshot.exception.cleanup, stopped.exception.cleanup[:-1])
+        self.assertIsInstance(snapshot.exception.cleanup[2], TimeoutError)
+
+    def test_successful_kill_without_observed_process_exit_does_not_release_root_gate(self):
+        boundary = self.boundary()
+        boundary.ready()
+        boundary.device.not_retiring.add(10)
+        with (
+            patch.object(hooks, "_HOOK_NATIVE_CLEANUP_SECONDS", 0.1),
+            self.assertRaises(BrowserLaunchFailures) as stopped,
+        ):
+            boundary.stop()
+
+        pending = stopped.exception.cleanup[0]
+        self.assertIsInstance(pending, hooks._SocketHookProcessPending)
+        self.assertIs(pending.process, boundary.device.processes[10])
+        self.assertFalse(boundary.device.sessions[10].detached)
+        self.assertTrue(boundary.device.sessions[11].detached)
+        self.assertFalse(boundary.browser._stopped)
+        self.assertFalse(boundary.device.processes[10].closed)
+
+    def test_child_termination_failure_retains_its_handle_hooks_and_profile(self):
+        boundary = self.boundary()
+        boundary.ready()
+        original = OSError("original child termination failure")
+        boundary.device.kill_errors[11] = original
+        with (
+            patch.object(hooks, "_HOOK_NATIVE_CLEANUP_SECONDS", 0.1),
+            self.assertRaises(BrowserLaunchFailures) as stopped,
+        ):
+            boundary.stop()
+
+        self.assertIs(stopped.exception.cleanup[0], original)
+        pending = stopped.exception.cleanup[1]
+        self.assertIsInstance(pending, hooks._SocketHookProcessPending)
+        self.assertEqual(pending.pid, 11)
+        self.assertIs(pending.process, boundary.device.processes[11])
+        self.assertFalse(boundary.device.processes[11].closed)
+        self.assertTrue(boundary.device.processes[10].closed)
+        self.assertFalse(boundary.device.sessions[10].detached)
+        self.assertFalse(boundary.device.sessions[11].detached)
+        self.assertIsNotNone(boundary.device.script.callback)
+        self.assertFalse(boundary.browser._profile_retired)
+        self.assertEqual(boundary.device.killed, [10, 11])
+        self.assertEqual(boundary.profile_cleaned, [boundary.browser.profile])
+
+    def test_child_handle_acquisition_failure_does_not_resume_or_kill_an_unowned_pid(self):
+        boundary = self.boundary()
+        original = OSError("original child handle acquisition failure")
+        actual_process = boundary.process
+
+        def process(pid):
+            if pid == 11:
+                raise original
+
+            return actual_process(pid)
+
+        with patch.object(hooks, "_SocketHookProcess", process):
+            boundary.start()
+            self.assertTrue(boundary.start_finished.wait(WAIT_SECONDS))
+
+        self.assertIs(boundary.start_error, original)
+        self.assertNotIn(11, boundary.device.resumed)
+        with self.assertRaises(BrowserLaunchFailures) as stopped:
+            boundary.stop()
+
+        self.assertIs(stopped.exception.cleanup[0], original)
+        unknown = stopped.exception.cleanup[1]
+        self.assertIsInstance(unknown, hooks._SocketHookIdentityUnknown)
+        self.assertEqual(unknown.children, (boundary.device.child,))
+        self.assertEqual(boundary.device.killed, [10])
+        self.assertFalse(boundary.device.sessions[10].detached)
+        self.assertFalse(boundary.browser._profile_retired)
+
+
+class SocketHookFailureWakeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_failed_browser_retirement_keeps_the_actual_profile_with_its_owner(self):
+        owners = RunOwners()
+        self.addAsyncCleanup(owners.backup)
+        owners.install()
+        owners.finish_page = False
+        original = OSError("original browser failure during capture")
+        owners.caller = asyncio.create_task(owners.call(hooks.SCENARIOS["idle"]))
+        await asyncio.wait_for(owners.started.wait(), WAIT_SECONDS)
+        owners.browser._profile_retired = False
+        pending = hooks._SocketHookCleanupIncomplete(owners.browser)
+        owners.stop_error = pending
+
+        owners.browser._failure_notifier(original)
+        with self.assertRaises(BrowserLaunchFailures) as raised:
+            await asyncio.wait_for(asyncio.shield(owners.caller), WAIT_SECONDS)
+
+        self.assertIs(raised.exception.primary, original)
+        self.assertEqual(raised.exception.cleanup, (pending,))
+        self.assertIs(pending.owner, owners.browser)
+        self.assertEqual(pending.owner.profile, owners.profiles[0])
+        self.assertTrue(pending.owner.profile.is_dir())
+        self.assertFalse(owners.removed)
+        self.assertTrue(all(not server.is_serving() for server in owners.servers))
+        self.assertTrue(all(sock.fileno() == -1 for sock in owners.sockets))
+
+    async def test_idle_run_leaves_its_scenario_wait_after_the_original_browser_failure(self):
+        owners = RunOwners()
+        self.addAsyncCleanup(owners.backup)
+        owners.install()
+        owners.finish_page = False
+        original = OSError("original browser failure during idle capture")
+        origins = []
+        waiters = []
+        actual_origin = hooks.Origin
+
+        def origin(scenario):
+            value = actual_origin(scenario)
+            origins.append(value)
+            actual_wait = value.done.wait
+
+            async def wait():
+                waiters.append(asyncio.current_task())
+                return await actual_wait()
+
+            value.done.wait = wait
+            return value
+
+        with patch.object(hooks, "Origin", origin):
+            owners.caller = asyncio.create_task(owners.call(hooks.SCENARIOS["idle"]))
+            await asyncio.wait_for(owners.started.wait(), WAIT_SECONDS)
+            thread = threading.Thread(
+                target=owners.browser._failure_notifier, args=(original,), daemon=False
+            )
+            thread.start()
+            with self.assertRaises(OSError) as raised:
+                await asyncio.wait_for(asyncio.shield(owners.caller), WAIT_SECONDS)
+
+            thread.join(WAIT_SECONDS)
+
+        self.assertIs(raised.exception, original)
+        self.assertFalse(thread.is_alive())
+        self.assertFalse(origins[0].done.is_set())
+        self.assertEqual(len(waiters), 1)
+        self.assertTrue(waiters[0].done())
+        self.assertTrue(waiters[0].cancelled())
+        self.assertEqual(owners.order, ["start", "started", "stop"])
+        self.assertTrue(all(not server.is_serving() for server in owners.servers))
+        self.assertTrue(all(sock.fileno() == -1 for sock in owners.sockets))
+        self.assertEqual(owners.removed, owners.profiles)
+        self.assertTrue(all(not profile.exists() for profile in owners.profiles))
+
+    async def test_original_native_failure_wakes_the_idle_scenario_and_owns_its_waiter(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        profile = Path(directory.name) / "profile"
+        profile.mkdir()
+        browser = hooks.HookedBrowser(Path("controlled-browser"), [], profile, {})
+        owner = hooks._SocketHookBrowserOwner(browser, profile)
+        original = OSError("original post-readiness native failure")
+        idle = asyncio.Event()
+        done_waiter = asyncio.create_task(idle.wait())
+        self.addAsyncCleanup(self.close_waiter, done_waiter)
+
+        thread = threading.Thread(target=browser._retain_failure, args=(original,), daemon=False)
+        thread.start()
+        completed, _ = await asyncio.wait(
+            (done_waiter, owner.failed), timeout=WAIT_SECONDS,
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        thread.join(WAIT_SECONDS)
+
+        self.assertFalse(thread.is_alive())
+        self.assertIn(owner.failed, completed)
+        self.assertIs(owner.failed.result(), original)
+        self.assertFalse(done_waiter.done())
+        self.assertFalse(idle.is_set())
+        self.assertTrue(owner.stop_requested.is_set())
+        self.assertIs(browser._failure, original)
+
+    async def close_waiter(self, waiter):
+        if not waiter.done():
+            waiter.cancel()
+
+        await asyncio.gather(waiter, return_exceptions=True)
+
+
+class SocketHookRootProcessTests(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == "win32", "requires a Windows kernel process handle")
+    def test_original_kernel_handle_distinguishes_a_live_process_from_its_observed_exit(self):
+        process = subprocess.Popen(
+            [sys.executable, "-c", "import time; time.sleep(30)"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        self.addCleanup(self.close_process, process)
+        owner = hooks._SocketHookProcess(process.pid)
+        self.addCleanup(owner.close)
+        original_handle = owner.handle
+
+        self.assertIsNone(process.poll())
+        self.assertFalse(owner.wait(time.monotonic() + 0.01))
+        self.assertEqual(owner.handle, original_handle)
+
+        owner.terminate()
+        process.wait(timeout=WAIT_SECONDS)
+        self.assertTrue(owner.wait(time.monotonic() + WAIT_SECONDS))
+        self.assertEqual(owner.handle, original_handle)
+        owner.close()
+        self.assertIsNone(owner.handle)
+
+    def close_process(self, process):
+        if process.poll() is None:
+            process.kill()
+
+        process.wait(timeout=WAIT_SECONDS)

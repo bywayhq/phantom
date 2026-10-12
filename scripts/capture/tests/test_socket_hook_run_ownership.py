@@ -70,6 +70,7 @@ class RunOwners:
                 self.errors = []
                 self.network_service_argv = None
                 self.frida_version = "controlled browser boundary"
+                self._profile_retired = True
 
             def start(self):
                 owners.order.append("start")
