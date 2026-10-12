@@ -2513,7 +2513,7 @@ collected task owner, and unexpected local failures can become capture notes.
 Completed oversized HTTP/1 heads bypass their own limit. The shared proxy
 TLS reader treats unrelated connection and SSL failures as EOF. Callable
 and CLI duration inputs also accept non-finite values. The remaining
-proxy aggregate and address repairs remain in progress.
+shared capture owners still require separate review and repair.
 
 The bounded proxy repair at `39c6fb8f` retains accepted handlers, writer
 and listener waits, and the original initiating and cleanup failures. The
@@ -2545,11 +2545,50 @@ preserves the intended DATA-state failure and every original assertion.
 This resolves the measured A262 callback defect, without live-browser or
 whole-memory claims.
 
-Aggregate connection, request and UDP-peer records still need bounds, and
-ended H2 proxy tunnels remain in their map. Proxy IPv6 listen addresses
-disagree with the direct page URL. A per-connection 16 MiB byte cap already
-exists; this pass does not claim unbounded individual proxy buffering or a
-native resource measurement. A263, A264 and final combined gates remain open.
+At `ba8dd848`, the proxy run admits at most 32 connections and records at
+most 512 requests, results or remote events in each collection. Overflow
+fails the run before fixture publication and retains the original cause.
+Ended and reset H2 tunnels leave their map. Desktop IPv6 page URLs,
+authority brackets and browser routes agree with the selected loopback
+listener. Android rejects IPv6 before resource acquisition. The controls
+use real sockets and H2 exchanges; no browser capture is claimed.
+
+Windows passes all 703 capture methods. Linux passes 692, with eleven
+platform skips. Lint and format pass on both hosts. Root and independent
+review read every log and exit, then separately observe clean exact
+sources after both runners terminate. At the first `151e3e1a` attempt,
+Windows passes 702 methods and times out during the new sequential
+512-request exchange. Linux passes 692 with eleven skips. The correction
+observes the server's actual stream limit and sends batches of 32 streams.
+It preserves all 512 response and END assertions, the overflow assertion,
+and the original ten-second bound. Race capture aggregate limits and final
+combined gates remain open. Failed abort or close APIs retain their actual
+resource owner and cause; these checks do not prove destruction under a
+permanently unusable cleanup API.
+
+Whole root and independent reads of `http2_session.py` and
+`http2_websocket.py` identify separate shared-owner findings. Partial
+second-listener failure loses the first listener. Accepted asynchronous
+handlers lack retained task outcomes, and writer release removes ownership
+before a fallible close. Publication can precede handler completion and
+final listener cleanup. A266 records these ownership paths. The existing
+proxy repairs do not cover them.
+
+Shared completed-head, ClientHello, padded-frame, priority and continuation
+parsers need explicit extent and sequence checks (A267). Connection,
+request, WebSocket and ended-stream collections need aggregate bounds,
+and echo decompression needs an output limit (A268). Shared IPv6 URL and
+browser routing, plus finite callable and CLI durations, remain inconsistent
+(A269). Source review establishes these missing contracts; actual controls,
+remedies and native verification remain open. Incoming peer errors and
+local outgoing H2 failures require separate classification (A270).
+
+PR #197 at `a961f0df` has one measured macOS failure among 4,304 methods:
+the original request-error sibling-destruction control returns
+`Io(BrokenPipe)`. It drops the Client before collecting the held H2 peer.
+Source review identifies possible frame-flush or TLS-shutdown races, but
+the log does not establish the exact phase. A271 keeps this failure open;
+blanket acceptance of BrokenPipe would erase unrelated worker failures.
 
 The Unix census repair at `ad13642f` checks the original process result
 before interpreting absence and retains stderr. Its focused control calls
