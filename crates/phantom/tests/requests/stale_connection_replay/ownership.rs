@@ -28,11 +28,11 @@ use crate::support::tunnel_proxy::finish_with_cleanup;
 
 pub(super) type Server = ConnectionPeer<TestResult<(ReceivedRequest, bool)>>;
 
-pub(super) async fn complete(
-    server: &mut Option<Server>,
+pub(super) async fn complete<T: Send + 'static>(
+    server: &mut Option<ConnectionPeer<TestResult<T>>>,
     caller: TestResult,
     deadline: Instant,
-) -> TestResult<(ReceivedRequest, bool)> {
+) -> TestResult<T> {
     let Some(mut server) = server.take() else {
         return match caller {
             Ok(()) => Err("original stale server missing".into()),

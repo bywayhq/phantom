@@ -16,7 +16,7 @@ use phantom::{Client, HttpProtocol, RetryPolicy};
 use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf},
     net::{TcpListener, TcpStream},
-    task::{Id, JoinHandle, yield_now},
+    task::{Id, yield_now},
     time::timeout,
 };
 use tokio_btls::SslStream;
@@ -29,7 +29,7 @@ use crate::support::deadline::FixtureDeadline;
 use crate::support::tunnel_proxy::connection_peer::ConnectionPeer;
 use crate::support::tunnel_proxy::finish_with_cleanup;
 
-pub(super) type RawServer = JoinHandle<TestResult<(ReceivedRequest, ReceivedRequest)>>;
+pub(super) type RawServer = ConnectionPeer<TestResult<(ReceivedRequest, ReceivedRequest)>>;
 
 #[derive(Clone, Copy)]
 pub(super) enum Protocol {
@@ -214,6 +214,7 @@ impl RawFixture {
             .server
             .as_ref()
             .ok_or("original raw stale server missing")?
+            .abort_handle()
             .id())
     }
 
@@ -276,6 +277,21 @@ impl RawFixture {
         Ok(())
     }
 
+    pub(super) async fn held_request(&self, address: SocketAddr) -> TestResult {
+        self.client
+            .get(
+                HttpProtocol::Http1,
+                &format!("http://{address}/held-deadline"),
+            )?
+            .send()
+            .await?
+            .into_body()
+            .collect()
+            .await?;
+
+        Ok(())
+    }
+
     pub(super) async fn closed(
         &mut self,
         destruction_purpose: &'static str,
@@ -325,20 +341,17 @@ impl RawFixture {
         }
 
         let joined = match self.server.take() {
-            Some(server) => {
-                let mut server = ConnectionPeer::from_task(server);
-                match timeout(TEST_TIMEOUT, &mut server).await {
-                    Ok(Ok(result)) => result.map(|_| ()),
-                    Ok(Err(error)) if requested && error.is_cancelled() => Ok(()),
-                    Ok(Err(error)) => Err(error.into()),
-                    Err(elapsed) => Err(FixtureDeadline::new(
-                        "raw stale backup original join exceeded its deadline",
-                        elapsed,
-                    )
-                    .into()),
-                }
-            }
-            // The canonical raw flow has already discarded this join owner.
+            Some(mut server) => match timeout(TEST_TIMEOUT, &mut server).await {
+                Ok(Ok(result)) => result.map(|_| ()),
+                Ok(Err(error)) if requested && error.is_cancelled() => Ok(()),
+                Ok(Err(error)) => Err(error.into()),
+                Err(elapsed) => Err(FixtureDeadline::new(
+                    "raw stale backup original join exceeded its deadline",
+                    elapsed,
+                )
+                .into()),
+            },
+            // The canonical completion or its Drop has consumed this owner.
             None => Ok(()),
         };
 

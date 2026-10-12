@@ -5,11 +5,11 @@ use std::{
 };
 
 use phantom::{RequestError, RequestErrorKind};
-use tokio::time::error::Elapsed;
+use tokio::time::{Instant, error::Elapsed};
 
-use super::super::{bounded, raw_server};
-use super::TestResult;
+use super::super::bounded_until;
 use super::raw_fixture::{Protocol, RawFixture};
+use super::{TEST_TIMEOUT, TestResult, complete};
 use crate::support::deadline::FixtureDeadline;
 use crate::support::tunnel_proxy::finish_with_cleanup;
 
@@ -30,7 +30,14 @@ async fn caller_drop(protocol: Protocol) -> TestResult {
         let server = fixture.take_server()?;
 
         {
-            let mut caller = Box::pin(raw_server::complete(server, fixture.waiting_caller()));
+            let mut caller = Box::pin(async {
+                let deadline = Instant::now() + TEST_TIMEOUT;
+                let mut server = Some(server);
+
+                let caller = bounded_until(deadline, fixture.waiting_caller()).await;
+
+                complete(&mut server, caller, deadline).await
+            });
 
             poll_fn(|context| match caller.as_mut().poll(context) {
                 Poll::Pending => Poll::Ready(Ok(())),
@@ -64,8 +71,12 @@ async fn raw_caller_failure_closes_the_actual_primed_socket() -> TestResult {
     let mut fixture = RawFixture::pending(Protocol::Plain).await?;
 
     let observed = async {
-        let server = fixture.take_server()?;
-        let error = raw_server::complete(server, fixture.invalid_uri())
+        let deadline = Instant::now() + TEST_TIMEOUT;
+        let mut server = Some(fixture.take_server()?);
+
+        let caller = bounded_until(deadline, fixture.invalid_uri()).await;
+
+        let error = complete(&mut server, caller, deadline)
             .await
             .err()
             .ok_or("actual raw invalid URI succeeded")?;
@@ -99,11 +110,12 @@ async fn raw_tls_original_deadline_closes_the_actual_primed_socket() -> TestResu
     let mut fixture = RawFixture::pending(Protocol::Tls).await?;
 
     let observed = async {
-        let server = fixture.take_server()?;
+        let deadline = Instant::now() + TEST_TIMEOUT;
+        let mut server = Some(fixture.take_server()?);
         let mut caller_entered_pending = false;
 
-        let error = bounded(async {
-            let mut caller = Box::pin(raw_server::complete(server, fixture.waiting_caller()));
+        let caller = bounded_until(deadline, async {
+            let mut caller = Box::pin(fixture.waiting_caller());
 
             poll_fn(|context| {
                 let result = caller.as_mut().poll(context);
@@ -117,9 +129,12 @@ async fn raw_tls_original_deadline_closes_the_actual_primed_socket() -> TestResu
 
             TestResult::Ok(())
         })
-        .await
-        .err()
-        .ok_or("actual raw TLS caller escaped its original deadline")?;
+        .await;
+
+        let error = complete(&mut server, caller, deadline)
+            .await
+            .err()
+            .ok_or("actual raw TLS caller escaped its original deadline")?;
 
         let checked =
             async {

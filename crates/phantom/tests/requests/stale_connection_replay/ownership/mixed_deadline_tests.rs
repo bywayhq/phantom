@@ -172,14 +172,14 @@ struct HeldState {
     read_pending: bool,
 }
 
-struct HeldRequest {
-    address: SocketAddr,
+pub(super) struct HeldRequest {
+    pub(super) address: SocketAddr,
     state: watch::Receiver<HeldState>,
     server: ConnectionPeer<TestResult>,
 }
 
 impl HeldRequest {
-    async fn spawn() -> TestResult<Self> {
+    pub(super) async fn spawn() -> TestResult<Self> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let (state, received) = watch::channel(HeldState::default());
@@ -205,7 +205,7 @@ impl HeldRequest {
         })
     }
 
-    async fn wait_pending(&mut self) -> TestResult {
+    pub(super) async fn wait_pending(&mut self) -> TestResult {
         timeout(TEST_TIMEOUT, async {
             loop {
                 let ready = {
@@ -239,7 +239,7 @@ impl HeldRequest {
         })?
     }
 
-    async fn finish(mut self) -> TestResult {
+    pub(super) async fn finish(mut self) -> TestResult {
         let requested = !self.server.is_finished();
         if requested {
             self.server.abort();

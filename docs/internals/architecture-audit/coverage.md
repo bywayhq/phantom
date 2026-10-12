@@ -2481,8 +2481,9 @@ listener acquisition is outside cleanup, accepted proxy handlers lack a
 collected task owner, and unexpected local failures can become capture notes.
 Completed oversized HTTP/1 heads bypass their own limit. The shared proxy
 TLS reader treats unrelated connection and SSL failures as EOF. Callable
-and CLI duration inputs also accept non-finite values. Source repairs and
-focused controls are in progress; none has executed yet.
+and CLI duration inputs also accept non-finite values. The remaining
+proxy-capture repairs and focused controls are in progress; execution is
+pending.
 
 The race H3 callback can set successful completion before a held response
 fails. Its original local error has no collected owner. Aggregate connection,

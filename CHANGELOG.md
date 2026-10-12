@@ -2503,6 +2503,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Keep stale-connection test workers owned through caller failure, Drop
+  and timeout. Retain completed serving failures alongside caller errors.
+
 - Report a failed Unix process census during browser capture cleanup,
   retaining its exit status and diagnostic output.
 

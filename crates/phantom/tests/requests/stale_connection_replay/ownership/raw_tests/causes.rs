@@ -1,9 +1,13 @@
 use std::error::Error;
 
-use tokio::task::{Id, JoinError};
+use tokio::{
+    task::{Id, JoinError},
+    time::Instant,
+};
 
-use super::super::super::raw_server;
+use super::super::super::bounded_until;
 use super::super::raw_fixture::{Protocol, RawFixture};
+use super::super::{TEST_TIMEOUT, complete};
 use super::{TestResult, caller_cause};
 use crate::support::tunnel_proxy::connection_peer::FixtureFailures;
 use crate::support::tunnel_proxy::finish_with_cleanup;
@@ -14,8 +18,10 @@ async fn raw_completion_retains_the_actual_tls_prime_flush_failure() -> TestResu
 
     let observed = async {
         let caller = fixture.take_priming_caller()?;
-        let server = fixture.take_server()?;
-        let error = raw_server::complete(server, async { caller })
+        let deadline = Instant::now() + TEST_TIMEOUT;
+        let mut server = Some(fixture.take_server()?);
+
+        let error = complete(&mut server, caller, deadline)
             .await
             .err()
             .ok_or("actual raw TLS prime flush failure was discarded")?;
@@ -45,8 +51,12 @@ async fn raw_caller_failure_retains_the_actual_completed_serving_cause() -> Test
     let mut fixture = RawFixture::completed_fault(Protocol::Plain).await?;
 
     let observed = async {
-        let server = fixture.take_server()?;
-        let error = raw_server::complete(server, fixture.invalid_uri())
+        let deadline = Instant::now() + TEST_TIMEOUT;
+        let mut server = Some(fixture.take_server()?);
+
+        let caller = bounded_until(deadline, fixture.invalid_uri()).await;
+
+        let error = complete(&mut server, caller, deadline)
             .await
             .err()
             .ok_or("actual raw invalid URI succeeded")?;
@@ -87,8 +97,12 @@ async fn raw_caller_failure_retains_the_finished_foreign_cancellation_and_id() -
         fixture.abort_original()?;
         fixture.wait_finished().await?;
 
-        let server = fixture.take_server()?;
-        let error = raw_server::complete(server, fixture.invalid_uri())
+        let deadline = Instant::now() + TEST_TIMEOUT;
+        let mut server = Some(fixture.take_server()?);
+
+        let caller = bounded_until(deadline, fixture.invalid_uri()).await;
+
+        let error = complete(&mut server, caller, deadline)
             .await
             .err()
             .ok_or("actual raw invalid URI succeeded")?;
@@ -136,8 +150,10 @@ async fn raw_completion_retains_the_finished_foreign_cancellation_and_id() -> Te
         fixture.wait_finished().await?;
 
         let caller = fixture.take_priming_caller()?;
-        let server = fixture.take_server()?;
-        let error = raw_server::complete(server, async { caller })
+        let deadline = Instant::now() + TEST_TIMEOUT;
+        let mut server = Some(fixture.take_server()?);
+
+        let error = complete(&mut server, caller, deadline)
             .await
             .err()
             .ok_or("actual raw finished foreign cancellation was discarded")?;
@@ -184,3 +200,5 @@ fn foreign_cause(error: &(dyn Error + Send + Sync + 'static), id: Id) -> TestRes
 
     Ok(())
 }
+
+mod mixed_deadline;
