@@ -118,11 +118,10 @@ impl RawFixture {
                         )
                     })?;
 
-                if caller.is_err() {
-                    return caller;
+                match caller {
+                    outcome @ Ok(()) => fixture.priming_caller = Some(outcome),
+                    Err(original) => return Err(original),
                 }
-
-                fixture.priming_caller = Some(caller);
             } else {
                 let tcp = timeout(TEST_TIMEOUT, TcpStream::connect(address))
                     .await
