@@ -1,0 +1,198 @@
+{
+  "revision": "5aa2f5bbd4713f0ea60638ae83debe10e61e200d",
+  "decision": "SOURCE_FINDINGS_CONFIRMED",
+  "source": {
+    "path": "crates/phantom/tests/sessions/negotiated.rs",
+    "lines": 1188,
+    "git_blob": "bdb6fcd5cc8b86c9b9fa674761eeae12cb40b2c5",
+    "git_content_lf_sha256": "6e7efaeb45b0f6add1e7a5d91ab932afe677ac3deb39dba5212f553bc0e2ffa3",
+    "read_ranges": [
+      "1-400",
+      "401-800",
+      "801-1188"
+    ]
+  },
+  "root_report_read": "negotiated-root-source-pass-5aa2f5bb.json",
+  "source_sites": [
+    {
+      "line": 55,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 105,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 127,
+      "text": "            Ok::<_, Box<dyn Error + Send + Sync>>((uri, second.is_err()))"
+    },
+    {
+      "line": 155,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 162,
+      "text": "                stream.read_exact(&mut byte).await?;"
+    },
+    {
+      "line": 203,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 306,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 333,
+      "text": "                second = timeout(SECOND_CONNECTION_WINDOW, listener.accept()) => second.is_err(),"
+    },
+    {
+      "line": 340,
+      "text": "        let first = tokio::spawn(async move {"
+    },
+    {
+      "line": 350,
+      "text": "        let second = tokio::spawn(async move {"
+    },
+    {
+      "line": 388,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 444,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 456,
+      "text": "            Ok::<_, Box<dyn Error + Send + Sync>>((first, second, replacement.is_err()))"
+    },
+    {
+      "line": 491,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 507,
+      "text": "            Ok::<_, Box<dyn Error + Send + Sync>>((first_head, second_head, third.is_err()))"
+    },
+    {
+      "line": 536,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 541,
+      "text": "            stream.read_exact(&mut body).await?;"
+    },
+    {
+      "line": 631,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 670,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 674,
+      "text": "            let _ = request_seen.send(());"
+    },
+    {
+      "line": 682,
+      "text": "        let task = tokio::spawn(request.send().with_subscriber(subscriber.dispatch()));"
+    },
+    {
+      "line": 685,
+      "text": "        assert!(task.await.is_err());"
+    },
+    {
+      "line": 691,
+      "text": "        assert!(server.await.is_err());"
+    },
+    {
+      "line": 703,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 738,
+      "text": "        let proxy = tokio::spawn(async move {"
+    },
+    {
+      "line": 774,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 783,
+      "text": "            match stream.read_to_end(&mut received).await {"
+    },
+    {
+      "line": 861,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 871,
+      "text": "            Ok::<_, Box<dyn Error + Send + Sync>>((selected, request, second.is_err()))"
+    },
+    {
+      "line": 934,
+      "text": "            Poll::Ready(Ok(())) => Poll::Ready(Ok(None)),"
+    },
+    {
+      "line": 955,
+      "text": "            Poll::Ready(Ok(())) => Poll::Ready(Ok(None)),"
+    },
+    {
+      "line": 973,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 1001,
+      "text": "            Ok::<_, Box<dyn Error + Send + Sync>>((path, third.is_err()))"
+    },
+    {
+      "line": 1035,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 1084,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 1102,
+      "text": "                    completed.map_err(|_| \"client stopped before reporting completion\")?;"
+    },
+    {
+      "line": 1122,
+      "text": "            .map_err(|_| \"server stopped before client completion\")?;"
+    },
+    {
+      "line": 1137,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 1153,
+      "text": "                    completed.map_err(|_| \"client stopped before reporting completion\")?;"
+    },
+    {
+      "line": 1171,
+      "text": "            .map_err(|_| \"server stopped before client completion\")?;"
+    },
+    {
+      "line": 1187,
+      "text": "        .map_err(|_| \"negotiated client test exceeded its deadline\")?"
+    }
+  ],
+  "confirmed": [
+    "raw original worker/caller handles cross consuming watchdog/fallible paths",
+    "first join failure loses later siblings",
+    "actual Elapsed erased",
+    "quiet ready I/O cause discarded into false, expected expiry true",
+    "unbounded aggregate collectors",
+    "ignored request_seen send and any-JoinError cancellation test",
+    "channel RecvError replaced with text",
+    "local-first imports/mixed responsibilities"
+  ],
+  "candidate": "actual incomplete H2 receive/trailer after clean driver EOF requires causal controls",
+  "normal_cancellation_qualifier": "explicit abort and await exists on successful path",
+  "preserve": "original wire/protocol/GOAWAY/cookie/trailer/payload contracts,5s watchdog,100ms quiet,pre-runtime timer-free test",
+  "excluded": "negotiated_parallel",
+  "native": null,
+  "markdown_sha256": "8d83cd3a918d3c77fef6ef8e7b31aef082f783aba0909b020d1c3ca40441e411"
+}

@@ -1,0 +1,37 @@
+{
+  "revision": "5aa2f5bbd4713f0ea60638ae83debe10e61e200d",
+  "source": {
+    "path": "crates/phantom/tests/sessions/negotiated_parallel.rs",
+    "lines": 957,
+    "git_blob": "cf4c2330c8f3e04afd50305d19dc4fe5ea63103f",
+    "physical_sha256": "d3aa61a797b3fe57b1973c210d60f8a20cd5025d3382e0e89f8ec04aed27d461",
+    "read": "whole explicit1-300,301-600,601-900,901-957 chunks; earlier batched truncation not credited"
+  },
+  "confirmed_source_findings": [
+    "Origin retains only listener JoinHandle<()> and Drop aborts only that owner. Original per-connection children and H2 response children are detached and serving errors discarded; no explicit finite child/result collection exists.",
+    "Origin accept loop treats every listener I/O error as termination without returning its cause; serve_http1 treats every head read error as a successful end; child failures still produce a Closed event.",
+    "Concurrent client/spawn_all vectors and individual queued/retry tasks contain raw handles across fallible caller operations and consuming watchdogs. A first completion/error or later URI construction can abandon already started siblings.",
+    "The CONNECT test has a raw accept task and detached forwarding children, discards copy_bidirectional errors, and aborts without joining listener; no direct real child cleanup evidence.",
+    "Known-H2 replacement serving loops drop actual H2 errors and quiet-accept checks turn actual I/O errors into bool; original first-close RecvError and serving output are formatted into text.",
+    "Outer10s bounded and special20s retry-delay watchdog replace actual Elapsed with text. Inner hold/finish/next/individual joins already retain actual Elapsed.",
+    "Origin drain returns collected events on either quiet expiry or channel closure without distinguishing an unexpected worker failure. Events/CONNECT channels and held accepted sockets have no explicit aggregate/admission bound.",
+    "request_path uses lossy UTF8, missing target default and whitespace splitting rather than rejecting malformed original request lines; local-first imports and957-line mixed owner require readability/responsibility review."
+  ],
+  "qualifiers": [
+    "Outcome kind/protocol reduction in spawn_all is intentional for seven expected Capacity results. Preserve that observable contract; investigate retention of unexpected failures separately.",
+    "requests_cancelled_during_handshakes_release_their_slots explicitly checks actual is_cancelled after abort on its normal path; do not report that assertion as missing.",
+    "Origin Drop has an abort capability for its original listener. The source finding concerns missing descendants and observed errors, not absence of any shutdown action.",
+    "Fixed four-byte done responses and literal CONNECT request oracle are preserved."
+  ],
+  "preserved_contracts": [
+    "Unknown-origin parallelH1 handshakes, per-recipe sixH1connections, idle reuse and waiters, known/newH2 convergence including redundant close IDs.",
+    "Known-H2 setup sharing, per-connection CONNECT, H1 capacity/rejection bursts, pool admission phase limits, actual retry delay slot release, stale replay past idle connections, request cancellation slot release.",
+    "Original gate counts and protocol metadata,4-byte done payload,10s normal/20s retry watchdogs,200ms quiet/handshake windows,2s retry delay and20ms pool admission limit.",
+    "Real Origin event sequence is an independent network observation; preserve its literal acceptance/request/closure oracles while making failures visible."
+  ],
+  "candidates": [
+    "Safe finite event/connection bounds require actual per-test gate/request budgets; do not impose arbitrary production limits on these fixtures."
+  ],
+  "disposition": "whole root source-only pass; no source mutation or new native evidence; inventory remains pending independent review",
+  "native": null
+}

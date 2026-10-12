@@ -2317,6 +2317,23 @@ storage ceilings remain candidates pending the intended early-data contract
 and resolved TLS limits. The fifty-four session tests above exclude these
 modules, so they provide no new native evidence for this source pass.
 
+The negotiated session source passes at `5aa2f5bb` cover the complete
+1188-line direct owner and 957-line parallel owner. Root and independent
+reviews confirm task ownership, result retention and deadline-cause gaps.
+See `negotiated-independent-source-review-5aa2f5bb.json` and
+`negotiated-parallel-independent-source-review-5aa2f5bb.json`.
+
+The direct cancellation case already aborts and awaits its tasks, but does
+not check cancellation provenance. Quiet accept errors fail its observation
+while discarding the actual cause. The parallel owner aborts its listener
+on Drop but does not collect descendants. Its handshake cancellation
+assertion and seven expected Capacity observations remain valid.
+
+These source dispositions do not establish remediation or new native
+results. Incomplete H2 receive closure, strict request parsing and finite
+fixture budgets still need contract controls. Findings A251 and A252 remain
+open alongside the remaining lifecycle, proxy and streaming source passes.
+
 ## Next
 
 - [Audit plan](../architecture-audit.md): acceptance and verification.

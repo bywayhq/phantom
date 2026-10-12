@@ -1,0 +1,150 @@
+{
+  "revision": "5aa2f5bbd4713f0ea60638ae83debe10e61e200d",
+  "decision": "SOURCE_FINDINGS_CONFIRMED",
+  "source": {
+    "path": "crates/phantom/tests/sessions/negotiated_parallel.rs",
+    "lines": 957,
+    "git_blob": "cf4c2330c8f3e04afd50305d19dc4fe5ea63103f",
+    "git_content_lf_sha256": "a9c5c9bdee52281b2959627df8d3fb1f00cf6ca20fda533909a24c45ce17d468",
+    "read_ranges": [
+      "1-320",
+      "321-640",
+      "641-957"
+    ]
+  },
+  "root_report_read": "negotiated-parallel-root-source-pass-5aa2f5bb.json",
+  "source_sites": [
+    {
+      "line": 149,
+      "text": "        let task = tokio::spawn(async move {"
+    },
+    {
+      "line": 152,
+      "text": "            while let Ok((tcp, _)) = listener.accept().await {"
+    },
+    {
+      "line": 163,
+      "text": "                    tokio::spawn(async move {"
+    },
+    {
+      "line": 166,
+      "text": "                        let _ = match shared.config.alpn {"
+    },
+    {
+      "line": 170,
+      "text": "                        let _ = events.send(Event::Closed(index));"
+    },
+    {
+      "line": 210,
+      "text": "        while let Ok(Some(event)) = timeout(QUIET_WINDOW, self.events.recv()).await {"
+    },
+    {
+      "line": 225,
+      "text": "impl Drop for Origin {"
+    },
+    {
+      "line": 252,
+      "text": "    while let Ok(head) = read_head(&mut stream).await {"
+    },
+    {
+      "line": 280,
+      "text": "        tokio::spawn(async move {"
+    },
+    {
+      "line": 292,
+      "text": "    let line = String::from_utf8_lossy(head);"
+    },
+    {
+      "line": 293,
+      "text": "    let target = line.split(' ').nth(1).unwrap_or_default();"
+    },
+    {
+      "line": 336,
+      "text": "        tasks.push(tokio::spawn(async move {"
+    },
+    {
+      "line": 386,
+      "text": "        .map_err(|_| \"negotiated parallel test exceeded its deadline\")?"
+    },
+    {
+      "line": 453,
+      "text": "            let mut seventh = tokio::spawn(client.get_negotiated(&origin.uri(\"seventh\"))?.send());"
+    },
+    {
+      "line": 514,
+      "text": "        let mut third = tokio::spawn(client.get_negotiated(&origin.uri(\"third\"))?.send());"
+    },
+    {
+      "line": 586,
+      "text": "        let server = tokio::spawn(async move {"
+    },
+    {
+      "line": 601,
+      "text": "            closed_tx.send(()).map_err(|_| \"client stopped\")?;"
+    },
+    {
+      "line": 606,
+      "text": "            let extra_during_setup = timeout(QUIET_WINDOW, listener.accept()).await.is_ok();"
+    },
+    {
+      "line": 619,
+      "text": "                accepted = timeout(QUIET_WINDOW, listener.accept()) => accepted.is_ok(),"
+    },
+    {
+      "line": 660,
+      "text": "        let proxy_task = tokio::spawn(async move {"
+    },
+    {
+      "line": 661,
+      "text": "            while let Ok((mut downstream, _)) = proxy.accept().await {"
+    },
+    {
+      "line": 663,
+      "text": "                tokio::spawn(async move {"
+    },
+    {
+      "line": 670,
+      "text": "                    let _ = copy_bidirectional(&mut downstream, &mut upstream).await;"
+    },
+    {
+      "line": 719,
+      "text": "        tasks.push(tokio::spawn(async move {"
+    },
+    {
+      "line": 867,
+      "text": "        let delayed = tokio::spawn(delayed);"
+    },
+    {
+      "line": 890,
+      "text": "    .map_err(|_| \"retry delay test exceeded its deadline\")?"
+    },
+    {
+      "line": 942,
+      "text": "            assert!(setup.await.is_err_and(|error| error.is_cancelled()));"
+    }
+  ],
+  "confirmed": [
+    "Origin listener owner exists but descendants and their original results not retained",
+    "listener/HTTP1-head errors terminate without typed cause",
+    "Closed/drain do not distinguish serving failures",
+    "raw callers/queued/retry tasks cross fallible paths",
+    "CONNECT detached listener/children and discarded copy errors",
+    "known-H2 driver errors discarded and quiet I/O causes reduced to bool",
+    "outer10/20s Elapsed erased; inner original Elapsed retained",
+    "first-close RecvError/worker formatted into text",
+    "mixed responsibilities/local-first imports"
+  ],
+  "candidates": [
+    "event/connection/drain finite budgets need actual test contract",
+    "strict request-line parser contract needs control"
+  ],
+  "qualifiers": [
+    "seven Capacity kind/protocol reductions intentional",
+    "normal handshake cancel explicitly asserts is_cancelled",
+    "Origin Drop aborts its listener",
+    "no production leak claim"
+  ],
+  "native": null,
+  "remaining": "causal controls,remedies,independent native verification,broader fixtures and final gates",
+  "markdown_sha256": "8dde0c9a16009412adb21e85630c498ec602895c6e0388660e45267244feb6ed"
+}

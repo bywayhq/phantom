@@ -1,0 +1,30 @@
+{
+  "revision": "5aa2f5bbd4713f0ea60638ae83debe10e61e200d",
+  "source": {
+    "path": "crates/phantom/tests/sessions/negotiated.rs",
+    "lines": 1188,
+    "git_blob": "bdb6fcd5cc8b86c9b9fa674761eeae12cb40b2c5",
+    "physical_sha256": "793cd8692b0318b8e8b2ed5c3e0fd14d74f2defcab7e1e2e887988ea5aa9e5e6",
+    "read": "initial batched output truncated; subsequently complete explicit1-300,301-600,601-900,901-1188 reads"
+  },
+  "source_findings": [
+    "Original raw server/proxy and concurrent request handles cross fallible caller operations inside consuming five-second watchdogs; later first-result failures can lose sibling outcomes. Explicit cancellation case does abort and await on its successful path, but early setup/channel failures remain outside that cleanup.",
+    "bounded replaces original Elapsed with contextual text.",
+    "Second/third-connection quiet checks map timeout results to bool; actual ready accept I/O errors are treated as a connection-shaped failure and their typed cause is discarded.",
+    "Dynamic H1 framed trailers and two H2 request-data Vec collectors have no local aggregate byte ceiling; unsupported-ALPN drain grows Vec while the actual contract expects zero bytes.",
+    "Cancellation test ignores request_seen send failure and accepts any JoinError rather than proving requested cancellation; retain the existing real selected-protocol observation.",
+    "Local imports precede std/external imports;1188-line owner combines several distinct domains and needs responsibility review rather than a line-count split."
+  ],
+  "candidates": [
+    "next_h2_request_data and next_h2_request_trailers map Ready Ok connection closure to None without re-polling the actual receive stream. Reconcile actual incomplete body/trailer contract and independent EOF control before classification/remedy."
+  ],
+  "preserved_contracts": [
+    "Exact negotiated H1/H2/absent-ALPN and invalid-input pre-I/O tests; no-runtime poll remains timer-free.",
+    "Cookie header absence/presence; exact repeated trailer ordering and payload; concurrent stream IDs1,3 and first/second paths.",
+    "Plaintext and proxy absolute-form request bytes; unsupported offered h3 on TCP produces TLS error with no HTTP bytes.",
+    "GOAWAY last-stream0/NO_ERROR, at most one eligible GET replay, replacement may negotiateH1, POST no replay, retry metadata0.",
+    "Five-second outer watchdog and100ms connection observation window unchanged."
+  ],
+  "disposition": "whole root source-only pass; no mutation/new native result; inventory remains pending independent review",
+  "native": null
+}
