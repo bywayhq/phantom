@@ -3,6 +3,7 @@
 use std::{
     collections::VecDeque,
     error::Error,
+    io,
     net::{Ipv4Addr, SocketAddr},
     num::NonZeroUsize,
     sync::{Arc, Mutex},
@@ -20,14 +21,16 @@ use phantom::{
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::TcpListener,
-    task::JoinHandle,
-    time::Instant,
+    sync::watch,
+    time::{Instant, timeout_at},
 };
 use tracing::instrument::WithSubscriber;
 
+use crate::support::deadline::FixtureDeadline;
 use crate::support::tls as tls_support;
 use crate::support::tracing as tracing_support;
-use ownership::{Control, ObservedStream};
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
+use ownership::{Control, ObservedStream, State};
 use tls_support::{
     H1_ALPN, TestIdentity, accept_tls_stream, client_builder, is_peer_gone, read_head, tls_settings,
 };
@@ -39,6 +42,7 @@ type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
 
 const UNAVAILABLE: &str = "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n";
 const OK: &str = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
+const CLEANUP_LIMIT: Duration = Duration::from_secs(2);
 
 #[derive(Clone, Debug)]
 struct ReceivedRequest {
@@ -49,12 +53,33 @@ struct ReceivedRequest {
 /// Requests in arrival order, across every accepted connection.
 type Received = Arc<Mutex<Vec<ReceivedRequest>>>;
 
+struct AcceptedChild {
+    peer: ConnectionPeer<TestResult>,
+    state: Option<watch::Sender<State>>,
+    abort_requested: bool,
+}
+
+enum AcceptedChildren {
+    Open(Vec<AcceptedChild>),
+    Closed,
+}
+
+impl AcceptedChildren {
+    fn take(&mut self) -> Vec<AcceptedChild> {
+        match std::mem::replace(self, Self::Closed) {
+            Self::Open(children) => children,
+            Self::Closed => Vec::new(),
+        }
+    }
+}
+
 /// Serves scripted HTTP/1.1 responses in order, one per request, on any
 /// number of connections. Plaintext when `acceptor` is `None`.
 struct ScriptedServer {
     address: SocketAddr,
     received: Received,
-    task: JoinHandle<()>,
+    task: ConnectionPeer<TestResult>,
+    children: Arc<Mutex<AcceptedChildren>>,
 }
 
 impl ScriptedServer {
@@ -81,35 +106,51 @@ impl ScriptedServer {
         ));
         let received = Received::default();
         let connection_received = Arc::clone(&received);
+        let children = Arc::new(Mutex::new(AcceptedChildren::Open(Vec::new())));
+        let accepted_children = Arc::clone(&children);
 
-        let task = tokio::spawn(async move {
-            while let Ok((tcp, _)) = listener.accept().await {
+        let task = ConnectionPeer::spawn(async move {
+            loop {
+                let (tcp, _) = listener.accept().await?;
                 let script = Arc::clone(&script);
                 let received = Arc::clone(&connection_received);
                 let acceptor = acceptor.clone();
                 let mut control = control.take();
                 let state = control.as_ref().map(Control::state);
 
-                let child = tokio::spawn(async move {
+                let mut registry = accepted_children
+                    .lock()
+                    .map_err(|_| "status retry accepted child owner lock was poisoned")?;
+                let AcceptedChildren::Open(children) = &mut *registry else {
+                    return TestResult::Ok(());
+                };
+
+                // Publishing under the seal lock prevents a child escaping finish or Drop.
+                let child = ConnectionPeer::spawn(async move {
                     let _lifetime = control.as_ref().map(Control::lifetime);
 
                     match acceptor {
                         Some(acceptor) => {
-                            let accepted = ownership::accept_tls(tcp, acceptor, &mut control).await;
-                            if let Ok(stream) = accepted {
-                                let mut stream = ObservedStream::new(stream, control);
-                                serve_connection(&mut stream, &script, &received).await;
-                            }
+                            let stream = ownership::accept_tls(tcp, acceptor, &mut control).await?;
+                            let mut stream = ObservedStream::new(stream, control);
+                            serve_connection(&mut stream, &script, &received).await
                         }
                         None => {
                             let mut stream = ObservedStream::new(tcp, control);
-                            serve_connection(&mut stream, &script, &received).await;
+                            serve_connection(&mut stream, &script, &received).await
                         }
                     }
                 });
+                let abort = child.abort_handle();
+                children.push(AcceptedChild {
+                    peer: child,
+                    state: state.clone(),
+                    abort_requested: false,
+                });
+                drop(registry);
 
                 if let Some(state) = state {
-                    state.send_modify(|state| state.abort = Some(child.abort_handle()));
+                    state.send_modify(|state| state.abort = Some(abort));
                 }
             }
         });
@@ -118,6 +159,7 @@ impl ScriptedServer {
             address,
             received,
             task,
+            children,
         })
     }
 
@@ -125,22 +167,88 @@ impl ScriptedServer {
         format!("{scheme}://{}{path}", self.address)
     }
 
-    fn received(&self) -> Vec<ReceivedRequest> {
-        match self.received.lock() {
-            Ok(received) => received.clone(),
-            Err(poisoned) => poisoned.into_inner().clone(),
+    fn received(&self) -> TestResult<Vec<ReceivedRequest>> {
+        Ok(self
+            .received
+            .lock()
+            .map_err(|_| "status retry request log was poisoned")?
+            .clone())
+    }
+
+    fn take_children(&self) -> (Vec<AcceptedChild>, TestResult) {
+        match self.children.lock() {
+            Ok(mut children) => (children.take(), Ok(())),
+            Err(poisoned) => (
+                poisoned.into_inner().take(),
+                Err("status retry accepted child owner lock was poisoned".into()),
+            ),
         }
     }
 
-    async fn finish(self, caller: TestResult) -> TestResult {
-        drop(self);
-        caller
+    async fn finish(mut self, caller: TestResult) -> TestResult {
+        let (mut children, mut cleanup) = self.take_children();
+        let deadline = Instant::now() + CLEANUP_LIMIT;
+        let coordinator_abort_requested = !self.task.is_finished();
+        if coordinator_abort_requested {
+            self.task.abort();
+        }
+
+        for child in &mut children {
+            child.abort_requested = child
+                .state
+                .as_ref()
+                .is_some_and(|state| state.borrow().backup_requested());
+            if !child.peer.is_finished() {
+                child.abort_requested = true;
+                child.peer.abort();
+            }
+        }
+
+        let coordinator = observe_peer(
+            &mut self.task,
+            coordinator_abort_requested,
+            deadline,
+            "status retry coordinator cleanup exceeded its deadline",
+        )
+        .await;
+        cleanup = finish_with_cleanup(cleanup, coordinator);
+
+        for mut child in children {
+            let result = observe_peer(
+                &mut child.peer,
+                child.abort_requested,
+                deadline,
+                "status retry accepted child cleanup exceeded its deadline",
+            )
+            .await;
+            cleanup = finish_with_cleanup(cleanup, result);
+        }
+
+        finish_with_cleanup(caller, cleanup)
     }
 }
 
 impl Drop for ScriptedServer {
     fn drop(&mut self) {
         self.task.abort();
+
+        // Drop cannot report poison; recover the owners solely to stop their tasks.
+        let (children, _failure) = self.take_children();
+        drop(children);
+    }
+}
+
+async fn observe_peer(
+    peer: &mut ConnectionPeer<TestResult>,
+    abort_requested: bool,
+    deadline: Instant,
+    purpose: &'static str,
+) -> TestResult {
+    match timeout_at(deadline, peer).await {
+        Ok(Ok(result)) => result,
+        Ok(Err(error)) if abort_requested && error.is_cancelled() => Ok(()),
+        Ok(Err(error)) => Err(error.into()),
+        Err(elapsed) => Err(FixtureDeadline::new(purpose, elapsed).into()),
     }
 }
 
@@ -148,32 +256,68 @@ async fn serve_connection<S>(
     stream: &mut S,
     script: &Mutex<VecDeque<Vec<u8>>>,
     received: &Mutex<Vec<ReceivedRequest>>,
-) where
+) -> TestResult
+where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     loop {
-        let Ok(request) = read_request(stream).await else {
-            return;
+        let Some(request) = read_next_request(stream).await? else {
+            return Ok(());
         };
-        if let Ok(mut received) = received.lock() {
-            received.push(request);
-        }
-        let response = script.lock().ok().and_then(|mut script| script.pop_front());
-        let Some(response) = response else {
-            return;
-        };
+
+        received
+            .lock()
+            .map_err(|_| "status retry request log was poisoned")?
+            .push(request);
+
+        let response = script
+            .lock()
+            .map_err(|_| "status retry response script was poisoned")?
+            .pop_front()
+            .ok_or("status retry response script was exhausted")?;
+
         // The client may retire a connection whose body it dropped unread.
         if let Err(error) = stream.write_all(&response).await {
-            assert!(
-                is_peer_gone(&error),
-                "unexpected server write error: {error}"
-            );
-            return;
+            if matches!(
+                error.kind(),
+                io::ErrorKind::BrokenPipe
+                    | io::ErrorKind::ConnectionReset
+                    | io::ErrorKind::ConnectionAborted
+            ) {
+                return Ok(());
+            }
+
+            return Err(error.into());
         }
-        if stream.flush().await.is_err() {
-            return;
+
+        stream.flush().await?;
+    }
+}
+
+async fn read_next_request<S>(stream: &mut S) -> io::Result<Option<ReceivedRequest>>
+where
+    S: AsyncRead + Unpin,
+{
+    // The shared head reader does not expose whether EOF followed partial input.
+    let mut bytes = Vec::new();
+    let mut byte = [0_u8; 1];
+    while !bytes.ends_with(b"\r\n\r\n") {
+        if bytes.len() == 32 * 1024 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "request head exceeded test bound",
+            ));
+        }
+
+        match stream.read_exact(&mut byte).await {
+            Ok(_) => bytes.push(byte[0]),
+            Err(error) if bytes.is_empty() && is_peer_gone(&error) => return Ok(None),
+            Err(error) => return Err(error),
         }
     }
+
+    let head = String::from_utf8_lossy(&bytes).into_owned();
+    read_request_body(stream, head).await.map(Some)
 }
 
 /// Reads one request head and its `Content-Length` body.
@@ -182,7 +326,13 @@ where
     S: AsyncRead + Unpin,
 {
     let head = String::from_utf8_lossy(&read_head(stream).await?).into_owned();
+    read_request_body(stream, head).await
+}
 
+async fn read_request_body<S>(stream: &mut S, head: String) -> io::Result<ReceivedRequest>
+where
+    S: AsyncRead + Unpin,
+{
     let length = head
         .to_ascii_lowercase()
         .split("\r\n")
@@ -235,7 +385,7 @@ async fn status_retry_is_disabled_by_default() -> TestResult {
             .await?;
 
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-        assert_eq!(request_lines(&server.received()), ["GET / HTTP/1.1"]);
+        assert_eq!(request_lines(&server.received()?), ["GET / HTTP/1.1"]);
         Ok(())
     }
     .await;
@@ -264,7 +414,7 @@ async fn configured_503_is_retried_for_get_and_returns_final_response() -> TestR
         assert_eq!(info.protocol(), HttpProtocol::Http1);
         assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
         assert_eq!(
-            request_lines(&server.received()),
+            request_lines(&server.received()?),
             ["GET /resource HTTP/1.1", "GET /resource HTTP/1.1"]
         );
         assert_eq!(subscriber.status_retries_for("client.request"), [1]);
@@ -298,7 +448,7 @@ async fn status_retry_repeats_idempotent_owned_body_requests() -> TestResult {
 
         assert_eq!(response.status(), StatusCode::OK);
 
-        let received = server.received();
+        let received = server.received()?;
         assert_eq!(
             request_lines(&received),
             ["PUT /item HTTP/1.1", "PUT /item HTTP/1.1"]
@@ -334,7 +484,7 @@ async fn status_retry_skips_non_idempotent_methods() -> TestResult {
                 StatusCode::SERVICE_UNAVAILABLE,
                 "{method}"
             );
-            assert_eq!(server.received().len(), 1, "{method} was retried");
+            assert_eq!(server.received()?.len(), 1, "{method} was retried");
             Ok(())
         }
         .await;
@@ -361,7 +511,7 @@ async fn status_retry_repeats_a_buffered_streaming_body() -> TestResult {
 
         assert_eq!(response.status(), StatusCode::OK);
 
-        let received = server.received();
+        let received = server.received()?;
         assert_eq!(
             request_lines(&received),
             ["PUT /upload HTTP/1.1", "PUT /upload HTTP/1.1"]
@@ -398,7 +548,7 @@ async fn status_retry_with_streaming_body_returns_original_response() -> TestRes
             .await?;
 
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-        assert_eq!(request_lines(&server.received()), ["PUT /upload HTTP/1.1"]);
+        assert_eq!(request_lines(&server.received()?), ["PUT /upload HTTP/1.1"]);
         Ok(())
     }
     .await;
@@ -424,7 +574,7 @@ async fn retry_after_delta_seconds_is_honoured_within_cap() -> TestResult {
         assert_eq!(response.status(), StatusCode::OK);
         assert!(waited >= Duration::from_secs(30), "waited {waited:?}");
         assert!(waited < Duration::from_secs(31), "waited {waited:?}");
-        assert_eq!(server.received().len(), 2);
+        assert_eq!(server.received()?.len(), 2);
         Ok(())
     }
     .await;
@@ -452,7 +602,7 @@ async fn retry_after_http_date_is_honoured_within_cap() -> TestResult {
         assert_eq!(response.status(), StatusCode::OK);
         assert!(waited >= Duration::from_secs(28), "waited {waited:?}");
         assert!(waited <= Duration::from_secs(30), "waited {waited:?}");
-        assert_eq!(server.received().len(), 2);
+        assert_eq!(server.received()?.len(), 2);
         Ok(())
     }
     .await;
@@ -479,7 +629,7 @@ async fn retry_after_beyond_cap_returns_response_without_waiting() -> TestResult
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         assert_eq!(response.headers()["retry-after"], "120");
         assert!(started.elapsed() < Duration::from_secs(1));
-        assert_eq!(server.received().len(), 1);
+        assert_eq!(server.received()?.len(), 1);
         assert!(subscriber.status_retries_for("client.request").is_empty());
         Ok(())
     }
@@ -521,7 +671,7 @@ async fn status_retry_delay_observes_total_deadline() -> TestResult {
 
             assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
             assert!(started.elapsed() < Duration::from_secs(5));
-            assert_eq!(server.received().len(), 1, "a retry reached the server");
+            assert_eq!(server.received()?.len(), 1, "a retry reached the server");
             assert!(subscriber.status_retries_for("client.request").is_empty());
             Ok(())
         }
@@ -547,7 +697,7 @@ async fn status_retry_delay_within_total_deadline_still_retries() -> TestResult 
             .await?;
 
         assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(server.received().len(), 2);
+        assert_eq!(server.received()?.len(), 2);
         Ok(())
     }
     .await;
@@ -571,7 +721,7 @@ async fn status_retry_learns_cookies_from_intermediate_responses() -> TestResult
             .await?;
 
         assert_eq!(response.status(), StatusCode::OK);
-        let received = server.received();
+        let received = server.received()?;
         assert_eq!(received.len(), 2);
         assert!(!received[0].head.contains("\r\nCookie:"));
         assert!(
@@ -604,7 +754,7 @@ async fn status_retry_exhaustion_returns_last_response() -> TestResult {
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         assert_eq!(response.headers()["x-attempt"], "three");
         assert_eq!(response.into_body().collect().await?.to_bytes(), "busy!");
-        assert_eq!(server.received().len(), 3);
+        assert_eq!(server.received()?.len(), 3);
         assert_eq!(subscriber.status_retries_for("client.request"), [1, 2]);
         Ok(())
     }
@@ -640,7 +790,7 @@ async fn status_retry_budget_is_shared_across_redirect_hops() -> TestResult {
         assert_eq!(info.redirects_followed(), 1);
         assert_eq!(info.effective_uri().path(), "/next");
         assert_eq!(
-            request_lines(&server.received()),
+            request_lines(&server.received()?),
             ["GET / HTTP/1.1", "GET / HTTP/1.1", "GET /next HTTP/1.1"]
         );
         Ok(())
@@ -671,7 +821,7 @@ async fn negotiated_status_retry_repeats_on_the_selected_protocol() -> TestResul
             .ok_or("response omitted metadata")?;
         assert_eq!(info.protocol(), HttpProtocol::Http1);
         assert_eq!(
-            request_lines(&server.received()),
+            request_lines(&server.received()?),
             ["GET /negotiated HTTP/1.1", "GET /negotiated HTTP/1.1"]
         );
         Ok(())
@@ -756,7 +906,7 @@ async fn zero_shared_cap_returns_the_complete_retryable_response() -> TestResult
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         assert_eq!(response.headers()["content-length"], "0");
         assert!(response.into_body().collect().await?.to_bytes().is_empty());
-        assert_eq!(server.received().len(), 1);
+        assert_eq!(server.received()?.len(), 1);
         Ok(())
     }
     .await;

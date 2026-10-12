@@ -4,7 +4,10 @@ use std::{
     future::{Future, poll_fn},
     io,
     pin::Pin,
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     task::{Context, Poll, ready},
     time::Duration,
 };
@@ -32,6 +35,13 @@ pub(super) struct State {
     flushed: bool,
     fault_taken: bool,
     destroyed: bool,
+    backup_requested: Arc<AtomicBool>,
+}
+
+impl State {
+    pub(super) fn backup_requested(&self) -> bool {
+        self.backup_requested.load(Ordering::Acquire)
+    }
 }
 
 #[derive(Debug)]
@@ -47,12 +57,20 @@ impl Error for ServingFailure {}
 
 enum Mode {
     Healthy,
+    FailRead,
+    FailWrite,
     FailFlush,
+}
+
+enum ServingFault {
+    Read(io::Error),
+    Write(io::Error),
+    Flush(io::Error),
 }
 
 pub(super) struct Control {
     state: watch::Sender<State>,
-    flush_failure: Option<io::Error>,
+    fault: Option<ServingFault>,
 }
 
 pub(super) struct Lifetime(watch::Sender<State>);
@@ -112,11 +130,22 @@ impl<S: AsyncRead + Unpin> AsyncRead for ObservedStream<S> {
         buffer: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
         let this = self.get_mut();
+        let filled = buffer.filled().len();
         let result = Pin::new(&mut this.stream).poll_read(context, buffer);
         if result.is_pending()
             && let Some(control) = &this.control
         {
             control.state.send_modify(|state| state.read_pending = true);
+        }
+
+        if matches!(result, Poll::Ready(Ok(())))
+            && buffer.filled().len() > filled
+            && let Some(control) = &mut this.control
+            && matches!(&control.fault, Some(ServingFault::Read(_)))
+            && let Some(ServingFault::Read(error)) = control.fault.take()
+        {
+            control.state.send_modify(|state| state.fault_taken = true);
+            return Poll::Ready(Err(error));
         }
 
         result
@@ -129,7 +158,19 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for ObservedStream<S> {
         context: &mut Context<'_>,
         bytes: &[u8],
     ) -> Poll<io::Result<usize>> {
-        Pin::new(&mut self.get_mut().stream).poll_write(context, bytes)
+        let this = self.get_mut();
+        let result = Pin::new(&mut this.stream).poll_write(context, bytes);
+
+        if matches!(result, Poll::Ready(Ok(count)) if count > 0)
+            && let Some(control) = &mut this.control
+            && matches!(&control.fault, Some(ServingFault::Write(_)))
+            && let Some(ServingFault::Write(error)) = control.fault.take()
+        {
+            control.state.send_modify(|state| state.fault_taken = true);
+            return Poll::Ready(Err(error));
+        }
+
+        result
     }
 
     fn poll_flush(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
@@ -139,7 +180,9 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for ObservedStream<S> {
         if let Some(control) = &mut this.control {
             control.state.send_modify(|state| state.flushed = true);
 
-            if let Some(error) = control.flush_failure.take() {
+            if matches!(&control.fault, Some(ServingFault::Flush(_)))
+                && let Some(ServingFault::Flush(error)) = control.fault.take()
+            {
                 // The real response bytes were flushed before this fault.
                 control.state.send_modify(|state| state.fault_taken = true);
                 return Poll::Ready(Err(error));
@@ -171,18 +214,21 @@ impl Observation {
     fn control(mode: Mode) -> (Control, Self) {
         let (state, received) = watch::channel(State::default());
         let marker = Arc::new(());
-        let flush_failure = matches!(mode, Mode::FailFlush).then(|| {
+        let failure = || {
             io::Error::new(
                 io::ErrorKind::PermissionDenied,
                 ServingFailure(Arc::clone(&marker)),
             )
-        });
+        };
+        let fault = match mode {
+            Mode::Healthy => None,
+            Mode::FailRead => Some(ServingFault::Read(failure())),
+            Mode::FailWrite => Some(ServingFault::Write(failure())),
+            Mode::FailFlush => Some(ServingFault::Flush(failure())),
+        };
 
         (
-            Control {
-                state,
-                flush_failure,
-            },
+            Control { state, fault },
             Self {
                 state: received,
                 marker,
@@ -232,6 +278,11 @@ impl Observation {
             .clone()
             .ok_or("child was not accepted")?;
 
+        // This records only the explicit backup abort, not observed completion.
+        self.state
+            .borrow()
+            .backup_requested
+            .store(true, Ordering::Release);
         abort.abort();
 
         self.wait(
@@ -246,6 +297,10 @@ impl Observation {
             .err()
             .ok_or("status-retry serving failure was discarded")?;
 
+        self.serving_cause(error.as_ref())
+    }
+
+    fn serving_cause(&self, error: &(dyn Error + Send + Sync)) -> TestResult {
         let io = error
             .downcast_ref::<io::Error>()
             .ok_or("missing original serving I/O cause")?;
@@ -297,9 +352,12 @@ mod tests {
     use http::StatusCode;
     use http_body_util::BodyExt;
     use phantom::{HttpProtocol, RequestError, RequestErrorKind};
+    use tokio::{io::AsyncWriteExt, task::JoinError, time::timeout};
 
     use super::super::{H1_ALPN, OK, TestIdentity, plain_builder, request_lines};
-    use super::{Mode, Observation, ScriptedServer, TestResult, pending};
+    use super::{LIMIT, Mode, Observation, ScriptedServer, TestResult, pending};
+    use crate::support::deadline::FixtureDeadline;
+    use crate::support::tunnel_proxy::connection_peer::FixtureFailures;
     use crate::support::tunnel_proxy::finish_with_cleanup;
 
     #[tokio::test]
@@ -379,6 +437,159 @@ mod tests {
         observation.serving_error(server.finish(caller).await)
     }
 
+    #[tokio::test]
+    async fn completion_retains_actual_read_and_write_faults_and_caller_results() -> TestResult {
+        for mode in [Mode::FailRead, Mode::FailWrite] {
+            let (control, mut observation) = Observation::control(mode);
+            let server = ScriptedServer::start_observed(&[OK], None, Some(control)).await?;
+
+            let caller = exchange(&server).await;
+            observation
+                .wait(
+                    "status retry read or write fault consumption exceeded its deadline",
+                    |state| state.fault_taken && state.destroyed,
+                )
+                .await?;
+
+            let error = server
+                .finish(caller)
+                .await
+                .err()
+                .ok_or("serving fault was lost")?;
+            let cause = match error.downcast_ref::<FixtureFailures>() {
+                Some(failures) => {
+                    assert!(failures.primary.is::<RequestError>());
+                    failures.cleanup.as_ref()
+                }
+                None => error.as_ref(),
+            };
+            observation.serving_cause(cause)?;
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn fresh_eof_is_clean_but_partial_request_heads_and_bodies_fail() -> TestResult {
+        let cases: [&[u8]; 3] = [
+            b"",
+            b"GET /unfinished",
+            b"PUT /truncated HTTP/1.1\r\nContent-Length: 7\r\n\r\npay",
+        ];
+
+        for bytes in cases {
+            let (server, mut stream, mut observation) = pending(None).await?;
+
+            stream.write_all(bytes).await?;
+            stream.shutdown().await?;
+            observation
+                .wait(
+                    "status retry EOF classification child completion exceeded its deadline",
+                    |state| state.destroyed,
+                )
+                .await?;
+            assert!(server.received()?.is_empty());
+
+            let result = server.finish(Ok(())).await;
+            if bytes.is_empty() {
+                result?;
+            } else {
+                let error = result.err().ok_or("truncated request was accepted")?;
+                let io = error
+                    .downcast_ref::<std::io::Error>()
+                    .ok_or("missing truncation I/O cause")?;
+                assert_eq!(io.kind(), std::io::ErrorKind::UnexpectedEof);
+            }
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn completion_retains_a_finished_foreign_child_cancellation() -> TestResult {
+        let (server, _stream, mut observation) = pending(None).await?;
+        let abort = observation
+            .state
+            .borrow()
+            .abort
+            .clone()
+            .ok_or("missing actual child abort")?;
+
+        abort.abort();
+        observation
+            .wait(
+                "status retry foreign child cancellation destruction exceeded its deadline",
+                |state| state.destroyed,
+            )
+            .await?;
+        timeout(LIMIT, async {
+            while !abort.is_finished() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .map_err(|elapsed| {
+            FixtureDeadline::new("status retry foreign child did not finish", elapsed)
+        })?;
+
+        let error = server
+            .finish(Ok(()))
+            .await
+            .err()
+            .ok_or("foreign cancellation was hidden")?;
+        let join = error
+            .downcast_ref::<JoinError>()
+            .ok_or("missing original child JoinError")?;
+        assert!(join.is_cancelled());
+        assert_eq!(join.id(), abort.id());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn completion_retains_both_caller_failure_and_original_flush_failure() -> TestResult {
+        let (control, mut observation) = Observation::control(Mode::FailFlush);
+        let server = ScriptedServer::start_observed(&[OK], None, Some(control)).await?;
+
+        exchange(&server).await?;
+        observation
+            .wait(
+                "status retry paired flush fault consumption exceeded its deadline",
+                |state| state.fault_taken && state.destroyed,
+            )
+            .await?;
+
+        let caller: TestResult = async {
+            let client = plain_builder().build()?;
+
+            let _response = client
+                .get(HttpProtocol::Http1, "http://127.0.0.1/invalid uri")?
+                .send()
+                .await?;
+            Ok(())
+        }
+        .await;
+
+        let error = server
+            .finish(caller)
+            .await
+            .err()
+            .ok_or("paired failures were lost")?;
+        let failures = error
+            .downcast_ref::<FixtureFailures>()
+            .ok_or("missing both original causes")?;
+
+        let request = failures
+            .primary
+            .downcast_ref::<RequestError>()
+            .ok_or("caller cause changed")?;
+        assert_eq!(request.kind(), RequestErrorKind::InvalidUri);
+        assert!(
+            request
+                .source()
+                .is_some_and(|source| source.is::<http::uri::InvalidUri>())
+        );
+
+        observation.serving_cause(failures.cleanup.as_ref())
+    }
+
     async fn drop_pending(acceptor: Option<SslAcceptor>) -> TestResult {
         let (server, mut stream, mut observation) = pending(acceptor).await?;
 
@@ -448,7 +659,7 @@ mod tests {
         assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
 
         assert_eq!(
-            request_lines(&server.received()),
+            request_lines(&server.received()?),
             ["GET /observed HTTP/1.1"]
         );
         Ok(())
