@@ -351,7 +351,7 @@ type JoinedOutcome = Result<SendOutcome, JoinError>;
 
 enum QueuedSlot {
     Pending(ConnectionPeer<SendOutcome>),
-    Ready(JoinedOutcome),
+    Ready(Box<JoinedOutcome>),
     Consumed,
 }
 
@@ -371,7 +371,7 @@ impl QueuedSlot {
             Poll::Pending => return Poll::Pending,
         };
 
-        *self = Self::Ready(result);
+        *self = Self::Ready(Box::new(result));
         if let Some(observed) = observed {
             observed.0.send_modify(|state| state.joined[index] = true);
         }
@@ -388,7 +388,7 @@ impl QueuedSlot {
             return Err("original HTTP/1 queued result missing after join".into());
         };
 
-        match result {
+        match *result {
             Ok(Err(error)) if error.kind() == RequestErrorKind::Capacity => Ok(()),
             Ok(Err(error)) => Err(error.into()),
             Ok(Ok(_)) => Err("excess HTTP/1 waiter was admitted".into()),
