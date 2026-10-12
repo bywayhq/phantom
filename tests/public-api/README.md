@@ -23,7 +23,7 @@ Check feature-gated documentation links with default and all-feature builds.
 | `phantom-net` | 1,250 | Protocol connections, routes, resolvers, transport errors |
 | `phantom-profile` | 918 | Browser recipes and typed settings |
 | `phantom-quic-btls` | 191 | Quinn crypto provider, handshake state, typed errors |
-| `phantom-testkit` | 410 | Wire inspection and loopback test tools |
+| `phantom-testkit` | 428 | Wire inspection and loopback test tools |
 
 The QUIC snapshots confirm the nine retired packet-crypto exports are
 absent in all four feature rows. Its intended public dependencies are
@@ -47,7 +47,7 @@ compile checks verify those paths.
 | `phantom-net` | `bytes`, `http`, `http-body`, Tokio I/O, `phantom-profile`, `phantom-quic-btls` |
 | `phantom-profile` | Standard library only |
 | `phantom-quic-btls` | `btls`, `quinn-proto`, `phantom-profile`, `zeroize` (`keylog`) |
-| `phantom-testkit` | Tokio I/O and timers |
+| `phantom-testkit` | Tokio I/O, timers and task errors |
 
 The client runs in Tokio. Backend error causes remain reachable through
 `std::error::Error::source`; their concrete types are not part of the

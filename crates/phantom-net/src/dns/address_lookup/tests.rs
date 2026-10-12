@@ -305,7 +305,8 @@ async fn a_failed_or_empty_lookup_falls_back_to_the_system_resolver() -> TestRes
 
 #[tokio::test]
 async fn sixteen_fallbacks_in_a_row_stop_the_dns_queries() -> TestResult {
-    let mut server = DnsServer::spawn(|_: &DnsQuery| DnsReply::new(DnsAnswer::ServerFailure)).await?;
+    let mut server =
+        DnsServer::spawn(|_: &DnsQuery| DnsReply::new(DnsAnswer::ServerFailure)).await?;
     let lookup = lookup(&server, false)?;
 
     for _ in 0..MAX_FALLBACKS {
@@ -324,7 +325,8 @@ async fn sixteen_fallbacks_in_a_row_stop_the_dns_queries() -> TestResult {
 /// keeps the original's fallback count, so it also stops querying.
 #[tokio::test]
 async fn copies_for_other_udp_settings_share_the_fallback_count() -> TestResult {
-    let mut server = DnsServer::spawn(|_: &DnsQuery| DnsReply::new(DnsAnswer::ServerFailure)).await?;
+    let mut server =
+        DnsServer::spawn(|_: &DnsQuery| DnsReply::new(DnsAnswer::ServerFailure)).await?;
     let plain = lookup(&server, false)?;
     let chromium = plain.with_udp_settings(chrome::v154_udp());
 

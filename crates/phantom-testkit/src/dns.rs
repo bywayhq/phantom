@@ -465,8 +465,12 @@ fn response(query: &DnsQuery, answer: &DnsAnswer) -> io::Result<Option<Vec<u8>>>
         DnsAnswer::Records { ttl, .. } => *ttl,
         _ => 0,
     };
-    let answer_count = u16::try_from(answers.len())
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "DNS answer count exceeds 65535"))?;
+    let answer_count = u16::try_from(answers.len()).map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "DNS answer count exceeds 65535",
+        )
+    })?;
     let mut message = Vec::new();
     message.extend_from_slice(&query.wire[..2]);
     let flags = FLAG_RESPONSE | recursion | FLAG_RECURSION_AVAILABLE | rcode;
@@ -492,8 +496,12 @@ fn response(query: &DnsQuery, answer: &DnsAnswer) -> io::Result<Option<Vec<u8>>>
 }
 
 fn push_record(message: &mut Vec<u8>, record_type: u16, ttl: u32, rdata: &[u8]) -> io::Result<()> {
-    let length = u16::try_from(rdata.len())
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "DNS record data exceeds 65535 bytes"))?;
+    let length = u16::try_from(rdata.len()).map_err(|_| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "DNS record data exceeds 65535 bytes",
+        )
+    })?;
 
     // A compression pointer to the question name at offset 12.
     message.extend_from_slice(&[0xC0, 0x0C]);
@@ -664,10 +672,16 @@ mod tests {
             let mut finishing = pin!(server.finish());
             poll_fn(|context| match finishing.as_mut().poll(context) {
                 Poll::Pending => Poll::Ready(()),
-                Poll::Ready(outcome) => panic!("receiver finished before cancellation: {outcome:?}"),
-            }).await;
+                Poll::Ready(outcome) => {
+                    panic!("receiver finished before cancellation: {outcome:?}")
+                }
+            })
+            .await;
         }
-        assert!(server.task.is_some(), "the cancelled wait lost its receiver owner");
+        assert!(
+            server.task.is_some(),
+            "the cancelled wait lost its receiver owner"
+        );
 
         server.finish().await?;
         assert_eq!(socket.strong_count(), 0);
@@ -678,11 +692,12 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn completion_retains_the_original_responder_panic_payload()
-    -> Result<(), Box<dyn Error>> {
+    async fn completion_retains_the_original_responder_panic_payload() -> Result<(), Box<dyn Error>>
+    {
         let original = Arc::new("original DNS responder panic");
         let raised = Arc::clone(&original);
-        let mut server = DnsServer::spawn(move |_| std::panic::panic_any(Arc::clone(&raised))).await?;
+        let mut server =
+            DnsServer::spawn(move |_| std::panic::panic_any(Arc::clone(&raised))).await?;
         let peer = crate::udp::bind((Ipv4Addr::LOCALHOST, 0).into())?;
         peer.send_to(&query(1, 1), server.address())?;
         wait_for(|| server.task.as_ref().is_some_and(JoinHandle::is_finished)).await;
@@ -695,7 +710,9 @@ mod tests {
             return Err("responder panic lost its original task error".into());
         };
         assert!(error.is_panic());
-        let payload = error.into_panic().downcast::<Arc<&str>>()
+        let payload = error
+            .into_panic()
+            .downcast::<Arc<&str>>()
             .map_err(|_| "responder panic payload changed type")?;
         assert!(Arc::ptr_eq(&payload, &original));
         Ok(())
@@ -705,10 +722,13 @@ mod tests {
     async fn invalid_scripted_replies_report_errors_instead_of_silence()
     -> Result<(), Box<dyn Error>> {
         for rdata in [vec![Vec::new(); 65_536], vec![vec![0; 65_536]]] {
-            let mut server = DnsServer::spawn(move |_| DnsReply::new(DnsAnswer::Records {
-                ttl: 60,
-                rdata: rdata.clone(),
-            })).await?;
+            let mut server = DnsServer::spawn(move |_| {
+                DnsReply::new(DnsAnswer::Records {
+                    ttl: 60,
+                    rdata: rdata.clone(),
+                })
+            })
+            .await?;
             let peer = crate::udp::bind((Ipv4Addr::LOCALHOST, 0).into())?;
             peer.send_to(&query(1, 1), server.address())?;
             wait_for(|| server.task.as_ref().is_some_and(JoinHandle::is_finished)).await;
@@ -726,14 +746,15 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn deliberate_silence_completes_without_a_reply_or_failure()
-    -> Result<(), Box<dyn Error>> {
+    async fn deliberate_silence_completes_without_a_reply_or_failure() -> Result<(), Box<dyn Error>>
+    {
         let answered = Arc::new(AtomicBool::new(false));
         let observed = Arc::clone(&answered);
         let mut server = DnsServer::spawn(move |_| {
             observed.store(true, Ordering::SeqCst);
             DnsReply::new(DnsAnswer::Silence)
-        }).await?;
+        })
+        .await?;
         let peer = crate::udp::bind((Ipv4Addr::LOCALHOST, 0).into())?;
         peer.set_nonblocking(true)?;
         peer.send_to(&query(1, 1), server.address())?;
@@ -741,18 +762,23 @@ mod tests {
 
         server.finish().await?;
         let mut buffer = [0; 512];
-        assert_eq!(peer.recv_from(&mut buffer).err().map(|error| error.kind()),
-            Some(io::ErrorKind::WouldBlock));
+        assert_eq!(
+            peer.recv_from(&mut buffer).err().map(|error| error.kind()),
+            Some(io::ErrorKind::WouldBlock)
+        );
         Ok(())
     }
 
     #[tokio::test(flavor = "current_thread")]
     async fn completion_reports_the_original_oversized_datagram_send_error()
     -> Result<(), Box<dyn Error>> {
-        let mut server = DnsServer::spawn(|_| DnsReply::new(DnsAnswer::Records {
-            ttl: 60,
-            rdata: vec![vec![0; 65_535]],
-        })).await?;
+        let mut server = DnsServer::spawn(|_| {
+            DnsReply::new(DnsAnswer::Records {
+                ttl: 60,
+                rdata: vec![vec![0; 65_535]],
+            })
+        })
+        .await?;
         let peer = crate::udp::bind((Ipv4Addr::LOCALHOST, 0).into())?;
         peer.send_to(&query(1, 1), server.address())?;
         wait_for(|| server.task.as_ref().is_some_and(JoinHandle::is_finished)).await;
@@ -765,8 +791,13 @@ mod tests {
         };
         assert_eq!(*operation, "send DNS reply");
         assert!(source.raw_os_error().is_some());
-        assert!(std::ptr::eq(failure.source().and_then(|error| error.downcast_ref::<io::Error>())
-            .ok_or("UDP failure source lost its concrete I/O error")?, source));
+        assert!(std::ptr::eq(
+            failure
+                .source()
+                .and_then(|error| error.downcast_ref::<io::Error>())
+                .ok_or("UDP failure source lost its concrete I/O error")?,
+            source
+        ));
         Ok(())
     }
 }

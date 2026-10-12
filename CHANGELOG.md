@@ -1126,6 +1126,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Observe DNS fixture failures with `phantom_testkit::dns::DnsServer::finish`.
+  It stops new queries, cancels pending replies and returns original receiver,
+  reply-building, send and task errors. Cancelled or timed-out waits retain
+  the task for another completion wait.
+
 - Resolve relative HTTP request URLs with `ClientBuilder::base_url`.
   Standard URL joining applies, and absolute request URLs override the base.
 - Run ordered caller-header hooks through `ClientBuilder::header_hook` and

@@ -11,6 +11,23 @@ pub phantom_testkit::dns::DnsAnswer::Records::rdata: alloc::vec::Vec<alloc::vec:
 pub phantom_testkit::dns::DnsAnswer::Records::ttl: u32
 pub phantom_testkit::dns::DnsAnswer::ServerFailure
 pub phantom_testkit::dns::DnsAnswer::Silence
+pub enum phantom_testkit::dns::DnsServerError
+pub phantom_testkit::dns::DnsServerError::Background(alloc::vec::Vec<phantom_testkit::dns::DnsServerFailure>)
+pub phantom_testkit::dns::DnsServerError::Deadline(tokio::time::error::Elapsed)
+pub phantom_testkit::dns::DnsServerError::Task(tokio::runtime::task::error::JoinError)
+impl core::error::Error for phantom_testkit::dns::DnsServerError
+pub fn phantom_testkit::dns::DnsServerError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom_testkit::dns::DnsServerError
+pub fn phantom_testkit::dns::DnsServerError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub enum phantom_testkit::dns::DnsServerFailure
+pub phantom_testkit::dns::DnsServerFailure::Io
+pub phantom_testkit::dns::DnsServerFailure::Io::operation: &'static str
+pub phantom_testkit::dns::DnsServerFailure::Io::source: core::io::error::Error
+pub phantom_testkit::dns::DnsServerFailure::Task(tokio::runtime::task::error::JoinError)
+impl core::error::Error for phantom_testkit::dns::DnsServerFailure
+pub fn phantom_testkit::dns::DnsServerFailure::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom_testkit::dns::DnsServerFailure
+pub fn phantom_testkit::dns::DnsServerFailure::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_testkit::dns::DnsQuery
 impl phantom_testkit::dns::DnsQuery
 pub fn phantom_testkit::dns::DnsQuery::counts(&self) -> [u16; 4]
@@ -25,6 +42,7 @@ pub const fn phantom_testkit::dns::DnsReply::new(phantom_testkit::dns::DnsAnswer
 pub struct phantom_testkit::dns::DnsServer
 impl phantom_testkit::dns::DnsServer
 pub const fn phantom_testkit::dns::DnsServer::address(&self) -> core::net::socket_addr::SocketAddr
+pub async fn phantom_testkit::dns::DnsServer::finish(&mut self) -> core::result::Result<(), phantom_testkit::dns::DnsServerError>
 pub fn phantom_testkit::dns::DnsServer::queries(&self) -> alloc::vec::Vec<phantom_testkit::dns::DnsQuery>
 pub async fn phantom_testkit::dns::DnsServer::spawn(impl core::ops::function::Fn(&phantom_testkit::dns::DnsQuery) -> phantom_testkit::dns::DnsReply + core::marker::Send + core::marker::Sync + 'static) -> core::io::error::Result<Self>
 impl core::fmt::Debug for phantom_testkit::dns::DnsServer
