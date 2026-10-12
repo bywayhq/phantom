@@ -21,8 +21,40 @@ class FailedRejection(LimitedCapture):
         self.rejected = []
         self.rejected_readers = []
         self.accepted = asyncio.Event()
+        self.rejection_server = None
         self.owned_before_cleanup = None
         self.errors_before_cleanup = None
+
+    def install(self):
+        super().install()
+        actual_accept = race.Http2Origin.accept
+        resources = self.peer.resources
+
+        def accept(owner, reader, writer):
+            if owner is self.rejection_server:
+                self.rejected.append(writer)
+                if len(self.rejected) <= 2:
+                    actual_abort = writer.transport.abort
+                    attempted = False
+
+                    def abort():
+                        nonlocal attempted
+                        self.abort_calls.append(writer)
+                        if not attempted:
+                            attempted = True
+                            raise self.abort_error
+
+                        actual_abort()
+
+                    resources.stack.enter_context(
+                        patch.object(writer.transport, "abort", abort)
+                    )
+
+            actual_accept(owner, reader, writer)
+            if owner is self.rejection_server:
+                self.accepted.set()
+
+        resources.stack.enter_context(patch.object(race.Http2Origin, "accept", accept))
 
     async def capture(self):
         controls = self
@@ -54,7 +86,6 @@ class FailedRejection(LimitedCapture):
                     )
 
                 actual_close = server.server.close
-                actual_accept = race.Http2Origin.accept
 
                 def close_listener():
                     controls.close_calls += 1
@@ -63,35 +94,11 @@ class FailedRejection(LimitedCapture):
 
                     actual_close()
 
-                def accept(owner, reader, writer):
-                    if owner is server:
-                        controls.rejected.append(writer)
-                        if len(controls.rejected) <= 2:
-                            actual_abort = writer.transport.abort
-                            attempted = False
-
-                            def abort():
-                                nonlocal attempted
-                                controls.abort_calls.append(writer)
-                                if not attempted:
-                                    attempted = True
-                                    raise controls.abort_error
-
-                                actual_abort()
-
-                            resources.stack.enter_context(
-                                patch.object(writer.transport, "abort", abort)
-                            )
-
-                    actual_accept(owner, reader, writer)
-                    controls.accepted.set()
-
                 resources.stack.enter_context(
                     patch.object(server.server, "close", close_listener)
                 )
-                resources.stack.enter_context(
-                    patch.object(race.Http2Origin, "accept", accept)
-                )
+                controls.rejection_server = server
+
                 for _ in range(3):
                     controls.accepted.clear()
                     reader, writer = await asyncio.wait_for(
