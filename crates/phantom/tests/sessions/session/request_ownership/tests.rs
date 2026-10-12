@@ -16,7 +16,7 @@ use crate::support::{
 use super::{
     H2_ALPN, HeldState, HoldObservation, Ipv4Addr, RequestControl, RequestObservation,
     RequestState, ResponseHold, TEST_TIMEOUT, TestIdentity, TestResult, bounded, cold_requests,
-    finish_cold, independent_requests, reuse_ownership, test_client,
+    finish_cold, independent_requests, reuse_ownership, test_client, timed_cold_requests,
 };
 
 const LIMIT: Duration = Duration::from_secs(5);
@@ -320,6 +320,61 @@ async fn cold_caller_error_keeps_its_completed_original_h2_serving_cause() -> Te
         assert_eq!(io.kind(), io::ErrorKind::PermissionDenied);
         assert_eq!(io.to_string(), FAILURE);
         Ok(())
+    }
+    .await;
+
+    finish_with_cleanup(primary, fixture.stop().await)
+}
+
+#[tokio::test]
+async fn completed_request_error_and_actual_caller_deadline_keep_both_causes() -> TestResult<()> {
+    let mut fixture = Fixture::start(Mode::Cold, 1, None).await?;
+    fixture.targets([
+        INVALID_URI.to_owned(),
+        format!("https://{}/second", fixture.address),
+    ])?;
+    let session = test_client(&fixture.identity, true)?;
+    let mut caller = Box::pin(timed_cold_requests(
+        tokio::time::Instant::now() + TEST_TIMEOUT,
+        &session,
+        fixture.address,
+        fixture.control.take(),
+    ));
+    let primary: TestResult<()> = async {
+        fixture.pending(&mut caller, [false, true], &[1]).await?;
+        fixture.ready(&mut caller, [true, false]).await?;
+        fixture.original_syntax_failure()?;
+
+        let error = timeout(TEST_TIMEOUT + LIMIT, &mut caller)
+            .await?
+            .err()
+            .ok_or("held original requests completed before the caller deadline")?;
+
+        let failures = error
+            .downcast_ref::<FixtureFailures>()
+            .ok_or("caller deadline discarded the completed original request error")?;
+        retains_request(failures.primary.as_ref(), RequestErrorKind::InvalidUri)?;
+
+        let deadline = failures
+            .cleanup
+            .downcast_ref::<FixtureDeadline>()
+            .ok_or("original caller deadline type changed")?;
+        assert!(
+            std::error::Error::source(deadline)
+                .is_some_and(|source| source.is::<tokio::time::error::Elapsed>())
+        );
+        Ok(())
+    }
+    .await;
+
+    drop(caller);
+    drop(session);
+
+    let primary: TestResult<()> = async {
+        primary?;
+        fixture.requests_destroyed([true, true]).await?;
+        fixture.cold_result(Ok(())).await?;
+        fixture.closed().await
     }
     .await;
 

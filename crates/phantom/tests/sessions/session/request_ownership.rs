@@ -208,6 +208,17 @@ async fn cold_requests(
     Ok(())
 }
 
+async fn timed_cold_requests(
+    deadline: Instant,
+    session: &Client,
+    address: SocketAddr,
+    control: Option<RequestControl>,
+) -> TestResult<()> {
+    timeout_at(deadline, cold_requests(session, address, control))
+        .await
+        .map_err(|elapsed| FixtureDeadline::new("session test exceeded its deadline", elapsed))?
+}
+
 async fn independent_requests(
     first_client: Client,
     second_client: Client,
