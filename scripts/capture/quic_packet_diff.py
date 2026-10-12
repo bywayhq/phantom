@@ -22,6 +22,7 @@ from aioquic.quic.packet import (
 )
 from aioquic.tls import CipherSuite
 
+from .quic_crypto import validate_protected_packet
 from .quic_flight import PacketSummary
 from .quic_summary import (
     FrameKind,
@@ -272,6 +273,7 @@ class QuicPacketCapture:
                     packet_end = packet_start + header.packet_length
                     packet = bytes(datagram[packet_start:packet_end])
                     buf.seek(packet_end)
+                    validate_protected_packet(packet, encrypted_offset)
 
                     space = _packet_space(header.packet_type)
                     if header.version is not None:
