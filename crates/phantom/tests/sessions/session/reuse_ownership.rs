@@ -105,6 +105,7 @@ pub(super) struct Stream {
     stream: SslStream<TcpStream>,
     control: Option<Control>,
     held: Option<request_ownership::HoldObservation>,
+    peer_eof: bool,
 }
 
 impl Stream {
@@ -113,6 +114,7 @@ impl Stream {
             stream,
             control,
             held: None,
+            peer_eof: false,
         }
     }
 
@@ -152,6 +154,10 @@ impl AsyncRead for Stream {
         let before = buffer.filled().len();
         let can_read = buffer.remaining() != 0;
         let result = Pin::new(&mut this.stream).poll_read(context, buffer);
+        if matches!(&result, Poll::Ready(Ok(()))) && can_read && before == buffer.filled().len() {
+            this.peer_eof = true;
+        }
+
         if let Some(held) = &this.held {
             match &result {
                 Poll::Pending => held.read_pending(),
@@ -218,7 +224,14 @@ impl AsyncWrite for Stream {
 
     fn poll_shutdown(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
         let this = self.get_mut();
-        let result = Pin::new(&mut this.stream).poll_shutdown(context);
+        // Held requests can end by dropping their clients. After read EOF,
+        // finish TCP shutdown without writing a new TLS close_notify to them.
+        // H2 still flushes its codec, and the original shutdown result survives.
+        let result = if this.held.is_some() && this.peer_eof {
+            Pin::new(this.stream.get_mut()).poll_shutdown(context)
+        } else {
+            Pin::new(&mut this.stream).poll_shutdown(context)
+        };
         if let Poll::Ready(Err(error)) = &result
             && let Some(held) = &this.held
         {
