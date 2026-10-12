@@ -14,6 +14,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Retain original HTTP/2 transport errors across the connection and its
+  failed streams, including typed causes and operating-system codes.
+  Migrate: direct users of the HTTP/2 fork must handle
+  `Error::into_io()` as `Option<Arc<io::Error>>`, or borrow the original
+  with `get_io()`. Update exact HTTP/2 and protocol-fork pins to
+  `-phantom.16`. Protocol adapters retain the original error in their
+  source chain.
+
 - Bound Alt-Svc race captures to 32 lifetime connections, 32 UDP peers,
   512 requests and page results each, and a 64 KiB request target. A run
   that exceeds a limit fails without writing its fixture. Migrate: split

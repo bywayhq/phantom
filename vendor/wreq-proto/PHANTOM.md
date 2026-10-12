@@ -21,7 +21,7 @@ This directory is the complete crates.io source for `wreq-proto` version
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
 renames the package (`wreq-proto` becomes `phantom-wreq-proto` at
-`0.2.5-phantom.15`), keeps the upstream library name so source, tests, and
+`0.2.5-phantom.16`), keeps the upstream library name so source, tests, and
 examples are unchanged, and points the repository metadata at Phantom. It
 removes the upstream documentation link, keeps Cargo's reserved archive files
 out of the packaged crate, and records the upstream package, version, and
@@ -37,6 +37,13 @@ content changes without an upstream version change, and update the exact pins
 in the root `Cargo.toml` and in every renamed dependent.
 
 ## Why this patch exists
+
+`h2-io-error-causes.patch` retains the HTTP/2 error when converting it into
+a protocol or upgraded-stream error. Its source chain exposes the shared
+original transport error. An upgraded stream's outer `io::Error` preserves
+the original kind. Its `raw_os_error()` returns `None`; inspect the retained
+HTTP/2 cause through `get_io()` or the source chain for the original typed
+payload and native error code. No text reconstruction is used.
 
 The stock chunked-body decoder bounds cumulative extension bytes but does not
 bound the complete chunk-size line. An arbitrarily long sequence of leading
@@ -94,6 +101,7 @@ candidate="$refresh_dir/wreq-proto-$wreq_proto_version"
 for source in \
   src/error.rs \
   src/proto/http1.rs \
+  src/proto/http2.rs \
   src/conn/http1.rs \
     src/proto/http1/conn.rs \
     src/proto/http1/decode.rs \

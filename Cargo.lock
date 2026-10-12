@@ -1412,7 +1412,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-http2"
-version = "0.5.20-phantom.15"
+version = "0.5.20-phantom.16"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -1564,7 +1564,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-wreq-proto"
-version = "0.2.5-phantom.15"
+version = "0.2.5-phantom.16"
 dependencies = [
  "bytes",
  "futures-channel",

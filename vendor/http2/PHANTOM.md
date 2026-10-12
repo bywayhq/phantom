@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.15`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.16`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -33,6 +33,15 @@ content changes without an upstream version change, and update the exact pins
 in the root `Cargo.toml` and in every renamed dependent.
 
 ## Why this patch exists
+
+`io-error-causes.patch` retains one original transport error across the
+connection and its failed streams. The private fanout shares an
+`Arc<io::Error>` instead of reconstructing errors from a kind and string.
+`Error::get_io()` borrows that original error and `Error::source()` exposes
+it. `Error::into_io()` returns the shared owner. Direct fork users must
+handle `Option<Arc<io::Error>>` instead of `Option<io::Error>`.
+This preserves typed payloads and native error codes. EOF handling and
+connection-close policy are unchanged.
 
 `http::HeaderMap` preserves duplicate values for a field name but cannot retain
 the global interleaving of different field names. That prevents an HTTP/2

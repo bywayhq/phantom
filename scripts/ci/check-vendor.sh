@@ -136,11 +136,12 @@ check_wreq_proto_patch_replay() {
   [[ "$actual_checksum" == a43942f024bb303f1042c9aa3c87fa1d9149f507c65db6e5220a11ccdb207387 ]]
   tar -xzf "$archive" -C "$staging"
   candidate="$staging/wreq-proto-0.2.5"
-  # The published archive uses CRLF. Normalize the five patched Rust sources
+  # The published archive uses CRLF. Normalize the patched Rust sources
   # before replay so the canonical patch stays reviewable and deterministic.
   for source in \
     src/error.rs \
     src/proto/http1.rs \
+    src/proto/http2.rs \
     src/conn/http1.rs \
     src/proto/http1/conn.rs \
     src/proto/http1/decode.rs \
