@@ -474,6 +474,53 @@ class ScheduleTests(unittest.TestCase):
         self.assertIn("boom", result.attempts[0].detail)
         self.assertIs(result.attempts[0].failure, failure)
 
+    def test_an_interrupted_worker_releases_the_slot_for_the_waiting_job(self) -> None:
+        for failure in (KeyboardInterrupt("worker interrupted"), SystemExit(125)):
+            with self.subTest(failure=type(failure).__name__):
+                stopped = threading.Event()
+                entered = threading.Event()
+                release = threading.Event()
+                second_started = threading.Event()
+                results = []
+
+                def run(item: Job) -> JobResult:
+                    if item.id == "first":
+                        entered.set()
+                        release.wait(10)
+                        raise failure
+                    second_started.set()
+                    return JobResult(item, "ok", [Attempt(True, 0.1)])
+
+                runner = threading.Thread(
+                    target=lambda: results.extend(
+                        schedule(
+                            [job("first", exclusive=True), job("waiting")],
+                            run,
+                            limit=1,
+                            stopped=stopped,
+                        )
+                    ),
+                    daemon=True,
+                )
+                runner.start()
+                try:
+                    self.assertTrue(entered.wait(10))
+                    self.assertFalse(second_started.is_set())
+                    release.set()
+                    runner.join(10)
+
+                    self.assertFalse(runner.is_alive())
+                    self.assertTrue(second_started.is_set())
+                    self.assertEqual(
+                        [result.status for result in results], ["failed", "ok"]
+                    )
+                    self.assertIs(results[0].attempts[0].failure, failure)
+                finally:
+                    release.set()
+                    stopped.set()
+                    runner.join(10)
+                self.assertFalse(runner.is_alive())
+
     def test_ctrl_c_stops_the_batch_and_reports_unstarted_jobs(self) -> None:
         stopped = threading.Event()
         started = threading.Event()
@@ -677,52 +724,59 @@ class CleanupFailureTests(unittest.TestCase):
     def test_interrupt_cleanup_failure_still_joins_workers_and_returns_results(
         self,
     ) -> None:
-        release = threading.Event()
-        finished = threading.Event()
-        stopped = threading.Event()
-        join = threading.Thread.join
-        interrupted = False
-        joins = []
-        owned_threads = []
+        for failure in (
+            OSError("profile discovery failed"),
+            KeyboardInterrupt("cleanup interrupted"),
+            SystemExit(125),
+        ):
+            with self.subTest(failure=type(failure).__name__):
+                release = threading.Event()
+                finished = threading.Event()
+                stopped = threading.Event()
+                join = threading.Thread.join
+                interrupted = False
+                joins = []
+                owned_threads = []
 
-        def run(item: Job) -> JobResult:
-            release.wait(10)
-            finished.set()
-            return JobResult(item, "stopped", [Attempt(False, 0.1, "stopped")])
+                def run(item: Job) -> JobResult:
+                    release.wait(10)
+                    finished.set()
+                    return JobResult(item, "stopped", [Attempt(False, 0.1, "stopped")])
 
-        def interrupt_join(thread, *args, **kwargs):
-            nonlocal interrupted
-            owned_threads.append(thread)
-            if not interrupted:
-                interrupted = True
-                raise KeyboardInterrupt
-            joins.append(thread)
-            return join(thread, *args, **kwargs)
+                def interrupt_join(thread, *args, **kwargs):
+                    nonlocal interrupted
+                    owned_threads.append(thread)
+                    if not interrupted:
+                        interrupted = True
+                        raise KeyboardInterrupt
+                    joins.append(thread)
+                    return join(thread, *args, **kwargs)
 
-        def cleanup() -> None:
-            stopped.set()
-            release.set()
-            raise OSError("profile discovery failed")
+                def cleanup() -> None:
+                    stopped.set()
+                    release.set()
+                    raise failure
 
-        try:
-            with mock.patch.object(threading.Thread, "join", interrupt_join):
-                results = schedule(
-                    [job("running")],
-                    run,
-                    limit=1,
-                    stopped=stopped,
-                    on_interrupt=cleanup,
-                )
-        finally:
-            release.set()
-            for thread in owned_threads:
-                join(thread, 10)
+                try:
+                    with mock.patch.object(threading.Thread, "join", interrupt_join):
+                        results = schedule(
+                            [job("running")],
+                            run,
+                            limit=1,
+                            stopped=stopped,
+                            on_interrupt=cleanup,
+                        )
+                finally:
+                    release.set()
+                    for thread in owned_threads:
+                        join(thread, 10)
 
-        self.assertTrue(finished.is_set())
-        self.assertTrue(joins)
-        self.assertEqual(results[0].status, "failed")
-        self.assertIn("cleanup", results[0].attempts[-1].detail)
-        self.assertIn("profile discovery failed", results[0].attempts[-1].detail)
+                self.assertTrue(finished.is_set())
+                self.assertTrue(joins)
+                self.assertEqual(results[0].status, "failed")
+                self.assertIn("cleanup", results[0].attempts[-1].detail)
+                self.assertIn(str(failure), results[0].attempts[-1].detail)
+                self.assertIs(results[0].attempts[-1].failure, failure)
 
     def test_main_writes_summary_and_results_after_interrupt_cleanup_failure(
         self,

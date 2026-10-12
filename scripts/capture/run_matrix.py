@@ -929,7 +929,7 @@ def schedule(
         nonlocal running, exclusive_running
         try:
             result = run(job)
-        except Exception as error:  # noqa: BLE001 - reported as a failed job
+        except BaseException as error:
             result = JobResult(
                 job, "failed", [Attempt(False, 0.0, repr(error), failure=error)]
             )
@@ -938,8 +938,8 @@ def schedule(
             running -= 1
             if job.exclusive:
                 exclusive_running = False
-            report(result)
             condition.notify_all()
+            report(result)
 
     def dispatch() -> None:
         nonlocal running, exclusive_running
@@ -989,7 +989,7 @@ def schedule(
                 ]
             try:
                 on_interrupt()
-            except Exception as error:  # noqa: BLE001 - joined and reported below
+            except BaseException as error:
                 cleanup_error = error
             finally:
                 join()
