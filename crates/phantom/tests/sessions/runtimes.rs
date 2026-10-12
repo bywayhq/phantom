@@ -31,6 +31,7 @@ use tokio::{
     time::timeout,
 };
 
+use crate::support::deadline::FixtureDeadline;
 use crate::support::h3 as h3_support;
 use crate::support::tls as tls_support;
 
@@ -196,7 +197,7 @@ async fn send_before_deadline<T>(
 ) -> TestResult<T> {
     Ok(timeout(TEST_TIMEOUT, request)
         .await
-        .map_err(|_| purpose)??)
+        .map_err(|elapsed| FixtureDeadline::new(purpose, elapsed))??)
 }
 
 /// Sends a request on one runtime, keeps or drops it, sends another on a
