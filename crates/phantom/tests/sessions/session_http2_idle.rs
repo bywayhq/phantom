@@ -9,7 +9,6 @@ use std::{
     error::Error,
     future::{Future, poll_fn},
     net::Ipv4Addr,
-    pin::Pin,
     task::Poll,
     time::Duration,
 };
@@ -97,7 +96,7 @@ async fn serve(
             biased;
             completed = poll_fn(|context| {
                 for (index, peer) in peers.iter_mut().enumerate() {
-                    if let Poll::Ready(outcome) = Pin::new(&mut peer.task).poll(context) {
+                    if let Poll::Ready(outcome) = std::pin::Pin::new(&mut peer.task).poll(context) {
                         return Poll::Ready((index, outcome));
                     }
                 }
