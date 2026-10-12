@@ -995,8 +995,20 @@ class CaptureServer:
                 except asyncio.CancelledError as error:
                     if not locally_cancelled:
                         failures.append(error)
-                    elif isinstance(error.__cause__, CaptureFailures):
-                        failures.extend(error.__cause__.cleanup)
+                    else:
+                        # Python 3.10 places the coroutine's cancellation in
+                        # the task-result cancellation's context.
+                        seen = set()
+                        while id(error) not in seen:
+                            seen.add(id(error))
+                            if isinstance(error.__cause__, CaptureFailures):
+                                failures.extend(error.__cause__.cleanup)
+                                break
+                            if not isinstance(
+                                error.__context__, asyncio.CancelledError
+                            ):
+                                break
+                            error = error.__context__
                 except BaseException as error:
                     failures.append(error)
 
