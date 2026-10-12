@@ -2493,6 +2493,15 @@ source-confirmed findings. A per-connection 16 MiB byte cap already exists;
 this pass does not claim unbounded individual proxy buffering or a native
 resource measurement.
 
+The Unix census repair at `ad13642f` checks the original process result
+before interpreting absence and retains stderr. Its focused control calls
+the real process runner with a harmless child that exits 23. The original
+code fails because no error is raised. The repaired browser-launch suite
+passes all 28 methods on Windows and 26 on Linux, with two Windows-specific
+methods skipped there. Python lint and format checks pass on both hosts.
+Independent source review accepts the cause and control. This is no claim
+of an actual failing `ps` command or a shorter cleanup duration.
+
 ## Next
 
 - [Audit plan](../architecture-audit.md): acceptance and verification.

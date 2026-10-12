@@ -132,6 +132,32 @@ class BrowserLaunchTests(unittest.TestCase):
         ):
             terminate_profile_processes(Path("C:/profile"))
 
+    def test_unix_profile_discovery_retains_a_real_failed_command(self) -> None:
+        run_command = subprocess.run
+
+        def failed_census(command, **options):
+            self.assertEqual(command, ["ps", "-axww", "-o", "pid=,command="])
+            return run_command(
+                [
+                    sys.executable,
+                    "-c",
+                    "import sys; sys.stderr.buffer.write(b'census denied\\n'); raise SystemExit(23)",
+                ],
+                **options,
+            )
+
+        with (
+            mock.patch.object(browser_launch.sys, "platform", "linux"),
+            mock.patch.object(browser_launch.subprocess, "run", failed_census),
+            mock.patch.object(browser_launch.os, "kill") as kill,
+            self.assertRaises(subprocess.CalledProcessError) as failure,
+        ):
+            terminate_profile_processes(Path("unused-profile"))
+
+        self.assertEqual(failure.exception.returncode, 23)
+        self.assertEqual(failure.exception.stderr, b"census denied\n")
+        kill.assert_not_called()
+
     @unittest.skipUnless(sys.platform == "win32", "Windows profile sweep")
     def test_windows_sweep_stops_exact_and_descendant_but_preserves_prefix_sibling(
         self,

@@ -690,9 +690,8 @@ def terminate_profile_processes(profile: Path) -> None:
     if sys.platform != "win32":
         listing = subprocess.run(
             ["ps", "-axww", "-o", "pid=,command="],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            check=False,
+            capture_output=True,
+            check=True,
             timeout=60,
         ).stdout.decode(errors="replace")
         for pid in profile_process_ids(listing, profile, own_pid=os.getpid()):

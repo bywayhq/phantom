@@ -2503,6 +2503,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Report a failed Unix process census during browser capture cleanup,
+  retaining its exit status and diagnostic output.
+
 - Yield while decoding compressed response bodies with long gzip headers.
   Check body deadlines between work quotas and before completion.
 
