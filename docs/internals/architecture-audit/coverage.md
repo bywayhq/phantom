@@ -20,9 +20,31 @@ Pending means that discovery or assignment has not established review.
   boundaries and an actual Windows process handle. They do not establish
   live Frida/browser acceptance. The listener fence covers attached
   transports, with pre-attachment backend accepts outside its proof.
-- Fresh macOS CI, the remaining audit coverage and final integration gates
-  remain open. The earlier macOS request failure remains unclassified;
-  the failure at `0425b7cd` is specifically Shutdown/BrokenPipe.
+- All 43 PR checks pass at `1e95577c`, including macOS and Windows.
+  The remaining audit coverage and final integration gates remain open.
+  The earlier macOS request failure remains unclassified; the failure at
+  `0425b7cd` is specifically Shutdown/BrokenPipe.
+
+## Current architecture cleanup
+
+At `a9c7ebbc`, one private request predicate owns the seventeen forbidden
+trailer names. HTTP/1, HTTP/2 and HTTP/3 retain their parsing, errors, bounds,
+declarations and wire ordering. A private DNS choice enum replaces nested
+options. One optional client route replaces the route plus explicit flag.
+Request overrides, explicit Direct, environment routing, proxy construction
+and builder diagnostics retain their behavior. Session exports and constants
+now precede implementation helpers.
+
+Independent source review and Windows/Linux checks pass: 37 trailer tests,
+28 client tests and 14 environment-route tests per host. Workspace formatting
+and both touched crates' all-target, all-feature Clippy and Rust 1.88 checks
+pass. Root and independent readers inspected the complete logs and confirmed
+the exact clean revision on each host. Logs remain in the audit scratchpad.
+This is focused verification; the full integration gate remains open.
+
+The bounded client and transport architecture reviews support these changes.
+They found no additional crate split or merge justified by current consumers.
+The final combined architecture and readability reviews remain open.
 
 ## Source review
 
