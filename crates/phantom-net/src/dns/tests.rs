@@ -1,7 +1,12 @@
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::{
+    io,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    time::Duration,
+};
 
 use phantom_profile::browser::chrome;
 use phantom_testkit::dns::{DnsAnswer, DnsReply, DnsServer};
+use tokio::{task::JoinHandle, time::timeout};
 
 use super::{
     HttpsLookupErrorKind, HttpsRecord, HttpsRecordErrorKind, HttpsRecordResolver, TargetName,
@@ -713,34 +718,67 @@ fn an_undecodable_message_is_a_resolve_error() -> TestResult<()> {
     Ok(())
 }
 
-/// Answers every query with its own question and `answers`, byte for byte.
-async fn raw_dns_server(answers: Vec<RawRecord<'static>>) -> TestResult<std::net::SocketAddr> {
+#[derive(Debug)]
+struct RawDnsServer {
+    address: SocketAddr,
+    task: Option<JoinHandle<io::Result<()>>>,
+}
+
+impl RawDnsServer {
+    async fn finish(&mut self) -> TestResult<()> {
+        let Some(task) = self.task.as_mut() else {
+            return Ok(());
+        };
+        let outcome = timeout(Duration::from_secs(5), task).await?;
+        drop(self.task.take());
+        outcome??;
+        Ok(())
+    }
+}
+
+impl Drop for RawDnsServer {
+    fn drop(&mut self) {
+        if let Some(task) = &self.task {
+            task.abort();
+        }
+    }
+}
+
+/// Answers one query with its own question and `answers`, byte for byte.
+/// The caller rejects the answer after hickory accepts it, so no retry follows.
+async fn raw_dns_server(answers: Vec<RawRecord<'static>>) -> TestResult<RawDnsServer> {
+    let answer_count = u16::try_from(answers.len())?;
     let socket = phantom_testkit::udp::bind_tokio("127.0.0.1:0".parse()?)?;
     let address = socket.local_addr()?;
-    tokio::spawn(async move {
+    let task = tokio::spawn(async move {
         let mut buffer = vec![0; 512];
-        while let Ok((length, peer)) = socket.recv_from(&mut buffer).await {
+        loop {
+            let (length, peer) = socket.recv_from(&mut buffer).await?;
             // The query carries one question and nothing after it.
             let Some(question) = buffer.get(12..length) else {
                 continue;
             };
             let mut message = buffer[..2].to_vec();
             message.extend_from_slice(&[0x81, 0x80, 0, 1]);
-            message.extend_from_slice(&u16::try_from(answers.len()).unwrap_or(0).to_be_bytes());
+            message.extend_from_slice(&answer_count.to_be_bytes());
             message.extend_from_slice(&[0, 0, 0, 0]);
             message.extend_from_slice(question);
             push_answers(&mut message, &answers);
-            let _ = socket.send_to(&message, peer).await;
+            socket.send_to(&message, peer).await?;
+            return Ok(());
         }
     });
-    Ok(address)
+    Ok(RawDnsServer {
+        address,
+        task: Some(task),
+    })
 }
 
 #[tokio::test]
 async fn resolver_rejects_an_answer_owned_by_another_name() -> TestResult<()> {
     // hickory accepts this response: one record answers the question, so it
     // hands back the whole answer section, stray record included.
-    let address = raw_dns_server(vec![
+    let mut server = raw_dns_server(vec![
         (
             "origin.example.test",
             TYPE_HTTPS,
@@ -750,12 +788,13 @@ async fn resolver_rejects_an_answer_owned_by_another_name() -> TestResult<()> {
         ("other.example.test", TYPE_HTTPS, CLASS_IN, h3_record()),
     ])
     .await?;
-    let resolver = HttpsRecordResolver::with_nameservers([address])?;
+    let resolver = HttpsRecordResolver::with_nameservers([server.address])?;
     let error = resolver
         .lookup("origin.example.test", 443)
         .await
         .err()
         .ok_or("a stray answer was accepted")?;
     assert_eq!(error.kind(), HttpsLookupErrorKind::Resolve);
+    server.finish().await?;
     Ok(())
 }
