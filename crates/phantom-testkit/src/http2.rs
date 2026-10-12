@@ -1,19 +1,19 @@
 //! HTTP/2 client-preface and initial-frame capture.
 
-mod frame;
+use std::{error::Error, fmt, io};
 
+use tokio::{
+    io::{AsyncRead, AsyncReadExt},
+    time::{Instant, timeout_at},
+};
+
+use frame::FRAME_HEADER_LENGTH;
 pub use frame::{
     CapturedFrame, FrameDecodeError, FrameHeader, Setting, SettingsDecodeError, SettingsFrame,
     WindowUpdateDecodeError, WindowUpdateFrame,
 };
 
-use std::{error::Error, fmt, io};
-
-use frame::FRAME_HEADER_LENGTH;
-use tokio::{
-    io::{AsyncRead, AsyncReadExt},
-    time::{Instant, timeout_at},
-};
+mod frame;
 
 /// The exact HTTP/2 client connection preface.
 pub const CLIENT_CONNECTION_PREFACE: &[u8; 24] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";

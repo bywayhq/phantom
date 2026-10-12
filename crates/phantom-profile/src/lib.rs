@@ -20,26 +20,6 @@
 //! Defaults, builders, and Hash are provided only by types that implement
 //! them.
 
-pub mod browser;
-
-mod client_hints;
-mod cookie;
-mod dns_cache;
-mod http1;
-mod http2;
-mod http3;
-mod proxy_connect;
-mod quic;
-mod request_template;
-mod tcp;
-mod tls;
-mod udp;
-mod websocket;
-
-mod client;
-mod url_trust;
-mod validation;
-
 pub use client::{ClientProfile, Http3ClientSettings};
 pub use client_hints::{
     ClientHint, ClientHintDelivery, ClientHintSettings, InvalidClientHintSettings,
@@ -95,6 +75,25 @@ pub use websocket::{
     WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
     WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings,
 };
+
+pub mod browser;
+
+mod client;
+mod client_hints;
+mod cookie;
+mod dns_cache;
+mod http1;
+mod http2;
+mod http3;
+mod proxy_connect;
+mod quic;
+mod request_template;
+mod tcp;
+mod tls;
+mod udp;
+mod url_trust;
+mod validation;
+mod websocket;
 
 #[cfg(test)]
 mod tests {

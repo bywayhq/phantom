@@ -97,6 +97,7 @@ impl OwnedSsl {
         self.0.as_ptr()
     }
 
+    #[cfg(feature = "server")]
     pub(super) const fn as_non_null(&self) -> NonNull<ffi::SSL> {
         self.0
     }
@@ -461,6 +462,7 @@ impl ClientSession {
     }
 
     /// Returns whether the peer rejected offered 0-RTT data.
+    #[cfg(test)]
     pub(super) const fn early_data_rejected(&self) -> bool {
         self.early_data_rejected
     }

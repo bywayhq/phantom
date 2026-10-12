@@ -10,13 +10,13 @@ use btls::pkey::{PKey, Private};
 use btls::ssl::{KeyShare, SslContext, SslContextBuilder};
 use btls::x509::X509;
 use phantom_profile::{
-    AlpsSettings, CipherSuite, EchGreasePayloadLength, NamedGroup, TlsSettings, TlsVersion,
-    TrustAnchorIds,
+    AlpsSettings, CipherSuite, EchGreasePayloadLength, NamedGroup, QuicTransportSettings,
+    TlsSettings, TlsVersion, TrustAnchorIds,
 };
 use quinn_proto::crypto::{self, ExportKeyingMaterialError, KeyPair, Keys};
 use quinn_proto::{
-    ConnectError, ConnectionId, Side, TransportError, TransportErrorCode,
-    transport_parameters::TransportParameters,
+    ConnectError, ConnectionId, EndpointConfig, Side, TransportConfig, TransportError,
+    TransportErrorCode, transport_parameters::TransportParameters,
 };
 use rustls_pki_types::DnsName;
 
@@ -35,8 +35,6 @@ use crate::key_schedule::{
 use crate::resumption::{ApplicationState, ResumptionTicket, SessionCache};
 use crate::transport_parameters::{QuicTransportProfileError, TransportParameterProfile};
 use crate::{EndpointSide, QuicVersion, derive_initial_keys, verify_retry_integrity};
-use phantom_profile::QuicTransportSettings;
-use quinn_proto::{EndpointConfig, TransportConfig};
 
 const H3_PROTOCOL: &[u8] = b"h3";
 
