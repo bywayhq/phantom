@@ -56,8 +56,10 @@ from scripts.capture.http2_websocket import (
     launch_plan,
     main,
     page,
-    run as run_capture,
     urls,
+)
+from scripts.capture.http2_websocket import (
+    run as run_capture,
 )
 from scripts.capture.websocket_frames import (
     CLOSE,

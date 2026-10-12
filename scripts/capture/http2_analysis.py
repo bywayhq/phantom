@@ -19,7 +19,6 @@ from .http2_session import (
     MalformedCaptureError,
 )
 
-
 FRAME_TYPES = {
     0x0: "DATA",
     0x1: "HEADERS",
