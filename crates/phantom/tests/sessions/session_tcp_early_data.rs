@@ -332,6 +332,7 @@ async fn failure_after_early_data(
     untrusted: bool,
 ) -> TestResult<phantom::RequestError> {
     let mut server = None;
+    let mut client_error = None;
     let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let offers = Offers::default();
@@ -380,16 +381,23 @@ async fn failure_after_early_data(
             Some(protocol) => session.get(protocol, &uri)?,
             None => session.get_negotiated(&uri)?,
         };
-        let error = match failed.send().await {
+        client_error = Some(match failed.send().await {
             Ok(_) => return Err("the request succeeded after the handshake failed".into()),
             Err(error) => error,
-        };
+        });
         join(&mut server).await?;
         assert_eq!(offers.take()[1], EARLY);
-        Ok(error)
+        Ok(())
     })
     .await;
-    finish(result, server).await
+    let result = finish(result, server).await;
+
+    match (result, client_error) {
+        (Ok(()), Some(error)) => Ok(error),
+        (Err(completion), Some(error)) => finish_with_cleanup(Err(error.into()), Err(completion)),
+        (Err(error), None) => Err(error),
+        (Ok(()), None) => Err("the failed TLS request outcome is missing".into()),
+    }
 }
 
 async fn expect_no_request(stream: &mut (impl tokio::io::AsyncRead + Unpin)) -> TestResult<()> {
