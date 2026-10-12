@@ -569,7 +569,10 @@ impl Fixture {
                     .all(|(index, required)| !required || state.destroyed[index])
             }),
         )
-        .await??;
+        .await
+        .map_err(|elapsed| {
+            FixtureDeadline::new("original request futures remained live after caller exit", elapsed)
+        })??;
 
         timeout(LIMIT, async {
             while self

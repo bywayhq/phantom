@@ -257,7 +257,7 @@ async fn finish_cold(
 ) -> TestResult<reuse_ownership::Requests> {
     caller?;
 
-    Ok(server.await??)
+    server.await?
 }
 
 pub(super) async fn cold() -> TestResult<()> {
