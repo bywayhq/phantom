@@ -8,6 +8,7 @@
 //! own, which serves both requests.
 
 use std::{
+    future::Future,
     net::Ipv4Addr,
     sync::{
         Arc,
@@ -20,7 +21,7 @@ use bytes::Bytes;
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, HttpProtocol,
+    Client, HttpProtocol, RequestError,
     profile::{ClientProfile, browser::chrome},
 };
 use tokio::{
@@ -35,6 +36,7 @@ use crate::support::tls as tls_support;
 
 use tls_support::{H2_ALPN, TestIdentity, accept_tls_stream, read_head, tls_settings};
 
+mod deadline_contract;
 mod http1_coordinator;
 mod http1_peer;
 
@@ -172,9 +174,12 @@ fn request_on_new_runtime(
 ) -> TestResult<Runtime> {
     let runtime = Builder::new_current_thread().enable_all().build()?;
     runtime.block_on(async {
-        let response = timeout(TEST_TIMEOUT, client.get(protocol, uri)?.send())
-            .await
-            .map_err(|_| "the request on this runtime did not finish")??;
+        let response = send_before_deadline(
+            client.get(protocol, uri)?.send(),
+            "the request on this runtime did not finish",
+        )
+        .await?;
+
         assert_eq!(response.status(), StatusCode::OK);
         let body = timeout(TEST_TIMEOUT, response.into_body().collect())
             .await??
@@ -183,6 +188,15 @@ fn request_on_new_runtime(
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
     })?;
     Ok(runtime)
+}
+
+async fn send_before_deadline<T>(
+    request: impl Future<Output = Result<T, RequestError>>,
+    purpose: &'static str,
+) -> TestResult<T> {
+    Ok(timeout(TEST_TIMEOUT, request)
+        .await
+        .map_err(|_| purpose)??)
 }
 
 /// Sends a request on one runtime, keeps or drops it, sends another on a
@@ -270,9 +284,12 @@ fn http3_request_on_another_runtime_opens_its_own_connection() -> TestResult {
 fn two_negotiated_requests_on_new_runtime(client: &Client, uri: &str) -> TestResult<Runtime> {
     let runtime = Builder::new_current_thread().enable_all().build()?;
     let send = || async {
-        let response = timeout(TEST_TIMEOUT, client.get_negotiated(uri)?.send())
-            .await
-            .map_err(|_| "the negotiated request on this runtime did not finish")??;
+        let response = send_before_deadline(
+            client.get_negotiated(uri)?.send(),
+            "the negotiated request on this runtime did not finish",
+        )
+        .await?;
+
         assert_eq!(response.status(), StatusCode::OK);
         timeout(TEST_TIMEOUT, response.into_body().collect()).await??;
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
@@ -298,9 +315,12 @@ fn second_runtime_waits_for_its_own_setup_to_an_origin_known_for_http2() -> Test
     .build()?;
     let first = Builder::new_current_thread().enable_all().build()?;
     first.block_on(async {
-        let response = timeout(TEST_TIMEOUT, client.get_negotiated(&origin.uri)?.send())
-            .await
-            .map_err(|_| "the first negotiated request did not finish")??;
+        let response = send_before_deadline(
+            client.get_negotiated(&origin.uri)?.send(),
+            "the first negotiated request did not finish",
+        )
+        .await?;
+
         timeout(TEST_TIMEOUT, response.into_body().collect()).await??;
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
     })?;
