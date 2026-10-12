@@ -1,0 +1,137 @@
+{
+  "revision": "aef7eea12227fc3ffa29a4fa497aaec762a55650",
+  "parent": "e1f309e20e1a1ff3661848780e2932a5b164b860",
+  "approved_author": "07345c9307a0e986a34513c1bfccf7be292effdc",
+  "prior_layout_author": "b68be7067124b61a507ddfa9c6d5891e0bd3b559",
+  "decision": "APPROVE exact source composition only",
+  "signature": "G",
+  "clean_root_observed": true,
+  "full_six_current_files_and_deltas_read": true,
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/sessions/session.rs",
+      "lines": 311,
+      "blob": "0f3e6c0f420f7d2ba9e3e46b2584d7f4c514b683",
+      "physical_sha256": "91cf994a630fc562f5481dfb00bbd853a7573ef6dd7d244ef25ff298f145ab3e"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/body_ownership.rs",
+      "lines": 321,
+      "blob": "fe46febe94a994ab6bf45218d7517ef5ab13bb8a",
+      "physical_sha256": "d920a7d430550b3dbdc6814d299cfb9a201bd35e66226a078397d835824cccfb"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/body_ownership/tests.rs",
+      "lines": 187,
+      "blob": "24c1069469f838cce56086998de74093e879bf46",
+      "physical_sha256": "9de63656c192a9abd799e162c11d4e52f3263ed701367aa5a415555fd7453787"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/body_ownership/tests/peer_fixture.rs",
+      "lines": 433,
+      "blob": "9c104ca3ed187532a3fc3a11363788d3744131ae",
+      "physical_sha256": "f65c368f6866c78af63d6e75c0d1e457b4c76c7dd30cc9837e209bdd2b5aec33"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_ownership.rs",
+      "lines": 208,
+      "blob": "5b9a532055113576281d9e403cbbdbb038e37010",
+      "physical_sha256": "eebf8bf7b01a57e2adce1a752d0e08b1a9289f9990e612cd37795cbfdb93574a"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_ownership/tests.rs",
+      "lines": 106,
+      "blob": "bc4d0a5c0c5b463f4a926b763f21812237b8090d",
+      "physical_sha256": "aea45b9d9662ea6c67218e54763f876004df755603dc2c06c71eed48ba68b1d9"
+    }
+  ],
+  "protected_root_child_identity": [
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_auth.rs",
+      "blob": "e0cb866d2adb740d8e09b6c9e45ee0b81aa18a6c",
+      "parent_blob": "e0cb866d2adb740d8e09b6c9e45ee0b81aa18a6c",
+      "equal": true
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_auth/ownership_contract.rs",
+      "blob": "d70091592f0d29495fb4361ccf4d70ea5b2cd331",
+      "parent_blob": "d70091592f0d29495fb4361ccf4d70ea5b2cd331",
+      "equal": true
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/request_ownership.rs",
+      "blob": "bd78412a7dd1db64aa26eb080a9890f823b75e9c",
+      "parent_blob": "bd78412a7dd1db64aa26eb080a9890f823b75e9c",
+      "equal": true
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/request_ownership/tests.rs",
+      "blob": "1559954ebfb5427249d4cc0d6b85957490caca96",
+      "parent_blob": "1559954ebfb5427249d4cc0d6b85957490caca96",
+      "equal": true
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/reuse_ownership.rs",
+      "blob": "16451055e8e1c8eb440dbbb6db9a1b6122e716df",
+      "parent_blob": "16451055e8e1c8eb440dbbb6db9a1b6122e716df",
+      "equal": true
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/reuse_ownership/tests.rs",
+      "blob": "c6d9c7cf52afffdab1fbc049d966f24138421ccb",
+      "parent_blob": "c6d9c7cf52afffdab1fbc049d966f24138421ccb",
+      "equal": true
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/reuse_ownership/tests/children.rs",
+      "blob": "da01503c139c037622b8378b75d04704096ad86d",
+      "parent_blob": "da01503c139c037622b8378b75d04704096ad86d",
+      "equal": true
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/upload_contract.rs",
+      "blob": "8fe51acd277844c2853a71fb798e72aa3c827a8d",
+      "parent_blob": "8fe51acd277844c2853a71fb798e72aa3c827a8d",
+      "equal": true
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1/ownership.rs",
+      "blob": "1cef03cf0be6fc7746ea5e95aac40e2f1c965d0b",
+      "parent_blob": "1cef03cf0be6fc7746ea5e95aac40e2f1c965d0b",
+      "equal": true
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1/ownership/budget_tests.rs",
+      "blob": "79a45affcc2bc4c5dd791921011a125305332638",
+      "parent_blob": "79a45affcc2bc4c5dd791921011a125305332638",
+      "equal": true
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1/ownership/queued_tests.rs",
+      "blob": "9ef56db866a5747e1278eeb5251a35faab37e1cf",
+      "parent_blob": "9ef56db866a5747e1278eeb5251a35faab37e1cf",
+      "equal": true
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1/ownership/tests.rs",
+      "blob": "a8e9ff1d39f2d4ff62382891084d1066ddcb7b4a",
+      "parent_blob": "a8e9ff1d39f2d4ff62382891084d1066ddcb7b4a",
+      "equal": true
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1.rs",
+      "blob": "4410719edad37a0c1b073839ce6bd9a14b524950",
+      "parent_blob": "4410719edad37a0c1b073839ce6bd9a14b524950",
+      "equal": true
+    }
+  ],
+  "native": null,
+  "live_native_not_polled": true,
+  "limits": [
+    "accepted TCP/TLS-read before actual Phantom request",
+    "raw worker output retention and acquisition cleanup remain baseline",
+    "old author H1 excluded",
+    "no broad owner closure"
+  ],
+  "markdown_sha256": "1c583a432061da14668b4c3925fcf0945475bf65db96a8a1b273936f636681b4"
+}

@@ -1,0 +1,59 @@
+{
+  "revision": "7a69d90671a323592b2e260fae73e0567f7e8dbb",
+  "parent": "59c28617baf92cc9c5ea35b52678505ca1645a2d",
+  "author_semantic_revision": "1ab8c0ef5aeb2e2538856560ca8bdceac03d62bb",
+  "decision": "APPROVE_SOURCE_COMPOSITION",
+  "full_read_scope": [
+    {
+      "path": "crates/phantom/tests/requests/stale_connection_replay.rs",
+      "lines": 561,
+      "git_blob": "65c4ba10974adaa5227833d26a1919250d1ddd12",
+      "git_content_lf_sha256": "0fa5bd5748c0f0b56de8f9ecbf03e5c5abe8161ac272122e293560fa305cd611"
+    },
+    {
+      "path": "crates/phantom/tests/requests/stale_connection_replay/ownership.rs",
+      "lines": 449,
+      "git_blob": "48092200fb91d0dae4f55fc5c54f3499cde0d796",
+      "git_content_lf_sha256": "72c18c158dde1ecca82f64c30f39d7d1849ee705f5a5fb1adc05a3c18331e900"
+    },
+    {
+      "path": "crates/phantom/tests/requests/stale_connection_replay/ownership/tests.rs",
+      "lines": 270,
+      "git_blob": "9eff515a09696bc362ba843b5ffa26a52a098f7e",
+      "git_content_lf_sha256": "65cda1cd79f51c7a053a68c498612ac9fcaf58cfcf8ddd322e13e1846c426772"
+    },
+    {
+      "path": "crates/phantom/tests/requests/stale_connection_replay/ownership/mixed_deadline_tests.rs",
+      "lines": 281,
+      "git_blob": "7515b98b3e3a7f39d27f4f2cf49eb72203c75e92",
+      "git_content_lf_sha256": "eee4a61ec296b1b50bb0ec40c89d117919a91f7a7ecda7314c954bc881662207"
+    }
+  ],
+  "sessions_parent_delta": [],
+  "mechanics": "nine blank paragraphs plus import/wrapping changes only",
+  "scripts": [
+    {
+      "path": "C:/code/phantom/target/architecture-audit/run-stale-mixed-remedy.sh",
+      "bytes": 1740,
+      "physical_sha256": "37550342518c364a0d809bb45160926a3066b39f41d8b5e5eb088022eac594e2"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/sync-stale-mixed-remedy-7a69d906.sh",
+      "bytes": 487,
+      "physical_sha256": "2c0a09560b2d2ac878ff06b15f9f32e3115d972e108a3f248af4c83638b4cf21"
+    }
+  ],
+  "signature": "G",
+  "author_email": "AryaAlikhani@icloud.com",
+  "committer_email": "AryaAlikhani@icloud.com",
+  "observed_root_head": "7a69d90671a323592b2e260fae73e0567f7e8dbb",
+  "observed_root_status": "clean",
+  "native": null,
+  "limits": [
+    "Seven raw ordinary workers remain open",
+    "Unfinished cancellation race remains open",
+    "Parser bounds and wider ownership remain open",
+    "No all-branch or final-integration claim"
+  ],
+  "markdown_sha256": "c948ada552706993df3a54490d2cb3944005df2fdacc42435c8eb9bed57ee6a4"
+}

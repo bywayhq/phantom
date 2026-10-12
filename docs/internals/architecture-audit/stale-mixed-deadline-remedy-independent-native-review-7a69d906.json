@@ -1,0 +1,174 @@
+{
+  "revision": "7a69d90671a323592b2e260fae73e0567f7e8dbb",
+  "decision": "ACCEPT_BOUNDED_NATIVE",
+  "full_read_artifacts": [
+    {
+      "file": "stale-mixed-remedy-7a69d906-windows.retry.log",
+      "bytes": 2071,
+      "sha256": "199446ff6af406aefa18d29f81c034a377e0f302b6411ad01ecebf4f80c39d4e"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-windows.retry.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-windows.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-windows.clippy.log",
+      "bytes": 168,
+      "sha256": "b0090daeadd0be78dc996b8f16ac5b2d1bfedd9b1160939ca4d5e7d7c709afd5"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-windows.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-windows.msrv.log",
+      "bytes": 168,
+      "sha256": "695ad74f0d9bae5708d265414c1560522f460098f1bef891d3c694d2e599f846"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-windows.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-windows.revision",
+      "bytes": 41,
+      "sha256": "df3fff84216dfdd7815a0d5703692a810d51f09e5775fd78a1c601d97e92aa99"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-linux.retry.log",
+      "bytes": 2077,
+      "sha256": "9089f249a1d649f219b5347f05816ea4631d758fd532f777d2aec88ca8cf081c"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-linux.retry.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-linux.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-linux.clippy.log",
+      "bytes": 178,
+      "sha256": "acf82ec56c8b918f5633c3a99956c6097bbb2389bdd5048c0d2fc64e97382ca3"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-linux.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-linux.msrv.log",
+      "bytes": 178,
+      "sha256": "95b7eaefae1c6ad55375acc9ac33bf1791d78bdd2704e8ffbb3976f1fd835f7c"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-linux.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-linux.revision",
+      "bytes": 41,
+      "sha256": "df3fff84216dfdd7815a0d5703692a810d51f09e5775fd78a1c601d97e92aa99"
+    },
+    {
+      "file": "stale-mixed-remedy-7a69d906-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    }
+  ],
+  "scripts": [
+    {
+      "file": "run-stale-mixed-remedy.sh",
+      "bytes": 1740,
+      "sha256": "37550342518c364a0d809bb45160926a3066b39f41d8b5e5eb088022eac594e2"
+    },
+    {
+      "file": "sync-stale-mixed-remedy-7a69d906.sh",
+      "bytes": 487,
+      "sha256": "2c0a09560b2d2ac878ff06b15f9f32e3115d972e108a3f248af4c83638b4cf21"
+    }
+  ],
+  "hosts": {
+    "windows": {
+      "terminal_handle": 82544,
+      "pass": 18,
+      "fail": 0,
+      "ignored": 0,
+      "filtered": 566,
+      "retry": 0,
+      "fmt": 0,
+      "clippy": 0,
+      "msrv": 0,
+      "runner": 0
+    },
+    "linux": {
+      "terminal_handle": 13387,
+      "pass": 18,
+      "fail": 0,
+      "ignored": 0,
+      "filtered": 566,
+      "retry": 0,
+      "fmt": 0,
+      "clippy": 0,
+      "msrv": 0,
+      "runner": 0
+    }
+  },
+  "postterminal_binding": {
+    "root_head": "7a69d90671a323592b2e260fae73e0567f7e8dbb",
+    "root_status": "clean",
+    "linux_head": "7a69d90671a323592b2e260fae73e0567f7e8dbb",
+    "linux_status": "clean",
+    "independently_read": true
+  },
+  "mixed_oracles_passed": [
+    "actual completed original serving worker",
+    "literal held head and delegated read Pending retained inside caller",
+    "original deadline message and Elapsed source",
+    "combined caller and serving causes",
+    "PermissionDenied and ServingFailure Arc identity",
+    "target before explicit backup"
+  ],
+  "historical_baseline": "e1f309e2 both17PASS1FAIL; later typed marker and no-backup assertions previously unreached",
+  "unmeasured": [
+    "no-server branch",
+    "healthy remaining-join expiry",
+    "final cleanup expiry",
+    "finished foreign JoinError identity branches"
+  ],
+  "remaining_open": [
+    "seven raw ordinary workers",
+    "unfinished cancellation races",
+    "parser bounds",
+    "broader ownership",
+    "final integration gates"
+  ],
+  "markdown_sha256": "a89850dddd8d70f0d47185513b50028181d128dfc701bfcc5e5d6882e97b5235"
+}

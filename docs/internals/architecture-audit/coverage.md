@@ -2193,8 +2193,8 @@ caller and collected worker failures. See
 `stale-replay-owner-remedy-independent-native-review-e0228c78.json`.
 
 This is bounded fixture evidence. Drop requests abort without asynchronous
-collection. An outer deadline can still discard an already completed worker
-error; no mixed control measured that case. Seven other raw ordinary workers,
+collection. At that checkpoint, an outer deadline could discard an already
+completed worker error. Seven other raw ordinary workers,
 acquisition, parsing and allocation, quiet-accept errors, cancellation races,
 timeout owners, final architecture review and integration gates remain open.
 Replay-body I/O and redirect late-write errors also need their recorded fixes.
@@ -2232,6 +2232,49 @@ cause loss, body bounds and H3 error classification need further fixes.
 These source findings have no new native regression results. Their exact
 reads and preserved wire oracles are in `ping-replay-root-source-pass-711ca477.json`
 and `unprocessed-replay-root-source-pass-711ca477.json`.
+
+### Mixed caller deadline and body/tunnel baselines
+
+At `e1f309e2`, the mixed replay control reaches its original completed worker,
+literal held request head, real socket Pending and in-window prerequisite.
+It retains the actual deadline and Elapsed, then fails at the missing combined
+serving cause. All seventeen prior methods pass on each host. At `7a69d906`,
+all eighteen methods pass on Windows and Linux. The unchanged mixed target
+now retains the original PermissionDenied payload identity beside the deadline
+before backup runs. Formatting, strict Clippy and Rust 1.88 also pass.
+See `stale-mixed-deadline-remedy-independent-native-review-7a69d906.json`.
+
+The remedy keeps the original peer and caller outcome outside the timed
+caller. Healthy setup, caller and join share one absolute five-second budget.
+Failure collection uses finite separate intervals. No-server setup errors,
+healthy join timeout/final collection failures and finished foreign task-ID
+retention are source-reviewed paths without new native controls. Seven raw
+ordinary peers, parser bounds, quiet-accept classification and broader A245
+remain open.
+
+The body/tunnel baseline at `aef7eea1` runs fifty-four methods on each host:
+forty-one pass and thirteen fail. Nine failures reach lifecycle targets.
+Four stop at the URI prerequisite, so they do not prove cause-retention loss.
+The input-only correction at `59c28617` keeps every assertion. Those four
+controls now pass actual InvalidUri/parser-source checks and fail at the
+missing original cancellation cause. Returned JoinError/task-ID comparisons
+remain unreached. See `session-body-uri-baseline-independent-native-review-59c28617.json`.
+
+Eight Drop/deadline targets fail at destruction before later socket checks.
+The queued-setup target captures destruction, task completion and same-socket
+failures before backup. Its original RecvError and operation context remain.
+These are accepted TCP/TLS acquisition observations before Phantom upload,
+stream reset or tunnel forwarding. All forty-one prior methods and focused
+quality checks pass. Body/tunnel ownership and queued acquisition need repair.
+
+Whole expect-continue source reads also confirm fifteen raw worker owners,
+missing aggregate byte ceilings and discarded deadline/quiet/cancellation
+causes. Expected quiet expiry is success. The original sixteen HTTP1/HTTP2/
+HTTP3 contracts and timing windows remain the acceptance criteria. These
+findings have no new native regression results. See
+`expect-continue-independent-source-review-9b5c539a.json`.
+
+Final architecture review, full gates, candidate CI and integration remain open.
 
 ## Next
 

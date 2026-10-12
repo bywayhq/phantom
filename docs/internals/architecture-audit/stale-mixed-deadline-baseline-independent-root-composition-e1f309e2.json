@@ -1,0 +1,54 @@
+{
+  "revision": "e1f309e20e1a1ff3661848780e2932a5b164b860",
+  "parent": "9b5c539a44c8900a79521558333c8fd3a30d152e",
+  "approved_author": "6ff877d44d60e6b17ad71c0855bb01fa2737746c",
+  "decision": "APPROVE exact source composition",
+  "signature": "G",
+  "root_clean_observed": true,
+  "scope": "two additions only; full root child/module delta and full author formatting delta",
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/requests/stale_connection_replay.rs",
+      "blob": "05e5bf59ca82b0cebf0cb83e511f06efc50a121f",
+      "lines": 540,
+      "git_content_lf_sha256": "3d594408503e06f3619744e72e770ec7fbf694d225163b3a4cc279f9a040ed5d",
+      "physical_sha256": "3d594408503e06f3619744e72e770ec7fbf694d225163b3a4cc279f9a040ed5d"
+    },
+    {
+      "path": "crates/phantom/tests/requests/stale_connection_replay/ownership.rs",
+      "blob": "13619e6fec85383bd7b963de12c1de5bc40c224c",
+      "lines": 411,
+      "git_content_lf_sha256": "fe636b0091bbaf2c99caa69774f9bca2c603fb723b81312c0da238fc4cc2e335",
+      "physical_sha256": "fe636b0091bbaf2c99caa69774f9bca2c603fb723b81312c0da238fc4cc2e335"
+    },
+    {
+      "path": "crates/phantom/tests/requests/stale_connection_replay/ownership/tests.rs",
+      "blob": "cb494a7e970666d95877994ae3946020bf0050c0",
+      "lines": 264,
+      "git_content_lf_sha256": "968e56d4ea63786c7eac06d1f1f7ba41c75f04a78f7c42142830865363d88fb2",
+      "physical_sha256": "968e56d4ea63786c7eac06d1f1f7ba41c75f04a78f7c42142830865363d88fb2"
+    },
+    {
+      "path": "crates/phantom/tests/requests/stale_connection_replay/ownership/mixed_deadline_tests.rs",
+      "blob": "141af69ea95740c0e5160ee257fba5d331f5c599",
+      "lines": 273,
+      "git_content_lf_sha256": "cdb62cf247eb0fb923496ec851bf6fa10771c0bbb409febc466d1a1cdcb12baf",
+      "physical_sha256": "cdb62cf247eb0fb923496ec851bf6fa10771c0bbb409febc466d1a1cdcb12baf"
+    }
+  ],
+  "preservation": [
+    {
+      "path": "crates/phantom/tests/requests/stale_connection_replay.rs",
+      "equal": true
+    },
+    {
+      "path": "crates/phantom/tests/requests/stale_connection_replay/ownership/tests.rs",
+      "equal": true
+    }
+  ],
+  "prior_full_source_review": "stale-mixed-deadline-baseline-independent-source-review-81a74fdc",
+  "prior_correction": "stale-mixed-deadline-baseline-independent-source-review-6ff877d4",
+  "native": null,
+  "live_native_not_polled": true,
+  "markdown_sha256": "e97e30d863a66b9b6e1ddf6769db3924ca1e971d8955e754f2402f8ccd7d813f"
+}

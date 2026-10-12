@@ -1,0 +1,35 @@
+{
+  "revision": "9b5c539a44c8900a79521558333c8fd3a30d152e",
+  "kind": "whole-manual-source-review",
+  "files": [
+    {"path": "crates/phantom/tests/requests/expect_continue.rs", "range": [1, 565], "blob": "8e59476392c303837462adecab2477ded14ca8f8", "physical_sha256": "6e42885a9394cef1a56ac8c913453a2f5b99421d7dd4009579491d31cad3b569"},
+    {"path": "crates/phantom/tests/requests/expect_continue/http3.rs", "range": [1, 311], "blob": "a39129b0698950b406cc3e0f079905165976391a", "physical_sha256": "4620d61e97048237ad763a8bdeaf984bd0e0787068e33a5a556d16b1c469d06b"}
+  ],
+  "contracts_reviewed": [
+    "HTTP1 literal 100 then payload and generated header position",
+    "500ms wait expiry with existing platform timing tolerance",
+    "417 withholding and second connection without Expect",
+    "307 preserved body and repeated waiting",
+    "bodyless expectation omission and original caller spelling/order",
+    "invalid Expect and unrepresentable timeout classifications",
+    "HTTP2 literal HPACK100/200/417 and DATA/CANCEL ordering",
+    "negotiated HTTP2 body wait",
+    "HTTP3 literal statuses, upload cancellation code, redirects and payload"
+  ],
+  "confirmed_fixture_gaps": [
+    "Actual raw JoinHandle workers cross fallible caller paths and consuming outer10s deadline before success-only joins in both files",
+    "Parent bounded mapping discards actual Elapsed",
+    "Parent read_until_closed and HTTP2 body collector and child HTTP3 body collector have no byte bound",
+    "Negative-window helpers reject premature arrivals, EOF and errors but erase original I/O/H2/H3 errors in formatted or constant diagnostics",
+    "HTTP3 upload-cancelled helper stringifies unexpected original stream errors and discards actual deadline Elapsed",
+    "Module local imports precede std imports, contrary to adopted grouping"
+  ],
+  "evidence_boundaries": [
+    "Source findings, not native regression results or production leak evidence",
+    "Expected quiet-window expiry is an intended success oracle and must remain distinct from operation timeout",
+    "Client-done channels are lifetime signals, not original worker result owners; sender/receiver closure needs deliberate handling",
+    "Timing tolerance is existing test behavior, not a new scheduling guarantee",
+    "No ownership, bounds, classification or layout remediation performed"
+  ],
+  "next": "independent source review and bounded actual-worker regressions/remedies; preserve literal wire and timing oracles"
+}

@@ -1,0 +1,36 @@
+{
+  "revision": "59c28617baf92cc9c5ea35b52678505ca1645a2d",
+  "parent": "aef7eea12227fc3ffa29a4fa497aaec762a55650",
+  "decision": "APPROVE source and measurement scripts",
+  "bindings": [
+    {
+      "path": "crates/phantom/tests/sessions/session/body_ownership/tests.rs",
+      "blob": "069345b2cbac7d71dc6791c475569c0ec82b1000"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_ownership/tests.rs",
+      "blob": "ec070d7236400f2f9b17ffa8a988f9919874452c"
+    }
+  ],
+  "scripts": [
+    {
+      "path": "run-session-body-uri-baseline.sh",
+      "sha256": "722edbf66cff60bfa632ff9c9d0d5dc9ace897ec1d3671b60d161fb2a581cb5d"
+    },
+    {
+      "path": "sync-session-body-uri-baseline-59c28617.sh",
+      "sha256": "e5653b6f83a363c61a0eb1623673900e4207946383b10cbee64550ec7ff98249"
+    }
+  ],
+  "signature": "G",
+  "clean_observed": true,
+  "scope": "complete two injected literal changes only",
+  "preserved": [
+    "InvalidUri/parser-source/JoinError IDs assertions",
+    "owners and durations",
+    "old canonical body and tunnel behavior"
+  ],
+  "historical": "aef four completed-cause prerequisite failures retained, IDs assertions unreached",
+  "native": null,
+  "markdown_sha256": "3ca4a9e6147d2ecce6c3024703156caf5096d6ace9a05adaa54c2dd83d25fa27"
+}

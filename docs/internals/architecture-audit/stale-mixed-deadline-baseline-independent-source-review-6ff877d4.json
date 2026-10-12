@@ -1,0 +1,11 @@
+{
+  "revision": "6ff877d44d60e6b17ad71c0855bb01fa2737746c",
+  "parent": "81a74fdccd9c3524fb8d5f9d5a4d573733ebedb3",
+  "decision": "APPROVE source only",
+  "prior_review": "stale-mixed-deadline-baseline-independent-source-review-81a74fdc",
+  "child_blob": "dec634abbf8bf2e3776ed7d3bd8c484748a6b2fc",
+  "scope": "Complete sole child delta; prior complete immutable source reads retained",
+  "hold_resolved": "Retained outside prerequisite-success flag; guard before post-deadline target",
+  "native": null,
+  "markdown_sha256": "1cf65c2a1af4add81d79963986a08592f355fcb505cca94a734ba680ece7a8e6"
+}
