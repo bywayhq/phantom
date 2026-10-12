@@ -240,7 +240,7 @@ async fn serve_421_without_replay(
             Err("421 triggered a replay on a new connection".into())
         }
         observed_response = response_seen => {
-            observed_response.map_err(|_| "client stopped before observing the 421 response")?;
+            observed_response?;
             Ok(observed)
         }
     }
