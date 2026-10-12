@@ -38,7 +38,21 @@ class FailedRejection(LimitedCapture):
 
             async def __aenter__(driver):
                 await controls.open_h3()
+                await controls.close_h3()
+                if (
+                    not controls.normal_client_closed
+                    or not controls.normal_server_closed
+                ):
+                    raise AssertionError(
+                        "auxiliary H3 peer did not close before TCP faults"
+                    )
+
                 server = resources.tcp[0]
+                if len(server.origin.run.tcp) != 1 or server.origin.connections != 2:
+                    raise AssertionError(
+                        "original connection quota changed before TCP faults"
+                    )
+
                 actual_close = server.server.close
                 actual_accept = race.Http2Origin.accept
 

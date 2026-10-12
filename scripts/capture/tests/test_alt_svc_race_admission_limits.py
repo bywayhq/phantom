@@ -1,4 +1,4 @@
-"""Run quotas guard actual accepted peers, routed H3 requests and page results."""
+"""Run quotas guard actual accepted peers, routed requests and page results."""
 
 import asyncio
 import json
@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import patch
 from urllib.parse import quote
 
+import h2.settings
 from aioquic.h3.connection import H3_ALPN
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.quic.connection import QuicConnection
@@ -26,6 +27,7 @@ class LimitedCapture(H3DeferredPeer):
         self.accepts = []
         self.datagrams = []
         self.probe_datagram = None
+        self.probe_sender = None
         self.datagram_received = asyncio.Event()
         self.before = None
         self.after = None
@@ -125,6 +127,26 @@ class LimitedCapture(H3DeferredPeer):
         if case in {"results", "results-boundary"}:
             resources.stack.enter_context(patch.object(race, "MAX_PAGE_RESULTS", 3))
 
+        if case == "target":
+            actual_connection = race.H2Connection
+
+            def boundary_connection(config):
+                connection = actual_connection(config)
+
+                # Isolate Origin's target cap from HPACK's whole-header-list cap.
+                values = dict(connection.local_settings)
+                values[h2.settings.SettingCodes.MAX_HEADER_LIST_SIZE] = 128 * 1024
+                connection.local_settings = h2.settings.Settings(
+                    client=config.client_side, initial_values=values
+                )
+                connection.decoder.max_header_list_size = 128 * 1024
+
+                return connection
+
+            resources.stack.enter_context(
+                patch.object(race, "H2Connection", boundary_connection)
+            )
+
         class LimitDriver:
             browser = None
 
@@ -173,13 +195,21 @@ class LimitedCapture(H3DeferredPeer):
                     controls.observe_udp()
                     sender = await race.bind_udp(HOST)
                     resources.senders.append(sender)
+                    controls.probe_sender = sender
                     controls.probe_datagram = b"literal rejected UDP peer"
-                    for _ in range(3):
-                        controls.datagram_received.clear()
-                        sender.sendto(controls.probe_datagram, (HOST, origin.port))
-                        await asyncio.wait_for(
-                            controls.datagram_received.wait(), DEADLINE
-                        )
+
+                    try:
+                        for _ in range(3):
+                            controls.datagram_received.clear()
+                            sender.sendto(controls.probe_datagram, (HOST, origin.port))
+                            await asyncio.wait_for(
+                                controls.datagram_received.wait(), DEADLINE
+                            )
+                    finally:
+                        sender.close()
+
+                    if sender.fileno() != -1:
+                        raise AssertionError("actual UDP probe sender remained open")
                 elif case == "request":
                     controls.client.request(origin.port, "/hold")
                 elif case in {"results", "results-boundary"}:
@@ -202,15 +232,21 @@ class LimitedCapture(H3DeferredPeer):
                 elif case == "result-member":
                     controls.client.request(origin.port, "/done?results=%5Bnull%5D")
                 elif case == "target":
+                    # The pinned H3 encoder rejects this size before Origin sees it.
+                    await controls.peer.open()
+
                     target = "/r/" + "x" * (65536 - 3)
-                    response = await controls.client.get(origin.port, target)
+                    await controls.peer.request(3, target)
+                    await controls.peer.response(3, target)
+
+                    response = controls.peer.exchanges[-1]
                     if response != (target, b"200", b"ok"):
                         raise AssertionError(
                             "actual 64 KiB target did not receive 200/ok"
                         )
 
                     controls.before = controls.retained()
-                    controls.client.request(origin.port, target + "x")
+                    await controls.peer.request(5, target + "x")
 
                 if case != "results-boundary":
                     await asyncio.wait_for(controls.failure_received.wait(), DEADLINE)
@@ -346,6 +382,8 @@ class RaceAdmissionLimitTests(unittest.IsolatedAsyncioTestCase):
             [b"literal rejected UDP peer"] * 3,
         )
 
+        self.assertEqual(controls.probe_sender.fileno(), -1)
+
     async def test_request_overflow_does_not_retain_another_hold(self):
         controls = self.acquire()
         result, observed, closed = await controls.run_case("request")
@@ -451,7 +489,14 @@ class RaceAdmissionLimitTests(unittest.IsolatedAsyncioTestCase):
             "race request target exceeds the 64 KiB limit",
         )
         self.assertEqual(controls.after[:5], controls.before[:5])
-        self.assertEqual(len(controls.h3_exchanges[-1][0]), 65536)
-        self.assertEqual(controls.h3_exchanges[-1][1:], (b"200", b"ok"))
+        self.assertEqual(len(controls.peer.exchanges[-1][0]), 65536)
+        self.assertEqual(controls.peer.exchanges[-1][1:], (b"200", b"ok"))
+
+        self.assertEqual(controls.peer.connection.decoder.max_header_list_size, 131072)
+        self.assertEqual(
+            controls.peer.client.remote_settings.max_header_list_size, 131072
+        )
+
         run = controls.peer.resources.tcp[0].origin.run
         self.assertEqual(len(run.requests[-1].path), 65536)
+        self.assertEqual(run.requests[-1].transport, "h2")
