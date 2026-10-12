@@ -147,3 +147,26 @@ async fn original_terminal_second_accept_keeps_its_configured_typed_failure() ->
     .await;
     finish_with_cleanup(primary, backup.stop().await)
 }
+
+#[tokio::test]
+async fn original_terminal_collector_expiry_retains_elapsed_and_closes_the_pending_peer() -> TestResult<()> {
+    let mut backup = Backup::prepare(Mode::Healthy).await?;
+    let primary = async {
+        backup.pending().await?;
+        let peer = backup.take_peer()?;
+        let observer = LIMIT * 2 + std::time::Duration::from_secs(2);
+        let error = timeout(observer, super::collect(Ok(()), peer))
+            .await?
+            .err()
+            .ok_or("original pending terminal collection succeeded without expiring")?;
+        assert_eq!(error.to_string(), "terminal-status peer did not finish");
+        assert!(
+            std::error::Error::source(error.as_ref())
+                .is_some_and(|source| source.is::<tokio::time::error::Elapsed>())
+        );
+
+        backup.destroyed().await
+    }
+    .await;
+    finish_with_cleanup(primary, backup.stop().await)
+}

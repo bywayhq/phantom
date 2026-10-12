@@ -27,10 +27,11 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
     sync::oneshot,
-    time::{sleep, timeout},
+    time::{Instant, sleep, timeout, timeout_at},
 };
 use tracing::instrument::WithSubscriber;
 
+use crate::support::deadline::FixtureDeadline;
 use crate::support::tls as tls_support;
 use crate::support::tracing as tracing_support;
 use tls_support::{
@@ -109,11 +110,19 @@ async fn request_retry_override_waits_for_observed_failure_before_exact_h1_dispa
 
 #[tokio::test]
 async fn terminal_http_status_is_not_retried() -> TestResult {
-    bounded(async {
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let (address, server) = timeout_at(deadline, async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let server = terminal_status::spawn(listener, None);
+        Ok::<_, Box<dyn Error + Send + Sync>>((address, server))
+    })
+    .await
+    .map_err(|elapsed| {
+        FixtureDeadline::new("connection retry test exceeded its deadline", elapsed)
+    })??;
 
+    let caller: TestResult<_> = match timeout_at(deadline, async {
         let client = Client::builder(ClientProfile::new(tls_settings()))
             .retry_policy(RetryPolicy::connection_failures(
                 NonZeroUsize::MIN,
@@ -121,25 +130,37 @@ async fn terminal_http_status_is_not_retried() -> TestResult {
             ))
             .build()?;
         let subscriber = OutcomeSubscriber::default();
-        let caller =
-            terminal_status::caller(&client, &format!("http://{address}/terminal"), &subscriber)
-                .await;
-        let (_body, (head, had_no_second_connection)) =
-            terminal_status::collect(caller, server).await?;
-        assert_eq!(
-            head,
-            format!("GET /terminal HTTP/1.1\r\nHost: {address}\r\n\r\n").as_bytes()
-        );
-        assert!(had_no_second_connection);
-        assert!(subscriber.retry_reasons_for("client.request").is_empty());
-        assert!(
-            subscriber
-                .retries_performed_for("client.request")
-                .is_empty()
-        );
-        Ok(())
+        let body = terminal_status::caller(
+            &client,
+            &format!("http://{address}/terminal"),
+            &subscriber,
+        )
+        .await?;
+        Ok((client, subscriber, body))
     })
     .await
+    {
+        Ok(result) => result,
+        Err(elapsed) => Err(FixtureDeadline::new(
+            "connection retry test exceeded its deadline",
+            elapsed,
+        ).into()),
+    };
+
+    let ((_client, subscriber, _body), (head, had_no_second_connection)) =
+        terminal_status::collect(caller, server).await?;
+    assert_eq!(
+        head,
+        format!("GET /terminal HTTP/1.1\r\nHost: {address}\r\n\r\n").as_bytes()
+    );
+    assert!(had_no_second_connection);
+    assert!(subscriber.retry_reasons_for("client.request").is_empty());
+    assert!(
+        subscriber
+            .retries_performed_for("client.request")
+            .is_empty()
+    );
+    Ok(())
 }
 
 #[tokio::test]
