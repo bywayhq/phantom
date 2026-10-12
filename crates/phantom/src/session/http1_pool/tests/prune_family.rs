@@ -139,7 +139,7 @@ async fn check_family(state: OriginState) -> TestResult {
         race.resume()?;
         swept.await?;
 
-        let target = match state {
+        let target: TestResult = match state {
             OriginState::Reconnected => {
                 if origin.connections.lock().leased != 1 {
                     Err("held connection ended before the family target".into())
