@@ -53,7 +53,7 @@ impl ReplyBackup {
         let ssl = connector.build().configure()?.into_ssl("127.0.0.1")?;
 
         let (url, task) = serve_http1_replies(identity, REPLY).await?;
-        self.peer = Some(ConnectionPeer::from_task(task));
+        self.peer = Some(task);
 
         let uri: http::Uri = url.parse()?;
         let address: SocketAddr = uri
@@ -216,4 +216,30 @@ async fn reply_fixture_preserves_the_actual_oversized_head_error() -> TestResult
 #[tokio::test]
 async fn reply_fixture_counts_a_completed_request_before_clean_eof() -> TestResult<()> {
     exercise(ReplyContract::CleanEof).await
+}
+
+#[tokio::test]
+async fn dropping_the_returned_reply_owner_releases_its_listener() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let (url, peer) = serve_http1_replies(&identity, REPLY).await?;
+    let uri: http::Uri = url.parse()?;
+    let address: SocketAddr = uri
+        .authority()
+        .ok_or("reply fixture URL has no authority")?
+        .as_str()
+        .parse()?;
+    let mut client = timeout(CONTROL_LIMIT, TcpStream::connect(address)).await??;
+
+    drop(peer);
+    let closed = timeout(CONTROL_LIMIT, client.read(&mut [0_u8; 1])).await?;
+    match closed {
+        Ok(0) => {}
+        Err(error) if is_peer_gone(&error) => {}
+        Err(error) => return Err(error.into()),
+        Ok(_) => return Err("dropped reply fixture sent an unexpected byte".into()),
+    }
+
+    let rebound = timeout(CONTROL_LIMIT, TcpListener::bind(address)).await??;
+    assert_eq!(rebound.local_addr()?, address);
+    Ok(())
 }

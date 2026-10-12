@@ -37,7 +37,10 @@ use tokio::{
     time::{error::Elapsed, timeout},
 };
 
-use crate::support::{h3 as h3_support, tls as tls_support, tunnel_proxy::finish_with_cleanup};
+use crate::support::{
+    h3 as h3_support, tls as tls_support,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+};
 use fixture::{Capture, Fields};
 use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, accept_tls, read_head, tls_settings};
@@ -383,16 +386,37 @@ impl TemplateOrigin {
         }
 
         let joined = timeout(ORIGIN_JOIN_TIMEOUT, &mut self).await;
-        match (operation, joined) {
-            (Ok(()), Ok(Ok(result))) => result,
-            (Ok(()), Ok(Err(error))) => Err(error.into()),
-            (Ok(()), Err(error)) => Err(error.into()),
-            (Err(primary), Ok(Ok(result))) => finish_with_cleanup(Err(primary), result.map(|_| ())),
-            (Err(primary), Ok(Err(error))) if requested_stop && error.is_cancelled() => {
-                Err(primary)
-            }
-            (Err(primary), Ok(Err(error))) => finish_with_cleanup(Err(primary), Err(error.into())),
-            (Err(primary), Err(error)) => finish_with_cleanup(Err(primary), Err(error.into())),
+        origin_result(operation, joined, requested_stop).map(|((), observed)| observed)
+    }
+}
+
+async fn complete_peer<T: Send + 'static, U>(
+    mut peer: ConnectionPeer<TestResult<T>>,
+    operation: TestResult<U>,
+) -> TestResult<(U, T)> {
+    let requested_stop = operation.is_err() && !peer.is_finished();
+    if requested_stop {
+        peer.abort();
+    }
+
+    let joined = timeout(TEST_TIMEOUT, &mut peer).await;
+    origin_result(operation, joined, requested_stop)
+}
+
+fn origin_result<T, U>(
+    operation: TestResult<U>,
+    joined: Result<Result<TestResult<T>, tokio::task::JoinError>, Elapsed>,
+    requested_stop: bool,
+) -> TestResult<(U, T)> {
+    match (operation, joined) {
+        (Ok(value), Ok(Ok(result))) => result.map(|observed| (value, observed)),
+        (Ok(_), Ok(Err(error))) => Err(error.into()),
+        (Ok(_), Err(error)) => Err(OriginFailure::JoinDeadline(error).into()),
+        (Err(primary), Ok(Ok(result))) => finish_with_cleanup(Err(primary), result.map(|_| ())),
+        (Err(primary), Ok(Err(error))) if requested_stop && error.is_cancelled() => Err(primary),
+        (Err(primary), Ok(Err(error))) => finish_with_cleanup(Err(primary), Err(error.into())),
+        (Err(primary), Err(error)) => {
+            finish_with_cleanup(Err(primary), Err(OriginFailure::JoinDeadline(error).into()))
         }
     }
 }
@@ -443,25 +467,43 @@ enum OriginFailure {
     MissingWorker,
     PolledAfterCompletion,
     OriginDropDeadline(Elapsed),
+    JoinDeadline(Elapsed),
+    RequestDeadline {
+        protocol: HttpProtocol,
+        source: Elapsed,
+    },
+    NegotiatedRequestDeadline(Elapsed),
+    TestDeadline(Elapsed),
 }
 
 impl fmt::Display for OriginFailure {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(match self {
+        let message = match self {
             Self::Transfer => "template observation transfer failed",
             Self::MissingWorker => "template observation did not transfer its original worker",
             Self::PolledAfterCompletion => "template worker join was polled after completion",
             Self::OriginDropDeadline(_) => {
                 "template origin Drop did not destroy its actual pending worker"
             }
-        })
+            Self::JoinDeadline(_) => "template origin worker join timed out",
+            Self::NegotiatedRequestDeadline(_) => "negotiated template request timed out",
+            Self::TestDeadline(_) => "template fixture timed out",
+            Self::RequestDeadline { protocol, .. } => {
+                return write!(formatter, "{protocol:?} template request timed out");
+            }
+        };
+        formatter.write_str(message)
     }
 }
 
 impl Error for OriginFailure {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            Self::OriginDropDeadline(error) => Some(error),
+            Self::OriginDropDeadline(error)
+            | Self::JoinDeadline(error)
+            | Self::NegotiatedRequestDeadline(error)
+            | Self::TestDeadline(error) => Some(error),
+            Self::RequestDeadline { source, .. } => Some(source),
             _ => None,
         }
     }
@@ -610,7 +652,7 @@ async fn assert_reproduces(
             send(&browser, template(), protocol, &expected),
         )
         .await
-        .map_err(|_| format!("{protocol:?} request timed out"))??;
+        .map_err(|source| OriginFailure::RequestDeadline { protocol, source })??;
         assert_eq!(observed.fields, expected, "{protocol:?}");
         if protocol == HttpProtocol::Http2 {
             let priority = captured_priority(&browser, kind)?;
@@ -813,26 +855,34 @@ async fn negotiated_http2_request_sends_the_template_priority() -> TestResult<()
     let identity = TestIdentity::generate()?;
     let (client_done, wait_for_client) = oneshot::channel();
     let (url, server) = serve_http2(&identity, wait_for_client).await?;
-    let client =
-        Client::builder(ClientProfile::new(tls_settings()).with_http2(browser.http2.clone()))
-            .add_root_certificate_der(identity.root_der.clone())
-            .build()?;
-    let sent = client
-        .get_negotiated(&url)?
-        .template(&PreparedRequestTemplate::new(
-            chrome::v154_windows_fetch_no_store_template(),
-        )?)
-        .header(RequestHeader::new("referer", url.as_str()))
-        .send();
-    let response = timeout(TEST_TIMEOUT, sent).await??;
-    let protocol = response
-        .extensions()
-        .get::<ResponseInfo>()
-        .map(ResponseInfo::protocol);
-    assert_eq!(protocol, Some(HttpProtocol::Http2));
-    response.into_body().collect().await?;
-    let _ = client_done.send(());
-    let observed = timeout(TEST_TIMEOUT, server).await???;
+    let server = ConnectionPeer::from_task(server);
+
+    let operation: TestResult<Client> = async {
+        let client =
+            Client::builder(ClientProfile::new(tls_settings()).with_http2(browser.http2.clone()))
+                .add_root_certificate_der(identity.root_der.clone())
+                .build()?;
+        let sent = client
+            .get_negotiated(&url)?
+            .template(&PreparedRequestTemplate::new(
+                chrome::v154_windows_fetch_no_store_template(),
+            )?)
+            .header(RequestHeader::new("referer", url.as_str()))
+            .send();
+        let response = timeout(TEST_TIMEOUT, sent)
+            .await
+            .map_err(OriginFailure::NegotiatedRequestDeadline)??;
+        let protocol = response
+            .extensions()
+            .get::<ResponseInfo>()
+            .map(ResponseInfo::protocol);
+        assert_eq!(protocol, Some(HttpProtocol::Http2));
+        response.into_body().collect().await?;
+        let _ = client_done.send(());
+        Ok(client)
+    }
+    .await;
+    let (_client, observed) = complete_peer(server, operation).await?;
 
     let captured = captured_priority(&browser, Kind::Fetch)?;
     assert!(captured.is_some(), "the capture carries HEADERS priority");
@@ -948,7 +998,7 @@ mod cookie_placement {
         );
         let observed = timeout(TEST_TIMEOUT, sent)
             .await
-            .map_err(|_| format!("{protocol:?} request timed out"))??;
+            .map_err(|source| OriginFailure::RequestDeadline { protocol, source })??;
         Ok(observed.fields)
     }
 
@@ -1192,7 +1242,9 @@ mod cookie_placement {
 
 #[tokio::test]
 async fn redirect_hop_keeps_the_template_and_drops_caller_hints_cross_origin() -> TestResult<()> {
-    timeout(TEST_TIMEOUT, redirect_hop()).await?
+    timeout(TEST_TIMEOUT, redirect_hop())
+        .await
+        .map_err(OriginFailure::TestDeadline)?
 }
 
 /// Follows one cross-origin redirect, from one loopback port to another,
@@ -1209,7 +1261,7 @@ async fn redirect_hop() -> TestResult<()> {
     let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
     std::io::Write::write_all(&mut encoder, &payload)?;
     let encoded = encoder.finish()?;
-    let server = tokio::spawn(async move {
+    let server = ConnectionPeer::spawn(async move {
         let mut stream = accept_tls(first, first_acceptor).await?;
         let first_hop = http1_fields(read_head(&mut stream).await?)?;
         let redirect =
@@ -1228,29 +1280,34 @@ async fn redirect_hop() -> TestResult<()> {
         TestResult::Ok((first_hop, second_hop))
     });
 
-    let profile =
-        ClientProfile::new(tls_settings()).with_client_hints(chrome::v154_windows_client_hints());
-    let client = Client::builder(profile)
-        .add_root_certificate_der(identity.root_der.clone())
-        .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-        .build()?;
-    let response = client
-        .get(HttpProtocol::Http1, &first_url)?
-        .template(&PreparedRequestTemplate::new(
-            chrome::v154_windows_navigation_template(),
-        )?)
-        .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
-        .content_decoding(ContentDecoding::advertised(1 << 20))
-        .send()
-        .await?;
-    let decoded = response
-        .extensions()
-        .get::<ResponseInfo>()
-        .ok_or("response has no ResponseInfo")?
-        .decoded_content_codings()
-        .to_vec();
-    let body = response.into_body().collect_with_limit(usize::MAX).await?;
-    let (first_hop, second_hop) = server.await??;
+    let operation: TestResult<_> = async {
+        let profile = ClientProfile::new(tls_settings())
+            .with_client_hints(chrome::v154_windows_client_hints());
+        let client = Client::builder(profile)
+            .add_root_certificate_der(identity.root_der.clone())
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+            .build()?;
+        let response = client
+            .get(HttpProtocol::Http1, &first_url)?
+            .template(&PreparedRequestTemplate::new(
+                chrome::v154_windows_navigation_template(),
+            )?)
+            .header(RequestHeader::new("sec-ch-ua-arch", "\"x86\""))
+            .content_decoding(ContentDecoding::advertised(1 << 20))
+            .send()
+            .await?;
+        let decoded = response
+            .extensions()
+            .get::<ResponseInfo>()
+            .ok_or("response has no ResponseInfo")?
+            .decoded_content_codings()
+            .to_vec();
+        let body = response.into_body().collect_with_limit(usize::MAX).await?;
+        Ok((client, decoded, body))
+    }
+    .await;
+    let ((_client, decoded, body), (first_hop, second_hop)) =
+        complete_peer(server, operation).await?;
 
     // The caller hint joins the block on the first hop.
     let names = |fields: &Fields| {
@@ -1412,11 +1469,11 @@ async fn fetch_template_with_a_requested_hint_fails_before_any_connection() -> T
 async fn serve_http1_replies(
     identity: &TestIdentity,
     reply: &'static str,
-) -> TestResult<(String, tokio::task::JoinHandle<TestResult<usize>>)> {
+) -> TestResult<(String, ConnectionPeer<TestResult<usize>>)> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let url = format!("https://{}/", listener.local_addr()?);
     let acceptor = identity.acceptor(H1_ALPN)?;
-    let server = tokio::spawn(async move {
+    let server = ConnectionPeer::spawn(async move {
         let mut stream = accept_tls(listener, acceptor).await?;
         let mut requests = 0;
         loop {
@@ -1452,28 +1509,43 @@ async fn fetch_template_after_accept_ch_fails_before_the_request_is_sent() -> Te
         "HTTP/1.1 204 No Content\r\nAccept-CH: Sec-CH-UA-Arch\r\n\r\n",
     )
     .await?;
-    let client = chrome_hints_client(&identity)?;
-    // One prepared template serves every request.
-    let template = PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
-    let fetch = || {
-        client.get(HttpProtocol::Http1, &url).map(|request| {
-            request
-                .template(&template)
-                .header(RequestHeader::new("referer", url.as_str()))
-        })
-    };
+    let operation: TestResult<()> = async {
+        let client = chrome_hints_client(&identity)?;
+        // One prepared template serves every request.
+        let template =
+            PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
+        let fetch = || {
+            client.get(HttpProtocol::Http1, &url).map(|request| {
+                request
+                    .template(&template)
+                    .header(RequestHeader::new("referer", url.as_str()))
+            })
+        };
 
-    let first = timeout(TEST_TIMEOUT, fetch()?.send()).await??;
-    assert_eq!(first.status(), StatusCode::NO_CONTENT);
-    first.into_body().collect().await?;
-    let error = timeout(TEST_TIMEOUT, fetch()?.send())
-        .await?
-        .err()
-        .ok_or("a requested hint was sent at an uncaptured fetch position")?;
-    assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
+        let first = timeout(TEST_TIMEOUT, fetch()?.send())
+            .await
+            .map_err(|source| OriginFailure::RequestDeadline {
+                protocol: HttpProtocol::Http1,
+                source,
+            })??;
+        assert_eq!(first.status(), StatusCode::NO_CONTENT);
+        first.into_body().collect().await?;
+        let error = timeout(TEST_TIMEOUT, fetch()?.send())
+            .await
+            .map_err(|source| OriginFailure::RequestDeadline {
+                protocol: HttpProtocol::Http1,
+                source,
+            })?
+            .err()
+            .ok_or("a requested hint was sent at an uncaptured fetch position")?;
+        assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
 
-    drop(client);
-    assert_eq!(timeout(TEST_TIMEOUT, server).await???, 1);
+        drop(client);
+        Ok(())
+    }
+    .await;
+    let ((), requests) = complete_peer(server, operation).await?;
+    assert_eq!(requests, 1);
     Ok(())
 }
 
@@ -1488,25 +1560,34 @@ async fn fetch_template_critical_ch_retry_fails_before_the_retry_is_sent() -> Te
          Critical-CH: Sec-CH-UA-Arch\r\n\r\n",
     )
     .await?;
-    let client = chrome_hints_client(&identity)?;
+    let operation: TestResult<()> = async {
+        let client = chrome_hints_client(&identity)?;
 
-    let error = timeout(
-        TEST_TIMEOUT,
-        client
-            .get(HttpProtocol::Http1, &url)?
-            .template(&PreparedRequestTemplate::new(
-                chrome::v154_windows_fetch_no_store_template(),
-            )?)
-            .header(RequestHeader::new("referer", url.as_str()))
-            .send(),
-    )
-    .await?
-    .err()
-    .ok_or("the Critical-CH retry was sent with a requested hint")?;
-    assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
+        let error = timeout(
+            TEST_TIMEOUT,
+            client
+                .get(HttpProtocol::Http1, &url)?
+                .template(&PreparedRequestTemplate::new(
+                    chrome::v154_windows_fetch_no_store_template(),
+                )?)
+                .header(RequestHeader::new("referer", url.as_str()))
+                .send(),
+        )
+        .await
+        .map_err(|source| OriginFailure::RequestDeadline {
+            protocol: HttpProtocol::Http1,
+            source,
+        })?
+        .err()
+        .ok_or("the Critical-CH retry was sent with a requested hint")?;
+        assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
 
-    drop(client);
-    assert_eq!(timeout(TEST_TIMEOUT, server).await???, 1);
+        drop(client);
+        Ok(())
+    }
+    .await;
+    let ((), requests) = complete_peer(server, operation).await?;
+    assert_eq!(requests, 1);
     Ok(())
 }
 
@@ -1580,7 +1661,7 @@ async fn negotiated_template_without_http3_order_is_refused_only_on_quic_routes(
     assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
 
     // A CONNECT tunnel never carries QUIC, so the request reaches the proxy.
-    let proxy = tokio::spawn(async move {
+    let proxy = ConnectionPeer::spawn(async move {
         let (mut tunnel, _) = listener.accept().await?;
         let head = read_head(&mut tunnel).await?;
         tunnel
@@ -1588,19 +1669,24 @@ async fn negotiated_template_without_http3_order_is_refused_only_on_quic_routes(
             .await?;
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
     });
-    let sent = client
-        .get_negotiated(&url)?
-        .template(&template)
-        .route(Route::http_proxy(HttpProxy::new(&format!(
-            "http://127.0.0.1:{port}"
-        ))?))
-        .send();
-    let error = timeout(TEST_TIMEOUT, sent)
-        .await?
-        .err()
-        .ok_or("the proxy refused the tunnel but the request succeeded")?;
-    assert_eq!(error.kind(), RequestErrorKind::Proxy);
-    let head = timeout(TEST_TIMEOUT, proxy).await???;
+    let operation: TestResult<()> = async {
+        let sent = client
+            .get_negotiated(&url)?
+            .template(&template)
+            .route(Route::http_proxy(HttpProxy::new(&format!(
+                "http://127.0.0.1:{port}"
+            ))?))
+            .send();
+        let error = timeout(TEST_TIMEOUT, sent)
+            .await
+            .map_err(OriginFailure::NegotiatedRequestDeadline)?
+            .err()
+            .ok_or("the proxy refused the tunnel but the request succeeded")?;
+        assert_eq!(error.kind(), RequestErrorKind::Proxy);
+        Ok(())
+    }
+    .await;
+    let ((), head) = complete_peer(proxy, operation).await?;
     assert!(head.starts_with(format!("CONNECT 127.0.0.1:{port} HTTP/1.1\r\n").as_bytes()));
     Ok(())
 }

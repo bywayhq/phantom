@@ -12,13 +12,15 @@ use phantom::{
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 
 use super::{
-    Observed, TEST_TIMEOUT, TestIdentity, TestResult, client_settings, http1_fields, read_head,
-    serve_http1, serve_http2, serve_http3, tls_settings,
+    Observed, OriginFailure, TEST_TIMEOUT, TestIdentity, TestResult, client_settings, http1_fields,
+    read_head, serve_http1, serve_http2, serve_http3, tls_settings,
 };
-use crate::support::tls::accept_tls_stream;
+use crate::support::{tls::accept_tls_stream, tunnel_proxy::ConnectionPeer};
 
 async fn bounded<T>(future: impl Future<Output = TestResult<T>>) -> TestResult<T> {
-    timeout(TEST_TIMEOUT, future).await?
+    timeout(TEST_TIMEOUT, future)
+        .await
+        .map_err(OriginFailure::TestDeadline)?
 }
 
 fn template(value: &str) -> RequestTemplate {
@@ -248,7 +250,7 @@ async fn redirect_hops(opt_out: bool) -> TestResult<Vec<super::Fields>> {
     let second_url = format!("https://{}/", second.local_addr()?);
     let acceptor = identity.acceptor(super::H1_ALPN)?;
     let return_url = first_url.clone();
-    let server = tokio::spawn(async move {
+    let server = ConnectionPeer::spawn(async move {
         let mut observations = Vec::new();
         for (listener, location) in [
             (&first, Some(second_url)),
@@ -270,27 +272,33 @@ async fn redirect_hops(opt_out: bool) -> TestResult<Vec<super::Fields>> {
         }
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observations)
     });
-    let mut default = template("kept");
-    default.http1_fields.extend([
-        RequestField::literal("Authorization", "Bearer origin"),
-        RequestField::literal("Proxy-Authorization", "Basic dGVzdDpzZWNyZXQ="),
-    ]);
-    let client = Client::builder(ClientProfile::new(tls_settings()).with_request_template(default))
-        .add_root_certificate_der(identity.root_der.clone())
-        .redirect_policy(RedirectPolicy::limited(
-            NonZeroUsize::new(2).ok_or("zero limit")?,
-        ))
-        .build()?;
-    let request = client.get(HttpProtocol::Http1, &first_url)?;
-    let request = if opt_out {
-        request.without_template()
-    } else {
-        request
-    };
-    let response = request.send().await?;
-    assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    response.into_body().collect().await?;
-    server.await?
+    let operation: TestResult<Client> = async {
+        let mut default = template("kept");
+        default.http1_fields.extend([
+            RequestField::literal("Authorization", "Bearer origin"),
+            RequestField::literal("Proxy-Authorization", "Basic dGVzdDpzZWNyZXQ="),
+        ]);
+        let client =
+            Client::builder(ClientProfile::new(tls_settings()).with_request_template(default))
+                .add_root_certificate_der(identity.root_der.clone())
+                .redirect_policy(RedirectPolicy::limited(
+                    NonZeroUsize::new(2).ok_or("zero limit")?,
+                ))
+                .build()?;
+        let request = client.get(HttpProtocol::Http1, &first_url)?;
+        let request = if opt_out {
+            request.without_template()
+        } else {
+            request
+        };
+        let response = request.send().await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        Ok(client)
+    }
+    .await;
+    let (_client, observations) = super::complete_peer(server, operation).await?;
+    Ok(observations)
 }
 
 #[tokio::test]
