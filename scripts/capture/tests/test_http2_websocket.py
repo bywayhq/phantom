@@ -16,6 +16,7 @@ from h2.errors import ErrorCodes
 from h2.events import (
     DataReceived,
     RemoteSettingsChanged,
+    RequestReceived,
     ResponseReceived,
     StreamEnded,
     StreamReset,
@@ -766,6 +767,86 @@ class Http2WebSocketTests(unittest.TestCase):
 
 
 class CaptureBoundaryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_same_batch_cancelled_requests_leave_another_stream_usable(self):
+        server = CaptureServer(CERTIFICATE)
+        await server.start("127.0.0.1")
+        run = CaptureRun("cancel", SCENARIOS["accept"].policy, {"tls": b"usable"})
+        server.begin_run(run)
+        client = None
+        batches = []
+        original_receive = H2Connection.receive_data
+
+        def receive(connection, data):
+            events = original_receive(connection, data)
+            if not connection.config.client_side:
+                batches.append(events)
+            return events
+
+        fields = [
+            (b":method", b"GET"),
+            (b":scheme", b"https"),
+            (b":authority", HOSTNAME.encode()),
+            (b":path", b"/ws.html?run=cancel"),
+        ]
+        try:
+            client = await ScriptedH2.open(server.tls_address[1])
+            client.connection.send_headers(1, fields, end_stream=True)
+            client.connection.reset_stream(1, ErrorCodes.CANCEL)
+            client.connection.send_headers(
+                3,
+                [
+                    (b":method", b"CONNECT"),
+                    (b":protocol", b"websocket"),
+                    (b":scheme", b"https"),
+                    (b":authority", HOSTNAME.encode()),
+                    (b":path", b"/echo?run=cancel"),
+                    (b"sec-websocket-version", b"13"),
+                ],
+            )
+            client.connection.reset_stream(3, ErrorCodes.CANCEL)
+            client.connection.send_headers(5, fields, end_stream=True)
+            with patch.object(H2Connection, "receive_data", receive):
+                await client.flush()
+                await client.wait(lambda: client.stream_events(5, StreamEnded))
+
+            self.assertTrue(
+                any(
+                    {
+                        event.stream_id
+                        for event in batch
+                        if isinstance(event, RequestReceived)
+                    } == {1, 3, 5}
+                    and {
+                        event.stream_id
+                        for event in batch
+                        if isinstance(event, StreamReset)
+                    } == {1, 3}
+                    for batch in batches
+                ),
+                "the original native input did not contain one complete cancellation batch",
+            )
+            [response] = client.stream_events(5, ResponseReceived)
+            self.assertEqual(dict(response.headers)[b":status"], b"200")
+            self.assertEqual(
+                b"".join(event.data for event in client.stream_events(5, DataReceived)),
+                b"usable",
+            )
+            self.assertEqual(run.request_count, 3)
+            self.assertEqual(run.websockets, [])
+            self.assertEqual(
+                [
+                    block.stream_id
+                    for block in analyze_http2(run.connections[0]).client_headers
+                ],
+                [1, 3, 5],
+            )
+            self.assertEqual(server.accept_failures, [])
+        finally:
+            if client is not None:
+                await client.close()
+            server.run = None
+            await server.close()
+
     async def test_complete_request_head_accepts_65536_and_rejects_65537(self):
         for size in (65536, 65537):
             prefix = b"GET / HTTP/1.1\r\nX-Padding: "

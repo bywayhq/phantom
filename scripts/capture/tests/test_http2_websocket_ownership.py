@@ -23,6 +23,7 @@ from scripts.capture.http2_session import (
     Http1Session,
     PlainChannel,
     generate_certificate,
+    raise_capture_failures,
 )
 
 CERTIFICATE = generate_certificate()
@@ -76,6 +77,7 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.bind_failures = []
         self.blockers = []
         self.expected_failures = []
+        self.expected_cancellations = set()
         self.backup_failures = []
         self.patches = contextlib.ExitStack()
         self.directory = tempfile.TemporaryDirectory(prefix="websocket-owner-")
@@ -153,7 +155,10 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 try:
                     task.result()
                 except asyncio.CancelledError as error:
-                    if task not in locally_cancelled:
+                    if (
+                        task not in locally_cancelled
+                        and task not in self.expected_cancellations
+                    ):
                         failures.append(error)
                 except BaseException as error:
                     self.backup_failures.append(error)
@@ -536,6 +541,56 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ConnectionResetError) as caught:
             await self.server.close()
         self.assertIs(caught.exception, failure)
+
+    async def test_cleanup_keeps_external_handler_cancellation_and_its_local_cause(self):
+        await self.server.start("127.0.0.1")
+        self.server.begin_run(
+            CaptureRun("cancel", http2_websocket.SCENARIOS["h1-accept"].policy, {})
+        )
+        original_read = PlainChannel.read_raw
+        interrupted = asyncio.Event()
+        release = asyncio.Event()
+        original = []
+        secondary = []
+        owned = []
+        local = OSError(errno.EIO, "original cancellation cleanup failure")
+
+        async def read(channel):
+            try:
+                return await original_read(channel)
+            except asyncio.CancelledError as error:
+                if not owned or channel.writer is not owned[0].writer:
+                    raise
+                original.append(error)
+                interrupted.set()
+                try:
+                    await release.wait()
+                except asyncio.CancelledError as cleanup:
+                    secondary.append(cleanup)
+                    raise_capture_failures(error, (cleanup, local))
+                raise_capture_failures(error, (local,))
+
+        try:
+            with patch.object(PlainChannel, "read_raw", read):
+                _, _, connection = await self.connect()
+                owned.append(connection)
+                await self.pending_read(connection)
+                self.expected_cancellations.add(connection.task)
+                connection.task.cancel("external cancellation")
+                await asyncio.wait_for(interrupted.wait(), DEADLINE)
+                self.assertIs(connection.read_failure, original[0])
+                self.assertFalse(connection.task.done())
+
+                with self.assertRaises(asyncio.CancelledError) as caught:
+                    await self.server.stop_connections()
+                self.assertIs(caught.exception, original[0])
+                self.assertEqual(len(secondary), 1)
+                self.assert_causes(caught.exception, original[0], secondary[0], local)
+                self.assertTrue(connection.task.done())
+        finally:
+            release.set()
+            self.server.run = None
+            await self.server.close()
 
     async def test_delayed_native_callback_is_drained_before_the_next_run(self):
         await self.server.start("127.0.0.1")

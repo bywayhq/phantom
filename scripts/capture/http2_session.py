@@ -872,6 +872,9 @@ class Http2Session:
         if len(headers) > MAX_HEADER_FIELDS:
             raise CaptureLimitError("H2 header field count exceeds the capture limit")
         self.run.request()
+        if stream_id in self.reset_streams:
+            # The complete incoming batch has already closed this stream.
+            return
         fields = dict(headers)
         method = fields.get(b":method", b"")
         target = fields.get(b":path", b"")
@@ -1375,8 +1378,8 @@ class CaptureServer:
             for task in pending:
                 # Keep uncollected owners after the finite waiting period.
                 if task in self.handlers:
-                    run, locally_cancelled = self.handlers[task]
-                    if not locally_cancelled:
+                    run, cancel_requested = self.handlers[task]
+                    if not cancel_requested:
                         self.handlers[task] = (run, task.cancel())
             if not cancelling and asyncio.get_running_loop().time() < deadline:
                 cancelling = True
@@ -1387,14 +1390,13 @@ class CaptureServer:
             if not task.done():
                 continue
 
-            _, locally_cancelled = self.handlers.pop(task)
+            self.handlers.pop(task)
 
             try:
                 task.result()
             except asyncio.CancelledError as error:
-                if not locally_cancelled:
-                    failures.append(error)
-                    continue
+                # cancel() does not establish whether another owner cancelled first.
+                failures.append(error)
 
                 # Task.result() can reconstruct a cancellation on Python 3.10.
                 # Its context retains the coroutine's original cleanup cause.
@@ -1525,26 +1527,22 @@ class CaptureServer:
 
     def _handler_finished(self, task: asyncio.Task[None]) -> None:
         admission = self.handlers.get(task)
-        if admission is not None and (task.cancelled() or task.exception() is not None):
-            admission[0].done.set()
-            if not task.cancelled() or not admission[1]:
-                try:
-                    task.result()
-                except BaseException as error:
-                    self.failed(error, admission[0])
-            elif self.returned:
-                try:
-                    task.result()
-                except asyncio.CancelledError as error:
-                    seen = set()
-                    while id(error) not in seen:
-                        seen.add(id(error))
-                        if isinstance(error.__cause__, CaptureFailures):
-                            self.failed(error.__cause__, admission[0])
-                            break
-                        if not isinstance(error.__context__, asyncio.CancelledError):
-                            break
-                        error = error.__context__
+        if admission is None:
+            return
+
+        run, cancel_requested = admission
+        if not task.cancelled() and task.exception() is None:
+            return
+
+        run.done.set()
+        if task.cancelled() and cancel_requested and not self.returned:
+            # Let cleanup retrieve the original cancellation before this callback does.
+            return
+
+        try:
+            task.result()
+        except BaseException as error:
+            self.failed(error, run)
 
     def accept(
         self, listener: str, writer: asyncio.StreamWriter
