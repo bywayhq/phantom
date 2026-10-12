@@ -38,6 +38,8 @@ MAX_REQUEST_HEAD = 64 * 1024
 MAX_CLIENT_HELLO = 64 * 1024
 MAX_CONNECTION_CAPTURE = 16 * 1024 * 1024
 READ_SIZE = 64 * 1024
+CONNECTION_CLEANUP_SECONDS = 5.0
+PEER_DISCONNECTS = (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)
 WEBSOCKET_GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 REJECT_BODY = b"phantom capture rejected this WebSocket\n"
 UNOFFERED_EXTENSION = b"x-phantom-unoffered"
@@ -647,12 +649,13 @@ class Http2Session:
                 return
             try:
                 events = self.connection.receive_data(data)
-                for event in events:
-                    self.handle(event)
             except h2.exceptions.ProtocolError as error:
                 self.channel.record.failure = f"h2:{type(error).__name__}"
                 await self.flush()
                 return
+
+            for event in events:
+                self.handle(event)
             await self.flush()
             if any(
                 isinstance(event, h2.events.ConnectionTerminated) for event in events
@@ -792,87 +795,380 @@ class Http2Session:
 # -- Listeners -------------------------------------------------------------
 
 
+class CaptureFailures(Exception):
+    """The original capture operation and its observed cleanup failures."""
+
+    def __init__(
+        self, primary: BaseException | None, cleanup: tuple[BaseException, ...]
+    ) -> None:
+        self.primary = primary
+        self.cleanup = cleanup
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        self.interruption_cause: BaseException | None = None
+        self.interruption_context: BaseException | None = None
+        super().__init__("websocket capture cleanup failed")
+
+
+def raise_capture_failures(
+    primary: BaseException | None, cleanup: tuple[BaseException, ...]
+) -> None:
+    if not cleanup:
+        if primary is not None:
+            raise primary
+        return
+
+    if primary is None and len(cleanup) == 1:
+        raise cleanup[0]
+
+    failure = CaptureFailures(primary, cleanup)
+    interruption = next(
+        (error for error in (primary, *cleanup) if not isinstance(error, Exception)),
+        None,
+    )
+    if interruption is not None:
+        failure.interruption_cause = interruption.__cause__
+        failure.interruption_context = interruption.__context__
+        raise interruption from failure
+
+    raise failure from primary
+
+
 class CaptureServer:
     """One TLS listener for `HOSTNAME` and one plaintext listener, both loopback."""
 
     def __init__(self, certificate: Certificate) -> None:
         self.context = server_context(certificate)
         self.run: CaptureRun | None = None
-        self.servers: list[asyncio.base_events.Server] = []
+        self.servers: list[asyncio.Server] = []
         self.writers: set[asyncio.StreamWriter] = set()
+        self.handlers: dict[asyncio.Task[None], tuple[CaptureRun, bool]] = {}
+        self.writer_waits: dict[asyncio.Task[None], asyncio.StreamWriter] = {}
+        self.listener_waits: dict[asyncio.Task[None], tuple[asyncio.Server, bool]] = {}
+        self.cancelled_waits: set[asyncio.Task[None]] = set()
+        self.accept_failures: list[BaseException] = []
+        self.closing = False
         self.tls_address: tuple[str, int] | None = None
         self.plain_address: tuple[str, int] | None = None
 
     async def start(self, host: str, tls_port: int = 0, plain_port: int = 0) -> None:
         if not ipaddress.ip_address(host).is_loopback:
             raise ValueError("the capture listener must be a loopback address")
-        tls = await asyncio.start_server(self.handle_tls, host, tls_port)
-        plain = await asyncio.start_server(self.handle_plain, host, plain_port)
-        self.servers = [tls, plain]
-        self.tls_address = tls.sockets[0].getsockname()[:2]
-        self.plain_address = plain.sockets[0].getsockname()[:2]
+
+        try:
+            for listener, port in (("tls", tls_port), ("plain", plain_port)):
+                server = await asyncio.start_server(
+                    lambda reader, writer, name=listener: self._admit(
+                        name, reader, writer
+                    ),
+                    host,
+                    port,
+                )
+                self.servers.append(server)
+                setattr(self, f"{listener}_address", server.sockets[0].getsockname()[:2])
+        except BaseException as primary:
+            cleanup = []
+            try:
+                await self.close()
+            except BaseException as error:
+                cleanup.append(error)
+            raise_capture_failures(primary, tuple(cleanup))
 
     async def close(self) -> None:
-        self.drop_connections()
-        for server in self.servers:
-            server.close()
-            await server.wait_closed()
+        self.closing = True
+        failures = []
+        for server in list(self.servers):
+            closed = False
+            try:
+                server.close()
+            except BaseException as error:
+                failures.append(error)
+            else:
+                closed = True
 
-    def drop_connections(self) -> None:
-        for writer in list(self.writers):
-            writer.transport.abort()
-        self.writers.clear()
+            existing = next(
+                (
+                    task
+                    for task, (owner, _) in self.listener_waits.items()
+                    if owner is server
+                ),
+                None,
+            )
+            if existing is not None:
+                self.listener_waits[existing] = (
+                    server, closed or self.listener_waits[existing][1]
+                )
+                continue
+
+            try:
+                operation = server.wait_closed()
+            except BaseException as error:
+                failures.append(error)
+                continue
+
+            try:
+                task = asyncio.create_task(operation)
+            except BaseException as error:
+                operation.close()
+                failures.append(error)
+            else:
+                self.listener_waits[task] = (server, closed)
+
+        failures.extend(await self._stop_connections())
+        raise_capture_failures(None, tuple(failures))
+
+    async def stop_connections(self) -> None:
+        failures = await self._stop_connections()
+        raise_capture_failures(None, tuple(failures))
+
+    async def _stop_connections(self) -> list[BaseException]:
+        failures = self.accept_failures
+        self.accept_failures = []
+        deadline = asyncio.get_running_loop().time() + CONNECTION_CLEANUP_SECONDS
+        while True:
+            for writer in list(self.writers):
+                if writer in self.writer_waits.values():
+                    continue
+
+                try:
+                    writer.transport.abort()
+                except BaseException as error:
+                    failures.append(error)
+                    try:
+                        writer.close()
+                    except BaseException as error:
+                        failures.append(error)
+
+                try:
+                    operation = writer.wait_closed()
+                except BaseException as error:
+                    failures.append(error)
+                    continue
+
+                try:
+                    task = asyncio.create_task(operation)
+                except BaseException as error:
+                    operation.close()
+                    failures.append(error)
+                else:
+                    self.writer_waits[task] = writer
+
+            tasks = {*self.handlers, *self.writer_waits, *self.listener_waits}
+            pending = {task for task in tasks if not task.done()}
+            if not pending:
+                break
+
+            interruption: BaseException | None = None
+            if asyncio.get_running_loop().time() >= deadline:
+                interruption = asyncio.TimeoutError(
+                    "websocket connection cleanup timed out"
+                )
+            else:
+                try:
+                    await asyncio.wait(
+                        pending,
+                        timeout=max(0.0, deadline - asyncio.get_running_loop().time()),
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                except BaseException as error:
+                    interruption = error
+
+            tasks = {*self.handlers, *self.writer_waits, *self.listener_waits}
+            pending = {task for task in tasks if not task.done()}
+            if interruption is not None:
+                failures.append(interruption)
+            elif asyncio.get_running_loop().time() < deadline:
+                continue
+            elif not pending and all(
+                writer in self.writer_waits.values() for writer in self.writers
+            ):
+                break
+            else:
+                failures.append(
+                    asyncio.TimeoutError("websocket connection cleanup timed out")
+                )
+
+            for task in pending:
+                # Keep uncollected owners after the finite waiting period.
+                if task in self.handlers:
+                    run, locally_cancelled = self.handlers[task]
+                    if not locally_cancelled:
+                        self.handlers[task] = (run, task.cancel())
+                elif task.cancel():
+                    self.cancelled_waits.add(task)
+            break
+
+        for task in list(self.handlers):
+            if not task.done():
+                continue
+
+            _, locally_cancelled = self.handlers.pop(task)
+
+            try:
+                task.result()
+            except asyncio.CancelledError as error:
+                if not locally_cancelled:
+                    failures.append(error)
+                    continue
+
+                # Task.result() can reconstruct a cancellation on Python 3.10.
+                # Its context retains the coroutine's original cleanup cause.
+                seen = set()
+                while id(error) not in seen:
+                    seen.add(id(error))
+                    if isinstance(error.__cause__, CaptureFailures):
+                        failures.extend(error.__cause__.cleanup)
+                        break
+                    if not isinstance(error.__context__, asyncio.CancelledError):
+                        break
+                    error = error.__context__
+            except BaseException as error:
+                failures.append(error)
+
+        for task in list(self.writer_waits):
+            if not task.done():
+                continue
+
+            writer = self.writer_waits.pop(task)
+            closed = False
+
+            try:
+                task.result()
+            except PEER_DISCONNECTS:
+                closed = True
+            except asyncio.CancelledError as error:
+                if task not in self.cancelled_waits:
+                    failures.append(error)
+            except BaseException as error:
+                failures.append(error)
+            else:
+                closed = True
+
+            try:
+                if closed and writer.is_closing():
+                    self.writers.discard(writer)
+            except BaseException as error:
+                failures.append(error)
+
+            self.cancelled_waits.discard(task)
+
+        for task in list(self.listener_waits):
+            if not task.done():
+                continue
+
+            server, closed = self.listener_waits.pop(task)
+
+            try:
+                task.result()
+            except asyncio.CancelledError as error:
+                if task not in self.cancelled_waits:
+                    failures.append(error)
+            except BaseException as error:
+                failures.append(error)
+
+            if closed:
+                self.servers.remove(server)
+            self.cancelled_waits.discard(task)
+
+        failures.extend(self.accept_failures)
+        self.accept_failures = []
+        return failures
+
+    def _admit(
+        self, listener: str, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        self.writers.add(writer)
+        run = self.run
+        if self.closing or run is None:
+            try:
+                writer.transport.abort()
+            except BaseException as error:
+                self.accept_failures.append(error)
+                try:
+                    writer.close()
+                except BaseException as error:
+                    self.accept_failures.append(error)
+            return
+
+        operation = self._handle(listener, reader, writer)
+        try:
+            task = asyncio.create_task(operation)
+        except BaseException as error:
+            operation.close()
+            self.accept_failures.append(error)
+            try:
+                writer.transport.abort()
+            except BaseException as error:
+                self.accept_failures.append(error)
+            run.done.set()
+        else:
+            self.handlers[task] = (run, False)
+            try:
+                task.add_done_callback(self._handler_finished)
+            except BaseException as error:
+                self.accept_failures.append(error)
+                run.done.set()
+
+    def _handler_finished(self, task: asyncio.Task[None]) -> None:
+        admission = self.handlers.get(task)
+        if admission is not None and (task.cancelled() or task.exception() is not None):
+            admission[0].done.set()
 
     def accept(
         self, listener: str, writer: asyncio.StreamWriter
-    ) -> tuple[CaptureRun, ConnectionRecord, int] | None:
-        run = self.run
-        if run is None:
-            writer.transport.abort()
-            return None
-        self.writers.add(writer)
+    ) -> tuple[CaptureRun, ConnectionRecord, int]:
+        # Admission retains this task and its run before the coroutine starts.
+        run, _ = self.handlers[asyncio.current_task()]
         record = ConnectionRecord(listener=listener, accepted=run.now())
         run.connections.append(record)
         return run, record, len(run.connections) - 1
 
-    async def handle_tls(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    async def _handle(
+        self, listener: str, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
-        accepted = self.accept("tls", writer)
-        if accepted is None:
-            return
-        run, record, index = accepted
-        channel = TlsChannel(self.context, reader, writer, record, run.now)
+        primary: BaseException | None = None
+        peer_failure: BaseException | None = None
+        channel: PlainChannel | None = None
+        record: ConnectionRecord | None = None
         try:
-            await channel.handshake()
-            record.protocol = record.alpn or "http/1.1"
-            if record.alpn == "h2":
+            run, record, index = self.accept(listener, writer)
+            if listener == "tls":
+                channel = TlsChannel(self.context, reader, writer, record, run.now)
+                await channel.handshake()
+                record.protocol = record.alpn or "http/1.1"
+            else:
+                record.protocol = "http/1.1"
+                channel = PlainChannel(reader, writer, record, run.now)
+
+            if record.protocol == "h2":
                 await Http2Session(channel, run, index).serve()
             else:
                 await Http1Session(channel, run, index, record.protocol).serve()
-        except Exception as error:  # recorded: a capture keeps partial evidence
-            record.failure = record.failure or type(error).__name__
-        finally:
-            self.release(writer)
+        except BaseException as error:
+            if record is not None and isinstance(error, Exception):
+                record.failure = record.failure or type(error).__name__
 
-    async def handle_plain(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ) -> None:
-        accepted = self.accept("plain", writer)
-        if accepted is None:
-            return
-        run, record, index = accepted
-        record.protocol = "http/1.1"
-        channel = PlainChannel(reader, writer, record, run.now)
+            peer_handshake = (
+                isinstance(channel, TlsChannel)
+                and error is channel.peer_handshake_failure
+            )
+            if peer_handshake or isinstance(error, PEER_DISCONNECTS):
+                peer_failure = error
+            else:
+                primary = error
+
+        cleanup = []
         try:
-            await Http1Session(channel, run, index, "http/1.1").serve()
-        except Exception as error:  # recorded: a capture keeps partial evidence
-            record.failure = record.failure or type(error).__name__
-        finally:
             self.release(writer)
+        except BaseException as error:
+            cleanup.append(error)
+
+        if cleanup and primary is None:
+            primary = peer_failure
+
+        raise_capture_failures(primary, tuple(cleanup))
 
     def release(self, writer: asyncio.StreamWriter) -> None:
-        self.writers.discard(writer)
         if not writer.transport.is_closing():
             writer.close()
 

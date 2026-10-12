@@ -42,6 +42,7 @@ from .http2_session import (
     frame_details,
     generate_certificate,
     priority_text,
+    raise_capture_failures,
 )
 from .websocket_frames import BINARY, TEXT, summarize_send_policy
 
@@ -271,6 +272,7 @@ async def capture_scenario(
             observation_seconds=observation_seconds,
         )
         server.run = run
+        primary: BaseException | None = None
         try:
             async with drive(page_url):
                 try:
@@ -279,9 +281,17 @@ async def capture_scenario(
                     )
                 except asyncio.TimeoutError:
                     run.timed_out = True
-        finally:
-            server.run = None
-            server.drop_connections()
+        except BaseException as error:
+            primary = error
+
+        server.run = None
+        cleanup = []
+        try:
+            await server.stop_connections()
+        except BaseException as error:
+            cleanup.append(error)
+        raise_capture_failures(primary, tuple(cleanup))
+
         runs.append(run)
     return runs
 
@@ -591,8 +601,10 @@ def launch_plan(
 async def run(args: argparse.Namespace) -> None:
     certificate = generate_certificate()
     server = CaptureServer(certificate)
-    await server.start(args.listen, args.tls_port, args.plain_port)
+    primary: BaseException | None = None
+    captures = []
     try:
+        await server.start(args.listen, args.tls_port, args.plain_port)
         tls = "{}:{}".format(*server.tls_address)
         plain = "{}:{}".format(*server.plain_address)
         plan = with_android_entry(
@@ -625,13 +637,28 @@ async def run(args: argparse.Namespace) -> None:
                 profile_files=",".join(name for name, _ in plan.profile_files)
                 or "none",
             )
-            write_text_fixture(
-                args.output_dir / f"{name}.txt", fixture(scenario, runs, capture)
-            )
             timed_out = sum(run.timed_out for run in runs)
-            print(f"captured {name} ({timed_out} timed out)", file=sys.stderr)
-    finally:
+            captures.append(
+                (
+                    args.output_dir / f"{name}.txt",
+                    fixture(scenario, runs, capture),
+                    name,
+                    timed_out,
+                )
+            )
+    except BaseException as error:
+        primary = error
+
+    cleanup = []
+    try:
         await server.close()
+    except BaseException as error:
+        cleanup.append(error)
+    raise_capture_failures(primary, tuple(cleanup))
+
+    for path, text, name, timed_out in captures:
+        write_text_fixture(path, text)
+        print(f"captured {name} ({timed_out} timed out)", file=sys.stderr)
 
 
 def main(argv: Sequence[str] | None = None) -> None:

@@ -14,6 +14,7 @@ from urllib.parse import parse_qs, urlsplit
 from scripts.capture import http2_websocket
 from scripts.capture.http2_session import (
     HOSTNAME,
+    CaptureFailures,
     CaptureRun,
     CaptureServer,
     PlainChannel,
@@ -152,9 +153,22 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
                         failures.append(error)
                 except BaseException as error:
                     self.backup_failures.append(error)
-                    if not any(
-                        error is expected for expected in self.expected_failures
-                    ):
+                    expected = any(
+                        error is candidate for candidate in self.expected_failures
+                    )
+                    if isinstance(error, CaptureFailures) and error.cleanup:
+                        expected = (
+                            error.primary is not None
+                            and any(
+                                error.primary is entry.read_failure
+                                for entry in self.server.connections
+                            )
+                            and all(
+                                any(cause is item for item in self.expected_failures)
+                                for cause in error.cleanup
+                            )
+                        )
+                    if not expected:
                         failures.append(error)
 
         for writer in writers:
