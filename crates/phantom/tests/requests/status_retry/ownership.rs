@@ -19,8 +19,8 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
-use crate::support::deadline::FixtureDeadline;
 use super::{ScriptedServer, TestResult, accept_tls_stream, is_peer_gone};
+use crate::support::deadline::FixtureDeadline;
 
 const LIMIT: Duration = Duration::from_secs(2);
 
