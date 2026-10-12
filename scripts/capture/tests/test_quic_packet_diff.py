@@ -2,6 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from aioquic.quic.crypto import CryptoContext, CryptoPair
 from aioquic.quic.packet import (
@@ -100,6 +101,89 @@ def client_traffic_crypto(secret: bytes) -> CryptoContext:
 
 
 class QuicPacketDiffTests(unittest.TestCase):
+    def test_rejects_short_samples_before_native_decryption(self) -> None:
+        prefix = (
+            bytes([encode_long_header_first_byte(VERSION, QuicPacketType.INITIAL, 0)])
+            + int(VERSION).to_bytes(4, "big")
+            + b"\x08"
+            + DESTINATION_CID
+            + b"\x00\x00"
+        )
+        for protected_length in (0, 1, 16, 19):
+            with self.subTest(protected_length=protected_length):
+                capture = QuicPacketCapture()
+                capture.add_datagram(
+                    prefix + bytes([protected_length]) + bytes(protected_length)
+                )
+                with (
+                    patch.object(
+                        CryptoContext,
+                        "decrypt_packet",
+                        side_effect=AssertionError("unguarded native decryption"),
+                    ) as decrypt,
+                    self.assertRaisesRegex(ValueError, "header-protection sample"),
+                ):
+                    capture.summarize(
+                        cipher_suite=CIPHER_SUITE,
+                        short_header_cid_length=len(DESTINATION_CID),
+                    )
+                decrypt.assert_not_called()
+                self.assertEqual(capture.buffered_datagram_count, 0)
+
+    def test_rejects_large_initial_tokens_before_native_decryption(self) -> None:
+        prefix = (
+            bytes([encode_long_header_first_byte(VERSION, QuicPacketType.INITIAL, 0)])
+            + int(VERSION).to_bytes(4, "big")
+            + b"\x08"
+            + DESTINATION_CID
+            + b"\x00"
+        )
+        token = bytes(1500)
+        packet = prefix + push_varint(len(token), 2) + token + b"\x14" + bytes(20)
+        capture = QuicPacketCapture()
+        capture.add_datagram(packet)
+        with (
+            patch.object(
+                CryptoContext,
+                "decrypt_packet",
+                side_effect=AssertionError("unguarded native decryption"),
+            ) as decrypt,
+            self.assertRaisesRegex(ValueError, "native buffer"),
+        ):
+            capture.summarize(
+                cipher_suite=CIPHER_SUITE,
+                short_header_cid_length=len(DESTINATION_CID),
+            )
+        decrypt.assert_not_called()
+        self.assertEqual(capture.buffered_datagram_count, 0)
+
+    def test_accepts_the_native_header_limit_without_capping_the_whole_packet(
+        self,
+    ) -> None:
+        prefix = (
+            bytes([encode_long_header_first_byte(VERSION, QuicPacketType.INITIAL, 0)])
+            + int(VERSION).to_bytes(4, "big")
+            + b"\x08"
+            + DESTINATION_CID
+            + b"\x00"
+        )
+        token = bytes(1478)
+        packet = prefix + push_varint(len(token), 2) + token + b"\x14" + bytes(20)
+        capture = QuicPacketCapture()
+        capture.add_datagram(packet)
+        with patch.object(
+            CryptoContext, "decrypt_packet", return_value=(b"", b"\x01", 0, False)
+        ) as decrypt:
+            summary = capture.summarize(
+                cipher_suite=CIPHER_SUITE,
+                short_header_cid_length=len(DESTINATION_CID),
+            )
+        decrypt.assert_called_once_with(packet, 1496, 0)
+        self.assertEqual(
+            summary.packets, (NormalizedPacket("initial", (FrameKind("ping"),)),)
+        )
+        self.assertEqual(capture.buffered_datagram_count, 0)
+
     def test_reassembles_fragmented_reordered_and_retransmitted_client_hello(
         self,
     ) -> None:
