@@ -130,7 +130,11 @@ class ComparisonTests(unittest.TestCase):
     ALPS = (0x44CD, bytes.fromhex("0003026832"))
 
     # quic_transport_parameters, encrypted_client_hello, pre_shared_key.
-    TAIL = ((0x0039, b""), (0xFE0D, b""), (0x0029, b""))
+    TAIL = (
+        (0x0039, b""),
+        (0xFE0D, bytes.fromhex("0000010001070002000000020000")),
+        (0x0029, b""),
+    )
 
     def test_chromium_permutation_is_not_a_difference(self) -> None:
         old = client_hello([(0x0A0A, b""), (0x0017, b""), self.ALPS])
@@ -229,6 +233,114 @@ class ComparisonTests(unittest.TestCase):
 
         new, old = hello(0x2A2A, bytes(32)), hello(0x8A8A, bytes(range(32)))
         self.assertEqual(compare_hello("tls", new, old, Variation()), [])
+
+    def test_malformed_extension_extents_cannot_match_a_valid_hello(self) -> None:
+        groups = bytes.fromhex("0002001d")
+        shares = bytes.fromhex("0008001d000461626364")
+        ech = self.TAIL[1][1]
+        anchors = bytes.fromhex("0003026162")
+        cases = (
+            (0x000A, groups, bytes.fromhex("0003001d00")),
+            (0x000D, groups, bytes.fromhex("0004001d")),
+            (0x002B, bytes.fromhex("020304"), bytes.fromhex("03030400")),
+            (0x000A, groups, bytes.fromhex("0000")),
+            (0x0033, shares, bytes.fromhex("0008001d00046162")),
+            (0x0033, shares, bytes.fromhex("0006001d00046162")),
+            (0x0033, shares, bytes.fromhex("000100")),
+            (0x0033, shares, bytes.fromhex("0004001d0000")),
+            (0xFE0D, ech, ech[:8]),
+            (0xFE0D, ech, ech[:9]),
+            (0xFE0D, ech, ech[:10]),
+            (0xFE0D, ech, ech[:-1]),
+            (0xFE0D, ech, ech + b"\x00"),
+            (0xCA34, anchors, bytes.fromhex("0004026162")),
+            (0xCA34, anchors, bytes.fromhex("00030261")),
+            (0xCA34, anchors, bytes.fromhex("000101")),
+            (0xCA34, anchors, bytes.fromhex("000100")),
+            (0x0039, bytes.fromhex("110400000001"), bytes.fromhex("1103000001")),
+        )
+        for kind, valid, malformed in cases:
+            with self.subTest(kind=kind, body=malformed.hex()):
+                with self.assertRaises(ValueError):
+                    compare_hello(
+                        "tls",
+                        client_hello([(kind, malformed)]),
+                        client_hello([(kind, valid)]),
+                        CHROMIUM_VARIATION,
+                    )
+
+    def test_duplicate_extensions_cannot_hide_a_changed_body(self) -> None:
+        old = client_hello([self.ALPS, (0x44CD, bytes.fromhex("0003026833"))])
+        new = client_hello([(0x44CD, bytes.fromhex("0003026833"))] * 2)
+        with self.assertRaisesRegex(ValueError, "duplicate ClientHello extension"):
+            compare_hello("tls", new, old, CHROMIUM_VARIATION)
+
+    def test_trust_anchor_permutation_keeps_the_browser_order_policy(self) -> None:
+        old = client_hello([(0xCA34, vector(2, b"\x01a\x01b"))])
+        new = client_hello([(0xCA34, vector(2, b"\x01b\x01a"))])
+        self.assertEqual(compare_hello("tls", new, old, CHROMIUM_VARIATION), [])
+        self.assertEqual(len(compare_hello("tls", new, old, FIREFOX_TCP_VARIATION)), 1)
+
+    def test_snapshot_reports_malformed_hello_instead_of_a_false_match(self) -> None:
+        values = retained(f"tls/chrome/{CHROME}/client-hello.txt")
+        message = client_hello([(0x000A, bytes.fromhex("0003001d00"))])
+        record = b"\x16\x03\x01" + vector(2, message)
+        text = (
+            f"format={FORMAT}\noperating_system={values['operating_system']}\n"
+            "tls.format=phantom-client-hello-v2\ntls.record_count=1\n"
+            f"tls.record_0_hex={record.hex()}\n"
+        )
+        report = compare(text, FIXTURES, "chrome")
+        self.assertEqual(len(report), 1)
+        self.assertTrue(report[0].startswith("differs input: ValueError:"), report)
+        self.assertIn("extension 0x000a", report[0])
+
+    def test_snapshot_rejects_invalid_counts_and_missing_declared_entries(self) -> None:
+        values = retained(f"tls/chrome/{CHROME}/client-hello.txt")
+        prefix = f"format={FORMAT}\noperating_system={values['operating_system']}\n"
+        sections = (
+            ("tls.format=phantom-client-hello-v2\n", "tls.record_count", "record_count"),
+            ("", "h2.frame_count", "frame_count"),
+            ("", "hint_count", "hint_count"),
+        )
+        for section, key, diagnostic in sections:
+            for count in ("-1", "1.5", "100000000", "16385"):
+                with self.subTest(key=key, count=count):
+                    report = compare(
+                        prefix + section + f"{key}={count}\n", FIXTURES, "chrome"
+                    )
+                    self.assertEqual(len(report), 1)
+                    self.assertTrue(
+                        report[0].startswith("differs input: ValueError:"), report
+                    )
+                    self.assertIn(diagnostic, report[0])
+        for section, key, missing in (
+            (sections[0][0], "tls.record_count", "record_0_hex"),
+            ("", "h2.frame_count", "frame_0_hex"),
+            ("", "hint_count", "hint_0"),
+        ):
+            with self.subTest(missing=missing):
+                report = compare(prefix + section + f"{key}=1\n", FIXTURES, "chrome")
+                self.assertEqual(len(report), 1)
+                self.assertTrue(report[0].startswith("differs input: KeyError:"), report)
+                self.assertIn(missing, report[0])
+
+    def test_zero_counts_are_valid_but_negative_counts_cannot_match_no_hints(self) -> None:
+        macos = retained("client-hints/firefox/157.0/macos-15.5-arm64/navigation.txt")
+        prefix = f"format={FORMAT}\noperating_system={macos['operating_system']}\n"
+        report = compare(prefix + "hint_count=0\n", FIXTURES, "firefox")
+        self.assertFalse(any(line.startswith("differs client_hints") for line in report))
+        self.assertFalse(any(line.startswith("differs input:") for line in report))
+        report = compare(prefix + "hint_count=-1\n", FIXTURES, "firefox")
+        self.assertTrue(report[0].startswith("differs input: ValueError:"), report)
+        chrome = retained(f"tls/chrome/{CHROME}/client-hello.txt")
+        report = compare(
+            f"operating_system={chrome['operating_system']}\nh2.frame_count=0\n",
+            FIXTURES,
+            "chrome",
+        )
+        self.assertFalse(any(line.startswith("differs input:") for line in report))
+        self.assertTrue(any(line.startswith("differs h2.frame_count:") for line in report))
 
     def test_a_layer_missing_from_the_snapshot_is_a_difference(self) -> None:
         values = retained(f"tls/chrome/{CHROME}/client-hello.txt")

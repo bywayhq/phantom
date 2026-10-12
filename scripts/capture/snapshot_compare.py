@@ -60,6 +60,10 @@ PADDING = 0x0015
 TRUST_ANCHORS = 0xCA34
 # Bodies that are length-prefixed lists of u16 code points after `n` bytes.
 U16_LISTS = {0x000A: 2, 0x000D: 2, 0x002B: 1}
+# Input guardrails matching the recorders, not measured browser maxima.
+MAX_TLS_RECORDS = 16_384
+MAX_HTTP2_FRAMES = 16_384
+MAX_HINTS = 1_024
 
 
 @dataclass(frozen=True)
@@ -112,6 +116,8 @@ def transport_parameters(body: bytes, permuted: bool) -> str:
         if parameter.identifier == INITIAL_SOURCE_CONNECTION_ID:
             value = f"<{len(value)} bytes>".encode()
         elif parameter.identifier == VERSION_INFORMATION:
+            if len(value) % 4:
+                raise ValueError("version_information is not a sequence of u32 values")
             # The chosen version, then the available ones; Chromium puts its
             # reserved version at a random position among them.
             versions = [
@@ -125,42 +131,76 @@ def transport_parameters(body: bytes, permuted: bool) -> str:
     return ",".join(sorted(items) if permuted else items)
 
 
+def extension_vector(kind: int, body: bytes, width: int) -> bytes:
+    """Read one extension's exact length-prefixed vector."""
+    if len(body) < width or int.from_bytes(body[:width], "big") != len(body) - width:
+        raise ValueError(f"extension 0x{kind:04x} has an invalid vector length")
+    return body[width:]
+
+
 def extension_body(kind: int, body: bytes, variation: Variation) -> str:
     """One extension body with its per-connection randomness replaced."""
     if kind in U16_LISTS:
-        start = U16_LISTS[kind]
+        values_body = extension_vector(kind, body, U16_LISTS[kind])
+        if not values_body or len(values_body) % 2:
+            raise ValueError(f"extension 0x{kind:04x} needs a nonempty u16 vector")
         values = [
-            int.from_bytes(body[i : i + 2], "big")
-            for i in range(start, len(body) - 1, 2)
+            int.from_bytes(values_body[i : i + 2], "big")
+            for i in range(0, len(values_body), 2)
         ]
         return ",".join(code(value) for value in values)
     if kind == KEY_SHARE:
-        shares, offset = [], 2
-        while offset + 4 <= len(body):
-            length = int.from_bytes(body[offset + 2 : offset + 4], "big")
+        entries = extension_vector(kind, body, 2)
+        shares, offset = [], 0
+        while offset < len(entries):
+            if offset + 4 > len(entries):
+                raise ValueError("key_share has a truncated entry")
+            length = int.from_bytes(entries[offset + 2 : offset + 4], "big")
+            if not length or offset + 4 + length > len(entries):
+                raise ValueError("key_share has an invalid key exchange length")
             shares.append(
-                f"{code(int.from_bytes(body[offset : offset + 2], 'big'))}/{length}"
+                f"{code(int.from_bytes(entries[offset : offset + 2], 'big'))}/{length}"
             )
             offset += 4 + length
         return ",".join(shares)
-    if kind == ECH and len(body) >= 8 and body[0] == 0:
+    if kind == ECH:
+        if not body:
+            raise ValueError("encrypted_client_hello has no type")
+        if body[0] != 0:
+            return body.hex()
+        if len(body) < 10:
+            raise ValueError("encrypted_client_hello has a truncated outer body")
+        enc_length = int.from_bytes(body[6:8], "big")
+        payload_offset = 8 + enc_length
+        if payload_offset + 2 > len(body):
+            raise ValueError(
+                "encrypted_client_hello has a truncated enc or payload length"
+            )
+        payload_length = int.from_bytes(body[payload_offset : payload_offset + 2], "big")
+        if payload_offset + 2 + payload_length != len(body):
+            raise ValueError("encrypted_client_hello has an invalid payload length")
         # Outer ECH: type, cipher suite, and enc length. The config ID, enc,
         # and payload are random, and Chromium's GREASE payload length varies
         # per connection (144 to 240 bytes in the Windows captures).
         suite = body[1:5].hex()
         if int.from_bytes(body[3:5], "big") in variation.ech_aeads:
             suite = f"{body[1:3].hex()}<aead>"
-        return f"outer,suite:{suite},enc:{int.from_bytes(body[6:8], 'big')}"
+        return f"outer,suite:{suite},enc:{enc_length}"
     if kind == PADDING:
         return f"<{len(body)} bytes>"
     if kind == QUIC_TRANSPORT_PARAMETERS:
         return transport_parameters(body, variation.body_order)
-    if kind == TRUST_ANCHORS and variation.body_order:
-        items, offset = [], 2
-        while offset < len(body):
-            items.append(body[offset : offset + 1 + body[offset]].hex())
-            offset += 1 + body[offset]
-        return ",".join(sorted(items))
+    if kind == TRUST_ANCHORS:
+        entries = extension_vector(kind, body, 2)
+        items, offset = [], 0
+        while offset < len(entries):
+            length = entries[offset]
+            if not length or offset + 1 + length > len(entries):
+                raise ValueError("trust_anchors has an invalid ID length")
+            items.append(entries[offset : offset + 1 + length].hex())
+            offset += 1 + length
+        if variation.body_order:
+            return ",".join(sorted(items))
     return body.hex()
 
 
@@ -206,12 +246,23 @@ def compare_hello(
         differences.append(
             f"{label}.extension_types: retained {old_types}, snapshot {new_types}"
         )
-    old_bodies = dict(old_shape.extensions)
-    for kind, body in new_shape.extensions:
-        if is_tls_grease(kind) or kind == PRE_SHARED_KEY or kind not in old_bodies:
+    bodies = []
+    for shape in (new_shape, old_shape):
+        normalized = {}
+        for kind, body in shape.extensions:
+            if kind in normalized:
+                raise ValueError(f"duplicate ClientHello extension 0x{kind:04x}")
+            normalized[kind] = (
+                None
+                if is_tls_grease(kind) or kind == PRE_SHARED_KEY
+                else extension_body(kind, body, variation)
+            )
+        bodies.append(normalized)
+    new_bodies, old_bodies = bodies
+    for kind, new_body in new_bodies.items():
+        if new_body is None or kind not in old_bodies:
             continue
-        new_body = extension_body(kind, body, variation)
-        old_body = extension_body(kind, old_bodies[kind], variation)
+        old_body = old_bodies[kind]
         if new_body != old_body:
             differences.append(
                 f"{label}.extension 0x{kind:04x}: retained {old_body}, snapshot {new_body}"
@@ -231,8 +282,19 @@ def settings(payload_hex: str) -> list[str]:
     ]
 
 
+def declared_count(values: dict[str, str], key: str, maximum: int) -> int:
+    """Check a recorded count before it controls iteration or allocation."""
+    value = values[key]
+    if not value.isascii() or not value.isdecimal() or len(value) > len(str(maximum)):
+        raise ValueError(f"{key} must be an integer in 0..{maximum}")
+    count = int(value)
+    if count > maximum:
+        raise ValueError(f"{key} exceeds the comparison limit of {maximum}")
+    return count
+
+
 def tls_message(values: dict[str, str]) -> bytes:
-    count = int(values["record_count"])
+    count = declared_count(values, "record_count", MAX_TLS_RECORDS)
     return hello_message(
         [bytes.fromhex(values[f"record_{i}_hex"]) for i in range(count)]
     )
@@ -258,6 +320,14 @@ def newest(root: Path, area: str, browser: str, name: str, system: str) -> Path 
 
 
 def compare(text: str, root: Path, browser: str) -> list[str]:
+    """Compare supported layers, reporting malformed input as a difference."""
+    try:
+        return _compare(text, root, browser)
+    except (ValueError, KeyError, IndexError) as error:
+        return [f"differs input: {type(error).__name__}: {error}"]
+
+
+def _compare(text: str, root: Path, browser: str) -> list[str]:
     snapshot = fields(text)
     system = snapshot.get("operating_system", "")
     # Opera for Android is Chromium too, though it reads no command-line file.
@@ -302,13 +372,17 @@ def compare(text: str, root: Path, browser: str) -> list[str]:
     old = retained("http2", "client-startup.txt", "h2", "h2.frame_count" in snapshot)
     if old is not None:
         new = fields(text, "h2.")
+        new_count = declared_count(new, "frame_count", MAX_HTTP2_FRAMES)
+        old_count = declared_count(old, "frame_count", MAX_HTTP2_FRAMES)
+        new_frames = [new[f"frame_{i}_hex"] for i in range(new_count)]
+        old_frames = [old[f"frame_{i}_hex"] for i in range(old_count)]
         for key in ("frame_count", "initial_settings", "connection_window_update"):
             if new.get(key) != old.get(key):
                 differs([f"h2.{key}: retained {old.get(key)}, snapshot {new.get(key)}"])
-        for index in range(int(new.get("frame_count", "0"))):
+        for index, (new_frame, old_frame) in enumerate(zip(new_frames, old_frames)):
             key = f"frame_{index}_hex"
-            if new.get(key) != old.get(key):
-                differs([f"h2.{key}: retained {old.get(key)}, snapshot {new.get(key)}"])
+            if new_frame != old_frame:
+                differs([f"h2.{key}: retained {old_frame}, snapshot {new_frame}"])
 
     first = next(
         (
@@ -374,11 +448,10 @@ def compare(text: str, root: Path, browser: str) -> list[str]:
 
     old = retained("client-hints", "navigation.txt", "hints", "hint_count" in snapshot)
     if old is not None:
-        new = [
-            snapshot.get(f"hint_{i}")
-            for i in range(int(snapshot.get("hint_count", "0")))
-        ]
-        hints = [old.get(f"hint_{i}") for i in range(int(old.get("hint_count", "0")))]
+        new_count = declared_count(snapshot, "hint_count", MAX_HINTS)
+        old_count = declared_count(old, "hint_count", MAX_HINTS)
+        new = [snapshot[f"hint_{i}"] for i in range(new_count)]
+        hints = [old[f"hint_{i}"] for i in range(old_count)]
         if new != hints:
             differs([f"client_hints: retained {hints}, snapshot {new}"])
     return report
