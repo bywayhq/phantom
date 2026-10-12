@@ -16,24 +16,37 @@ use tokio::{
     io::{AsyncRead, AsyncWrite, ReadBuf},
     net::{TcpListener, TcpStream},
     sync::{oneshot, watch},
-    task::AbortHandle,
+    task::{AbortHandle, JoinError},
+    time::timeout,
 };
 use tokio_btls::SslStream;
 
-use super::{H2_ALPN, TestIdentity, TestResult, bounded, collect_h2_request_body, test_client};
+use super::{
+    H2_ALPN, TEST_TIMEOUT, TestIdentity, TestResult, bounded, collect_h2_request_body, test_client,
+};
+use crate::support::{
+    deadline::FixtureDeadline,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+};
+
+type Upload = (Bytes, [u32; 2]);
+type Reset = (::http2::Reason, [u32; 2]);
 
 pub(super) async fn upload() -> TestResult<()> {
     upload_controlled(None).await
 }
 
 async fn upload_controlled(control: Option<Control>) -> TestResult<()> {
-    bounded(async {
+    let mut server: Option<ConnectionPeer<TestResult<Upload>>> = None;
+    let mut completed = None;
+
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
         let observed = control.as_ref().map(|control| control.observed.clone());
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let _life = PeerLife(observed.clone());
             let stream = accept_peer(&listener, &acceptor, observed).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
@@ -68,14 +81,14 @@ async fn upload_controlled(control: Option<Control>) -> TestResult<()> {
             )?;
             poll_fn(|context| connection.poll_closed(context)).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>((body, [first_id, second_id]))
-        });
+        }));
 
         let target = match control {
             Some(control) => {
                 control
                     .coordinate(Setup {
                         address,
-                        peer: server.abort_handle(),
+                        peer: server.as_ref().ok_or("upload peer missing")?.abort_handle(),
                         sibling: None,
                     })
                     .await?
@@ -104,12 +117,22 @@ async fn upload_controlled(control: Option<Control>) -> TestResult<()> {
         response.into_body().collect().await?;
         drop(session);
 
-        let (body, stream_ids) = server.await??;
-        assert_eq!(body, "pooled-payload");
-        assert_eq!(stream_ids, [1, 3]);
-        Ok(())
+        join_peer(&mut server, &mut completed).await
     })
-    .await
+    .await;
+
+    let collected = collect_peer(
+        server,
+        completed,
+        caller.is_err(),
+        "upload peer did not finish",
+    )
+    .await;
+    let (body, stream_ids) = finish_peer(caller, collected)?;
+
+    assert_eq!(body, "pooled-payload");
+    assert_eq!(stream_ids, [1, 3]);
+    Ok(())
 }
 
 pub(super) async fn cancelled_body() -> TestResult<()> {
@@ -117,13 +140,16 @@ pub(super) async fn cancelled_body() -> TestResult<()> {
 }
 
 async fn cancelled_controlled(control: Option<Control>) -> TestResult<()> {
-    bounded(async {
+    let mut server: Option<ConnectionPeer<TestResult<Reset>>> = None;
+    let mut completed = None;
+
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
         let observed = control.as_ref().map(|control| control.observed.clone());
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let _life = PeerLife(observed.clone());
             let stream = accept_peer(&listener, &acceptor, observed).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
@@ -161,12 +187,12 @@ async fn cancelled_controlled(control: Option<Control>) -> TestResult<()> {
                 reset.ok_or("stream reset was not retained")?,
                 [first_id, later_id],
             ))
-        });
+        }));
 
         let target = match control {
             Some(control) => control.coordinate(Setup {
                 address,
-                peer: server.abort_handle(),
+                peer: server.as_ref().ok_or("reset peer missing")?.abort_handle(),
                 sibling: None,
             }).await?,
             None => None,
@@ -194,12 +220,101 @@ async fn cancelled_controlled(control: Option<Control>) -> TestResult<()> {
         response.into_body().collect().await?;
         drop(session);
 
-        let (reset, stream_ids) = server.await??;
-        assert_eq!(reset, ::http2::Reason::CANCEL);
-        assert_eq!(stream_ids, [1, 3]);
-        Ok(())
+        join_peer(&mut server, &mut completed).await
     })
-    .await
+    .await;
+
+    let collected = collect_peer(
+        server,
+        completed,
+        caller.is_err(),
+        "reset peer did not finish",
+    )
+    .await;
+    let (reset, stream_ids) = finish_peer(caller, collected)?;
+
+    assert_eq!(reset, ::http2::Reason::CANCEL);
+    assert_eq!(stream_ids, [1, 3]);
+    Ok(())
+}
+
+pub(super) async fn join_peer<T>(
+    peer: &mut Option<ConnectionPeer<TestResult<T>>>,
+    completed: &mut Option<T>,
+) -> TestResult<()> {
+    let joined = peer
+        .as_mut()
+        .ok_or("session peer missing before join")?
+        .await;
+
+    drop(peer.take());
+
+    *completed = Some(joined??);
+    Ok(())
+}
+
+pub(super) async fn collect_peer<T: Send + 'static>(
+    peer: Option<ConnectionPeer<TestResult<T>>>,
+    completed: Option<T>,
+    stop: bool,
+    purpose: &'static str,
+) -> TestResult<Option<T>> {
+    if let Some(value) = completed {
+        return Ok(Some(value));
+    }
+
+    let Some(mut peer) = peer else {
+        return Ok(None);
+    };
+
+    let mut requested = false;
+    if stop && !peer.is_finished() {
+        requested = true;
+        peer.abort();
+    }
+
+    match timeout(TEST_TIMEOUT, &mut peer).await {
+        Ok(joined) => peer_outcome(joined, requested),
+        Err(elapsed) => {
+            if !peer.is_finished() {
+                requested = true;
+                peer.abort();
+            }
+
+            let cleanup = match timeout(TEST_TIMEOUT, &mut peer).await {
+                Ok(joined) => peer_outcome(joined, requested).map(|_| ()),
+                Err(elapsed) => Err(FixtureDeadline::new(purpose, elapsed).into()),
+            };
+
+            finish_with_cleanup(Err(FixtureDeadline::new(purpose, elapsed).into()), cleanup)
+        }
+    }
+}
+
+fn peer_outcome<T>(
+    joined: Result<TestResult<T>, JoinError>,
+    requested: bool,
+) -> TestResult<Option<T>> {
+    match joined {
+        Ok(result) => result.map(Some),
+        Err(error) if requested && error.is_cancelled() => Ok(None),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn finish_peer<T>(caller: TestResult<()>, collected: TestResult<Option<T>>) -> TestResult<T> {
+    let mut output = None;
+    let cleanup = match collected {
+        Ok(value) => {
+            output = value;
+            Ok(())
+        }
+        Err(error) => Err(error),
+    };
+
+    finish_with_cleanup(caller, cleanup)?;
+
+    output.ok_or_else(|| "session peer ended without an output".into())
 }
 
 #[derive(Clone, Debug, Default)]

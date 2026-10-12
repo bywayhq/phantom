@@ -8,7 +8,7 @@ use std::{
 
 use phantom::{RequestError, RequestErrorKind};
 use tokio::{
-    io::AsyncReadExt,
+    io::{copy, sink},
     net::TcpStream,
     sync::{oneshot, watch},
     task::Id,
@@ -66,10 +66,33 @@ impl Fixture {
     where
         F: Future<Output = TestResult<()>> + ?Sized,
     {
-        let setup = drive_until(caller, async { Ok((&mut self.ready).await?) }).await?;
+        if self.resume.is_none() {
+            let recovery = self.recover_queued();
+            let result = match timeout(LIMIT, caller.as_mut()).await {
+                Ok(result) => finish_with_cleanup(
+                    Err("canonical session caller ended before its prerequisite".into()),
+                    result,
+                ),
+                Err(elapsed) => Err(FixtureDeadline::new(
+                    "canonical caller completion timed out",
+                    elapsed,
+                )
+                .into()),
+            };
+
+            return finish_with_cleanup(result, recovery);
+        }
+
+        let setup = match drive_until(caller, async { Ok((&mut self.ready).await?) }).await {
+            Ok(setup) => setup,
+            Err(error) => return finish_with_cleanup(Err(error), self.recover_queued()),
+        };
         let address = setup.address;
         self.setup = Some(setup);
-        self.socket = Some(timeout(LIMIT, TcpStream::connect(address)).await??);
+
+        if self.socket.is_none() {
+            self.socket = Some(timeout(LIMIT, TcpStream::connect(address)).await??);
+        }
 
         drive_until(caller, async {
             self.state
@@ -305,7 +328,7 @@ impl Fixture {
             .as_mut()
             .ok_or("actual accepted socket missing")?;
 
-        match timeout(LIMIT, socket.read_to_end(&mut Vec::new())).await? {
+        match timeout(LIMIT, copy(socket, &mut sink())).await? {
             Ok(_) => Ok(()),
             Err(error) if tls::is_peer_gone(&error) => Ok(()),
             Err(error) => Err(error.into()),
@@ -313,26 +336,79 @@ impl Fixture {
     }
 
     pub(in super::super::super) async fn stop(&mut self) -> TestResult<()> {
-        let Some(setup) = &self.setup else {
-            return Ok(());
+        let recovery = self.recover_queued();
+
+        if let Some(setup) = &self.setup {
+            if !setup.peer.is_finished() {
+                setup.peer.abort();
+            }
+            if let Some(sibling) = &setup.sibling
+                && !sibling.is_finished()
+            {
+                sibling.abort();
+            }
+        }
+
+        let finished = if self.setup.is_some() {
+            self.finished().await
+        } else {
+            Ok(())
         };
 
-        if !setup.peer.is_finished() {
-            setup.peer.abort();
+        let closed = if self.socket.is_some() {
+            self.closed().await
+        } else {
+            Ok(())
+        };
+
+        finish_with_cleanup(recovery, finish_with_cleanup(finished, closed))
+    }
+
+    fn recover_queued(&mut self) -> TestResult<()> {
+        if self.setup.is_some() {
+            return Ok(());
         }
-        if let Some(sibling) = &setup.sibling
-            && !sibling.is_finished()
+
+        if self.ready.is_terminated() {
+            return if self.state.borrow().published.is_some() {
+                Err("consumed setup did not retain its original peer".into())
+            } else {
+                Ok(())
+            };
+        }
+
+        match self.ready.try_recv() {
+            Ok(setup) => {
+                self.setup = Some(setup);
+                Ok(())
+            }
+            Err(oneshot::error::TryRecvError::Empty) => Ok(()),
+            Err(error) if self.state.borrow().published.is_some() => Err(error.into()),
+            Err(oneshot::error::TryRecvError::Closed) => Ok(()),
+        }
+    }
+}
+
+impl Drop for Fixture {
+    fn drop(&mut self) {
+        self.ready.close();
+        if self.setup.is_none()
+            && !self.ready.is_terminated()
+            && let Ok(setup) = self.ready.try_recv()
         {
-            sibling.abort();
+            self.setup = Some(setup);
         }
 
-        self.finished().await?;
-
-        if self.socket.is_some() {
-            self.closed().await?;
+        if let Some(setup) = &self.setup {
+            if !setup.peer.is_finished() {
+                setup.peer.abort();
+            }
+            if let Some(sibling) = &setup.sibling
+                && !sibling.is_finished()
+            {
+                sibling.abort();
+            }
         }
-
-        Ok(())
     }
 }
 

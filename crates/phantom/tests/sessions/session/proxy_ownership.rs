@@ -8,40 +8,60 @@ use tokio::{
     net::{TcpListener, TcpStream},
 };
 
-use super::body_ownership::{Control, Observation, ObservedTcp, PeerLife, Setup, accept_peer};
+use super::body_ownership::{
+    Control, Observation, ObservedTcp, PeerLife, Setup, accept_peer, collect_peer, join_peer,
+};
 use super::{
     ASCII_ORIGIN_NAME, H1_ALPN, H2_ALPN, TestIdentity, TestResult, UNICODE_ORIGIN_NAME, bounded,
     client_builder, read_head, reuse_ownership, test_client, tls_support,
 };
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 
 pub(super) async fn plaintext() -> TestResult<()> {
     plaintext_controlled(None).await
 }
 
 async fn plaintext_controlled(control: Option<Control>) -> TestResult<()> {
-    bounded(async {
+    let mut origin = None;
+    let mut proxy = None;
+    let mut requests = None;
+    let mut connect = None;
+    let mut origin_port = None;
+
+    let caller = bounded(async {
         let identity = TestIdentity::generate_for_dns(ASCII_ORIGIN_NAME)?;
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
+        origin_port = Some(origin_address.port());
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let origin = reuse_ownership::spawn_server(origin_listener, acceptor, 2, None);
+        origin = Some(reuse_ownership::spawn_server(
+            origin_listener,
+            acceptor,
+            2,
+            None,
+        ));
 
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let observed = control.as_ref().map(|control| control.observed.clone());
-        let proxy = tokio::spawn(forward_one_connect(
+        proxy = Some(ConnectionPeer::spawn(forward_one_connect(
             proxy_listener,
             origin_address,
             observed,
-        ));
+        )));
 
         let target = match control {
             Some(control) => {
                 control
                     .coordinate(Setup {
                         address: proxy_address,
-                        peer: proxy.abort_handle(),
-                        sibling: Some(origin.abort_handle()),
+                        peer: proxy.as_ref().ok_or("proxy relay missing")?.abort_handle(),
+                        sibling: Some(
+                            origin
+                                .as_ref()
+                                .ok_or("tunnel origin missing")?
+                                .abort_handle(),
+                        ),
                     })
                     .await?
             }
@@ -67,23 +87,36 @@ async fn plaintext_controlled(control: Option<Control>) -> TestResult<()> {
         }
         drop(session);
 
-        let requests = origin.await??;
-        assert_eq!(
-            requests,
-            vec![(1, "/first".to_owned()), (3, "/second".to_owned())]
-        );
-        assert_eq!(
-            proxy.await??,
-            format!(
-                "CONNECT {ASCII_ORIGIN_NAME}:{} HTTP/1.1\r\nHost: {ASCII_ORIGIN_NAME}:{}\r\n\r\n",
-                origin_address.port(),
-                origin_address.port()
-            )
-            .as_bytes()
-        );
-        Ok(())
+        join_peer(&mut origin, &mut requests).await?;
+
+        join_peer(&mut proxy, &mut connect).await
     })
-    .await
+    .await;
+
+    let stop = caller.is_err();
+    let (origin, proxy) = tokio::join!(
+        collect_peer(origin, requests, stop, "tunnel origin did not finish"),
+        collect_peer(proxy, connect, stop, "proxy relay did not finish"),
+    );
+
+    let (requests, connect) = finish_tunnel(caller, origin, proxy)?;
+
+    let port = origin_port.ok_or("tunnel origin port missing")?;
+
+    assert_eq!(
+        requests,
+        vec![(1, "/first".to_owned()), (3, "/second".to_owned())]
+    );
+
+    assert_eq!(
+        connect,
+        format!(
+            "CONNECT {ASCII_ORIGIN_NAME}:{} HTTP/1.1\r\nHost: {ASCII_ORIGIN_NAME}:{}\r\n\r\n",
+            port, port
+        )
+        .as_bytes()
+    );
+    Ok(())
 }
 
 pub(super) async fn https() -> TestResult<()> {
@@ -91,32 +124,49 @@ pub(super) async fn https() -> TestResult<()> {
 }
 
 async fn https_controlled(control: Option<Control>) -> TestResult<()> {
-    bounded(async {
+    let mut origin = None;
+    let mut proxy = None;
+    let mut requests = None;
+    let mut connect = None;
+    let mut origin_port = None;
+
+    let caller = bounded(async {
         let identity = TestIdentity::generate_for_dns(ASCII_ORIGIN_NAME)?;
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
+        origin_port = Some(origin_address.port());
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let origin = reuse_ownership::spawn_server(origin_listener, acceptor, 2, None);
+        origin = Some(reuse_ownership::spawn_server(
+            origin_listener,
+            acceptor,
+            2,
+            None,
+        ));
 
         let proxy_identity = TestIdentity::generate()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let proxy_acceptor = proxy_identity.acceptor(H1_ALPN)?;
         let observed = control.as_ref().map(|control| control.observed.clone());
-        let proxy = tokio::spawn(forward_one_https_connect(
+        proxy = Some(ConnectionPeer::spawn(forward_one_https_connect(
             proxy_listener,
             proxy_acceptor,
             origin_address,
             observed,
-        ));
+        )));
 
         let target = match control {
             Some(control) => {
                 control
                     .coordinate(Setup {
                         address: proxy_address,
-                        peer: proxy.abort_handle(),
-                        sibling: Some(origin.abort_handle()),
+                        peer: proxy.as_ref().ok_or("proxy relay missing")?.abort_handle(),
+                        sibling: Some(
+                            origin
+                                .as_ref()
+                                .ok_or("tunnel origin missing")?
+                                .abort_handle(),
+                        ),
                     })
                     .await?
             }
@@ -144,23 +194,68 @@ async fn https_controlled(control: Option<Control>) -> TestResult<()> {
         }
         drop(session);
 
-        let requests = origin.await??;
-        assert_eq!(
-            requests,
-            vec![(1, "/first".to_owned()), (3, "/second".to_owned())]
-        );
-        assert_eq!(
-            proxy.await??,
-            format!(
-                "CONNECT {ASCII_ORIGIN_NAME}:{} HTTP/1.1\r\nHost: {ASCII_ORIGIN_NAME}:{}\r\n\r\n",
-                origin_address.port(),
-                origin_address.port()
-            )
-            .as_bytes()
-        );
-        Ok(())
+        join_peer(&mut origin, &mut requests).await?;
+
+        join_peer(&mut proxy, &mut connect).await
     })
-    .await
+    .await;
+
+    let stop = caller.is_err();
+    let (origin, proxy) = tokio::join!(
+        collect_peer(origin, requests, stop, "tunnel origin did not finish"),
+        collect_peer(proxy, connect, stop, "proxy relay did not finish"),
+    );
+
+    let (requests, connect) = finish_tunnel(caller, origin, proxy)?;
+
+    let port = origin_port.ok_or("tunnel origin port missing")?;
+
+    assert_eq!(
+        requests,
+        vec![(1, "/first".to_owned()), (3, "/second".to_owned())]
+    );
+
+    assert_eq!(
+        connect,
+        format!(
+            "CONNECT {ASCII_ORIGIN_NAME}:{} HTTP/1.1\r\nHost: {ASCII_ORIGIN_NAME}:{}\r\n\r\n",
+            port, port
+        )
+        .as_bytes()
+    );
+    Ok(())
+}
+
+fn finish_tunnel(
+    caller: TestResult<()>,
+    origin: TestResult<Option<reuse_ownership::Requests>>,
+    proxy: TestResult<Option<Vec<u8>>>,
+) -> TestResult<(reuse_ownership::Requests, Vec<u8>)> {
+    let mut requests = None;
+    let origin_failure = match origin {
+        Ok(value) => {
+            requests = value;
+            Ok(())
+        }
+        Err(error) => Err(error),
+    };
+
+    let mut connect = None;
+    let proxy_failure = match proxy {
+        Ok(value) => {
+            connect = value;
+            Ok(())
+        }
+        Err(error) => Err(error),
+    };
+
+    finish_with_cleanup(caller, finish_with_cleanup(origin_failure, proxy_failure))?;
+
+    let requests = requests.ok_or("tunnel origin ended without requests")?;
+
+    let connect = connect.ok_or("proxy relay ended without a CONNECT head")?;
+
+    Ok((requests, connect))
 }
 
 async fn forward_one_connect(
