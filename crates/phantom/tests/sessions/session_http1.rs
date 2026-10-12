@@ -19,7 +19,7 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
-use crate::support::tls as tls_support;
+use crate::support::{deadline::FixtureDeadline, tls as tls_support, tunnel_proxy::ConnectionPeer};
 
 use tls_support::{H1_ALPN, TestIdentity, read_head, test_client};
 
@@ -28,12 +28,13 @@ type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[tokio::test]
 async fn canonical_and_unicode_equivalent_hosts_reuse_one_connection() -> TestResult {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut stream = accept_one(&listener, &acceptor).await?;
             let first = read_head(&mut stream).await?;
             stream
@@ -44,7 +45,7 @@ async fn canonical_and_unicode_equivalent_hosts_reuse_one_connection() -> TestRe
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nsecond")
                 .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>((first, second))
-        });
+        }));
 
         let session = test_client(&identity, false)?;
         let first = session
@@ -69,7 +70,7 @@ async fn canonical_and_unicode_equivalent_hosts_reuse_one_connection() -> TestRe
         assert_eq!(first, "first");
         assert_eq!(second, "second");
 
-        let (first, second) = server.await??;
+        let (first, second) = ownership::join_peer(&mut server).await?;
         assert_eq!(
             first,
             format!(
@@ -88,7 +89,9 @@ async fn canonical_and_unicode_equivalent_hosts_reuse_one_connection() -> TestRe
         );
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::collect_peer(caller, server).await
 }
 
 #[tokio::test]
@@ -99,13 +102,14 @@ async fn client_requests_reuse_one_connection() -> TestResult {
 #[cfg(feature = "danger-disable-verification")]
 #[tokio::test]
 async fn disabled_authentication_completes_requests_on_replacement_connections() -> TestResult {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let first_acceptor = identity.acceptor(H1_ALPN)?;
         let second_acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut first = accept_one(&listener, &first_acceptor).await?;
             read_head(&mut first).await?;
             first
@@ -121,7 +125,7 @@ async fn disabled_authentication_completes_requests_on_replacement_connections()
                 .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
                 .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
 
         let client = phantom::Client::builder(phantom::profile::ClientProfile::new(
             tls_support::tls_settings(),
@@ -138,20 +142,23 @@ async fn disabled_authentication_completes_requests_on_replacement_connections()
                 .await?;
         }
 
-        server.await??;
+        ownership::join_peer(&mut server).await?;
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::collect_peer(caller, server).await
 }
 
 #[tokio::test]
 async fn connection_close_response_is_replaced_without_replay() -> TestResult {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut first = accept_one(&listener, &acceptor).await?;
             let first_head = read_head(&mut first).await?;
             first
@@ -165,7 +172,7 @@ async fn connection_close_response_is_replaced_without_replay() -> TestResult {
                 .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
                 .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>((first_head, second_head))
-        });
+        }));
 
         let session = test_client(&identity, false)?;
         for path in ["first", "second"] {
@@ -177,22 +184,25 @@ async fn connection_close_response_is_replaced_without_replay() -> TestResult {
                 .collect()
                 .await?;
         }
-        let (first, second) = server.await??;
+        let (first, second) = ownership::join_peer(&mut server).await?;
         assert!(first.starts_with(b"GET /first HTTP/1.1\r\n"));
         assert!(second.starts_with(b"GET /second HTTP/1.1\r\n"));
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::collect_peer(caller, server).await
 }
 
 #[tokio::test]
 async fn segmented_close_response_is_reassembled_before_connection_replacement() -> TestResult {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut first = accept_one(&listener, &acceptor).await?;
             let first_head = read_head(&mut first).await?;
             let body = b"segmented response body";
@@ -221,7 +231,7 @@ async fn segmented_close_response_is_reassembled_before_connection_replacement()
                 .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
                 .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>((first_head, second_head))
-        });
+        }));
 
         let session = test_client(&identity, false)?;
         let first = session
@@ -241,22 +251,25 @@ async fn segmented_close_response_is_reassembled_before_connection_replacement()
         assert_eq!(second.status(), 204);
         assert!(second.into_body().collect().await?.to_bytes().is_empty());
 
-        let (first_head, second_head) = server.await??;
+        let (first_head, second_head) = ownership::join_peer(&mut server).await?;
         assert!(first_head.starts_with(b"GET /segmented HTTP/1.1\r\n"));
         assert!(second_head.starts_with(b"GET /followup HTTP/1.1\r\n"));
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::collect_peer(caller, server).await
 }
 
 #[tokio::test]
 async fn incomplete_body_is_discarded_before_the_next_request() -> TestResult {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut first = accept_one(&listener, &acceptor).await?;
             read_head(&mut first).await?;
             first
@@ -271,7 +284,7 @@ async fn incomplete_body_is_discarded_before_the_next_request() -> TestResult {
                 .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
                 .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(second_head)
-        });
+        }));
 
         let session = test_client(&identity, false)?;
         let first = session
@@ -287,21 +300,24 @@ async fn incomplete_body_is_discarded_before_the_next_request() -> TestResult {
             .collect()
             .await?;
 
-        let second = server.await??;
+        let second = ownership::join_peer(&mut server).await?;
         assert!(second.starts_with(b"GET /second HTTP/1.1\r\n"));
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::collect_peer(caller, server).await
 }
 
 #[tokio::test]
 async fn truncated_chunked_body_fails_and_replaces_the_connection() -> TestResult {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut first = accept_one(&listener, &acceptor).await?;
             let first_head = read_head(&mut first).await?;
             // curl/curl test207 at 01346829096c61b372692f6dc43ffa778c6caccd.
@@ -325,7 +341,7 @@ async fn truncated_chunked_body_fails_and_replaces_the_connection() -> TestResul
                 .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
                 .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>((first_head, replacement_head))
-        });
+        }));
 
         let session = test_client(&identity, false)?;
         let mut body = session
@@ -360,23 +376,28 @@ async fn truncated_chunked_body_fails_and_replaces_the_connection() -> TestResul
         assert_eq!(followup.status(), 204);
         assert!(followup.into_body().collect().await?.to_bytes().is_empty());
 
-        let (first, replacement) = server.await??;
+        let (first, replacement) = ownership::join_peer(&mut server).await?;
         assert!(first.starts_with(b"GET /truncated HTTP/1.1\r\n"));
         assert!(replacement.starts_with(b"GET /followup HTTP/1.1\r\n"));
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::collect_peer(caller, server).await
 }
 
 #[tokio::test]
 async fn pending_requests_are_bounded_while_a_body_is_active() -> TestResult {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let ownership::ActiveBody {
             session,
             active,
             address,
-            server,
-        } = ownership::active_body(None).await?;
+            server: active_server,
+        } = ownership::active_body(None, &mut server).await?;
+        server = Some(active_server);
+
         let first_waiter = session.get(
             HttpProtocol::Http1,
             &format!("https://{address}/waiting-one"),
@@ -388,21 +409,24 @@ async fn pending_requests_are_bounded_while_a_body_is_active() -> TestResult {
         ownership::queued_requests(first_waiter, second_waiter, None).await?;
 
         drop(active);
-        server.await??;
+        ownership::join_peer(&mut server).await?;
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::collect_peer(caller, server).await
 }
 
 #[tokio::test]
 async fn reused_send_failure_is_not_replayed() -> TestResult {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
         let (release_tx, release_rx) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut first = accept_one(&listener, &acceptor).await?;
             let first_head = read_head(&mut first).await?;
             first
@@ -418,7 +442,7 @@ async fn reused_send_failure_is_not_replayed() -> TestResult {
                 .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
                 .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>((first_head, failed_head, later_head))
-        });
+        }));
 
         let session = test_client(&identity, false)?;
         session
@@ -428,7 +452,9 @@ async fn reused_send_failure_is_not_replayed() -> TestResult {
             .into_body()
             .collect()
             .await?;
-        let _ = release_tx.send(());
+        release_tx
+            .send(())
+            .map_err(|()| "HTTP/1 peer closed before request release")?;
 
         let failed = session
             .get(HttpProtocol::Http1, &format!("https://{address}/second"))?
@@ -448,13 +474,15 @@ async fn reused_send_failure_is_not_replayed() -> TestResult {
             .collect()
             .await?;
 
-        let (first, failed, later) = server.await??;
+        let (first, failed, later) = ownership::join_peer(&mut server).await?;
         assert!(first.starts_with(b"GET /first HTTP/1.1\r\n"));
         assert!(failed.starts_with(b"GET /second HTTP/1.1\r\n"));
         assert!(later.starts_with(b"GET /third HTTP/1.1\r\n"));
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::collect_peer(caller, server).await
 }
 
 async fn accept_one(
@@ -502,7 +530,7 @@ where
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "HTTP/1 session test exceeded deadline")?
+        .map_err(|elapsed| FixtureDeadline::new("HTTP/1 session test exceeded deadline", elapsed))?
 }
 
 mod ownership;

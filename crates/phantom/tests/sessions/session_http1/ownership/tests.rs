@@ -495,7 +495,7 @@ struct QueuedFixture {
     session: Option<Client>,
     active: Option<Response<ResponseBody>>,
     address: std::net::SocketAddr,
-    server: Option<tokio::task::JoinHandle<TestResult>>,
+    server: Option<super::Server>,
     server_abort: tokio::task::AbortHandle,
 }
 
@@ -514,12 +514,27 @@ impl QueuedFixture {
         let observed_owner = QueuedObservation(state);
         let (collect, collect_after) = oneshot::channel();
         let (returned, return_after) = oneshot::channel();
+        let mut preparing = None;
+        let prepared = match timeout(
+            LIMIT,
+            active_body(Some(observed_owner.clone()), &mut preparing),
+        )
+        .await
+        {
+            Ok(result) => result,
+            Err(elapsed) => Err(FixtureDeadline::new(
+                "HTTP/1 active-body setup exceeded deadline",
+                elapsed,
+            )
+            .into()),
+        };
+
         let ActiveBody {
             session,
             active,
             address,
             server,
-        } = timeout(LIMIT, active_body(Some(observed_owner.clone()))).await??;
+        } = super::collect_peer(prepared, preparing).await?;
         let server_abort = server.abort_handle();
 
         Ok((

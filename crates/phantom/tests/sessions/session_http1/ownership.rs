@@ -3,6 +3,8 @@ use std::{
     future::{Future, poll_fn},
     net::{Ipv4Addr, SocketAddr},
     num::NonZeroUsize,
+    pin::Pin,
+    task::Poll,
 };
 
 use http_body_util::BodyExt;
@@ -14,13 +16,21 @@ use tokio::{
     net::TcpListener,
     sync::{oneshot, watch},
     task::{AbortHandle, JoinHandle},
+    time::timeout,
+};
+
+use crate::support::{
+    deadline::FixtureDeadline,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
 
 use super::tls_support::client_builder;
 use super::{
-    H1_ALPN, TestIdentity, TestResult, accept_one, accept_one_observed, bounded, read_head,
-    test_client,
+    H1_ALPN, TEST_TIMEOUT, TestIdentity, TestResult, accept_one, accept_one_observed, bounded,
+    read_head, test_client,
 };
+
+pub(super) type Server<T = ()> = ConnectionPeer<TestResult<T>>;
 
 #[derive(Clone, Debug, Default)]
 struct State {
@@ -81,13 +91,14 @@ pub(super) async fn reuse_requests(control: Option<Control>) -> TestResult {
         None => (None, None, None),
     };
 
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
         let peer_observed = observed.clone();
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let _life = PeerLife(peer_observed.clone());
 
             let result: TestResult = async {
@@ -110,12 +121,16 @@ pub(super) async fn reuse_requests(control: Option<Control>) -> TestResult {
             }
 
             result
-        });
+        }));
 
         if let Some(observed) = &observed {
+            let peer = server
+                .as_ref()
+                .ok_or("original HTTP/1 peer missing after spawn")?;
+
             observed.0.send_modify(|state| {
                 state.address = Some(address);
-                state.server = Some(server.abort_handle());
+                state.server = Some(peer.abort_handle());
             });
         }
 
@@ -148,17 +163,19 @@ pub(super) async fn reuse_requests(control: Option<Control>) -> TestResult {
             response.into_body().collect().await?;
         }
 
-        server.await??;
+        join_peer(&mut server).await?;
         Ok(())
     })
-    .await
+    .await;
+
+    collect_peer(caller, server).await
 }
 
 pub(super) struct ActiveBody {
     pub(super) session: Client,
     pub(super) active: Response<ResponseBody>,
     pub(super) address: SocketAddr,
-    pub(super) server: JoinHandle<TestResult>,
+    pub(super) server: Server,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -189,12 +206,15 @@ impl Drop for QueuedPeerLife {
     }
 }
 
-pub(super) async fn active_body(observed: Option<QueuedObservation>) -> TestResult<ActiveBody> {
+pub(super) async fn active_body(
+    observed: Option<QueuedObservation>,
+    server: &mut Option<Server>,
+) -> TestResult<ActiveBody> {
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let acceptor = identity.acceptor(H1_ALPN)?;
-    let server = tokio::spawn(async move {
+    *server = Some(ConnectionPeer::spawn(async move {
         let _life = QueuedPeerLife(observed.clone());
 
         let mut stream = accept_one(&listener, &acceptor).await?;
@@ -227,7 +247,7 @@ pub(super) async fn active_body(observed: Option<QueuedObservation>) -> TestResu
         }
 
         Ok::<_, Box<dyn Error + Send + Sync>>(())
-    });
+    }));
 
     let session = client_builder(&identity, false)
         .max_pending_http1_requests_per_origin(NonZeroUsize::MIN)
@@ -236,6 +256,9 @@ pub(super) async fn active_body(observed: Option<QueuedObservation>) -> TestResu
         .get(HttpProtocol::Http1, &format!("https://{address}/active"))?
         .send()
         .await?;
+    let server = server
+        .take()
+        .ok_or("original active-body HTTP/1 peer missing after setup")?;
 
     Ok(ActiveBody {
         session,
@@ -369,6 +392,48 @@ pub(super) async fn queued_requests(
     };
     assert_eq!(error.kind(), RequestErrorKind::Capacity);
     Ok(())
+}
+
+pub(super) async fn join_peer<T>(server: &mut Option<Server<T>>) -> TestResult<T> {
+    let peer = server
+        .as_mut()
+        .ok_or("original HTTP/1 peer missing before join")?;
+
+    let joined = peer.await;
+    drop(server.take());
+
+    joined?
+}
+
+pub(super) async fn collect_peer<T: Send + 'static, O>(
+    caller: TestResult<O>,
+    server: Option<Server<T>>,
+) -> TestResult<O> {
+    let Some(mut server) = server else {
+        return caller;
+    };
+
+    let ready = poll_fn(|context| Poll::Ready(Pin::new(&mut server).poll(context).ready())).await;
+    let requested = ready.is_none();
+    if requested {
+        server.abort();
+    }
+
+    let joined = match ready {
+        Some(result) => Ok(result),
+        None => timeout(TEST_TIMEOUT, &mut server).await.map_err(|elapsed| {
+            FixtureDeadline::new("HTTP/1 peer cleanup exceeded deadline", elapsed)
+        }),
+    };
+
+    let cleanup = match joined {
+        Ok(Ok(result)) => result.map(|_| ()),
+        Ok(Err(error)) if requested && error.is_cancelled() => Ok(()),
+        Ok(Err(error)) => Err(error.into()),
+        Err(error) => Err(error.into()),
+    };
+
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[cfg(test)]
