@@ -4,7 +4,6 @@ use std::{
     error::Error,
     future::{Future, poll_fn},
     net::Ipv4Addr,
-    num::NonZeroUsize,
     pin::Pin,
     time::Duration,
 };
@@ -22,7 +21,7 @@ use tokio_btls::SslStream;
 
 use crate::support::tls as tls_support;
 
-use tls_support::{H1_ALPN, TestIdentity, client_builder, read_head, test_client};
+use tls_support::{H1_ALPN, TestIdentity, read_head, test_client};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
@@ -372,28 +371,12 @@ async fn truncated_chunked_body_fails_and_replaces_the_connection() -> TestResul
 #[tokio::test]
 async fn pending_requests_are_bounded_while_a_body_is_active() -> TestResult {
     bounded(async {
-        let identity = TestIdentity::generate()?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
-            let mut stream = accept_one(&listener, &acceptor).await?;
-            read_head(&mut stream).await?;
-            stream
-                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nfirst")
-                .await?;
-            let mut remaining = Vec::new();
-            stream.read_to_end(&mut remaining).await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
-
-        let session = client_builder(&identity, false)
-            .max_pending_http1_requests_per_origin(NonZeroUsize::MIN)
-            .build()?;
-        let active = session
-            .get(HttpProtocol::Http1, &format!("https://{address}/active"))?
-            .send()
-            .await?;
+        let ownership::ActiveBody {
+            session,
+            active,
+            address,
+            server,
+        } = ownership::active_body(None).await?;
         let first_waiter = session.get(
             HttpProtocol::Http1,
             &format!("https://{address}/waiting-one"),
@@ -402,24 +385,7 @@ async fn pending_requests_are_bounded_while_a_body_is_active() -> TestResult {
             HttpProtocol::Http1,
             &format!("https://{address}/waiting-two"),
         )?;
-        let mut first_waiter = tokio::spawn(first_waiter.send());
-        let mut second_waiter = tokio::spawn(second_waiter.send());
-
-        let rejected = tokio::select! {
-            result = &mut first_waiter => {
-                second_waiter.abort();
-                result?
-            }
-            result = &mut second_waiter => {
-                first_waiter.abort();
-                result?
-            }
-        };
-        let error = match rejected {
-            Ok(_) => return Err("excess HTTP/1 waiter was admitted".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), RequestErrorKind::Capacity);
+        ownership::queued_requests(first_waiter, second_waiter, None).await?;
 
         drop(active);
         server.await??;
