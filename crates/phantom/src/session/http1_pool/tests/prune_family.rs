@@ -15,6 +15,8 @@ mod fixture;
 enum OriginState {
     Reconnected,
     Pending,
+    EndedSetup,
+    LongerSetup,
     Empty,
 }
 
@@ -31,6 +33,16 @@ async fn pruning_forgets_the_family_when_the_origin_stays_empty() -> TestResult 
 #[tokio::test]
 async fn pruning_keeps_the_family_of_setup_reserved_after_its_empty_snapshot() -> TestResult {
     check_family(OriginState::Pending).await
+}
+
+#[tokio::test]
+async fn pruning_rechecks_the_family_after_intervening_setup_ends() -> TestResult {
+    check_family(OriginState::EndedSetup).await
+}
+
+#[tokio::test]
+async fn ending_setup_schedules_a_recheck_after_a_sweep_found_it_still_active() -> TestResult {
+    check_family(OriginState::LongerSetup).await
 }
 
 async fn check_family(state: OriginState) -> TestResult {
@@ -81,7 +93,9 @@ async fn check_family(state: OriginState) -> TestResult {
             return Err("origin was not empty after actual expired-socket closure".into());
         }
 
-        let pending = if matches!(state, OriginState::Pending) {
+        let pending = if matches!(
+            state, OriginState::Pending | OriginState::EndedSetup | OriginState::LongerSetup
+        ) {
             let Checkout::Reserved(reservation) = origin.connections.checkout(false) else {
                 return Err("empty origin did not reserve new connection setup".into());
             };
@@ -118,7 +132,8 @@ async fn check_family(state: OriginState) -> TestResult {
 
                 Some(response)
             }
-            OriginState::Pending | OriginState::Empty => None,
+            OriginState::Pending | OriginState::EndedSetup | OriginState::LongerSetup
+                | OriginState::Empty => None,
         };
 
         race.resume()?;
@@ -134,7 +149,7 @@ async fn check_family(state: OriginState) -> TestResult {
                     Ok(())
                 }
             }
-            OriginState::Pending => {
+            OriginState::Pending | OriginState::EndedSetup | OriginState::LongerSetup => {
                 if origin.connections.lock().leased != 1 {
                     Err("pending setup ended before the family target".into())
                 } else if origin.connections.family.family() != Some(AddressFamily::Ipv4) {
@@ -152,9 +167,51 @@ async fn check_family(state: OriginState) -> TestResult {
             }
         };
 
+        if matches!(state, OriginState::EndedSetup)
+            && target.is_ok()
+            && timer.wake_at().is_none()
+        {
+            return Err("invalidated empty snapshot left no scheduled family recheck".into());
+        }
+
+        if matches!(state, OriginState::LongerSetup) && target.is_ok() {
+            timer.fire();
+            if origin.connections.lock().leased != 1
+                || origin.connections.family.family() != Some(AddressFamily::Ipv4)
+            {
+                return Err("sweep of actual ongoing setup did not retain its family".into());
+            }
+
+            if timer.wake_at().is_some() {
+                return Err("sweep scheduled polling for actual ongoing setup".into());
+            }
+        }
+
         drop(held);
         drop(pending);
-        target
+        target?;
+
+        if matches!(state, OriginState::EndedSetup | OriginState::LongerSetup) {
+            if !origin.connections.lock().is_empty() {
+                return Err("dropped setup did not leave the actual origin empty".into());
+            }
+
+            if timer.wake_at().is_none() {
+                return Err("ended setup left no scheduled family recheck".into());
+            }
+
+            // The unscheduled timer runs only after its recorded wake is checked.
+            timer.fire();
+            if origin.connections.family.family().is_some() {
+                return Err("deferred prune retained the family after actual setup ended".into());
+            }
+
+            if timer.wake_at().is_some() {
+                return Err("stable empty recheck scheduled another sweep".into());
+            }
+        }
+
+        Ok(())
     }).await;
     let outcome = match operation {
         Ok(result) => result,
