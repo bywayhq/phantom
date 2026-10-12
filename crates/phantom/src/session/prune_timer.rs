@@ -234,8 +234,11 @@ impl PruneTimer {
         }
 
         for (memory, snapshot, empty) in families {
-            if empty {
-                memory.forget_if_unchanged(&snapshot);
+            if empty && !memory.forget_if_unchanged(&snapshot) && memory.family().is_some() {
+                // Activity invalidated an empty observation. Recheck once;
+                // an owner still active then schedules when it leaves empty.
+                let recheck = Duration::from_secs(1);
+                next = Some(next.map_or(recheck, |left| left.min(recheck)));
             }
         }
 

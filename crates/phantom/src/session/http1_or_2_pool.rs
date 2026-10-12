@@ -1613,6 +1613,18 @@ impl EntryConnections {
         }
     }
 
+    /// Rechecks a learned family when the last active owner leaves no socket.
+    fn prune_empty_family(&self) {
+        let Some(timer) = &self.prune else {
+            return;
+        };
+        let empty = self.lock().is_empty();
+
+        if empty && self.family.family().is_some() {
+            timer.idle_added(Duration::from_secs(1));
+        }
+    }
+
     /// Tells the prune timer that the key kept an H2 connection with `left`
     /// before its idle limit, if it has one.
     fn http2_joined(&self, left: Option<Duration>) {
@@ -1737,6 +1749,7 @@ impl EntryConnections {
         // A claimant whose claim is dropped here chooses again: the H2
         // connection, an idle one, or a new one.
         drop(claim);
+        self.prune_empty_family();
         self.setup_done.notify_waiters();
     }
 
@@ -1885,6 +1898,9 @@ impl EntryConnections {
                 "negotiated HTTP/2 connection invalidated"
             );
         }
+
+        drop(state);
+        self.prune_empty_family();
     }
 
     /// Frees one leased H1 connection, keeping it idle when it is reusable.
@@ -1897,10 +1913,14 @@ impl EntryConnections {
                 drop(state);
                 self.idle_added();
             }
-            _ => debug!(
-                outcome = "invalidated",
-                "negotiated HTTP/1 pooled connection invalidated"
-            ),
+            _ => {
+                drop(state);
+                debug!(
+                    outcome = "invalidated",
+                    "negotiated HTTP/1 pooled connection invalidated"
+                );
+                self.prune_empty_family();
+            }
         }
     }
 
@@ -2025,6 +2045,7 @@ impl Drop for Reservation {
             let mut state = self.connections.lock();
             state.connecting = state.connecting.saturating_sub(1);
             drop(state);
+            self.connections.prune_empty_family();
             self.connections.setup_done.notify_waiters();
         }
     }

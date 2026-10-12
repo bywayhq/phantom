@@ -124,10 +124,16 @@ impl AddressFamilyMemory {
     /// `snapshot`. A snapshot from another memory never clears this one.
     ///
     /// The comparison and reset are atomic with activity and connection records.
-    pub fn forget_if_unchanged(&self, snapshot: &AddressFamilySnapshot) {
+    /// Returns whether the snapshot still matched, including when no family
+    /// was remembered. A rejected reset leaves the current family intact.
+    #[must_use]
+    pub fn forget_if_unchanged(&self, snapshot: &AddressFamilySnapshot) -> bool {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         if Arc::ptr_eq(&state.activity, &snapshot.0) {
             state.family = None;
+            true
+        } else {
+            false
         }
     }
 

@@ -967,6 +967,18 @@ impl EntryConnections {
         }
     }
 
+    /// Rechecks a learned family when the last active owner leaves no socket.
+    fn prune_empty_family(&self) {
+        let Some(timer) = &self.prune else {
+            return;
+        };
+        let empty = self.lock().is_empty();
+
+        if empty && self.family.family().is_some() {
+            timer.idle_added(Duration::from_secs(1));
+        }
+    }
+
     /// Keeps the slower attempt of a backup connection, which finishes its
     /// setup on its own task and then joins the idle list or the request
     /// that claimed it.
@@ -1012,7 +1024,9 @@ impl EntryConnections {
         let mut set = self.lock();
         let claim = set.take_spare(id).and_then(|spare| spare.claim);
         let Some(connection) = connection.filter(Http1Connection::is_reusable) else {
+            drop(set);
             debug!(outcome = "failed", "HTTP/1 slower backup connection failed");
+            self.prune_empty_family();
             // A claimant finds its claim dropped and chooses again.
             return;
         };
@@ -1093,10 +1107,14 @@ impl EntryConnections {
                 drop(set);
                 self.idle_added();
             }
-            _ => debug!(
-                outcome = "invalidated",
-                "HTTP/1 pooled connection invalidated"
-            ),
+            _ => {
+                drop(set);
+                debug!(
+                    outcome = "invalidated",
+                    "HTTP/1 pooled connection invalidated"
+                );
+                self.prune_empty_family();
+            }
         }
     }
 
