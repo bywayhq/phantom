@@ -15,6 +15,7 @@ use tokio::{
 };
 use tracing::instrument::WithSubscriber;
 
+use crate::support::deadline::FixtureDeadline;
 use crate::support::tls as tls_support;
 use crate::support::tracing as tracing_support;
 use ownership::{complete, serve_stale_connection, spawn_single_stale_server};
@@ -530,7 +531,10 @@ async fn bounded<F>(future: F) -> TestResult
 where
     F: Future<Output = TestResult>,
 {
-    timeout(TEST_TIMEOUT, future)
-        .await
-        .map_err(|_| "stale-connection replay test exceeded its deadline")?
+    timeout(TEST_TIMEOUT, future).await.map_err(|elapsed| {
+        FixtureDeadline::new(
+            "stale-connection replay test exceeded its deadline",
+            elapsed,
+        )
+    })?
 }

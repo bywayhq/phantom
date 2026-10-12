@@ -16,7 +16,7 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf},
     net::{TcpListener, TcpStream},
     sync::watch,
-    task::{AbortHandle, JoinHandle},
+    task::AbortHandle,
     time::timeout,
 };
 
@@ -25,19 +25,44 @@ use super::{
     is_peer_gone, read_head, read_request,
 };
 use crate::support::deadline::FixtureDeadline;
+use crate::support::tunnel_proxy::connection_peer::ConnectionPeer;
 use crate::support::tunnel_proxy::finish_with_cleanup;
 
-pub(super) type Server = JoinHandle<TestResult<(ReceivedRequest, bool)>>;
+pub(super) type Server = ConnectionPeer<TestResult<(ReceivedRequest, bool)>>;
 
 pub(super) async fn complete(
     server: &mut Option<Server>,
     caller: impl Future<Output = TestResult>,
 ) -> TestResult<(ReceivedRequest, bool)> {
-    caller.await?;
-    server
-        .take()
-        .ok_or("original stale server missing")?
-        .await?
+    let mut server = server.take().ok_or("original stale server missing")?;
+
+    let caller = caller.await;
+
+    let requested = caller.is_err() && !server.is_finished();
+    if requested {
+        server.abort();
+    }
+
+    let joined = timeout(TEST_TIMEOUT, &mut server).await.map_err(|elapsed| {
+        FixtureDeadline::new(
+            "stale-replay original worker completion exceeded its deadline",
+            elapsed,
+        )
+    });
+
+    match caller {
+        Ok(()) => joined??,
+        Err(primary) => {
+            let cleanup = match joined {
+                Ok(Ok(result)) => result.map(|_| ()),
+                Ok(Err(error)) if requested && error.is_cancelled() => Ok(()),
+                Ok(Err(error)) => Err(error.into()),
+                Err(error) => Err(error.into()),
+            };
+
+            finish_with_cleanup(Err(primary), cleanup)
+        }
+    }
 }
 
 pub(super) async fn spawn_single_stale_server(
@@ -46,7 +71,7 @@ pub(super) async fn spawn_single_stale_server(
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let state = control.as_ref().map(|control| control.state.clone());
-    let server = tokio::spawn(async move {
+    let server = ConnectionPeer::from_task(tokio::spawn(async move {
         let _lifetime = control
             .as_ref()
             .map(|control| Lifetime(control.state.clone()));
@@ -54,7 +79,7 @@ pub(super) async fn spawn_single_stale_server(
         let stale = serve_stale_connection(&listener, control).await?;
         let extra = timeout(EXTRA_CONNECTION_WINDOW, listener.accept()).await;
         Ok((stale, extra.is_err()))
-    });
+    }));
 
     if let Some(state) = state {
         state.send_modify(|state| state.abort = Some(server.abort_handle()));
