@@ -10,12 +10,13 @@ use bytes::{Buf, Bytes};
 use http::{Method, Request, Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{Client, ClientBuilder, HttpProtocol, RedirectPolicy, profile::ClientProfile};
-use tokio::{sync::oneshot, time::timeout};
+use tokio::time::timeout;
 
-use super::ownership::{self, Control, PeerLife, Setup};
-use super::{NO_BODY_WINDOW, TestResult, bounded};
+use super::ownership::{self, Control, PeerLife, QuicLifetime, QuicRelease, Setup};
+use super::{MAX_BODY_BYTES, NO_BODY_WINDOW, TestResult, bounded};
 use crate::support::h3 as h3_support;
 use crate::support::tls as tls_support;
+use crate::support::{deadline::FixtureDeadline, tunnel_proxy::ConnectionPeer};
 use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{TestIdentity, tls_settings};
 
@@ -36,7 +37,8 @@ fn field<'a>(request: &'a Request<()>, name: &str) -> Option<&'a [u8]> {
 async fn assert_no_data_arrives(stream: &mut ServerStream) -> TestResult {
     match timeout(NO_BODY_WINDOW, stream.recv_data()).await {
         Err(_) => Ok(()),
-        Ok(_) => Err("the body did not wait for 100 Continue".into()),
+        Ok(Ok(_)) => Err("the body did not wait for 100 Continue".into()),
+        Ok(Err(error)) => Err(error.into()),
     }
 }
 
@@ -44,8 +46,17 @@ async fn read_body(stream: &mut ServerStream) -> TestResult<Vec<u8>> {
     let mut body = Vec::new();
     while let Some(mut chunk) = stream.recv_data().await? {
         let remaining = chunk.remaining();
+        if remaining > MAX_BODY_BYTES - body.len() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "expect-continue HTTP/3 body exceeded byte bound",
+            )
+            .into());
+        }
+
         body.extend_from_slice(&chunk.copy_to_bytes(remaining));
     }
+
     Ok(body)
 }
 
@@ -60,8 +71,8 @@ async fn assert_upload_cancelled(stream: &mut ServerStream) -> TestResult {
         }
         Ok(Ok(Some(_))) => Err("the withheld body was sent".into()),
         Ok(Ok(None)) => Err("the withheld body ended with FIN".into()),
-        Ok(Err(error)) => Err(format!("unexpected upload end: {error}").into()),
-        Err(_) => Err("the upload was never cancelled".into()),
+        Ok(Err(error)) => Err(error.into()),
+        Err(elapsed) => Err(FixtureDeadline::new("the upload was never cancelled", elapsed).into()),
     }
 }
 
@@ -71,12 +82,16 @@ async fn an_http3_body_waits_for_100_continue() -> TestResult {
 }
 
 pub(super) async fn http3_continue(control: Option<Control>) -> TestResult {
-    bounded(async {
+    let mut server = None;
+    // Shutdown closes the endpoint before the peer guard aborts on caller Drop.
+    let mut lifetime = None;
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
-        let (client_done, done_received) = oneshot::channel::<()>();
+        let (owner, done_received) = QuicLifetime::new(endpoint.clone());
+        lifetime = Some(owner);
         let observed = control.as_ref().map(|control| control.observed.clone());
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let _life = PeerLife(observed.clone());
 
             let (request, mut stream, _connection) =
@@ -97,17 +112,22 @@ pub(super) async fn http3_continue(control: Option<Control>) -> TestResult {
             stream.send_data(Bytes::from_static(b"ok")).await?;
             stream.finish().await?;
 
-            let _ = done_received.await;
+            match done_received.await? {
+                QuicRelease::Released | QuicRelease::Shutdown => {}
+            }
 
             Ok::<_, Box<dyn Error + Send + Sync>>((expect, length, body))
-        });
+        }));
 
         let target = match control {
             Some(control) => {
                 control
                     .coordinate(Setup {
                         address,
-                        peer: server.abort_handle(),
+                        peer: server
+                            .as_ref()
+                            .ok_or("original expect-continue peer missing")?
+                            .abort_handle(),
                         root: Some(identity.root_der.clone()),
                     })
                     .await?
@@ -131,15 +151,20 @@ pub(super) async fn http3_continue(control: Option<Control>) -> TestResult {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
 
-        let _ = client_done.send(());
+        lifetime
+            .as_mut()
+            .ok_or("original HTTP/3 lifetime missing")?
+            .release()?;
 
-        let (expect, length, body) = server.await??;
+        let (expect, length, body) = ownership::join(&mut server).await?;
         assert_eq!(expect.as_deref(), Some(b"100-continue".as_slice()));
         assert_eq!(length.as_deref(), Some(b"7".as_slice()));
         assert_eq!(body, b"payload");
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::finish_quic(result, server, &mut lifetime).await
 }
 
 #[tokio::test]
@@ -148,12 +173,16 @@ async fn an_http3_body_is_sent_when_the_wait_ends() -> TestResult {
 }
 
 async fn http3_wait_end(control: Option<Control>) -> TestResult {
-    bounded(async {
+    let mut server = None;
+    // Shutdown closes the endpoint before the peer guard aborts on caller Drop.
+    let mut lifetime = None;
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
-        let (client_done, done_received) = oneshot::channel::<()>();
+        let (owner, done_received) = QuicLifetime::new(endpoint.clone());
+        lifetime = Some(owner);
         let observed = control.as_ref().map(|control| control.observed.clone());
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let _life = PeerLife(observed.clone());
 
             let (_request, mut stream, _connection) =
@@ -167,17 +196,22 @@ async fn http3_wait_end(control: Option<Control>) -> TestResult {
                 .await?;
             stream.finish().await?;
 
-            let _ = done_received.await;
+            match done_received.await? {
+                QuicRelease::Released | QuicRelease::Shutdown => {}
+            }
 
             Ok::<_, Box<dyn Error + Send + Sync>>((body, waited))
-        });
+        }));
 
         let target = match control {
             Some(control) => {
                 control
                     .coordinate(Setup {
                         address,
-                        peer: server.abort_handle(),
+                        peer: server
+                            .as_ref()
+                            .ok_or("original expect-continue peer missing")?
+                            .abort_handle(),
                         root: Some(identity.root_der.clone()),
                     })
                     .await?
@@ -201,9 +235,12 @@ async fn http3_wait_end(control: Option<Control>) -> TestResult {
         assert_eq!(response.status(), StatusCode::OK);
         response.into_body().collect().await?;
 
-        let _ = client_done.send(());
+        lifetime
+            .as_mut()
+            .ok_or("original HTTP/3 lifetime missing")?
+            .release()?;
 
-        let (body, waited) = server.await??;
+        let (body, waited) = ownership::join(&mut server).await?;
         assert_eq!(body, b"payload");
         assert!(
             waited >= Duration::from_millis(250) && waited < Duration::from_secs(5),
@@ -211,7 +248,9 @@ async fn http3_wait_end(control: Option<Control>) -> TestResult {
         );
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::finish_quic(result, server, &mut lifetime).await
 }
 
 #[tokio::test]
@@ -220,12 +259,16 @@ async fn an_http3_final_response_first_cancels_the_upload_without_data() -> Test
 }
 
 async fn http3_final(control: Option<Control>) -> TestResult {
-    bounded(async {
+    let mut server = None;
+    // Shutdown closes the endpoint before the peer guard aborts on caller Drop.
+    let mut lifetime = None;
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
-        let (client_done, done_received) = oneshot::channel::<()>();
+        let (owner, done_received) = QuicLifetime::new(endpoint.clone());
+        lifetime = Some(owner);
         let observed = control.as_ref().map(|control| control.observed.clone());
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let _life = PeerLife(observed.clone());
 
             let (_request, mut stream, _connection) =
@@ -242,17 +285,22 @@ async fn http3_final(control: Option<Control>) -> TestResult {
             stream.finish().await?;
             assert_upload_cancelled(&mut stream).await?;
 
-            let _ = done_received.await;
+            match done_received.await? {
+                QuicRelease::Released | QuicRelease::Shutdown => {}
+            }
 
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
 
         let target = match control {
             Some(control) => {
                 control
                     .coordinate(Setup {
                         address,
-                        peer: server.abort_handle(),
+                        peer: server
+                            .as_ref()
+                            .ok_or("original expect-continue peer missing")?
+                            .abort_handle(),
                         root: Some(identity.root_der.clone()),
                     })
                     .await?
@@ -276,12 +324,17 @@ async fn http3_final(control: Option<Control>) -> TestResult {
         assert_eq!(response.status(), StatusCode::EXPECTATION_FAILED);
         response.into_body().collect().await?;
 
-        let _ = client_done.send(());
+        lifetime
+            .as_mut()
+            .ok_or("original HTTP/3 lifetime missing")?
+            .release()?;
 
-        server.await??;
+        ownership::join(&mut server).await?;
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::finish_quic(result, server, &mut lifetime).await
 }
 
 #[tokio::test]
@@ -290,12 +343,16 @@ async fn an_http3_final_response_with_a_body_cancels_the_upload_without_data() -
 }
 
 async fn http3_final_body(control: Option<Control>) -> TestResult {
-    bounded(async {
+    let mut server = None;
+    // Shutdown closes the endpoint before the peer guard aborts on caller Drop.
+    let mut lifetime = None;
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
-        let (client_done, done_received) = oneshot::channel::<()>();
+        let (owner, done_received) = QuicLifetime::new(endpoint.clone());
+        lifetime = Some(owner);
         let observed = control.as_ref().map(|control| control.observed.clone());
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let _life = PeerLife(observed.clone());
 
             let (_request, mut stream, _connection) =
@@ -311,17 +368,22 @@ async fn http3_final_body(control: Option<Control>) -> TestResult {
             stream.finish().await?;
             assert_upload_cancelled(&mut stream).await?;
 
-            let _ = done_received.await;
+            match done_received.await? {
+                QuicRelease::Released | QuicRelease::Shutdown => {}
+            }
 
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
 
         let target = match control {
             Some(control) => {
                 control
                     .coordinate(Setup {
                         address,
-                        peer: server.abort_handle(),
+                        peer: server
+                            .as_ref()
+                            .ok_or("original expect-continue peer missing")?
+                            .abort_handle(),
                         root: Some(identity.root_der.clone()),
                     })
                     .await?
@@ -345,12 +407,17 @@ async fn http3_final_body(control: Option<Control>) -> TestResult {
         assert_eq!(response.status(), StatusCode::EXPECTATION_FAILED);
         assert_eq!(response.into_body().collect().await?.to_bytes(), "no");
 
-        let _ = client_done.send(());
+        lifetime
+            .as_mut()
+            .ok_or("original HTTP/3 lifetime missing")?
+            .release()?;
 
-        server.await??;
+        ownership::join(&mut server).await?;
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::finish_quic(result, server, &mut lifetime).await
 }
 
 #[tokio::test]
@@ -359,12 +426,16 @@ async fn an_http3_redirect_that_keeps_the_body_waits_again() -> TestResult {
 }
 
 async fn http3_redirect(control: Option<Control>) -> TestResult {
-    bounded(async {
+    let mut server = None;
+    // Shutdown closes the endpoint before the peer guard aborts on caller Drop.
+    let mut lifetime = None;
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
-        let (client_done, done_received) = oneshot::channel::<()>();
+        let (owner, done_received) = QuicLifetime::new(endpoint.clone());
+        lifetime = Some(owner);
         let observed = control.as_ref().map(|control| control.observed.clone());
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let _life = PeerLife(observed.clone());
 
             let (first, mut first_stream, mut connection) =
@@ -400,17 +471,22 @@ async fn http3_redirect(control: Option<Control>) -> TestResult {
                 .await?;
             second_stream.finish().await?;
 
-            let _ = done_received.await;
+            match done_received.await? {
+                QuicRelease::Released | QuicRelease::Shutdown => {}
+            }
 
             Ok::<_, Box<dyn Error + Send + Sync>>((first_expect, second_path, second_expect, body))
-        });
+        }));
 
         let target = match control {
             Some(control) => {
                 control
                     .coordinate(Setup {
                         address,
-                        peer: server.abort_handle(),
+                        peer: server
+                            .as_ref()
+                            .ok_or("original expect-continue peer missing")?
+                            .abort_handle(),
                         root: Some(identity.root_der.clone()),
                     })
                     .await?
@@ -436,14 +512,19 @@ async fn http3_redirect(control: Option<Control>) -> TestResult {
         assert_eq!(response.status(), StatusCode::OK);
         response.into_body().collect().await?;
 
-        let _ = client_done.send(());
+        lifetime
+            .as_mut()
+            .ok_or("original HTTP/3 lifetime missing")?
+            .release()?;
 
-        let (first_expect, second_path, second_expect, body) = server.await??;
+        let (first_expect, second_path, second_expect, body) = ownership::join(&mut server).await?;
         assert_eq!(first_expect.as_deref(), Some(b"100-continue".as_slice()));
         assert_eq!(second_path, "/next");
         assert_eq!(second_expect.as_deref(), Some(b"100-continue".as_slice()));
         assert_eq!(body, b"payload");
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::finish_quic(result, server, &mut lifetime).await
 }

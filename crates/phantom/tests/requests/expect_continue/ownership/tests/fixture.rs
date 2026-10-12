@@ -305,14 +305,12 @@ impl Fixture {
 impl Drop for Fixture {
     fn drop(&mut self) {
         // Panic/early-drop backup cannot join; explicit stop observes completion.
-        if let Some(setup) = &self.setup {
-            if !setup.peer.is_finished() {
-                setup.peer.abort();
-            }
-        } else if let Some(setup) = &self.state.borrow().published {
-            if !setup.peer.is_finished() {
-                setup.peer.abort();
-            }
+        let state = self.state.borrow();
+        let setup = self.setup.as_ref().or(state.published.as_ref());
+        if let Some(setup) = setup
+            && !setup.peer.is_finished()
+        {
+            setup.peer.abort();
         }
     }
 }
