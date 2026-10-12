@@ -167,6 +167,7 @@ impl fmt::Display for ServingFailure {
 
 impl Error for ServingFailure {}
 
+#[derive(Clone, Copy)]
 enum Mode {
     Healthy,
     FailPrimeFlush,
@@ -177,7 +178,19 @@ pub(super) struct Control {
     fault: Option<io::Error>,
 }
 
-struct Lifetime(watch::Sender<State>);
+impl Control {
+    pub(super) fn lifetime(&self) -> Lifetime {
+        Lifetime(self.state.clone())
+    }
+
+    pub(super) fn abort_registration(&self) -> impl FnOnce(AbortHandle) + use<> {
+        let state = self.state.clone();
+
+        move |abort| state.send_modify(|state| state.abort = Some(abort))
+    }
+}
+
+pub(super) struct Lifetime(watch::Sender<State>);
 
 impl Drop for Lifetime {
     fn drop(&mut self) {
@@ -185,12 +198,18 @@ impl Drop for Lifetime {
     }
 }
 
-struct ObservedStream {
-    stream: TcpStream,
+pub(super) struct ObservedStream<S> {
+    stream: S,
     control: Option<Control>,
 }
 
-impl AsyncRead for ObservedStream {
+impl<S> ObservedStream<S> {
+    pub(super) fn new(stream: S, control: Option<Control>) -> Self {
+        Self { stream, control }
+    }
+}
+
+impl<S: AsyncRead + Unpin> AsyncRead for ObservedStream<S> {
     fn poll_read(
         self: Pin<&mut Self>,
         context: &mut Context<'_>,
@@ -212,7 +231,7 @@ impl AsyncRead for ObservedStream {
     }
 }
 
-impl AsyncWrite for ObservedStream {
+impl<S: AsyncWrite + Unpin> AsyncWrite for ObservedStream<S> {
     fn poll_write(
         self: Pin<&mut Self>,
         context: &mut Context<'_>,
@@ -295,9 +314,9 @@ impl Observation {
         .map_err(|elapsed| FixtureDeadline::new(purpose, elapsed))?
     }
 
-    async fn closed(
+    async fn closed<S: AsyncRead + Unpin>(
         &mut self,
-        stream: &mut TcpStream,
+        stream: &mut S,
         destruction_purpose: &'static str,
         socket_purpose: &'static str,
     ) -> TestResult {
@@ -444,6 +463,12 @@ async fn pending() -> TestResult<(SocketAddr, Option<Server>, TcpStream, Observa
 
 #[cfg(test)]
 mod mixed_deadline_tests;
+
+#[cfg(test)]
+mod raw_fixture;
+
+#[cfg(test)]
+mod raw_tests;
 
 #[cfg(test)]
 mod tests;

@@ -9,7 +9,7 @@ use phantom::{
     Client, HttpProtocol, RequestErrorKind, ResponseInfo, RetryPolicy, profile::ClientProfile,
 };
 use tokio::{
-    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
+    io::{AsyncRead, AsyncReadExt, AsyncWrite},
     net::TcpListener,
     time::{Instant, timeout, timeout_at},
 };
@@ -25,6 +25,7 @@ use tls_support::{
 use tracing_support::OutcomeSubscriber;
 
 mod ownership;
+mod raw_server;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 /// Only confirms that no connection is already queued; a replay would have
@@ -47,37 +48,33 @@ async fn stale_reused_http1_close_replays_idempotent_request_once() -> TestResul
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            let stale = serve_stale_connection(&listener, None).await?;
-            let (mut replacement, _) = listener.accept().await?;
-            let replayed = read_request(&mut replacement).await?;
-            replacement.write_all(REPLAY_RESPONSE).await?;
-            replacement.flush().await?;
-            let extra = timeout(EXTRA_CONNECTION_WINDOW, listener.accept()).await;
-            Ok::<_, Box<dyn Error + Send + Sync>>((stale, replayed, extra.is_err()))
-        });
+        let server = raw_server::spawn_replay_with_quiet(listener);
         let client = replaying_client()?;
 
-        prime(&client, &format!("http://{address}/prime")).await?;
-        let response = client
-            .request(
-                HttpProtocol::Http1,
-                Method::PUT,
-                &format!("http://{address}/item"),
-            )?
-            .body(Bytes::from_static(b"payload"))
-            .send()
-            .await?;
+        let (stale, replayed, had_no_extra_connection) = raw_server::complete(server, async {
+            prime(&client, &format!("http://{address}/prime")).await?;
+            let response = client
+                .request(
+                    HttpProtocol::Http1,
+                    Method::PUT,
+                    &format!("http://{address}/item"),
+                )?
+                .body(Bytes::from_static(b"payload"))
+                .send()
+                .await?;
 
-        assert_eq!(response.status(), StatusCode::OK);
-        let info = response
-            .extensions()
-            .get::<ResponseInfo>()
-            .ok_or("response omitted metadata")?;
-        assert_eq!(info.protocol(), HttpProtocol::Http1);
-        assert_eq!(info.retries_performed(), 0);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
-        let (stale, replayed, had_no_extra_connection) = server.await??;
+            assert_eq!(response.status(), StatusCode::OK);
+            let info = response
+                .extensions()
+                .get::<ResponseInfo>()
+                .ok_or("response omitted metadata")?;
+            assert_eq!(info.protocol(), HttpProtocol::Http1);
+            assert_eq!(info.retries_performed(), 0);
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+            Ok(())
+        })
+        .await?;
+
         assert!(stale.head.starts_with(b"PUT /item HTTP/1.1\r\n"));
         assert_eq!(stale.framed_body, b"payload");
         assert_eq!(replayed, stale);
@@ -92,23 +89,25 @@ async fn fresh_http1_close_is_not_replayed() -> TestResult {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            let (mut fresh, _) = listener.accept().await?;
-            read_request(&mut fresh).await?;
-            drop(fresh);
-            let extra = timeout(EXTRA_CONNECTION_WINDOW, listener.accept()).await;
-            Ok::<_, Box<dyn Error + Send + Sync>>(extra.is_err())
-        });
+        let server = raw_server::spawn_fresh(listener);
         let client = replaying_client()?;
 
-        let result = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/fresh"))?
-            .send()
-            .await;
+        let had_no_extra_connection = raw_server::complete(server, async {
+            let result = client
+                .get(HttpProtocol::Http1, &format!("http://{address}/fresh"))?
+                .send()
+                .await;
 
-        let error = result.err().ok_or("fresh connection close was answered")?;
-        assert_eq!(error.kind(), RequestErrorKind::Http1);
-        assert!(server.await??, "a fresh-connection failure was replayed");
+            let error = result.err().ok_or("fresh connection close was answered")?;
+            assert_eq!(error.kind(), RequestErrorKind::Http1);
+            Ok(())
+        })
+        .await?;
+
+        assert!(
+            had_no_extra_connection,
+            "a fresh-connection failure was replayed"
+        );
         Ok(())
     })
     .await
@@ -194,30 +193,27 @@ async fn stale_reuse_replays_a_buffered_streaming_body() -> TestResult {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            let stale = serve_stale_connection(&listener, None).await?;
-            let (mut replacement, _) = listener.accept().await?;
-            let replayed = read_request(&mut replacement).await?;
-            replacement.write_all(REPLAY_RESPONSE).await?;
-            replacement.flush().await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>((stale, replayed))
-        });
+        let server = raw_server::spawn_replay(listener, None);
         let client = replaying_client()?;
 
-        prime(&client, &format!("http://{address}/prime")).await?;
-        let response = client
-            .request(
-                HttpProtocol::Http1,
-                Method::PUT,
-                &format!("http://{address}/upload"),
-            )?
-            .buffered_streaming_body(Full::new(Bytes::from_static(b"payload")), 64)
-            .send()
-            .await?;
+        let (stale, replayed) = raw_server::complete(server, async {
+            prime(&client, &format!("http://{address}/prime")).await?;
+            let response = client
+                .request(
+                    HttpProtocol::Http1,
+                    Method::PUT,
+                    &format!("http://{address}/upload"),
+                )?
+                .buffered_streaming_body(Full::new(Bytes::from_static(b"payload")), 64)
+                .send()
+                .await?;
 
-        assert_eq!(response.status(), StatusCode::OK);
-        response.into_body().collect().await?;
-        let (stale, replayed) = server.await??;
+            assert_eq!(response.status(), StatusCode::OK);
+            response.into_body().collect().await?;
+            Ok(())
+        })
+        .await?;
+
         assert!(stale.head.starts_with(b"PUT /upload HTTP/1.1\r\n"));
         assert_eq!(stale.framed_body, b"payload");
         assert_eq!(replayed, stale);
@@ -250,36 +246,33 @@ async fn stale_reuse_replays_a_chunked_buffered_body_with_its_frames() -> TestRe
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            let stale = serve_stale_connection(&listener, None).await?;
-            let (mut replacement, _) = listener.accept().await?;
-            let replayed = read_request(&mut replacement).await?;
-            replacement.write_all(REPLAY_RESPONSE).await?;
-            replacement.flush().await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>((stale, replayed))
-        });
+        let server = raw_server::spawn_replay(listener, None);
         let client = replaying_client()?;
 
-        prime(&client, &format!("http://{address}/prime")).await?;
-        let chunks = Chunks(
-            [&b"pay"[..], b"lo", b"ad"]
-                .into_iter()
-                .map(Bytes::from_static)
-                .collect(),
-        );
-        let response = client
-            .request(
-                HttpProtocol::Http1,
-                Method::PUT,
-                &format!("http://{address}/upload"),
-            )?
-            .buffered_streaming_body(chunks, 64)
-            .send()
-            .await?;
+        let (stale, replayed) = raw_server::complete(server, async {
+            prime(&client, &format!("http://{address}/prime")).await?;
+            let chunks = Chunks(
+                [&b"pay"[..], b"lo", b"ad"]
+                    .into_iter()
+                    .map(Bytes::from_static)
+                    .collect(),
+            );
+            let response = client
+                .request(
+                    HttpProtocol::Http1,
+                    Method::PUT,
+                    &format!("http://{address}/upload"),
+                )?
+                .buffered_streaming_body(chunks, 64)
+                .send()
+                .await?;
 
-        assert_eq!(response.status(), StatusCode::OK);
-        response.into_body().collect().await?;
-        let (stale, replayed) = server.await??;
+            assert_eq!(response.status(), StatusCode::OK);
+            response.into_body().collect().await?;
+            Ok(())
+        })
+        .await?;
+
         let head = String::from_utf8_lossy(&stale.head).to_ascii_lowercase();
         assert!(
             head.contains("\r\ntransfer-encoding: chunked\r\n"),
@@ -297,27 +290,24 @@ async fn stale_reuse_replay_is_bounded() -> TestResult {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            serve_stale_connection(&listener, None).await?;
-            let (mut replacement, _) = listener.accept().await?;
-            let replayed = read_request(&mut replacement).await?;
-            drop(replacement);
-            let extra = timeout(EXTRA_CONNECTION_WINDOW, listener.accept()).await;
-            Ok::<_, Box<dyn Error + Send + Sync>>((replayed, extra.is_err()))
-        });
+        let server = raw_server::spawn_closed_replacement(listener);
         let client = replaying_client()?;
 
-        prime(&client, &format!("http://{address}/prime")).await?;
-        let result = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/twice"))?
-            .send()
-            .await;
+        let (replayed, had_no_extra_connection) = raw_server::complete(server, async {
+            prime(&client, &format!("http://{address}/prime")).await?;
+            let result = client
+                .get(HttpProtocol::Http1, &format!("http://{address}/twice"))?
+                .send()
+                .await;
 
-        let error = result
-            .err()
-            .ok_or("closed replacement connection was answered")?;
-        assert_eq!(error.kind(), RequestErrorKind::Http1);
-        let (replayed, had_no_extra_connection) = server.await??;
+            let error = result
+                .err()
+                .ok_or("closed replacement connection was answered")?;
+            assert_eq!(error.kind(), RequestErrorKind::Http1);
+            Ok(())
+        })
+        .await?;
+
         assert!(replayed.head.starts_with(b"GET /twice HTTP/1.1\r\n"));
         assert!(had_no_extra_connection, "the replay itself was replayed");
         Ok(())
@@ -330,31 +320,28 @@ async fn stale_reuse_replay_is_observable() -> TestResult {
     bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            serve_stale_connection(&listener, None).await?;
-            let (mut replacement, _) = listener.accept().await?;
-            read_request(&mut replacement).await?;
-            replacement.write_all(REPLAY_RESPONSE).await?;
-            replacement.flush().await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        let server = raw_server::spawn_observable(listener);
         let client = replaying_client()?;
         let subscriber = OutcomeSubscriber::default();
 
-        prime(&client, &format!("http://{address}/prime")).await?;
-        let response = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/observed"))?
-            .send()
-            .with_subscriber(subscriber.dispatch())
-            .await?;
+        raw_server::complete(server, async {
+            prime(&client, &format!("http://{address}/prime")).await?;
+            let response = client
+                .get(HttpProtocol::Http1, &format!("http://{address}/observed"))?
+                .send()
+                .with_subscriber(subscriber.dispatch())
+                .await?;
 
-        let info = response
-            .extensions()
-            .get::<ResponseInfo>()
-            .ok_or("response omitted metadata")?;
-        assert_eq!(info.retries_performed(), 0);
-        response.into_body().collect().await?;
-        server.await??;
+            let info = response
+                .extensions()
+                .get::<ResponseInfo>()
+                .ok_or("response omitted metadata")?;
+            assert_eq!(info.retries_performed(), 0);
+            response.into_body().collect().await?;
+            Ok(())
+        })
+        .await?;
+
         assert_eq!(
             subscriber.reused_connection_replays_for("client.request"),
             [1]
@@ -415,45 +402,36 @@ async fn negotiated_http1_stale_reuse_replays_once() -> TestResult {
         let replacement_acceptor = identity.acceptor(H1_ALPN)?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            let (tcp, _) = listener.accept().await?;
-            let mut stale = accept_tls_stream(tcp, stale_acceptor).await?;
-            read_request(&mut stale).await?;
-            stale.write_all(PRIMING_RESPONSE).await?;
-            stale.flush().await?;
-            let stale_request = read_request(&mut stale).await?;
-            drop(stale);
-            let (tcp, _) = listener.accept().await?;
-            let mut replacement = accept_tls_stream(tcp, replacement_acceptor).await?;
-            let replayed = read_request(&mut replacement).await?;
-            replacement.write_all(REPLAY_RESPONSE).await?;
-            replacement.flush().await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>((stale_request, replayed))
-        });
+        let server =
+            raw_server::spawn_negotiated(listener, stale_acceptor, replacement_acceptor, None);
         let client = client_builder(&identity, true)
             .retry_policy(RetryPolicy::none().with_reused_connection_replay(true))
             .build()?;
 
-        client
-            .get_negotiated(&format!("https://{address}/prime"))?
-            .send()
-            .await?
-            .into_body()
-            .collect()
-            .await?;
-        let response = client
-            .get_negotiated(&format!("https://{address}/negotiated"))?
-            .send()
-            .await?;
+        let (stale, replayed) = raw_server::complete(server, async {
+            client
+                .get_negotiated(&format!("https://{address}/prime"))?
+                .send()
+                .await?
+                .into_body()
+                .collect()
+                .await?;
+            let response = client
+                .get_negotiated(&format!("https://{address}/negotiated"))?
+                .send()
+                .await?;
 
-        let info = response
-            .extensions()
-            .get::<ResponseInfo>()
-            .ok_or("response omitted metadata")?;
-        assert_eq!(info.protocol(), HttpProtocol::Http1);
-        assert_eq!(info.retries_performed(), 0);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
-        let (stale, replayed) = server.await??;
+            let info = response
+                .extensions()
+                .get::<ResponseInfo>()
+                .ok_or("response omitted metadata")?;
+            assert_eq!(info.protocol(), HttpProtocol::Http1);
+            assert_eq!(info.retries_performed(), 0);
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+            Ok(())
+        })
+        .await?;
+
         assert!(stale.head.starts_with(b"GET /negotiated HTTP/1.1\r\n"));
         assert_eq!(replayed, stale);
         Ok(())
