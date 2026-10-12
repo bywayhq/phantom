@@ -242,6 +242,8 @@ pub struct DnsServer {
 impl DnsServer {
     /// Binds `127.0.0.1:0` and answers each query with `responder`.
     /// Calls `responder` in query arrival order. Delayed replies run concurrently.
+    /// The responder is synchronous and must return promptly without blocking
+    /// the runtime.
     ///
     /// # Errors
     ///
@@ -290,6 +292,7 @@ impl DnsServer {
     /// Uses a five-second timeout. Cancelling this wait or reaching its deadline
     /// leaves the original task owned by the server, so you can call it again.
     /// Returns the background outcome once. Later calls after collection succeed.
+    /// The timeout is cooperative and cannot preempt a blocked responder.
     ///
     /// # Errors
     ///
