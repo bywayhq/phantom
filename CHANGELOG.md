@@ -14,6 +14,18 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Keep process-container ownership private. Migrate: replace
+  `ProcessContainer.process` access with `wait(timeout=...)`, `poll()` and
+  `pid`; do not reap its child yourself. Use finite nonnegative wait
+  timeouts and collect exit status before closing the container. Manifest
+  timeouts must be finite and positive. Failed launch, cleanup and reporting
+  causes remain in failed job results.
+
+- Bound snapshot comparison counts. Migrate: split inputs exceeding 16,384
+  TLS records, 16,384 HTTP/2 frames or 1,024 client hints. Supply every entry
+  named by a declared count. Malformed normalized extension lengths and
+  duplicate extensions now fail comparison instead of matching valid input.
+
 - Bound shared WebSocket captures and retain serving and cleanup failures.
   Migrate: split experiments exceeding 32 runs, 128 connections per run,
   1,024 requests, 256 WebSockets or 64 MiB of recorded bytes per run.

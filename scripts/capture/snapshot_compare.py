@@ -176,7 +176,9 @@ def extension_body(kind: int, body: bytes, variation: Variation) -> str:
             raise ValueError(
                 "encrypted_client_hello has a truncated enc or payload length"
             )
-        payload_length = int.from_bytes(body[payload_offset : payload_offset + 2], "big")
+        payload_length = int.from_bytes(
+            body[payload_offset : payload_offset + 2], "big"
+        )
         if payload_offset + 2 + payload_length != len(body):
             raise ValueError("encrypted_client_hello has an invalid payload length")
         # Outer ECH: type, cipher suite, and enc length. The config ID, enc,
@@ -379,7 +381,9 @@ def _compare(text: str, root: Path, browser: str) -> list[str]:
         for key in ("frame_count", "initial_settings", "connection_window_update"):
             if new.get(key) != old.get(key):
                 differs([f"h2.{key}: retained {old.get(key)}, snapshot {new.get(key)}"])
-        for index, (new_frame, old_frame) in enumerate(zip(new_frames, old_frames)):
+        for index, (new_frame, old_frame) in enumerate(
+            zip(new_frames, old_frames, strict=False)
+        ):
             key = f"frame_{index}_hex"
             if new_frame != old_frame:
                 differs([f"h2.{key}: retained {old_frame}, snapshot {new_frame}"])

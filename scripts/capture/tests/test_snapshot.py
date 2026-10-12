@@ -197,6 +197,10 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(len(snapshots), 5)
         for path in snapshots:
             report = compare(path.read_text(encoding="utf-8"), FIXTURES, "firefox")
+            self.assertFalse(
+                any(line.startswith("differs input:") for line in report),
+                (path.name, report),
+            )
             differences = [
                 line
                 for line in report
@@ -260,14 +264,16 @@ class ComparisonTests(unittest.TestCase):
             (0x0039, bytes.fromhex("110400000001"), bytes.fromhex("1103000001")),
         )
         for kind, valid, malformed in cases:
-            with self.subTest(kind=kind, body=malformed.hex()):
-                with self.assertRaises(ValueError):
-                    compare_hello(
-                        "tls",
-                        client_hello([(kind, malformed)]),
-                        client_hello([(kind, valid)]),
-                        CHROMIUM_VARIATION,
-                    )
+            with (
+                self.subTest(kind=kind, body=malformed.hex()),
+                self.assertRaises(ValueError),
+            ):
+                compare_hello(
+                    "tls",
+                    client_hello([(kind, malformed)]),
+                    client_hello([(kind, valid)]),
+                    CHROMIUM_VARIATION,
+                )
 
     def test_duplicate_extensions_cannot_hide_a_changed_body(self) -> None:
         old = client_hello([self.ALPS, (0x44CD, bytes.fromhex("0003026833"))])
@@ -299,7 +305,11 @@ class ComparisonTests(unittest.TestCase):
         values = retained(f"tls/chrome/{CHROME}/client-hello.txt")
         prefix = f"format={FORMAT}\noperating_system={values['operating_system']}\n"
         sections = (
-            ("tls.format=phantom-client-hello-v2\n", "tls.record_count", "record_count"),
+            (
+                "tls.format=phantom-client-hello-v2\n",
+                "tls.record_count",
+                "record_count",
+            ),
             ("", "h2.frame_count", "frame_count"),
             ("", "hint_count", "hint_count"),
         )
@@ -322,14 +332,20 @@ class ComparisonTests(unittest.TestCase):
             with self.subTest(missing=missing):
                 report = compare(prefix + section + f"{key}=1\n", FIXTURES, "chrome")
                 self.assertEqual(len(report), 1)
-                self.assertTrue(report[0].startswith("differs input: KeyError:"), report)
+                self.assertTrue(
+                    report[0].startswith("differs input: KeyError:"), report
+                )
                 self.assertIn(missing, report[0])
 
-    def test_zero_counts_are_valid_but_negative_counts_cannot_match_no_hints(self) -> None:
+    def test_zero_counts_are_valid_but_negative_counts_cannot_match_no_hints(
+        self,
+    ) -> None:
         macos = retained("client-hints/firefox/157.0/macos-15.5-arm64/navigation.txt")
         prefix = f"format={FORMAT}\noperating_system={macos['operating_system']}\n"
         report = compare(prefix + "hint_count=0\n", FIXTURES, "firefox")
-        self.assertFalse(any(line.startswith("differs client_hints") for line in report))
+        self.assertFalse(
+            any(line.startswith("differs client_hints") for line in report)
+        )
         self.assertFalse(any(line.startswith("differs input:") for line in report))
         report = compare(prefix + "hint_count=-1\n", FIXTURES, "firefox")
         self.assertTrue(report[0].startswith("differs input: ValueError:"), report)
@@ -340,7 +356,9 @@ class ComparisonTests(unittest.TestCase):
             "chrome",
         )
         self.assertFalse(any(line.startswith("differs input:") for line in report))
-        self.assertTrue(any(line.startswith("differs h2.frame_count:") for line in report))
+        self.assertTrue(
+            any(line.startswith("differs h2.frame_count:") for line in report)
+        )
 
     def test_a_layer_missing_from_the_snapshot_is_a_difference(self) -> None:
         values = retained(f"tls/chrome/{CHROME}/client-hello.txt")

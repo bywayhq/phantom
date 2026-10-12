@@ -1397,10 +1397,9 @@ class CaptureServer:
 
             try:
                 task.result()
-            except asyncio.CancelledError as error:
+            except asyncio.CancelledError as cancellation:
                 # cancel() does not establish whether another owner cancelled first.
-                if original is not None:
-                    error = original
+                error = original if original is not None else cancellation
                 failures.append(error)
 
                 # The handler retains the original cause before Task.result()

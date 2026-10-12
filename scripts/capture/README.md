@@ -104,9 +104,12 @@ shuffles its QUIC ClientHello extensions per connection but keeps
 may change order; its TCP extensions and transport parameters must match in
 order. Firefox also draws its ECH GREASE AEAD per connection, so that AEAD is
 not compared. A layer missing from the snapshot, or with no retained
-fixture, is a difference. It
-does not compare HTTP/3 request fields, HTTP/2 fields other than the first
-navigation's, or HTTP/1.1.
+fixture, is a difference. Malformed normalized extension lengths, duplicate
+extensions and missing declared entries fail comparison. Counts are limited
+to 16,384 TLS records, 16,384 HTTP/2 frames and 1,024 hints. These limits do
+not bound the file size or validate every TLS field.
+The tool does not compare HTTP/3 request fields, HTTP/2 fields other than
+the first navigation's, or HTTP/1.1.
 
 Take a snapshot first for every new browser version. The other tools record
 a changed layer for a recipe, and they are the only way to record behavior
@@ -349,19 +352,27 @@ a virtual environment's redirector; the tool keeps its original interpreter and
 environment. Assignment failure stops the attempt before
 the tool runs. The tool and its ordinary descendants belong to that job;
 external brokers and device processes have separate cleanup. On other systems
-the tool leads a new process group. When an attempt ends, passes, fails, or
-reaches its timeout, the runner closes its job, ends every process whose
-command line names the attempt's temporary directory as a whole path component,
-and removes that
-directory. The match is the launcher's profile sweep, so a browser whose
-profile path only starts with the same text keeps running. If the runner
-itself exits before assignment, the bootstrap's gate reaches EOF and it exits
-without starting the tool. After assignment, Windows closes the jobs and ends
-their member processes.
+a private custodian leads the process group and reports the tool's exit status.
+It stays alive until group cleanup, so the group identifier cannot be reused
+after the tool exits. This requires normal child reaping and no competing
+process reaper. If the parent goes away, the custodian kills its group.
+
+When an attempt ends or reaches its timeout, cleanup ends the owned group
+or job and sweeps processes whose command lines contain its temporary
+directory as a whole path component. It then removes that directory.
+Cleanup failures retain the original causes and owners that can be retried.
+Invalid Windows handles are retired with their diagnostic. Before Windows
+assignment, parent EOF stops the bootstrap without starting the tool.
+
+Direct `ProcessContainer` callers use `wait(timeout=...)`, `poll()` and `pid`
+instead of `.process`. Wait timeouts must be finite and nonnegative. Closing
+before collecting the tool's exit status reports `ProcessContainerStopped`.
+The container owns process reaping.
 
 Ctrl+C starts no more jobs or retries, ends every running attempt the same
 way, prints the summary, and writes the results file. A job that was running
-is reported as `stopped`, and one that had not started as `not-run`.
+is reported as `stopped`, and one that had not started as `not-run`. Failed
+launches, cleanup and progress reporting produce failed job results.
 
 At the end the runner prints one line per job (status, attempts, seconds, and
 the last failure) and a total, then writes the results file: the concurrency,
