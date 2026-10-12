@@ -2199,6 +2199,40 @@ acquisition, parsing and allocation, quiet-accept errors, cancellation races,
 timeout owners, final architecture review and integration gates remain open.
 Replay-body I/O and redirect late-write errors also need their recorded fixes.
 
+### Partial-response timeout fixture verification
+
+At `0612bfc9`, each host passes eleven ordinary timeout methods and two
+positive controls. Seven controls fail after their actual TLS response head,
+Content-Length 2 and received `x` prerequisites. Three fail at worker
+destruction before later body-closure or no-backup checks. The real body
+watchdog loses Elapsed. Completed write and foreign-cancellation results
+are discarded. The combined caller/worker guard fails before serving-payload
+checks; explicit backup retains that original I/O failure. See
+`total-body-timeout-baseline-independent-native-review-0612bfc9.json`.
+
+At `711ca477`, all twenty methods pass on Windows and Linux. The same nine
+control targets now reach actual destruction, incomplete-body failure,
+no-backup, original Elapsed, serving-payload identity, composed caller/worker
+causes and completed cancellation with its original task ID. One equivalent
+task-ID accessor changes for the existing peer guard. The original eleven
+ordinary contracts, response bytes and timeout policy stay unchanged.
+Formatting, strict requests/streams/sessions Clippy and Rust 1.88 pass on
+both hosts. See
+`total-body-timeout-remedy-independent-native-review-711ca477.json`.
+
+This repairs one fixture owner and its body watchdog. The original body
+deadline is five seconds; explicit worker collection can add another finite
+interval. External Drop requests abort without asynchronous collection.
+Other raw timeout workers, acquisition, cancellation races and mixed outer
+deadline retention remain open. Full gates and candidate CI remain open.
+
+The root also reads the complete PING-failure and unprocessed-replay test
+owners. Their raw task trees, ignored drain and driver errors, deadline
+cause loss, body bounds and H3 error classification need further fixes.
+These source findings have no new native regression results. Their exact
+reads and preserved wire oracles are in `ping-replay-root-source-pass-711ca477.json`
+and `unprocessed-replay-root-source-pass-711ca477.json`.
+
 ## Next
 
 - [Audit plan](../architecture-audit.md): acceptance and verification.

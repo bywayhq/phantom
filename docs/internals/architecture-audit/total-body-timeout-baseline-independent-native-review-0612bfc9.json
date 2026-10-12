@@ -1,0 +1,158 @@
+{
+  "revision": "0612bfc9d79fe9925108ea833b26c7d826695571",
+  "decision": "accept measured qualified causal failing baseline",
+  "full_logs_read": 8,
+  "sidecars_read": 12,
+  "root_clean_exact_postterminal": true,
+  "linux_clean_exact_postterminal": true,
+  "reported_actual_handles": {
+    "linux": {
+      "id": 42044,
+      "exit": 1
+    },
+    "windows": {
+      "id": 2874,
+      "exit": 1
+    }
+  },
+  "each_host": {
+    "passed": 13,
+    "test_exit": 101,
+    "ignored": 0,
+    "msrv_exit": 0,
+    "failed": 7,
+    "filtered": 563,
+    "clippy_exit": 0,
+    "fmt_exit": 0,
+    "quality_warnings": 0,
+    "runner_exit": 1,
+    "selected": 20
+  },
+  "original_ordinary_passes": 11,
+  "positive_controls": 2,
+  "actual_head_status_length_x_prerequisites_reached": 9,
+  "post_write_fault": "injected after real delegated TLS writer, not natural OS error",
+  "destruction_failure_boundary": "worker destruction before held-body closure/no-backup",
+  "watchdog_elapsed_target_failed": true,
+  "completed_write_and_foreign_cancel_outputs_discarded": true,
+  "mixed_target_serving_marker_unreached": true,
+  "failed_validators_retain_original_errors": true,
+  "broader_a245_closed": false,
+  "artifacts": [
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-windows.retry.log",
+      "bytes": 5030,
+      "sha256": "6e529e9005899ed6022e365890d180a47bfd5a9241e5ad2af67bc8595551d393"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-windows.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-windows.clippy.log",
+      "bytes": 168,
+      "sha256": "20ad8d0c990baa2bf7ab4b2a21fdc44c93de42ef64a641688366a7f1b0e1f369"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-windows.msrv.log",
+      "bytes": 168,
+      "sha256": "699126f905ee16acb14bb14a6f1ebaea61b128921d0a417a8900ee058bea310f"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-windows.retry.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "value": "101"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "value": "0"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-windows.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "value": "0"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-windows.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "value": "0"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-windows.revision",
+      "bytes": 41,
+      "sha256": "d49b214038e8556a59b80f673c2d44f39d69d003612bcac1a4deb0e7005d7a0b",
+      "value": "0612bfc9d79fe9925108ea833b26c7d826695571"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "value": "1"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-linux.retry.log",
+      "bytes": 5036,
+      "sha256": "96f4b0887e3aac1a2dded85544ec09eb518fc5939ce3fabd7a87ce8ce81239f8"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-linux.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-linux.clippy.log",
+      "bytes": 178,
+      "sha256": "ad9c45f65159b01ebe23cec3d1c4ab93ce49a8608639918b4e18f39cc284a7bf"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-linux.msrv.log",
+      "bytes": 178,
+      "sha256": "a1c1c8d5b50a7f2cf141b6ef6b267ac0884275e92f78b7c92de5d82d6754f849"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-linux.retry.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "value": "101"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "value": "0"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-linux.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "value": "0"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-linux.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "value": "0"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-linux.revision",
+      "bytes": 41,
+      "sha256": "d49b214038e8556a59b80f673c2d44f39d69d003612bcac1a4deb0e7005d7a0b",
+      "value": "0612bfc9d79fe9925108ea833b26c7d826695571"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/total-body-baseline-0612bfc9-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "value": "1"
+    }
+  ],
+  "runner_sha256": "1159a399b0695c1eba432e6fefc64392f1109339e8b2aed2c1998dbdb900607c",
+  "sync_sha256": "e7c91427381282c0b32d2d38d849ad82140badd838e81e0a269a423ca990af48",
+  "markdown_sha256": "e2c2d89d66cff7da68e174661d60237ecc27b93f87f1ff642f59c5bcbaf68f58"
+}

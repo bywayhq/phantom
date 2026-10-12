@@ -1,0 +1,41 @@
+{
+  "kind": "root-whole-source-review",
+  "revision": "711ca4776db2a2bd6b50ff36f6a988a6458d8c56",
+  "path": "crates/phantom/tests/requests/unprocessed_replay.rs",
+  "whole_read": [
+    1,
+    969
+  ],
+  "git_blob": "b63063188bf7e127ab8c10d4d9ed739491f481bf",
+  "physical_sha256": "a97356cc0625f0a5662cbb722c9cf0d8283b611d605db2d54a84fa081fe6fb38",
+  "source_findings": [
+    "ScriptedHttp2Server raw task and raw handler vector can detach across failure/deadline before success-only joins",
+    "send_goaway and ignore_ping detach actual TLS drains and ignore copy errors",
+    "serve detaches original H2 poll_closed connection and ignores errors; handler body Vec growth unbounded",
+    "outer10second deadline discards actual Elapsed cause",
+    "H3 rejection raw worker can detach on fallible caller/deadline",
+    "H3 GOAWAY observer conflates first_connection.accept Err with no accepted stream, potentially hiding fixture failure",
+    "H3 GOAWAY caller cleanup stringifies simultaneous actual server/client errors and collapses other join outcomes",
+    "HTTP3 fixture body collector grows without explicit bound"
+  ],
+  "preserved_oracles": [
+    "REFUSED_STREAM POST body replay statuses201/originalmethodpathbody",
+    "GOAWAY last0/nonzero error permits replay; last1processedTransport must not replay",
+    "PING timeout retires connection without unprocessed replay",
+    "one-shot refusal typedStreamReset reason7; bufferedbody accepted",
+    "request-scoped budget acrossredirecthops",
+    "defaultpolicy refusal anddefaultgracefulGOAWAY path",
+    "trace replaycount1 distinct fromstatusretry",
+    "H3 rejected POSTnewconnection sameendpoint/route methodpathbody",
+    "H3 GOAWAY laterPUTnewconnection and zero sharedcap refusal"
+  ],
+  "limitations": [
+    "whole current source read and manual lifecycle review only; new regression/native sensitivity unmeasured",
+    "actual driver/handler/drain concurrency requires structured descendant ownership; immediate single peer guard alone insufficient",
+    "H3 GOAWAY currenttest intentionally allows pool refusal/beforestream replay/stream4reject; not deterministic evidence of observedGOAWAYtagging",
+    "fixture omissions do not prove production leaks",
+    "existing childhandlerlogs justified sharedMutex access; no synchronousguard spansawait",
+    "exact originalwire/status/body/timing/route assertions must remain"
+  ],
+  "next": "record evidenced source disposition and confirmed fixture failure paths; bounded independently reviewed regressions and fixes before final goal closure"
+}

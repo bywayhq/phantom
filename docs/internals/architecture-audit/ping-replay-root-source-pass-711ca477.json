@@ -1,0 +1,36 @@
+{
+  "kind": "root-whole-source-review",
+  "revision": "711ca4776db2a2bd6b50ff36f6a988a6458d8c56",
+  "path": "crates/phantom/tests/requests/ping_failure_replay.rs",
+  "whole_read": [
+    1,
+    541
+  ],
+  "git_blob": "630f26b7379dae7a3cafa3c49f3893ce854a3a45",
+  "physical_sha256": "9c11194a2d3852785092349e514c1099c41f84cbb83633ad052a77827f931a8f",
+  "source_findings": [
+    "Server task is raw across fallible client/finish paths and consuming15second bound",
+    "require_failed_ping detaches actual TLS drain with ignored copy result",
+    "serve_one raw spawned body handler can detach on early connection branch and ignores connection.accept Err when waiting handler",
+    "serve_one detaches original replacement connection poll_closed driver and ignores result",
+    "tunnel_every_connect swallows accept/read/connect/write/copy errors and detaches relay children; outer test aborts only listener without join",
+    "bounded15second timeout maps actual Elapsed to text",
+    "observed replacement body Vec growth has no explicit fixture bound"
+  ],
+  "preserved_oracles": [
+    "actual stream1 empty200 thenstream3PING",
+    "literalGOAWAY0 PROTOCOL_ERROR Failed ping.",
+    "three connection cap via biased accept/clientdone",
+    "actual replacementmethodpathdecodedbody",
+    "GET POST buffered streaming negotiated CONNECT and one-shot failure contracts",
+    "exactHttp2Error::PingTimeout sourcechain"
+  ],
+  "limitations": [
+    "source evidence only; no new native regression measured",
+    "fixture defect is not production leak proof",
+    "driver drain is necessary for actual peer close progress; do not replace it with unobserved abort and claim behavior unchanged",
+    "body handler/connection need concurrently driven structured ownership; sole linearworker design does not cover this actual descendant hierarchy",
+    "testIDLE1500ms/client1000ms+2000ms and15secondwholebound must remain unless separately justified"
+  ],
+  "next": "separate bounded canonical owner/descendant before-after slice and independent review; add evidenced inventory disposition in next docs checkpoint"
+}
