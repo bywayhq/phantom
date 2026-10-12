@@ -413,7 +413,11 @@ pub(super) async fn collect_peer<T: Send + 'static, O>(
         return caller;
     };
 
-    let ready = poll_fn(|context| Poll::Ready(Pin::new(&mut server).poll(context).ready())).await;
+    let ready = poll_fn(|context| match Pin::new(&mut server).poll(context) {
+        Poll::Ready(result) => Poll::Ready(Some(result)),
+        Poll::Pending => Poll::Ready(None),
+    })
+    .await;
     let requested = ready.is_none();
     if requested {
         server.abort();
