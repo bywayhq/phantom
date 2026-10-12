@@ -8,7 +8,6 @@ use phantom_net::request::{
 };
 use tracing::{Instrument, Span, debug, debug_span, field};
 
-use attempt::{AttemptLifecycle, AttemptRequest, send_once};
 use crate::session::alt_svc::PinnedAlternative;
 use crate::{
     Client, ContentCoding, ContentDecoding, HttpProtocol, RequestError, RequestTimeoutOverrides,
@@ -18,6 +17,7 @@ use crate::{
     redirect::{RedirectAction, RedirectState},
     retry::ConnectionSetupRetryState,
 };
+use attempt::{AttemptLifecycle, AttemptRequest, send_once};
 use replay::ReplayState;
 use replay_buffer::{NoReplay, ReplayBuffer};
 pub use template::PreparedRequestTemplate;

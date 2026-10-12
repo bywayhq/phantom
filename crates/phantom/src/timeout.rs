@@ -117,8 +117,9 @@ impl RequestTimeouts {
 
     /// Limits the complete operation across redirects, replays, and body reads.
     ///
-    /// The deadline is fixed when the request starts and still applies while
-    /// the response body is read. Default: no limit.
+    /// The deadline still applies while the response body is read. HTTP header
+    /// hooks and initial header preparation run before the clock starts.
+    /// Default: no limit.
     #[must_use]
     pub const fn total(mut self, timeout: Duration) -> Self {
         self.total = Some(timeout);

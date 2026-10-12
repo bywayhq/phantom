@@ -82,8 +82,7 @@ fn template_override_and_opt_out_apply_only_to_the_current_request()
             .template
             .is_some()
     );
-    let no_default =
-        crate::Client::builder(ClientProfile::new(chrome::v154_tcp_tls())).build()?;
+    let no_default = crate::Client::builder(ClientProfile::new(chrome::v154_tcp_tls())).build()?;
     assert!(
         no_default
             .get(HttpProtocol::Http1, "https://example.com/")?
@@ -243,9 +242,9 @@ fn empty_query_inputs_preserve_the_existing_empty_query_marker()
 
 #[test]
 fn streaming_body_cannot_be_replayed_for_a_second_attempt() {
-    let mut body = RequestBodySource::Streaming(Some(RequestBody::from_bytes(
-        Bytes::from_static(b"payload"),
-    )));
+    let mut body = RequestBodySource::Streaming(Some(RequestBody::from_bytes(Bytes::from_static(
+        b"payload",
+    ))));
 
     assert!(matches!(body.next_attempt(), Ok(Some(_))));
     let error = match body.next_attempt() {
@@ -319,8 +318,7 @@ impl http_body::Body for Failing {
 
 #[test]
 fn a_buffered_body_whose_source_failed_is_not_sent_again() {
-    let mut body =
-        RequestBodySource::Buffered(super::ReplayBuffer::new(Failing, Vec::new(), 64));
+    let mut body = RequestBodySource::Buffered(super::ReplayBuffer::new(Failing, Vec::new(), 64));
     let Ok(Some(mut attempt)) = body.next_attempt() else {
         panic!("the first attempt was refused");
     };
@@ -358,8 +356,7 @@ fn recognizes_alt_used_in_each_caller_controlled_field_source() {
 }
 
 #[test]
-fn http_proxy_routes_reject_http3_without_network_io() -> Result<(), Box<dyn std::error::Error>>
-{
+fn http_proxy_routes_reject_http3_without_network_io() -> Result<(), Box<dyn std::error::Error>> {
     let routes = [Route::http_proxy(HttpProxy::new("http://127.0.0.1:9")?)];
     let request = ResolvedRequest::new(&"https://example.test/".parse()?)?;
 
@@ -464,20 +461,16 @@ fn direct_route_accepts_each_supported_protocol() -> Result<(), Box<dyn std::err
         HttpProtocol::Http3,
     ] {
         assert!(
-            ensure_request_supported(
-                ProtocolSelection::Exact(protocol),
-                &Route::Direct,
-                &request,
-            )
-            .is_ok()
+            ensure_request_supported(ProtocolSelection::Exact(protocol), &Route::Direct, &request,)
+                .is_ok()
         );
     }
     Ok(())
 }
 
 #[test]
-fn initial_uri_is_not_reserialized_through_whatwg_rules()
--> Result<(), Box<dyn std::error::Error>> {
+fn initial_uri_is_not_reserialized_through_whatwg_rules() -> Result<(), Box<dyn std::error::Error>>
+{
     let uri = "https://example.test/a/%2e%2e/final?value=%2f".parse()?;
     let request = ResolvedRequest::new(&uri)?;
 
@@ -520,8 +513,7 @@ fn redirect_fragments_are_not_sent() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn redirect_url_retains_the_same_canonical_endpoint() -> Result<(), Box<dyn std::error::Error>>
-{
+fn redirect_url_retains_the_same_canonical_endpoint() -> Result<(), Box<dyn std::error::Error>> {
     let url = url::Url::parse("https://BÜCHER.Example:8443/next")?;
     let request = ResolvedRequest::from_redirect_url(&url)?;
 

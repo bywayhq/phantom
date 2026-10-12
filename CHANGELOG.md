@@ -2502,6 +2502,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Clarify that total HTTP request timeouts start after initial header
+  preparation and synchronous header hooks. Timeout behavior is unchanged.
+
 - Preserve Firefox TCP address-family memory when an origin becomes active
   during idle pruning. New setup, runtime entries and slower attempts
   invalidate the pruning observation. Origins that stay empty still forget

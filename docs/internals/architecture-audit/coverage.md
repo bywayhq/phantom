@@ -2349,8 +2349,14 @@ registered runtime key can also be omitted. The affected production blobs
 are unchanged at `cce7aca5`. At `bf0af1f8`, both Windows and Linux run the
 two real-pool controls: the reopened origin loses its family while retaining
 its live connection lease, and the stable-empty companion passes. Formatting,
-strict linting and Rust 1.88 pass. The complete activity/reset repair is now
-composed for verification. Stable all-empty pruning must still clear memory.
+strict linting and Rust 1.88 pass. The repair at `3d71315b` passes 66 pool,
+10 timer and 20 backup tests on each host, including the unchanged reopened
+origin and stable-empty controls plus a real pending pool reservation. Both
+runners finish with formatting, strict linting and Rust 1.88 passing. Root
+reads every log and separately verifies clean exact source on both hosts;
+independent review accepts these results. Late registration and negotiated
+adoption races remain source-reviewed rather than newly measured. Full
+integration gates and current candidate CI remain open.
 
 Separate exact and negotiated pools retain different setup and admission
 contracts. Declared template slots and send-time header hooks also serve
@@ -2360,6 +2366,20 @@ files through URL and header preparation, redirects, retries, buffered replay
 and SSE ownership. It finds concrete import, test-placement and paragraph
 cleanup, with no new causal production defect. Cookie dependency matching,
 transport drivers and the remaining explicit source ranges stay open.
+
+The mechanical repair at `2200bf4d` fixes those eight request, redirect,
+retry and SSE files. Independent review confirms the extracted request unit
+tests are identical after deindentation, preserving all twenty tests and
+private access. No expressions or runtime behavior change. The timeout
+rustdoc now names the existing clock boundary after initial header preparation
+and synchronous hooks. Combined compilation and existing tests remain pending.
+
+The next cookie boundary read confirms A254. Backend stores and metadata keys
+omit the schemeful partition site, allowing trustworthy HTTP and HTTPS
+localhost partitions to replace or expire each other's same-named cookie.
+Snapshot import collides at its duplicate and held-key filters too. Matching
+still filters the stored partition, so no outgoing credential leak is claimed.
+Reproduction and the complete key/storage repair remain pending.
 
 ### Remaining raw stale-worker baseline
 
