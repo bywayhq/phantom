@@ -2503,6 +2503,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Preserve local HTTP/3 callback and held-response errors in race captures,
+  including errors after the page reports completion. Stop owned callbacks
+  before returning the capture result.
+
 - Keep proxy capture listeners and connection tasks owned through failure
   and cleanup. Preserve local errors before returning capture results,
   reject oversized completed request headers and non-finite durations,

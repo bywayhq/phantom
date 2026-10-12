@@ -362,6 +362,7 @@ class Origin:
         self.run: RunRecord | None = None
         self.retirers: list[Callable[[], None]] = []
         self.holds: list[Callable[[Response], None]] = []
+        self.finished = asyncio.Event()
 
     @property
     def alt_svc_value(self) -> bytes:
@@ -371,6 +372,7 @@ class Origin:
         self.run = run
         self.retirers.clear()
         self.holds.clear()
+        self.finished.clear()
 
     def request(
         self,
@@ -384,6 +386,7 @@ class Origin:
         if run is None:
             respond(Response(503))
             return
+
         parts = urlsplit(target)
         run.requests.append(RequestRecord(run.now(), transport, connection, parts.path))
         if parts.path == "/start":
@@ -411,6 +414,7 @@ class Origin:
             for hold in self.holds:
                 hold(hold_response())
             self.holds.clear()
+            self.finished.set()
         else:
             respond(Response(404))
 
@@ -852,26 +856,39 @@ class Http3Protocol(QuicConnectionProtocol):
         self.peers = peers
         self.http: H3Connection | None = None
         self.peer: UdpPeerRecord | None = None
+        self.retirements: set[asyncio.TimerHandle] = set()
+        peers.protocols.add(self)
 
     def quic_event_received(self, event: QuicEvent) -> None:
+        try:
+            self.handle_quic_event(event)
+        except BaseException as error:
+            self.peers.retain_failure(error)
+
+    def handle_quic_event(self, event: QuicEvent) -> None:
         run = self.origin.run
         if run is None:
             return
+
         if self.peer is None:
             self.peer = self.peers.peer_for(self._quic)
+
         if isinstance(event, HandshakeCompleted):
             if self.peer is not None:
                 self.peer.handshake_ms = run.now()
             self.http = H3Connection(self._quic)
             self.origin.retirers.append(self.retire)
+
         if isinstance(event, ConnectionTerminated):
             if self.peer is not None and self.peer.closed_ms is None:
                 self.peer.closed_ms = run.now()
                 self.peer.close_reason = f"0x{event.error_code:x}"
             if self.retire in self.origin.retirers:
                 self.origin.retirers.remove(self.retire)
+
         if self.http is None:
             return
+
         for http_event in self.http.handle_event(event):
             if isinstance(http_event, HeadersReceived):
                 self.request(http_event)
@@ -883,18 +900,23 @@ class Http3Protocol(QuicConnectionProtocol):
         http = self.http
         if http is None:
             return
+
         if self.peer is not None:
             self.peer.requests += 1
 
         def respond(response: Response) -> None:
-            http.send_headers(
-                stream_id,
-                self.origin.response_headers(response),
-                end_stream=not response.body,
-            )
-            if response.body:
-                http.send_data(stream_id, response.body, end_stream=True)
-            self.transmit()
+            try:
+                http.send_headers(
+                    stream_id,
+                    self.origin.response_headers(response),
+                    end_stream=not response.body,
+                )
+                if response.body:
+                    http.send_data(stream_id, response.body, end_stream=True)
+                self.transmit()
+            except BaseException as error:
+                # A held H3 response can run inside an unrelated H2 handler.
+                self.peers.retain_failure(error)
 
         index = self.peer.index if self.peer is not None else -1
         listener = self.peers.listener
@@ -903,7 +925,49 @@ class Http3Protocol(QuicConnectionProtocol):
 
     def retire(self) -> None:
         # The retiring response is flushed before CONNECTION_CLOSE(NO_ERROR).
-        asyncio.get_running_loop().call_later(0.05, self.close)
+        def close_retired() -> None:
+            self.retirements.discard(handle)
+            self.close()
+
+        try:
+            handle = asyncio.get_running_loop().call_later(0.05, close_retired)
+            self.retirements.add(handle)
+        except BaseException as error:
+            self.peers.retain_failure(error)
+
+    def datagram_received(self, data, addr) -> None:
+        try:
+            super().datagram_received(data, addr)
+        except BaseException as error:
+            self.peers.retain_failure(error)
+
+    def _handle_timer(self) -> None:
+        try:
+            super()._handle_timer()
+        except BaseException as error:
+            self.peers.retain_failure(error)
+
+    def transmit(self) -> None:
+        try:
+            super().transmit()
+        except BaseException as error:
+            self.peers.retain_failure(error)
+
+    def close(self, *args, **kwargs) -> None:
+        try:
+            super().close(*args, **kwargs)
+        except BaseException as error:
+            self.peers.retain_failure(error)
+
+    def stop_callbacks(self) -> None:
+        for handle in (*self.retirements, self._timer, self._transmit_task):
+            if handle is not None:
+                handle.cancel()
+
+        self.retirements.clear()
+        self._timer = None
+        self._timer_at = None
+        self._transmit_task = None
 
 
 class UdpRecorder:
@@ -913,6 +977,12 @@ class UdpRecorder:
         self.origin = origin
         self.listener = listener
         self.addresses: dict[bytes, tuple[str, int]] = {}
+        self.protocols: set[Http3Protocol] = set()
+        self.failures: list[BaseException] = []
+
+    def retain_failure(self, error: BaseException) -> None:
+        self.failures.append(error)
+        self.origin.finished.set()
 
     def datagram(self, address: tuple[str, int]) -> None:
         run = self.origin.run
@@ -1004,7 +1074,10 @@ class UdpAlternative:
 
         def tap(data: bytes, addr) -> None:
             recorder.datagram(addr)
-            received(data, addr)
+            try:
+                received(data, addr)
+            except BaseException as error:
+                recorder.retain_failure(error)
 
         self.server.datagram_received = tap
 
@@ -1012,7 +1085,12 @@ class UdpAlternative:
         if self.transport is not None:
             self.transport.close()
         if self.server is not None:
-            self.server.close()
+            try:
+                self.server.close()
+            finally:
+                for protocol in self.recorder.protocols:
+                    protocol.stop_callbacks()
+                self.recorder.protocols.clear()
 
 
 def reserve_ports(
@@ -1203,8 +1281,13 @@ async def capture_run(
             recorded = recorded.replace(str(netlog), "<netlog>")
             exited = False
             async with BrowserDriver(plan, url) as driver:
-                await asyncio.wait_for(run.done.wait(), timeout=timeout)
-                process = driver.browser.process if driver.browser else None
+                await asyncio.wait_for(origin.finished.wait(), timeout=timeout)
+                if any(owner.recorder.failures for owner, _ in udp_owners):
+                    # Leave the original failures with their UDP owners until cleanup.
+                    process = None
+                else:
+                    process = driver.browser.process if driver.browser else None
+
                 if process is not None:
                     # `--dump-dom` exits after the load event; a graceful exit
                     # writes the NetLog's closing polled data.
@@ -1242,6 +1325,10 @@ async def capture_run(
                 sock.close()
             except BaseException as error:
                 failures.append(error)
+
+        for alternative, _ in udp_owners:
+            failures.extend(alternative.recorder.failures)
+            alternative.recorder.failures.clear()
 
         if failures:
             if primary is None and len(failures) > 1:

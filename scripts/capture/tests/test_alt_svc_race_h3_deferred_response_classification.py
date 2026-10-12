@@ -1,4 +1,4 @@
-"""A real H3 request releases an H2 response without taking its failure."""
+"""Authenticated H3 callbacks keep deferred failures on their actual owner."""
 
 import asyncio
 import ssl
@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import h2.exceptions
 from aioquic.asyncio.protocol import QuicConnectionProtocol
-from aioquic.h3.connection import H3_ALPN, H3Connection
+from aioquic.h3.connection import H3_ALPN, FrameUnexpected, H3Connection
 from aioquic.h3.events import DataReceived, HeadersReceived
 from aioquic.quic.configuration import QuicConfiguration
 from aioquic.quic.connection import QuicConnection
@@ -58,6 +58,11 @@ class H3ResponseClient(QuicConnectionProtocol):
                 waiter.set_result(None)
 
     async def get(self, port, path):
+        stream_id = self.request(port, path)
+
+        return await self.response(stream_id, path)
+
+    def request(self, port, path):
         stream_id = self._quic.get_next_available_stream_id()
         response = [None, bytearray()]
         self.responses[stream_id] = response
@@ -74,7 +79,13 @@ class H3ResponseClient(QuicConnectionProtocol):
             end_stream=True,
         )
         self.transmit()
+        return stream_id
+
+    async def response(self, stream_id, path):
+        waiter = self.waiters[stream_id]
         await asyncio.wait_for(waiter, DEADLINE)
+
+        response = self.responses[stream_id]
         result = (path, response[0], bytes(response[1]))
         self.owner.h3_exchanges.append(result)
         return result
@@ -93,6 +104,10 @@ class H3DeferredPeer:
         self.contexts = []
         self.normal_client_closed = False
         self.normal_server_closed = False
+        self.h3_failure = None
+        self.h3_failure_received = asyncio.Event()
+        self.h3_fault_calls = []
+        self.h3_held_callback = None
 
     @property
     def peer(self):
@@ -234,6 +249,138 @@ class H3DeferredPeer:
                 await controls.close_h3()
 
         resources.stack.enter_context(patch.object(race, "BrowserDriver", H3Driver))
+        return await self.capture_driver()
+
+    async def capture_held_h3(self, case):
+        resources = self.peer.resources
+        controls = self
+        actual_data = H3Connection.send_data
+        actual_event = H3Connection.handle_event
+        actual_request = race.Origin.request
+        held_received = asyncio.Event()
+
+        def observed_request(origin, transport, connection, target, respond, retire):
+            result = actual_request(
+                origin, transport, connection, target, respond, retire
+            )
+            if transport == "h3" and target == "/hold":
+                held_received.set()
+            return result
+
+        def observed_data(http, stream_id, data, end_stream):
+            protocol = (
+                controls.server_protocols[0] if controls.server_protocols else None
+            )
+            if (
+                protocol is not None
+                and http is protocol.http
+                and data == race.HOLD_BODY
+            ):
+                controls.h3_fault_calls.append(
+                    (protocol, stream_id, protocol.origin.run.done.is_set())
+                )
+                if case == "held-failure":
+                    # Send real trailing HEADERS, then let the real DATA validator fail.
+                    http.send_headers(stream_id, [])
+
+            try:
+                return actual_data(http, stream_id, data, end_stream)
+            except FrameUnexpected as error:
+                if protocol is not None and http is protocol.http:
+                    controls.h3_failure = error
+                    resources.primary = error
+                    controls.h3_failure_received.set()
+                raise
+
+        def observed_event(http, event):
+            events = actual_event(http, event)
+            protocol = (
+                controls.server_protocols[0] if controls.server_protocols else None
+            )
+            if (
+                case == "callback-failure"
+                and protocol is not None
+                and http is protocol.http
+            ):
+                for received in events:
+                    if (
+                        isinstance(received, HeadersReceived)
+                        and dict(received.headers).get(b":path") == b"/r/callback-fault"
+                    ):
+                        error = OSError("controlled authenticated H3 event callback")
+                        controls.h3_failure = error
+                        resources.primary = error
+                        controls.h3_fault_calls.append((protocol, received, False))
+                        controls.h3_failure_received.set()
+                        raise error
+
+            return events
+
+        resources.stack.enter_context(
+            patch.object(H3Connection, "send_data", observed_data)
+        )
+        resources.stack.enter_context(
+            patch.object(H3Connection, "handle_event", observed_event)
+        )
+        resources.stack.enter_context(
+            patch.object(race.Origin, "request", observed_request)
+        )
+
+        class HeldH3Driver:
+            browser = None
+
+            def __init__(driver, plan, url):
+                driver.plan = plan
+                driver.url = url
+
+            async def __aenter__(driver):
+                await controls.open_h3()
+                origin = resources.tcp[0].origin
+                if case == "callback-failure":
+                    controls.client.request(origin.port, "/r/callback-fault")
+                    await asyncio.wait_for(
+                        controls.h3_failure_received.wait(), DEADLINE
+                    )
+                    return driver
+
+                stream_id = controls.client.request(origin.port, "/hold")
+
+                await asyncio.wait_for(held_received.wait(), DEADLINE)
+                if len(origin.holds) != 1:
+                    raise AssertionError("actual H3 hold did not retain one callback")
+                controls.h3_held_callback = origin.holds[0]
+                if controls.client.waiters[stream_id].done() or controls.h3_fault_calls:
+                    raise AssertionError(
+                        "actual H3 held response completed before /done"
+                    )
+
+                response = await controls.client.get(
+                    origin.port, "/done?results=%5B%5D"
+                )
+                if response != ("/done?results=%5B%5D", b"204", b""):
+                    raise AssertionError("actual H3 release did not receive 204")
+
+                if case == "healthy":
+                    response = await controls.client.response(stream_id, "/hold")
+                    if response != ("/hold", b"200", race.HOLD_BODY):
+                        raise AssertionError(
+                            "actual H3 hold did not receive its literal body"
+                        )
+                else:
+                    await asyncio.wait_for(
+                        controls.h3_failure_received.wait(), DEADLINE
+                    )
+
+                return driver
+
+            async def __aexit__(driver, *details):
+                await controls.close_h3()
+
+        resources.stack.enter_context(patch.object(race, "BrowserDriver", HeldH3Driver))
+        return await self.capture_driver()
+
+    async def capture_driver(self):
+        resources = self.peer.resources
         scenario = race.Scenario(
             "h3-release", "H3 held response", "serve", (), ("blackhole", "blackhole")
         )
@@ -446,3 +593,102 @@ class H3DeferredResponseClassificationTests(unittest.IsolatedAsyncioTestCase):
             1,
         )
         self.assertFalse(server.response_failures)
+
+    def assert_h3_owner_cleanup(self, controls, closed):
+        resources = controls.peer.resources
+        self.assertTrue(closed)
+        self.assertTrue(controls.normal_client_closed)
+        self.assertTrue(controls.normal_server_closed)
+        self.assertEqual(controls.client_socket.fileno(), -1)
+        self.assertTrue(controls.client_transport.is_closing())
+        self.assertTrue(resources.udp[0].server._transport.is_closing())
+        self.assertFalse(resources.tcp[0].handlers)
+        self.assertFalse(resources.tcp[0].writer_closures)
+
+        self.assertEqual(resources.h2_exchanges, [("/r/startup", b"200", b"ok")])
+
+        self.assertEqual(len(controls.server_protocols), 1)
+        protocol = controls.server_protocols[0]
+        self.assertIsNotNone(protocol.peer.handshake_ms)
+        self.assertIsNotNone(protocol.peer.closed_ms)
+        self.assertEqual(protocol.peer.close_reason, "0x0")
+        self.assertIsNone(protocol._timer)
+        self.assertIsNone(protocol._transmit_task)
+        self.assertIn(controls.client.handshake.alpn_protocol, H3_ALPN)
+
+        self.assertTrue(
+            all(
+                isinstance(
+                    context.get("exception"),
+                    (ConnectionResetError, ConnectionAbortedError),
+                )
+                for context in controls.contexts
+            )
+        )
+        self.assertIs(
+            asyncio.get_running_loop().get_exception_handler(),
+            resources.previous_handler,
+        )
+        return protocol
+
+    async def test_h3_done_releases_the_actual_healthy_held_h3_body(self):
+        controls = self.acquire()
+        result, observed, closed = await controls.capture_held_h3("healthy")
+
+        protocol = self.assert_h3_owner_cleanup(controls, closed)
+        self.assertIsNone(observed)
+        self.assertTrue(result.run.done.is_set())
+        self.assertEqual(
+            controls.h3_exchanges,
+            [
+                ("/r/h3", b"200", b"ok"),
+                ("/done?results=%5B%5D", b"204", b""),
+                ("/hold", b"200", race.HOLD_BODY),
+            ],
+        )
+        self.assertEqual(controls.h3_fault_calls, [(protocol, 4, True)])
+        self.assertEqual(controls.deferred.releases[0][4], (controls.h3_held_callback,))
+        self.assertFalse(protocol.origin.holds)
+
+    async def test_h3_done_retains_the_original_h3_data_failure_after_page_completion(
+        self,
+    ):
+        controls = self.acquire()
+        result, observed, closed = await controls.capture_held_h3("held-failure")
+
+        self.assertIsNone(result)
+        self.assertIs(observed, controls.h3_failure)
+        self.assertIsInstance(observed, FrameUnexpected)
+        self.assertEqual(
+            observed.reason_phrase, "DATA frame is not allowed in this state"
+        )
+
+        protocol = self.assert_h3_owner_cleanup(controls, closed)
+        self.assertTrue(protocol.origin.run.done.is_set())
+        self.assertEqual(controls.h3_fault_calls, [(protocol, 4, True)])
+        self.assertEqual(
+            controls.h3_exchanges,
+            [("/r/h3", b"200", b"ok"), ("/done?results=%5B%5D", b"204", b"")],
+        )
+        self.assertEqual(controls.deferred.releases[0][4], (controls.h3_held_callback,))
+        self.assertFalse(protocol.origin.holds)
+
+    async def test_authenticated_h3_callback_failure_wakes_capture_without_page_completion(
+        self,
+    ):
+        controls = self.acquire()
+        result, observed, closed = await controls.capture_held_h3("callback-failure")
+
+        self.assertIsNone(result)
+        self.assertIs(observed, controls.h3_failure)
+        self.assertIsInstance(observed, OSError)
+
+        protocol = self.assert_h3_owner_cleanup(controls, closed)
+        self.assertFalse(protocol.origin.run.done.is_set())
+        self.assertEqual(controls.h3_exchanges, [("/r/h3", b"200", b"ok")])
+
+        self.assertEqual(len(controls.h3_fault_calls), 1)
+        owner, request, completed = controls.h3_fault_calls[0]
+        self.assertIs(owner, protocol)
+        self.assertEqual(dict(request.headers)[b":path"], b"/r/callback-fault")
+        self.assertFalse(completed)
