@@ -1,8 +1,5 @@
 //! Opt-in retries after caller-listed retryable response statuses.
 
-use crate::support::tls as tls_support;
-use crate::support::tracing as tracing_support;
-
 use std::{
     collections::VecDeque,
     error::Error,
@@ -28,6 +25,8 @@ use tokio::{
 };
 use tracing::instrument::WithSubscriber;
 
+use crate::support::tls as tls_support;
+use crate::support::tracing as tracing_support;
 use tls_support::{
     H1_ALPN, TestIdentity, accept_tls_stream, client_builder, is_peer_gone, read_head, tls_settings,
 };
@@ -38,8 +37,14 @@ type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
 const UNAVAILABLE: &str = "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n";
 const OK: &str = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
 
-/// Request heads in arrival order, across every accepted connection.
-type Received = Arc<Mutex<Vec<String>>>;
+#[derive(Clone, Debug)]
+struct ReceivedRequest {
+    head: String,
+    body: Vec<u8>,
+}
+
+/// Requests in arrival order, across every accepted connection.
+type Received = Arc<Mutex<Vec<ReceivedRequest>>>;
 
 /// Serves scripted HTTP/1.1 responses in order, one per request, on any
 /// number of connections. Plaintext when `acceptor` is `None`.
@@ -96,7 +101,7 @@ impl ScriptedServer {
         format!("{scheme}://{}{path}", self.address)
     }
 
-    fn received(&self) -> Vec<String> {
+    fn received(&self) -> Vec<ReceivedRequest> {
         match self.received.lock() {
             Ok(received) => received.clone(),
             Err(poisoned) => poisoned.into_inner().clone(),
@@ -113,16 +118,16 @@ impl Drop for ScriptedServer {
 async fn serve_connection<S>(
     stream: &mut S,
     script: &Mutex<VecDeque<Vec<u8>>>,
-    received: &Mutex<Vec<String>>,
+    received: &Mutex<Vec<ReceivedRequest>>,
 ) where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     loop {
-        let Ok(head) = read_request(stream).await else {
+        let Ok(request) = read_request(stream).await else {
             return;
         };
         if let Ok(mut received) = received.lock() {
-            received.push(head);
+            received.push(request);
         }
         let response = script.lock().ok().and_then(|mut script| script.pop_front());
         let Some(response) = response else {
@@ -142,12 +147,13 @@ async fn serve_connection<S>(
     }
 }
 
-/// Reads one request head and discards its `Content-Length` body.
-async fn read_request<S>(stream: &mut S) -> std::io::Result<String>
+/// Reads one request head and its `Content-Length` body.
+async fn read_request<S>(stream: &mut S) -> std::io::Result<ReceivedRequest>
 where
     S: AsyncRead + Unpin,
 {
     let head = String::from_utf8_lossy(&read_head(stream).await?).into_owned();
+
     let length = head
         .to_ascii_lowercase()
         .split("\r\n")
@@ -155,7 +161,8 @@ where
         .unwrap_or(0_usize);
     let mut body = vec![0_u8; length];
     stream.read_exact(&mut body).await?;
-    Ok(head)
+
+    Ok(ReceivedRequest { head, body })
 }
 
 fn unavailable_with(fields: &str) -> String {
@@ -180,10 +187,10 @@ fn retrying_client(status_retry: StatusRetry) -> TestResult<Client> {
         .build()?)
 }
 
-fn request_lines(received: &[String]) -> Vec<&str> {
+fn request_lines(received: &[ReceivedRequest]) -> Vec<&str> {
     received
         .iter()
-        .map(|head| head.split("\r\n").next().unwrap_or_default())
+        .map(|request| request.head.split("\r\n").next().unwrap_or_default())
         .collect()
 }
 
@@ -252,10 +259,15 @@ async fn status_retry_repeats_idempotent_owned_body_requests() -> TestResult {
         .await?;
 
     assert_eq!(response.status(), StatusCode::OK);
+
+    let received = server.received();
     assert_eq!(
-        request_lines(&server.received()),
+        request_lines(&received),
         ["PUT /item HTTP/1.1", "PUT /item HTTP/1.1"]
     );
+    for request in &received {
+        assert_eq!(request.body, b"payload");
+    }
     Ok(())
 }
 
@@ -301,16 +313,18 @@ async fn status_retry_repeats_a_buffered_streaming_body() -> TestResult {
         .await?;
 
     assert_eq!(response.status(), StatusCode::OK);
+
     let received = server.received();
     assert_eq!(
         request_lines(&received),
         ["PUT /upload HTTP/1.1", "PUT /upload HTTP/1.1"]
     );
-    for head in &received {
+    for request in &received {
         assert!(
-            head.to_ascii_lowercase()
+            request.head.to_ascii_lowercase()
                 .contains("\r\ncontent-length: 7\r\n")
         );
+        assert_eq!(request.body, b"payload");
     }
     Ok(())
 }
@@ -481,11 +495,11 @@ async fn status_retry_learns_cookies_from_intermediate_responses() -> TestResult
     assert_eq!(response.status(), StatusCode::OK);
     let received = server.received();
     assert_eq!(received.len(), 2);
-    assert!(!received[0].contains("\r\nCookie:"));
+    assert!(!received[0].head.contains("\r\nCookie:"));
     assert!(
-        received[1].contains("\r\nCookie: attempt=first\r\n"),
+        received[1].head.contains("\r\nCookie: attempt=first\r\n"),
         "{}",
-        received[1]
+        received[1].head
     );
     Ok(())
 }
