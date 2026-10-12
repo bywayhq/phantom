@@ -281,7 +281,7 @@ class H3DeferredPeer:
                 )
                 if case == "held-failure":
                     # Send real trailing HEADERS, then let the real DATA validator fail.
-                    http.send_headers(stream_id, [])
+                    http.send_headers(stream_id, [(b"x-end", b"closed")])
 
             try:
                 return actual_data(http, stream_id, data, end_stream)
