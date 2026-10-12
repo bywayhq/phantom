@@ -473,7 +473,9 @@ class PlainChannel:
         if self.record.sent + len(data) > MAX_CONNECTION_CAPTURE:
             raise CaptureLimitError("connection output exceeds the capture limit")
         if len(self.record.server_chunks) >= MAX_CAPTURE_CHUNKS:
-            raise CaptureLimitError("connection output chunk count exceeds the capture limit")
+            raise CaptureLimitError(
+                "connection output chunk count exceeds the capture limit"
+            )
         if self.run is not None:
             self.run.retain(len(data))
         self.record.sent += len(data)
@@ -602,7 +604,9 @@ class Http1Session:
                 return
             lines = head[:-4].split(b"\r\n")
             if len(lines) - 1 > MAX_HEADER_FIELDS:
-                raise CaptureLimitError("request header count exceeds the capture limit")
+                raise CaptureLimitError(
+                    "request header count exceeds the capture limit"
+                )
             request = Http1Request(self.index, self.run.now(), lines[0], lines[1:])
             self.run.request()
             self.run.requests.append(request)
@@ -927,7 +931,10 @@ class Http2Session:
 
     def queue(self, stream_id: int, data: bytes) -> None:
         if data:
-            if sum(map(len, self.pending.values())) + len(data) > MAX_CONNECTION_CAPTURE:
+            if (
+                sum(map(len, self.pending.values())) + len(data)
+                > MAX_CONNECTION_CAPTURE
+            ):
                 raise CaptureLimitError("H2 pending output exceeds the capture limit")
             self.pending.setdefault(stream_id, bytearray()).extend(data)
             self.pump(stream_id)
@@ -1007,7 +1014,9 @@ def raise_capture_failures(
 class CaptureProtocol(asyncio.StreamReaderProtocol):
     """Retain the run before a transport queues its connection callback."""
 
-    def __init__(self, owner: CaptureServer, listener: str, run: CaptureRun | None) -> None:
+    def __init__(
+        self, owner: CaptureServer, listener: str, run: CaptureRun | None
+    ) -> None:
         self.owner = owner
         self.listener = listener
         self.run = run
@@ -1032,7 +1041,9 @@ class CaptureProtocol(asyncio.StreamReaderProtocol):
             except BaseException as error:
                 self.owner.failed(error, self.run)
 
-    def connected(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    def connected(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
         self.owner._admit(self.listener, reader, writer, self)
 
     def connection_lost(self, error: Exception | None) -> None:
@@ -1085,7 +1096,9 @@ class CaptureServer:
                     start_serving=False,
                 )
                 self.servers.append(server)
-                setattr(self, f"{listener}_address", server.sockets[0].getsockname()[:2])
+                setattr(
+                    self, f"{listener}_address", server.sockets[0].getsockname()[:2]
+                )
                 ready = asyncio.Event()
                 operation = self.wait_listener(server, ready)
                 try:
@@ -1124,7 +1137,8 @@ class CaptureServer:
             )
         if self.handlers or self.writers or self.writer_waits or self.protocols:
             raise_capture_failures(
-                RuntimeError("previous capture owners have not finished"), self.cleanup_failures
+                RuntimeError("previous capture owners have not finished"),
+                self.cleanup_failures,
             )
         if self.run_count >= MAX_RUNS:
             raise CaptureLimitError("run count exceeds the capture limit")
@@ -1142,12 +1156,15 @@ class CaptureServer:
         if run is not None:
             run.admitted_connections += 1
         if (
-            sum(not owner.retired.done() for owner in self.protocols) > MAX_ACTIVE_CONNECTIONS
+            sum(not owner.retired.done() for owner in self.protocols)
+            > MAX_ACTIVE_CONNECTIONS
             or self.total_connections > MAX_TOTAL_CONNECTIONS
             or (run is not None and run.admitted_connections > MAX_RUN_CONNECTIONS)
         ):
             protocol.stopping = True
-            protocol.failure = CaptureLimitError("connection count exceeds the capture limit")
+            protocol.failure = CaptureLimitError(
+                "connection count exceeds the capture limit"
+            )
             self.accept_failures.append(protocol.failure)
             self.closing = True
             if run is not None:
@@ -1204,7 +1221,9 @@ class CaptureServer:
         )
 
     @staticmethod
-    def discard_operation(operation, failures: list[BaseException], error: BaseException) -> None:
+    def discard_operation(
+        operation, failures: list[BaseException], error: BaseException
+    ) -> None:
         failures.append(error)
         try:
             operation.close()
@@ -1212,9 +1231,7 @@ class CaptureServer:
             failures.append(failure)
 
     def wait_finished(self, task: asyncio.Task[None]) -> None:
-        if task not in {
-            *self.writer_waits, *self.listener_waits, *self.protocol_waits
-        }:
+        if task not in {*self.writer_waits, *self.listener_waits, *self.protocol_waits}:
             return
         if not self.returned and task not in self.listener_waits:
             return
@@ -1249,7 +1266,8 @@ class CaptureServer:
             )
             if existing is not None:
                 self.listener_waits[existing] = (
-                    server, closed or self.listener_waits[existing][1]
+                    server,
+                    closed or self.listener_waits[existing][1],
                 )
                 continue
 
@@ -1322,7 +1340,9 @@ class CaptureServer:
                 break
 
             interruption: BaseException | None = None
-            wait_deadline = deadline if cancelling else deadline - CONNECTION_CANCEL_SECONDS
+            wait_deadline = (
+                deadline if cancelling else deadline - CONNECTION_CANCEL_SECONDS
+            )
             if asyncio.get_running_loop().time() >= wait_deadline:
                 interruption = asyncio.TimeoutError(
                     "websocket connection cleanup timed out"
@@ -1331,7 +1351,9 @@ class CaptureServer:
                 try:
                     await asyncio.wait(
                         pending,
-                        timeout=max(0.0, wait_deadline - asyncio.get_running_loop().time()),
+                        timeout=max(
+                            0.0, wait_deadline - asyncio.get_running_loop().time()
+                        ),
                         return_when=asyncio.FIRST_COMPLETED,
                     )
                 except BaseException as error:
@@ -1457,7 +1479,9 @@ class CaptureServer:
                     self.protocols.discard(protocol)
 
         if self.protocols or self.handlers or self.writer_waits or self.writers:
-            failures.append(RuntimeError("websocket capture cleanup retains unfinished owners"))
+            failures.append(
+                RuntimeError("websocket capture cleanup retains unfinished owners")
+            )
 
         failures.extend(self.accept_failures)
         self.accept_failures = []
@@ -1468,7 +1492,10 @@ class CaptureServer:
         return unique
 
     def _admit(
-        self, listener: str, reader: asyncio.StreamReader, writer: asyncio.StreamWriter,
+        self,
+        listener: str,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
         protocol: CaptureProtocol,
     ) -> None:
         self.writers.add(writer)

@@ -220,7 +220,9 @@ def summarize_send_policy(stream: bytes, *, inflate: bool) -> SendPolicy:
 
 
 def message_summary(
-    frames: Sequence[WebSocketFrame], inflate: bool, decompressor,
+    frames: Sequence[WebSocketFrame],
+    inflate: bool,
+    decompressor,
     remaining: int = MAX_DECODED_BYTES,
 ) -> MessageSummary:
     first = frames[0]
@@ -290,7 +292,9 @@ class EchoPeer:
                 if frame.opcode == CONTINUATION and not self.fragments:
                     raise ValueError("WebSocket continuation has no message")
                 if frame.opcode != CONTINUATION and self.fragments:
-                    raise ValueError("WebSocket message interrupts a fragmented message")
+                    raise ValueError(
+                        "WebSocket message interrupts a fragmented message"
+                    )
                 if self.fragment_bytes + len(frame.payload) > MAX_MESSAGE_PAYLOAD:
                     raise ValueError("WebSocket message exceeds the capture limit")
                 self.fragment_bytes += len(frame.payload)

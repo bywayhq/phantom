@@ -30,12 +30,10 @@ CERTIFICATE = generate_certificate()
 DEADLINE = 10.0
 DISCONNECTS = (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)
 NOT_FOUND = (
-    b"HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\n"
-    b"cache-control: no-store\r\n\r\n"
+    b"HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\ncache-control: no-store\r\n\r\n"
 )
 DONE = (
-    b"HTTP/1.1 204 No Content\r\ncontent-length: 0\r\n"
-    b"cache-control: no-store\r\n\r\n"
+    b"HTTP/1.1 204 No Content\r\ncontent-length: 0\r\ncache-control: no-store\r\n\r\n"
 )
 
 
@@ -108,7 +106,9 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 connection.read_failure = error
                 raise
 
-        self.patches.enter_context(patch.object(asyncio.BaseEventLoop, "create_server", start))
+        self.patches.enter_context(
+            patch.object(asyncio.BaseEventLoop, "create_server", start)
+        )
         self.patches.enter_context(patch.object(PlainChannel, "read_raw", read))
 
     async def asyncTearDown(self) -> None:
@@ -450,7 +450,9 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 wait_called.set()
                 raise wait_failure
 
-        self.patches.enter_context(patch.object(asyncio.Server, "wait_closed", wait_closed))
+        self.patches.enter_context(
+            patch.object(asyncio.Server, "wait_closed", wait_closed)
+        )
 
         async def fail(connection):
             original_abort = connection.writer.transport.abort
@@ -487,7 +489,9 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_driver_and_actual_accepted_writer_wait_causes_both_survive(self):
         primary = PermissionError("injected original driver exit failure")
-        wait_failure = ConnectionResetError(errno.EIO, "injected local writer wait failure")
+        wait_failure = ConnectionResetError(
+            errno.EIO, "injected local writer wait failure"
+        )
         waited = asyncio.Event()
         original_wait = asyncio.StreamWriter.wait_closed
 
@@ -526,11 +530,13 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_local_request_error_with_peer_errno_keeps_its_original_cause(self):
         await self.server.start("127.0.0.1")
-        self.server.begin_run(CaptureRun(
-            "local", http2_websocket.SCENARIOS["h1-accept"].policy, {}
-        ))
+        self.server.begin_run(
+            CaptureRun("local", http2_websocket.SCENARIOS["h1-accept"].policy, {})
+        )
         _, writer, connection = await self.connect()
-        failure = ConnectionResetError(errno.ECONNRESET, "original local request failure")
+        failure = ConnectionResetError(
+            errno.ECONNRESET, "original local request failure"
+        )
         self.expected_failures.append(failure)
         with patch.object(Http1Session, "respond", side_effect=failure):
             writer.write(b"GET /missing HTTP/1.1\r\nHost: server.phantom.test\r\n\r\n")
@@ -542,7 +548,9 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
             await self.server.close()
         self.assertIs(caught.exception, failure)
 
-    async def test_cleanup_keeps_external_handler_cancellation_and_its_local_cause(self):
+    async def test_cleanup_keeps_external_handler_cancellation_and_its_local_cause(
+        self,
+    ):
         await self.server.start("127.0.0.1")
         self.server.begin_run(
             CaptureRun("cancel", http2_websocket.SCENARIOS["h1-accept"].policy, {})

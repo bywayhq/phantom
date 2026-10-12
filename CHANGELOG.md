@@ -14,6 +14,19 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Bound shared WebSocket captures and retain serving and cleanup failures.
+  Migrate: split experiments exceeding 32 runs, 128 connections per run,
+  1,024 requests, 256 WebSockets or 64 MiB of recorded bytes per run.
+  Use finite positive run timeouts and finite nonnegative observation times.
+  Android captures require IPv4 loopback; desktop IPv6 captures keep their
+  selected listener throughout the route.
+
+- Move offline HTTP/2 capture analysis into its own module. Migrate: import
+  `Http2Frame`, `Priority`, `HeaderField`, `HeaderBlock`, `Http2Analysis`
+  and their analysis helpers and frame constants from
+  `scripts.capture.http2_analysis` instead of `scripts.capture.http2_session`.
+  Live capture servers and records remain in `http2_session`.
+
 - Reject socket-hook browser arguments that replace the managed profile or
   page URL before acquiring resources or creating output directories.
   Require Windows x64 and acknowledged network-service hooks. Bound each

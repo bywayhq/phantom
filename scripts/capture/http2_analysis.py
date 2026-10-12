@@ -135,8 +135,13 @@ def split_frames(
             )
             validate_frame_extent(frame)
             if frame.frame_type == 0x9:
-                if continuation_stream is None or frame.stream_id != continuation_stream:
-                    raise MalformedCaptureError("H2 continuation has no matching header block")
+                if (
+                    continuation_stream is None
+                    or frame.stream_id != continuation_stream
+                ):
+                    raise MalformedCaptureError(
+                        "H2 continuation has no matching header block"
+                    )
                 if frame.flags & FLAG_END_HEADERS:
                     continuation_stream = None
             elif continuation_stream is not None:

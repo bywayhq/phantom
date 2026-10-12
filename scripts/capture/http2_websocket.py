@@ -595,7 +595,10 @@ def launch_plan(
             headless=not args.headful,
             firefox_preferences=(
                 ("network.dns.localDomains", HOSTNAME),
-                ("network.dns.disableIPv6", ipaddress.ip_address(listen_host).version == 4),
+                (
+                    "network.dns.disableIPv6",
+                    ipaddress.ip_address(listen_host).version == 4,
+                ),
                 ("network.http.http3.enable", False),
             ),
             profile_files=files,
@@ -608,7 +611,9 @@ def validate_capture_arguments(repeat: int, timeout: float, observation: float) 
         raise ValueError(f"repeat must be between 1 and {MAX_RUNS}")
     validate_duration(timeout, "run timeout", positive=True)
     validate_duration(observation, "observation")
-    validate_duration(timeout + observation, "run timeout plus observation", positive=True)
+    validate_duration(
+        timeout + observation, "run timeout plus observation", positive=True
+    )
 
 
 def validate_browser_listener(browser: str, listen: str) -> None:

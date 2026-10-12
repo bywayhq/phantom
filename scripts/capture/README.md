@@ -814,6 +814,23 @@ The tool refuses `h2` and `hpack` versions other than the ones pinned above.
   certificate generated for the capture;
 - plaintext HTTP/1.1.
 
+Split larger experiments into separate runs. The shared server allows 32
+runs, 32 active connections, 128 connections per run, 1,024 requests, 256
+WebSockets and 128 page results per run. It records at most 64 MiB per run
+and 16 MiB per direction on one connection. Request heads, ClientHellos and
+decoded HTTP/2 header blocks are limited to 64 KiB. A WebSocket message may
+contain at most 16 MiB of decoded data, with 32 MiB across one stream.
+Exceeding a limit fails the capture before its fixture is written.
+
+Run timeouts must be finite and positive. Observation times must be finite
+and nonnegative. Android requires IPv4 loopback. Desktop captures support
+either loopback family. Shutdown attempts every owned connection and
+listener, and reports serving or cleanup failures. A cleanup deadline
+reports failure without proving that every owner has finished.
+
+Offline frame and header analysis lives in `http2_analysis.py`. Import its
+analysis types and helpers there; `http2_session.py` owns the live recorder.
+
 The HTTP/2 server advertises `SETTINGS_ENABLE_CONNECT_PROTOCOL=1` unless a
 scenario omits it. The tool records client bytes before any parser sees them:
 first the ClientHello, for the ALPN offer and SNI, then the decrypted HTTP/2 or
@@ -868,7 +885,8 @@ names.
 - Chromium browsers receive `--host-resolver-rules`, the certificate's
   `--ignore-certificate-errors-spki-list` value, and `--disable-quic`.
 - Firefox receives the `network.dns.localDomains`,
-  `network.dns.disableIPv6`, and `network.http.http3.enable=false`
+  `network.dns.disableIPv6` matching the selected listener family, and
+  `network.http.http3.enable=false`
   preferences, plus a `cert_override.txt` in its temporary profile.
   `--firefox-skip-tls-trust` omits the override.
 

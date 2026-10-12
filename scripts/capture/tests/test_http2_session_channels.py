@@ -16,7 +16,9 @@ from scripts.capture.http2_session import (
 
 
 class ChannelFailuresTests(unittest.IsolatedAsyncioTestCase):
-    async def test_cleanup_cancellation_retains_its_original_object_and_local_cause(self):
+    async def test_cleanup_cancellation_retains_its_original_object_and_local_cause(
+        self,
+    ):
         cancellation = asyncio.CancelledError("original cleanup cancellation")
         local = OSError(errno.EIO, "original independent failure")
         with self.assertRaises(asyncio.CancelledError) as caught:

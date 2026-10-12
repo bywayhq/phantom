@@ -817,12 +817,14 @@ class CaptureBoundaryTests(unittest.IsolatedAsyncioTestCase):
                         event.stream_id
                         for event in batch
                         if isinstance(event, RequestReceived)
-                    } == {1, 3, 5}
+                    }
+                    == {1, 3, 5}
                     and {
                         event.stream_id
                         for event in batch
                         if isinstance(event, StreamReset)
-                    } == {1, 3}
+                    }
+                    == {1, 3}
                     for batch in batches
                 ),
                 "the original native input did not contain one complete cancellation batch",
@@ -858,7 +860,9 @@ class CaptureBoundaryTests(unittest.IsolatedAsyncioTestCase):
             reader.feed_eof()
             record = ConnectionRecord("plain", 0.0)
             run = CaptureRun("boundary", SCENARIOS["h1-accept"].policy, {})
-            session = Http1Session(PlainChannel(reader, None, record, run.now), run, 0, "http/1.1")
+            session = Http1Session(
+                PlainChannel(reader, None, record, run.now), run, 0, "http/1.1"
+            )
             with self.subTest(size=size):
                 if size == 65536:
                     self.assertEqual(await session.read_head(), head)
@@ -866,7 +870,9 @@ class CaptureBoundaryTests(unittest.IsolatedAsyncioTestCase):
                     with self.assertRaisesRegex(ValueError, "request head exceeds"):
                         await session.read_head()
 
-    def test_complete_client_hello_vectors_are_checked_without_losing_partial_input(self):
+    def test_complete_client_hello_vectors_are_checked_without_losing_partial_input(
+        self,
+    ):
         valid = b"\x03\x03" + bytes(32) + b"\x00\x00\x02\x13\x01\x01\x00\x00\x00"
         for body in (valid[:34], valid[:-1], valid + b"x"):
             handshake = b"\x01" + len(body).to_bytes(3, "big") + body
@@ -906,13 +912,26 @@ class CaptureBoundaryTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(ValueError, "frame count"):
             FrameReader().feed(b"\x89\x00" * 16385)
 
-    async def test_nonfinite_durations_fail_before_certificate_or_listener_acquisition(self):
-        for timeout, observation in ((float("nan"), 0), (float("inf"), 0), (1, float("inf")), (1, -1)):
+    async def test_nonfinite_durations_fail_before_certificate_or_listener_acquisition(
+        self,
+    ):
+        for timeout, observation in (
+            (float("nan"), 0),
+            (float("inf"), 0),
+            (1, float("inf")),
+            (1, -1),
+        ):
             args = SimpleNamespace(
-                repeat=1, run_timeout=timeout, observation=observation,
-                browser="manual", listen="127.0.0.1", scenario=["h1-accept"],
+                repeat=1,
+                run_timeout=timeout,
+                observation=observation,
+                browser="manual",
+                listen="127.0.0.1",
+                scenario=["h1-accept"],
             )
-            with patch("scripts.capture.http2_websocket.generate_certificate") as acquire:
+            with patch(
+                "scripts.capture.http2_websocket.generate_certificate"
+            ) as acquire:
                 with self.assertRaises(ValueError):
                     await run_capture(args)
                 acquire.assert_not_called()
@@ -933,14 +952,21 @@ class CaptureBoundaryTests(unittest.IsolatedAsyncioTestCase):
             server.begin_run(run)
             self.assertEqual(urlsplit(page_url).hostname, "::1")
             self.assertEqual(urlsplit(socket_url).hostname, "::1")
-            reader, writer = await asyncio.open_connection("::1", server.plain_address[1])
+            reader, writer = await asyncio.open_connection(
+                "::1", server.plain_address[1]
+            )
             writer.write(b"GET /ws.html?run=ipv6 HTTP/1.1\r\nHost: [::1]\r\n\r\n")
             await writer.drain()
             head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), TIMEOUT)
             length = int(re.search(rb"content-length: (\d+)", head).group(1))
             body = await asyncio.wait_for(reader.readexactly(length), TIMEOUT)
             self.assertEqual(body, run.pages["plain"])
-            args = SimpleNamespace(browser="firefox", browser_path=None, headful=False, firefox_skip_tls_trust=True)
+            args = SimpleNamespace(
+                browser="firefox",
+                browser_path=None,
+                headful=False,
+                firefox_skip_tls_trust=True,
+            )
             plan = launch_plan(args, CERTIFICATE, "::1", server.tls_address[1])
             self.assertFalse(dict(plan.firefox_preferences)["network.dns.disableIPv6"])
         finally:
