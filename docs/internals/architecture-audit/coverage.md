@@ -2463,14 +2463,26 @@ success and error values. Formatting, strict three-target linting and Rust
 1.88 pass on Windows and Linux. The first Linux launcher and diagnostic
 wrapper fail on a trailing carriage return; the corrected LF runner exits
 zero with all three checks passing. The historical baseline stays intact.
-The six regressions, acquisition and parser paths, and full gates remain
-open.
+The original six failures are retained as baseline evidence. Acquisition,
+parser paths and full gates remain open.
 
 At pushed checkpoint `ee164f59`, PR #197 runs the full workspace tests on
 Linux, macOS and Windows. Each reports the same six raw stale-worker
 failures. Windows passes 4,310 of 4,316 methods, macOS 4,294 of 4,300,
 and Linux 4,293 of 4,299. These known open fixture defects block merging;
 the targeted production fixes do not establish a green combined gate.
+
+At `304ee690`, both hosts pass all 28 stale-replay methods. The repair
+owns every raw serving task before the first caller await. The task and
+caller result remain outside the original absolute deadline, so an already
+completed serving failure survives timeout. The new mixed control reaches
+an actual held request and preserves both the original Elapsed and serving
+payload before backup cleanup. Original wire, body, trace and quiet-period
+assertions remain unchanged. Formatting, strict linting and Rust 1.88 pass.
+Root and independent review read all eight logs and exit receipts, then
+separately observe clean exact sources after both runners terminate.
+This resolves the measured raw-worker defects; broader A245 fixture paths,
+parser bounds, final gates and CI on the new checkpoint remain open.
 
 ### Capture-tool ownership follow-up
 
