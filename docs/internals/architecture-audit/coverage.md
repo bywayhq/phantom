@@ -2666,8 +2666,23 @@ stores only a kind and optional string. Actual connection-to-stream
 fanout therefore loses custom causes and native error codes. The public
 error also stops cause traversal. Root and independent source review trace
 these conversions and actual stream-state callers. Retaining one shared
-original I/O error is a proposed remedy; canonical vendor checks and
-native multi-stream verification remain required.
+original I/O error is the reviewed remedy at `efc21440`. Its first native
+packet passes nine request and sixteen reuse controls on both hosts, plus
+workspace quality checks. Both vendor steps stop at formatting differences;
+their regressions do not run in that packet. These failures remain recorded.
+
+The formatting correction at `8fef2005` passes both complete vendor commands
+on Windows and Linux, including canonical archive replay. Each host passes
+50 H2 client tests, then 165 library tests with one existing ignored test
+and 382 fixture-backed tests filtered out. The client selection overlaps
+the library selection. All 64 protocol-fork tests pass, including both
+actual transport-cause converters and the non-I/O reason control. The nine
+first-party request and sixteen reuse controls pass. Workspace formatting,
+strict Clippy, Rust 1.88, dependency-tree, docs and shell-syntax checks pass.
+Root and independent review read all twenty logs and exits, then separately
+confirm both checkouts clean at the exact revision. A272 is locally verified;
+the final gates, skipped upstream fixtures and macOS shutdown finding remain
+open. No macOS phase or shutdown remedy follows from these local results.
 
 Whole root and independent source reads at `cccad0ff` cover
 `socket_hooks.py`, `socket_hooks.js` and `test_socket_hooks.py`. The pass
