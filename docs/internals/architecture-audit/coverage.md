@@ -3,6 +3,27 @@
 Use this matrix to see which paths have been examined and what remains.
 Pending means that discovery or assignment has not established review.
 
+## Current repair batch
+
+- At `6d0dcced`, all 31 focused upload, connection-peer, request and reuse
+  tests pass on Windows and Linux. Formatting, strict sessions-target
+  Clippy and the default-feature Rust 1.88 sessions check pass. Held peers
+  finish TCP shutdown after observed read EOF without a new TLS write.
+  Returned errors and the original destruction assertions are preserved.
+- At `a3782686`, Windows passes all 53 socket-hook ownership controls.
+  Linux passes 52 and skips the Windows kernel-handle control. Both hosts
+  pass all 32 existing fixture tests and scoped Ruff and docs checks.
+  Independent source and native-result reviews cover the combined repairs.
+  The corrected `5f36f0ec` baseline reproduced six failed methods on each
+  host without harness errors.
+- These capture checks use real loopback sockets, controlled browser API
+  boundaries and an actual Windows process handle. They do not establish
+  live Frida/browser acceptance. The listener fence covers attached
+  transports, with pre-attachment backend accepts outside its proof.
+- Fresh macOS CI, the remaining audit coverage and final integration gates
+  remain open. The earlier macOS request failure remains unclassified;
+  the failure at `0425b7cd` is specifically Shutdown/BrokenPipe.
+
 ## Source review
 
 | Area | Pass | Evidence required | State |

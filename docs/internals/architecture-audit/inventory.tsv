@@ -1742,8 +1742,8 @@ scripts/capture/reserved_ports.py	tool	source-complete	loopback-quic-root-checkp
 scripts/capture/run_matrix.py	tool	pending	
 scripts/capture/snapshot.py	tool	pending	
 scripts/capture/snapshot_compare.py	tool	pending	
-scripts/capture/socket_hooks.js	tool	source-complete	coverage.md: whole root and independent manual owner reads at cccad0ff; A273-A278 remediation and pinned Frida native interfaces remain open; no live capture claim
-scripts/capture/socket_hooks.py	tool	source-complete	coverage.md: whole root and independent source reads; A273 local controls verified at 96c1363a on both hosts; A274-A277 and final gates remain open
+scripts/capture/socket_hooks.js	tool	source-complete	coverage.md: combined root and independent source review; a3782686 Windows53/Linux52+1skip ownership controls and both-host32 fixture tests pass; live Frida/browser and final gates pending
+scripts/capture/socket_hooks.py	tool	source-complete	coverage.md: combined root and independent source review; a3782686 Windows53/Linux52+1skip ownership controls and both-host32 fixture tests pass; live Frida/browser and final gates pending
 scripts/capture/sse_reconnect.py	tool	pending	
 scripts/capture/startup_capture.py	tool	pending	
 scripts/capture/tests/fake_capture_tool.py	tool	pending	
@@ -1774,7 +1774,7 @@ scripts/capture/tests/test_reserved_ports.py	tool	source-complete	loopback-quic-
 scripts/capture/tests/test_run_matrix.py	tool	pending	
 scripts/capture/tests/test_snapshot.py	tool	pending	
 scripts/capture/tests/test_socket_hooks.py	tool	source-complete	coverage.md: whole root and independent source reads; A278 historical/current provenance separated; existing 32-test selection passes both hosts at 96c1363a; A274-A277 remain open
-scripts/capture/tests/test_socket_hook_run_ownership.py	tool	source-complete	coverage.md: whole root and independent source reads; all twelve owner controls pass both hosts at 96c1363a; actual acquisition and cleanup causes retained before backup; A274/A275 and final gates remain open
+scripts/capture/tests/test_socket_hook_run_ownership.py	tool	source-complete	coverage.md: combined root and independent source review; a3782686 Windows53/Linux52+1skip ownership controls and both-host32 fixture tests pass; live Frida/browser and final gates pending
 scripts/capture/tests/test_sse_reconnect.py	tool	pending	
 scripts/capture/tests/test_startup_capture.py	tool	pending	
 scripts/capture/tests/test_tls_resumption.py	tool	pending	
@@ -4588,3 +4588,5 @@ vendor/http2/src/client/tests/io_causes.rs	vendor-boundary	source-complete	cover
 vendor/wreq-proto/src/proto/http2/tests.rs	vendor-boundary	source-complete	coverage.md#engineering-standards; findings.md A272; full root and independent source review at efc21440; formatting-only correction and paired canonical replay/native verification at 8fef2005
 vendor/http2/patches/io-error-causes.patch	vendor-boundary	source-complete	coverage.md#engineering-standards; findings.md A272; full root and independent source review at efc21440; formatting-only correction and paired canonical replay/native verification at 8fef2005
 vendor/wreq-proto/patches/h2-io-error-causes.patch	vendor-boundary	source-complete	coverage.md#engineering-standards; findings.md A272; full root and independent source review at efc21440; formatting-only correction and paired canonical replay/native verification at 8fef2005
+scripts/capture/tests/test_socket_hook_origin_ownership.py	tool	source-complete	coverage.md: whole root and independent control review; applicable a3782686 Windows/Linux controls pass; live browser and final gates pending
+scripts/capture/tests/test_socket_hook_browser_ownership.py	tool	source-complete	coverage.md: whole root and independent control review; applicable a3782686 Windows/Linux controls pass; live browser and final gates pending
