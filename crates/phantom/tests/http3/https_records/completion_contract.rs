@@ -138,7 +138,7 @@ struct ObservedRequests {
 #[tokio::test(flavor = "current_thread")]
 async fn an_actual_result_stays_pending_until_released_then_selects_http3() -> TestResult<()> {
     let identity = identity()?;
-    let dns = DnsServer::spawn(records(H3_RECORD)).await?;
+    let mut dns = DnsServer::spawn(records(H3_RECORD)).await?;
     let mut held = held_resolver(&dns)?;
     let mut fixture = None;
     let mut client = None;
@@ -228,5 +228,6 @@ async fn an_actual_result_stays_pending_until_released_then_selects_http3() -> T
     assert_eq!(observed.later_body, "http3");
     assert_eq!(held.lookup.calls(), 1);
     assert_eq!(dns.queries().len(), 1);
+    dns.finish().await?;
     Ok(())
 }

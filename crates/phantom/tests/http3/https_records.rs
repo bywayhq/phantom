@@ -94,7 +94,7 @@ async fn sequential_client_uses_http3_once_the_https_record_is_known() -> TestRe
     bounded(async {
         let identity = identity()?;
         let fixture = spawn_fixture(&identity, 1, 1).await?;
-        let dns = DnsServer::spawn(records(H3_RECORD)).await?;
+        let mut dns = DnsServer::spawn(records(H3_RECORD)).await?;
         let mut lookup = observed_resolver(&dns)?;
         let client = client_builder(&identity)
             .https_record_discovery(lookup.resolver.clone())
@@ -135,6 +135,7 @@ async fn sequential_client_uses_http3_once_the_https_record_is_known() -> TestRe
             request.fields.iter().all(|field| field.name != "alt-used"),
             "an HTTPS-record request named an alternative service"
         );
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -157,7 +158,7 @@ async fn misdirected_http3_marks_the_https_record_location_broken() -> TestResul
             .origin_http3([PlannedResponse::new(StatusCode::MISDIRECTED_REQUEST)]),
         )
         .await?;
-        let dns = DnsServer::spawn(records(H3_RECORD)).await?;
+        let mut dns = DnsServer::spawn(records(H3_RECORD)).await?;
         let mut lookup = observed_resolver(&dns)?;
         let client = client_builder(&identity)
             .https_record_discovery(lookup.resolver.clone())
@@ -190,6 +191,7 @@ async fn misdirected_http3_marks_the_https_record_location_broken() -> TestResul
         let observed = fixture.finish().await?;
         assert_eq!(observed.origin_requests.len(), 2);
         assert_eq!(observed.origin_http3_requests.len(), 1);
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -217,7 +219,7 @@ async fn delayed_https_record_does_not_delay_the_request() -> TestResult<()> {
         ] {
             let fixture = spawn_fixture(&identity, 1, usize::from(later_http3)).await?;
             let (arrival, mut arrived) = watch::channel(false);
-            let dns = DnsServer::spawn(move |query| {
+            let mut dns = DnsServer::spawn(move |query| {
                 arrival.send_replace(true);
                 records(H3_RECORD)(query).delayed(DNS_DELAY)
             })
@@ -256,6 +258,7 @@ async fn delayed_https_record_does_not_delay_the_request() -> TestResult<()> {
             }
             drop(client);
             fixture.finish().await?;
+            dns.finish().await?;
         }
         Ok(())
     })
@@ -267,7 +270,7 @@ async fn failed_lookup_leaves_the_request_on_the_origin() -> TestResult<()> {
     bounded(async {
         let identity = identity()?;
         let fixture = spawn_fixture(&identity, 2, 0).await?;
-        let dns = DnsServer::spawn(|_| DnsReply::new(DnsAnswer::ServerFailure)).await?;
+        let mut dns = DnsServer::spawn(|_| DnsReply::new(DnsAnswer::ServerFailure)).await?;
         let mut lookup = observed_resolver(&dns)?;
         let client = client_builder(&identity)
             .https_record_discovery(lookup.resolver.clone())
@@ -298,6 +301,7 @@ async fn failed_lookup_leaves_the_request_on_the_origin() -> TestResult<()> {
         assert!(queries[0] > 0);
         assert_eq!(queries[0], queries[1]);
         assert_eq!(lookup.calls(), 1);
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -307,7 +311,7 @@ async fn failed_lookup_leaves_the_request_on_the_origin() -> TestResult<()> {
 async fn disabled_discovery_leaves_requests_unchanged() -> TestResult<()> {
     bounded(async {
         let identity = identity()?;
-        let dns = DnsServer::spawn(records(H2_RECORD)).await?;
+        let mut dns = DnsServer::spawn(records(H2_RECORD)).await?;
         let mut observed = Vec::new();
         for discovery in [false, true] {
             let fixture = spawn_fixture(&identity, 2, 0).await?;
@@ -347,6 +351,7 @@ async fn disabled_discovery_leaves_requests_unchanged() -> TestResult<()> {
         }
         // The same requests, field for field, whether or not a lookup ran.
         assert_eq!(observed[0], observed[1]);
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -356,7 +361,7 @@ async fn disabled_discovery_leaves_requests_unchanged() -> TestResult<()> {
 async fn routes_without_direct_dns_send_no_https_query() -> TestResult<()> {
     bounded(async {
         let identity = identity()?;
-        let dns = DnsServer::spawn(records(H3_RECORD)).await?;
+        let mut dns = DnsServer::spawn(records(H3_RECORD)).await?;
         let proxy = ReservedPort::bind()?;
         let origin = ReservedPort::bind()?;
         let proxy_address = proxy.address();
@@ -382,6 +387,7 @@ async fn routes_without_direct_dns_send_no_https_query() -> TestResult<()> {
             assert_eq!(error.kind(), RequestErrorKind::Proxy);
         }
         assert!(dns.queries().is_empty());
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -392,7 +398,7 @@ fn discovery_requires_an_alt_svc_store() -> TestResult<()> {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
-    let dns = runtime.block_on(DnsServer::spawn(records(H3_RECORD)))?;
+    let mut dns = runtime.block_on(DnsServer::spawn(records(H3_RECORD)))?;
     let identity = identity()?;
     let error = profile_builder(&identity)
         .https_record_discovery(resolver(&dns)?)
@@ -400,6 +406,7 @@ fn discovery_requires_an_alt_svc_store() -> TestResult<()> {
         .err()
         .ok_or("discovery without an Alt-Svc store was accepted")?;
     assert_eq!(error.kind(), phantom::BuildErrorKind::InvalidPolicy);
+    runtime.block_on(dns.finish())?;
     Ok(())
 }
 

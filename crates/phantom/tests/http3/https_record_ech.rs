@@ -427,7 +427,7 @@ async fn a_known_record_encrypts_the_client_hello_to_the_origin() -> TestResult<
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
         let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
         let rdata = https_rdata(&ech_config_list(std::slice::from_ref(&config)));
-        let dns = DnsServer::spawn(move |_| {
+        let mut dns = DnsServer::spawn(move |_| {
             DnsReply::new(DnsAnswer::Records {
                 ttl: 300,
                 rdata: vec![rdata.clone()],
@@ -456,6 +456,7 @@ async fn a_known_record_encrypts_the_client_hello_to_the_origin() -> TestResult<
         assert_eq!(second.outer_server_name.as_deref(), Some(PUBLIC_NAME));
         assert!(second.ech_accepted);
         assert_eq!(second.inner_server_name.as_deref(), Some(ORIGIN_NAME));
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -468,7 +469,7 @@ async fn a_profile_without_the_field_keeps_ech_grease() -> TestResult<()> {
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
         let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
         let rdata = https_rdata(&ech_config_list(std::slice::from_ref(&config)));
-        let dns = DnsServer::spawn(move |_| {
+        let mut dns = DnsServer::spawn(move |_| {
             DnsReply::new(DnsAnswer::Records {
                 ttl: 300,
                 rdata: vec![rdata.clone()],
@@ -510,6 +511,7 @@ async fn a_profile_without_the_field_keeps_ech_grease() -> TestResult<()> {
             assert_eq!(connection.outer_server_name.as_deref(), Some(ORIGIN_NAME));
             assert!(!connection.ech_accepted);
         }
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -524,7 +526,7 @@ async fn parallel_http1_connections_each_offer_the_cached_configuration() -> Tes
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
         let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
         let rdata = https_rdata(&ech_config_list(std::slice::from_ref(&config)));
-        let dns = DnsServer::spawn(move |_| {
+        let mut dns = DnsServer::spawn(move |_| {
             DnsReply::new(DnsAnswer::Records {
                 ttl: 300,
                 rdata: vec![rdata.clone()],
@@ -567,6 +569,7 @@ async fn parallel_http1_connections_each_offer_the_cached_configuration() -> Tes
             assert!(connection.ech_accepted);
             assert_eq!(connection.inner_server_name.as_deref(), Some(ORIGIN_NAME));
         }
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -606,7 +609,7 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
         let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
         let rdata = https_rdata(&ech_config_list(std::slice::from_ref(&config)));
-        let dns = DnsServer::spawn(move |_| {
+        let mut dns = DnsServer::spawn(move |_| {
             DnsReply::new(DnsAnswer::Records {
                 ttl: 300,
                 rdata: vec![rdata.clone()],
@@ -652,6 +655,7 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
         assert_eq!(observed[0].outer_server_name.as_deref(), Some(ORIGIN_NAME));
         assert!(!observed[0].ech_accepted);
         assert!(dns.queries().is_empty());
+        dns.finish().await?;
         Ok(())
     })
     .await

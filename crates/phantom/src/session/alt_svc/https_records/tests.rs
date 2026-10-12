@@ -395,7 +395,7 @@ async fn settle(discovery: &HttpsRecordDiscovery, origin: &Endpoint) -> TestResu
 
 #[tokio::test]
 async fn concurrent_requests_share_one_lookup_and_reuse_its_result() -> TestResult<()> {
-    let server = server(300, Duration::from_millis(100)).await?;
+    let mut server = server(300, Duration::from_millis(100)).await?;
     let discovery = discovery(&server, 4)?;
     let origin = endpoint("origin.test:8443")?;
 
@@ -409,22 +409,24 @@ async fn concurrent_requests_share_one_lookup_and_reuse_its_result() -> TestResu
     assert!(matches!(discovery.discover(&origin), Discovery::Advertised));
     assert_eq!(server.queries().len(), 1);
     assert_eq!(server.queries()[0].name(), OWNER);
+    server.finish().await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn expired_results_are_looked_up_again() -> TestResult<()> {
-    let server = server(0, Duration::ZERO).await?;
+    let mut server = server(0, Duration::ZERO).await?;
     let discovery = discovery(&server, 4)?;
     let origin = endpoint("origin.test:8443")?;
     assert!(settle(&discovery, &origin).await?);
     assert!(matches!(discovery.discover(&origin), Discovery::Pending(_)));
+    server.finish().await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn cache_holds_at_most_its_capacity() -> TestResult<()> {
-    let server = server(300, Duration::ZERO).await?;
+    let mut server = server(300, Duration::ZERO).await?;
     let discovery = discovery(&server, 1)?;
     let first = endpoint("origin.test:8443")?;
     let second = endpoint("other.test")?;
@@ -437,12 +439,13 @@ async fn cache_holds_at_most_its_capacity() -> TestResult<()> {
     };
     assert!(lookup.advertises_h3().await);
     assert_eq!(server.queries().len(), 3);
+    server.finish().await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn failed_lookup_is_remembered_as_no_advertisement() -> TestResult<()> {
-    let server = DnsServer::spawn(|_| DnsReply::new(DnsAnswer::ServerFailure)).await?;
+    let mut server = DnsServer::spawn(|_| DnsReply::new(DnsAnswer::ServerFailure)).await?;
     let discovery = discovery(&server, 4)?;
     let origin = endpoint("origin.test:8443")?;
     assert!(!settle(&discovery, &origin).await?);
@@ -452,6 +455,7 @@ async fn failed_lookup_is_remembered_as_no_advertisement() -> TestResult<()> {
         Discovery::NotAdvertised
     ));
     assert_eq!(server.queries().len(), queries);
+    server.finish().await?;
     Ok(())
 }
 
@@ -573,7 +577,7 @@ fn alternating_runtimes_each_start_at_most_one_lookup() -> TestResult<()> {
 
 #[tokio::test]
 async fn ip_literal_origins_are_never_queried() -> TestResult<()> {
-    let server = server(300, Duration::ZERO).await?;
+    let mut server = server(300, Duration::ZERO).await?;
     let discovery = discovery(&server, 4)?;
     for authority in ["127.0.0.1:8443", "[::1]:8443"] {
         assert!(matches!(
@@ -583,6 +587,7 @@ async fn ip_literal_origins_are_never_queried() -> TestResult<()> {
     }
     tokio::task::yield_now().await;
     assert!(server.queries().is_empty());
+    server.finish().await?;
     Ok(())
 }
 
