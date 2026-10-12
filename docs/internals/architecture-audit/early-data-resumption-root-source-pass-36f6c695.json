@@ -1,0 +1,43 @@
+{
+  "revision": "36f6c695364a360768ffb49b3c3af10cd33e8133",
+  "sources": [
+    {
+      "path": "crates/phantom/tests/sessions/early_data_server.rs",
+      "git_blob": "b5db2efafe153bf13e240f7a6103d594e252b01d",
+      "physical_sha256": "1c9dcea8d1b18774c2507f714cbc064a84f496de5213b3cd2707f1646cf0427e",
+      "lines": 161,
+      "disposition": "whole source manually read; source findings and candidates only; no new native evidence"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_tcp_early_data.rs",
+      "git_blob": "86379a17dfeccb8fe848dcf6d7b9517f51e81113",
+      "physical_sha256": "ead8fc68a7f148c3210a1fcfb1aeb75491d228677abc70448ecd724aba3d9021",
+      "lines": 490,
+      "disposition": "whole source manually read; source findings and candidates only; no new native evidence"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_tls_resumption.rs",
+      "git_blob": "ed679a1700a98c9f41c2cc68d6a77cd2ae2c2e3b",
+      "physical_sha256": "1a16f8df6f9daebe34c3d0d6e07eb80397cf27579b2b9c78e2905eb5c2b195c8",
+      "lines": 231,
+      "disposition": "whole source manually read; source findings and candidates only; no new native evidence"
+    }
+  ],
+  "confirmed_source_findings": [
+    "Six raw server factories (four TCP early-data, two resumption) remain inside consuming bounded caller futures; fallible caller operations precede success-only joins, so caller failure or outer Drop loses the original worker handle and outcome.",
+    "ALPN restart and failed early-data workers discard read_to_end errors over the original rejected stream; failure_after_early_data also treats every accept error as an expected handshake rejection without classification.",
+    "All three owners put local imports before std/external imports; operation grouping needs manual cleanup."
+  ],
+  "candidates": [
+    "h2_frame_types records a type before proving the full payload exists and silently discards trailing partial headers. Trace whether partial early-data HEADERS is intentional before changing its acceptance contract.",
+    "Early-data capture storage and rejected-stream read_to_end have no local byte ceiling; verify resolved TLS early-data ceilings and actual captured contracts before choosing aggregate bounds."
+  ],
+  "preserved_contracts": [
+    "Nine TCP early-data tests and two TLS resumption tests, actual ALPN/session_reused/early_data_accepted signals, original GET/POST bytes and request paths.",
+    "Original 200ms server delay, 1500ms admission wait,1000ms connect limit,10s early-data watchdog and5s resumption watchdog.",
+    "Existing bounded helpers retain actual Elapsed with await?; operation context may need improvement but cause erasure is not established.",
+    "Existing serving peer-gone exceptions are scoped to actual teardown and must not be broadened."
+  ],
+  "scope": "source-only root audit during frozen paired body/tunnel native run; no root or mirror mutation",
+  "native": null
+}

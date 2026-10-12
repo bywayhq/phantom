@@ -1,0 +1,199 @@
+{
+  "kind": "bounded source-only body and tunnel remedy handoff",
+  "lane": "C:/code/phantom-worktrees/audit-runtime-peer-owners",
+  "branch": "lane/audit-runtime-peer-owners",
+  "baseline": "07345c9307a0e986a34513c1bfccf7be292effdc",
+  "input_checkpoint": "1190af65002f8a152822e3c878819d408caaa2fa",
+  "remedy": "f5449521b10cde4db55aeab8c6ce4f60629ea950",
+  "commits": [
+    "f5449521b10cde4db55aeab8c6ce4f60629ea950 G | Arya Alikhani <AryaAlikhani@icloud.com> | Arya Alikhani <AryaAlikhani@icloud.com> | fix(session): retain body and tunnel peer outcomes",
+    "1190af65002f8a152822e3c878819d408caaa2fa G | Arya Alikhani <AryaAlikhani@icloud.com> | Arya Alikhani <AryaAlikhani@icloud.com> | test(session): reach the original URI parser failure"
+  ],
+  "worktree_status": [],
+  "input_delta": "two injected URI literals only, InvalidUri/parser-source assertions unchanged",
+  "remedy_delta": "three files; 296 additions, 76 deletions",
+  "changed_from_baseline": [
+    "crates/phantom/tests/sessions/session/body_ownership.rs",
+    "crates/phantom/tests/sessions/session/body_ownership/tests.rs",
+    "crates/phantom/tests/sessions/session/body_ownership/tests/peer_fixture.rs",
+    "crates/phantom/tests/sessions/session/proxy_ownership.rs",
+    "crates/phantom/tests/sessions/session/proxy_ownership/tests.rs"
+  ],
+  "changed_from_input": [
+    "crates/phantom/tests/sessions/session/body_ownership.rs",
+    "crates/phantom/tests/sessions/session/body_ownership/tests/peer_fixture.rs",
+    "crates/phantom/tests/sessions/session/proxy_ownership.rs"
+  ],
+  "source_bindings": [
+    {
+      "path": "crates/phantom/tests/sessions/session.rs",
+      "physical_bytes": 10123,
+      "lines": 306,
+      "physical_sha256": "f66bacda35e45af29a15c3d977670f82f829ae4bbb666b19ed15961ffee9cbae",
+      "git_blob": "7e43788bd5f24e7c52fb79796d3d07c44bfbbf0a",
+      "baseline_blob": "7e43788bd5f24e7c52fb79796d3d07c44bfbbf0a",
+      "input_checkpoint_blob": "7e43788bd5f24e7c52fb79796d3d07c44bfbbf0a"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/body_ownership.rs",
+      "physical_bytes": 13479,
+      "lines": 414,
+      "physical_sha256": "c5fc2974b42e876c9f1cdac0d85b5ae33235978ba13cfeb8f4375bf7ee18d4cc",
+      "git_blob": "d8ab6851dcec6f1b2dcebd0e890605b31b81e9ab",
+      "baseline_blob": "4e42d9c6982bc88107330d360f59a1ee35e50786",
+      "input_checkpoint_blob": "4e42d9c6982bc88107330d360f59a1ee35e50786"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_ownership.rs",
+      "physical_bytes": 9197,
+      "lines": 257,
+      "physical_sha256": "7c26ff622ce528ba7cdc115a11ba4c2fc312fcacbb4c07a9136a456be898e759",
+      "git_blob": "250a0f4b4debfce3e644fb504ae36c2540142cda",
+      "baseline_blob": "308caea63465c3d460e5a321a91491efb7d49ee3",
+      "input_checkpoint_blob": "308caea63465c3d460e5a321a91491efb7d49ee3"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/body_ownership/tests.rs",
+      "physical_bytes": 5275,
+      "lines": 173,
+      "physical_sha256": "682c96b0dedac61f1ca26e6e4ec8c2b52467d24ce0ae2101514dd20545cb93da",
+      "git_blob": "c03e09fc93e5f0ee9f621831f090b19b56e3f709",
+      "baseline_blob": "d1d739892012e5b2c65adeaeb0ccf49c6017c92e",
+      "input_checkpoint_blob": "c03e09fc93e5f0ee9f621831f090b19b56e3f709"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/body_ownership/tests/peer_fixture.rs",
+      "physical_bytes": 13310,
+      "lines": 353,
+      "physical_sha256": "1ab3c90445526428a87ad34d4e36251698c0e99c7abcafdbab5596703eec00b4",
+      "git_blob": "39d35fd552e59e15708869f5ec25396de377a9fe",
+      "baseline_blob": "679d3d1979acb16e4ab5720bc941afe1bd48b39c",
+      "input_checkpoint_blob": "679d3d1979acb16e4ab5720bc941afe1bd48b39c"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_ownership/tests.rs",
+      "physical_bytes": 3037,
+      "lines": 99,
+      "physical_sha256": "88065ff89218c1c79417e9d19d74ebb036fd439c9fb89acf7d763d1eb73eaad7",
+      "git_blob": "92088de62bf9835001b6eeddab6d7dc2e2d7fac9",
+      "baseline_blob": "b334b0a7018b9fa36650d2a575af8ef5a27fadd2",
+      "input_checkpoint_blob": "92088de62bf9835001b6eeddab6d7dc2e2d7fac9"
+    }
+  ],
+  "protected_bindings": [
+    {
+      "path": "crates/phantom/tests/sessions/session/request_ownership.rs",
+      "git_blob": "29d7bea8f982b758ac73281adef5335a0cb9047d",
+      "baseline_blob": "29d7bea8f982b758ac73281adef5335a0cb9047d"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/request_ownership/tests.rs",
+      "git_blob": "4b1ae22f49198be8501c42913427cdea9af5886a",
+      "baseline_blob": "4b1ae22f49198be8501c42913427cdea9af5886a"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/reuse_ownership.rs",
+      "git_blob": "b44fd5264336624f99cc2390cc5419540f9e71ab",
+      "baseline_blob": "b44fd5264336624f99cc2390cc5419540f9e71ab"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/upload_contract.rs",
+      "git_blob": "8fe51acd277844c2853a71fb798e72aa3c827a8d",
+      "baseline_blob": "8fe51acd277844c2853a71fb798e72aa3c827a8d"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_auth.rs",
+      "git_blob": "e0cb866d2adb740d8e09b6c9e45ee0b81aa18a6c",
+      "baseline_blob": "e0cb866d2adb740d8e09b6c9e45ee0b81aa18a6c"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1.rs",
+      "git_blob": "328ed808ba23ba7de43319cc355ce729a154bce4",
+      "baseline_blob": "328ed808ba23ba7de43319cc355ce729a154bce4"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1/ownership.rs",
+      "git_blob": "487614aa64a0572ba81a610a5878dfbfa62a23dd",
+      "baseline_blob": "487614aa64a0572ba81a610a5878dfbfa62a23dd"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1/ownership/tests.rs",
+      "git_blob": "de01e4b366ce426e8cab0d8d9f10f49224fcf8e0",
+      "baseline_blob": "de01e4b366ce426e8cab0d8d9f10f49224fcf8e0"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1/ownership/queued_tests.rs",
+      "git_blob": "d1f6ef274816ceda826d4a6d52bbf9d3b4c36e6d",
+      "baseline_blob": "d1f6ef274816ceda826d4a6d52bbf9d3b4c36e6d"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1/ownership/budget_tests.rs",
+      "git_blob": "dd5d66a11f099964aaba781f184797653bbd6918",
+      "baseline_blob": "dd5d66a11f099964aaba781f184797653bbd6918"
+    }
+  ],
+  "resolved_support_bindings": [
+    {
+      "path": "crates/phantom/tests/support/tunnel_proxy/connection_peer.rs",
+      "git_blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2",
+      "baseline_blob": "e5c0dc09c7ba3f10390e53c0aedd6b2b99a117e2"
+    },
+    {
+      "path": "crates/phantom/tests/support/deadline.rs",
+      "git_blob": "fa1664fd6b035a66e2f757408680bd69ca0a9e23",
+      "baseline_blob": "fa1664fd6b035a66e2f757408680bd69ca0a9e23"
+    }
+  ],
+  "resolved_tokio": "1.53.1; borrowed JoinHandle cancel safety, finished cooperative Pending, Timeout inner-first polling, actual oneshot try_recv/is_terminated/close",
+  "full_final_sources_read": [
+    "session.rs",
+    "session/body_ownership.rs",
+    "session/proxy_ownership.rs",
+    "session/body_ownership/tests.rs",
+    "session/body_ownership/tests/peer_fixture.rs",
+    "session/proxy_ownership/tests.rs"
+  ],
+  "full_diff_read": true,
+  "source_acceptance": [
+    "immediate actual guarded workers outside original five-second consuming caller",
+    "actual successful output slots survive subsequent awaits; original errors return without another await",
+    "both tunnel outcomes collected even first error",
+    "foreign finished cancellation JoinError and task ID retained",
+    "finite cleanup preserves actual contextual Elapsed",
+    "real queued Setup recovered; actual closed-resume caller awaited; original held socket retained",
+    "thirteen strict controls unchanged by remedy; two test blobs equal input-only checkpoint",
+    "four ordinary worker/client/wire contracts preserved"
+  ],
+  "verification": {
+    "author": "source and Git reads only",
+    "compiler": "not run",
+    "cargo": "not run",
+    "native": "not run",
+    "formatter": "not run",
+    "checker": "not run",
+    "root_import": "not performed",
+    "push_merge_rebase": "not performed"
+  },
+  "baseline_evidence": {
+    "origin": "integration-owner report, author did not independently read native logs",
+    "selected_each_host": 54,
+    "passes_each_host": 41,
+    "failures_each_host": 13,
+    "four_completed_causes": "actual InvalidUri parser-source reached, original peer cause missing",
+    "eight_pending": "actual destruction target reached",
+    "queued": "actual resume RecvError reached before exit targets",
+    "independent_qualification": "pending when authorization received"
+  },
+  "limitations": [
+    "remedy uncompiled and unmeasured; no predicted passing result",
+    "external Drop aborts but cannot asynchronously collect task outcomes",
+    "unfinished foreign/local abort race can have indistinguishable provenance",
+    "initial accepted TLS/head controls do not exercise later client body/reset phase",
+    "no production leak or whole-audit closure claim",
+    "root owns independent review, formatting, composition, both-host tests and quality gates"
+  ],
+  "markdown": {
+    "path": "C:/code/phantom/target/architecture-audit/session-body-tunnel-remedy-source-handoff-f5449521.md",
+    "sha256": "8969c4f3565e3bf5af8f81c2455b47c8c0c3d518e1a1fdd3f3a4ce153938d14f"
+  }
+}

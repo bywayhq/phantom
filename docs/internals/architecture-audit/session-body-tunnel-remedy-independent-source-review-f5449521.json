@@ -1,0 +1,75 @@
+{
+  "revision": "f5449521b10cde4db55aeab8c6ce4f60629ea950",
+  "parent": "1190af65002f8a152822e3c878819d408caaa2fa",
+  "baseline": "07345c9307a0e986a34513c1bfccf7be292effdc",
+  "decision": "APPROVE_SOURCE",
+  "whole_sources": [
+    {
+      "path": "crates/phantom/tests/sessions/session.rs",
+      "lines": 306,
+      "git_blob": "7e43788bd5f24e7c52fb79796d3d07c44bfbbf0a",
+      "git_content_lf_sha256": "f66bacda35e45af29a15c3d977670f82f829ae4bbb666b19ed15961ffee9cbae",
+      "input_blob": "7e43788bd5f24e7c52fb79796d3d07c44bfbbf0a"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/body_ownership.rs",
+      "lines": 414,
+      "git_blob": "d8ab6851dcec6f1b2dcebd0e890605b31b81e9ab",
+      "git_content_lf_sha256": "c5fc2974b42e876c9f1cdac0d85b5ae33235978ba13cfeb8f4375bf7ee18d4cc",
+      "input_blob": "4e42d9c6982bc88107330d360f59a1ee35e50786"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/body_ownership/tests.rs",
+      "lines": 173,
+      "git_blob": "c03e09fc93e5f0ee9f621831f090b19b56e3f709",
+      "git_content_lf_sha256": "682c96b0dedac61f1ca26e6e4ec8c2b52467d24ce0ae2101514dd20545cb93da",
+      "input_blob": "c03e09fc93e5f0ee9f621831f090b19b56e3f709"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/body_ownership/tests/peer_fixture.rs",
+      "lines": 353,
+      "git_blob": "39d35fd552e59e15708869f5ec25396de377a9fe",
+      "git_content_lf_sha256": "1ab3c90445526428a87ad34d4e36251698c0e99c7abcafdbab5596703eec00b4",
+      "input_blob": "679d3d1979acb16e4ab5720bc941afe1bd48b39c"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_ownership.rs",
+      "lines": 257,
+      "git_blob": "250a0f4b4debfce3e644fb504ae36c2540142cda",
+      "git_content_lf_sha256": "7c26ff622ce528ba7cdc115a11ba4c2fc312fcacbb4c07a9136a456be898e759",
+      "input_blob": "308caea63465c3d460e5a321a91491efb7d49ee3"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session/proxy_ownership/tests.rs",
+      "lines": 99,
+      "git_blob": "92088de62bf9835001b6eeddab6d7dc2e2d7fac9",
+      "git_content_lf_sha256": "88065ff89218c1c79417e9d19d74ebb036fd439c9fb89acf7d763d1eb73eaad7",
+      "input_blob": "92088de62bf9835001b6eeddab6d7dc2e2d7fac9"
+    }
+  ],
+  "full_diff_read": "three semantic files296+/76- plus separate two injected URI literals",
+  "handoff_read": "session-body-tunnel-remedy-source-handoff-f5449521.md",
+  "handoff_json": "not present at review inventory",
+  "resolved_scope": [
+    "ConnectionPeer Future/Drop/spawn/is_finished/abort API",
+    "FixtureFailures and finish_with_cleanup",
+    "FixtureDeadline",
+    "reuse_ownership spawn_server/Requests",
+    "Tokio1.53.1 oneshot close/is_terminated/try_recv",
+    "Tokio1.53.1 JoinHandle poll and timeout poll"
+  ],
+  "control_bodies_unchanged": 13,
+  "ordinary_contracts_preserved": 4,
+  "signature": "G",
+  "author_email": "AryaAlikhani@icloud.com",
+  "committer_email": "AryaAlikhani@icloud.com",
+  "native": null,
+  "remaining": [
+    "unfinished foreign/local abort race",
+    "external Drop cannot join or retain outputs",
+    "cleanup expiry branches unmeasured",
+    "queued recovery variants unmeasured",
+    "broader owners and final gates"
+  ],
+  "markdown_sha256": "12d3e9e983d299f32dd437a43ea679d3e564a52cbd0bcd716a190e2e2f13bcad"
+}

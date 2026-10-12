@@ -2265,7 +2265,8 @@ The queued-setup target captures destruction, task completion and same-socket
 failures before backup. Its original RecvError and operation context remain.
 These are accepted TCP/TLS acquisition observations before Phantom upload,
 stream reset or tunnel forwarding. All forty-one prior methods and focused
-quality checks pass. Body/tunnel ownership and queued acquisition need repair.
+quality checks pass. At this baseline, body/tunnel ownership and queued
+acquisition need repair.
 
 Whole expect-continue source reads also confirm fifteen raw worker owners,
 missing aggregate byte ceilings and discarded deadline/quiet/cancellation
@@ -2275,6 +2276,46 @@ findings have no new native regression results. See
 `expect-continue-independent-source-review-9b5c539a.json`.
 
 Final architecture review, full gates, candidate CI and integration remain open.
+
+### Verified body and tunnel ownership
+
+At `36f6c695`, all fifty-four selected session methods pass on Windows and
+Linux. Thirteen unchanged controls that failed at `59c28617` now reach their
+later assertions: actual accepted-peer destruction, task completion and
+closure of the same socket before backup. Four deadline cases retain their
+original contextual Elapsed. Four completed-cause cases retain the actual
+InvalidUri/parser source and original cancelled task IDs, including both
+tunnel peers. The queued case retains its resume RecvError/context and
+recovers the real Setup before checking destruction, completion and closure.
+See `session-body-tunnel-remedy-independent-native-review-36f6c695.json`.
+
+The four ordinary upload, reset and tunnel wire contracts remain unchanged.
+Both host runs pass formatting, strict requests/streams/sessions Clippy and
+Rust 1.88 checks. Socket draining uses a fixed buffer and waits for EOF or
+the existing disconnect classification under the original bound.
+
+These controls cancel at accepted TCP/TLS reads before upload, reset or
+forwarding starts. The ordinary methods exercise those normal paths.
+External Drop cannot report outputs through its abandoned caller. Unfinished
+cancellation races, cleanup expiry/recovery variants and broader session
+owners still need work. Full gates, candidate CI and integration remain open.
+
+### TCP early data and TLS resumption source review
+
+Whole root and independent reads cover the early-data server and both TCP
+session owners. Six raw server factories cross fallible caller paths inside
+consuming watchdogs. First-close failure branches join the worker, but erase
+the original channel error. Rejected-stream read errors are discarded and
+the failure helper accepts every second-accept error as expected rejection.
+These findings require controls and remedies. See
+`early-data-resumption-independent-source-review-36f6c695.json`.
+
+The eleven ordinary contracts retain their original ALPN, resumption,
+early-data offer sequences, request bytes and timing windows. Both bounded
+helpers already retain Elapsed. Frame truncation handling and aggregate
+storage ceilings remain candidates pending the intended early-data contract
+and resolved TLS limits. The fifty-four session tests above exclude these
+modules, so they provide no new native evidence for this source pass.
 
 ## Next
 
