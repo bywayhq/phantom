@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import contextlib
+import errno
 import socket
 import ssl
 import tempfile
@@ -15,8 +16,11 @@ from scripts.capture import http2_websocket
 from scripts.capture.http2_session import (
     HOSTNAME,
     CaptureFailures,
+    CaptureLimitError,
+    CaptureProtocol,
     CaptureRun,
     CaptureServer,
+    Http1Session,
     PlainChannel,
     generate_certificate,
 )
@@ -75,12 +79,12 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.backup_failures = []
         self.patches = contextlib.ExitStack()
         self.directory = tempfile.TemporaryDirectory(prefix="websocket-owner-")
-        original_start = asyncio.start_server
+        original_start = asyncio.BaseEventLoop.create_server
         original_read = PlainChannel.read_raw
 
-        async def start(*args, **kwargs):
+        async def start(loop, *args, **kwargs):
             try:
-                listener = await original_start(*args, **kwargs)
+                listener = await original_start(loop, *args, **kwargs)
             except OSError as error:
                 self.bind_failures.append(error)
                 raise
@@ -102,7 +106,7 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 connection.read_failure = error
                 raise
 
-        self.patches.enter_context(patch("asyncio.start_server", side_effect=start))
+        self.patches.enter_context(patch.object(asyncio.BaseEventLoop, "create_server", start))
         self.patches.enter_context(patch.object(PlainChannel, "read_raw", read))
 
     async def asyncTearDown(self) -> None:
@@ -327,11 +331,11 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
     async def test_failed_bind_and_original_listener_wait_are_both_retained(self):
         port = self.occupy_second_port()
         wait_failure = RuntimeError("injected acquired listener wait failure")
-        original_start = asyncio.start_server
+        original_start = asyncio.BaseEventLoop.create_server
         waited = asyncio.Event()
 
-        async def start(*args, **kwargs):
-            listener = await original_start(*args, **kwargs)
+        async def start(loop, *args, **kwargs):
+            listener = await original_start(loop, *args, **kwargs)
             original_wait = listener.wait_closed
 
             async def wait_closed():
@@ -345,7 +349,7 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
             return listener
 
         error = None
-        with patch("asyncio.start_server", side_effect=start):
+        with patch.object(asyncio.BaseEventLoop, "create_server", start):
             try:
                 await self.server.start("127.0.0.1", plain_port=port)
             except BaseException as caught:
@@ -433,6 +437,15 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
         wait_failure = RuntimeError("injected first listener wait failure")
         abort_called = asyncio.Event()
         wait_called = asyncio.Event()
+        original_listener_wait = asyncio.Server.wait_closed
+
+        async def wait_closed(listener):
+            await original_listener_wait(listener)
+            if listener is self.listeners[0]:
+                wait_called.set()
+                raise wait_failure
+
+        self.patches.enter_context(patch.object(asyncio.Server, "wait_closed", wait_closed))
 
         async def fail(connection):
             original_abort = connection.writer.transport.abort
@@ -444,19 +457,8 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
 
                 original_abort()
 
-            listener = self.listeners[0]
-            original_wait = listener.wait_closed
-
-            async def wait_closed():
-                await original_wait()
-                wait_called.set()
-                raise wait_failure
-
             self.patches.enter_context(
                 patch.object(connection.writer.transport, "abort", abort)
-            )
-            self.patches.enter_context(
-                patch.object(listener, "wait_closed", wait_closed)
             )
             raise primary
 
@@ -480,7 +482,7 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_driver_and_actual_accepted_writer_wait_causes_both_survive(self):
         primary = PermissionError("injected original driver exit failure")
-        wait_failure = RuntimeError("injected actual accepted writer wait failure")
+        wait_failure = ConnectionResetError(errno.EIO, "injected local writer wait failure")
         waited = asyncio.Event()
         original_wait = asyncio.StreamWriter.wait_closed
 
@@ -516,6 +518,95 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.server.connections), 1)
         self.assertTrue(self.server.connections[0].task.done())
         self.assertTrue(all(not listener.is_serving() for listener in self.listeners))
+
+    async def test_local_request_error_with_peer_errno_keeps_its_original_cause(self):
+        await self.server.start("127.0.0.1")
+        self.server.begin_run(CaptureRun(
+            "local", http2_websocket.SCENARIOS["h1-accept"].policy, {}
+        ))
+        _, writer, connection = await self.connect()
+        failure = ConnectionResetError(errno.ECONNRESET, "original local request failure")
+        self.expected_failures.append(failure)
+        with patch.object(Http1Session, "respond", side_effect=failure):
+            writer.write(b"GET /missing HTTP/1.1\r\nHost: server.phantom.test\r\n\r\n")
+            await asyncio.wait_for(writer.drain(), DEADLINE)
+            await self.completed_callback(connection)
+        self.assertIs(connection.task.exception(), failure)
+        self.server.run = None
+        with self.assertRaises(ConnectionResetError) as caught:
+            await self.server.close()
+        self.assertIs(caught.exception, failure)
+
+    async def test_delayed_native_callback_is_drained_before_the_next_run(self):
+        await self.server.start("127.0.0.1")
+        old = CaptureRun("old", http2_websocket.SCENARIOS["h1-accept"].policy, {})
+        self.server.begin_run(old)
+        delivered = asyncio.Event()
+        stopping = asyncio.Event()
+        held = []
+        original_made = CaptureProtocol.connection_made
+        original_stop = self.server._stop_connections
+
+        def hold(protocol, transport):
+            held.append((protocol, transport))
+            delivered.set()
+
+        async def stop():
+            asyncio.get_running_loop().call_soon(stopping.set)
+            return await original_stop()
+
+        with patch.object(CaptureProtocol, "connection_made", hold):
+            _, writer = await asyncio.wait_for(
+                asyncio.open_connection(*self.server.plain_address), DEADLINE
+            )
+            self.clients.append(writer)
+            await asyncio.wait_for(delivered.wait(), DEADLINE)
+
+        protocol, transport = held[0]
+        self.server.run = None
+        with patch.object(self.server, "_stop_connections", stop):
+            cleanup = asyncio.create_task(self.server.stop_connections())
+            try:
+                await asyncio.wait_for(stopping.wait(), DEADLINE)
+                self.assertTrue(protocol.stopping)
+                self.assertFalse(cleanup.done())
+                self.assertFalse(protocol.retired.done())
+            finally:
+                # Deliver the original callback before any backup can run.
+                original_made(protocol, transport)
+                await asyncio.wait_for(cleanup, DEADLINE)
+
+        self.assertTrue(protocol.retired.done())
+        self.assertEqual(old.connections, [])
+        new = CaptureRun("new", http2_websocket.SCENARIOS["h1-accept"].policy, {})
+        self.server.begin_run(new)
+        reader, writer, connection = await self.connect()
+        await self.request(reader, writer, "/missing", NOT_FOUND)
+        self.assertEqual(len(new.connections), 1)
+        self.assertEqual(old.connections, [])
+        self.server.run = None
+        await self.server.close()
+        self.assertTrue(connection.task.done())
+
+    async def test_native_pipelined_requests_stop_at_the_run_retention_limit(self):
+        await self.server.start("127.0.0.1")
+        run = CaptureRun("limit", http2_websocket.SCENARIOS["h1-accept"].policy, {})
+        self.server.begin_run(run)
+        _, writer, connection = await self.connect()
+        request = b"GET /missing HTTP/1.1\r\nHost: server.phantom.test\r\n\r\n"
+        writer.write(request * 1025)
+        await asyncio.wait_for(writer.drain(), DEADLINE)
+        await self.completed_callback(connection)
+        original = connection.task.exception()
+        self.expected_failures.append(original)
+        self.assertIsInstance(original, CaptureLimitError)
+        self.assertEqual(len(run.requests), 1024)
+        self.assertEqual(run.request_count, 1024)
+        self.assertTrue(all(not listener.is_serving() for listener in self.listeners))
+        self.server.run = None
+        with self.assertRaises(CaptureLimitError) as caught:
+            await self.server.close()
+        self.assertIs(caught.exception, original)
 
     async def test_native_malformed_tls_remains_partial_capture_evidence(self):
         await self.server.start("127.0.0.1")

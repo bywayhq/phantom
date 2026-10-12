@@ -1,10 +1,13 @@
 import asyncio
 import contextlib
 import dataclasses
+import errno
 import re
 import ssl
 import unittest
 import zlib
+from types import SimpleNamespace
+from unittest.mock import patch
 from urllib.parse import urlencode, urlsplit
 
 from h2.config import H2Configuration
@@ -22,12 +25,22 @@ from hpack import NeverIndexedHeaderTuple
 
 from scripts.capture.http2_session import (
     HOSTNAME,
+    CaptureRun,
     CaptureServer,
+    ClientHello,
+    ConnectionRecord,
+    Http1Session,
+    Http2Frame,
+    MalformedCaptureError,
+    PlainChannel,
     analyze_http2,
     decode_header_block,
     frame_details,
     generate_certificate,
     hpack_representations,
+    parse_priority,
+    split_frames,
+    strip_padding,
 )
 from scripts.capture.http2_websocket import (
     CATALOG,
@@ -37,14 +50,20 @@ from scripts.capture.http2_websocket import (
     CaptureMetadata,
     capture_scenario,
     fixture,
+    launch_plan,
     main,
     page,
+    run as run_capture,
+    urls,
 )
 from scripts.capture.websocket_frames import (
     CLOSE,
     DEFLATE_TAIL,
+    EchoPeer,
     FrameReader,
     client_frame,
+    encode_frame,
+    summarize_send_policy,
 )
 
 METADATA = CaptureMetadata(
@@ -744,6 +763,109 @@ class Http2WebSocketTests(unittest.TestCase):
 
     def test_catalog_names_are_unique(self) -> None:
         self.assertEqual(len({scenario.name for scenario in CATALOG}), len(CATALOG))
+
+
+class CaptureBoundaryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_complete_request_head_accepts_65536_and_rejects_65537(self):
+        for size in (65536, 65537):
+            prefix = b"GET / HTTP/1.1\r\nX-Padding: "
+            head = prefix + b"x" * (size - len(prefix) - 4) + b"\r\n\r\n"
+            reader = asyncio.StreamReader()
+            reader.feed_data(head)
+            reader.feed_eof()
+            record = ConnectionRecord("plain", 0.0)
+            run = CaptureRun("boundary", SCENARIOS["h1-accept"].policy, {})
+            session = Http1Session(PlainChannel(reader, None, record, run.now), run, 0, "http/1.1")
+            with self.subTest(size=size):
+                if size == 65536:
+                    self.assertEqual(await session.read_head(), head)
+                else:
+                    with self.assertRaisesRegex(ValueError, "request head exceeds"):
+                        await session.read_head()
+
+    def test_complete_client_hello_vectors_are_checked_without_losing_partial_input(self):
+        valid = b"\x03\x03" + bytes(32) + b"\x00\x00\x02\x13\x01\x01\x00\x00\x00"
+        for body in (valid[:34], valid[:-1], valid + b"x"):
+            handshake = b"\x01" + len(body).to_bytes(3, "big") + body
+            wire = b"\x16\x03\x03" + len(handshake).to_bytes(2, "big") + handshake
+            hello = ClientHello()
+            hello.feed(wire[:-1])
+            self.assertFalse(hello.complete)
+            with self.assertRaises(MalformedCaptureError):
+                hello.feed(wire[-1:])
+        handshake = b"\x01" + len(valid).to_bytes(3, "big") + valid
+        hello = ClientHello()
+        hello.feed(b"\x16\x03\x03" + len(handshake).to_bytes(2, "big") + handshake)
+        self.assertTrue(hello.complete)
+
+    def test_h2_extents_and_continuation_stream_are_checked(self):
+        with self.assertRaises(MalformedCaptureError):
+            strip_padding(Http2Frame("client", 0, 0, 8, 1, b""))
+        with self.assertRaises(MalformedCaptureError):
+            parse_priority(bytes(4))
+        headers = b"\x00\x00\x01\x01\x00\x00\x00\x00\x01\x82"
+        wrong_continuation = b"\x00\x00\x00\x09\x04\x00\x00\x00\x03"
+        with self.assertRaisesRegex(MalformedCaptureError, "matching header block"):
+            split_frames([(0, headers + wrong_continuation)], "client", preface=False)
+        frames, trailing = split_frames([(0, headers[:-1])], "client", preface=False)
+        self.assertEqual(frames, [])
+        self.assertEqual(trailing, 9)
+
+    def test_decoded_messages_and_frame_retention_have_finite_limits(self):
+        compressor = zlib.compressobj(wbits=-zlib.MAX_WBITS)
+        raw = b"x" * (16 * 1024 * 1024 + 1)
+        compressed = compressor.compress(raw) + compressor.flush(zlib.Z_SYNC_FLUSH)
+        wire = encode_frame(2, compressed[:-4], rsv1=True, mask=b"1234")
+        with self.assertRaisesRegex(ValueError, "decoded WebSocket bytes"):
+            EchoPeer(inflate=True).feed(wire)
+        with self.assertRaisesRegex(ValueError, "decoded WebSocket bytes"):
+            summarize_send_policy(wire, inflate=True)
+        with self.assertRaisesRegex(ValueError, "frame count"):
+            FrameReader().feed(b"\x89\x00" * 16385)
+
+    async def test_nonfinite_durations_fail_before_certificate_or_listener_acquisition(self):
+        for timeout, observation in ((float("nan"), 0), (float("inf"), 0), (1, float("inf")), (1, -1)):
+            args = SimpleNamespace(
+                repeat=1, run_timeout=timeout, observation=observation,
+                browser="manual", listen="127.0.0.1", scenario=["h1-accept"],
+            )
+            with patch("scripts.capture.http2_websocket.generate_certificate") as acquire:
+                with self.assertRaises(ValueError):
+                    await run_capture(args)
+                acquire.assert_not_called()
+
+    async def test_ipv6_listener_page_urls_and_firefox_routes_agree(self):
+        server = CaptureServer(CERTIFICATE)
+        try:
+            await server.start("::1")
+        except OSError as error:
+            if error.errno in (errno.EAFNOSUPPORT, errno.EADDRNOTAVAIL):
+                self.skipTest("native runner does not provide IPv6 loopback")
+            raise
+        writer = None
+        try:
+            run = CaptureRun("ipv6", SCENARIOS["h1-accept"].policy, {})
+            page_url, socket_url = urls(server, SCENARIOS["h1-accept"], run.token)
+            run.pages = {"plain": page(socket_url, run.token)}
+            server.begin_run(run)
+            self.assertEqual(urlsplit(page_url).hostname, "::1")
+            self.assertEqual(urlsplit(socket_url).hostname, "::1")
+            reader, writer = await asyncio.open_connection("::1", server.plain_address[1])
+            writer.write(b"GET /ws.html?run=ipv6 HTTP/1.1\r\nHost: [::1]\r\n\r\n")
+            await writer.drain()
+            head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), TIMEOUT)
+            length = int(re.search(rb"content-length: (\d+)", head).group(1))
+            body = await asyncio.wait_for(reader.readexactly(length), TIMEOUT)
+            self.assertEqual(body, run.pages["plain"])
+            args = SimpleNamespace(browser="firefox", browser_path=None, headful=False, firefox_skip_tls_trust=True)
+            plan = launch_plan(args, CERTIFICATE, "::1", server.tls_address[1])
+            self.assertFalse(dict(plan.firefox_preferences)["network.dns.disableIPv6"])
+        finally:
+            if writer is not None:
+                writer.close()
+                await writer.wait_closed()
+            server.run = None
+            await server.close()
 
 
 if __name__ == "__main__":
