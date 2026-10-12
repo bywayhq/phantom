@@ -2808,9 +2808,13 @@ bindings. External Drop aborts; it does not asynchronously join. A cleanup
 timeout reports failure without establishing completed destruction.
 
 The profile, QUIC and testkit boundary review supports their existing roles
-and dependency direction. Remaining source findings are DNS helper failure
-reporting (A281), specific layout and lint exceptions (A282), and capture
-process cleanup (A283). Their repairs and final integration remain open.
+and dependency direction. At `22a6eda8`, their import layout and three broad
+lint exceptions are corrected (A282). Both hosts pass no-default-feature library and
+all-target/all-feature Clippy, Rust 1.88, formatting and unsafe-boundary
+checks. Root and independent readers accept complete logs and separate
+clean-revision bindings. No runtime behavior changed, so no new test was
+added. DNS helper failure reporting (A281), capture process cleanup (A283)
+and final integration remain open.
 
 ## Next
 
