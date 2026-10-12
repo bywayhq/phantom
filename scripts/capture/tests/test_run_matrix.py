@@ -463,13 +463,16 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(probe.overlaps["a"], {"b"})
 
     def test_a_raising_job_is_reported_as_failed(self) -> None:
+        failure = RuntimeError("boom")
+
         def run(item: Job) -> JobResult:
-            raise RuntimeError("boom")
+            raise failure
 
         (result,) = schedule([job("x")], run, limit=2)
 
         self.assertEqual(result.status, "failed")
         self.assertIn("boom", result.attempts[0].detail)
+        self.assertIs(result.attempts[0].failure, failure)
 
     def test_ctrl_c_stops_the_batch_and_reports_unstarted_jobs(self) -> None:
         stopped = threading.Event()
@@ -512,14 +515,61 @@ class ScheduleTests(unittest.TestCase):
 
 
 class CleanupFailureTests(unittest.TestCase):
+    def test_launch_and_cleanup_failures_remain_reported_and_owned(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (item,) = expand_manifest(
+                manifest(fake_capture()), base=root, tools=FAKE_TOOLS
+            )
+            attempts = Attempts()
+            container = mock.Mock()
+            launch_error = OSError("gate write failed")
+            close_error = OSError("job close failed")
+            container.start.side_effect = launch_error
+            container.close.side_effect = close_error
+            with (
+                mock.patch.object(
+                    run_matrix, "ProcessContainer", return_value=container
+                ),
+                mock.patch.object(run_matrix, "stop_processes_naming") as sweep,
+                self.assertRaises(run_matrix.CleanupError) as raised,
+            ):
+                run_matrix.run_attempt(
+                    item,
+                    1,
+                    root / "work",
+                    shared_host=False,
+                    limit=1,
+                    attempts=attempts,
+                )
+
+            self.assertIs(raised.exception.failures[0][1], launch_error)
+            cleanup = raised.exception.failures[1][1]
+            self.assertIs(cleanup.failures[0][1], close_error)
+            self.assertIn("gate write failed", str(raised.exception))
+            self.assertIn("job close failed", str(raised.exception))
+            self.assertEqual(
+                [owned for owned, _temporary in attempts.running.values()],
+                [container],
+            )
+            sweep.assert_called_once()
+
+            container.close.side_effect = None
+            with mock.patch.object(run_matrix, "stop_processes_naming"):
+                attempts.stop()
+            self.assertEqual(container.close.call_count, 2)
+
     def test_stop_cleans_every_attempt_after_one_cleanup_failure(self) -> None:
-        for operation in ["close", "sweep"]:
+        for operation in ["close", "sweep", "interrupt"]:
             with self.subTest(operation=operation):
                 attempts = Attempts()
                 first, second = mock.Mock(), mock.Mock()
                 attempts.add("first", first, Path("owned-first"))
                 attempts.add("second", second, Path("owned-second"))
-                if operation == "close":
+                interruption = KeyboardInterrupt("stop interrupted")
+                if operation == "interrupt":
+                    first.close.side_effect = interruption
+                elif operation == "close":
                     first.close.side_effect = OSError("job close failed")
                 sweep_error = OSError("profile discovery failed")
                 with (
@@ -530,7 +580,11 @@ class CleanupFailureTests(unittest.TestCase):
                         if operation == "sweep"
                         else None,
                     ) as sweep,
-                    self.assertRaises(Exception) as raised,
+                    self.assertRaises(
+                        KeyboardInterrupt
+                        if operation == "interrupt"
+                        else run_matrix.CleanupError
+                    ) as raised,
                 ):
                     attempts.stop()
 
@@ -541,13 +595,17 @@ class CleanupFailureTests(unittest.TestCase):
                     [call.args[0] for call in sweep.call_args_list],
                     [Path("owned-first"), Path("owned-second")],
                 )
-                self.assertIn("first", str(raised.exception))
-                self.assertIn(
-                    "job close failed"
-                    if operation == "close"
-                    else "profile discovery failed",
-                    str(raised.exception),
-                )
+                if operation == "interrupt":
+                    self.assertIs(raised.exception, interruption)
+                    self.assertIn("first", str(interruption.__cause__))
+                else:
+                    self.assertIn("first", str(raised.exception))
+                    self.assertIn(
+                        "job close failed"
+                        if operation == "close"
+                        else "profile discovery failed",
+                        str(raised.exception),
+                    )
 
     def test_close_and_sweep_failures_both_keep_their_original_causes(self) -> None:
         container = mock.Mock()
@@ -1411,6 +1469,9 @@ class SubprocessTests(unittest.TestCase):
 
         self.assertEqual(result.status, "failed")
         self.assertEqual(result.attempts[0].detail, "timed out after 1s")
+        self.assertIsInstance(
+            result.attempts[0].failure, run_matrix.subprocess.TimeoutExpired
+        )
         self.assertLess(time.perf_counter() - begin, 120)
         pid = int(pid_file.read_text())
         self.assertTrue(ended_within(pid), f"grandchild {pid} outlived the timeout")

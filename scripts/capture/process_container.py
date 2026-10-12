@@ -10,7 +10,6 @@ every process whose command line names the attempt's temporary directory.
 
 from __future__ import annotations
 
-import contextlib
 import os
 import signal
 import subprocess
@@ -24,6 +23,27 @@ JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS = 9
 JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000
 PROCESS_SET_QUOTA = 0x0100
 PROCESS_TERMINATE = 0x0001
+
+
+class ProcessCleanupError(RuntimeError):
+    """Keep each failed operation and the container that can retry cleanup."""
+
+    def __init__(
+        self,
+        failures: Sequence[tuple[str, BaseException]],
+        *,
+        container: ProcessContainer | None = None,
+        primary: BaseException | None = None,
+    ) -> None:
+        self.failures = tuple(failures)
+        self.container = container
+        self.primary = primary
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        super().__init__(
+            "process cleanup failed: "
+            + "; ".join(f"{operation}: {error}" for operation, error in failures)
+        )
 
 
 # No site or capture imports execute before the gate. The normal child keeps
@@ -85,7 +105,10 @@ class ProcessContainer:
         self._lock = threading.Lock()
         self._started = False
         self._closed = False
+        self._cleanup_complete = False
+        self._group_stopped = False
         self._gate: BinaryIO | None = None
+        self._native_handles: list[int] = []
         self.job: int | None = None
         windows = sys.platform == "win32"
         self.process = subprocess.Popen(
@@ -101,10 +124,17 @@ class ProcessContainer:
             self._gate = self.process.stdin
             try:
                 self.job = _windows_job(self.process.pid)
-                if self.job is None:
-                    raise OSError("Windows refused the capture job object")
-            except BaseException:
-                self.close()
+            except BaseException as error:
+                self._native_handles = getattr(error, "pending_handles", [])
+                error.container = self
+                try:
+                    self.close()
+                except BaseException as cleanup:
+                    raise error from ProcessCleanupError(
+                        (("close after assignment failure", cleanup),),
+                        container=self,
+                        primary=error,
+                    )
                 raise
         # The assigned job or POSIX group, not a claim about external brokers.
         # Retained after close for reporting.
@@ -112,48 +142,117 @@ class ProcessContainer:
 
     def start(self) -> bool:
         """Release the assigned tool once; a closed container cannot start."""
-        try:
-            with self._lock:
+        with self._lock:
+            try:
                 if self._closed:
                     return False
                 if self._started:
                     return True
-                gate, self._gate = self._gate, None
+                gate = self._gate
                 if gate is not None:
-                    try:
-                        if gate.write(b"G") != 1:
-                            raise OSError("the capture gate was not released")
-                        gate.flush()
-                    finally:
-                        gate.close()
+                    if gate.write(b"G") != 1:
+                        raise OSError("the capture gate was not released")
+                    gate.flush()
+                    gate.close()
+                    self._gate = None
                 self._started = True
                 return True
-        except BaseException:
-            self.close()
-            raise
+            except BaseException as error:
+                error.container = self
+                try:
+                    self._close_locked()
+                except BaseException as cleanup:
+                    raise error from ProcessCleanupError(
+                        (("close after release failure", cleanup),),
+                        container=self,
+                        primary=error,
+                    )
+                raise
 
     def close(self) -> None:
-        """End every process still in the container. Safe to call twice."""
+        """Stop the container, retaining failed owners for another close.
+
+        Cleanup is serialized and waits at most twenty seconds for the process.
+        Successful closure makes later calls harmless.
+        """
         with self._lock:
-            self._closed = True
-            job, self.job = self.job, None
-            gate, self._gate = self._gate, None
-            if gate is not None:
-                gate.close()
+            self._close_locked()
+
+    def _close_locked(self) -> None:
+        if self._cleanup_complete:
+            return
+        self._closed = True
+        failures = []
+        if self._gate is not None:
+            try:
+                self._gate.close()
+            except BaseException as error:
+                failures.append(("close launch gate", error))
+            else:
+                self._gate = None
+
         if sys.platform == "win32":
-            if job is not None:
-                _windows_close_job(job)
-            elif self.process.poll() is None:
-                # Assignment failed: only the blocked bootstrap exists.
-                self.process.kill()
-        else:
-            with contextlib.suppress(ProcessLookupError, PermissionError):
+            if self.job is not None:
+                try:
+                    _windows_close_job(self.job)
+                except BaseException as error:
+                    failures.append(("close capture job", error))
+                else:
+                    self.job = None
+            else:
+                try:
+                    # With no job handle left, stop the original Popen process.
+                    if self.process.poll() is None:
+                        self.process.kill()
+                except BaseException as error:
+                    failures.append(("stop bootstrap process", error))
+            for handle in self._native_handles[:]:
+                try:
+                    _windows_close_handle(handle)
+                except BaseException as error:
+                    failures.append(("close temporary native handle", error))
+                else:
+                    self._native_handles.remove(handle)
+        elif not self._group_stopped:
+            try:
                 os.killpg(self.process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                self._group_stopped = True
+            except BaseException as error:
+                failures.append(("kill process group", error))
+            else:
+                self._group_stopped = True
+
         try:
             self.process.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            self.process.kill()
-            self.process.wait(timeout=10)
+        except subprocess.TimeoutExpired as error:
+            failures.append(("wait for process", error))
+            try:
+                self.process.kill()
+            except BaseException as error:
+                failures.append(("kill process after timeout", error))
+            try:
+                self.process.wait(timeout=10)
+            except BaseException as error:
+                failures.append(("wait after process kill", error))
+        except BaseException as error:
+            failures.append(("wait for process", error))
+        if failures:
+            interruption = next(
+                (
+                    error
+                    for _operation, error in failures
+                    if not isinstance(error, Exception)
+                ),
+                None,
+            )
+            failure = ProcessCleanupError(
+                failures, container=self, primary=interruption
+            )
+            if interruption is not None:
+                raise interruption from failure
+            raise failure from failures[0][1]
+        self._cleanup_complete = True
 
 
 def stop_processes_naming(directory: Path) -> None:
@@ -186,15 +285,13 @@ def _kernel32():
     kernel32.OpenProcess.restype = wintypes.HANDLE
     kernel32.AssignProcessToJobObject.argtypes = (wintypes.HANDLE, wintypes.HANDLE)
     kernel32.AssignProcessToJobObject.restype = wintypes.BOOL
-    kernel32.TerminateJobObject.argtypes = (wintypes.HANDLE, wintypes.UINT)
-    kernel32.TerminateJobObject.restype = wintypes.BOOL
     kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
     kernel32.CloseHandle.restype = wintypes.BOOL
     return kernel32
 
 
-def _windows_job(pid: int) -> int | None:
-    """Create a kill-on-close job holding `pid`, or None if Windows refuses.
+def _windows_job(pid: int) -> int:
+    """Create a kill-on-close job holding `pid`, or raise the native failure.
 
     The caller keeps the bootstrap behind its gate until assignment succeeds.
     """
@@ -237,12 +334,12 @@ def _windows_job(pid: int) -> int | None:
             ("PeakJobMemoryUsed", ctypes.c_size_t),
         ]
 
+    limits = ExtendedLimits()
+    limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
     kernel32 = _kernel32()
     job = kernel32.CreateJobObjectW(None, None)
     if not job:
-        return None
-    limits = ExtendedLimits()
-    limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        raise ctypes.WinError(ctypes.get_last_error())
     process = None
     try:
         if not kernel32.SetInformationJobObject(
@@ -251,25 +348,46 @@ def _windows_job(pid: int) -> int | None:
             ctypes.byref(limits),
             ctypes.sizeof(limits),
         ):
-            raise OSError(ctypes.get_last_error())
+            raise ctypes.WinError(ctypes.get_last_error())
         process = kernel32.OpenProcess(
             PROCESS_SET_QUOTA | PROCESS_TERMINATE, False, pid
         )
         if not process or not kernel32.AssignProcessToJobObject(job, process):
-            raise OSError(ctypes.get_last_error())
-    except OSError:
-        kernel32.CloseHandle(job)
-        return None
-    except BaseException:
-        kernel32.CloseHandle(job)
+            raise ctypes.WinError(ctypes.get_last_error())
+        _windows_close_handle(process, kernel32)
+        process = None
+    except BaseException as error:
+        failures = []
+        pending = []
+        for operation, handle in (
+            ("close process handle", process),
+            ("close job", job),
+        ):
+            if not handle:
+                continue
+            try:
+                _windows_close_handle(handle, kernel32)
+            except BaseException as cleanup:
+                failures.append((operation, cleanup))
+                pending.append(handle)
+        error.pending_handles = pending
+        if failures:
+            cleanup = ProcessCleanupError(failures, primary=error)
+            error.cleanup_error = cleanup
+            raise error from cleanup
         raise
-    finally:
-        if process:
-            kernel32.CloseHandle(process)
     return job
 
 
 def _windows_close_job(job: int) -> None:
-    kernel32 = _kernel32()
-    kernel32.TerminateJobObject(job, 1)
-    kernel32.CloseHandle(job)
+    # This unnamed, non-inherited handle is the job's last handle. Its
+    # KILL_ON_JOB_CLOSE limit ends descendants without a second termination.
+    _windows_close_handle(job)
+
+
+def _windows_close_handle(handle: int, kernel32=None) -> None:
+    import ctypes
+
+    kernel32 = kernel32 if kernel32 is not None else _kernel32()
+    if not kernel32.CloseHandle(handle):
+        raise ctypes.WinError(ctypes.get_last_error())

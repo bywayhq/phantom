@@ -621,6 +621,7 @@ class Attempt:
     seconds: float
     detail: str = ""
     log: str = ""
+    failure: BaseException | None = field(default=None, repr=False, compare=False)
 
 
 @dataclass
@@ -689,28 +690,52 @@ def profile_path_problem(
 class CleanupError(RuntimeError):
     """Keep every failed cleanup operation and its original exception."""
 
-    def __init__(self, failures: Sequence[tuple[str, Exception]]) -> None:
+    def __init__(
+        self,
+        failures: Sequence[tuple[str, BaseException]],
+        *,
+        primary: BaseException | None = None,
+    ) -> None:
         self.failures = tuple(failures)
+        self.primary = primary
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
         super().__init__(
             "capture cleanup failed: "
             + "; ".join(f"{operation}: {error}" for operation, error in failures)
         )
 
 
+def _raise_cleanup_failures(failures: Sequence[tuple[str, BaseException]]) -> None:
+    if not failures:
+        return
+    interruption = next(
+        (
+            error
+            for _operation, error in failures
+            if not isinstance(error, Exception)
+        ),
+        None,
+    )
+    failure = CleanupError(failures, primary=interruption)
+    if interruption is not None:
+        raise interruption from failure
+    raise failure from failures[0][1]
+
+
 def end_attempt(container: ProcessContainer, temporary: Path) -> None:
     failures = []
     try:
         container.close()
-    except Exception as error:  # noqa: BLE001 - cleanup continues before reporting
+    except BaseException as error:
         failures.append(("close process container", error))
 
     # A browser outside the container still names the attempt's directory.
     try:
         stop_processes_naming(temporary)
-    except Exception as error:  # noqa: BLE001 - retain the failed cleanup operation
+    except BaseException as error:
         failures.append(("sweep profile processes", error))
-    if failures:
-        raise CleanupError(failures) from failures[0][1]
+    _raise_cleanup_failures(failures)
 
 
 class Attempts:
@@ -742,10 +767,9 @@ class Attempts:
         for name, (container, temporary) in running:
             try:
                 end_attempt(container, temporary)
-            except CleanupError as error:
+            except BaseException as error:
                 failures.append((name, error))
-        if failures:
-            raise CleanupError(failures) from failures[0][1]
+        _raise_cleanup_failures(failures)
 
 
 def attempt_timeout(job: Job, *, shared_host: bool, limit: int) -> float:
@@ -801,18 +825,31 @@ def run_attempt(
             stderr=subprocess.STDOUT,
             env=environment,
         )
+        failure = None
         try:
             if attempts.add(name, container, temporary):
                 container.start()
             else:
                 end_attempt(container, temporary)
             code = container.process.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as error:
+            failure = error
             code = None
             detail = f"timed out after {timeout:g}s"
+        except BaseException as error:
+            failure = error
+            raise
         finally:
-            attempts.remove(name)
-            end_attempt(container, temporary)
+            try:
+                end_attempt(container, temporary)
+            except BaseException as cleanup:
+                if failure is not None:
+                    _raise_cleanup_failures(
+                        (("run attempt", failure), ("end attempt", cleanup))
+                    )
+                raise
+            else:
+                attempts.remove(name)
     seconds = time.perf_counter() - begin
     shutil.rmtree(temporary, ignore_errors=True)
     if code != 0 and attempts.stopped.is_set():
@@ -821,7 +858,13 @@ def run_attempt(
         detail = f"exit status {code}"
     if not detail:
         detail = output_problem(job, since=started) or ""
-    return Attempt(ok=not detail, seconds=seconds, detail=detail, log=str(log))
+    return Attempt(
+        ok=not detail,
+        seconds=seconds,
+        detail=detail,
+        log=str(log),
+        failure=failure,
+    )
 
 
 def run_with_retry(
@@ -887,7 +930,9 @@ def schedule(
         try:
             result = run(job)
         except Exception as error:  # noqa: BLE001 - reported as a failed job
-            result = JobResult(job, "failed", [Attempt(False, 0.0, repr(error))])
+            result = JobResult(
+                job, "failed", [Attempt(False, 0.0, repr(error), failure=error)]
+            )
         with condition:
             results[index] = result
             running -= 1
@@ -973,11 +1018,18 @@ def schedule(
             if result.attempts:
                 outcome = result.attempts[-1]
                 outcome.ok = False
+                outcome.failure = (
+                    CleanupError(
+                        (("run attempt", outcome.failure), ("interrupt cleanup", error))
+                    )
+                    if outcome.failure is not None
+                    else error
+                )
                 outcome.detail = (
                     f"{outcome.detail}; {detail}" if outcome.detail else detail
                 )
             else:
-                result.attempts.append(Attempt(False, 0.0, detail))
+                result.attempts.append(Attempt(False, 0.0, detail, failure=error))
     return [
         results.get(index, JobResult(job, "not-run")) for index, job in enumerate(jobs)
     ]

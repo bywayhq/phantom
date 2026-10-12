@@ -71,6 +71,123 @@ class OwnedWindowsProcess:
 
 
 class ProcessContainerTests(unittest.TestCase):
+    def test_release_failure_retains_failed_owners_and_original_causes(self) -> None:
+        process = mock.Mock()
+        process.poll.return_value = 0
+        primary = OSError("gate write failed")
+        gate_error = OSError("gate close failed")
+        job_error = OSError("job close failed")
+        process.stdin.write.side_effect = primary
+        process.stdin.close.side_effect = [gate_error, None]
+        with (
+            mock.patch.object(process_container.sys, "platform", "win32"),
+            mock.patch.object(
+                process_container, "_bootstrap_command", return_value=["tool"]
+            ),
+            mock.patch.object(
+                process_container.subprocess, "Popen", return_value=process
+            ),
+            mock.patch.object(process_container, "_windows_job", return_value=41),
+            mock.patch.object(
+                process_container,
+                "_windows_close_job",
+                side_effect=[job_error, None],
+            ) as close_job,
+        ):
+            container = ProcessContainer(["tool"])
+            with self.assertRaises(OSError) as raised:
+                container.start()
+
+            self.assertIs(raised.exception, primary)
+            cleanup = primary.__cause__.failures[0][1]
+            self.assertEqual(
+                [error for _operation, error in cleanup.failures],
+                [gate_error, job_error],
+            )
+            self.assertIs(primary.container, container)
+            self.assertIs(container._gate, process.stdin)
+            self.assertEqual(container.job, 41)
+            process.wait.assert_called_once_with(timeout=10)
+
+            container.close()
+            container.close()
+            self.assertIsNone(container._gate)
+            self.assertIsNone(container.job)
+            self.assertFalse(container.start())
+            self.assertEqual(
+                close_job.call_args_list, [mock.call(41), mock.call(41)]
+            )
+            self.assertEqual(process.stdin.close.call_count, 2)
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows native error conversion")
+    def test_native_assignment_failure_retains_errno_and_unclosed_handles(self) -> None:
+        kernel = mock.Mock()
+        kernel.CreateJobObjectW.return_value = 41
+        kernel.SetInformationJobObject.return_value = True
+        kernel.OpenProcess.return_value = 51
+        kernel.AssignProcessToJobObject.return_value = False
+        kernel.CloseHandle.return_value = False
+        process = mock.Mock()
+        process.poll.return_value = 0
+        with (
+            mock.patch.object(process_container, "_kernel32", return_value=kernel),
+            mock.patch.object(ctypes, "get_last_error", side_effect=[5, 6, 7, 8, 9]),
+            mock.patch.object(
+                process_container, "_bootstrap_command", return_value=["tool"]
+            ),
+            mock.patch.object(
+                process_container.subprocess, "Popen", return_value=process
+            ),
+            self.assertRaises(OSError) as raised,
+        ):
+            ProcessContainer(["tool"])
+
+        self.assertEqual(raised.exception.winerror, 5)
+        self.assertEqual(raised.exception.pending_handles, [51, 41])
+        self.assertEqual(
+            [
+                error.winerror
+                for _operation, error in raised.exception.cleanup_error.failures
+            ],
+            [6, 7],
+        )
+        self.assertEqual(
+            kernel.CloseHandle.call_args_list,
+            [mock.call(51), mock.call(41), mock.call(51), mock.call(41)],
+        )
+        owner = raised.exception.container
+        self.assertIs(owner._native_handles, raised.exception.pending_handles)
+        self.assertIs(
+            raised.exception.__cause__.previous_cause,
+            raised.exception.cleanup_error,
+        )
+
+        kernel.CloseHandle.return_value = True
+        with mock.patch.object(process_container, "_kernel32", return_value=kernel):
+            owner.close()
+            owner.close()
+        self.assertEqual(raised.exception.pending_handles, [])
+        self.assertEqual(kernel.CloseHandle.call_count, 6)
+
+    @unittest.skipIf(sys.platform == "win32", "POSIX process groups")
+    def test_permission_failure_is_reported_and_can_be_retried(self) -> None:
+        container = ProcessContainer([sys.executable, "-c", "pass"])
+        denied = PermissionError("group termination denied")
+        try:
+            container.process.wait(timeout=30)
+            with (
+                mock.patch.object(os, "killpg", side_effect=denied),
+                self.assertRaises(process_container.ProcessCleanupError) as raised,
+            ):
+                container.close()
+
+            self.assertIs(raised.exception.failures[0][1], denied)
+            self.assertIs(raised.exception.container, container)
+            self.assertFalse(container._group_stopped)
+            self.assertFalse(container.start())
+        finally:
+            container.close()
+
     def test_containment_is_still_reported_after_close(self) -> None:
         container = ProcessContainer(
             [sys.executable, "-c", "import time; time.sleep(60)"]
@@ -242,7 +359,11 @@ class ProcessContainerTests(unittest.TestCase):
                 return process
 
             with (
-                mock.patch.object(process_container, "_windows_job", return_value=None),
+                mock.patch.object(
+                    process_container,
+                    "_windows_job",
+                    side_effect=OSError("Windows refused the capture job object"),
+                ),
                 mock.patch.object(subprocess, "Popen", record),
                 self.assertRaisesRegex(OSError, "refused"),
             ):
