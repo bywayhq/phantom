@@ -3,6 +3,50 @@
 Use this matrix to see which paths have been examined and what remains.
 Pending means that discovery or assignment has not established review.
 
+## Template, TLS and HTTP/2 fixture completion
+
+The repeated-reply template factory returns its existing owner directly.
+Six remaining callers retain it before fallible work. Caller errors,
+completed worker errors and original deadline errors remain available.
+The factory Drop control proves listener and pending-connection release.
+It does not establish that the connection was accepted before cancellation.
+
+Six early-data and resumption workers remain owned outside their borrowed
+watchdogs. Completion retains the expected negative client failure when
+peer completion also fails. Rejected-stream reads take one byte and accept
+only the supported disconnects. Resolved BoringSSL bounds early plaintext.
+The H2 frame observer intentionally accepts a partial final frame while
+checking arrival; it does not validate an entire handshake transcript.
+
+H2 authority callers collect every acquired peer outcome. Idle origins own
+their accepted peers and keep one frame-read future across release waits.
+The event receiver stays alive through cleanup. Clean boundary EOF is valid
+only after an answered request. Earlier EOF, truncated frames and unrelated
+I/O or channel failures retain their original errors. Wire, authority,
+status, timer and request-count assertions remain unchanged.
+
+Root and independent reviewers read all changed owners and relevant callers.
+At `a44af645`, Windows and Linux each pass all 101 selected methods.
+Formatting, Rust 1.88 and docs pass, but strict Clippy fails on one unused
+import. Its independently reviewed correction only qualifies `Pin::new`.
+At `57a9f1b0`, both hosts pass warning-free formatting, strict Clippy,
+Rust 1.88 and docs. Runtime was not repeated for this import-only change.
+Both original runs finish; complete logs, exits and separate clean revision
+bindings are accepted by root and an independent reader.
+
+These results locally verify the changed A233, A235, A241 and A250 paths.
+Drop cancels without an asynchronous join. Finite cooperative completion
+cannot establish preemption of blocking native callbacks. Other A233
+paths, combined architecture review and exact final integration gates remain
+open. Logs retain both the failed lint packet and its successful correction
+under the audit scratchpad's `fixtures-a44af645...` and
+`fixture-quality-57a9f1b0...` prefixes.
+
+Root and independent whole-source reads also confirm A285 in the IP-literal
+capture tool and its tests. Ownership, finite recording and deadlines,
+error propagation and Initial CRYPTO reconstruction need repair. No new
+browser capture or native result follows from that source review.
+
 ## Capture and DNS completion batch
 
 At `86fd68bc`, shared HTTP/2 and WebSocket capture owns acquired listeners,
