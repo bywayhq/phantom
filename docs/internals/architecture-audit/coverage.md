@@ -2813,8 +2813,16 @@ lint exceptions are corrected (A282). Both hosts pass no-default-feature library
 all-target/all-feature Clippy, Rust 1.88, formatting and unsafe-boundary
 checks. Root and independent readers accept complete logs and separate
 clean-revision bindings. No runtime behavior changed, so no new test was
-added. DNS helper failure reporting (A281), capture process cleanup (A283)
-and final integration remain open.
+added. Capture process cleanup (A283) and final integration remain open.
+
+At `35741043`, explicit DNS fixture completion retains original receiver,
+responder and reply-send failures (A281). Windows and Linux each pass 47
+network DNS methods, seven testkit DNS methods and six doctests. Formatting,
+standalone no-default-feature testkit compilation, strict selected Clippy,
+Rust 1.88 and rustdoc pass on both hosts. Root and independent readers accept
+complete logs and separate exact clean-revision bindings. Completion has a
+cooperative five-second deadline; Drop aborts without collecting outcomes.
+Remaining fixture consumers, the raw reply worker and final gates are open.
 
 ## Next
 
