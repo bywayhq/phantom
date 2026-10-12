@@ -2494,8 +2494,22 @@ collected task owner, and unexpected local failures can become capture notes.
 Completed oversized HTTP/1 heads bypass their own limit. The shared proxy
 TLS reader treats unrelated connection and SSL failures as EOF. Callable
 and CLI duration inputs also accept non-finite values. The remaining
-proxy-capture repairs and focused controls are in progress; execution is
-pending.
+proxy aggregate and address repairs remain in progress.
+
+The bounded proxy repair at `39c6fb8f` retains accepted handlers, writer
+and listener waits, and the original initiating and cleanup failures. The
+first attempt at `efc0646f` fails one new control on both hosts: Python 3.10
+wraps cancellation in its context, hiding a writer-close failure from the
+collector. The correction follows only cancellation context links and
+preserves the original cleanup object. The unchanged control now passes.
+Windows passes all 687 capture methods. Linux passes 676, with eleven
+platform-specific skips. Python lint and format pass on both hosts.
+Root and independent review read all six logs and exits and separately
+observe clean exact sources after both runners finish. Expected native
+handshake rejection keeps its existing capture policy; a handshake-stage
+marker does not prove every SSL error has a peer cause. This result covers
+A257 through A261, including completed head limits and finite durations.
+Aggregate admission, IPv6 consistency and final combined gates remain open.
 
 The race H3 callback can set successful completion before a held response
 fails. Its original local error has no collected owner. Aggregate connection,
