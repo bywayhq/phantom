@@ -36,14 +36,16 @@ from urllib.parse import parse_qs, urlsplit
 import h2.events
 import h2.exceptions
 from aioquic.asyncio import QuicConnectionProtocol, serve
+from aioquic.buffer import Buffer
 from aioquic.h3.connection import H3_ALPN, H3Connection
 from aioquic.h3.events import HeadersReceived
-from aioquic.quic.configuration import QuicConfiguration
+from aioquic.quic.configuration import SMALLEST_MAX_DATAGRAM_SIZE, QuicConfiguration
 from aioquic.quic.events import (
     ConnectionTerminated,
     HandshakeCompleted,
     QuicEvent,
 )
+from aioquic.quic.packet import QuicPacketType, pull_quic_header
 from h2.config import H2Configuration
 from h2.connection import H2Connection
 from h2.errors import ErrorCodes
@@ -61,6 +63,11 @@ UNSUPPORTED_ALPN = "phantom-unsupported"
 DECOY_FORCE_QUIC_PORT = 9
 ALT_SVC_MAX_AGE = 86400
 READ_SIZE = 64 * 1024
+MAX_RUN_CONNECTIONS = 32
+MAX_RUN_UDP_PEERS = 32
+MAX_RUN_REQUESTS = 512
+MAX_PAGE_RESULTS = 512
+MAX_REQUEST_TARGET = 64 * 1024
 MAX_PORT_ATTEMPTS = 64
 RACE_WINDOW_MS = 1000
 EXIT_WAIT_SECONDS = 60.0
@@ -363,6 +370,8 @@ class Origin:
         self.retirers: list[Callable[[], None]] = []
         self.holds: list[Callable[[Response], None]] = []
         self.finished = asyncio.Event()
+        self.connections = 0
+        self.failure: BaseException | None = None
 
     @property
     def alt_svc_value(self) -> bytes:
@@ -373,6 +382,31 @@ class Origin:
         self.retirers.clear()
         self.holds.clear()
         self.finished.clear()
+        self.connections = 0
+        self.failure = None
+
+    def fail(self, error: BaseException) -> None:
+        if self.failure is None:
+            self.failure = error
+
+        self.finished.set()
+
+    def connection_available(self) -> bool:
+        if self.failure is not None:
+            return False
+
+        if self.connections >= MAX_RUN_CONNECTIONS:
+            self.fail(ValueError("race capture exceeds the per-run connection limit"))
+            return False
+
+        return True
+
+    def admit_connection(self) -> bool:
+        if not self.connection_available():
+            return False
+
+        self.connections += 1
+        return True
 
     def request(
         self,
@@ -387,7 +421,24 @@ class Origin:
             respond(Response(503))
             return
 
-        parts = urlsplit(target)
+        if self.failure is not None:
+            return
+
+        if len(run.requests) >= MAX_RUN_REQUESTS:
+            self.fail(ValueError("race capture exceeds the per-run request limit"))
+            return
+
+        # Both transports decode the wire target as Latin-1, one byte per character.
+        if len(target) > MAX_REQUEST_TARGET:
+            self.fail(ValueError("race request target exceeds the 64 KiB limit"))
+            return
+
+        try:
+            parts = urlsplit(target)
+        except ValueError as error:
+            self.fail(error)
+            return
+
         run.requests.append(RequestRecord(run.now(), transport, connection, parts.path))
         if parts.path == "/start":
             respond(Response(200, b"text/html; charset=utf-8", self.page))
@@ -407,8 +458,29 @@ class Origin:
         elif parts.path.startswith("/r/"):
             respond(Response(200, b"text/plain", b"ok", alt_svc=True))
         elif parts.path == "/done":
-            results = parse_qs(parts.query).get("results", ["[]"])[0]
-            run.page_results = json.loads(results)
+            # The target bound also bounds query parsing and the decoded JSON input.
+            try:
+                results = parse_qs(parts.query).get("results", ["[]"])[0]
+                page_results = json.loads(results)
+            except (ValueError, RecursionError) as error:
+                self.fail(error)
+                return
+
+            if not isinstance(page_results, list):
+                self.fail(ValueError("race page results must be an array"))
+                return
+
+            if len(page_results) > MAX_PAGE_RESULTS:
+                self.fail(
+                    ValueError("race page results exceed the per-run result limit")
+                )
+                return
+
+            if any(not isinstance(result, dict) for result in page_results):
+                self.fail(ValueError("race page results must contain objects"))
+                return
+
+            run.page_results = page_results
             respond(Response(204))
             run.done.set()
             for hold in self.holds:
@@ -528,6 +600,8 @@ class Http2Origin:
         self.response_failures: list[Exception] = []
         self.retirement_failures: list[Exception] = []
         self.closing = False
+        self.admission_stopped = False
+        self.rejection_abort_failed = False
 
     async def start(self, sock: socket.socket) -> None:
         self.server = await asyncio.start_server(
@@ -538,6 +612,27 @@ class Http2Origin:
     def accept(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
+        if not self.origin.admit_connection():
+            if not self.admission_stopped and self.server is not None:
+                self.admission_stopped = True
+                try:
+                    self.server.close()
+                except BaseException as error:
+                    self.accept_failures.append(error)
+
+            try:
+                writer.transport.abort()
+            except BaseException as error:
+                if not self.rejection_abort_failed:
+                    self.rejection_abort_failed = True
+                    self.accept_failures.append(error)
+
+                # An abort failure leaves the real accepted writer owned by cleanup.
+                self.writers.add(writer)
+                self.retain_writer(writer)
+
+            return
+
         self.writers.add(writer)
         self.retain_writer(writer)
 
@@ -793,6 +888,8 @@ class Http2Origin:
                         highest_stream = max(highest_stream, event.stream_id)
                         record.requests += 1
                         self.request(connection, stream, record, event, retire)
+                        if self.origin.failure is not None:
+                            return
                     elif isinstance(event, h2.events.DataReceived):
                         connection.acknowledge_received_data(
                             event.flow_controlled_length, event.stream_id
@@ -857,6 +954,8 @@ class Http3Protocol(QuicConnectionProtocol):
         self.http: H3Connection | None = None
         self.peer: UdpPeerRecord | None = None
         self.retirements: set[asyncio.TimerHandle] = set()
+        self.closing = False
+        self.close_failure: BaseException | None = None
         peers.protocols.add(self)
 
     def quic_event_received(self, event: QuicEvent) -> None:
@@ -876,8 +975,9 @@ class Http3Protocol(QuicConnectionProtocol):
         if isinstance(event, HandshakeCompleted):
             if self.peer is not None:
                 self.peer.handshake_ms = run.now()
-            self.http = H3Connection(self._quic)
-            self.origin.retirers.append(self.retire)
+            if self.origin.failure is None:
+                self.http = H3Connection(self._quic)
+                self.origin.retirers.append(self.retire)
 
         if isinstance(event, ConnectionTerminated):
             if self.peer is not None and self.peer.closed_ms is None:
@@ -886,12 +986,19 @@ class Http3Protocol(QuicConnectionProtocol):
             if self.retire in self.origin.retirers:
                 self.origin.retirers.remove(self.retire)
 
+        if self.origin.failure is not None:
+            self.close()
+            return
+
         if self.http is None:
             return
 
         for http_event in self.http.handle_event(event):
             if isinstance(http_event, HeadersReceived):
                 self.request(http_event)
+                if self.origin.failure is not None:
+                    self.close()
+                    return
 
     def request(self, event: HeadersReceived) -> None:
         fields = dict(event.headers)
@@ -905,6 +1012,9 @@ class Http3Protocol(QuicConnectionProtocol):
             self.peer.requests += 1
 
         def respond(response: Response) -> None:
+            if self.closing or self.peers.fatal_failure is not None:
+                return
+
             try:
                 http.send_headers(
                     stream_id,
@@ -924,6 +1034,9 @@ class Http3Protocol(QuicConnectionProtocol):
         self.origin.request(transport, index, target, respond, self.retire)
 
     def retire(self) -> None:
+        if self.closing or self.peers.fatal_failure is not None:
+            return
+
         # The retiring response is flushed before CONNECTION_CLOSE(NO_ERROR).
         def close_retired() -> None:
             self.retirements.discard(handle)
@@ -936,38 +1049,98 @@ class Http3Protocol(QuicConnectionProtocol):
             self.peers.retain_failure(error)
 
     def datagram_received(self, data, addr) -> None:
+        if self.close_failure is not None:
+            return
+
         try:
             super().datagram_received(data, addr)
         except BaseException as error:
-            self.peers.retain_failure(error)
+            if self.closing:
+                self.close_failure = error
+                self.origin.finished.set()
+            else:
+                self.peers.retain_failure(error)
 
     def _handle_timer(self) -> None:
+        if self.close_failure is not None:
+            return
+
         try:
             super()._handle_timer()
         except BaseException as error:
-            self.peers.retain_failure(error)
+            if self.closing:
+                self.close_failure = error
+                self.origin.finished.set()
+            else:
+                self.peers.retain_failure(error)
 
     def transmit(self) -> None:
+        if self.close_failure is not None:
+            return
+
         try:
             super().transmit()
         except BaseException as error:
-            self.peers.retain_failure(error)
+            if self.closing:
+                self.close_failure = error
+                self.origin.finished.set()
+            else:
+                self.peers.retain_failure(error)
 
     def close(self, *args, **kwargs) -> None:
+        if self.closing:
+            return
+
+        self.closing = True
+        failures = []
+        for handle in list(self.retirements):
+            try:
+                handle.cancel()
+            except BaseException as error:
+                failures.append(error)
+            else:
+                self.retirements.discard(handle)
+
         try:
             super().close(*args, **kwargs)
         except BaseException as error:
-            self.peers.retain_failure(error)
+            self.close_failure = error
+            self.origin.finished.set()
+
+        if failures:
+            if self.close_failure is not None:
+                failures.insert(0, self.close_failure)
+
+            self.close_failure = CaptureCleanupError(failures)
+            self.origin.finished.set()
 
     def stop_callbacks(self) -> None:
-        for handle in (*self.retirements, self._timer, self._transmit_task):
-            if handle is not None:
+        failures = []
+        for handle in list(self.retirements):
+            try:
                 handle.cancel()
+            except BaseException as error:
+                failures.append(error)
+            else:
+                self.retirements.discard(handle)
 
-        self.retirements.clear()
-        self._timer = None
-        self._timer_at = None
-        self._transmit_task = None
+        for name in ("_timer", "_transmit_task"):
+            handle = getattr(self, name)
+            if handle is None:
+                continue
+
+            try:
+                handle.cancel()
+            except BaseException as error:
+                failures.append(error)
+            else:
+                setattr(self, name, None)
+
+        if self._timer is None:
+            self._timer_at = None
+
+        if failures:
+            raise CaptureCleanupError(failures)
 
 
 class UdpRecorder:
@@ -979,15 +1152,39 @@ class UdpRecorder:
         self.addresses: dict[bytes, tuple[str, int]] = {}
         self.protocols: set[Http3Protocol] = set()
         self.failures: list[BaseException] = []
+        self.fatal_failure: BaseException | None = None
 
     def retain_failure(self, error: BaseException) -> None:
-        self.failures.append(error)
-        self.origin.finished.set()
+        if self.fatal_failure is not None:
+            return
 
-    def datagram(self, address: tuple[str, int]) -> None:
+        self.fatal_failure = error
+        if self.origin.failure is None:
+            self.origin.fail(error)
+        elif error is not self.origin.failure:
+            self.failures.append(error)
+
+        # Closing QUIC retains its finite termination timer, but stops packet parsing.
+        for protocol in self.protocols:
+            protocol.close()
+
+    def datagram(self, address: tuple[str, int]) -> bool:
         run = self.origin.run
-        if run is not None:
-            run.udp_peer(address[:2], self.listener).datagrams += 1
+        if run is None:
+            return False
+
+        address = address[:2]
+        key = (self.listener, address)
+        if key not in run.udp:
+            if self.origin.failure is not None:
+                return False
+
+            if len(run.udp) >= MAX_RUN_UDP_PEERS:
+                self.origin.fail(ValueError("race capture exceeds the UDP peer limit"))
+                return False
+
+        run.udp_peer(address, self.listener).datagrams += 1
+        return True
 
     def peer_for(self, quic) -> UdpPeerRecord | None:
         run = self.origin.run
@@ -1062,35 +1259,87 @@ class UdpAlternative:
         sock.close()
         recorder = self.recorder
         origin = self.origin
+
+        def create_protocol(*values, **kwargs):
+            if not origin.admit_connection():
+                raise origin.failure
+
+            return Http3Protocol(*values, origin=origin, peers=recorder, **kwargs)
+
         self.server = await serve(
             host,
             port,
             configuration=quic_configuration(self.mode, self.certificate),
-            create_protocol=lambda *values, **kwargs: Http3Protocol(
-                *values, origin=origin, peers=recorder, **kwargs
-            ),
+            create_protocol=create_protocol,
         )
         received = self.server.datagram_received
 
         def tap(data: bytes, addr) -> None:
-            recorder.datagram(addr)
             try:
+                if not self.accepts_datagram(data) or not recorder.datagram(addr):
+                    return
+
                 received(data, addr)
             except BaseException as error:
                 recorder.retain_failure(error)
 
         self.server.datagram_received = tap
 
+    def accepts_datagram(self, data: bytes) -> bool:
+        if self.recorder.fatal_failure is not None:
+            return False
+
+        try:
+            header = pull_quic_header(
+                Buffer(data=data),
+                host_cid_length=self.server._configuration.connection_id_length,
+            )
+        except ValueError:
+            return True
+
+        # Gate only a candidate new connection, before aioquic allocates it.
+        # Existing CIDs still route when all lifetime admission slots are used.
+        if (
+            header.destination_cid not in self.server._protocols
+            and len(data) >= SMALLEST_MAX_DATAGRAM_SIZE
+            and header.packet_type == QuicPacketType.INITIAL
+            and header.version in self.server._configuration.supported_versions
+        ):
+            return self.origin.connection_available()
+
+        return True
+
     def close(self) -> None:
+        failures = []
         if self.transport is not None:
-            self.transport.close()
+            try:
+                self.transport.close()
+            except BaseException as error:
+                failures.append(error)
+
         if self.server is not None:
             try:
                 self.server.close()
+            except BaseException as error:
+                failures.append(error)
             finally:
-                for protocol in self.recorder.protocols:
-                    protocol.stop_callbacks()
-                self.recorder.protocols.clear()
+                for protocol in list(self.recorder.protocols):
+                    if protocol.close_failure is not None:
+                        failures.append(protocol.close_failure)
+                        protocol.close_failure = None
+
+                    try:
+                        protocol.stop_callbacks()
+                    except BaseException as error:
+                        failures.append(error)
+                    else:
+                        self.recorder.protocols.discard(protocol)
+
+        if failures:
+            if len(failures) == 1:
+                raise failures[0]
+
+            raise CaptureCleanupError(failures)
 
 
 def reserve_ports(
@@ -1282,8 +1531,15 @@ async def capture_run(
             exited = False
             async with BrowserDriver(plan, url) as driver:
                 await asyncio.wait_for(origin.finished.wait(), timeout=timeout)
-                if any(owner.recorder.failures for owner, _ in udp_owners):
-                    # Leave the original failures with their UDP owners until cleanup.
+                if origin.failure is not None or any(
+                    owner.recorder.failures
+                    or any(
+                        protocol.close_failure is not None
+                        for protocol in owner.recorder.protocols
+                    )
+                    for owner, _ in udp_owners
+                ):
+                    # Leave original failures with their owners until cleanup.
                     process = None
                 else:
                     process = driver.browser.process if driver.browser else None
@@ -1325,6 +1581,9 @@ async def capture_run(
                 sock.close()
             except BaseException as error:
                 failures.append(error)
+
+        if tcp is not None and tcp.origin.failure is not None:
+            failures.append(tcp.origin.failure)
 
         for alternative, _ in udp_owners:
             failures.extend(alternative.recorder.failures)

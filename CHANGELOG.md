@@ -14,6 +14,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Bound Alt-Svc race captures to 32 lifetime connections, 32 UDP peers,
+  512 requests and page results each, and a 64 KiB request target. A run
+  that exceeds a limit fails without writing its fixture. Migrate: split
+  larger race capture experiments into separate runs. Fatal local failures
+  stop new capture work and retain initiating and cleanup errors.
+
 - Bound proxy capture runs to 32 accepted connections and 512 requests,
   page results, and remote events each. A run that exceeds a limit fails
   without writing its fixture. Migrate: split larger proxy capture experiments

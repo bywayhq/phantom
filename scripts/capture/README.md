@@ -1287,6 +1287,11 @@ the script that recorded neither the preference nor its value; see
 the origin. It writes one `format=phantom-alt-svc-race-v1` fixture per
 scenario.
 
+Each run allows 32 lifetime connections, 32 UDP peers, 512 requests and
+512 page results. Request targets are limited to 64 KiB. A limit failure
+stops the run before it writes a fixture. Split larger experiments into
+separate runs.
+
 Use a positive `--repeat` count. Zero and negative counts fail before creating
 output directories or replacing fixtures.
 
