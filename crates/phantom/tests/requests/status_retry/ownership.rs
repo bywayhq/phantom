@@ -19,6 +19,7 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
+use crate::support::deadline::FixtureDeadline;
 use super::{ScriptedServer, TestResult, accept_tls_stream, is_peer_gone};
 
 const LIMIT: Duration = Duration::from_secs(2);
@@ -189,7 +190,11 @@ impl Observation {
         )
     }
 
-    async fn wait(&mut self, predicate: impl Fn(&State) -> bool) -> TestResult {
+    async fn wait(
+        &mut self,
+        purpose: &'static str,
+        predicate: impl Fn(&State) -> bool,
+    ) -> TestResult {
         timeout(LIMIT, async {
             loop {
                 if predicate(&self.state.borrow()) {
@@ -199,13 +204,22 @@ impl Observation {
                 self.state.changed().await?;
             }
         })
-        .await?
+        .await
+        .map_err(|elapsed| FixtureDeadline::new(purpose, elapsed))?
     }
 
-    async fn closed(&mut self, stream: &mut TcpStream) -> TestResult {
-        self.wait(|state| state.destroyed).await?;
+    async fn closed(
+        &mut self,
+        stream: &mut TcpStream,
+        destruction_purpose: &'static str,
+        socket_purpose: &'static str,
+    ) -> TestResult {
+        self.wait(destruction_purpose, |state| state.destroyed)
+            .await?;
 
-        let read = timeout(LIMIT, stream.read(&mut [0_u8; 1])).await?;
+        let read = timeout(LIMIT, stream.read(&mut [0_u8; 1]))
+            .await
+            .map_err(|elapsed| FixtureDeadline::new(socket_purpose, elapsed))?;
         assert!(matches!(read, Ok(0)) || matches!(read, Err(ref error) if is_peer_gone(error)));
         Ok(())
     }
@@ -220,7 +234,11 @@ impl Observation {
 
         abort.abort();
 
-        self.wait(|state| state.destroyed).await
+        self.wait(
+            "status retry backup child destruction exceeded its deadline",
+            |state| state.destroyed,
+        )
+        .await
     }
 
     fn serving_error(&self, result: TestResult) -> TestResult {
@@ -251,14 +269,21 @@ async fn pending(
     let stream = TcpStream::connect(server.address).await?;
 
     observation
-        .wait(|state| {
-            state.abort.is_some()
-                && if tls {
-                    state.tls_pending
-                } else {
-                    state.read_pending
-                }
-        })
+        .wait(
+            if tls {
+                "status retry accepted TLS child pending prerequisite exceeded its deadline"
+            } else {
+                "status retry accepted TCP child pending prerequisite exceeded its deadline"
+            },
+            |state| {
+                state.abort.is_some()
+                    && if tls {
+                        state.tls_pending
+                    } else {
+                        state.read_pending
+                    }
+            },
+        )
         .await?;
 
     Ok((server, stream, observation))
@@ -304,7 +329,13 @@ mod tests {
         let (server, mut stream, mut observation) = pending(None).await?;
 
         observation.backup_stop().await?;
-        observation.closed(&mut stream).await?;
+        observation
+            .closed(
+                &mut stream,
+                "status retry backup child destruction observation exceeded its deadline",
+                "status retry backup socket closure exceeded its deadline",
+            )
+            .await?;
         server.finish(Ok(())).await
     }
 
@@ -314,7 +345,12 @@ mod tests {
         let server = ScriptedServer::start_observed(&[OK], None, Some(control)).await?;
 
         let caller = exchange(&server).await;
-        observation.wait(|state| state.destroyed).await?;
+        observation
+            .wait(
+                "status retry healthy child completion exceeded its deadline",
+                |state| state.destroyed,
+            )
+            .await?;
         assert!(observation.state.borrow().flushed);
         assert!(!observation.state.borrow().fault_taken);
 
@@ -333,7 +369,10 @@ mod tests {
         );
 
         observation
-            .wait(|state| state.fault_taken && state.destroyed)
+            .wait(
+                "status retry flush fault consumption and child completion exceeded its deadline",
+                |state| state.fault_taken && state.destroyed,
+            )
             .await?;
         assert!(observation.state.borrow().flushed);
 
@@ -345,7 +384,13 @@ mod tests {
 
         drop(server);
 
-        let observed = observation.closed(&mut stream).await;
+        let observed = observation
+            .closed(
+                &mut stream,
+                "status retry child destruction after server drop exceeded its deadline",
+                "status retry socket closure after server drop exceeded its deadline",
+            )
+            .await;
         let backup = observation.backup_stop().await;
         finish_with_cleanup(observed, backup)
     }
@@ -380,7 +425,13 @@ mod tests {
                 .is_some_and(|source| source.is::<http::uri::InvalidUri>())
         );
 
-        let observed = observation.closed(&mut stream).await;
+        let observed = observation
+            .closed(
+                &mut stream,
+                "status retry child destruction after caller failure exceeded its deadline",
+                "status retry socket closure after caller failure exceeded its deadline",
+            )
+            .await;
         let backup = observation.backup_stop().await;
         finish_with_cleanup(observed, backup)
     }
