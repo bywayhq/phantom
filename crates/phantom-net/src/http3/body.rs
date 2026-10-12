@@ -14,6 +14,8 @@ use super::{
     upload::RequestSend,
 };
 
+mod task;
+
 pub(super) fn defer_datagram_abort(
     send: RequestSend,
     recv: RequestRecvStream,
@@ -80,6 +82,7 @@ impl Http3Body {
         if self.done {
             return Poll::Ready(None);
         }
+
         match self.task.poll_event(context) {
             Poll::Ready(Some(BodyEvent::Frame(frame))) => {
                 if let Some(data) = frame.data_ref() {
@@ -97,6 +100,14 @@ impl Http3Body {
             Poll::Ready(Some(BodyEvent::Error(error))) => {
                 self.finish("protocol_error");
                 Poll::Ready(Some(Err(error)))
+            }
+            Poll::Ready(Some(BodyEvent::TaskError(error))) => {
+                self.finish("task_error");
+                Poll::Ready(Some(Err(Http3Error::with_source(
+                    Http3ErrorKind::Local,
+                    "HTTP/3 response body task stopped without a terminal event",
+                    error,
+                ))))
             }
             Poll::Ready(None) => {
                 self.finish("task_error");
@@ -159,8 +170,6 @@ struct BodyTrace {
     received_bytes: u64,
     finished: bool,
 }
-
-mod task;
 
 impl BodyTrace {
     fn new() -> Self {

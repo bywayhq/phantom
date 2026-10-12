@@ -2503,6 +2503,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Preserve the original HTTP/3 response-body worker failure as the local
+  error source when an upload panics after an early response head.
+
 - Keep partitioned cookies from different schemeful sites separate during
   storage, deletion and snapshot import. Same-named cookies can coexist
   across partitions.

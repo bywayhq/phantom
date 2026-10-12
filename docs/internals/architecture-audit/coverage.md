@@ -2367,7 +2367,12 @@ Later reset assertions are unreached. An explicit `TestResult` annotation
 fixes the earlier baseline compiler error without changing the controls.
 The remedy schedules one recheck after a rejected empty observation and
 a new check when the last active owner leaves empty. Native verification
-of this remedy remains pending.
+at `1182b4d1` passes 68 pool, 10 timer and 20 backup methods on each
+host, plus formatting, strict linting and Rust 1.88. All five real prune
+controls reach their final assertions. Root and independent review read
+every log and verify clean exact source after terminal runners. The new
+controls use the unscheduled timer seam; they do not measure a real
+one-second service wake. Full gates remain pending.
 
 Separate exact and negotiated pools retain different setup and admission
 contracts. Declared template slots and send-time header hooks also serve
@@ -2411,8 +2416,20 @@ its task handle, so an upload panic after an early response head loses its
 original `JoinError`. The body reader receives a source-less local error.
 The proposed repair retains the actual handle and observes it after event
 channel closure. Existing cancellation and bounded stream cleanup remain
-unchanged. Source review and native baseline/remedy verification remain
-open.
+unchanged. Root and independent source review approve the bounded repair.
+At `caaab883`, both hosts reproduce the source-less local error after the
+actual upload panic. The regression retains the original upload task ID
+and requires the typed panic cause. The repaired worker is composed at
+`79a23272`; native remedy verification remains open. Reporting after body
+Drop and failures after a normal terminal event are outside this remedy.
+
+The codec pass identifies A256: outer compression can expand a large inner
+gzip name or comment without producing final response bytes. The pipeline
+loops on intermediate progress and the body checks its deadline only after
+data output. This can monopolize a body poll despite a zero final-byte cap.
+The stages keep bounded buffers, so no retained-buffer explosion is claimed.
+Bounded work per poll and deadline checks during no-output progress need
+a remedy and native verification.
 
 ### Remaining raw stale-worker baseline
 
