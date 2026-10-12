@@ -1805,8 +1805,9 @@ server or remote host by address. Host names the browser looked up for its
 own background requests stay in the DNS query events.
 
 `test_socket_hooks.py` checks the decoding, the summaries, and the origin,
-and that every retained log names the agent in the repository by its
-digest: change `socket_hooks.js` and the logs must be taken again.
+and the retained logs' source hashes from revision `15b1603e`. Archived logs
+keep those historical identities when the tool changes. Fresh header tests
+check the current agent and tool hashes separately.
 
 ## Firefox socket hooks
 
@@ -1889,8 +1890,9 @@ then has these lines besides the events:
 | `moz_log_<i>` | A retained MOZ_LOG line: milliseconds from the first hook report, the module, and the message, with object addresses renamed `p<n>` |
 
 `test_firefox_socket_hooks.py` checks the decoding, the summaries, the MOZ_LOG
-filter, and the origin, and that every retained log names the agent, the
-extension, the tool, and the decoder in the repository by their digests.
+filter, and the origin. Retained hashes identify the shared sources at
+`15b1603e` and the Firefox extension and tool at `71885a75`. Archived logs
+keep all four hashes. Fresh header tests check the current sources separately.
 
 ## Next
 
