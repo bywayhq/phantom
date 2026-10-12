@@ -446,6 +446,8 @@ mod tests {
         time::Duration,
     };
 
+    use bytes::Bytes;
+    use http::{HeaderMap, HeaderValue, Method, StatusCode, header};
     use http_body::Body;
     use phantom_net::{
         http1::Http1Connection,
@@ -453,10 +455,79 @@ mod tests {
     };
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    use super::checked_body_length;
+    use super::{ResponseBody, checked_body_length};
     use crate::{
-        HttpProtocol, RequestErrorKind, RequestTimeouts, TimeoutPhase, timeout::TimeoutBudget,
+        ContentDecoding, HttpProtocol, RequestErrorKind, RequestTimeouts, TimeoutPhase,
+        content_coding::{AdvertisedContentCodings, ContentDecodingPlan, plan},
+        timeout::TimeoutBudget,
     };
+
+    #[tokio::test(start_paused = true)]
+    async fn stacked_header_work_yields_then_observes_the_total_deadline()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // Valid empty gzip: FNAME, a long nonzero name, then empty DEFLATE
+        // and the zero CRC32/ISIZE footer. Only intermediate bytes expand.
+        let mut gzip = vec![0x1f, 0x8b, 8, 8, 0, 0, 0, 0, 0, 255];
+        gzip.resize(10 + (4 << 20), b'n');
+        gzip.push(0);
+        gzip.extend_from_slice(&[3, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        let encoded = zstd::encode_all(gzip.as_slice(), 3)?;
+        let advertised = AdvertisedContentCodings::from_request_headers(&[RequestHeader::new(
+            "accept-encoding",
+            "gzip, zstd",
+        )])?;
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::CONTENT_ENCODING,
+            HeaderValue::from_static("gzip, zstd"),
+        );
+
+        let mut decoder = match plan(
+            ContentDecoding::advertised(0),
+            advertised,
+            &Method::GET,
+            StatusCode::OK,
+            &headers,
+            false,
+            HttpProtocol::Http1,
+        ) {
+            ContentDecodingPlan::Decode(decoder, _) => decoder,
+            ContentDecodingPlan::Reject(error) => return Err(error.into()),
+            ContentDecodingPlan::Passthrough => return Err("stacked body was not decoded".into()),
+        };
+        decoder.push(Bytes::from(encoded));
+        decoder.end_input();
+        let mut body = ResponseBody {
+            inner: None,
+            timeouts: None,
+            content: None,
+            held_trailers: None,
+            origin: None,
+        };
+        body.decode_content(decoder);
+        body.apply_timeouts(
+            TimeoutBudget::new(RequestTimeouts::new().total(Duration::from_secs(1)))?,
+            HttpProtocol::Http1,
+        )?;
+
+        let mut context = Context::from_waker(Waker::noop());
+        let first = Pin::new(&mut body).poll_frame(&mut context);
+        assert!(
+            first.is_pending(),
+            "stacked header work finished in one poll: {first:?}"
+        );
+        assert!(!body.is_end_stream());
+
+        tokio::time::advance(Duration::from_secs(2)).await;
+        let result = Pin::new(&mut body).poll_frame(&mut context);
+        let Poll::Ready(Some(Err(error))) = result else {
+            panic!("yielded header work escaped the total deadline: {result:?}");
+        };
+        assert_eq!(error.kind(), RequestErrorKind::Timeout);
+        assert_eq!(error.timeout_phase(), Some(TimeoutPhase::Total));
+        assert!(body.is_end_stream());
+        Ok(())
+    }
 
     #[tokio::test(start_paused = true)]
     async fn buffered_wire_data_cannot_outlive_the_total_deadline()

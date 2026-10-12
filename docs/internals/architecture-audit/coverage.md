@@ -2420,8 +2420,14 @@ unchanged. Root and independent source review approve the bounded repair.
 At `caaab883`, both hosts reproduce the source-less local error after the
 actual upload panic. The regression retains the original upload task ID
 and requires the typed panic cause. The repaired worker is composed at
-`79a23272`; native remedy verification remains open. Reporting after body
-Drop and failures after a normal terminal event are outside this remedy.
+`79a23272`. At `ee164f59`, both hosts pass all twenty HTTP/3 connection
+methods, including the original task ID and panic-cause assertions.
+Formatting, strict linting and Rust 1.88 pass. Windows generates the
+1,250-line transport API inventory with the documented pinned tools; it
+is unchanged. Root and independent review read every log and verify
+clean exact sources after both runners finish. This checkpoint is pushed
+to draft PR #197. Final gates and current CI remain open. Reporting after
+body Drop and failures after a normal terminal event are outside this remedy.
 
 The codec pass identifies A256: outer compression can expand a large inner
 gzip name or comment without producing final response bytes. The pipeline
