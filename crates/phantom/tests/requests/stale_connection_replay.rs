@@ -1,8 +1,5 @@
 //! Opt-in replay after a reused HTTP/1.1 connection closes before a response.
 
-use crate::support::tls as tls_support;
-use crate::support::tracing as tracing_support;
-
 use std::{error::Error, future::Future, net::Ipv4Addr, time::Duration};
 
 use bytes::Bytes;
@@ -18,10 +15,15 @@ use tokio::{
 };
 use tracing::instrument::WithSubscriber;
 
+use crate::support::tls as tls_support;
+use crate::support::tracing as tracing_support;
+use ownership::{complete, serve_stale_connection, spawn_single_stale_server};
 use tls_support::{
     H1_ALPN, TestIdentity, accept_tls_stream, client_builder, is_peer_gone, read_head, tls_settings,
 };
 use tracing_support::OutcomeSubscriber;
+
+mod ownership;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 /// Only confirms that no connection is already queued; a replay would have
@@ -45,7 +47,7 @@ async fn stale_reused_http1_close_replays_idempotent_request_once() -> TestResul
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let server = tokio::spawn(async move {
-            let stale = serve_stale_connection(&listener).await?;
+            let stale = serve_stale_connection(&listener, None).await?;
             let (mut replacement, _) = listener.accept().await?;
             let replayed = read_request(&mut replacement).await?;
             replacement.write_all(REPLAY_RESPONSE).await?;
@@ -114,23 +116,28 @@ async fn fresh_http1_close_is_not_replayed() -> TestResult {
 #[tokio::test]
 async fn stale_reuse_replay_skips_post() -> TestResult {
     bounded(async {
-        let (address, server) = spawn_single_stale_server().await?;
+        let (address, server) = spawn_single_stale_server(None).await?;
+        let mut server = Some(server);
         let client = replaying_client()?;
 
-        prime(&client, &format!("http://{address}/prime")).await?;
-        let result = client
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                &format!("http://{address}/submit"),
-            )?
-            .body(Bytes::from_static(b"payload"))
-            .send()
-            .await;
+        let (stale, had_no_extra_connection) = complete(&mut server, async {
+            prime(&client, &format!("http://{address}/prime")).await?;
+            let result = client
+                .request(
+                    HttpProtocol::Http1,
+                    Method::POST,
+                    &format!("http://{address}/submit"),
+                )?
+                .body(Bytes::from_static(b"payload"))
+                .send()
+                .await;
 
-        let error = result.err().ok_or("stale POST was answered")?;
-        assert_eq!(error.kind(), RequestErrorKind::Http1);
-        let (stale, had_no_extra_connection) = server.await??;
+            let error = result.err().ok_or("stale POST was answered")?;
+            assert_eq!(error.kind(), RequestErrorKind::Http1);
+            Ok(())
+        })
+        .await?;
+
         assert!(stale.head.starts_with(b"POST /submit HTTP/1.1\r\n"));
         assert!(
             had_no_extra_connection,
@@ -144,24 +151,29 @@ async fn stale_reuse_replay_skips_post() -> TestResult {
 #[tokio::test]
 async fn stale_reuse_replay_refuses_one_shot_streaming_body() -> TestResult {
     bounded(async {
-        let (address, server) = spawn_single_stale_server().await?;
+        let (address, server) = spawn_single_stale_server(None).await?;
+        let mut server = Some(server);
         let client = replaying_client()?;
 
-        prime(&client, &format!("http://{address}/prime")).await?;
-        let result = client
-            .request(
-                HttpProtocol::Http1,
-                Method::PUT,
-                &format!("http://{address}/upload"),
-            )?
-            .streaming_body(Full::new(Bytes::from_static(b"payload")))
-            .send()
-            .await;
+        let (stale, had_no_extra_connection) = complete(&mut server, async {
+            prime(&client, &format!("http://{address}/prime")).await?;
+            let result = client
+                .request(
+                    HttpProtocol::Http1,
+                    Method::PUT,
+                    &format!("http://{address}/upload"),
+                )?
+                .streaming_body(Full::new(Bytes::from_static(b"payload")))
+                .send()
+                .await;
 
-        // The original transport error is returned, not a body-replay error.
-        let error = result.err().ok_or("stale streaming upload was answered")?;
-        assert_eq!(error.kind(), RequestErrorKind::Http1);
-        let (stale, had_no_extra_connection) = server.await??;
+            // The original transport error is returned, not a body-replay error.
+            let error = result.err().ok_or("stale streaming upload was answered")?;
+            assert_eq!(error.kind(), RequestErrorKind::Http1);
+            Ok(())
+        })
+        .await?;
+
         assert!(stale.head.starts_with(b"PUT /upload HTTP/1.1\r\n"));
         assert_eq!(stale.framed_body, b"payload");
         assert!(had_no_extra_connection, "a one-shot body was replayed");
@@ -176,7 +188,7 @@ async fn stale_reuse_replays_a_buffered_streaming_body() -> TestResult {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let server = tokio::spawn(async move {
-            let stale = serve_stale_connection(&listener).await?;
+            let stale = serve_stale_connection(&listener, None).await?;
             let (mut replacement, _) = listener.accept().await?;
             let replayed = read_request(&mut replacement).await?;
             replacement.write_all(REPLAY_RESPONSE).await?;
@@ -232,7 +244,7 @@ async fn stale_reuse_replays_a_chunked_buffered_body_with_its_frames() -> TestRe
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let server = tokio::spawn(async move {
-            let stale = serve_stale_connection(&listener).await?;
+            let stale = serve_stale_connection(&listener, None).await?;
             let (mut replacement, _) = listener.accept().await?;
             let replayed = read_request(&mut replacement).await?;
             replacement.write_all(REPLAY_RESPONSE).await?;
@@ -279,7 +291,7 @@ async fn stale_reuse_replay_is_bounded() -> TestResult {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let server = tokio::spawn(async move {
-            serve_stale_connection(&listener).await?;
+            serve_stale_connection(&listener, None).await?;
             let (mut replacement, _) = listener.accept().await?;
             let replayed = read_request(&mut replacement).await?;
             drop(replacement);
@@ -312,7 +324,7 @@ async fn stale_reuse_replay_is_observable() -> TestResult {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let server = tokio::spawn(async move {
-            serve_stale_connection(&listener).await?;
+            serve_stale_connection(&listener, None).await?;
             let (mut replacement, _) = listener.accept().await?;
             read_request(&mut replacement).await?;
             replacement.write_all(REPLAY_RESPONSE).await?;
@@ -355,20 +367,25 @@ async fn stale_reuse_replay_is_observable() -> TestResult {
 #[tokio::test]
 async fn stale_reuse_is_not_replayed_by_default() -> TestResult {
     bounded(async {
-        let (address, server) = spawn_single_stale_server().await?;
+        let (address, server) = spawn_single_stale_server(None).await?;
+        let mut server = Some(server);
         let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
         let subscriber = OutcomeSubscriber::default();
 
-        prime(&client, &format!("http://{address}/prime")).await?;
-        let result = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/default"))?
-            .send()
-            .with_subscriber(subscriber.dispatch())
-            .await;
+        let (_, had_no_extra_connection) = complete(&mut server, async {
+            prime(&client, &format!("http://{address}/prime")).await?;
+            let result = client
+                .get(HttpProtocol::Http1, &format!("http://{address}/default"))?
+                .send()
+                .with_subscriber(subscriber.dispatch())
+                .await;
 
-        let error = result.err().ok_or("stale request was answered")?;
-        assert_eq!(error.kind(), RequestErrorKind::Http1);
-        let (_, had_no_extra_connection) = server.await??;
+            let error = result.err().ok_or("stale request was answered")?;
+            assert_eq!(error.kind(), RequestErrorKind::Http1);
+            Ok(())
+        })
+        .await?;
+
         assert!(had_no_extra_connection, "default policy replayed a request");
         assert!(
             subscriber
@@ -446,34 +463,6 @@ async fn prime(client: &Client, url: &str) -> TestResult {
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     response.into_body().collect().await?;
     Ok(())
-}
-
-/// Answers the priming request, then reads the next request on the same
-/// connection and closes it without any response byte.
-async fn serve_stale_connection(listener: &TcpListener) -> TestResult<ReceivedRequest> {
-    let (mut stream, _) = listener.accept().await?;
-    let priming = read_request(&mut stream).await?;
-    assert!(priming.head.starts_with(b"GET /prime HTTP/1.1\r\n"));
-    stream.write_all(PRIMING_RESPONSE).await?;
-    stream.flush().await?;
-    let stale = read_request(&mut stream).await?;
-    // Every request byte was read, so dropping the socket sends FIN, not RST.
-    drop(stream);
-    Ok(stale)
-}
-
-async fn spawn_single_stale_server() -> TestResult<(
-    std::net::SocketAddr,
-    tokio::task::JoinHandle<TestResult<(ReceivedRequest, bool)>>,
-)> {
-    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-    let address = listener.local_addr()?;
-    let server = tokio::spawn(async move {
-        let stale = serve_stale_connection(&listener).await?;
-        let extra = timeout(EXTRA_CONNECTION_WINDOW, listener.accept()).await;
-        Ok((stale, extra.is_err()))
-    });
-    Ok((address, server))
 }
 
 /// Reads one request head and its `Content-Length` or chunked body.
