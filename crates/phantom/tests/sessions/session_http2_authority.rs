@@ -15,11 +15,15 @@ use phantom::HttpProtocol;
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::oneshot,
-    time::timeout,
+    time::{Instant, timeout, timeout_at},
 };
 use tokio_btls::SslStream;
 
-use crate::support::{deadline::FixtureDeadline, tls as tls_support};
+use crate::support::{
+    deadline::FixtureDeadline,
+    tls as tls_support,
+    tunnel_proxy::connection_peer::{ConnectionPeer, finish_with_cleanup},
+};
 use tls_support::{H2_ALPN, TestIdentity, test_client};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -27,43 +31,58 @@ type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[tokio::test]
 async fn secondary_authority_uses_a_dedicated_connection() -> TestResult<()> {
-    bounded(async {
+    let mut peers = Vec::new();
+    let result = bounded(async {
         let identity =
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), "localhost")?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
+        let server = async {
             let primary = accept_tls(&listener, &acceptor).await?;
-            let primary = tokio::spawn(serve_one_request(primary, StatusCode::NO_CONTENT));
+            peers.push(ConnectionPeer::spawn(serve_one_request(
+                primary,
+                StatusCode::NO_CONTENT,
+            )));
 
             let secondary = accept_tls(&listener, &acceptor).await?;
-            let secondary = tokio::spawn(serve_one_request(secondary, StatusCode::OK));
+            peers.push(ConnectionPeer::spawn(serve_one_request(
+                secondary,
+                StatusCode::OK,
+            )));
 
-            Ok::<_, Box<dyn Error + Send + Sync>>([primary.await??, secondary.await??])
-        });
+            let primary = (&mut peers[0]).await;
+            drop(peers.remove(0));
+            let primary = primary??;
+            let secondary = (&mut peers[0]).await;
+            drop(peers.remove(0));
+            Ok::<_, Box<dyn Error + Send + Sync>>([primary, secondary??])
+        };
 
-        let session = test_client(&identity, true)?;
-        let primary = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/"))?
-            .send()
-            .await?;
-        assert_eq!(primary.status(), StatusCode::NO_CONTENT);
-        primary.into_body().collect().await?;
+        let caller = async {
+            let session = test_client(&identity, true)?;
+            let primary = session
+                .get(HttpProtocol::Http2, &format!("https://{address}/"))?
+                .send()
+                .await?;
+            assert_eq!(primary.status(), StatusCode::NO_CONTENT);
+            primary.into_body().collect().await?;
 
-        let secondary_authority = format!("localhost:{}", address.port());
-        let secondary = session
-            .get(
-                HttpProtocol::Http2,
-                &format!("https://{secondary_authority}/.well-known/phantom/421?key=fixed"),
-            )?
-            .send()
-            .await?;
-        assert_eq!(secondary.status(), StatusCode::OK);
-        secondary.into_body().collect().await?;
-        drop(session);
+            let secondary_authority = format!("localhost:{}", address.port());
+            let secondary = session
+                .get(
+                    HttpProtocol::Http2,
+                    &format!("https://{secondary_authority}/.well-known/phantom/421?key=fixed"),
+                )?
+                .send()
+                .await?;
+            assert_eq!(secondary.status(), StatusCode::OK);
+            secondary.into_body().collect().await?;
+            drop(session);
+            Ok::<_, Box<dyn Error + Send + Sync>>(secondary_authority)
+        };
 
-        let [primary, secondary] = server.await??;
+        let (secondary_authority, [primary, secondary]) = tokio::try_join!(caller, server)?;
         assert_eq!(primary.authority, address.to_string());
         assert_eq!(primary.path_and_query, "/");
         assert_eq!(secondary.authority, secondary_authority);
@@ -73,7 +92,8 @@ async fn secondary_authority_uses_a_dedicated_connection() -> TestResult<()> {
         );
         Ok(())
     })
-    .await
+    .await;
+    finish_with_cleanup(result, finish_peers(&mut peers).await)
 }
 
 #[tokio::test]
@@ -84,26 +104,29 @@ async fn dedicated_421_is_returned_without_hidden_replay() -> TestResult<()> {
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
         let (response_seen, response_seen_by_server) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        let server = async move {
             let stream = accept_tls(&listener, &acceptor).await?;
             serve_421_without_replay(listener, stream, response_seen_by_server).await
-        });
+        };
 
         let session = test_client(&identity, true)?;
-        let response = session
-            .get(
-                HttpProtocol::Http2,
-                &format!("https://{address}/.well-known/phantom/421?key=fixed"),
-            )?
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::MISDIRECTED_REQUEST);
-        response.into_body().collect().await?;
-        response_seen
-            .send(())
-            .map_err(|()| "421 server stopped before the response was observed")?;
+        let caller = async {
+            let response = session
+                .get(
+                    HttpProtocol::Http2,
+                    &format!("https://{address}/.well-known/phantom/421?key=fixed"),
+                )?
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::MISDIRECTED_REQUEST);
+            response.into_body().collect().await?;
+            response_seen
+                .send(())
+                .map_err(|()| "421 server stopped before the response was observed")?;
+            Ok::<_, Box<dyn Error + Send + Sync>>(())
+        };
 
-        let request = server.await??;
+        let ((), request) = tokio::try_join!(caller, server)?;
         drop(session);
         assert_eq!(request.authority, address.to_string());
         assert_eq!(request.path_and_query, "/.well-known/phantom/421?key=fixed");
@@ -115,6 +138,36 @@ async fn dedicated_421_is_returned_without_hidden_replay() -> TestResult<()> {
 struct ObservedRequest {
     authority: String,
     path_and_query: String,
+}
+
+async fn finish_peers(
+    peers: &mut Vec<ConnectionPeer<TestResult<ObservedRequest>>>,
+) -> TestResult<()> {
+    for peer in peers.iter() {
+        if !peer.is_finished() {
+            peer.abort();
+        }
+    }
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let mut result = Ok(());
+    let mut index = 0;
+    while index < peers.len() {
+        let outcome = match timeout_at(deadline, &mut peers[index]).await {
+            Ok(outcome) => {
+                drop(peers.remove(index));
+                match outcome {
+                    Ok(outcome) => outcome.map(|_| ()),
+                    Err(error) => Err(error.into()),
+                }
+            }
+            Err(elapsed) => {
+                index += 1;
+                Err(FixtureDeadline::new("HTTP/2 authority peer did not stop", elapsed).into())
+            }
+        };
+        result = finish_with_cleanup(result, outcome);
+    }
+    result
 }
 
 async fn serve_one_request(
@@ -215,9 +268,99 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::Cell, future::poll_fn, io, task::Poll};
+    use std::{cell::Cell, future::poll_fn, io, net::Ipv4Addr, task::Poll};
+
+    use tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        net::{TcpListener, TcpStream},
+        sync::oneshot,
+        time::timeout,
+    };
+
+    use crate::support::tunnel_proxy::connection_peer::{
+        ConnectionPeer, FixtureFailures, finish_with_cleanup,
+    };
 
     use super::{TestResult, bounded};
+
+    #[tokio::test]
+    async fn accepted_peers_keep_completed_failure_and_external_cancellation() -> TestResult<()> {
+        let failed_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let failed_address = failed_listener.local_addr()?;
+        let pending_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let pending_address = pending_listener.local_addr()?;
+        let (entered, accepted) = oneshot::channel();
+        let failed = ConnectionPeer::spawn(async move {
+            let (mut stream, _) = failed_listener.accept().await?;
+            assert_eq!(stream.read_u8().await?, b'!');
+            TestResult::<super::ObservedRequest>::Err(
+                io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "accepted authority peer failed",
+                )
+                .into(),
+            )
+        });
+        let pending = ConnectionPeer::spawn(async move {
+            let (mut stream, _) = pending_listener.accept().await?;
+            entered
+                .send(())
+                .map_err(|()| "accepted-peer observer stopped")?;
+            stream.read_u8().await?;
+            Err("the pending peer received an unexpected byte".into())
+        });
+        let mut failed_client = TcpStream::connect(failed_address).await?;
+        failed_client.write_all(b"!").await?;
+        let mut pending_client = TcpStream::connect(pending_address).await?;
+        timeout(super::TEST_TIMEOUT, accepted).await??;
+        pending.abort();
+        timeout(super::TEST_TIMEOUT, async {
+            while !failed.is_finished() || !pending.is_finished() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await?;
+        let mut peers = vec![failed, pending];
+        let primary: TestResult<()> =
+            Err(io::Error::new(io::ErrorKind::InvalidInput, "later authority setup failed").into());
+        let error = finish_with_cleanup(primary, super::finish_peers(&mut peers).await)
+            .err()
+            .ok_or("authority failures were discarded")?;
+        assert!(peers.is_empty());
+        let causes = error
+            .downcast_ref::<FixtureFailures>()
+            .ok_or("missing caller and peer causes")?;
+        assert_eq!(
+            causes
+                .primary
+                .downcast_ref::<io::Error>()
+                .ok_or("missing caller I/O cause")?
+                .kind(),
+            io::ErrorKind::InvalidInput
+        );
+        let peers = causes
+            .cleanup
+            .downcast_ref::<FixtureFailures>()
+            .ok_or("missing independent peer causes")?;
+        let original = peers
+            .primary
+            .downcast_ref::<io::Error>()
+            .ok_or("missing original peer I/O cause")?;
+        assert_eq!(original.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(original.to_string(), "accepted authority peer failed");
+        assert!(
+            peers
+                .cleanup
+                .downcast_ref::<tokio::task::JoinError>()
+                .is_some_and(tokio::task::JoinError::is_cancelled)
+        );
+        let closed = timeout(super::TEST_TIMEOUT, pending_client.read(&mut [0_u8; 1])).await?;
+        assert!(
+            matches!(closed, Ok(0))
+                || matches!(closed, Err(ref error) if crate::support::tls::is_peer_gone(error))
+        );
+        Ok(())
+    }
 
     #[tokio::test(start_paused = true)]
     async fn entered_pending_deadline_retains_its_original_elapsed() -> TestResult<()> {
