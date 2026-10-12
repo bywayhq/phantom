@@ -160,16 +160,20 @@ impl RedirectState {
         if !is_redirect(response.status()) {
             return Ok(RedirectAction::Stop);
         }
+
         let Some(maximum) = self.policy.maximum else {
             return Ok(RedirectAction::Stop);
         };
+
         let mut locations = response.headers().get_all(http::header::LOCATION).iter();
         let Some(location) = locations.next() else {
             return Ok(RedirectAction::Stop);
         };
+
         if locations.next().is_some() {
             return Err(RequestError::ambiguous_redirect_location());
         }
+
         if self.followed >= maximum.get() {
             return Err(RequestError::redirect_limit());
         }
@@ -243,5 +247,4 @@ pub(crate) fn is_credential_header(name: &str) -> bool {
 }
 
 #[cfg(test)]
-#[path = "redirect/tests.rs"]
 mod tests;

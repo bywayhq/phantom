@@ -456,9 +456,11 @@ impl StatusRetry {
             })?;
             bits |= 1 << index;
         }
+
         if bits == 0 {
             return Err(StatusRetryError { status: None });
         }
+
         Ok(Self {
             statuses: bits,
             maximum,

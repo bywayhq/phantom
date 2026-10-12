@@ -416,9 +416,6 @@ pub(super) fn effective_retry(delay: Duration, minimum: Option<Duration>) -> Dur
     minimum.map_or(delay, |minimum| delay.max(minimum))
 }
 
-#[cfg(test)]
-mod tests;
-
 #[derive(Clone)]
 pub(super) struct SseRequest {
     client: Client,
@@ -598,3 +595,6 @@ fn validate_placeholder_name(name: &str, protocol: HttpProtocol) -> Result<(), S
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests;

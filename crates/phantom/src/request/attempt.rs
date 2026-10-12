@@ -1205,6 +1205,7 @@ impl<'a> ForwardAuthentication<'a> {
         }
     }
 }
+
 fn prepare_headers(
     client_hints: Option<ClientHintContext<'_>>,
     headers: Vec<RequestHeader>,
@@ -1217,6 +1218,12 @@ fn prepare_headers(
 
 #[cfg(test)]
 mod tests {
+    use std::{num::NonZeroUsize, time::Duration};
+
+    use http::{Method, Response, StatusCode};
+    use phantom_net::http2::Http2Error;
+    use tracing::Span;
+
     use super::{begin_http2_fallback, begin_reused_connection_replay, begin_status_retry};
     use crate::{
         HttpProtocol, RequestError, RequestTimeouts, RetryPolicy, StatusRetry, TimeoutPhase,
@@ -1224,10 +1231,6 @@ mod tests {
         retry::ConnectionSetupRetryState,
         timeout::TimeoutBudget,
     };
-    use http::{Method, Response, StatusCode};
-    use phantom_net::http2::Http2Error;
-    use std::{num::NonZeroUsize, time::Duration};
-    use tracing::Span;
 
     fn status_policy() -> Result<RetryPolicy, crate::StatusRetryError> {
         Ok(RetryPolicy::none()

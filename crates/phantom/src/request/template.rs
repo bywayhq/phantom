@@ -705,5 +705,4 @@ fn default_value_on_route<'a>(
 }
 
 #[cfg(test)]
-#[path = "template/tests.rs"]
 mod tests;
