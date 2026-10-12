@@ -2484,6 +2484,25 @@ separately observe clean exact sources after both runners terminate.
 This resolves the measured raw-worker defects; broader A245 fixture paths,
 parser bounds, final gates and CI on the new checkpoint remain open.
 
+### Expect-continue fixture ownership
+
+At `231d5379`, both hosts compile and run all 28 expect-continue methods.
+All sixteen original wire and timing contracts pass. Twelve new controls
+fail after actual HTTP/1 header-read, HTTP/2 TLS-acquisition, or authenticated
+HTTP/3 SETTINGS prerequisites. Dropped and queued callers leave original
+peers and their sockets live before backup. Watchdogs lose the original
+Elapsed, and invalid input loses an already completed peer cancellation.
+The original InvalidUri parser and queued RecvError checks pass before the
+ownership assertions fail. H3 connection-close observation times out, so
+the exact normal close-code assertion remains unreached. These results do
+not establish a production leak or exercise upload/reset ownership phases.
+
+Formatting and Rust 1.88 checks pass on both hosts. Strict linting fails
+only on a nested cleanup guard in the new private fixture. Root and
+independent review read all eight logs and exits, then separately observe
+clean exact sources after both runners terminate. The baseline remains
+red. All fifteen worker owners, typed deadlines, body bounds, quiet-read
+errors and H3 lifetime-channel handling still require repair and verification.
 ### Capture-tool ownership follow-up
 
 The complete reads of `alt_svc_race.py` and `proxy_route.py` at
