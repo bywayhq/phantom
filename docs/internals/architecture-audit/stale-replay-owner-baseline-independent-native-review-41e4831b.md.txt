@@ -1,0 +1,13 @@
+# Independent paired stale baseline review
+
+Accept the measured causal baseline at 41e4831b6d7dcc4b9164b471c23be6a1e1533518. This is a failing baseline, not remediation approval. Full eight logs and twelve sidecars were read; every artifact byte count and SHA256 is bound in the JSON report. Both whole-runner receipts are terminal 1 after the exact revision/clean-tree end guards. The integration owner reports actual Windows15189/Linux56393 handles terminal1. Independent postterminal Git reads confirm both root and Linux mirror clean at exact 41e4831b before further mutations.
+
+Each host selected seventeen: twelve pass, five fail, zero ignored, 557 filtered. Ten original ordinary contracts and the explicit-backup/original-flush-error positive controls pass. Tests exit101; format, strict three-target Clippy and Rust1.88 each exit0. Quality logs contain no warnings.
+
+Three lifecycle targets reach literal priming204/delegated original post-prime read Pending before raw owner Drop, real caller InvalidUri/parser failure, or the actual original five-second held caller deadline. They fail at their distinct original-worker destruction watch. Socket closure and no-backup target assertions are subsequently unreached; explicit backup follows and does not establish target shutdown. The deadline lifecycle target verifies the original literal deadline message first.
+
+The separate actual five-second deadline control fails exactly because its original Elapsed cause is absent. Its held actual worker prerequisites are reached; this is not a synthetic future or observation-only timeout.
+
+The completed-worker/caller control first reaches actual delegated flush/fault/destruction, original task is_finished, and original caller InvalidUri/parser checks. Its final FixtureFailures composition guard fails because the completed original worker error is missing. The target serving I/O-kind/payload/Arc identity and no-backup assertions are unreached. Explicit backup returns the original PermissionDenied/ServingFailure as cleanup; this is error-retention evidence, not proof the unreached target marker assertions passed. The separate positive flush control does verify the exact original I/O payload and Arc identity.
+
+No native production leak, whole A245 closure, remaining raw-worker repair, parsing/allocation fix, race result or full integration/CI result is claimed. Ordinary raw slots remain inside consuming deadlines; control slots are retained externally for explicit backup. The next bounded source remedy must be reviewed independently, preserve all ten contracts and seven controls, and use fresh artifacts. Reviewer ran no native commands or source mutations.

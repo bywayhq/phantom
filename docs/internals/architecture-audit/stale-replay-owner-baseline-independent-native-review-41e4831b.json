@@ -1,0 +1,155 @@
+{
+  "revision": "41e4831b6d7dcc4b9164b471c23be6a1e1533518",
+  "decision": "accept qualified causal failing baseline",
+  "full_logs_read": 8,
+  "sidecars_read": 12,
+  "root_clean_exact_postterminal": true,
+  "linux_clean_exact_postterminal": true,
+  "reported_actual_handles": {
+    "linux": {
+      "id": 56393,
+      "exit": 1
+    },
+    "windows": {
+      "id": 15189,
+      "exit": 1
+    }
+  },
+  "each_host": {
+    "ignored": 0,
+    "msrv_exit": 0,
+    "passed": 12,
+    "fmt_exit": 0,
+    "test_exit": 101,
+    "filtered": 557,
+    "runner_exit": 1,
+    "selected": 17,
+    "quality_warnings": 0,
+    "clippy_exit": 0,
+    "failed": 5
+  },
+  "original_ordinary_passes": 10,
+  "positive_controls_pass": 2,
+  "lifecycle_failure_boundary": "original destruction watch; socket/no-backup assertions unreached",
+  "deadline_failure": "actual original Elapsed source absent",
+  "combined_failure_boundary": "FixtureFailures target guard; serving kind/payload/Arc and no-backup assertions unreached",
+  "backup_preserves_original_permission_denied": true,
+  "broader_a245_closed": false,
+  "artifacts": [
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-windows.retry.log",
+      "bytes": 3769,
+      "sha256": "313a9c137109de20544deecc7d5e721949383c7fb40b1f4cbea0a9d149ee7273"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-windows.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-windows.clippy.log",
+      "bytes": 168,
+      "sha256": "4cb4d29b79d0b87941d7a7dd3d849eb4b5b0c123aab42cd334072949d4388e7d"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-windows.msrv.log",
+      "bytes": 168,
+      "sha256": "070c2eda77ccd72b7687b2a87a6e4dc05aff8566a067b78c684765b4d2d29a0d"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-windows.retry.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "value": "101"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-windows.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "value": "0"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-windows.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "value": "0"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-windows.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "value": "0"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-windows.revision",
+      "bytes": 41,
+      "sha256": "a313da33f87aaff7c4632c3650ccef6fe16ec9aebf2512110ebf28bd4e3092a0",
+      "value": "41e4831b6d7dcc4b9164b471c23be6a1e1533518"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-windows.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "value": "1"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-linux.retry.log",
+      "bytes": 3775,
+      "sha256": "c3850973a4f110c72387a716a9e4de22ab3531e85331360914c4ec2f80d510c7"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-linux.fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-linux.clippy.log",
+      "bytes": 178,
+      "sha256": "85ef3f32f94f38d17e5c20902116537618f1b5819e4773e3e847b2914d53ac9c"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-linux.msrv.log",
+      "bytes": 178,
+      "sha256": "d4896dd6e1eab7c92fa72d5527df8e6ad943850bc5be9b3bbcd6b29a408c3515"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-linux.retry.exit",
+      "bytes": 4,
+      "sha256": "39b8dc3fc8b44765c8e6f1adee04c5b465e555ab791cc42d0d9e810d5b64297c",
+      "value": "101"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-linux.fmt.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "value": "0"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-linux.clippy.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "value": "0"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-linux.msrv.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "value": "0"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-linux.revision",
+      "bytes": 41,
+      "sha256": "a313da33f87aaff7c4632c3650ccef6fe16ec9aebf2512110ebf28bd4e3092a0",
+      "value": "41e4831b6d7dcc4b9164b471c23be6a1e1533518"
+    },
+    {
+      "path": "C:/code/phantom/target/architecture-audit/stale-owner-baseline-41e4831b-linux.runner-exit",
+      "bytes": 2,
+      "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+      "value": "1"
+    }
+  ],
+  "runner_sha256": "2c08669ddde9e10e9e45f6191a842d7ed4518e25065b897c259f30d0043acd0e",
+  "sync_sha256": "4fc9747fe5b35126699e57dd7f7398141d660bf862b975c7b0fb1740a9d6cfb2",
+  "markdown_sha256": "5612111a70d872e59b7df1183fde2f38f0981873eec2420075f52566c9d748c6"
+}

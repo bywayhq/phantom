@@ -1,0 +1,42 @@
+{
+  "revision": "e0228c787ed535e6548f12c50922650cc4e83a26",
+  "parent": "41e4831b6d7dcc4b9164b471c23be6a1e1533518",
+  "decision": "approve bounded source and fresh guarded paired measurement",
+  "findings": [],
+  "signature": "G",
+  "root_clean_exact_at_review": true,
+  "changed_files": 2,
+  "sources": [
+    {
+      "path": "crates/phantom/tests/requests/stale_connection_replay.rs",
+      "blob": "05e5bf59ca82b0cebf0cb83e511f06efc50a121f",
+      "lf_sha256": "3d594408503e06f3619744e72e770ec7fbf694d225163b3a4cc279f9a040ed5d"
+    },
+    {
+      "path": "crates/phantom/tests/requests/stale_connection_replay/ownership.rs",
+      "blob": "c5cc24f350adb0359e8ea41399ce87c739d7edd3",
+      "lf_sha256": "8a2bb22b3ff44fa9fae8b897ec73f431e95ad4bc6ef84eec891ddc6d5204804c"
+    },
+    {
+      "path": "crates/phantom/tests/requests/stale_connection_replay/ownership/tests.rs",
+      "blob": "cb494a7e970666d95877994ae3946020bf0050c0",
+      "lf_sha256": "968e56d4ea63786c7eac06d1f1f7ba41c75f04a78f7c42142830865363d88fb2"
+    }
+  ],
+  "ordinary_test_bodies_unchanged": 10,
+  "whole_control_blob_unchanged": "cb494a7e970666d95877994ae3946020bf0050c0",
+  "controls_unchanged": 7,
+  "original_deadline_seconds": 5,
+  "collection_seconds": 5,
+  "quiet_ms": 100,
+  "owner_taken_before_caller_await": true,
+  "completed_original_errors_composed": true,
+  "unfinished_foreign_local_race_closed": false,
+  "drop_async_join_claim": false,
+  "other_raw_ordinary_owners_open": 7,
+  "broader_a245_closed": false,
+  "runner_sha256": "d0171872b843b556b9361689b0898f7e05c90a280e353516d3a80a5ebb9ae892",
+  "sync_sha256": "0e3ed71ad85e0f1a7e469d53babbb883d6b6e60fc8024bdbb66891f46750a931",
+  "native_results": [],
+  "markdown_sha256": "8f962812c643711c9d01f644f2ec9b2977e61d6abdec75e8ccf3cd62b49094b6"
+}

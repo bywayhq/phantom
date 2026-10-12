@@ -2174,6 +2174,31 @@ errors. Unfinished foreign/local cancellation races, other raw peers,
 acquisition and parser paths, remaining deadline mappings, final combined
 review, full gates and candidate CI remain open.
 
+### Stale-connection fixture verification
+
+The baseline at `41e4831b` selects 17 methods on each host: ten ordinary
+contracts and two positive controls pass; five causal controls fail.
+Three fail at original-worker destruction before their socket observations.
+The actual five-second caller deadline loses its Elapsed source. The combined
+caller/worker error guard fails before the target serving-payload assertions.
+Explicit backup retains the original serving failure. See
+`stale-replay-owner-baseline-independent-native-review-41e4831b.json`.
+
+At `e0228c78`, all 17 unchanged methods pass on Windows and Linux. The five
+earlier failures now reach their later socket, no-backup, original Elapsed,
+typed serving payload and identity observations. Package formatting, strict
+requests/streams/sessions Clippy and Rust 1.88 checks also pass on both hosts.
+The canonical fixture owns its peer before awaiting the caller and preserves
+caller and collected worker failures. See
+`stale-replay-owner-remedy-independent-native-review-e0228c78.json`.
+
+This is bounded fixture evidence. Drop requests abort without asynchronous
+collection. An outer deadline can still discard an already completed worker
+error; no mixed control measured that case. Seven other raw ordinary workers,
+acquisition, parsing and allocation, quiet-accept errors, cancellation races,
+timeout owners, final architecture review and integration gates remain open.
+Replay-body I/O and redirect late-write errors also need their recorded fixes.
+
 ## Next
 
 - [Audit plan](../architecture-audit.md): acceptance and verification.
