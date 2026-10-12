@@ -160,6 +160,8 @@ class RunOwners:
             self.primary = error
             raise
 
+        return self.result
+
     async def backup(self):
         failures = []
         self.release_start.set()
