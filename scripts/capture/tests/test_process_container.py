@@ -115,9 +115,7 @@ class ProcessContainerTests(unittest.TestCase):
             self.assertIsNone(container._gate)
             self.assertIsNone(container.job)
             self.assertFalse(container.start())
-            self.assertEqual(
-                close_job.call_args_list, [mock.call(41), mock.call(41)]
-            )
+            self.assertEqual(close_job.call_args_list, [mock.call(41), mock.call(41)])
             self.assertEqual(process.stdin.close.call_count, 2)
 
     @unittest.skipUnless(sys.platform == "win32", "Windows native error conversion")
@@ -221,7 +219,9 @@ class ProcessContainerTests(unittest.TestCase):
             self.assertFalse(container._cleanup_complete)
 
     @unittest.skipIf(sys.platform == "win32", "POSIX process group identity")
-    def test_parent_eof_ends_custodian_and_reaped_group_is_never_signalled(self) -> None:
+    def test_parent_eof_ends_custodian_and_reaped_group_is_never_signalled(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as directory:
             marker = Path(directory) / "tool-started"
             container = ProcessContainer(
@@ -239,9 +239,7 @@ class ProcessContainerTests(unittest.TestCase):
                 container._gate = None
                 # Deliberately violate private ownership after observing EOF.
                 # This must leave a reported loss, never a numeric PGID retry.
-                self.assertEqual(
-                    container._process.wait(timeout=30), -signal.SIGKILL
-                )
+                self.assertEqual(container._process.wait(timeout=30), -signal.SIGKILL)
                 with mock.patch.object(os, "killpg") as kill_group:
                     with self.assertRaises(process_container.ProcessCleanupError):
                         container.close()

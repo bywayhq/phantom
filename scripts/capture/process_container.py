@@ -170,9 +170,7 @@ class ProcessContainer:
                 # A default SIGCHLD disposition leaves the owned leader
                 # waitable. Ignore/reaping handlers would release its PID.
                 if signal.getsignal(signal.SIGCHLD) != signal.SIG_DFL:
-                    raise OSError(
-                        "capture ownership requires default SIGCHLD handling"
-                    )
+                    raise OSError("capture ownership requires default SIGCHLD handling")
                 self._status_reader, self._status_writer = os.pipe()
                 os.set_blocking(self._status_reader, False)
                 launched = [
@@ -267,7 +265,9 @@ class ProcessContainer:
         if len(self._status) < 5:
             if fragment:
                 return None
-            error = OSError("capture group leader closed without a complete tool status")
+            error = OSError(
+                "capture group leader closed without a complete tool status"
+            )
         else:
             kind = self._status[:1]
             value = int.from_bytes(self._status[1:], "big", signed=True)

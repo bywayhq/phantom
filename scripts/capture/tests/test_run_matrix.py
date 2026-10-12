@@ -88,13 +88,15 @@ def fake_capture(**fields):
 class ManifestTests(unittest.TestCase):
     def test_nonfinite_timeouts_are_refused_before_jobs_are_created(self) -> None:
         for timeout in (float("nan"), float("inf"), float("-inf"), 10**400):
-            with self.subTest(timeout=timeout):
-                with self.assertRaisesRegex(ManifestError, "timeout must be a finite"):
-                    expand_manifest(
-                        manifest(fake_capture(timeout=timeout)),
-                        base=Path("/repo"),
-                        tools=FAKE_TOOLS,
-                    )
+            with (
+                self.subTest(timeout=timeout),
+                self.assertRaisesRegex(ManifestError, "timeout must be a finite"),
+            ):
+                expand_manifest(
+                    manifest(fake_capture(timeout=timeout)),
+                    base=Path("/repo"),
+                    tools=FAKE_TOOLS,
+                )
 
     def test_each_browser_and_scenario_becomes_one_job(self) -> None:
         jobs = expand_manifest(
@@ -485,105 +487,111 @@ class ScheduleTests(unittest.TestCase):
         self.assertIs(result.attempts[0].failure, failure)
 
     def test_an_interrupted_worker_releases_the_slot_for_the_waiting_job(self) -> None:
+        def observe(failure: BaseException) -> None:
+            stopped = threading.Event()
+            entered = threading.Event()
+            release = threading.Event()
+            second_started = threading.Event()
+            results = []
+
+            def run(item: Job) -> JobResult:
+                if item.id == "first":
+                    entered.set()
+                    release.wait(10)
+                    raise failure
+                second_started.set()
+                return JobResult(item, "ok", [Attempt(True, 0.1)])
+
+            runner = threading.Thread(
+                target=lambda: results.extend(
+                    schedule(
+                        [job("first", exclusive=True), job("waiting")],
+                        run,
+                        limit=1,
+                        stopped=stopped,
+                    ),
+                ),
+                daemon=True,
+            )
+            runner.start()
+            try:
+                self.assertTrue(entered.wait(10))
+                self.assertFalse(second_started.is_set())
+                release.set()
+                runner.join(10)
+
+                self.assertFalse(runner.is_alive())
+                self.assertTrue(second_started.is_set())
+                self.assertEqual(
+                    [result.status for result in results], ["failed", "ok"]
+                )
+                self.assertIs(results[0].attempts[0].failure, failure)
+            finally:
+                release.set()
+                stopped.set()
+                runner.join(10)
+            self.assertFalse(runner.is_alive())
+
         for failure in (KeyboardInterrupt("worker interrupted"), SystemExit(125)):
             with self.subTest(failure=type(failure).__name__):
-                stopped = threading.Event()
-                entered = threading.Event()
-                release = threading.Event()
-                second_started = threading.Event()
-                results = []
+                observe(failure)
 
-                def run(item: Job) -> JobResult:
-                    if item.id == "first":
-                        entered.set()
-                        release.wait(10)
-                        raise failure
-                    second_started.set()
-                    return JobResult(item, "ok", [Attempt(True, 0.1)])
+    def test_a_failed_report_keeps_both_causes_and_releases_the_waiting_job(
+        self,
+    ) -> None:
+        def observe(primary: BaseException | None, failure: BaseException) -> None:
+            reported = []
 
-                runner = threading.Thread(
-                    target=lambda: results.extend(
-                        schedule(
-                            [job("first", exclusive=True), job("waiting")],
-                            run,
-                            limit=1,
-                            stopped=stopped,
-                        )
-                    ),
-                    daemon=True,
-                )
-                runner.start()
-                try:
-                    self.assertTrue(entered.wait(10))
-                    self.assertFalse(second_started.is_set())
-                    release.set()
-                    runner.join(10)
-
-                    self.assertFalse(runner.is_alive())
-                    self.assertTrue(second_started.is_set())
-                    self.assertEqual(
-                        [result.status for result in results], ["failed", "ok"]
+            def run(item: Job) -> JobResult:
+                if item.id == "first":
+                    return JobResult(
+                        item,
+                        "failed" if primary is not None else "ok",
+                        [
+                            Attempt(
+                                primary is None,
+                                0.25,
+                                "original detail",
+                                "log",
+                                primary,
+                            )
+                        ],
                     )
-                    self.assertIs(results[0].attempts[0].failure, failure)
-                finally:
-                    release.set()
-                    stopped.set()
-                    runner.join(10)
-                self.assertFalse(runner.is_alive())
+                return JobResult(item, "ok", [Attempt(True, 0.1)])
 
-    def test_a_failed_report_keeps_both_causes_and_releases_the_waiting_job(self) -> None:
+            def report(result: JobResult) -> None:
+                reported.append(result.job.id)
+                if result.job.id == "first":
+                    raise failure
+
+            results = schedule(
+                [job("first", exclusive=True), job("waiting")],
+                run,
+                limit=1,
+                report=report,
+            )
+
+            self.assertEqual([result.status for result in results], ["failed", "ok"])
+            self.assertEqual(reported, ["first", "waiting"])
+            outcome = results[0].attempts[-1]
+            self.assertFalse(outcome.ok)
+            self.assertEqual(outcome.seconds, 0.25)
+            self.assertEqual(outcome.log, "log")
+            self.assertIn("original detail; report failed:", outcome.detail)
+            if primary is None:
+                self.assertIs(outcome.failure, failure)
+            else:
+                self.assertIsInstance(outcome.failure, run_matrix.CleanupError)
+                self.assertIs(outcome.failure.failures[0][1], primary)
+                self.assertIs(outcome.failure.failures[1][1], failure)
+
         cases = (
             (None, BrokenPipeError("progress output closed")),
             (OSError("original attempt failed"), SystemExit("report interrupted")),
         )
         for primary, failure in cases:
             with self.subTest(failure=type(failure).__name__):
-                reported = []
-
-                def run(item: Job) -> JobResult:
-                    if item.id == "first":
-                        return JobResult(
-                            item,
-                            "failed" if primary is not None else "ok",
-                            [
-                                Attempt(
-                                    primary is None,
-                                    0.25,
-                                    "original detail",
-                                    "log",
-                                    primary,
-                                )
-                            ],
-                        )
-                    return JobResult(item, "ok", [Attempt(True, 0.1)])
-
-                def report(result: JobResult) -> None:
-                    reported.append(result.job.id)
-                    if result.job.id == "first":
-                        raise failure
-
-                results = schedule(
-                    [job("first", exclusive=True), job("waiting")],
-                    run,
-                    limit=1,
-                    report=report,
-                )
-
-                self.assertEqual(
-                    [result.status for result in results], ["failed", "ok"]
-                )
-                self.assertEqual(reported, ["first", "waiting"])
-                outcome = results[0].attempts[-1]
-                self.assertFalse(outcome.ok)
-                self.assertEqual(outcome.seconds, 0.25)
-                self.assertEqual(outcome.log, "log")
-                self.assertIn("original detail; report failed:", outcome.detail)
-                if primary is None:
-                    self.assertIs(outcome.failure, failure)
-                else:
-                    self.assertIsInstance(outcome.failure, run_matrix.CleanupError)
-                    self.assertIs(outcome.failure.failures[0][1], primary)
-                    self.assertIs(outcome.failure.failures[1][1], failure)
+                observe(primary, failure)
 
     def test_ctrl_c_stops_the_batch_and_reports_unstarted_jobs(self) -> None:
         stopped = threading.Event()
@@ -668,7 +676,9 @@ class ScheduleTests(unittest.TestCase):
                 thread.join(10)
         self.assertTrue(all(not thread.is_alive() for thread in started_threads))
 
-    def test_a_worker_delayed_before_identity_cannot_acquire_after_shutdown(self) -> None:
+    def test_a_worker_delayed_before_identity_cannot_acquire_after_shutdown(
+        self,
+    ) -> None:
         parked = threading.Event()
         release = threading.Event()
         finished = threading.Event()
@@ -900,59 +910,62 @@ class CleanupFailureTests(unittest.TestCase):
     def test_interrupt_cleanup_failure_still_joins_workers_and_returns_results(
         self,
     ) -> None:
+        def observe(failure: BaseException) -> None:
+            release = threading.Event()
+            finished = threading.Event()
+            stopped = threading.Event()
+            join = threading.Thread.join
+            interrupted = False
+            joins = []
+            owned_threads = []
+
+            def run(item: Job) -> JobResult:
+                release.wait(10)
+                finished.set()
+                return JobResult(item, "stopped", [Attempt(False, 0.1, "stopped")])
+
+            def interrupt_join(thread, *args, **kwargs):
+                nonlocal interrupted
+                owned_threads.append(thread)
+                if not interrupted:
+                    interrupted = True
+                    raise KeyboardInterrupt
+                joins.append(thread)
+                return join(thread, *args, **kwargs)
+
+            def cleanup() -> None:
+                stopped.set()
+                release.set()
+                raise failure
+
+            try:
+                with mock.patch.object(threading.Thread, "join", interrupt_join):
+                    results = schedule(
+                        [job("running")],
+                        run,
+                        limit=1,
+                        stopped=stopped,
+                        on_interrupt=cleanup,
+                    )
+            finally:
+                release.set()
+                for thread in owned_threads:
+                    join(thread, 10)
+
+            self.assertTrue(finished.is_set())
+            self.assertTrue(joins)
+            self.assertEqual(results[0].status, "failed")
+            self.assertIn("cleanup", results[0].attempts[-1].detail)
+            self.assertIn(str(failure), results[0].attempts[-1].detail)
+            self.assertIs(results[0].attempts[-1].failure, failure)
+
         for failure in (
             OSError("profile discovery failed"),
             KeyboardInterrupt("cleanup interrupted"),
             SystemExit(125),
         ):
             with self.subTest(failure=type(failure).__name__):
-                release = threading.Event()
-                finished = threading.Event()
-                stopped = threading.Event()
-                join = threading.Thread.join
-                interrupted = False
-                joins = []
-                owned_threads = []
-
-                def run(item: Job) -> JobResult:
-                    release.wait(10)
-                    finished.set()
-                    return JobResult(item, "stopped", [Attempt(False, 0.1, "stopped")])
-
-                def interrupt_join(thread, *args, **kwargs):
-                    nonlocal interrupted
-                    owned_threads.append(thread)
-                    if not interrupted:
-                        interrupted = True
-                        raise KeyboardInterrupt
-                    joins.append(thread)
-                    return join(thread, *args, **kwargs)
-
-                def cleanup() -> None:
-                    stopped.set()
-                    release.set()
-                    raise failure
-
-                try:
-                    with mock.patch.object(threading.Thread, "join", interrupt_join):
-                        results = schedule(
-                            [job("running")],
-                            run,
-                            limit=1,
-                            stopped=stopped,
-                            on_interrupt=cleanup,
-                        )
-                finally:
-                    release.set()
-                    for thread in owned_threads:
-                        join(thread, 10)
-
-                self.assertTrue(finished.is_set())
-                self.assertTrue(joins)
-                self.assertEqual(results[0].status, "failed")
-                self.assertIn("cleanup", results[0].attempts[-1].detail)
-                self.assertIn(str(failure), results[0].attempts[-1].detail)
-                self.assertIs(results[0].attempts[-1].failure, failure)
+                observe(failure)
 
     def test_main_writes_summary_and_results_after_interrupt_cleanup_failure(
         self,

@@ -719,11 +719,7 @@ def _raise_cleanup_failures(failures: Sequence[tuple[str, BaseException]]) -> No
     if not failures:
         return
     interruption = next(
-        (
-            error
-            for _operation, error in failures
-            if not isinstance(error, Exception)
-        ),
+        (error for _operation, error in failures if not isinstance(error, Exception)),
         None,
     )
     failure = CleanupError(failures, primary=interruption)
@@ -1072,9 +1068,8 @@ def schedule(
         finally:
             if previous_handler is not None:
                 signal.signal(signal.SIGINT, previous_handler)
-        if (
-            not isinstance(dispatch_error, KeyboardInterrupt)
-            and (start_failure is None or dispatch_error is not start_failure[1])
+        if not isinstance(dispatch_error, KeyboardInterrupt) and (
+            start_failure is None or dispatch_error is not start_failure[1]
         ):
             if cleanup_error is not None:
                 _raise_cleanup_failures(
