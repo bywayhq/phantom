@@ -149,7 +149,8 @@ async fn original_terminal_second_accept_keeps_its_configured_typed_failure() ->
 }
 
 #[tokio::test]
-async fn original_terminal_collector_expiry_retains_elapsed_and_closes_the_pending_peer() -> TestResult<()> {
+async fn original_terminal_collector_expiry_retains_elapsed_and_closes_the_pending_peer()
+-> TestResult<()> {
     let mut backup = Backup::prepare(Mode::Healthy).await?;
     let primary = async {
         backup.pending().await?;

@@ -24,6 +24,7 @@ pub(super) fn spawn(listener: TcpListener, control: Option<ownership::Control>) 
         let head = read_head(&mut stream).await?;
         stream.write_all(RESPONSE).await?;
         stream.flush().await?;
+
         match timeout(SECOND_CONNECTION_WINDOW, stream.second_accept(&listener)).await {
             Err(_) => Ok((head, true)),
             Ok(Ok(_)) => Err("terminal status opened a second connection".into()),
@@ -68,12 +69,12 @@ pub(super) async fn collect<T>(caller: TestResult<T>, mut peer: Peer) -> TestRes
                 peer.abort();
                 requested = true;
             }
+
             let cleanup = match timeout(TEST_TIMEOUT, &mut peer).await {
                 Ok(joined) => joined_outcome(joined, requested).map(|_| ()),
-                Err(elapsed) => Err(FixtureDeadline::new(
-                    "terminal-status peer did not finish",
-                    elapsed,
-                ).into()),
+                Err(elapsed) => {
+                    Err(FixtureDeadline::new("terminal-status peer did not finish", elapsed).into())
+                }
             };
             finish_with_cleanup(
                 Err(FixtureDeadline::new("terminal-status peer did not finish", elapsed).into()),
@@ -81,12 +82,17 @@ pub(super) async fn collect<T>(caller: TestResult<T>, mut peer: Peer) -> TestRes
             )
         }
     };
+
     let (output, cleanup) = match serving {
         Ok(output) => (output, Ok(())),
         Err(error) => (None, Err(error)),
     };
+
     let value = finish_with_cleanup(caller, cleanup)?;
-    Ok((value, output.ok_or("original terminal peer output missing")?))
+    Ok((
+        value,
+        output.ok_or("original terminal peer output missing")?,
+    ))
 }
 
 fn joined_outcome(

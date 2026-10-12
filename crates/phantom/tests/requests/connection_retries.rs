@@ -130,21 +130,17 @@ async fn terminal_http_status_is_not_retried() -> TestResult {
             ))
             .build()?;
         let subscriber = OutcomeSubscriber::default();
-        let body = terminal_status::caller(
-            &client,
-            &format!("http://{address}/terminal"),
-            &subscriber,
-        )
-        .await?;
+        let body =
+            terminal_status::caller(&client, &format!("http://{address}/terminal"), &subscriber)
+                .await?;
         Ok((client, subscriber, body))
     })
     .await
     {
         Ok(result) => result,
-        Err(elapsed) => Err(FixtureDeadline::new(
-            "connection retry test exceeded its deadline",
-            elapsed,
-        ).into()),
+        Err(elapsed) => {
+            Err(FixtureDeadline::new("connection retry test exceeded its deadline", elapsed).into())
+        }
     };
 
     let ((_client, subscriber, _body), (head, had_no_second_connection)) =
