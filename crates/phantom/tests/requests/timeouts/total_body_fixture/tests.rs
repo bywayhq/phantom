@@ -157,7 +157,7 @@ async fn completion_retains_the_actual_completed_foreign_cancellation() -> TestR
 
     let observed = async {
         let original = server.as_ref().ok_or("original total-body task missing")?;
-        let id = original.id();
+        let id = original.abort_handle().id();
         original.abort_handle().abort();
 
         completed(

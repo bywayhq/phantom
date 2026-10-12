@@ -21,7 +21,7 @@ use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf},
     net::{TcpListener, TcpStream},
     sync::watch,
-    task::{AbortHandle, JoinHandle, yield_now},
+    task::{AbortHandle, yield_now},
     time::timeout,
 };
 use tokio_btls::SslStream;
@@ -29,9 +29,10 @@ use tokio_btls::SslStream;
 use super::{TEST_TIMEOUT, TestResult};
 use crate::support::deadline::FixtureDeadline;
 use crate::support::tls::{H1_ALPN, TestIdentity, accept_tls, client_builder, read_head};
+use crate::support::tunnel_proxy::connection_peer::ConnectionPeer;
 use crate::support::tunnel_proxy::finish_with_cleanup;
 
-pub(super) type Server = JoinHandle<TestResult>;
+pub(super) type Server = ConnectionPeer<TestResult>;
 
 pub(super) fn spawn(
     listener: TcpListener,
@@ -39,7 +40,7 @@ pub(super) fn spawn(
     control: Option<Control>,
 ) -> Server {
     let state = control.as_ref().map(|control| control.state.clone());
-    let server = tokio::spawn(async move {
+    let server = ConnectionPeer::from_task(tokio::spawn(async move {
         let _lifetime = control
             .as_ref()
             .map(|control| Lifetime(control.state.clone()));
@@ -53,7 +54,7 @@ pub(super) fn spawn(
 
         std::future::pending::<()>().await;
         TestResult::Ok(())
-    });
+    }));
 
     if let Some(state) = state {
         state.send_modify(|state| state.abort = Some(server.abort_handle()));
@@ -66,14 +67,27 @@ pub(super) async fn complete(
     server: &mut Option<Server>,
     caller: impl Future<Output = TestResult>,
 ) -> TestResult {
-    caller.await?;
+    let mut server = server.take().ok_or("original total-body server missing")?;
 
-    let server = server.take().ok_or("original total-body server missing")?;
+    let caller = caller.await;
 
-    server.abort();
-    let _ = server.await;
+    let requested = !server.is_finished();
+    if requested {
+        server.abort();
+    }
 
-    Ok(())
+    let cleanup = match timeout(TEST_TIMEOUT, &mut server).await {
+        Ok(Ok(result)) => result,
+        Ok(Err(error)) if requested && error.is_cancelled() => Ok(()),
+        Ok(Err(error)) => Err(error.into()),
+        Err(elapsed) => Err(FixtureDeadline::new(
+            "total-body original worker completion exceeded its deadline",
+            elapsed,
+        )
+        .into()),
+    };
+
+    finish_with_cleanup(caller, cleanup)
 }
 
 pub(super) async fn collect_body(
@@ -97,9 +111,9 @@ pub(super) async fn collect_body(
         result
     });
 
-    timeout(TEST_TIMEOUT, collection)
-        .await
-        .map_err(|_| "response body did not observe its total deadline".into())
+    timeout(TEST_TIMEOUT, collection).await.map_err(|elapsed| {
+        FixtureDeadline::new("response body did not observe its total deadline", elapsed).into()
+    })
 }
 
 #[derive(Clone, Default)]
