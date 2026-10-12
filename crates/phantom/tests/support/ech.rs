@@ -87,6 +87,8 @@ pub(crate) fn https_rdata_with_alpn(alpn: &[&[u8]], ech_config_list: &[u8]) -> V
 }
 
 /// A DNS server that answers every query with `rdata`.
+/// The caller owns it and collects `finish().await` before fixture success.
+/// On an earlier error, Drop requests cancellation without joining the task.
 pub(crate) async fn record_server(rdata: Vec<Vec<u8>>) -> TestResult<DnsServer> {
     Ok(DnsServer::spawn(move |_| {
         DnsReply::new(DnsAnswer::Records {

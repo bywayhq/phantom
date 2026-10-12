@@ -892,7 +892,7 @@ async fn quic_caller_retains_its_request_and_completed_serving_failures() -> Tes
     let mut retained_client = None;
     let result = async {
         let identity = origin_identity()?;
-        let dns = super::published_record().await?;
+        let mut dns = super::published_record().await?;
         let origin = backup.spawn(&identity, observation)?;
         retained_client = Some(super::client(&identity, &dns, super::profile(false))?);
         let client = retained_client
@@ -931,6 +931,7 @@ async fn quic_caller_retains_its_request_and_completed_serving_failures() -> Tes
             return Err("QUIC caller omitted the actual completed ClosedStream cause".into());
         }
 
+        dns.finish().await?;
         Ok(())
     }
     .await;

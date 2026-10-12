@@ -752,7 +752,7 @@ async fn get_as(
 async fn exact_http3_offers_the_records_ech() -> TestResult<()> {
     bounded(async {
         let identity = origin_identity()?;
-        let dns = published_record().await?;
+        let mut dns = published_record().await?;
         let client = client(&identity, &dns, profile(true))?;
         let origin = QuicOrigin::spawn(&identity, 1, &TEST_ECH_KEYS[0])?;
 
@@ -769,6 +769,7 @@ async fn exact_http3_offers_the_records_ech() -> TestResult<()> {
         let (observed, _) = origin.finish_result(result, 2, 0).await?;
         assert_eq!(observed.len(), 2, "{observed:?}");
         assert_accepted(&observed[1]);
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -780,7 +781,7 @@ async fn exact_http3_offers_the_records_ech() -> TestResult<()> {
 async fn https_record_alternative_offers_the_records_ech() -> TestResult<()> {
     bounded(async {
         let identity = origin_identity()?;
-        let dns = published_record().await?;
+        let mut dns = published_record().await?;
         let client = client(&identity, &dns, profile(true))?;
         let origin = QuicOrigin::spawn(&identity, 1, &TEST_ECH_KEYS[0])?;
 
@@ -797,6 +798,7 @@ async fn https_record_alternative_offers_the_records_ech() -> TestResult<()> {
         assert_eq!(observed.len(), 2, "{observed:?}");
         assert_accepted(&observed[1]);
         assert_eq!(dns.queries().len(), 1);
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -809,7 +811,7 @@ async fn https_record_alternative_offers_the_records_ech() -> TestResult<()> {
 async fn exact_http3_rejection_fails_without_a_quic_retry() -> TestResult<()> {
     bounded(async {
         let identity = origin_identity()?;
-        let dns = published_record().await?;
+        let mut dns = published_record().await?;
         let client = client(&identity, &dns, profile(true))?;
         let origin = QuicOrigin::spawn(&identity, 2, &TEST_ECH_KEYS[1])?;
 
@@ -843,6 +845,7 @@ async fn exact_http3_rejection_fails_without_a_quic_retry() -> TestResult<()> {
             assert_eq!(seen.outer_server_name.as_deref(), Some(PUBLIC_NAME));
             assert!(!seen.ech_accepted);
         }
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -854,7 +857,7 @@ async fn exact_http3_rejection_fails_without_a_quic_retry() -> TestResult<()> {
 async fn exact_http3_without_the_field_keeps_grease() -> TestResult<()> {
     bounded(async {
         let identity = origin_identity()?;
-        let dns = published_record().await?;
+        let mut dns = published_record().await?;
         let client = client(&identity, &dns, profile(false))?;
         let origin = QuicOrigin::spawn(&identity, 1, &TEST_ECH_KEYS[0])?;
 
@@ -866,6 +869,7 @@ async fn exact_http3_without_the_field_keeps_grease() -> TestResult<()> {
         assert_eq!(observed[0].outer_server_name.as_deref(), Some(ORIGIN_NAME));
         assert!(!observed[0].ech_accepted);
         assert!(dns.queries().is_empty());
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -878,7 +882,7 @@ async fn exact_http3_without_the_field_keeps_grease() -> TestResult<()> {
 async fn a_rejected_ticketed_connection_is_not_repeated_without_the_ticket() -> TestResult<()> {
     bounded(async {
         let identity = origin_identity()?;
-        let dns = published_record().await?;
+        let mut dns = published_record().await?;
         let client = client(&identity, &dns, profile(true))?;
         let origin = QuicOrigin::spawn(&identity, 1, &TEST_ECH_KEYS[0])?;
 
@@ -910,6 +914,7 @@ async fn a_rejected_ticketed_connection_is_not_repeated_without_the_ticket() -> 
         assert!(observed[1].session_resumed, "{observed:?}");
         assert_eq!(observed[2].closed_with, Some(ECH_REQUIRED));
         assert_eq!(observed[2].outer_server_name.as_deref(), Some(PUBLIC_NAME));
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -922,7 +927,7 @@ async fn a_rejected_ticketed_connection_is_not_repeated_without_the_ticket() -> 
 async fn racing_client_serves_a_rejected_alternative_from_the_origin() -> TestResult<()> {
     bounded(async {
         let identity = origin_identity()?;
-        let dns = published_record().await?;
+        let mut dns = published_record().await?;
         let race = AltSvcRace::new(
             Duration::from_millis(300),
             AltSvcBrokenBackoff::CHROMIUM_153,
@@ -956,6 +961,7 @@ async fn racing_client_serves_a_rejected_alternative_from_the_origin() -> TestRe
         assert_eq!(observed[0].closed_with, Some(ECH_REQUIRED));
         assert_eq!(observed[0].outer_server_name.as_deref(), Some(PUBLIC_NAME));
         assert_eq!(tcp_served, 3);
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -969,7 +975,7 @@ async fn racing_client_serves_a_rejected_alternative_from_the_origin() -> TestRe
 async fn sequential_client_fails_a_rejected_alternative_then_uses_the_origin() -> TestResult<()> {
     bounded(async {
         let identity = origin_identity()?;
-        let dns = published_record().await?;
+        let mut dns = published_record().await?;
         let client = client(&identity, &dns, profile(true))?;
 
         // The origin holds configuration 2; the record publishes 1.
@@ -1003,6 +1009,7 @@ async fn sequential_client_fails_a_rejected_alternative_then_uses_the_origin() -
         assert_eq!(observed[0].closed_with, Some(ECH_REQUIRED));
         assert_eq!(observed[0].outer_server_name.as_deref(), Some(PUBLIC_NAME));
         assert_eq!(tcp_served, 2);
+        dns.finish().await?;
         Ok(())
     })
     .await

@@ -301,7 +301,7 @@ async fn observe_destruction(stop: StopOwner) -> TestResult<()> {
         let Driven {
             server,
             client,
-            dns,
+            mut dns,
             port,
             mut pending_accept,
             release_collection,
@@ -365,11 +365,11 @@ async fn observe_destruction(stop: StopOwner) -> TestResult<()> {
         drop(request);
         drop(release_collection);
         drop(client);
-        drop(dns);
         assert!(
             before_backup,
             "parallel ECH worker outlived its owner while waiting at the actual barrier"
         );
+        dns.finish().await?;
         Ok(())
     })
     .await?
@@ -397,7 +397,7 @@ async fn a_client_failure_drains_the_completed_worker_behind_the_closed_gate() -
         let Driven {
             server,
             client,
-            dns,
+            mut dns,
             port,
             pending_accept,
             release_collection,
@@ -455,7 +455,6 @@ async fn a_client_failure_drains_the_completed_worker_behind_the_closed_gate() -
         drop(release_collection);
         drop(pending_accept);
         drop(client);
-        drop(dns);
 
         let error = result
             .err()
@@ -470,6 +469,7 @@ async fn a_client_failure_drains_the_completed_worker_behind_the_closed_gate() -
             io::ErrorKind::PermissionDenied,
             &identity,
         )?;
+        dns.finish().await?;
         Ok(())
     })
     .await?
@@ -503,7 +503,7 @@ async fn observe_outcomes(case: OutcomeCase) -> TestResult<()> {
         let Driven {
             server,
             client,
-            dns,
+            mut dns,
             port,
             pending_accept,
             release_collection,
@@ -563,13 +563,13 @@ async fn observe_outcomes(case: OutcomeCase) -> TestResult<()> {
         let result = finish_with_cleanup(checked, backup.stop().await);
         drop(pending_accept);
         drop(client);
-        drop(dns);
 
         match case {
             OutcomeCase::Success => {
                 let (prime, parallel) = result?;
                 assert_eq!(prime.len(), 1);
                 assert_eq!(parallel.len(), 2);
+                dns.finish().await?;
                 Ok(())
             }
             OutcomeCase::TwoWorkers | OutcomeCase::ClientAndWorker => {
@@ -601,6 +601,7 @@ async fn observe_outcomes(case: OutcomeCase) -> TestResult<()> {
                         &second,
                     )?;
                 }
+                dns.finish().await?;
                 Ok(())
             }
         }

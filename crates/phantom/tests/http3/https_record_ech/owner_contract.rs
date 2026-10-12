@@ -99,7 +99,7 @@ async fn observe_owner_destruction(stop: StopOwner) -> TestResult<()> {
         let DrivenOrigin {
             origin,
             client,
-            dns,
+            mut dns,
             mut held_handshake,
             mut destroyed,
             backup,
@@ -144,7 +144,7 @@ async fn observe_owner_destruction(stop: StopOwner) -> TestResult<()> {
 
         drop(held_handshake);
         drop(client);
-        drop(dns);
+        dns.finish().await?;
         Ok(())
     })
     .await?

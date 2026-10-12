@@ -349,7 +349,7 @@ async fn bounded(test: impl Future<Output = TestResult<()>>) -> TestResult<()> {
 async fn record_is_used(opening: Opening) -> TestResult<()> {
     bounded(async {
         let identity = origin_identity()?;
-        let dns = published_record().await?;
+        let mut dns = published_record().await?;
         let acceptor = ech_acceptor(&identity, opening.server_alpn(), 1, &TEST_ECH_KEYS[0])?;
         let origin = Origin::spawn(acceptor, vec![opening; 2]).await?;
         let client = discovering_client(&identity, &dns, Opening::profile(true), None)?;
@@ -361,6 +361,7 @@ async fn record_is_used(opening: Opening) -> TestResult<()> {
 
         let observed = origin.finish().await?;
         assert_accepted(observed.last().ok_or("no connection")?);
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -372,7 +373,7 @@ async fn record_is_used(opening: Opening) -> TestResult<()> {
 async fn rejection_is_retried_once(opening: Opening) -> TestResult<()> {
     bounded(async {
         let identity = origin_identity()?;
-        let dns = published_record().await?;
+        let mut dns = published_record().await?;
         let acceptor = ech_acceptor(&identity, opening.server_alpn(), 2, &TEST_ECH_KEYS[1])?;
         let origin = Origin::spawn(acceptor, vec![opening; 2]).await?;
         let client = discovering_client(&identity, &dns, Opening::profile(true), None)?;
@@ -389,6 +390,7 @@ async fn rejection_is_retried_once(opening: Opening) -> TestResult<()> {
         assert_eq!(rejected.outer_server_name.as_deref(), Some(PUBLIC_NAME));
         assert!(!rejected.ech_accepted);
         assert_accepted(retried);
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -398,7 +400,7 @@ async fn rejection_is_retried_once(opening: Opening) -> TestResult<()> {
 async fn proxy_route_sends_no_ech(opening: Opening) -> TestResult<()> {
     bounded(async {
         let identity = origin_identity()?;
-        let dns = published_record().await?;
+        let mut dns = published_record().await?;
         let acceptor = ech_acceptor(&identity, opening.server_alpn(), 1, &TEST_ECH_KEYS[0])?;
         let origin = Origin::spawn(acceptor, vec![opening]).await?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -420,6 +422,7 @@ async fn proxy_route_sends_no_ech(opening: Opening) -> TestResult<()> {
         assert_eq!(only.outer_server_name.as_deref(), Some(ORIGIN_NAME));
         assert!(!only.ech_accepted);
         assert!(dns.queries().is_empty());
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -431,7 +434,7 @@ async fn proxy_route_sends_no_ech(opening: Opening) -> TestResult<()> {
 async fn unset_field_keeps_grease(opening: Opening) -> TestResult<()> {
     bounded(async {
         let identity = origin_identity()?;
-        let dns = published_record().await?;
+        let mut dns = published_record().await?;
         let acceptor = ech_acceptor(&identity, opening.server_alpn(), 1, &TEST_ECH_KEYS[0])?;
         let origin = Origin::spawn(acceptor, vec![opening; 2]).await?;
         let client = discovering_client(&identity, &dns, Opening::profile(false), None)?;
@@ -448,6 +451,7 @@ async fn unset_field_keeps_grease(opening: Opening) -> TestResult<()> {
             assert!(!connection.ech_accepted);
         }
         assert!(dns.queries().is_empty());
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -571,7 +575,7 @@ async fn websocket_opening_takes_the_record_for_its_alpn_offer() -> TestResult<(
     bounded(async {
         let identity = origin_identity()?;
         let list = ech_config_list(&[ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME)]);
-        let dns = record_server(vec![
+        let mut dns = record_server(vec![
             service_rdata(1, true, Some(&list)),
             service_rdata(2, false, None),
         ])
@@ -597,6 +601,7 @@ async fn websocket_opening_takes_the_record_for_its_alpn_offer() -> TestResult<(
         assert_accepted(request);
         assert_eq!(websocket.outer_server_name.as_deref(), Some(ORIGIN_NAME));
         assert!(!websocket.ech_accepted);
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -610,7 +615,7 @@ async fn websocket_opening_takes_the_record_for_its_alpn_offer() -> TestResult<(
 async fn exact_http2_with_ech_connects_to_an_overridden_name() -> TestResult<()> {
     bounded(async {
         let identity = origin_identity()?;
-        let dns = published_record().await?;
+        let mut dns = published_record().await?;
         let acceptor = ech_acceptor(&identity, H2_ALPN, 1, &TEST_ECH_KEYS[0])?;
         let origin = Origin::spawn(acceptor, vec![Opening::Http2; 2]).await?;
         let upstream = HttpsRecordResolver::with_nameservers([dns.address()])?;
@@ -638,6 +643,7 @@ async fn exact_http2_with_ech_connects_to_an_overridden_name() -> TestResult<()>
 
         let observed = origin.finish().await?;
         assert_accepted(observed.last().ok_or("no connection")?);
+        dns.finish().await?;
         Ok(())
     })
     .await
