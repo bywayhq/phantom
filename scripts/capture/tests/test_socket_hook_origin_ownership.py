@@ -175,7 +175,9 @@ class OriginOwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(peer.server_writer.is_closing())
         self.assertEqual(await asyncio.wait_for(peer.reader.read(1), DEADLINE), b"")
 
-    async def test_profile_creation_failure_closes_its_actual_pending_origin_handler(self):
+    async def test_profile_creation_failure_closes_its_actual_pending_origin_handler(
+        self,
+    ):
         peer = self.peer()
         peer.install_run()
         failure = LookupError("controlled original profile creation failure")
@@ -186,10 +188,14 @@ class OriginOwnershipTests(unittest.IsolatedAsyncioTestCase):
         await self.assert_closed(peer)
         self.assertEqual(peer.origin.open_count, 0)
 
-    async def test_completed_original_read_failure_survives_profile_creation_failure(self):
+    async def test_completed_original_read_failure_survives_profile_creation_failure(
+        self,
+    ):
         peer = self.peer()
         peer.install_run()
-        peer.injected = OSError(errno.EIO, "controlled original accepted reader failure")
+        peer.injected = OSError(
+            errno.EIO, "controlled original accepted reader failure"
+        )
         failure = LookupError("controlled original profile creation failure")
 
         await peer.call_run(failure)
