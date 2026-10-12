@@ -27,6 +27,7 @@ use crate::support::{deadline::FixtureDeadline, tls as tls_support};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, client_builder, read_head, test_client};
 
 mod proxy_auth;
+mod request_ownership;
 mod reuse_ownership;
 mod upload_contract;
 
@@ -155,91 +156,12 @@ async fn session_upload_and_followup_reuse_one_http2_connection() -> TestResult<
 
 #[tokio::test]
 async fn concurrent_cold_requests_through_cloned_session_share_one_connection() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = reuse_ownership::spawn_server(listener, acceptor, 2, None);
-
-        let session = test_client(&identity, true)?;
-        let start = std::sync::Arc::new(Barrier::new(3));
-        let first = tokio::spawn(send_after_barrier(
-            session.clone(),
-            format!("https://{address}/first"),
-            start.clone(),
-        ));
-        let second = tokio::spawn(send_after_barrier(
-            session.clone(),
-            format!("https://{address}/second"),
-            start.clone(),
-        ));
-        start.wait().await;
-
-        first.await??;
-        second.await??;
-        drop(session);
-
-        let requests = server.await??;
-        let mut stream_ids = requests
-            .iter()
-            .map(|(stream_id, _)| *stream_id)
-            .collect::<Vec<_>>();
-        stream_ids.sort_unstable();
-        let mut paths = requests
-            .into_iter()
-            .map(|(_, path)| path)
-            .collect::<Vec<_>>();
-        paths.sort_unstable();
-        assert_eq!(stream_ids, [1, 3]);
-        assert_eq!(paths, vec!["/first".to_owned(), "/second".to_owned()]);
-        Ok(())
-    })
-    .await
+    request_ownership::cold().await
 }
 
 #[tokio::test]
 async fn independently_built_clients_do_not_share_http2_connections() -> TestResult<()> {
-    let deadline = Instant::now() + TEST_TIMEOUT;
-    let (identity, address, server) = timeout_at(deadline, async {
-        let identity = TestIdentity::generate()?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = reuse_ownership::spawn_independent(listener, acceptor, None);
-        Ok::<_, Box<dyn Error + Send + Sync>>((identity, address, server))
-    })
-    .await
-    .map_err(|elapsed| FixtureDeadline::new("session test exceeded its deadline", elapsed))??;
-
-    let caller = match timeout_at(deadline, async {
-        let first_client = test_client(&identity, true)?;
-        let second_client = test_client(&identity, true)?;
-        let first = tokio::spawn(send(first_client, format!("https://{address}/first")));
-        let second = tokio::spawn(send(second_client, format!("https://{address}/second")));
-
-        first.await??;
-        second.await??;
-        Ok(())
-    })
-    .await
-    {
-        Ok(result) => result,
-        Err(elapsed) => {
-            Err(FixtureDeadline::new("session test exceeded its deadline", elapsed).into())
-        }
-    };
-
-    let mut connections = reuse_ownership::collect_independent(caller, server).await?;
-    connections.sort_unstable();
-    assert_eq!(
-        connections,
-        [
-            vec![(1, "/first".to_owned())],
-            vec![(1, "/second".to_owned())]
-        ]
-    );
-    Ok(())
+    request_ownership::independent().await
 }
 
 #[tokio::test]
