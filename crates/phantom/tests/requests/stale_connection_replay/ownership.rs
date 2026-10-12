@@ -405,4 +405,7 @@ async fn pending() -> TestResult<(SocketAddr, Option<Server>, TcpStream, Observa
 }
 
 #[cfg(test)]
+mod mixed_deadline_tests;
+
+#[cfg(test)]
 mod tests;
