@@ -37,6 +37,7 @@ use tls_support::{
 use tracing_support::OutcomeSubscriber;
 
 mod ownership;
+mod shared_cap_ownership;
 
 type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
 
@@ -915,76 +916,5 @@ async fn zero_shared_cap_returns_the_complete_retryable_response() -> TestResult
 
 #[tokio::test]
 async fn reused_replay_and_status_retry_share_the_cap_across_a_redirect() -> TestResult {
-    tokio::time::timeout(Duration::from_secs(10), async {
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            let (mut first, _) = listener.accept().await?;
-            let prime = read_request(&mut first).await?;
-            first.write_all(OK.as_bytes()).await?;
-            first.flush().await?;
-            let stale = read_request(&mut first).await?;
-            drop(first);
-            let (mut second, _) = listener.accept().await?;
-            let replayed = read_request(&mut second).await?;
-            second.write_all(UNAVAILABLE.as_bytes()).await?;
-            second.flush().await?;
-            let status_retried = read_request(&mut second).await?;
-            second
-                .write_all(b"HTTP/1.1 302 Found\r\nLocation: /final\r\nContent-Length: 0\r\n\r\n")
-                .await?;
-            second.flush().await?;
-            let redirected = read_request(&mut second).await?;
-            second.write_all(UNAVAILABLE.as_bytes()).await?;
-            second.flush().await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>([
-                prime,
-                stale,
-                replayed,
-                status_retried,
-                redirected,
-            ])
-        });
-        let client = plain_builder()
-            .redirect_policy(RedirectPolicy::limited(
-                NonZeroUsize::new(5).ok_or("redirect limit is zero")?,
-            ))
-            .retry_policy(
-                RetryPolicy::none()
-                    .with_reused_connection_replay(true)
-                    .with_status_retry(status_retry(3, Duration::ZERO)?)
-                    .with_max_retries(Some(2)),
-            )
-            .build()?;
-        client
-            .get(HttpProtocol::Http1, &format!("http://{address}/prime"))?
-            .send()
-            .await?
-            .into_body()
-            .collect()
-            .await?;
-        let response = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/start"))?
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-        let info = response
-            .extensions()
-            .get::<ResponseInfo>()
-            .ok_or("response omitted metadata")?;
-        assert_eq!(info.retries_performed(), 0);
-        response.into_body().collect().await?;
-        assert_eq!(
-            request_lines(&server.await??),
-            [
-                "GET /prime HTTP/1.1",
-                "GET /start HTTP/1.1",
-                "GET /start HTTP/1.1",
-                "GET /start HTTP/1.1",
-                "GET /final HTTP/1.1",
-            ]
-        );
-        Ok(())
-    })
-    .await?
+    shared_cap_ownership::exchange().await
 }
