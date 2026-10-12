@@ -273,9 +273,9 @@ mod tests {
     use http_body_util::BodyExt;
     use phantom::{HttpProtocol, RequestError, RequestErrorKind};
 
-    use crate::support::tunnel_proxy::finish_with_cleanup;
     use super::super::{H1_ALPN, OK, TestIdentity, plain_builder, request_lines};
     use super::{Mode, Observation, ScriptedServer, TestResult, pending};
+    use crate::support::tunnel_proxy::finish_with_cleanup;
 
     #[tokio::test]
     async fn server_drop_closes_an_actual_pending_tcp_child() -> TestResult {
