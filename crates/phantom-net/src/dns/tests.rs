@@ -382,7 +382,7 @@ fn resolver_needs_a_nameserver() {
 /// itself.
 #[tokio::test]
 async fn https_queries_randomize_their_port_with_the_profiles_udp_settings() -> TestResult<()> {
-    let server = DnsServer::spawn(|_| {
+    let mut server = DnsServer::spawn(|_| {
         DnsReply::new(DnsAnswer::NoData {
             soa_minimum: Some(60),
         })
@@ -400,6 +400,7 @@ async fn https_queries_randomize_their_port_with_the_profiles_udp_settings() -> 
         assert_eq!(sockets.len(), 1);
         assert_eq!(sockets[0].random_port, randomized);
     }
+    server.finish().await?;
     Ok(())
 }
 
@@ -413,7 +414,7 @@ async fn lookup_sends_one_plain_recursive_question_and_parses_answers() -> TestR
             &[(3, &8443_u16.to_be_bytes())],
         ),
     ];
-    let server = DnsServer::spawn(move |_| {
+    let mut server = DnsServer::spawn(move |_| {
         DnsReply::new(DnsAnswer::Records {
             ttl: 120,
             rdata: records.clone(),
@@ -445,12 +446,13 @@ async fn lookup_sends_one_plain_recursive_question_and_parses_answers() -> TestR
 
     resolver.lookup("origin.example.test", 443).await?;
     assert_eq!(server.queries()[1].name(), "origin.example.test");
+    server.finish().await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn lookup_without_records_is_empty_with_the_negative_ttl() -> TestResult<()> {
-    let server = DnsServer::spawn(|_| {
+    let mut server = DnsServer::spawn(|_| {
         DnsReply::new(DnsAnswer::NoData {
             soa_minimum: Some(90),
         })
@@ -460,12 +462,13 @@ async fn lookup_without_records_is_empty_with_the_negative_ttl() -> TestResult<(
     let lookup = resolver.lookup("origin.example.test", 443).await?;
     assert!(lookup.answers().is_empty());
     assert_eq!(lookup.negative_ttl(), Some(90));
+    server.finish().await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn special_use_names_are_answered_without_a_query() -> TestResult<()> {
-    let server = DnsServer::spawn(|_| {
+    let mut server = DnsServer::spawn(|_| {
         DnsReply::new(DnsAnswer::Records {
             ttl: 60,
             rdata: vec![rdata(1, &[], &[(1, b"\x02h3")])],
@@ -483,6 +486,7 @@ async fn special_use_names_are_answered_without_a_query() -> TestResult<()> {
         assert!(lookup.answers().is_empty(), "{host}");
     }
     assert!(server.queries().is_empty());
+    server.finish().await?;
     Ok(())
 }
 
@@ -512,7 +516,7 @@ async fn function_resolver_answers_through_the_caller() -> TestResult<()> {
 
 #[tokio::test]
 async fn server_failure_is_a_resolve_error() -> TestResult<()> {
-    let server = DnsServer::spawn(|_| DnsReply::new(DnsAnswer::ServerFailure)).await?;
+    let mut server = DnsServer::spawn(|_| DnsReply::new(DnsAnswer::ServerFailure)).await?;
     let resolver = HttpsRecordResolver::with_nameservers([server.address()])?;
     let error = resolver
         .lookup("origin.example.test", 443)
@@ -520,6 +524,7 @@ async fn server_failure_is_a_resolve_error() -> TestResult<()> {
         .err()
         .ok_or("SERVFAIL produced records")?;
     assert_eq!(error.kind(), HttpsLookupErrorKind::Resolve);
+    server.finish().await?;
     Ok(())
 }
 
@@ -528,7 +533,7 @@ async fn malformed_answer_record_is_a_typed_error() -> TestResult<()> {
     // hickory decodes this record, but RFC 9460 section 8 makes a missing
     // mandatory key malformed.
     let record = rdata(1, &[], &[(0, &[0, 3]), (1, b"\x02h3")]);
-    let server = DnsServer::spawn(move |_| {
+    let mut server = DnsServer::spawn(move |_| {
         DnsReply::new(DnsAnswer::Records {
             ttl: 60,
             rdata: vec![record.clone()],
@@ -542,6 +547,7 @@ async fn malformed_answer_record_is_a_typed_error() -> TestResult<()> {
         .err()
         .ok_or("malformed record parsed")?;
     assert_eq!(error.kind(), HttpsLookupErrorKind::MalformedRecord);
+    server.finish().await?;
     Ok(())
 }
 
