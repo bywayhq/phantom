@@ -2511,14 +2511,26 @@ marker does not prove every SSL error has a peer cause. This result covers
 A257 through A261, including completed head limits and finite durations.
 Aggregate admission, IPv6 consistency and final combined gates remain open.
 
-The race H3 callback can set successful completion before a held response
-fails. Its original local error has no collected owner. Aggregate connection,
-request and UDP-peer records need bounds, and ended H2 proxy tunnels remain
-in their map. Proxy IPv6 listen addresses disagree with the direct page URL.
-The Unix browser cleanup census ignores a failed `ps` command. These remain
-source-confirmed findings. A per-connection 16 MiB byte cap already exists;
-this pass does not claim unbounded individual proxy buffering or a native
-resource measurement.
+The race H3 callback could set successful completion before a held response
+failed. The repair retains original callback failures, wakes the capture
+owner, and stops timers and transmit callbacks before publication. At
+`7704e38d`, all 75 race methods pass on Windows and Linux. Python lint and
+format checks pass. Root and independent review read all six logs and exits,
+then separately verify clean exact sources after both runners terminate.
+The original FrameUnexpected identity and reason, strict normal close,
+healthy held-body response, and event-error cleanup assertions all complete.
+The first attempt at `5ae13b69` passed 74 methods and failed a later close
+assertion on each host. Its injected empty trailer produced a QPACK decoding
+failure with the installed pylsqpack 0.3.24. A populated literal trailer
+preserves the intended DATA-state failure and every original assertion.
+This resolves the measured A262 callback defect, without live-browser or
+whole-memory claims.
+
+Aggregate connection, request and UDP-peer records still need bounds, and
+ended H2 proxy tunnels remain in their map. Proxy IPv6 listen addresses
+disagree with the direct page URL. A per-connection 16 MiB byte cap already
+exists; this pass does not claim unbounded individual proxy buffering or a
+native resource measurement. A263, A264 and final combined gates remain open.
 
 The Unix census repair at `ad13642f` checks the original process result
 before interpreting absence and retains stderr. Its focused control calls
