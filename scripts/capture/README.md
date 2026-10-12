@@ -1733,6 +1733,13 @@ Pass extra browser switches as `--browser-switch=--name` or
 page URL. It rejects `--user-data-dir`, `--single-argument`, positional
 URLs and argument terminators before creating resources or output.
 
+The hooks require Windows x64, with `ws2_32.dll` and `dnsapi.dll` already
+loaded in the network service. The child resumes after it acknowledges
+configuration and hook installation. A hook failure stops the run.
+Each run admits at most 64 children and retains 100,000 hook reports.
+The origin permits 32 unfinished connections, 128 connection records and
+512 requests. Split larger experiments into separate runs.
+
 `socket_hooks.py` records what no wire capture shows: the socket options a
 Chromium browser sets, the order and timing of its connection attempts, and
 its host lookups, including the ones its cache answers without a query. It

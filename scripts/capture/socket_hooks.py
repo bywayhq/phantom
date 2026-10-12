@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import contextlib
+import errno
 import hashlib
 import ipaddress
 import json
@@ -49,6 +49,14 @@ FORMAT = "phantom-socket-hooks-v1"
 AGENT = Path(__file__).with_name("socket_hooks.js")
 NETWORK_SERVICE_SWITCH = "--utility-sub-type=network.mojom.NetworkService"
 MAX_REQUEST_HEAD = 64 * 1024
+_ORIGIN_MAX_ACTIVE = 32
+_ORIGIN_MAX_CONNECTIONS = 128
+_ORIGIN_MAX_REQUESTS = 512
+_ORIGIN_CLEANUP_SECONDS = 5.0
+_HTTP_TOKEN = frozenset(
+    b"!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+)
+_ORIGIN_PEER_ERRNOS = frozenset((errno.ECONNRESET, errno.ECONNABORTED, errno.EPIPE))
 # Existing profile cleanup permits two 60-second commands and a 5-second join.
 _RUN_CLEANUP_SECONDS = 150.0
 _HOOK_CHILD_LIMIT = 64
@@ -529,6 +537,15 @@ class Origin:
     open_count: int = 0
     max_open: int = 0
     done: asyncio.Event = field(default_factory=asyncio.Event)
+    _listeners: list[_SocketHookOriginListener] = field(
+        default_factory=list, repr=False
+    )
+    _peers: list[_SocketHookOriginPeer] = field(default_factory=list, repr=False)
+    _requests: int = 0
+    _stopping: bool = False
+    _failure: BaseException | None = field(default=None, repr=False)
+    _late_primary: BaseException | None = field(default=None, repr=False)
+    _returned: bool = False
 
     @property
     def measured_port(self) -> int:
@@ -578,41 +595,361 @@ class Origin:
             f"<script>{script}</script>\n"
         ).encode()
 
-    async def handle(
+    async def listen(self, listener: asyncio.Server) -> None:
+        owner = self._own_listener(listener)
+        await owner.register(self)
+        if self._failure is not None or self._stopping:
+            self._close_admission()
+
+    def _own_listener(self, listener: asyncio.Server) -> _SocketHookOriginListener:
+        for owner in self._listeners:
+            if owner.listener is listener:
+                return owner
+
+        owner = _SocketHookOriginListener(listener)
+        self._listeners.append(owner)
+        return owner
+
+    def handle(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
-        peer = writer.get_extra_info("peername")
-        connection = OriginConnection(f"{peer[0]}:{peer[1]}", now_ms())
-        self.connections.append(connection)
+        owner = _SocketHookOriginPeer(reader, writer)
+        self._peers.append(owner)
+        if self._returned:
+            owner.serving_error = RuntimeError(
+                "socket hook origin accepted a connection after cleanup"
+            )
+            self._failed(owner.serving_error)
+
+        if self._stopping or self._failure is not None:
+            owner.close(self)
+            return
+
+        if (
+            len(self.connections) >= _ORIGIN_MAX_CONNECTIONS
+            or sum(not peer.finished for peer in self._peers) > _ORIGIN_MAX_ACTIVE
+        ):
+            error = ValueError("socket hook origin connection limit exceeded")
+            self._failed(error)
+            owner.close(self)
+            return
+
         self.open_count += 1
         self.max_open = max(self.max_open, self.open_count)
+        owner.active = True
+        operation = None
         try:
-            while True:
+            address = writer.get_extra_info("peername")
+            owner.connection = OriginConnection(f"{address[0]}:{address[1]}", now_ms())
+            self.connections.append(owner.connection)
+            operation = self._serve(owner, reader)
+            owner.serving = asyncio.create_task(operation)
+            owner.serving.add_done_callback(lambda completed: owner.observe(self))
+        except BaseException as error:
+            owner.serving_error = error
+            self._failed(error)
+            if operation is not None and owner.serving is None:
                 try:
-                    head = await reader.readuntil(b"\r\n\r\n")
-                except (asyncio.IncompleteReadError, asyncio.LimitOverrunError):
+                    operation.close()
+                except BaseException as close_error:
+                    owner.operation_close_error = close_error
+                    self._failed(close_error)
+            owner.observe(self)
+            owner.close(self)
+
+    async def _serve(
+        self, owner: _SocketHookOriginPeer, reader: asyncio.StreamReader
+    ) -> None:
+        while True:
+            try:
+                head = await reader.readuntil(b"\r\n\r\n")
+            except asyncio.IncompleteReadError as error:
+                if not error.partial:
+                    return
+
+                raise
+
+            host, target, parsed = self._request(head)
+            if self._requests >= _ORIGIN_MAX_REQUESTS:
+                raise ValueError("socket hook origin request limit exceeded")
+
+            self._requests += 1
+            owner.connection.requests.append((now_ms(), host, target))
+            close = await self.respond(owner.writer, parsed)
+            owner.connection.last_response_ms = now_ms()
+            if close:
+                return
+
+    def _request(self, head: bytes) -> tuple[str, str, Any]:
+        if len(head) > MAX_REQUEST_HEAD:
+            raise ValueError("socket hook origin request head exceeds 64 KiB")
+
+        lines = head[:-4].split(b"\r\n")
+        parts = lines[0].split(b" ")
+        if (
+            len(parts) != 3
+            or not parts[0]
+            or any(byte not in _HTTP_TOKEN for byte in parts[0])
+        ):
+            raise ValueError("socket hook origin request line is invalid")
+
+        if parts[2] not in (b"HTTP/1.0", b"HTTP/1.1"):
+            raise ValueError("socket hook origin HTTP version is unsupported")
+
+        target = parts[1].decode("ascii")
+        if not target or any(ord(value) <= 32 or ord(value) == 127 for value in target):
+            raise ValueError("socket hook origin request target is invalid")
+
+        parsed = urlsplit(target)
+        if "#" in target or not target.startswith("/") or parsed.netloc:
+            raise ValueError(
+                "socket hook origin requires an origin-form request target"
+            )
+
+        hosts = []
+        for line in lines[1:]:
+            name, separator, value = line.partition(b":")
+            if (
+                not separator
+                or not name
+                or any(byte not in _HTTP_TOKEN for byte in name)
+            ):
+                raise ValueError("socket hook origin header name is invalid")
+
+            if any((byte < 32 and byte != 9) or byte == 127 for byte in value):
+                raise ValueError("socket hook origin header value is invalid")
+
+            name = name.lower()
+            value = value.strip()
+            if name == b"host":
+                hosts.append(value.decode("ascii"))
+            elif name == b"transfer-encoding" or (
+                name == b"content-length" and value != b"0"
+            ):
+                raise ValueError("socket hook origin request bodies are unsupported")
+
+        if len(hosts) > 1 or (parts[2] == b"HTTP/1.1" and len(hosts) != 1):
+            raise ValueError("socket hook origin requires one Host header")
+
+        host = hosts[0] if hosts else ""
+        if hosts:
+            if "?" in host or "#" in host:
+                raise ValueError("socket hook origin Host header is invalid")
+
+            if "[" in host or "]" in host:
+                _, separator, suffix = host.partition("]")
+                if (
+                    not host.startswith("[")
+                    or not separator
+                    or (
+                        suffix
+                        and (not suffix.startswith(":") or not suffix[1:].isdigit())
+                    )
+                ):
+                    raise ValueError("socket hook origin Host header is invalid")
+
+            authority = urlsplit("//" + host)
+            if (
+                not authority.hostname
+                or authority.username is not None
+                or authority.path
+                or authority.query
+                or authority.fragment
+                or any(ord(value) <= 32 or ord(value) == 127 for value in host)
+                or host.endswith(":")
+            ):
+                raise ValueError("socket hook origin Host header is invalid")
+
+            # Accessing port also validates its syntax and numeric range.
+            _ = authority.port
+
+        return host, target, parsed
+
+    def _close_admission(self) -> None:
+        for owner in self._listeners:
+            owner.close(self)
+
+    def _failed(self, error: BaseException) -> None:
+        if self._failure is None:
+            self._failure = error
+            self.done.set()
+            if not self._stopping:
+                self._close_admission()
+
+        if self._returned:
+            asyncio.get_running_loop().call_exception_handler(
+                {
+                    "message": "socket hook origin failed after cleanup returned",
+                    "exception": error,
+                    "primary": self._late_primary,
+                    "owner": self,
+                }
+            )
+
+    async def finish(
+        self, deadline: float, primary: BaseException | None
+    ) -> tuple[BaseException, ...]:
+        self._stopping = True
+        self._late_primary = primary
+        for owner in tuple(self._peers):
+            if owner.serving is not None and not owner.serving.done():
+                try:
+                    owner.cancel_requested = owner.serving.cancel()
+                except BaseException as error:
+                    owner.cancel_error = error
+                    self._failed(error)
+
+            owner.close(self)
+
+        errors = []
+        deadline = min(
+            deadline, asyncio.get_running_loop().time() + _ORIGIN_CLEANUP_SECONDS
+        )
+        # Protocol admission has stopped. Close each native listener in reverse
+        # acquisition order and observe its original waiter before advancing.
+        # This keeps independent caller interruptions with their waiter result.
+        for owner in reversed(self._listeners):
+            if owner.waiter is None:
+                try:
+                    await asyncio.wait_for(
+                        owner.register(self),
+                        max(0.0, deadline - asyncio.get_running_loop().time()),
+                    )
+                except BaseException as error:
+                    errors.append(error)
+
+            owner.close(self)
+            while owner.waiter is not None and not owner.waiter.done():
+                remaining = max(0.0, deadline - asyncio.get_running_loop().time())
+                try:
+                    _, pending = await asyncio.wait((owner.waiter,), timeout=remaining)
+                except BaseException as error:
+                    errors.append(error)
+                    if (
+                        isinstance(
+                            error,
+                            (asyncio.CancelledError, KeyboardInterrupt, SystemExit),
+                        )
+                        and asyncio.get_running_loop().time() < deadline
+                    ):
+                        continue
+
                     break
-                line = head.split(b"\r\n", 1)[0].decode("latin-1")
-                parts = line.split(" ")
-                target = parts[1] if len(parts) > 1 else "/"
-                host = ""
-                for field_line in head.split(b"\r\n")[1:]:
-                    key, _, value = field_line.partition(b":")
-                    if key.strip().lower() == b"host":
-                        host = value.strip().decode("latin-1")
-                connection.requests.append((now_ms(), host, target))
-                close = await self.respond(writer, urlsplit(target))
-                connection.last_response_ms = now_ms()
-                if close:
+
+                if pending:
+                    errors.append(
+                        asyncio.TimeoutError(
+                            "socket hook listener cleanup deadline elapsed"
+                        )
+                    )
                     break
-        except (ConnectionError, OSError):
-            pass
-        finally:
-            connection.closed_ms = now_ms()
-            self.open_count -= 1
-            writer.close()
-            with contextlib.suppress(ConnectionError, OSError):
-                await writer.wait_closed()
+
+            owner.observe(self)
+            errors.extend(owner.errors)
+
+        while True:
+            for owner in self._listeners:
+                owner.observe(self)
+
+            for owner in tuple(self._peers):
+                owner.observe(self)
+
+            pending = {
+                task
+                for owner in self._peers
+                for task in (owner.serving, owner.closing)
+                if task is not None and not task.done()
+            }
+            pending.update(
+                owner.waiter
+                for owner in self._listeners
+                if owner.waiter is not None and not owner.waiter.done()
+            )
+            if not pending:
+                break
+
+            remaining = max(0.0, deadline - asyncio.get_running_loop().time())
+            try:
+                _, pending = await asyncio.wait(pending, timeout=remaining)
+            except BaseException as error:
+                errors.append(error)
+                if (
+                    isinstance(
+                        error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+                    )
+                    and asyncio.get_running_loop().time() < deadline
+                ):
+                    continue
+
+                break
+
+            if pending:
+                errors.append(
+                    asyncio.TimeoutError("socket hook origin cleanup deadline elapsed")
+                )
+                break
+
+        for owner in tuple(self._peers):
+            owner.observe(self)
+            if not owner.finished:
+                owner.abort(self)
+
+        for owner in self._listeners:
+            owner.observe(self)
+
+        pending = tuple(owner for owner in self._peers if not owner.finished)
+        if pending or any(not owner.finished for owner in self._listeners):
+            errors.append(_SocketHookOriginPending(self, pending))
+
+        errors.extend(self.failures(primary))
+        retained = []
+        for error in errors:
+            if error is not primary and all(
+                error is not previous for previous in retained
+            ):
+                retained.append(error)
+
+        if self._late_primary is None:
+            self._late_primary = next(
+                (
+                    error
+                    for error in retained
+                    if isinstance(
+                        error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+                    )
+                ),
+                None,
+            )
+        self._returned = True
+        return tuple(retained)
+
+    def failures(self, primary: BaseException | None) -> tuple[BaseException, ...]:
+        errors = [self._failure]
+        for owner in self._listeners:
+            errors.extend(owner.errors)
+        for owner in self._peers:
+            errors.extend(
+                (
+                    owner.serving_error,
+                    owner.reader_error,
+                    owner.close_error,
+                    owner.wait_error,
+                    owner.abort_error,
+                    owner.cancel_error,
+                    owner.operation_close_error,
+                )
+            )
+
+        retained = []
+        for error in errors:
+            if (
+                error is not None
+                and error is not primary
+                and all(error is not previous for previous in retained)
+            ):
+                retained.append(error)
+
+        return tuple(retained)
 
     async def respond(self, writer: asyncio.StreamWriter, target: Any) -> bool:
         path = target.path
@@ -636,6 +973,246 @@ class Origin:
         if path == "/done":
             self.done.set()
         return close
+
+
+class _SocketHookOriginListener:
+    def __init__(self, listener: asyncio.Server) -> None:
+        self.listener = listener
+        self.ready = asyncio.Event()
+        self.waiter: asyncio.Task[None] | None = None
+        self.observed = False
+        self.errors: list[BaseException] = []
+
+    @property
+    def finished(self) -> bool:
+        return self.observed
+
+    async def register(self, origin: Origin) -> None:
+        operation = self._wait_closed(origin)
+        try:
+            self.waiter = asyncio.create_task(operation)
+            self.waiter.add_done_callback(lambda completed: self.observe(origin))
+        except BaseException as error:
+            self.errors.append(error)
+            origin._failed(error)
+            if self.waiter is None:
+                try:
+                    operation.close()
+                except BaseException as close_error:
+                    self.errors.append(close_error)
+                    origin._failed(close_error)
+
+            raise
+
+        await self.ready.wait()
+        if self.errors:
+            raise self.errors[0]
+
+    async def _wait_closed(self, origin: Origin) -> None:
+        try:
+            if not self.listener.sockets:
+                error = RuntimeError(
+                    "socket hook origin listener closed before registration"
+                )
+                self.errors.append(error)
+                origin._failed(error)
+
+            # On pinned CPython, this queued signal runs only after the open
+            # server's wait_closed has registered its native closure waiter.
+            asyncio.get_running_loop().call_soon(self.ready.set)
+            await self.listener.wait_closed()
+        except BaseException as error:
+            self.errors.append(error)
+            origin._failed(error)
+        finally:
+            self.ready.set()
+
+    def close(self, origin: Origin) -> None:
+        try:
+            self.listener.close()
+        except BaseException as error:
+            if all(error is not previous for previous in self.errors):
+                self.errors.append(error)
+                if origin._returned:
+                    origin._failed(error)
+
+    def observe(self, origin: Origin) -> None:
+        if self.waiter is None or not self.waiter.done() or self.observed:
+            return
+
+        self.observed = True
+        try:
+            self.waiter.result()
+        except BaseException as error:
+            self.errors.append(error)
+            origin._failed(error)
+
+
+class _SocketHookOriginPeer:
+    def __init__(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        self.reader = reader
+        self.writer = writer
+        self.connection: OriginConnection | None = None
+        self.serving: asyncio.Task[None] | None = None
+        self.closing: asyncio.Task[None] | None = None
+        self.serving_error: BaseException | None = None
+        self.reader_error: BaseException | None = None
+        self.close_error: BaseException | None = None
+        self.wait_error: BaseException | None = None
+        self.abort_error: BaseException | None = None
+        self.cancel_error: BaseException | None = None
+        self.operation_close_error: BaseException | None = None
+        self.peer_error: BaseException | None = None
+        self.wait_peer_error: BaseException | None = None
+        self.cancel_requested = False
+        self.active = False
+        self.serving_observed = False
+        self.closing_observed = False
+        self.close_started = False
+        self.abort_started = False
+
+    @property
+    def finished(self) -> bool:
+        return (self.serving is None or self.serving_observed) and self.closing_observed
+
+    def close(self, origin: Origin) -> None:
+        if self.close_started:
+            return
+
+        self.close_started = True
+        try:
+            self.writer.close()
+        except BaseException as error:
+            self.close_error = error
+            origin._failed(error)
+            self.abort(origin)
+
+        operation = None
+        try:
+            operation = self.writer.wait_closed()
+            self.closing = asyncio.create_task(operation)
+            self.closing.add_done_callback(lambda completed: self.observe(origin))
+        except BaseException as error:
+            self.wait_error = error
+            origin._failed(error)
+            if operation is not None and self.closing is None:
+                try:
+                    operation.close()
+                except BaseException as close_error:
+                    self.operation_close_error = close_error
+                    origin._failed(close_error)
+
+    def peer_disconnected(self, error: BaseException) -> bool:
+        return isinstance(
+            error, (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)
+        ) and (
+            error.errno in _ORIGIN_PEER_ERRNOS
+            or getattr(error, "winerror", None) in (10053, 10054, 232)
+            or error is self.peer_error
+            or (
+                self.writer.is_closing()
+                and self.reader.exception() is None
+                and error.errno is None
+            )
+        )
+
+    def abort(self, origin: Origin) -> None:
+        if self.abort_started:
+            return
+
+        self.abort_started = True
+        try:
+            self.writer.transport.abort()
+        except BaseException as error:
+            self.abort_error = error
+            origin._failed(error)
+
+    def observe(self, origin: Origin) -> None:
+        error = self.reader.exception()
+        if error is not None and self.reader_error is None:
+            if self.peer_disconnected(error):
+                self.peer_error = error
+            else:
+                self.reader_error = error
+                origin._failed(error)
+
+        if (
+            self.serving is not None
+            and self.serving.done()
+            and not self.serving_observed
+        ):
+            self.serving_observed = True
+            try:
+                self.serving.result()
+            except asyncio.CancelledError as error:
+                if self.cancel_requested:
+                    pass  # This owner requested cancellation of this serving task.
+                else:
+                    self.serving_error = error
+                    origin._failed(error)
+            except BaseException as error:
+                if self.peer_disconnected(error):
+                    self.peer_error = error
+                else:
+                    self.serving_error = error
+                    origin._failed(error)
+
+        if self.active and (self.serving is None or self.serving_observed):
+            self.active = False
+            origin.open_count -= 1
+            if self.connection is not None:
+                self.connection.closed_ms = now_ms()
+
+            self.close(origin)
+
+        if (
+            self.closing is not None
+            and self.closing.done()
+            and not self.closing_observed
+        ):
+            self.closing_observed = True
+            try:
+                self.closing.result()
+            except BaseException as error:
+                if self.peer_disconnected(error):
+                    self.wait_peer_error = error
+                else:
+                    self.wait_error = error
+                    origin._failed(error)
+                    self.abort(origin)
+
+        if (
+            self.connection is None
+            and self.finished
+            and self in origin._peers
+            and all(
+                error is None
+                for error in (
+                    self.serving_error,
+                    self.reader_error,
+                    self.close_error,
+                    self.wait_error,
+                    self.abort_error,
+                    self.cancel_error,
+                    self.operation_close_error,
+                )
+            )
+        ):
+            origin._peers.remove(self)
+
+
+class _SocketHookOriginPending(RuntimeError):
+    def __init__(
+        self, origin: Origin, pending: tuple[_SocketHookOriginPeer, ...]
+    ) -> None:
+        self.owner = origin
+        self.pending = pending
+        self.listeners = tuple(
+            owner for owner in origin._listeners if not owner.finished
+        )
+        super().__init__("socket hook origin owners have not finished cleanup")
 
 
 def now_ms() -> int:
@@ -782,7 +1359,9 @@ class HookedBrowser:
                 raise RuntimeError("socket hook startup was stopped before readiness")
 
             if time.monotonic() >= deadline:
-                raise TimeoutError("socket hook configuration readiness deadline elapsed")
+                raise TimeoutError(
+                    "socket hook configuration readiness deadline elapsed"
+                )
 
     def _on_child_added(self, child: Any) -> None:
         try:
@@ -865,7 +1444,9 @@ class HookedBrowser:
 
         if is_network_service(child.argv):
             if self.network_service_argv is not None:
-                raise RuntimeError("socket hook network service restarted during capture")
+                raise RuntimeError(
+                    "socket hook network service restarted during capture"
+                )
 
             self.network_service_argv = list(child.argv)
             self._network_pid = child.pid
@@ -940,12 +1521,16 @@ class HookedBrowser:
             stopped = self._stopped
             reports = list(self.reports)
 
-        raise_browser_failures(None, tuple(error for error in failures if error is not None))
+        raise_browser_failures(
+            None, tuple(error for error in failures if error is not None)
+        )
         if not stopped or (self._worker is not None and self._worker.is_alive()):
             raise _SocketHookChildrenPending(self)
 
         if not self._ready.is_set():
-            raise RuntimeError("socket hook capture has no acknowledged network service")
+            raise RuntimeError(
+                "socket hook capture has no acknowledged network service"
+            )
 
         return reports
 
@@ -969,14 +1554,17 @@ class HookedBrowser:
 
         roster_known = self._device is None
         if self._device is not None:
-            pending, error = self._cleanup_native(self._device.enumerate_pending_children, deadline)
+            pending, error = self._cleanup_native(
+                self._device.enumerate_pending_children, deadline
+            )
             if error is not None:
                 failures.append(error)
             else:
                 roster_known = True
                 with self._lock:
                     self._pending_children = tuple(
-                        child for child in pending
+                        child
+                        for child in pending
                         if child.parent_pid == self._pid
                         or child.parent_pid in self._children_by_pid
                     )
@@ -1005,7 +1593,9 @@ class HookedBrowser:
             if pid != self._pid:
                 failures.extend(self._retire_process(pid, deadline))
 
-        unknown = tuple(child for pid, child in children.items() if pid not in processes)
+        unknown = tuple(
+            child for pid, child in children.items() if pid not in processes
+        )
         if isinstance(failure, _SocketHookIdentityUnknown):
             unknown += failure.children
 
@@ -1065,7 +1655,9 @@ class HookedBrowser:
         if self._cleanup_failures:
             failures.append(_SocketHookCleanupIncomplete(self))
 
-        raise_browser_failures(None, tuple(error for error in failures if error is not None))
+        raise_browser_failures(
+            None, tuple(error for error in failures if error is not None)
+        )
 
     def _retire_process(self, pid: int, deadline: float) -> tuple[BaseException, ...]:
         if pid in self._retired_pids:
@@ -1142,11 +1734,15 @@ class HookedBrowser:
                     cancellation_failures.append(failure)
 
         if timer.is_alive():
-            pending = _SocketHookCleanupPending(self, timer, cancellable, operation, arguments)
+            pending = _SocketHookCleanupPending(
+                self, timer, cancellable, operation, arguments
+            )
             cancellation_failures.append(pending)
 
         if expired.is_set():
-            cancellation_failures.append(TimeoutError("socket hook native cleanup deadline elapsed"))
+            cancellation_failures.append(
+                TimeoutError("socket hook native cleanup deadline elapsed")
+            )
 
         try:
             raise_browser_failures(error, tuple(cancellation_failures))
@@ -1167,7 +1763,9 @@ class _SocketHookProcess:
         self.handle: int | None = _winapi.OpenProcess(access, False, pid)
 
     def wait(self, deadline: float) -> bool:
-        remaining = min(_HOOK_NATIVE_CLEANUP_SECONDS, max(0.0, deadline - time.monotonic()))
+        remaining = min(
+            _HOOK_NATIVE_CLEANUP_SECONDS, max(0.0, deadline - time.monotonic())
+        )
         result = self._api.WaitForSingleObject(self.handle, int(remaining * 1000))
         if result == self._api.WAIT_OBJECT_0:
             return True
@@ -1212,18 +1810,24 @@ class _SocketHookCleanupIncomplete(RuntimeError):
 
 
 class _SocketHookProcessPending(RuntimeError):
-    def __init__(self, owner: HookedBrowser, pid: int, process: _SocketHookProcess) -> None:
+    def __init__(
+        self, owner: HookedBrowser, pid: int, process: _SocketHookProcess
+    ) -> None:
         self.owner = owner
         self.pid = pid
         self.process = process
-        super().__init__("socket hook process exit is unconfirmed and its owners are retained")
+        super().__init__(
+            "socket hook process exit is unconfirmed and its owners are retained"
+        )
 
 
 class _SocketHookIdentityUnknown(RuntimeError):
     def __init__(self, owner: HookedBrowser, children: tuple[Any, ...]) -> None:
         self.owner = owner
         self.children = children
-        super().__init__("socket hook process identity is unconfirmed and its owners are retained")
+        super().__init__(
+            "socket hook process identity is unconfirmed and its owners are retained"
+        )
 
 
 class _SocketHookCleanupPending(RuntimeError):
@@ -1283,6 +1887,7 @@ async def run_once(
         server = await asyncio.start_server(
             origin.handle, "127.0.0.1", 0, limit=MAX_REQUEST_HEAD, start_serving=False
         )
+        await origin.listen(server)
         origin.port = server.sockets[0].getsockname()[1]
         await server.start_serving()
 
@@ -1294,6 +1899,7 @@ async def run_once(
                 limit=MAX_REQUEST_HEAD,
                 start_serving=False,
             )
+            await origin.listen(target)
             origin.target_port = target.sockets[0].getsockname()[1]
             await target.start_serving()
 
@@ -1355,80 +1961,21 @@ async def run_once(
         except BaseException as error:
             cleanup.append(error)
 
-    listeners = [listener for listener in (target, server) if listener is not None]
-    for listener in listeners:
-        try:
-            listener.close()
-        except BaseException as error:
-            cleanup.append(error)
+    try:
+        for listener in (server, target):
+            if listener is not None:
+                origin._own_listener(listener)
 
-    for listener in listeners:
-        operation = None
-        try:
-            operation = listener.wait_closed()
-            waiter = asyncio.create_task(operation)
-        except BaseException as error:
-            cleanup.append(error)
-            if operation is not None:
-                try:
-                    operation.close()
-                except BaseException as close_error:
-                    cleanup.append(close_error)
-            continue
-
-        requested = False
-        while not waiter.done():
-            remaining = max(0.0, deadline - asyncio.get_running_loop().time())
-            try:
-                _, pending = await asyncio.wait((waiter,), timeout=remaining)
-            except BaseException as error:
-                interrupted = isinstance(
-                    error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
-                )
-                if primary is None and interrupted:
-                    primary = error
-                else:
-                    cleanup.append(error)
-
-                if interrupted and asyncio.get_running_loop().time() < deadline:
-                    continue
-
-                requested = not waiter.done() and waiter.cancel()
-                break
-
-            if pending:
-                cleanup.append(
-                    asyncio.TimeoutError(
-                        "socket hook listener cleanup deadline elapsed"
-                    )
-                )
-                requested = not waiter.done() and waiter.cancel()
-                break
-
-        if requested and not waiter.done():
-            try:
-                await asyncio.wait((waiter,), timeout=0)
-            except BaseException as error:
-                if primary is None and isinstance(
-                    error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
-                ):
-                    primary = error
-                else:
-                    cleanup.append(error)
-
-        if not waiter.done():
-            cleanup.append(
-                _SocketHookListenerPending(listener, waiter, requested, primary)
-            )
-            continue
-
-        try:
-            waiter.result()
-        except asyncio.CancelledError as error:
-            if not requested:
+        for error in await origin.finish(deadline, primary):
+            if all(error is not previous for previous in cleanup):
                 cleanup.append(error)
-        except BaseException as error:
-            cleanup.append(error)
+    except BaseException as error:
+        cleanup.append(error)
+        origin._stopping = True
+        origin._close_admission()
+        origin._late_primary = primary
+        origin._returned = True
+        cleanup.append(_SocketHookOriginPending(origin, tuple(origin._peers)))
 
     if worker is not None and worker.future is not None:
         cleanup.extend(await worker.finish(deadline, primary))
@@ -1449,43 +1996,6 @@ async def run_once(
         browser.frida_version,
     )
     return result, arguments
-
-
-class _SocketHookListenerPending(RuntimeError):
-    def __init__(
-        self,
-        listener: asyncio.Server,
-        waiter: asyncio.Task[None],
-        requested: bool,
-        primary: BaseException | None,
-    ) -> None:
-        self.listener = listener
-        self.waiter = waiter
-        self.requested = requested
-        self.primary = primary
-        self.error: BaseException | None = None
-        waiter.add_done_callback(self._finished)
-        super().__init__("socket hook listener waiter has not finished cleanup")
-
-    def _finished(self, completed: asyncio.Task[None]) -> None:
-        try:
-            completed.result()
-        except asyncio.CancelledError as error:
-            if not self.requested:
-                self.error = error
-        except BaseException as error:
-            self.error = error
-
-        if self.error is not None:
-            completed.get_loop().call_exception_handler(
-                {
-                    "message": "socket hook listener cleanup failed after caller exit",
-                    "exception": self.error,
-                    "primary": self.primary,
-                    "future": completed,
-                    "owner": self,
-                }
-            )
 
 
 class _SocketHookDonePending(RuntimeError):

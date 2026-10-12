@@ -16,8 +16,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Reject socket-hook browser arguments that replace the managed profile or
   page URL before acquiring resources or creating output directories.
+  Require Windows x64 and acknowledged network-service hooks. Bound each
+  run to 64 admitted children, 100,000 hook reports, 32 unfinished origin
+  connections, 128 connection records and 512 requests.
   Migrate: pass extra switches as `--name` or `--name=value`; remove
   `--user-data-dir`, `--single-argument`, positional URLs and terminators.
+  Use Windows x64 and split larger capture experiments into separate runs.
 
 - Retain original HTTP/2 transport errors across the connection and its
   failed streams, including typed causes and operating-system codes.
@@ -2530,6 +2534,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Keep socket-hook cleanup running after partial startup fails. Retain the
   initiating error and independent listener, browser and profile failures.
+  Wake idle runs after hook failure, observe owned process exits before
+  releasing their profiles, and collect accepted origin handlers before
+  returning results. Reject malformed request heads and Host authorities.
 
 - Preserve local HTTP/3 callback and held-response errors in race captures,
   including errors after the page reports completion. Stop owned callbacks
