@@ -2085,6 +2085,15 @@ cleanup races remain open. These checks do not replace full gates or CI.
 The HTTP/1 disabled-authentication test title now describes replacement
 requests. Its body does not establish session-resumption behavior.
 
+The HTTP/1 baseline at `bb1769ff` passes all nine original methods on
+Windows and Linux. Five controls fail at their intended checks: three
+original peers remain live after caller exit, the caller deadline loses
+Elapsed, and a completed TLS error is lost beside the URI error. Later
+socket and retained-error assertions are unreached in those failures.
+Focused formatting, strict Clippy and Rust 1.88 checks pass. See
+`session-http1-peer-baseline-independent-native-review-bb1769ff.json`.
+The repair, queued request joins, other peer paths and full gates remain open.
+
 ## Next
 
 - [Audit plan](../architecture-audit.md): acceptance and verification.

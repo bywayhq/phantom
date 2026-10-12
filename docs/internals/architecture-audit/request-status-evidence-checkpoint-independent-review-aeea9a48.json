@@ -1,0 +1,171 @@
+{
+  "schema": "independent_documentation_checkpoint_v1",
+  "base": "aeea9a48c7b05aaf89fad33fc93052b79a4fc0a4",
+  "checkpoint": "a4cfdc587fce23410d4e6b295c84755562616510",
+  "decision": "bounded_checkpoint_approved",
+  "complete_document_diffs_read": 3,
+  "checkpoint_files": 21,
+  "rust_delta": false,
+  "documents": [
+    {
+      "path": "docs/internals/architecture-audit/coverage.md",
+      "sha256": "1a75bd74e765dcc0e86ce26498b046e009366e05ffadb55d37dfe219c82ce642",
+      "checkpoint_blob": "a9a8aa231a017894c3b2248d82ab9daf455a0243"
+    },
+    {
+      "path": "docs/internals/architecture-audit/findings.md",
+      "sha256": "ee9352006e26269f4b579532b32e1b9dd1ae6e1382d4f5152bdc889cb7fe01d6",
+      "checkpoint_blob": "53d336eec813aa95773018d42e07f90cadc2089e"
+    },
+    {
+      "path": "docs/internals/architecture-audit/inventory.tsv",
+      "sha256": "00851f70c000b33766723c55847a8114b81d2d9d435a98de105990fbb9cc39f4",
+      "checkpoint_blob": "5427d17433b3834080bdff75aeed46adf65464ee"
+    }
+  ],
+  "archive_count": 18,
+  "all_archive_byte_identities": true,
+  "archives": [
+    {
+      "path": "docs/internals/architecture-audit/session-request-extra-deadline-independent-source-review-15896330.json",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\session-request-extra-deadline-independent-source-review-15896330.json",
+      "sha256": "435c3c59d37a07125fd7a805192b77b557a1bf591d90a8008f0bd1dabfcf4b25",
+      "byte_identity": true,
+      "checkpoint_blob": "bfab990c287463f47829e4a9bc3a047e0253b047"
+    },
+    {
+      "path": "docs/internals/architecture-audit/session-request-extra-deadline-independent-source-review-15896330.md.txt",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\session-request-extra-deadline-independent-source-review-15896330.md",
+      "sha256": "eb5ba00db39c136d439742c6cad804b6028ac0b5cbb5da8d4758e16d715650fa",
+      "byte_identity": true,
+      "checkpoint_blob": "d8cdf8098dcbccff82ceb949d14dd3bd48fdf96f"
+    },
+    {
+      "path": "docs/internals/architecture-audit/session-request-mixed-baseline-independent-native-review-3aa01318.json",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\session-request-mixed-baseline-independent-native-review-3aa01318.json",
+      "sha256": "ff6de78a5711619ab2e4ba13b8f0a9d2a57b0eb7bf28892f6cece9ae56308b47",
+      "byte_identity": true,
+      "checkpoint_blob": "b7dbb1fe728ed0f92ba59022dcc4ce65267503ac"
+    },
+    {
+      "path": "docs/internals/architecture-audit/session-request-mixed-baseline-independent-native-review-3aa01318.md.txt",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\session-request-mixed-baseline-independent-native-review-3aa01318.md",
+      "sha256": "6c9179298ced0809ab3546cf0df309c0703191455231a8e383e604538a61bd78",
+      "byte_identity": true,
+      "checkpoint_blob": "64e9c45ec69e66245f3e80af10c8936a0d2f8f03"
+    },
+    {
+      "path": "docs/internals/architecture-audit/session-request-owner-remedy-independent-native-review-30e4999b.json",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\session-request-owner-remedy-independent-native-review-30e4999b.json",
+      "sha256": "e39832078e97b51c0e20f4b5c3dc30ae91d3e144bc5894696aa26207934eb98c",
+      "byte_identity": true,
+      "checkpoint_blob": "8347a0c9809beb17758408a3c7cba38160ed471d"
+    },
+    {
+      "path": "docs/internals/architecture-audit/session-request-owner-remedy-independent-native-review-30e4999b.md.txt",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\session-request-owner-remedy-independent-native-review-30e4999b.md",
+      "sha256": "1a62d2b1e54a3c7f6dc07898aca714ec6287ec4f76328ed41100084751d0f55d",
+      "byte_identity": true,
+      "checkpoint_blob": "0ae415cb471105fa0763149d706c171261f3328d"
+    },
+    {
+      "path": "docs/internals/architecture-audit/session-request-owner-remedy-independent-root-composition-30e4999b.json",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\session-request-owner-remedy-independent-root-composition-30e4999b.json",
+      "sha256": "8b9391a6a8b9eb8910954d504678de7964c45256a28ebcdb93971c3245dfa39f",
+      "byte_identity": true,
+      "checkpoint_blob": "c5abf3097ec6cde8166a3acaa9c6d7ffaa1819e0"
+    },
+    {
+      "path": "docs/internals/architecture-audit/session-request-owner-remedy-independent-root-composition-30e4999b.md.txt",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\session-request-owner-remedy-independent-root-composition-30e4999b.md",
+      "sha256": "5dc3aec84ba8cb3cda8b1832967129e7e5793a6672222da00e4ef88589502a50",
+      "byte_identity": true,
+      "checkpoint_blob": "7a6807a60c44392103fd561afd4ea8a0a8efea69"
+    },
+    {
+      "path": "docs/internals/architecture-audit/session-request-owner-remedy-independent-source-review-788a887e.json",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\session-request-owner-remedy-independent-source-review-788a887e.json",
+      "sha256": "821b70335a78c8ed2606339ef009dabba6b3db2d40a3260ef233bf307491dd07",
+      "byte_identity": true,
+      "checkpoint_blob": "84a653f23cceab2167776cf2847aafcb7ded7a2c"
+    },
+    {
+      "path": "docs/internals/architecture-audit/session-request-owner-remedy-independent-source-review-788a887e.md.txt",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\session-request-owner-remedy-independent-source-review-788a887e.md",
+      "sha256": "6322082863b1dd43ce4d1170a40d8e9ca4f8ba5525203717e21be1950fda5eeb",
+      "byte_identity": true,
+      "checkpoint_blob": "0e688562f85891a0c1543acc5dfadb18df1e0295"
+    },
+    {
+      "path": "docs/internals/architecture-audit/status-child-owner-remedy-independent-native-review-aeea9a48.json",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\status-child-owner-remedy-independent-native-review-aeea9a48.json",
+      "sha256": "faaaa32d5518dd801b2074247731d95e9dd0fb209efbc299a9722651ed8e46a8",
+      "byte_identity": true,
+      "checkpoint_blob": "63fefe4bea81a17870cb55a564b3768b3f16ab21"
+    },
+    {
+      "path": "docs/internals/architecture-audit/status-child-owner-remedy-independent-native-review-aeea9a48.md.txt",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\status-child-owner-remedy-independent-native-review-aeea9a48.md",
+      "sha256": "ada370f0ad7190d1c71826e838e8314891957350a3501fdc7b06927b3d94bf2e",
+      "byte_identity": true,
+      "checkpoint_blob": "40c3f0e277866d06d9024ce1377b558001a6efda"
+    },
+    {
+      "path": "docs/internals/architecture-audit/status-child-remedy-compiler-prerequisite-independent-review-aeea9a48.json",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\status-child-remedy-compiler-prerequisite-independent-review-aeea9a48.json",
+      "sha256": "c1545a850206b45ba52666688f18a29caa4ce362e68bc3aa08fc3f5bea819c72",
+      "byte_identity": true,
+      "checkpoint_blob": "86ba93dd19edfaafef56e141a115d57669a238a7"
+    },
+    {
+      "path": "docs/internals/architecture-audit/status-child-remedy-compiler-prerequisite-independent-review-aeea9a48.md.txt",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\status-child-remedy-compiler-prerequisite-independent-review-aeea9a48.md",
+      "sha256": "a1135be1a18d1fa3ea49acc81b9c21e62b1fc97d40690bfec3e58566404ee17f",
+      "byte_identity": true,
+      "checkpoint_blob": "54fc846f43c8dc51d828820627d66742b1fffcdb"
+    },
+    {
+      "path": "docs/internals/architecture-audit/status-retry-child-owner-remedy-independent-root-composition-5b0e57b6.json",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\status-retry-child-owner-remedy-independent-root-composition-5b0e57b6.json",
+      "sha256": "5620b608e3c42a0e7d2b4b22c1e845d87d137396ffcdc7045665f36fcfadcf3c",
+      "byte_identity": true,
+      "checkpoint_blob": "c239bfe243ec1c0ea9d6b3ecac13fb8d3ba95f72"
+    },
+    {
+      "path": "docs/internals/architecture-audit/status-retry-child-owner-remedy-independent-root-composition-5b0e57b6.md.txt",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\status-retry-child-owner-remedy-independent-root-composition-5b0e57b6.md",
+      "sha256": "8f186153d8cf0cc397c29f551dd57d45d2eb1d7b405d6bfb4eb98440c6eef9ac",
+      "byte_identity": true,
+      "checkpoint_blob": "3acc12b171ba2aaff948fc96ee8fd4ab13dc7679"
+    },
+    {
+      "path": "docs/internals/architecture-audit/status-retry-child-owner-remedy-independent-source-review-a485f486.json",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\status-retry-child-owner-remedy-independent-source-review-a485f486.json",
+      "sha256": "e62a119a09d0524d2c3ea0961bb31fe895e74ee57938ecc09e28fc7664ed6d88",
+      "byte_identity": true,
+      "checkpoint_blob": "4052130764c2abec251c8baa1a21172b52d7d6c8"
+    },
+    {
+      "path": "docs/internals/architecture-audit/status-retry-child-owner-remedy-independent-source-review-a485f486.md.txt",
+      "scratch_original": "C:\\code\\phantom\\target\\architecture-audit\\status-retry-child-owner-remedy-independent-source-review-a485f486.md",
+      "sha256": "8822ca6721f5d550ca34f313358018d6f68d70aa074f0a94ed9bd69fba66224b",
+      "byte_identity": true,
+      "checkpoint_blob": "1ffd27e8e56ea071b631876884ac76bf1b224f2f"
+    }
+  ],
+  "measured_claims": {
+    "request_revision": "30e4999b",
+    "request_passes_per_host": 41,
+    "status_revision": "aeea9a48",
+    "status_passes_per_host": 29,
+    "quality": "focused four-step quality accepted in prior independent native reports"
+  },
+  "retained_qualifications": [
+    "5b0 E0521 executed no tests",
+    "90 compile prerequisite executed no tests",
+    "469 destruction phase ambiguity and sole Clippy limitation",
+    "Broader A236/A244/A233, races, decoder/acquisition/deadline boundaries, full gates and CI remain open"
+  ],
+  "reviewer_executed_native_or_checker": false,
+  "md_sha256": "4ad41c235eed5ae7e473c02de39f6f61ba9f3375e1ac057ab57f07d58e9132ff"
+}

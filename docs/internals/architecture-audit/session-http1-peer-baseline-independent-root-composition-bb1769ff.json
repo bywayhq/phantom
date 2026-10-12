@@ -1,0 +1,53 @@
+{
+  "schema": "independent_root_source_composition_v1",
+  "revision": "bb1769ffeac0e3d9eb539e9706218e145f07a705",
+  "parent": "a4cfdc587fce23410d4e6b295c84755562616510",
+  "immutable_author": "1776f533beb00946d34b13b6edac12571da08ff0",
+  "decision": "source_composition_and_guarded_measurement_approved",
+  "scope": [
+    {
+      "path": "crates/phantom/tests/sessions/session_http1.rs",
+      "lines": 542,
+      "blob": "aaca5a5e1c22b7e2dea949301818d8d7d256534a",
+      "physical_sha256": "65e5f2b3b193602098926e60da73854c0a96be30983682004968c4ad79bb8e3e"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1/ownership.rs",
+      "lines": 153,
+      "blob": "15df923d39164eef61010af1ab788ee4af03c3b4",
+      "physical_sha256": "178c88198d660c2f83f846f34a481edb4566eda2d964819f992b627276925180"
+    },
+    {
+      "path": "crates/phantom/tests/sessions/session_http1/ownership/tests.rs",
+      "lines": 381,
+      "blob": "3439f61ba0e8af534f7541f7d4f6eb12a9571a06",
+      "physical_sha256": "1d03ffa6baf5096716394428163723a9139a72039dd5a9735e29cbec63248df4"
+    }
+  ],
+  "other_original_methods_byte_exact": 8,
+  "original_control_methods_semantically_unchanged": 5,
+  "request_status_four_files_unchanged": true,
+  "author_delta": "Formatter mechanics and accepted paragraph only",
+  "native_outcome": "unmeasured at review",
+  "scripts": [
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\run-session-http1-peer-baseline.sh",
+      "sha256": "ec3f94cb3e7a2dfeaa6775d7881c985f79e839789b2c90eeada8a31e2b100a8c",
+      "complete_read": true
+    },
+    {
+      "path": "C:\\code\\phantom\\target\\architecture-audit\\sync-session-http1-peer-baseline-bb1769ff.sh",
+      "sha256": "9e96209916bcfb26eaa66bd920d372775c16b8a4087296aef401419642b10ed5",
+      "complete_read": true
+    }
+  ],
+  "retained_limits": [
+    "Raw success-only original task join",
+    "Consuming caller deadline erases original Elapsed",
+    "Backup uses AbortHandle without original-result joining",
+    "Other eight raw servers and two queued waiters remain open",
+    "Broader A236/A233, acquisition/error/races and full gates remain open"
+  ],
+  "reviewer_executed_native_or_formatter": false,
+  "md_sha256": "d275fd805df0d08dc986aade77cad11d3979f89c73ec4da9c0a42edf3142b0d5"
+}
