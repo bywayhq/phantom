@@ -85,7 +85,7 @@ async fn pending(tunnel: Tunnel, exit: Exit) -> TestResult<()> {
 }
 
 async fn completed(tunnel: Tunnel) -> TestResult<()> {
-    let (control, mut fixture) = Fixture::new(Some("https://["));
+    let (control, mut fixture) = Fixture::new(Some("https://127.0.0.1/invalid uri"));
     let mut caller = tunnel.caller(control);
     let target = async {
         fixture.start(&mut caller).await?;

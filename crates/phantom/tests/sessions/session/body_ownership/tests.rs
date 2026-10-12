@@ -134,7 +134,7 @@ async fn pending(body: Body, exit: Exit) -> TestResult<()> {
 }
 
 async fn completed(body: Body) -> TestResult<()> {
-    let (control, mut fixture) = Fixture::new(Some("https://["));
+    let (control, mut fixture) = Fixture::new(Some("https://127.0.0.1/invalid uri"));
     let mut caller = body.caller(control);
     let target = async {
         fixture.start(&mut caller).await?;
