@@ -1,7 +1,5 @@
 //! Public TLS 1.3 session-resumption integration tests.
 
-use crate::support::tls as tls_support;
-
 use std::{
     error::Error,
     future::{Future, poll_fn},
@@ -29,6 +27,9 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
+use super::early_data_server::{finish, join};
+use crate::support::{tls as tls_support, tunnel_proxy::ConnectionPeer};
+
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity};
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -36,14 +37,15 @@ type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[tokio::test]
 async fn tls13_resumption_is_scoped_to_one_client() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let early_data_hellos = Arc::new(AtomicUsize::new(0));
         let acceptor = tls13_acceptor(&identity, early_data_hellos.clone())?;
         let (first_closed, wait_for_first_close) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let first = accept_tls(&listener, &acceptor).await?;
             assert_tls(first.ssl(), SslVersion::TLS1_3, b"h2", false);
             serve_one(first, "/").await?;
@@ -58,14 +60,11 @@ async fn tls13_resumption_is_scoped_to_one_client() -> TestResult<()> {
             let isolated = accept_tls(&listener, &acceptor).await?;
             assert_tls(isolated.ssl(), SslVersion::TLS1_3, b"h2", false);
             serve_one(isolated, "/isolated").await
-        });
+        }));
 
         let session = tls13_client(&identity)?;
         send(&session, HttpProtocol::Http2, format!("https://{address}/")).await?;
-        if wait_for_first_close.await.is_err() {
-            server.await??;
-            return Err("server stopped before closing the first connection".into());
-        }
+        wait_for_first_close.await?;
         send(
             &session,
             HttpProtocol::Http2,
@@ -80,7 +79,7 @@ async fn tls13_resumption_is_scoped_to_one_client() -> TestResult<()> {
         )
         .await?;
 
-        server.await??;
+        join(&mut server).await?;
         assert_eq!(
             early_data_hellos.load(Ordering::SeqCst),
             0,
@@ -88,17 +87,19 @@ async fn tls13_resumption_is_scoped_to_one_client() -> TestResult<()> {
         );
         Ok(())
     })
-    .await
+    .await;
+    finish(result, server).await
 }
 
 #[tokio::test]
 async fn tls12_resumption_survives_http1_connection_close() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = tls12_acceptor(&identity)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let first = accept_tls(&listener, &acceptor).await?;
             assert_tls(first.ssl(), SslVersion::TLS1_2, b"http/1.1", false);
             serve_http1(first, "/").await?;
@@ -110,7 +111,7 @@ async fn tls12_resumption_survives_http1_connection_close() -> TestResult<()> {
             let isolated = accept_tls(&listener, &acceptor).await?;
             assert_tls(isolated.ssl(), SslVersion::TLS1_2, b"http/1.1", false);
             serve_http1(isolated, "/isolated").await
-        });
+        }));
 
         let session = tls_support::test_client(&identity, false)?;
         send(&session, HttpProtocol::Http1, format!("https://{address}/")).await?;
@@ -128,10 +129,11 @@ async fn tls12_resumption_survives_http1_connection_close() -> TestResult<()> {
         )
         .await?;
 
-        server.await??;
+        join(&mut server).await?;
         Ok(())
     })
-    .await
+    .await;
+    finish(result, server).await
 }
 
 fn tls13_acceptor(
