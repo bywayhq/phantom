@@ -389,30 +389,62 @@ async fn truncated_chunked_body_fails_and_replaces_the_connection() -> TestResul
 #[tokio::test]
 async fn pending_requests_are_bounded_while_a_body_is_active() -> TestResult {
     let mut server = None;
+    let mut session = None;
+    let mut active = None;
+    // Reverse local drop order aborts requests before releasing the active body.
+    let mut requests = None;
+
     let caller = bounded(async {
         let ownership::ActiveBody {
-            session,
-            active,
+            session: active_session,
+            active: active_response,
             address,
             server: active_server,
         } = ownership::active_body(None, &mut server).await?;
         server = Some(active_server);
+        session = Some(active_session);
+        active = Some(active_response);
 
-        let first_waiter = session.get(
+        let client = session
+            .as_ref()
+            .ok_or("original active HTTP/1 client missing")?;
+
+        let first_waiter = client.get(
             HttpProtocol::Http1,
             &format!("https://{address}/waiting-one"),
         )?;
-        let second_waiter = session.get(
+        let second_waiter = client.get(
             HttpProtocol::Http1,
             &format!("https://{address}/waiting-two"),
         )?;
-        ownership::queued_requests(first_waiter, second_waiter, None).await?;
+        requests = Some(ownership::QueuedPair::new(
+            first_waiter,
+            second_waiter,
+            None,
+        ));
 
-        drop(active);
+        requests
+            .as_mut()
+            .ok_or("original queued HTTP/1 requests missing")?
+            .drive(None)
+            .await?;
+
+        drop(requests.take());
+        drop(active.take());
+        drop(session.take());
         ownership::join_peer(&mut server).await?;
         Ok(())
     })
     .await;
+
+    let caller = match requests.as_mut() {
+        Some(requests) => requests.finish(caller).await,
+        None => caller,
+    };
+
+    drop(requests.take());
+    drop(active.take());
+    drop(session.take());
 
     ownership::collect_peer(caller, server).await
 }

@@ -4,7 +4,7 @@ use std::{
     net::{Ipv4Addr, SocketAddr},
     num::NonZeroUsize,
     pin::Pin,
-    task::Poll,
+    task::{Context, Poll},
 };
 
 use http_body_util::BodyExt;
@@ -15,7 +15,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
     sync::{oneshot, watch},
-    task::{AbortHandle, JoinHandle},
+    task::{AbortHandle, JoinError, JoinHandle},
     time::timeout,
 };
 
@@ -339,59 +339,211 @@ pub(super) async fn queued_requests(
     second_waiter: RequestBuilder,
     control: Option<QueuedControl>,
 ) -> TestResult {
-    let (observed, collect_after, return_after) = match control {
-        Some(control) => (
-            Some(control.observed),
-            Some(control.collect_after),
-            Some(control.return_after),
-        ),
-        None => (None, None, None),
-    };
+    let observed = control.as_ref().map(|control| control.observed.clone());
+    let mut requests = QueuedPair::new(first_waiter, second_waiter, observed);
+    let caller = requests.drive(control).await;
 
-    let mut first_waiter = spawn_waiter(first_waiter, observed.clone(), 0);
-    let mut second_waiter = spawn_waiter(second_waiter, observed.clone(), 1);
+    requests.finish(caller).await
+}
 
-    if let Some(collect_after) = collect_after {
-        collect_after.await?;
+type SendOutcome = Result<Response<ResponseBody>, RequestError>;
+type JoinedOutcome = Result<SendOutcome, JoinError>;
+
+enum QueuedSlot {
+    Pending(ConnectionPeer<SendOutcome>),
+    Ready(JoinedOutcome),
+    Consumed,
+}
+
+impl QueuedSlot {
+    fn poll_join(
+        &mut self,
+        context: &mut Context<'_>,
+        observed: Option<&QueuedObservation>,
+        index: usize,
+    ) -> Poll<()> {
+        let Self::Pending(task) = self else {
+            return Poll::Ready(());
+        };
+
+        let result = match Pin::new(task).poll(context) {
+            Poll::Ready(result) => result,
+            Poll::Pending => return Poll::Pending,
+        };
+
+        *self = Self::Ready(result);
+        if let Some(observed) = observed {
+            observed.0.send_modify(|state| state.joined[index] = true);
+        }
+
+        Poll::Ready(())
     }
 
-    let rejected = tokio::select! {
-        result = &mut first_waiter => {
-            second_waiter.abort();
-            if let Some(observed) = &observed {
-                observed.0.send_modify(|state| {
-                    state.joined[0] = true;
-                    state.selected = Some(0);
-                    state.stop_requested[1] = true;
-                });
-            }
+    fn outcome(&mut self, requested: bool) -> TestResult {
+        let Self::Ready(_) = self else {
+            return Ok(());
+        };
 
-            result?
+        let Self::Ready(result) = std::mem::replace(self, Self::Consumed) else {
+            return Err("original HTTP/1 queued result missing after join".into());
+        };
+
+        match result {
+            Ok(Err(error)) if error.kind() == RequestErrorKind::Capacity => Ok(()),
+            Ok(Err(error)) => Err(error.into()),
+            Ok(Ok(_)) => Err("excess HTTP/1 waiter was admitted".into()),
+            Err(error) if requested && error.is_cancelled() => Ok(()),
+            Err(error) => Err(error.into()),
         }
-        result = &mut second_waiter => {
-            first_waiter.abort();
-            if let Some(observed) = &observed {
-                observed.0.send_modify(|state| {
-                    state.joined[1] = true;
-                    state.selected = Some(1);
-                    state.stop_requested[0] = true;
-                });
+    }
+}
+
+pub(super) struct QueuedPair {
+    slots: [QueuedSlot; 2],
+    requested: [bool; 2],
+    selected: Option<usize>,
+    observed: Option<QueuedObservation>,
+}
+
+impl Drop for QueuedPair {
+    fn drop(&mut self) {
+        // Abort both tasks before dropping a ready response can release capacity.
+        for slot in &self.slots {
+            if let QueuedSlot::Pending(task) = slot {
+                task.abort();
             }
-
-            result?
         }
-    };
+    }
+}
 
-    if let Some(return_after) = return_after {
-        return_after.await?;
+impl QueuedPair {
+    pub(super) fn new(
+        first: RequestBuilder,
+        second: RequestBuilder,
+        observed: Option<QueuedObservation>,
+    ) -> Self {
+        let first = ConnectionPeer::from_task(spawn_waiter(first, observed.clone(), 0));
+        let second = ConnectionPeer::from_task(spawn_waiter(second, observed.clone(), 1));
+
+        Self {
+            slots: [QueuedSlot::Pending(first), QueuedSlot::Pending(second)],
+            requested: [false; 2],
+            selected: None,
+            observed,
+        }
     }
 
-    let error = match rejected {
-        Ok(_) => return Err("excess HTTP/1 waiter was admitted".into()),
-        Err(error) => error,
-    };
-    assert_eq!(error.kind(), RequestErrorKind::Capacity);
-    Ok(())
+    pub(super) async fn drive(&mut self, control: Option<QueuedControl>) -> TestResult {
+        let (collect_after, return_after) = match control {
+            Some(control) => (Some(control.collect_after), Some(control.return_after)),
+            None => (None, None),
+        };
+
+        if let Some(collect_after) = collect_after {
+            collect_after.await?;
+        }
+
+        let [first, second] = &mut self.slots;
+        let observed = self.observed.as_ref();
+        let selected = tokio::select! {
+            () = poll_fn(|context| first.poll_join(context, observed, 0)) => 0,
+            () = poll_fn(|context| second.poll_join(context, observed, 1)) => 1,
+        };
+
+        self.selected = Some(selected);
+        if let Some(observed) = &self.observed {
+            observed
+                .0
+                .send_modify(|state| state.selected = Some(selected));
+        }
+
+        self.poll_ready().await;
+        self.abort_pending();
+
+        timeout(TEST_TIMEOUT, self.join_all())
+            .await
+            .map_err(|elapsed| {
+                FixtureDeadline::new("HTTP/1 queued request cleanup exceeded deadline", elapsed)
+            })?;
+
+        if let Some(return_after) = return_after {
+            return_after.await?;
+        }
+
+        self.outcomes()
+    }
+
+    async fn poll_ready(&mut self) {
+        poll_fn(|context| {
+            for (index, slot) in self.slots.iter_mut().enumerate() {
+                // The actual result stays in the slot even though this poll never waits.
+                match slot.poll_join(context, self.observed.as_ref(), index) {
+                    Poll::Ready(()) | Poll::Pending => {}
+                }
+            }
+
+            Poll::Ready(())
+        })
+        .await;
+    }
+
+    fn abort_pending(&mut self) {
+        for (index, slot) in self.slots.iter().enumerate() {
+            if let QueuedSlot::Pending(task) = slot
+                && !task.is_finished()
+            {
+                self.requested[index] = true;
+                task.abort();
+                if let Some(observed) = &self.observed {
+                    observed
+                        .0
+                        .send_modify(|state| state.stop_requested[index] = true);
+                }
+            }
+        }
+    }
+
+    async fn join_all(&mut self) {
+        poll_fn(|context| {
+            let mut pending = false;
+            for (index, slot) in self.slots.iter_mut().enumerate() {
+                pending |= slot
+                    .poll_join(context, self.observed.as_ref(), index)
+                    .is_pending();
+            }
+
+            if pending {
+                Poll::Pending
+            } else {
+                Poll::Ready(())
+            }
+        })
+        .await;
+    }
+
+    fn outcomes(&mut self) -> TestResult {
+        let first = self.selected.unwrap_or(0);
+        let second = 1 - first;
+        let primary = self.slots[first].outcome(self.requested[first]);
+        let sibling = self.slots[second].outcome(self.requested[second]);
+
+        finish_with_cleanup(primary, sibling)
+    }
+
+    pub(super) async fn finish(&mut self, caller: TestResult) -> TestResult {
+        self.poll_ready().await;
+        self.abort_pending();
+
+        let joining = timeout(TEST_TIMEOUT, self.join_all())
+            .await
+            .map_err(|elapsed| {
+                FixtureDeadline::new("HTTP/1 queued request cleanup exceeded deadline", elapsed)
+                    .into()
+            });
+        let requests = finish_with_cleanup(self.outcomes(), joining);
+
+        finish_with_cleanup(caller, requests)
+    }
 }
 
 pub(super) async fn join_peer<T>(server: &mut Option<Server<T>>) -> TestResult<T> {
@@ -418,7 +570,8 @@ pub(super) async fn collect_peer<T: Send + 'static, O>(
         Poll::Pending => Poll::Ready(None),
     })
     .await;
-    let requested = ready.is_none();
+
+    let requested = ready.is_none() && !server.is_finished();
     if requested {
         server.abort();
     }
@@ -442,6 +595,9 @@ pub(super) async fn collect_peer<T: Send + 'static, O>(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod queued_tests;
 
 #[cfg(test)]
 mod budget_tests;
