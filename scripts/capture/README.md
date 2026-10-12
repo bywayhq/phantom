@@ -1391,6 +1391,10 @@ only as the values Chrome logged.
 and its `ws://` opening, directly and through an HTTP proxy. It writes one
 `format=phantom-proxy-route-v1` fixture per scenario.
 
+Each run accepts at most 32 connections and records at most 512 requests,
+page results, and remote events each. Exceeding a limit fails the run without
+writing its fixture. Split larger experiments into separate runs.
+
 Capture Chrome on Windows:
 
 ```sh
@@ -1415,6 +1419,11 @@ The tool binds three loopback listeners on port 0:
 - a plaintext HTTP proxy;
 - a TLS proxy for `proxy.phantom.test`, offering ALPN `h2` and `http/1.1`,
   with a certificate generated for the capture.
+
+The default listener is `127.0.0.1`, as shown in the table below. Desktop
+captures can select IPv6 loopback with `--listen ::1`; URLs and proxy
+addresses use brackets around that address. Android captures require IPv4
+loopback.
 
 Neither proxy forwards anything. Each answers as the origin, so an
 absolute-form request, a CONNECT tunnel, and an HTTP/2 stream all reach the

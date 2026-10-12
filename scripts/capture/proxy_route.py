@@ -54,6 +54,12 @@ PROXY_HOST = "proxy.phantom.test"
 SUPPORTED_H2 = "4.4.1"
 SUPPORTED_HPACK = "4.2.0"
 MAX_REQUEST_HEAD = 64 * 1024
+# Leave room for capture requests and browser background work without retaining
+# an unlimited run. Connection taps separately allow at most 16 MiB each.
+MAX_RUN_CONNECTIONS = 32
+MAX_RUN_REQUESTS = 512
+MAX_RUN_RESULTS = 512
+MAX_RUN_REMOTE_EVENTS = 512
 CONNECTION_CLEANUP_SECONDS = 5.0
 PEER_DISCONNECTS = (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)
 # Fields the tool refuses to retain at all.
@@ -109,7 +115,7 @@ class Scenario:
     purpose: str
     # none | http | https
     proxy: str
-    # loopback pages use 127.0.0.1; hostname pages use ORIGIN_HOST.
+    # Loopback pages use the listener address; hostname pages use ORIGIN_HOST.
     origin: str
     # Both proxy listeners answer capture requests without the expected
     # Proxy-Authorization with 407, and the page opens two ws:// in turn.
@@ -307,6 +313,10 @@ class RequestRecord:
         return "authority"
 
 
+class CaptureLimitError(ValueError):
+    """A capture run reached a fixed resource limit."""
+
+
 @dataclass
 class CaptureRun:
     token: str
@@ -326,6 +336,8 @@ class CaptureRun:
     done: asyncio.Event = field(default_factory=asyncio.Event)
     # Set when a `remembered` page is ready for its second navigation.
     ready: asyncio.Event = field(default_factory=asyncio.Event)
+    admitted_connections: int = field(default=0, init=False)
+    limit_failure: CaptureLimitError | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.observation_seconds):
@@ -340,7 +352,24 @@ class CaptureRun:
     def now(self) -> float:
         return self.clock() - self.started
 
+    def fail_limit(self, resource: str) -> CaptureLimitError:
+        if self.limit_failure is None:
+            self.limit_failure = CaptureLimitError(
+                f"capture run {resource} limit reached"
+            )
+        self.ready.set()
+        self.done.set()
+        return self.limit_failure
+
+    def check_request_limit(self) -> None:
+        if self.limit_failure is not None:
+            raise self.limit_failure
+        if len(self.requests) >= MAX_RUN_REQUESTS:
+            raise self.fail_limit("request")
+
     def finish(self, query: dict[str, str]) -> None:
+        if len(self.results) >= MAX_RUN_RESULTS:
+            raise self.fail_limit("result")
         self.results.append(query)
         if self.finished is None:
             self.finished = self.now()
@@ -349,6 +378,8 @@ class CaptureRun:
             )
 
     def note(self, text: str) -> None:
+        if len(self.remote_events) >= MAX_RUN_REMOTE_EVENTS:
+            raise self.fail_limit("remote event")
         self.remote_events.append((self.now(), text))
 
     def page(self, step: str = "") -> bytes:
@@ -471,8 +502,13 @@ def connect_kind(authority: bytes) -> str:
 
 def is_capture_authority(authority: bytes) -> bool:
     """Whether a request names the capture origin rather than browser traffic."""
-    host = authority.rsplit(b":", 1)[0]
-    return host in {ORIGIN_HOST.encode(), b"127.0.0.1"}
+    try:
+        host = urlsplit("http://" + authority.decode("ascii")).hostname
+        if host == ORIGIN_HOST:
+            return True
+        return host is not None and ipaddress.ip_address(host).is_loopback
+    except (UnicodeDecodeError, ValueError):
+        return False
 
 
 def websocket_accept(key: bytes) -> bytes:
@@ -612,6 +648,7 @@ class Http1Exchange:
         return bytes(output)
 
     def handle(self, head: bytes) -> bytes:
+        self.run.check_request_limit()
         lines = head.split(b"\r\n")
         request = RequestRecord(
             connection=self.connection,
@@ -723,7 +760,10 @@ class Http2Proxy:
                                 self.h2.send_data(event.stream_id, output)
                     elif isinstance(event, h2.events.StreamEnded):
                         if event.stream_id in self.tunnels:
+                            self.tunnels.pop(event.stream_id)
                             self.h2.end_stream(event.stream_id)
+                    elif isinstance(event, h2.events.StreamReset):
+                        self.tunnels.pop(event.stream_id, None)
                     elif isinstance(event, h2.events.ConnectionTerminated):
                         await self.flush()
                         return
@@ -738,6 +778,7 @@ class Http2Proxy:
             await self.flush()
 
     def request(self, stream_id: int, headers: Sequence[tuple[bytes, bytes]]) -> None:
+        self.run.check_request_limit()
         pseudo = {name: value for name, value in headers if name.startswith(b":")}
         method = pseudo.get(b":method", b"")
         record = RequestRecord(
@@ -863,6 +904,10 @@ class CaptureServer:
         self.listener_waits: dict[asyncio.Task[None], asyncio.Server] = {}
         self.cancelled_waits: set[asyncio.Task[None]] = set()
         self.accept_failures: list[BaseException] = []
+        self.admission_failure: BaseException | None = None
+        self.rejection_failure: BaseException | None = None
+        self.rejection_close_failure: BaseException | None = None
+        self.admission_closed = False
         self.closing = False
 
     async def start(self, host: str) -> None:
@@ -892,7 +937,8 @@ class CaptureServer:
             self.run.note(text)
 
     def address(self, listener: str) -> str:
-        return "{}:{}".format(*self.addresses[listener])
+        host, port = self.addresses[listener]
+        return f"{authority_host(host)}:{port}"
 
     async def close(self) -> None:
         self.closing = True
@@ -928,6 +974,12 @@ class CaptureServer:
         raise_capture_failures(None, tuple(failures))
 
     async def stop_connections(self) -> None:
+        if self.admission_closed or (
+            self.run is not None and self.run.limit_failure is not None
+        ):
+            await self.close()
+            return
+
         failures = await self._stop_connections()
         raise_capture_failures(None, tuple(failures))
 
@@ -1044,6 +1096,15 @@ class CaptureServer:
 
         failures.extend(self.accept_failures)
         self.accept_failures = []
+        if self.admission_failure is not None:
+            failures.append(self.admission_failure)
+            self.admission_failure = None
+        if self.rejection_failure is not None:
+            failures.append(self.rejection_failure)
+            self.rejection_failure = None
+        if self.rejection_close_failure is not None:
+            failures.append(self.rejection_close_failure)
+            self.rejection_close_failure = None
         return failures
 
     def accept(
@@ -1052,15 +1113,40 @@ class CaptureServer:
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
     ) -> None:
-        self.writers.add(writer)
         run = self.run
-        if self.closing or run is None:
+        saturated = run is not None and (
+            run.limit_failure is not None
+            or run.admitted_connections >= MAX_RUN_CONNECTIONS
+        )
+        if saturated:
+            run.fail_limit("connection")
+            if not self.admission_closed:
+                self.admission_closed = True
+                for server in self.servers:
+                    try:
+                        server.close()
+                    except BaseException as error:
+                        if self.admission_failure is None:
+                            self.admission_failure = error
+
+        if self.closing or run is None or saturated:
             try:
                 writer.transport.abort()
             except BaseException as error:
-                self.accept_failures.append(error)
+                if self.rejection_failure is None:
+                    self.rejection_failure = error
+                try:
+                    writer.close()
+                except BaseException as error:
+                    if self.rejection_close_failure is None:
+                        self.rejection_close_failure = error
+                    # Admission is closed. Keep a writer that could not be
+                    # closed for the existing finite cleanup owner.
+                    self.writers.add(writer)
             return
 
+        run.admitted_connections += 1
+        self.writers.add(writer)
         operation = self.handle(listener, reader, writer, run)
         try:
             task = asyncio.create_task(operation)
@@ -1363,9 +1449,18 @@ def fixture(
 
 
 def page_url(server: CaptureServer, scenario: Scenario, token: str) -> str:
-    port = server.addresses["origin"][1]
-    host = ORIGIN_HOST if scenario.origin == "hostname" else "127.0.0.1"
-    return f"http://{host}:{port}/page?run={token}"
+    listen, port = server.addresses["origin"]
+    host = ORIGIN_HOST if scenario.origin == "hostname" else listen
+    return f"http://{authority_host(host)}:{port}/page?run={token}"
+
+
+def authority_host(host: str) -> str:
+    return f"[{host}]" if ":" in host else host
+
+
+def validate_browser_listener(browser: str, listen: str) -> None:
+    if browser in ANDROID_BROWSERS and ipaddress.ip_address(listen).version == 6:
+        raise ValueError("Android proxy captures require an IPv4 loopback listener")
 
 
 def firefox_cert_override(host: str, port: int, certificate: Certificate) -> str:
@@ -1386,21 +1481,22 @@ def launch_plan(
     server: CaptureServer,
     certificate: Certificate,
 ) -> LaunchPlan:
+    listen = server.addresses["origin"][0]
+    validate_browser_listener(browser, listen)
     if browser in ANDROID_BROWSERS and scenario.auth:
         # The credential goes in over the remote protocol, whose port the tool
         # reads from a desktop profile directory.
         raise ValueError(f"{browser} cannot run the proxy authentication scenarios")
-    listen = server.addresses["origin"][0]
     http_proxy = server.addresses["http-proxy"]
     https_port = server.addresses["https-proxy"][1]
     if browser in CHROMIUM_BROWSERS:
         extra = [
             *CHROMIUM_EXTRA_FLAGS,
-            f"--host-resolver-rules=MAP {ORIGIN_HOST} {listen}, "
-            f"MAP {PROXY_HOST} {listen}, EXCLUDE localhost",
+            f"--host-resolver-rules=MAP {ORIGIN_HOST} {authority_host(listen)}, "
+            f"MAP {PROXY_HOST} {authority_host(listen)}, EXCLUDE localhost",
         ]
         if scenario.proxy == "http":
-            extra.append("--proxy-server=http://{}:{}".format(*http_proxy))
+            extra.append(f"--proxy-server=http://{server.address('http-proxy')}")
         elif scenario.proxy == "https":
             extra.append(f"--proxy-server=https://{PROXY_HOST}:{https_port}")
             extra.append(
@@ -1421,7 +1517,7 @@ def launch_plan(
     if browser == "firefox":
         preferences: list[tuple[str, bool | int | str]] = [
             ("network.dns.localDomains", f"{ORIGIN_HOST},{PROXY_HOST}"),
-            ("network.dns.disableIPv6", True),
+            ("network.dns.disableIPv6", ipaddress.ip_address(listen).version == 4),
             ("network.http.http3.enable", False),
         ]
         files: tuple[tuple[str, str], ...] = ()
@@ -1689,8 +1785,12 @@ async def capture_scenario(
                 try:
                     if SCENARIOS[name].page == "remembered":
                         await asyncio.wait_for(run.ready.wait(), timeout=run_timeout)
+                        if run.limit_failure is not None:
+                            raise run.limit_failure
                         await driver.navigate(url + "&step=2")
                     await asyncio.wait_for(run.done.wait(), timeout=run_timeout)
+                    if run.limit_failure is not None:
+                        raise run.limit_failure
                 except asyncio.TimeoutError:
                     run.timed_out = True
         except BaseException as error:
@@ -1698,6 +1798,10 @@ async def capture_scenario(
 
         server.run = None
         cleanup = []
+        if run.limit_failure is not None:
+            server.admission_closed = True
+        if run.limit_failure is not None and run.limit_failure is not primary:
+            cleanup.append(run.limit_failure)
         try:
             await server.stop_connections()
         except BaseException as error:
@@ -1710,6 +1814,7 @@ async def capture_scenario(
 
 async def run(args: argparse.Namespace) -> None:
     validate_capture_durations(args.run_timeout, args.observation)
+    validate_browser_listener(args.browser, args.listen)
 
     certificate = generate_certificate(PROXY_HOST)
     server = CaptureServer(certificate)
@@ -1816,6 +1921,10 @@ def main(argv: Sequence[str] | None = None) -> None:
         loopback = False
     if not loopback:
         parser.error("the capture listener must be a loopback address")
+    try:
+        validate_browser_listener(args.browser, args.listen)
+    except ValueError as error:
+        parser.error(str(error))
     for package, version in (("h2", SUPPORTED_H2), ("hpack", SUPPORTED_HPACK)):
         if metadata.version(package) != version:
             parser.error(f"{package} {version} is required")

@@ -14,6 +14,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Bound proxy capture runs to 32 accepted connections and 512 requests,
+  page results, and remote events each. A run that exceeds a limit fails
+  without writing its fixture. Migrate: split larger proxy capture experiments
+  into separate runs. Desktop IPv6 captures now use the selected listener
+  throughout the route; Android captures require IPv4 loopback.
+
 - Make address-family pruning conditional on connection activity. Migrate:
   integrations using the hidden `AddressFamilyMemory::forget` seam must
   capture `snapshot()` under the registry lock before inspecting entries and call
