@@ -79,6 +79,7 @@ pub(super) async fn accept_tls(
 ) -> TestResult<SslStream<TcpStream>> {
     let accepted = accept_tls_stream(tcp, acceptor);
     tokio::pin!(accepted);
+
     poll_fn(|context| {
         let result = accepted.as_mut().poll(context);
         if result.is_pending()
@@ -86,6 +87,7 @@ pub(super) async fn accept_tls(
         {
             control.state.send_modify(|state| state.tls_pending = true);
         }
+
         result
     })
     .await
@@ -115,6 +117,7 @@ impl<S: AsyncRead + Unpin> AsyncRead for ObservedStream<S> {
         {
             control.state.send_modify(|state| state.read_pending = true);
         }
+
         result
     }
 }
@@ -134,12 +137,14 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for ObservedStream<S> {
 
         if let Some(control) = &mut this.control {
             control.state.send_modify(|state| state.flushed = true);
+
             if let Some(error) = control.flush_failure.take() {
                 // The real response bytes were flushed before this fault.
                 control.state.send_modify(|state| state.fault_taken = true);
                 return Poll::Ready(Err(error));
             }
         }
+
         Poll::Ready(Ok(()))
     }
 
@@ -171,6 +176,7 @@ impl Observation {
                 ServingFailure(Arc::clone(&marker)),
             )
         });
+
         (
             Control {
                 state,
@@ -189,6 +195,7 @@ impl Observation {
                 if predicate(&self.state.borrow()) {
                     return TestResult::Ok(());
                 }
+
                 self.state.changed().await?;
             }
         })
@@ -197,6 +204,7 @@ impl Observation {
 
     async fn closed(&mut self, stream: &mut TcpStream) -> TestResult {
         self.wait(|state| state.destroyed).await?;
+
         let read = timeout(LIMIT, stream.read(&mut [0_u8; 1])).await?;
         assert!(matches!(read, Ok(0)) || matches!(read, Err(ref error) if is_peer_gone(error)));
         Ok(())
@@ -209,7 +217,9 @@ impl Observation {
             .abort
             .clone()
             .ok_or("child was not accepted")?;
+
         abort.abort();
+
         self.wait(|state| state.destroyed).await
     }
 
@@ -217,10 +227,12 @@ impl Observation {
         let error = result
             .err()
             .ok_or("status-retry serving failure was discarded")?;
+
         let io = error
             .downcast_ref::<io::Error>()
             .ok_or("missing original serving I/O cause")?;
         assert_eq!(io.kind(), io::ErrorKind::PermissionDenied);
+
         let failure = io
             .get_ref()
             .and_then(|error| error.downcast_ref::<ServingFailure>())
@@ -237,6 +249,7 @@ async fn pending(
     let tls = acceptor.is_some();
     let server = ScriptedServer::start_observed(&[super::OK], acceptor, Some(control)).await?;
     let stream = TcpStream::connect(server.address).await?;
+
     observation
         .wait(|state| {
             state.abort.is_some()
@@ -247,6 +260,7 @@ async fn pending(
                 }
         })
         .await?;
+
     Ok((server, stream, observation))
 }
 
@@ -288,6 +302,7 @@ mod tests {
     #[tokio::test]
     async fn explicit_backup_abort_destroys_the_actual_pending_child() -> TestResult {
         let (server, mut stream, mut observation) = pending(None).await?;
+
         observation.backup_stop().await?;
         observation.closed(&mut stream).await?;
         server.finish(Ok(())).await
@@ -297,6 +312,7 @@ mod tests {
     async fn an_observed_actual_response_keeps_its_original_request_and_body() -> TestResult {
         let (control, mut observation) = Observation::control(Mode::Healthy);
         let server = ScriptedServer::start_observed(&[OK], None, Some(control)).await?;
+
         let caller = exchange(&server).await;
         observation.wait(|state| state.destroyed).await?;
         assert!(observation.state.borrow().flushed);
@@ -309,11 +325,13 @@ mod tests {
     async fn completion_retains_the_actual_post_flush_serving_failure() -> TestResult {
         let (control, mut observation) = Observation::control(Mode::FailFlush);
         let server = ScriptedServer::start_observed(&[OK], None, Some(control)).await?;
+
         let caller = exchange(&server).await;
         assert!(
             caller.is_ok(),
             "the actual response failed before completion: {caller:?}"
         );
+
         observation
             .wait(|state| state.fault_taken && state.destroyed)
             .await?;
@@ -324,6 +342,7 @@ mod tests {
 
     async fn drop_pending(acceptor: Option<SslAcceptor>) -> TestResult {
         let (server, mut stream, mut observation) = pending(acceptor).await?;
+
         drop(server);
 
         let observed = observation.closed(&mut stream).await;
@@ -333,8 +352,10 @@ mod tests {
 
     async fn caller_failure(acceptor: Option<SslAcceptor>) -> TestResult {
         let (server, mut stream, mut observation) = pending(acceptor).await?;
+
         let caller: TestResult = async {
             let client = plain_builder().build()?;
+
             let _response = client
                 .get(HttpProtocol::Http1, "http://127.0.0.1/invalid uri")?
                 .send()
@@ -342,11 +363,13 @@ mod tests {
             Ok(())
         }
         .await;
+
         let error = server
             .finish(caller)
             .await
             .err()
             .ok_or("invalid caller URI succeeded")?;
+
         let request = error
             .downcast_ref::<RequestError>()
             .ok_or("original caller type changed")?;
@@ -364,10 +387,12 @@ mod tests {
 
     async fn exchange(server: &ScriptedServer) -> TestResult {
         let client = plain_builder().build()?;
+
         let response = client
             .get(HttpProtocol::Http1, &server.url("http", "/observed"))?
             .send()
             .await?;
+
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
 

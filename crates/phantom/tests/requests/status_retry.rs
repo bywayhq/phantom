@@ -81,6 +81,7 @@ impl ScriptedServer {
         ));
         let received = Received::default();
         let connection_received = Arc::clone(&received);
+
         let task = tokio::spawn(async move {
             while let Ok((tcp, _)) = listener.accept().await {
                 let script = Arc::clone(&script);
@@ -88,8 +89,10 @@ impl ScriptedServer {
                 let acceptor = acceptor.clone();
                 let mut control = control.take();
                 let state = control.as_ref().map(Control::state);
+
                 let child = tokio::spawn(async move {
                     let _lifetime = control.as_ref().map(Control::lifetime);
+
                     match acceptor {
                         Some(acceptor) => {
                             let accepted = ownership::accept_tls(tcp, acceptor, &mut control).await;
@@ -104,11 +107,13 @@ impl ScriptedServer {
                         }
                     }
                 });
+
                 if let Some(state) = state {
                     state.send_modify(|state| state.abort = Some(child.abort_handle()));
                 }
             }
         });
+
         Ok(Self {
             address,
             received,
@@ -735,6 +740,7 @@ async fn zero_shared_cap_returns_the_complete_retryable_response() -> TestResult
     let server = ScriptedServer::start(&[UNAVAILABLE, OK]).await?;
     let result: TestResult = async {
         let client = retrying_client(status_retry(2, Duration::from_secs(30))?)?;
+
         let response = client
             .get(HttpProtocol::Http1, &server.url("http", "/"))?
             .retry_policy(
@@ -744,6 +750,7 @@ async fn zero_shared_cap_returns_the_complete_retryable_response() -> TestResult
             )
             .send()
             .await?;
+
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         assert_eq!(response.headers()["content-length"], "0");
         assert!(response.into_body().collect().await?.to_bytes().is_empty());
