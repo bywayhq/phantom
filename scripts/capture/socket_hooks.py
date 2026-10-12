@@ -20,6 +20,7 @@ import ipaddress
 import json
 import platform
 import queue
+import re
 import shlex
 import shutil
 import socket
@@ -667,6 +668,26 @@ def is_network_service(argv: Sequence[str] | None) -> bool:
     return bool(argv) and NETWORK_SERVICE_SWITCH in argv
 
 
+def _socket_hook_switches(extra: Sequence[str]) -> tuple[str, ...]:
+    """Keep the disposable profile and page URL under the run's ownership."""
+    switches = tuple(extra)
+    for switch in switches:
+        if not isinstance(switch, str) or any(char in switch for char in "\x00\r\n"):
+            raise ValueError("browser-switch must use --name or --name=value")
+
+        name = switch.partition("=")[0]
+        if re.fullmatch(r"--[a-zA-Z][a-zA-Z0-9-]*", name) is None:
+            raise ValueError("browser-switch must use --name or --name=value")
+
+        # Chromium's Windows command-line parser lowercases switch names.
+        if name.lower() in ("--user-data-dir", "--single-argument"):
+            raise ValueError(
+                "browser-switch cannot replace the managed profile or page"
+            )
+
+    return switches
+
+
 class HookedBrowser:
     """A browser spawned under Frida with child gating, on a fresh profile.
 
@@ -788,6 +809,7 @@ def localhost_ipv6_free(port: int) -> bool:
 async def run_once(
     scenario: Scenario, executable: Path, extra: Sequence[str]
 ) -> tuple[RunResult, list[str]]:
+    extra = _socket_hook_switches(extra)
     origin = Origin(scenario)
     server = None
     target = None
@@ -1214,14 +1236,13 @@ def render_fixture(
 
 
 async def capture(args: argparse.Namespace, scenario: Scenario) -> tuple[str, bool]:
+    extra = _socket_hook_switches(args.browser_switch)
     runs = []
     recorded = ""
     frida_version = ""
     failed = False
     for index in range(args.repeat):
-        result, arguments = await run_once(
-            scenario, args.browser_path, args.browser_switch
-        )
+        result, arguments = await run_once(scenario, args.browser_path, extra)
         profile = next(
             argument.split("=", 1)[1]
             for argument in arguments
@@ -1268,7 +1289,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         action="append",
         default=[],
         metavar="SWITCH",
-        help="append a Chromium switch to the launch; the fixture records it",
+        help="append --name or --name=value; the managed profile and page stay fixed",
     )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument(
@@ -1281,6 +1302,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         parser.error("the agent hooks Winsock, so this tool runs on Windows only")
     if args.repeat < 1:
         parser.error("--repeat must be at least 1")
+
+    try:
+        _socket_hook_switches(args.browser_switch)
+    except ValueError as error:
+        parser.error(str(error))
+
     names = list(SCENARIOS) if "all" in args.scenario else args.scenario
     args.output_dir.mkdir(parents=True, exist_ok=True)
     failed = False

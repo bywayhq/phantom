@@ -14,6 +14,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Reject socket-hook browser arguments that replace the managed profile or
+  page URL before acquiring resources or creating output directories.
+  Migrate: pass extra switches as `--name` or `--name=value`; remove
+  `--user-data-dir`, `--single-argument`, positional URLs and terminators.
+
 - Retain original HTTP/2 transport errors across the connection and its
   failed streams, including typed causes and operating-system codes.
   Migrate: direct users of the HTTP/2 fork must handle

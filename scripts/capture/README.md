@@ -1728,6 +1728,11 @@ field or inserted into the QPACK table, and any `authorization` or
 
 ## Socket hooks
 
+Pass extra browser switches as `--browser-switch=--name` or
+`--browser-switch=--name=value`. The tool owns the temporary profile and
+page URL. It rejects `--user-data-dir`, `--single-argument`, positional
+URLs and argument terminators before creating resources or output.
+
 `socket_hooks.py` records what no wire capture shows: the socket options a
 Chromium browser sets, the order and timing of its connection attempts, and
 its host lookups, including the ones its cache answers without a query. It

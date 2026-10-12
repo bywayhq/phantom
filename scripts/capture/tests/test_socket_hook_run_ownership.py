@@ -1,6 +1,7 @@
 """Socket-hook runs retain real listeners and independent cleanup failures."""
 
 import asyncio
+import io
 import socket
 import tempfile
 import threading
@@ -290,7 +291,12 @@ class SocketHookRunOwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(owners.browser)
 
     async def test_extra_profile_switch_is_rejected_before_resource_acquisition(self):
-        for switch in ("--user-data-dir=other", "--USER-DATA-DIR=other"):
+        for switch in (
+            "--user-data-dir=other",
+            "--USER-DATA-DIR=other",
+            "--user-data-dir",
+            "--single-argument=http://127.0.0.1:1/",
+        ):
             with self.subTest(switch=switch):
                 owners = self.owners()
 
@@ -305,7 +311,16 @@ class SocketHookRunOwnershipTests(unittest.IsolatedAsyncioTestCase):
                     await owners.backup()
 
     async def test_positional_url_and_terminator_are_rejected_before_acquisition(self):
-        for switch in ("http://127.0.0.1:1/", "--"):
+        for switch in (
+            "http://127.0.0.1:1/",
+            "--",
+            "-user-data-dir=other",
+            "/user-data-dir=other",
+            "--=other",
+            " --user-data-dir=other",
+            "--user-data-dir =other",
+            "--feature=bad\x00value",
+        ):
             with self.subTest(switch=switch):
                 owners = self.owners()
 
@@ -319,7 +334,7 @@ class SocketHookRunOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 finally:
                     await owners.backup()
 
-    async def test_argument_failure_closes_both_listeners_and_removes_the_profile(self):
+    async def test_argument_iteration_failure_preserves_cause_before_acquisition(self):
         scenario = self.dual_scenario()
         owners = self.owners()
         failure = LookupError("controlled caller switch iteration failure")
@@ -328,11 +343,53 @@ class SocketHookRunOwnershipTests(unittest.IsolatedAsyncioTestCase):
             await owners.call(scenario, RejectedSwitches(failure))
 
         self.assertIs(raised.exception, failure)
-        self.assertEqual(len(owners.servers), 2)
+        self.assertFalse(owners.servers)
+        self.assertFalse(owners.profiles)
+        self.assertIsNone(owners.browser)
+
+    async def test_extra_switches_keep_the_owned_profile_page_and_caller_order(self):
+        owners = self.owners()
+        extra = ("--host-resolver-rules=MAP example.test 127.0.0.1", "--feature=value")
+
+        result, arguments = await owners.call(hooks.SCENARIOS["single"], extra)
+
+        self.assertTrue(result.origin.done.is_set())
+        self.assertEqual(arguments[-3:-1], list(extra))
+        self.assertEqual(arguments[-1], f"http://127.0.0.1:{result.origin.port}/")
+        self.assertEqual(
+            [
+                argument
+                for argument in arguments
+                if argument.startswith("--user-data-dir=")
+            ],
+            [f"--user-data-dir={owners.profiles[0]}"],
+        )
         self.assert_closed(owners)
         self.assertEqual(owners.removed, owners.profiles)
-        self.assertTrue(all(not profile.exists() for profile in owners.profiles))
-        self.assertIsNone(owners.browser)
+
+    def test_cli_rejects_profile_override_before_creating_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "captures"
+            argv = [
+                "--browser=chrome",
+                "--browser-path=chrome.exe",
+                "--client-version=154",
+                "--scenario=single",
+                f"--output-dir={output}",
+                "--browser-switch=--USER-DATA-DIR=other",
+            ]
+            errors = io.StringIO()
+
+            with (
+                patch.object(hooks.sys, "platform", "win32"),
+                patch.object(hooks.sys, "stderr", errors),
+                self.assertRaises(SystemExit) as raised,
+            ):
+                hooks.main(argv)
+
+            self.assertEqual(raised.exception.code, 2)
+            self.assertIn("managed profile", errors.getvalue())
+            self.assertFalse(output.exists())
 
     async def test_browser_constructor_failure_retains_profile_cleanup(self):
         owners = self.owners()
