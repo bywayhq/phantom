@@ -1,6 +1,8 @@
 use std::{
     collections::VecDeque,
     error::Error as _,
+    fmt,
+    future::Future,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -20,6 +22,8 @@ use crate::request::{RequestBody, RequestBodyError, RequestBodyErrorKind, Reques
 
 type ServerConnection = h3::server::Connection<h3_quinn::Connection, Bytes>;
 type ServerStream = h3::server::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>;
+
+const UPLOAD_PANIC: &str = "caller upload panicked after HTTP/3 response handoff";
 
 mod trailer_wire;
 
@@ -776,6 +780,138 @@ async fn upload_failure_after_early_response_head_fails_the_response_body() -> T
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn upload_panic_after_early_head_retains_the_original_task_cause() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let client = client_config(&identity)?;
+    let (address, endpoint) = server_endpoint(&identity)?;
+    let (client_done, done_received) = oneshot::channel();
+    let (release, released) = oneshot::channel();
+    let (panicking, panic_received) = oneshot::channel();
+
+    let mut server = tokio::spawn(async move {
+        let mut connection = accept_connection(&endpoint).await?;
+        let (request, mut stream) = accept_stream(&mut connection).await?;
+        assert_eq!(request.uri().path(), "/panics-late");
+        stream
+            .send_response(Response::builder().status(StatusCode::OK).body(())?)
+            .await?;
+
+        loop {
+            match stream.recv_data().await {
+                Ok(Some(_)) => {}
+                Err(h3::error::StreamError::RemoteTerminate { code, .. })
+                    if code == h3::error::Code::H3_REQUEST_CANCELLED =>
+                {
+                    break;
+                }
+                Ok(None) => return Err("panicked upload ended with FIN".into()),
+                Err(error) => return Err(error.into()),
+            }
+        }
+
+        done_received.await?;
+        Ok(())
+    });
+
+    let mut connection = None;
+    let result: TestResult<()> = async {
+        connection = Some(
+            timeout(
+                TEST_TIMEOUT,
+                super::super::connect_direct(address, TEST_SERVER_NAME, client, &test_settings()),
+            )
+            .await??,
+        );
+        let connection = connection
+            .as_ref()
+            .ok_or("HTTP/3 connection was not retained")?;
+
+        let request = Request::post(format!(
+            "https://{TEST_SERVER_NAME}:{}/panics-late",
+            address.port()
+        ))
+        .body(())?;
+        let body = RequestBody::streaming(LatePanicBody {
+            released,
+            panicking: Some(panicking),
+        });
+        let prepared = crate::http3::request::prepare_request_body(request, Some(body))?;
+        let response = timeout(TEST_TIMEOUT, connection.send_prepared_request(prepared)).await??;
+        if response.status() != StatusCode::OK {
+            return Err("early response head was not received".into());
+        }
+
+        // Only the response-body worker can poll this upload after head handoff.
+        release
+            .send(())
+            .map_err(|()| "upload disappeared before release")?;
+        let task_id = timeout(TEST_TIMEOUT, panic_received).await??;
+        let error = timeout(TEST_TIMEOUT, response.into_body().collect())
+            .await?
+            .err()
+            .ok_or("response body completed after its upload panicked")?;
+
+        let cause = error
+            .source()
+            .and_then(|source| source.downcast_ref::<tokio::task::JoinError>());
+        if error.kind() != super::super::Http3ErrorKind::Local
+            || !cause.is_some_and(|cause| {
+                cause.is_panic()
+                    && !cause.is_cancelled()
+                    && cause.id() == task_id
+                    && cause.to_string().contains(UPLOAD_PANIC)
+            })
+        {
+            return Err(error.into());
+        }
+
+        Ok(())
+    }
+    .await;
+
+    // The peer outcome is collected even when the task-cause assertion fails.
+    let _ = client_done.send(());
+    let cleanup = match timeout(TEST_TIMEOUT, &mut server).await {
+        Ok(Ok(result)) => result,
+        Ok(Err(error)) => Err(error.into()),
+        Err(error) => {
+            let abort_requested = !server.is_finished();
+            if abort_requested {
+                server.abort();
+            }
+
+            match timeout(TEST_TIMEOUT, &mut server).await {
+                Ok(Err(join_error)) if !abort_requested || !join_error.is_cancelled() => {
+                    Err(BodyPanicFailures {
+                        caller: Box::new(error),
+                        peer: Box::new(join_error),
+                    }
+                    .into())
+                }
+                Ok(Ok(Err(peer))) => Err(BodyPanicFailures {
+                    caller: Box::new(error),
+                    peer,
+                }
+                .into()),
+                Err(backup) => Err(BodyPanicFailures {
+                    caller: Box::new(error),
+                    peer: Box::new(backup),
+                }
+                .into()),
+                Ok(Ok(Ok(()))) | Ok(Err(_)) => Err(error.into()),
+            }
+        }
+    };
+    drop(connection);
+
+    match (result, cleanup) {
+        (Err(caller), Err(peer)) => Err(BodyPanicFailures { caller, peer }.into()),
+        (Err(error), _) | (_, Err(error)) => Err(error),
+        (Ok(()), Ok(())) => Ok(()),
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn cancelling_body_upload_resets_only_that_stream() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let client = client_config(&identity)?;
@@ -1136,6 +1272,54 @@ async fn collect_request_body(stream: &mut ServerStream) -> TestResult<Bytes> {
         body.extend_from_slice(&chunk.copy_to_bytes(remaining));
     }
     Ok(Bytes::from(body))
+}
+
+#[derive(Debug)]
+struct BodyPanicFailures {
+    caller: Box<dyn std::error::Error + Send + Sync>,
+    peer: Box<dyn std::error::Error + Send + Sync>,
+}
+
+impl fmt::Display for BodyPanicFailures {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "{}; HTTP/3 panic peer cleanup failed: {}",
+            self.caller, self.peer
+        )
+    }
+}
+
+impl std::error::Error for BodyPanicFailures {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(self.caller.as_ref())
+    }
+}
+
+struct LatePanicBody {
+    released: oneshot::Receiver<()>,
+    panicking: Option<oneshot::Sender<tokio::task::Id>>,
+}
+
+impl Body for LatePanicBody {
+    type Data = Bytes;
+    type Error = std::io::Error;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        match Pin::new(&mut self.released).poll(context) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Err(error)) => Poll::Ready(Some(Err(std::io::Error::other(error)))),
+            Poll::Ready(Ok(())) => {
+                if let Some(panicking) = self.panicking.take() {
+                    assert!(panicking.send(tokio::task::id()).is_ok());
+                }
+                panic!("{UPLOAD_PANIC}");
+            }
+        }
+    }
 }
 
 struct ChannelBody {
