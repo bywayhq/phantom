@@ -21,6 +21,14 @@ use super::{
     test_client,
 };
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum HeldIoPhase {
+    Read,
+    Write,
+    Flush,
+    Shutdown,
+}
+
 #[derive(Clone, Debug, Default)]
 struct HeldState {
     requests: Vec<(u32, String)>,
@@ -28,6 +36,7 @@ struct HeldState {
     driver_pending: bool,
     destroyed: bool,
     closed: bool,
+    io_failure: Option<(HeldIoPhase, io::ErrorKind)>,
     completed_error: Option<(io::ErrorKind, String)>,
 }
 
@@ -47,6 +56,14 @@ impl HoldObservation {
         self.0.send_modify(|state| state.closed = true);
     }
 
+    pub(super) fn io_failed(&self, phase: HeldIoPhase, error: &io::Error) {
+        self.0.send_modify(|state| {
+            if state.io_failure.is_none() {
+                state.io_failure = Some((phase, error.kind()));
+            }
+        });
+    }
+
     pub(super) fn completed(&self, result: &TestResult<reuse_ownership::Requests>) {
         if let Err(error) = result
             && let Some(error) = error.downcast_ref::<::http2::Error>()
@@ -55,6 +72,11 @@ impl HoldObservation {
             self.0.send_modify(|state| {
                 state.completed_error = Some((error.kind(), error.to_string()));
             });
+        }
+
+        if let Err(error) = result {
+            let io_failure = self.0.borrow().io_failure;
+            eprintln!("held HTTP/2 peer failed: io_failure={io_failure:?}, error={error:?}");
         }
     }
 }

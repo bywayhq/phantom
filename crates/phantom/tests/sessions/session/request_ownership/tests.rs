@@ -1,4 +1,4 @@
-use std::{future::Future, io, net::SocketAddr, pin::Pin, time::Duration};
+use std::{fmt, future::Future, io, net::SocketAddr, pin::Pin, time::Duration};
 
 use phantom::{RequestError, RequestErrorKind};
 use tokio::{
@@ -15,7 +15,7 @@ use crate::support::{
 
 use super::super::bounded;
 use super::{
-    H2_ALPN, HeldState, HoldObservation, Ipv4Addr, RequestControl, RequestObservation,
+    H2_ALPN, HeldIoPhase, HeldState, HoldObservation, Ipv4Addr, RequestControl, RequestObservation,
     RequestState, ResponseHold, TEST_TIMEOUT, TestIdentity, TestResult, cold_requests, finish_cold,
     independent_requests, reuse_ownership, test_client, timed_cold_requests,
 };
@@ -380,6 +380,108 @@ async fn completed_request_error_and_actual_caller_deadline_keep_both_causes() -
     .await;
 
     finish_with_cleanup(primary, fixture.stop().await)
+}
+
+#[tokio::test]
+async fn held_peer_read_failure_keeps_its_phase_and_original_typed_cause() -> TestResult<()> {
+    let mut fixture = Fixture::start(
+        Mode::Cold,
+        1,
+        Some(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            HeldReadFailure,
+        )),
+    )
+    .await?;
+    fixture.targets([
+        INVALID_URI.to_owned(),
+        format!("https://{}/second", fixture.address),
+    ])?;
+    let session = test_client(&fixture.identity, true)?;
+    let mut caller = Box::pin(cold_requests(
+        &session,
+        fixture.address,
+        fixture.control.take(),
+    ));
+    let caller_result: TestResult<TestResult<()>> = async {
+        fixture.pending(&mut caller, [false, true], &[1]).await?;
+        fixture.ready(&mut caller, [true, false]).await?;
+        fixture.original_syntax_failure()?;
+        fixture.fail_serving()?;
+        fixture.server_finished(&mut caller).await?;
+        fixture.ready(&mut caller, [true, true]).await?;
+        fixture.release_collection()?;
+        timeout(LIMIT, &mut caller).await.map_err(Into::into)
+    }
+    .await;
+
+    drop(caller);
+    drop(session);
+
+    let primary: TestResult<()> = async {
+        let error = fixture
+            .cold_result(caller_result?)
+            .await
+            .err()
+            .ok_or("injected held peer read failure succeeded")?;
+        let validation =
+            retains_held_read_failure(error.as_ref(), &fixture.holds[0].observed.borrow());
+        if validation.is_err() {
+            return finish_with_cleanup(validation, Err(error));
+        }
+
+        Ok(())
+    }
+    .await;
+
+    finish_with_cleanup(primary, fixture.stop().await)
+}
+
+#[derive(Debug)]
+struct HeldReadFailure;
+
+impl fmt::Display for HeldReadFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("injected held peer read failure")
+    }
+}
+
+impl std::error::Error for HeldReadFailure {}
+
+fn retains_held_read_failure(
+    error: &(dyn std::error::Error + 'static),
+    observed: &HeldState,
+) -> TestResult<()> {
+    let failures = error
+        .downcast_ref::<FixtureFailures>()
+        .ok_or("held peer read failure lost its original result")?;
+
+    let request = request_cause(failures.primary.as_ref(), RequestErrorKind::InvalidUri)
+        .ok_or("held peer read failure lost its original caller error")?;
+    if !std::error::Error::source(request)
+        .is_some_and(|source| source.is::<http::uri::InvalidUri>())
+    {
+        return Err("held peer read failure lost its original URI parser cause".into());
+    }
+
+    let original = failures
+        .cleanup
+        .downcast_ref::<::http2::Error>()
+        .and_then(::http2::Error::get_io)
+        .ok_or("held peer read failure lost its original H2 I/O cause")?;
+    if original.kind() != io::ErrorKind::PermissionDenied
+        || !original
+            .get_ref()
+            .is_some_and(|cause| cause.is::<HeldReadFailure>())
+    {
+        return Err("held peer read failure changed its original typed cause".into());
+    }
+
+    if observed.io_failure != Some((HeldIoPhase::Read, io::ErrorKind::PermissionDenied)) {
+        return Err("held peer read failure lost its actual I/O phase".into());
+    }
+
+    Ok(())
 }
 
 enum Mode {

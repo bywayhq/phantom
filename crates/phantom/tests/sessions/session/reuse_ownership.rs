@@ -156,6 +156,9 @@ impl AsyncRead for Stream {
             match &result {
                 Poll::Pending => held.read_pending(),
                 Poll::Ready(Ok(())) if can_read && before == buffer.filled().len() => held.closed(),
+                Poll::Ready(Err(error)) => {
+                    held.io_failed(request_ownership::HeldIoPhase::Read, error);
+                }
                 _ => {}
             }
         }
@@ -173,6 +176,10 @@ impl AsyncRead for Stream {
                 .observed
                 .0
                 .send_modify(|state| state.fault_taken = true);
+            if let Some(held) = &this.held {
+                held.io_failed(request_ownership::HeldIoPhase::Read, &error);
+            }
+
             return Poll::Ready(Err(error));
         }
 
@@ -186,15 +193,39 @@ impl AsyncWrite for Stream {
         context: &mut Context<'_>,
         bytes: &[u8],
     ) -> Poll<io::Result<usize>> {
-        Pin::new(&mut self.get_mut().stream).poll_write(context, bytes)
+        let this = self.get_mut();
+        let result = Pin::new(&mut this.stream).poll_write(context, bytes);
+        if let Poll::Ready(Err(error)) = &result
+            && let Some(held) = &this.held
+        {
+            held.io_failed(request_ownership::HeldIoPhase::Write, error);
+        }
+
+        result
     }
 
     fn poll_flush(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.get_mut().stream).poll_flush(context)
+        let this = self.get_mut();
+        let result = Pin::new(&mut this.stream).poll_flush(context);
+        if let Poll::Ready(Err(error)) = &result
+            && let Some(held) = &this.held
+        {
+            held.io_failed(request_ownership::HeldIoPhase::Flush, error);
+        }
+
+        result
     }
 
     fn poll_shutdown(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
-        Pin::new(&mut self.get_mut().stream).poll_shutdown(context)
+        let this = self.get_mut();
+        let result = Pin::new(&mut this.stream).poll_shutdown(context);
+        if let Poll::Ready(Err(error)) = &result
+            && let Some(held) = &this.held
+        {
+            held.io_failed(request_ownership::HeldIoPhase::Shutdown, error);
+        }
+
+        result
     }
 }
 
