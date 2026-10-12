@@ -2586,6 +2586,29 @@ combined gates remain open. Failed abort or close APIs retain their actual
 resource owner and cause; these checks do not prove destruction under a
 permanently unusable cleanup API.
 
+The race admission candidate at `6de973d7` runs all 88 race methods on
+both hosts. Three methods fail, with two additional backup-cleanup failure
+entries. Lint and format pass. Root and independent review read all six
+logs and exits and separately observe clean exact sources. Windows also
+reports two unclosed datagram transports. These failures remain evidence;
+the race aggregate repair is not yet verified.
+
+The UDP probe acquires an external sender through the patched server bind
+function, so the closure assertion includes that still-open test socket.
+The 64 KiB request-target probe fails in the client QPACK encoder before
+reaching the application limit. The pinned encoder accepts at most 4,096
+combined name and value bytes per header. Its
+[pinned decoder source](https://raw.githubusercontent.com/litespeedtech/ls-qpack/1e9c5b8e59f8161c54f168a570c8bfdc59ded0c3/lsxpack_header.h)
+uses 16-bit header lengths, and the
+[package build](https://raw.githubusercontent.com/aiortc/pylsqpack/0.3.24/setup.py)
+does not widen them. This decoder limit is a source inference. A real H2
+exchange with an explicit test-only header-list capacity
+can exercise the unchanged application limit. This does not claim the
+default H2 or H3 backend accepts such targets. The rejected-abort control
+returns a shutdown timeout before its later cleanup assertions. Its exact
+QUIC wait phase remains unmeasured. Corrections must preserve the original
+limit, error identity, ownership and closure assertions.
+
 Whole root and independent reads of `http2_session.py` and
 `http2_websocket.py` identify separate shared-owner findings. Partial
 second-listener failure loses the first listener. Accepted asynchronous
@@ -2609,6 +2632,15 @@ the original request-error sibling-destruction control returns
 Source review identifies possible frame-flush or TLS-shutdown races, but
 the log does not establish the exact phase. A271 keeps this failure open;
 blanket acceptance of BrokenPipe would erase unrelated worker failures.
+
+The next pushed checkpoint, `27604df7`, repeats the same macOS failure:
+4,317 of 4,318 methods pass, and the pending-sibling control returns the
+same `Io(BrokenPipe)`. Windows and the other independent PR jobs pass;
+the dependent `CI required` check fails with macOS.
+The original operation phase remains unreported. A source-reviewed
+diagnostic records the first held-peer I/O error phase and retains the
+original typed failure. It has not yet been measured or pushed; A271 and
+the merge gate remain open.
 
 The Unix census repair at `ad13642f` checks the original process result
 before interpreting absence and retains stderr. Its focused control calls
