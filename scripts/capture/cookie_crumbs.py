@@ -37,16 +37,14 @@ from .browser_launch import (
     render_preferences,
 )
 from .fixture_file import write_text_fixture
+from .http2_analysis import HeaderField, analyze_http2, hpack_integer
 from .http2_session import (
     HOSTNAME,
     Certificate,
     ConnectionRecord,
-    HeaderField,
     PlainChannel,
     TlsChannel,
-    analyze_http2,
     generate_certificate,
-    hpack_integer,
     server_context,
 )
 

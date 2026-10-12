@@ -36,14 +36,12 @@ from .browser_launch import (
 )
 from .browser_remote import ChromiumAuthDriver, Credentials, FirefoxAuthDriver
 from .fixture_file import write_text_fixture
+from .http2_analysis import HeaderField, analyze_http2, frame_details
 from .http2_session import (
     Certificate,
     ConnectionRecord,
-    HeaderField,
     PlainChannel,
     TlsChannel,
-    analyze_http2,
-    frame_details,
     generate_certificate,
     server_context,
 )

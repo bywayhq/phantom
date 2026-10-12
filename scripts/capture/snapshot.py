@@ -62,17 +62,15 @@ from .cookie_crumbs import (
     milliseconds,
 )
 from .fixture_file import write_text_fixture
+from .http2_analysis import HeaderBlock, analyze_http2, frame_details
 from .http2_session import (
     CONNECTION_PREFACE,
     HOSTNAME,
     Certificate,
     ClientHello,
     ConnectionRecord,
-    HeaderBlock,
     PlainChannel,
     TlsChannel,
-    analyze_http2,
-    frame_details,
     generate_certificate,
     server_context,
 )

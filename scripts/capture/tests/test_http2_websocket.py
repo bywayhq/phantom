@@ -24,6 +24,16 @@ from h2.events import (
 )
 from hpack import NeverIndexedHeaderTuple
 
+from scripts.capture.http2_analysis import (
+    Http2Frame,
+    analyze_http2,
+    decode_header_block,
+    frame_details,
+    hpack_representations,
+    parse_priority,
+    split_frames,
+    strip_padding,
+)
 from scripts.capture.http2_session import (
     HOSTNAME,
     CaptureRun,
@@ -31,17 +41,9 @@ from scripts.capture.http2_session import (
     ClientHello,
     ConnectionRecord,
     Http1Session,
-    Http2Frame,
     MalformedCaptureError,
     PlainChannel,
-    analyze_http2,
-    decode_header_block,
-    frame_details,
     generate_certificate,
-    hpack_representations,
-    parse_priority,
-    split_frames,
-    strip_padding,
 )
 from scripts.capture.http2_websocket import (
     CATALOG,

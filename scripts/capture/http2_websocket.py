@@ -31,6 +31,7 @@ from .browser_launch import (
     with_android_entry,
 )
 from .fixture_file import write_text_fixture
+from .http2_analysis import analyze_http2, frame_details, priority_text
 from .http2_session import (
     HOSTNAME,
     MAX_RUNS,
@@ -40,11 +41,8 @@ from .http2_session import (
     ConnectionRecord,
     ServerPolicy,
     WebSocketRecord,
-    analyze_http2,
     authority,
-    frame_details,
     generate_certificate,
-    priority_text,
     raise_capture_failures,
     validate_duration,
 )
