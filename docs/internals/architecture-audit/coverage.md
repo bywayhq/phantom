@@ -20,7 +20,7 @@ Pending means that discovery or assignment has not established review.
   boundaries and an actual Windows process handle. They do not establish
   live Frida/browser acceptance. The listener fence covers attached
   transports, with pre-attachment backend accepts outside its proof.
-- All 43 PR checks pass at `1e95577c`, including macOS and Windows.
+- All 43 PR checks pass at `0071e885`, including macOS and Windows.
   The remaining audit coverage and final integration gates remain open.
   The earlier macOS request failure remains unclassified; the failure at
   `0425b7cd` is specifically Shutdown/BrokenPipe.
@@ -2788,8 +2788,29 @@ Windows and Linux each pass two upload, four peer-owner, nine request-owner
 and sixteen reuse controls. Workspace formatting, strict sessions-target
 Clippy and the default-feature sessions target on Rust 1.88 pass on both.
 Root and independent review read all fourteen logs and exits, then separately
-confirm clean checkouts at the exact revision. Fresh macOS CI and final
-workspace gates remain required. A271 remains open.
+confirm clean checkouts at the exact revision. All 43 PR checks pass at
+`0071e885`, including macOS and Windows. Final workspace gates remain open.
+
+### Fallback workers and boundary follow-up
+
+Whole source and caller review covers the fallback coordinator, SOCKS proxy,
+body-driver controls, deadline controls and wire observer. At `4ed504fc`,
+Windows and Linux each pass all 24 fallback methods. A rejected upload keeps
+its original InvalidTarget error and permits both acquired listener ports to
+be rebound. Refusal and serving workers keep their owners across waits.
+The SOCKS parent collects both children before forced cancellation.
+
+At `88733d8e`, the existing early-data method also waits for the server's
+exact untrusted-issuer rejection. It passes on both hosts. Formatting,
+strict all-feature target Clippy and Rust 1.88 checks pass at both revisions.
+Root and independent reviewers read complete logs and separate clean-revision
+bindings. External Drop aborts; it does not asynchronously join. A cleanup
+timeout reports failure without establishing completed destruction.
+
+The profile, QUIC and testkit boundary review supports their existing roles
+and dependency direction. Remaining source findings are DNS helper failure
+reporting (A281), specific layout and lint exceptions (A282), and capture
+process cleanup (A283). Their repairs and final integration remain open.
 
 ## Next
 
