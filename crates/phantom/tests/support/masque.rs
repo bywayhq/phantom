@@ -35,6 +35,7 @@ use crate::support::tls::{
 };
 use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 
+#[path = "masque/stream_outcomes.rs"]
 mod stream_outcomes;
 
 /// Largest datagram the relay reads from the origin socket.
@@ -759,7 +760,7 @@ where
                 Err(error) => return Err(error),
             }
 
-            let mut input = first.as_slice().chain(&mut stream);
+            let mut input = AsyncReadExt::chain(first.as_slice(), &mut stream);
             read_head(&mut input).await.map(Some)
         } => head?,
         stopped = stream_outcomes::stopped(&mut stopped) => return stopped,
@@ -916,7 +917,7 @@ where
 
     // A peer may retire after ALPN selection, before any H2 preface. Once
     // its first byte arrives, the H2 parser owns all truncation failures.
-    let stream = io::Cursor::new(first).chain(stream);
+    let stream = AsyncReadExt::chain(io::Cursor::new(first), stream);
     let mut builder = ::http2::server::Builder::new();
     if mode != StreamMode::WithoutExtendedConnect {
         builder.enable_connect_protocol();
@@ -1218,12 +1219,15 @@ fn decode_capsule(input: &[u8]) -> TestResult<Option<DecodedCapsule>> {
 }
 
 #[cfg(test)]
+#[path = "masque/h3_ownership_controls.rs"]
 mod h3_ownership_controls;
 
 #[cfg(test)]
+#[path = "masque/input_controls.rs"]
 mod input_controls;
 
 #[cfg(test)]
+#[path = "masque/stream_ownership_controls.rs"]
 mod stream_ownership_controls;
 
 #[cfg(test)]

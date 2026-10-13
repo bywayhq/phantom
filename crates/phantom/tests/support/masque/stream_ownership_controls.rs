@@ -17,7 +17,6 @@ use bytes::Bytes;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf},
     net::{TcpListener, TcpStream},
-    task::JoinSet,
     time::timeout,
 };
 
@@ -183,51 +182,81 @@ async fn an_actual_non_cancel_h2_reset_keeps_its_remote_typed_error() -> TestRes
         StreamMode::Relay,
         Arc::new(Mutex::new(StreamLog::default())),
     ));
-    let (client, connection) = timeout(STREAM_SHUTDOWN, ::http2::client::handshake(peer)).await??;
-    let mut drivers = JoinSet::new();
-    drivers.spawn(connection);
-    let mut client = timeout(STREAM_SHUTDOWN, client.ready()).await??;
-    timeout(STREAM_SHUTDOWN, async {
-        while !client.is_extended_connect_protocol_enabled() {
-            tokio::task::yield_now().await;
-        }
-    })
-    .await?;
-    let request = http::Request::builder()
-        .method("CONNECT")
-        .version(http::Version::HTTP_2)
-        .uri(format!(
-            "https://localhost/.well-known/masque/udp/127.0.0.1/{}/",
-            target.local_addr()?.port()
-        ))
-        .extension(::http2::ext::Protocol::from_static("connect-udp"))
-        .body(())?;
-    let (response, mut send) = client.send_request(request, false)?;
-    let response = timeout(STREAM_SHUTDOWN, response).await??;
-    assert_eq!(response.status(), http::StatusCode::OK);
-    let mut body = response.into_body();
-    let bytes = timeout(STREAM_SHUTDOWN, body.data())
-        .await?
-        .ok_or("H2 preamble missing")??;
-    body.flow_control().release_capacity(bytes.len())?;
-    assert_eq!(bytes.as_ref(), b"\x2a\x03xyz\x00\x10\x02unknown-context");
-    send.send_data(Bytes::from_static(b"\x00\x03\x00!!"), false)?;
-    let mut observed = [0; 16];
-    let (count, _) = timeout(STREAM_SHUTDOWN, target.recv_from(&mut observed)).await??;
-    assert_eq!(&observed[..count], b"!!");
+    let mut driver = None;
+    let primary = async {
+        let (client, connection) =
+            timeout(STREAM_SHUTDOWN, ::http2::client::handshake(peer)).await??;
+        driver = Some(ConnectionPeer::spawn(async move {
+            connection.await.map_err(|error| error.into())
+        }));
+        let mut client = timeout(STREAM_SHUTDOWN, client.ready()).await??;
+        timeout(STREAM_SHUTDOWN, async {
+            while !client.is_extended_connect_protocol_enabled() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await?;
+        let request = http::Request::builder()
+            .method("CONNECT")
+            .version(http::Version::HTTP_2)
+            .uri(format!(
+                "https://localhost/.well-known/masque/udp/127.0.0.1/{}/",
+                target.local_addr()?.port()
+            ))
+            .extension(::http2::ext::Protocol::from_static("connect-udp"))
+            .body(())?;
+        let (response, mut send) = client.send_request(request, false)?;
+        let response = timeout(STREAM_SHUTDOWN, response).await??;
+        assert_eq!(response.status(), http::StatusCode::OK);
+        let mut body = response.into_body();
+        let bytes = timeout(STREAM_SHUTDOWN, body.data())
+            .await?
+            .ok_or("H2 preamble missing")??;
+        body.flow_control().release_capacity(bytes.len())?;
+        assert_eq!(bytes.as_ref(), b"\x2a\x03xyz\x00\x10\x02unknown-context");
+        send.send_data(Bytes::from_static(b"\x00\x03\x00!!"), false)?;
+        let mut observed = [0; 16];
+        let (count, _) = timeout(STREAM_SHUTDOWN, target.recv_from(&mut observed)).await??;
+        assert_eq!(&observed[..count], b"!!");
 
-    send.send_reset(::http2::Reason::INTERNAL_ERROR);
-    let error = timeout(STREAM_SHUTDOWN, owner.join())
-        .await??
-        .err()
-        .ok_or("wrong reset code was accepted as cleanup")?;
-    let cause = error
-        .downcast_ref::<::http2::Error>()
-        .ok_or("original H2 reset error missing")?;
-    assert!(cause.is_reset() && cause.is_remote());
-    assert_eq!(cause.reason(), Some(::http2::Reason::INTERNAL_ERROR));
-    owner.shutdown().await?;
-    Ok(())
+        send.send_reset(::http2::Reason::INTERNAL_ERROR);
+        let error = timeout(STREAM_SHUTDOWN, owner.join())
+            .await??
+            .err()
+            .ok_or("wrong reset code was accepted as cleanup")?;
+        let cause = error
+            .downcast_ref::<::http2::Error>()
+            .ok_or("original H2 reset error missing")?;
+        assert!(cause.is_reset() && cause.is_remote());
+        assert_eq!(cause.reason(), Some(::http2::Reason::INTERNAL_ERROR));
+        owner.shutdown().await?;
+        let completed = timeout(
+            STREAM_SHUTDOWN,
+            driver
+                .as_mut()
+                .ok_or("H2 client driver owner missing")?
+                .join(),
+        )
+        .await??;
+        match completed {
+            Ok(()) => Ok(()),
+            Err(error)
+                if error
+                    .downcast_ref::<::http2::Error>()
+                    .is_some_and(super::stream_outcomes::h2_peer_closed) =>
+            {
+                Ok(())
+            }
+            Err(error) => Err(error),
+        }
+    }
+    .await;
+
+    let result = finish_with_cleanup(primary, owner.shutdown().await);
+    match driver.as_mut() {
+        Some(driver) => finish_with_cleanup(result, driver.shutdown().await),
+        None => result,
+    }
 }
 
 #[tokio::test]

@@ -5,7 +5,7 @@
 
 use std::{
     future::Future,
-    net::{Ipv4Addr, SocketAddr},
+    net::Ipv4Addr,
     num::NonZeroUsize,
     sync::{Arc, Mutex, PoisonError},
     time::Duration,
