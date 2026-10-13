@@ -358,6 +358,17 @@ class NativeOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 exited.set()
 
         owner = hooks._FirefoxRun(hooks.SCENARIOS["http1-idle"])
+        owner.origins.go = ObservedEvent()
+        listener = await asyncio.start_server(owner.origins.accept_page, "127.0.0.1", 0)
+        owner.origins.listeners.append(listener)
+        reader, writer = await asyncio.open_connection(
+            "127.0.0.1", listener.sockets[0].getsockname()[1]
+        )
+        writer.write(b"GET /go HTTP/1.1\r\nHost: x\r\n\r\n")
+        await writer.drain()
+        await asyncio.wait_for(owner.origins.go.entered.wait(), 2)
+        accepted = next(iter(owner.origins.writers))
+        peer = next(iter(owner.origins.peers))
         with patch.object(hooks, "LaunchedBrowser", Browser):
             native = hooks._FirefoxNative(
                 owner,
@@ -384,7 +395,13 @@ class NativeOwnershipTests(unittest.IsolatedAsyncioTestCase):
             )
             self.assertIs(pending.owner, owner)
             self.assertFalse(native.future.cancelled())
+            self.assertFalse(native.future.done())
             self.assertFalse(exited.is_set())
+            self.assertTrue(peer.done())
+            self.assertTrue(accepted.is_closing())
+            self.assertFalse(owner.origins.peers)
+            self.assertFalse(owner.origins.writers)
+            self.assertEqual(await asyncio.wait_for(reader.read(), 2), b"")
         finally:
             release.set()
             try:
@@ -392,6 +409,8 @@ class NativeOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 failures = await owner.finish(cancellation)
             finally:
                 loop.set_exception_handler(previous_handler)
+                writer.close()
+                await writer.wait_closed()
 
         self.assertIn(cause, failures)
         self.assertIs(observations[0]["exception"], cause)
