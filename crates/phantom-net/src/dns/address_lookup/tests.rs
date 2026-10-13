@@ -26,7 +26,7 @@ const V6: Ipv6Addr = Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 10);
 const SYSTEM: IpAddr = IpAddr::V4(Ipv4Addr::new(192, 0, 2, 99));
 
 #[test]
-fn address_configuration_errors_retain_the_original_system_io_failure() {
+fn address_configuration_errors_retain_the_original_system_io_failure() -> TestResult {
     let original = Arc::new(io::Error::from_raw_os_error(2));
     let backend = NetError::Io(Arc::clone(&original));
 
@@ -37,17 +37,20 @@ fn address_configuration_errors_retain_the_original_system_io_failure() {
         .get_ref()
         .and_then(Error::source)
         .and_then(|source| source.downcast_ref::<NetError>())
-        .expect("original system configuration error");
+        .ok_or("original system configuration error missing")?;
     let NetError::Io(retained) = backend else {
         panic!("original I/O error lost");
     };
     assert!(Arc::ptr_eq(retained, &original));
     assert_eq!(retained.raw_os_error(), Some(2));
+    Ok(())
 }
 
 #[test]
-fn address_resolver_rejects_missing_nameservers_without_a_network_cause() {
-    let error = AddressResolver::with_nameservers([]).expect_err("empty configuration");
+fn address_resolver_rejects_missing_nameservers_without_a_network_cause() -> TestResult {
+    let error = AddressResolver::with_nameservers([])
+        .err()
+        .ok_or("empty configuration was accepted")?;
 
     assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
     assert_eq!(
@@ -57,10 +60,11 @@ fn address_resolver_rejects_missing_nameservers_without_a_network_cause() {
     assert!(
         error
             .get_ref()
-            .expect("configuration category")
+            .ok_or("configuration category missing")?
             .source()
             .is_none()
     );
+    Ok(())
 }
 
 /// Answers A and AAAA with fixed records and TTLs.

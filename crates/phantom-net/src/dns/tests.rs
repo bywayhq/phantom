@@ -378,8 +378,10 @@ fn query_name_prefixes_non_default_ports() {
 }
 
 #[test]
-fn resolver_needs_a_nameserver() {
-    let error = HttpsRecordResolver::with_nameservers([]).expect_err("empty configuration");
+fn resolver_needs_a_nameserver() -> TestResult<()> {
+    let error = HttpsRecordResolver::with_nameservers([])
+        .err()
+        .ok_or("empty configuration was accepted")?;
     assert_eq!(error.kind(), HttpsLookupErrorKind::Configuration);
     assert_eq!(
         error.to_string(),
@@ -388,14 +390,15 @@ fn resolver_needs_a_nameserver() {
     assert!(
         error
             .source()
-            .expect("configuration category")
+            .ok_or("configuration category missing")?
             .source()
             .is_none()
     );
+    Ok(())
 }
 
 #[test]
-fn https_configuration_errors_retain_the_original_system_io_failure() {
+fn https_configuration_errors_retain_the_original_system_io_failure() -> TestResult<()> {
     let original = Arc::new(io::Error::from_raw_os_error(2));
     let backend = NetError::Io(Arc::clone(&original));
 
@@ -406,18 +409,21 @@ fn https_configuration_errors_retain_the_original_system_io_failure() {
         .source()
         .and_then(Error::source)
         .and_then(|source| source.downcast_ref::<NetError>())
-        .expect("original system configuration error");
+        .ok_or("original system configuration error missing")?;
     let NetError::Io(retained) = backend else {
         panic!("original I/O error lost");
     };
     assert!(Arc::ptr_eq(retained, &original));
     assert_eq!(retained.raw_os_error(), Some(2));
+    Ok(())
 }
 
 #[test]
-fn https_configuration_errors_retain_the_original_system_name_failure() {
+fn https_configuration_errors_retain_the_original_system_name_failure() -> TestResult<()> {
     let invalid_domain = format!("{}.example", "a".repeat(64));
-    let original = Name::from_ascii(invalid_domain).expect_err("oversized DNS label");
+    let original = Name::from_ascii(invalid_domain)
+        .err()
+        .ok_or("oversized DNS label was accepted")?;
     let message = original.to_string();
 
     let error = HttpsLookupError::configuration(NameserverConfigurationError::system(original));
@@ -426,12 +432,13 @@ fn https_configuration_errors_retain_the_original_system_name_failure() {
         .source()
         .and_then(Error::source)
         .and_then(|source| source.downcast_ref::<hickory_resolver::proto::ProtoError>())
-        .expect("original platform configuration error");
+        .ok_or("original platform configuration error missing")?;
     assert_eq!(original.to_string(), message);
     assert_eq!(
         error.to_string(),
         format!("invalid DNS resolver configuration: {message}")
     );
+    Ok(())
 }
 
 /// The HTTPS query socket of a Chromium profile sets `SO_RANDOMIZE_PORT`
