@@ -463,7 +463,7 @@ async fn replay_on(
         // The workflow uses a paused retry clock. Start the peer deadline only
         // after the client ends, so it cannot advance past a pending OS read.
         let (requests, extra_connection) =
-            timeout(Duration::from_secs(5), server.join()).await???;
+            timeout(OBSERVATION + Duration::from_secs(5), server.join()).await???;
         Ok(PhantomRun {
             requests,
             terminal,
