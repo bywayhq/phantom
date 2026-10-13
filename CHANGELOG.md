@@ -1935,6 +1935,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Record the architecture audit's findings, review scope and phased delivery.
+  Correct ownership, public API and conformance recovery documentation.
+
 - Clarify that Phases 1 and 2 are complete within their agreed scope, while
   deferred browser coverage and fidelity work remain open.
 - Document Phase 2 API milestones, completion criteria, and browser/TLS
