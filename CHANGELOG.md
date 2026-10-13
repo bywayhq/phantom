@@ -2489,6 +2489,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Reject malformed EventSource records and overflowing HPACK integers.
 - Reject received MASQUE test-proxy targets outside loopback before opening
   a relay. Numeric IPv4 and IPv6 loopback target paths keep their encoding.
+- Bound MASQUE test-proxy capsule input and rejected request bodies. Return
+  oversized-input and truncated-capsule failures with their original causes.
 - Require `http-body` 1.1 or newer so projects with an older lockfile
   resolve the `SizeHint` API used by buffered request bodies.
 - Retain test fixture workers and their original errors through caller

@@ -8,6 +8,7 @@
 
 use std::{
     future::poll_fn,
+    io,
     net::{IpAddr, SocketAddr},
     sync::{Arc, Mutex, MutexGuard},
 };
@@ -33,6 +34,11 @@ use crate::support::tls::{
 
 /// Largest datagram the relay reads from the origin socket.
 const MAX_UDP_PAYLOAD: usize = 65_527;
+// One maximum UDP payload plus the largest encoded Context ID.
+const MAX_CAPSULE_PAYLOAD: usize = MAX_UDP_PAYLOAD + 8;
+const CAPSULE_CHUNK: usize = 16 * 1024;
+const MAX_PENDING_CAPSULE: usize = MAX_CAPSULE_PAYLOAD + 16 + CAPSULE_CHUNK;
+const MAX_REJECTED_BODY: usize = 64 * 1024;
 /// Unknown capsule type sent before relaying; clients must skip it.
 const UNKNOWN_CAPSULE: &[u8] = &[0x2a, 0x03, b'x', b'y', b'z'];
 /// Unknown Context ID datagram sent before relaying; clients must drop it.
@@ -701,14 +707,12 @@ where
                 )
                 .await?;
             stream.flush().await?;
-            hold_until_closed(stream).await;
-            Ok(())
+            hold_until_closed(stream).await
         }
         Answer::Ok200 => {
             stream.write_all(b"HTTP/1.1 200 OK\r\n\r\n").await?;
             stream.flush().await?;
-            hold_until_closed(stream).await;
-            Ok(())
+            hold_until_closed(stream).await
         }
         Answer::Relay => {
             let target = target.ok_or("CONNECT-UDP path has no loopback target")?;
@@ -852,13 +856,28 @@ where
 }
 
 /// Reads until the client closes, so no response bytes are lost to a reset.
-async fn hold_until_closed<S: AsyncRead + Unpin>(mut stream: S) {
-    let mut rest = Vec::new();
-    let _ = tokio::time::timeout(
-        std::time::Duration::from_secs(10),
-        stream.read_to_end(&mut rest),
-    )
-    .await;
+async fn hold_until_closed<S: AsyncRead + Unpin>(mut stream: S) -> TestResult<()> {
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        let mut buffer = [0; 4096];
+        let mut received = 0;
+        loop {
+            let count = match stream.read(&mut buffer).await {
+                Ok(0) => return Ok(()),
+                Ok(count) => count,
+                Err(error) if is_peer_gone(&error) => return Ok(()),
+                Err(error) => return Err(error.into()),
+            };
+            received += count;
+            if received > MAX_REJECTED_BODY {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "rejected CONNECT-UDP body exceeds fixture limit",
+                )
+                .into());
+            }
+        }
+    })
+    .await?
 }
 
 /// Relays DATAGRAM capsules between the client stream and one UDP target.
@@ -882,16 +901,32 @@ async fn relay_capsules(
     loop {
         tokio::select! {
             received = inbound.recv() => {
-                let Some(bytes) = received else { break };
-                pending.extend_from_slice(&bytes);
-                while let Some((capsule_type, value, used)) = decode_capsule(&pending) {
-                    pending.drain(..used);
-                    let value_len = value.len();
-                    let mut payload = Bytes::from(value);
-                    let context = if capsule_type == 0 { decode_varint(&mut payload) } else { None };
-                    lock(&log).client_capsules.push((capsule_type, context, value_len));
-                    if capsule_type == 0 && context == Some(0) {
-                        let _ = udp.send(&payload).await;
+                let Some(bytes) = received else {
+                    if !pending.is_empty() {
+                        return Err(io::Error::new(
+                            io::ErrorKind::UnexpectedEof,
+                            "CONNECT-UDP stream ended inside a capsule",
+                        ).into());
+                    }
+                    break;
+                };
+                for chunk in bytes.chunks(CAPSULE_CHUNK) {
+                    if pending.len() + chunk.len() > MAX_PENDING_CAPSULE {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            "CONNECT-UDP capsule buffer exceeds fixture limit",
+                        ).into());
+                    }
+                    pending.extend_from_slice(chunk);
+                    while let Some((capsule_type, value, used)) = decode_capsule(&pending)? {
+                        pending.drain(..used);
+                        let value_len = value.len();
+                        let mut payload = Bytes::from(value);
+                        let context = if capsule_type == 0 { decode_varint(&mut payload) } else { None };
+                        lock(&log).client_capsules.push((capsule_type, context, value_len));
+                        if capsule_type == 0 && context == Some(0) {
+                            let _ = udp.send(&payload).await;
+                        }
                     }
                 }
             }
@@ -921,14 +956,29 @@ fn encode_capsule(capsule_type: u64, value: &[u8]) -> Vec<u8> {
 }
 
 /// Returns one complete capsule's type, value, and encoded length.
-fn decode_capsule(input: &[u8]) -> Option<(u64, Vec<u8>, usize)> {
+type DecodedCapsule = (u64, Vec<u8>, usize);
+
+fn decode_capsule(input: &[u8]) -> TestResult<Option<DecodedCapsule>> {
     let mut cursor = Bytes::copy_from_slice(&input[..input.len().min(16)]);
     let before = cursor.len();
-    let capsule_type = decode_varint(&mut cursor)?;
-    let length = usize::try_from(decode_varint(&mut cursor)?).ok()?;
+    let Some(capsule_type) = decode_varint(&mut cursor) else {
+        return Ok(None);
+    };
+    let Some(length) = decode_varint(&mut cursor) else {
+        return Ok(None);
+    };
+    if length > MAX_CAPSULE_PAYLOAD as u64 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "CONNECT-UDP capsule payload exceeds fixture limit",
+        )
+        .into());
+    }
+
+    let length = usize::try_from(length)?;
     let header = before - cursor.len();
-    let end = header.checked_add(length)?;
-    (input.len() >= end).then(|| (capsule_type, input[header..end].to_vec(), end))
+    let end = header + length;
+    Ok((input.len() >= end).then(|| (capsule_type, input[header..end].to_vec(), end)))
 }
 
 #[cfg(test)]
