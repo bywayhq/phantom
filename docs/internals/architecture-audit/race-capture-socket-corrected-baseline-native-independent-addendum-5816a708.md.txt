@@ -1,5 +1,0 @@
-# Corrected socket allocation baseline
-
-Both complete5816a708 logs and all guarded status/revision records were independently read. Each platform runs six controls: one healthy pass and five intended descriptor-closure failures, test/runner exit1. Primary identity and actual native acquisition/state prerequisites pass before closure assertions181/195/208/222/241. No prior Windows observer exceptions or proactor TypeErrors occur.
-
-This is a usable causal baseline for the lower allocator. Original13c Windows harness failures remain preserved and receive no retrospective closure credit. Test-owned backup runs after the snapshots. Controlled fault evidence does not establish spontaneous OS errors, startup cleanup remedy correctness, protocol/browser parity or a full gate. Source is hash-bound to the approved581 correction, without new whole-source review credit.

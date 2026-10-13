@@ -1,9 +1,0 @@
-# SSE paired baseline addendum
-
-The SSE formatting changes at `7a69704089804c4d2fd6f3c24c6e61782fafa247` preserve the approved `95f14b19e648f02a8b23606ce7dfb69b7731d6c7` source. The parent blob is identical. Full observer/control diffs contain wrapping and trailing call commas only; every original oracle, raw result handle, ordinary join and clock lifetime remains intact. Signed human identities verified.
-
-Read the full guarded runner, eight completed logs and all associated exit/revision/runner receipts. Both hosts ran 54 selected methods: 51 passed and three failed. Exactly the two pending-worker destruction controls report Elapsed, and the completed shutdown cause control reports the missing aggregate. Both new positives and every other selected old SSE, environment-route, deadline and idle-policy method pass. No extra cleanup failure appears.
-
-Formatting, strict requests/streams Clippy and Rust 1.88 checks all exit zero on both hosts. SSE exits 101 and overall runners exit one because this is the deliberately failing baseline. Both receipts bind the exact candidate, and the runner checks clean revision before and after.
-
-This independently confirms the SSE baseline only. Direct/tracing authored source and their results have a separate review. No natural TLS fault, permanent leak, production defect or joined-cancellation claim follows. Semantic repair, other raw SSE peers, phase-aware idle bounds and final integration gates remain pending. No execution performed during this review.

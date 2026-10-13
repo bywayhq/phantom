@@ -1,9 +1,0 @@
-# H3 deferred-response source review
-
-Approved frozen2ced7231 for root causal verification of its two controls. Whole new448-line file and complete addition were read; the corrected248-line H2 helper was read whole. Supporting canonical/startup/classification and Python/aioquic reads are explicitly partial, except protocol272/configuration163/reserved-port32 owners. Six prior source/control blobs remain byte-exact; no canonical operation changed.
-
-Actual trusted H2 readiness and held-reader ownership precede authenticated H3 200/ok and204. The healthy control reads the released GIF. The fault control requires the original legal-window-one FlowControlError, original H2 record attribution and exactly once-drained owner cause. H3 datagram callback/peer identity is independent of the held H2 task.
-
-Client socket/protocol/transport adoption precedes fallible endpoint completion. Close separately waits for connection termination and attempts transport closure; registered finite backup retains known resources and original failures. Transport state alone does not prove termination. Private witnesses are bound to Python3.10/aioquic1.3.0. Partial acquisition and cleanup-fault paths are source-qualified, not measured.
-
-No blocker found. No target import, runtime or resource execution occurred. Root must execute these unchanged controls on both hosts and then relevant composed/full capture checks. No full A191, general QUIC lifetime, browser or final-gate approval.

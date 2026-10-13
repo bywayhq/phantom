@@ -1,9 +1,0 @@
-# Android host-child interpreter correction
-
-Signed5a99e2a1 changes only the helper command selection from sys.executable to sys._base_executable. The child uses only the standard library. The strict literal PID assertion, binary LF output and four signed64b method bodies remain exact. A full one-line inverse restores64b; all other committed paths are unchanged.
-
-Root's retained probes show that Windows managed-environment sys.executable produced a redirector PID distinct from the child's reported PID, while the actual base interpreter matched. Both Linux paths matched. The actual probes record Windows3.10.20 and Linux3.10.21; a runner request for3.10 does not prove an exact patch version.
-
-The immutable f921 focused baseline has one healthy pass and three failures per host. Windows stops at the PID prerequisite334, leaving progress342 uncredited. Linux reaches the progress failure342. The prior a7 CRLF prerequisite failures remain separate. No new runtime was executed here.
-
-Only the interpreter line was selectively staged from frozen64b source. The cancellation helper extensions and new cancellation file remain dirty, paused and uncommitted. Review the exact Git tree, not the current physical draft. This source handoff binds the complete two probe JSONs and focused logs; it does not promote unreviewed sidecars or quality stages. Root must review and run fresh paired four-control baselines before cancellation authoring resumes.

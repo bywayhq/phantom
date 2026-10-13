@@ -1,7 +1,0 @@
-# Cleanup control import correction addendum
-
-Approved exact 69b42db8 import-only correction and unchanged focused reruns. The complete three-line relocation diff and current imports were read; literal class bytes and all module AST items match 1df (only import order changes). Canonical owner blob remains unchanged. The retained pre-correction scratch source also equals the old Git child.
-
-Both complete five-method logs and six guards were read: Windows5 PASS4.215 s, Linux5 PASS2.610 s, test/runner0. Rosters match prior focused1df and no warnings/errors appear. No assertions or resource behavior changed.
-
-Root's actual I001 failure supersedes the prior author's static claim; root reports corrected capture-wide Ruff lint/format pass78, without independent lint-output read in this slice. Full515 remains actual only at1df; no full-suite run is credited to69b. Rust/TCP, broader lifecycle and final gates remain separate. Reviewer ran no tests or tracked mutations.

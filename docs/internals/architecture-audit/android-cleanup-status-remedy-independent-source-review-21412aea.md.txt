@@ -1,7 +1,0 @@
-# Android cleanup-status remedy independent source review
-
-Approved signed `21412aea` for scoped composition and root verification. No supported source blocker. Four removals at 632/640/648/656 activate the unchanged checked defaults of `AdbDevice.run`/`shell`. The existing RuntimeError retains command/diagnostic context; independent cleanup keeps its object, continues later actions and leaves only the failed ownership slot retryable. Entry/body failure policy is unchanged.
-
-Fresh reads cover complete cleanup/exit 613–662, command helpers 262–283, full 48-line shared failure policy and the complete four-line diff. The preceding whole 295-line control review is rebound to identical bytes. A scoped inverse restores the entire parent owner, and every other parent tree object is identical. Signature G and both required human identities are verified. The initial author's global uniqueness assertion failed on an unrelated unchanged startup expression; the corrected bounded proof passes without erasing that failure.
-
-Root reports baseline one healthy/five failures at 231; this source report does not independently claim a new native-log review. Later identity/context/retry assertions require actual fixed execution. Approval is limited to four cleanup action classes and unchanged controls. Other unchecked calls, hardware provenance, simultaneous fault coverage and final gates remain open. No target imports, tests, checkers, resource probes or source edits performed. Root owns docs/CHANGELOG and both-host capture verification.

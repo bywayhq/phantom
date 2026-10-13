@@ -3,6 +3,25 @@
 Use this matrix to see which paths have been examined and what remains.
 Pending means that discovery or assignment has not established review.
 
+## Current state
+
+The audit remains on its integration branch and has not merged into `main`.
+At `1da2ba31`, all 45 snapshot methods pass on Windows and Linux. Independent
+review covers the source, complete original logs and exact clean revisions.
+Scoped lint, formatting and documentation checks pass. The first Linux run
+failed two unsupported immediate port-reuse assertions; the corrected controls
+observe original listener and connection retirement. Those failures remain
+in the retained evidence.
+
+Lifecycle and cookie input follow-ups, shared browser address policy, coverage
+reconciliation and combined architecture review remain open. The final
+workspace, vendor, platform, PR and main checks remain required. The sections
+below retain earlier source reviews and results at their stated revisions.
+
+Historical record names in this page refer to the
+[retained evidence](evidence.md). Earlier results keep their original revision
+and scope; they do not establish final integration.
+
 ## Stream and negotiated-session completion
 
 The SSE candidate (`021da888`, `35b11350`, `ef7d56af`), negotiated-session
@@ -428,18 +447,18 @@ The final combined architecture and readability reviews remain open.
 The supplied standards apply throughout the audit. The source records below
 establish bounded reviews; they do not establish a whole-codebase sign-off.
 
-The [fallback observer baseline](fallback-wire-root-baseline-5a766eee.json)
+The [fallback observer baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/fallback-wire-root-baseline-5a766eee.json)
 records 20 passing methods and three malformed-input rejection failures on
 each host. The valid literal recipe and all earlier fallback methods pass.
 The reviewed repair passes all 23 fallback methods on both hosts at
 `ab754e97`. Formatting, strict Clippy and Rust 1.88 checks pass. See the
-[combined fixture baseline](fixture-owner-root-baseline-ab754e97.json).
+[combined fixture baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/fixture-owner-root-baseline-ab754e97.json).
 Final integration gates remain open.
 
-The [session-reuse review](session-reuse-root-source-pass-5a766eee.json)
+The [session-reuse review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/session-reuse-root-source-pass-5a766eee.json)
 covers the complete 561-line owner and its request, upload, proxy and
 stream-cancellation contracts. Task ownership and deadline causes need
-repairs. The [independent review](session-reuse-independent-source-review-e7e47abe.json)
+repairs. The [independent review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/session-reuse-independent-source-review-e7e47abe.json)
 also finds a discarded incomplete-upload error. A causal control remains
 required. No permanent leak was measured.
 
@@ -459,14 +478,14 @@ do not establish that need.
 
 ### Combined capture, discovery and relay repairs
 
-The [request-error repair](fatal-template-root-remedy-a3095217.json)
+The [request-error repair](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/fatal-template-root-remedy-a3095217.json)
 passes all 39 capture and 43 template methods on both hosts. The three
 malformed QUIC inputs now receive their original fatal codes. The local
 resolution cause retains its original payload identity. The template
 reader retains its actual oversized-head error after socket release.
 All earlier positive contracts in both selections still pass.
 
-The [independent review](fatal-template-remedy-independent-native-review-a3095217.json)
+The [independent review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/fatal-template-remedy-independent-native-review-a3095217.json)
 confirms both host results and source identities. It also corrects historical
 line references without changing the preserved baseline evidence.
 
@@ -474,7 +493,7 @@ Formatting, strict target Clippy and Rust 1.88 checks pass. Broader task
 ownership, additional QUIC phase policies and final integration gates
 remain open. These results do not establish a whole-workspace pass.
 
-The [fatal-input baseline](fatal-template-root-baseline-54cbca60.json)
+The [fatal-input baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/fatal-template-root-baseline-54cbca60.json)
 records all 39 capture methods and 43 template methods on both hosts.
 Capture passes 35 methods. Three malformed requests receive a normal close,
 and the controlled resolution error is discarded. Template passes 42
@@ -486,7 +505,7 @@ three new fatal-control regions need formatting. Original failures remain
 bound to this revision. The later repair and its checks are recorded above;
 final integration gates remain pending.
 
-The [resolution checkpoint](peer-resolution-root-native-3fb68a34.json)
+The [resolution checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/peer-resolution-root-native-3fb68a34.json)
 records four proxy methods passing on both hosts after the owner repair.
 The original destruction, socket, rebind and simultaneous-cause assertions
 now pass. Outer timeout, panic and additional failure combinations remain
@@ -504,7 +523,7 @@ failures. This direction has source review; semantic repair and its native
 verification remain pending. The older design's HeaderTooBig wording is
 superseded by the retained resolution-control handoff.
 
-The [peer-phase baseline](peer-phase-baseline-root-native-638fc806.json)
+The [peer-phase baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/peer-phase-baseline-root-native-638fc806.json)
 records the next three QUIC and three proxy-session controls at `638fc806`.
 Both systems pass 35 of 36 capture methods and two of four proxy methods.
 The focused nine QUIC methods overlap the complete capture example.
@@ -522,11 +541,11 @@ The original rejected review remains beside the signed one-line correction
 and independent approval. This adds no claim of a natural leak or complete
 incoming-error policy. Broader ownership paths and final gates remain open.
 
-The [PR snapshot](pr197-ci-snapshot-8490d46d-green.json) records all 43 checks
+The [PR snapshot](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/pr197-ci-snapshot-8490d46d-green.json) records all 43 checks
 passing on the earlier pushed `8490d46d`, including Windows and macOS.
 It does not approve the later local baseline or establish main integration.
 
-The [combined verification](combined-remedies-root-native-3b39526f.json)
+The [combined verification](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/combined-remedies-root-native-3b39526f.json)
 records both-host results at `3b39526f`. All 33 capture-example methods,
 11 discovery methods, 41 request-template methods, 25 early-data methods
 and seven session-resumption methods pass. The six focused QUIC controls
@@ -534,13 +553,13 @@ overlap the complete example. Strict target Clippy and Rust 1.88 checks
 pass; formatting flags six files. This candidate still needs correction
 and final gates.
 
-The [formatter checkpoint](combined-format-root-checkpoint-e158bcb4.json)
+The [formatter checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/combined-format-root-checkpoint-e158bcb4.json)
 records the six-file layout correction. Formatting and both affected
 Rust 1.88 targets pass on Windows and Linux at `e158bcb4`. The complete
 diff changes wrapping, optional trailing commas and sibling module order.
 Behavioral results remain bound to `3b39526f`; final gates remain open.
 
-The [independent evidence review](combined-remedies-native-metadata-independent-review-afabcca5.md.txt)
+The [independent evidence review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/combined-remedies-native-metadata-independent-review-afabcca5.md.txt)
 confirms the test rosters, source bindings, retained reports and formatter
 delta. Its author implemented the H3 relay repair; that repair's independent
 source approval comes from the separate retained source review.
@@ -558,30 +577,30 @@ and observe worker destruction before backup. Ordinary relay consumers pass
 alongside the controls. Incoming QUIC policy, adjacent raw serving tasks,
 unexercised failure combinations and final architecture review remain open.
 
-The [root source pass](proxy-controls-root-source-pass-3b39526f.json) adds
+The [root source pass](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-controls-root-source-pass-3b39526f.json) adds
 ten complete child reads, totaling 1,781 lines. It covers concrete CONNECT
 ownership, relay and multiplex controls, and the three new private owners.
 Supporting parents retain their earlier bounded coverage. No new confirmed
 finding was added by this pass.
 
-The [independent capture review](template-session-capture-independent-source-native-review-3b39526f.md.txt)
+The [independent capture review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/template-session-capture-independent-source-native-review-3b39526f.md.txt)
 also corrects one supporting range in the earlier root report: the library
 capture source ends at line 237. The retained `199–245` citation receives
 credit only for `199–237`; the original report remains preserved.
 
 ### Direct, tracing, DNS and SSE fixtures
 
-The [manual source pass](remaining-fixture-root-source-pass-b9dc4bcf.json) records
+The [manual source pass](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/remaining-fixture-root-source-pass-b9dc4bcf.json) records
 five complete files, totaling 2,022 lines. It checks literal request and
 body order, canary privacy, resolver routing, pool authority, stream
 cancellation and idle timeout assertions. Exceptional peer ownership,
 discarded fixture errors and timer causes remain under repair.
-The [independent review](remaining-fixture-independent-source-review-b9dc4bcf.md.txt)
+The [independent review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/remaining-fixture-independent-source-review-b9dc4bcf.md.txt)
 confirms those findings. Causal controls and repairs remain required.
 
 ### Runtime and parallel-session fixture owners
 
-The [source pass](session-owners-root-source-pass-28e9eb8a.json) records
+The [source pass](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/session-owners-root-source-pass-28e9eb8a.json) records
 complete current reads of two owners, totaling 933 lines. An independent
 manual pass binds the same source. Listener and child failures disappear,
 parallel accepted/request tasks lack eager ownership, and four timeout
@@ -592,7 +611,7 @@ The dedicated origin runtime bounds its tasks' lifetime when dropped.
 This review establishes neither a permanent leak nor a measured false green
 in quiet-window assertions. Supporting reads retain their bounded scope.
 
-The [independent paired baseline review](peer-phase-baseline-independent-native-review-638fc806.md.txt)
+The [independent paired baseline review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/peer-phase-baseline-independent-native-review-638fc806.md.txt)
 confirms the recorded QUIC and proxy failures. Its count correction names
 16 logs and 20 sidecars, plus the separate launcher. No extra observations
 or fixed-source approval follow from that correction.
@@ -602,11 +621,11 @@ read/write errors and an accepted peer surviving owner Drop. All earlier
 methods and healthy EOF/abort controls pass. Accepted-child shutdown is
 verified on both hosts: all seven controls and retained tests pass.
 Queued callers and runtime paths remain open. The
-[remedy receipt](fixture-owner-root-remedies-8d0698dc.json) binds the results.
+[remedy receipt](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/fixture-owner-root-remedies-8d0698dc.json) binds the results.
 
 ### Request-template fixture owners
 
-The [source pass](template-owners-root-source-pass-aebdb78f.json) records
+The [source pass](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/template-owners-root-source-pass-aebdb78f.json) records
 complete reads of the parent and default-profile child, totaling 1,733
 lines. The independent assessment binds the same unchanged sources.
 Raw server handles cross fallible operations. The HTTP/1.1 reply loop
@@ -625,12 +644,12 @@ The four failures observe three original worker lifetime gaps and lost
 caller/completed-worker causes. The two canonical caller helpers now retain
 those owners and causes. All 49 methods pass on both hosts. Other raw callers
 and exceptional combinations remain open; see the
-[remedy receipt](fixture-owner-root-remedies-8d0698dc.json).
+[remedy receipt](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/fixture-owner-root-remedies-8d0698dc.json).
 Formatting, strict target Clippy and Rust 1.88 checks pass.
 
 ### Relay fixture control children
 
-The [source pass](relay-children-root-source-pass-a7048ed0.json) covers two
+The [source pass](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/relay-children-root-source-pass-a7048ed0.json) covers two
 complete unchanged children, totaling 431 lines. Literal bidirectional
 traffic precedes relay shutdown. The completed-outcome control observes
 actual CONNECT and response traffic before testing caller cleanup.
@@ -642,7 +661,7 @@ No new confirmed finding was added.
 
 ### HTTP/2 backend teardown controls
 
-The [teardown source review](http2-teardown-source-9d6e0e14.json) covers the
+The [teardown source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/http2-teardown-source-9d6e0e14.json) covers the
 complete 170-line test owner. Its two controls use actual HTTP/2 drivers,
 observe a stalled upload, and join both drivers before dropping or cancelling
 that upload. Operation and cleanup errors retain their causes. No new
@@ -653,20 +672,20 @@ in-memory streams, and this source pass adds no execution or final-gate result.
 
 ### Fixture contract controls
 
-The [observation and acquisition pass](observation-acquisition-root-source-pass-0340818c.json)
+The [observation and acquisition pass](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/observation-acquisition-root-source-pass-0340818c.json)
 records complete root reads of two more control owners, totaling 535 lines.
 They check named real ClientHello batches and transferred fixture task
 ownership. No new supported defect was found in these bounded reads.
 Supporting parent reads remain partial. This adds no execution or independent
 sign-off; the combined review remains required.
 
-The [deadline control pass](deadline-control-source-pass-c3cf32c7.json)
+The [deadline control pass](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/deadline-control-source-pass-c3cf32c7.json)
 records complete manual reads of four HTTPS-record control owners. Each
 checks entered expiry, a typed inner failure and ready success through its
 actual parent wrapper. No new supported defect was found in these controls.
 Supporting parents remain partial. This adds no execution or final-gate result.
 
-The [fixture control pass](fixture-control-source-pass-a11a31e2.json)
+The [fixture control pass](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/fixture-control-source-pass-a11a31e2.json)
 records complete manual reads of three more owners: CONNECT-UDP observation
 contracts, H2 relay teardown controls and H2 WebSocket echo controls.
 The controls check actual deadlines, literal exchanges, typed failures and
@@ -676,7 +695,7 @@ reads remain partial. This source pass adds no execution or final-gate result.
 
 ### Request and response convenience tests
 
-The [query and plaintext source pass](query-plaintext-root-source-pass-be322378.json)
+The [query and plaintext source pass](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/query-plaintext-root-source-pass-be322378.json)
 covers both complete parents, totaling 1,034 lines. Their contracts compare
 literal request targets, header order, redirect state and decoded bodies.
 Lexical joins own both futures and retain the selected first error.
@@ -684,9 +703,9 @@ No new supported code defect was found in these parents. This adds no native
 result or fresh browser capture comparison; supporting implementations and
 independent combined review retain their separate scopes.
 
-The [convenience source review](convenience-owner-coverage-reconciliation-c6d63211.json)
+The [convenience source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/convenience-owner-coverage-reconciliation-c6d63211.json)
 covers both complete parents and their peer-contract children. The
-[independent layout review](convenience-pacing-independent-source-review-bc8a6f18.json)
+[independent layout review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/convenience-pacing-independent-source-review-bc8a6f18.json)
 covers the subsequent fourteen blank-line additions. Every original line and
 other source object is preserved. Both parent inventory entries now record
 this complete source coverage.
@@ -697,13 +716,13 @@ The layout change adds no behavioral test or fresh native result.
 
 ### Client test coverage reconciliation
 
-The [client test reconciliation](client-test-coverage-reconciliation-9b4e6f6f.json)
+The [client test reconciliation](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/client-test-coverage-reconciliation-9b4e6f6f.json)
 binds twelve unchanged files to retained complete source reviews. Eight other
 files retain complete historical reads plus reviewed current differences.
 Root verifies their current objects and reads those differences. This adds
 source coverage for twenty inventory entries without refreshing native results.
 
-The [fallback fixture review](http2-fallback-owner-independent-source-review-664383e0.json)
+The [fallback fixture review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/http2-fallback-owner-independent-source-review-664383e0.json)
 supplies the missing whole-file read for the 661-line fallback owner. It finds
 task ownership, deadline-cause and wire-observer gaps. These and the remaining
 H3 relay error paths still need controls and repairs; source coverage does not
@@ -711,7 +730,7 @@ close those findings.
 
 ## Maintainer documents
 
-The [maintainer document review](maintainer-docs-independent-source-review-e57dade6.json)
+The [maintainer document review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/maintainer-docs-independent-source-review-e57dade6.json)
 records full manual reads of four documents: 252 lines covering lane ownership,
 vendor refresh, the PR template and security policy. Supporting code reads and
 historical service settings keep their stated limits. No new defect was found
@@ -719,7 +738,7 @@ in these four documents; the broader documentation audit remains open.
 
 ## Public API inventories
 
-The [API inventory checkpoint](api-inventory-source-checkpoint-837ff74d.json)
+The [API inventory checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/api-inventory-source-checkpoint-837ff74d.json)
 records complete manual reads of all eight generated inventories: 4,306 lines.
 Each record binds the actual file to its independent review and current source
 object. Supporting implementation reads retain their stated partial ranges.
@@ -732,7 +751,7 @@ coverage, fresh generator output or downstream compilation.
 
 ## Android capture lifecycle
 
-The [Android source and baseline checkpoint](android-lifecycle-baseline-root-checkpoint-b8e1d671.json)
+The [Android source and baseline checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/android-lifecycle-baseline-root-checkpoint-b8e1d671.json)
 records complete manual reads of six Android owners and the existing tests.
 Root also completes the current launcher read. Source coverage does not close
 the defects found in these files.
@@ -746,7 +765,7 @@ error-aggregation and interruption assertions after an earlier order failure
 remain uncredited. The device command boundary is modeled; actual local
 temporary-file handling runs without contacting a device.
 
-The [synchronous follow-up checkpoint](android-synchronous-followup-root-checkpoint-802517fa.json)
+The [synchronous follow-up checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/android-synchronous-followup-root-checkpoint-802517fa.json)
 records the configuration, error-retention and rejected-command repairs.
 At `802517fa`, all 63 synchronous Android methods pass on both hosts.
 The related selection passes 106 methods on Windows and 104 on Linux,
@@ -768,7 +787,7 @@ suite or final-gate result.
 
 ## Android worker and CLI follow-up
 
-The [worker, observation and CLI checkpoint](android-worker-ui-cli-root-checkpoint-a68e171c.json)
+The [worker, observation and CLI checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/android-worker-ui-cli-root-checkpoint-a68e171c.json)
 records the later repairs and preserves the original failing controls.
 Workers remain owned through cancellation. Required device and UI commands
 report failed status before their output can authorize a launch or input.
@@ -789,7 +808,7 @@ hold duration, universal thread joining or the final workspace gate.
 
 ## H3 vendor comparison
 
-The [fixed comparison receipt](h3-license-path-normalization-independent-native-addendum-17ad91de.json)
+The [fixed comparison receipt](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h3-license-path-normalization-independent-native-addendum-17ad91de.json)
 records the license-link repair at `17ad91de` on both hosts. Linux passes all
 nine controls. Windows passes seven and skips two actual-symlink controls
 because the host cannot create symlinks. Both vendor checks and pinned Python
@@ -798,27 +817,27 @@ lint and formatting pass. Linux also passes pinned ShellCheck.
 The helper validates exact tracked link targets and checkout representations,
 then compares the referenced full license text. It leaves the checkout intact.
 The original Windows path failures remain in the
-[baseline receipt](h3-license-comparison-independent-native-addendum-9d6e0e14.json).
+[baseline receipt](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h3-license-comparison-independent-native-addendum-9d6e0e14.json).
 The 285 successful filtered vendor test invocations include overlapping
 selections. These checks do not establish a full workspace gate.
 
 ## Recent verification
 
-The [template capture baseline](template-capture-root-native-baseline-37c22108.json)
+The [template capture baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/template-capture-root-native-baseline-37c22108.json)
 executes four independently reviewed controls on both hosts at `37c22108`.
 Signed acceptance, UTF-8 slicing and duplicate-record rejection fail at their
 original assertions. The literal repeated-header-order control passes.
 Strict requests-test Clippy and Rust 1.88 checks pass. Formatting flags two
 new control assignments. The parser repair remains separately unverified.
 
-The [template and session source review](template-session-root-source-pass-da262bae.json)
+The [template and session source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/template-session-root-source-pass-da262bae.json)
 covers four previously pending files, totaling 389 lines. The capture reader
 needs strict hex and duplicate-record rejection. The authenticated proxy
 session test needs peer ownership across failures and sibling collection.
 The wire observer and session module index have separate bounded dispositions.
 This source pass adds no runtime or independent review result.
 
-The [outgoing QUIC checkpoint](quic-response-root-native-checkpoint-0b018777.json)
+The [outgoing QUIC checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/quic-response-root-native-checkpoint-0b018777.json)
 records the response-error repair at `0b018777` on Windows and Linux.
 Both hosts pass four of five QUIC controls and 31 of 32 example methods.
 All older 27 methods still pass. The focused five overlap the full roster.
@@ -837,7 +856,7 @@ and their Rust 1.88 checks. The discovery import correction is independently
 reviewed and passes these format and compilation checks. Its completion
 observer remains separate work.
 
-The [relay and fallback checkpoint](relay-fallback-root-native-checkpoint-a896be8b.json)
+The [relay and fallback checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/relay-fallback-root-native-checkpoint-a896be8b.json)
 records the reviewed nested-driver repair on both hosts at `a896be8b`.
 All nineteen unchanged fallback methods pass, including actual cancellation,
 driver destruction and I/O closure before backup. The trusted upload and
@@ -852,7 +871,7 @@ unreached. The four original relay failures remain. These controls use real
 UDP traffic with controlled faults. Coordinator ownership, other fallback
 owners, malformed-wire observations and final gates remain open.
 
-The [QUIC and relay checkpoint](quic-relay-root-native-baseline-400a900e.json)
+The [QUIC and relay checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/quic-relay-root-native-baseline-400a900e.json)
 records the corrected QUIC scaffold on both hosts at `400a900e`. The five
 QUIC controls have four passes and one causal missing-error failure after a
 trusted response and actual worker completion. The full example has 31 passes
@@ -865,14 +884,14 @@ execution. No new relay or fallback runtime result is credited. Formatting
 flags one relay literal wrap. Earlier failed compilation and causal baselines
 remain recorded. Semantic repairs and the full integration gates remain open.
 
-The [discovery parent review](https-records-parent-independent-source-assessment-86bf000a.json)
+The [discovery parent review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/https-records-parent-independent-source-assessment-86bf000a.json)
 and root reread cover all 461 lines. Three imports required grouping correction.
 The 200 ms wait does not observe cache publication, and unchanged query counts
 do not distinguish a completed failed lookup from a still-pending one.
 These oracle gaps need explicit completion checks. No natural flake or
 production routing defect was established by this source review.
 
-The [QUIC and fallback checkpoint](quic-fallback-root-native-baseline-1efa55d8.json)
+The [QUIC and fallback checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/quic-fallback-root-native-baseline-1efa55d8.json)
 records the next baseline on both hosts at `1efa55d8`. All eighteen fallback
 positives pass. Parent cancellation still fails at the original nested-driver
 destruction deadline. The separate I/O observer makes backup cleanup succeed
@@ -885,7 +904,7 @@ controls. Strict fallback-test Clippy and Rust 1.88 checks pass. Formatting
 flags only new QUIC wrapping. Compile correction, the causal QUIC baseline,
 ownership repairs and final gates remain open.
 
-The [H3 relay baseline](h3-relay-baseline-root-native-fc224c8c.json)
+The [H3 relay baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h3-relay-baseline-root-native-fc224c8c.json)
 records the same nine methods on Windows and Linux at `fc224c8c`.
 Five pass and four fail. Both abandonment controls reach the original
 destruction deadline. Both completed-read controls observe their actual
@@ -895,11 +914,11 @@ Socket reacquisition and original fault identity assertions after those
 failures remain uncredited. The controls exchange real UDP datagrams with
 controlled local faults. They do not establish an authenticated H3 exchange.
 Formatting and strict Clippy reject the new scaffold; Rust 1.88 checks pass.
-The [source review](h3-relay-named-contract-independent-addendum-604b1c29.json)
+The [source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h3-relay-named-contract-independent-addendum-604b1c29.json)
 preserves the earlier bounded reads and follow-ups. Scaffold corrections,
 the ownership remedy and final gates remain open.
 
-The [corrected scaffold run](h3-fallback-controls-root-native-84b9e51a.json)
+The [corrected scaffold run](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h3-fallback-controls-root-native-84b9e51a.json)
 preserves those nine outcomes on both hosts at `84b9e51a`. Strict Clippy and
 Rust 1.88 checks pass. The fallback selection passes eighteen methods and
 fails its new nested-driver destruction control after a trusted upload.
@@ -908,7 +927,7 @@ Its original deadline remains the primary error. Backup also reports
 read-closure assertion remains unreached. Both formatting checks flag one
 fallback expression. Ownership repairs and final gates remain open.
 
-The [TCP and fallback checkpoint](origin-fallback-root-native-checkpoint-4c55e280.json)
+The [TCP and fallback checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/origin-fallback-root-native-checkpoint-4c55e280.json)
 records the reviewed TCP worker-result repair on both hosts at `4c55e280`.
 All seven serving controls and all 27 ECH example methods pass. Strict
 example Clippy and Rust 1.88 checks pass. Formatting rejects wrapping in
@@ -919,7 +938,7 @@ two positives pass and the entered, pending operation loses its concrete
 timer cause. That baseline remains red. QUIC serving errors, final drain
 limits, process-level publication and the full gate remain separate work.
 
-The [fallback remedy receipt](fallback-deadline-remedy-root-native-4d99e490.json)
+The [fallback remedy receipt](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/fallback-deadline-remedy-root-native-4d99e490.json)
 records all sixteen fallback methods passing on both hosts at `4d99e490`.
 The original expiry assertion now observes its concrete timer cause. The
 deadline, message and inner operation result stay unchanged. Formatting,
@@ -927,7 +946,7 @@ strict HTTP3-test Clippy and Rust 1.88 checks pass. This also verifies the
 ECH control formatting follow-up; TCP execution remains bound to `4c55e280`.
 Fallback ownership and wire-observer repairs remain open.
 
-The [CLI and logical-source checkpoint](cli-logical-source-root-checkpoint-b08163ee.json)
+The [CLI and logical-source checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/cli-logical-source-root-checkpoint-b08163ee.json)
 records the actual zero/negative-repeat publication failures on both hosts.
 The reviewed guard rejects these counts before output work. All nine combined
 CLI and retirement controls pass at `b08163ee`. Full capture passes 557 methods
@@ -944,7 +963,7 @@ test run. Normalized metadata consistency does not authenticate a capture or
 establish browser parity. Supporting analyzer and decryption reads retain
 their partial scope. Broader tooling and final gates remain open.
 
-The [retirement checkpoint](retirement-root-checkpoint-83f793cf.json)
+The [retirement checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/retirement-root-checkpoint-83f793cf.json)
 records six passing connection-retirement controls on both hosts at `13ba3a93`.
 The full capture suite passes 554 methods on Windows and 543 on Linux, with
 eleven unchanged platform skips. Every previous method retains its status,
@@ -961,7 +980,7 @@ OS-fault behavior or browser parity. Historical prerequisite failures and
 additive corrections remain recorded. Broader error classification, whole
 capture-owner review and final integration gates remain open.
 
-The [loopback QUIC checkpoint](loopback-quic-root-checkpoint-8b544ea1.json)
+The [loopback QUIC checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/loopback-quic-root-checkpoint-8b544ea1.json)
 records ten passing native cleanup controls on both hosts.
 The full capture suite passes 548 methods on Windows and 537 on Linux, with
 eleven unchanged platform skips. Every prior method retains its status,
@@ -974,16 +993,16 @@ dispositions. Supporting callers stay partial. Current source bindings and
 immutable historical corrections are retained in the checkpoint. These
 checks do not establish a final workspace gate or complete the wider audit.
 
-The [exact ECH finish checkpoint](exact-ech-normal-finish-root-checkpoint-e8069b42.json)
+The [exact ECH finish checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/exact-ech-normal-finish-root-checkpoint-e8069b42.json)
 records the pending-handshake shutdown failure and repair. All 26 exact-module
 tests pass on both hosts, including destruction and socket closure before backup.
 Focused strict Clippy and Rust 1.88 checks pass. Serving cancellation and QUIC
 budget boundaries remain open.
 
-The [PR checkpoint](pr197-ci-success-7d47406f.json) records all 43 checks passing
+The [PR checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/pr197-ci-success-7d47406f.json) records all 43 checks passing
 at `7d47406f`, including Windows and macOS. It does not cover later local work.
 
-The [handler overlap checkpoint](handler-overlap-root-checkpoint-e57dade6.json)
+The [handler overlap checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/handler-overlap-root-checkpoint-e57dade6.json)
 records two causal failures per host before repair. All four unchanged controls
 and twenty related methods pass on both hosts at `e57dade6`. The full capture
 suite passes 538 methods on Windows and 527 on Linux, with eleven platform
@@ -994,7 +1013,7 @@ The repair keeps later scopes filtering after an earlier scope exits and
 restores the original caller handler after both finish. Remaining handler edge
 cases retain source-only review; the capture owner and final gates remain open.
 
-The [full gate checkpoint](full-gate-root-checkpoint-837ff74d.json) records all
+The [full gate checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/full-gate-root-checkpoint-837ff74d.json) records all
 24 steps passing at `837ff74d`. Windows passes all 4,029 workspace tests,
 143 doctests with five ignored examples, and nineteen fuzz tests. The optional
 feature and Rust 1.88 matrices pass. WSL checks strict workspace Clippy and
@@ -1004,11 +1023,11 @@ Independent review confirms the commands, terminal results and preserved logs.
 The capture suite retains slow-task and expected parser diagnostics. This gate
 does not cover later commits or close the remaining manual and combined reviews.
 
-The [PR checkpoint](pr197-ci-success-837ff74d.json) records all 43 checks
+The [PR checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/pr197-ci-success-837ff74d.json) records all 43 checks
 passing at `837ff74d`, including Windows and macOS. Later commits need their
 own CI results before integration.
 
-The [TLS reader checkpoint](tls-peer-errors-root-checkpoint-c5fe57a8.json)
+The [TLS reader checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/tls-peer-errors-root-checkpoint-c5fe57a8.json)
 records six passes and two local-reader cause failures per host before repair.
 All eight unchanged controls pass at `c5fe57a8`, including the original
 cause identities and record tags. Deferred responses retain their original
@@ -1025,7 +1044,7 @@ The capture owner remains source-partial. Flush, BIO and ALPN failures,
 other established TLS/reset categories, concurrent handler scopes and
 final gates remain open. This record does not close all of A191.
 
-The [QUIC coordinator checkpoint](quic-coordinator-root-checkpoint-145552a1.json)
+The [QUIC coordinator checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/quic-coordinator-root-checkpoint-145552a1.json)
 records six causal failures among eight controls on each host before repair.
 The same eight controls pass after repair at `145552a1`, along with all
 29 selected QUIC, TCP, deadline and ordinary methods on each host. These
@@ -1040,7 +1059,7 @@ and final gates remain open.
 The completed TCP child retains its earlier observation-warning correction.
 This record does not establish whole A180 or A181 closure.
 
-The [capture classification checkpoint](capture-classification-root-checkpoint-d2bfd093.json)
+The [capture classification checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/capture-classification-root-checkpoint-d2bfd093.json)
 records two missing-error regressions on each host before repair. The four
 unchanged controls pass after repair at `d2bfd093`, and all 31 related
 controls pass on both hosts. The full capture selection passes 526 methods
@@ -1054,7 +1073,7 @@ attribution, broader TLS and transport classification, QUIC owners and the
 final integration gate remain open. The pushed `80c7b019` checkpoint has all
 43 PR checks passing; those checks do not cover these newer local changes.
 
-The [handler scope checkpoint](handler-scope-root-checkpoint-6fee7a53.json)
+The [handler scope checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/handler-scope-root-checkpoint-6fee7a53.json)
 records four caller-handler failures on each host, followed by passes for
 the same controls after the repair at `6fee7a53`. All 27 related controls
 pass on both hosts. Windows passes all 522 capture tests. Linux passes
@@ -1069,7 +1088,7 @@ checkpoint has all 43 CI checks passing, including Windows and macOS.
 Those checks apply to that checkpoint. Concurrent handler scopes, QUIC
 descendants, remaining capture branches and final integration gates stay open.
 
-The [accepted-owner checkpoint](accepted-completed-root-checkpoint-9803513f.json)
+The [accepted-owner checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/accepted-completed-root-checkpoint-9803513f.json)
 records the repaired capture owner and TCP fault controls. At `9803513f`,
 Windows passes all 518 capture tests. Linux passes 507 and skips eleven
 platform-specific tests. The same 23 focused Python controls passed earlier
@@ -1087,7 +1106,7 @@ QUIC descendants, simultaneous failures and
 the final workspace gate remain open. No new PR result is inferred from
 these local checks. Earlier records below describe their own revisions.
 
-The [TCP and accepted-handler record](tcp-accepted-root-verification-1f5c128b.json)
+The [TCP and accepted-handler record](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/tcp-accepted-root-verification-1f5c128b.json)
 preserves the TCP repair at `1f5c128b`: all eighteen selected tests pass on
 Windows and Linux. The lifetime controls now validate child and parent
 destruction, socket closure and served counts using observations captured
@@ -1103,7 +1122,7 @@ unreached. The repair is in progress. The pushed checkpoint `22141139`
 has all 43 PR checks passing, including Windows and macOS. Those checks
 apply to that checkpoint; final gates and combined review remain pending.
 
-The [interruption and TCP record](interruption-tcp-root-verification-69b42db8.json)
+The [interruption and TCP record](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/interruption-tcp-root-verification-69b42db8.json)
 preserves four cleanup-interruption identity failures on each host. The
 same five controls pass after the reviewed repair at `1df5404c`. The full
 capture suite passes 515 tests on Windows and 504 on Linux, with eleven
@@ -1122,7 +1141,7 @@ Later parent, socket and count assertions remain unreached in that baseline.
 The later TCP record above preserves the repair. These records do not
 replace the final gate.
 
-The [race capture verification](race-capture-root-verification-4074c370.json)
+The [race capture verification](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/race-capture-root-verification-4074c370.json)
 records eight startup and five allocation failures on both hosts, followed
 by passes for the same nine startup and six allocation controls. The full
 capture suite at `4074c370` passes 510 tests on Windows and 499 on Linux,
@@ -1136,7 +1155,7 @@ on both hosts. Accepted tasks, loop handler restoration, undriven interruption
 combinations and protocol classification remain open. These
 results do not replace the final gate or combined architecture review.
 
-The [confirmed lifecycle batch](confirmed-lifecycle-batch-5973305d.json)
+The [confirmed lifecycle batch](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/confirmed-lifecycle-batch-5973305d.json)
 passes all 66 selected HTTPS/ECH tests on both hosts at `5973305d`.
 Formatting, strict Clippy and Rust 1.88 checks pass. All seven parallel
 worker controls retain their original assertions. Other exact-serving and
@@ -1148,24 +1167,24 @@ unchanged through `5973305d`. Both deferred launch-worker controls now
 pass, including exact failure, Future and cancellation identities.
 Undriven cleanup combinations remain open. Final gates remain pending.
 
-The [launcher checkpoint](launcher-push-checkpoint-4ecba88a.json) passes
+The [launcher checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/launcher-push-checkpoint-4ecba88a.json) passes
 all seven cleanup controls within the full capture suite at `4ecba88a`.
 Windows passes 493 tests. Linux passes 482 with eleven platform skips.
 Independent review confirms that earlier source and changelog. The newer
 deferred executor verification appears above. Undriven removal-error
 combinations and final integration gates remain pending.
 
-The earlier [focused launcher verification](browser-launch-root-fixed-6dd79222.json)
+The earlier [focused launcher verification](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/browser-launch-root-fixed-6dd79222.json)
 records the original seven-control comparison and remaining boundaries.
 
-The historical [ECH and launcher baselines](ech-launcher-root-baselines-c1f659e3.json)
+The historical [ECH and launcher baselines](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/ech-launcher-root-baselines-c1f659e3.json)
 confirm four causal failures in each area on both hosts. The ECH controls
 exercise actual primed HTTP requests and pending workers. The launcher
 controls observe harmless child processes and temporary profiles before
 backup cleanup. Original test prerequisite flaws remain separate. Repairs
 and verification of the combined changes are in progress.
 
-The [browser-driver fix](proxy-browser-context-root-fixed-59634fd7.json)
+The [browser-driver fix](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-browser-context-root-fixed-59634fd7.json)
 passes the same seven controls on both hosts at `59634fd7`. The corrected
 baseline passed two and failed five. Cleanup now destroys the acquired
 resources and retains the original and ordered cleanup failures. The full
@@ -1174,14 +1193,14 @@ skips on Linux. Constructor and reporting failures have source review;
 these seven controls do not drive them or installed Firefox and Android.
 The earlier cross-task identity test flaw remains recorded separately.
 
-The [UDP listener review](udp-listener-accounting-independent-source-review-c0dc392b-compact.md.txt)
+The [UDP listener review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/udp-listener-accounting-independent-source-review-c0dc392b-compact.md.txt)
 approves separate listener/address records at `c0dc392b`. All 15 focused
 methods pass on Windows and Linux. The same selection at `14e43021`
 passes thirteen and fails the two new accounting controls. These controls
 call the actual recorder with literal observations and a synthetic QUIC
 path. They establish no browser or UDP packet-delivery parity.
 
-The [remote-client checkpoint](remote-client-root-native-receipt-e4544b67.md.txt)
+The [remote-client checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/remote-client-root-native-receipt-e4544b67.md.txt)
 passes all 35 focused methods on both hosts at `e4544b67`. Original cause,
 pending-command, credential and socket assertions remain unchanged.
 The unsolicited-handler control fails at the intermediate `8761b046`
@@ -1193,7 +1212,7 @@ The complete capture suite passes 477 methods on Windows. Linux passes
 zero. These tests use scripted peers and controlled faults. Browser-driver
 cleanup and the remaining capture findings are still open.
 
-The [owner and tooling checkpoint](owner-roster-root-native-receipt-fd518ed0.md.txt)
+The [owner and tooling checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/owner-roster-root-native-receipt-fd518ed0.md.txt)
 passes the same 63 focused Rust methods on both hosts at `fd518ed0`.
 Negotiated origin abandonment now reaches destruction before backup and
 socket closure. Facade all-target Clippy and Rust 1.88 checks pass.
@@ -1201,80 +1220,80 @@ All 35 development methods pass on both hosts. The initial Linux run's
 eleven missing-formatter errors remain recorded beside its setup repair.
 These checks cover the named changes; the full gate remains pending.
 
-The [remote baseline review](remote-client-lifecycle-baseline-native-independent-addendum-2e9995c1.md.txt)
+The [remote baseline review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/remote-client-lifecycle-baseline-native-independent-addendum-2e9995c1.md.txt)
 records 34 methods on each host at `2e9995c1`: 24 pass and ten fail.
 The failures follow actual loopback upgrade, command and event exchanges.
 They concern socket cleanup, command causes and registrations, navigation
 failure retention, and benign credential canaries. The fixed result is above.
 
-At `3a68a39f`, the [local checkpoint](ci-repair-root-native-receipt-3a68a39f.md.txt)
+At `3a68a39f`, the [local checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/ci-repair-root-native-receipt-3a68a39f.md.txt)
 passes the same 105 focused methods on Windows and Linux: 57 HTTPS-record,
 44 client-hint and four HTTP/2 upload methods. The two count deadline
 regressions now retain the original `Elapsed` cause and context.
-The [independent focused review](checkpoint-focused-tests-independent-native-addendum-3a68a39f.md.txt)
+The [independent focused review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/checkpoint-focused-tests-independent-native-addendum-3a68a39f.md.txt)
 binds unchanged controls and method sets to the earlier baselines.
 
 Both hosts pass formatting, workspace strict Clippy with all targets and
 features, Rust 1.88 workspace checks, and JSON-only all-target Clippy and
-Rust 1.88 checks. The [CI source review](ci-test-dependencies-conversions-independent-source-review-c0794ff4.md.txt)
+Rust 1.88 checks. The [CI source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/ci-test-dependencies-conversions-independent-source-review-c0794ff4.md.txt)
 approves the explicit test dependency and two removed identity conversions.
-The [terminal review](checkpoint-ci-repairs-terminal-independent-native-addendum-3a68a39f.md.txt)
+The [terminal review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/checkpoint-ci-repairs-terminal-independent-native-addendum-3a68a39f.md.txt)
 confirms all eight steps and clean revision guards. The full gate and final
 review remain.
 
-The [hint remedy review](hint-ownership-remedy-native-independent-addendum-d9418c3a.md.txt)
+The [hint remedy review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/hint-ownership-remedy-native-independent-addendum-d9418c3a.md.txt)
 confirms all 44 unchanged methods pass on Windows and Linux at `d9418c3a`.
 The seven baseline failures now pass their original destruction and concrete
 peer-cause assertions. Formatting, strict Clippy and Rust 1.88 pass.
 The later import/drain cleanup at `f78f63ca` has separate source approval.
 
-The [exact collector review](https-record-origin-serving-fixed-independent-native-e8a0c593.md.txt)
+The [exact collector review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/https-record-origin-serving-fixed-independent-native-e8a0c593.md.txt)
 confirms all 52 unchanged methods pass on both hosts at `e8a0c593`.
 Both completed serving payload identities are retained. Seven ordinary
 QUIC methods exercise the pre-spawn acquisition correction; no OS lookup
 fault is injected. All ancillary checks pass. Remaining descendants and
 drain-error paths are separate open work.
 
-The [count baseline review](quic-count-deadline-baseline-native-independent-addendum-24857484.md.txt)
+The [count baseline review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/quic-count-deadline-baseline-native-independent-addendum-24857484.md.txt)
 confirms five new synthetic controls within 57 methods at `24857484`.
 Both hosts pass 55 methods and fail the two missing-Elapsed assertions
 after entered, pending waits and the original 20-second expiry. This tests
 private owner/counter state, without endpoint or handshake evidence.
 
-The [capture-owner source pass](capture-owner-evidence-reconciliation-7fd07b02.md.txt)
+The [capture-owner source pass](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/capture-owner-evidence-reconciliation-7fd07b02.md.txt)
 completes manual reads of remote, launcher and race owners: 2,466 lines.
 Exact source and range identities bind those reads. Eight findings were
 recorded as A186 through A193; their current states are in the findings
 ledger. Source coverage adds no execution credit.
 
-The [exact serving baseline](https-record-origin-serving-baseline-native-independent-addendum-f75f148b.md.txt)
+The [exact serving baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/https-record-origin-serving-baseline-native-independent-addendum-f75f148b.md.txt)
 runs the same 52 methods on both hosts at `f75f148b`: 51 pass and one fails.
 Two real successful requests and completed worker witnesses precede the
 discarded-error assertion. Formatting, strict Clippy and Rust 1.88 pass.
 The collector repair remains in progress.
 
-The [QUIC acquisition review](https-record-quic-port-independent-source-73804ad4-working.md.txt)
+The [QUIC acquisition review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/https-record-quic-port-independent-source-73804ad4-working.md.txt)
 approves address lookup before task creation. The correction is integrated
 at `f0939302`; composed native verification remains pending.
 
-The [schema layout review](quic-schema-paragraph-independent-root-review-6b433577.md.txt)
+The [schema layout review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/quic-schema-paragraph-independent-root-review-6b433577.md.txt)
 approves 22 paragraph boundaries in two complete manually read files.
 Integrated `73804ad4` preserves all statements, location-free syntax trees,
 the analyzer and controls. No runtime suite was repeated for spacing.
 
-The [hint ownership baseline](hint-ownership-baseline-native-independent-addendum-82d9e082.md.txt)
+The [hint ownership baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/hint-ownership-baseline-native-independent-addendum-82d9e082.md.txt)
 reproduces seven failures in 44 selected methods on each host at `82d9e082`.
 Thirty-seven methods pass. Six failures concern finite task destruction
 after caller exit; one concerns a discarded completed peer error. Actual
 request and cause prerequisites pass before those assertions. The repair
 is in progress. Formatting, strict Clippy and Rust 1.88 checks pass.
 
-The [fixed HTTPS review](https-record-origin-fixed-independent-native-aed0b559.md.txt)
+The [fixed HTTPS review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/https-record-origin-fixed-independent-native-aed0b559.md.txt)
 independently approves the identical fifty-method roster on both hosts.
 The unchanged abandonment control now observes destruction before backup
 and socket closure. Serving-child outcomes remain separate open work.
 
-The [native progress receipt](native-progress-aed0b559.json) records the
+The [native progress receipt](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/native-progress-aed0b559.json) records the
 outer deadline repair, exact-origin cancellation repair and reserved-port
 fixture correction. All fifty selected HTTPS methods pass on both hosts
 at `aed0b559`, with formatting, strict Clippy and Rust 1.88 checks passing.
@@ -1288,7 +1307,7 @@ matching the verified `8c519464` lane. The later paragraph-only follow-up
 is recorded above.
 These are synthetic packet and fixture checks, not browser acceptance.
 
-The [hint admission review](hint-admission-native-independent-addendum-8fb745de.md.txt)
+The [hint admission review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/hint-admission-native-independent-addendum-8fb745de.md.txt)
 confirms all thirty-three selected methods pass on Windows and Linux at `8fb745de`.
 The retained waiting request reaches actual same-key HTTP/2 capacity before
 the first response is released. Every pending probe is dropped before that
@@ -1296,68 +1315,68 @@ request advances. Formatting, strict focused Clippy and Rust 1.88 pass.
 This verifies a source-supported timing correction, not a historical flake.
 Hint peer ownership and structural cleanup remain separate.
 
-The [HTTPS-record source pass](https-record-fixture-standards-review-1088701d.md.txt)
+The [HTTPS-record source pass](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/https-record-fixture-standards-review-1088701d.md.txt)
 records four complete independent owner reads and bounded root checks of
 actual acquisition, serving, finish and deadline scopes. New fixture
 ownership/error findings await causal controls and repairs. This does not
 establish a production ECH failure or a whole-owner root sign-off.
 
-The [certificate repair](certificate-inline-origin-fixed-native-independent-addendum-1088701d.md.txt)
+The [certificate repair](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/certificate-inline-origin-fixed-native-independent-addendum-1088701d.md.txt)
 passes all forty-three unchanged methods on Windows and Linux at `1088701d`.
 The two inline-origin controls first failed after their actual protocol
 prerequisites at `48c41af8`. They now retain the original request and origin
 errors. Earlier missing-certificate and completed-peer controls also pass.
 Formatting, strict focused Clippy and Rust 1.88 checks pass on both hosts.
 The complete requests suite then passes all 489 methods on each host, with
-no skips. The [composition receipt](certificate-repair-and-request-composition-1088701d.json)
+no skips. The [composition receipt](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/certificate-repair-and-request-composition-1088701d.json)
 records actual outcomes without treating them as source-review coverage.
 Final workspace gates, CI and architecture sign-off remain separate.
 
-The [remote fixture repair](remote-peer-fixed-native-independent-addendum-d27da0c1.md.txt)
+The [remote fixture repair](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/remote-peer-fixed-native-independent-addendum-d27da0c1.md.txt)
 passes all twenty-three unchanged methods on Windows and Linux at `d27da0c1`.
 All six controls that failed at `496c38c1` now reach and pass their original
 handler, writer and typed-cause assertions. The complete capture suite passes
 461 methods on Windows. Linux passes 450 and skips eleven platform methods.
 Neither focused nor broader logs contain resource warnings. Ruff and formatting
 pass. These checks cover cooperative fixtures, not the final integration gate.
-The [root checkpoint](remote-and-certificate-checkpoint-d27da0c1.json) retains
+The [root checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/remote-and-certificate-checkpoint-d27da0c1.json) retains
 the exact logs and distinguishes source review from execution.
 
 The corrected certificate baseline at `14eb6aae` reaches all seven causal
 negatives on both hosts. Its wrong-authority QUIC control now passes the exact
 DecryptError prerequisite before rejecting the broad observer. Thirty-four
-positive methods and ancillary checks pass. The [intermediate review](certificate-remedy-independent-source-review-31d67845.md.txt)
+positive methods and ancillary checks pass. The [intermediate review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/certificate-remedy-independent-source-review-31d67845.md.txt)
 requires another fix: two HTTPS callers discard a completed origin failure
 when the request also fails. The later unchanged-control repair is recorded above.
 
-The [prepared upload repair](prepared-body-remedy-independent-native-0418ee46.md.txt)
+The [prepared upload repair](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/prepared-body-remedy-independent-native-0418ee46.md.txt)
 passes all nineteen methods on Windows and Linux at `0418ee46`. Three
 unchanged causal controls now observe finite peer destruction and retain
 the concrete completed peer failure. The corrected baseline and source
 reviews remain recorded. The known form length is checked before allocation;
 no adversarial large allocation was attempted.
 
-The [proxy writer repair](proxy-writer-fixed-native-independent-addendum-0418ee46.md.txt)
+The [proxy writer repair](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-writer-fixed-native-independent-addendum-0418ee46.md.txt)
 passes all thirty-two methods and the isolated traced proxy test without
-resource warnings on both hosts. Its [launcher correction](proxy-writer-native-launcher-independent-correction-0418ee46.md.txt)
+resource warnings on both hosts. Its [launcher correction](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-writer-native-launcher-independent-correction-0418ee46.md.txt)
 binds the actual seven-stage run. Formatting, Ruff, strict focused Clippy
 and Rust 1.88 checks pass. These are focused checks, not the full gate.
 
 The broader capture run passes 455 methods on Windows. Linux passes 444
 and skips eleven platform methods. Four Linux warning headers remain.
-The [isolated attribution](browser-remote-warning-independent-attribution-0418ee46.md.txt)
+The [isolated attribution](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/browser-remote-warning-independent-attribution-0418ee46.md.txt)
 then identifies accepted browser-remote fixture resources on both hosts.
 Its three methods pass despite warnings. Exact cancellation timing remains
 unmeasured. The later repair is recorded above. The old warnings remain
 historical evidence.
 
-The [trust review](trust-oracle-native-independent-addendum-1690c493.md.txt)
+The [trust review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/trust-oracle-native-independent-addendum-1690c493.md.txt)
 confirms all twenty-nine selected proxy methods pass on both hosts at
 `1690c493`. That combined batch failed lint and MSRV on unrelated prepared
 test imports. Later focused checks pass at `0418ee46`. The old
-[compilation checkpoint](checkpoint-5339f15b.json) remains historical evidence.
+[compilation checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/checkpoint-5339f15b.json) remains historical evidence.
 
-The [certificate checkpoint](certificate-outcome-native-checkpoint-843e57c2.json)
+The [certificate checkpoint](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/certificate-outcome-native-checkpoint-843e57c2.json)
 runs forty-one methods on both hosts: thirty-four pass and seven fail.
 Two TCP controls expose broad rejection assertions. Four controls expose
 discarded completed peer failures. The QUIC control fails its alert
@@ -1366,12 +1385,12 @@ verification failure. The later corrected prerequisite is recorded above.
 The later focused remedy approval is recorded above.
 Formatting, strict focused Clippy and Rust 1.88 checks pass.
 
-The [capture review](alps-capture-remedy-independent-native-review-6c98bb6c.md.txt)
+The [capture review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/alps-capture-remedy-independent-native-review-6c98bb6c.md.txt)
 approves all eighteen focused repaired methods on both hosts. The original
 Windows deadline also passes unchanged; its earlier failure cause remains
 unknown. Historical broader warnings remain qualified. Final gates remain.
 
-The [interruption baseline](alps-capture-interruption-native-d83c47db.md.txt)
+The [interruption baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/alps-capture-interruption-native-d83c47db.md.txt)
 runs eighteen capture methods at `d83c47db` on both hosts. Linux passes
 fifteen and fails three. Windows passes fourteen and fails four. Controlled
 interrupted-start/join bookkeeping reaches two unsafe-close assertions.
@@ -1381,35 +1400,35 @@ Ruff lint passes; format reports one long signature. The later repair passes
 the unchanged controls as recorded above.
 Original bounds and historical failures remain recorded.
 
-The [certificate standards review](certificate-request-standards-independent-review-7b6733fc.md.txt)
+The [certificate standards review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/certificate-request-standards-independent-review-7b6733fc.md.txt)
 reads both complete certificate test owners and the identity support owner.
-The [root source pass](client-certificate-root-source-review-7b6733fc.md.txt)
+The [root source pass](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/client-certificate-root-source-review-7b6733fc.md.txt)
 separately reads the parent and two support owners. Missing-certificate
 oracles and outer peer-result handling need causal controls and remedies.
 These findings concern tests; no production certificate failure is shown.
 The version-byte remainder candidate has no established reachable defect.
 
 Independent native reviews approve the reported red
-[trust diagnostic](trust-rejection-diagnostic-independent-native-addendum-56e65606.md.txt)
-and [capture baseline](alps-capture-baseline-independent-native-addendum-659e5576.md.txt).
+[trust diagnostic](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/trust-rejection-diagnostic-independent-native-addendum-56e65606.md.txt)
+and [capture baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/alps-capture-baseline-independent-native-addendum-659e5576.md.txt).
 The capture roster correction fixes a metadata parser that misattributed a
 concatenated unittest heading. Counts and actual runtime outcomes are unchanged.
 
-One [Linux output-holder observation](linux-output-holder-observation-113e5656.md.txt)
+One [Linux output-holder observation](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/linux-output-holder-observation-113e5656.md.txt)
 replays the original 108 methods at `113e5656`: 107 pass and the known trust
 control fails. All ten previously retained-output methods pass. Sampling
 observes 74 test processes, with no additional writer captured. It misses
 short-lived processes and changes timing. The historical cause remains open.
 The original failure policy and evidence are unchanged.
 
-The [independent output assessment](linux-output-holder-independent-assessment-113e5656.md.txt)
+The [independent output assessment](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/linux-output-holder-independent-assessment-113e5656.md.txt)
 checks the complete run logs and parses all 1,831 sampling records. It
 qualifies missing processes and descriptor observations. The installed
 nextest detector measures observed output EOF after child exit. Delayed
 runner observation is a source-supported hypothesis, not an established
 cause. A recurrence needs correlated process and runner evidence.
 
-The [capture baseline](alps-capture-baseline-native-roster-correction-659e5576.md.txt)
+The [capture baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/alps-capture-baseline-native-roster-correction-659e5576.md.txt)
 runs twelve methods on Windows and Linux Python 3.10 at `659e5576`.
 Six positive methods pass. Six negative methods produce eleven failure
 entries, including origin subtests. Real child pipes establish unbounded
@@ -1419,7 +1438,7 @@ The browser and capture binary are controlled substitutes. No socket or
 browser refresh is exercised. The later A170 and A171 repairs pass the
 focused controls recorded above.
 
-The [trust diagnostic](trust-rejection-diagnostic-native-56e65606.md.txt)
+The [trust diagnostic](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/trust-rejection-diagnostic-native-56e65606.md.txt)
 executes the same 26 anchored proxy methods on each host. Windows passes
 24 and fails two; Linux passes 25 and fails one. Both actual unrelated
 expired-alert controls reach the defective broad-predicate assertion.
@@ -1428,90 +1447,90 @@ for the untrusted outer proxy. Linux passes that method. This is an
 observation difference, not a demonstrated production trust failure.
 Formatting, focused Clippy and Rust 1.88 pass. A169 remediation remains open.
 
-The earlier [broader trust run](trust-rejection-baseline-native-113e5656.md.txt)
+The earlier [broader trust run](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/trust-rejection-baseline-native-113e5656.md.txt)
 retains ten Linux forward-proxy leaked-output failures after successful
 inner assertions. The narrow run does not explain those output holders.
-The [independent assessment](trust-rejection-baseline-independent-native-addendum-113e5656.md.txt)
+The [independent assessment](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/trust-rejection-baseline-independent-native-addendum-113e5656.md.txt)
 approves the causal evidence and accurate red result, not integration.
 
-The [proxy coverage reconciliation](proxy-coverage-reconciliation-113e5656.md.txt)
+The [proxy coverage reconciliation](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-coverage-reconciliation-113e5656.md.txt)
 corrects stale inventory rows against exact complete prior manual reads.
 The current five-line trust diagnostic remains separately qualified.
 File identity checks and imported evidence create no fresh semantic review.
 Whole-codebase standards review, final architecture review and gates remain
 incomplete.
 
-The [ALPS quiet repair](hint-quiet-remedy-native-c12d5f49.md.txt) passes
+The [ALPS quiet repair](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/hint-quiet-remedy-native-c12d5f49.md.txt) passes
 all 53 selected request methods on Windows and Linux at `c12d5f49`. Its
 actual failed-read control failed at `71176f08` after a real exchange and
 invoked reader. The unchanged control now observes its original typed H2
 and IO cause. Formatting, strict focused Clippy and Rust 1.88 checks pass.
-Independent [source](hint-alps-quiet-remedy-independent-source-review-95a2baa3.md.txt)
-and [native](hint-quiet-remedy-independent-native-addendum-c12d5f49.md.txt)
+Independent [source](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/hint-alps-quiet-remedy-independent-source-review-95a2baa3.md.txt)
+and [native](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/hint-quiet-remedy-independent-native-addendum-c12d5f49.md.txt)
 reviews approve this bounded result. Hint readiness, ownership and final
 gates remain open.
 
-The [capture source review](capture-session-source-standards-review-42858688.md.txt)
+The [capture source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/capture-session-source-standards-review-42858688.md.txt)
 records five whole owners and seven whole test modules, with supporting
 reads separately qualified. Startup, accepted-task ownership, error
 classification, parsing and input-validation candidates need causal
 controls and assigned repairs. This report has no runtime evidence or
 independent whole-source sign-off.
 
-The [cookie cleanup result](cookie-remedy-native-42858688.md.txt) records
+The [cookie cleanup result](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/cookie-remedy-native-42858688.md.txt) records
 all 50 selected request methods and all 100 HTTP/2 proxy methods passing
 on Windows and Linux at `42858688`. Formatting, strict combined Clippy and
 Rust 1.88 checks pass. All five formerly failing cookie controls now observe
 task release or the completed redirect causes. Independent source review
 approves the ownership remedy and its import-only follow-up. The
-[independent native review](cookie-remedy-independent-native-addendum-42858688.md.txt)
+[independent native review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/cookie-remedy-independent-native-addendum-42858688.md.txt)
 approves the focused cookie results. Final workspace gates remain pending.
 
-The [HTTP/2 native review](h2-connect-registry-independent-native-addendum-a0d2c622.md.txt)
+The [HTTP/2 native review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-connect-registry-independent-native-addendum-a0d2c622.md.txt)
 approves the earlier focused result. Historical failed cookie and HTTP/2
-controls remain preserved. The [hint source review](hint-remaining-source-review-2489815a-final.md.txt)
+controls remain preserved. The [hint source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/hint-remaining-source-review-2489815a-final.md.txt)
 records separate quiet-observer, readiness and ownership candidates. These
 private fixture findings establish no production leak. Imported evidence
 and inventory discovery add no whole-codebase sign-off.
 
 At `e6f01439`, all three real HTTP/3 received-order controls pass on Windows
-and Linux. The [native receipt](h3-trust-native-checkpoint-e6f01439-d0a45c1e.md.txt)
-and [independent assessment](h3-trust-native-independent-addendum-e6f01439-d0a45c1e.md.txt)
+and Linux. The [native receipt](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h3-trust-native-checkpoint-e6f01439-d0a45c1e.md.txt)
+and [independent assessment](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h3-trust-native-independent-addendum-e6f01439-d0a45c1e.md.txt)
 record the exact source and checks. Linux passes the full vendor check,
 including canonical patch replay. Windows passes the package commands;
 archive comparison remains unavailable because native checkout links
 require administrator privileges. The named request-parts change has
 independent source review. These are focused results, not final gates.
 
-At `1ac70fe1`, the [trust-anchor observer repair](trust-observer-remedy-native-1ac70fe1.md.txt)
+At `1ac70fe1`, the [trust-anchor observer repair](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/trust-observer-remedy-native-1ac70fe1.md.txt)
 passes all four methods on both hosts, with default features and all
 features. Each named connector must have its own nonempty batch. The
 unchanged control now rejects equal-count HTTP/1 substitution for HTTP/2.
 The earlier `d0a45c1e` baseline failed that assertion on both hosts.
-Independent source and [native review](trust-observer-remedy-native-independent-addendum-1ac70fe1.md.txt)
+Independent source and [native review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/trust-observer-remedy-native-independent-addendum-1ac70fe1.md.txt)
 are approved. Final gates remain open. Original exceptional cleanup is not
 newly proved.
 
-At `3e48645c`, the [corrected HTTP/2 baseline](h2-lifecycle-baseline-native-3e48645c.md.txt)
+At `3e48645c`, the [corrected HTTP/2 baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-lifecycle-baseline-native-3e48645c.md.txt)
 runs 99 methods per host: 55 pass and 44 fail. All 24 original methods pass.
 The EOF control now passes, and four reset controls reach their intended
 missing-cause assertions. The earlier compiler and control-setup failures
 remain preserved. Fixture ownership, transport causes and poisoned
 observations still need repair. Formatting, selected strict Clippy and
 Rust 1.88 checks pass. Failures count test cases, not production defects.
-The [independent assessment](h2-lifecycle-baseline-native-independent-addendum-3e48645c.md.txt)
+The [independent assessment](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-lifecycle-baseline-native-independent-addendum-3e48645c.md.txt)
 confirms the corrected baseline within its recorded log-reading scope.
 
-At `85f2d58b`, the [request-session deadline repair](request-session-deadline-native-85f2d58b.md.txt)
+At `85f2d58b`, the [request-session deadline repair](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/request-session-deadline-native-85f2d58b.md.txt)
 passes all 31 cookie and hint methods on both hosts. The two actual timer
 controls failed at `33715620`; all 25 previous methods and four positive
 controls passed there. The reviewed private wrappers now retain their
 context and concrete timeout causes. Formatting, strict selected Clippy
-and Rust 1.88 checks pass. The [independent native assessment](request-session-deadline-native-independent-addendum-85f2d58b.md.txt)
+and Rust 1.88 checks pass. The [independent native assessment](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/request-session-deadline-native-independent-addendum-85f2d58b.md.txt)
 approves this focused cause and context evidence. Task ownership and final
 gates remain separate requirements.
 
-At `732d3006`, the [hint observer baseline](request-hint-observers-baseline-native-732d3006.md.txt)
+At `732d3006`, the [hint observer baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/request-hint-observers-baseline-native-732d3006.md.txt)
 runs 41 methods per host: 35 pass and six fail. Real H2/H3 order controls
 reach collapsed-order assertions. Four actual-client controls expose
 wrong-value and unsolicited-header acceptance. All previous methods and
@@ -1519,10 +1538,10 @@ the positive controls pass. Strict Clippy rejects a new test-helper tuple;
 formatting and Rust 1.88 checks pass. These results do not establish
 production defects.
 
-At `121bbf19`, the [current focused receipt](request-h2-checkpoint-native-121bbf19.md.txt)
+At `121bbf19`, the [current focused receipt](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/request-h2-checkpoint-native-121bbf19.md.txt)
 records all 41 request-session methods passing on both hosts. The same six
-order and value negatives now pass. The [observer source review](hint-observer-remedy-independent-review-e5a534d0.md.txt)
-and [layout follow-up](hint-observer-style-independent-rebind-73a761bf.md.txt)
+order and value negatives now pass. The [observer source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/hint-observer-remedy-independent-review-e5a534d0.md.txt)
+and [layout follow-up](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/hint-observer-style-independent-rebind-73a761bf.md.txt)
 are approved. This proves private observer behavior, without establishing
 a production emission defect. Other request-fixture findings remain open.
 
@@ -1531,8 +1550,8 @@ four fail. Forty-three earlier negatives now pass. Poisoned recording still
 loses its cause, and a new actual CONNECT control exposes completed relay
 result loss. Two previously passing tunnel and WebSocket methods regress.
 Formatting and Rust 1.88 pass; strict Clippy rejects two new immediate
-closures. The [intermediate source review](h2-lifecycle-intermediate-independent-source-review-54cf845d.md.txt)
-and [completed-child control review](h2-connect-child-baseline-independent-source-review-16486b2c.md.txt)
+closures. The [intermediate source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-lifecycle-intermediate-independent-source-review-54cf845d.md.txt)
+and [completed-child control review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-connect-child-baseline-independent-source-review-16486b2c.md.txt)
 approve bounded source changes for execution. Their scope does not approve
 this red composition. The earlier `3e148b5a` attempt stopped at private
 import errors before HTTP/2 execution. Its 41 request methods passed.
@@ -1540,11 +1559,11 @@ The reviewed visibility correction preserves existing relay implementations
 and assertions. Native review, remaining repairs and final gates stay open.
 
 At `a0d2c622`, all 100 selected H2 methods pass on both hosts. The
-[current receipt](request-h2-checkpoint-native-a0d2c622.md.txt) retains
+[current receipt](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/request-h2-checkpoint-native-a0d2c622.md.txt) retains
 the completed CONNECT relay's concrete cause and primary/secondary
 assertions, which were unreached at `d983ad7e`. The poisoned-recording and
 ordinary tunnel/WebSocket regressions also pass. The concrete owner and
-[rejection caller correction](connect-registry-compiler-independent-source-review-a0d2c622.md.txt)
+[rejection caller correction](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/connect-registry-compiler-independent-source-review-a0d2c622.md.txt)
 have independent source review. Earlier `2489815a` stops at three missing
 registry arguments before H2 execution; that compiler-only attempt remains
 preserved. Formatting and Rust 1.88 pass. Combined strict Clippy rejects only
@@ -1552,7 +1571,7 @@ the separate cookie handoff nesting. Current independent native assessment
 and final gates remain pending. Drop does not join; explicit cleanup is
 finite, with the recorded cancellation-classification limitation.
 
-At `d983ad7e`, the [cookie cleanup baseline](request-h2-checkpoint-native-d983ad7e.md.txt)
+At `d983ad7e`, the [cookie cleanup baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/request-h2-checkpoint-native-d983ad7e.md.txt)
 executes 50 request-session methods per host: 45 pass and five fail. Two
 cookie task-survival controls fail before backup. Three redirect controls
 reach missing completed-driver outcomes after healthy traffic and injected
@@ -1563,7 +1582,7 @@ credit. The unchanged request rosters repeat at `a0d2c622`; that comparison
 adds no new whole-source or entire repeated-log reading coverage. Cookie
 ownership and redirect remedies are still in progress.
 
-At `2fb596ad`, the [cookie repair receipt](cookie-lifecycle-remedy-root-2fb596ad.md.txt)
+At `2fb596ad`, the [cookie repair receipt](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/cookie-lifecycle-remedy-root-2fb596ad.md.txt)
 records thirty passes per host with all original controls unchanged. Ten
 formerly failing lifecycle cases now pass, including concrete combined
 causes, receiver errors and expiry. Formatting, strict selected Clippy and
@@ -1571,20 +1590,20 @@ Rust 1.88 checks pass on Windows and Linux. The current complete 825-line
 owner has root and independent source review. Independent native review is
 approved; final gates remain open.
 
-At `602284c2`, the [CONNECT repair](connect-lifecycle-remedy-root-602284c2.md.txt)
+At `602284c2`, the [CONNECT repair](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/connect-lifecycle-remedy-root-602284c2.md.txt)
 passes all 106 selected methods per host. The exact public CONNECT prefix
 derives 24 passes from that execution, including all six previous failures.
-This is not a separate run. The [independent assessment](connect-lifecycle-remedy-native-independent-addendum-602284c2-corrected.md.txt)
+This is not a separate run. The [independent assessment](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/connect-lifecycle-remedy-native-independent-addendum-602284c2-corrected.md.txt)
 approves the focused evidence. Explicit cleanup joins owners and retains
 completed causes; synchronous Drop requests abort without a join promise.
 Three server-side trust-rejection assertions remain source candidates.
 
-The [request-session source review](request-session-standards-review-5a28f55f-final.md.txt)
+The [request-session source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/request-session-standards-review-5a28f55f-final.md.txt)
 reads client, cookie and hint owners completely. It reconciles existing
 client fixes and adds eight source candidates, without runtime claims.
 The received H3 ordered-header candidate now has real failing and passing
 QPACK receive controls and a reviewed canonical vendor repair.
-The [broader H2 baseline review](h2-lifecycle-regression-independent-review-49c0aad0.md.txt)
+The [broader H2 baseline review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-lifecycle-regression-independent-review-49c0aad0.md.txt)
 reads all fifteen baseline owners and children. Later source reviews cover
 the compiler corrections and actual EOF/reset control changes. The current
 execution above replaces the unexecuted forecast. Source review scopes stay
@@ -1592,16 +1611,16 @@ bound to their stated revisions; equality checks add no semantic coverage.
 
 The following evidence describes earlier revisions.
 
-At `2cea08af`, the [root native receipt](h2-cookie-corrected-root-2cea08af.md.txt)
+At `2cea08af`, the [root native receipt](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-cookie-corrected-root-2cea08af.md.txt)
 records all 41 H2 methods passing on Windows and Linux. Cookie fixtures run
 thirty methods per host: twenty pass and ten intended lifecycle negatives
 fail. All seventeen previous cookie methods and three positive controls
 pass. The corrected H2 setup reaches actual exchange prerequisites.
 Formatting, strict selected Clippy and Rust 1.88 checks pass. Both runners
-terminate one. The [independent native review](h2-cookie-corrected-native-independent-addendum-2cea08af.md.txt)
+terminate one. The [independent native review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-cookie-corrected-native-independent-addendum-2cea08af.md.txt)
 confirms these focused results. Cookie remedies and final gates remain open.
 
-The [evidence import](recent-evidence-checkpoint-2cea08af.json) preserves
+The [evidence import](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/recent-evidence-checkpoint-2cea08af.json) preserves
 sixty historical reports and the paired current root and independent native
 receipts byte-for-byte.
 Four unchanged complete root source reviews cover the public CONNECT owner,
@@ -1624,15 +1643,15 @@ architecture and full-gate work stays open.
 
 Earlier verification follows.
 
-The [field remedy](field-classifier-capture-remedy-root-ed320379.md.txt)
+The [field remedy](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/field-classifier-capture-remedy-root-ed320379.md.txt)
 passes all twenty-two methods on Windows and Linux. Formatting, strict
 selected Clippy and Rust 1.88 checks pass. Concrete causes, eager recorder
 ownership, preparation errors and rejected proxies are verified. The real
 certificate negative and malformed capture inputs now pass. The
-[independent native review](field-classifier-capture-remedy-native-independent-addendum-ed320379.md.txt)
+[independent native review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/field-classifier-capture-remedy-native-independent-addendum-ed320379.md.txt)
 retains the earlier failing controls and exact current candidate.
 
-The [negotiated remedy](negotiated-proxy-remedy-native-independent-addendum-9de0a354.md.txt)
+The [negotiated remedy](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/negotiated-proxy-remedy-native-independent-addendum-9de0a354.md.txt)
 passes all nineteen methods per host and the same focused checks. Actual
 deadline and combined primary/secondary error assertions now pass.
 Historical seventeen-pass/two-failure evidence remains intact.
@@ -1641,21 +1660,21 @@ The earlier ed320379 bindings retain eleven exact manual anchors. The
 field parent and cookie owner have fresh complete root reads at that
 revision. Other records preserve prior source scope, including the
 negotiated placement-only correction. The
-[checkpoint review](evidence-ledger-independent-review-710d5114.md.txt)
+[checkpoint review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/evidence-ledger-independent-review-710d5114.md.txt)
 keeps seven rejected whole-read candidates unpromoted. HTTP/2 findings
 A141-A149 and cookie findings A151-A155 remain open. The
-[cookie source review](cookie-fixture-whole-source-review-623e18fd.md.txt)
+[cookie source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/cookie-fixture-whole-source-review-623e18fd.md.txt)
 adds no new runtime credit. Final combined review and gates remain open.
 
 At `1e23deb9`, Windows and Linux each pass 89 selected methods: 51 SOCKS,
 17 credential, 14 proxy environment and seven streaming environment tests.
 Formatting, strict selected Clippy and Rust 1.88 checks pass. The
-[root verification](proxy-owner-remedies-root-1e23deb9.md.txt) preserves
+[root verification](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-owner-remedies-root-1e23deb9.md.txt) preserves
 the preceding compiler failure and its direct propagation repair.
 Independent source reviews cover the local setup, environment cleanup and
 credential remedy. Current source bindings replace changed baseline bytes;
 historical records remain intact. The
-[independent native review](proxy-owner-remedies-native-independent-addendum-1e23deb9.md.txt)
+[independent native review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-owner-remedies-native-independent-addendum-1e23deb9.md.txt)
 confirms both hosts and preserves the earlier failed compilation. Final
 combined review and gates remain open.
 
@@ -1665,26 +1684,26 @@ At `ff1d8452`, all 49 forward methods and selected formatting, strict
 Clippy and Rust 1.88 checks pass on Windows and Linux. At `199fa9ad`, the
 SOCKS selection passes 50 of 51 methods; pretransfer setup cancellation
 remains open. Credential fixtures pass eight controls and fail eight
-intended regressions. The [native baseline review](proxy-fixture-native-independent-addendum-199fa9ad.md.txt)
+intended regressions. The [native baseline review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-fixture-native-independent-addendum-199fa9ad.md.txt)
 records first reached failures and unreached assertions separately.
 Independent source reviews approve the forward remedy and its finite-read
 follow-up. The current local setup remedy awaits review and execution.
 
-The [evidence import review](proxy-evidence-ledger-independent-review-81d7-e214.md.txt)
+The [evidence import review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-evidence-ledger-independent-review-81d7-e214.md.txt)
 validates fourteen earlier complete bindings and four configuration/helper
 bindings. The preserved CONNECT-UDP range correction limits its supporting
 read to lines 546-592. Current credential baseline owners have four exact
 complete-read bindings. Later source edits need separate review. Copying a
 report supplies no additional semantic coverage.
 
-The [forward current-source review](forward-proxy-native-and-current-source-independent-review-ff1d8452.md.txt)
+The [forward current-source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/forward-proxy-native-and-current-source-independent-review-ff1d8452.md.txt)
 adds an actual complete manual read of the current 2,355-line owner and
 independently checks both hosts' full selected logs. Four control children
 retain their earlier complete reads and unchanged source bindings.
 
 Earlier verification follows. Final gates and combined review remain open.
 
-The [target observation repair](socks-target-native-independent-addendum-81c61f13.md.txt)
+The [target observation repair](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/socks-target-native-independent-addendum-81c61f13.md.txt)
 passes 50 of 55 selected methods on Windows and Linux. The five remaining
 failures concern local ownership or deadlines. All five target-form controls,
 31 remote SOCKS methods, two DNS overrides, two HTTP/3 fallback methods and
@@ -1692,20 +1711,20 @@ the mapped certificate method pass. Selected strict Clippy and Rust 1.88
 checks pass without warnings. The local ownership remedy is committed in
 its lane and awaits independent review and native execution.
 
-The [forward baseline](forward-proxy-native-baseline-independent-addendum-54c60be7.md.txt)
+The [forward baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/forward-proxy-native-baseline-independent-addendum-54c60be7.md.txt)
 reaches seven intended failures and passes ten positive controls per host.
 Compiler checks pass. The deadline, observer, completed-cause and reader
 contracts require repair. Queued-request task ownership has source evidence
 without a new runtime control. Partial later assertions remain unexecuted
 when an earlier causal assertion fails.
 
-The [Alt-Svc repair](alt-svc-remedy-native-independent-addendum-b6a5acc3.md.txt)
+The [Alt-Svc repair](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/alt-svc-remedy-native-independent-addendum-b6a5acc3.md.txt)
 passes all 44 methods per host. The
-[source review](alt-svc-peer-outcome-remedy-independent-review-06f80364.json)
+[source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/alt-svc-peer-outcome-remedy-independent-review-06f80364.json)
 covers all three changed owners and bounded helper ranges. Existing Drop
 cancellation is retained; explicit error paths now observe peer outcomes.
 
-The [remaining proxy owner review](proxy-remaining-whole-source-54c60be7.json)
+The [remaining proxy owner review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-remaining-whole-source-54c60be7.json)
 adds complete negotiated, credential-cache and field-order source reads.
 Their ownership, observation, timeout and failure-classification findings
 remain open. It does not audit complete production credential-cache
@@ -1715,46 +1734,46 @@ have exact complete-read bindings in the inventory. Changed remote/local
 owners and the 1,988-line forward parent retain partial current coverage.
 The retained reports have separate pending evidence-review dispositions.
 
-The [proxy remedy verification](proxy-remedy-native-root-593fc4ae.md.txt)
+The [proxy remedy verification](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-remedy-native-root-593fc4ae.md.txt)
 records 33 CONNECT-UDP and twenty SOCKS methods passing on Windows and Linux.
-The [independent addendum](proxy-remedy-native-independent-addendum-593fc4ae.md.txt)
+The [independent addendum](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-remedy-native-independent-addendum-593fc4ae.md.txt)
 binds both native runs. Typed deadline errors preserve operation context.
 The retry predicate requires a terminal request observation. Body-close and
 counter-wait expiry paths have source evidence without separate failing
 controls. The original invalid initial-zero expectation remains historical.
 
-The [WebSocket source review](websocket-peer-acquisition-remedy-independent-review-2a103f5a.md.txt)
+The [WebSocket source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/websocket-peer-acquisition-remedy-independent-review-2a103f5a.md.txt)
 approves route-peer ownership, eager upgrade acquisition and typed deadlines.
 At `43fe668c`, 42 WebSocket methods, eleven upgrade owner-result methods and
 the connector-configuration test pass on each host. Formatting, selected
 all-feature Clippy and Rust 1.88 checks pass. The same run has three intended
 origin cancellation failures and 34 passing CONNECT-UDP methods per host.
-The [responder witness review](origin-responder-witness-independent-review-5238f875.md.txt)
+The [responder witness review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/origin-responder-witness-independent-review-5238f875.md.txt)
 explains why closing only the endpoint cannot satisfy the new task-lifetime
 control. Origin ownership and observed failures still need repair.
 
-The [H2 teardown characterization](h2-teardown-characterization-native-independent-addendum-02d07e83.md.txt)
+The [H2 teardown characterization](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-teardown-characterization-native-independent-addendum-02d07e83.md.txt)
 records one plain-drop pass and one post-driver CANCEL cleanup panic on each
 host. The failure reaches final sender destruction after the actual exchange
 and driver joins. This is distinct from test-fixture error retention.
-The [fixture remedy review](h2-peer-completion-remedy-independent-review-f30e0617.md.txt)
+The [fixture remedy review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-peer-completion-remedy-independent-review-f30e0617.md.txt)
 approves owned peers and typed completion causes. The
-[backend source review](h2-late-reset-production-independent-review-d0b56287.md.txt)
+[backend source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-late-reset-production-independent-review-d0b56287.md.txt)
 approves the narrow reset bookkeeping repair. The
-[identity review](h2-late-reset-identity-independent-review-fd7ef84e.md.txt)
+[identity review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-late-reset-identity-independent-review-fd7ef84e.md.txt)
 binds both dependent HTTP fork versions and their locks and patches.
 
-At `fd7ef84e`, the [native addendum](h2-remedy-native-independent-addendum-fd7ef84e.md.txt)
+At `fd7ef84e`, the [native addendum](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-remedy-native-independent-addendum-fd7ef84e.md.txt)
 records all 195 selected H2 tests passing on each host. Both HTTP vendor
 scripts, focused formatting, strict Clippy and Rust 1.88 checks pass.
 The package suite retains one inherited ignored test. The wider facade run
 passes 894 of 896 tests per host. Two unexpected H3 WebSocket CONNECT-UDP
 failures keep the candidate nonzero. Their saved outer errors do not establish
-the cause. The [investigation](websocket-h3-masque-failure-investigation-fd7ef84e.md.txt)
+the cause. The [investigation](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/websocket-h3-masque-failure-investigation-fd7ef84e.md.txt)
 records the source path and a diagnostic plan, with its candidate qualified.
 
-The [SOCKS baseline review](socks-peer-regression-independent-review-3fa93b02.md.txt)
-and [origin baseline review](connect-udp-origin-failure-baseline-independent-review-e331c242.md.txt)
+The [SOCKS baseline review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/socks-peer-regression-independent-review-3fa93b02.md.txt)
+and [origin baseline review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/connect-udp-origin-failure-baseline-independent-review-e331c242.md.txt)
 approve controls before repair. At `7cd14620`, each host reaches all six
 SOCKS negatives and passes 23 positives. Windows reaches four origin
 negatives and passes 35 positives. Linux reaches the same four negatives,
@@ -1762,12 +1781,12 @@ passes 34 positives and also fails the existing route-reuse method.
 Formatting, focused Clippy and Rust 1.88 checks pass. The unexpected reuse
 failure remains under investigation rather than an accepted baseline result.
 
-The [local and forward proxy review](local-and-forward-proxy-standards-review-3fa93b02.md.txt)
+The [local and forward proxy review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/local-and-forward-proxy-standards-review-3fa93b02.md.txt)
 records complete manual reads of both owners. Their current committed bytes
 match those records. A123-A129 retain the ownership, observation, deadline
 and layout repairs still required. The
-[H1 child review](h1-ownership-children-root-source-fd7ef84e.md.txt) and
-[H2 child review](h2-ownership-children-root-source-7cd14620.md.txt)
+[H1 child review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h1-ownership-children-root-source-fd7ef84e.md.txt) and
+[H2 child review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-ownership-children-root-source-7cd14620.md.txt)
 add four complete child reads. A130 records three remaining timer-cause
 losses. Supporting reads keep their separate partial scopes.
 
@@ -1775,7 +1794,7 @@ These focused checks and source reads do not close whole-workspace gates
 or the final architecture review. New raw evidence objects remain pending
 scope reconciliation in the inventory.
 
-The [expanded baseline](capacity-peer-native-baseline-independent-addendum-82fd3695.md.txt)
+The [expanded baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/capacity-peer-native-baseline-independent-addendum-82fd3695.md.txt)
 at `82fd3695` reaches eight SOCKS failures and passes
 23 controls per host. The new TLS acquisition control reaches completed
 cause loss before its later destruction assertion. The pool control reaches
@@ -1783,27 +1802,27 @@ its destruction-at-return assertion. The oversized origin payload fails
 while ordinary forwarding and duplicate-control error retention pass. The
 actual 12-second peer deadline fails while its five companions pass.
 
-The [composed verification](capacity-origin-remedy-native-independent-addendum-482e75dd.md.txt)
+The [composed verification](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/capacity-origin-remedy-native-independent-addendum-482e75dd.md.txt)
 at `482e75dd` records ten H3 proxy controls, six peer
 deadline controls, all 39 origin methods and both original WebSocket callers
 on Windows and Linux. Formatting, focused Clippy and Rust 1.88 checks pass.
 All 57 focused methods pass per host. Whole-workspace verification remains.
 The earlier Linux reuse failure has no captured cause and remains qualified.
 
-The [Alt-Svc source review](alt-svc-state-owner-standards-review-8d834d49.md.txt)
+The [Alt-Svc source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/alt-svc-state-owner-standards-review-8d834d49.md.txt)
 records seven complete manual reads at `8d834d49`, rebound at `7fbeaab3`.
 Supporting production and dependency ranges remain partial. A132 records
 caller errors skipping completed peer results, distinct from the repaired
 Drop ownership. A133 records three independent-case paragraph boundaries.
 
-The [SOCKS source review](socks-peer-remedy-independent-review-0d561bbd.md.txt)
+The [SOCKS source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/socks-peer-remedy-independent-review-0d561bbd.md.txt)
 records complete manual reads of the three repaired owners and their
 235-line decoder. Their exact current source identities match those reads.
-The [Alt-Svc import correction](alt-svc-baseline-visibility-independent-review-83616c72.md.txt)
+The [Alt-Svc import correction](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/alt-svc-baseline-visibility-independent-review-83616c72.md.txt)
 records a complete read of the new 127-line control. Other supporting
 ranges retain their partial scopes.
 
-The [native verification](socks-alt-native-independent-addendum-6d6cd85e.md.txt)
+The [native verification](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/socks-alt-native-independent-addendum-6d6cd85e.md.txt)
 at `6d6cd85e` records all 31 selected SOCKS methods passing per host.
 Alt-Svc passes four controls and reaches one intended completed-cause
 failure after preserving the typed HTTP/1 body error. Formatting, focused
@@ -1811,55 +1830,55 @@ Clippy and Rust 1.88 checks pass on Windows and Linux. Both runners remain
 nonzero. These selections exclude 202 proxy and 290 HTTP/3 methods per host.
 The Alt-Svc remedy and whole-workspace gate remain required.
 
-The [proxy verification](proxy-storage-native-independent-addendum-440dc2ad.md.txt)
+The [proxy verification](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-storage-native-independent-addendum-440dc2ad.md.txt)
 records twenty configuration controls and forty-five route unit tests passing
 on both Windows and Linux. Focused formatting, Clippy, Rust 1.88 and rustdoc
 checks pass. The earlier candidate failed Clippy because its retained
 credential error enlarged an environment error. Boxing that concrete cause
 resolved the diagnostic while preserving its source chain.
 
-The [capture verification](capture-composed-native-independent-addendum-60b26063.md.txt)
+The [capture verification](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/capture-composed-native-independent-addendum-60b26063.md.txt)
 records fifty-seven methods passing on both hosts. Publication controls use
 real staged files. Startup controls establish acquired-server cleanup calls
 and retained failures, without proving native socket drain.
 
-The [stream retention review](capture-aggregate-stream-retention-independent-review-440dc2ad.md.txt)
+The [stream retention review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/capture-aggregate-stream-retention-independent-review-440dc2ad.md.txt)
 identifies a separate aggregate bound missing from the capture recorder.
 Five new controls fail on Windows before repair. Four positive controls pass.
-The [composed verification](environment-capture-corrected-native-independent-addendum-a6368df9.md.txt)
+The [composed verification](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/environment-capture-corrected-native-independent-addendum-a6368df9.md.txt)
 records all sixty-six methods passing on Windows and Linux. Formatting and
 Ruff checks pass. These results establish the recorder's stream limits,
 without establishing whole-process memory bounds or live browser behavior.
 
 That same corrected run observes seven intended environment fixture failures
 per host. The earlier proxy baseline did not compile, and is retained in the
-[original run](state-environment-native-baseline-independent-addendum-86e01bfd.md.txt).
+[original run](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/state-environment-native-baseline-independent-addendum-86e01bfd.md.txt).
 Three nested result-propagation corrections make the baseline executable.
-The [later verification](state-environment-upgrade-composed-native-independent-addendum-41f94110.md.txt)
+The [later verification](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/state-environment-upgrade-composed-native-independent-addendum-41f94110.md.txt)
 records all twenty-one environment controls and forty Alt-Svc state controls
 passing on each host after their independently reviewed repairs. Its unrelated
 new upgrade controls reproduce five failures, and its Clippy check fails on a
 single conditional. That failed candidate remains recorded.
 
-The [route review](route-source-native-review-dda49bed.md.txt) records four full
+The [route review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/route-source-native-review-dda49bed.md.txt) records four full
 owner reads. Default, HTTPS-record and all-feature checks, Rust 1.88, Clippy,
 formatting, rustdoc and eleven facade route controls pass on both hosts.
-The [layout follow-up](route-model-layout-followup-independent-review-505808d9.md.txt)
+The [layout follow-up](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/route-model-layout-followup-independent-review-505808d9.md.txt)
 is independently approved. The later native selection passes three network
 and thirty facade route controls per host. Final combined review remains
 pending.
 
-The [expanded upgrade baseline](cache-source-upgrade-baseline-root-c9ebfaac.md.txt)
-and its [independent addendum](h3-upgrade-fourteen-native-independent-addendum-759e0002.md.txt)
+The [expanded upgrade baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/cache-source-upgrade-baseline-root-c9ebfaac.md.txt)
+and its [independent addendum](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h3-upgrade-fourteen-native-independent-addendum-759e0002.md.txt)
 record fourteen controls on both hosts: nine intended failures and five
 positives. Its formatting, selected HTTP/3 Clippy and Rust 1.88 checks pass.
-The [remedy review](h3-upgrade-owner-remedy-independent-review-d89883df.md.txt)
+The [remedy review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h3-upgrade-owner-remedy-independent-review-d89883df.md.txt)
 approves owner and connection-worker result collection. The later
-[native addendum](upgrade-cache-remedy-native-independent-addendum-2b4a401b.md.txt)
+[native addendum](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/upgrade-cache-remedy-native-independent-addendum-2b4a401b.md.txt)
 records all fourteen controls passing within the complete 271-test HTTP/3
 binary on each host. The nine original failures remain preserved.
 
-The [current cache and interface review](net-cache-interface-current-standards-review-cb4c8388.md.txt)
+The [current cache and interface review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/net-cache-interface-current-standards-review-cb4c8388.md.txt)
 adds full reads of both production owners and their direct tests. Three cache
 tests need explicit readiness instead of scheduler timing assumptions. The
 root's later paragraph edits preserve behavior and are independently approved.
@@ -1867,33 +1886,33 @@ Supporting partials and historical source identities remain qualified.
 
 The same native run passes all forty-two cache tests and twenty-one
 environment controls per host. Formatting, selected Clippy and Rust 1.88
-checks pass. The [cache follow-up](cache-test-readiness-release-independent-followup-bdb07168.md.txt)
+checks pass. The [cache follow-up](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/cache-test-readiness-release-independent-followup-bdb07168.md.txt)
 approves explicit gate release before readiness assertions. The three revised
 tests establish pending selection, without claiming a measured historical
 flake or a new production defect. Whole-workspace gates remain pending.
 
-The [facade source review](facade-error-response-template-standards-review-c485de7f.md.txt)
+The [facade source review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/facade-error-response-template-standards-review-c485de7f.md.txt)
 adds complete reads of errors, root exports, responses and template tests.
-The [H2 owner review](h2-connection-driver-standards-review-c485de7f.md.txt)
+The [H2 owner review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-connection-driver-standards-review-c485de7f.md.txt)
 adds complete connection and driver reads. Test placement, export ordering,
 category wording and operation grouping have scoped remedies in progress.
 Separate remaining H2 test-peer failure paths need causal controls and repair.
 Supporting caller and dependency ranges retain their qualifications.
 
-The [attribute review](evidence-attributes-independent-review-b1687d15.md.txt)
+The [attribute review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/evidence-attributes-independent-review-b1687d15.md.txt)
 approves removing thirty-four repeated rules. Effective attributes remain
 identical for all tracked paths and three future report probes. Original
 report bytes remain unchanged. This adds no runtime or source-review credit.
 
 ## Vendor evidence reconciliation
 
-The [retained records](vendor-reviewed-records.json) preserve 288 validated
+The [retained records](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/vendor-reviewed-records.json) preserve 288 validated
 historical review scopes across 152 inventory paths. Repeated records are
 distinct from files. Complete patch reads and partial upstream reads remain
 separate. These records do not approve subsequent changes or establish current
 compiler selection.
 
-The [reconciliation](vendor-source-reconciliation.md) resolves historical
+The [reconciliation](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/vendor-source-reconciliation.md) resolves historical
 Git identities, declared Windows line endings and two reconstructed instruction
 states. The original reports remain retained. Two invalid ranges remain
 excluded: H3 client connection ended at line 794, and the native ECH source
@@ -1910,7 +1929,7 @@ and cleanup, address cache publication, proxy setup, TLS ticket storage,
 and socket FFI. Both passes leave substantial source and test gaps.
 
 Profile and QUIC review has a
-[per-file record](profile-quic-coverage.json). Production model and provider
+[per-file record](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/profile-quic-coverage.json). Production model and provider
 reads now cover every tracked file in both assigned crates, including
 browser recipes and tests. Raw capture trees have group-level provenance
 review, rather than an all-byte review. Source review is not a cryptographic
@@ -1933,7 +1952,7 @@ set resolves, which does not prove each feature combination compiles.
 After the ACK parser repair, the selected-source tree confirms Quinn-proto
 `.4`, Quinn `.4`, and H3 dependencies `.9` through those same local paths.
 
-Testkit and fuzz review has a [per-file record](testkit-fuzz-coverage.json).
+Testkit and fuzz review has a [per-file record](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/testkit-fuzz-coverage.json).
 It covers all assigned source, tests, small configuration and prose, including
 DNS reply ownership, capture parsers, oracle assertions, and harness drivers.
 Packaged fixture bytes have syntax and provenance checks, rather than manual
@@ -1941,40 +1960,40 @@ all-byte decoding. The fuzz lock has a parsed identity check. Five legacy
 fuzz targets lack separate harness seed regressions; parser tests do not
 prove those exact builders. Outside-scope caller reads remain partial.
 
-Tooling review has a [per-file record](tooling-coverage.json) with reviewed
+Tooling review has a [per-file record](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/tooling-coverage.json) with reviewed
 ranges and source hashes at the starting revision. It traced CI job
 classification, required checks, gate results and signal handling, release
 boundaries, and candidate refresh. Isolated reproductions demonstrate a
 lock-recovery race, two false-success scans, and a failed freshness report.
 Its three partial reads and the untouched tooling remain explicit gaps.
 
-Continued client review has a [per-file record](client-remaining-coverage.json)
+Continued client review has a [per-file record](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/client-remaining-coverage.json)
 for constructors, environment proxy snapshots, request preparation, hooks,
 redirects and replay. Continued transport review has its own
-[per-file record](net-remaining-coverage.json), covering direct setup, request
+[per-file record](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/net-remaining-coverage.json), covering direct setup, request
 validation, selected HTTP/3 state, TLS configuration and early data. These
 records retain the reviewed revisions and explicit partial reads. Pools,
 response decoding, remaining transport tests and other gaps still need review.
 
-The [proxy continuation](net-proxy-continuation-coverage.json) records ten
+The [proxy continuation](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/net-proxy-continuation-coverage.json) records ten
 further complete file reads, including SOCKS tunnels, UDP associations and
-HTTPS CONNECT. The [documentation pass](docs-contract-coverage.json) records
+HTTPS CONNECT. The [documentation pass](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/docs-contract-coverage.json) records
 page reads, source comparisons and explicit gaps. A full page read establishes
 text coverage, rather than proof of every linked implementation or claim.
 
-The [client lifecycle continuation](client-lifecycle-continuation-coverage.json)
+The [client lifecycle continuation](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/client-lifecycle-continuation-coverage.json)
 records pool and prune ownership, cookies, hints, attempts, decoding and replay.
 Its 51 complete reads and one partial request read use exact committed blob
-hashes. The [network lifecycle continuation](net-lifecycle-continuation-coverage.json)
+hashes. The [network lifecycle continuation](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/net-lifecycle-continuation-coverage.json)
 adds CONNECT-UDP, TCP and independent body, upload and platform test contracts.
-The [establishment continuation](net-establishment-continuation-coverage.json)
+The [establishment continuation](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/net-establishment-continuation-coverage.json)
 adds TLS, negotiated protocols, HTTP/3 wrappers, DNS inputs and adversarial
 tests. Its final DNS range completes the earlier partial read. Network hashes
 identify Windows working bytes at the recorded revision. All 99 new records
 were checked against their respective hash basis and line ranges. These
 passes retain their gaps and do not imply runtime verification.
 
-The [input and runtime continuation](net-input-runtime-continuation-coverage.json)
+The [input and runtime continuation](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/net-input-runtime-continuation-coverage.json)
 records 34 further complete reads and one partial HTTP/3 helper read. All 35
 source identities and ranges match Windows working bytes at `df2ae9b7`.
 The review covers authorization, public exports and errors, request metadata,
@@ -2026,7 +2045,7 @@ At that revision the later server-limit test patch still needed its final
 identity and repeated vendor check. Its two rejection and two exact-boundary
 tests pass at `0fdbaa16`; the subsequent `.11` verification is recorded below.
 
-The [consumer configuration review](consumer-configuration-coverage.json)
+The [consumer configuration review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/consumer-configuration-coverage.json)
 records fourteen complete integration-owner reads, totaling 1,030 lines.
 It covers issue forms, ownership, license files, independent consumer source
 and the downstream checker. Windows path and Git consumer checks pass at
@@ -2049,20 +2068,20 @@ reviews, with 31,916 lines across the complete records. Exact committed
 object IDs, SHA-256 values, line counts and inclusive ranges were verified.
 The records retain previous partial credit and distinguish cache/setup
 reinspection from first inspection. Net records describe `df2ae9b7`; the
-[public stream review](client-public-stream-continuation-coverage.json)
+[public stream review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/client-public-stream-continuation-coverage.json)
 describes `0ad0d560`. They establish source coverage, not new runtime results
 or final-candidate review. The port-zero and empty-stress corrections pass
 focused Windows and Linux controls; other assertion gaps remain open.
 
-The [resolver tests](net-resolver-tests-continuation-coverage.json),
-[upgrade and ALPS tests](net-upgrade-alps-continuation-coverage.json), and
-[TLS controls](net-tls-controls-continuation-coverage.json) add thirteen complete
+The [resolver tests](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/net-resolver-tests-continuation-coverage.json),
+[upgrade and ALPS tests](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/net-upgrade-alps-continuation-coverage.json), and
+[TLS controls](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/net-tls-controls-continuation-coverage.json) add thirteen complete
 source reads, totaling 2,165 lines. Each source hash and inclusive range was
 verified against its recorded Git blob or Windows working bytes at `df2ae9b7`.
 Adjacent reports state test contracts, timing and platform assumptions, and
 remaining gaps. These are source reviews without execution evidence.
 
-The [network manifest, example and benchmark review](net-manifest-examples-bench-continuation-coverage.json)
+The [network manifest, example and benchmark review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/net-manifest-examples-bench-continuation-coverage.json)
 adds eighteen complete reads and 3,801 lines at `df2ae9b7`. Exact committed
 blob identities, hashes, line counts and inclusive ranges were checked.
 It covers the manifest, six benchmarks, seven examples and four external
@@ -2073,12 +2092,12 @@ tool configuration and stale capture-label candidates stay open.
 Three retained independent reviews cover DNS capture ownership, cookie-cache
 diagnostics and image arguments. Their seventeen exact source identities,
 line counts and ranges were checked before import. Full and partial reads
-remain distinct. The [conformance continuation](new-tooling-source-pass-04-coverage.json)
+remain distinct. The [conformance continuation](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/new-tooling-source-pass-04-coverage.json)
 adds eighteen complete repository reads, two partial documentation reads and
 bounded pinned upstream source records. Its report separates manual counts,
 file ownership and external cleanup candidates from runtime observations.
 
-The [maintainer configuration record](maintainer-configuration-coverage.json)
+The [maintainer configuration record](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/maintainer-configuration-coverage.json)
 contains seven complete integration-owner reads covering optional command
 hooks, review duties, permissions, byte-preservation attributes, ignored
 artifacts and dependency policy. Its 335 lines were read as source. The optional
@@ -2128,19 +2147,19 @@ its implementation, tests and actual workflow caller. Twenty focused
 methods and the composed forty-four-method conformance suite pass on
 Windows. Those controlled tests do not establish live Docker cleanup.
 
-The [WebSocket continuation](client-websocket-continuation-coverage.json)
+The [WebSocket continuation](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/client-websocket-continuation-coverage.json)
 records sixteen complete reads at `04aa870b`, including all three protocol
 dispatch paths. Further tooling passes retain their own revisions and gaps:
-[development and docs](new-tooling-source-pass-01-coverage.json),
-[Autobahn](new-tooling-source-pass-02-coverage.json),
-[initial WPT](new-tooling-source-pass-05-coverage.json), and
-[WPT and TLS-Anvil](new-tooling-source-pass-06-coverage.json).
+[development and docs](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/new-tooling-source-pass-01-coverage.json),
+[Autobahn](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/new-tooling-source-pass-02-coverage.json),
+[initial WPT](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/new-tooling-source-pass-05-coverage.json), and
+[WPT and TLS-Anvil](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/new-tooling-source-pass-06-coverage.json).
 Together with the two ownership reviews below, 96 historical records passed
 source-identity, hash and range validation before import. Repeated reads do
 not count as additional distinct files; historical complete reads do not
 approve subsequent changes automatically.
 
-The [private download review](a50-private-staging-independent-review.json)
+The [private download review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/a50-private-staging-independent-review.json)
 approves separate, exclusively created staging directories and create-only
 publication. The initial fourteen-pass/two-failure replacement baseline is
 retained. At `73a08ed8`, eighteen tests pass on Windows and Linux, including
@@ -2148,17 +2167,17 @@ two owners competing for one output, actual HTTP/3 downloads, cancellation,
 and platform-specific cleanup or permission controls. The Linux example
 also compiles on Rust 1.88. Deliberate modification inside private staging
 and ancestor replacement remain outside its documented contract. The
-[two-owner review](a50-two-owner-independent-review.json) also approves
+[two-owner review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/a50-two-owner-independent-review.json) also approves
 the added portable control at `73a08ed8`. It exercises overlapping owners
 with sequential publication, rather than simultaneous scheduling stress.
 
-The [WebSocket bounds review](a55-production-independent-review.json)
+The [WebSocket bounds review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/a55-production-independent-review.json)
 approves the authored remedy and composed source at `66d20201`. Six controls
 pass on Windows and Linux, and the Linux Rust 1.88 library check passes.
 The iterator control establishes bounded consumption. It does not measure
 allocation or bound arbitrary iterator implementations.
 
-The [version-server review](a54-production-independent-review.json) covers
+The [version-server review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/a54-production-independent-review.json) covers
 scratch ownership and close-finally across publication and cancellation.
 The composed 51-method conformance suite passes on Windows and Linux.
 Actual loopback runs complete three default and one explicit observation,
@@ -2173,15 +2192,15 @@ that warning. Its cause remains unresolved, and the combined gate must
 check it again. Linux reports no such warning. These checks remain focused
 verification rather than a full gate.
 
-The [TLS cleanup review](a57-production-independent-review.json) approves
+The [TLS cleanup review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/a57-production-independent-review.json) approves
 the source at `78e664a0` with a required workflow trigger correction. Twelve
 source identities and ranges and eight retained log hashes were verified
 before import. Composition removes duplicated Autobahn container inspection
 and removal in favor of the same concrete owner checks. The combined
 84-method suite passes on Windows and Linux. The
-[composition review](a57-shared-composition-independent-review.json)
+[composition review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/a57-shared-composition-independent-review.json)
 then requires two interrupted Autobahn retention repairs. The
-[follow-up](a57-shared-composition-followup-review.json) approves their
+[follow-up](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/a57-shared-composition-followup-review.json) approves their
 exact source at `54ebd468`: 88 composed methods pass on Windows and Linux,
 and an independent 21-method run confirms both CLI diagnostics. Thirty
 further historical source records were checked before importing the two
@@ -2189,13 +2208,13 @@ composition reviews and the WPT review below. Full and partial credit remain
 distinct. These checks do not establish actual Docker cleanup, cancellation
 of late daemon work, or bounded initial log memory. Final gates remain open.
 
-The [WPT acquisition review](a56-production-independent-review.json)
+The [WPT acquisition review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/a56-production-independent-review.json)
 records a required repair at `18319655`. Its actual Windows child control
 exposes files deleted before the acquired child exits. The existing 25
 methods passing does not approve that ownership boundary. The subsequent
-[acquisition review](a56-acquisition-independent-review.json) confirms the
+[acquisition review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/a56-acquisition-independent-review.json) confirms the
 native ownership repair but requires another interruption correction. The
-[final review](a56-acquisition-followup-independent-review.json) approves
+[final review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/a56-acquisition-followup-independent-review.json) approves
 the corrected source at `91caf511`. Twenty-eight source records passed hash,
 identity and range checks before import. Earlier request-changes reports
 remain retained at their original revisions.
@@ -2215,7 +2234,7 @@ Two selected-daemon regressions fail before that addition and pass afterward.
 The combined suite runs 143 methods: Windows has two explicit platform skips;
 Linux has one. The actual Linux descendant control observes child exit before
 restoration. Controlled resource fixtures do not establish real Docker cleanup.
-The [initial independent review](a53-composed-independent-review.md) requires
+The [initial independent review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/a53-composed-independent-review.md) requires
 two further recovery corrections.
 
 The reviewer reproduces two further recovery failures at `cb935f2f`. A log
@@ -2224,7 +2243,7 @@ automatic-checkout cleanup error omits previously retained scratch paths.
 The signed regression-only checkpoint at `9fd7b1a7` passes eighteen controls
 and fails the two added recovery contracts. The correction at `de146f12`
 preserves cleanup after log inspection failure and all retained recovery
-paths. The [follow-up review](a53-composed-followup-independent-review.md)
+paths. The [follow-up review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/a53-composed-followup-independent-review.md)
 approves that source. Thirty-four first-party and sixteen bounded upstream
 records passed source, range and evidence validation before import.
 
@@ -2236,9 +2255,9 @@ and CI remain separate verification.
 
 ## Continued standards reviews
 
-The [source reconciliation](new-source-review-reconciliation.json) checks
+The [source reconciliation](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/new-source-review-reconciliation.json) checks
 261 records against their exact source revisions and the aggregate at
-`eb2c3fd0`. The [import receipt](new-source-review-import.json) records 164
+`eb2c3fd0`. The [import receipt](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/new-source-review-import.json) records 164
 existing-row updates. Historical changed files, declaration scans and
 mechanical API comparisons receive no new full-source credit. Original
 prose reports remain byte-exact in adjacent `.md.txt` files.
@@ -2329,22 +2348,22 @@ remain separate requirements.
 
 ## Current controls and source findings
 
-The [facade verification](facade-api-native-independent-addendum-96ee6074.md.txt)
+The [facade verification](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/facade-api-native-independent-addendum-96ee6074.md.txt)
 records twenty-two selected tests per host and eighteen passing focused
 stages. Eight API generators succeed. Six retained outputs match. Two stale
 outputs are refreshed at `96ee6074` and independently approved. These checks
 do not establish a full workspace gate or a new review of every API line.
 
-The [H2 baseline](h2-peer-completion-baseline-independent-review-a1df13f2.md.txt)
+The [H2 baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-peer-completion-baseline-independent-review-a1df13f2.md.txt)
 records seven passes and seven failures per host at `ba6e60c3`. Four failures
 reach the intended assertions. Three are masked by client connection cleanup
 panics, as confirmed by the separate Windows backtraces. The baseline needs
 correction before those three error and ownership claims can be tested.
 Formatting, focused Clippy and Rust 1.88 pass. No remedy is approved yet.
 
-The [WebSocket and acquisition review](client-websocket-upgrade-independent-disposition-96ee6074.md.txt)
+The [WebSocket and acquisition review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/client-websocket-upgrade-independent-disposition-96ee6074.md.txt)
 supports three new findings after four full owner reads. Supporting source
-reads remain partial. The [proxy test review](proxy-test-owner-independent-disposition-96ee6074.md.txt)
+reads remain partial. The [proxy test review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-test-owner-independent-disposition-96ee6074.md.txt)
 supports four further findings after complete CONNECT-UDP and SOCKS owner
 reads. Controls and remedies remain pending. Test-fixture defects do not
 establish production connection leaks. The repaired upgrade parent remains

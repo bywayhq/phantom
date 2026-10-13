@@ -1,9 +1,0 @@
-# Template reply remedy source review
-
-No blocker found. Signed clean 93c7d077a86065ab15f67b48aaae50adfa424edd is source-approved for bounded integration and paired verification. Signature G, both required human identities and Conventional subject verified. Only the canonical reply loop changes; whole-parent directed inverse restores b6f1053d exactly. The first proof attempt omitted the added blank line; the corrected inverse includes it and passes without source mutation.
-
-I read the complete delta and handoff MD/JSON, current parent 1238–1278 including the entire changed helper 1238–1264, and supporting tls 69–106 / 208–225. This is not a fresh whole 1437-line parent review. The previous independent whole 219-line reply child review is bound to its unchanged object; all 41 earlier methods, helper files and every other tree object remain unchanged.
-
-Successful read_head preserves the original count increment and reply write. Its real 32KiB bound returns original InvalidData, now returned by value through the existing TestResult instead of becoming a successful count. The existing predicate accepts four kinds: BrokenPipe, ConnectionReset, ConnectionAborted and UnexpectedEof. A brief's five-kind wording is a count-label error; the actual predicate has four unchanged kinds. Legitimate EOF/partial-peer disconnect remains normal completion; no new parser or alternate reader is introduced.
-
-The code adds no task, timer, wire change or ownership repair. A235 raw helper/caller ownership remains open. Source approval is not remedy execution or whole-audit approval. Root must verify both reply controls plus the retained 41-method template selection, formatting, strict requests-target Clippy and Rust 1.88 at the composition; root owns changelog and central metadata. No compiler, tests, imports, formatter, checker or resource probes were executed for this review.

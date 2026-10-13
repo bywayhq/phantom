@@ -1,7 +1,0 @@
-# Fallible fallback driver observation independent review
-
-Approve bd8ab382 for the root causal baseline. The original df8 report remains immutable. No native, compiler, formatter, checker or target imports ran.
-
-The corrected publication retains the actual AbortHandle even if the observation mutex is poisoned, then returns an explicit phase-specific error. Active lookup is fallible. Explicit backup stops the parent, recovers the actual nested handle while retaining an observation error, observes requested nested termination under the unchanged finite bound, and attempts client cleanup regardless of earlier failures. Existing concrete composition retains all observed outcomes. Drop recovery only requests abort and makes no error/join claim. MutexGuard-backed PoisonError identity is not falsely claimed as Send+Sync error storage.
-
-Both reverse-hunk inverses reconstruct df8 exactly. The three original control bodies are byte-exact; local import order is corrected and ordinary None operations remain unchanged. Fresh current reads cover parent136–192, child1–220, the changed lookup scope and complete delta; the prior whole343 control/support reads remain qualified rather than becoming fresh whole376 coverage. Source forecast remains two positives and one destructor deadline; no runtime result or production ownership repair is approved here.

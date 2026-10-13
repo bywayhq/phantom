@@ -1,9 +1,0 @@
-Signed source remedy `2257e7a89c2dbf308f1cf493ca639473ac1fffb7` changes only the H3 replay comparison call, a concrete 66-line staging owner and a 213-line nine-control test owner. Both commit identities are Arya Alikhani <AryaAlikhani@icloud.com>; signature status is G. The lane is clean.
-
-The stage owner checks the exact four tracked mode120000 stage0 license entries, exact `../LICENSE` blob bytes and actual symlink targets or ten-byte placeholder bytes. It copies the vendor snapshot without target directories or those four verified link entries, then writes the referenced full shared license to each staged path. This avoids creating symlinks on Windows. The final comparator still compares LICENSE content; a changed full license is not normalized away.
-
-The archive checksum, canonical patch replay and existing comparison exclusions are unchanged. The entire checker inverse restores its parent exactly, and every tree entry outside the three owned paths is unchanged. The original four-line Windows license comparison failure log remains immutable and hash-bound.
-
-Full fresh manual reads cover the new staging owner and test owner; the checker H3 function, existing staging conventions, Git index documentation and policy callers are explicitly partial. The Python control file parsed statically. No target imports, tests, ShellCheck, Ruff, replay, Cargo or resource probes ran. Nine test methods cover placeholders, real symlinks, metadata/checkout rejection, explicit Git failure and full-license mismatch; real-symlink fixture creation may skip an unprivileged host.
-
-Independent source review and paired execution remain required. Root owns the changelog, pinned ShellCheck/Ruff, focused dev tests and actual H3 replay/package checks. This handoff does not claim a passing vendor gate or full workspace gate.

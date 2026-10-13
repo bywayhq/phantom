@@ -1,7 +1,0 @@
-# QUIC and relay baseline metadata fidelity
-
-No metadata blocker found at signed8ce05b16. Twenty complete logs, twenty-four sidecars, whole49-line launcher, receipt, recorder and central diff were read. All44 raw artifacts, ten source bindings and nineteen imported files are exact. Inventory preserves original order: twenty unique appends, one whole discovery-parent promotion and four evidence suffixes. That source disposition retains open grouping/readiness/cache-oracle findings and does not promote supporting partial reads.
-
-Both hosts execute focused5=4PASS1missing-local-errorFAIL and overlapping full32=31PASS1sameFAIL. The failure follows trusted page/actual completed-worker and shutdown/record prerequisites; later StreamError and payload-identity assertions remain unreached. The controlled local injection is not a measured natural OS fault. H3/fallback selections and HTTP3 quality fail E0432 before execution. Net all-targets strict Clippy/MSRV pass; formatting flags one registry wrap. Both runners remain1.
-
-Original1efa compilation failures and prior H3/fallback baselines remain preserved. New sibling/cancellation controls receive no native credit here. Reviewer authored those controls and a prior imported metadata report; this assessment checks composition and executed artifacts without self-approving source. No semantic repair, production defect, whole source re-audit, fresh CI or full-gate approval is claimed. Root owns corrections and remaining verification.

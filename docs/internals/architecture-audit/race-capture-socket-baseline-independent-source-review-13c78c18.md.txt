@@ -1,7 +1,0 @@
-# Lower allocation baseline source review
-
-Source-approved exact13c78c18 for the guarded six-control causal run. All236 lines of the new test owner and the actual allocation/retry scopes were read. Only the new test file changes; the canonical owner and543 startup controls remain byte-exact to its parent. This is separate from the nine-method startup baseline.
-
-The subclass invokes native listen/setblocking before its controlled fault and records actual descriptors, native socket types, bound addresses, listening and blocking states. UDP controls require an exact literal self-datagram. Second construction faults before allocating the second socket while retaining the actual first UDP descriptor. Every negative requires exact primary identity before pre-backup closure. Registered backup invokes original native close and restores the shared factory in finally before loop shutdown.
-
-The candidate port comes from actual canonical paired allocation and is then released; strict witnesses require successful rebind. It is not a held reservation. Finite5s datagram receives are synchronous. Forecast remains one positive/five negatives with no execution credit. Native faults, cleanup-error chaining, whole C runtime, browser parity and full gates are not established.

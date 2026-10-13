@@ -1,9 +1,0 @@
-# Fallback body-driver baseline independent source review
-
-Decision: hold df8ede9f pending the bounded mutex/error-retention and import correction. No runtime was executed.
-
-The controls observe actual canonical body.data() Pending after literal payload consumption. Trusted TLS, negotiated h2, actual client/server drivers and withheld END_STREAM establish the prerequisite. The destructor is captured before spawn; the actual AbortHandle is published before the body await. Parent cancellation is acknowledged before the destructor deadline. Source forecast: two positive passes and the typed deadline at312; socket observation318 remains downstream. Healthy upload sends END_STREAM, checks literal204 and original POST/path/payload, and obtains the parent result after its actual driver join.
-
-Two new mutex expect accesses can panic: parent publication and the backup accessor in finish/Drop. The latter can skip client cleanup and replace an initiating failure. The correction must preserve poison as a fallible prerequisite, recover a handle only for abort cleanup, attempt all independent owners, and retain the original poison error. Local imports need the requested super-before-crate order. No compilation failure is inferred by this source review.
-
-Exact reverse-hunk parent inverse restores63487cf8; only parent and new child changed. Fresh manual reads cover whole343 child, whole268 ConnectionPeer, whole225 TLS, parent130–195 and dependency ranges in JSON. The complete diff was read; that does not establish fresh whole-parent coverage. ConnectionPeer Drop requests abort; explicit stop retains observed non-cancellation outcomes. Backup is registered before acquisition and composed after the oracle. No universal cleanup, nested-result retrieval, native or full gate approval is claimed. First writer failed its inverse preflight before any report output; the corrected exact inverse passes.

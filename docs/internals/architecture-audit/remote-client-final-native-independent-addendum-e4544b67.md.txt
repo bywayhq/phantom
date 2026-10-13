@@ -1,9 +1,0 @@
-Final remote-client native comparison
-
-At 8761b046d90f1ef3b7d46e1c900f18bd27d71bdc both hosts execute the same 35 methods: 34 pass and the unsolicited-handler control fails at line 59 after its real exchange, empty registry and invoked handler prerequisites. Later reader-error and writer-closing assertions remain uncredited there. This is the intermediate c729 owner with e7 control, rather than the original 34-method raw-owner baseline.
-
-At e4544b672d3392ae73fc582d22f63cc7c46ce5d0 both focused runs pass all 35, including the unchanged control's exact reader/close failure identity and writer closure assertions. Lint, format, test and runner statuses are zero. Four source blobs equal approved final 09b; all three test blobs are unchanged across the focused comparison. This is identity binding to prior manual source reads, not new whole coverage.
-
-The separate complete capture discovery at the same fixed revision runs 477 methods on each platform. Windows passes all 477; Linux passes 466 and records eleven explicit Windows-specific skips. Its test and runner exits are zero; all 35 remote methods pass within each broad roster as well. Complete 556/550-line broad logs contain no ResourceWarning or RuntimeWarning headers. Deliberate argument-rejection diagnostics belong to passing tests. Both complete launchers (42 and actual 26 lines), logs, exits, revisions and runner receipts were read and hashed: 42 raw artifacts.
-
-This approves the focused native evidence and current capture composition. It does not establish every source owner, browser/live credential behavior or a full integration gate. Cancellation-resistant callbacks remain the documented bounded observation limit, and the separate ProxyBrowserDriver browser cleanup boundary stays open. No reviewer runtime or tracked source edits occurred.

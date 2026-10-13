@@ -1,9 +1,0 @@
-# Request-template reply resource follow-up
-
-Signed commit `b6f1053d5720799ae2463307443a12b5fce39bac` follows frozen `faec687b506fa56ab2cb89346b0ef7309b051df9` for A234. Both required human identities and signature G are verified. Only the 219-line reply_contract child changes; its whole source was read. Exact inverse restores the original185-line child. Both test bodies, parent, original worker and every other path remain unchanged.
-
-After the actual original worker result at162, the client must observe EOF or an expected shared peer-gone error. The original listener address must rebind while the client and runtime remain live. Both observations have independent five-second bounds and precede target validation and backup at171. An unexpected resource error keeps the already-captured original worker error alongside it; backup remains separate and still runs.
-
-The new first forecast missing-error site is187, conditional on actual resource prerequisites. No result is measured. The initial faec report is preserved and hash-bound, including its explicit absence of an independent socket oracle. New supporting read is pinned TLS AsyncRead190–224; earlier support ranges remain historical to the first handoff.
-
-No Cargo, native target, formatter, checker, import or resource probe was run. Independent source review and both-host baseline remain root-owned. A235 broader raw default worker ownership and beyond-budget destruction are not closed by this slice.

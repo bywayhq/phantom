@@ -1,9 +1,0 @@
-# Cleanup interruption baseline independent source review
-
-Approved signed 91bd333d for the bounded five-method causal baseline, after root composes the exact verified 4074 capture owner and existing startup scaffold. The author lane does not contain that scaffold; approval does not imply standalone execution there.
-
-Fresh manual read covers the complete 129-line new control, supporting scaffold 1–407 and canonical cleanup/capture 919–1076. Git hashes and inclusive range hashes are paired in JSON; supporting owners remain partial. Removing the sole new child restores the full parent tracked tree exactly.
-
-The real trusted H2 GET/200/ok and done/204, three literal datagrams, complete cleanup order, acquired-resource counts and closure snapshots all precede the target interruption assertion. Each exact injected failure follows actual UDP close. Backup is registered before acquisition and bypasses injected closure wrappers. Direct same-coroutine await preserves interruption identity without the child-Task runner hazard; the timer is canceled on every outcome.
-
-Forecast only: one healthy positive and four negatives at exact interruption identity (97–101). Later secondary-cause assertions have no execution credit. These are controlled Python post-close exceptions, not OS interruption, actual caller cancellation or native close failures. Closure snapshots do not prove handler joins or UDP shutdown completion. The cooperative watchdog is not a hard deadline. No tests, Cargo or runtime operations were performed by the reviewer. Full integration and remaining interruption combinations stay open.

@@ -1,7 +1,0 @@
-# Independent fallback native addendum
-
-At frozen `4d99e490`, both complete focused logs show all 16 fallback methods passing: Windows12.69s, Linux10.91s. The same roster includes all three unchanged deadline controls and thirteen ordinary/SOCKS methods. Every test/format/strict facade HTTP3 test-Clippy/Rust1.88 test-check status and both aggregate runner statuses is zero. The exact launcher validates clean source before and after execution and independently records each command status. Root supplied authoritative terminal handle results; this review independently reads the recorded artifacts.
-
-The parent and deadline-child Git objects exactly equal the independently source-approved `63487cf8` objects. Historical `4c55e280` raw logs remain unchanged and show the intended missing-Elapsed failure with two positives passing. The fixed selection reaches the actual typed-source, unchanged deadline/message, original inner allocation and ready-success assertions. All receipt artifact hashes and lengths were reconciled against the complete raw files.
-
-No target or resource execution was performed by this reviewer. This is bounded focused native credit, not the full workspace gate or fresh CI approval. Broader fallback task ownership/aggregation and wire/timing observer limitations remain open. Formatter-only ECH composition adds no new TCP runtime credit.

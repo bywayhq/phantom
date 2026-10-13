@@ -1,9 +1,0 @@
-# TLS reader control source review
-
-Approved for root causal execution of the four frozen `4fa20031` controls; no source blocker found.
-
-Two positives retain real healthy trusted H2 traffic before actual prefix EOF or native malformed TLS input on a distinct partial peer. Two negatives deliver the original local exception object through the actual pending StreamReader boundary after independent waiter/task/owner prerequisites. Native TLS input and controlled local reader provenance remain distinct.
-
-Whole new209 and complete signed diff read. Relevant canonical60-line TLS implementation and resolved CPython APIs are partial supporting reads; reused classification428/accepted265 whole reads and backup contracts bind identical blobs. All earlier files remain exact. The unrelated f68 deferred observer defect is not installed by these controls and still requires separate c73 correction.
-
-No execution or measured outcomes. Root must run four unchanged controls on both hosts and preserve actual native TLS shape/first failure boundaries, then composed capture and applicable lint/format/docs gates. No full A191, production/browser or integration approval.

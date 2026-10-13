@@ -1,5 +1,0 @@
-# Fallback import grouping follow-up
-
-Signed clean `63487cf8` moves only the four local support imports and their blank separator after the Tokio group. Alias spelling/order stay exact. The whole-file inverse restores7a exactly, so every function, constant, deadline control and all other tracked objects/modes remain unchanged.
-
-Fresh read is current imports1–41 only; parentEOF679 and both human identities/signatureG are bound in JSON. No target execution, imports, Cargo, formatter, parser, checker or probe ran. The original7a handoff is preserved; this authored follow-up requires independent source review before integration.

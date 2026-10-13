@@ -1,7 +1,0 @@
-# ECH lifecycle fixed verification
-
-Exact5973305d passes the unchanged66-method selection on Windows and Linux, with259 skipped per host. Format, strict selected Clippy, Rust1.88 checks and both guarded runners all exit0. Both complete test logs, ancillary logs and terminal records were read; the21 artifacts are bound by hashes. The selected rosters equal the prior d6 run.
-
-All seven frozen parallel controls pass within this66-method execution, including the completed-cause and closed-gate assertions previously established in the focused d6 addendum. The former manual_async_fn diagnostic is now absent from both complete Clippy logs. Exact source identity matches the retained597 source approval; this adds no fresh whole-source reading.
-
-The original compiler failure and d6 Clippy101 remain immutable historical evidence. This approves the focused verification only; no main integration, full-gate, browser-parity or universal beyond-bound joined-cleanup claim is made.

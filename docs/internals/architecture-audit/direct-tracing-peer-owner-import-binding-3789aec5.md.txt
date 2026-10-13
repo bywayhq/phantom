@@ -1,5 +1,0 @@
-# Direct and tracing import correction
-
-Signed clean `3789aec5e9a0e5e3693435af2d023cbfc688e52c` follows `ba09b85086619f05b986e36b41a41013b2b1ec26`. Only two imports change, resolving FixtureFailures through its existing tunnel_proxy::connection_peer module. The full two-line diff and signature were read. Both human Git identities retained.
-
-The earlier ba09b850 handoff remains applicable to all other source. Controls exercise an actual faulted HTTP1 send and retain its original RequestError; no invalid-URI forecast. No native execution or ownership remedy. Independent source review and paired baseline remain pending.

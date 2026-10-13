@@ -1,9 +1,0 @@
-# Request/status evidence checkpoint independent review
-
-Approved bounded documentation checkpoint `aeea9a48c7b05aaf89fad33fc93052b79a4fc0a4..a4cfdc587fce23410d4e6b295c84755562616510`: all three complete documentation diffs and eighteen archived report copies reviewed. The final coverage diff contains no unrelated encoding change. No Rust changes belong to this checkpoint.
-
-The request claim is the independently measured 41 passes per host at `30e4999b`, including six prior causal negatives. The status claim is the independently measured 29 passes per host at `aeea9a48`, including eighteen original contracts, seven unchanged controls and four additional methods. Focused quality passes are accurate. The earlier `5b0e57b6` E0521 failure executed no tests. Earlier request compiler, phase-ambiguity and lint qualifications remain archived; historical pre-repair observations are identified as such.
-
-Inventory changes two existing status source annotations, adds two request source annotations and appends eighteen evidence rows without sorting or unrelated edits. Complete immutable-source reads and subsequent complete composition deltas are distinguished from current native acceptance. All eighteen reports are individually byte-exact to scratch originals, with binary-preserving attributes already present. Coverage, findings and inventory retain broader A236/A244/A233 gaps, cleanup races, parser/acquisition/deadline boundaries, full gates and CI as open. The HTTP/1 title claims replacement requests only, without a resumption observation.
-
-Root reports the documentation checker passed with zero errors and warnings after the encoding correction. This reviewer executed only read-only Git/filesystem inspection and scratch report writing. The later `bb1769ff` HTTP/1 composition is excluded from this checkpoint approval.

@@ -1,9 +1,0 @@
-# Tracing capture prerequisite
-
-Frozen signed clean checkpoint `52acfe03d6f84a246e155f90afd2c5fc761c42f7`, parent `3789aec5e9a0e5e3693435af2d023cbfc688e52c`. Author and committer Arya Alikhani <AryaAlikhani@icloud.com>.
-
-Exactly one line changes in Capture::dispatch: interest is rebuilt synchronously under that capture's scoped dispatcher. Resolved tracing-core0.1.36 uses current default dispatch in its sole-dispatcher rebuild path. with_default sets the capture for the closure and restores the previous dispatcher through its RAII guard, including unwind.
-
-All capture interest/enabled behavior, empty-capture/privacy assertions, original task/result policy and owner controls remain unchanged. No shared/global default or new fallback. Complete diff and relevant actual APIs reviewed. No execution performed.
-
-Independent source gate and root paired group qualification remain required. The direct/tracing ownership remedy is still on hold.

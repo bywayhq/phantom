@@ -1,7 +1,0 @@
-# Request-template fixture controls source review
-
-Approved `ead478635cc11b97a3a5d35b10bbe26f4530494b` for a focused causal baseline. This independent read covers the complete209-line fixture, complete97-line wire helper and caller195–216 only. The original163-line reader prefix is byte-exact; the signed human commit adds only four inline controls.
-
-Each negative exercises the actual Capture entrypoint: signed hexadecimal bytes, non-ASCII byte-boundary slicing and duplicate serialized keys. The Unicode case fails if the decoder panics; no catch converts a panic into success. The positive independently requires literal repeated-header order, pseudo-header exclusion and uppercase hexadecimal acceptance. Expected parser failures are source forecasts, not executed results.
-
-No source blocker found. No target code, compiler, formatter, checker or runtime was run. Root still needs formatting, focused fixture runtime, relevant strict test Clippy and MSRV checks. This is pure fixture coverage, not wire acceptance or whole-suite approval.

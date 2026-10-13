@@ -1,9 +1,0 @@
-# Composed capture verification
-
-Both complete4074c370 capture logs, exact guarded revisions/statuses and launcher were independently read. Windows510PASS116.003s; Linux499PASS11platformSKIP54.512s; test/runner0 on both. The same510 method identities are discovered on both platforms.
-
-Compared with retained dcb495, every prior method keeps its platform status. Exactly15 new methods are the frozen nine startup and six allocation controls; all pass. Both existing adapted UDP accounting methods also pass. Prior historical failures and focused repair records remain unchanged.
-
-Each log includes six expected argument-rejection messages inside passing validation tests. Windows also records asyncio slow-callback diagnostics in passing controls. No test errors/failures, unhandled callback/thread/task exceptions or resource/runtime warnings were found. An initial combined display was truncated; all affected ranges were reread separately before claiming complete logs.
-
-This approves the driven Python capture composition only. Cleanup-only interruption plus a secondary failure remains unresolved. No whole-source coverage promotion, accepted-descendant/browser parity, Rust full gate or main approval is given. No reviewer execution or source mutation occurred.

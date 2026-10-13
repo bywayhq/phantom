@@ -1,9 +1,0 @@
-# Loopback QUIC cleanup style follow-up
-
-Signed 7fd9d452 is approved as a source-preserving follow-up to the independently reviewed 1aeba5ef baseline. The complete signed diff and all six affected functions, current lines 359–470, were read. It adds exactly six empty lines before the nested body functions; the original whole 464-line review remains historical and current 1–358 are byte-exact.
-
-Removing current lines 361, 372, 386, 399, 417 and 432 reproduces the original Git bytes exactly. Whole-file Python 3.10 ASTs without location attributes are identical. Every other tracked tree entry is exact, original handoffs and the original independent pair are unchanged, both required human identities and signature G are verified, and the lane is clean.
-
-No operation, fault timing, wire prerequisite, cancellation delivery, target assertion or backup changed. Forecast remains two passes and four causal failures. Closure still fails at shared line 353; body-primary and first-cancellation identity forecasts shift to 425 and 468. Later cause, secondary and closure oracles remain unexecuted and uncredited.
-
-The known six-blank correction is resolved in source. No Ruff or target runtime was run by this reviewer, so this is not an independently measured formatting pass or a native result. Root should run the focused six Python 3.10 controls on both hosts and pinned Ruff lint/format, then the applicable complete capture suite and integration gates from AGENTS.md. No vendor package is touched. All baseline dependency, finite-backup and source-only limitations remain in the original review; this is not full-audit, integration, merge, push or current-CI approval.

@@ -1,7 +1,0 @@
-# Socket harness correction
-
-Exact5816a708 is source-approved for rerun only. The tiny complete diff and current observer/install scope were read. All six test AST bodies and canonical/startup owners remain unchanged. Only the race-local socket binding is now substituted; the real shared module and native socket class remain intact. SO_ACCEPTCONN is queried only for TCP, and the first unbound UDP checkpoint omits getsockname while retaining fd/type.
-
-Initial13c source approval was too strong for Windows type/API compatibility. Actual Windows failures occur at wrong primary identity: unsupported UDP option10042 or unbound getsockname10022. Twelve proactor self-pipe TypeErrors arise from socket.socket becoming a function, directly matching resolved windows_events462. No Windows target closure credit is given. The complete Linux log reaches all five intended closure assertions172/186/199/213/232, with one healthy pass. Both original runs exit1.
-
-Original logs and source review remain immutable. The historical Windows log was read at diagnostic scopes1–82 and309–391 plus complete token analysis, not claimed as a fresh every-line read. Corrected native execution remains pending. No allocation cleanup remedy, startup remedy, main or full-gate approval is given.

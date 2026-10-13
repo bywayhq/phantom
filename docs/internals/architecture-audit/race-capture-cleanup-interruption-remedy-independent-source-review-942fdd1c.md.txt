@@ -1,9 +1,0 @@
-# Cleanup interruption remedy independent source review
-
-Approved signed 942fdd1c for unchanged five-control and composed verification; no fixed native result is credited yet. Complete capture_run 930–1054, existing aggregate 919–928, retention helper 1057–1084 and the full semantic diff were read. Remaining owner bytes are preserved by independent whole-file byte/AST inverse, not newly whole-file audited.
-
-With no operation primary and multiple cleanup failures, the first non-Exception BaseException occurrence becomes the exact primary. Removing only its index preserves secondary identities, ordering and duplicate occurrences. At least one secondary remains; existing singleton/aggregate construction and cause retention are reused. Single-failure, all-ordinary, initiating-primary and every actual acquisition/cleanup/wire operation remain unchanged. Manual operation grouping is coherent.
-
-The root fa owner equals verified 4074; original 543/245/129 control bytes match retained bindings. Integration must preserve root's separate A192 per-listener accounting delta. Root-only controls are not claimed to exist in the author's main-derived lane.
-
-Measured baseline negatives stop at identity assertion 97; secondary assertions 102–104 need the fixed run. Multiple interruptions, duplicate occurrences, cyclic graphs and native close faults remain source-only. The existing helper avoids introducing cause/context cycles without promising a universally acyclic retained object graph. No reviewer runtime or tracked edits occurred; full gates and separate descendant/protocol/handler concerns remain open.

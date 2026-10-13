@@ -1,9 +1,0 @@
-# QUIC serving baseline source review
-
-Frozen `d1aa43c418de4f6a65e4c13665ba190473ef7363` needs one narrow scaffold correction before native approval. Active fault observation and installation recover poisoned mutex state silently (entry33–36 and176–179). Use fallible access that reports failed observation state while preserving original response/fault objects and cleanup. This is a supported source gap, not a measured workflow defect.
-
-The whole new233-line entry and258-line concrete owner were read. Complete parent/declaration diffs and qualified supporting ranges were read. Independent reverse-hunk checks reconstruct both parent files exactly; the declaration-only inverse preserves every old27 test byte. All other tracked paths are unchanged.
-
-The trusted actual H3 clients wait for peer SETTINGS, receive literal PAGE with response FIN, close their real connections, and require both actual workers completed before canonical finish_capture. The post-success controlled typed fault runs after original response operations; no worker result is consumed by the scaffold. The saved collector outcome remains retained if DNS/driver/drain prerequisites fail. Concrete acquired resources remain owned through subsequent fallible awaits and explicit bounded backup combines returned failures.
-
-Two positives and one missing-error negative are source forecasts only. The predicted first negative is216; typed payload219–226 is downstream. Endpoint idle means connection-map termination, not socket destruction. Drop aborts are not joins. Active poison, wider QUIC classification, simultaneous causes, publication and final gates remain unmeasured/open. No target execution, compiler, checker, imports or resource probes ran. Exact source/read scopes, inverses and immutable handoff hashes are in the paired JSON.

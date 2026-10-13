@@ -1,9 +1,0 @@
-# Independent fallback deadline source review
-
-Approve the combined `7a298806` typed repair and `63487cf8` import follow-up for integration checks. The original actual Tokio `Elapsed` is owned by the private error and exposed through `Error::source()`. The literal deadline message and 20-second deadline remain unchanged. Inner operation failures retain their original object; ready success remains unchanged.
-
-The touched local imports originally violated std/external/local grouping. The follow-up moves exactly the four aliases and resolves that minor finding. Exact whole-file inverses prove the parent semantic delta, two child assertion wraps, and import movement. All other tracked objects and modes are unchanged. Both commits have good signatures and the required human author/committer identity.
-
-Fresh manual review includes the whole 96-line child, bounded parent/alias/API ranges recorded in JSON, the complete diffs and both authored report pairs. Parent preservation is mechanically complete, while fresh parent reading is explicitly partial. The controls use the actual polled pending future, entered witness, time advance, typed source walk and pointer identity; they do not synthesize an Elapsed or mirror its implementation.
-
-Both historical 29-line raw focused logs show two positive passes and the intended missing-Elapsed failure. These are historical raw-log observations only; candidate native verification, terminal receipt review and the final workspace gate remain pending. No code/resource execution or tracked edits were performed. Required integration checks are the unchanged three controls on both hosts, applicable test Clippy/MSRV, formatting and the full repository gate.

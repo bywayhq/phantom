@@ -1,5 +1,0 @@
-Proxy browser cancellation baseline correction
-
-Source-approved for causal rerun at0519fc93. Complete diff and changed current472 scopes were read. Removing only the capture field/wrapper and restoring four observer expressions reconstructs the entire prior352 child. Six other methods remain AST-exact. Canonical owners and all resource/backup oracles are unchanged.
-
-The wrapper directly awaits canonical entry, captures its escaping cancellation and bare-rethrows before the Task boundary. External assertRaises remains, while exact identity now compares two observations in the same coroutine. Actual completed startup precedes the held await, so this path obtains real cancellation objects without a new gate or forced cleanup. Original119 cancellation failed its prerequisite and grants no lifetime credit. Corrected runtime causality remains pending; no execution or source edit occurred here.

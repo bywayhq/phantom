@@ -1,9 +1,0 @@
-# Android status regression independent native addendum
-
-Exact frozen `802517fa`: Windows106 PASS (41.569s); Linux104 PASS/two Windows-only skips (20.956s). Both focused, Ruff check, format96 and aggregate/runner exits are zero. Complete current paired logs, quality/guard files and both exclusive guarded launchers were freshly read. Windows has eight slow Task diagnostics; Linux none. No unexpected warning, error, traceback or backup-failure entry was observed.
-
-The unchanged status six compare to retained `115c03af` one positive/five failures at231. All six now pass. Canonical error category/text/object identity233–238, body-primary/cause/context240–245, only-failed-slot retry247–251 and final no-op252–256 are reached before backup. These assertions remain uncredited on the original baseline. Actual local payload/temporary cleanup is distinct from modeled remote state and controlled subprocess statuses.
-
-The prior100 selection (57 Android/43 desktop) retains exact identity/order/status and Linux skip text through complete structured comparison to historicala1 logs. That comparison is not a renewed whole-manual-read claim for the old logs. All selected prior test blobs are identical; current Android/failure owners match approved21412 exactly. Supporting source identity does not promote partial owner review to whole-source coverage.
-
-This approves only local106 status/desktop regression coverage. Separate Android async six remain one healthy/five saved-progress failures and are excluded here. No device/browser-live, full-capture, Rust gate, main or final audit approval. No new target execution, imports, resources or tracked writes performed.

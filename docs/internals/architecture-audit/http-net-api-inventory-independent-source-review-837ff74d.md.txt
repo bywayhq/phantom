@@ -1,9 +1,0 @@
-At `837ff74d312928d8a25fa6a7f5c3974dbc21c4a0`, both generated inventories were manually read in full: `phantom-http-all.txt` has 1,046 lines and `phantom-net-all.txt` has 1,250. No new supported API defect was found in this bounded pass.
-
-The exact package is `phantom-http`, with library namespace `phantom` and owner directory `crates/phantom`. The manifests, export roots, inventory README, network README, base URL and hook owners, admission owner, HTTP1 TLS error owner and hidden TCP backup owner were read completely. Declaring/caller ranges for routes, request/body validation, admission, builder bounds and source forwarding are listed with exact hashes in the paired JSON; those larger owners remain partially reviewed.
-
-The inspected contracts support fallible base URL resolution, ordered hooks with retained causes, checked admission ceilings, explicit route/protocol rejection, bounded body collection, typed body failures and nested source forwarding. Public dependency documentation matches the inspected signatures. Private definition paths printed by the generator and omitted doc(hidden) pool seams do not establish inaccessible API defects. A58 retired aliases remain retired.
-
-These are source dispositions, not whole-crate, runtime or downstream compilation approvals. No generator, Cargo, target imports or runtime probes ran. No gate result is inferred from the active integration-owner workspace gate. Truncated reads were repeated or excluded; exact scopes and measured EOF are recorded in JSON. The previous profile/testkit report is unchanged.
-
-The integration owner still owns the full AGENTS gate, including workspace format, strict Clippy, nextest, doctests, rustdoc, Rust1.88, optional-feature/platform rows and applicable Python/documentation checks. This read-only slice touches no vendor source and requires no new vendor replay by itself.

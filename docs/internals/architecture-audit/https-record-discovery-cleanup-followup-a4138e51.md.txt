@@ -1,7 +1,0 @@
-# Held lookup cleanup source follow-up
-
-Frozen signed `a4138e511d969dbfad1a840b9918b2ba93b66d3b` atop `e2f380bccdff7bcd892d37ff458d66c29aa2c052`, clean with both required human iCloud identities. Only the229-line completion companion changed. Original checkpoint and handoff remain immutable.
-
-An actual failed lookup now returns concrete HeldLookupFailure carrying HttpsLookupErrorKind and useful cleanup context. The release outcome is independently observed even after a lookup error, and both results are combined by finish_with_cleanup under the same five-second deadline. The existing outer combination retains the initiating operation and fixture cleanup too. The original resolver Result is unchanged; the metadata category does not claim original resolver error identity.
-
-The complete child inverse restores the original203 bytes. The control method, held resolver, release owner and all other source paths remain exact. Source-text proof and manual diff review only; no compilation, formatter, lint or runtime checks were run. Root independent review and focused execution remain required.

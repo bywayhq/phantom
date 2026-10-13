@@ -1,9 +1,0 @@
-No source findings. Approve immutable7809cfb2 for root causal baseline execution only.
-
-Complete146-line new owner,181-line old handler controls, exact signed diff, AGENTS/gate-reviewer and Ruff configuration were read. Canonical parent1128–1153/1290–1311 and actual CPython Handle/contextmanager/loop-handler ranges are partial. Grouping and names serve the observable cases; no copied owner algorithm/getter/setter, wire change, unsafe or unrelated source edit exists.
-
-Actual scheduled throwing Handles produce original exceptions and contexts. The call_exception_handler observer forwards to its real bound implementation. Event wake cannot resume the waiter before current callback dispatch ends. Exact Handle/error/context identity and literal callerH forwarding precede the target. A exits while B is active; B later restores stale A. Final-H snapshot precedes mandatory original-handler backup. NestedLIFO and active reset/unrelated forwarding are independent positives. Every Handle is cancelled in finally; manual scopes unwind and the outer finally restores the actual pre-test handler. No socket or workerTask is acquired.
-
-All3548 previous tree entries and every signed handoff source/range hash match; saved diff is exact. Required humanicloud author/committer and signatureG verified. Initial lane was clean7809; author subsequently advanced it cleanly to dffe for a separate control, excluded here. Earlier837/0b evidence does not cover overlap. Forecast two positives and one final restoration negative. Active reset filtering after early exit remains outside these three controls.
-
-Root needs both-host focused tests, pinned Ruff lint/format, applicable full capture discovery and integration gate. No vendor package is touched. No target execution was performed and no whole-audit/main approval is implied.

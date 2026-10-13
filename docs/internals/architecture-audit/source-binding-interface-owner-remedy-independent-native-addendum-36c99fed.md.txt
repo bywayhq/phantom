@@ -1,9 +1,0 @@
-# Interface origin remedy: integration and native addendum
-
-Approve the bounded integrated remedy at `36c99fed0dd949b192ea13314d6eb8bdf06945d4`.
-
-The complete source composition from independently approved `e6c82fe1f9ee1234ff294c84de7261bbf4a028f3` to root import `f9a098caf22517cb1760d6ea7630fd40946d046b` retains only earlier formatting in the observation owner and seven-control child. The final root change reorders two local import lines. The canonical semantic behavior and every control oracle, duration, typed fault identity and backup order remain unchanged. The original parent is byte-identical. Both root commit signatures verify with the assigned human author and committer identity.
-
-I read the full guarded runner and sync scripts, all eight terminal logs, eight step exits, two revision receipts and two runner-exit receipts. Windows and Linux each pass all 21 selected source-binding methods: fourteen originals and seven controls. Both hosts exit zero for formatting, strict requests Clippy with `-D warnings`, and the locked Rust 1.88 requests check, without warnings. Both overall runners exit zero and enforce exact clean revision guards before and after execution. The sync script requires the clean `a74dd7846484828a31e51b4cffdd9438dbc5372c` baseline mirror before fetching and selecting this candidate.
-
-This qualifies the exact candidate and repairs the four advertised baseline failures in this bounded interface-origin slice. It is not a workspace gate or full A244/A239/audit closure. Borrowed join expiry, outer collector cancellation, concurrent foreign/local cancellation attribution, and the other source-binding/runtime scopes retain the limits stated in the source approval. No execution was performed for this independent review.

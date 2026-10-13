@@ -1,5 +1,0 @@
-Approved757 first-slice source for original four-control and composed/full capture verification. Complete semantic diff and current Http2Origin501–803 were read, with partial actual routing/TLS/H3/capture-cleanup ranges recorded in JSON. Independent four-hunk inverse restores the entire canonical c996 source; outside four methods AST, original428 control bytes and A192 accounting remain exact.
-
-Unexpected ordinary handler errors retain the same object through bare raise and accepted-task cleanup. Response failures tag the original responder record and enter the original owner’s list, transferred/cleared once; a deferred callback does not raise into an unrelated triggering handler. Successful wire order is unchanged, and StreamClosedError remains the explicit outgoing abandonment policy.
-
-Broad ConnectionError/SSLError and incoming ProtocolError policies remain open. Deferred H2/H3 attribution, BaseException and late callback/multiple-fault paths have no new native coverage. Root still owns qualified changelog, original four/composed/full captures, Ruff/docs and integration gates. No target import/execution or fresh whole-file/production approval.

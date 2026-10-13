@@ -1,5 +1,0 @@
-# Fixture layout independent source review
-
-Approve signed ef588d7b and cb2a1dc8 source-only. The fallback delta exactly applies both retained84b9 formatter requests: unchanged literal error expression, wrapping and optional argument comma only. The echo delta adds one blank between the existing fault return and canonical read forwarding. Full literal inverses restore both parents. The three fallback method bodies and all existing oracles remain unchanged; no operation/order/deadline/exception policy changes.
-
-Only affected source scopes and complete tiny diffs were freshly read. No new whole-owner coverage, runtime, Cargo, formatter or checker is claimed. Original native/format failures remain preserved; root still owns applicable format validation and final gates.

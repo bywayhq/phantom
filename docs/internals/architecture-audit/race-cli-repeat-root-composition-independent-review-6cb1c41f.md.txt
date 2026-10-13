@@ -1,9 +1,0 @@
-# CLI guard root composition review
-
-Approved the four-path staged slice atop 6cb1c41f2d22c2423f932f2988c48df9af1d80d6 for signing and root verification. Only the reviewed three-line guard, reviewed positive-call formatting and two three-line documentation additions are staged (12 additions, one deletion); the working diff is empty.
-
-Canonical index blob309ecd2aa4751a19bf8d1470bd3cf9e7e3e0e529 equals author6ccc plus the previously approved retirement tuple formatting. Removing the exact guard restores root’s prior owner. The126-line tests equal author6ccc, and all six retirement controls remain unchanged. Removing each doc addition restores its prior file exactly.
-
-The README requirement sits beside the Alt-Svc invocation and accurately describes positive integer repeat. The CHANGELOG states the same rejection-before-directory/fixture behavior. Fresh doc scope is README1250–1290 and CHANGELOG2488–2508; whole pages are not claimed. No timeout/renderer restriction or unrelated owner change is bundled.
-
-Root reports docs0/0 and cached diffcheck0; these checks were not rerun here. Fixed3, combined9 and full capture results remain pending. No target imports, native/checker execution or tracked/index changes occurred. This is bounded composition approval, not broad A191, CI, final gate or main approval.

@@ -63,6 +63,7 @@ names, operation grouping, invariants, and test usefulness.
 - [Coverage](architecture-audit/coverage.md): reviewed paths and gaps.
 - [Findings](architecture-audit/findings.md): confirmed and rejected issues.
 - [Inventory](architecture-audit/inventory.tsv): tracked review surfaces.
+- [Retained evidence](architecture-audit/evidence.md): original reviews and logs.
 
 The inventory records discovery, not review. Untouched upstream sources and
 capture payloads have separate evidence requirements from first-party

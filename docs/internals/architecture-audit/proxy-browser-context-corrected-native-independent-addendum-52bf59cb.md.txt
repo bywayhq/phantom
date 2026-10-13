@@ -1,5 +1,0 @@
-Corrected proxy browser context baseline native assessment
-
-Both complete52 logs and guarded status/revision/runner artifacts confirm the same seven methods: two positives pass and five fixture negatives fail. Corrected cancellation passes the exact inner error identity and reaches actual child retention349, after snapshot and finite backup. The other three remote-close cases reach the same child assertion. Profile/socket/cause assertions following that failure remain uncredited. Body/browser cleanup passes destruction then reaches explicit primary loss366; later cleanup identity is still unreached.
-
-Original119 cancellation stopped at the cross-Task identity prerequisite and retains no lifetime credit. Its immutable record is preserved beside the correction. Signed control and owner blobs match0519 exactly; this rebind grants no fresh whole source read. No reviewer execution, installed browser parity, permanent leak or final gate approval is claimed.

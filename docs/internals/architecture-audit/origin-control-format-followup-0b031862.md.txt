@@ -1,7 +1,0 @@
-# Origin control formatting follow-up
-
-Signed `0b031862f1ba16c6b71f5e9df747e7b1dcce79e6` on `6b7ea22071cc6adddd576ddbc5d739971e459074`, clean lane. Exactly two test-source paths match the owned formatter regions. Complete diff read and full-file exact layout inverses pass. All assertions, operations and order are unchanged.
-
-The formatter adds two optional argument commas and elides an expression-only closure block. This receipt qualifies those syntax equivalents rather than claiming literal token equality. Initial strict comparison exposed that distinction; final source matches the approved replacements. No fallback or other path changed.
-
-Static diff check passed with known autocrlf notices. No Cargo, formatter, checker, imports or runtime ran here. Root-reported paired TCP passes remain separate runtime evidence. Original receipts remain immutable. The paired JSON records exact source/diff/formatter hashes and preflight qualifications.

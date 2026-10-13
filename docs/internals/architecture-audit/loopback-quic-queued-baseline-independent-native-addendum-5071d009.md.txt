@@ -1,9 +1,0 @@
-# Queued QUIC callback baseline: independent native addendum
-
-Both hosts pass all nine previous methods and fail only the new queued-work control at 615. Windows runs ten in 3.074 seconds; Linux in 1.078 seconds. Complete logs contain no warning/ResourceWarning or setup error. All command/guarded runner exits are one at exact clean 5071d009.
-
-Actual native handshake/ping, retained stream objects, literal write, real non-cancelled Handle, pre-close Handle identity, canonical current-field clearing and original CloseFailure identity precede the target. The later actual transmit snapshot has an armed timer, causing the unchanged615 assertion to fail. Cancellation at617 and socket/loss closure at619 remain unreached; no socket failure is inferred.
-
-Both complete logs, six sidecars and the complete27-line runner were read. Root619 controls equal revieweda41; helper106 equals7ef. The ten unique names match source, and all nine old method ASTs are unchanged. Fresh source reading is bounded to the adapter/new method; prior full-source approval retains its own coverage.
-
-Failed-control backup errors attach to a custom attribute that unittest does not display, so lack of a printed backup error cannot prove zero attached faults. The nine passing methods would report returned backup faults separately. This is controlled post-native-close error evidence, not natural OS fault or permanent leak. A future pre-close handle capture remedy still requires independent review and same-control verification. No runtime, imports, checkers or tracked edits occurred.

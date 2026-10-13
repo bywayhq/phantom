@@ -1,9 +1,0 @@
-# H3 relay import and layout source correction
-
-Source-approvedd398994b plus8da6022d for fresh root baseline/retained checks. No semantic coordinator remedy or causal native credit is approved.
-
-The original570 independent approval missed its import namespace prerequisite. Both400a early logs fail E0432 before the two new controls execute; original report and native receipts stay immutable. Actual tunnel_proxy declares the connection_peer child pub(crate) and reexports only ConnectionPeer/finish_with_cleanup. FixtureFailures and its fields are pub(crate) inside that visible child. The corrected existing path resolves without any shared reexport or alias.
-
-Full child import inverse restores570; two test bodies and all other helper/oracle bytes are exact. The observer wrapping exactly matches both complete400a formatter logs and restores d398 via whole-source inverse. It changes no literal error or observation behavior. All other paths/modes are unchanged.
-
-Fresh source scope is child1–25, observer21–51, module1–35 and concrete aggregate73–122 plus complete delta. Earlier whole226/237 read remains separately retained, without pretending a new whole239 read. No target imports, runtime, Cargo, checkers, formatter or resource probes ran. Root must compile and execute the corrected unchanged baseline/quality checks before any native result is credited.

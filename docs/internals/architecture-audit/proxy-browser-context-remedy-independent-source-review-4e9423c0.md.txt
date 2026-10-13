@@ -1,7 +1,0 @@
-Proxy browser context cleanup remedy source review
-
-Source-approved at4e9423c0 for focused root verification. Complete diff and current1239–1528 were manually read, including full changed concrete owner/error and actual capture callers; partial parent coverage. Prefix and caller-to-EOF suffix remain exact, original call expressions and constructor remain, and eight owner/control blobs stay frozen.
-
-Setup failures clean acquired owners. Ordinary startup/navigation errors preserve partial-capture notes; reporting failures retain the operation. Remote and browser cleanup are independently attempted in order, retaining original primary and exact secondary objects. Interruption errors preserve their original objects with aggregate/prior-chain evidence. Existing async-with/finally stays intact. No framework or assertion weakening found.
-
-Corrected52 proves five causal failures; fixed execution remains pending. Constructor/reporting/interruption combinations have source coverage only. Synchronous Windows cleanup is not bounded by async timer. Two metadata assertions failed before output; corrected marker/AST selection and inverse now pass. No source edit, runtime execution, whole-production review or final gate approval occurred here.

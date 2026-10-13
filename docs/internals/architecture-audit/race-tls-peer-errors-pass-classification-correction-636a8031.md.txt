@@ -1,5 +1,0 @@
-# TLS baseline pass classification correction
-
-This additive record corrects wording in the immutable `race-tls-peer-errors-remedy-handoff-636a8031.md`. Each host has six passing methods, comprising four healthy/partial-peer positives and two expected actual FlowControlError attribution negatives (H2/H3). The phrase “six positive methods pass” incorrectly classified those two negative attribution controls.
-
-Eight selected, six PASS and two local reader cause-retention FAIL remain unchanged. Failure boundaries 191/208, later unreached assertions, source identities, raw logs, hashes and repair/runtime limitations are unchanged. Original MD/JSON/diff bytes remain preserved; no native rerun or source change occurred.

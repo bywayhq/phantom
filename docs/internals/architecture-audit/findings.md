@@ -3,6 +3,10 @@
 Use this ledger to connect each finding to its cause, change, and evidence.
 No finding is resolved by an assignment or a proposed fix.
 
+Historical record names in this page refer to the
+[retained evidence](evidence.md). Earlier results keep their original revision
+and scope; they do not establish final integration.
+
 ## Findings
 
 | ID | Priority | Contract | Evidence | State |
@@ -293,10 +297,10 @@ No finding is resolved by an assignment or a proposed fix.
 | A287 | P2 | ECH capture bounds readiness and observes output failures | Readiness blocks before the timeout; daemon pipe readers hide reporting and decoding failures; output and policy waits are unbounded | Root whole-command review establishes the causes. The repair uses the existing process-tree owner, finite accepted output snapshots and a launch-to-completion deadline. New real-process controls preserve original reporting, decoding, launch and cleanup failures with mocked browser launch. Root and independent source/result reviews accept the repair at d7e89a26: all 41 focused methods, Ruff check/format and docs pass on both hosts. The earlier Windows newline failure is corrected while original server and compound cleanup failures remain available. File thresholds do not bound temporary disk use between polls or preempt blocking callbacks/native calls. Mocked browser launch does not establish a fresh capture; final gates remain open. See coverage.md#ech-command-process-repair. |
 | A288 | P2 | Startup capture owns acquisition, readers and cleanup | Killing only the listener leaves descendant stderr handles and an unbounded reader join; worker errors and profile removal disappear; browser/certificate startup can leak earlier resources | The independently reviewed remedy retains original owners and errors. All 22 startup methods pass on both hosts at 42d9d3a0, including the unchanged Windows descendant control after the shared owner repair. Snapshot limits do not impose a disk quota; no fresh browser capture is measured. See coverage.md#startup-capture-review; final gates open. |
 | A289 | P2 | Cookie fixtures exclude unused credential inserts | Encoder bytes retain literal authorization, proxy authorization and static authorization inserts that no request references | All three native-valid streams reproduce the leak on Windows and Linux at 7f7e6886. The independently reviewed fix at fcb848da passes all 10 cookie methods on both hosts, including publication, reference and duplicate controls. Focused quality checks pass. Final integration gates remain open. |
-| A290 | P2 | Local capture callbacks have observed completion | Five capture tools close listeners without collecting all accepted callback outcomes; some callback errors are stringified or discarded | Independently reviewed client-hint completion passes 17 methods per host at 2928f1d0; cookie completion passes 17 at 6e2437a8; preface completion passes 15 at bc37a5db. Registered callbacks and original retirement outcomes are collected before publication. Snapshot and lifecycle repairs and final gates remain open. |
-| A291 | P2 | Partial local capture startup releases acquired listeners | Cookie, snapshot and lifecycle setup can fail after acquiring an earlier listener or socket | Cookie startup and accepted factory-failure controls pass on both hosts at 6e2437a8. The factory control retains its injected native socket for explicit test backup outside the registered-protocol proof. Snapshot and lifecycle acquisition repairs remain open. |
-| A292 | P2 | Local capture resource limits include completed input | Cookie, snapshot and lifecycle allow oversized heads when the terminator arrives in the same chunk; retained connection and request collections lack aggregate bounds | Enforce completed-head and aggregate retention bounds without changing accepted wire order. Source remediation and native boundary controls remain open. |
-| A293 | P2 | Local capture input and loop policy remain explicit | Client-hint names permit invalid header bytes; durations allow non-finite values; IPv6 URLs and completion tokens are unchecked; snapshot replaces the loop error handler without restoring it | Client-hint guards pass 12 methods per host at d5cd30bf. Snapshot loop policy and individual/combined waits pass at d31f4f9a. Cookie finite waits and actual HTTP/1.1 IPv6 URL pass at 6e2437a8. Preface exact-token/connection completion, duration guards and resolver-address controls pass at bc37a5db. Cookie browser IPv6 policy and lifecycle inputs remain open. |
+| A290 | P2 | Local capture callbacks have observed completion | Five capture tools close listeners without collecting all accepted callback outcomes; some callback errors are stringified or discarded | Independently reviewed client-hint completion passes 17 methods per host at 2928f1d0; cookie completion passes 17 at 6e2437a8; preface completion passes 15 at bc37a5db. Registered callbacks and original retirement outcomes are collected before publication. Snapshot completion passes all 45 methods per host at 1da2ba31, including original callback failures and native retirement. Lifecycle repairs and final gates remain open. |
+| A291 | P2 | Partial local capture startup releases acquired listeners | Cookie, snapshot and lifecycle setup can fail after acquiring an earlier listener or socket | Cookie startup and accepted factory-failure controls pass on both hosts at 6e2437a8. The factory control retains its injected native socket for explicit test backup outside the registered-protocol proof. Snapshot acquisition controls pass within the 45-method suite at 1da2ba31; original listener and accepted transport outcomes are observed before test backup. Lifecycle acquisition repairs remain open. |
+| A292 | P2 | Local capture resource limits include completed input | Cookie, snapshot and lifecycle allow oversized heads when the terminator arrives in the same chunk; retained connection and request collections lack aggregate bounds | Snapshot completed-head and aggregate boundary controls pass on both hosts at 1da2ba31, preserving the literal 65536/65537-byte boundary. Cookie boundary controls and lifecycle remediation remain open. |
+| A293 | P2 | Local capture input and loop policy remain explicit | Client-hint names permit invalid header bytes; durations allow non-finite values; IPv6 URLs and completion tokens are unchecked; snapshot replaces the loop error handler without restoring it | Client-hint guards pass 12 methods per host at d5cd30bf. Snapshot loop policy and individual/combined waits pass at d31f4f9a. Cookie finite waits and actual HTTP/1.1 IPv6 URL pass at 6e2437a8. Preface exact-token/connection completion, duration guards and resolver-address controls pass at bc37a5db. Snapshot original-target qualification and 128-run limit pass within its 45-method suite at 1da2ba31. Cookie completion-token and browser IPv6 policy, lifecycle inputs and final gates remain open. |
 | A294 | P2 | Browser navigation bounds connection setup | DevTools TCP connection and WebSocket upgrade can wait indefinitely before navigation deadlines apply | Independently reviewed setup deadline and cleanup cause retention pass all 38 remote methods on both hosts at 5ad5b8ac, plus focused quality checks. The original failed cancellation observation remains recorded; the corrected control observes the actual caller boundary. Final gates remain open. |
 | A295 | P2 | Windows process cleanup observes descendant completion | Closing the job requests termination but waiting only for the exited bootstrap leaves descendant output handles pending | The original WinError 32 control and original-handle retry controls pass on Windows at 42d9d3a0 after independent review. All affected caller suites and focused quality checks pass on both hosts. Completion covers retained pre-termination member handles; already-terminating members absent before collection remain outside this proof. Final gates open. |
 
@@ -353,20 +357,20 @@ pass formatting, strict HTTP3-test Clippy and Rust 1.88 checks. See
 `relay-fallback-root-native-checkpoint-a896be8b.json`.
 
 At `2fb596ad`, all thirty cookie methods pass on Windows and Linux. The
-[root receipt](cookie-lifecycle-remedy-root-2fb596ad.md.txt) records the
+[root receipt](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/cookie-lifecycle-remedy-root-2fb596ad.md.txt) records the
 unchanged baseline roster, including ten previously failing controls.
 Typed aggregate assertions now execute and pass. Formatting, strict selected
 Clippy and Rust 1.88 checks pass. Independent source and native reviews
 approve these focused results. Full integration gates remain open.
 
-The [CONNECT baseline](connect-route-baseline-root-2234a8c3.md.txt) runs
+The [CONNECT baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/connect-route-baseline-root-2234a8c3.md.txt) runs
 106 methods per host: one hundred pass and six intended negatives fail.
 The substring filter also selects other proxy owners. Its exact public
 CONNECT subset is 24 methods: eighteen pass and six fail. The
-[independent native review](connect-route-baseline-native-independent-addendum-2234a8c3.md.txt)
+[independent native review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/connect-route-baseline-native-independent-addendum-2234a8c3.md.txt)
 confirms reached assertions and their prerequisites. The remedy is in progress.
 
-The [request-session review](request-session-standards-review-5a28f55f-final.md.txt)
+The [request-session review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/request-session-standards-review-5a28f55f-final.md.txt)
 records complete reads of three owners and eight source candidates. Its H3
 received-order dependency trace is partial. No new runtime result follows
 from these source findings. Existing A90-A92 are reconciled separately.
@@ -377,9 +381,9 @@ At `2cea08af`, Windows and Linux each pass all 41 selected H2 methods.
 The signed-hex and two credential-oracle negatives now pass with their
 original inputs and assertions. The reviewed parser and concrete deadline
 repairs retain all original wire workflows. The
-[root native receipt](h2-cookie-corrected-root-2cea08af.md.txt) records
+[root native receipt](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-cookie-corrected-root-2cea08af.md.txt) records
 complete logs, statuses and exact signed source identities. The
-[independent native review](h2-cookie-corrected-native-independent-addendum-2cea08af.md.txt)
+[independent native review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/h2-cookie-corrected-native-independent-addendum-2cea08af.md.txt)
 confirms the focused results. Cookie remedies and final gates remain open.
 
 The corrected cookie selection runs thirty methods per host: twenty pass
@@ -417,7 +421,7 @@ fourteen proxy environment and seven streaming environment methods.
 Formatting, selected strict Clippy and Rust 1.88 checks pass. The local
 setup control now observes both destroyed peers. Credential controls reach
 the concrete completed causes and poisoned-observer assertions. The
-[root result](proxy-owner-remedies-root-1e23deb9.md.txt) retains the prior
+[root result](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-owner-remedies-root-1e23deb9.md.txt) retains the prior
 compiler failure and its direct propagation correction.
 
 The local setup, credential and environment changes have independent source
@@ -431,7 +435,7 @@ The prior `08a64a01` run passed the same 49 methods but failed a single
 Clippy branch-style check. The independently reviewed follow-up retains
 the same 100 ms observation and propagates ready read errors.
 
-The [current proxy baseline](proxy-fixture-native-independent-addendum-199fa9ad.md.txt)
+The [current proxy baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-fixture-native-independent-addendum-199fa9ad.md.txt)
 records 51 SOCKS methods per host: 50 pass, and pretransfer local setup
 cancellation fails at the origin witness. Its later proxy assertion is
 unreached. The nineteen earlier local controls pass. The setup remedy is
@@ -446,16 +450,16 @@ All baseline formatting, strict Clippy and Rust 1.88 checks pass.
 Earlier bounded checks follow. These records establish neither the final
 workspace gate nor an integrated architecture sign-off.
 
-The [target repair review](socks-target-observation-second-independent-review-81c61f13.json)
+The [target repair review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/socks-target-observation-second-independent-review-81c61f13.json)
 retains complete and partial source reads separately. At `81c61f13`,
-the [native addendum](socks-target-native-independent-addendum-81c61f13.md.txt)
+the [native addendum](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/socks-target-native-independent-addendum-81c61f13.md.txt)
 records 55 selected methods per host: 50 pass and five local ownership or
 deadline regressions still fail. The five address-form controls pass.
 DNS overrides, HTTP/3 SOCKS fallback and the mapped certificate caller pass.
 Formatting, selected strict Clippy and Rust 1.88 checks pass without warnings.
 The IPv6 literal control observes ATYP4 over IPv4 loopback forwarding.
 
-The [forward baseline](forward-proxy-native-baseline-independent-addendum-54c60be7.md.txt)
+The [forward baseline](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/forward-proxy-native-baseline-independent-addendum-54c60be7.md.txt)
 records ten positives and seven intended failures on each host. Original
 deadline context passes before the missing timer cause fails. The completed
 peer-cause control reaches typed HTTP/1 and UnexpectedEof checks first.
@@ -464,7 +468,7 @@ The cancellation control observes a finite 150 ms window with the client
 alive. Reader errors are deliberate injections over actual socket seams.
 Queued-request ownership still needs complete repair and verification.
 
-The [remaining proxy review](proxy-remaining-whole-source-54c60be7.json)
+The [remaining proxy review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/proxy-remaining-whole-source-54c60be7.json)
 records full manual reads of negotiated proxy, credential cache and field
 order owners. Root confirms the credential owner and the cited negotiated
 and field-order caller scopes. A134-A138 are source findings awaiting
@@ -472,7 +476,7 @@ controls and remedies. A125, A129 and A132 extend to these owners.
 No production credential-cache, route, DNS or browser-order defect follows
 from these test-fixture findings.
 
-The [Alt-Svc remedy](alt-svc-remedy-native-independent-addendum-b6a5acc3.md.txt)
+The [Alt-Svc remedy](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/alt-svc-remedy-native-independent-addendum-b6a5acc3.md.txt)
 passes all 44 methods on each host. Its source review covers all three
 changed owners. It closes the Alt-Svc caller scope of A132, while the
 negotiated callers remain open. These focused runs do not prove the final
@@ -1156,7 +1160,7 @@ An absent container
 inspection does not prove that a timed-out daemon launch cannot create it
 later. Initial whole-log reads also remain outside the retained-size cap.
 
-The [WPT independent review](a56-production-independent-review.json)
+The [WPT independent review](https://github.com/bywayhq/phantom/blob/1da2ba311d45645dcf8725d7153f13ac884069aa/docs/internals/architecture-audit/a56-production-independent-review.json)
 requires changes at `18319655` despite its 25 passing controls. An actual
 Windows child starts before Python installs its process handle. The injected
 acquisition interruption returns while that child is alive and its source

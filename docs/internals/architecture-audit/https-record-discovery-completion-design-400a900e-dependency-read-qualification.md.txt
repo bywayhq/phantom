@@ -1,3 +1,0 @@
-# Discovery design dependency read qualification
-
-Preserve `https-record-discovery-completion-design-400a900e.{md,json}` unchanged. Its contiguous dependency scopes included two small gaps between displayed excerpts: Tokio watch lines 1215–1216 and tracing instrument lines 376–379. These six lines were freshly read after saving the original pair. Exact original/source/range hashes are in this additive JSON. Earlier excerpts receive no retroactive read credit. Combined scopes are now complete for the declared ranges; design conclusions and import approval are unchanged.

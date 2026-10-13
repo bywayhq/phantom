@@ -1,5 +1,0 @@
-Both complete5751095d host logs confirm two positives pass and one causal final restoration failure. Windows3 in0.096s; Linux3 in0.009s. Both test and guarded runner exits1; exact revision and clean/head guards appear in the fully read launcher. All eight raw host artifacts and launcher hashes are bound.
-
-Actual Handle/error/context identities, out-of-order A exit, literalH forwarding and final pre-backup handler snapshot precede failure at child75. Current source restores stale A rather than H. NestedLIFO and active reset/unrelated forwarding positives pass. Mandatory original-handler cleanup occurs after the oracle, so it cannot manufacture restoration.
-
-Root child, canonical owner and old controls equal signed7809 byte-for-byte. Other root convenience/metadata changes are excluded. This confirms only these three measured contracts; neither the future fourth active-filter control nor a remedy is covered. No browser, concurrent capture_run, OS fault or resource-leak claim follows. Artifacts remain immutable; no execution by reviewer.

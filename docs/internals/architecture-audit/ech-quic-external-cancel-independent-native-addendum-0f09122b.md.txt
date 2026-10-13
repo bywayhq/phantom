@@ -1,7 +1,0 @@
-# QUIC external-cancel baseline native review
-
-Both exact `0f09122b` runs: eight selected, two pass/six causal failures,331 skipped; nextest and guarded runner100. Full logs and guards independently read. Windows9.555s; Linux8.304s. The prior seven statuses are preserved; source matches frozen reviewed f8 exactly.
-
-The new control reaches its missing-error oracle after actual verified H3 readiness, published worker ID, external abort and observed destruction/is_finished. The returned `JoinError.is_cancelled` and ID assertions remain unreached. Typed pending-handshake context now identifies actual finish timeout; earlier bare-Elapsed records remain ambiguous. Existing completed-error and client-primary controls reach their missing-cause boundaries; downstream returned payload assertions are uncredited.
-
-No constructor, backup, compilation, warning, panic or LEAK failure appears in these logs. Independent backup is not canonical cleanup evidence. This is focused causal proof only: no fixed result, ancillary checks, production/browser claim, full gate or final A180/A181 closure.

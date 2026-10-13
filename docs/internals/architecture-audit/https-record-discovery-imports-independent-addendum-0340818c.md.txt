@@ -1,5 +1,0 @@
-# Discovery import grouping addendum
-
-Parent: `0340818c36ffb96ade59273ddd063f4808a8dbc7`. Only the three existing `crate::support` aliases move from lines 3–5 to lines 26–28, after standard/external imports and before their local aliases. Complete diff reviewed; the literal inverse restores all 461 parent lines byte-for-byte in canonical LF form. The earlier whole parent read is retained; no new whole implementation read is invented.
-
-Source-approved for A227. Alias names, function bodies, assertions, wire operations and timeout behavior are unchanged. Physical mixed line-ending representation is separately hashed; canonical Git bytes define the source equivalence. No runtime or checker was run. No behavioral test is required for this relocation; the integration owner retains normal formatting and final gate responsibility. Other current root metadata edits are outside this addendum.

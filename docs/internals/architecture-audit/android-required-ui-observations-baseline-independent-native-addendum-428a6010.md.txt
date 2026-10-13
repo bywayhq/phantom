@@ -1,7 +1,0 @@
-Both recorded hosts establish the intended UI status-loss baseline at `428a6010321d4ac36561b1060da5df01de726433`: twelve selected, six positives pass and six negatives fail. Windows takes0.005s; Linux0.011s. The integration owner confirmed both commands terminal; UI, aggregate and runner statuses are1.
-
-Five negatives reach202, and focus reaches230, then fail because the actual operation returns no RuntimeError. Earlier command prefixes, status7, supplied output, diagnostic, options and pre-backup marker assertions pass. Exact raw-error identity/context and later no-Enter/no-tap assertions remain unreached. All six successful-observation controls pass their independent literal command policies.
-
-Complete paired UI logs, sixteen associated sidecars/quality logs and the complete runner were read. Runner guards require the exact clean revision before and after execution and retain individual step statuses. No worker logs were read or worker outcomes credited in this receipt. UI source is byte-exact to the previously reviewed349-line control; canonical production source is byte-exact to the previously read662-line owner.
-
-Lint passes. Format fails solely at the LAST_ONBOARDING adjacent-literal layout, with one file unformatted and100 already formatted. That quality failure remains recorded. The controls model subprocess results and omit sleep; they establish no device/hardware state, real persisted dump, timing, full-session cleanup or fixed/main/full-gate outcome. No target was imported or executed by the reviewer.

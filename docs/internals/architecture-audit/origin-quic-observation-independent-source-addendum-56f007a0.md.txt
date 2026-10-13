@@ -1,9 +1,0 @@
-# QUIC observation correction review
-
-Combined signed `94659705` and `56f007a04278f67689ec647fd8d72bbeda9b9ce6` are source-approved for the unchanged three actual H3 controls plus two direct observer controls and retained ordinary/quality checks. This closes the narrow d1aa active-poison scaffold finding; the original report remains immutable.
-
-The entire final269-line entry, new64-line direct child and complete combined delta were read. Source reverse-hunk inverse reconstructs d1aa exactly. Both healthy bodies remain exact. Only the negative's fault installation changes to a fallible helper; all earlier traffic and later readiness, precompleted-worker, collector, original identity and backup oracles remain exact. Main/tests/concrete-origin blobs remain d1aa exact, retaining the prior canonical inverse and bounded manual review without fresh whole-owner claims.
-
-Actual poisoned-lock errors produce an owned typed failure with distinct consumption/installation phase and diagnostic. Original response errors return unchanged before lock access. The direct controls poison the actual mutex while its guard is held, require the caught panic and poison flag, then require typed failure and no invocation. Consumption starts with a genuinely installed fault, so silent successful consumption cannot pass. They assert observer health, not network outcomes. No guard-bearing error identity is claimed.
-
-All five outcomes are source forecasts: network two positives/one missing-cause negative and two direct positives. Compiler/strict lint/native checks remain root work. No target imports, runtime, formatter, checker, resources or Cargo ran. Standard-library contracts were assessed without a fresh local implementation read; broader serving classification, ownership and final gates remain open.

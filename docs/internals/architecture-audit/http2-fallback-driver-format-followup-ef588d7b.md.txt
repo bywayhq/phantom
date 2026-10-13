@@ -1,5 +1,0 @@
-# Fallback driver prerequisite layout
-
-Signed clean `ef588d7bc1ac3d31b864ee74b710ea819181f20f` follows bd8 and applies exactly the retained Windows/Linux84b9 formatter diff: the unchanged error-return expression occupies one line. Its optional trailing argument comma is removed.
-
-A source-text inverse reconstructs the entire previous child byte-for-byte. All three control method bodies and all other tracked paths/modes remain exact. No semantic ownership repair, classification waiver, formatter/checker or native run occurred. Original84b9 failure envelopes and format failures remain preserved.

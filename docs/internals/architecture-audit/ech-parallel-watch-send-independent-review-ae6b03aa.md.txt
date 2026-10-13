@@ -1,7 +1,0 @@
-# ECH watch-result compiler correction
-
-Approved exact ae6b03aa for root compilation and unchanged seven-control rerun. The complete two-line differential and current branch286-344 were read, with actual resolved Tokio select output/handler scopes. The success-to-unit mapping now executes inside the selected future, so the macro stores Result<(),RecvError> before awaited drain. Typed receiver errors and shutdown/abort/deadline order are unchanged. Whole-parent inverse and all three domain-child identities pass.
-
-Both dcb full compiler logs and guards show101 before tests. The previous source-only no-held-read-lock claim was too strong because select retained its output enum across the handler await; this additive record qualifies that claim without rewriting original evidence. No fixed compile or runtime result is credited yet.
-
-This is a bounded differential review, not a fresh whole owner read. Finite draining, abort-only Drop and separate lifecycle limits remain.

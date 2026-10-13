@@ -1,9 +1,0 @@
-# Small capture helpers: independent source reconciliation
-
-No new supported defect was found in four complete manual reads at `8b544ea1c164171e2d7b3ce59e065245ccccedf3`: reserved_ports32, fixture_file74, test_reserved_ports52 and test_fixture_file127. Exact blobs/canonical hashes match the retained root575 report and prior source. These four files support source-complete inventory disposition for their exact objects; adjacent callers remain partial.
-
-The retry helper uses an explicit three-retry/four-attempt limit, only for winerror10055 at port0, and propagates the actual final error. The inspected raw-socket caller owns unsuccessful acquisition. Tests use literal independent counts and exact error objects; they do not recreate a Windows reserved-port block.
-
-Fixture publication creates a stage beside the resolved destination, preserves literal newline/encoding bytes, flushes/fsyncs/closes it, then replaces. Failure before replacement retains the old file. Failed cleanup retains the same initiating exception and concrete cleanup identity, staged path, replacement-completed flag and previous cause/context through the existing wrapper. Tests observe real private directory contents and literal bytes, including retained recovery bytes after controlled fsync/unlink failure. No directory durability or adversarial-filesystem promise follows.
-
-Names, grouping, error paths and test independence were checked throughout all four owners. Supporting current callers and resolved Python APIs have explicit partial ranges. The prior root's original invalid alps395–414 declaration and corrected395–412 report remain immutable; this review separately reads current390–412. No tracked edit, target import, checker, native, Ruff or Cargo command ran. No whole-capture, new runtime or final-gate approval is given.

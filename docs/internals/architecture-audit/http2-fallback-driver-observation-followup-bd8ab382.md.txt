@@ -1,7 +1,0 @@
-# Fallible driver observation follow-up
-
-Signed clean `bd8ab3829987f730645bb02e90078954a10322be` follows frozen `df8ede9f`. Only the fallback parent publication seam and its driver-ownership child change. Active publication and lookup report poisoned state without expect/unwrap. Publication retains the real task handle before returning its explicit observation error. Backup stops the parent, recovers the retained handle while keeping the poison error, observes requested nested termination under the unchanged bound, and still attempts client cleanup. Existing finish_with_cleanup retains each result. Abort-only Drop may recover ownership and makes no join claim.
-
-The complete final child and changed parent diff/publication scope were read. Independent source-text reverse-hunk checks reconstruct both df8 files byte-for-byte; all three original control bodies and all outside objects/modes remain exact. The local import order is corrected. Original readiness, payload, cancellation/destructor/socket oracles, deadlines and None operation body remain unchanged.
-
-No runtime, compiler, formatter, checker, imports or resource probes ran. Poison paths remain source-only. The original forecast remains two positives and one nested-driver abandonment failure; this does not implement the canonical ownership remedy. Independent source review and root native baseline are required. The original df8 handoff remains immutable.

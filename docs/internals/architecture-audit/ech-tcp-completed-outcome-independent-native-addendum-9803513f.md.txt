@@ -1,9 +1,0 @@
-# TCP completed-outcome native addendum
-
-Focused evidence approved at `9803513fdf62b7218e7d439a80c3202ea3aadad8`. Both complete Windows/Linux logs show the same 21 unique methods PASS, with 310 excluded. All test, formatting, strict HTTP3 all-feature Clippy, Rust 1.88 HTTP3 all-feature checks and guarded runner statuses are zero. All 34 recorded artifacts, including both launchers, were read; the JSON binds raw bytes. No warning appears in the corrected logs.
-
-The earlier `c07aba49d6d61b44be10df1f126ac66f47733220` runs also passed all21 but recorded two `dropping_copy_types` compiler warnings. Those original artifacts are preserved and are not described as lint-clear. The signed correction changes only the two optional witness-result discard spellings. An independent two-expression inverse restores the entire child to a771/c07; the parent and previous TCP/count/deadline children remain byte-exact. No assertion, prerequisite, timer or operation changed.
-
-The three new methods now execute their actual HTTP/1 200/version/protocol/body prerequisites, handshake Pending/handle/destruction witnesses, original cancelled JoinError/task-ID assertion and controlled panic JoinError/task-ID/typed Arc identity assertion. Parent/child completion and held socket closure are captured before backup while Client remains retained. Passing complete methods establishes those assertions were reached; the logs do not independently print task IDs or the payload. The handshake witness still does not establish byte consumption.
-
-Both read launchers serialize Cargo and enforce exact revision/clean checkout guards before and after execution. This is focused native verification of existing source, not a whole workspace gate, whole audit, new whole-parent read, QUIC descendant closure or broader Python approval. No reviewer executions, tracked mutations or pushes were performed.

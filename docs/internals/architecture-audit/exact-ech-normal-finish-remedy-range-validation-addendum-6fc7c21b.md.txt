@@ -1,5 +1,0 @@
-# Exact ECH receipt range validation
-
-This additive check independently validates every explicit source/dependency range in the v2 handoff: current6fc sources/select dependency and corrected historical4a source/dependency bindings. All 19 records and 22 inclusive ranges match stated source hashes, Git objects where applicable, actual EOF bounds and range hashes. Original artifacts remain immutable.
-
-This validates byte bindings and serialized bounds, without transferring author manual-read credit or adding source/dependency reading. The independent source approval and qualified current partial reads remain unchanged. An initial expected-range-count assertion used21 rather than actual22 and failed before output; the final count is derived directly from the validated records. No source/native/checker/import/Cargo operation was run.

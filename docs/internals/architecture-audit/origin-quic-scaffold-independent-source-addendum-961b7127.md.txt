@@ -1,9 +1,0 @@
-# QUIC close-code and layout source review
-
-Source-approved7e50d965 plus961b7127 for fresh guarded five-control baseline and retained checks. No blocker was found. No runtime, semantic serving repair or final gate is approved.
-
-The resolved H3 close code is unchanged u64 literal0x100. Quinn requires VarInt; the explicit fallible from_u64 accepts the same in-range value and propagates a bounds error through existing TestResult. Reason, close wait, literal response, fault identity and all oracles remain intact. Separate formatting matches all seven regions of both retained1efa logs. Whole-file inverse checks restore each parent exactly; original parent tokens, network-control literals/tokens, direct poisoned-mutex control bytes and outside paths/modes remain preserved.
-
-Fresh manual read covers the whole284-line final control and complete combined diff. Supporting ranges are main921–970, concrete peer48–72, VarInt1–110, H3 Code1–104 and Connection.close421–441; no whole owner/runtime credit follows. The additive author correction preserves the original narrative285 mistake while crediting only actual EOF284.
-
-Both historical1efa compile logs stop at E0277 before any QUIC control executes; both complete formatter logs fail and remain immutable. Fresh test-target compilation, focused baseline and quality checks belong to root. No target imports, resources, checker, formatter or Cargo ran here. Prior production-only checks are not cfgtest proof; the original missing-serving-error forecast is unchanged.

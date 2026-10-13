@@ -1,9 +1,0 @@
-# QUIC observation follow-up
-
-Signed94659705 and56f007a0 follow frozen d1aa43c4. The lane is clean. Only the QUIC serving control owner and a new64-line direct observation-control child changed; canonical serving operations, the concrete origin owner and all older tests remain exact. No Cargo, runtime, imports, formatter, checker or resources ran.
-
-The active response observer reports a typed QuicObservationFailure naming response consumption when the actual mutex is poisoned. Fault installation is a private fallible operation naming fault installation. Each owns the actual poisoned-lock diagnostic. MutexGuard-backed PoisonError cannot be preserved in Send+Sync error storage, so raw guard identity is not claimed. Existing original post-response fault/error identities and success behavior remain unchanged.
-
-Two direct controls deliberately poison that actual mutex while holding its guard under catch_unwind. Consumption first installs an actual fault and then requires the typed consumption error without invoking the fault. Installation requires its concrete boundary error without reporting success or invocation. They prove observation-state health only, not QUIC/network closure.
-
-Combined reverse-hunk inverse restores the original d1aa control owner exactly. Two healthy network method bodies are byte-exact. The negative's necessary installation call is fallible; its original prerequisites and all oracles after installation are byte-exact. Whole final control owner and new direct child were read; the previous258-line actual-resource owner read remains preserved, not newly credited. Original handoff/report files remain immutable. The network forecast remains two passes and one missing owner cause; the two direct controls forecast pass. Both forecasts are unmeasured and independent review/root native remain required.

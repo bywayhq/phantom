@@ -1,5 +1,0 @@
-The combined 01946792+b00ad7c5+604b1c29 tests-first candidate is source-approved for the bounded root causal run. The final signed delta puts the parent wildcard in the local group after std/Tokio and names both relay kind and observed contract at each call. Independent literal inverse restores the complete b00 child exactly; no other path changed.
-
-The earlier b00 disposition missed these two readability gaps and remains immutable. This follow-up resolves them while preserving every actual wire/Pending/fault/destruction/stop/result/backup operation. Fresh read scope is the complete delta and affected expressions; no fresh whole257-line coverage is claimed from the inverse.
-
-Forecast remains one positive/four negatives at current lines 200/224, without runtime credit. Root must execute all nine relay controls on both hosts before semantic repair, then applicable ordinary modules and format/strict test Clippy/Rust1.88 checks. Original UDP-only and finite single-worker backup limitations remain; no full goal or integration gate is closed.

@@ -1,9 +1,0 @@
-# TCP composed native verification
-
-Approved the focused native result at 1f5c128b: Windows18/18 and Linux18/18 pass, with310 skipped per host. Both test and recorded runner exits are0. The exact roster is TCP3/count5/deadline3/ordinary7; both hosts ran the same18 methods.
-
-Both complete current logs, both complete fa97832b baseline logs, all guards and both locked launchers were read. The historical three-control baseline remains1pass/2fail at children assertion259; its recorded nextest/runner exits are100, distinct from the root tool's outer failure status. Post-Summary failure repeats are not retries.
-
-The two unchanged negative controls now pass child destruction, parent completion and socket closure using observations captured before finite backup with the client, held peers and runtime alive. The finished case also reaches its unchanged empty-QUIC/served-count assertions. The healthy realHTTP/1.1 response, counter/timer positives and all seven ordinary ECH methods pass.
-
-Five integration source blobs match the approved6436 candidate exactly. Current TCP supporting lines247–367 were reread; no fresh whole-source promotion follows from identity. Completed unexpected JoinError, simultaneous causes and cleanup timeout remain untested source assessments. QUIC descendants/unbounded drain and broad TCP error classification stay open. This result supplies no new format/Clippy/MSRV or full-gate approval.

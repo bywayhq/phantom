@@ -1,9 +1,0 @@
-# H1 retry controls: final import checkpoint
-
-Final frozen signed revision `e38a6b4e0d3c88d55c2972b1a455e5c5604b2fcb` atop `c98bc87467693f2c738a34dd39750bb4118f8933`, base `4c46023bcb06f8fc733d35ea0332a30a94e385cf`. Clean owned lane; verified signature and assigned human author/committer.
-
-The complete 2+/3- diff moves only the two parent support aliases into the local import group and removes their obsolete blank line. No test body, task, observation, cause, duration or assertion changes. The original c98 handoff pair is preserved and its full scope, source-review qualifications, five-control forecast and remaining requirements apply unchanged.
-
-Parent source is now blob `975e4a24b407a63a657d04e78bdef115991ccc33`, 667 lines. The three child blobs remain byte-exact c98: canonical `f4afcd43baa7a922b705b722a7e1df9cc7a6f599`; observation `c3201e0801e2b6f8b32ee0e42a79a885cc11a1fd`; controls `b3a4f0f8aafc6dbd9908210f08c2cb8b75f6c3ea`.
-
-Bind independent review to the complete base-to-final range. The five controls forecast three pass/two fail, selected fourteen methods forecast twelve pass/two fail; still unmeasured. No native/Cargo/formatter/checker/probe execution. Await the independent gate and paired baseline before semantic repair.

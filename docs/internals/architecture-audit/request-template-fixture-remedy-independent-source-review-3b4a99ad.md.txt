@@ -1,7 +1,0 @@
-# Request-template fixture remedy source review
-
-Approved signed `03af36ccb9f890b6874306f7ac19902631dbd95d` plus `3b4a99adf9646b326e5afa06418bac5a7b1a0fa0` for root's four controls and ordinary request-template runtime/quality checks. Only fixture.rs changed; both human identities and signatures meet policy. Fresh whole read reaches actual EOF212.
-
-Duplicate serialized keys now return Err instead of overwrite. ASCII hexadecimal validation runs before byte slicing, rejecting signed/non-ASCII input without a boundary panic while retaining uppercase support and the existing odd-length/UTF-8 errors. Repeated header names still retain literal vector order. All four assertions and input literals are exact. Two assignment layouts change, including optional call trailing commas; the complete literal inverse restores the baseline source.
-
-No source blocker found. The first report preflight stopped before outputs on an overly strict full-token comparison; explicit assignment inverses resolve the formatter punctuation difference. Root's reported baseline and formatter failures remain historical, not independently re-read here. No target runtime/checker was run. Fixed runtime and relevant formatting/Clippy/MSRV checks remain with root.

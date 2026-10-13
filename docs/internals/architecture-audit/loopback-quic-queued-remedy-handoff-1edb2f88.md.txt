@@ -1,9 +1,0 @@
-# Retained queued QUIC callback: source remedy
-
-Signed clean `1edb2f88a5e67fd0f8248f417f3547e0ed441682`, parent `5071d0090adaf26d55c2eea1e8dd63469693b303`. Sole helper change: two additions/one deletion, now107 lines. Both author and committer are Arya Alikhani <AryaAlikhani@icloud.com>; signature G. Root owns independent review, CHANGELOG and native verification.
-
-The helper retains the actual queued transmit Handle before protocol.close can clear its field through transmit. On exceptional protocol close/wait shutdown, that retained object joins the existing current timer/transmit cancellation attempts. Healthy shutdown adds no cancellation and keeps the same close/wait/transport.close path. Existing abort, ordered error collection, interruption priority and annotation helper remain byte-exact; duplicate cancellation of the same Handle is idempotent in the resolved implementation.
-
-Fresh complete107 source and the entire two-edit diff were read. Reversing only those edits restores all original106 bytes. All619 controls and every other tracked file are unchanged. Control coverage binds the prior complete a41 read rather than inventing a fresh whole read. Supporting aioquic/CPython ranges remain partial. Standard-library AST/inverse and diff checks pass. No Ruff, formatter, target imports, runtime or Cargo ran.
-
-Both complete507 baseline logs/guards were read: ten selected each, nine passes/one causal failure615, no warnings or helper errors. Real handshake/ping, original CloseFailure, retained Handle identity and field clearing precede the armed-timer failure. Timer-cancelled617 and UDP closure619 in that control remain unreached. This candidate forecasts fixing that bounded callback gap; it has no repaired native result or universal scheduled-work coverage claim. All original periods, finite backup, cause/context and error-retention policies are preserved.

@@ -1,5 +1,0 @@
-# Annotation contract scope clarification
-
-The original 7c66 source review remains immutable. Its intersecting P→C/C→P example is a source limitation, not a confirmed defect or integration blocker: both distinct error objects remain reachable, and the visited identity set bounds subsequent walks. No affected consumer, error loss or nontermination was established. General acyclicity is not a current documented consumer requirement.
-
-Bounded approval of the two measured retention repairs stands. No additional graph framework or control is required solely to prove acyclicity. The distinct Windows transport closure residual remains open. This clarification changes no source or native evidence.

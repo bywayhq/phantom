@@ -1,3 +1,0 @@
-# Async worker source review method-count correction
-
-The original source-review prose incorrectly calls the unchanged five supporting control owners23 methods. Its recorded owner counts are4+2+4+7+2=19: six Android progress/entry, four Android exit, seven proxy-driver and two desktop-threaded methods. Only19 supporting methods receive preservation credit; no runtime or23-method credit is given. Exact source hashes, original findings and request-changes disposition are unchanged. Original MD/JSON remain immutable.

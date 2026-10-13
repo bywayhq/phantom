@@ -1,7 +1,0 @@
-# Startup causal native baseline
-
-Both complete c0e6fd32 logs and guarded terminal records were independently read. Each host executes the same nine methods: the healthy method passes and eight controls fail at their intended causal assertions, with no unittest errors or reported backup failures. Test and runner exits are1. The unchanged controls and qualified A192 parent composition remain bound to the prior source review.
-
-Five startup failures reach raw-socket/transport/TCP listener closure assertions449/457/465/475/485 after acquisition, literal delivery or trusted H2 prerequisites and original primary identity checks. The cancellation control passes actual delivery and same-coroutine error identity before failing closure509. Cleanup527 reaches exact cleanup identity and actual /done204 before exposing skipped siblings. Combined537 reaches real H2 readiness and close invocation, then shows CleanupFailure replacing StartupFailure; its downstream cleanup-cause traversal541–543 is not credited.
-
-The healthy control passes trusted H2 200/ok and /done204, all three literal UDP callbacks and listener/raw-socket closure. Backup runs as test safety; it is not evidence of canonical cleanup. These controlled fixture failures establish neither permanent production leaks nor browser/QUIC parity or complete descendant joins. No broader suite, ancillary checks or full-gate approval is claimed.

@@ -1,5 +1,0 @@
-The exact two-literal correction at 887c2cf0 is source-approved for a new causal baseline run. `serve` is an actual QUIC_MODES member and delegates to canonical UdpAlternative.start. Whole-file inverse restores beeba32b; both H3 test ASTs and canonical owner are exact.
-
-The earlier 2ced source review missed Scenario validation. Both original H3 methods failed before traffic; their original reports remain immutable. Complete corrected 448-line control and bounded canonical validation/start scopes were read. No corrected native or whole-owner/full-gate credit.
-
-Bindings and exact scopes: [race-a191-h3-mode-correction-independent-source-review-887c2cf0.json](C:\code\phantom\target\architecture-audit\race-a191-h3-mode-correction-independent-source-review-887c2cf0.json).

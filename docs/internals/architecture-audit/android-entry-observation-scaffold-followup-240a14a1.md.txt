@@ -1,9 +1,0 @@
-# Android entry observation scaffold follow-up
-
-Signed clean `240a14a1`, parent `4e09bb73`, changes only the two assigned test scaffolds. `ProgressMonitor.observed` is now an asyncio.Event at 171; the monitor schedules its setter through `loop.call_soon_threadsafe` at 202 after saving progress, native-child-alive and closed-gate observations. `wait_for_observation` directly awaits that event at 36. The merged hold condition preserves the original short-circuit order and only waits when held mode and saved progress are true.
-
-Six literal test bodies, target assertions, deadlines, canonical route, gate ordering, exact worker Future/report identities and backup operations remain unchanged. There is no additional executor worker. The explicit inverse restores both complete parent sources and all other tree objects are identical. Current differential manual reads are helper158–233/entry1–51, distinguished from prior4e09 whole481/177 reads; current EOFs are484/176. Partial resolved asyncio.Event and thread-safe scheduling source is bound in JSON.
-
-Both complete original2b focused/quality logs were freshly read: healthy one passes, old three and new two fail saved progress, and Ruff reports SIM102 plus ASYNC110 while formatting passes96 files. Those outcomes remain immutable; cancellation/fault assertions are downstream and uncredited. This follow-up has no runtime or lint result. A callback occurring after child release cannot change the already-decided pre-release progress value.
-
-G signature and both required human identities verified. Only stdlib source parsing/hash/inverse checks ran; no target imports, runtime, Ruff/checkers, resource probes or Cargo. Root owns independent review and a fresh paired six-control/lint run. No device, hardware, full shutdown/thread coverage or final gate claim.

@@ -1,3 +1,0 @@
-Approved frozenf8 tests-only external-cancellation control for root causal execution. Full new helper/method/diff and actual Tokio JoinError/AbortHandle contracts were read, with bounded scaffold scopes in JSON. Whole-child inverse and seven prior bodies preserve a179; parent exact.
-
-The real verified H3 peer and original accept Pending precede actual published ID/abort/destruction/is_finished, then canonical finish. Peer remains held through independent finite backup. Missing error is the first forecast target; returned JoinError.is_cancelled and exact ID checks are later and not yet measured. Abort/destruction is not join credit. Eight outcomes remain forecast; no ownership remedy/full-gate approval.

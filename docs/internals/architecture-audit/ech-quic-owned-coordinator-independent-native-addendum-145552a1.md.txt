@@ -1,7 +1,0 @@
-# QUIC coordinator fixed native review
-
-Approved the measured local repair at145552a1. Complete focused and composed logs, six quality logs and terminal guards were independently read/checked. Both hosts pass the same eight QUIC controls and the same29 composed tests. All six former causal failures now pass; both original positives remain green. Targeted format, strict all-feature HTTP3-test Clippy and Rust1.88 checks are0 on both hosts.
-
-The parent is byte-exact to approved a874; four children match frozen f8; the completed TCP child retains the separately reviewed980 two-line optional-observer warning correction. The passing unchanged bodies now reach retained remote0x102, both0x102/0x103, client Http3/Protocol plus completed ClosedStream, and actual cancelled JoinError category/worker-ID checks. The typed pending-handshake finish succeeds; origin-drop destruction is observed before backup. Earlier bare-Elapsed phase ambiguity remains historical.
-
-The29-test roster is QUIC8, TCP3, completedTCP3, count5, deadline3 and ordinary7. Focused/composed selections overlap. Fresh source reading is partial control/helper support; source equality binds the prior whole review and does not create a new whole-current read. Drop abort is not a synchronous join. Beyond-budget outcomes, broader TCP classification and full A180/A181/integration gates remain open. No runtime or source changes by this reviewer.

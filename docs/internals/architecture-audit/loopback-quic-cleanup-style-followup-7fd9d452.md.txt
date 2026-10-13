@@ -1,9 +1,0 @@
-Frozen signed follow-up 7fd9d45212dd6ff33cdf904d565195d7d253cb64 on parent 1aeba5efdf81709ec4ba9f6e2d372b5fddf4d512 changes only scripts/capture/tests/test_loopback_quic_cleanup.py: exactly six empty lines after ready_resources async-with and before nested body definitions. Both author and committer are Arya Alikhani <AryaAlikhani@icloud.com>; SSH signature verifies. The lane is clean.
-
-I reread the whole original 464-line file and all six complete affected functions afterward at 359–470. Removing those six exact blank lines reproduces the original source byte-for-byte after Git LF normalization. Every other tracked file is exact. A static CPython3.10 parser comparison confirms identical ASTs with location attributes excluded; targets were not imported or executed. Staged diff check passes. No Ruff, resource/runtime or Cargo test was run.
-
-Original1a handoff MD/JSON/diff hashes remain exact and immutable. Source now has470 lines and blob1f6139eca035e1801cbfda9aaaf242ae6539a405. Two healthy and four causal-negative predictions remain unmeasured; primary identity and renewed-cancellation identity forecast lines shift to425 and468, while the shared transport-close assertion remains353. Later negative assertions retain no execution credit.
-
-Root's previous pinned lint pass and formatting diagnosis are separate reported checks. Independent review, original causal native controls, helper remediation and final integration remain pending. This follow-up changes readability alone.
-
-An initial inline report construction failed at an unquoted PowerShell Git tree expression before either report was written. The quoted read-only expression corrects artifact construction only; original artifacts remain unchanged.

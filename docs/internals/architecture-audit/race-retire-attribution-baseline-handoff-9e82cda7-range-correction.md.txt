@@ -1,9 +1,0 @@
-# Retirement handoff line correction
-
-The original handoff remains immutable. Its three backup line pointers were
-carried from an earlier grouping layout. The actual frozen322-line source has
-backup at163–191, acquire at195–199 and registration at197. These replace
-the original JSON backup fields195/161/189 and corresponding prose.
-
-Explicit source/range hashes and integers were preflighted and reopened.
-No source, control bodies, first target309, forecast or runtime claim changed.

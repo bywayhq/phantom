@@ -1,3 +1,0 @@
-# QUIC layout handoff count correction
-
-The original961b layout handoff narrative and JSON scope incorrectly say whole285 control lines. The correct count is284. Its explicit source EOF284 and manual range1–284 were already correct and are freshly validated against the immutable Git source, together with all original range boundaries and hashes. Original artifacts remain untouched. Source verdict, actual manual read, preservation checks and no-runtime limits are unchanged.

@@ -1,9 +1,0 @@
-# Status remedy: compiler prerequisite and narrow source correction
-
-Decision: approve signed clean aeea9a48c7b05aaf89fad33fc93052b79a4fc0a4 for a fresh paired run, retaining5b0e57b6e09cce26bf75261a13423b2e71a11595 as a compiler prerequisite failure, not runtime remedy evidence.
-
-All eight full5b0 logs and twelve terminal sidecars were independently read. Each host has tests/strict three-target Clippy/Rust1.88 exit101 with soleE0521 at serving_cause's error.downcast_ref. Formatting exits0 and whole runners1. No tests executed, so no old25/new4 control success or causal failure is measured. The earlier source review missed this trait-object lifetime prerequisite; its semantic qualifications remain separate from compilation.
-
-The full signed parent-to-aeea diff contains only one added/removed signature line: serving_cause accepts &(dyn Error + Send + Sync + 'static). This specifies the object's lifetime required by downcast_ref, while the reference remains an ordinary short borrow. Existing boxed original fixture errors already satisfy that object lifetime. No expression, source/wire behavior, control body, actual error, cancellation policy or assertion changes. The corrected source remains clean and signed; formatter was not newly executed by reviewer. The staged runner retains formatting as one of all four fresh guarded steps.
-
-The unchanged complete run-status-child-remedy.sh was previously read. New sync-status-child-remedy-aeea9a48.sh is fully read: requires clean exact mirror5b0, fetches a distinct retainedaeea bundle and detaches exactaeea before the guarded runner. Uniqueaeea paths prevent overwriting5b0 receipts; exact revision/clean guards surround the complete four-step run. No native execution by this reviewer. Original29 selection and affected quality scope remain; actual acceptance awaits fresh terminal evidence.

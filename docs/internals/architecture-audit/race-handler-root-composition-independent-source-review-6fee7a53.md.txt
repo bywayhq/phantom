@@ -1,7 +1,0 @@
-# Root handler source composition
-
-Approved exact `6fee7a533d77f2755ec4d8dce58467555360c57b` as the reviewed handler remedy composed with root's existing source. No findings.
-
-The full integration diff and read-only validator were manually read. An independent in-memory inverse restores the entire LF `59d29568` canonical source; existing capture operations are AST-exact. The capture, new handler helper, cleanup-retention and standalone helper match the approved author functions byte-for-byte. Root's listener/address `RunRecord` and `UdpRecorder` remain byte-identical to the pre-integration root. All five root control files are unchanged. These identity checks grant no fresh whole-module manual-read credit.
-
-This report records source composition only. The composed 27-control run was still in progress when prepared; no native result is credited. Existing undriven source limits remain unchanged. Root's Ruff 80-file lint/format results are reported, not rerun here. No target import, runtime, process/socket/browser or Cargo action occurred. Full gate/main approval remains separate.
