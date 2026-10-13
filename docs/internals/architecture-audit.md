@@ -59,7 +59,8 @@ This is the delivery snapshot from 2026-10-13. The full audit remains open.
 | Testkit and fixtures, PR 199 | `90b9b7ea` | Merged; applicable PR checks passed, including both platforms |
 | Capture and conformance tools, PR 200 | `20fa0d5b` | Merged; all 24 local gate steps and applicable PR checks passed |
 | Architecture and documentation, PR 204 | `d1d353e8` | Merged; all 22 local gate steps, applicable PR checks and six main workflows passed |
-| Fixture ownership and parsing, PR 205 | `7e153e1a` | Merged; all 24 local gate steps and 41 PR checks passed; main CI pending |
+| Fixture ownership and parsing, PR 205 | `7e153e1a` | Merged; all 24 local gate steps, 41 PR checks and four applicable main workflows passed |
+| HTTP/3 WebSocket and MASQUE fixtures, PR 206 | `1806cb77` | Merged; all 24 local gate steps, 41 PR checks and four applicable main workflows passed |
 
 The tooling gate includes Linux Clippy and MSRV checks through WSL. Its
 source and complete logs have independent review. The 42 PR checks completed
@@ -75,16 +76,21 @@ Current coverage reconciliation distinguishes historical complete reads,
 later reviewed changes and actual gaps. Fresh reads found detached test peers
 and a malformed capture parser panic. Their reviewed repairs are in PR 205.
 Thirty-seven source-review paths now have reconciled receipt pointers.
-HTTP/3 WebSocket and MASQUE fixture work, remaining coverage dispositions and the final combined review stay
-open. The records delivery does not close the full audit.
+Remaining capture remedies, coverage dispositions and the final combined
+review stay open. The records delivery does not close the full audit.
 
 PR 205 covers malformed capture input, redirects, WebSockets, EventSource
 reconnects and HTTP/2 and HTTP/3 connection counts. The first full gate found
 three fixture cancellation regressions and lint failures. Their reviewed
 corrections pass the replacement gate, including 4,507 native tests and
 143 doctests. All 41 PR checks pass, including both platforms and the
-conformance suites. Main CI is running at the fast-forwarded revision.
-HTTP/3 WebSocket and MASQUE fixture repairs remain separately required.
+conformance suites. All four applicable main push workflows passed.
+
+PR 206 collects HTTP/3 WebSocket and MASQUE workers and their original
+outcomes. It bounds frames, capsules and rejection drains, rejects non-loopback
+targets, and preserves caller deadline causes. Independent review accepts
+the source and complete gate logs. Its 24 gate steps include 4,574 native
+tests and 143 doctests. All 41 PR checks and four main push workflows pass.
 
 Playground's migration branch is ready at `399af77e`. Its quick gate and
 773 selected tests passed locally. The API selection skips 340 other tests.

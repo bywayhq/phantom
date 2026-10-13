@@ -32,6 +32,12 @@ records PR 204 at `d1d353e8`. The following receipts remain under `C:/code/phant
 | `audit-records-d1d353e8-windows.gate.log` and `.gate.exit` | `d1d353e8`: all 22 local gate steps pass; exit zero |
 | `audit-records-d1d353e8-final-pr-checks.json` | `d1d353e8`: all 37 applicable PR checks succeed, including both platforms |
 | `main-d1d353e8-push-checks.json` | `d1d353e8`: all six applicable push workflows succeed |
+| `fixture-7e153e1a-final-pr-checks.json` | `7e153e1a`: 41 successful PR checks, including both platforms |
+| `main-7e153e1a-push-checks.json` | `7e153e1a`: all four applicable main push workflows succeed |
+| `h3-masque-gate-1806cb77-independent-log-review.json` | `1806cb77`: independent acceptance of all 24 gate steps and archived raw logs |
+| `h3-masque-1806cb77-independent-composition-review.json` | `1806cb77`: independent source acceptance and 117 focused controls |
+| `h3-masque-1806cb77-final-pr-checks.json` | `1806cb77`: 41 successful PR checks, including both platforms |
+| `main-1806cb77-push-checks.json` | `1806cb77`: all four applicable main push workflows succeed |
 
 The tooling packet includes `source-before.log`, `source-after.log`,
 `clean-before.log` and `clean-after.log` with the same

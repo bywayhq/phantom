@@ -24,10 +24,13 @@ gate steps passed. All 37 applicable PR checks and all six main push
 workflows passed, including macOS and Windows PR checks. This delivery
 preserves the original changes; the whole audit remains open.
 
-The inventory's delivery column now records presence at `d1d353e8`.
-It contains 2,460 merged paths and five retired historical paths. Existing
+The inventory's delivery column now records presence at `1806cb77`.
+It contains 2,473 merged paths and five retired historical paths. Existing
 review dispositions retain their original source scope. Presence and pending
 row counts do not measure unfinished implementation.
+
+Thirteen new fixture paths have delivery presence and composed-review
+pointers. Their individual whole-source scope reconciliation remains pending.
 
 Receipt reconciliation covers 37 previously uncredited paths at `d1d353e8`.
 Twenty-four have complete reviews of their exact current source. Thirteen
@@ -49,13 +52,19 @@ Fixture PR 205 at `7e153e1a` repairs peer ownership, error collection and
 capture parsing. Its independent source and complete gate-log reviews are
 approved. All 24 local gate steps passed, including native and Linux
 Clippy/MSRV, 4,507 native tests and 143 doctests. All 41 PR checks passed,
-including both platforms and conformance suites. PR 205 is merged; main CI
-is running. The earlier failed gate remains retained.
+including both platforms and conformance suites. PR 205 is merged; all four
+applicable main push workflows passed. The earlier failed gate remains retained.
 
-HTTP/3 WebSocket ownership and MASQUE input bounds have source reviews.
-Their combined runtime checks and MASQUE relay outcome collection remain
-open. Current dispositions for other qualified gaps, the final combined
-architecture/standards review and exact integration checks remain required.
+HTTP/3 WebSocket and MASQUE fixture PR 206 merged at `1806cb77`. Independent
+source and complete gate-log review accept the composed ownership, original
+outcomes and bounded parsing. All 24 local gate steps, 41 PR checks and four
+applicable main push workflows passed. The native suite passes 4,574 methods,
+with 143 doctests passing separately. Linux checks cover compilation and lint,
+not Linux runtime execution. No browser capture follows from these results.
+
+Current dispositions for other qualified gaps, remaining capture remedies,
+the final combined architecture/standards review and exact integration checks
+remain required.
 
 ## Historical verification
 
