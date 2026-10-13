@@ -431,6 +431,29 @@ class BrowserLaunchTests(unittest.TestCase):
         self.assertEqual(after, before)
 
 
+class LaunchPeerFailures(Exception):
+    def __init__(self, primary, cleanup, pending):
+        super().__init__("launch test peer cleanup failed")
+        self.primary = primary
+        self.cleanup = tuple(cleanup)
+        self.pending = tuple(pending)
+        self.prior_cause = primary.__cause__
+        self.prior_context = primary.__context__
+
+
+def raise_peer_failures(primary, cleanup, pending=()):
+    causes = []
+    for error in cleanup:
+        if error is not primary and all(error is not prior for prior in causes):
+            causes.append(error)
+    if primary is None and causes:
+        primary = causes.pop(0)
+    if primary is not None:
+        if causes or pending:
+            raise primary from LaunchPeerFailures(primary, causes, pending)
+        raise primary
+
+
 class LaunchTurnTests(unittest.TestCase):
     def test_without_a_lock_directory_launches_do_not_wait(self) -> None:
         os.environ.pop(browser_launch.LAUNCH_LOCK_DIRECTORY, None)
@@ -439,27 +462,66 @@ class LaunchTurnTests(unittest.TestCase):
             self.assertFalse(shared)
 
     def test_launches_take_turns_when_a_runner_sets_the_lock_directory(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
+        directory_owner = tempfile.TemporaryDirectory()
+        pending = []
+        failures = []
+        primary = None
+        thread = None
+        try:
+            directory = directory_owner.name
             os.environ[browser_launch.LAUNCH_LOCK_DIRECTORY] = directory
             self.addCleanup(os.environ.pop, browser_launch.LAUNCH_LOCK_DIRECTORY, None)
             events = []
             first_holds = threading.Event()
+            stop = threading.Event()
 
             def second() -> None:
-                first_holds.wait()
-                with browser_launch.launch_turn("firefox"):
-                    events.append("second")
+                try:
+                    if not first_holds.wait(10):
+                        raise TimeoutError("first launch never acquired its lock")
+                    if not stop.is_set():
+                        with browser_launch.launch_turn("firefox"):
+                            events.append("second")
+                except BaseException as error:
+                    failures.append(error)
 
             thread = threading.Thread(target=second)
-            thread.start()
-            with browser_launch.launch_turn("firefox") as shared:
+            try:
+                thread.start()
+                with browser_launch.launch_turn("firefox") as shared:
+                    first_holds.set()
+                    time.sleep(0.3)
+                    events.append("first")
+            except BaseException as error:
+                primary = error
+            finally:
+                if primary is not None:
+                    stop.set()
                 first_holds.set()
-                time.sleep(0.3)
-                events.append("first")
-            thread.join(timeout=10)
-
-            self.assertTrue(shared)
-            self.assertEqual(events, ["first", "second"])
+                if thread.ident is not None:
+                    thread.join(timeout=10)
+                    if thread.is_alive():
+                        failures.append(
+                            TimeoutError("second launch thread did not retire")
+                        )
+                        pending.append(thread)
+            if primary is None and not failures:
+                self.assertTrue(shared)
+                self.assertEqual(events, ["first", "second"])
+        except BaseException as error:
+            if primary is None:
+                primary = error
+            else:
+                failures.append(error)
+        finally:
+            if thread is not None and thread.is_alive():
+                pending.append(directory_owner)
+            else:
+                try:
+                    directory_owner.cleanup()
+                except BaseException as error:
+                    failures.append(error)
+        raise_peer_failures(primary, failures, pending)
 
 
 class FakeProcess:
@@ -508,57 +570,211 @@ class ExitedFirefox(LaunchedBrowser):
             shutil.rmtree(self.profile, ignore_errors=True)
 
 
+class WaitingLaunchPeers:
+    """Own the response workers and native client for the waiting-launch test."""
+
+    def __init__(self, release):
+        self.release = release
+        self.server = None
+        self.responses = []
+        self.writers = []
+        self.closures = []
+        self.worker = None
+        self.reply = []
+        self.failures = []
+        self.pending = []
+        self.closing = False
+
+    async def start(self):
+        self.server = await asyncio.start_server(self.accept, "127.0.0.1", 0)
+        port = self.server.sockets[0].getsockname()[1]
+
+        def client():
+            try:
+                with socket.create_connection(("127.0.0.1", port), timeout=5) as sock:
+                    sock.sendall(b"page\n")
+                    self.reply.append(sock.recv(16))
+                self.reply.append(b"released")
+            except BaseException as error:
+                self.failures.append(error)
+            finally:
+                self.release.set()
+
+        self.worker = threading.Thread(target=client)
+        self.worker.start()
+
+    def accept(self, reader, writer):
+        self.writers.append(writer)
+        if self.closing:
+            self.retire_writer(writer)
+            return
+        response = self.answer(reader, writer)
+        try:
+            self.responses.append(asyncio.create_task(response))
+        except BaseException as error:
+            response.close()
+            self.failures.append(error)
+            self.release.set()
+
+    async def answer(self, reader, writer):
+        await reader.readline()
+        writer.write(b"ok\n")
+        await writer.drain()
+
+    async def collect(self, tasks, phase):
+        if not tasks:
+            return
+        done, pending = await asyncio.wait(tasks, timeout=5)
+        for task in done:
+            try:
+                task.result()
+            except BaseException as error:
+                self.failures.append(error)
+        if pending:
+            self.failures.append(TimeoutError(f"waiting launch {phase} did not retire"))
+            for task in pending:
+                task.cancel()
+            done, pending = await asyncio.wait(pending, timeout=5)
+            for task in done:
+                try:
+                    task.result()
+                except asyncio.CancelledError:
+                    pass  # Only these explicitly cancelled cleanup workers.
+                except BaseException as error:
+                    self.failures.append(error)
+            self.pending.extend(pending)
+
+    def retire_writer(self, writer):
+        try:
+            writer.close()
+        except BaseException as error:
+            self.failures.append(error)
+            try:
+                writer.transport.abort()
+            except BaseException as abort_error:
+                self.failures.append(abort_error)
+        closure = writer.wait_closed()
+        try:
+            self.closures.append(asyncio.create_task(closure))
+        except BaseException as error:
+            closure.close()
+            self.failures.append(error)
+            self.pending.append(writer)
+
+    async def close(self):
+        self.closing = True
+        self.release.set()
+        for response in self.responses:
+            if response.done():
+                try:
+                    response.result()
+                except BaseException as error:
+                    self.failures.append(error)
+        if self.server is not None:
+            try:
+                self.server.close()
+                self.closures.append(asyncio.create_task(self.server.wait_closed()))
+            except BaseException as error:
+                self.failures.append(error)
+                self.pending.append(self.server)
+        for writer in self.writers:
+            self.retire_writer(writer)
+        await self.collect(self.responses, "responses")
+        collected = 0
+        while collected < len(self.closures):
+            closures = self.closures[collected:]
+            collected = len(self.closures)
+            await self.collect(closures, "sockets")
+        if self.worker is not None and self.worker.ident is not None:
+            await asyncio.to_thread(self.worker.join, 5)
+            if self.worker.is_alive():
+                self.failures.append(
+                    TimeoutError("waiting launch client did not retire")
+                )
+                self.pending.append(self.worker)
+
+
 class EnterBrowserTests(unittest.TestCase):
     """A launch that waits its turn must not stall the tool's server."""
 
     def setUp(self) -> None:
+        self.holder = None
         self.directory = tempfile.TemporaryDirectory()
-        self.addCleanup(self.directory.cleanup)
+        self.addCleanup(self.cleanup_directory)
         os.environ[browser_launch.LAUNCH_LOCK_DIRECTORY] = self.directory.name
         self.addCleanup(os.environ.pop, browser_launch.LAUNCH_LOCK_DIRECTORY, None)
         self.plan = LaunchPlan("firefox", Path("firefox.exe"), True)
         self.held = threading.Event()
         self.release = threading.Event()
+        self.holder_failures = []
 
         def hold() -> None:
-            with browser_launch.launch_turn("firefox"):
+            try:
+                with browser_launch.launch_turn("firefox"):
+                    self.held.set()
+                    if not self.release.wait(10):
+                        raise TimeoutError("waiting launch lock was not released")
+            except BaseException as error:
+                self.holder_failures.append(error)
+            finally:
                 self.held.set()
-                self.release.wait(10)
 
         self.holder = threading.Thread(target=hold)
+        self.addCleanup(self.collect_holder)
         self.holder.start()
-        self.held.wait(10)
-        self.addCleanup(self.holder.join, 10)
-        self.addCleanup(self.release.set)
+        if not self.held.wait(10):
+            self.collect_holder(
+                TimeoutError("waiting launch holder never became ready")
+            )
+        if self.holder_failures:
+            self.collect_holder()
+
+    def collect_holder(self, primary=None):
+        self.release.set()
+        pending = []
+        if self.holder.ident is not None:
+            self.holder.join(10)
+            if self.holder.is_alive():
+                self.holder_failures.append(
+                    TimeoutError("launch holder did not retire")
+                )
+                pending.extend([self.holder, self.directory])
+        failures, self.holder_failures = self.holder_failures, []
+        raise_peer_failures(primary, failures, pending)
+
+    def cleanup_directory(self):
+        # A native lock call cannot be preempted. Its failure packet retains
+        # the directory until the still-owned holder thread has retired.
+        if self.holder is None or not self.holder.is_alive():
+            self.directory.cleanup()
 
     def test_the_server_answers_while_a_firefox_launch_waits(self) -> None:
         async def scenario() -> tuple[bytes, bool]:
-            async def answer(reader, writer) -> None:
-                await reader.readline()
-                writer.write(b"ok\n")
-                await writer.drain()
-                writer.close()
-
-            server = await asyncio.start_server(answer, "127.0.0.1", 0)
-            port = server.sockets[0].getsockname()[1]
-            reply: list[bytes] = []
-
-            def client() -> None:
-                with socket.create_connection(("127.0.0.1", port), timeout=5) as sock:
-                    sock.sendall(b"page\n")
-                    reply.append(sock.recv(16))
-                # The lock is still held, so the launch is still waiting.
-                reply.append(b"released")
-                self.release.set()
-
-            threading.Thread(target=client, daemon=True).start()
-            browser = await browser_launch.enter_browser(
-                ExitedFirefox(self.plan, "http://127.0.0.1/")
-            )
-            browser.__exit__(None, None, None)
-            server.close()
-            await server.wait_closed()
-            return b"".join(reply[:1]), reply[-1:] == [b"released"]
+            peers = WaitingLaunchPeers(self.release)
+            primary = None
+            browser = None
+            try:
+                await peers.start()
+                browser = await browser_launch.enter_browser(
+                    ExitedFirefox(self.plan, "http://127.0.0.1/")
+                )
+            except BaseException as error:
+                primary = error
+            finally:
+                if browser is not None:
+                    try:
+                        browser.__exit__(None, None, None)
+                    except BaseException as error:
+                        peers.failures.append(error)
+                        peers.pending.append(browser)
+                cleanup = asyncio.create_task(peers.close())
+                try:
+                    await asyncio.shield(cleanup)
+                except BaseException as error:
+                    peers.failures.append(error)
+                    peers.pending.extend([peers, cleanup])
+            raise_peer_failures(primary, peers.failures, peers.pending)
+            return b"".join(peers.reply[:1]), peers.reply[-1:] == [b"released"]
 
         answered, released_by_client = asyncio.run(scenario())
 
@@ -573,11 +789,18 @@ class EnterBrowserTests(unittest.TestCase):
             task = asyncio.create_task(
                 browser_launch.enter_browser(ExitedFirefox(self.plan, "about:blank"))
             )
-            await asyncio.sleep(0.2)
-            task.cancel()
-            with self.assertRaises(asyncio.CancelledError):
-                await task
-            self.release.set()
+            try:
+                await asyncio.sleep(0.2)
+                task.cancel()
+                with self.assertRaises(asyncio.CancelledError):
+                    await task
+            finally:
+                self.release.set()
+                if not task.done():
+                    task.cancel()
+                    # This test requested the abandoned launch cancellation.
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await task
 
         asyncio.run(scenario())
 
