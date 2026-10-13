@@ -849,14 +849,12 @@ async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(TEST_TIMEOUT, future)
-        .await
-        .map_err(|elapsed| {
-            crate::support::deadline::FixtureDeadline::new(
-                "DNS override integration test exceeded its deadline",
-                elapsed,
-            )
-        })?
+    timeout(TEST_TIMEOUT, future).await.map_err(|elapsed| {
+        crate::support::deadline::FixtureDeadline::new(
+            "DNS override integration test exceeded its deadline",
+            elapsed,
+        )
+    })?
 }
 
 #[cfg(test)]
