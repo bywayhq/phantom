@@ -93,7 +93,12 @@ The reviewed remedy stops job admission and collects original member handles
 before termination. Cleanup shares a twenty-second wait budget and retains
 failed owners for retry. Collection has a 4,096-member guardrail; incomplete
 collection remains an error. Members already terminating and absent before
-collection are outside this completion guarantee. Native checks remain open.
+collection are outside this completion guarantee. At `42d9d3a0`, both hosts
+pass all 22 startup and 23 ECH methods. Process controls pass 18 methods on
+Windows and eight on Linux, with three and thirteen platform-specific skips.
+Matrix controls pass 62 on Windows with one skip, and all 63 on Linux.
+Ruff, format and docs pass. Both readers inspect complete logs and clean
+exact revisions. The original Windows descendant control now passes unchanged.
 
 The independently reviewed remote-socket correction applies one absolute
 five-second deadline to TCP acquisition, upgrade drain and upgrade read.
