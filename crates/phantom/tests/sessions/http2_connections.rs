@@ -19,12 +19,15 @@ use phantom::{Client, ClientBuilder, HttpProtocol, ResponseInfo};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::{mpsc, watch},
-    task::JoinHandle,
     time::{sleep, timeout},
 };
 
 use btls::ssl::SslAcceptor;
 use tls_support::{H2_ALPN, TestIdentity, accept_tls_stream, client_builder};
+
+use ownership::{Spawner, Task, Work};
+
+mod ownership;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
@@ -50,13 +53,18 @@ struct Origin {
     events: mpsc::UnboundedReceiver<Event>,
     release: watch::Sender<bool>,
     goaway: watch::Sender<Option<usize>>,
-    task: JoinHandle<()>,
+    task: Task,
+    spawner: Spawner,
 }
 
 impl Origin {
     /// `stalled` names a connection whose TLS handshake waits 3 seconds.
-    async fn start(identity: &TestIdentity, stalled: Option<usize>) -> TestResult<Self> {
-        Self::with(identity, stalled, None).await
+    async fn start(
+        identity: &TestIdentity,
+        stalled: Option<usize>,
+        spawner: Spawner,
+    ) -> TestResult<Self> {
+        Self::with(identity, stalled, None, spawner).await
     }
 
     /// Like [`Origin::start`], and closes the `dropped` connection before
@@ -65,6 +73,7 @@ impl Origin {
         identity: &TestIdentity,
         stalled: Option<usize>,
         dropped: Option<usize>,
+        spawner: Spawner,
     ) -> TestResult<Self> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
@@ -72,13 +81,16 @@ impl Origin {
         let (sender, events) = mpsc::unbounded_channel();
         let (release, released) = watch::channel(false);
         let (goaway, goaway_requested) = watch::channel(None);
-        let task = tokio::spawn(async move {
+        spawner.retain_signals(release.clone(), goaway.clone())?;
+        let serving = spawner.clone();
+        let task = spawner.spawn(async move {
             let mut accepted = 0;
-            while let Ok((tcp, _)) = listener.accept().await {
+            loop {
+                let (tcp, _) = listener.accept().await?;
                 let index = accepted;
                 accepted += 1;
                 if sender.send(Event::Accepted(index)).is_err() {
-                    return;
+                    return Err("HTTP/2 origin observer stopped".into());
                 }
                 let (acceptor, sender, released, goaway) = (
                     acceptor.clone(),
@@ -90,20 +102,22 @@ impl Origin {
                     drop(tcp);
                     continue;
                 }
-                tokio::spawn(async move {
+                let responses = serving.clone();
+                serving.spawn(async move {
                     if stalled == Some(index) {
                         sleep(Duration::from_secs(3)).await;
                     }
-                    let _ = serve(tcp, acceptor, index, sender, released, goaway).await;
-                });
+                    serve(tcp, acceptor, index, sender, released, goaway, responses).await
+                })?;
             }
-        });
+        })?;
         Ok(Self {
             address,
             events,
             release,
             goaway,
             task,
+            spawner,
         })
     }
 
@@ -186,6 +200,7 @@ async fn serve(
     events: mpsc::UnboundedSender<Event>,
     released: watch::Receiver<bool>,
     mut goaway: watch::Receiver<Option<usize>>,
+    spawner: Spawner,
 ) -> TestResult {
     let stream = accept_tls_stream(tcp, acceptor).await?;
     let mut builder = ::http2::server::Builder::new();
@@ -212,7 +227,7 @@ async fn serve(
         events.send(Event::Request { connection })?;
         let path = request.uri().path().to_owned();
         let mut released = released.clone();
-        tokio::spawn(async move {
+        spawner.spawn(async move {
             let mut body = None;
             if path.starts_with("/head") {
                 body =
@@ -222,7 +237,23 @@ async fn serve(
                     )?);
             }
             if path != "/warm" {
-                released.wait_for(|released| *released).await?;
+                let reset = tokio::select! {
+                    released = released.wait_for(|released| *released) => {
+                        released?;
+                        None
+                    }
+                    reset = std::future::poll_fn(|context| match &mut body {
+                        Some(body) => body.poll_reset(context),
+                        None => respond.poll_reset(context),
+                    }) => Some(reset?),
+                };
+                if let Some(reason) = reset {
+                    // Unread bodies and intentionally cancelled callers reset their stream.
+                    if reason == ::http2::Reason::CANCEL {
+                        return Ok(());
+                    }
+                    return Err(::http2::Error::from(reason).into());
+                }
             }
             let mut body = match body {
                 Some(body) => body,
@@ -231,7 +262,7 @@ async fn serve(
             };
             body.send_data(Bytes::from_static(b"done"), true)?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
+        })?;
     }
 }
 
@@ -278,17 +309,20 @@ async fn connections_for_identity(
     identity: &TestIdentity,
     mode: Mode,
     expected: usize,
+    work: &Work,
 ) -> TestResult<(usize, usize)> {
-    let mut origin = Origin::start(identity, None).await?;
+    let mut origin = Origin::start(identity, None, work.spawner()).await?;
     let client = builder.build()?;
     finish(send(&client, mode, &origin.uri("warm")).await?).await?;
 
     let mut tasks = Vec::new();
     for index in 0..REQUESTS {
         let (client, uri) = (client.clone(), origin.uri(&format!("held-{index}")));
-        tasks.push(tokio::spawn(async move {
-            finish(send(&client, mode, &uri).await?).await
-        }));
+        tasks.push(
+            origin
+                .spawner
+                .spawn(async move { finish(send(&client, mode, &uri).await?).await })?,
+        );
     }
     // The warm request's connection and request count too.
     let observed = origin.settle(expected + 1).await?;
@@ -305,19 +339,25 @@ where
 {
     timeout(Duration::from_secs(30), future)
         .await
-        .map_err(|_| "HTTP/2 connection test exceeded its deadline")?
+        .map_err(|elapsed| {
+            crate::support::deadline::FixtureDeadline::new(
+                "HTTP/2 connection test exceeded its deadline",
+                elapsed,
+            )
+        })?
 }
 
 /// Five requests at a peer limit of two streams need three connections.
 #[tokio::test]
 async fn full_connections_open_more_up_to_the_configured_limit() -> TestResult {
-    bounded(async {
+    let mut work = Work::new();
+    let primary = bounded(async {
         for mode in [Mode::Exact, Mode::Negotiated] {
             let identity = TestIdentity::generate()?;
             let builder =
                 client_builder(&identity, true).max_http2_connections_per_origin(bound(4)?);
             let (connections, requests) =
-                connections_for_identity(builder, &identity, mode, 5).await?;
+                connections_for_identity(builder, &identity, mode, 5, &work).await?;
             // ceil(5 / 2) = 3 connections, below the limit of 4.
             assert_eq!(connections, 3);
             assert_eq!(requests, REQUESTS);
@@ -326,24 +366,26 @@ async fn full_connections_open_more_up_to_the_configured_limit() -> TestResult {
             let builder =
                 client_builder(&identity, true).max_http2_connections_per_origin(bound(2)?);
             let (connections, requests) =
-                connections_for_identity(builder, &identity, mode, 4).await?;
+                connections_for_identity(builder, &identity, mode, 4, &work).await?;
             // The limit caps it at two; the fifth stream waits for the peer.
             assert_eq!(connections, 2);
             assert_eq!(requests, 4);
         }
         Ok(())
     })
-    .await
+    .await;
+    work.finish(primary).await
 }
 
 #[tokio::test]
 async fn one_connection_per_origin_is_the_default() -> TestResult {
-    bounded(async {
+    let mut work = Work::new();
+    let primary = bounded(async {
         for mode in [Mode::Exact, Mode::Negotiated] {
             let identity = TestIdentity::generate()?;
             let builder = client_builder(&identity, true);
             let (connections, requests) =
-                connections_for_identity(builder, &identity, mode, 2).await?;
+                connections_for_identity(builder, &identity, mode, 2, &work).await?;
             assert_eq!(connections, 1);
             // The peer allows two streams; the rest queue on the one
             // connection until those end.
@@ -351,23 +393,22 @@ async fn one_connection_per_origin_is_the_default() -> TestResult {
         }
         Ok(())
     })
-    .await
+    .await;
+    work.finish(primary).await
 }
 
 /// Evicts the origin's pool entry, so the next request to it knows the
 /// origin selected HTTP/2 but has no connection, then starts a request whose
 /// TLS handshake the origin stalls for 3 seconds.
-async fn stall_a_setup(
-    client: &Client,
-    origin: &mut Origin,
-    other: &Origin,
-) -> TestResult<JoinHandle<TestResult>> {
+async fn stall_a_setup(client: &Client, origin: &mut Origin, other: &Origin) -> TestResult<Task> {
     finish(send(client, Mode::Negotiated, &origin.uri("warm")).await?).await?;
     // The client retains one negotiated pool entry.
     finish(send(client, Mode::Negotiated, &other.uri("warm")).await?).await?;
     let stalled = {
         let (client, uri) = (client.clone(), origin.uri("warm"));
-        tokio::spawn(async move { finish(send(&client, Mode::Negotiated, &uri).await?).await })
+        origin
+            .spawner
+            .spawn(async move { finish(send(&client, Mode::Negotiated, &uri).await?).await })?
     };
     assert_eq!(origin.next_request().await?, 0);
     assert_eq!(origin.next_accepted().await?, 1);
@@ -383,10 +424,11 @@ fn negotiated_builder(identity: &TestIdentity) -> TestResult<ClientBuilder> {
 
 #[tokio::test]
 async fn setup_wait_limit_opens_a_connection_past_a_stalled_handshake() -> TestResult {
-    bounded(async {
+    let mut work = Work::new();
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
-        let mut origin = Origin::start(&identity, Some(1)).await?;
-        let other = Origin::start(&identity, None).await?;
+        let mut origin = Origin::start(&identity, Some(1), work.spawner()).await?;
+        let other = Origin::start(&identity, None, work.spawner()).await?;
         let client = negotiated_builder(&identity)?
             .negotiated_setup_wait_limit(Duration::from_millis(100))
             .build()?;
@@ -403,22 +445,24 @@ async fn setup_wait_limit_opens_a_connection_past_a_stalled_handshake() -> TestR
         stalled.abort();
         Ok(())
     })
-    .await
+    .await;
+    work.finish(primary).await
 }
 
 #[tokio::test]
 async fn without_a_setup_wait_limit_a_request_waits_for_the_handshake() -> TestResult {
-    bounded(async {
+    let mut work = Work::new();
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
-        let mut origin = Origin::start(&identity, Some(1)).await?;
-        let other = Origin::start(&identity, None).await?;
+        let mut origin = Origin::start(&identity, Some(1), work.spawner()).await?;
+        let other = Origin::start(&identity, None, work.spawner()).await?;
         let client = negotiated_builder(&identity)?.build()?;
         let stalled = stall_a_setup(&client, &mut origin, &other).await?;
 
         let (client_clone, uri) = (client.clone(), origin.uri("warm"));
-        let waiting = tokio::spawn(async move {
+        let waiting = origin.spawner.spawn(async move {
             finish(send(&client_clone, Mode::Negotiated, &uri).await?).await
-        });
+        })?;
         // As Firefox does, the request waits and opens no connection.
         let opened = timeout(QUIET_WINDOW * 2, origin.next_accepted()).await;
         assert!(opened.is_err(), "a second setup opened: {opened:?}");
@@ -427,7 +471,8 @@ async fn without_a_setup_wait_limit_a_request_waits_for_the_handshake() -> TestR
         stalled.abort();
         Ok(())
     })
-    .await
+    .await;
+    work.finish(primary).await
 }
 
 #[test]
@@ -443,17 +488,19 @@ fn an_unrepresentable_setup_wait_limit_is_rejected_at_build() -> TestResult {
 }
 
 /// Sends one held exact request per path at once and returns their tasks.
-fn spawn_held(client: &Client, origin: &Origin, paths: &[&str]) -> Vec<JoinHandle<TestResult>> {
+fn spawn_held(client: &Client, origin: &Origin, paths: &[&str]) -> TestResult<Vec<Task>> {
     paths
         .iter()
         .map(|path| {
             let (client, uri) = (client.clone(), origin.uri(path));
-            tokio::spawn(async move { finish(send(&client, Mode::Exact, &uri).await?).await })
+            origin
+                .spawner
+                .spawn(async move { finish(send(&client, Mode::Exact, &uri).await?).await })
         })
         .collect()
 }
 
-async fn join(tasks: Vec<JoinHandle<TestResult>>) -> TestResult {
+async fn join(tasks: Vec<Task>) -> TestResult {
     for task in tasks {
         timeout(TEST_TIMEOUT, task).await???;
     }
@@ -482,9 +529,10 @@ async fn requests_without_new_connections(
 
 #[tokio::test]
 async fn stream_counts_fall_when_bodies_end_or_are_dropped() -> TestResult {
-    bounded(async {
+    let mut work = Work::new();
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
-        let mut origin = Origin::start(&identity, None).await?;
+        let mut origin = Origin::start(&identity, None, work.spawner()).await?;
         let client = client_builder(&identity, true)
             .max_http2_connections_per_origin(bound(2)?)
             .build()?;
@@ -503,7 +551,7 @@ async fn stream_counts_fall_when_bodies_end_or_are_dropped() -> TestResult {
 
         // Connection 0 has room again, so two more streams need no new
         // connection.
-        let tasks = spawn_held(&client, &origin, &["held-1", "held-2"]);
+        let tasks = spawn_held(&client, &origin, &["held-1", "held-2"])?;
         assert_eq!(
             requests_without_new_connections(&mut origin, 2).await?,
             [0, 0]
@@ -514,7 +562,7 @@ async fn stream_counts_fall_when_bodies_end_or_are_dropped() -> TestResult {
         // Those streams ended with their bodies, so connection 0 takes the
         // next two as well.
         origin.hold();
-        let tasks = spawn_held(&client, &origin, &["held-3", "held-4"]);
+        let tasks = spawn_held(&client, &origin, &["held-3", "held-4"])?;
         assert_eq!(
             requests_without_new_connections(&mut origin, 2).await?,
             [0, 0]
@@ -522,49 +570,53 @@ async fn stream_counts_fall_when_bodies_end_or_are_dropped() -> TestResult {
         origin.release();
         join(tasks).await
     })
-    .await
+    .await;
+    work.finish(primary).await
 }
 
 #[tokio::test]
 async fn a_connection_that_received_goaway_takes_no_new_streams() -> TestResult {
-    bounded(async {
+    let mut work = Work::new();
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
-        let mut origin = Origin::start(&identity, None).await?;
+        let mut origin = Origin::start(&identity, None, work.spawner()).await?;
         let client = client_builder(&identity, true)
             .max_http2_connections_per_origin(bound(3)?)
             .build()?;
         finish(send(&client, Mode::Exact, &origin.uri("warm")).await?).await?;
 
         // Connection 0 fills up, so a third stream opens connection 1.
-        let held = spawn_held(&client, &origin, &["held-1", "held-2", "held-3"]);
+        let held = spawn_held(&client, &origin, &["held-1", "held-2", "held-3"])?;
         assert_eq!(origin.settle(4).await?, (2, 4));
 
         // After GOAWAY on connection 0, the next stream goes to connection
         // 1, which has room.
         origin.goaway(0);
         sleep(QUIET_WINDOW).await;
-        let next = spawn_held(&client, &origin, &["held-4"]);
+        let next = spawn_held(&client, &origin, &["held-4"])?;
         assert_eq!(requests_without_new_connections(&mut origin, 1).await?, [1]);
         origin.release();
         join(held).await?;
         join(next).await
     })
-    .await
+    .await;
+    work.finish(primary).await
 }
 
 #[tokio::test]
 async fn a_connection_with_room_serves_while_another_is_being_set_up() -> TestResult {
-    bounded(async {
+    let mut work = Work::new();
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         // Connection 1's TLS handshake stalls for 3 seconds.
-        let mut origin = Origin::start(&identity, Some(1)).await?;
+        let mut origin = Origin::start(&identity, Some(1), work.spawner()).await?;
         let client = client_builder(&identity, true)
             .max_http2_connections_per_origin(bound(2)?)
             .build()?;
         finish(send(&client, Mode::Exact, &origin.uri("warm")).await?).await?;
 
         // Two streams fill connection 0; the third starts connection 1.
-        let mut held = spawn_held(&client, &origin, &["held-1", "held-2", "held-3"]);
+        let mut held = spawn_held(&client, &origin, &["held-1", "held-2", "held-3"])?;
         // The warm request and two held ones reach connection 0; connection
         // 1 is accepted but its handshake stalls.
         assert_eq!(origin.settle(3).await?, (2, 3));
@@ -583,42 +635,50 @@ async fn a_connection_with_room_serves_while_another_is_being_set_up() -> TestRe
         // is full again, the next request opens a connection of its own.
         stalled.abort();
         origin.hold();
-        let held = spawn_held(&client, &origin, &["held-4", "held-5", "held-6"]);
+        let held = spawn_held(&client, &origin, &["held-4", "held-5", "held-6"])?;
         assert_eq!(origin.next_accepted().await?, 2);
         origin.release();
         join(held).await
     })
-    .await
+    .await;
+    work.finish(primary).await
 }
 
 #[tokio::test]
 async fn concurrent_requests_to_a_cold_origin_open_one_connection_by_default() -> TestResult {
-    bounded(async {
+    let mut work = Work::new();
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
-        let mut origin = Origin::start(&identity, None).await?;
+        let mut origin = Origin::start(&identity, None, work.spawner()).await?;
         let client = client_builder(&identity, true).build()?;
-        let tasks = spawn_held(&client, &origin, &["warm"; REQUESTS]);
+        let tasks = spawn_held(&client, &origin, &["warm"; REQUESTS])?;
         // All five share the one connection, two streams at a time.
         assert_eq!(origin.settle(REQUESTS).await?, (1, REQUESTS));
         join(tasks).await
     })
-    .await
+    .await;
+    work.finish(primary).await
 }
 
 #[tokio::test]
 async fn a_failed_setup_lets_a_waiting_request_make_its_own_attempt() -> TestResult {
-    bounded(async {
+    let mut work = Work::new();
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         // Connection 0 closes before its TLS handshake.
-        let mut origin = Origin::with(&identity, None, Some(0)).await?;
+        let mut origin = Origin::with(&identity, None, Some(0), work.spawner()).await?;
         let client = client_builder(&identity, true).build()?;
         let first = {
             let (client, uri) = (client.clone(), origin.uri("warm"));
-            tokio::spawn(async move { send(&client, Mode::Exact, &uri).await.map(drop) })
+            origin
+                .spawner
+                .spawn(async move { send(&client, Mode::Exact, &uri).await.map(drop) })?
         };
         let second = {
             let (client, uri) = (client.clone(), origin.uri("warm"));
-            tokio::spawn(async move { send(&client, Mode::Exact, &uri).await.map(drop) })
+            origin
+                .spawner
+                .spawn(async move { send(&client, Mode::Exact, &uri).await.map(drop) })?
         };
         let results = [
             timeout(TEST_TIMEOUT, first).await??,
@@ -630,27 +690,29 @@ async fn a_failed_setup_lets_a_waiting_request_make_its_own_attempt() -> TestRes
         assert_eq!(origin.next_accepted().await?, 1);
         Ok(())
     })
-    .await
+    .await;
+    work.finish(primary).await
 }
 
 #[tokio::test]
 async fn a_request_waiting_for_a_setup_takes_room_a_finished_stream_frees() -> TestResult {
-    bounded(async {
+    let mut work = Work::new();
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         // Connection 1's TLS handshake stalls for 3 seconds.
-        let mut origin = Origin::start(&identity, Some(1)).await?;
+        let mut origin = Origin::start(&identity, Some(1), work.spawner()).await?;
         let client = client_builder(&identity, true)
             .max_http2_connections_per_origin(bound(2)?)
             .build()?;
         finish(send(&client, Mode::Exact, &origin.uri("warm")).await?).await?;
 
         // Two streams fill connection 0 and a third starts connection 1.
-        let held = spawn_held(&client, &origin, &["held-1", "held-2", "held-3"]);
+        let held = spawn_held(&client, &origin, &["held-1", "held-2", "held-3"])?;
         assert_eq!(origin.settle(3).await?, (2, 3));
         // This request waits: connection 0 is full and a setup is in flight.
-        let waiting = spawn_held(&client, &origin, &["held-4"]);
+        let waiting = spawn_held(&client, &origin, &["held-4"])?;
         sleep(QUIET_WINDOW).await;
-        assert!(!waiting.iter().any(JoinHandle::is_finished));
+        assert!(!waiting.iter().any(Task::is_finished));
 
         // Connection 0's streams end, which wakes the waiting request before
         // the stalled setup finishes.
@@ -664,5 +726,6 @@ async fn a_request_waiting_for_a_setup_takes_room_a_finished_stream_frees() -> T
         }
         Ok(())
     })
-    .await
+    .await;
+    work.finish(primary).await
 }
