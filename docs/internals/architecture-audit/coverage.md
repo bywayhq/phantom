@@ -22,10 +22,10 @@ Architecture and documentation PR 204 merged at `d1d353e8`, including the
 three testkit layout changes and seventeen docs/config paths. Its 22 local
 gate steps passed. All 37 applicable PR checks and all six main push
 workflows passed, including macOS and Windows PR checks. This delivery
-preserves the original changes; the whole audit remains open.
+preserves the original changes and their historical review scope.
 
-The inventory now includes all 2,484 paths on candidate `f146e52c`, plus
-five retired historical paths. Three new control files await delivery.
+The inventory includes all 2,484 paths on merged revision `f146e52c`, plus
+five retired historical paths. All eleven new control files are delivered.
 Existing review dispositions retain their original source scope. Presence
 and pending row counts do not measure unfinished implementation.
 
@@ -55,7 +55,7 @@ Seven retain original exact-current independent reads. Three retain complete
 baselines with every reviewed later difference. Seven have fresh independent
 whole-current reads, including four WebSocket repairs whose independence was
 previously unclear. The latter pass found the recorder error contract in A343.
-Completed source coverage does not close that finding's integration checks.
+That finding and its integration results are recorded under PR 209 below.
 
 Thirty-one outstanding vendor rows now have individual review dispositions.
 Ten selected patches and small upstream test files have fresh independent
@@ -71,8 +71,8 @@ Ten remaining tool rows now have individual source dispositions. Six have
 fresh independent whole-current reads. Two retain exact original independent
 reviews, and two retain complete baselines with every later difference.
 The fresh browser-launch review found A345 and A346. The HTTP/2 WebSocket
-owner repair for A344 has independent approval. Both repairs remain outside
-main, and completed source coverage does not close their integration checks.
+owner repair for A344 has independent approval. Both repairs merged in
+PR 209 after its source review, full gate and applicable PR checks.
 
 The trust-root difference child has a fresh independent whole-current read.
 Root also read its complete parent and the default-feature vendor patch.
@@ -83,15 +83,15 @@ Twelve further tool rows now retain qualified whole-current source reviews.
 Root reads their individual contracts, methods and limits, then checks all
 twelve current bodies, twenty historical source bindings and fifteen
 original receipts. Complete baselines and every reviewed later difference
-remain distinct from fresh whole reads. The two client-hint rows still have
-known defects on main; their reviewed remedy awaits integration.
+remain distinct from fresh whole reads. PR 209 delivers the independently
+reviewed client-hint remedy and its regression controls.
 
 Eleven new capture-control files now have individual source dispositions.
 Each retains an independent whole-source review or complete baseline and
 every later reviewed difference. Root reads their methods, contracts and
 limits, then checks the current bodies and original receipt hashes. Browser
-authorship remains excluded from self-approval. Eight files are already on
-main; the remaining three belong to the pending composition.
+authorship remains excluded from self-approval. All eleven files are now on
+main through PR 207, PR 208 and PR 209.
 
 The first client-hints and recorder composition is approved at `89524379`.
 Its full gate passes 23 of 24 steps. Nextest passes 4,573 of 4,575 tests;
@@ -107,7 +107,7 @@ native suite does not establish the cause of the earlier draining failures.
 Independent follow-up approves the browser peer repair at `fb6adf73`.
 Its 37 native controls pass, including preservation of an independent error
 attached to owner-requested cancellation. Both acquired peer repairs are in
-the expanded composition, with full-gate and integration requirements open.
+the final PR 209 composition, with its passing full gate and PR checks.
 
 All 480 previously pending capture-data rows now have artifact dispositions
 across twelve groups. Review covers format, producer, consumer, platform,
@@ -120,13 +120,14 @@ historical observations. No finding closes solely from these dispositions.
 A347 records an additional downstream smoke-test owner gap. Caller failure
 or an outer deadline drops its raw peer handle before collection. The
 independently approved repair passes its focused tests, Clippy and Rust 1.88.
-Composition `f146e52c` passes all 24 local gate steps and awaits platform CI
-and integration. Playground's prepared migration remains unchanged.
+Composition `f146e52c` passes all 24 local gate steps and merged in PR 209.
+Playground's prepared migration remains unchanged.
 
 The exact `f146e52c` composition has independent source and gate-log approval.
 All 24 local steps pass, including 4,575 native tests and Linux compile/lint
-checks. The capture suite runs 1,041 tests with four skips. PR 209 still
-requires its applicable CI checks and integration, followed by main CI.
+checks. The capture suite runs 1,041 tests with four skips. All 41 PR checks
+pass, including Windows and macOS. Main was fast-forwarded to that exact head.
+Its push checks are recorded separately in the delivery evidence.
 The earlier failed gates remain recorded with unresolved causes.
 
 Independent architecture review at `b8ab9851` traces twelve shared boundaries.

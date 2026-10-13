@@ -51,7 +51,7 @@ Existing downstream changes and the original audit branches remain intact.
 
 ## Current deliveries
 
-This is the delivery snapshot from 2026-10-13. The full audit remains open.
+These delivery snapshots retain each revision's checks and review scope.
 
 | Delivery | Revision | State |
 | --- | --- | --- |
@@ -63,6 +63,7 @@ This is the delivery snapshot from 2026-10-13. The full audit remains open.
 | HTTP/3 WebSocket and MASQUE fixtures, PR 206 | `1806cb77` | Merged; all 24 local gate steps, 41 PR checks and four applicable main workflows passed |
 | Capture workers, input and QPACK repairs, PR 207 | `b6942293` | Merged; all 24 local gate steps, 29 PR checks and applicable main workflows passed |
 | Firefox and HTTP/2 preface captures, PR 208 | `b8ab9851` | Merged; all 24 local gate steps, 29 PR checks and three applicable main workflows passed |
+| Capture validation and peer collection, PR 209 | `f146e52c` | Merged; independent source/log reviews, all 24 local gate steps and 41 PR checks passed |
 
 The tooling gate includes Linux Clippy and MSRV checks through WSL. Its
 source and complete logs have independent review. The 42 PR checks completed
@@ -78,8 +79,11 @@ Current coverage reconciliation distinguishes historical complete reads,
 later reviewed changes and actual gaps. Fresh reads found detached test peers
 and a malformed capture parser panic. Their reviewed repairs are in PR 205.
 Thirty-seven source-review paths now have reconciled receipt pointers.
-Remaining capture remedies, coverage dispositions and the final combined
-review stay open. The records delivery does not close the full audit.
+The final source dispositions now distinguish whole reads, complete
+baselines with reviewed differences, partial upstream boundaries and
+structured artifacts. Independent review also traces twelve shared
+architecture boundaries. Each records delivery still requires its own gate
+and applicable CI before integration.
 
 PR 205 covers malformed capture input, redirects, WebSockets, EventSource
 reconnects and HTTP/2 and HTTP/3 connection counts. The first full gate found

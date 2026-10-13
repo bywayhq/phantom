@@ -126,6 +126,14 @@ Complete logs, zero exits and equal source bindings use
 `fixture-remedies-ccf8c088`. These are focused results. The replacement
 full gate and PR results at `7e153e1a` above establish later integration.
 
+PR 209 merged at `f146e52c` after independent source and gate-log approval.
+All 24 local steps pass, including 4,575 native tests, 143 doctests and
+1,041 capture tests with four skips. All 41 PR checks passed, including
+Windows, macOS and the selected conformance suites. Main was fast-forwarded
+to that exact revision. `pr209-f146e52c-before-integration.json` retains
+the checks, signatures and previously green main. The separate push-check
+records bind the subsequent main workflows; a red main blocks the next merge.
+
 ### Source preservation
 
 Read-only Git comparison uses original audit revision
