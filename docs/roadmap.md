@@ -57,6 +57,9 @@ features or blockers for the Phase 2 API work.
   [Content decoding](guides/content-decoding.md)).
 - Exact HTTP/3 with QUIC session resumption and early data in the Chrome,
   Edge, Brave, Opera, and Firefox recipes ([HTTP/3 and Alt-Svc](guides/http3.md)).
+- Explicit H1, H2 and H3 origin debugging with `ServerAuthentication::DangerDisabled`
+  and the `danger-disable-verification` feature. CONNECT-UDP proxy verification
+  remains required.
 - Chrome's QPACK stream order in the Chrome, Edge, Brave, and Opera HTTP/3
   recipes: the encoder stream is client stream 10, and its type is written
   with its first instructions
@@ -422,10 +425,6 @@ completed phase scope.
 Each starts from a proposal with acceptance criteria and, where it touches
 the wire, capture evidence.
 
-- HTTP/3 with verification off. The `danger-disable-verification` feature's
-  `ServerAuthentication::DangerDisabled` already skips chain and name
-  verification over HTTP/1.1 and HTTP/2, for example to debug through an
-  intercepting proxy, and changes no wire field.
 - Import of externally described fingerprints, limited to fields Phantom
   reproduces byte for byte.
 

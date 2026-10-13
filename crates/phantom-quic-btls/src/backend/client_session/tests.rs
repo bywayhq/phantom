@@ -7,7 +7,7 @@ mod support;
 use btls_sys as ffi;
 
 use super::{
-    ClientSession, ClientSessionError, HandshakeProgress, encryption_level,
+    ClientSession, ClientSessionError, ClientSessionOptions, HandshakeProgress, encryption_level,
     resets_early_data_reject,
 };
 use crate::backend::callback_state::{CallbackError, EncryptionLevel};
@@ -85,8 +85,27 @@ fn client_result_after_server_flight(
     server_context: &OwnedContext,
     server_name: &str,
 ) -> Result<HandshakeProgress, ClientSessionError> {
-    let mut client =
-        ClientSession::new(client_context.as_context(), server_name, CLIENT_PARAMETERS)?;
+    client_result_with_options(
+        client_context,
+        server_context,
+        server_name,
+        ClientSessionOptions::default(),
+    )
+}
+
+fn client_result_with_options(
+    client_context: &OwnedContext,
+    server_context: &OwnedContext,
+    server_name: &str,
+    options: ClientSessionOptions<'_>,
+) -> Result<HandshakeProgress, ClientSessionError> {
+    let mut client = ClientSession::new_with_profile(
+        client_context.as_context(),
+        server_name,
+        CLIENT_PARAMETERS,
+        &crate::backend::client::ClientTlsProfile::default(),
+        options,
+    )?;
     let mut server = RawServer::new(server_context)?;
     client.start_handshake()?;
     for chunk in client.drain_output()? {
@@ -99,6 +118,30 @@ fn client_result_after_server_flight(
         progress = client.provide_handshake_data(&chunk.bytes)?;
     }
     Ok(progress)
+}
+
+#[cfg(feature = "danger-disable-verification")]
+#[test]
+fn explicit_disabled_authentication_accepts_untrusted_and_mismatched_certificates() {
+    let server = server_context();
+    for context in [
+        client_context(false),
+        untrusted_client_context(),
+        permissive_untrusted_client_context(),
+    ] {
+        assert_eq!(
+            client_result_with_options(
+                &context,
+                &server,
+                "wrong.example",
+                ClientSessionOptions {
+                    verify_peer: false,
+                    ..ClientSessionOptions::default()
+                }
+            ),
+            Ok(HandshakeProgress::Complete)
+        );
+    }
 }
 
 #[test]

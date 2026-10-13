@@ -52,6 +52,35 @@ fn a_live_provider_with_disabled_verification_does_not_report_endpoint_shutdown(
     );
 }
 
+#[cfg(feature = "danger-disable-verification")]
+#[test]
+fn explicitly_disabled_provider_starts_after_configuration_clones() {
+    let config =
+        QuicClientConfig::new(client_context(false).0).danger_disable_server_authentication();
+    let configs = [
+        config.with_isolated_session_cache(),
+        config.without_ticket_offers(),
+        config.with_early_data(),
+        config.without_early_data(),
+    ];
+    for config in configs {
+        let session = test_ok(
+            crypto::ClientConfig::start_session(
+                Arc::new(config),
+                0x0000_0001,
+                "wrong.example",
+                &client_transport_parameters(),
+            ),
+            "explicitly nonverifying provider startup",
+        );
+        assert!(
+            session
+                .initial_keys(&ConnectionId::new(&[0x83, 0x94, 0xc8, 0xf0]), Side::Client)
+                .is_ok()
+        );
+    }
+}
+
 #[test]
 fn invalid_ech_reports_a_safe_provider_error_and_records_the_outcome() {
     let offer = crate::EchOffer::new(b"\x00\x03\xfe\x0d\x00private-ech-payload");

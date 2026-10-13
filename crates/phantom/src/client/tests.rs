@@ -406,6 +406,24 @@ fn disabled_proxy_authentication_rejects_proxy_roots() -> Result<(), &'static st
     Ok(())
 }
 
+#[cfg(feature = "danger-disable-verification")]
+#[test]
+fn connect_udp_requires_outer_proxy_authentication() -> Result<(), Box<dyn std::error::Error>> {
+    let proxy = crate::ConnectUdpProxy::new(
+        "https://proxy.example/.well-known/masque/udp/{target_host}/{target_port}/",
+    )?;
+    let error = Client::builder(chrome::v154_windows())
+        .server_authentication(crate::ServerAuthentication::DangerDisabled)
+        .proxy_server_authentication(crate::ServerAuthentication::DangerDisabled)
+        .route(Route::connect_udp(proxy))
+        .build()
+        .err()
+        .ok_or("CONNECT-UDP accepted disabled outer-proxy authentication")?;
+    assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
+    assert!(error.to_string().contains("not supported for CONNECT-UDP"));
+    Ok(())
+}
+
 #[test]
 fn https_proxy_requires_http1_in_the_tls_recipe() -> Result<(), &'static str> {
     let mut tls = chrome::v154_tcp_tls();

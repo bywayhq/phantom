@@ -21,7 +21,7 @@ use quinn_proto::{
 use rustls_pki_types::DnsName;
 
 use super::callback_state::{CallbackError, EncryptionLevel, HandshakeChunk, SecretPair};
-use super::client_session::{ClientSession, ClientSessionError};
+use super::client_session::{ClientSession, ClientSessionError, ClientSessionOptions};
 use super::quic_callbacks::{
     CallbackInstallError, SessionDelivery, enable_session_delivery, session_delivery,
 };
@@ -43,6 +43,8 @@ const H3_PROTOCOL: &[u8] = b"h3";
 /// The supplied context must enable peer verification and contain the trust
 /// roots and fingerprint settings used by every session created from it.
 /// Session-specific QUIC requirements are applied to each owned `SSL`.
+/// The feature-gated `danger_disable_server_authentication` method
+/// explicitly opts a configuration out of peer authentication.
 ///
 /// A configuration resumes sessions only when its TLS profile enables
 /// `session_tickets` and it was produced by
@@ -90,6 +92,7 @@ pub struct QuicClientConfig {
     early_data: bool,
     application_state: Option<ApplicationState>,
     ech: Option<EchOffer>,
+    verify_peer: bool,
     #[cfg(test)]
     derivation_failure: Option<TestDerivationFailure>,
 }
@@ -116,6 +119,7 @@ impl QuicClientConfig {
             early_data: false,
             application_state: None,
             ech: None,
+            verify_peer: true,
             #[cfg(test)]
             derivation_failure: None,
         }
@@ -144,9 +148,27 @@ impl QuicClientConfig {
             offer_tickets: true,
             application_state: None,
             ech: None,
+            verify_peer: true,
             #[cfg(test)]
             derivation_failure: None,
         })
+    }
+
+    /// Disables certificate-chain and hostname verification for this configuration.
+    ///
+    /// Requires the `danger-disable-verification` feature. Use this only for
+    /// controlled diagnostics: an untrusted peer can read and change traffic.
+    /// Server Name Indication and the TLS/QUIC wire profile remain unchanged.
+    /// Changing authentication discards retained tickets and application state.
+    #[cfg(feature = "danger-disable-verification")]
+    #[must_use]
+    pub fn danger_disable_server_authentication(mut self) -> Self {
+        if self.verify_peer {
+            self.sessions = self.sessions.as_ref().map(|_| SessionCache::default());
+            self.application_state = None;
+        }
+        self.verify_peer = false;
+        self
     }
 
     /// Prepares a context builder so QUIC sessions can retain tickets.
@@ -242,12 +264,13 @@ impl QuicClientConfig {
     /// Returns a clone with a fresh, empty ticket cache of its own.
     ///
     /// Tickets learned through the returned configuration are presented only
-    /// by it, and only for the verified server name whose handshake received
-    /// them. Give each connection pool key, meaning each origin and route, its
-    /// own clone, so a ticket learned through one route is never presented
+    /// by it, and only for the server name and authentication policy whose
+    /// handshake received them. Give each connection pool key, meaning each
+    /// origin and route, its own clone, so a ticket learned through one route is never presented
     /// directly or through another. The clone shares the immutable BoringSSL
     /// context. Without `session_tickets` the clone has no cache and never
     /// resumes.
+    /// With authentication disabled, tickets do not prove a trusted peer identity.
     #[must_use]
     pub fn with_isolated_session_cache(&self) -> Self {
         Self {
@@ -259,6 +282,7 @@ impl QuicClientConfig {
             early_data: self.early_data,
             application_state: None,
             ech: None,
+            verify_peer: self.verify_peer,
             #[cfg(test)]
             derivation_failure: self.derivation_failure,
         }
@@ -281,6 +305,7 @@ impl QuicClientConfig {
             early_data: self.early_data,
             application_state: self.application_state.clone(),
             ech: self.ech.clone(),
+            verify_peer: self.verify_peer,
             #[cfg(test)]
             derivation_failure: self.derivation_failure,
         }
@@ -335,6 +360,7 @@ impl QuicClientConfig {
             early_data: self.early_data,
             application_state: self.application_state.clone(),
             ech: self.ech.clone(),
+            verify_peer: self.verify_peer,
             #[cfg(test)]
             derivation_failure: self.derivation_failure,
         }
@@ -557,8 +583,9 @@ impl HandshakeData {
 
     /// Returns whether the handshake resumed a session from a ticket.
     ///
-    /// A resumed handshake authenticates the peer through the ticket, which
-    /// an earlier verified handshake for the same server name received.
+    /// The ticket links this connection to an earlier handshake for the same
+    /// server name and authentication policy. It proves a trusted peer identity
+    /// only when that earlier handshake verified the peer.
     #[must_use]
     pub const fn session_resumed(&self) -> bool {
         self.session_resumed
@@ -682,9 +709,12 @@ impl crypto::ClientConfig for QuicClientConfig {
             server_name,
             &encoded_parameters,
             &self.tls_profile,
-            session.as_deref(),
-            early_data,
-            self.ech.as_ref().map(EchOffer::config_list),
+            ClientSessionOptions {
+                session: session.as_deref(),
+                early_data,
+                ech_config_list: self.ech.as_ref().map(EchOffer::config_list),
+                verify_peer: self.verify_peer,
+            },
         )
         .map_err(|error| {
             if error == ClientSessionError::InvalidEchConfigList
@@ -1139,7 +1169,7 @@ struct SessionState {
     derivation_failure: Option<TestDerivationFailure>,
 }
 
-/// Where an authenticated connection stores the tickets its peer issues.
+/// Where a completed connection stores the tickets its peer issues.
 struct TicketSink {
     sessions: SessionCache,
     server_name: Box<str>,

@@ -12,7 +12,7 @@ version.workspace = true
 
 [features]
 # `ServerAuthentication::DangerDisabled`, which accepts any server certificate.
-danger-disable-verification = []
+danger-disable-verification = ["phantom-quic-btls/danger-disable-verification"]
 # HTTPS DNS record (RFC 9460) lookups through hickory-resolver.
 https-records = ["dep:hickory-resolver"]
 keylog = ["phantom-quic-btls/keylog"]

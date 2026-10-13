@@ -1094,6 +1094,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Add a transport and profile campaign plan for timing investigations,
   corpus growth, and the named client and browser-coverage gaps.
+- Allow explicit HTTP/3 origin debugging with
+  `ServerAuthentication::DangerDisabled` and the `danger-disable-verification`
+  feature. Default certificate and hostname verification remains enabled.
+  CONNECT-UDP proxy verification remains required.
 
 - Add explicit Digest authentication for HTTP/1.1 and HTTP/2 CONNECT and
   forwarding. SHA-256 and SHA-512-256 support session variants. MD5 and

@@ -358,6 +358,67 @@ async fn origin_and_proxy_trust_roots_are_independent() -> TestResult<()> {
     .await
 }
 
+#[cfg(feature = "danger-disable-verification")]
+#[tokio::test]
+async fn disabled_origin_authentication_keeps_connect_udp_proxy_verification() -> TestResult<()> {
+    bounded(async {
+        let origin_identity = TestIdentity::generate_for_dns("wrong.example")?;
+        let proxy_identity = TestIdentity::generate()?;
+        let origin = Origin::spawn(&origin_identity)?;
+        let mut proxy_owner = None;
+        let mut untrusted_proxy_owner = None;
+        let mut trusted_proxy_owner = None;
+
+        let result = async {
+            let proxy = proxy_owner.insert(MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?);
+            let route = Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?);
+            let untrusted_proxy = untrusted_proxy_owner.insert(
+                Client::builder(profile())
+                    .server_authentication(phantom::ServerAuthentication::DangerDisabled)
+                    .route(route.clone())
+                    .build()?,
+            );
+            let error = untrusted_proxy
+                .get(HttpProtocol::Http3, &origin.uri("/authentication"))?
+                .send()
+                .await
+                .err()
+                .ok_or("disabled origin authentication also bypassed proxy authentication")?;
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            assert_eq!(
+                connect_udp_kind(&error),
+                Some(ConnectUdpErrorKind::Handshake)
+            );
+            assert!(proxy.requests().is_empty());
+            assert_eq!(origin.connections(), 0);
+
+            let trusted_proxy = trusted_proxy_owner.insert(
+                Client::builder(profile())
+                    .server_authentication(phantom::ServerAuthentication::DangerDisabled)
+                    .add_proxy_root_certificate_der(proxy_identity.root_der)
+                    .route(route)
+                    .build()?,
+            );
+            let response = trusted_proxy
+                .get(HttpProtocol::Http3, &origin.uri("/authentication"))?
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(
+                response.into_body().collect().await?.to_bytes(),
+                "/authentication"
+            );
+            assert_eq!(proxy.requests().len(), 1);
+            assert_eq!(origin.connections(), 1);
+            assert_eq!(origin.requests(), ["/authentication"]);
+            Ok(())
+        }
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
+    })
+    .await
+}
+
 #[tokio::test]
 async fn connect_udp_route_rejects_h1_h2_negotiated_and_websocket_before_io() -> TestResult<()> {
     bounded(async {

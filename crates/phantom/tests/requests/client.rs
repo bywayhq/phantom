@@ -1141,22 +1141,16 @@ fn contradictory_server_authentication_policy_fails_during_build() -> TestResult
 
 #[cfg(feature = "danger-disable-verification")]
 #[test]
-fn disabled_server_authentication_rejects_http3_during_build() -> TestResult<()> {
+fn explicit_disabled_server_authentication_builds_with_http3() -> TestResult<()> {
     let http3 = phantom::profile::Http3ClientSettings::new(
         chrome::v154_quic_tls(),
         chrome::v154_quic(),
         chrome::v154_http3(),
         chrome::v154_http3_request(),
     );
-    let error = match Client::builder(ClientProfile::new(tls_settings()).with_http3(http3))
+    let _client = Client::builder(ClientProfile::new(tls_settings()).with_http3(http3))
         .server_authentication(phantom::ServerAuthentication::DangerDisabled)
-        .build()
-    {
-        Ok(_) => return Err("disabled authentication with HTTP/3 was accepted".into()),
-        Err(error) => error,
-    };
-    assert_eq!(error.kind(), BuildErrorKind::InvalidPolicy);
-    assert!(error.to_string().contains("not supported for HTTP/3"));
+        .build()?;
     Ok(())
 }
 

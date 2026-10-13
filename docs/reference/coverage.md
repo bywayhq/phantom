@@ -14,6 +14,11 @@ Phantom reproduces HTTP-client traffic. It has no browser engine: no DOM,
 JavaScript, rendering, canvas, fonts, WebRTC, or device fingerprinting.
 Coverage is listed separately for each network layer.
 
+Origin TLS verifies certificates and hostnames for H1, H2 and H3 by default.
+The `danger-disable-verification` feature permits an explicit debugging
+opt-in through `ServerAuthentication::DangerDisabled`. CONNECT-UDP still
+requires verification of the outer proxy certificate.
+
 | Browser | TCP | TLS | H1 | H2 | QUIC | H3 | Client hints | Request templates | WebSocket opening |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Chrome 154 | Browser source | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |

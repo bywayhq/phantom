@@ -5,7 +5,7 @@ use std::net::IpAddr;
 use std::ptr::{self, NonNull};
 use std::slice;
 
-use btls::ssl::{SslContext, SslRef, SslSession, SslSessionRef};
+use btls::ssl::{SslContext, SslRef, SslSession, SslSessionRef, SslVerifyMode};
 use btls::x509::verify::X509CheckFlags;
 use btls_sys as ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
@@ -128,6 +128,25 @@ pub(super) struct ClientSession {
     offered_early_data: bool,
     early_data_rejected: bool,
     ech_offered: bool,
+    verify_peer: bool,
+}
+
+pub(super) struct ClientSessionOptions<'a> {
+    pub(super) session: Option<&'a SslSessionRef>,
+    pub(super) early_data: bool,
+    pub(super) ech_config_list: Option<&'a [u8]>,
+    pub(super) verify_peer: bool,
+}
+
+impl Default for ClientSessionOptions<'_> {
+    fn default() -> Self {
+        Self {
+            session: None,
+            early_data: false,
+            ech_config_list: None,
+            verify_peer: true,
+        }
+    }
 }
 
 impl fmt::Debug for ClientSession {
@@ -154,17 +173,15 @@ impl ClientSession {
             server_name,
             local_transport_parameters,
             &ClientTlsProfile::default(),
-            None,
-            false,
-            None,
+            ClientSessionOptions::default(),
         )
     }
 
     /// Creates a client that offers `session` for resumption when present.
     ///
-    /// The caller must supply only a session that a handshake from `context`
-    /// authenticated for `server_name`: BoringSSL does not bind a client
-    /// session to a hostname, and a resumed handshake does not repeat
+    /// The caller must supply only a session received from `context` for the
+    /// same `server_name` and authentication policy: BoringSSL does not bind
+    /// a client session to a hostname, and a resumed handshake does not repeat
     /// certificate verification. With `early_data`, BoringSSL also offers
     /// 0-RTT when the session permits it; without a session it has no effect.
     ///
@@ -176,10 +193,14 @@ impl ClientSession {
         server_name: &str,
         local_transport_parameters: &[u8],
         tls_profile: &ClientTlsProfile,
-        session: Option<&SslSessionRef>,
-        early_data: bool,
-        ech_config_list: Option<&[u8]>,
+        options: ClientSessionOptions<'_>,
     ) -> Result<Self, ClientSessionError> {
+        let ClientSessionOptions {
+            session,
+            early_data,
+            ech_config_list,
+            verify_peer,
+        } = options;
         if server_name.is_empty() {
             return Err(ClientSessionError::InvalidServerName);
         }
@@ -209,8 +230,12 @@ impl ClientSession {
         let pointer = ssl.as_ptr();
 
         // SAFETY: `pointer` is uniquely owned throughout construction.
-        if unsafe { ffi::SSL_get_verify_mode(pointer) } & ffi::SSL_VERIFY_PEER == 0 {
+        if verify_peer && unsafe { ffi::SSL_get_verify_mode(pointer) } & ffi::SSL_VERIFY_PEER == 0 {
             return Err(ClientSessionError::PeerVerificationDisabled);
+        }
+        if !verify_peer {
+            // SAFETY: the SSL is live and exclusively owned during construction.
+            unsafe { SslRef::from_ptr_mut(pointer) }.set_verify(SslVerifyMode::NONE);
         }
         // SAFETY: `pointer` is live and uniquely owned.
         if unsafe { ffi::SSL_set_min_proto_version(pointer, ffi::TLS1_3_VERSION as u16) } != 1 {
@@ -275,6 +300,7 @@ impl ClientSession {
             offered_early_data: early_data,
             early_data_rejected: false,
             ech_offered: ech_config_list.is_some(),
+            verify_peer,
         })
     }
 
@@ -474,8 +500,8 @@ impl ClientSession {
 
     /// Removes the sessions issued since the previous call, oldest first.
     ///
-    /// Tickets arrive only after the handshake completed and verified the
-    /// peer, so a returned session is always authenticated.
+    /// Tickets are returned only after the handshake completed under this
+    /// session's authentication policy. A disabled policy provides no trust proof.
     pub(super) fn take_new_sessions(&self) -> VecDeque<SslSession> {
         if self.handshake_complete {
             self.callbacks.take_sessions()
@@ -593,7 +619,7 @@ impl ClientSession {
         // SAFETY: the SSL is live and its handshake completed. A permissive
         // verification callback can allow completion while retaining a failure result.
         let verification = unsafe { ffi::SSL_get_verify_result(self.ssl.as_ptr()) };
-        if verification != c_long::from(ffi::X509_V_OK) {
+        if self.verify_peer && verification != c_long::from(ffi::X509_V_OK) {
             return Err(ClientSessionError::PeerVerificationFailed);
         }
         // SAFETY: the SSL is live and its handshake completed.

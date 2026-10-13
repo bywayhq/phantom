@@ -9,7 +9,7 @@
 use btls::ssl::SslSession;
 use btls_sys as ffi;
 
-use super::super::{ClientSession, HandshakeProgress};
+use super::super::{ClientSession, ClientSessionOptions, HandshakeProgress};
 use super::support::*;
 use crate::backend::callback_state::{CallbackState, EncryptionLevel, HandshakeChunk};
 use crate::backend::client::ClientTlsProfile;
@@ -21,9 +21,11 @@ fn offering(context: &OwnedContext, session: &SslSession, early_data: bool) -> C
             SERVER_NAME,
             CLIENT_PARAMETERS,
             &ClientTlsProfile::default(),
-            Some(session),
-            early_data,
-            None,
+            ClientSessionOptions {
+                session: Some(session),
+                early_data,
+                ..ClientSessionOptions::default()
+            },
         ),
         "client offering a session",
     )

@@ -187,15 +187,17 @@ impl TlsConnector {
     /// is installed as for TCP connectors.
     pub(crate) fn new_quic_with_additional_roots<'a>(
         settings: &TlsSettings,
+        server_authentication: ServerAuthentication,
         roots: impl IntoIterator<Item = &'a [u8]>,
         mut prepare_sessions: impl FnMut(&mut SslContextBuilder),
     ) -> Result<Self, TlsError> {
         Self::build_with_roots_and_sessions(
             settings,
-            ServerAuthentication::WebPki,
+            server_authentication,
             webpki_root_certs::TLS_SERVER_ROOT_CERTS
                 .iter()
                 .map(AsRef::as_ref)
+                .filter(|_| server_authentication.verifies())
                 .chain(roots),
             ClientSessions::External(&mut prepare_sessions),
         )
@@ -437,7 +439,10 @@ impl TlsConnector {
                 }
                 true
             }
-            ClientSessions::External(prepare) if tickets_verifiable => {
+            // QUIC owns its authentication policy and isolated ticket cache.
+            // Its callback is required by ticket-enabled TLS profiles even
+            // when the caller explicitly disables peer authentication.
+            ClientSessions::External(prepare) if settings.session_tickets.is_enabled() => {
                 prepare(&mut builder);
                 false
             }

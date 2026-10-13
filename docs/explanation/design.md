@@ -320,11 +320,12 @@ roots add to the bundled roots. HTTPS-proxy trust and origin trust are
 configured independently.
 
 `ServerAuthentication::DangerDisabled` turns verification off explicitly, for
-controlled TLS conformance testing over TCP. It exists only with the
+controlled TLS conformance testing over TCP or QUIC. It exists only with the
 non-default `danger-disable-verification` feature, so a configuration value
-cannot turn verification off in a build that did not opt in. It applies only
-to H1 and H2, cannot be combined with additional roots or HTTP/3, and does
-not change the profile's ClientHello.
+cannot turn verification off in a build that did not opt in. It applies to
+H1, H2 and H3 origins, cannot be combined with additional roots, and does
+not change the profile's ClientHello. CONNECT-UDP still requires certificate
+verification for its outer proxy connection.
 
 ### Dependency policy
 

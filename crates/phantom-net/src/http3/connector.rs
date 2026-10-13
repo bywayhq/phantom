@@ -40,7 +40,9 @@ use crate::{
     },
     request::{RequestBody, RequestBodyMetadata},
     route::{ConnectUdpTransport, DatagramRoute, Socks5Target},
-    tls::{ClientCertificate, EchFailure, TlsConnector, TlsError, TlsErrorKind},
+    tls::{
+        ClientCertificate, EchFailure, ServerAuthentication, TlsConnector, TlsError, TlsErrorKind,
+    },
 };
 
 type BoxError = Box<dyn StdError + Send + Sync>;
@@ -89,7 +91,14 @@ impl Http3Connector {
         settings: &Http3Settings,
         request_settings: &Http3RequestSettings,
     ) -> Result<Self, Http3ConnectorError> {
-        Self::build(tls, quic, settings, request_settings, std::iter::empty())
+        Self::build(
+            tls,
+            quic,
+            settings,
+            request_settings,
+            ServerAuthentication::WebPki,
+            std::iter::empty(),
+        )
     }
 
     /// Builds a connector with bundled public roots and additional DER certificates.
@@ -108,7 +117,40 @@ impl Http3Connector {
         request_settings: &Http3RequestSettings,
         roots: impl IntoIterator<Item = &'a [u8]>,
     ) -> Result<Self, Http3ConnectorError> {
-        Self::build(tls, quic, settings, request_settings, roots)
+        Self::build(
+            tls,
+            quic,
+            settings,
+            request_settings,
+            ServerAuthentication::WebPki,
+            roots,
+        )
+    }
+
+    /// Builds a connector with an explicit server-authentication policy.
+    ///
+    /// `ServerAuthentication::DangerDisabled` requires the
+    /// `danger-disable-verification` feature. It accepts any server certificate
+    /// while retaining the configured wire profile and Server Name Indication.
+    ///
+    /// # Errors
+    ///
+    /// Returns the configuration errors from [`Self::new`].
+    pub fn new_with_server_authentication(
+        tls: &TlsSettings,
+        quic: &QuicTransportSettings,
+        settings: &Http3Settings,
+        request_settings: &Http3RequestSettings,
+        server_authentication: ServerAuthentication,
+    ) -> Result<Self, Http3ConnectorError> {
+        Self::build(
+            tls,
+            quic,
+            settings,
+            request_settings,
+            server_authentication,
+            std::iter::empty(),
+        )
     }
 
     fn build<'a>(
@@ -116,6 +158,7 @@ impl Http3Connector {
         quic: &QuicTransportSettings,
         settings: &Http3Settings,
         request_settings: &Http3RequestSettings,
+        server_authentication: ServerAuthentication,
         roots: impl IntoIterator<Item = &'a [u8]>,
     ) -> Result<Self, Http3ConnectorError> {
         settings
@@ -129,11 +172,16 @@ impl Http3Connector {
         QuicClientConfig::validate_tls_profile(tls).map_err(Http3ConnectorError::quic_tls)?;
 
         let mut resumption_error = None;
-        let tls_connector = TlsConnector::new_quic_with_additional_roots(tls, roots, |builder| {
-            if let Err(error) = QuicClientConfig::enable_session_resumption(builder) {
-                resumption_error = Some(error);
-            }
-        })
+        let tls_connector = TlsConnector::new_quic_with_additional_roots(
+            tls,
+            server_authentication,
+            roots,
+            |builder| {
+                if let Err(error) = QuicClientConfig::enable_session_resumption(builder) {
+                    resumption_error = Some(error);
+                }
+            },
+        )
         .map_err(Http3ConnectorError::tls)?;
         if let Some(error) = resumption_error {
             return Err(Http3ConnectorError::quic_tls(error));
@@ -145,6 +193,12 @@ impl Http3Connector {
             .map_err(Http3ConnectorError::invalid_quic_profile)?
             .with_tls_profile(tls)
             .map_err(Http3ConnectorError::quic_tls)?;
+        #[cfg(feature = "danger-disable-verification")]
+        let crypto = if server_authentication.verifies() {
+            crypto
+        } else {
+            crypto.danger_disable_server_authentication()
+        };
         let crypto = Arc::new(crypto);
         validate_quic_runtime(&crypto)?;
         if settings.receives_datagrams() && !crypto.receives_datagrams() {
@@ -189,9 +243,11 @@ impl Http3Connector {
     ///
     /// When the TLS profile enables `session_tickets`, connections opened by
     /// the clone retain the TLS 1.3 tickets their peers issue and present one
-    /// on a later connection to the same verified server name, resuming the
-    /// session. Tickets never leave the clone: give each origin and route its
-    /// own clone, as Phantom's client pool does, so a ticket learned through
+    /// on a later connection to the same server name under the same
+    /// authentication policy, resuming the session. With authentication
+    /// disabled, a ticket does not prove a trusted peer identity. Tickets never
+    /// leave the clone: give each origin and route its own clone, as Phantom's
+    /// client pool does, so a ticket learned through
     /// one proxy is never presented directly or through another route. The
     /// clone keeps this connector's identity, so connections it opens remain
     /// usable with this connector. A connector not produced by this method

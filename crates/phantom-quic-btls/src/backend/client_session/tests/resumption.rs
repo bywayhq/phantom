@@ -178,6 +178,26 @@ fn second_handshake_resumes_with_the_ticket_from_the_first() {
     assert!(second.peer_identity().is_some());
 }
 
+#[cfg(feature = "danger-disable-verification")]
+#[test]
+fn changing_authentication_starts_an_independent_ticket_cache() {
+    let server = server_context();
+    let config = resuming_config().with_isolated_session_cache();
+    let verified = Arc::new(config.without_early_data());
+    let first = handshake(&verified, &server);
+    assert!(!resumed(first.as_ref()));
+    assert_eq!(cache_len(&config), 1);
+
+    let disabled = Arc::new(config.danger_disable_server_authentication());
+    assert_eq!(cache_len(&disabled), 0);
+    let first = handshake(&disabled, &server);
+    assert!(!resumed(first.as_ref()));
+    let second = handshake(&disabled, &server);
+    assert!(resumed(second.as_ref()));
+    assert_eq!(cache_len(&verified), 1);
+    assert_eq!(cache_len(&disabled), 1);
+}
+
 #[test]
 fn quic_resumption_ignores_tcp_ticket_limits_and_order()
 -> Result<(), phantom_profile::InvalidTlsSettings> {
@@ -279,9 +299,10 @@ fn expired_ticket_falls_back_to_a_full_handshake_without_error() {
             SERVER_NAME,
             CLIENT_PARAMETERS,
             &ClientTlsProfile::default(),
-            Some(&session),
-            false,
-            None,
+            super::super::ClientSessionOptions {
+                session: Some(&session),
+                ..super::super::ClientSessionOptions::default()
+            },
         ),
         "client with expired session",
     );

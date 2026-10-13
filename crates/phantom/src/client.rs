@@ -836,10 +836,9 @@ impl ClientBuilder {
     ///
     /// The default is [`ServerAuthentication::WebPki`]. Disabling
     /// authentication takes the `danger-disable-verification` feature and is
-    /// supported for HTTP/1.1 and HTTP/2. [`Self::build`] fails with
+    /// supported for HTTP/1.1, HTTP/2 and HTTP/3. [`Self::build`] fails with
     /// [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy)
-    /// when disabled authentication is combined with additional roots or a
-    /// profile that configures HTTP/3.
+    /// when disabled authentication is combined with additional roots.
     pub fn server_authentication(mut self, policy: ServerAuthentication) -> Self {
         self.server_authentication = policy;
         self
@@ -1921,17 +1920,10 @@ impl ClientBuilder {
             .map_err(BuildError::invalid_request_template_profile)?;
 
         let authentication_disabled = !self.server_authentication.verifies();
-        if authentication_disabled {
-            if !self.additional_roots.is_empty() {
-                return Err(BuildError::invalid_policy(
-                    "disabled server authentication cannot be combined with additional roots",
-                ));
-            }
-            if self.profile.http3().is_some() {
-                return Err(BuildError::invalid_policy(
-                    "disabled server authentication is not supported for HTTP/3",
-                ));
-            }
+        if authentication_disabled && !self.additional_roots.is_empty() {
+            return Err(BuildError::invalid_policy(
+                "disabled server authentication cannot be combined with additional roots",
+            ));
         }
 
         let proxy_authentication_disabled = !self.proxy_server_authentication.verifies();
@@ -1999,23 +1991,34 @@ impl ClientBuilder {
             .profile
             .http3()
             .map(|settings| {
-                Http3Connector::new_with_additional_roots(
-                    settings.tls(),
-                    settings.quic_transport(),
-                    settings.http3(),
-                    settings.request(),
-                    roots(),
-                )
-                .map(|connector| with_tcp(connector, tcp, Http3Connector::with_tcp_settings))
-                .map(|connector| with_udp(connector, self.profile.udp()))
-                .map(|connector| self.with_qlog(connector))
-                .map(|connector| {
-                    let connector = self.bind_http3(connector);
-                    match &self.client_certificate {
-                        Some(certificate) => connector.with_client_certificate(certificate),
-                        None => connector,
-                    }
-                })
+                let connector = if authentication_disabled {
+                    Http3Connector::new_with_server_authentication(
+                        settings.tls(),
+                        settings.quic_transport(),
+                        settings.http3(),
+                        settings.request(),
+                        self.server_authentication,
+                    )
+                } else {
+                    Http3Connector::new_with_additional_roots(
+                        settings.tls(),
+                        settings.quic_transport(),
+                        settings.http3(),
+                        settings.request(),
+                        roots(),
+                    )
+                };
+                connector
+                    .map(|connector| with_tcp(connector, tcp, Http3Connector::with_tcp_settings))
+                    .map(|connector| with_udp(connector, self.profile.udp()))
+                    .map(|connector| self.with_qlog(connector))
+                    .map(|connector| {
+                        let connector = self.bind_http3(connector);
+                        match &self.client_certificate {
+                            Some(certificate) => connector.with_client_certificate(certificate),
+                            None => connector,
+                        }
+                    })
             })
             .transpose()
             .map_err(BuildError::http3)?;
@@ -2024,7 +2027,7 @@ impl ClientBuilder {
             .http3()
             .is_some_and(|settings| settings.tls().session_tickets.is_enabled());
         // CONNECT-UDP's outer connection authenticates the proxy with proxy
-        // trust roots; HTTP/3 cannot disable verification.
+        // trust roots. CONNECT-UDP still requires proxy authentication.
         let connect_udp_http3 = self
             .profile
             .http3()

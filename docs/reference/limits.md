@@ -31,6 +31,7 @@ explains how Phantom limits the state a client keeps.
 | Local source address | The operating system's | `ClientBuilder::local_address`, one per address family |
 | Interface binding | None | `ClientBuilder::interface` on Linux, Android, macOS, and Windows |
 | TLS client certificate | None; a `CertificateRequest` gets an empty `Certificate` | `ClientBuilder::client_certificate`, `ClientBuilder::client_certificate_for` |
+| Disabling origin certificate verification | Certificate chain and hostname verified for H1, H2 and H3 | `danger-disable-verification` feature, then `ClientBuilder::server_authentication(ServerAuthentication::DangerDisabled)` |
 | Content decoding | Wire body | `ContentDecoding::advertised(max)` |
 | More than one H2 connection per pool key | One connection | `ClientBuilder::max_http2_connections_per_origin` |
 | More than one H3 connection per transport location | One connection | `ClientBuilder::max_http3_connections_per_origin` |

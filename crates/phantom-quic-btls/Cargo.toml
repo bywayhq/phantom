@@ -12,6 +12,7 @@ version.workspace = true
 
 [features]
 default = []
+danger-disable-verification = []
 keylog = []
 # A BoringSSL QUIC server for loopback tests and capture tools.
 server = []
