@@ -70,10 +70,9 @@ impl<T> Future for ConnectionPeer<T> {
 
     fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
         let owner = self.get_mut();
-        let task = owner
-            .task
-            .as_mut()
-            .expect("connection peer polled after completion");
+        let Some(task) = owner.task.as_mut() else {
+            panic!("connection peer polled after completion");
+        };
         match Pin::new(task).poll(context) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(result) => {
@@ -238,7 +237,8 @@ mod tests {
         let error = peer
             .shutdown()
             .await
-            .expect_err("external abort was hidden");
+            .err()
+            .ok_or("external abort was hidden")?;
         assert!(
             error
                 .downcast_ref::<tokio::task::JoinError>()
