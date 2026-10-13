@@ -1,8 +1,5 @@
 //! Public HTTP/3 session reuse and admission integration tests.
 
-use crate::support::h3 as h3_support;
-use crate::support::tls as tls_support;
-
 use std::{
     future::{Future, poll_fn},
     num::NonZeroUsize,
@@ -16,6 +13,9 @@ use http_body_util::BodyExt;
 use phantom::{Client, ClientBuilder, HttpProtocol, RequestErrorKind, profile::ClientProfile};
 use tokio::{sync::oneshot, time::timeout};
 
+use crate::support::{deadline::FixtureDeadline, h3 as h3_support, tls as tls_support};
+
+use super::peer_completion::{self, Peer};
 use h3_support::{client_settings, server_endpoint};
 use tls_support::{TestIdentity, TestResult, tls_settings};
 
@@ -26,16 +26,17 @@ type ServerStream = h3::server::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes
 
 #[tokio::test]
 async fn sequential_session_requests_reuse_one_http3_connection() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
         let (client_done, done_received) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(Peer::spawn(async move {
             let mut connection = accept_connection(&endpoint).await?;
             let requests = serve_requests(&mut connection, 2).await?;
-            let _ = done_received.await;
+            done_received.await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
-        });
+        }));
 
         let session = test_client(&identity)?;
         for path in ["/first", "/second"] {
@@ -49,12 +50,13 @@ async fn sequential_session_requests_reuse_one_http3_connection() -> TestResult<
 
         let _ = client_done.send(());
         assert_eq!(
-            server.await??,
+            peer_completion::join(&mut server).await?,
             vec!["/first".to_owned(), "/second".to_owned()]
         );
         Ok(())
     })
-    .await
+    .await;
+    peer_completion::finish(caller, &mut server).await
 }
 
 /// A pooled connection serves only the runtime that opened it, so a request
@@ -62,16 +64,18 @@ async fn sequential_session_requests_reuse_one_http3_connection() -> TestResult<
 /// connection.
 #[tokio::test]
 async fn warmed_connection_is_not_reused_from_another_runtime() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let mut second = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
         let (client_done, done_received) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(Peer::spawn(async move {
             let mut connection = accept_connection(&endpoint).await?;
             let requests = serve_requests(&mut connection, 1).await?;
-            let _ = done_received.await;
+            done_received.await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
-        });
+        }));
 
         let session = test_client(&identity)?;
         let first = send_and_drain(session.clone(), format!("https://{address}/first")).await?;
@@ -79,7 +83,7 @@ async fn warmed_connection_is_not_reused_from_another_runtime() -> TestResult<()
 
         let second_session = session.clone();
         let second_uri = format!("https://{address}/second");
-        let second = tokio::task::spawn_blocking(move || -> TestResult<RequestErrorKind> {
+        second = Some(Peer::blocking(move || -> TestResult<RequestErrorKind> {
             let runtime = tokio::runtime::Builder::new_current_thread().build()?;
             let result = runtime.block_on(async {
                 second_session
@@ -91,24 +95,32 @@ async fn warmed_connection_is_not_reused_from_another_runtime() -> TestResult<()
                 .err()
                 .ok_or("a runtime without I/O reused the warmed connection")?
                 .kind())
-        })
-        .await??;
+        }));
+        let second = peer_completion::join(&mut second).await?;
         assert_eq!(second, RequestErrorKind::RuntimeUnavailable);
 
         let _ = client_done.send(());
-        assert_eq!(server.await??, vec!["/first".to_owned()]);
+        assert_eq!(
+            peer_completion::join(&mut server).await?,
+            vec!["/first".to_owned()]
+        );
         Ok(())
     })
-    .await
+    .await;
+    let caller = peer_completion::finish(caller, &mut second).await;
+    peer_completion::finish(caller, &mut server).await
 }
 
 #[tokio::test]
 async fn concurrent_cloned_session_requests_multiplex_one_http3_connection() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let mut first = None;
+    let mut second = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
         let (client_done, done_received) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(Peer::spawn(async move {
             let mut connection = accept_connection(&endpoint).await?;
             let (first_request, first_stream) = accept_stream(&mut connection).await?;
             let (second_request, second_stream) = accept_stream(&mut connection).await?;
@@ -118,39 +130,49 @@ async fn concurrent_cloned_session_requests_multiplex_one_http3_connection() -> 
             send_response(first_stream, &first_path).await?;
             send_response(second_stream, &second_path).await?;
             requests.sort_unstable();
-            let _ = done_received.await;
+            done_received.await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
-        });
+        }));
 
         let session = test_client(&identity)?;
-        let first = tokio::spawn(send_and_drain(
+        first = Some(Peer::spawn(send_and_drain(
             session.clone(),
             format!("https://{address}/first"),
-        ));
-        let second = tokio::spawn(send_and_drain(
+        )));
+        second = Some(Peer::spawn(send_and_drain(
             session.clone(),
             format!("https://{address}/second"),
-        ));
-        assert_eq!(first.await??, Bytes::from_static(b"/first"));
-        assert_eq!(second.await??, Bytes::from_static(b"/second"));
+        )));
+        assert_eq!(
+            peer_completion::join(&mut first).await?,
+            Bytes::from_static(b"/first")
+        );
+        assert_eq!(
+            peer_completion::join(&mut second).await?,
+            Bytes::from_static(b"/second")
+        );
 
         let _ = client_done.send(());
         assert_eq!(
-            server.await??,
+            peer_completion::join(&mut server).await?,
             vec!["/first".to_owned(), "/second".to_owned()]
         );
         Ok(())
     })
-    .await
+    .await;
+    let caller = peer_completion::finish(caller, &mut first).await;
+    let caller = peer_completion::finish(caller, &mut second).await;
+    peer_completion::finish(caller, &mut server).await
 }
 
 #[tokio::test]
 async fn independently_built_clients_do_not_share_http3_connections() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
         let (client_done, done_received) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(Peer::spawn(async move {
             let mut connections = Vec::new();
             let mut requests = Vec::new();
             for _ in 0..2 {
@@ -160,9 +182,9 @@ async fn independently_built_clients_do_not_share_http3_connections() -> TestRes
                 send_response(stream, request.uri().path()).await?;
                 connections.push(connection);
             }
-            let _ = done_received.await;
+            done_received.await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
-        });
+        }));
 
         for (client, path) in [
             (test_client(&identity)?, "/first"),
@@ -174,26 +196,28 @@ async fn independently_built_clients_do_not_share_http3_connections() -> TestRes
 
         let _ = client_done.send(());
         assert_eq!(
-            server.await??,
+            peer_completion::join(&mut server).await?,
             vec!["/first".to_owned(), "/second".to_owned()]
         );
         Ok(())
     })
-    .await
+    .await;
+    peer_completion::finish(caller, &mut server).await
 }
 
 #[tokio::test]
 async fn client_http3_requests_reuse_one_connection() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
         let (client_done, done_received) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(Peer::spawn(async move {
             let mut connection = accept_connection(&endpoint).await?;
             let requests = serve_requests(&mut connection, 2).await?;
-            let _ = done_received.await;
+            done_received.await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
-        });
+        }));
 
         let client = test_client(&identity)?;
         for path in ["/first", "/second"] {
@@ -206,21 +230,24 @@ async fn client_http3_requests_reuse_one_connection() -> TestResult<()> {
 
         let _ = client_done.send(());
         assert_eq!(
-            server.await??,
+            peer_completion::join(&mut server).await?,
             vec!["/first".to_owned(), "/second".to_owned()]
         );
         Ok(())
     })
-    .await
+    .await;
+    peer_completion::finish(caller, &mut server).await
 }
 
 #[tokio::test]
 async fn http3_admission_is_bounded_until_a_body_is_dropped_or_completed() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let mut client_failure = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
         let (client_done, done_received) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(Peer::spawn(async move {
             let mut connection = accept_connection(&endpoint).await?;
 
             let (held_request, mut held) = accept_stream(&mut connection).await?;
@@ -236,9 +263,9 @@ async fn http3_admission_is_bounded_until_a_body_is_dropped_or_completed() -> Te
             assert_eq!(later_request.uri().path(), "/after-complete");
             send_response(later, "after-complete").await?;
 
-            let _ = done_received.await;
+            done_received.await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
+        }));
 
         let one = NonZeroUsize::MIN;
         let session = test_client_builder(&identity)
@@ -267,6 +294,7 @@ async fn http3_admission_is_bounded_until_a_body_is_dropped_or_completed() -> Te
             .ok_or("third admitted HTTP/3 request was not rejected")?;
         assert_eq!(rejected.kind(), RequestErrorKind::Capacity);
         assert_eq!(rejected.protocol(), Some(HttpProtocol::Http3));
+        client_failure = Some(rejected);
 
         drop(held);
         let waiting = waiting.await?;
@@ -285,10 +313,12 @@ async fn http3_admission_is_bounded_until_a_body_is_dropped_or_completed() -> Te
         );
 
         let _ = client_done.send(());
-        server.await??;
+        peer_completion::join(&mut server).await?;
         Ok(())
     })
-    .await
+    .await;
+    let result = peer_completion::finish(caller, &mut server).await;
+    peer_completion::finish_negative(result, client_failure)
 }
 
 async fn accept_connection(endpoint: &quinn::Endpoint) -> TestResult<ServerConnection> {
@@ -347,11 +377,14 @@ fn test_client_builder(identity: &TestIdentity) -> ClientBuilder {
     Client::builder(profile).add_root_certificate_der(identity.root_der.clone())
 }
 
-async fn bounded<F>(future: F) -> TestResult<()>
+pub(super) async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(TEST_TIMEOUT, future)
-        .await
-        .map_err(|_| "HTTP/3 session integration test exceeded its deadline")?
+    timeout(TEST_TIMEOUT, future).await.map_err(|elapsed| {
+        FixtureDeadline::new(
+            "HTTP/3 session integration test exceeded its deadline",
+            elapsed,
+        )
+    })?
 }
