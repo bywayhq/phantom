@@ -561,19 +561,19 @@ async fn saturated_connections_open_more_up_to_the_configured_limit() -> TestRes
     let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let builder = client_builder(&identity).max_http3_connections_per_origin(bound(4)?);
-        let (connections, requests) =
+        let (connections, observed_requests) =
             connections_for(builder, &identity, REQUESTS, &mut origins, &mut requests).await?;
         // ceil(5 / 2) = 3 connections, below the limit of 4.
         assert_eq!(connections, 3);
-        assert_eq!(requests, REQUESTS);
+        assert_eq!(observed_requests, REQUESTS);
 
         let identity = TestIdentity::generate()?;
         let builder = client_builder(&identity).max_http3_connections_per_origin(bound(2)?);
-        let (connections, requests) =
+        let (connections, observed_requests) =
             connections_for(builder, &identity, 4, &mut origins, &mut requests).await?;
         // The limit caps it at two; the fifth stream waits for credit.
         assert_eq!(connections, 2);
-        assert_eq!(requests, 4);
+        assert_eq!(observed_requests, 4);
         Ok(())
     })
     .await;

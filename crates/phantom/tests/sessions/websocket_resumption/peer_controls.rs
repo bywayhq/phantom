@@ -80,7 +80,8 @@ async fn cancelling_the_script_keeps_its_already_failed_original_page_driver() -
         }
     })
     .await?;
-    let primary = Err(io::Error::new(io::ErrorKind::InvalidInput, "script stopped").into());
+    let primary: TestResult<()> =
+        Err(io::Error::new(io::ErrorKind::InvalidInput, "script stopped").into());
     let error = failures
         .finish(finish_with_cleanup(primary, server.shutdown().await))
         .err()
