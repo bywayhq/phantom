@@ -539,6 +539,12 @@ not carry its renames. Until then, depend on a pinned git revision
 
 ## Phase 3: Hardening
 
+The candidate list below predates the architecture audit. Reconcile each
+item with its [findings](internals/architecture-audit/findings.md) before
+implementation. Listed counts and source gaps are historical starting points,
+not confirmed current defects. Broader adversarial and platform verification
+remains separate from the completed source reviews.
+
 - Cross-platform debug and release gates. Non-test code already has no
   `unwrap`, `expect`, or panicking macro; turn the `unwrap_used` and
   `expect_used` lints from warn to deny, and allow them in tests through
@@ -691,101 +697,38 @@ not carry its renames. Until then, depend on a pinned git revision
 
 ## Phase 5: Architecture audit
 
-This work is underway before release preparation. The phase number remains
-for existing links. The [audit plan](internals/architecture-audit.md) defines
-the scope, and its [coverage record](internals/architecture-audit/coverage.md)
-states what has been reviewed. Hardening and profiling remain separate work.
+The architecture audit ran before release preparation. The phase number
+remains for existing links. The [audit plan](internals/architecture-audit.md)
+defines its scope. [Coverage](internals/architecture-audit/coverage.md) and
+[findings](internals/architecture-audit/findings.md) record reviewed paths,
+delivered changes and remaining verification.
 
-- Review all five crates, tests, examples, fuzz targets, tooling, configuration,
-  documentation, and maintained vendor changes. Trace ownership and failure
-  paths across their boundaries.
-- Apply the supplied engineering standards to naming, ownership, errors,
-  module layout, documentation, and manually assessed readability. Remove
-  redundant APIs and abstractions when the complete design is clearer.
-  Breaking changes update callers and migration notes together.
-- Reassess the historical candidates below against current source. Counts
-  prompt inspection; they do not establish defects or prescribe a refactor.
-- An independent manual readability pass for code that passes the lints:
-  over-parameterized helpers, deeply nested `match`
-  blocks, defensive branches for states that cannot occur, and names that
-  spell out a whole call path. 45 non-test functions exceed 100 lines and
-  9 exceed 200, such as `connect_http1` in `phantom/src/websocket/http1.rs`
-  (345 lines) and `ClientBuilder::build` (326); the deepest, the two proxy
-  Basic authentication exchanges, nest 7 and 8 brace levels.
-- Review whether comments explain non-obvious invariants. Start with
-  `send_prepared_request` in `phantom-net/src/http1/connection.rs`, which
-  holds a Tokio mutex across `.await` as an exception to a standing rule,
-  then the `biased` select in `http3/body/task.rs`, the nested `Option` in
-  `http2/upload.rs`, and the phase changes in `tls/early_data.rs`.
-- Test files split by behavior where they pass about 1,500 lines (3 today,
-  the largest `phantom-profile/src/request_template/tests.rs` at 2,039),
-  and table-driven tests where cases differ only by data (23 groups of 50
-  structurally identical tests, most of them per-browser recipe tests).
-- Decide retry, replay, and early-data handling from typed fields set where an
-  error is created, instead of downcasting error chains to `phantom-net`
-  types at 11 sites.
-- Compare pool admission, setup waiters, ECH selection, and lease guards.
-  Extract shared code only where current invariants agree. Review request
-  argument lists and state transitions before choosing a request context
-  or splitting a function.
-- Review runtime access at construction and operation boundaries, including
-  clients moved between runtimes. Consolidate repeated checks only when
-  their lifetime and failure contracts agree. Runtime replacement stays
-  outside the audit.
-- Review test hooks for ownership and production layout. Group them when
-  it improves navigation without obscuring the state under test.
-- Review crate boundaries for actual consumers, dependency isolation, and
-  compilation boundaries. Split modules by responsibility; file size alone
-  does not justify a new crate or module.
-- Compare repeated private helpers: the span-outcome drop guard (11 copies
-  across `phantom` and `phantom-net`), `is_token_byte` (3 in
-  `phantom-profile`), and the WebSocket handshake's nonce, base64, and
-  SHA-1 calls, which reach `btls` directly and are the only reason the
-  `websocket` feature pulls `btls` into `phantom-http`. Share an implementation
-  only where callers need the same ownership and failure behavior.
-- Allowances that fail when stale: 23 `too_many_arguments` allowances sit
-  on functions with 7 inputs, which the lint does not flag, and
-  module-level `dead_code` allowances in `phantom-quic-btls` cover 1,884
-  lines and hide an uncalled `into_packet_key`. Use `#[expect]` instead.
-- Move test helpers copied across test files into `phantom-testkit` or
-  `tests/support`. 90 helper names are defined in 3 or more files,
-  `bounded` in 49 and `const TEST_TIMEOUT` in 58 with four values, and a
-  blanket `allow(dead_code)` on `tests/support` hides the unused ones.
-- Bring the file layout to the test-placement and module-file rules in
-  [AGENTS.md](../AGENTS.md#code-and-documentation): review short companion
-  test files for inline placement, retaining separate files when fixtures
-  or helpers give them an independent responsibility. Review the inline
-  test modules over about 300 lines (`retry.rs`, `client.rs`,
-  `socks5_udp.rs`) for companion placement. Remove redundant `#[path]`
-  attributes after checking module resolution. Review enforcement of the
-  module-file rule with Clippy's `mod_module_files`. Keep private test
-  fixtures with their unit-test callers; `tracing_test.rs` has that role.
-  Place the Windows FFI module with its owner. Split large source files
-  only when their responsibilities and callers justify separate owners.
-  Reassess repeated TLS route handling after the Phase 2 route changes.
-- Keep capture history in [Validation](explanation/validation.md) and
-  behavior contracts in recipe rustdoc. Review whether separate browser
-  evidence pages improve navigation while preserving source references.
-- Give `phantom-profile` a crate page: one line covers its 23 public
-  modules today. Explain the `<browser>::v<N>_<layer>` naming and which
-  layers a `ClientProfile` takes, with one composed example.
-- Re-read at the `154.0.8037.58` tag the 11 Chromium source citations still
-  pinned to `153.0.8010.48` (cookies, Alt-Svc policy, address racing, and
-  TCP settings), or make the re-read a step of each recipe refresh.
-- Add the last-checked date that
-  [Writing the documentation](internals/documentation.md#claims) requires
-  to the [At a glance](reference/coverage.md#at-a-glance) table of Coverage
-  and to the table in [Profile reference](reference/profiles.md).
-- Keep wire fixtures, public API contracts, diagnostics, cancellation
-  behavior, and the full gates through every behavior-preserving refactor.
-- Audit the tooling (capture and conformance scripts, CI and release scripts,
-  development helpers, workflows, and agent configuration), remove what no
-  gate uses, and keep documented commands in step with CI. Start with
-  `scripts/dev/consolidate_integration_tests.py`, a finished one-off
-  migration whose tests still run in the gate and CI, and the copied script
-  code: 11 groups of byte-identical Python helpers across the capture and
-  conformance scripts, and shell functions copied between the
-  upstream-freshness scripts.
+- All five crates, first-party tests, examples, fuzz targets, tooling,
+  configuration and documentation have evidenced review dispositions.
+  Maintained vendor patches and relevant upstream boundaries have separate
+  whole or partial reviews. Untouched upstream source is not fully audited.
+- The review traces request preparation, routing, admission, transport,
+  streaming, retries, cookies, SSE, WebSockets, cancellation and shutdown.
+  Independent review covers shared ownership and failure boundaries.
+- Confirmed fixes address input validation, deadlines, task and socket
+  ownership, retained error causes, credential-safe diagnostics and bounded
+  capture state. Breaking API cleanup updates callers and migration notes.
+- Shared public types have canonical paths. Focused modules and test owners
+  replace redundant layout where their responsibilities justify it. Review
+  found no supported reason to split or merge the five crates.
+- Capture records retain platform, scenario and provenance limits.
+  Structured artifact review does not imply complete payload review, fresh
+  browser parity or live server acceptance.
+- Each delivery requires independent review, its exact full gate, applicable
+  PR checks including both platforms, and subsequent main CI. Earlier failed
+  gates remain recorded when their causes are unresolved.
+
+The historical size, duplication and lint counts from the initial roadmap
+were inspection prompts. Their supported remedies and rejected candidates
+belong in the audit records rather than an outstanding refactor checklist.
+Hardening, profiling, release preparation and browser recipe refreshes keep
+their own scope. Playground's prepared migration remains separate from its
+active run.
 
 ## Next
 
