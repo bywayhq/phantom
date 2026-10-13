@@ -2490,6 +2490,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Collect downstream API smoke-test peers after caller failure or timeout.
+  Retain the initiating error and any completed peer failure.
 - Retain accepted writers, worker tasks and original cleanup errors in the
   browser-launch and HTTP/2 WebSocket test peers. Name HTTP/3 fixture timeout
   stages and retain their original causes.
