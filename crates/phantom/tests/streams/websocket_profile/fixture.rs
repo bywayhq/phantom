@@ -233,7 +233,9 @@ fn decode_hex(value: &str) -> TestResult<String> {
     }
     let bytes = value
         .as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| {
             let pair = std::str::from_utf8(pair)?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(u8::from_str_radix(pair, 16)?)
@@ -247,13 +249,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn malformed_hex_returns_an_error_without_panicking() {
+    fn malformed_hex_returns_an_error_without_panicking() -> TestResult<()> {
         for value in ["abc", "gg", "é", "a€", "😀", "ff"] {
             assert!(decode_hex(value).is_err(), "accepted {value:?}");
         }
-        assert_eq!(decode_hex("48656c6c6f20c3a9").unwrap(), "Hello é");
-        assert_eq!(decode_hex("4A4b").unwrap(), "JK");
-        assert_eq!(decode_hex("").unwrap(), "");
+        assert_eq!(decode_hex("48656c6c6f20c3a9")?, "Hello é");
+        assert_eq!(decode_hex("4A4b")?, "JK");
+        assert_eq!(decode_hex("")?, "");
+        Ok(())
     }
 
     #[test]
@@ -262,7 +265,7 @@ mod tests {
     }
 
     #[test]
-    fn impossible_counts_fail_before_allocating_or_iterating() {
+    fn impossible_counts_fail_before_allocating_or_iterating() -> TestResult<()> {
         let input = format!(
             "format=phantom-http2-websocket-v1\nrun_0_connection_count={}\n\
              run_0_request_count={}\nrecord_field_count={}\nrecord_header_count={}\n\
@@ -272,23 +275,23 @@ mod tests {
             usize::MAX,
             usize::MAX
         );
-        let capture = Capture::parse(&input).unwrap();
+        let capture = Capture::parse(&input)?;
         assert!(capture.first_connect().is_err());
         assert!(capture.first_request("websocket").is_err());
         assert!(capture.block("record").is_err());
         assert!(capture.h1_request("record").is_err());
+        Ok(())
     }
 
     #[test]
-    fn valid_counted_header_block_keeps_fields_and_representation() {
+    fn valid_counted_header_block_keeps_fields_and_representation() -> TestResult<()> {
         let capture = Capture::parse(
             "format=phantom-http2-websocket-v1\nrecord_field_count=1\n\
              record_field_0=repr:without-indexing,name_hex:78,value_hex:79,index:0,\
              name_huffman:false,value_huffman:true",
-        )
-        .unwrap();
+        )?;
         assert_eq!(
-            capture.block("record").unwrap(),
+            capture.block("record")?,
             vec![(
                 "x".into(),
                 "y".into(),
@@ -300,5 +303,6 @@ mod tests {
                 }
             )]
         );
+        Ok(())
     }
 }

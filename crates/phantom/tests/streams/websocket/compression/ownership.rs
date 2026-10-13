@@ -4,9 +4,9 @@ use tokio::{net::TcpListener, task::AbortHandle, time::timeout};
 
 use super::*;
 
-async fn connected(
-    owner: &mut Option<ConnectionPeer<TestResult<(Vec<u8>, ClientFrame)>>>,
-) -> TestResult<phantom::WebSocket> {
+type CompressionPeer = ConnectionPeer<TestResult<(Vec<u8>, ClientFrame)>>;
+
+async fn connected(owner: &mut Option<CompressionPeer>) -> TestResult<phantom::WebSocket> {
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
