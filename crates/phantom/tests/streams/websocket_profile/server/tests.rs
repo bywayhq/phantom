@@ -123,6 +123,80 @@ fn a_complete_truncated_priority_returns_its_typed_parser_failure() -> TestResul
     Ok(())
 }
 
+#[test]
+fn oversized_hpack_continuations_return_typed_failures_without_losing_valid_fields() -> TestResult<()> {
+    // Literal base-128 encodings exercise both addition overflow and the
+    // largest representable value; no test encoder repeats the parser.
+    let (overflow, maximum, overflowing_part): (&[u8], &[u8], &[u8]) = match usize::BITS {
+        64 => (
+            &[0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01],
+            &[0x3f, 0xe0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01],
+            &[0x3f, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x02],
+        ),
+        32 => (
+            &[0x3f, 0xff, 0xff, 0xff, 0xff, 0x0f],
+            &[0x3f, 0xe0, 0xff, 0xff, 0xff, 0x0f],
+            &[0x3f, 0x80, 0x80, 0x80, 0x80, 0x10],
+        ),
+        _ => return Err("HPACK control requires a 32-bit or 64-bit usize".into()),
+    };
+    let mut excessive_shift = vec![0x3f];
+    excessive_shift.extend(vec![0x80; usize::try_from(usize::BITS / 7 + 2)?]);
+    excessive_shift.push(0);
+    for block in [overflow, overflowing_part, excessive_shift.as_slice()] {
+        let error = WireDecoder::default().decode_block(block).err()
+            .ok_or("oversized HPACK continuation was accepted")?;
+        let cause = error.downcast_ref::<io::Error>().ok_or("original HPACK range failure was not typed")?;
+        assert_eq!(cause.kind(), io::ErrorKind::InvalidData);
+        assert_eq!(cause.to_string(), "HPACK integer exceeds the fixture's range");
+    }
+    let mut cursor = 0;
+    assert_eq!(super::read_integer(maximum, &mut cursor, 5)?, usize::MAX);
+    assert_eq!(cursor, maximum.len());
+    let mut healthy = maximum.to_vec();
+    healthy.push(0x82);
+    let fields = WireDecoder::default().decode_block(&healthy)?;
+    assert_eq!(fields.len(), 1);
+    assert_eq!(fields[0].0, ":method");
+    assert_eq!(fields[0].1.kind, "indexed");
+    assert_eq!(fields[0].1.index, 2);
+    Ok(())
+}
+
+#[test]
+fn hpack_name_and_value_ranges_reject_overflow_and_truncation() -> TestResult<()> {
+    let maximum_length: &[u8] = match usize::BITS {
+        64 => &[0x7f, 0x80, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01],
+        32 => &[0x7f, 0x80, 0xff, 0xff, 0xff, 0x0f],
+        _ => return Err("HPACK control requires a 32-bit or 64-bit usize".into()),
+    };
+    for first in [0x00, 0x01] {
+        // A zero name index reads a literal name; :authority's index skips
+        // its literal value. Both paths receive the same impossible extent.
+        let mut overflowing = vec![first];
+        overflowing.extend_from_slice(maximum_length);
+        for (block, message) in [
+            (overflowing, "HPACK string range overflows"),
+            (vec![first, 0x05, b'a'], "HPACK string is truncated"),
+        ] {
+            let error = WireDecoder::default().decode_block(&block).err()
+                .ok_or("invalid HPACK string range was accepted")?;
+            let cause = error.downcast_ref::<io::Error>().ok_or("original HPACK string failure was not typed")?;
+            assert_eq!(cause.kind(), io::ErrorKind::InvalidData);
+            assert_eq!(cause.to_string(), message);
+        }
+    }
+    let fields = WireDecoder::default().decode_block(&[
+        0x00, 0x07, b':', b'm', b'e', b't', b'h', b'o', b'd', 0x03, b'G', b'E', b'T',
+    ])?;
+    assert_eq!(fields.len(), 1);
+    assert_eq!(fields[0].0, ":method");
+    assert_eq!(fields[0].1.kind, "without-indexing");
+    assert_eq!(fields[0].1.name_huffman, Some(false));
+    assert_eq!(fields[0].1.value_huffman, Some(false));
+    Ok(())
+}
+
 #[tokio::test]
 async fn one_http2_data_chunk_echoes_both_coalesced_websocket_frames() -> TestResult<()> {
     timeout(CLEANUP_TIMEOUT, async {

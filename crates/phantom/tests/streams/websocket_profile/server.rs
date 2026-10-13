@@ -893,7 +893,12 @@ fn read_integer(block: &[u8], cursor: &mut usize, prefix_bits: u8) -> TestResult
     loop {
         let byte = *block.get(*cursor).ok_or("HPACK integer is truncated")?;
         *cursor += 1;
-        value += usize::from(byte & 0x7f) << shift;
+        let factor = 1_usize.checked_shl(shift).ok_or_else(||
+            io::Error::new(io::ErrorKind::InvalidData, "HPACK integer exceeds the fixture's range"))?;
+        let part = usize::from(byte & 0x7f).checked_mul(factor).ok_or_else(||
+            io::Error::new(io::ErrorKind::InvalidData, "HPACK integer exceeds the fixture's range"))?;
+        value = value.checked_add(part).ok_or_else(||
+            io::Error::new(io::ErrorKind::InvalidData, "HPACK integer exceeds the fixture's range"))?;
         if byte & 0x80 == 0 {
             return Ok(value);
         }
@@ -905,10 +910,12 @@ fn read_integer(block: &[u8], cursor: &mut usize, prefix_bits: u8) -> TestResult
 fn read_literal_name(block: &[u8], cursor: &mut usize) -> TestResult<(Option<String>, bool)> {
     let huffman = block.get(*cursor).ok_or("HPACK string is truncated")? & 0x80 != 0;
     let length = read_integer(block, cursor, 7)?;
+    let end = cursor.checked_add(length).ok_or_else(||
+        io::Error::new(io::ErrorKind::InvalidData, "HPACK string range overflows"))?;
     let bytes = block
-        .get(*cursor..*cursor + length)
-        .ok_or("HPACK string is truncated")?;
-    *cursor += length;
+        .get(*cursor..end)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "HPACK string is truncated"))?;
+    *cursor = end;
     let name = match (huffman, bytes) {
         (true, PROTOCOL_HUFFMAN) => Some(":protocol".to_owned()),
         (true, _) => None,
@@ -921,10 +928,12 @@ fn read_literal_name(block: &[u8], cursor: &mut usize) -> TestResult<(Option<Str
 fn skip_string(block: &[u8], cursor: &mut usize) -> TestResult<bool> {
     let huffman = block.get(*cursor).ok_or("HPACK string is truncated")? & 0x80 != 0;
     let length = read_integer(block, cursor, 7)?;
-    if block.len() < *cursor + length {
-        return Err("HPACK string is truncated".into());
+    let end = cursor.checked_add(length).ok_or_else(||
+        io::Error::new(io::ErrorKind::InvalidData, "HPACK string range overflows"))?;
+    if block.len() < end {
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "HPACK string is truncated").into());
     }
-    *cursor += length;
+    *cursor = end;
     Ok(huffman)
 }
 
