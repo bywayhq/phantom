@@ -2495,6 +2495,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Read complete HTTP/1.1 responses in native TLS capture checks without
+  waiting for connection retirement. Keep independent server EOF controls.
+
 - Mark the architecture audit complete and retire its completed checklist.
 
 - Retire Alt-Svc test sockets, listeners and clients when setup fails.

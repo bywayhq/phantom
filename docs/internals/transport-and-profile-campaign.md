@@ -49,7 +49,7 @@ copying execution journals into this page.
 | Task | Owner lane | State and next check |
 | --- | --- | --- |
 | T1 | `h3-drain-diagnosis` | Both draining failures reproduced by delaying peer GOAWAY beyond the fixture's sleep. Verify an observed-readiness barrier under the same delay. |
-| T2 | `tls-done-diagnosis` | Native EOF timeout reproduced after a complete response, with both a delayed loop and withheld close. Verify framed-response completion and independent EOF controls. |
+| T2 | `tls-done-diagnosis` | Framed-response repair and EOF controls pass; independently reviewed and integrated locally. Full root gate and PR delivery remain. |
 | P1–P5 | `profile-catalog` | Contract review complete. Implement exact lookup and per-layer records before migrating recipe values. |
 | F8 | `http3-debug-auth` | Explicit origin opt-in implemented. Run native and facade certificate, hostname, clone, and session-isolation controls. |
 
@@ -58,6 +58,8 @@ delay. The unchanged historical TLS suite also passed all 1,041 tests with
 four skips. Keep original attribution open while repairing the demonstrated
 synchronization weaknesses. Detailed run logs are retained under each
 lane's `target/transport-profile-campaign/` pending a reviewed evidence index.
+The [TLS timing record](transport-profile-evidence/tls-retirement.md) binds
+the T2 repair and retained evidence. Its historical attribution remains open.
 
 ## Historical timing failures
 
