@@ -45,6 +45,16 @@ REQUESTED = (
 )
 
 
+class ScriptedFailures(Exception):
+    def __init__(self, primary, cleanup, browser):
+        self.primary = primary
+        self.cleanup = tuple(cleanup)
+        self.browser = browser
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        super().__init__("scripted browser cleanup failed")
+
+
 class ScriptedBrowser:
     """Two navigations: default hints, then the fields the origin requested."""
 
@@ -52,6 +62,87 @@ class ScriptedBrowser:
         self.url = url
         self.extra = extra
         self.accept_ch: list[bytes] = []
+        self.task: asyncio.Task | None = None
+        self.cancel_requested = False
+        self.writers: list[asyncio.StreamWriter] = []
+        self.waiters: dict[asyncio.StreamWriter, asyncio.Task] = {}
+        self.failures: list[BaseException] = []
+
+    def failed(self, error):
+        if not any(previous is error for previous in self.failures):
+            self.failures.append(error)
+
+    def raise_failures(self, primary):
+        cleanup = [error for error in self.failures if error is not primary]
+        self.failures.clear()
+        if cleanup:
+            packet = ScriptedFailures(primary, cleanup, self)
+            if primary is not None:
+                raise primary from packet
+            raise packet from cleanup[0]
+        if primary is not None:
+            raise primary
+
+    async def collect(self, task):
+        deadline = asyncio.get_running_loop().time() + client_hints.SHUTDOWN_TIMEOUT
+        while not task.done():
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                self.failed(TimeoutError("scripted browser task did not stop"))
+                return False
+            try:
+                await asyncio.wait((task,), timeout=remaining)
+            except BaseException as error:
+                # The original task remains owned through an interrupted wait.
+                self.failed(error)
+        return True
+
+    async def retire(self, writer):
+        try:
+            writer.close()
+        except BaseException as error:
+            self.failed(error)
+
+        waiter = self.waiters.get(writer)
+        if waiter is None:
+            closed = writer.wait_closed()
+            try:
+                waiter = asyncio.create_task(closed)
+                self.waiters[writer] = waiter
+            except BaseException as error:
+                self.failed(error)
+                try:
+                    closed.close()
+                except BaseException as cleanup:
+                    self.failed(cleanup)
+                return
+
+        if await self.collect(waiter):
+            try:
+                waiter.result()
+            except client_hints.PEER_DISCONNECT:
+                pass
+            except BaseException as error:
+                self.failed(error)
+
+    async def finish(self, primary):
+        task = self.task
+        if task is not None and not task.done() and primary is not None:
+            self.cancel_requested = True
+            task.cancel("scripted caller failed")
+
+        if task is not None and await self.collect(task):
+            try:
+                task.result()
+            except asyncio.CancelledError as error:
+                if not self.cancel_requested or error.__cause__ is not None:
+                    self.failed(error)
+            except BaseException as error:
+                self.failed(error)
+
+        for writer in self.writers:
+            await self.retire(writer)
+        self.raise_failures(primary)
 
     async def run(self) -> None:
         headers, body = await self.fetch(self.url, DEFAULT)
@@ -70,48 +161,67 @@ class ScriptedBrowser:
     ) -> tuple[dict[bytes, bytes], bytes]:
         parts = urlsplit(url)
         reader, writer = await asyncio.open_connection(parts.hostname, parts.port)
-        lines = [
-            f"GET {parts.path} HTTP/1.1".encode(),
-            b"Host: " + parts.netloc.encode(),
-        ]
-        lines.extend(name + b": " + value for name, value in hints)
-        lines.append(b"User-Agent: scripted")
-        lines.extend(self.extra)
-        writer.write(b"\r\n".join(lines) + b"\r\n\r\n")
-        await writer.drain()
-        head = await reader.readuntil(b"\r\n\r\n")
-        headers = {}
-        for line in head[:-4].split(b"\r\n")[1:]:
-            name, _, value = line.partition(b":")
-            headers[name.strip().lower()] = value.strip()
-        body = await reader.readexactly(int(headers[b"content-length"]))
-        writer.close()
+        self.writers.append(writer)
+        primary = None
+        try:
+            lines = [
+                f"GET {parts.path} HTTP/1.1".encode(),
+                b"Host: " + parts.netloc.encode(),
+            ]
+            lines.extend(name + b": " + value for name, value in hints)
+            lines.append(b"User-Agent: scripted")
+            lines.extend(self.extra)
+            writer.write(b"\r\n".join(lines) + b"\r\n\r\n")
+            await writer.drain()
+
+            head = await reader.readuntil(b"\r\n\r\n")
+            headers = {}
+            for line in head[:-4].split(b"\r\n")[1:]:
+                name, _, value = line.partition(b":")
+                headers[name.strip().lower()] = value.strip()
+            body = await reader.readexactly(int(headers[b"content-length"]))
+        except BaseException as error:
+            primary = error
+
+        await self.retire(writer)
+        self.raise_failures(primary)
         return headers, body
 
 
 @contextlib.asynccontextmanager
 async def scripted(url: str, **options):
     browser = ScriptedBrowser(url, **options)
-    task = asyncio.create_task(browser.run())
+    primary = None
+    work = browser.run()
     try:
+        browser.task = asyncio.create_task(work)
         yield browser
-    finally:
-        await task
+    except BaseException as error:
+        primary = error
+        if browser.task is None:
+            try:
+                work.close()
+            except BaseException as cleanup:
+                browser.failed(cleanup)
+    await browser.finish(primary)
 
 
 async def capture(repeat: int = 2, **options) -> list[HintRun]:
     server = HintServer()
-    await server.start("127.0.0.1", 0)
+    primary = None
     try:
-        return await capture_runs(
+        await server.start("127.0.0.1", 0)
+        runs = await capture_runs(
             server,
             repeat=repeat,
             accept_ch=USER_AGENT_HINTS,
             run_timeout=5.0,
             drive=lambda url: scripted(url, **options),
         )
-    finally:
-        await server.close()
+    except BaseException as error:
+        primary = error
+    await server.close(primary)
+    return runs
 
 
 def navigation(*hints: tuple[str, bytes]) -> Navigation:

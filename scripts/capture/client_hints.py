@@ -12,7 +12,7 @@ import secrets
 import sys
 import time
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -95,9 +95,11 @@ def parse_navigation(head: bytes, requested: Sequence[str]) -> Navigation:
         name, separator, value = line.partition(b":")
         if not separator:
             raise ValueError("request header line has no colon")
-        name = name.strip()
+
+        validate_field_name(name)
         if name.lower() in SENSITIVE_HEADERS:
             raise ValueError("refusing to retain a credential-bearing request field")
+
         names.append(name)
         if is_hint(name, requested):
             hint_name = name.lower().decode("ascii")
@@ -199,13 +201,47 @@ class _HintProtocol(asyncio.StreamReaderProtocol):
                 self.closed.set_result(None)
 
 
+class _RetiringHintProtocol(asyncio.Protocol):
+    """Adopt an accepted socket when its stream protocol cannot be built."""
+
+    def __init__(self, owner: HintServer) -> None:
+        self.owner = owner
+        self.run = owner.run
+        self.transport: asyncio.Transport | None = None
+        self.writer: asyncio.StreamWriter | None = None
+        self.handler: asyncio.Task[None] | None = None
+        self.waiter: asyncio.Task[bool] | None = None
+        self.closed = asyncio.get_running_loop().create_future()
+        self.retired = False
+
+    def connection_made(self, transport: asyncio.Transport) -> None:
+        self.transport = transport
+        # Listener closure must follow the backend's transport attachment.
+        self.owner._stop_listener()
+        try:
+            transport.abort()
+        except BaseException as error:
+            self.owner._failed(self.run, error)
+            try:
+                transport.close()
+            except BaseException as cleanup:
+                self.owner._failed(self.run, cleanup)
+
+    def connection_lost(self, error: Exception | None) -> None:
+        if error is not None and not isinstance(error, PEER_DISCONNECT):
+            self.owner._failed(self.run, error)
+        self.retired = True
+        if not self.closed.done():
+            self.closed.set_result(None)
+
+
 class HintServer:
     """Loopback HTTP/1.1 server driving one two-navigation run at a time."""
 
     def __init__(self) -> None:
         self.run: HintRun | None = None
         self.server: asyncio.Server | None = None
-        self.connections: set[_HintProtocol] = set()
+        self.connections: set[_HintProtocol | _RetiringHintProtocol] = set()
         self.address: tuple[str, int] | None = None
         self.failure: BaseException | None = None
         self._failures: list[BaseException] = []
@@ -244,12 +280,14 @@ class HintServer:
         asyncio.get_running_loop().call_soon(ready.set)
         await self.server.wait_closed()
 
-    def new_protocol(self) -> _HintProtocol:
+    def new_protocol(self) -> _HintProtocol | _RetiringHintProtocol:
         try:
             connection = _HintProtocol(self)
         except BaseException as error:
             self._remember_failure(self.run, error)
-            raise
+            # Raising here leaves the backend's accepted socket outside its
+            # transport owner. Return an owner that retires the actual peer.
+            connection = _RetiringHintProtocol(self)
         self.connections.add(connection)
         if len(self.connections) > MAX_CONNECTIONS:
             # The backend has not attached this protocol's transport yet.
@@ -520,32 +558,39 @@ def derived_hints(runs: Sequence[HintRun]) -> list[tuple[str, str, bytes]]:
     """
     if not runs:
         raise ValueError("at least one run is required")
+
     for run in runs:
         if run.first is None or run.second is None:
             raise ValueError("a run did not complete both navigations")
         for navigation in (run.first, run.second):
             for name, _value in navigation.hints:
                 validate_hint_name(name)
+
     reference = runs[0]
     for run in runs[1:]:
         if run.first.hints != reference.first.hints:
             raise ValueError("runs disagree on first-navigation hints")
         if run.second.hints != reference.second.hints:
             raise ValueError("runs disagree on second-navigation hints")
+
     second = reference.second.hints
     names = [name for name, _ in second]
     if len(set(names)) != len(names):
         raise ValueError("second navigation repeated a hint field")
+
     first = dict(reference.first.hints)
     if len(first) != len(reference.first.hints):
         raise ValueError("first navigation repeated a hint field")
+
     second_values = dict(second)
     for name, value in first.items():
         if second_values.get(name) != value:
             raise ValueError(f"default hint {name} changed after Accept-CH")
+
     order = [name for name in names if name in first]
     if order != [name for name, _ in reference.first.hints]:
         raise ValueError("default hints changed relative order after Accept-CH")
+
     return [
         ("default" if name in first else "accept-ch", name, value)
         for name, value in second
@@ -562,6 +607,10 @@ def validate_value(value: bytes) -> str:
 def fixture(
     runs: Sequence[HintRun], metadata: CaptureMetadata, accept_ch: Sequence[str]
 ) -> str:
+    validate_metadata(metadata)
+    for name in accept_ch:
+        validate_hint_name(name)
+
     hints = derived_hints(runs)
     lines = [
         f"format={FORMAT}",
@@ -580,6 +629,8 @@ def fixture(
     for run_index, run in enumerate(runs):
         for label, navigation in (("first", run.first), ("second", run.second)):
             key = f"run_{run_index}_{label}"
+            for name in navigation.field_names:
+                validate_field_name(name)
             names = b",".join(navigation.field_names).decode("ascii")
             lines.append(f"{key}_field_order={names}")
             lines.append(f"{key}_hint_count={len(navigation.hints)}")
@@ -634,6 +685,19 @@ async def run(args: argparse.Namespace) -> None:
         headless=not args.headful,
         extra_arguments=tuple(args.browser_switch),
     )
+    validate_metadata(
+        CaptureMetadata(
+            client=args.client or plan.client_name,
+            client_version=args.client_version,
+            operating_system=args.operating_system,
+            listen_address=args.listen,
+            launch_mode=plan.launch_mode,
+            launch_arguments=plan.recorded_arguments(
+                "http://127.0.0.1:0/run/<token>/first"
+            ),
+        )
+    )
+
     server = HintServer()
     primary = None
     try:
@@ -659,23 +723,39 @@ async def run(args: argparse.Namespace) -> None:
         launch_mode=plan.launch_mode,
         launch_arguments=plan.recorded_arguments(f"http://{listen}/run/<token>/first"),
     )
+    text = fixture(runs, metadata, args.accept_ch)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    write_text_fixture(args.output, fixture(runs, metadata, args.accept_ch))
+    write_text_fixture(args.output, text)
     print(f"captured {args.output}", file=sys.stderr, flush=True)
 
 
 def validate_options(repeat: int, accept_ch: Sequence[str], run_timeout: float) -> None:
     if repeat < 1:
         raise ValueError("--repeat must be positive")
+
     if not math.isfinite(run_timeout) or run_timeout <= 0:
         raise ValueError("--run-timeout must be finite and positive")
+
     for name in accept_ch:
         validate_hint_name(name)
+
+
+def validate_field_name(name: bytes) -> None:
+    if re.fullmatch(rb"[!#$%&'*+\-.^_`|~0-9A-Za-z]+", name) is None:
+        raise ValueError("request field names must be ASCII HTTP tokens")
+
+
+def validate_metadata(metadata: CaptureMetadata) -> None:
+    for entry in fields(metadata):
+        value = getattr(metadata, entry.name)
+        if any(not " " <= character <= "~" for character in value):
+            raise ValueError(f"{entry.name} must be single-line printable ASCII")
 
 
 def validate_hint_name(name: str) -> None:
     if re.fullmatch(r"[!#$%&'*+\-.^_`|~0-9a-z]+", name) is None:
         raise ValueError("client-hint names must be lowercase HTTP field names")
+
     if "|" in name:
         raise ValueError("client-hint names cannot contain the fixture separator '|'")
 
@@ -711,6 +791,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     check_browser_switches(parser, args)
     if args.browser != "manual" and args.browser_path is None:
         parser.error("--browser-path is required unless --browser manual")
+
     try:
         validate_options(args.repeat, args.accept_ch, args.run_timeout)
         parse_listen(args.listen)
