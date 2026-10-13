@@ -171,6 +171,9 @@ These records remain under the evidence root above:
 | `merged-fixture-13-root-bindings-1806-b694.json` | Root verifies all thirteen source blobs and original receipt hashes; candidate Rust bodies remain unchanged |
 | `merged-shipping-23-current-source-dispositions-b6942293.json` | Seven original whole reviews, five complete baselines with reviewed formatting differences, and eleven fresh independent whole reads of Rust children |
 | `merged-shipping-23-root-bindings-1806-b694.json` | Root checks all twenty-three source bodies and fifteen original receipt hashes; scope and runtime qualifications remain |
+| `remaining-fixture-17-current-source-dispositions-b6942293.json` | Individual parent assessments, exact original receipts, complete reviewed differences and three fresh independent reads |
+| `websocket-four-current-source-review-b6942293.json` | Four fresh independent whole-parent reads close repair provenance gaps and identify A343 |
+| `remaining-fixture-17-root-bindings-1806-b694.json` | Root checks seventeen source bodies, thirteen original receipt hashes and the four fresh parent scope bindings |
 | `capture-completion-b6942293-independent-composition-review.json` | Exact composed capture source and documentation approval |
 | `capture-completion-gate-b6942293-independent-log-review.json` | All 24 full-gate steps and retained raw logs reviewed at the clean candidate |
 | `capture-completion-b6942293-final-pr-checks.json` | All 29 PR checks succeed, including macOS and Windows |
