@@ -81,14 +81,20 @@ impl<T: Send + 'static> TunnelSetup<T> {
         }
 
         let cleanup = match self.tunnel.as_mut() {
-            Some(tunnel) => tunnel.finish(Ok(())).await,
+            Some(tunnel) => {
+                let outcome = tunnel.finish(Ok(())).await;
+                // After the await, move the collected cause onto this owner.
+                // Interrupted collection leaves it on the retained tunnel.
+                tunnel.failure = None;
+                outcome
+            }
             None => Ok(()),
         };
-        let primary = match &self.failure {
+        self.retain_failure(cleanup);
+        match &self.failure {
             Some(failure) => Err(Box::new(failure.clone()) as Box<dyn Error + Send + Sync>),
             None => Ok(()),
-        };
-        finish_with_cleanup(primary, cleanup)
+        }
     }
 
     fn accept_outcome(&mut self, joined: Result<SetupOutcome<T>, tokio::task::JoinError>) {
