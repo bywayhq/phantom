@@ -29,7 +29,36 @@ Root and an independent reader inspect the complete logs, exits and separate
 clean revision bindings. Runtime evidence remains at `33de1fc4`.
 Original failed and passing logs remain under the audit scratchpad's
 `quic-boundary-baseline`, `quic-boundary-remedy` and `dns-format` prefixes.
-The IP-literal caller repair and final integration gates remain open.
+The IP-literal caller repair is checked below. Final integration gates remain
+open.
+
+## IP-literal capture completion
+
+At `74edd754`, the capture owner retains acquired sockets and original
+workers through partial startup, caller failure and cooperative shutdown.
+Late worker failures remain errors after a ClientHello has arrived.
+Finite input budgets cover TCP records, connections, datagrams and CRYPTO.
+QUIC reconstruction preserves matching overlaps, rejects conflicts and
+selects a connection only after its Initial packet authenticates.
+Both capture callers now check the shared native header/sample boundary.
+The version probe receives a five-second timeout and retains `TimeoutExpired`.
+
+Root and an independent reviewer read the whole tool, tests and composition.
+Windows and Linux each pass all 24 IP-literal methods, Ruff check/format and
+docs. Both readers inspect the complete logs and separately bind clean
+sources to the exact revision. Logs use the audit scratchpad's
+`ip-capture-74edd754...` prefix. CI also passes all 43 checks at the earlier
+pushed `7c88d128`, including macOS and Windows; later changes need fresh CI.
+
+Ownership controls use real threads and accepted loopback sockets, with
+mocked browser launch and cleanup. Valid parser inputs include native-generated
+Initials; malformed native-boundary inputs are intercepted safely. The version
+control mocks the subprocess failure. No pre-fix IP runtime baseline or fresh
+Firefox capture is claimed. Initial keys do not establish browser identity.
+The capture deadline starts after browser launch. Incomplete ClientHellos may
+remain absent, and version output stays buffered during its finite wait. Unobserved
+worker starts remain attached to failure owners. Cooperative deadlines cannot
+preempt blocking native operations. Final integration gates remain open.
 
 ## Client and route architecture review
 
