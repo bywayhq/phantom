@@ -3,7 +3,6 @@
 import asyncio
 import contextlib
 import inspect
-import shutil
 import socket
 import threading
 import unittest
@@ -78,7 +77,8 @@ class LaunchPeerCompletionTests(unittest.TestCase):
             case.doCleanups()
             for directory in directories:
                 if directory.exists():
-                    shutil.rmtree(directory)
+                    (directory / "firefox.lock").unlink(missing_ok=True)
+                    directory.rmdir()
 
     def test_enter_failure_closes_actual_listener_and_client_before_backup(self):
         accepted = asyncio.Event()
