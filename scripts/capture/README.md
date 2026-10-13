@@ -1770,6 +1770,15 @@ those fields, and how each is encoded. It writes one
 `format=phantom-cookie-crumbs-v1` fixture per scenario, named
 `crumbs-<scenario>.txt`.
 
+Each run collects its registered TCP or QUIC owners before fixture publication.
+Capture and cleanup failures preserve their original causes and prevent writes.
+Cleanup attempts have a ten-second cooperative deadline.
+
+Run timeouts must be finite and positive. Observation delays may be zero.
+Their sum must be finite. The command allows 128 scenario runs in total.
+Each run allows 32 active and 128 lifetime connections, 128 QUIC streams
+per connection, and 8 MiB of recorded channel data.
+
 Capture Chrome on Windows:
 
 ```sh

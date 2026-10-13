@@ -2575,6 +2575,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Collect cookie capture callbacks and partial listener acquisitions before
+  writing fixtures. Preserve original failures, bound run retention, and
+  bracket HTTP/1.1 IPv6 loopback URLs.
+
 - Stop client-hint captures on callback failures and collect registered
   connections before the next run or fixture publication. Keep the previous
   fixture when capture or cleanup fails.

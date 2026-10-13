@@ -264,7 +264,8 @@ def raise_cookie_failures(
     failure = CookieFailures(primary, cleanup)
     interruption = next(
         (
-            error for error in (primary, *cleanup)
+            error
+            for error in (primary, *cleanup)
             if error is not None and not isinstance(error, Exception)
         ),
         None,
@@ -308,7 +309,9 @@ class CookieProtocol(asyncio.StreamReaderProtocol):
         self.writer = writer
         if self.owner.finished:
             self.owner.finished = False
-            self.owner.failed(RuntimeError("cookie TCP callback arrived after cleanup"), self.run)
+            self.owner.failed(
+                RuntimeError("cookie TCP callback arrived after cleanup"), self.run
+            )
         if self.owner.stopping or self.run is None:
             try:
                 writer.transport.abort()
@@ -386,8 +389,9 @@ class TcpServer:
                     raise
                 self.listener_waits[server] = task
                 task.add_done_callback(
-                    lambda completed, signal=ready:
-                    self.listener_finished(completed, signal)
+                    lambda completed, signal=ready: self.listener_finished(
+                        completed, signal
+                    )
                 )
                 await ready
                 raise_cookie_failures(None, tuple(self.failures))
@@ -422,12 +426,18 @@ class TcpServer:
             ready.set_result(None)
 
     def new_protocol(self, listener, run) -> CookieProtocol:
-        protocol = CookieProtocol(self, listener, run)
-        self.protocols.append(protocol)
-        active = sum(not item.retired.done() for item in self.protocols)
-        if len(self.protocols) > MAX_CONNECTIONS or active > MAX_ACTIVE_CONNECTIONS:
-            self.failed(ValueError("cookie capture exceeds the connection limit"), run)
-        return protocol
+        try:
+            protocol = CookieProtocol(self, listener, run)
+            self.protocols.append(protocol)
+            active = sum(not item.retired.done() for item in self.protocols)
+            if len(self.protocols) > MAX_CONNECTIONS or active > MAX_ACTIVE_CONNECTIONS:
+                self.failed(
+                    ValueError("cookie capture exceeds the connection limit"), run
+                )
+            return protocol
+        except BaseException as error:
+            self.failed(error, run)
+            raise
 
     def failed(self, error, run) -> None:
         if all(previous is not error for previous in self.failures):
@@ -498,7 +508,8 @@ class TcpServer:
             for protocol in self.protocols:
                 tasks.add(protocol.retired)
                 tasks.update(
-                    task for task in (protocol.task, protocol.close_task)
+                    task
+                    for task in (protocol.task, protocol.close_task)
                     if task is not None
                 )
             pending = {task for task in tasks if not task.done()}
@@ -508,7 +519,8 @@ class TcpServer:
                     for protocol in self.protocols
                 ) and all(
                     server in self.closed_listeners
-                    and server in self.observed_listeners for server in self.servers
+                    and server in self.observed_listeners
+                    for server in self.servers
                 )
                 break
 
@@ -524,7 +536,9 @@ class TcpServer:
             if loop.time() < wait_deadline:
                 continue
 
-            self.failed(TimeoutError("cookie TCP cleanup exceeded its deadline"), self.run)
+            self.failed(
+                TimeoutError("cookie TCP cleanup exceeded its deadline"), self.run
+            )
             for protocol in self.protocols:
                 if protocol.task is not None and not protocol.task.done():
                     protocol.task.cancel()
@@ -559,9 +573,7 @@ class TcpServer:
         channel = None
         try:
             if protocol.listener == "tls":
-                channel = TlsChannel(
-                    self.context, reader, writer, record, run.now, run
-                )
+                channel = TlsChannel(self.context, reader, writer, record, run.now, run)
                 await channel.handshake()
                 record.protocol = record.alpn or "http/1.1"
             else:
@@ -694,8 +706,9 @@ async def serving_http3(
             self.finished = False
             self.retired = asyncio.get_running_loop().create_future()
             super().__init__(
-                create_protocol=lambda *args, **options:
-                CookieQuicProtocol(*args, owner=self, **options),
+                create_protocol=lambda *args, **options: CookieQuicProtocol(
+                    *args, owner=self, **options
+                ),
                 **kwargs,
             )
 
@@ -766,19 +779,27 @@ async def serving_http3(
                 pending = {task for task in tasks if not task.done()}
                 if not pending:
                     self.finished = (
-                        self._transport is not None and self.retired.done()
+                        self._transport is not None
+                        and self.retired.done()
                         and all(protocol.observed_closed for protocol in self.protocols)
                     )
                     if self._transport is None:
-                        self.failed(RuntimeError("cookie QUIC transport acquisition was not observed"))
+                        self.failed(
+                            RuntimeError(
+                                "cookie QUIC transport acquisition was not observed"
+                            )
+                        )
                     break
                 remaining = deadline - asyncio.get_running_loop().time()
                 if remaining <= 0:
-                    self.failed(TimeoutError("cookie QUIC cleanup exceeded its deadline"))
+                    self.failed(
+                        TimeoutError("cookie QUIC cleanup exceeded its deadline")
+                    )
                     break
                 try:
-                    await asyncio.wait(pending, timeout=remaining,
-                                       return_when=asyncio.FIRST_COMPLETED)
+                    await asyncio.wait(
+                        pending, timeout=remaining, return_when=asyncio.FIRST_COMPLETED
+                    )
                 except BaseException as error:
                     self.failed(error)
 
@@ -811,10 +832,16 @@ async def serving_http3(
             self.index = len(run.quic_connections)
             run.quic_connections.append(self.record)
             self.http: H3Connection | None = None
-            active = sum(not protocol._closed.is_set()
-                         for protocol in self.owner.protocols)
-            if len(self.owner.protocols) > MAX_CONNECTIONS or active > MAX_ACTIVE_CONNECTIONS:
-                self.owner.failed(ValueError("cookie QUIC capture exceeds the connection limit"))
+            active = sum(
+                not protocol._closed.is_set() for protocol in self.owner.protocols
+            )
+            if (
+                len(self.owner.protocols) > MAX_CONNECTIONS
+                or active > MAX_ACTIVE_CONNECTIONS
+            ):
+                self.owner.failed(
+                    ValueError("cookie QUIC capture exceeds the connection limit")
+                )
 
         def datagram_received(self, data, addr):
             try:
@@ -843,7 +870,10 @@ async def serving_http3(
                 self.record.received += len(event.data)
                 if self.record.received > MAX_STREAM_CAPTURE:
                     raise ValueError("connection exceeds the capture limit")
-                if event.stream_id not in self.record.streams and len(self.record.streams) >= MAX_QUIC_STREAMS:
+                if (
+                    event.stream_id not in self.record.streams
+                    and len(self.record.streams) >= MAX_QUIC_STREAMS
+                ):
                     raise ValueError("cookie QUIC connection exceeds the stream limit")
                 run.retain(len(event.data))
                 stream = self.record.streams.setdefault(event.stream_id, bytearray())
@@ -1456,9 +1486,7 @@ async def wait_for_run(run: CookieRun, plan: LaunchPlan, url: str, timeout: floa
         raise ValueError("combined cookie run duration must be finite and positive")
     async with BrowserDriver(plan, url):
         try:
-            await asyncio.wait_for(
-                run.done.wait(), timeout=duration
-            )
+            await asyncio.wait_for(run.done.wait(), timeout=duration)
         except asyncio.TimeoutError:
             run.timed_out = True
 
@@ -1549,9 +1577,14 @@ async def capture(args: argparse.Namespace) -> None:
                 or "none",
             )
             timed_out = sum(run.timed_out for run in runs)
-            pending_fixtures.append((args.output_dir / f"crumbs-{name}.txt",
-                                     fixture(scenario, runs, metadata_, 4096),
-                                     name, timed_out))
+            pending_fixtures.append(
+                (
+                    args.output_dir / f"crumbs-{name}.txt",
+                    fixture(scenario, runs, metadata_, 4096),
+                    name,
+                    timed_out,
+                )
+            )
     except BaseException as error:
         primary = error
     finally:

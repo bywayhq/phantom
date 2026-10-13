@@ -132,7 +132,9 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
                     f"GET /done?run={run.token} HTTP/1.1\r\nHost: [::1]\r\n\r\n".encode()
                 )
                 await writer.drain()
-                response = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), TIMEOUT)
+                response = await asyncio.wait_for(
+                    reader.readuntil(b"\r\n\r\n"), TIMEOUT
+                )
                 self.assertTrue(response.startswith(b"HTTP/1.1 200 "))
                 await asyncio.wait_for(run.done.wait(), TIMEOUT)
             finally:
@@ -141,10 +143,18 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
 
         with TemporaryDirectory() as directory:
             args = argparse.Namespace(
-                run_timeout=1, observation=0, repeat=1, scenario=["h1"],
-                output_dir=Path(directory), listen="::1", browser="manual",
-                browser_path=None, headful=False, client="scripted",
-                client_version="0", operating_system="test",
+                run_timeout=1,
+                observation=0,
+                repeat=1,
+                scenario=["h1"],
+                output_dir=Path(directory),
+                listen="::1",
+                browser="manual",
+                browser_path=None,
+                headful=False,
+                client="scripted",
+                client_version="0",
+                operating_system="test",
             )
             with mock.patch.object(cookie_crumbs, "wait_for_run", side_effect=visit):
                 try:
@@ -155,16 +165,27 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
                     self.skipTest("IPv6 loopback is unavailable")
             self.assertEqual(len(observed), 1)
             self.assertEqual(
-                fixture_values(Path(directory) / "crumbs-h1.txt")["run_0_request_count"],
+                fixture_values(Path(directory) / "crumbs-h1.txt")[
+                    "run_0_request_count"
+                ],
                 "1",
             )
 
-    async def test_invalid_run_bounds_fail_before_certificate_or_listener_acquisition(self):
-        for timeout, observation, repeat in ((float("nan"), 0, 1),
-                                             (1, float("inf"), 1),
-                                             (1e308, 1e308, 1), (1, 0, 129)):
-            args = argparse.Namespace(run_timeout=timeout, observation=observation,
-                                      repeat=repeat, scenario=["h1"])
+    async def test_invalid_run_bounds_fail_before_certificate_or_listener_acquisition(
+        self,
+    ):
+        for timeout, observation, repeat in (
+            (float("nan"), 0, 1),
+            (1, float("inf"), 1),
+            (1e308, 1e308, 1),
+            (1, 0, 129),
+        ):
+            args = argparse.Namespace(
+                run_timeout=timeout,
+                observation=observation,
+                repeat=repeat,
+                scenario=["h1"],
+            )
             with (
                 self.subTest(timeout=timeout, observation=observation, repeat=repeat),
                 mock.patch.object(cookie_crumbs, "generate_certificate") as acquire,
@@ -211,8 +232,9 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 fixture(SCENARIOS["h2"], [run], METADATA, 4096)
             self.assertIs(unpublished.exception, primary)
 
-            rebound = await asyncio.start_server(lambda reader, writer: writer.close(),
-                                                *server.tls_address)
+            rebound = await asyncio.start_server(
+                lambda reader, writer: writer.close(), *server.tls_address
+            )
             rebound.close()
             await rebound.wait_closed()
         finally:
@@ -222,6 +244,62 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(OSError) as cleanup:
                 await server.close()
             self.assertIs(cleanup.exception, primary)
+
+    async def test_accepted_protocol_factory_failure_prevents_publication(self):
+        primary = ValueError("original accepted protocol construction failure")
+        server = TcpServer(CERTIFICATE)
+        run = CookieRun("factory", 0)
+        server.run = run
+        loop = asyncio.get_running_loop()
+        previous_handler = loop.get_exception_handler()
+        unexpected = []
+        client = None
+
+        def observe_backend_failure(loop, context):
+            if context.get("exception") is primary:
+                return
+            unexpected.append(context)
+            if previous_handler is None:
+                loop.default_exception_handler(context)
+            else:
+                previous_handler(loop, context)
+
+        try:
+            await server.start("127.0.0.1")
+            loop.set_exception_handler(observe_backend_failure)
+            with mock.patch.object(
+                cookie_crumbs, "CookieProtocol", side_effect=primary
+            ):
+                client = await asyncio.open_connection(*server.plain_address)
+                await asyncio.wait_for(run.done.wait(), TIMEOUT)
+                with self.assertRaises(ValueError) as raised:
+                    await server.close()
+
+            self.assertIs(raised.exception, primary)
+            self.assertIs(run.failures[0], primary)
+            self.assertEqual(server.protocols, [])
+            self.assertTrue(server.finished)
+            self.assertTrue(all(not listener.sockets for listener in server.servers))
+            self.assertEqual(unexpected, [])
+            with self.assertRaises(ValueError) as unpublished:
+                fixture(SCENARIOS["h1"], [run], METADATA, 4096)
+            self.assertIs(unpublished.exception, primary)
+            rebound = await asyncio.start_server(
+                lambda reader, writer: writer.close(), *server.plain_address
+            )
+            rebound.close()
+            await rebound.wait_closed()
+        finally:
+            loop.set_exception_handler(previous_handler)
+            if client is not None:
+                client[1].close()
+                await client[1].wait_closed()
+            if run.failures:
+                with self.assertRaises(ValueError) as final:
+                    await server.close()
+                self.assertIs(final.exception, primary)
+            else:
+                await server.close()
 
     async def test_serving_cleanup_and_caller_cancellation_prevent_publication(self):
         primary = ValueError("original accepted serving failure")
@@ -256,35 +334,53 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
         server.run = run
         client = None
         cancellation = None
+
+        async def collect():
+            nonlocal cancellation
+            try:
+                await server.close(primary)
+            except asyncio.CancelledError as error:
+                cancellation = error
+                raise
+
         try:
             await server.start("127.0.0.1")
             with mock.patch.object(cookie_crumbs, "serve_http1", side_effect=fail):
                 client = await asyncio.open_connection(*server.plain_address)
-                client[1].write(b"GET /page?run=failure HTTP/1.1\r\nHost: localhost\r\n\r\n")
+                client[1].write(
+                    b"GET /page?run=failure HTTP/1.1\r\nHost: localhost\r\n\r\n"
+                )
                 await client[1].drain()
                 await asyncio.wait_for(arrived.wait(), TIMEOUT)
                 protocol = server.protocols[0]
                 with (
-                    mock.patch.object(protocol.writer, "wait_closed", side_effect=failed_close),
-                    mock.patch.object(cookie_crumbs.asyncio, "wait", side_effect=observe),
+                    mock.patch.object(
+                        protocol.writer, "wait_closed", side_effect=failed_close
+                    ),
+                    mock.patch.object(
+                        cookie_crumbs.asyncio, "wait", side_effect=observe
+                    ),
                 ):
                     release.set()
                     await asyncio.wait_for(run.done.wait(), TIMEOUT)
-                    closing = asyncio.create_task(server.close(primary))
+                    closing = asyncio.create_task(collect())
                     await asyncio.wait_for(observing_writer.wait(), TIMEOUT)
                     closing.cancel("original caller cleanup cancellation")
                     finish_writer.set()
-                    with self.assertRaises(asyncio.CancelledError) as raised:
+                    with self.assertRaises(asyncio.CancelledError):
                         await closing
 
-            cancellation = raised.exception
+            self.assertTrue(closing.cancelled())
+            self.assertIsInstance(cancellation, asyncio.CancelledError)
             failure = cancellation.__cause__
             self.assertIsInstance(failure, CookieFailures)
             self.assertIs(failure.primary, primary)
             self.assertIs(failure.interruption_cause, cancellation_cause)
             self.assertTrue(any(error is cleanup for error in failure.cleanup))
             self.assertTrue(any(error is cancellation for error in failure.cleanup))
-            self.assertEqual(cancellation.args, ("original caller cleanup cancellation",))
+            self.assertEqual(
+                cancellation.args, ("original caller cleanup cancellation",)
+            )
             self.assertIs(run.failures[0], primary)
             self.assertTrue(any(error is cleanup for error in run.failures))
             self.assertTrue(any(error is cancellation for error in run.failures))
@@ -295,7 +391,9 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 output = Path(directory) / "capture.txt"
                 output.write_bytes(b"previous fixture\n")
                 with self.assertRaises(asyncio.CancelledError) as unpublished:
-                    write_text_fixture(output, fixture(SCENARIOS["h1"], [run], METADATA, 4096))
+                    write_text_fixture(
+                        output, fixture(SCENARIOS["h1"], [run], METADATA, 4096)
+                    )
                 self.assertIs(unpublished.exception, cancellation)
                 self.assertEqual(output.read_bytes(), b"previous fixture\n")
         finally:
@@ -371,9 +469,16 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
             async with serving_http3(run, "127.0.0.1", CERTIFICATE) as port:
                 async with connect_loopback(port, configuration, Client) as client:
                     stream = client._quic.get_next_available_stream_id()
-                    client.http.send_headers(stream, [(b":method", b"GET"),
-                        (b":scheme", b"https"), (b":authority", HOSTNAME.encode()),
-                        (b":path", b"/done?run=quic")], end_stream=True)
+                    client.http.send_headers(
+                        stream,
+                        [
+                            (b":method", b"GET"),
+                            (b":scheme", b"https"),
+                            (b":authority", HOSTNAME.encode()),
+                            (b":path", b"/done?run=quic"),
+                        ],
+                        end_stream=True,
+                    )
                     client.transmit()
                     await asyncio.wait_for(run.done.wait(), TIMEOUT)
 
