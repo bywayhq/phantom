@@ -13,24 +13,19 @@ use tokio::{
 use super::*;
 
 #[tokio::test]
-async fn cancelling_the_script_keeps_its_already_failed_original_page_driver() -> TestResult<()> {
+async fn caller_failure_keeps_the_inline_pages_original_protocol_error() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let hellos = Hellos::default();
     let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
-    let failures = PageFailures::default();
-    let errors = failures.clone();
     let (ready, page_ready) = oneshot::channel();
     let mut server = ConnectionPeer::spawn(async move {
-        let page =
-            OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?, errors).await?;
+        let page = OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?).await?;
         ready
             .send(())
             .map_err(|_| "page readiness receiver disappeared")?;
-        // Keep the real page owner while this later scripted phase waits.
-        std::future::pending::<()>().await;
-        page.close().await
+        page.serve_while(std::future::pending()).await
     });
     let mut connector = btls::ssl::SslConnector::builder(btls::ssl::SslMethod::tls())?;
     connector
@@ -68,12 +63,7 @@ async fn cancelling_the_script_keeps_its_already_failed_original_page_driver() -
     client.write_all(&[0, 0, 1, 4, 0, 0, 0, 0, 0, 0]).await?;
     timeout(Duration::from_secs(5), async {
         loop {
-            if !failures
-                .0
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .is_empty()
-            {
+            if server.is_finished() {
                 break;
             }
             tokio::task::yield_now().await;
@@ -82,8 +72,7 @@ async fn cancelling_the_script_keeps_its_already_failed_original_page_driver() -
     .await?;
     let primary: TestResult<()> =
         Err(io::Error::new(io::ErrorKind::InvalidInput, "script stopped").into());
-    let error = failures
-        .finish(finish_with_cleanup(primary, server.shutdown().await))
+    let error = finish_with_cleanup(primary, server.shutdown().await)
         .err()
         .ok_or("page driver failure was discarded")?;
     let failures = error
@@ -111,23 +100,19 @@ async fn cancelling_the_script_keeps_its_already_failed_original_page_driver() -
 }
 
 #[tokio::test]
-async fn dropping_an_open_page_ends_its_original_http2_driver() -> TestResult<()> {
+async fn dropping_a_script_closes_its_inline_page_connection() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let hellos = Hellos::default();
     let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
-    let (ready, page) = oneshot::channel();
-    let mut server = ConnectionPeer::spawn(async move {
-        let page = OpenPage::serve(
-            accept(&listener, &acceptor, Duration::ZERO).await?,
-            PageFailures::default(),
-        )
-        .await?;
+    let (ready, page_ready) = oneshot::channel();
+    let server = ConnectionPeer::spawn(async move {
+        let page = OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?).await?;
         ready
-            .send(page)
-            .map_err(|_| "page owner receiver disappeared")?;
-        Ok::<_, Box<dyn Error + Send + Sync>>(())
+            .send(())
+            .map_err(|_| "page readiness receiver disappeared")?;
+        page.serve_while(std::future::pending()).await
     });
     let mut connector = btls::ssl::SslConnector::builder(btls::ssl::SslMethod::tls())?;
     connector
@@ -148,9 +133,8 @@ async fn dropping_an_open_page_ends_its_original_http2_driver() -> TestResult<()
         timeout(Duration::from_secs(5), response).await??.status(),
         StatusCode::OK
     );
-    let page = timeout(Duration::from_secs(5), page).await??;
-    server.join().await??;
-    drop(page);
+    timeout(Duration::from_secs(5), page_ready).await??;
+    drop(server);
     timeout(Duration::from_secs(5), driver.join()).await???;
     let rebound = TcpListener::bind(address).await?;
     assert_eq!(rebound.local_addr()?, address);

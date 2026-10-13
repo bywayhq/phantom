@@ -2,12 +2,6 @@
 //! the TLS session tickets of the request pool key of its origin and route,
 //! in both directions.
 
-use crate::support::{
-    tls as tls_support,
-    tunnel_proxy::{ConnectionPeer, finish_with_cleanup, relay_result},
-    websocket as websocket_support,
-};
-
 use std::{
     net::Ipv4Addr,
     sync::{Arc, Mutex, PoisonError},
@@ -31,6 +25,12 @@ use tokio::{
     sync::{oneshot, watch},
     task::JoinSet,
     time::timeout,
+};
+
+use crate::support::{
+    tls as tls_support,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup, relay_result},
+    websocket as websocket_support,
 };
 
 use super::early_data_server::{
@@ -578,33 +578,17 @@ async fn an_exact_http2_websocket_resumes_the_ticket_of_an_exact_http2_request()
     finish_with_cleanup(primary, server.shutdown().await)
 }
 
-#[derive(Clone, Default)]
-struct PageFailures(Arc<Mutex<Vec<Box<dyn std::error::Error + Send + Sync>>>>);
-
-impl PageFailures {
-    fn finish<T>(&self, primary: TestResult<T>) -> TestResult<T> {
-        let errors = std::mem::take(&mut *self.0.lock().unwrap_or_else(PoisonError::into_inner));
-        let mut result = primary;
-        for error in errors {
-            result = finish_with_cleanup(result, Err(error));
-        }
-        result
-    }
-}
-
 /// An HTTP/2 connection the page keeps open, whose server never enables
 /// extended CONNECT, so a profile-policy opening beside it takes the
 /// policy's choice for an incapable session.
 struct OpenPage {
-    shutdown: oneshot::Sender<()>,
-    driver: ConnectionPeer<TestResult<()>>,
-    failures: PageFailures,
+    connection: ::http2::server::Connection<Server, Bytes>,
 }
 
 impl OpenPage {
     /// Answers the page's GET to `/` and keeps serving the connection until
-    /// [`Self::close`].
-    async fn serve(stream: Server, failures: PageFailures) -> TestResult<Self> {
+    /// the later socket phase ends.
+    async fn serve(stream: Server) -> TestResult<Self> {
         let mut connection = ::http2::server::handshake(stream).await?;
         let (request, mut respond) = connection
             .accept()
@@ -612,52 +596,48 @@ impl OpenPage {
             .ok_or("connection closed before the page's request")??;
         assert_eq!(request.uri().path(), "/");
         respond.send_response(Response::builder().status(StatusCode::OK).body(())?, true)?;
-        let (shutdown, closed) = oneshot::channel::<()>();
-        let errors = failures.clone();
-        let driver = ConnectionPeer::spawn(async move {
-            let primary = tokio::select! {
-                result = async {
-                    while let Some(accepted) = connection.accept().await {
-                        relay_result(accepted.map(|_| ()).map_err(Into::into))?;
+        Ok(Self { connection })
+    }
+
+    /// Drives the page beside a later socket phase in the same task.
+    async fn serve_while(
+        mut self,
+        phase: impl std::future::Future<Output = TestResult<()>>,
+    ) -> TestResult<()> {
+        tokio::pin!(phase);
+        let mut open = true;
+        let primary = async {
+            loop {
+                tokio::select! {
+                    biased;
+                    accepted = self.connection.accept(), if open => {
+                        match accepted {
+                            Some(Ok(_)) => {}
+                            Some(Err(error)) => {
+                                open = false;
+                                relay_result(Err(error.into()))?;
+                            }
+                            None => open = false,
+                        }
                     }
-                    Ok(())
-                } => result,
-                _ = closed => Ok(()),
-            };
-            connection.graceful_shutdown();
-            let cleanup = relay_result(
-                std::future::poll_fn(|context| connection.poll_closed(context))
-                    .await
-                    .map_err(Into::into),
-            );
-            if let Err(error) = finish_with_cleanup(primary, cleanup) {
-                errors
-                    .0
-                    .lock()
-                    .unwrap_or_else(PoisonError::into_inner)
-                    .push(error);
+                    result = &mut phase => return result,
+                }
             }
-            Ok(())
-        });
-        Ok(Self {
-            shutdown,
-            driver,
-            failures,
-        })
-    }
-
-    /// Sends GOAWAY and waits until the client has closed the connection.
-    async fn close(mut self) -> TestResult<()> {
-        // The driver ends on its own once the client closes the connection.
-        let _ = self.shutdown.send(());
-        let joined = self.driver.join().await?;
-        self.failures.finish(joined)
-    }
-
-    async fn finish(self, primary: TestResult<()>) -> TestResult<()> {
-        let cleanup = timeout(Duration::from_secs(5), self.close())
+        }
+        .await;
+        // An observed terminal outcome must not be polled a second time.
+        let cleanup = if open {
+            self.connection.graceful_shutdown();
+            timeout(
+                Duration::from_secs(5),
+                std::future::poll_fn(|context| self.connection.poll_closed(context)),
+            )
             .await
-            .unwrap_or_else(|elapsed| Err(elapsed.into()));
+            .map_err(Into::into)
+            .and_then(|result| relay_result(result.map_err(Into::into)))
+        } else {
+            Ok(())
+        };
         finish_with_cleanup(primary, cleanup)
     }
 }
@@ -674,18 +654,14 @@ async fn a_firefox_upgrade_beside_an_incapable_session_resumes_without_early_dat
     let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
-    let failures = PageFailures::default();
-    let errors = failures.clone();
     let mut server = ConnectionPeer::spawn(async move {
-        let page =
-            OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?, errors).await?;
-        let primary = async {
+        let page = OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?).await?;
+        page.serve_while(async {
             let socket = accept(&listener, &acceptor, Duration::ZERO).await?;
             assert!(socket.stream.ssl().session_reused());
             serve_upgrade(socket, "/socket").await
-        }
-        .await;
-        page.finish(primary).await
+        })
+        .await
     });
     let primary = bounded(async {
         let client = firefox_client(&identity)?;
@@ -708,7 +684,7 @@ async fn a_firefox_upgrade_beside_an_incapable_session_resumes_without_early_dat
         Ok(())
     })
     .await;
-    failures.finish(finish_with_cleanup(primary, server.shutdown().await))
+    finish_with_cleanup(primary, server.shutdown().await)
 }
 
 /// Two such Upgrades use the `h2` page connection's two tickets, so the
@@ -726,21 +702,17 @@ async fn a_negotiated_request_after_a_firefox_upgrade_restarts_on_an_alpn_change
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let (page_closed, wait_for_page_close) = oneshot::channel();
-    let failures = PageFailures::default();
-    let errors = failures.clone();
     let mut server = ConnectionPeer::spawn(async move {
-        let page =
-            OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?, errors).await?;
-        let primary = async {
+        let page = OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?).await?;
+        page.serve_while(async {
             for _ in 0..2 {
                 let socket = accept(&listener, &acceptor, Duration::ZERO).await?;
                 assert!(socket.stream.ssl().session_reused());
                 serve_upgrade(socket, "/socket").await?;
             }
             Ok(())
-        }
-        .await;
-        page.finish(primary).await?;
+        })
+        .await?;
         page_closed
             .send(())
             .map_err(|_| "client stopped before the page's connection closed")?;
@@ -790,7 +762,7 @@ async fn a_negotiated_request_after_a_firefox_upgrade_restarts_on_an_alpn_change
         Ok(())
     })
     .await;
-    failures.finish(finish_with_cleanup(primary, server.shutdown().await))
+    finish_with_cleanup(primary, server.shutdown().await)
 }
 
 /// Owns the CONNECT acceptor and every relay until explicit shutdown.
