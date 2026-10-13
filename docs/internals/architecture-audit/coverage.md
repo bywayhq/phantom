@@ -51,6 +51,16 @@ whole-current reads, including four WebSocket repairs whose independence was
 previously unclear. The latter pass found the recorder error contract in A343.
 Completed source coverage does not close that finding's integration checks.
 
+Thirty-one outstanding vendor rows now have individual review dispositions.
+Ten selected patches and small upstream test files have fresh independent
+whole-source reads. One HPACK owner has a complete independent baseline
+and its sole reviewed later difference. Eleven larger upstream owners and
+nine lockfiles retain partial coverage of the relevant boundaries and
+selected dependency blocks. Root checked all source bodies and fifteen
+original receipt hashes. This pass found no new supported runtime defect.
+It does not establish exhaustive third-party review or current advisory
+clearance.
+
 Receipt reconciliation covers 37 previously uncredited paths at `d1d353e8`.
 Twenty-four have complete reviews of their exact current source. Thirteen
 have a complete baseline and reviewed later differences, including two

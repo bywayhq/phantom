@@ -174,6 +174,8 @@ These records remain under the evidence root above:
 | `remaining-fixture-17-current-source-dispositions-b6942293.json` | Individual parent assessments, exact original receipts, complete reviewed differences and three fresh independent reads |
 | `websocket-four-current-source-review-b6942293.json` | Four fresh independent whole-parent reads close repair provenance gaps and identify A343 |
 | `remaining-fixture-17-root-bindings-1806-b694.json` | Root checks seventeen source bodies, thirteen original receipt hashes and the four fresh parent scope bindings |
+| `vendor-boundary-current-source-dispositions-b6942293.json` | Ten whole selected-file reads, one complete baseline with its reviewed difference, eleven partial upstream owners and nine selected lock graphs |
+| `vendor-boundary-31-root-bindings-1806-b694.json` | Root checks all thirty-one source bodies and fifteen original receipt hashes; upstream and advisory limits remain explicit |
 | `capture-completion-b6942293-independent-composition-review.json` | Exact composed capture source and documentation approval |
 | `capture-completion-gate-b6942293-independent-log-review.json` | All 24 full-gate steps and retained raw logs reviewed at the clean candidate |
 | `capture-completion-b6942293-final-pr-checks.json` | All 29 PR checks succeed, including macOS and Windows |

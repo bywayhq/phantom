@@ -1431,7 +1431,7 @@ tests/public-api/phantom-quic-btls-default.txt	configuration	source-complete	api
 tests/public-api/phantom-quic-btls-keylog.txt	configuration	source-complete	api-inventory-source-checkpoint-837ff74d.json#tests/public-api/phantom-quic-btls-keylog.txt	merged
 tests/public-api/phantom-quic-btls-server.txt	configuration	source-complete	api-inventory-source-checkpoint-837ff74d.json#tests/public-api/phantom-quic-btls-server.txt	merged
 tests/public-api/phantom-testkit-all.txt	configuration	source-complete	api-inventory-source-checkpoint-837ff74d.json#tests/public-api/phantom-testkit-all.txt	merged
-vendor/btls/Cargo.lock	vendor-boundary	pending	discovery only; manual review pending	merged
+vendor/btls/Cargo.lock	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/0; relevant-lock-selected-graph-and-delta-read; not whole-lock/dependency audit	merged
 vendor/btls/Cargo.toml	vendor-boundary	source-complete	new-tooling-source-pass-01-coverage.json#vendor/btls/Cargo.toml; vendor-reviewed-records.json#vendor/btls/Cargo.toml	merged
 vendor/btls/PHANTOM.md	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/btls/PHANTOM.md	merged
 vendor/btls/patches/alps-settings.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/btls/patches/alps-settings.patch	merged
@@ -1442,8 +1442,8 @@ vendor/btls/patches/ech-grease-payload-from-client-hello.patch	vendor-boundary	s
 vendor/btls/patches/ech-grease-payload-length.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/btls/patches/ech-grease-payload-length.patch	merged
 vendor/btls/patches/ech-server-keys.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/btls/patches/ech-server-keys.patch	merged
 vendor/btls/patches/extension-order-tail.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/btls/patches/extension-order-tail.patch	merged
-vendor/btls/patches/message-callback-context.patch	vendor-boundary	pending	introduced source; review pending	merged
-vendor/btls/patches/message-callback-tests.patch	vendor-boundary	pending	introduced source; review pending	merged
+vendor/btls/patches/message-callback-context.patch	vendor-boundary	source-complete	vendor-boundary-current-source-dispositions-b6942293.json#/rows/1; fresh-independent-whole-current-source-read	merged
+vendor/btls/patches/message-callback-tests.patch	vendor-boundary	source-complete	vendor-boundary-current-source-dispositions-b6942293.json#/rows/2; fresh-independent-whole-current-source-read	merged
 vendor/btls/patches/publish-identity.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/btls/patches/publish-identity.patch	merged
 vendor/btls/patches/record-size-limit-quic.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/btls/patches/record-size-limit-quic.patch	merged
 vendor/btls/patches/record-size-limit.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/btls/patches/record-size-limit.patch	merged
@@ -1452,10 +1452,10 @@ vendor/btls/patches/scoped-session-early-data.patch	vendor-boundary	source-compl
 vendor/btls/patches/series	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/btls/patches/series	merged
 vendor/btls/patches/tls-key-update.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/btls/patches/tls-key-update.patch	merged
 vendor/btls/patches/tls13-legacy-extensions.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/btls/patches/tls13-legacy-extensions.patch	merged
-vendor/btls/src/ssl/callbacks.rs	vendor-boundary	pending	discovery only; manual review pending	merged
-vendor/btls/src/ssl/mod.rs	vendor-boundary	pending	discovery only; manual review pending	merged
-vendor/btls/src/ssl/test/key_update.rs	vendor-boundary	pending	discovery only; manual review pending	merged
-vendor/h3/Cargo.lock	vendor-boundary	pending	discovery only; manual review pending	merged
+vendor/btls/src/ssl/callbacks.rs	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/3; relevant-upstream-boundary-read-partial-owner	merged
+vendor/btls/src/ssl/mod.rs	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/4; relevant-upstream-boundary-read-partial-owner	merged
+vendor/btls/src/ssl/test/key_update.rs	vendor-boundary	source-complete	vendor-boundary-current-source-dispositions-b6942293.json#/rows/5; fresh-independent-whole-current-source-read	merged
+vendor/h3/Cargo.lock	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/6; relevant-lock-selected-graph-and-delta-read; not whole-lock/dependency audit	merged
 vendor/h3/Cargo.toml	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/Cargo.toml	merged
 vendor/h3/PHANTOM.md	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/PHANTOM.md	merged
 vendor/h3/examples/Cargo.toml	vendor-boundary	source-complete	discovery only; manual review pending; qlog-fork-minimum-remedy-independent-source-review-607b11cc.json#/source_bindings/1; final-24-receipt-dispositions-4111f7bf.json#/files/5: exact-current whole-source receipt; independent review explicitly recorded	merged
@@ -1470,17 +1470,17 @@ vendor/h3/h3/src/client/stream.rs	vendor-boundary	source-partial	request-trailer
 vendor/h3/h3/src/connection.rs	vendor-boundary	source-partial	h3-masque-remedy-independent-review.json#/source_records/10	merged
 vendor/h3/h3/src/error/codes.rs	vendor-boundary	source-partial	h3-masque-remedy-independent-review.json#/source_records/11	merged
 vendor/h3/h3/src/error/error.rs	vendor-boundary	source-partial	h3-early-fixture-independent-review.json#/source_records/9	merged
-vendor/h3/h3/src/frame.rs	vendor-boundary	pending	discovery only; manual review pending	merged
-vendor/h3/h3/src/proto/frame.rs	vendor-boundary	pending	discovery only; manual review pending	merged
+vendor/h3/h3/src/frame.rs	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/7; relevant-upstream-boundary-read-partial-owner	merged
+vendor/h3/h3/src/proto/frame.rs	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/8; relevant-upstream-boundary-read-partial-owner	merged
 vendor/h3/h3/src/proto/headers.rs	vendor-boundary	source-partial	request-trailer-wire-independent-review.json#/records/23; trailer-test-contract-review.json#/sources/13	merged
 vendor/h3/h3/src/qpack/decoder.rs	vendor-boundary	source-partial	trailer-test-contract-review.json#/sources/18	merged
 vendor/h3/h3/src/qpack/encoder.rs	vendor-boundary	source-partial	request-trailer-wire-independent-review.json#/records/22; trailer-test-contract-review.json#/sources/17	merged
 vendor/h3/h3/src/server/connection.rs	vendor-boundary	source-partial	client-http3-integration-standards-review.json#/source_records/19; h3-masque-remedy-independent-review.json#/source_records/8; h3-masque-remediation.json#/source_reads/4	merged
-vendor/h3/h3/src/tests/connection.rs	vendor-boundary	pending	discovery only; manual review pending	merged
+vendor/h3/h3/src/tests/connection.rs	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/9; relevant-upstream-boundary-read-partial-owner	merged
 vendor/h3/h3/src/tests/mod.rs	vendor-boundary	source-complete	discovery only; manual review pending; final-13-historical-chain-dispositions-7e153e1a.json#/records/9: verified complete baseline plus all later reviewed differences; Independent whole-source review stated by receipt/context	merged
 vendor/h3/h3/src/tests/qpack_request.rs	vendor-boundary	source-complete	trailer-test-contract-review.json#/sources/16	merged
-vendor/h3/h3/src/tests/request.rs	vendor-boundary	pending	discovery only; manual review pending	merged
-vendor/h3/h3/src/tests/socket.rs	vendor-boundary	pending	introduced source; review pending	merged
+vendor/h3/h3/src/tests/request.rs	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/10; relevant-upstream-boundary-read-partial-owner	merged
+vendor/h3/h3/src/tests/socket.rs	vendor-boundary	source-complete	vendor-boundary-current-source-dispositions-b6942293.json#/rows/11; fresh-independent-whole-current-source-read	merged
 vendor/h3/patches/application-settings.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/patches/application-settings.patch	merged
 vendor/h3/patches/cancel-safe-recv.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/patches/cancel-safe-recv.patch	merged
 vendor/h3/patches/control-stream-reserved-frame.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/patches/control-stream-reserved-frame.patch	merged
@@ -1508,7 +1508,7 @@ vendor/h3/patches/remembered-settings.patch	vendor-boundary	source-complete	vend
 vendor/h3/patches/reset-unsent-request.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/patches/reset-unsent-request.patch	merged
 vendor/h3/patches/series	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/h3/patches/series	merged
 vendor/h3/patches/test-sockets.patch	vendor-boundary	source-complete	introduced source; review pending; vendor-reviewed-records.json#vendor/h3/patches/test-sockets.patch	merged
-vendor/http2/Cargo.lock	vendor-boundary	pending	discovery only; manual review pending	merged
+vendor/http2/Cargo.lock	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/12; relevant-lock-selected-graph-and-delta-read; not whole-lock/dependency audit	merged
 vendor/http2/Cargo.toml	vendor-boundary	source-complete	a48-hpack-arithmetic-independent-review.json#vendor/http2/Cargo.toml; new-tooling-source-pass-01-coverage.json#vendor/http2/Cargo.toml; vendor-reviewed-records.json#vendor/http2/Cargo.toml	merged
 vendor/http2/Cargo.toml.orig	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/Cargo.toml.orig	merged
 vendor/http2/PHANTOM.md	vendor-boundary	source-complete	a48-hpack-arithmetic-independent-review.json#vendor/http2/PHANTOM.md; vendor-reviewed-records.json#vendor/http2/PHANTOM.md	merged
@@ -1516,14 +1516,14 @@ vendor/http2/patches/altsvc-frames.patch	vendor-boundary	source-complete	vendor-
 vendor/http2/patches/continuation-bounds.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/continuation-bounds.patch	merged
 vendor/http2/patches/cookie-crumbs.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/cookie-crumbs.patch	merged
 vendor/http2/patches/cookie-diagnostic-marks.patch	vendor-boundary	source-complete	a46-cookie-production-independent-review.json#vendor/http2/patches/cookie-diagnostic-marks.patch	merged
-vendor/http2/patches/cookie-diagnostic-tests.patch	vendor-boundary	pending	introduced source; review pending	merged
+vendor/http2/patches/cookie-diagnostic-tests.patch	vendor-boundary	source-complete	vendor-boundary-current-source-dispositions-b6942293.json#/rows/13; fresh-independent-whole-current-source-read	merged
 vendor/http2/patches/empty-data-frame-budget.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/empty-data-frame-budget.patch	merged
 vendor/http2/patches/extended-connect-readiness.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/extended-connect-readiness.patch	merged
 vendor/http2/patches/headers-frame-overrides.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/headers-frame-overrides.patch	merged
 vendor/http2/patches/hpack-encoder-profile.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/hpack-encoder-profile.patch	merged
 vendor/http2/patches/hpack-indexing-rules.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/hpack-indexing-rules.patch	merged
 vendor/http2/patches/hpack-size-arithmetic-tests.patch	vendor-boundary	source-complete	introduced source; review pending; a48-hpack-arithmetic-independent-review.json#vendor/http2/patches/hpack-size-arithmetic-tests.patch	merged
-vendor/http2/patches/hpack-size-arithmetic.patch	vendor-boundary	pending	introduced source; review pending	merged
+vendor/http2/patches/hpack-size-arithmetic.patch	vendor-boundary	source-complete	vendor-boundary-current-source-dispositions-b6942293.json#/rows/14; fresh-independent-whole-current-source-read	merged
 vendor/http2/patches/idle-ping.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/idle-ping.patch	merged
 vendor/http2/patches/informational-response-limit.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/informational-response-limit.patch	merged
 vendor/http2/patches/local-header-list-limit.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/http2/patches/local-header-list-limit.patch	merged
@@ -1542,12 +1542,12 @@ vendor/http2/src/client/tests.rs	vendor-boundary	source-partial	trailer-test-con
 vendor/http2/src/frame/headers.rs	vendor-boundary	source-partial	request-trailer-wire-independent-review.json#/records/17	merged
 vendor/http2/src/hpack/decoder.rs	vendor-boundary	source-partial	trailer-test-contract-review.json#/sources/12	merged
 vendor/http2/src/hpack/encoder.rs	vendor-boundary	source-partial	trailer-test-contract-review.json#/sources/11	merged
-vendor/http2/src/hpack/table.rs	vendor-boundary	pending	discovery only; manual review pending	merged
+vendor/http2/src/hpack/table.rs	vendor-boundary	source-complete	vendor-boundary-current-source-dispositions-b6942293.json#/rows/15; complete-historical-independent-baseline-plus-entire-surviving-delta	merged
 vendor/http2/src/proto/streams/recv.rs	vendor-boundary	source-partial	net-body-ownership-standards-review.json#/source_reads/28	merged
 vendor/http2/src/proto/streams/streams.rs	vendor-boundary	source-partial	request-trailer-wire-independent-review.json#/records/16; trailer-test-contract-review.json#/sources/10; h2-peer-completion-baseline-independent-review-a1df13f2.json#/source_records/7	merged
 vendor/http2/src/server.rs	vendor-boundary	source-partial	integration-support-independent-review-corrected.json#/source_records/11; streaming-peer-remediation.json#/sources/5; streaming-peer-independent-review.json#/source_records/3	merged
 vendor/http2/src/share.rs	vendor-boundary	source-partial	trailer-test-contract-review.json#/sources/9; net-body-ownership-standards-review.json#/source_reads/29; streaming-peer-remediation.json#/sources/6; streaming-peer-independent-review.json#/source_records/4	merged
-vendor/quinn-proto/Cargo.lock	vendor-boundary	pending	discovery only; manual review pending	merged
+vendor/quinn-proto/Cargo.lock	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/16; relevant-lock-selected-graph-and-delta-read; not whole-lock/dependency audit	merged
 vendor/quinn-proto/Cargo.toml	vendor-boundary	source-complete	new-tooling-source-pass-01-coverage.json#vendor/quinn-proto/Cargo.toml; vendor-reviewed-records.json#vendor/quinn-proto/Cargo.toml	merged
 vendor/quinn-proto/Cargo.toml.orig	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/quinn-proto/Cargo.toml.orig	merged
 vendor/quinn-proto/PHANTOM.md	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/quinn-proto/PHANTOM.md	merged
@@ -1564,15 +1564,15 @@ vendor/quinn-proto/patches/reset-stream-at.patch	vendor-boundary	source-complete
 vendor/quinn-proto/patches/series	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/quinn-proto/patches/series	merged
 vendor/quinn-proto/src/cid_generator.rs	vendor-boundary	source-partial	alt-svc-race-fixture-independent-review.json#/source_records/8	merged
 vendor/quinn-proto/src/config/mod.rs	vendor-boundary	source-partial	alt-svc-race-fixture-repair-handoff.json#/source_records/13; alt-svc-race-fixture-independent-review.json#/source_records/7	merged
-vendor/quinn-proto/src/config/transport.rs	vendor-boundary	pending	discovery only; manual review pending	merged
-vendor/quinn-proto/src/connection/mod.rs	vendor-boundary	pending	continued-source-review-reconciliation.json#/discovered_rows/169	merged
-vendor/quinn-proto/src/endpoint.rs	vendor-boundary	pending	continued-source-review-reconciliation.json#/discovered_rows/170	merged
-vendor/quinn-proto/src/frame.rs	vendor-boundary	pending	discovery only; manual review pending	merged
+vendor/quinn-proto/src/config/transport.rs	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/17; relevant-upstream-boundary-read-partial-owner	merged
+vendor/quinn-proto/src/connection/mod.rs	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/18; relevant-upstream-boundary-read-partial-owner	merged
+vendor/quinn-proto/src/endpoint.rs	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/19; relevant-upstream-boundary-read-partial-owner	merged
+vendor/quinn-proto/src/frame.rs	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/20; relevant-upstream-boundary-read-partial-owner	merged
 vendor/quinn-proto/src/packet.rs	vendor-boundary	source-partial	alt-svc-race-fixture-repair-handoff.json#/source_records/14; alt-svc-race-fixture-independent-review.json#/source_records/5	merged
-vendor/quinn-proto/src/tests/initial_keys.rs	vendor-boundary	pending	discovery only; manual review pending	merged
-vendor/quinn-proto/src/tests/transport_limits.rs	vendor-boundary	pending	discovery only; manual review pending	merged
-vendor/quinn-proto/src/transport_parameters.rs	vendor-boundary	pending	discovery only; manual review pending	merged
-vendor/quinn/Cargo.lock	vendor-boundary	pending	discovery only; manual review pending	merged
+vendor/quinn-proto/src/tests/initial_keys.rs	vendor-boundary	source-complete	vendor-boundary-current-source-dispositions-b6942293.json#/rows/21; fresh-independent-whole-current-source-read	merged
+vendor/quinn-proto/src/tests/transport_limits.rs	vendor-boundary	source-complete	vendor-boundary-current-source-dispositions-b6942293.json#/rows/22; fresh-independent-whole-current-source-read	merged
+vendor/quinn-proto/src/transport_parameters.rs	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/23; relevant-upstream-boundary-read-partial-owner	merged
+vendor/quinn/Cargo.lock	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/24; relevant-lock-selected-graph-and-delta-read; not whole-lock/dependency audit	merged
 vendor/quinn/Cargo.toml	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/quinn/Cargo.toml	merged
 vendor/quinn/Cargo.toml.orig	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/quinn/Cargo.toml.orig	merged
 vendor/quinn/PHANTOM.md	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/quinn/PHANTOM.md	merged
@@ -1581,21 +1581,21 @@ vendor/quinn/patches/series	vendor-boundary	source-complete	vendor-reviewed-reco
 vendor/quinn/src/connection.rs	vendor-boundary	source-partial	masque-boundary-standards-review.json#/source_reads/6; h3-masque-remedy-independent-review.json#/source_records/6; alt-svc-race-fixture-repair-handoff.json#/source_records/16	merged
 vendor/quinn/src/endpoint.rs	vendor-boundary	source-partial	masque-boundary-standards-review.json#/source_reads/5; h3-masque-remedy-independent-review.json#/source_records/5; alt-svc-race-fixture-repair-handoff.json#/source_records/17	merged
 vendor/quinn/src/incoming.rs	vendor-boundary	source-partial	h3-masque-remediation.json#/source_reads/5; alt-svc-race-fixture-repair-handoff.json#/source_records/15	merged
-vendor/tokio-btls/Cargo.lock	vendor-boundary	pending	discovery only; manual review pending	merged
+vendor/tokio-btls/Cargo.lock	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/25; relevant-lock-selected-graph-and-delta-read; not whole-lock/dependency audit	merged
 vendor/tokio-btls/Cargo.toml	vendor-boundary	source-complete	new-tooling-source-pass-01-coverage.json#vendor/tokio-btls/Cargo.toml; vendor-reviewed-records.json#vendor/tokio-btls/Cargo.toml	merged
 vendor/tokio-btls/PHANTOM.md	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tokio-btls/PHANTOM.md	merged
 vendor/tokio-btls/patches/early-data-reset.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tokio-btls/patches/early-data-reset.patch	merged
 vendor/tokio-btls/patches/publish-identity.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tokio-btls/patches/publish-identity.patch	merged
 vendor/tokio-btls/patches/series	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tokio-btls/patches/series	merged
 vendor/tokio-btls/patches/standalone-manifest.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tokio-btls/patches/standalone-manifest.patch	merged
-vendor/tokio-tungstenite/Cargo.lock	vendor-boundary	pending	discovery only; manual review pending	merged
+vendor/tokio-tungstenite/Cargo.lock	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/26; relevant-lock-selected-graph-and-delta-read; not whole-lock/dependency audit	merged
 vendor/tokio-tungstenite/Cargo.toml	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tokio-tungstenite/Cargo.toml	merged
 vendor/tokio-tungstenite/Cargo.toml.orig	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tokio-tungstenite/Cargo.toml.orig	merged
 vendor/tokio-tungstenite/PHANTOM.md	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tokio-tungstenite/PHANTOM.md	merged
 vendor/tokio-tungstenite/patches/handshake-set-waker.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tokio-tungstenite/patches/handshake-set-waker.patch	merged
 vendor/tokio-tungstenite/patches/publish-identity.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tokio-tungstenite/patches/publish-identity.patch	merged
 vendor/tokio-tungstenite/patches/series	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tokio-tungstenite/patches/series	merged
-vendor/tungstenite/Cargo.lock	vendor-boundary	pending	discovery only; manual review pending	merged
+vendor/tungstenite/Cargo.lock	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/27; relevant-lock-selected-graph-and-delta-read; not whole-lock/dependency audit	merged
 vendor/tungstenite/Cargo.toml	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tungstenite/Cargo.toml	merged
 vendor/tungstenite/Cargo.toml.orig	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tungstenite/Cargo.toml.orig	merged
 vendor/tungstenite/PHANTOM.md	vendor-boundary	source-complete	a49-independent-review.json#vendor/tungstenite/PHANTOM.md; vendor-reviewed-records.json#vendor/tungstenite/PHANTOM.md	merged
@@ -1610,7 +1610,7 @@ vendor/tungstenite/patches/redacted-fallible-masking.patch	vendor-boundary	sourc
 vendor/tungstenite/patches/series	vendor-boundary	source-complete	a49-independent-review.json#vendor/tungstenite/patches/series; vendor-reviewed-records.json#vendor/tungstenite/patches/series	merged
 vendor/tungstenite/src/protocol/deflate/negotiate.rs	vendor-boundary	source-complete	coverage.md#websocket-compression-parameter-review: root whole-current parser/control/patch read; exact unchanged independently approved 4aa8fa90 content; final gates open	merged
 vendor/tungstenite/src/protocol/deflate/tests/rfc_7692.rs	vendor-boundary	source-complete	coverage.md#websocket-compression-parameter-review: root whole-current parser/control/patch read; exact unchanged independently approved 4aa8fa90 content; final gates open	merged
-vendor/wreq-proto/Cargo.lock	vendor-boundary	pending	discovery only; manual review pending	merged
+vendor/wreq-proto/Cargo.lock	vendor-boundary	source-partial	vendor-boundary-current-source-dispositions-b6942293.json#/rows/28; relevant-lock-selected-graph-and-delta-read; not whole-lock/dependency audit	merged
 vendor/wreq-proto/Cargo.toml	vendor-boundary	source-complete	new-tooling-source-pass-01-coverage.json#vendor/wreq-proto/Cargo.toml; vendor-reviewed-records.json#vendor/wreq-proto/Cargo.toml	merged
 vendor/wreq-proto/Cargo.toml.orig	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/wreq-proto/Cargo.toml.orig	merged
 vendor/wreq-proto/PHANTOM.md	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/wreq-proto/PHANTOM.md	merged
@@ -2274,7 +2274,7 @@ crates/phantom/tests/proxies/proxy_h2_multiplex/relay_contract.rs	crate	source-c
 crates/phantom/tests/proxies/proxy_h2_multiplex/websocket_contract.rs	crate	source-complete	Current discovery or exact evidence import; no new semantic coverage from inventory membership.; proxy-controls-root-source-pass-3b39526f.json#/source_records/2; whole manual source read; supporting parents and final review remain bounded	merged
 crates/phantom/tests/requests/h3_received_order.rs	crate	source-complete	Current discovery or exact evidence import; no new semantic coverage from inventory membership.; client-test-coverage-reconciliation-9b4e6f6f.json#/files/11	merged
 crates/phantom/tests/requests/trust_anchor_orders/observation_contract.rs	crate	source-complete	Current discovery or exact evidence import; no new semantic coverage from inventory membership.; observation-acquisition-root-source-pass-0340818c.json; complete manual root source read, supporting ranges partial, no new native result	merged
-vendor/h3/patches/ordered-received-request-headers.patch	vendor-boundary	pending	Current discovery or exact evidence import; no new semantic coverage from inventory membership.	merged
+vendor/h3/patches/ordered-received-request-headers.patch	vendor-boundary	source-complete	vendor-boundary-current-source-dispositions-b6942293.json#/rows/29; fresh-independent-whole-current-source-read	merged
 crates/phantom/tests/requests/client_hints/deadline_contract.rs	crate	source-complete	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.; client-test-coverage-reconciliation-9b4e6f6f.json#/files/7	merged
 crates/phantom/tests/requests/client_hints/hint_values.rs	crate	source-complete	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.; client-test-coverage-reconciliation-9b4e6f6f.json#/files/8	merged
 crates/phantom/tests/requests/client_hints/received_order.rs	crate	source-complete	Discovery or exact evidence preservation; no new semantic coverage from inventory membership.; client-test-coverage-reconciliation-9b4e6f6f.json#/files/9	merged
@@ -2461,7 +2461,7 @@ scripts/capture/tests/test_android_browser_exit_cancellation.py	tool	receipt-pen
 scripts/capture/tests/test_chrome_netlog.py	tool	receipt-pending	evidence.md#delivery-reconciliation	merged
 scripts/capture/tests/test_http2_websocket_ownership.py	tool	receipt-pending	evidence.md#delivery-reconciliation	merged
 vendor/h3/patches/supported-rust-version.patch	vendor-boundary	source-complete	evidence.md#delivery-reconciliation; qlog-fork-minimum-remedy-independent-source-review-607b11cc.json#/source_bindings/8; final-24-receipt-dispositions-4111f7bf.json#/files/21: exact-current whole-source receipt; independent review explicitly recorded	merged
-vendor/quinn-proto/patches/supported-integer-multiples.patch	vendor-boundary	receipt-pending	evidence.md#delivery-reconciliation	merged
+vendor/quinn-proto/patches/supported-integer-multiples.patch	vendor-boundary	source-complete	vendor-boundary-current-source-dispositions-b6942293.json#/rows/30; fresh-independent-whole-current-source-read	merged
 vendor/quinn-proto/patches/supported-rust-version.patch	vendor-boundary	source-complete	evidence.md#delivery-reconciliation; qlog-fork-minimum-remedy-independent-source-review-607b11cc.json#/source_bindings/13; final-24-receipt-dispositions-4111f7bf.json#/files/22: exact-current whole-source receipt; independent review explicitly recorded	merged
 vendor/quinn/patches/supported-rust-version.patch	vendor-boundary	source-complete	evidence.md#delivery-reconciliation; qlog-fork-minimum-remedy-independent-source-review-607b11cc.json#/source_bindings/19; final-24-receipt-dispositions-4111f7bf.json#/files/23: exact-current whole-source receipt; independent review explicitly recorded	merged
 crates/phantom/tests/requests/redirects/hop_server.rs	crate	source-complete	fixture-final-interaction-7e153e1a-independent-source-review.json: composition review; individual whole-source receipt reconciliation required; merged-fixture-13-current-source-dispositions-1806cb77.json#/records/0: Exact-current complete source receipt; new current complete independent re-read also recorded	merged
