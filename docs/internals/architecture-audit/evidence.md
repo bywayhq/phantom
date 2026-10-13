@@ -279,6 +279,9 @@ actual read scope, original source bindings and verification limits.
 | `alt-svc-test-setup-owner-e71b055c-independent-source-review.json` | Whole original/current test and new controls independently approved; all 59 handoff artifacts checked; injected-cancellation and close-fault limits retained |
 | `final-audit-docs-gate-df58f626-independent-log-review.json` | Earlier documentation candidate passes all 24 steps; superseded before integration after A348 discovery |
 | `pr210-df58f626-integration-not-performed.json` | Main stayed at `f146e52c` during the superseded attempt; no integration mutation occurred |
+| `pr210-7a3fce9d-integration-blocked.json` | All 24 local steps pass; two Linux CI control failures block integration; complete raw local and CI logs retained |
+| `alt-svc-test-setup-readiness-handoff-ca0d4dd6.json` | Actual Linux SSL shutdown race diagnosed; synchronized controls pass 17 tests per host and fail four complete-original controls per host |
+| `alt-svc-test-setup-readiness-ca0d4dd6-independent-source-review.json` | Whole new controls and readiness change independently approved; original test, EOF and cause assertions retained; final composed delivery remains required |
 | `tooling-ten-and-trust-root-bindings-b6942293.json` | Thirteen source dispositions, original-object hashes and qualified supporting reads |
 | `documentation-config-current-source-dispositions-b6942293.json` | Six complete document reads and structured inventory validation; six identified factual corrections applied at `a365837d` |
 | `final-architecture-current-independent-review-b8ab9851.json` | Twelve cross-crate boundaries; 24 whole files and 35 partial files; no new supported source blocker |

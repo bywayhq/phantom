@@ -175,6 +175,14 @@ remedy registers cleanup during setup; four complete-original controls fail
 and all 17 repaired tests pass. All 48 original assertions remain unchanged.
 The new control has an independent whole-source disposition.
 
+The local `7a3fce9d` gate passes all 24 steps. Linux PR quality checks
+find a control race: initial SETTINGS arrive after local TLS shutdown.
+That candidate remains unmerged. The independently approved `ca0d4dd6`
+follow-up receives the real server preface before injecting failure.
+Both Windows and Linux pass all 17 focused tests; four controls fail
+against the complete original module on each host. Original assertions,
+literal EOF and exact error causes remain, with no SSL-error waiver.
+
 These are pre-integration source records. The exact composed gate, PR 210
 checks, fast-forward and main checks remain separate delivery requirements.
 The earlier failed gates retain their unresolved causes.
