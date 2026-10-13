@@ -1,12 +1,15 @@
 //! Controls for the actual negotiated origin and its caller-owned workers.
-use super::*;
-use crate::support::tunnel_proxy::FixtureFailures;
+use std::{error::Error, io, pin::Pin};
+
 use btls::{
     ssl::{SslConnector, SslMethod},
     x509::X509,
 };
-use std::{error::Error, io, pin::Pin};
 use tokio_btls::SslStream;
+
+use crate::support::tunnel_proxy::connection_peer::FixtureFailures;
+
+use super::*;
 
 async fn raw_tls(
     identity: &TestIdentity,
@@ -29,7 +32,7 @@ async fn raw_tls(
     Ok(stream)
 }
 
-fn cause<T: Error + 'static>(error: &(dyn Error + 'static)) -> Option<&T> {
+fn cause<'a, T: Error + 'static>(error: &'a (dyn Error + 'static)) -> Option<&'a T> {
     if let Some(found) = error.downcast_ref::<T>() {
         return Some(found);
     }

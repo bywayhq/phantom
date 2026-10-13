@@ -1,8 +1,3 @@
-use super::TestResult;
-use crate::support::{
-    deadline::FixtureDeadline,
-    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
-};
 use std::{
     error::Error,
     fmt,
@@ -10,11 +5,19 @@ use std::{
     pin::Pin,
     sync::{Arc, Mutex, MutexGuard, Weak},
 };
+
 use tokio::{
     sync::oneshot,
     task::{AbortHandle, Id},
     time::{Instant, timeout_at},
 };
+
+use crate::support::{
+    deadline::FixtureDeadline,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+};
+
+use super::TestResult;
 
 // Twenty H2 response workers, two connections, the listener and two CONNECT
 // relays fit within sixty-four lifetime admissions. This is a fixture bound.

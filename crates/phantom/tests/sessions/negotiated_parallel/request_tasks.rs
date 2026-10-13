@@ -1,18 +1,21 @@
-use super::{
-    Outcome, TEST_TIMEOUT, TestResult,
-    connection_tasks::{Connections, contextual},
-};
-use crate::support::{
-    deadline::FixtureDeadline,
-    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
-};
+use std::{error::Error, fmt, future::Future, time::Duration};
+
 use http::Response;
 use phantom::{RequestError, ResponseBody};
-use std::{error::Error, fmt, future::Future, time::Duration};
 use tokio::{
     sync::oneshot,
     task::JoinError,
     time::{Instant, timeout, timeout_at},
+};
+
+use crate::support::{
+    deadline::FixtureDeadline,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+};
+
+use super::{
+    Outcome, TEST_TIMEOUT, TestResult,
+    connection_tasks::{Connections, contextual},
 };
 
 struct Caller<T> {

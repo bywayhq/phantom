@@ -11,8 +11,14 @@ candidate (`ab50b8b3`, `e2e64a86`) and parallel-session candidate (`4eb9e2d9`,
 protocol assertions and timing windows, retains initiating failures across
 interrupted joins, and distinguishes cooperative stop from external cancellation.
 The replay control now starts cleanup through an explicit signal and observes
-actual collection while allowing the paused clock to progress. The prior two
-failed replay runs remain evidence; the combined native checks are pending.
+actual collection while allowing the paused clock to progress. At `befc9512`,
+all 18 PING replay methods pass on Windows and Linux. Sessions do not compile:
+the parallel controls import the wrong module and omit a reference lifetime.
+SSE passes 66 of 74 methods per host. Seven paused-clock methods expire at
+the added virtual watchdog; one interruption control misses its timer tick.
+Formatting and docs pass; Clippy and Rust 1.88 encounter the same compile
+errors. Both readers inspect the complete logs and clean revision bindings.
+These failures remain open for correction; final gates remain open.
 
 ## Replay fixture completion
 
@@ -30,11 +36,11 @@ package. Independent follow-up review and native checks remain open.
 At `2528f857`, each host passes 17 of 18 PING methods and all 16 unprocessed
 replay methods. Formatting, strict Clippy, Rust 1.88 and docs pass. Both readers
 inspect all complete logs and separately verify both clean source revisions.
-The new interruption control assumes one manual poll collects ready joins.
-Tokio can yield its cooperative budget first. The correction drives the original
-caller alongside a finite progress observation before advancing its deadline;
-the original typed failure, retained-owner and socket assertions stay in place.
-Its rerun remains open.
+The interruption control initially misses a rounded timer tick. A correction
+starts cleanup through an explicit signal and observes retained tasks while
+allowing the paused clock to advance. Its original typed failure, retained-owner
+and socket assertions pass with all 18 PING methods at `befc9512` on both hosts.
+This supersedes the earlier cooperative-budget hypothesis.
 Raw frame payload allocation still uses the existing shared parser. Cleanup
 expiry and owner destruction retain abort fallback without proving a completed
 join. These fixture findings do not establish production leaks.
@@ -49,6 +55,19 @@ without cleanup covering every early failure. QUIC certificate setup has the
 same partial-acquisition gap. Browser cleanup discards profile-removal errors.
 These A288 findings require an owned, bounded command remedy and independent
 review. No baseline execution or fresh browser capture is claimed.
+
+## Local capture owners
+
+Independent whole-file reads cover client hints, cookie crumbs, snapshot,
+HTTP/2 preface PING and HTTP lifecycle tools and their existing tests.
+The local TCP owners do not collect all serving callbacks. Three commands
+also leave the first listener unowned if the second acquisition fails.
+Other confirmed gaps include discarded serving failures, completed HTTP head
+limits, run-wide retention limits, finite argument validation, IPv6 URLs and
+completion-token matching. Snapshot still replaces the loop exception handler
+outside its existing scoped helper. Root traces the cookie publication path:
+unused credential inserts bypass its cookie-only encoder screening.
+These are source findings; fixes and native verification remain open.
 
 ## Dependency configuration review
 

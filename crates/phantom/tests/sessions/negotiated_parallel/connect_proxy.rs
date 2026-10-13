@@ -1,6 +1,7 @@
 //! CONNECT listener and relay ownership for the negotiated route script.
-use super::*;
 use tokio::io::copy_bidirectional;
+
+use super::*;
 
 pub(super) struct Proxy {
     pub(super) address: SocketAddr,
