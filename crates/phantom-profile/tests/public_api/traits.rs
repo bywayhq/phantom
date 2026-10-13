@@ -1,36 +1,34 @@
 //! Compile checks for the supported public profile value contracts.
 
+use std::{error::Error, fmt::Debug, hash::Hash};
+
 use phantom_profile::{
     AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,
     ClientHelloExtensionOrder, ClientHint, ClientHintDelivery, ClientHintSettings, ClientProfile,
     CookiePlacement, DnsCacheSettings, EchGreaseAead, EchGreasePayloadLength, EchGreaseSettings,
-    EchSettings, Http1IdleTimeout, Http1Settings, Http2CookieCrumbs, Http2FieldIndexing,
-    Http2HpackSettings, Http2HuffmanCoding, Http2IdleTimeout, Http2IndexingLimit,
-    Http2NameReference, Http2Priority, Http2ProxyConnections, Http2PseudoHeader,
-    Http2RejectedConnect, Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings,
-    Http2StaticNameIndex, Http2StreamSettings, Http2TableSizeUpdates, Http2UnindexedMatch,
-    Http3AltUsed, Http3ClientSettings, Http3CookieCrumbs, Http3PseudoHeader,
+    EchSettings, GoogleConnectionOption, Http1IdleTimeout, Http1Settings, Http2CookieCrumbs,
+    Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding, Http2IdleTimeout,
+    Http2IndexingLimit, Http2NameReference, Http2Priority, Http2ProxyConnections,
+    Http2PseudoHeader, Http2RejectedConnect, Http2SensitiveProxyAuthorization, Http2Setting,
+    Http2Settings, Http2StaticNameIndex, Http2StreamSettings, Http2TableSizeUpdates,
+    Http2UnindexedMatch, Http3AltUsed, Http3ClientSettings, Http3CookieCrumbs, Http3PseudoHeader,
     Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder,
     Http3RequestSettings, Http3Setting, Http3SettingOrder, Http3Settings,
     InvalidClientHintSettings, InvalidHttp1Settings, InvalidHttp2Settings,
     InvalidHttp3RequestSettings, InvalidHttp3Settings, InvalidProxyConnectTemplate,
-    InvalidRequestTemplate, InvalidTcpSettings, InvalidTlsSettings, InvalidWebSocketSettings,
-    NamedGroup, ProxyAuthorizationAttempt, ProxyConnectField, ProxyConnectTemplate, RequestField,
-    RequestTemplate, SessionTicketOrder, SessionTickets, SignatureScheme, TcpAddressAdvance,
-    TcpAddressRacing, TcpAddressSelection, TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy,
-    TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings, TlsSettings, TlsVersion,
-    TlsVersionRange, TrustAnchorIds, TrustAnchorOrder, TrustAnchorOrders, UdpSettings,
+    InvalidQuicTransportSettings, InvalidRequestTemplate, InvalidTcpSettings, InvalidTlsSettings,
+    InvalidWebSocketSettings, NamedGroup, ProxyAuthorizationAttempt, ProxyConnectField,
+    ProxyConnectTemplate, QuicAckFrequencyDraft, QuicConnectionIdLength, QuicTransportGrease,
+    QuicTransportParameter, QuicTransportParameterKind, QuicTransportParameterOrder,
+    QuicTransportSettings, QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
+    RequestField, RequestTemplate, SessionTicketOrder, SessionTickets, SignatureScheme,
+    TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection, TcpBackupConnection, TcpKeepalive,
+    TcpKeepalivePolicy, TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings, TlsSettings,
+    TlsVersion, TlsVersionRange, TrustAnchorIds, TrustAnchorOrder, TrustAnchorOrders, UdpSettings,
     WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
     WebSocketField, WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
     WebSocketSettings,
-    quic::{
-        GoogleConnectionOption, InvalidQuicTransportSettings, QuicAckFrequencyDraft,
-        QuicConnectionIdLength, QuicTransportGrease, QuicTransportParameter,
-        QuicTransportParameterKind, QuicTransportParameterOrder, QuicTransportSettings,
-        QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
-    },
 };
-use std::{error::Error, fmt::Debug, hash::Hash};
 
 fn value<T: Clone + Debug + Eq + Send + Sync>() {}
 fn validator_error<T: Clone + Debug + Eq + Error + Send + Sync>() {}
