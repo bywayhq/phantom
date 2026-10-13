@@ -43,7 +43,9 @@ impl Capture {
         let mut fields = BTreeMap::new();
         for line in input.lines() {
             let (key, value) = line.split_once('=').ok_or("capture line is missing `=`")?;
-            fields.insert(key.to_owned(), value.to_owned());
+            if fields.insert(key.to_owned(), value.to_owned()).is_some() {
+                return Err(format!("capture repeats {key}").into());
+            }
         }
         let capture = Self { fields };
         // `fixtures/proxy/` records H1 requests in the same shape.
@@ -61,6 +63,15 @@ impl Capture {
             .get(key)
             .map(String::as_str)
             .ok_or_else(|| format!("capture omitted {key}").into())
+    }
+
+    fn record_count(&self, key: &str) -> TestResult<usize> {
+        let count = self.value(key)?.parse()?;
+        // Each counted record needs at least one field in the retained input.
+        if count > self.fields.len() {
+            return Err(format!("capture count {key} exceeds its field count").into());
+        }
+        Ok(count)
     }
 
     /// Returns the ALPN offer of the connection that carried the WebSocket.
@@ -125,10 +136,7 @@ impl Capture {
     fn h1_request(&self, prefix: &str) -> TestResult<CapturedUpgrade> {
         let request_line = decode_hex(self.value(&format!("{prefix}_line_hex"))?)?;
         let mut fields = Vec::new();
-        for index in 0..self
-            .value(&format!("{prefix}_header_count"))?
-            .parse::<usize>()?
-        {
+        for index in 0..self.record_count(&format!("{prefix}_header_count"))? {
             let line = decode_hex(self.value(&format!("{prefix}_header_{index}"))?)?;
             let (name, value) = line.split_once(": ").ok_or("H1 field has no `: `")?;
             fields.push((name.to_owned(), value.to_owned()));
@@ -140,13 +148,15 @@ impl Capture {
     }
 
     fn first_connect(&self) -> TestResult<Option<(usize, String)>> {
-        let connections: usize = self.value("run_0_connection_count")?.parse()?;
+        let connections = self.record_count("run_0_connection_count")?;
         for connection in 0..connections {
             let prefix = format!("run_0_connection_{connection}");
-            let count = self
-                .fields
-                .get(&format!("{prefix}_headers_count"))
-                .map_or(Ok(0), |count| count.parse::<usize>())?;
+            let count_key = format!("{prefix}_headers_count");
+            let count = if self.fields.contains_key(&count_key) {
+                self.record_count(&count_key)?
+            } else {
+                0
+            };
             for index in 0..count {
                 let key = format!("{prefix}_headers_{index}");
                 if self
@@ -162,10 +172,10 @@ impl Capture {
     }
 
     fn first_request(&self, kind: &str) -> TestResult<Option<(usize, String)>> {
-        let Some(count) = self.fields.get("run_0_request_count") else {
+        if !self.fields.contains_key("run_0_request_count") {
             return Ok(None);
-        };
-        for index in 0..count.parse::<usize>()? {
+        }
+        for index in 0..self.record_count("run_0_request_count")? {
             let prefix = format!("run_0_request_{index}");
             let record = self.value(&prefix)?;
             if attribute(record, "kind")? == kind {
@@ -176,7 +186,7 @@ impl Capture {
     }
 
     fn block(&self, key: &str) -> TestResult<Vec<(String, String, Representation)>> {
-        let count: usize = self.value(&format!("{key}_field_count"))?.parse()?;
+        let count = self.record_count(&format!("{key}_field_count"))?;
         let mut block = Vec::with_capacity(count);
         for index in 0..count {
             let field = self.value(&format!("{key}_field_{index}"))?;
@@ -221,9 +231,74 @@ fn decode_hex(value: &str) -> TestResult<String> {
     if !value.len().is_multiple_of(2) {
         return Err("odd-length hexadecimal value".into());
     }
-    let bytes = (0..value.len())
-        .step_by(2)
-        .map(|index| u8::from_str_radix(&value[index..index + 2], 16))
+    let bytes = value
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|pair| {
+            let pair = std::str::from_utf8(pair)?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(u8::from_str_radix(pair, 16)?)
+        })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(String::from_utf8(bytes)?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn malformed_hex_returns_an_error_without_panicking() {
+        for value in ["abc", "gg", "é", "a€", "😀", "ff"] {
+            assert!(decode_hex(value).is_err(), "accepted {value:?}");
+        }
+        assert_eq!(decode_hex("48656c6c6f20c3a9").unwrap(), "Hello é");
+        assert_eq!(decode_hex("4A4b").unwrap(), "JK");
+        assert_eq!(decode_hex("").unwrap(), "");
+    }
+
+    #[test]
+    fn repeated_capture_keys_are_rejected() {
+        assert!(Capture::parse("format=phantom-http2-websocket-v1\nformat=other").is_err());
+    }
+
+    #[test]
+    fn impossible_counts_fail_before_allocating_or_iterating() {
+        let input = format!(
+            "format=phantom-http2-websocket-v1\nrun_0_connection_count={}\n\
+             run_0_request_count={}\nrecord_field_count={}\nrecord_header_count={}\n\
+             record_line_hex=474554202f20485454502f312e31",
+            usize::MAX,
+            usize::MAX,
+            usize::MAX,
+            usize::MAX
+        );
+        let capture = Capture::parse(&input).unwrap();
+        assert!(capture.first_connect().is_err());
+        assert!(capture.first_request("websocket").is_err());
+        assert!(capture.block("record").is_err());
+        assert!(capture.h1_request("record").is_err());
+    }
+
+    #[test]
+    fn valid_counted_header_block_keeps_fields_and_representation() {
+        let capture = Capture::parse(
+            "format=phantom-http2-websocket-v1\nrecord_field_count=1\n\
+             record_field_0=repr:without-indexing,name_hex:78,value_hex:79,index:0,\
+             name_huffman:false,value_huffman:true",
+        )
+        .unwrap();
+        assert_eq!(
+            capture.block("record").unwrap(),
+            vec![(
+                "x".into(),
+                "y".into(),
+                Representation {
+                    kind: "without-indexing".into(),
+                    index: 0,
+                    name_huffman: Some(false),
+                    value_huffman: Some(true),
+                }
+            )]
+        );
+    }
 }

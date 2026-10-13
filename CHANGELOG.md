@@ -2480,6 +2480,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Reject malformed retained WebSocket capture fields and record counts
+  without panicking or trusting declared allocation sizes.
 - Require `http-body` 1.1 or newer so projects with an older lockfile
   resolve the `SizeHint` API used by buffered request bodies.
 - Retain test fixture workers and their original errors through caller
