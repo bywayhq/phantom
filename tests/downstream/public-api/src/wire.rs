@@ -405,7 +405,7 @@ mod peer_controls {
             .as_ref()
             .ok_or("capture peer missing")?
             .abort_handle();
-        let Err(elapsed) = timeout(Duration::ZERO, std::future::pending::<()>()).await else {
+        let Err(elapsed) = timeout(Duration::ZERO, peer.join()).await else {
             return Err("pending caller completed".into());
         };
         let caller = Box::new(elapsed);
