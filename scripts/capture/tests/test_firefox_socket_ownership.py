@@ -348,6 +348,16 @@ class NativeOwnershipTests(unittest.IsolatedAsyncioTestCase):
 
 
 class HookBoundaryTests(unittest.TestCase):
+    def test_native_error_message_keeps_the_original_structured_message(self) -> None:
+        message = {"type": "error", "description": "independent native hook failure"}
+        owner = hooks.Hooks(1, {})
+        owner._on_message(message, None)
+
+        self.assertIsInstance(owner.failure, hooks._FirefoxAgentFailure)
+        self.assertIs(owner.failure.message, message)
+        self.assertEqual(json.loads(owner.errors[0]), message)
+        self.assertTrue(owner.ready.is_set())
+
     def test_native_message_failure_is_retained_and_releases_the_ready_waiter(
         self,
     ) -> None:

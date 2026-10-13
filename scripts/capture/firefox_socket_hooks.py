@@ -1162,7 +1162,7 @@ class Hooks:
                         self.ready.set()
                 else:
                     self.errors.append(json.dumps(message, sort_keys=True))
-                    raise RuntimeError("Firefox native hook reported an error")
+                    raise _FirefoxAgentFailure(message)
             except BaseException as error:
                 self.failure = error
                 self.ready.set()
@@ -1188,6 +1188,12 @@ class Hooks:
                 self._detaching = False
             self._session = None
             self._script = None
+
+
+class _FirefoxAgentFailure(RuntimeError):
+    def __init__(self, message: dict[str, Any]) -> None:
+        self.message = message
+        super().__init__("Firefox native hook reported an error")
 
 
 class _FirefoxSessionDetached(RuntimeError):
