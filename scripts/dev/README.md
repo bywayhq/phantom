@@ -19,15 +19,33 @@ git worktree add -b lane/<name> ../phantom-worktrees/<name> main
 When the lane has handed off, finish it from the integration checkout:
 
 ```sh
+git status --short                              # both checkouts must be clean
+git -C ../phantom-worktrees/<name> status --short
 git -C ../phantom-worktrees/<name> rebase main    # the lane must be clean
 git log --oneline main..lane/<name>               # review every commit
 git diff main...lane/<name>
-# Run the full gate on the rebased branch and read its output before merging.
+candidate=$(git rev-parse lane/<name>)
+git switch --detach "$candidate"
+# Run the full gate on this exact commit and read every step's output.
 scripts/dev/gate.sh
-git merge --ff-only lane/<name>
+```
+
+Require every applicable PR check for `candidate` to pass, including Windows
+and macOS.
+After the gate and review pass, return to `main` and integrate the checked
+commit:
+
+```sh
+git switch main
+git merge --ff-only "$candidate"
 git worktree remove ../phantom-worktrees/<name>
 git branch -d lane/<name>
 ```
+
+Keep `candidate` in the same shell between these steps. The detached checkout
+lets the integration owner check the lane's commit while the lane retains
+its branch. If `main` advances, rebase the lane again and repeat the checks.
+After pushing `main`, require its CI to pass before integrating another lane.
 
 Run the full gate after the rebase, not before. Two lanes can each pass alone
 and still break together: for example, one adds an enum variant and the other

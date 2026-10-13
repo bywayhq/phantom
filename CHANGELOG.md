@@ -2575,6 +2575,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Check the rebased lane commit in the integration checkout before merging
+  it in the development instructions. Merge the exact checked revision.
+
 - Reject non-finite snapshot waits before opening listeners or launching
   a browser. Run timeouts must be positive; observation delays may be zero.
 
