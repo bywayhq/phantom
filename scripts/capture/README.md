@@ -954,6 +954,11 @@ The tool writes nothing unless the runs agree exactly and every default hint
 keeps its value and relative order. It refuses to retain `cookie`,
 `authorization`, or `proxy-authorization`.
 
+Before another run or fixture publication, the tool collects registered
+connections and their callback outcomes. A callback failure stops the capture.
+A run fails above 64 retained connections. Cleanup has a five-second
+cooperative deadline; incomplete cleanup prevents fixture publication.
+
 ## HTTP/2 preface PING
 
 `http2_preface_ping.py` records the client frames of one HTTP/2 connection

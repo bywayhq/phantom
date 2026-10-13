@@ -2575,6 +2575,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Stop client-hint captures on callback failures and collect registered
+  connections before the next run or fixture publication. Keep the previous
+  fixture when capture or cleanup fails.
+
 - Check the rebased lane commit in the integration checkout before merging
   it in the development instructions. Merge the exact checked revision.
 

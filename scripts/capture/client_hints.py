@@ -27,6 +27,9 @@ from .fixture_file import write_text_fixture
 
 FORMAT = "phantom-client-hints-v2"
 MAX_REQUEST_HEAD = 64 * 1024
+MAX_CONNECTIONS = 64
+SHUTDOWN_TIMEOUT = 5.0
+PEER_DISCONNECT = (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)
 SENSITIVE_HEADERS = {b"authorization", b"proxy-authorization", b"cookie"}
 # Every user-agent client hint Chromium defines. The server requests all of
 # them so the second navigation shows each hint the browser will send.
@@ -63,6 +66,7 @@ class HintRun:
     second: Navigation | None = None
     other_requests: int = 0
     done: asyncio.Event = field(default_factory=asyncio.Event)
+    failure: BaseException | None = field(default=None, repr=False)
 
     def first_path(self) -> str:
         return f"/run/{self.token}/first"
@@ -102,22 +106,158 @@ def parse_navigation(head: bytes, requested: Sequence[str]) -> Navigation:
     return Navigation(tuple(names), tuple(hints))
 
 
+class HintFailures(Exception):
+    """Original caller and cleanup causes, with retained owners for retry."""
+
+    def __init__(
+        self,
+        primary: BaseException | None,
+        cleanup: tuple[BaseException, ...],
+        server: HintServer,
+    ) -> None:
+        self.primary = primary
+        self.cleanup = cleanup
+        self.server = server
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        self.interruption_cause: BaseException | None = None
+        self.interruption_context: BaseException | None = None
+        super().__init__("client-hint capture cleanup failed")
+
+
+def _raise_hint_failures(
+    primary: BaseException | None,
+    cleanup: Sequence[BaseException],
+    server: HintServer,
+) -> None:
+    cleanup = tuple(error for error in cleanup if error is not primary)
+    if cleanup:
+        failure = HintFailures(primary, cleanup, server)
+        interruption = next(
+            (
+                error
+                for error in (primary, *cleanup)
+                if isinstance(
+                    error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+                )
+            ),
+            None,
+        )
+        if interruption is not None:
+            failure.interruption_cause = interruption.__cause__
+            failure.interruption_context = interruption.__context__
+            raise interruption from failure
+        if primary is not None:
+            raise primary from failure
+        raise failure from cleanup[0]
+    if primary is not None:
+        raise primary
+
+
+class _HintProtocol(asyncio.StreamReaderProtocol):
+    """Own a run generation before connection_made can be queued."""
+
+    def __init__(self, owner: HintServer) -> None:
+        self.owner = owner
+        self.run = owner.run
+        self.writer: asyncio.StreamWriter | None = None
+        self.transport: asyncio.Transport | None = None
+        self.handler: asyncio.Task[None] | None = None
+        self.waiter: asyncio.Task[bool] | None = None
+        self.observed: set[asyncio.Task] = set()
+        self.closed = asyncio.get_running_loop().create_future()
+        self.retired = False
+        super().__init__(asyncio.StreamReader(limit=MAX_REQUEST_HEAD), self.connected)
+
+    def connection_made(self, transport) -> None:
+        self.transport = transport
+        if self.owner.failure is not None:
+            self.owner._stop_listener()
+        try:
+            super().connection_made(transport)
+        except BaseException as error:
+            self.owner._failed(self.run, error)
+            try:
+                transport.abort()
+            except BaseException as cleanup:
+                self.owner._failed(self.run, cleanup)
+
+    def connected(self, reader, writer) -> None:
+        self.writer = writer
+        self.owner.accept(reader, self)
+
+    def connection_lost(self, error) -> None:
+        if error is not None and not isinstance(error, PEER_DISCONNECT):
+            self.owner._failed(self.run, error)
+        try:
+            super().connection_lost(error)
+        except BaseException as cleanup:
+            self.owner._failed(self.run, cleanup)
+        finally:
+            self.retired = True
+            if not self.closed.done():
+                self.closed.set_result(None)
+
+
 class HintServer:
     """Loopback HTTP/1.1 server driving one two-navigation run at a time."""
 
     def __init__(self) -> None:
         self.run: HintRun | None = None
         self.server: asyncio.Server | None = None
-        self.writers: set[asyncio.StreamWriter] = set()
+        self.connections: set[_HintProtocol] = set()
         self.address: tuple[str, int] | None = None
+        self.failure: BaseException | None = None
+        self._failures: list[BaseException] = []
+        self._listener_closed: asyncio.Task[None] | None = None
+        self._listener_observed = False
+        self._closing = False
 
     async def start(self, host: str, port: int) -> None:
         if not ipaddress.ip_address(host).is_loopback:
             raise ValueError("the capture listener must be a loopback address")
-        self.server = await asyncio.start_server(
-            self.handle, host, port, limit=MAX_REQUEST_HEAD
-        )
-        self.address = self.server.sockets[0].getsockname()[:2]
+        try:
+            self.server = await asyncio.get_running_loop().create_server(
+                self.new_protocol, host, port, start_serving=False
+            )
+            self.address = self.server.sockets[0].getsockname()[:2]
+            ready = asyncio.Event()
+            closed = self._wait_listener(ready)
+            try:
+                self._listener_closed = asyncio.create_task(closed)
+            except BaseException as primary:
+                try:
+                    closed.close()
+                except BaseException as cleanup:
+                    self._remember_failure(None, cleanup)
+                raise primary
+            self._listener_closed.add_done_callback(lambda _task: ready.set())
+            await asyncio.wait_for(ready.wait(), SHUTDOWN_TIMEOUT)
+            if self._listener_closed.done():
+                self._listener_closed.result()
+            await self.server.start_serving()
+        except BaseException as primary:
+            await self.close(primary)
+
+    async def _wait_listener(self, ready: asyncio.Event) -> None:
+        # This callback runs after the original waiter has entered or failed.
+        asyncio.get_running_loop().call_soon(ready.set)
+        await self.server.wait_closed()
+
+    def new_protocol(self) -> _HintProtocol:
+        try:
+            connection = _HintProtocol(self)
+        except BaseException as error:
+            self._remember_failure(self.run, error)
+            raise
+        self.connections.add(connection)
+        if len(self.connections) > MAX_CONNECTIONS:
+            # The backend has not attached this protocol's transport yet.
+            self._remember_failure(
+                connection.run,
+                ValueError("client-hint capture exceeded its connection limit"),
+            )
+        return connection
 
     def url(self, run: HintRun) -> str:
         if self.address is None:
@@ -126,44 +266,206 @@ class HintServer:
         host = f"[{host}]" if ":" in host else host
         return f"http://{host}:{port}{run.first_path()}"
 
-    async def close(self) -> None:
-        self.drop_connections()
-        if self.server is not None:
-            self.server.close()
-            await self.server.wait_closed()
+    def _remember_failure(self, run: HintRun | None, error: BaseException) -> None:
+        if not any(previous is error for previous in self._failures):
+            self._failures.append(error)
+        if self.failure is None:
+            self.failure = error
+        if run is not None:
+            if run.failure is None:
+                run.failure = error
+            run.done.set()
 
-    def drop_connections(self) -> None:
-        for writer in list(self.writers):
-            writer.transport.abort()
-        self.writers.clear()
+    def _stop_listener(self) -> None:
+        if self.server is not None:
+            try:
+                self.server.close()
+            except BaseException as cleanup:
+                self._remember_failure(self.run, cleanup)
+
+    def _failed(self, run: HintRun | None, error: BaseException) -> None:
+        self._remember_failure(run, error)
+        self._stop_listener()
+
+    def _observed(self, connection: _HintProtocol, task: asyncio.Task) -> None:
+        if task in connection.observed:
+            return
+        connection.observed.add(task)
+        try:
+            task.result()
+        except BaseException as error:
+            self._failed(connection.run, error)
+
+    def accept(self, reader, connection: _HintProtocol) -> None:
+        writer = connection.writer
+        serve = None
+        closed = None
+        try:
+            if (
+                self._closing
+                or self.failure is not None
+                or connection.run is None
+                or connection.run is not self.run
+            ):
+                writer.transport.abort()
+            else:
+                serve = self.handle(reader, connection)
+                connection.handler = asyncio.create_task(serve)
+                connection.handler.add_done_callback(
+                    lambda task: self._observed(connection, task)
+                )
+            closed = self._wait_closed(connection)
+            connection.waiter = asyncio.create_task(closed)
+            connection.waiter.add_done_callback(
+                lambda task: self._observed(connection, task)
+            )
+        except BaseException as error:
+            self._failed(connection.run, error)
+            if serve is not None and connection.handler is None:
+                try:
+                    serve.close()
+                except BaseException as cleanup:
+                    self._failed(connection.run, cleanup)
+            if closed is not None and connection.waiter is None:
+                try:
+                    closed.close()
+                except BaseException as cleanup:
+                    self._failed(connection.run, cleanup)
+            try:
+                writer.transport.abort()
+            except BaseException as cleanup:
+                self._failed(connection.run, cleanup)
+
+    async def _wait_closed(self, connection: _HintProtocol) -> bool:
+        try:
+            await connection.writer.wait_closed()
+        except PEER_DISCONNECT:
+            # StreamReaderProtocol publishes these only from connection_lost.
+            return True
+        except BaseException as error:
+            self._failed(connection.run, error)
+            return False
+        return True
+
+    async def _drain_connections(self) -> None:
+        deadline = asyncio.get_running_loop().time() + SHUTDOWN_TIMEOUT
+        while True:
+            for connection in tuple(self.connections):
+                if connection.transport is not None:
+                    try:
+                        connection.transport.abort()
+                    except BaseException as error:
+                        self._failed(connection.run, error)
+                if connection.writer is not None and connection.waiter is None:
+                    closed = self._wait_closed(connection)
+                    try:
+                        connection.waiter = asyncio.create_task(closed)
+                    except BaseException as error:
+                        self._failed(connection.run, error)
+                        try:
+                            closed.close()
+                        except BaseException as cleanup:
+                            self._failed(connection.run, cleanup)
+                for task in (connection.handler, connection.waiter):
+                    if task is not None and task.done():
+                        self._observed(connection, task)
+                if (
+                    connection.retired
+                    and (connection.handler is None or connection.handler.done())
+                    and (
+                        connection.writer is None
+                        or (connection.waiter is not None and connection.waiter.done())
+                    )
+                ):
+                    self.connections.remove(connection)
+
+            tasks = {
+                task
+                for connection in self.connections
+                for task in (connection.handler, connection.waiter, connection.closed)
+                if task is not None and not task.done()
+            }
+            listener = self._listener_closed
+            if listener is not None:
+                if listener.done() and not self._listener_observed:
+                    self._listener_observed = True
+                    try:
+                        listener.result()
+                    except BaseException as error:
+                        self._failed(None, error)
+                elif not listener.done() and (
+                    self._closing or self.failure is not None
+                ):
+                    tasks.add(listener)
+            if not tasks:
+                if self.connections:
+                    self._failed(
+                        self.run,
+                        RuntimeError("client-hint connection retirement is unobserved"),
+                    )
+                return
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                self._failed(self.run, TimeoutError("client-hint peers did not stop"))
+                return
+            try:
+                await asyncio.wait(
+                    tasks, timeout=remaining, return_when=asyncio.FIRST_COMPLETED
+                )
+            except BaseException as error:
+                # The original tasks stay on their owners through caller cancellation.
+                self._failed(self.run, error)
+
+    async def finish_run(self, run: HintRun, primary: BaseException | None) -> None:
+        if self.run is run:
+            self.run = None
+        await self._drain_connections()
+        if primary is None:
+            primary = run.failure
+        failures, self._failures = self._failures, []
+        _raise_hint_failures(primary, failures, self)
+
+    async def close(self, primary: BaseException | None = None) -> None:
+        self._closing = True
+        self.run = None
+        if self.server is not None:
+            try:
+                self.server.close()
+            except BaseException as error:
+                self._failed(None, error)
+        await self._drain_connections()
+        failures, self._failures = self._failures, []
+        _raise_hint_failures(primary, failures, self)
 
     async def handle(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+        self, reader: asyncio.StreamReader, connection: _HintProtocol
     ) -> None:
-        run = self.run
-        if run is None:
-            writer.transport.abort()
-            return
-        self.writers.add(writer)
+        run = connection.run
+        writer = connection.writer
         try:
-            while True:
+            while run is not None and self.run is run and run.failure is None:
                 try:
                     head = await reader.readuntil(b"\r\n\r\n")
-                except (
-                    asyncio.IncompleteReadError,
-                    asyncio.LimitOverrunError,
-                    ConnectionError,
-                ):
+                except (asyncio.IncompleteReadError, *PEER_DISCONNECT):
                     return
                 await self.respond(run, head, writer)
+        except PEER_DISCONNECT:
+            return
+        except BaseException as error:
+            self._failed(run, error)
         finally:
-            self.writers.discard(writer)
-            if not writer.transport.is_closing():
+            try:
                 writer.close()
+            except PEER_DISCONNECT:
+                pass
+            except BaseException as error:
+                self._failed(run, error)
 
     async def respond(
         self, run: HintRun, head: bytes, writer: asyncio.StreamWriter
     ) -> None:
+        if self.run is not run or run.failure is not None:
+            return
         request_line = head.split(b"\r\n", 1)[0].split(b" ")
         target = request_line[1].decode("latin-1") if len(request_line) == 3 else ""
         path = urlsplit(target).path
@@ -306,14 +608,19 @@ async def capture_runs(
     validate_options(repeat, accept_ch, run_timeout)
     runs = []
     for _ in range(repeat):
+        if server.failure is not None:
+            raise server.failure
         run = HintRun(secrets.token_hex(8), tuple(accept_ch))
         server.run = run
+        primary = None
         try:
             async with drive(server.url(run)):
                 await asyncio.wait_for(run.done.wait(), timeout=run_timeout)
-        finally:
-            server.run = None
-            server.drop_connections()
+                if run.failure is not None:
+                    raise run.failure
+        except BaseException as error:
+            primary = error
+        await server.finish_run(run, primary)
         runs.append(run)
     return runs
 
@@ -328,8 +635,9 @@ async def run(args: argparse.Namespace) -> None:
         extra_arguments=tuple(args.browser_switch),
     )
     server = HintServer()
-    await server.start(host, port)
+    primary = None
     try:
+        await server.start(host, port)
         host, port = server.address
         host = f"[{host}]" if ":" in host else host
         listen = f"{host}:{port}"
@@ -340,21 +648,20 @@ async def run(args: argparse.Namespace) -> None:
             run_timeout=args.run_timeout,
             drive=lambda url: BrowserDriver(plan, url),
         )
-        metadata = CaptureMetadata(
-            client=args.client or plan.client_name,
-            client_version=args.client_version,
-            operating_system=args.operating_system,
-            listen_address=listen,
-            launch_mode=plan.launch_mode,
-            launch_arguments=plan.recorded_arguments(
-                f"http://{listen}/run/<token>/first"
-            ),
-        )
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        write_text_fixture(args.output, fixture(runs, metadata, args.accept_ch))
-        print(f"captured {args.output}", file=sys.stderr, flush=True)
-    finally:
-        await server.close()
+    except BaseException as error:
+        primary = error
+    await server.close(primary)
+    metadata = CaptureMetadata(
+        client=args.client or plan.client_name,
+        client_version=args.client_version,
+        operating_system=args.operating_system,
+        listen_address=listen,
+        launch_mode=plan.launch_mode,
+        launch_arguments=plan.recorded_arguments(f"http://{listen}/run/<token>/first"),
+    )
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    write_text_fixture(args.output, fixture(runs, metadata, args.accept_ch))
+    print(f"captured {args.output}", file=sys.stderr, flush=True)
 
 
 def validate_options(repeat: int, accept_ch: Sequence[str], run_timeout: float) -> None:
