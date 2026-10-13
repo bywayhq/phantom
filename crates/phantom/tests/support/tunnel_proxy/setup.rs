@@ -13,6 +13,7 @@ enum SetupOutcome<T> {
 }
 
 /// Retains a CONNECT coordinator and its returned tunnel outside caller deadlines.
+/// Dropping it aborts unjoined tasks; explicit borrowed shutdown collects them.
 pub(crate) struct TunnelSetup<T> {
     task: Option<ConnectionPeer<SetupOutcome<T>>>,
     stop: Option<oneshot::Sender<()>>,
@@ -143,10 +144,17 @@ impl Error for SetupFailure {
 
 #[cfg(test)]
 mod tests {
-    use std::{error::Error, io, net::Ipv4Addr, time::Duration};
+    use std::{
+        error::Error,
+        io,
+        net::Ipv4Addr,
+        pin::Pin,
+        task::{Context, Poll},
+        time::Duration,
+    };
 
     use tokio::{
-        io::{AsyncReadExt, AsyncWriteExt},
+        io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf},
         net::{TcpListener, TcpStream},
         task::JoinError,
         time::timeout,
@@ -213,6 +221,13 @@ mod tests {
         assert_eq!(joined.id(), id);
         assert!(owner.task.is_none());
         assert!(task.is_finished());
+
+        let retry = owner
+            .finish(Err(error))
+            .await
+            .err()
+            .ok_or("collected setup cancellation disappeared")?;
+        assert!(retry.source().is_some_and(|source| source.is::<JoinError>()));
         closed(&mut client).await?;
         Ok(())
     }
@@ -259,7 +274,7 @@ mod tests {
         timeout(DEADLINE, client.read_exact(&mut response)).await??;
         assert_eq!(&response, b"HTTP/1.1 200 Connection Established\r\n\r\n");
         assert_eq!(
-            timeout(DEADLINE, owner.establish()).await??,
+            timeout(DEADLINE, owner.establish()).await??.as_slice(),
             b"CONNECT retained.test:443 HTTP/1.1\r\n\r\n"
         );
         assert!(owner.task.is_none());
@@ -286,6 +301,107 @@ mod tests {
         assert_eq!(retained as *const io::Error, original_pointer);
         closed(&mut client).await?;
         closed(&mut upstream).await?;
+        Ok(())
+    }
+
+    struct FailedRead(TcpStream);
+
+    impl AsyncRead for FailedRead {
+        fn poll_read(
+            self: Pin<&mut Self>,
+            _: &mut Context<'_>,
+            _: &mut ReadBuf<'_>,
+        ) -> Poll<io::Result<()>> {
+            Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "original accepted relay failure",
+            )))
+        }
+    }
+
+    impl AsyncWrite for FailedRead {
+        fn poll_write(
+            mut self: Pin<&mut Self>,
+            context: &mut Context<'_>,
+            bytes: &[u8],
+        ) -> Poll<io::Result<usize>> {
+            Pin::new(&mut self.0).poll_write(context, bytes)
+        }
+
+        fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Pin::new(&mut self.0).poll_flush(context)
+        }
+
+        fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Pin::new(&mut self.0).poll_shutdown(context)
+        }
+    }
+
+    fn io_causes(error: &(dyn Error + 'static), found: &mut Vec<*const io::Error>) {
+        if let Some(original) = error.downcast_ref::<io::Error>() {
+            found.push(original as *const io::Error);
+        } else if let Some(failures) = error.downcast_ref::<FixtureFailures>() {
+            io_causes(failures.primary.as_ref(), found);
+            io_causes(failures.cleanup.as_ref(), found);
+        } else if let Some(source) = error.source() {
+            io_causes(source, found);
+        }
+    }
+
+    #[tokio::test]
+    async fn repeating_finish_reports_the_same_accepted_relay_failure_once() -> TestResult<()> {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let mut client = TcpStream::connect(listener.local_addr()?).await?;
+        let (downstream, _) = timeout(DEADLINE, listener.accept()).await??;
+        let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let upstream = TcpStream::connect(origin.local_addr()?).await?;
+        let (mut origin_client, _) = timeout(DEADLINE, origin.accept()).await??;
+        let mut owner = TunnelSetup::spawn(async move {
+            Ok(EstablishedTunnel::new(
+                (),
+                super::super::spawn_relay(FailedRead(downstream), upstream),
+            ))
+        });
+        timeout(DEADLINE, owner.establish()).await??;
+        let tunnel = owner.tunnel.as_ref().ok_or("returned tunnel missing")?;
+        let relay = tunnel.peers[0]
+            .abort_handle()
+            .ok_or("original relay missing")?;
+
+        let first = owner
+            .finish(Ok(()))
+            .await
+            .err()
+            .ok_or("relay failure disappeared")?;
+        let original =
+            cause::<io::Error>(first.as_ref()).ok_or("original relay I/O cause missing")?;
+        assert_eq!(original.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(original.to_string(), "original accepted relay failure");
+        let pointer = original as *const io::Error;
+        let mut first_causes = Vec::new();
+        io_causes(first.as_ref(), &mut first_causes);
+        assert_eq!(first_causes, [pointer]);
+
+        let repeated = owner
+            .finish(Err(first))
+            .await
+            .err()
+            .ok_or("returned relay failure disappeared")?;
+        let mut repeated_causes = Vec::new();
+        io_causes(repeated.as_ref(), &mut repeated_causes);
+        assert_eq!(repeated_causes, [pointer]);
+        assert!(owner.task.is_none());
+        assert!(
+            owner
+                .tunnel
+                .as_ref()
+                .ok_or("returned tunnel lost")?
+                .peers
+                .is_empty()
+        );
+        assert!(relay.is_finished());
+        closed(&mut client).await?;
+        closed(&mut origin_client).await?;
         Ok(())
     }
 }
