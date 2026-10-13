@@ -167,6 +167,8 @@ These records remain under the evidence root above:
 | `final-13-historical-chain-dispositions-7e153e1a.json` | Complete baselines and every surviving later difference for 13 paths |
 | `coverage-37-root-source-bindings-d1-7e.json` | Independent Git blob, hash and line-count checks at `d1d353e8` and `7e153e1a` |
 | `coverage-37-root-original-receipt-bindings.json` | All 56 selected original receipt objects retain their recorded bytes |
+| `merged-fixture-13-current-source-dispositions-1806cb77.json` | Exact-current reviews and baseline-plus-difference chains for the thirteen added fixture paths, with nine new independent current-source reads |
+| `merged-fixture-13-root-bindings-1806-b694.json` | Root verifies all thirteen source blobs and original receipt hashes; candidate Rust bodies remain unchanged |
 
 The integration owner reads the original review methods, contract assessments
 and limits alongside these records. All 37 source blobs match both revisions.

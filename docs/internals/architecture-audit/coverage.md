@@ -29,8 +29,13 @@ It contains 2,473 merged paths and five retired historical paths. Existing
 review dispositions retain their original source scope. Presence and pending
 row counts do not measure unfinished implementation.
 
-Thirteen new fixture paths have delivery presence and composed-review
-pointers. Their individual whole-source scope reconciliation remains pending.
+The thirteen added fixture paths now have reconciled individual review
+records. Nine original receipts cover their exact current source. Four
+retain complete independent baselines and every later reviewed difference.
+Nine fresh independent current-source reads are recorded separately. Author
+context reads do not become independent approval, and child reviews do not
+extend to their parents. These records establish source scope, without new
+runtime verification.
 
 Receipt reconciliation covers 37 previously uncredited paths at `d1d353e8`.
 Twenty-four have complete reviews of their exact current source. Thirteen
