@@ -14,7 +14,7 @@ use phantom_testkit::http1::{
     expectation::{AdjustableHeader, RequestExpectation},
 };
 use tokio::{
-    io::{AsyncWriteExt, BufReader},
+    io::{AsyncRead, AsyncWrite, AsyncWriteExt, BufReader},
     net::{TcpListener, TcpStream},
     task::JoinHandle,
     time::{Instant, timeout, timeout_at},
@@ -118,7 +118,7 @@ async fn check_navigation(
 }
 
 async fn capture_stream(
-    stream: TcpStream,
+    stream: impl AsyncRead + AsyncWrite + Unpin,
     deadline: Instant,
     limits: CaptureLimits,
 ) -> TestResult<RequestHeadCapture> {
@@ -274,32 +274,79 @@ mod peer_controls {
     use std::{
         io,
         net::SocketAddr,
+        pin::Pin,
         sync::{
             Arc,
             atomic::{AtomicBool, Ordering},
         },
+        task::{Context, Poll},
     };
 
-    use tokio::{io::AsyncReadExt, task::yield_now, time::error::Elapsed};
+    use tokio::{
+        io::{AsyncReadExt, ReadBuf},
+        task::yield_now,
+        time::error::Elapsed,
+    };
 
     use super::*;
+
+    struct ObservedCapture {
+        stream: TcpStream,
+        read: Arc<AtomicBool>,
+    }
+
+    impl AsyncRead for ObservedCapture {
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            buffer: &mut ReadBuf<'_>,
+        ) -> Poll<io::Result<()>> {
+            let before = buffer.filled().len();
+            let result = Pin::new(&mut self.stream).poll_read(cx, buffer);
+            if matches!(result, Poll::Ready(Ok(()))) && &buffer.filled()[before..] == b"G" {
+                self.read.store(true, Ordering::SeqCst);
+            }
+            result
+        }
+    }
+
+    impl AsyncWrite for ObservedCapture {
+        fn poll_write(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            bytes: &[u8],
+        ) -> Poll<io::Result<usize>> {
+            Pin::new(&mut self.stream).poll_write(cx, bytes)
+        }
+
+        fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Pin::new(&mut self.stream).poll_flush(cx)
+        }
+
+        fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Pin::new(&mut self.stream).poll_shutdown(cx)
+        }
+    }
 
     async fn blocked_capture() -> TestResult<(WirePeer, TcpStream, SocketAddr)> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let accepted = Arc::new(AtomicBool::new(false));
-        let observed = accepted.clone();
+        let read = Arc::new(AtomicBool::new(false));
+        let observed = read.clone();
         let deadline = Instant::now() + Duration::from_secs(10);
         let limits = CaptureLimits::new(32_768, 8_192, 128);
         let peer = WirePeer::new(tokio::spawn(async move {
             let (stream, _) = listener.accept().await?;
-            observed.store(true, Ordering::SeqCst);
+            let stream = ObservedCapture {
+                stream,
+                read: observed,
+            };
             capture_stream(stream, deadline, limits).await
         }));
         let mut client = TcpStream::connect(address).await?;
         client.write_all(b"G").await?;
         timeout(Duration::from_secs(2), async {
-            while !accepted.load(Ordering::SeqCst) {
+            while !read.load(Ordering::SeqCst) {
                 yield_now().await;
             }
         })
