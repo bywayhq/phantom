@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import contextlib
 import ipaddress
 import json
+import math
 import platform
 import secrets
 import ssl
@@ -47,6 +47,7 @@ from .http2_session import (
     HOSTNAME,
     Certificate,
     generate_certificate,
+    peer_disconnected,
     server_context,
 )
 
@@ -85,6 +86,15 @@ READ_SIZE = 64 * 1024
 MAX_FRAMES = 2000
 MAX_REQUEST_HEAD = 64 * 1024
 MAX_BODY = 8 * 1024 * 1024
+MAX_CONNECTIONS = 32
+MAX_REQUESTS = 256
+MAX_STREAMS = 64
+MAX_CAPTURE_BYTES = 64 * 1024 * 1024
+MAX_INPUT_FRAMES = 65_536
+MAX_FRAME_PAYLOAD = 16_384
+CLEANUP_SECONDS = 5.0
+MAX_TIMER_MS = 2_147_483_647
+HTTP_TOKEN_PUNCTUATION = frozenset("!#$%&'*+-.^_`|~")
 LARGE_BODY = 1024 * 1024
 UNANSWERED_WAIT_MS = 11_500
 ETAG = '"phantom-v1"'
@@ -282,6 +292,8 @@ class ConnectionRecord:
     silenced: float | None = None
     frames: list[str] = field(default_factory=list)
     data_frames: int = 0
+    # Expected native disconnects retain their original diagnostic outside the fixture.
+    disconnects: list[BaseException] = field(default_factory=list, repr=False)
 
     @property
     def ended(self) -> bool:
@@ -329,6 +341,7 @@ class FrameLog:
         self.buffer = bytearray()
         self.preface_seen = False
         self.paths: dict[int, int] = {}
+        self.count = 0
 
     def feed(self, data: bytes, milliseconds: float) -> None:
         self.buffer.extend(data)
@@ -341,12 +354,17 @@ class FrameLog:
             self.preface_seen = True
         while len(self.buffer) >= 9:
             length = int.from_bytes(self.buffer[0:3], "big")
+            if length > MAX_FRAME_PAYLOAD:
+                raise ValueError("HTTP/2 frame exceeds the advertised capture limit")
             if len(self.buffer) < 9 + length:
                 return
             kind, flags = self.buffer[3], self.buffer[4]
             stream = int.from_bytes(self.buffer[5:9], "big") & 0x7FFF_FFFF
             payload = bytes(self.buffer[9 : 9 + length])
             del self.buffer[: 9 + length]
+            self.count += 1
+            if self.count > MAX_INPUT_FRAMES:
+                raise ValueError("connection exceeds the input frame limit")
             if kind == 0x0:
                 self.record.data_frames += 1
                 continue
@@ -403,6 +421,35 @@ def recorded_values(fields: Sequence[tuple[str, str]]) -> dict[str, str]:
     return values
 
 
+def _http_token(value: str) -> bool:
+    return bool(value) and all(
+        (character.isascii() and character.isalnum())
+        or character in HTTP_TOKEN_PUNCTUATION
+        for character in value
+    )
+
+
+def _validate_request_record(
+    method: str,
+    target: str,
+    fields: Sequence[tuple[str, str]],
+    *,
+    http2: bool = False,
+) -> None:
+    if not _http_token(method):
+        raise ValueError("request method is not an ASCII HTTP token")
+    if not target or any(not 0x21 <= ord(character) <= 0x7E for character in target):
+        raise ValueError("request target must contain visible ASCII only")
+    if "," in request_path(target):
+        raise ValueError("request path contains the fixture field separator")
+    for name, _ in fields:
+        token = name[1:] if http2 and name.startswith(":") else name
+        if not _http_token(token):
+            raise ValueError("request header name is not an ASCII HTTP token")
+        if "|" in name:
+            raise ValueError("request header name contains the fixture name separator")
+
+
 # -- Transport -------------------------------------------------------------
 
 
@@ -416,11 +463,13 @@ class Channel:
         writer: asyncio.StreamWriter,
         record: ConnectionRecord,
         clock: Callable[[], float],
+        run: Run | None = None,
     ) -> None:
         self.reader = reader
         self.writer = writer
         self.record = record
         self.clock = clock
+        self.run = run
         self.incoming = ssl.MemoryBIO()
         self.outgoing = ssl.MemoryBIO()
         self.tls = context.wrap_bio(self.incoming, self.outgoing, server_side=True)
@@ -428,12 +477,20 @@ class Channel:
     async def raw(self) -> bytes | None:
         try:
             data = await self.reader.read(READ_SIZE)
-        except ConnectionError:
-            self.record.reset = self.clock()
-            return None
+        except OSError as error:
+            if peer_disconnected(error):
+                if not any(previous is error for previous in self.record.disconnects):
+                    self.record.disconnects.append(error)
+                if self.run is None or not self.run.stopping:
+                    self.record.reset = self.clock()
+                return None
+            raise
         if not data:
-            self.record.eof = self.clock()
+            if self.run is None or not self.run.stopping:
+                self.record.eof = self.clock()
             return None
+        if self.run is not None:
+            self.run.retain(len(data))
         return data
 
     async def handshake(self) -> bool:
@@ -447,7 +504,7 @@ class Channel:
                 pass
             except ssl.SSLError as error:
                 self.record.tls_error = error.reason or type(error).__name__
-                return False
+                raise
             await self.flush()
             data = await self.raw()
             if data is None:
@@ -457,9 +514,10 @@ class Channel:
     async def flush(self) -> None:
         pending = self.outgoing.read()
         if pending and not self.writer.transport.is_closing():
+            if self.run is not None:
+                self.run.retain(len(pending))
             self.writer.write(pending)
-            with contextlib.suppress(ConnectionError):
-                await self.writer.drain()
+            await self.writer.drain()
 
     async def read(self) -> bytes | None:
         """Decrypted bytes, or None once the client has ended the connection."""
@@ -478,7 +536,7 @@ class Channel:
                 return await self.after_close_notify()
             except ssl.SSLError as error:
                 self.record.tls_error = error.reason or type(error).__name__
-                return None
+                raise
             await self.flush()
             raw = await self.raw()
             if raw is None:
@@ -487,7 +545,8 @@ class Channel:
 
     async def after_close_notify(self) -> None:
         """Record the close_notify, then wait for the TCP end that follows."""
-        self.record.close_notify = self.clock()
+        if self.run is None or not self.run.stopping:
+            self.record.close_notify = self.clock()
         await self.flush()
         while await self.raw() is not None:
             pass
@@ -516,14 +575,63 @@ class Run:
     done: asyncio.Event = field(default_factory=asyncio.Event)
     # Set each time a connection's handler returns.
     connection_ended: asyncio.Event = field(default_factory=asyncio.Event)
+    failure_ready: asyncio.Event = field(default_factory=asyncio.Event)
+    failure: BaseException | None = None
+    completion: asyncio.TimerHandle | None = None
+    stopping: bool = False
+    retained_bytes: int = 0
+    grace_timeout: asyncio.TimeoutError | None = None
+    remote_disconnect: BaseException | None = None
 
     def now(self) -> float:
         return time.perf_counter() - self.started
 
-    def finish(self, target: str) -> None:
-        query = parse_qs(urlsplit(target).query)
+    def retain(self, amount: int) -> None:
+        if self.retained_bytes + amount > MAX_CAPTURE_BYTES:
+            raise ValueError("run exceeds the aggregate capture byte limit")
+        self.retained_bytes += amount
+
+    def belongs(self, target: str) -> bool:
+        # urlsplit normalizes controls before parsing; qualify the actual wire target.
+        if (
+            not target.startswith("/")
+            or target.startswith("//")
+            or any(
+                ord(character) <= 0x20 or ord(character) == 0x7F for character in target
+            )
+            or "#" in target
+        ):
+            return False
+        try:
+            parts = urlsplit(target)
+        except ValueError:
+            return False
+        return (
+            not parts.scheme
+            and not parts.netloc
+            and parse_qs(parts.query, keep_blank_values=True).get("run") == [self.token]
+        )
+
+    def select(self, connection: int, target: str) -> None:
+        if self.belongs(target) and self.page_connection in (None, connection):
+            self.page_connection = connection
+
+    def finish(self, target: str, connection: int) -> None:
+        if (
+            self.stopping
+            or not self.belongs(target)
+            or connection != self.page_connection
+            or self.completion is not None
+        ):
+            return
+        query = parse_qs(urlsplit(target).query, keep_blank_values=True)
         self.page_result = query.get("result", ["none"])[0]
-        asyncio.get_running_loop().call_later(0.5, self.done.set)
+        self.completion = asyncio.get_running_loop().call_later(0.5, self.done.set)
+
+    def add_request(self, request: RequestRecord) -> None:
+        if len(self.requests) >= MAX_REQUESTS:
+            raise ValueError("run exceeds the request limit")
+        self.requests.append(request)
 
     def silences(self, connection: int, path: str) -> bool:
         """Whether the server stops writing on `connection` at this request."""
@@ -532,27 +640,6 @@ class Run:
             and path == "/b"
             and connection == self.page_connection
         )
-
-
-async def accept(
-    run: Run, context: ssl.SSLContext, listener: str, reader, writer
-) -> None:
-    record = ConnectionRecord(len(run.connections), listener, run.now())
-    run.connections.append(record)
-    channel = Channel(context, reader, writer, record, run.now)
-    try:
-        if not await channel.handshake():
-            return
-        if record.alpn == "h2":
-            await serve_h2(run, channel, record)
-        else:
-            await serve_h1(run, channel, record)
-    except ValueError as error:
-        record.tls_error = f"capture:{error}"
-    finally:
-        if not writer.transport.is_closing():
-            writer.close()
-        run.connection_ended.set()
 
 
 async def all_ended(run: Run) -> None:
@@ -584,6 +671,9 @@ async def serve_h2(run: Run, channel: Channel, record: ConnectionRecord) -> None
                     (n.decode("latin-1"), v.decode("latin-1")) for n, v in event.headers
                 ]
                 head = dict(fields)
+                _validate_request_record(
+                    head.get(":method", ""), head.get(":path", ""), fields, http2=True
+                )
                 path = request_path(head.get(":path", ""))
                 log.name_request(event.stream_id, path)
                 request = RequestRecord(
@@ -595,11 +685,13 @@ async def serve_h2(run: Run, channel: Channel, record: ConnectionRecord) -> None
                     [name for name, _ in fields],
                     recorded_values(fields),
                 )
+                if len(streams) >= MAX_STREAMS:
+                    raise ValueError("connection exceeds the active stream limit")
+                run.add_request(request)
                 streams[event.stream_id] = request
                 targets[event.stream_id] = head.get(":path", "")
-                run.requests.append(request)
                 if path == "/start":
-                    run.page_connection = record.index
+                    run.select(record.index, targets[event.stream_id])
                 if run.silences(record.index, path):
                     record.silenced = run.now()
             elif isinstance(event, h2.events.DataReceived):
@@ -612,7 +704,8 @@ async def serve_h2(run: Run, channel: Channel, record: ConnectionRecord) -> None
                     event.flow_controlled_length, event.stream_id
                 )
             elif isinstance(event, h2.events.StreamEnded):
-                request = streams.get(event.stream_id)
+                request = streams.pop(event.stream_id, None)
+                target = targets.pop(event.stream_id, "")
                 if request is None or record.silenced is not None:
                     continue
                 reply = reply_for(
@@ -632,7 +725,10 @@ async def serve_h2(run: Run, channel: Channel, record: ConnectionRecord) -> None
                         event.stream_id, reply.body, end_stream=not reply.stall
                     )
                 if request.path == "/done":
-                    run.finish(targets[event.stream_id])
+                    run.finish(target, record.index)
+            elif isinstance(event, h2.events.StreamReset):
+                streams.pop(event.stream_id, None)
+                targets.pop(event.stream_id, None)
         await channel.write(connection.data_to_send())
 
 
@@ -647,12 +743,21 @@ async def serve_h1(run: Run, channel: Channel, record: ConnectionRecord) -> None
                 return
             buffer.extend(data)
         end = buffer.index(b"\r\n\r\n")
+        if end + 4 > MAX_REQUEST_HEAD:
+            raise ValueError("request head exceeds the capture limit")
         lines = bytes(buffer[:end]).decode("latin-1").split("\r\n")
         del buffer[: end + 4]
-        method, target, _ = lines[0].split(" ", 2)
-        fields = [
-            tuple(part.strip() for part in line.split(":", 1)) for line in lines[1:]
-        ]
+        parts = lines[0].split(" ")
+        if len(parts) != 3 or parts[2] not in {"HTTP/1.0", "HTTP/1.1"}:
+            raise ValueError("invalid HTTP/1 request line")
+        method, target, _ = parts
+        fields = []
+        for line in lines[1:]:
+            name, separator, value = line.partition(":")
+            if not separator:
+                raise ValueError("invalid HTTP/1 header field")
+            fields.append((name, value.strip()))
+        _validate_request_record(method, target, fields)
         head = {name.lower(): value for name, value in fields}
         path = request_path(target)
         request = RequestRecord(
@@ -664,21 +769,21 @@ async def serve_h1(run: Run, channel: Channel, record: ConnectionRecord) -> None
             [name for name, _ in fields],
             recorded_values(fields),
         )
-        run.requests.append(request)
-        if path == "/start":
-            run.page_connection = record.index
-        if head.get("expect", "").lower() == "100-continue":
-            await channel.write(b"HTTP/1.1 100 Continue\r\n\r\n")
         if "chunked" in head.get("transfer-encoding", "").lower():
             raise ValueError("chunked request bodies are not supported")
         remaining = int(head.get("content-length", "0"))
-        if remaining > MAX_BODY:
-            raise ValueError("request body exceeds the capture limit")
+        if not 0 <= remaining <= MAX_BODY:
+            raise ValueError("request body length is outside the capture limit")
+        run.add_request(request)
+        if path == "/start":
+            run.select(record.index, target)
+        if head.get("expect", "").lower() == "100-continue":
+            await channel.write(b"HTTP/1.1 100 Continue\r\n\r\n")
         while remaining > 0:
             if not buffer:
                 data = await channel.read()
                 if data is None:
-                    return
+                    raise EOFError("client ended before completing the request body")
                 buffer.extend(data)
             taken = min(remaining, len(buffer))
             del buffer[:taken]
@@ -695,7 +800,412 @@ async def serve_h1(run: Run, channel: Channel, record: ConnectionRecord) -> None
             out.append(f"content-length: {len(reply.body)}")
         await channel.write(("\r\n".join(out) + "\r\n\r\n").encode() + reply.body)
         if path == "/done":
-            run.finish(target)
+            run.finish(target, record.index)
+
+
+class LifecycleFailures(Exception):
+    """Original operation errors and owners whose retirement needs retry."""
+
+    def __init__(
+        self,
+        primary: BaseException | None,
+        cleanup: Sequence[BaseException],
+        owner: LifecycleServer | RemoteConnection | RemoteSocket,
+    ) -> None:
+        self.primary = primary
+        self.cleanup = tuple(cleanup)
+        self.owner = owner
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        self.interruption_cause = None
+        self.interruption_context = None
+        super().__init__("lifecycle capture cleanup failed")
+
+
+def _raise_lifecycle_failures(
+    primary: BaseException | None,
+    cleanup: Sequence[BaseException],
+    owner: LifecycleServer | RemoteConnection | RemoteSocket,
+) -> None:
+    cleanup = tuple(error for error in cleanup if error is not primary)
+    if cleanup:
+        combined = LifecycleFailures(primary, cleanup, owner)
+        interruption = next(
+            (
+                error
+                for error in (primary, *cleanup)
+                if isinstance(
+                    error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+                )
+            ),
+            None,
+        )
+        if interruption is not None:
+            combined.interruption_cause = interruption.__cause__
+            combined.interruption_context = interruption.__context__
+            raise interruption from combined
+        if primary is not None:
+            raise primary from combined
+        raise combined from cleanup[0]
+    if primary is not None:
+        raise primary
+
+
+@dataclass
+class LifecycleListener:
+    server: asyncio.Server
+    waiter: asyncio.Task[None] | None = None
+    observed: bool = False
+
+
+class LifecycleProtocol(asyncio.StreamReaderProtocol):
+    """Retain the accepted stream before connection_made is queued."""
+
+    def __init__(
+        self, owner: LifecycleServer, context: ssl.SSLContext, listener: str
+    ) -> None:
+        self.owner = owner
+        self.context = context
+        self.listener = listener
+        self.transport: asyncio.Transport | None = None
+        self.writer: asyncio.StreamWriter | None = None
+        self.handler: asyncio.Task[None] | None = None
+        self.waiter: asyncio.Task[None] | None = None
+        self.record: ConnectionRecord | None = None
+        self.closed = asyncio.get_running_loop().create_future()
+        self.retired = False
+        self.observed: set[asyncio.Task] = set()
+        super().__init__(asyncio.StreamReader(limit=READ_SIZE), self.connected)
+        self.stream_closed = self._get_close_waiter(None)
+        self.closed_observed = False
+
+    def connection_made(self, transport) -> None:
+        self.transport = transport
+        if self.owner.run.stopping:
+            self.owner.stop_listeners()
+        try:
+            super().connection_made(transport)
+        except BaseException as error:
+            self.owner.failed(error)
+            try:
+                transport.abort()
+            except BaseException as cleanup:
+                self.owner.failed(cleanup)
+
+    def connected(self, reader, writer) -> None:
+        self.writer = writer
+        self.owner.accept(reader, self)
+
+    def connection_lost(self, error) -> None:
+        if error is not None:
+            self.owner.disconnected(self, error)
+        try:
+            super().connection_lost(error)
+        except BaseException as cleanup:
+            self.owner.failed(cleanup)
+        finally:
+            self.retired = True
+            if not self.closed.done():
+                self.closed.set_result(None)
+
+
+class LifecycleServer:
+    """The two listeners and every accepted stream through native retirement."""
+
+    def __init__(self, run: Run) -> None:
+        self.run = run
+        self.listeners: list[LifecycleListener] = []
+        self.protocols: set[LifecycleProtocol] = set()
+        self.failures: list[BaseException] = []
+        self.primary: BaseException | None = None
+        self.lock = asyncio.Lock()
+        self.event_tasks: set[asyncio.Task] = set()
+
+    def remember(self, error: BaseException) -> None:
+        if not any(previous is error for previous in self.failures):
+            self.failures.append(error)
+        if self.run.failure is None:
+            self.run.failure = error
+        self.run.failure_ready.set()
+
+    def failed(self, error: BaseException) -> None:
+        self.remember(error)
+        self.run.stopping = True
+        self.stop_listeners()
+
+    def stop_listeners(self) -> None:
+        for listener in self.listeners:
+            try:
+                listener.server.close()
+            except BaseException as error:
+                self.remember(error)
+
+    def submit(self, operation) -> asyncio.Task:
+        try:
+            return asyncio.create_task(operation)
+        except BaseException as primary:
+            self.failed(primary)
+            try:
+                operation.close()
+            except BaseException as cleanup:
+                self.failed(cleanup)
+            raise
+
+    async def start(self, host: str, context: ssl.SSLContext, name: str) -> int:
+        if not ipaddress.ip_address(host).is_loopback:
+            raise ValueError("the capture listener must be a loopback address")
+        server = await asyncio.get_running_loop().create_server(
+            lambda: self.new_protocol(context, name),
+            host,
+            0,
+            start_serving=False,
+        )
+        listener = LifecycleListener(server)
+        self.listeners.append(listener)
+        ready = asyncio.Event()
+        listener.waiter = self.submit(self.wait_listener(listener, ready))
+        listener.waiter.add_done_callback(lambda _task: ready.set())
+        await asyncio.wait_for(ready.wait(), CLEANUP_SECONDS)
+        if listener.waiter.done():
+            listener.observed = True
+            listener.waiter.result()
+        port = server.sockets[0].getsockname()[1]
+        await server.start_serving()
+        return port
+
+    async def wait_listener(
+        self, listener: LifecycleListener, ready: asyncio.Event
+    ) -> None:
+        # Register while the listener is open, before any accepted transport attaches.
+        asyncio.get_running_loop().call_soon(ready.set)
+        await listener.server.wait_closed()
+
+    def new_protocol(self, context: ssl.SSLContext, name: str) -> LifecycleProtocol:
+        try:
+            protocol = LifecycleProtocol(self, context, name)
+        except BaseException as error:
+            self.failed(error)
+            raise
+        self.protocols.add(protocol)
+        if len(self.run.connections) >= MAX_CONNECTIONS:
+            # The backend still has to attach this protocol before closing listeners.
+            self.remember(ValueError("run exceeds the connection limit"))
+            self.run.stopping = True
+        elif not self.run.stopping:
+            try:
+                protocol.record = ConnectionRecord(
+                    len(self.run.connections), name, self.run.now()
+                )
+                self.run.connections.append(protocol.record)
+            except BaseException as error:
+                self.remember(error)
+                self.run.stopping = True
+        return protocol
+
+    def disconnected(self, protocol: LifecycleProtocol, error: BaseException) -> None:
+        if peer_disconnected(error) and protocol.record is not None:
+            record = protocol.record
+            if not any(previous is error for previous in record.disconnects):
+                record.disconnects.append(error)
+            if not self.run.stopping and record.reset is None:
+                record.reset = self.run.now()
+        else:
+            self.failed(error)
+
+    def observe(self, protocol: LifecycleProtocol, task: asyncio.Task[None]) -> None:
+        if task in protocol.observed:
+            return
+        protocol.observed.add(task)
+        try:
+            task.result()
+        except BaseException as error:
+            self.failed(error)
+
+    def accept(self, reader: asyncio.StreamReader, protocol: LifecycleProtocol) -> None:
+        try:
+            if self.run.stopping:
+                protocol.transport.abort()
+            else:
+                protocol.handler = self.submit(self.handle(reader, protocol))
+                protocol.handler.add_done_callback(
+                    lambda task: self.observe(protocol, task)
+                )
+            protocol.waiter = self.submit(self.wait_writer(protocol))
+            protocol.waiter.add_done_callback(lambda task: self.observe(protocol, task))
+        except BaseException as error:
+            self.failed(error)
+            try:
+                protocol.transport.abort()
+            except BaseException as cleanup:
+                self.failed(cleanup)
+
+    async def handle(
+        self, reader: asyncio.StreamReader, protocol: LifecycleProtocol
+    ) -> None:
+        record = protocol.record
+        try:
+            channel = Channel(
+                protocol.context,
+                reader,
+                protocol.writer,
+                record,
+                self.run.now,
+                self.run,
+            )
+            if await channel.handshake():
+                if record.alpn == "h2":
+                    await serve_h2(self.run, channel, record)
+                else:
+                    await serve_h1(self.run, channel, record)
+        except BaseException as error:
+            if peer_disconnected(error):
+                self.disconnected(protocol, error)
+            else:
+                self.failed(error)
+        finally:
+            try:
+                protocol.writer.close()
+            except BaseException as error:
+                self.disconnected(protocol, error)
+            self.run.connection_ended.set()
+
+    async def wait_writer(self, protocol: LifecycleProtocol) -> None:
+        try:
+            await protocol.writer.wait_closed()
+        except BaseException as error:
+            self.disconnected(protocol, error)
+
+    async def wait_done(self, budget: float) -> None:
+        try:
+            self.event_tasks.add(self.submit(self.run.done.wait()))
+            self.event_tasks.add(self.submit(self.run.failure_ready.wait()))
+            done, _ = await asyncio.wait(
+                self.event_tasks, timeout=budget, return_when=asyncio.FIRST_COMPLETED
+            )
+            for task in tuple(self.event_tasks):
+                if task in done:
+                    self.event_tasks.remove(task)
+                    try:
+                        task.result()
+                    except BaseException as error:
+                        self.failed(error)
+            if self.run.failure is not None:
+                raise self.run.failure
+            if not done:
+                raise asyncio.TimeoutError("the lifecycle page did not finish")
+        finally:
+            # Retain the actual observers on the owner until close collects both outcomes.
+            self.run.done.set()
+            self.run.failure_ready.set()
+
+    async def close(self, primary: BaseException | None = None) -> None:
+        try:
+            await self.lock.acquire()
+        except BaseException as error:
+            _raise_lifecycle_failures(primary, (error,), self)
+        try:
+            if self.primary is None:
+                self.primary = primary
+            elif primary is not None and primary is not self.primary:
+                self.remember(primary)
+            try:
+                await self.collect()
+            except BaseException as error:
+                self.remember(error)
+            failures, self.failures = self.failures, []
+            original, self.primary = self.primary, None
+            _raise_lifecycle_failures(original, failures, self)
+        finally:
+            self.lock.release()
+
+    async def collect(self) -> None:
+        self.run.stopping = True
+        self.run.done.set()
+        self.run.failure_ready.set()
+        if self.run.completion is not None:
+            self.run.completion.cancel()
+        self.stop_listeners()
+        deadline = asyncio.get_running_loop().time() + CLEANUP_SECONDS
+        while True:
+            for task in tuple(self.event_tasks):
+                if task.done():
+                    self.event_tasks.remove(task)
+                    try:
+                        task.result()
+                    except BaseException as error:
+                        self.remember(error)
+            for protocol in tuple(self.protocols):
+                if protocol.transport is not None and not protocol.retired:
+                    try:
+                        protocol.transport.abort()
+                    except BaseException as error:
+                        self.failed(error)
+                if protocol.writer is not None and protocol.waiter is None:
+                    try:
+                        protocol.waiter = self.submit(self.wait_writer(protocol))
+                    except BaseException as error:
+                        self.failed(error)
+                for task in (protocol.handler, protocol.waiter):
+                    if task is not None and task.done():
+                        self.observe(protocol, task)
+                if protocol.stream_closed.done() and not protocol.closed_observed:
+                    # Setup can fail before a writer exists; its original stream
+                    # close future still carries the native connection_lost error.
+                    protocol.closed_observed = True
+                    try:
+                        protocol.stream_closed.result()
+                    except BaseException as error:
+                        self.disconnected(protocol, error)
+                if (
+                    protocol.retired
+                    and protocol.closed_observed
+                    and (protocol.handler is None or protocol.handler.done())
+                    and (
+                        protocol.writer is None
+                        or (protocol.waiter is not None and protocol.waiter.done())
+                    )
+                ):
+                    self.protocols.remove(protocol)
+            tasks = {
+                task
+                for protocol in self.protocols
+                for task in (
+                    protocol.handler,
+                    protocol.waiter,
+                    protocol.closed,
+                    protocol.stream_closed,
+                )
+                if task is not None and not task.done()
+            }
+            tasks.update(self.event_tasks)
+            for listener in self.listeners:
+                if listener.waiter is None:
+                    self.remember(
+                        RuntimeError("listener retirement waiter was not registered")
+                    )
+                elif listener.waiter.done():
+                    if not listener.observed:
+                        listener.observed = True
+                        try:
+                            listener.waiter.result()
+                        except BaseException as error:
+                            self.failed(error)
+                else:
+                    tasks.add(listener.waiter)
+            if not tasks:
+                if self.protocols:
+                    self.remember(RuntimeError("connection retirement is unobserved"))
+                return
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                self.remember(TimeoutError("lifecycle capture peers did not stop"))
+                return
+            try:
+                await asyncio.wait(
+                    tasks, timeout=remaining, return_when=asyncio.FIRST_COMPLETED
+                )
+            except BaseException as error:
+                self.remember(error)
 
 
 # -- Capture ---------------------------------------------------------------
@@ -726,8 +1236,10 @@ def launch_plan(
 ) -> LaunchPlan:
     remote = args.scenario == "close"
     if args.browser in CHROMIUM_BROWSERS:
+        address = ipaddress.ip_address(args.listen)
+        replacement = f"[{address}]" if address.version == 6 else str(address)
         extra = [
-            f"--host-resolver-rules=MAP {HOSTNAME} {args.listen}, EXCLUDE localhost",
+            f"--host-resolver-rules=MAP {HOSTNAME} {replacement}, EXCLUDE localhost",
             "--ignore-certificate-errors-spki-list=" + certificate.spki_sha256_base64,
             "--disable-quic",
         ]
@@ -743,7 +1255,8 @@ def launch_plan(
         ("--remote-debugging-port", "0") if remote else (),
         firefox_preferences=(
             ("network.dns.localDomains", HOSTNAME),
-            ("network.dns.disableIPv6", True),
+            ("network.dns.disableIPv6", ipaddress.ip_address(args.listen).version == 4),
+            ("network.dns.preferIPv6", ipaddress.ip_address(args.listen).version == 6),
             ("network.http.http3.enable", False),
         ),
         profile_files=(
@@ -752,28 +1265,63 @@ def launch_plan(
     )
 
 
-async def close_browser(browser: str, profile: Path) -> None:
+async def close_browser(browser: str, profile: Path, run: Run) -> None:
     """Close the browser as its user would, over its remote protocol."""
     if browser == "firefox":
         endpoint = await wait_for_endpoint(firefox_endpoint, profile)
     else:
         endpoint = await wait_for_endpoint(chromium_endpoint, profile)
-    connection = RemoteConnection(await RemoteSocket.connect(endpoint))
+    socket = await RemoteSocket.connect(endpoint)
+    connection = None
+    primary = None
+    cleanup = []
 
     async def ignore(_: dict) -> None:
         return None
 
-    connection.start(ignore)
     try:
+        connection = RemoteConnection(socket)
+        connection.start(ignore)
         if browser == "firefox":
-            await connection.call("session.new", {"capabilities": {}})
-            future = await connection.send("browser.close", {})
+            await asyncio.wait_for(
+                connection.call("session.new", {"capabilities": {}}), 15
+            )
+            future = await asyncio.wait_for(connection.send("browser.close", {}), 5)
         else:
-            future = await connection.send("Browser.close", {})
-        with contextlib.suppress(Exception):
+            future = await asyncio.wait_for(connection.send("Browser.close", {}), 5)
+        try:
             await asyncio.wait_for(future, timeout=5)
-    finally:
-        await connection.close()
+        except (ConnectionError, asyncio.IncompleteReadError) as error:
+            # Browser.close may retire the endpoint before replying. A partial frame
+            # or an unrelated I/O error is not a successful remote close.
+            clean_end = (
+                type(error) is ConnectionError
+                and str(error) == "remote protocol endpoint closed"
+            ) or (
+                isinstance(error, asyncio.IncompleteReadError)
+                and error.expected == 2
+                and not error.partial
+            )
+            if connection.failure is not error or not clean_end:
+                raise
+            run.remote_disconnect = error
+    except BaseException as error:
+        primary = error
+    if connection is not None:
+        try:
+            await connection.close()
+        except BaseException as error:
+            cleanup.append(error)
+    else:
+        try:
+            socket.close()
+        except BaseException as error:
+            cleanup.append(error)
+        try:
+            await asyncio.wait_for(socket.writer.wait_closed(), CLEANUP_SECONDS)
+        except BaseException as error:
+            cleanup.append(error)
+    _raise_lifecycle_failures(primary, cleanup, connection or socket)
 
 
 def fixture(
@@ -815,7 +1363,22 @@ def fixture(
     return "\n".join(lines) + "\n"
 
 
+def validate_options(args: argparse.Namespace) -> None:
+    address = ipaddress.ip_address(args.listen)
+    if not address.is_loopback:
+        raise ValueError("the capture listener must be a loopback address")
+    if args.browser == "firefox" and args.listen not in {"127.0.0.1", "::1"}:
+        raise ValueError("Firefox local-domain captures require 127.0.0.1 or ::1")
+    if (
+        not math.isfinite(args.idle)
+        or args.idle <= 0
+        or args.idle * 1000 > MAX_TIMER_MS
+    ):
+        raise ValueError("--idle must be finite, positive, and fit a JavaScript timer")
+
+
 async def capture(args: argparse.Namespace) -> None:
+    validate_options(args)
     certificate = generate_certificate()
     main_context = server_context(certificate)
     main_context.set_alpn_protocols(
@@ -824,38 +1387,39 @@ async def capture(args: argparse.Namespace) -> None:
     h1_context = server_context(certificate)
     h1_context.set_alpn_protocols(["http/1.1"])
     run = Run(args.scenario, secrets.token_hex(8), round(args.idle * 1000))
-    server = await asyncio.start_server(
-        lambda r, w: accept(run, main_context, "main", r, w), args.listen, 0
-    )
-    h1_server = await asyncio.start_server(
-        lambda r, w: accept(run, h1_context, "h1", r, w), args.listen, 0
-    )
-    port = server.sockets[0].getsockname()[1]
-    h1_port = h1_server.sockets[0].getsockname()[1]
-    run.h1_origin = f"https://{HOSTNAME}:{h1_port}"
-    plan = launch_plan(args, certificate, (port, h1_port))
-    url = f"https://{HOSTNAME}:{port}/start?run={run.token}"
+    owner = LifecycleServer(run)
     budget = {"idle-ping": args.idle + 60, "ping-unanswered": 90}.get(args.scenario, 60)
     remote_close = None
+    primary = None
     try:
+        port = await owner.start(args.listen, main_context, "main")
+        h1_port = await owner.start(args.listen, h1_context, "h1")
+        run.h1_origin = f"https://{HOSTNAME}:{h1_port}"
+        plan = launch_plan(args, certificate, (port, h1_port))
+        url = f"https://{HOSTNAME}:{port}/start?run={run.token}"
         async with BrowserDriver(plan, url) as driver:
-            await asyncio.wait_for(run.done.wait(), timeout=budget)
+            await owner.wait_done(budget)
             print(f"page finished at {run.now():.1f} s", file=sys.stderr, flush=True)
             if args.scenario == "close":
                 await asyncio.sleep(2)
-                assert driver.browser is not None and driver.browser.profile is not None
+                if driver.browser is None or driver.browser.profile is None:
+                    raise RuntimeError("the browser has no remote profile")
                 remote_close = run.now()
-                await close_browser(args.browser, driver.browser.profile)
+                await close_browser(args.browser, driver.browser.profile, run)
                 print(
                     f"closed the browser at {run.now():.1f} s",
                     file=sys.stderr,
                     flush=True,
                 )
-                with contextlib.suppress(asyncio.TimeoutError):
+                try:
                     await asyncio.wait_for(all_ended(run), CLOSE_GRACE)
-    finally:
-        for listener in (server, h1_server):
-            listener.close()
+                except asyncio.TimeoutError as error:
+                    # An open connection at the end of this observation window is
+                    # part of the recording, not evidence that the browser closed it.
+                    run.grace_timeout = error
+    except BaseException as error:
+        primary = error
+    await owner.close(primary)
     arguments = (
         plan.recorded_arguments(url)
         .replace(certificate.spki_sha256_base64, "<certificate-spki>")
@@ -883,13 +1447,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
-        loopback = ipaddress.ip_address(args.listen).is_loopback
-    except ValueError:
-        loopback = False
-    if not loopback:
-        parser.error("the capture listener must be a loopback address")
-    if args.idle <= 0:
-        parser.error("--idle must be positive")
+        validate_options(args)
+    except ValueError as error:
+        parser.error(str(error))
     for package, version in SUPPORTED.items():
         if metadata.version(package) != version:
             parser.error(f"{package} {version} is required")

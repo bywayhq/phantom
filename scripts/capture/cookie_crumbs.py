@@ -197,9 +197,24 @@ class CookieRun:
         self.retained += size
 
     def classify(self, target: bytes) -> str:
-        parts = urlsplit(target.decode("latin-1"))
-        if parse_qs(parts.query).get("run", [""])[0] != self.token:
+        if (
+            not target.startswith(b"/")
+            or target.startswith(b"//")
+            or b"#" in target
+            or any(byte <= 0x20 or byte == 0x7F for byte in target)
+        ):
             return "other"
+
+        try:
+            parts = urlsplit(target.decode("latin-1"))
+        except ValueError:
+            return "other"
+        if parts.scheme or parts.netloc:
+            return "other"
+
+        if parse_qs(parts.query, keep_blank_values=True).get("run") != [self.token]:
+            return "other"
+
         return {
             "/start": "start",
             "/page": "page",
@@ -1447,25 +1462,32 @@ def tcp_launch_plan(
     args: argparse.Namespace, certificate: Certificate, listen_host: str, tls_port: int
 ) -> LaunchPlan:
     if args.browser in CHROMIUM_BROWSERS:
+        address = ipaddress.ip_address(listen_host)
+        mapped_host = f"[{address}]" if address.version == 6 else str(address)
         return LaunchPlan(
             browser=args.browser,
             executable=args.browser_path,
             headless=not args.headful,
             extra_arguments=(
-                f"--host-resolver-rules=MAP {HOSTNAME} {listen_host}, EXCLUDE localhost",
+                f"--host-resolver-rules=MAP {HOSTNAME} {mapped_host}, EXCLUDE localhost",
                 "--ignore-certificate-errors-spki-list="
                 + certificate.spki_sha256_base64,
                 "--disable-quic",
             ),
         )
     if args.browser == "firefox":
+        if listen_host not in ("127.0.0.1", "::1"):
+            raise ValueError("Firefox hostname mapping requires 127.0.0.1 or ::1")
+
+        ipv6 = listen_host == "::1"
         return LaunchPlan(
             browser="firefox",
             executable=args.browser_path,
             headless=not args.headful,
             firefox_preferences=(
                 ("network.dns.localDomains", HOSTNAME),
-                ("network.dns.disableIPv6", True),
+                ("network.dns.disableIPv6", not ipv6),
+                ("network.dns.preferIPv6", ipv6),
                 ("network.http.http3.enable", False),
             ),
             profile_files=(
@@ -1520,6 +1542,9 @@ async def capture(args: argparse.Namespace) -> None:
     names = list(SCENARIOS) if args.scenario == ["all"] else args.scenario
     if len(names) * args.repeat > MAX_RUNS:
         raise ValueError("scenario repeats exceed the cookie run limit")
+    if args.browser == "firefox" and args.listen not in ("127.0.0.1", "::1"):
+        raise ValueError("Firefox hostname mapping requires 127.0.0.1 or ::1")
+
     certificate = generate_certificate()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     server = None

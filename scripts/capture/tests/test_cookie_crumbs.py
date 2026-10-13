@@ -28,6 +28,7 @@ from scripts.capture.cookie_crumbs import (
     CookieFailures,
     CookieRun,
     QuicRecord,
+    RequestRecord,
     TcpServer,
     capture,
     check_field,
@@ -39,7 +40,11 @@ from scripts.capture.cookie_crumbs import (
     serving_http3,
 )
 from scripts.capture.fixture_file import write_text_fixture
-from scripts.capture.http2_session import HOSTNAME, generate_certificate
+from scripts.capture.http2_session import (
+    HOSTNAME,
+    ConnectionRecord,
+    generate_certificate,
+)
 from scripts.capture.tests.loopback_quic import connect_loopback
 
 FIXTURES = Path(__file__).resolve().parents[3] / "fixtures" / "cookies"
@@ -120,7 +125,199 @@ async def scripted_h2_run(cookie: bytes) -> CookieRun:
         await server.close(primary)
 
 
+class CookieLaunchTests(unittest.TestCase):
+    def test_tcp_launch_maps_canonical_addresses_without_enabling_quic(self):
+        args = argparse.Namespace(browser="chrome", browser_path=None, headful=False)
+        for host, mapped in (
+            ("127.0.0.1", "127.0.0.1"),
+            ("::1", "[::1]"),
+            ("0:0:0:0:0:0:0:1", "[::1]"),
+        ):
+            with self.subTest(host=host):
+                plan = cookie_crumbs.tcp_launch_plan(args, CERTIFICATE, host, 4433)
+                self.assertIn(
+                    f"--host-resolver-rules=MAP {HOSTNAME} {mapped}, EXCLUDE localhost",
+                    plan.extra_arguments,
+                )
+                self.assertIn("--disable-quic", plan.extra_arguments)
+
+        args.browser = "firefox"
+        for host, ipv6 in (("127.0.0.1", False), ("::1", True)):
+            with self.subTest(host=host):
+                plan = cookie_crumbs.tcp_launch_plan(args, CERTIFICATE, host, 4433)
+                preferences = dict(plan.firefox_preferences)
+                self.assertEqual(preferences["network.dns.localDomains"], HOSTNAME)
+                self.assertIs(preferences["network.dns.disableIPv6"], not ipv6)
+                self.assertIs(preferences["network.dns.preferIPv6"], ipv6)
+                self.assertIs(preferences["network.http.http3.enable"], False)
+                self.assertEqual(
+                    [name for name, _ in plan.profile_files], ["cert_override.txt"]
+                )
+
+
 class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
+    async def test_completion_requires_one_original_origin_form_run_token(self):
+        invalid = (
+            b"/done?run=wrong",
+            b"/done?run=token&run=other",
+            b"/done?run=token&run=",
+            b"/done?run=&run=token",
+            b"/done?run=token#fragment",
+            b"/done?run=token#",
+            b"https://localhost/done?run=token",
+            b"//localhost/done?run=token",
+            b"///done?run=token",
+            b"done?run=token",
+            b"/do\nne?run=token",
+            b"/done?run=to\tken",
+            b"\x00/done?run=token",
+            b" /done?run=token",
+            b"/done?run=to\rken",
+            b"/done?run=token\x7f",
+        )
+        run = CookieRun("token", 0)
+        run.connections.append(ConnectionRecord("plain", 0, protocol="http/1.1"))
+        for target in invalid:
+            with self.subTest(target=target):
+                kind = run.classify(target)
+                line = b"GET " + target + b" HTTP/1.1"
+                run.record(RequestRecord(0, 0, kind, request_line=line))
+                self.assertEqual(kind, "other")
+                self.assertIsNone(run.finished)
+                self.assertIsNone(run.observation_timer)
+                self.assertFalse(run.done.is_set())
+
+        with TemporaryDirectory() as directory:
+            output = Path(directory) / "capture.txt"
+            write_text_fixture(output, fixture(SCENARIOS["h1"], [run], METADATA, 4096))
+            values = fixture_values(output)
+            self.assertEqual(values["run_0_finished_ms"], "none")
+            self.assertEqual(values["run_0_request_count"], str(len(invalid)))
+            for index, target in enumerate(invalid):
+                self.assertIn("kind:other", values[f"run_0_request_{index}"])
+                self.assertEqual(
+                    bytes.fromhex(values[f"run_0_request_{index}_line_hex"]),
+                    b"GET " + target + b" HTTP/1.1",
+                )
+
+            kind = run.classify(b"/done?run=token")
+            run.record(
+                RequestRecord(0, 0, kind, request_line=b"GET /done?run=token HTTP/1.1")
+            )
+            try:
+                await asyncio.wait_for(run.done.wait(), TIMEOUT)
+                self.assertEqual(kind, "done")
+                self.assertIsNotNone(run.finished)
+                write_text_fixture(
+                    output, fixture(SCENARIOS["h1"], [run], METADATA, 4096)
+                )
+                values = fixture_values(output)
+                self.assertNotEqual(values["run_0_finished_ms"], "none")
+                self.assertIn("kind:done", values[f"run_0_request_{len(invalid)}"])
+            finally:
+                if run.observation_timer is not None:
+                    run.observation_timer.cancel()
+
+    async def test_completed_http1_head_and_aggregate_boundaries(self):
+        prefix = b"GET /done?run=head HTTP/1.1\r\nHost: localhost\r\nX-Pad: "
+        for size, aggregate in (
+            (65536, 8 * 1024 * 1024),
+            (65537, 8 * 1024 * 1024),
+            (65536, 65535),
+        ):
+            server = TcpServer(CERTIFICATE)
+            run = CookieRun("head", 0)
+            server.run = run
+            client = None
+            observed = None
+            healthy = size == 65536 and aggregate > size
+            try:
+                with (
+                    self.subTest(size=size, aggregate=aggregate),
+                    mock.patch.object(cookie_crumbs, "MAX_RUN_CAPTURE", aggregate),
+                ):
+                    await server.start("127.0.0.1")
+                    client = await asyncio.open_connection(*server.plain_address)
+                    head = prefix + b"x" * (size - len(prefix) - 4) + b"\r\n\r\n"
+                    client[1].write(head)
+                    await asyncio.wait_for(run.done.wait(), TIMEOUT)
+                    if healthy:
+                        response = await asyncio.wait_for(
+                            client[0].readuntil(b"\r\n\r\n"), TIMEOUT
+                        )
+                        self.assertTrue(response.startswith(b"HTTP/1.1 200 "))
+                        self.assertEqual(
+                            await asyncio.wait_for(client[0].readexactly(2), TIMEOUT),
+                            b"ok",
+                        )
+                        await server.close()
+                        self.assertEqual(len(run.requests), 1)
+                        self.assertEqual(run.requests[0].kind, "done")
+                        self.assertEqual(run.connections[0].client_stream(), head)
+                    else:
+                        self.assertEqual(run.requests, [])
+                        observed = run.failures[0]
+                        self.assertIsInstance(observed, ValueError)
+                        self.assertIn(
+                            "header limit" if size == 65537 else "aggregate",
+                            str(observed),
+                        )
+                        with self.assertRaises(ValueError) as raised:
+                            await server.close()
+                        self.assertIs(raised.exception, observed)
+                        if size == 65537:
+                            self.assertEqual(run.connections[0].client_stream(), head)
+                        else:
+                            self.assertLess(run.connections[0].received, size)
+                            self.assertLessEqual(run.retained, 65535)
+
+                    self.assertTrue(server.finished)
+                    self.assertEqual(len(server.protocols), 1)
+                    protocol = server.protocols[0]
+                    self.assertTrue(protocol.task.done())
+                    self.assertTrue(protocol.close_task.done())
+                    self.assertTrue(protocol.retired.done())
+                    self.assertIsNone(protocol.transport._sock)
+                    self.assertTrue(
+                        all(not listener.sockets for listener in server.servers)
+                    )
+                    self.assertEqual(
+                        await asyncio.wait_for(client[0].read(), TIMEOUT), b""
+                    )
+
+                    with TemporaryDirectory() as directory:
+                        output = Path(directory) / "capture.txt"
+                        output.write_bytes(b"previous fixture\n")
+                        if healthy:
+                            write_text_fixture(
+                                output, fixture(SCENARIOS["h1"], [run], METADATA, 4096)
+                            )
+                            values = fixture_values(output)
+                            self.assertEqual(values["run_0_request_count"], "1")
+                            self.assertEqual(
+                                bytes.fromhex(values["run_0_request_0_header_1"]),
+                                b"X-Pad: " + b"x" * (size - len(prefix) - 4),
+                            )
+                        else:
+                            with self.assertRaises(ValueError) as unpublished:
+                                write_text_fixture(
+                                    output,
+                                    fixture(SCENARIOS["h1"], [run], METADATA, 4096),
+                                )
+                            self.assertIs(unpublished.exception, observed)
+                            self.assertEqual(output.read_bytes(), b"previous fixture\n")
+            finally:
+                # Native assertions and publication precede backup cleanup.
+                if client is not None:
+                    client[1].close()
+                    await client[1].wait_closed()
+                if observed is None:
+                    await server.close()
+                else:
+                    with self.assertRaises(ValueError) as final:
+                        await server.close()
+                    self.assertIs(final.exception, observed)
+
     async def test_failed_stream_setup_retains_native_transport_and_lost_error(self):
         server = TcpServer(CERTIFICATE)
         run = CookieRun("stream-setup", 0)
@@ -235,25 +432,43 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
     async def test_invalid_run_bounds_fail_before_certificate_or_listener_acquisition(
         self,
     ):
-        for timeout, observation, repeat in (
-            (float("nan"), 0, 1),
-            (1, float("inf"), 1),
-            (1e308, 1e308, 1),
-            (1, 0, 129),
+        for timeout, observation, repeat, host in (
+            (float("nan"), 0, 1, "127.0.0.1"),
+            (1, float("inf"), 1, "127.0.0.1"),
+            (1e308, 1e308, 1, "127.0.0.1"),
+            (1, 0, 129, "127.0.0.1"),
+            (1, 0, 1, "127.0.0.2"),
+            (1, 0, 1, "0:0:0:0:0:0:0:1"),
         ):
             args = argparse.Namespace(
                 run_timeout=timeout,
                 observation=observation,
                 repeat=repeat,
                 scenario=["h1"],
+                browser="firefox",
+                browser_path=None,
+                headful=False,
+                listen=host,
             )
+            if host != "127.0.0.1":
+                with self.assertRaisesRegex(ValueError, "hostname mapping"):
+                    cookie_crumbs.tcp_launch_plan(args, CERTIFICATE, host, 4433)
+                with self.assertRaisesRegex(ValueError, "hostname mapping"):
+                    cookie_crumbs.h3_launch_plan(args, CERTIFICATE, 4433)
+
             with (
-                self.subTest(timeout=timeout, observation=observation, repeat=repeat),
+                self.subTest(
+                    timeout=timeout, observation=observation, repeat=repeat, host=host
+                ),
                 mock.patch.object(cookie_crumbs, "generate_certificate") as acquire,
+                mock.patch.object(cookie_crumbs, "TcpServer") as tcp,
+                mock.patch.object(cookie_crumbs, "serving_http3") as quic,
                 self.assertRaises(ValueError),
             ):
                 await capture(args)
             acquire.assert_not_called()
+            tcp.assert_not_called()
+            quic.assert_not_called()
 
     async def test_second_listener_failure_collects_first_accepted_socket(self):
         server = TcpServer(CERTIFICATE)

@@ -14,6 +14,19 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Collect lifecycle capture connections before writing and retain original
+  callback and cleanup failures. Migrate: split runs exceeding 32 connections,
+  256 requests, 64 active HTTP/2 streams per connection, or 64 MiB of encrypted
+  input and output. Use finite positive idle waits within the page timer limit.
+  Request targets must contain visible ASCII, paths cannot contain commas,
+  and header names cannot contain pipes. Completed HTTP/1 heads have a 64 KiB
+  limit and bodies have an 8 MiB limit. Completion requires one exact token
+  on the selected page connection.
+
+- Require canonical Firefox loopback addresses for lifecycle, cookie and
+  QUIC resumption captures. Migrate: use `--listen 127.0.0.1` or `--listen ::1`.
+  Other addresses fail before certificates or listeners are acquired.
+
 - Collect registered snapshot connections before writing and retain callback
   and cleanup failures. Migrate: split captures exceeding 128 runs, 128
   lifetime or 32 active connections per transport, 128 streams per QUIC
@@ -2587,6 +2600,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   rejected early data each make one for their retry.
 
 ### Fixed
+
+- Qualify cookie capture completion using the original request target and
+  one exact run token. Bracket Chromium IPv6 resolver mappings in cookie,
+  lifecycle and QUIC resumption captures. Firefox IPv6 launches prefer IPv6
+  without excluding IPv4.
 
 - Collect cookie capture callbacks and partial listener acquisitions before
   writing fixtures. Preserve original failures, bound run retention, and

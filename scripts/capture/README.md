@@ -1014,6 +1014,25 @@ reset. It also keeps each connection's HTTP/2 client frames other than DATA,
 with PING payloads and `GOAWAY` fields, and each request's field names in
 wire order, with the values of the validator, `Expect`, and body fields.
 
+Each run collects its registered listeners and connections before writing.
+Capture and cleanup failures retain their original causes and prevent writes.
+Cleanup has a five-second cooperative deadline. Local cleanup does not count
+as a browser close event.
+
+A run allows 32 connections, 256 requests and 64 MiB of encrypted input and
+output. Each connection allows 64 active HTTP/2 streams, 65,536 input frames
+including DATA, and 2,000 recorded frames. HTTP/2 frame payloads are limited
+to the advertised 16 KiB. Completed HTTP/1 heads have a 64 KiB limit and
+request bodies have an 8 MiB limit. Methods and header names must be ASCII
+HTTP tokens. Targets must contain visible ASCII. Paths containing commas
+and header names containing pipes fail before recording.
+
+`--idle` must be finite and positive, up to 2,147,483.647 seconds.
+Completion requires one exact run token on the page's selected connection.
+Firefox accepts only `--listen 127.0.0.1` or `--listen ::1`, checked before
+acquiring a certificate or listener. IPv4 disables IPv6. IPv6 prefers IPv6
+without excluding IPv4. Chromium brackets IPv6 resolver addresses.
+
 | Scenario | ALPN | What the page does |
 | --- | --- | --- |
 | `revalidate` | `h2` | Fetches four cacheable resources twice each; a matching `If-None-Match` or an `If-Modified-Since` gets `304` |
@@ -1165,6 +1184,10 @@ session: the resumed ClientHello, whether it offers early data, and which
 requests travel in 0-RTT packets. It writes one
 `format=phantom-quic-resumption-v1` fixture per scenario, named
 `resumption-<scenario>.txt`.
+
+Chromium brackets IPv6 resolver addresses. Firefox accepts only
+`--listen 127.0.0.1` or `--listen ::1`, checked before acquiring a certificate
+or listener. IPv4 disables IPv6. IPv6 prefers IPv6 without excluding IPv4.
 
 Capture Chrome on Windows:
 
@@ -1798,6 +1821,14 @@ Run timeouts must be finite and positive. Observation delays may be zero.
 Their sum must be finite. The command allows 128 scenario runs in total.
 Each run allows 32 active and 128 lifetime connections, 128 QUIC streams
 per connection, and 8 MiB of recorded channel data.
+
+Completed HTTP/1 heads have a 64 KiB limit. Completion requires one exact
+run token in the original origin-form target: a path beginning with one
+slash, without raw spaces, controls or a fragment.
+
+Chromium brackets IPv6 resolver addresses. Firefox accepts only
+`--listen 127.0.0.1` or `--listen ::1`, checked before acquiring a certificate
+or listener. IPv4 disables IPv6. IPv6 prefers IPv6 without excluding IPv4.
 
 Capture Chrome on Windows:
 
