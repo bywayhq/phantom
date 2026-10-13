@@ -2493,7 +2493,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   and bracket EventSource IPv6 listener URLs. Decode split QUIC stream types
   within their declared frames and reject malformed ClientHello vectors.
 - Retain accepted HTTP/2 preface capture sockets when protocol setup fails,
-  and reject malformed metadata before resource acquisition or fixture publication.
+  and reject malformed metadata before resource acquisition or fixture
+  publication. Include its certificate dependency in the standalone command.
 
 - Retain HTTP/3 WebSocket fixture connections, responders and UDP relays
   through caller failure. Preserve unexpected reset and deadline causes.

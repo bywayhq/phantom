@@ -990,7 +990,8 @@ publication. Protocol setup failures retain and retire the accepted socket.
 
 ```sh
 uv run --no-project --python 3.10 --with h2==4.4.1 --with hpack==4.2.0 \
-  python -m scripts.capture.http2_preface_ping --browser chrome \
+  --with cryptography==50.0.1 python -m scripts.capture.http2_preface_ping \
+  --browser chrome \
   --browser-path "C:/Program Files/Google/Chrome/Application/chrome.exe" \
   --client-version 154.0.8037.58 \
   --operating-system "Windows 11 Home 10.0.26200 x64" \
