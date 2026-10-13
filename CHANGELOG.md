@@ -2575,6 +2575,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Wait for retained Windows capture-process handles after job termination,
+  so cleanup observes their exit before removing output files. Keep failed
+  waits and their original owners available for another cleanup attempt.
+
 - Reject invalid or unrepresentable client-hint names and non-finite waits before
   launch. Generate valid loopback IPv6 navigation URLs.
 

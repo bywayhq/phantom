@@ -89,6 +89,12 @@ unsignaled. The probe removes diagnostics after that original handle signals.
 The process owner needs a completion remedy; retrying file
 deletion or treating the active count as completion would hide the cause.
 
+The reviewed remedy stops job admission and collects original member handles
+before termination. Cleanup shares a twenty-second wait budget and retains
+failed owners for retry. Collection has a 4,096-member guardrail; incomplete
+collection remains an error. Members already terminating and absent before
+collection are outside this completion guarantee. Native checks remain open.
+
 The independently reviewed remote-socket correction applies one absolute
 five-second deadline to TCP acquisition, upgrade drain and upgrade read.
 It retains raised timeouts and cancellations with independent close errors.
@@ -104,6 +110,12 @@ boundary; it now observes the original exception inside the caller coroutine.
 Its identity, cleanup causes and accepted-peer closure assertions remain.
 
 ## Local capture owners
+
+At `d5cd30bf`, both hosts pass all 12 client-hint methods and focused quality
+checks. Both readers inspect complete logs and clean exact revisions. Names
+must fit HTTP syntax and the fixture format; waits must be finite and positive.
+IPv6 URLs use brackets. Other tools' input defects and callback ownership
+remain open under A290–A293.
 
 Independent whole-file reads cover client hints, cookie crumbs, snapshot,
 HTTP/2 preface PING and HTTP lifecycle tools and their existing tests.

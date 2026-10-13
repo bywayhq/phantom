@@ -364,6 +364,12 @@ Cleanup failures retain the original causes and owners that can be retried.
 Invalid Windows handles are retired with their diagnostic. Before Windows
 assignment, parent EOF stops the bootstrap without starting the tool.
 
+Windows cleanup collects up to 4,096 original member handles before termination
+and waits for them under one twenty-second budget. Failed waits keep their
+handles for another cleanup attempt. Processes already exiting and absent
+before collection are outside this completion guarantee. Native calls can
+exceed the wait budget.
+
 Direct `ProcessContainer` callers use `wait(timeout=...)`, `poll()` and `pid`
 instead of `.process`. Wait timeouts must be finite and nonnegative. Closing
 before collecting the tool's exit status reports `ProcessContainerStopped`.

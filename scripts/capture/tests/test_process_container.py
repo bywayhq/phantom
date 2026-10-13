@@ -60,6 +60,9 @@ class OwnedWindowsProcess:
     def ended(self) -> bool:
         return self.kernel.WaitForSingleObject(self.handle, 30_000) == 0
 
+    def ended_now(self) -> bool:
+        return self.kernel.WaitForSingleObject(self.handle, 0) == 0
+
     def close(self) -> None:
         try:
             if self.kernel.WaitForSingleObject(self.handle, 0) == 258:
@@ -89,6 +92,11 @@ class ProcessContainerTests(unittest.TestCase):
                 process_container.subprocess, "Popen", return_value=process
             ),
             mock.patch.object(process_container, "_windows_job", return_value=41),
+            mock.patch.object(process_container, "_windows_stop_admission"),
+            mock.patch.object(
+                process_container, "_windows_process_ids", return_value=()
+            ),
+            mock.patch.object(process_container, "_windows_terminate_job"),
             mock.patch.object(
                 process_container,
                 "_windows_close_job",
@@ -527,7 +535,161 @@ class ProcessContainerTests(unittest.TestCase):
                 self.assertTrue(process.in_job(container.job))
             container.close()
             for process in processes:
+                self.assertTrue(process.ended_now())
                 self.assertTrue(process.ended())
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows member completion")
+    def test_member_wait_failure_retains_original_handle_for_cleanup_retry(
+        self,
+    ) -> None:
+        original_wait = process_container._windows_wait_process
+        timeout = TimeoutError("original member wait timed out")
+        observations = []
+
+        def wait(handle, deadline):
+            observations.append((handle, deadline))
+            if len(observations) == 1:
+                raise timeout
+            original_wait(handle, deadline)
+
+        with tempfile.TemporaryDirectory() as directory:
+            marker = Path(directory) / "started"
+            container = ProcessContainer(
+                [
+                    sys.executable,
+                    "-c",
+                    "import pathlib,sys,time; "
+                    "pathlib.Path(sys.argv[1]).write_text('ready'); time.sleep(60)",
+                    str(marker),
+                ]
+            )
+            try:
+                container.start()
+                wait_for_file(marker)
+                job = container.job
+                with (
+                    mock.patch.object(
+                        process_container, "_windows_wait_process", side_effect=wait
+                    ),
+                    mock.patch.object(
+                        process_container,
+                        "_windows_process_ids",
+                        wraps=process_container._windows_process_ids,
+                    ) as collect,
+                    mock.patch.object(
+                        process_container,
+                        "_windows_open_process",
+                        wraps=process_container._windows_open_process,
+                    ) as acquire,
+                ):
+                    with self.assertRaises(
+                        process_container.ProcessCleanupError
+                    ) as raised:
+                        container.close()
+
+                    self.assertIs(raised.exception.failures[0][1], timeout)
+                    self.assertIs(raised.exception.container, container)
+                    original_handle, deadline = observations[0]
+                    self.assertEqual(container._windows_members, [original_handle])
+                    self.assertEqual(container.job, job)
+                    self.assertTrue(container._windows_snapshot_complete)
+                    self.assertTrue(container._windows_terminated)
+                    self.assertFalse(container._cleanup_complete)
+                    self.assertTrue(all(value == deadline for _, value in observations))
+                    acquisition_count = acquire.call_count
+
+                    container.close()
+
+                    self.assertEqual(observations[-1][0], original_handle)
+                    collect.assert_called_once()
+                    self.assertEqual(acquire.call_count, acquisition_count)
+                    self.assertEqual(container._windows_members, [])
+                    self.assertIsNone(container.job)
+                    self.assertTrue(container._cleanup_complete)
+                    self.assertIs(raised.exception.failures[0][1], timeout)
+            finally:
+                container.close()
+
+    @unittest.skipUnless(sys.platform == "win32", "Windows member collection")
+    def test_partial_member_collection_cannot_be_certified_by_later_empty_job(
+        self,
+    ) -> None:
+        original_open = process_container._windows_open_process
+        primary = PermissionError("original member handle acquisition denied")
+        handles = []
+        attempts = []
+
+        def open_process(pid):
+            attempts.append(pid)
+            if len(attempts) == 2:
+                raise primary
+            handle = original_open(pid)
+            handles.append(handle)
+            return handle
+
+        with tempfile.TemporaryDirectory() as directory:
+            marker = Path(directory) / "started"
+            container = ProcessContainer(
+                [
+                    sys.executable,
+                    "-c",
+                    "import pathlib,sys,time; "
+                    "pathlib.Path(sys.argv[1]).write_text('ready'); time.sleep(60)",
+                    str(marker),
+                ]
+            )
+            try:
+                container.start()
+                wait_for_file(marker)
+                with (
+                    mock.patch.object(
+                        process_container,
+                        "_windows_open_process",
+                        side_effect=open_process,
+                    ),
+                    mock.patch.object(
+                        process_container,
+                        "_windows_wait_process",
+                        wraps=process_container._windows_wait_process,
+                    ) as observe,
+                    mock.patch.object(
+                        process_container,
+                        "_windows_process_ids",
+                        wraps=process_container._windows_process_ids,
+                    ) as collect,
+                    self.assertRaises(process_container.ProcessCleanupError) as raised,
+                ):
+                    container.close()
+
+                self.assertIs(raised.exception.failures[0][1], primary)
+                self.assertIs(container._windows_snapshot_error, primary)
+                self.assertFalse(container._windows_snapshot_complete)
+                self.assertEqual(len(handles), 1)
+                self.assertEqual(observe.call_args_list[0].args[0], handles[0])
+                self.assertEqual(container._windows_members, [])
+                self.assertIsNone(container.job)
+                self.assertFalse(container._cleanup_complete)
+                collect.assert_called_once()
+
+                with (
+                    mock.patch.object(
+                        process_container, "_windows_process_ids", return_value=()
+                    ) as empty,
+                    self.assertRaises(
+                        process_container.ProcessCleanupError
+                    ) as repeated,
+                ):
+                    container.close()
+
+                self.assertIs(repeated.exception.failures[0][1], primary)
+                self.assertFalse(container._cleanup_complete)
+                empty.assert_not_called()
+            finally:
+                if container._windows_snapshot_error is None:
+                    container.close()
+                else:
+                    with self.assertRaises(process_container.ProcessCleanupError):
+                        container.close()
 
     @unittest.skipUnless(sys.platform == "win32", "Windows job boundary")
     def test_runner_death_before_assignment_exits_blocked_bootstrap(self) -> None:

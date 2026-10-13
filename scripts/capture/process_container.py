@@ -23,6 +23,12 @@ from typing import BinaryIO
 
 JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS = 9
 JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000
+JOB_OBJECT_LIMIT_ACTIVE_PROCESS = 0x0008
+JOB_OBJECT_BASIC_PROCESS_ID_LIST_CLASS = 3
+MAX_SHUTDOWN_MEMBERS = 4096
+WINDOWS_CLEANUP_SECONDS = 20.0
+PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+SYNCHRONIZE = 0x100000
 PROCESS_SET_QUOTA = 0x0100
 PROCESS_TERMINATE = 0x0001
 
@@ -150,6 +156,10 @@ class ProcessContainer:
         self._lost_failures: list[tuple[str, BaseException]] = []
         self._gate: BinaryIO | None = None
         self._native_handles: list[int] = []
+        self._windows_members: list[int] = []
+        self._windows_snapshot_complete = False
+        self._windows_snapshot_error: BaseException | None = None
+        self._windows_terminated = False
         self._status_reader: int | None = None
         self._status_writer: int | None = None
         self._status = bytearray()
@@ -327,7 +337,10 @@ class ProcessContainer:
     def close(self) -> None:
         """Stop the container, retaining failed owners for another close.
 
-        Cleanup is serialized and waits at most twenty seconds for the process.
+        Windows closes admission and waits up to twenty seconds for members
+        whose original handles it collects before termination. A member already
+        exiting and absent from that snapshot is outside this completion fence.
+        POSIX waits at most twenty seconds for the owned process.
         Successful closure makes later calls harmless.
         """
         with self._lock:
@@ -338,6 +351,14 @@ class ProcessContainer:
             return
         self._closed = True
         failures = list(self._lost_failures)
+        deadline = (
+            time.monotonic() + WINDOWS_CLEANUP_SECONDS
+            if sys.platform == "win32"
+            else None
+        )
+        if self._process is not None and sys.platform == "win32":
+            # Keep an unreleased bootstrap blocked until its handle is held.
+            self._collect_windows_job(failures, deadline)
         if self._gate is not None:
             try:
                 self._gate.close()
@@ -347,19 +368,8 @@ class ProcessContainer:
                 self._gate = None
 
         if self._process is not None and sys.platform == "win32":
-            if self.job is not None:
-                try:
-                    _windows_close_job(self.job)
-                except BaseException as error:
-                    failures.append(("close capture job", error))
-                    if getattr(error, "winerror", None) == 6:
-                        self.job = None
-                        self._lost_failures.append(
-                            ("capture job handle identity lost", error)
-                        )
-                else:
-                    self.job = None
-            else:
+            self._close_windows_job(failures, deadline)
+            if self.job is None:
                 try:
                     # With no job handle left, stop the original Popen process.
                     if self._process.poll() is None:
@@ -412,7 +422,12 @@ class ProcessContainer:
             sys.platform == "win32" or self._group_stopped
         ):
             try:
-                self._process.wait(timeout=10)
+                timeout = (
+                    10
+                    if deadline is None
+                    else min(10, max(0, deadline - time.monotonic()))
+                )
+                self._process.wait(timeout=timeout)
             except subprocess.TimeoutExpired as error:
                 failures.append(("wait for process", error))
                 try:
@@ -420,7 +435,12 @@ class ProcessContainer:
                 except BaseException as error:
                     failures.append(("kill process after timeout", error))
                 try:
-                    self._process.wait(timeout=10)
+                    timeout = (
+                        10
+                        if deadline is None
+                        else min(10, max(0, deadline - time.monotonic()))
+                    )
+                    self._process.wait(timeout=timeout)
                 except BaseException as error:
                     failures.append(("wait after process kill", error))
             except BaseException as error:
@@ -444,6 +464,93 @@ class ProcessContainer:
             raise failure from failures[0][1]
         self._close_error = None
         self._cleanup_complete = True
+
+    def _collect_windows_job(
+        self, failures: list[tuple[str, BaseException]], deadline: float
+    ) -> None:
+        if (
+            self.job is not None
+            and not self._windows_snapshot_complete
+            and self._windows_snapshot_error is None
+        ):
+            try:
+                _windows_stop_admission(self.job)
+                for pid in _windows_process_ids(self.job, deadline):
+                    if time.monotonic() >= deadline:
+                        raise TimeoutError(
+                            "capture job collection exceeded cleanup deadline"
+                        )
+                    handle = _windows_open_process(pid)
+                    self._native_handles.append(handle)
+                    try:
+                        member = _windows_in_job(handle, self.job)
+                    except BaseException as error:
+                        if getattr(error, "winerror", None) == 6:
+                            # Either argument may be invalid; retire both numbers.
+                            self._native_handles.remove(handle)
+                            self.job = None
+                        raise
+                    if not member:
+                        raise OSError(
+                            "capture process identity changed before collection"
+                        )
+                    self._native_handles.remove(handle)
+                    self._windows_members.append(handle)
+                self._windows_snapshot_complete = True
+            except BaseException as error:
+                self._windows_snapshot_error = error
+                failures.append(("collect capture job members", error))
+                self._lost_failures.append(("capture job snapshot incomplete", error))
+                if getattr(error, "lost_job", False):
+                    self.job = None
+
+    def _close_windows_job(
+        self, failures: list[tuple[str, BaseException]], deadline: float
+    ) -> None:
+        if self.job is not None and not self._windows_terminated:
+            try:
+                _windows_terminate_job(self.job)
+            except BaseException as error:
+                failures.append(("terminate capture job", error))
+                if getattr(error, "winerror", None) == 6:
+                    self.job = None
+                    self._lost_failures.append(
+                        ("capture job handle identity lost", error)
+                    )
+            else:
+                self._windows_terminated = True
+
+        # These handles survive termination removing members from the job list.
+        for handle in self._windows_members[:]:
+            try:
+                _windows_wait_process(handle, deadline)
+                _windows_close_handle(handle)
+            except BaseException as error:
+                failures.append(("observe capture job member", error))
+                if getattr(error, "winerror", None) == 6:
+                    self._windows_members.remove(handle)
+                    self._lost_failures.append(
+                        ("capture member handle identity lost", error)
+                    )
+            else:
+                self._windows_members.remove(handle)
+
+        if (
+            self.job is not None
+            and self._windows_terminated
+            and not self._windows_members
+        ):
+            try:
+                _windows_close_job(self.job)
+            except BaseException as error:
+                failures.append(("close capture job", error))
+                if getattr(error, "winerror", None) == 6:
+                    self.job = None
+                    self._lost_failures.append(
+                        ("capture job handle identity lost", error)
+                    )
+            else:
+                self.job = None
 
 
 def stop_processes_naming(directory: Path) -> None:
@@ -472,6 +579,24 @@ def _kernel32():
         wintypes.DWORD,
     )
     kernel32.SetInformationJobObject.restype = wintypes.BOOL
+    kernel32.QueryInformationJobObject.argtypes = (
+        wintypes.HANDLE,
+        ctypes.c_int,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.DWORD),
+    )
+    kernel32.QueryInformationJobObject.restype = wintypes.BOOL
+    kernel32.IsProcessInJob.argtypes = (
+        wintypes.HANDLE,
+        wintypes.HANDLE,
+        ctypes.POINTER(wintypes.BOOL),
+    )
+    kernel32.IsProcessInJob.restype = wintypes.BOOL
+    kernel32.TerminateJobObject.argtypes = (wintypes.HANDLE, wintypes.UINT)
+    kernel32.TerminateJobObject.restype = wintypes.BOOL
+    kernel32.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+    kernel32.WaitForSingleObject.restype = wintypes.DWORD
     kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
     kernel32.OpenProcess.restype = wintypes.HANDLE
     kernel32.AssignProcessToJobObject.argtypes = (wintypes.HANDLE, wintypes.HANDLE)
@@ -481,11 +606,7 @@ def _kernel32():
     return kernel32
 
 
-def _windows_job(pid: int) -> int:
-    """Create a kill-on-close job holding `pid`, or raise the native failure.
-
-    The caller keeps the bootstrap behind its gate until assignment succeeds.
-    """
+def _windows_extended_limits():
     import ctypes
     from ctypes import wintypes
 
@@ -525,7 +646,17 @@ def _windows_job(pid: int) -> int:
             ("PeakJobMemoryUsed", ctypes.c_size_t),
         ]
 
-    limits = ExtendedLimits()
+    return ExtendedLimits()
+
+
+def _windows_job(pid: int) -> int:
+    """Create a kill-on-close job holding `pid`, or raise the native failure.
+
+    The caller keeps the bootstrap behind its gate until assignment succeeds.
+    """
+    import ctypes
+
+    limits = _windows_extended_limits()
     limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
     kernel32 = _kernel32()
     job = kernel32.CreateJobObjectW(None, None)
@@ -594,9 +725,128 @@ def _windows_job(pid: int) -> int:
 
 
 def _windows_close_job(job: int) -> None:
-    # This unnamed, non-inherited handle is the job's last handle. Its
-    # KILL_ON_JOB_CLOSE limit ends descendants without a second termination.
+    # Keep kill-on-close as the runner-death backup. Normal close first waits
+    # the original handles collected while those members were still associated.
     _windows_close_handle(job)
+
+
+def _windows_stop_admission(job: int) -> None:
+    import ctypes
+
+    kernel32 = _kernel32()
+    limits = _windows_extended_limits()
+    if not kernel32.QueryInformationJobObject(
+        job,
+        JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS,
+        ctypes.byref(limits),
+        ctypes.sizeof(limits),
+        None,
+    ):
+        error = ctypes.WinError(ctypes.get_last_error())
+        error.lost_job = error.winerror == 6
+        raise error
+
+    limits.BasicLimitInformation.LimitFlags |= JOB_OBJECT_LIMIT_ACTIVE_PROCESS
+    limits.BasicLimitInformation.ActiveProcessLimit = 0
+    if not kernel32.SetInformationJobObject(
+        job,
+        JOB_OBJECT_EXTENDED_LIMIT_INFORMATION_CLASS,
+        ctypes.byref(limits),
+        ctypes.sizeof(limits),
+    ):
+        error = ctypes.WinError(ctypes.get_last_error())
+        error.lost_job = error.winerror == 6
+        raise error
+
+
+def _windows_process_ids(job: int, deadline: float) -> tuple[int, ...]:
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = _kernel32()
+    capacity = 32
+    while True:
+        if time.monotonic() >= deadline:
+            raise TimeoutError("capture job enumeration exceeded cleanup deadline")
+
+        class ProcessIds(ctypes.Structure):
+            _fields_ = [
+                ("assigned", wintypes.DWORD),
+                ("listed", wintypes.DWORD),
+                ("ids", ctypes.c_size_t * capacity),
+            ]
+
+        information = ProcessIds()
+        succeeded = kernel32.QueryInformationJobObject(
+            job,
+            JOB_OBJECT_BASIC_PROCESS_ID_LIST_CLASS,
+            ctypes.byref(information),
+            ctypes.sizeof(information),
+            None,
+        )
+        error_code = ctypes.get_last_error() if not succeeded else 0
+        if not succeeded and error_code != 234:
+            error = ctypes.WinError(error_code)
+            error.lost_job = error.winerror == 6
+            raise error
+        if information.listed > capacity or information.assigned < information.listed:
+            raise OSError("capture job returned an invalid process list size")
+        if succeeded and information.assigned == information.listed:
+            pids = tuple(information.ids[: information.listed])
+            if any(not 0 < pid <= 0xFFFFFFFF for pid in pids) or len(set(pids)) != len(
+                pids
+            ):
+                raise OSError("capture job returned invalid process identifiers")
+            return pids
+
+        capacity = max(capacity * 2, information.assigned)
+        if capacity > MAX_SHUTDOWN_MEMBERS:
+            raise ValueError("capture job exceeds the shutdown member limit")
+
+
+def _windows_open_process(pid: int) -> int:
+    import ctypes
+
+    handle = _kernel32().OpenProcess(
+        SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, False, pid
+    )
+    if not handle:
+        raise ctypes.WinError(ctypes.get_last_error())
+    return handle
+
+
+def _windows_in_job(handle: int, job: int) -> bool:
+    import ctypes
+    from ctypes import wintypes
+
+    member = wintypes.BOOL()
+    if not _kernel32().IsProcessInJob(handle, job, ctypes.byref(member)):
+        raise ctypes.WinError(ctypes.get_last_error())
+    return bool(member.value)
+
+
+def _windows_terminate_job(job: int) -> None:
+    import ctypes
+
+    if not _kernel32().TerminateJobObject(job, 1):
+        raise ctypes.WinError(ctypes.get_last_error())
+
+
+def _windows_wait_process(handle: int, deadline: float) -> None:
+    import ctypes
+
+    kernel32 = _kernel32()
+    result = kernel32.WaitForSingleObject(handle, 0)
+    if result == 258:
+        remaining = max(0.0, deadline - time.monotonic())
+        result = kernel32.WaitForSingleObject(handle, math.ceil(remaining * 1000))
+    if result == 0:
+        return
+    if result == 258:
+        raise TimeoutError("capture job member exceeded cleanup deadline")
+    if result == 0xFFFFFFFF:
+        raise ctypes.WinError(ctypes.get_last_error())
+    raise OSError(f"capture process wait returned unexpected status {result}")
 
 
 def _windows_close_handle(handle: int, kernel32=None) -> None:
