@@ -438,10 +438,13 @@ class LaunchedBrowser:
             except BaseException as error:
                 failures.append(error)
 
-            try:
-                _remove_launch_profile(self.profile)
-            except BaseException as error:
-                failures.append(error)
+            # Keep the profile until shutdown is confirmed; live browsers may
+            # still use or recreate it, and the same owner can retry cleanup.
+            if not failures:
+                try:
+                    _remove_launch_profile(self.profile)
+                except BaseException as error:
+                    failures.append(error)
 
         return tuple(failures)
 

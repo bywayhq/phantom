@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 from scripts.capture import browser_launch
+from scripts.capture.browser_failures import BrowserLaunchFailures
 
 CHILD = """
 import socket
@@ -240,6 +241,39 @@ class BrowserLaunchLifecycleTests(unittest.TestCase):
         self.assertEqual(ended, (True, True))
         self.assertTrue(removed)
 
+    def test_failed_shutdown_retains_live_process_and_profile_for_retry(self) -> None:
+        context = self.context
+        browser = context.browser.__enter__()
+        process = browser.process
+        profile = browser.profile
+        tree = TreeFailure("controlled failure before tree termination")
+        sweep = SweepFailure("controlled failure before profile sweep")
+        with (
+            mock.patch.object(
+                browser_launch, "terminate_process_tree", side_effect=tree
+            ) as terminate,
+            mock.patch.object(
+                browser_launch, "terminate_profile_processes", side_effect=sweep
+            ) as sweep_profile,
+            self.assertRaises(BrowserLaunchFailures) as observed,
+        ):
+            browser.__exit__(None, None, None)
+
+        terminate.assert_called_once_with(process)
+        sweep_profile.assert_called_once_with(profile)
+        self.assertEqual(observed.exception.cleanup, (tree, sweep))
+        self.assertIsNone(observed.exception.primary)
+        self.assertIs(browser.process, process)
+        self.assertEqual(browser.profile, profile)
+        assert process is not None and profile is not None
+        self.assertIsNone(process.poll())
+        self.assertTrue(profile.is_dir())
+
+        browser.__exit__(None, None, None)
+        ended, removed = context.snapshot()
+        self.assertEqual(ended, (True,))
+        self.assertTrue(removed)
+
     def test_failed_checkpoint_retains_its_error_after_healthy_cleanup(self) -> None:
         context = self.context
         primary = StartupFailure("controlled Firefox checkpoint failure")
@@ -269,11 +303,13 @@ class BrowserLaunchLifecycleTests(unittest.TestCase):
         self.assertEqual(context.checkpoints, 1)
         self.assertEqual(context.tree_attempts, 1)
         self.assertEqual(ended, (True,))
-        self.assertTrue(
-            removed, "tree cleanup failure skipped acquired profile removal"
-        )
+        self.assertFalse(removed)
         self.assertIs(getattr(observed, "primary", None), primary)
         self.assertEqual(getattr(observed, "cleanup", None), (secondary,))
+
+        context.tree_failure = None
+        context.browser.__exit__(None, None, None)
+        self.assertFalse(context.profile.exists())
 
     def test_body_failure_and_tree_failure_still_sweep_the_profile(self) -> None:
         context = self.context
@@ -294,10 +330,14 @@ class BrowserLaunchLifecycleTests(unittest.TestCase):
         self.assertEqual(
             ended, (True, True), "tree failure skipped the live profile process"
         )
-        self.assertTrue(removed)
+        self.assertFalse(removed)
         self.assertEqual(context.sweep_attempts, 1)
         self.assertIs(getattr(observed, "primary", None), primary)
         self.assertEqual(getattr(observed, "cleanup", None), (secondary,))
+
+        context.tree_failure = None
+        context.browser.__exit__(None, None, None)
+        self.assertFalse(context.profile.exists())
 
     def test_body_failure_retains_both_ordered_cleanup_failures(self) -> None:
         context = self.context
@@ -320,12 +360,17 @@ class BrowserLaunchLifecycleTests(unittest.TestCase):
         self.assertEqual(
             ended, (True, True), "tree failure skipped the live profile process"
         )
-        self.assertTrue(removed)
+        self.assertFalse(removed)
         self.assertEqual(context.sweep_attempts, 1)
         self.assertIs(getattr(observed, "primary", None), primary)
         self.assertEqual(getattr(observed, "cleanup", None), (tree, sweep))
 
-    def test_sweep_failure_still_removes_the_profile_and_keeps_its_cause(self) -> None:
+        context.tree_failure = None
+        context.sweep_failure = None
+        context.browser.__exit__(None, None, None)
+        self.assertFalse(context.profile.exists())
+
+    def test_sweep_failure_retains_the_profile_and_keeps_its_cause(self) -> None:
         context = self.context
         secondary = SweepFailure("controlled completed profile sweep failure")
         context.sweep_failure = secondary
@@ -337,8 +382,12 @@ class BrowserLaunchLifecycleTests(unittest.TestCase):
         self.assertEqual(context.tree_attempts, 1)
         self.assertEqual(context.sweep_attempts, 1)
         self.assertEqual(ended, (True, True))
-        self.assertTrue(removed)
+        self.assertFalse(removed)
         self.assertIs(observed.exception, secondary)
+
+        context.sweep_failure = None
+        context.browser.__exit__(None, None, None)
+        self.assertFalse(context.profile.exists())
 
     def test_startup_cancellation_keeps_identity_and_finishes_profile_cleanup(
         self,
@@ -358,9 +407,11 @@ class BrowserLaunchLifecycleTests(unittest.TestCase):
         self.assertEqual(context.checkpoints, 1)
         self.assertEqual(context.tree_attempts, 1)
         self.assertEqual(ended, (True,))
-        self.assertTrue(
-            removed, "cancel cleanup failure skipped acquired profile removal"
-        )
+        self.assertFalse(removed)
         self.assertIs(observed, primary)
         self.assertIs(getattr(observed.__cause__, "primary", None), primary)
         self.assertEqual(getattr(observed.__cause__, "cleanup", None), (secondary,))
+
+        context.tree_failure = None
+        context.browser.__exit__(None, None, None)
+        self.assertFalse(context.profile.exists())
