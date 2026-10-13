@@ -1,7 +1,9 @@
 import argparse
 import asyncio
 import contextlib
+import errno
 import io
+import socket
 import ssl
 import struct
 import unittest
@@ -29,6 +31,7 @@ from scripts.capture.quic_resumption import parse_client_hello
 from scripts.capture.snapshot import (
     FORMAT,
     InitialDatagram,
+    SnapshotFailures,
     SnapshotRun,
     client_hello_records,
     hello_message,
@@ -254,6 +257,7 @@ class CaptureInputTests(unittest.IsolatedAsyncioTestCase):
             ["--observation", value] for value in ("nan", "inf", "-inf", "-1")
         )
         invalid.append(["--repeat", "0"])
+        invalid.append(["--repeat", "129"])
         invalid.append(["--run-timeout", "1e308", "--observation", "1e308"])
         with (
             mock.patch.object(snapshot, "capture") as capture,
@@ -276,6 +280,7 @@ class CaptureInputTests(unittest.IsolatedAsyncioTestCase):
         handler = loop.get_exception_handler()
         invalid = (
             (0, 1.0, 0.0),
+            (129, 1.0, 0.0),
             (1, float("nan"), 0.0),
             (1, float("inf"), 0.0),
             (1, 0.0, 0.0),
@@ -322,6 +327,549 @@ class CaptureInputTests(unittest.IsolatedAsyncioTestCase):
         run = SnapshotRun("valid", 1, 2, 0.0, clock=clock)
         self.assertEqual(run.started, 42.0)
         clock.assert_called_once_with()
+
+
+class SnapshotOwnershipTests(unittest.IsolatedAsyncioTestCase):
+    async def test_completion_requires_one_origin_form_run_token(self):
+        invalid = (
+            b"/done?run=wrong",
+            b"/done?run=token&run=other",
+            b"/done?run=token&run=",
+            b"/done?run=&run=token",
+            b"/done?run=token#fragment",
+            b"/done?run=token#",
+            b"https://localhost/done?run=token",
+            b"//localhost/done?run=token",
+            b"///done?run=token",
+            b"done?run=token",
+            b"/do\nne?run=token",
+            b"/done?run=to\tken",
+            b"\x00/done?run=token",
+            b" /done?run=token",
+            b"/done?run=to\rken",
+            b"/done?run=token\x7f",
+        )
+        run = SnapshotRun("token", 1, 2, 0)
+        for target in invalid:
+            with self.subTest(target=target):
+                kind = run.classify(target)
+                run.record("http/1.1", snapshot.RequestRecord(0, 0, kind, None))
+                self.assertEqual(kind, "other")
+                self.assertIsNone(run.finished)
+                self.assertIsNone(run.observation_timer)
+                self.assertFalse(run.done.is_set())
+
+        kind = run.classify(b"/done?run=token")
+        run.record("http/1.1", snapshot.RequestRecord(0, 0, kind, None))
+        try:
+            self.assertEqual(kind, "done")
+            self.assertIsNotNone(run.finished)
+            await asyncio.wait_for(run.done.wait(), TIMEOUT)
+        finally:
+            if run.observation_timer is not None:
+                run.observation_timer.cancel()
+
+    async def test_failed_stream_setup_collects_original_transport_and_native_loss(
+        self,
+    ):
+        primary = ValueError("original snapshot stream setup failure")
+        abort_failure = OSError(errno.EIO, "original accepted transport abort failure")
+        close_failure = OSError(errno.EIO, "original accepted transport close failure")
+        native_loss = OSError(errno.EIO, "original accepted native loss")
+        connected = asyncio.Event()
+        original_made = snapshot.SnapshotTcpProtocol.connection_made
+        loop = asyncio.get_running_loop()
+        transports = []
+        run = None
+        client = None
+
+        try:
+            with contextlib.ExitStack() as faults:
+
+                def made(protocol, transport):
+                    transports.append(transport)
+                    attempts = 0
+
+                    def abort():
+                        nonlocal attempts
+                        attempts += 1
+                        if attempts == 1:
+                            raise abort_failure
+                        # Both resolved native TCP backends deliver this
+                        # original error through their real retirement path.
+                        transport._force_close(native_loss)
+
+                    faults.enter_context(
+                        mock.patch.object(transport, "abort", side_effect=abort)
+                    )
+                    faults.enter_context(
+                        mock.patch.object(transport, "close", side_effect=close_failure)
+                    )
+                    with mock.patch.object(
+                        protocol._stream_reader, "set_transport", side_effect=primary
+                    ):
+                        original_made(protocol, transport)
+                    connected.set()
+
+                faults.enter_context(
+                    mock.patch.object(
+                        snapshot.SnapshotTcpProtocol, "connection_made", new=made
+                    )
+                )
+                with self.assertRaises(SnapshotFailures) as raised:
+                    async with serving(CERTIFICATE, "setup-fault", 0) as run:
+                        client = await asyncio.open_connection(
+                            "127.0.0.1", run.plain_port
+                        )
+                        await asyncio.wait_for(connected.wait(), TIMEOUT)
+                        protocol = run.owners[0].protocols[0]
+                        self.assertIs(protocol.transport, transports[0])
+                        self.assertIsNone(protocol.writer)
+                        self.assertFalse(protocol.retired.done())
+
+                self.assertEqual(len(transports), 1)
+                self.assertEqual(len(raised.exception.cleanup), 4)
+                for error in (primary, abort_failure, close_failure, native_loss):
+                    self.assertTrue(
+                        any(retained is error for retained in raised.exception.cleanup)
+                    )
+                owner = run.owners[0]
+                self.assertTrue(owner.finished)
+                self.assertTrue(protocol.retired.done())
+                self.assertTrue(protocol.close_task.done())
+                self.assertTrue(protocol.closed_observed)
+                self.assertIs(protocol.stream_closed.exception(), native_loss)
+                self.assertIsNone(transports[0]._sock)
+                self.assertEqual(await asyncio.wait_for(client[0].read(), TIMEOUT), b"")
+                with self.assertRaises(SnapshotFailures) as unpublished:
+                    render_snapshot(run, METADATA)
+                for error in (primary, abort_failure, close_failure, native_loss):
+                    self.assertTrue(
+                        any(
+                            retained is error
+                            for retained in unpublished.exception.cleanup
+                        )
+                    )
+        finally:
+            # Retire only original native test backups after all assertions.
+            for transport in transports:
+                transport.abort()
+            if client is not None:
+                client[1].close()
+                await client[1].wait_closed()
+            if run is not None:
+                for owner in run.owners:
+                    await owner.close(loop.time() + 10)
+
+    async def test_raw_socket_acquisition_preserves_creation_bind_and_listen_failures(
+        self,
+    ):
+        create = socket.socket
+        for scope, operation in (
+            ("reserve", "create"),
+            ("reserve", "bind"),
+            ("reserve", "listen"),
+            ("serving", "create"),
+            ("serving", "bind"),
+            ("serving", "listen"),
+        ):
+            primary = OSError(errno.EIO, f"original reservation {operation} failure")
+            sockets = []
+            index = 3 if scope == "serving" else 1 if operation == "listen" else 2
+
+            def acquire(
+                *args,
+                operation=operation,
+                index=index,
+                primary=primary,
+                sockets=sockets,
+                **kwargs,
+            ):
+                if operation == "create" and len(sockets) + 1 == index:
+                    raise primary
+                sock = create(*args, **kwargs)
+                sockets.append(sock)
+                if operation == "bind" and len(sockets) == index:
+                    proxy = mock.Mock(wraps=sock)
+                    proxy.bind.side_effect = primary
+                    return proxy
+                if operation == "listen" and len(sockets) == index:
+                    proxy = mock.Mock(wraps=sock)
+                    proxy.listen.side_effect = primary
+                    return proxy
+                return sock
+
+            with (
+                self.subTest(scope=scope, operation=operation),
+                mock.patch.object(snapshot.socket, "socket", side_effect=acquire),
+                self.assertRaises(OSError) as raised,
+            ):
+                if scope == "reserve":
+                    reserve_shared_port()
+                else:
+                    async with serving(CERTIFICATE, "raw-fault", 0):
+                        self.fail("raw acquisition failure entered serving scope")
+
+            self.assertIs(raised.exception, primary)
+            self.assertEqual(
+                len(sockets),
+                index - 1 if operation == "create" else 3 if scope == "serving" else 2,
+            )
+            self.assertTrue(all(sock.fileno() == -1 for sock in sockets))
+            for sock in sockets:
+                sock.close()
+
+    async def test_second_listener_failure_collects_first_accepted_stream(self):
+        primary = OSError(errno.EIO, "original second snapshot listener failure")
+        loop = asyncio.get_running_loop()
+        original_create = loop.create_server
+        connected = asyncio.Event()
+        original_connected = snapshot.SnapshotTcpProtocol.connected
+        acquired = []
+        client = None
+        run = None
+        reservation = []
+        original_reserve = reserve_shared_port
+
+        def reserve():
+            sockets = original_reserve()
+            reservation.extend(sockets)
+            return sockets
+
+        def accepted(protocol, reader, writer):
+            original_connected(protocol, reader, writer)
+            connected.set()
+
+        async def create(*args, **kwargs):
+            nonlocal client, run
+            if acquired:
+                port = acquired[0].sockets[0].getsockname()[1]
+                client = await asyncio.open_connection("127.0.0.1", port)
+                await asyncio.wait_for(connected.wait(), TIMEOUT)
+                raise primary
+            listener = await original_create(*args, **kwargs)
+            acquired.append(listener)
+            return listener
+
+        original_listeners = snapshot.TcpListeners
+
+        def listeners(active_run, certificate):
+            nonlocal run
+            run = active_run
+            return original_listeners(active_run, certificate)
+
+        try:
+            with (
+                mock.patch.object(snapshot, "reserve_shared_port", side_effect=reserve),
+                mock.patch.object(snapshot, "TcpListeners", side_effect=listeners),
+                mock.patch.object(
+                    snapshot.SnapshotTcpProtocol, "connected", new=accepted
+                ),
+                mock.patch.object(loop, "create_server", side_effect=create),
+                self.assertRaises(OSError) as raised,
+            ):
+                async with serving(CERTIFICATE, "partial", 0):
+                    self.fail("second listener failure entered serving scope")
+
+            self.assertIs(raised.exception, primary)
+            self.assertTrue(all(sock.fileno() == -1 for sock in reservation))
+            owner = run.owners[0]
+            self.assertTrue(owner.finished)
+            self.assertTrue(owner.protocols[0].task.done())
+            self.assertTrue(owner.protocols[0].retired.done())
+            self.assertEqual(await asyncio.wait_for(client[0].read(), TIMEOUT), b"")
+            with self.assertRaises(OSError) as unpublished:
+                render_snapshot(run, METADATA)
+            self.assertIs(unpublished.exception, primary)
+            rebound = await asyncio.start_server(
+                lambda reader, writer: writer.close(), "127.0.0.1", run.port
+            )
+            rebound.close()
+            await rebound.wait_closed()
+        finally:
+            if client is not None:
+                client[1].close()
+                await client[1].wait_closed()
+            for sock in reservation:
+                sock.close()
+            if run is not None:
+                for owner in run.owners:
+                    await owner.close(loop.time() + 10)
+
+    async def test_original_accepted_factory_fault_refuses_publication(self):
+        primary = ValueError("original snapshot accepted factory failure")
+        loop = asyncio.get_running_loop()
+        previous_handler = loop.get_exception_handler()
+        unexpected = []
+        client = None
+        run = None
+        accepted = []
+
+        def report(active_loop, context):
+            if context.get("exception") is primary:
+                retain_native_accept()
+                return
+            unexpected.append(context)
+            if previous_handler is None:
+                active_loop.default_exception_handler(context)
+            else:
+                previous_handler(active_loop, context)
+
+        def retain_native_accept():
+            traceback = primary.__traceback__
+            while traceback is not None:
+                conn = traceback.tb_frame.f_locals.get("conn")
+                if isinstance(conn, socket.socket) and all(
+                    sock is not conn for sock in accepted
+                ):
+                    accepted.append(conn)
+                traceback = traceback.tb_next
+
+        try:
+            loop.set_exception_handler(report)
+            with self.assertRaises(ValueError) as raised:
+                async with serving(CERTIFICATE, "factory", 0) as run:
+                    with mock.patch.object(
+                        snapshot, "SnapshotTcpProtocol", side_effect=primary
+                    ):
+                        client = await asyncio.open_connection(
+                            "127.0.0.1", run.plain_port
+                        )
+                        await asyncio.wait_for(run.done.wait(), TIMEOUT)
+
+            self.assertIs(raised.exception, primary)
+            self.assertIs(run.failures[0], primary)
+            self.assertEqual(run.owners[0].protocols, [])
+            self.assertTrue(all(owner.finished for owner in run.owners))
+            self.assertEqual(unexpected, [])
+            with self.assertRaises(ValueError) as unpublished:
+                render_snapshot(run, METADATA)
+            self.assertIs(unpublished.exception, primary)
+            rebound = await asyncio.start_server(
+                lambda reader, writer: writer.close(), "127.0.0.1", run.plain_port
+            )
+            rebound.close()
+            await rebound.wait_closed()
+            self.assertEqual(len(accepted), 1)
+        finally:
+            # This socket never reached protocol attachment. Retire only this
+            # original native test backup after the ownership assertions.
+            try:
+                retain_native_accept()
+                for sock in accepted:
+                    sock.close()
+                if client is not None:
+                    client[1].close()
+                    await client[1].wait_closed()
+                if run is not None:
+                    for owner in run.owners:
+                        await owner.close(loop.time() + 10)
+            finally:
+                loop.set_exception_handler(previous_handler)
+
+    async def test_serving_and_cleanup_interruption_keep_original_causes(self):
+        primary = TimeoutError(
+            errno.ETIMEDOUT, "original snapshot retirement read failure"
+        )
+        cleanup = OSError(errno.EIO, "original snapshot writer cleanup failure")
+        cancellation_cause = LookupError("original snapshot interruption cause")
+        entered = asyncio.Event()
+        release = asyncio.Event()
+        observing = asyncio.Event()
+        complete = asyncio.Event()
+        original_wait = asyncio.wait
+        client = None
+        direct = None
+        run = None
+
+        async def observe(*args, **kwargs):
+            try:
+                return await original_wait(*args, **kwargs)
+            except asyncio.CancelledError as error:
+                error.__cause__ = cancellation_cause
+                raise
+
+        async def fail(channel, active_run, index, listener):
+            await channel.read()
+            entered.set()
+            await release.wait()
+            with mock.patch.object(channel, "read_raw", side_effect=primary):
+                await snapshot.retire(channel)
+
+        async def failed_close():
+            observing.set()
+            await complete.wait()
+            raise cleanup
+
+        scope = serving(CERTIFICATE, "causes", 0)
+        try:
+            run = await scope.__aenter__()
+            with mock.patch.object(snapshot, "serve_http1", side_effect=fail):
+                client = await asyncio.open_connection("127.0.0.1", run.plain_port)
+                client[1].write(
+                    b"GET /plain?run=causes HTTP/1.1\r\nHost: localhost\r\n\r\n"
+                )
+                await client[1].drain()
+                await asyncio.wait_for(entered.wait(), TIMEOUT)
+                protocol = run.owners[0].protocols[0]
+
+                async def collect():
+                    nonlocal direct
+                    try:
+                        await scope.__aexit__(None, None, None)
+                    except asyncio.CancelledError as error:
+                        direct = error
+                        raise
+
+                with (
+                    mock.patch.object(
+                        protocol.writer, "wait_closed", side_effect=failed_close
+                    ),
+                    mock.patch.object(snapshot.asyncio, "wait", side_effect=observe),
+                ):
+                    release.set()
+                    await asyncio.wait_for(run.done.wait(), TIMEOUT)
+                    closing = asyncio.create_task(collect())
+                    await asyncio.wait_for(observing.wait(), TIMEOUT)
+                    closing.cancel("original snapshot cleanup interruption")
+                    complete.set()
+                    with self.assertRaises(asyncio.CancelledError):
+                        await closing
+
+            self.assertTrue(closing.cancelled())
+            self.assertIsInstance(direct, asyncio.CancelledError)
+            self.assertEqual(direct.args, ("original snapshot cleanup interruption",))
+            failure = direct.__cause__
+            self.assertIsInstance(failure, SnapshotFailures)
+            self.assertIs(failure.interruption_cause, cancellation_cause)
+            self.assertTrue(any(error is primary for error in failure.cleanup))
+            self.assertTrue(any(error is cleanup for error in failure.cleanup))
+            self.assertTrue(any(error is direct for error in failure.cleanup))
+            self.assertTrue(all(owner.finished for owner in run.owners))
+            self.assertTrue(protocol.task.done())
+            self.assertTrue(protocol.retired.done())
+            self.assertEqual(await asyncio.wait_for(client[0].read(), TIMEOUT), b"")
+            with TemporaryDirectory() as directory:
+                output = Path(directory) / "snapshot.txt"
+                output.write_bytes(b"previous snapshot\n")
+                with self.assertRaises(asyncio.CancelledError) as unpublished:
+                    snapshot.write_text_fixture(output, render_snapshot(run, METADATA))
+                self.assertIs(unpublished.exception, direct)
+                self.assertEqual(output.read_bytes(), b"previous snapshot\n")
+        finally:
+            release.set()
+            complete.set()
+            if client is not None:
+                client[1].close()
+                await client[1].wait_closed()
+            await scope.__aexit__(None, None, None)
+            if run is not None:
+                for owner in run.owners:
+                    await owner.close(asyncio.get_running_loop().time() + 10)
+
+    async def test_completed_http1_header_limit_keeps_the_exact_boundary(self):
+        prefix = b"GET /done?run=head HTTP/1.1\r\nHost: localhost\r\nX-Pad: "
+        for size, aggregate in (
+            (65536, 8 * 1024 * 1024),
+            (65537, 8 * 1024 * 1024),
+            (65536, 65535),
+        ):
+            run = None
+            client = None
+            observed = None
+            try:
+                with (
+                    self.subTest(size=size, aggregate=aggregate),
+                    mock.patch.object(snapshot, "MAX_RUN_CAPTURE", aggregate),
+                ):
+                    try:
+                        async with serving(CERTIFICATE, "head", 0) as run:
+                            client = await asyncio.open_connection(
+                                "127.0.0.1", run.plain_port
+                            )
+                            head = (
+                                prefix + b"x" * (size - len(prefix) - 4) + b"\r\n\r\n"
+                            )
+                            client[1].write(head)
+                            await asyncio.wait_for(run.done.wait(), TIMEOUT)
+                            if size == 65536 and aggregate > size:
+                                response = await asyncio.wait_for(
+                                    client[0].readuntil(b"\r\n\r\n"), TIMEOUT
+                                )
+                                self.assertTrue(response.startswith(b"HTTP/1.1 200 "))
+                            else:
+                                self.assertEqual(run.requests, [])
+                    except ValueError as error:
+                        observed = error
+                    if size == 65536 and aggregate > size:
+                        self.assertIsNone(observed)
+                        self.assertEqual(len(run.requests), 1)
+                        self.assertIn(
+                            "http3=not-used", problems(render_snapshot(run, METADATA))
+                        )
+                    else:
+                        self.assertIs(observed, run.failures[0])
+                        self.assertIn(
+                            "header limit" if size == 65537 else "aggregate",
+                            str(observed),
+                        )
+                        with self.assertRaises(ValueError) as unpublished:
+                            render_snapshot(run, METADATA)
+                        self.assertIs(unpublished.exception, observed)
+                    self.assertTrue(all(owner.finished for owner in run.owners))
+            finally:
+                if client is not None:
+                    client[1].close()
+                    await client[1].wait_closed()
+                if run is not None:
+                    for owner in run.owners:
+                        await owner.close(asyncio.get_running_loop().time() + 10)
+
+    async def test_original_http3_callback_failure_prevents_partial_publication(self):
+        primary = OSError(errno.EIO, "original snapshot HTTP/3 callback failure")
+        configuration = QuicConfiguration(
+            is_client=True,
+            alpn_protocols=H3_ALPN,
+            server_name=HOSTNAME,
+            verify_mode=ssl.CERT_NONE,
+        )
+        run = None
+        try:
+            with self.assertRaises(OSError) as raised:
+                async with serving(CERTIFICATE, "quic-fault", 0) as run:
+                    with mock.patch.object(run, "record", side_effect=primary):
+                        async with connect_loopback(
+                            run.port, configuration, H3Client
+                        ) as client:
+                            stream = client._quic.get_next_available_stream_id()
+                            client.http.send_headers(
+                                stream,
+                                [
+                                    (b":method", b"GET"),
+                                    (b":scheme", b"https"),
+                                    (b":authority", HOSTNAME.encode()),
+                                    (b":path", b"/next?run=quic-fault"),
+                                ],
+                                end_stream=True,
+                            )
+                            client.transmit()
+                            await asyncio.wait_for(run.done.wait(), TIMEOUT)
+
+            self.assertIs(raised.exception, primary)
+            self.assertIs(run.failures[0], primary)
+            owner = run.owners[1]
+            self.assertTrue(owner.retired.done())
+            self.assertTrue(owner.finished)
+            self.assertTrue(
+                all(protocol.observed_closed for protocol in owner.protocols)
+            )
+            with self.assertRaises(OSError) as unpublished:
+                render_snapshot(run, METADATA)
+            self.assertIs(unpublished.exception, primary)
+        finally:
+            if run is not None:
+                for owner in run.owners:
+                    await owner.close(asyncio.get_running_loop().time() + 10)
 
 
 class ClientHelloTests(unittest.TestCase):

@@ -38,6 +38,16 @@ including failures and cancellation. Unrelated callback errors reach your
 handler while capture is running.
 Use a finite positive `--run-timeout` and a finite nonnegative `--observation`.
 
+Before writing, the tool collects registered connections and their callback
+outcomes within a ten-second cooperative cleanup deadline. Callback failures
+and incomplete cleanup prevent writing, including with `--allow-partial`.
+Completion requires one exact run token in an origin-form request target.
+
+Split captures exceeding 128 runs or 8 MiB of recorded data per run. Each
+transport permits 128 lifetime connections and 32 active connections. Each
+QUIC connection permits 128 streams. HTTP/1 request headers, including their
+terminator, have a 64 KiB limit.
+
 `--browser` takes `chrome`, `edge`, `brave`, `opera`, or `firefox`, or an
 [Android browser](#snapshots-on-android);
 [`run_matrix.py`](#run-captures-from-a-manifest) runs it as the `snapshot`

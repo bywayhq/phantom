@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextlib
+import errno
 import secrets
 import socket
 import sys
@@ -66,12 +67,15 @@ from .http2_analysis import HeaderBlock, analyze_http2, frame_details
 from .http2_session import (
     CONNECTION_PREFACE,
     HOSTNAME,
+    MAX_CLIENT_HELLO,
+    CaptureLimitError,
     Certificate,
     ClientHello,
     ConnectionRecord,
     PlainChannel,
     TlsChannel,
     generate_certificate,
+    peer_disconnected,
     server_context,
     validate_duration,
 )
@@ -96,6 +100,12 @@ MAX_INITIAL_DATAGRAMS = 8
 INITIAL_PACKET_TYPES = {0x0000_0001: 0, 0x6B33_43CF: 1}
 MAX_PORT_ATTEMPTS = 64
 RETIRE_DRAIN_SECONDS = 1.0
+MAX_CONNECTIONS = 128
+MAX_ACTIVE_CONNECTIONS = 32
+MAX_QUIC_STREAMS = 128
+MAX_RUN_CAPTURE = 8 * 1024 * 1024
+MAX_RUNS = 128
+CLEANUP_SECONDS = 10.0
 PARTIAL_MARKERS = {("timed_out", "true"), ("http3", "not-used")}
 # Prefixes that hold a complete fixture of an existing format, and the file
 # `--split` writes each to.
@@ -141,9 +151,14 @@ class RecordedClientHello(ClientHello):
     """A ClientHello tap that also keeps the raw bytes of its records."""
 
     raw: bytearray = field(default_factory=bytearray)
+    run: SnapshotRun | None = field(default=None, repr=False)
 
     def feed(self, data: bytes) -> None:
         if not self.complete:
+            if len(self.raw) + len(data) > MAX_CLIENT_HELLO:
+                raise CaptureLimitError("ClientHello exceeds the capture limit")
+            if self.run is not None:
+                self.run.retain(len(data))
             self.raw.extend(data)
         super().feed(data)
 
@@ -151,7 +166,7 @@ class RecordedClientHello(ClientHello):
 class SnapshotTlsChannel(TlsChannel):
     def __init__(self, *args) -> None:
         super().__init__(*args)
-        self.record.client_hello = RecordedClientHello()
+        self.record.client_hello = RecordedClientHello(run=self.run)
 
 
 @dataclass
@@ -232,6 +247,10 @@ class SnapshotRun:
     finished: float | None = None
     timed_out: bool = False
     done: asyncio.Event = field(default_factory=asyncio.Event)
+    failures: list[BaseException] = field(default_factory=list, repr=False)
+    owners: list[object] = field(default_factory=list, repr=False)
+    observation_timer: asyncio.TimerHandle | None = field(default=None, repr=False)
+    retained: int = field(default=0, repr=False)
 
     def __post_init__(self) -> None:
         validate_duration(self.observation_seconds, "observation time")
@@ -240,9 +259,37 @@ class SnapshotRun:
     def now(self) -> float:
         return self.clock() - self.started
 
+    def retain(self, size: int) -> None:
+        if self.retained + size > MAX_RUN_CAPTURE:
+            raise ValueError("snapshot run exceeds the aggregate capture limit")
+        self.retained += size
+
+    def failed(self, error: BaseException) -> None:
+        if all(previous is not error for previous in self.failures):
+            self.failures.append(error)
+        self.done.set()
+
+    def check(self) -> None:
+        raise_snapshot_failures(None, tuple(self.failures))
+        if any(not owner.finished for owner in self.owners):
+            raise RuntimeError("snapshot has unfinished connection owners")
+
     def classify(self, target: bytes) -> str:
-        parts = urlsplit(target.decode("latin-1"))
-        if parse_qs(parts.query).get("run", [""])[0] != self.token:
+        if (
+            not target.startswith(b"/")
+            or target.startswith(b"//")
+            or b"#" in target
+            or any(byte <= 0x20 or byte == 0x7F for byte in target)
+        ):
+            return "other"
+        text = target.decode("latin-1")
+        try:
+            parts = urlsplit(text)
+        except ValueError:
+            return "other"
+        if parts.scheme or parts.netloc:
+            return "other"
+        if parse_qs(parts.query, keep_blank_values=True).get("run") != [self.token]:
             return "other"
         return {
             "/": "start",
@@ -258,7 +305,7 @@ class SnapshotRun:
         self.requests.append(Request(protocol, request))
         if request.kind == "done" and self.finished is None:
             self.finished = self.now()
-            asyncio.get_running_loop().call_later(
+            self.observation_timer = asyncio.get_running_loop().call_later(
                 self.observation_seconds, self.done.set
             )
 
@@ -306,6 +353,46 @@ def response_fields(
 # -- TCP: TLS (h2, http/1.1) and plaintext HTTP/1.1 ------------------------
 
 
+class SnapshotFailures(Exception):
+    """Keep initiating and independent cleanup failures on their owners."""
+
+    def __init__(
+        self, primary: BaseException | None, cleanup: tuple[BaseException, ...]
+    ) -> None:
+        self.primary = primary
+        self.cleanup = cleanup
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        self.interruption_cause = None
+        self.interruption_context = None
+        super().__init__("snapshot cleanup failed")
+
+
+def raise_snapshot_failures(
+    primary: BaseException | None, cleanup: tuple[BaseException, ...]
+) -> None:
+    if not cleanup:
+        if primary is not None:
+            raise primary
+        return
+    if primary is None and len(cleanup) == 1:
+        raise cleanup[0]
+    failure = SnapshotFailures(primary, cleanup)
+    interruption = next(
+        (
+            error
+            for error in (primary, *cleanup)
+            if error is not None and not isinstance(error, Exception)
+        ),
+        None,
+    )
+    if interruption is not None:
+        failure.interruption_cause = interruption.__cause__
+        failure.interruption_context = interruption.__context__
+        raise interruption from failure
+    raise failure from primary
+
+
 async def retire(channel: PlainChannel) -> None:
     """Half-close, then read until the client closes.
 
@@ -315,12 +402,36 @@ async def retire(channel: PlainChannel) -> None:
     if channel.writer.can_write_eof():
         channel.writer.write_eof()
 
-    async def drain() -> None:
-        while await channel.read_raw():
-            pass
+    drain_failure = None
 
-    with contextlib.suppress(asyncio.TimeoutError, ConnectionError):
+    async def drain() -> None:
+        nonlocal drain_failure
+        received = 0
+        try:
+            while data := await channel.read_raw():
+                received += len(data)
+                if received > MAX_STREAM_CAPTURE:
+                    raise ValueError("snapshot retirement exceeds the drain limit")
+        except BaseException as error:
+            drain_failure = error
+            raise
+
+    try:
         await asyncio.wait_for(drain(), RETIRE_DRAIN_SECONDS)
+    except asyncio.TimeoutError:
+        pass
+    except asyncio.CancelledError as error:
+        if error.__context__ is not drain_failure or drain_failure is None:
+            raise
+    except OSError as error:
+        if not peer_disconnected(error):
+            raise
+        return
+
+    if drain_failure is not None and not isinstance(
+        drain_failure, asyncio.CancelledError
+    ):
+        raise drain_failure
 
 
 async def serve_http1(channel, run: SnapshotRun, index: int, listener: str) -> None:
@@ -329,12 +440,14 @@ async def serve_http1(channel, run: SnapshotRun, index: int, listener: str) -> N
         end = buffer.find(b"\r\n\r\n")
         if end < 0:
             if len(buffer) > MAX_REQUEST_HEAD:
-                return
+                raise ValueError("snapshot request exceeds the header limit")
             data = await channel.read()
             if not data:
                 return
             buffer.extend(data)
             continue
+        if end + 4 > MAX_REQUEST_HEAD:
+            raise ValueError("snapshot request exceeds the header limit")
         lines = bytes(buffer[:end]).split(b"\r\n")
         del buffer[: end + 4]
         parts = lines[0].split(b" ")
@@ -372,8 +485,11 @@ async def serve_http2(channel, run: SnapshotRun, index: int) -> None:
             events = connection.receive_data(data)
         except h2.exceptions.ProtocolError as error:
             channel.record.failure = f"h2:{type(error).__name__}"
-            await channel.write(connection.data_to_send())
-            return
+            try:
+                await channel.write(connection.data_to_send())
+            except BaseException as cleanup:
+                raise_snapshot_failures(error, (cleanup,))
+            raise
         fetched = None
         for event in events:
             if isinstance(event, h2.events.RequestReceived):
@@ -402,6 +518,75 @@ async def serve_http2(channel, run: SnapshotRun, index: int) -> None:
         await channel.write(connection.data_to_send())
 
 
+class SnapshotTcpProtocol(asyncio.StreamReaderProtocol):
+    """Register an accepted stream before scheduling its serving task."""
+
+    def __init__(self, owner, listener):
+        self.owner = owner
+        self.listener = listener
+        self.transport = None
+        self.writer = None
+        self.task = None
+        self.close_task = None
+        self.retired = asyncio.get_running_loop().create_future()
+        super().__init__(asyncio.StreamReader(), self.connected)
+        self.stream_closed = self._get_close_waiter(None)
+        self.closed_observed = False
+
+    def connection_made(self, transport):
+        self.transport = transport
+        if self.owner.finished:
+            self.owner.finished = False
+            self.owner.failed(
+                RuntimeError("snapshot TCP callback arrived after cleanup")
+            )
+        try:
+            super().connection_made(transport)
+        except BaseException as error:
+            self.owner.failed(error)
+            try:
+                transport.abort()
+            except BaseException as cleanup:
+                self.owner.failed(cleanup)
+                try:
+                    transport.close()
+                except BaseException as failure:
+                    self.owner.failed(failure)
+
+    def connected(self, reader, writer):
+        self.writer = writer
+        if self.owner.stopping or self.owner.run.failures:
+            try:
+                writer.transport.abort()
+            except BaseException as error:
+                self.owner.failed(error)
+                try:
+                    writer.close()
+                except BaseException as cleanup:
+                    self.owner.failed(cleanup)
+            return
+        operation = self.owner.handle(self.listener, reader, writer)
+        try:
+            self.task = asyncio.create_task(operation)
+        except BaseException as error:
+            self.owner.failed(error)
+            try:
+                operation.close()
+            except BaseException as cleanup:
+                self.owner.failed(cleanup)
+
+    def connection_lost(self, error):
+        if error is not None and not peer_disconnected(error):
+            self.owner.failed(error)
+        try:
+            super().connection_lost(error)
+        except BaseException as failure:
+            self.owner.failed(failure)
+        finally:
+            if not self.retired.done():
+                self.retired.set_result(None)
+
+
 class TcpListeners:
     """The TLS listener on the shared port and a plaintext HTTP/1.1 listener."""
 
@@ -412,35 +597,215 @@ class TcpListeners:
         # tls_resumption.py records resumption.
         self.context.num_tickets = 0
         self.servers: list[asyncio.base_events.Server] = []
-        self.writers: set[asyncio.StreamWriter] = set()
+        self.waiters = {}
+        self.closed = set()
+        self.observed = set()
+        self.protocols = []
+        self.stopping = False
+        self.finished = False
+        run.owners.append(self)
 
     async def start(self, tls_socket: socket.socket, plain_socket: socket.socket):
-        self.servers = [
-            await asyncio.start_server(self.handle_tls, sock=tls_socket),
-            await asyncio.start_server(self.handle_plain, sock=plain_socket),
-        ]
+        loop = asyncio.get_running_loop()
+        for listener, sock in (("tls", tls_socket), ("plain", plain_socket)):
+            server = await loop.create_server(
+                lambda name=listener: self.new_protocol(name),
+                sock=sock,
+                start_serving=False,
+            )
+            self.servers.append(server)
+            ready = loop.create_future()
+            operation = self.wait_listener(server, ready)
+            try:
+                task = asyncio.create_task(operation)
+            except BaseException as error:
+                try:
+                    operation.close()
+                except BaseException as cleanup:
+                    raise_snapshot_failures(error, (cleanup,))
+                raise
+            self.waiters[server] = task
+            task.add_done_callback(
+                lambda completed, signal=ready: self.listener_finished(
+                    completed, signal
+                )
+            )
+            await ready
+            raise_snapshot_failures(None, tuple(self.run.failures))
+            await server.start_serving()
 
-    async def close(self) -> None:
-        for writer in list(self.writers):
-            writer.transport.abort()
-        self.writers.clear()
-        for server in self.servers:
-            server.close()
+    async def wait_listener(self, server, ready):
+        def registered():
+            if not ready.done():
+                ready.set_result(None)
+
+        # The callback cannot run until the original waiter has entered.
+        asyncio.get_running_loop().call_soon(registered)
+        try:
             await server.wait_closed()
+        except BaseException as error:
+            self.failed(error)
+        else:
+            self.observed.add(server)
+
+    def listener_finished(self, task, ready):
+        try:
+            task.result()
+        except BaseException as error:
+            self.failed(error)
+        if not ready.done():
+            ready.set_result(None)
+
+    def new_protocol(self, listener):
+        try:
+            protocol = SnapshotTcpProtocol(self, listener)
+            self.protocols.append(protocol)
+            active = sum(not item.retired.done() for item in self.protocols)
+            if len(self.protocols) > MAX_CONNECTIONS or active > MAX_ACTIVE_CONNECTIONS:
+                self.failed(ValueError("snapshot exceeds the TCP connection limit"))
+            return protocol
+        except BaseException as error:
+            self.failed(error)
+            raise
+
+    def failed(self, error):
+        self.run.failed(error)
+        self.stopping = True
+        for server in self.servers:
+            try:
+                server.close()
+            except BaseException as cleanup:
+                self.run.failed(cleanup)
+            else:
+                self.closed.add(server)
+
+    async def wait_stream_closed(self, protocol):
+        if protocol.writer is not None:
+            try:
+                await protocol.writer.wait_closed()
+            except OSError as error:
+                if not peer_disconnected(error):
+                    self.failed(error)
+            except BaseException as error:
+                self.failed(error)
+        # Stream setup can fail before a writer exists. Its original close
+        # future still carries the native connection_lost outcome.
+        try:
+            await asyncio.shield(protocol.stream_closed)
+        except OSError as error:
+            if not peer_disconnected(error):
+                self.failed(error)
+            protocol.closed_observed = True
+        except BaseException as error:
+            self.failed(error)
+            protocol.closed_observed = (
+                protocol.stream_closed.done() and not protocol.stream_closed.cancelled()
+            )
+        else:
+            protocol.closed_observed = True
+
+    def stop(self):
+        self.stopping = True
+        for server in self.servers:
+            try:
+                server.close()
+            except BaseException as error:
+                self.run.failed(error)
+            else:
+                self.closed.add(server)
+
+    async def close(self, deadline) -> None:
+        self.stop()
+        loop = asyncio.get_running_loop()
+        cancelling = False
+        while True:
+            for protocol in self.protocols:
+                if protocol.transport is not None and not protocol.retired.done():
+                    try:
+                        protocol.transport.abort()
+                    except BaseException as error:
+                        self.failed(error)
+                        try:
+                            protocol.transport.close()
+                        except BaseException as cleanup:
+                            self.failed(cleanup)
+                if protocol.close_task is not None:
+                    continue
+                operation = self.wait_stream_closed(protocol)
+                try:
+                    protocol.close_task = asyncio.create_task(operation)
+                except BaseException as error:
+                    self.failed(error)
+                    try:
+                        operation.close()
+                    except BaseException as cleanup:
+                        self.failed(cleanup)
+
+            tasks = set(self.waiters.values())
+            for protocol in self.protocols:
+                tasks.add(protocol.retired)
+                tasks.update(
+                    task
+                    for task in (protocol.task, protocol.close_task)
+                    if task is not None
+                )
+            pending = {task for task in tasks if not task.done()}
+            if not pending:
+                self.finished = all(
+                    protocol.close_task is not None and protocol.closed_observed
+                    for protocol in self.protocols
+                ) and all(
+                    server in self.closed and server in self.observed
+                    for server in self.servers
+                )
+                break
+            wait_deadline = deadline if cancelling else deadline - 1.0
+            try:
+                await asyncio.wait(
+                    pending,
+                    timeout=max(0, wait_deadline - loop.time()),
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+            except BaseException as error:
+                self.failed(error)
+            if loop.time() < wait_deadline:
+                continue
+            self.failed(TimeoutError("snapshot TCP cleanup exceeded its deadline"))
+            for protocol in self.protocols:
+                if protocol.task is not None and not protocol.task.done():
+                    protocol.task.cancel()
+            if not cancelling and loop.time() < deadline:
+                cancelling = True
+                continue
+            break
+
+        for task in self.waiters.values():
+            if task.done():
+                try:
+                    task.result()
+                except BaseException as error:
+                    self.failed(error)
+        for protocol in self.protocols:
+            for task in (protocol.task, protocol.close_task):
+                if task is not None and task.done():
+                    try:
+                        task.result()
+                    except BaseException as error:
+                        self.failed(error)
 
     async def handle(self, listener: str, reader, writer) -> None:
-        self.writers.add(writer)
         record = ConnectionRecord(listener=listener, accepted=self.run.now())
         self.run.connections.append(record)
         index = len(self.run.connections) - 1
+        channel = None
         try:
             if listener == "plain":
                 record.protocol = "http/1.1"
-                channel = PlainChannel(reader, writer, record, self.run.now)
+                channel = PlainChannel(reader, writer, record, self.run.now, self.run)
                 await serve_http1(channel, self.run, index, "plain")
                 return
             channel = SnapshotTlsChannel(
-                self.context, reader, writer, record, self.run.now
+                self.context, reader, writer, record, self.run.now, self.run
             )
             await channel.handshake()
             record.protocol = record.alpn or "http/1.1"
@@ -448,24 +813,33 @@ class TcpListeners:
                 await serve_http2(channel, self.run, index)
             else:
                 await serve_http1(channel, self.run, index, "tls")
-        except Exception as error:  # recorded: a capture keeps partial evidence
+        except BaseException as error:
             record.failure = record.failure or type(error).__name__
+            closed_handshake = (
+                self.stopping
+                and isinstance(channel, TlsChannel)
+                and type(error) is ConnectionError
+                and error is channel.peer_handshake_failure
+                and error.errno is None
+                and reader.at_eof()
+                and reader.exception() is None
+                and writer.is_closing()
+            )
+            if not closed_handshake and (
+                channel is None or error is not channel.peer_io_failure
+            ):
+                self.failed(error)
         finally:
-            self.writers.discard(writer)
-            if not writer.transport.is_closing():
+            try:
                 writer.close()
-
-    async def handle_tls(self, reader, writer) -> None:
-        await self.handle("tls", reader, writer)
-
-    async def handle_plain(self, reader, writer) -> None:
-        await self.handle("plain", reader, writer)
+            except BaseException as error:
+                self.failed(error)
 
 
 # -- QUIC and HTTP/3 -------------------------------------------------------
 
 
-def quic_protocol(run: SnapshotRun):
+def quic_protocol(run: SnapshotRun, owner):
     from aioquic.asyncio import QuicConnectionProtocol
     from aioquic.h3.connection import H3Connection, Setting
     from aioquic.h3.events import HeadersReceived
@@ -474,23 +848,53 @@ def quic_protocol(run: SnapshotRun):
     class SnapshotQuicProtocol(QuicConnectionProtocol):
         def __init__(self, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
+            self.owner = owner
+            self.observed_closed = False
+            owner.protocols.append(self)
             self.record = QuicRecord(run.now())
             self.index = len(run.quic_connections)
             run.quic_connections.append(self.record)
             self.http: H3Connection | None = None
+            active = sum(not protocol._closed.is_set() for protocol in owner.protocols)
+            if (
+                len(owner.protocols) > MAX_CONNECTIONS
+                or active > MAX_ACTIVE_CONNECTIONS
+            ):
+                owner.failed(ValueError("snapshot exceeds the QUIC connection limit"))
 
         def datagram_received(self, data, addr) -> None:
-            if len(self.record.initial_datagrams) < MAX_INITIAL_DATAGRAMS:
-                datagram = initial_datagram(bytes(data))
-                if datagram is not None:
-                    self.record.initial_datagrams.append(datagram)
-            super().datagram_received(data, addr)
+            try:
+                if len(self.record.initial_datagrams) < MAX_INITIAL_DATAGRAMS:
+                    datagram = initial_datagram(bytes(data))
+                    if datagram is not None:
+                        self.record.initial_datagrams.append(datagram)
+                super().datagram_received(data, addr)
+            except BaseException as error:
+                self.failed(error)
+
+        def failed(self, error):
+            self.record.failure = self.record.failure or type(error).__name__
+            self.owner.failed(error)
+
+        def _handle_timer(self):
+            try:
+                super()._handle_timer()
+            except BaseException as error:
+                self.failed(error)
+
+        def transmit(self):
+            try:
+                super().transmit()
+            except BaseException as error:
+                self.failed(error)
 
         def quic_event_received(self, event) -> None:
+            if self.owner.stopping:
+                return
             try:
                 self.handle(event)
-            except Exception as error:  # recorded: a capture keeps partial evidence
-                self.record.failure = self.record.failure or type(error).__name__
+            except BaseException as error:
+                self.failed(error)
 
         def handle(self, event) -> None:
             record = self.record
@@ -513,6 +917,14 @@ def quic_protocol(run: SnapshotRun):
                 record.received += len(event.data)
                 if record.received > MAX_STREAM_CAPTURE:
                     raise ValueError("connection exceeds the capture limit")
+                if (
+                    event.stream_id not in record.streams
+                    and len(record.streams) >= MAX_QUIC_STREAMS
+                ):
+                    raise ValueError(
+                        "snapshot QUIC connection exceeds the stream limit"
+                    )
+                run.retain(len(event.data))
                 stream = record.streams.setdefault(event.stream_id, bytearray())
                 stream.extend(event.data)
             if self.http is None:
@@ -549,6 +961,144 @@ def quic_protocol(run: SnapshotRun):
     return SnapshotQuicProtocol
 
 
+def quic_server(run: SnapshotRun, configuration):
+    from aioquic.asyncio.server import QuicServer
+
+    class SnapshotQuicServer(QuicServer):
+        def __init__(self):
+            self.protocols = []
+            self.waits = {}
+            self.stopping = False
+            self.finished = False
+            self.retired = asyncio.get_running_loop().create_future()
+            super().__init__(
+                configuration=configuration, create_protocol=quic_protocol(run, self)
+            )
+            run.owners.append(self)
+
+        def failed(self, error):
+            run.failed(error)
+            self.stopping = True
+
+        def datagram_received(self, data, addr):
+            if self.stopping or run.failures:
+                return
+            try:
+                super().datagram_received(data, addr)
+            except BaseException as error:
+                self.failed(error)
+
+        def error_received(self, error):
+            self.failed(error)
+
+        def connection_lost(self, error):
+            if error is not None:
+                self.failed(error)
+            if not self.retired.done():
+                self.retired.set_result(None)
+
+        async def wait_protocol(self, protocol):
+            try:
+                await protocol.wait_closed()
+            except BaseException as error:
+                self.failed(error)
+            else:
+                protocol.observed_closed = True
+
+        def stop(self):
+            self.stopping = True
+            for protocol in self.protocols:
+                if protocol in self.waits:
+                    continue
+                try:
+                    protocol.close()
+                except BaseException as error:
+                    self.failed(error)
+                operation = self.wait_protocol(protocol)
+                try:
+                    self.waits[protocol] = asyncio.create_task(operation)
+                except BaseException as error:
+                    self.failed(error)
+                    try:
+                        operation.close()
+                    except BaseException as cleanup:
+                        self.failed(cleanup)
+
+        async def close(self, deadline):
+            self.stop()
+            loop = asyncio.get_running_loop()
+            while True:
+                tasks = set(self.waits.values())
+                pending = {task for task in tasks if not task.done()}
+                if not pending:
+                    break
+                remaining = deadline - 1.0 - loop.time()
+                if remaining <= 0:
+                    self.failed(
+                        TimeoutError("snapshot QUIC cleanup exceeded its deadline")
+                    )
+                    break
+                try:
+                    await asyncio.wait(
+                        pending, timeout=remaining, return_when=asyncio.FIRST_COMPLETED
+                    )
+                except BaseException as error:
+                    self.failed(error)
+
+            if self._transport is None:
+                self.failed(
+                    RuntimeError("snapshot QUIC transport acquisition was not observed")
+                )
+            else:
+                # A pending Windows datagram write can prevent close() from
+                # delivering connection_lost; observe the original abort.
+                try:
+                    self._transport.abort()
+                except BaseException as error:
+                    self.failed(error)
+                    try:
+                        self._transport.close()
+                    except BaseException as cleanup:
+                        self.failed(cleanup)
+                while not self.retired.done():
+                    remaining = deadline - loop.time()
+                    if remaining <= 0:
+                        self.failed(
+                            TimeoutError("snapshot UDP cleanup exceeded its deadline")
+                        )
+                        break
+                    try:
+                        await asyncio.wait({self.retired}, timeout=remaining)
+                    except BaseException as error:
+                        self.failed(error)
+
+            self.finished = (
+                self._transport is not None
+                and self.retired.done()
+                and all(protocol.observed_closed for protocol in self.protocols)
+            )
+
+            for protocol in self.protocols:
+                task = self.waits.get(protocol)
+                if task is not None and task.done():
+                    try:
+                        task.result()
+                    except BaseException as error:
+                        self.failed(error)
+                # Retire callbacks without fabricating native completion.
+                for attribute in ("_timer", "_transmit_task"):
+                    handle = getattr(protocol, attribute)
+                    if handle is not None:
+                        try:
+                            handle.cancel()
+                        except BaseException as error:
+                            self.failed(error)
+                        else:
+                            setattr(protocol, attribute, None)
+
+    return SnapshotQuicServer()
+
+
 def reserve_shared_port() -> tuple[socket.socket, socket.socket]:
     """Bind TCP and UDP on one ephemeral loopback port number.
 
@@ -557,59 +1107,113 @@ def reserve_shared_port() -> tuple[socket.socket, socket.socket]:
     close to the previous one, so attempts alternate which protocol picks.
     """
     for attempt in range(MAX_PORT_ATTEMPTS):
-        tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        first, second = (tcp, udp) if attempt % 2 == 0 else (udp, tcp)
+        owned = []
+        binding = False
         try:
+            tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            owned.append(tcp)
+            udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            owned.append(udp)
+            first, second = (tcp, udp) if attempt % 2 == 0 else (udp, tcp)
+            binding = True
             first.bind((HOST, 0))
             second.bind((HOST, first.getsockname()[1]))
-        except OSError:
-            tcp.close()
-            udp.close()
-            continue
-        tcp.listen(64)
-        tcp.setblocking(False)
-        udp.setblocking(False)
-        return tcp, udp
-    raise OSError("no loopback port is free for both TCP and UDP")
+            binding = False
+            tcp.listen(64)
+            tcp.setblocking(False)
+            udp.setblocking(False)
+            return tcp, udp
+        except BaseException as error:
+            cleanup = []
+            for sock in reversed(owned):
+                try:
+                    sock.close()
+                except BaseException as failure:
+                    cleanup.append(failure)
+            if cleanup:
+                raise_snapshot_failures(error, tuple(cleanup))
+            refused = isinstance(error, OSError) and (
+                error.errno == errno.EADDRINUSE
+                or getattr(error, "winerror", None) in {10013, 10055}
+            )
+            if not binding or not refused or attempt + 1 == MAX_PORT_ATTEMPTS:
+                raise
 
 
 @contextlib.asynccontextmanager
 async def serving(certificate: Certificate, token: str, observation: float):
     """Serve one run: TLS and QUIC on one port number, plaintext on another."""
-    from aioquic.asyncio.server import QuicServer
     from aioquic.h3.connection import H3_ALPN
     from aioquic.quic.configuration import QuicConfiguration
 
     from .quic_resumption import install_hooks, load_certificate
 
     validate_duration(observation, "observation time")
-    tcp, udp = reserve_shared_port()
-    plain = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    plain.bind((HOST, 0))
-    plain.listen(64)
-    plain.setblocking(False)
-    run = SnapshotRun(token, tcp.getsockname()[1], plain.getsockname()[1], observation)
-    listeners = TcpListeners(run, certificate)
-    configuration = QuicConfiguration(is_client=False, alpn_protocols=H3_ALPN)
-    load_certificate(configuration, certificate)
-    restore = install_hooks(accept_early_data=True)
-    quic = None
+    sockets = []
+    run = None
+    restore = None
+    primary = None
     try:
+        tcp, udp = reserve_shared_port()
+        sockets.extend((tcp, udp))
+        plain = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sockets.append(plain)
+        plain.bind((HOST, 0))
+        plain.listen(64)
+        plain.setblocking(False)
+        run = SnapshotRun(
+            token, tcp.getsockname()[1], plain.getsockname()[1], observation
+        )
+        listeners = TcpListeners(run, certificate)
+        configuration = QuicConfiguration(is_client=False, alpn_protocols=H3_ALPN)
+        load_certificate(configuration, certificate)
+        restore = install_hooks(accept_early_data=True)
         await listeners.start(tcp, plain)
-        protocol = quic_protocol(run)
-        _, quic = await asyncio.get_running_loop().create_datagram_endpoint(
-            lambda: QuicServer(configuration=configuration, create_protocol=protocol),
+        quic = quic_server(run, configuration)
+        await asyncio.get_running_loop().create_datagram_endpoint(
+            lambda: quic,
             sock=udp,
         )
         yield run
+    except BaseException as error:
+        primary = error
     finally:
-        if quic is not None:
-            quic.close()
-        else:
-            udp.close()
-        await listeners.close()
-        restore()
+        cleanup = []
+        if run is not None:
+            if primary is not None:
+                run.failed(primary)
+            if run.observation_timer is not None:
+                try:
+                    run.observation_timer.cancel()
+                except BaseException as error:
+                    run.failed(error)
+            deadline = asyncio.get_running_loop().time() + CLEANUP_SECONDS
+            for owner in run.owners:
+                try:
+                    owner.stop()
+                except BaseException as error:
+                    run.failed(error)
+            for owner in run.owners:
+                try:
+                    await owner.close(deadline)
+                except BaseException as error:
+                    run.failed(error)
+                if not owner.finished:
+                    run.failed(
+                        RuntimeError("snapshot connection cleanup is incomplete")
+                    )
+            cleanup.extend(error for error in run.failures if error is not primary)
+        for sock in reversed(sockets):
+            try:
+                sock.close()
+            except BaseException as error:
+                cleanup.append(error)
+        if restore is not None:
+            try:
+                restore()
+            except BaseException as error:
+                cleanup.append(error)
+        raise_snapshot_failures(primary, tuple(cleanup))
 
 
 # -- Rendering -------------------------------------------------------------
@@ -927,6 +1531,7 @@ def evidence(key: str, render: Callable[[], list[str]]) -> list[str]:
 
 
 def render_snapshot(run: SnapshotRun, capture: CaptureMetadata) -> str:
+    run.check()
     http3 = any(record.first_request for record in run.quic_connections)
     lines = [
         f"format={FORMAT}",
@@ -1143,8 +1748,8 @@ async def capture(args: argparse.Namespace) -> int:
 
 
 def validate_capture_options(args: argparse.Namespace) -> None:
-    if args.repeat < 1:
-        raise ValueError("--repeat must be positive")
+    if not 1 <= args.repeat <= MAX_RUNS:
+        raise ValueError(f"--repeat must be between 1 and {MAX_RUNS}")
 
     validate_duration(args.run_timeout, "--run-timeout", positive=True)
     validate_duration(args.observation, "--observation")

@@ -14,6 +14,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Collect registered snapshot connections before writing and retain callback
+  and cleanup failures. Migrate: split captures exceeding 128 runs, 128
+  lifetime or 32 active connections per transport, 128 streams per QUIC
+  connection, or 8 MiB of recorded data per run. Completed HTTP/1 headers
+  have a 64 KiB limit. Completion requires one exact run token.
+
 - Bound HTTP/2 preface captures and collect registered connections before
   writing. Callback and cleanup failures retain their original errors.
   Completion requires the run's exact token on the page's connection.
