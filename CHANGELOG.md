@@ -2562,6 +2562,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Reject incomplete header-protection samples and headers exceeding the native
+  buffer before decrypting QUIC packets in offline capture analysis.
+
 - Keep socket-hook cleanup running after partial startup fails. Retain the
   initiating error and independent listener, browser and profile failures.
   Wake idle runs after hook failure, observe owned process exits before

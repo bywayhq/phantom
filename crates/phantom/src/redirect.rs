@@ -21,10 +21,11 @@ use crate::{RequestError, request::RequestBodySource};
 /// `Location`, a location that does not resolve, or a hop past the limit
 /// also fails with that kind, and the redirect response is not returned.
 ///
-/// Each hop keeps the request's route and protocol rule, its total timeout,
-/// and its retry budget. A hop they cannot carry fails before it is sent,
-/// with the same typed error the first request would get; Phantom never
-/// changes the protocol or route to follow a redirect. A 307 or 308 resends
+/// Each hop keeps the request's explicit route overrides and protocol rule,
+/// its total timeout, and its retry budget. Environment routing selects a
+/// route for each new logical origin, as [`crate::EnvironmentProxies`] describes.
+/// An unsupported hop fails before it is sent, with the same typed error
+/// the first request would get. A 307 or 308 resends
 /// the method and body; a one-shot streaming body cannot be resent and fails
 /// with [`RequestErrorKind::RequestBody`](crate::RequestErrorKind::RequestBody).
 /// A cross-origin hop, including a change between `http://` and `https://`,
