@@ -19,6 +19,8 @@ use crate::support::{
 
 use super::TestResult;
 
+const MAX_TASKS: usize = 64;
+
 enum Outcome {
     Finished(TestResult),
     Stopped,
@@ -186,8 +188,8 @@ impl Spawner {
         if state.stopped {
             return Err("HTTP/2 fixture worker admission has stopped".into());
         }
-        // Eight origins, with five callers and six responses apiece, fit here.
-        if state.tasks.len() == 256 {
+        // Four origins, twenty callers and twenty-four responses fit in sixty-four admissions.
+        if state.tasks.len() == MAX_TASKS {
             return Err("HTTP/2 fixture exceeded its scripted worker count".into());
         }
 
