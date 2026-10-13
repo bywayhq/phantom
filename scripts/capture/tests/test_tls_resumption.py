@@ -1,13 +1,16 @@
 import asyncio
+import errno
 import socket
 import ssl
 import unittest
+from unittest import mock
 from dataclasses import replace
 from pathlib import Path
 
 from aioquic import tls
 from cryptography.exceptions import InvalidTag
 
+from scripts.capture import tls_resumption as capture
 from scripts.capture.http2_session import HOSTNAME, generate_certificate
 from scripts.capture.quic_resumption import PRE_SHARED_KEY, parse_client_hello
 from scripts.capture.tls_resumption import (
@@ -522,6 +525,156 @@ def blocking_http2_websocket(port: int) -> tuple[int | None, bytes | None, bytes
         while chunk := stream.recv(65536):
             client.receive_data(chunk)
         return enabled, status, data
+
+
+class CaptureBoundaryTests(unittest.TestCase):
+    def test_complete_http1_heads_respect_the_declared_limit(self):
+        prefix = b"GET / HTTP/1.1\r\nX-Pad: "
+        for size in (capture.MAX_HEAD, capture.MAX_HEAD + 1):
+            head = prefix + b"x" * (size - len(prefix) - 4) + b"\r\n\r\n"
+            with self.subTest(size=size):
+                if size == capture.MAX_HEAD:
+                    self.assertEqual(len(Http1Parser().feed(head)), 1)
+                else:
+                    with self.assertRaises(ValueError):
+                        Http1Parser().feed(head)
+
+    def test_negative_content_length_is_not_a_complete_request(self):
+        with self.assertRaises(ValueError):
+            Http1Parser().feed(b"POST / HTTP/1.1\r\nContent-Length: -1\r\n\r\nx")
+
+    def test_oversized_incomplete_client_hello_is_rejected_before_retention(self):
+        server = capture.CaptureServer(SCENARIOS["sequential-http1"], {})
+        connection = capture.Connection(server, "a", mock.Mock(), mock.Mock())
+        header = b"\x01" + capture.MAX_CLIENT_HELLO.to_bytes(3, "big")
+        record = TlsRecord(22, b"", header)
+        with self.assertRaises(ValueError):
+            connection.handle_record(record)
+        self.assertLessEqual(len(connection.handshake_bytes), capture.MAX_CLIENT_HELLO)
+
+
+class CaptureCompletionTests(unittest.IsolatedAsyncioTestCase):
+    async def connect(self, server):
+        port = int(server.origins["a"].rsplit(":", 1)[1])
+        reader, writer = await asyncio.open_connection(
+            "127.0.0.1", port, ssl=client_context("http/1.1"), server_hostname=HOSTNAME
+        )
+        writer.write(b"GET /hold HTTP/1.1\r\nHost: server.phantom.test\r\n\r\n")
+        await writer.drain()
+        head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 5)
+        self.assertTrue(head.startswith(b"HTTP/1.1 200 OK\r\n"))
+        self.assertEqual(await asyncio.wait_for(reader.readexactly(2), 5), b"ok")
+        return reader, writer
+
+    async def test_completed_response_failure_retains_the_original_cause(self):
+        primary = OSError(errno.EIO, "original response completion failure")
+        entered = asyncio.Event()
+        release = asyncio.Event()
+        finished = asyncio.Event()
+        original = capture.Connection.respond
+        tasks = []
+        client = None
+
+        async def respond(connection, request, delay):
+            tasks.append(asyncio.current_task())
+            await original(connection, request, delay)
+            entered.set()
+            await release.wait()
+            finished.set()
+            raise primary
+
+        try:
+            with mock.patch.object(capture.Connection, "respond", new=respond):
+                with self.assertRaises(OSError) as raised:
+                    async with serving(
+                        SCENARIOS["sequential-http1"], "127.0.0.1", certificates()
+                    ) as server:
+                        client = await self.connect(server)
+                        await asyncio.wait_for(entered.wait(), 5)
+                        release.set()
+                        await asyncio.wait_for(finished.wait(), 5)
+                self.assertIs(raised.exception, primary)
+        finally:
+            release.set()
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+            if client is not None:
+                client[1].close()
+                await client[1].wait_closed()
+
+    async def test_unrelated_read_failure_is_not_a_peer_reset(self):
+        primary = OSError(errno.EIO, "original accepted read failure")
+        original = capture.Connection.serve
+        entered = asyncio.Event()
+        release = asyncio.Event()
+        tasks = []
+        client = None
+
+        async def serve(connection):
+            tasks.append(asyncio.current_task())
+            read = connection.reader.read
+
+            async def observed_read(size):
+                if release.is_set():
+                    raise primary
+                data = await read(size)
+                if entered.is_set():
+                    raise primary
+                return data
+
+            with mock.patch.object(connection.reader, "read", new=observed_read):
+                await original(connection)
+
+        try:
+            with mock.patch.object(capture.Connection, "serve", new=serve):
+                with self.assertRaises(OSError) as raised:
+                    async with serving(
+                        SCENARIOS["sequential-http1"], "127.0.0.1", certificates()
+                    ) as server:
+                        client = await self.connect(server)
+                        entered.set()
+                        release.set()
+                        # Wake the original read with actual TLS application bytes.
+                        client[1].write(
+                            b"GET /next HTTP/1.1\r\nHost: server.phantom.test\r\n\r\n"
+                        )
+                        await client[1].drain()
+                        await asyncio.wait_for(asyncio.shield(tasks[0]), 5)
+                self.assertIs(raised.exception, primary)
+        finally:
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+            if client is not None:
+                client[1].close()
+                await client[1].wait_closed()
+
+    async def test_close_notify_failure_still_closes_the_original_writer(self):
+        primary = OSError(errno.EIO, "original close_notify write failure")
+        client = None
+        try:
+            async with serving(
+                SCENARIOS["sequential-http1"], "127.0.0.1", certificates()
+            ) as server:
+                client = await self.connect(server)
+                connection = server.connections[0]
+                with mock.patch.object(connection.writer, "write", side_effect=primary):
+                    with self.assertRaises(OSError) as raised:
+                        connection.close_by("server")
+                self.assertIs(raised.exception, primary)
+                self.assertTrue(connection.writer.is_closing())
+        finally:
+            if "connection" in locals():
+                connection.writer.transport.abort()
+            if client is not None:
+                client[1].close()
+                try:
+                    await asyncio.wait_for(client[1].wait_closed(), 5)
+                except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+                    pass
 
 
 if __name__ == "__main__":
