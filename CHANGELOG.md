@@ -2492,6 +2492,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Bound TLS capture input, reject non-finite capture waits and invalid metadata,
   and bracket EventSource IPv6 listener URLs. Decode split QUIC stream types
   within their declared frames and reject malformed ClientHello vectors.
+- Retain accepted HTTP/2 preface capture sockets when protocol setup fails,
+  and reject malformed metadata before resource acquisition or fixture publication.
+
 - Retain HTTP/3 WebSocket fixture connections, responders and UDP relays
   through caller failure. Preserve unexpected reset and deadline causes.
 - Collect streamed MASQUE fixture TLS, pump and UDP failures during bounded

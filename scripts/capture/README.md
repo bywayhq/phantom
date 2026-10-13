@@ -984,6 +984,10 @@ waits `--idle` seconds (11.5 by default), fetches `/b`, waits `--short`
 seconds (9), fetches `/c`, waits `--idle` seconds again, and sends a 100-byte
 `POST /p` before `/done`. A run takes about 35 seconds.
 
+Use single-line printable ASCII metadata. Invalid metadata fails before
+resource acquisition, and the renderer checks derived launch values before
+publication. Protocol setup failures retain and retire the accepted socket.
+
 ```sh
 uv run --no-project --python 3.10 --with h2==4.4.1 --with hpack==4.2.0 \
   python -m scripts.capture.http2_preface_ping --browser chrome \

@@ -27,7 +27,14 @@ def capture_arguments():
 class MetadataTests(unittest.TestCase):
     def test_raw_metadata_fails_before_certificate_acquisition(self):
         for name in ("client", "client_version", "operating_system"):
-            for value in ("x\nframe_0=forged", "x\rforged", "x\t", "x\x00", "x\x7f", "é"):
+            for value in (
+                "x\nframe_0=forged",
+                "x\rforged",
+                "x\t",
+                "x\x00",
+                "x\x7f",
+                "é",
+            ):
                 args = capture_arguments()
                 setattr(args, name, value)
                 with (
@@ -46,9 +53,20 @@ class MetadataTests(unittest.TestCase):
         run = preface.Run("token", 11.5, 9.0)
         run.page_connection = preface.FrameLog()
         for name in (
-            "client", "client_version", "operating_system", "launch_mode", "launch_arguments"
+            "client",
+            "client_version",
+            "operating_system",
+            "launch_mode",
+            "launch_arguments",
         ):
-            for value in ("x\nframe_0=forged", "x\rforged", "x\t", "x\x00", "x\x7f", "é"):
+            for value in (
+                "x\nframe_0=forged",
+                "x\rforged",
+                "x\t",
+                "x\x00",
+                "x\x7f",
+                "é",
+            ):
                 args = capture_arguments()
                 plan = mock.Mock(client_name="Chromium", launch_mode="automatic")
                 arguments = "--headless"
@@ -78,7 +96,9 @@ class MetadataTests(unittest.TestCase):
         args.operating_system = "Windows 11 !~"
         run = preface.Run("token", 11.5, 9.0)
         run.page_connection = preface.FrameLog()
-        plan = LaunchPlan(browser="chrome", executable=Path("chrome.exe"), headless=True)
+        plan = LaunchPlan(
+            browser="chrome", executable=Path("chrome.exe"), headless=True
+        )
 
         with mock.patch.object(preface, "capture_tool", return_value="python"):
             text = preface.fixture(args, plan, "", run, 0)
@@ -132,7 +152,9 @@ class FactoryOwnershipTests(unittest.IsolatedAsyncioTestCase):
             await owner.start("127.0.0.1")
             address = ("127.0.0.1", owner.port)
             loop.set_exception_handler(observe_failure)
-            with mock.patch.object(preface, "PrefaceProtocol", side_effect=fail_factory):
+            with mock.patch.object(
+                preface, "PrefaceProtocol", side_effect=fail_factory
+            ):
                 client = await asyncio.open_connection(*address)
                 await asyncio.wait_for(run.done.wait(), 2)
                 await asyncio.sleep(0)
@@ -150,7 +172,9 @@ class FactoryOwnershipTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(owner.protocols)
             self.assertEqual(unexpected, [])
             self.assertEqual(len(accepted_sockets), 1)
-            self.assertTrue(all(accepted.fileno() == -1 for accepted in accepted_sockets))
+            self.assertTrue(
+                all(accepted.fileno() == -1 for accepted in accepted_sockets)
+            )
             rebound = await asyncio.start_server(lambda _r, w: w.close(), *address)
             rebound.close()
             await rebound.wait_closed()

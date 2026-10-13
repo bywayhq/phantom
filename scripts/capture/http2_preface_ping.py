@@ -358,6 +358,39 @@ class PrefaceProtocol(asyncio.StreamReaderProtocol):
                 self.closed.set_result(None)
 
 
+class RetiringPrefaceProtocol(asyncio.Protocol):
+    """Adopt a socket whose ordinary protocol could not be constructed."""
+
+    def __init__(self, owner: PrefaceServer) -> None:
+        self.owner = owner
+        self.transport: asyncio.Transport | None = None
+        self.writer: asyncio.StreamWriter | None = None
+        self.handler: asyncio.Task[None] | None = None
+        self.waiter: asyncio.Task[None] | None = None
+        self.closed = asyncio.get_running_loop().create_future()
+        self.retired = False
+
+    def connection_made(self, transport: asyncio.Transport) -> None:
+        self.transport = transport
+        # The backend has attached this transport before listener closure.
+        self.owner.stop_listener()
+        try:
+            transport.abort()
+        except BaseException as error:
+            self.owner.failed(error)
+            try:
+                transport.close()
+            except BaseException as cleanup:
+                self.owner.failed(cleanup)
+
+    def connection_lost(self, error: Exception | None) -> None:
+        if error is not None and not isinstance(error, PEER_DISCONNECT):
+            self.owner.failed(error)
+        self.retired = True
+        if not self.closed.done():
+            self.closed.set_result(None)
+
+
 class PrefaceServer:
     """One listener, its accepted streams, and their original outcomes."""
 
@@ -367,7 +400,7 @@ class PrefaceServer:
         self.listener: asyncio.Server | None = None
         self.listener_wait: asyncio.Task[None] | None = None
         self.listener_observed = False
-        self.protocols: set[PrefaceProtocol] = set()
+        self.protocols: set[PrefaceProtocol | RetiringPrefaceProtocol] = set()
         self.failures: list[BaseException] = []
         self.port: int | None = None
 
@@ -395,12 +428,14 @@ class PrefaceServer:
         asyncio.get_running_loop().call_soon(ready.set)
         await self.listener.wait_closed()
 
-    def new_protocol(self) -> PrefaceProtocol:
+    def new_protocol(self) -> PrefaceProtocol | RetiringPrefaceProtocol:
         try:
             protocol = PrefaceProtocol(self)
         except BaseException as error:
-            self.failed(error)
-            raise
+            # A raised factory error leaves the backend's accepted socket
+            # outside our owner. Adopt it before stopping the listener.
+            self.remember(error)
+            protocol = RetiringPrefaceProtocol(self)
         self.protocols.add(protocol)
         if len(self.protocols) > MAX_CONNECTIONS:
             # Closing here would precede the backend's transport attachment.
@@ -565,10 +600,20 @@ def fixture(
     log = run.page_connection
     if log is None:
         raise ValueError("no HTTP/2 connection carried the page")
+    client = args.client or plan.client_name
+    for name, value in (
+        ("client", client),
+        ("client_version", args.client_version),
+        ("operating_system", args.operating_system),
+        ("launch_mode", plan.launch_mode),
+        ("launch_arguments", arguments),
+    ):
+        validate_metadata(name, value)
+
     lines = [
         f"format={FORMAT}",
         f"captured_at_unix={int(time.time())}",
-        f"client={args.client or plan.client_name}",
+        f"client={client}",
         f"client_version={args.client_version}",
         f"operating_system={args.operating_system}",
         f"hostname={HOSTNAME}",
@@ -642,7 +687,16 @@ def validate_options(args: argparse.Namespace) -> float:
     timeout = 2 * args.idle + args.short + 30
     if not math.isfinite(timeout):
         raise ValueError("combined capture timeout must be finite")
+    for name in ("client", "client_version", "operating_system"):
+        value = getattr(args, name)
+        if value is not None:
+            validate_metadata(name, value)
     return timeout
+
+
+def validate_metadata(name: str, value: str) -> None:
+    if any(not 0x20 <= ord(character) <= 0x7E for character in value):
+        raise ValueError(f"{name} must contain only printable ASCII characters")
 
 
 def resolver_address(host: str) -> str:
