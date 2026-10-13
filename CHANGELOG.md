@@ -1084,6 +1084,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Add a transport and profile campaign plan for timing investigations,
+  corpus growth, and the named client and browser-coverage gaps.
+
 - Observe DNS fixture failures with `phantom_testkit::dns::DnsServer::finish`.
   Interrupted completion waits retain the original task for another call.
 

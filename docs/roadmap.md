@@ -10,6 +10,11 @@ separate work.
 This page states intent, not commitments or dates; for exact current
 support, see [Coverage](reference/coverage.md).
 
+The [transport and profile campaign](internals/transport-and-profile-campaign.md)
+tracks the next timing investigations, corpus management, and named feature
+and browser-coverage additions. Its completion criteria are separate from
+the completed phase scopes below.
+
 > For builders planning around Phantom and contributors choosing work.
 
 Each phase names its main delivery focus. Idiomatic Rust, clear ownership,
