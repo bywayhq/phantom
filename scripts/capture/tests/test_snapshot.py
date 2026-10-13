@@ -135,6 +135,8 @@ class CaptureHandlerTests(unittest.IsolatedAsyncioTestCase):
                     allow_partial=False,
                     run_timeout=1.0,
                     observation=0.0,
+                    client_version="1.0",
+                    operating_system="test",
                 )
                 with (
                     mock.patch.object(snapshot, "capture_run", recorded_run),
@@ -182,6 +184,8 @@ class CaptureHandlerTests(unittest.IsolatedAsyncioTestCase):
                         allow_partial=False,
                         run_timeout=1.0,
                         observation=0.0,
+                        client_version="1.0",
+                        operating_system="test",
                     )
                     with (
                         mock.patch.object(snapshot, "capture_run", side_effect=failure),
@@ -219,6 +223,8 @@ class CaptureHandlerTests(unittest.IsolatedAsyncioTestCase):
                     allow_partial=False,
                     run_timeout=1.0,
                     observation=0.0,
+                    client_version="1.0",
+                    operating_system="test",
                 )
                 with (
                     mock.patch.object(snapshot, "capture_run", interrupted_run),

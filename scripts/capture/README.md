@@ -37,6 +37,8 @@ Snapshot capture restores your event-loop error handler when it finishes,
 including failures and cancellation. Unrelated callback errors reach your
 handler while capture is running.
 Use a finite positive `--run-timeout` and a finite nonnegative `--observation`.
+Keep `--client-version`, `--operating-system` and rendered metadata on one
+line of printable ASCII.
 
 Before writing, the tool collects registered connections and their callback
 outcomes within a ten-second cooperative cleanup deadline. Callback failures
