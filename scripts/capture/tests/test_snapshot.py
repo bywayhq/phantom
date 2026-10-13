@@ -575,17 +575,25 @@ class SnapshotOwnershipTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(all(sock.fileno() == -1 for sock in reservation))
             owner = run.owners[0]
             self.assertTrue(owner.finished)
-            self.assertTrue(owner.protocols[0].task.done())
-            self.assertTrue(owner.protocols[0].retired.done())
+            protocol = owner.protocols[0]
+            self.assertTrue(protocol.task.done())
+            self.assertTrue(protocol.retired.done())
+            self.assertTrue(protocol.close_task.done())
+            self.assertTrue(protocol.closed_observed)
+            self.assertIsNone(protocol.transport._sock)
+            self.assertTrue(all(not server.is_serving() for server in acquired))
+            self.assertTrue(all(not server.sockets for server in acquired))
+            self.assertTrue(all(task.done() for task in owner.waiters.values()))
+            self.assertTrue(
+                all(
+                    server in owner.closed and server in owner.observed
+                    for server in acquired
+                )
+            )
             self.assertEqual(await asyncio.wait_for(client[0].read(), TIMEOUT), b"")
             with self.assertRaises(OSError) as unpublished:
                 render_snapshot(run, METADATA)
             self.assertIs(unpublished.exception, primary)
-            rebound = await asyncio.start_server(
-                lambda reader, writer: writer.close(), "127.0.0.1", run.port
-            )
-            rebound.close()
-            await rebound.wait_closed()
         finally:
             if client is not None:
                 client[1].close()
@@ -604,6 +612,7 @@ class SnapshotOwnershipTests(unittest.IsolatedAsyncioTestCase):
         client = None
         run = None
         accepted = []
+        listener_sockets = []
 
         def report(active_loop, context):
             if context.get("exception") is primary:
@@ -629,6 +638,11 @@ class SnapshotOwnershipTests(unittest.IsolatedAsyncioTestCase):
             loop.set_exception_handler(report)
             with self.assertRaises(ValueError) as raised:
                 async with serving(CERTIFICATE, "factory", 0) as run:
+                    listener_sockets.extend(
+                        sock
+                        for server in run.owners[0].servers
+                        for sock in server.sockets
+                    )
                     with mock.patch.object(
                         snapshot, "SnapshotTcpProtocol", side_effect=primary
                     ):
@@ -645,11 +659,17 @@ class SnapshotOwnershipTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(ValueError) as unpublished:
                 render_snapshot(run, METADATA)
             self.assertIs(unpublished.exception, primary)
-            rebound = await asyncio.start_server(
-                lambda reader, writer: writer.close(), "127.0.0.1", run.plain_port
+            owner = run.owners[0]
+            self.assertTrue(all(sock.fileno() == -1 for sock in listener_sockets))
+            self.assertTrue(all(not server.is_serving() for server in owner.servers))
+            self.assertTrue(all(not server.sockets for server in owner.servers))
+            self.assertTrue(all(task.done() for task in owner.waiters.values()))
+            self.assertTrue(
+                all(
+                    server in owner.closed and server in owner.observed
+                    for server in owner.servers
+                )
             )
-            rebound.close()
-            await rebound.wait_closed()
             self.assertEqual(len(accepted), 1)
         finally:
             # This socket never reached protocol attachment. Retire only this
