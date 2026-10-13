@@ -274,6 +274,16 @@ actual read scope, original source bindings and verification limits.
 | `h3-drain-89524379-focused-v2.log` | Both draining tests pass in isolation; the earlier full failure remains unresolved |
 | `h2-websocket-peer-completion-6ec7e1f5-independent-source-review.json` | Whole helper and controls approved; 41 retained native passes; integration required |
 | `browser-launch-peer-completion-662aa729-independent-source-review.json` | Whole helper and controls reviewed; attached teardown error is still discarded, so changes are required |
+| `browser-launch-peer-completion-fb6adf73-independent-source-addendum.json` | Complete reviewed baseline plus complete follow-up; independent error cause retained; 37 native controls pass |
+| `capture-validation-completion-39488c23-independent-composition-review.json` | Exact twelve-file composition approved; no runtime or vendor change |
+| `capture-validation-completion-gate-39488c23-step-logs-manifest.json` | All 74 raw files retained; 4,575 native tests pass; one TLS capture `/done` read times out, blocking integration |
+| `fixture-artifact-dispositions-b8ab9851.json` | Twelve retained capture groups; provenance and data contracts, with no individual full-payload or fresh-capture claim |
+| `fixture-artifact-dispositions-b8ab9851-root-bindings.json` | All 480 identities, eight mirrors and three original receipt hashes checked; zero findings closed |
+| `remaining-twelve-tool-source-dispositions-b8ab9851.json` | Twelve qualified whole-current tool reviews; original methods, contracts, authorship and limits retained |
+| `remaining-twelve-tool-source-dispositions-b8ab9851-root-bindings.json` | Twelve current bodies, twenty historical source bindings and fifteen original receipt hashes checked |
+| `capture-validation-completion-gate-39488c23-independent-log-review.json` | All 25 raw logs read and 74 hashes verified; TLS capture failure blocks integration |
+| `tls-done-39488c23-independent-diagnosis.json` | Actual native read timeout; unchanged TLS source; long generic callback does not identify the failing timer or cause |
+| `tls-39488c23-focused.log` | Three unchanged OpenSSL server controls pass in isolation; no cause or full-gate closure follows |
 
 The first draining diagnostic had two writers sharing one log. Its overwritten
 prefix and NUL gap make it unsuitable as a complete verification receipt.

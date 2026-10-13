@@ -73,10 +73,41 @@ Root also read its complete parent and the default-feature vendor patch.
 Their supporting peer and upstream contexts remain partial. These reads found
 no new supported defect and add no runtime or vendor-replay results.
 
-The current client-hints and recorder composition is approved at `89524379`.
+Twelve further tool rows now retain qualified whole-current source reviews.
+Root reads their individual contracts, methods and limits, then checks all
+twelve current bodies, twenty historical source bindings and fifteen
+original receipts. Complete baselines and every reviewed later difference
+remain distinct from fresh whole reads. The two client-hint rows still have
+known defects on main; their reviewed remedy awaits integration.
+
+The first client-hints and recorder composition is approved at `89524379`.
 Its full gate passes 23 of 24 steps. Nextest passes 4,573 of 4,575 tests;
 two existing HTTP/3 draining tests time out. Later isolated passes do not
-resolve that failure. Stage and GOAWAY observation remain under investigation.
+identify their cause. Stage diagnostics preserve the existing deadlines.
+
+The expanded composition has independent source approval at `39488c23`.
+Its native suite passes all 4,575 tests. The full gate again passes 23 of
+24 steps: one TLS capture test times out while reading `/done`. Its 74 raw
+gate files are retained. This failure still blocks integration. A passing
+native suite does not establish the cause of the earlier draining failures.
+
+Independent follow-up approves the browser peer repair at `fb6adf73`.
+Its 37 native controls pass, including preservation of an independent error
+attached to owner-requested cancellation. Both acquired peer repairs are in
+the expanded composition, with full-gate and integration requirements open.
+
+All 480 previously pending capture-data rows now have artifact dispositions
+across twelve groups. Review covers format, producer, consumer, platform,
+scenario and retained provenance, with selected metadata indexed for every
+member. Root checks all 480 source identities and eight exact mirrors.
+These are qualified data records, rather than complete individual payload
+reads or fresh browser captures. Their current guards do not strengthen
+historical observations. No finding closes solely from these dispositions.
+
+A347 records an additional downstream smoke-test owner gap. Caller failure
+or an outer deadline drops its raw peer handle before collection. A bounded
+repair and native controls are underway in a separate lane. Playground's
+prepared migration remains unchanged.
 
 Independent architecture review at `b8ab9851` traces twelve shared boundaries.
 It binds 59 source files, with complete reads of 24 and partial reads of the
@@ -125,6 +156,11 @@ Both applicable main push workflows and main's separate code analysis passed.
 The gate passes 4,574 native tests and 143 doctests, with 989 Python capture
 tests run and four skipped. Linux checks establish compilation and lint.
 They do not establish Linux runtime execution or a fresh browser capture.
+
+Capture PR 208 merged at `b8ab9851`. All 24 local gate steps and 29 PR
+checks passed, including macOS and Windows. All three applicable main
+workflows passed. Its Firefox and HTTP/2 preface remedies are delivered;
+the expanded composition and downstream smoke-test repair remain separate.
 
 ## Historical verification
 
