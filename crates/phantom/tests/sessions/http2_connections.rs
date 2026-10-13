@@ -4,14 +4,13 @@
 //! `max_http2_connections_per_origin`, requests that find every connection
 //! at the peer's stream limit open another, up to the configured count.
 
-use crate::support::tls as tls_support;
-
 use std::{
     net::{Ipv4Addr, SocketAddr},
     num::NonZeroUsize,
     time::Duration,
 };
 
+use btls::ssl::SslAcceptor;
 use bytes::Bytes;
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
@@ -22,10 +21,9 @@ use tokio::{
     time::{sleep, timeout},
 };
 
-use btls::ssl::SslAcceptor;
-use tls_support::{H2_ALPN, TestIdentity, accept_tls_stream, client_builder};
-
+use crate::support::tls as tls_support;
 use ownership::{Spawner, Task, Work};
+use tls_support::{H2_ALPN, TestIdentity, accept_tls_stream, client_builder};
 
 mod ownership;
 

@@ -6,9 +6,6 @@
 //! Delays are measured with a paused clock, so Phantom's values are exact and
 //! browser medians may exceed them by at most `TIMER_SLACK`.
 
-use crate::support::tls as tls_support;
-use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
-
 use std::{collections::HashMap, net::Ipv4Addr, path::PathBuf, time::Duration};
 
 use phantom::{
@@ -21,6 +18,8 @@ use tokio::{
     time::{Instant, timeout},
 };
 
+use crate::support::tls as tls_support;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use tls_support::{TestResult, read_head, tls_settings};
 
 /// Largest browser timer overshoot accepted above Phantom's exact delay.

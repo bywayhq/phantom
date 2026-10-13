@@ -1,9 +1,5 @@
 //! HTTP/2 WebSocket extended CONNECT integration tests.
 
-use crate::support::tls as tls_support;
-use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
-use crate::support::websocket as websocket_support;
-
 use std::{
     error::Error,
     io,
@@ -28,6 +24,9 @@ use tokio::{
     time::timeout,
 };
 
+use crate::support::tls as tls_support;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
+use crate::support::websocket as websocket_support;
 use tls_support::{H2_ALPN, TestIdentity, TestResult, accept_tls, tls_settings};
 use websocket_support::{ClientFrame, append_server_frame, bounded};
 

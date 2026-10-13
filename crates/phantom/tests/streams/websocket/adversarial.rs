@@ -1,8 +1,9 @@
-use super::*;
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite},
     time::timeout,
 };
+
+use super::*;
 
 #[tokio::test]
 async fn invalid_accept_is_rejected() -> TestResult<()> {

@@ -1,10 +1,5 @@
 //! WebSocket facade integration tests.
 
-use crate::support::tls as tls_support;
-use crate::support::tracing as tracing_support;
-use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
-use crate::support::websocket as websocket_support;
-
 use std::{error::Error, io, net::Ipv4Addr, num::NonZeroUsize};
 
 use bytes::Bytes;
@@ -16,6 +11,10 @@ use phantom::{
 use tokio::{io::AsyncWriteExt, net::TcpListener};
 use tracing::instrument::WithSubscriber;
 
+use crate::support::tls as tls_support;
+use crate::support::tracing as tracing_support;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
+use crate::support::websocket as websocket_support;
 use tls_support::{
     H1_ALPN, TestIdentity, TestResult, accept_tls, client_builder, read_head, test_client,
 };

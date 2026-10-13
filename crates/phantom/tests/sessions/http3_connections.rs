@@ -38,11 +38,11 @@ use crate::support::{
     tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
 
-mod request_workers;
-use request_workers::Requests;
-
 use h3_support::client_settings;
+use request_workers::Requests;
 use tls_support::{H1_ALPN, TestIdentity, accept_tls_stream, read_head, tls_settings};
+
+mod request_workers;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 

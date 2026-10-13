@@ -4,10 +4,6 @@
 //! checks that `connect` fails with the handshake timeout. Each retry test
 //! counts the connections the peer saw.
 
-use crate::support::tls as tls_support;
-use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
-use crate::support::websocket as websocket_support;
-
 use std::{
     error::Error,
     io,
@@ -36,13 +32,15 @@ use tokio::{
     time::{Instant, sleep, timeout},
 };
 
+use crate::support::tls as tls_support;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
+use crate::support::websocket as websocket_support;
+use crate::websocket_http2::RecordingIo;
+use crate::websocket_profile::server::client_resets;
 use tls_support::{
     H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, client_builder, read_head, tls_settings,
 };
 use websocket_support::{bounded, header_value, websocket_accept};
-
-use crate::websocket_http2::RecordingIo;
-use crate::websocket_profile::server::client_resets;
 
 const LIMIT: Duration = Duration::from_millis(200);
 /// HTTP/2 `CANCEL` error code (RFC 9113, section 7).

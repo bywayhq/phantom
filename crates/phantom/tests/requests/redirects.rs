@@ -1,13 +1,5 @@
 //! Redirect behavior exercised through the public session paths.
 
-use crate::support::deadline::FixtureDeadline;
-use crate::support::h3 as h3_support;
-use crate::support::tls as tls_support;
-use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
-
-mod hop_server;
-use hop_server::HopServer;
-
 use std::{
     error::Error,
     future::{Future, poll_fn},
@@ -35,7 +27,14 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
+use crate::support::deadline::FixtureDeadline;
+use crate::support::h3 as h3_support;
+use crate::support::tls as tls_support;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
+use hop_server::HopServer;
 use tls_support::{H2_ALPN, TestIdentity, client_builder};
+
+mod hop_server;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
