@@ -11,6 +11,7 @@ use std::{
     io,
     net::{IpAddr, SocketAddr},
     sync::{Arc, Mutex, MutexGuard},
+    time::Duration,
 };
 
 use bytes::{Buf, Bytes, BytesMut};
@@ -24,6 +25,7 @@ use tokio::{
     net::TcpListener,
     sync::{mpsc, watch},
     task::{JoinHandle, JoinSet},
+    time::timeout,
 };
 
 use crate::support::client_certificate::{presented_leaf, rustls_config_requesting};
@@ -31,6 +33,9 @@ use crate::support::h3::{client_settings, quic_server};
 use crate::support::tls::{
     H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls_stream, is_peer_gone, read_head,
 };
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
+
+mod stream_outcomes;
 
 /// Largest datagram the relay reads from the origin socket.
 const MAX_UDP_PAYLOAD: usize = 65_527;
@@ -39,6 +44,10 @@ const MAX_CAPSULE_PAYLOAD: usize = MAX_UDP_PAYLOAD + 8;
 const CAPSULE_CHUNK: usize = 16 * 1024;
 const MAX_PENDING_CAPSULE: usize = MAX_CAPSULE_PAYLOAD + 16 + CAPSULE_CHUNK;
 const MAX_REJECTED_BODY: usize = 64 * 1024;
+const MAX_STREAM_CONNECTIONS: usize = 64;
+const MAX_STREAM_REQUESTS: usize = 128;
+const MAX_CLIENT_CAPSULES: usize = 4096;
+const STREAM_SHUTDOWN: Duration = Duration::from_secs(5);
 /// Unknown capsule type sent before relaying; clients must skip it.
 const UNKNOWN_CAPSULE: &[u8] = &[0x2a, 0x03, b'x', b'y', b'z'];
 /// Unknown Context ID datagram sent before relaying; clients must drop it.
@@ -550,6 +559,7 @@ pub(crate) struct ObservedStreamRequest {
 #[derive(Default)]
 struct StreamLog {
     connections: usize,
+    completed_connections: usize,
     requests: Vec<ObservedStreamRequest>,
     /// Type, Context ID, and value length of each client capsule.
     client_capsules: Vec<(u64, Option<u64>, usize)>,
@@ -559,7 +569,8 @@ struct StreamLog {
 pub(crate) struct MasqueStreamProxy {
     pub(crate) address: SocketAddr,
     log: Arc<Mutex<StreamLog>>,
-    task: JoinHandle<()>,
+    stopping: watch::Sender<bool>,
+    task: Option<ConnectionPeer<TestResult<()>>>,
 }
 
 impl MasqueStreamProxy {
@@ -587,32 +598,79 @@ impl MasqueStreamProxy {
         let address = listener.local_addr()?;
         let log = Arc::new(Mutex::new(StreamLog::default()));
         let task_log = Arc::clone(&log);
-        let task = tokio::spawn(async move {
-            // Dropping this accept loop also cancels accepted TLS handshakes
-            // and active relays. Reap completed peers during long test runs.
+        let (stopping, mut stopped) = watch::channel(false);
+        let stop_children = stopping.clone();
+        let task = ConnectionPeer::spawn(async move {
             let mut connections = JoinSet::new();
-            loop {
-                tokio::select! {
-                    accepted = listener.accept() => {
-                        let Ok((tcp, _)) = accepted else { break };
-                        lock(&task_log).connections += 1;
-                        let log = Arc::clone(&task_log);
-                        let acceptor = acceptor.clone();
-                        connections.spawn(async move {
-                            let Ok(stream) = accept_tls_stream(tcp, acceptor).await else {
-                                return;
+            let mut outcome = Ok(());
+            let accepting: TestResult<()> = async {
+                loop {
+                    tokio::select! {
+                        biased;
+                        completed = connections.join_next(), if !connections.is_empty() => {
+                            let completed = completed.ok_or("MASQUE connection task disappeared")?;
+                            lock(&task_log).completed_connections += 1;
+                            let completed = match completed {
+                                Ok(result) => result,
+                                Err(error) => Err(error.into()),
                             };
-                            let _ = match leg {
-                                StreamLeg::Http1 => serve_http1(stream, mode, log).await,
-                                StreamLeg::Http2 => serve_http2(stream, mode, log).await,
-                            };
-                        });
+                            let previous = std::mem::replace(&mut outcome, Ok(()));
+                            outcome = finish_with_cleanup(previous, completed);
+                        }
+                        stopped = stream_outcomes::stopped(&mut stopped) => return stopped,
+                        accepted = listener.accept() => {
+                            let (tcp, _) = accepted?;
+                            if connections.len() == MAX_STREAM_CONNECTIONS {
+                                return Err("MASQUE accepted connection limit exceeded".into());
+                            }
+
+                            {
+                                let mut log = lock(&task_log);
+                                if log.connections == MAX_STREAM_REQUESTS {
+                                    return Err("MASQUE connection record limit exceeded".into());
+                                }
+                                log.connections += 1;
+                            }
+
+                            let log = Arc::clone(&task_log);
+                            let acceptor = acceptor.clone();
+                            let mut stopped = stopped.clone();
+                            connections.spawn(async move {
+                                let stream = tokio::select! {
+                                    biased;
+                                    stream = accept_tls_stream(tcp, acceptor) => stream?,
+                                    stopped = stream_outcomes::stopped(&mut stopped) => return stopped,
+                                };
+
+                                match leg {
+                                    StreamLeg::Http1 => serve_http1_until(stream, mode, log, stopped).await,
+                                    StreamLeg::Http2 => serve_http2_until(stream, mode, log, stopped).await,
+                                }
+                            });
+                        }
                     }
-                    Some(_) = connections.join_next(), if !connections.is_empty() => {}
                 }
             }
+            .await;
+
+            stop_children.send_replace(true);
+            outcome = finish_with_cleanup(outcome, accepting);
+            while let Some(completed) = connections.join_next().await {
+                lock(&task_log).completed_connections += 1;
+                let completed = match completed {
+                    Ok(result) => result,
+                    Err(error) => Err(error.into()),
+                };
+                outcome = finish_with_cleanup(outcome, completed);
+            }
+            outcome
         });
-        Ok(Self { address, log, task })
+        Ok(Self {
+            address,
+            log,
+            stopping,
+            task: Some(task),
+        })
     }
 
     pub(crate) fn template(&self) -> String {
@@ -633,11 +691,26 @@ impl MasqueStreamProxy {
     pub(crate) fn client_capsules(&self) -> Vec<(u64, Option<u64>, usize)> {
         lock(&self.log).client_capsules.clone()
     }
+
+    /// Stops accepting, collects owned connections and keeps an interrupted join retryable.
+    pub(crate) async fn shutdown(&mut self) -> TestResult<()> {
+        self.stopping.send_replace(true);
+        let Some(task) = self.task.as_mut() else {
+            return Ok(());
+        };
+
+        let joined = timeout(STREAM_SHUTDOWN, task.join()).await?;
+        drop(self.task.take());
+        joined?
+    }
 }
 
 impl Drop for MasqueStreamProxy {
     fn drop(&mut self) {
-        self.task.abort();
+        self.stopping.send_replace(true);
+        if let Some(task) = &self.task {
+            task.abort();
+        }
     }
 }
 
@@ -657,15 +730,44 @@ fn answer(mode: StreamMode, authorized: bool) -> Answer {
     }
 }
 
-async fn serve_http1<S>(
+#[cfg(test)]
+async fn serve_http1<S>(stream: S, mode: StreamMode, log: Arc<Mutex<StreamLog>>) -> TestResult<()>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let (_stopping, stopped) = watch::channel(false);
+    serve_http1_until(stream, mode, log, stopped).await
+}
+
+async fn serve_http1_until<S>(
     mut stream: S,
     mode: StreamMode,
     log: Arc<Mutex<StreamLog>>,
+    mut stopped: watch::Receiver<bool>,
 ) -> TestResult<()>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let head = read_head(&mut stream).await?;
+    let head = tokio::select! {
+        biased;
+        head = async {
+            let mut first = [0];
+            match stream.read(&mut first).await {
+                Ok(0) => return Ok(None),
+                Ok(_) => {}
+                Err(error) if stream_outcomes::peer_gone(&error) => return Ok(None),
+                Err(error) => return Err(error),
+            }
+
+            let mut input = first.as_slice().chain(&mut stream);
+            read_head(&mut input).await.map(Some)
+        } => head?,
+        stopped = stream_outcomes::stopped(&mut stopped) => return stopped,
+    };
+    let Some(head) = head else {
+        return Ok(());
+    };
+
     let text = String::from_utf8(head.clone())?;
     let mut lines = text.split("\r\n");
     let mut request_line = lines.next().ok_or("empty request head")?.split(' ');
@@ -692,7 +794,8 @@ where
         .iter()
         .any(|(name, _)| name.eq_ignore_ascii_case("proxy-authorization"));
     let target = parse_target(&observed.path);
-    lock(&log).requests.push(observed);
+    record_stream_request(&log, observed)?;
+
     match answer(mode, authorized) {
         Answer::Status(status, challenge) => {
             let challenge = if challenge {
@@ -707,12 +810,20 @@ where
                 )
                 .await?;
             stream.flush().await?;
-            hold_until_closed(stream).await
+            tokio::select! {
+                biased;
+                result = hold_until_closed(stream) => result,
+                stopped = stream_outcomes::stopped(&mut stopped) => stopped,
+            }
         }
         Answer::Ok200 => {
             stream.write_all(b"HTTP/1.1 200 OK\r\n\r\n").await?;
             stream.flush().await?;
-            hold_until_closed(stream).await
+            tokio::select! {
+                biased;
+                result = hold_until_closed(stream) => result,
+                stopped = stream_outcomes::stopped(&mut stopped) => stopped,
+            }
         }
         Answer::Relay => {
             let target = target.ok_or("CONNECT-UDP path has no loopback target")?;
@@ -730,47 +841,108 @@ where
             let mut pumps = JoinSet::new();
             pumps.spawn(async move {
                 let mut buffer = vec![0; 16 * 1024];
-                while let Ok(count) = reader.read(&mut buffer).await {
-                    if count == 0
-                        || inbound_tx
-                            .send(Bytes::copy_from_slice(&buffer[..count]))
-                            .await
-                            .is_err()
-                    {
-                        break;
-                    }
+                loop {
+                    let count = match reader.read(&mut buffer).await {
+                        Ok(0) => return Ok(stream_outcomes::PumpEnd::InputEnded),
+                        Ok(count) => count,
+                        Err(error) if stream_outcomes::peer_gone(&error) => {
+                            return Ok(stream_outcomes::PumpEnd::InputEnded);
+                        }
+                        Err(error) => return Err(error.into()),
+                    };
+                    inbound_tx
+                        .send(Bytes::copy_from_slice(&buffer[..count]))
+                        .await?;
                 }
             });
             pumps.spawn(async move {
                 while let Some(bytes) = outbound_rx.recv().await {
                     match writer.write_all(&bytes).await {
                         Ok(()) => {}
-                        Err(error) if is_peer_gone(&error) => return,
-                        Err(_) => return,
+                        Err(error) if stream_outcomes::peer_gone(&error) => {
+                            return Ok(stream_outcomes::PumpEnd::PeerClosed);
+                        }
+                        Err(error) => return Err(error.into()),
                     }
-                    if writer.flush().await.is_err() {
-                        return;
+                    if let Err(error) = writer.flush().await {
+                        if stream_outcomes::peer_gone(&error) {
+                            return Ok(stream_outcomes::PumpEnd::PeerClosed);
+                        }
+                        return Err(error.into());
                     }
                 }
+                Ok(stream_outcomes::PumpEnd::OutputEnded)
             });
-            relay_capsules(inbound, outbound, target, log).await
+            stream_outcomes::relay(
+                pumps,
+                relay_capsules(inbound, outbound, target, log),
+                stopped,
+            )
+            .await
         }
     }
 }
 
+#[cfg(test)]
 async fn serve_http2<S>(stream: S, mode: StreamMode, log: Arc<Mutex<StreamLog>>) -> TestResult<()>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
+    let (_stopping, stopped) = watch::channel(false);
+    serve_http2_until(stream, mode, log, stopped).await
+}
+
+async fn serve_http2_until<S>(
+    mut stream: S,
+    mode: StreamMode,
+    log: Arc<Mutex<StreamLog>>,
+    mut stopped: watch::Receiver<bool>,
+) -> TestResult<()>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let mut first = [0];
+    let first_read = tokio::select! {
+        biased;
+        result = stream.read(&mut first) => result,
+        stopped = stream_outcomes::stopped(&mut stopped) => return stopped,
+    };
+    match first_read {
+        Ok(0) => return Ok(()),
+        Ok(_) => {}
+        Err(error) if stream_outcomes::peer_gone(&error) => return Ok(()),
+        Err(error) => return Err(error.into()),
+    }
+
+    // A peer may retire after ALPN selection, before any H2 preface. Once
+    // its first byte arrives, the H2 parser owns all truncation failures.
+    let stream = io::Cursor::new(first).chain(stream);
     let mut builder = ::http2::server::Builder::new();
     if mode != StreamMode::WithoutExtendedConnect {
         builder.enable_connect_protocol();
     }
-    let mut connection = builder.handshake::<_, Bytes>(stream).await?;
-    let Some(accepted) = connection.accept().await else {
+    let mut connection = tokio::select! {
+        biased;
+        result = builder.handshake::<_, Bytes>(stream) => match result {
+            Ok(connection) => connection,
+            Err(error) if stream_outcomes::h2_peer_closed(&error) => return Ok(()),
+            Err(error) => return Err(error.into()),
+        },
+        stopped = stream_outcomes::stopped(&mut stopped) => return stopped,
+    };
+    let accepted = tokio::select! {
+        biased;
+        accepted = connection.accept() => accepted,
+        stopped = stream_outcomes::stopped(&mut stopped) => return stopped,
+    };
+    let Some(accepted) = accepted else {
         return Ok(());
     };
-    let (request, mut respond) = accepted?;
+    let (request, mut respond) = match accepted {
+        Ok(request) => request,
+        Err(error) if stream_outcomes::h2_peer_closed(&error) => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
     let observed = ObservedStreamRequest {
         method: request.method().to_string(),
         protocol: request
@@ -801,7 +973,8 @@ where
         .iter()
         .any(|(name, _)| name.eq_ignore_ascii_case("proxy-authorization"));
     let target = parse_target(&observed.path);
-    lock(&log).requests.push(observed);
+    record_stream_request(&log, observed)?;
+
     match answer(mode, authorized) {
         Answer::Status(status, challenge) => {
             let mut response = Response::builder().status(status);
@@ -809,8 +982,16 @@ where
                 response = response.header("proxy-authenticate", CHALLENGE);
             }
             respond.send_response(response.body(())?, true)?;
-            while let Some(Ok(_)) = connection.accept().await {}
-            Ok(())
+            tokio::select! {
+                biased;
+                accepted = connection.accept() => match accepted {
+                    None => Ok(()),
+                    Some(Err(error)) if stream_outcomes::h2_peer_closed(&error) => Ok(()),
+                    Some(Err(error)) => Err(error.into()),
+                    Some(Ok(_)) => Err("unexpected second CONNECT-UDP request".into()),
+                },
+                stopped = stream_outcomes::stopped(&mut stopped) => stopped,
+            }
         }
         Answer::Ok200 | Answer::Relay => {
             let target = target.ok_or("CONNECT-UDP path has no loopback target")?;
@@ -824,15 +1005,30 @@ where
             let mut body = request.into_body();
             // All transport and body pumps share the relay's lifetime.
             let mut pumps = JoinSet::new();
-            pumps.spawn(async move { while let Some(Ok(_)) = connection.accept().await {} });
+            pumps.spawn(async move {
+                match connection.accept().await {
+                    None => Ok(stream_outcomes::PumpEnd::PeerClosed),
+                    Some(Err(error)) if stream_outcomes::h2_peer_closed(&error) => {
+                        Ok(stream_outcomes::PumpEnd::PeerClosed)
+                    }
+                    Some(Err(error)) => Err(error.into()),
+                    Some(Ok(_)) => Err("unexpected second CONNECT-UDP request".into()),
+                }
+            });
             let (inbound_tx, inbound) = mpsc::channel(64);
             let (outbound, mut outbound_rx) = mpsc::channel::<Bytes>(64);
             pumps.spawn(async move {
-                while let Some(Ok(chunk)) = body.data().await {
-                    let _ = body.flow_control().release_capacity(chunk.len());
-                    if inbound_tx.send(chunk).await.is_err() {
-                        break;
-                    }
+                loop {
+                    let chunk = match body.data().await {
+                        Some(Ok(chunk)) => chunk,
+                        None => return Ok(stream_outcomes::PumpEnd::InputEnded),
+                        Some(Err(error)) if stream_outcomes::h2_peer_closed(&error) => {
+                            return Ok(stream_outcomes::PumpEnd::PeerClosed);
+                        }
+                        Some(Err(error)) => return Err(error.into()),
+                    };
+                    body.flow_control().release_capacity(chunk.len())?;
+                    inbound_tx.send(chunk).await?;
                 }
             });
             pumps.spawn(async move {
@@ -841,18 +1037,54 @@ where
                         send.reserve_capacity(chunk.len());
                         let capacity = match poll_fn(|context| send.poll_capacity(context)).await {
                             Some(Ok(capacity)) => capacity,
-                            _ => return,
+                            Some(Err(error)) if stream_outcomes::h2_peer_closed(&error) => {
+                                return Ok(stream_outcomes::PumpEnd::PeerClosed);
+                            }
+                            Some(Err(error)) => return Err(error.into()),
+                            None => {
+                                return match poll_fn(|context| send.poll_reset(context)).await {
+                                    Ok(::http2::Reason::CANCEL) => {
+                                        Ok(stream_outcomes::PumpEnd::PeerClosed)
+                                    }
+                                    Ok(reason) => {
+                                        Err(stream_outcomes::UnexpectedReset(reason).into())
+                                    }
+                                    Err(error) if stream_outcomes::h2_peer_closed(&error) => {
+                                        Ok(stream_outcomes::PumpEnd::PeerClosed)
+                                    }
+                                    Err(error) => Err(error.into()),
+                                };
+                            }
                         };
                         let part = chunk.split_to(capacity.min(chunk.len()));
-                        if send.send_data(part, false).is_err() {
-                            return;
+                        if let Err(error) = send.send_data(part, false) {
+                            if stream_outcomes::h2_peer_closed(&error) {
+                                return Ok(stream_outcomes::PumpEnd::PeerClosed);
+                            }
+                            return Err(error.into());
                         }
                     }
                 }
+                Ok(stream_outcomes::PumpEnd::OutputEnded)
             });
-            relay_capsules(inbound, outbound, target, log).await
+            stream_outcomes::relay(
+                pumps,
+                relay_capsules(inbound, outbound, target, log),
+                stopped,
+            )
+            .await
         }
     }
+}
+
+fn record_stream_request(log: &Mutex<StreamLog>, request: ObservedStreamRequest) -> TestResult<()> {
+    let mut log = lock(log);
+    if log.requests.len() == MAX_STREAM_REQUESTS {
+        return Err("MASQUE request record limit exceeded".into());
+    }
+
+    log.requests.push(request);
+    Ok(())
 }
 
 /// Reads until the client closes, so no response bytes are lost to a reset.
@@ -923,9 +1155,15 @@ async fn relay_capsules(
                         let value_len = value.len();
                         let mut payload = Bytes::from(value);
                         let context = if capsule_type == 0 { decode_varint(&mut payload) } else { None };
-                        lock(&log).client_capsules.push((capsule_type, context, value_len));
+                        {
+                            let mut log = lock(&log);
+                            if log.client_capsules.len() == MAX_CLIENT_CAPSULES {
+                                return Err("MASQUE capsule record limit exceeded".into());
+                            }
+                            log.client_capsules.push((capsule_type, context, value_len));
+                        }
                         if capsule_type == 0 && context == Some(0) {
-                            let _ = udp.send(&payload).await;
+                            udp.send(&payload).await?;
                         }
                     }
                 }
@@ -934,13 +1172,11 @@ async fn relay_capsules(
                 Ok(count) => {
                     let mut value = vec![0];
                     value.extend_from_slice(&buffer[..count]);
-                    if outbound.send(Bytes::from(encode_capsule(0, &value))).await.is_err() {
-                        break;
-                    }
+                    outbound.send(Bytes::from(encode_capsule(0, &value))).await?;
                 }
                 // Windows reports an earlier ICMP port-unreachable here.
                 Err(error) if error.kind() == std::io::ErrorKind::ConnectionReset => {}
-                Err(_) => break,
+                Err(error) => return Err(error.into()),
             },
         }
     }
@@ -986,6 +1222,9 @@ mod h3_ownership_controls;
 
 #[cfg(test)]
 mod input_controls;
+
+#[cfg(test)]
+mod stream_ownership_controls;
 
 #[cfg(test)]
 mod tests {
