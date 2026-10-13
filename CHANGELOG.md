@@ -14,6 +14,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Bound HTTP/2 preface captures and collect registered connections before
+  writing. Callback and cleanup failures retain their original errors.
+  Completion requires the run's exact token on the page's connection.
+  Migrate: use finite positive waits within the page timer limit and split
+  captures exceeding 32 retained connections, 200 frames per connection or
+  64 MiB of recorded decrypted input and output.
+
 - Bound ECH capture startup and retain process, reporting and decoding failures.
   The 180-second capture deadline includes server readiness. Policy queries
   have a five-second timeout. Migrate: keep fixtures within 16 MiB,

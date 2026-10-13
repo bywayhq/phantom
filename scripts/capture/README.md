@@ -983,6 +983,16 @@ since the listener started, type, flags, stream, and length, the request path
 of a HEADERS frame without its query, and the payload of a PING. No other
 payload is written.
 
+Only `/done` with the run's exact token on the page's connection completes
+the capture. Before writing, the tool collects registered connections and
+their callback outcomes within a five-second cooperative cleanup deadline.
+A callback error or incomplete cleanup prevents fixture publication.
+
+Use finite positive waits within the page timer limit (2,147,483.647 seconds).
+The tool limits a run to 32 retained connections and 64 MiB of recorded
+decrypted input and output. Each connection permits 200 frames, with an
+inbound frame payload limit of 16 KiB.
+
 ## Connection lifecycle
 
 `http_lifecycle.py` serves a scripted page over TLS on loopback to Chrome,

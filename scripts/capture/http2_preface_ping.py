@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import ipaddress
+import math
 import platform
 import secrets
 import sys
@@ -26,12 +27,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from importlib import metadata
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 from .browser_launch import CHROMIUM_BROWSERS, BrowserDriver, LaunchPlan
 from .fixture_file import write_text_fixture
 from .http2_session import (
     CONNECTION_PREFACE,
     HOSTNAME,
+    READ_SIZE,
     ConnectionRecord,
     TlsChannel,
     generate_certificate,
@@ -54,6 +57,13 @@ FRAME_TYPES = {
 }
 POST_BODY_BYTES = 100
 MAX_FRAMES = 200
+# The server leaves its inbound HTTP/2 MAX_FRAME_SIZE at the 16 KiB default.
+MAX_FRAME_BYTES = 16 * 1024
+MAX_CONNECTIONS = 32
+MAX_CAPTURE_BYTES = 64 * 1024 * 1024
+CLEANUP_SECONDS = 5.0
+MAX_TIMER_MILLISECONDS = 2**31 - 1
+PEER_DISCONNECT = (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)
 
 
 def page(token: str, idle: float, short: float) -> bytes:
@@ -112,6 +122,11 @@ class FrameLog:
         self.frames: list[Frame] = []
 
     def feed(self, data: bytes, milliseconds: float) -> None:
+        if (
+            len(self.buffer) + len(data)
+            > MAX_FRAME_BYTES + READ_SIZE + len(CONNECTION_PREFACE) + 9
+        ):
+            raise ValueError("connection exceeds the frame buffer limit")
         self.buffer.extend(data)
         if not self.preface_seen:
             if len(self.buffer) < len(CONNECTION_PREFACE):
@@ -122,6 +137,8 @@ class FrameLog:
             self.preface_seen = True
         while len(self.buffer) >= 9:
             length = int.from_bytes(self.buffer[0:3], "big")
+            if length > MAX_FRAME_BYTES:
+                raise ValueError("frame exceeds the capture byte limit")
             if len(self.buffer) < 9 + length:
                 return
             kind, flags = self.buffer[3], self.buffer[4]
@@ -157,9 +174,22 @@ class Run:
     connections: list[FrameLog] = field(default_factory=list)
     page_connection: FrameLog | None = None
     done: asyncio.Event = field(default_factory=asyncio.Event)
+    failure: BaseException | None = field(default=None, repr=False)
+    retained: int = 0
+    stopping: bool = False
+    completion: asyncio.TimerHandle | None = field(default=None, repr=False)
 
     def now(self) -> float:
         return time.perf_counter() - self.started
+
+    def retain(self, size: int) -> None:
+        if self.retained + size > MAX_CAPTURE_BYTES:
+            raise ValueError("run exceeds the capture byte limit")
+        self.retained += size
+
+    def complete(self) -> None:
+        if not self.stopping:
+            self.done.set()
 
 
 async def serve(run: Run, context, reader, writer) -> None:
@@ -168,54 +198,358 @@ async def serve(run: Run, context, reader, writer) -> None:
     from h2.connection import H2Connection
 
     record = ConnectionRecord(listener="tls", accepted=run.now())
-    channel = TlsChannel(context, reader, writer, record, run.now)
+    channel = TlsChannel(context, reader, writer, record, run.now, run)
     log = FrameLog()
     try:
         await channel.handshake()
-        if record.alpn != "h2":
+    except ConnectionError as error:
+        # A clean handshake EOF can come from an unused speculative connection.
+        if (
+            type(error) is ConnectionError
+            and channel.peer_handshake_failure is error
+            and reader.at_eof()
+            and reader.exception() is None
+        ):
             return
-        run.connections.append(log)
-        connection = H2Connection(
-            H2Configuration(client_side=False, header_encoding=None)
-        )
-        connection.initiate_connection()
-        await channel.write(connection.data_to_send())
-        while True:
-            data = await channel.read()
-            if not data:
-                return
-            log.feed(data, run.now() * 1000)
-            for event in connection.receive_data(data):
-                if not isinstance(event, h2.events.RequestReceived):
-                    continue
-                target = dict(event.headers).get(b":path", b"")
-                path = request_path(target)
-                log.name_request(event.stream_id, path)
-                if path == "/start":
-                    run.page_connection = log
-                    body = page(run.token, run.idle, run.short)
-                    content_type = b"text/html; charset=utf-8"
-                else:
-                    body = b"ok"
-                    content_type = b"text/plain"
-                connection.send_headers(
-                    event.stream_id,
-                    [
-                        (b":status", b"200"),
-                        (b"content-type", content_type),
-                        (b"content-length", str(len(body)).encode()),
-                        (b"cache-control", b"no-store"),
-                    ],
+        raise
+    if record.alpn != "h2":
+        return
+    run.connections.append(log)
+    connection = H2Connection(H2Configuration(client_side=False, header_encoding=None))
+    connection.initiate_connection()
+    await channel.write(connection.data_to_send())
+    while not run.stopping:
+        data = await channel.read()
+        if not data:
+            return
+        log.feed(data, run.now() * 1000)
+        for event in connection.receive_data(data):
+            if not isinstance(event, h2.events.RequestReceived):
+                continue
+            target = dict(event.headers).get(b":path", b"")
+            path = request_path(target)
+            parts = urlsplit(target.decode("ascii"))
+            query = parse_qs(parts.query, keep_blank_values=True, max_num_fields=16)
+            belongs = (
+                not parts.scheme
+                and not parts.netloc
+                and b"#" not in target
+                and query.get("run") == [run.token]
+            )
+            log.name_request(event.stream_id, path)
+            if path == "/start" and belongs and run.page_connection in (None, log):
+                run.page_connection = log
+                body = page(run.token, run.idle, run.short)
+                content_type = b"text/html; charset=utf-8"
+            else:
+                body = b"ok"
+                content_type = b"text/plain"
+            connection.send_headers(
+                event.stream_id,
+                [
+                    (b":status", b"200"),
+                    (b"content-type", content_type),
+                    (b"content-length", str(len(body)).encode()),
+                    (b"cache-control", b"no-store"),
+                ],
+            )
+            connection.send_data(event.stream_id, body, end_stream=True)
+            if (
+                path == "/done"
+                and belongs
+                and run.page_connection is log
+                and run.completion is None
+            ):
+                run.completion = asyncio.get_running_loop().call_later(
+                    0.5, run.complete
                 )
-                connection.send_data(event.stream_id, body, end_stream=True)
-                if path == "/done":
-                    asyncio.get_running_loop().call_later(0.5, run.done.set)
-            await channel.write(connection.data_to_send())
-    except (ConnectionError, ValueError) as error:
-        record.failure = type(error).__name__
-    finally:
-        if not writer.transport.is_closing():
-            writer.close()
+        await channel.write(connection.data_to_send())
+
+
+class PrefaceFailures(Exception):
+    """Retain original failures and unfinished capture owners for retry."""
+
+    def __init__(
+        self,
+        primary: BaseException | None,
+        cleanup: tuple[BaseException, ...],
+        owner: PrefaceServer,
+    ) -> None:
+        self.primary = primary
+        self.cleanup = cleanup
+        self.owner = owner
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        self.interruption_cause: BaseException | None = None
+        self.interruption_context: BaseException | None = None
+        super().__init__("preface capture cleanup failed")
+
+
+def _raise_preface_failures(
+    primary: BaseException | None,
+    cleanup: Sequence[BaseException],
+    owner: PrefaceServer,
+) -> None:
+    cleanup = tuple(error for error in cleanup if error is not primary)
+    if cleanup:
+        failure = PrefaceFailures(primary, cleanup, owner)
+        interruption = next(
+            (
+                error
+                for error in (primary, *cleanup)
+                if isinstance(
+                    error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+                )
+            ),
+            None,
+        )
+        if interruption is not None:
+            failure.interruption_cause = interruption.__cause__
+            failure.interruption_context = interruption.__context__
+            raise interruption from failure
+        if primary is not None:
+            raise primary from failure
+        raise failure from cleanup[0]
+    if primary is not None:
+        raise primary
+
+
+class PrefaceProtocol(asyncio.StreamReaderProtocol):
+    """Own accepted callbacks before connection_made is queued."""
+
+    def __init__(self, owner: PrefaceServer) -> None:
+        self.owner = owner
+        self.transport: asyncio.Transport | None = None
+        self.writer: asyncio.StreamWriter | None = None
+        self.handler: asyncio.Task[None] | None = None
+        self.waiter: asyncio.Task[None] | None = None
+        self.observed: set[asyncio.Task] = set()
+        self.closed = asyncio.get_running_loop().create_future()
+        self.retired = False
+        super().__init__(asyncio.StreamReader(limit=READ_SIZE), self.connected)
+
+    def connection_made(self, transport) -> None:
+        self.transport = transport
+        if self.owner.run.stopping:
+            self.owner.stop_listener()
+        try:
+            super().connection_made(transport)
+        except BaseException as error:
+            self.owner.failed(error)
+            try:
+                transport.abort()
+            except BaseException as cleanup:
+                self.owner.failed(cleanup)
+
+    def connected(self, reader, writer) -> None:
+        self.writer = writer
+        self.owner.accept(reader, self)
+
+    def connection_lost(self, error) -> None:
+        if error is not None and not isinstance(error, PEER_DISCONNECT):
+            self.owner.failed(error)
+        try:
+            super().connection_lost(error)
+        except BaseException as cleanup:
+            self.owner.failed(cleanup)
+        finally:
+            self.retired = True
+            if not self.closed.done():
+                self.closed.set_result(None)
+
+
+class PrefaceServer:
+    """One listener, its accepted streams, and their original outcomes."""
+
+    def __init__(self, run: Run, context) -> None:
+        self.run = run
+        self.context = context
+        self.listener: asyncio.Server | None = None
+        self.listener_wait: asyncio.Task[None] | None = None
+        self.listener_observed = False
+        self.protocols: set[PrefaceProtocol] = set()
+        self.failures: list[BaseException] = []
+        self.port: int | None = None
+
+    async def start(self, host: str) -> None:
+        if not ipaddress.ip_address(host).is_loopback:
+            raise ValueError("the capture listener must be a loopback address")
+        self.listener = await asyncio.get_running_loop().create_server(
+            self.new_protocol,
+            host,
+            0,
+            start_serving=False,
+        )
+        self.port = self.listener.sockets[0].getsockname()[1]
+        ready = asyncio.Event()
+        self.listener_wait = self.submit(self.wait_listener(ready))
+        self.listener_wait.add_done_callback(lambda _task: ready.set())
+        await asyncio.wait_for(ready.wait(), CLEANUP_SECONDS)
+        if self.listener_wait.done():
+            self.listener_observed = True
+            self.listener_wait.result()
+        await self.listener.start_serving()
+
+    async def wait_listener(self, ready) -> None:
+        # Register the original attached-transport waiter before accepting peers.
+        asyncio.get_running_loop().call_soon(ready.set)
+        await self.listener.wait_closed()
+
+    def new_protocol(self) -> PrefaceProtocol:
+        try:
+            protocol = PrefaceProtocol(self)
+        except BaseException as error:
+            self.failed(error)
+            raise
+        self.protocols.add(protocol)
+        if len(self.protocols) > MAX_CONNECTIONS:
+            # Closing here would precede the backend's transport attachment.
+            self.remember(ValueError("run exceeds the connection limit"))
+        return protocol
+
+    def remember(self, error: BaseException) -> None:
+        if not any(previous is error for previous in self.failures):
+            self.failures.append(error)
+        if self.run.failure is None:
+            self.run.failure = error
+        self.run.done.set()
+        self.run.stopping = True
+
+    def stop_listener(self) -> None:
+        if self.listener is not None:
+            try:
+                self.listener.close()
+            except BaseException as error:
+                self.remember(error)
+
+    def failed(self, error: BaseException) -> None:
+        self.remember(error)
+        self.stop_listener()
+
+    def submit(self, operation) -> asyncio.Task:
+        try:
+            return asyncio.create_task(operation)
+        except BaseException as primary:
+            self.failed(primary)
+            try:
+                operation.close()
+            except BaseException as cleanup:
+                self.failed(cleanup)
+            raise
+
+    def observed(self, protocol: PrefaceProtocol, task: asyncio.Task) -> None:
+        if task in protocol.observed:
+            return
+        protocol.observed.add(task)
+        try:
+            task.result()
+        except BaseException as error:
+            self.failed(error)
+
+    def accept(self, reader, protocol: PrefaceProtocol) -> None:
+        try:
+            if self.run.stopping:
+                protocol.transport.abort()
+            else:
+                protocol.handler = self.submit(self.handle(reader, protocol.writer))
+                protocol.handler.add_done_callback(
+                    lambda task: self.observed(protocol, task)
+                )
+            protocol.waiter = self.submit(self.wait_writer(protocol.writer))
+            protocol.waiter.add_done_callback(
+                lambda task: self.observed(protocol, task)
+            )
+        except BaseException as error:
+            self.failed(error)
+            try:
+                protocol.transport.abort()
+            except BaseException as cleanup:
+                self.failed(cleanup)
+
+    async def handle(self, reader, writer) -> None:
+        try:
+            await serve(self.run, self.context, reader, writer)
+        except PEER_DISCONNECT:
+            pass
+        except BaseException as error:
+            self.failed(error)
+        finally:
+            try:
+                writer.close()
+            except PEER_DISCONNECT:
+                pass
+            except BaseException as error:
+                self.failed(error)
+
+    async def wait_writer(self, writer) -> None:
+        try:
+            await writer.wait_closed()
+        except PEER_DISCONNECT:
+            pass
+        except BaseException as error:
+            self.failed(error)
+
+    async def close(self, primary: BaseException | None = None) -> None:
+        self.run.stopping = True
+        if self.run.completion is not None:
+            self.run.completion.cancel()
+        self.stop_listener()
+        deadline = asyncio.get_running_loop().time() + CLEANUP_SECONDS
+        while True:
+            for protocol in tuple(self.protocols):
+                if protocol.transport is not None:
+                    try:
+                        protocol.transport.abort()
+                    except BaseException as error:
+                        self.failed(error)
+                if protocol.writer is not None and protocol.waiter is None:
+                    try:
+                        protocol.waiter = self.submit(self.wait_writer(protocol.writer))
+                    except BaseException as error:
+                        self.failed(error)
+                for task in (protocol.handler, protocol.waiter):
+                    if task is not None and task.done():
+                        self.observed(protocol, task)
+                if (
+                    protocol.retired
+                    and (protocol.handler is None or protocol.handler.done())
+                    and (
+                        protocol.writer is None
+                        or (protocol.waiter is not None and protocol.waiter.done())
+                    )
+                ):
+                    self.protocols.remove(protocol)
+            tasks = {
+                task
+                for protocol in self.protocols
+                for task in (protocol.handler, protocol.waiter, protocol.closed)
+                if task is not None and not task.done()
+            }
+            if self.listener_wait is not None:
+                if self.listener_wait.done() and not self.listener_observed:
+                    self.listener_observed = True
+                    try:
+                        self.listener_wait.result()
+                    except BaseException as error:
+                        self.failed(error)
+                elif not self.listener_wait.done():
+                    tasks.add(self.listener_wait)
+            if not tasks:
+                if self.protocols:
+                    self.failed(RuntimeError("connection retirement is unobserved"))
+                break
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                self.failed(TimeoutError("preface capture peers did not stop"))
+                break
+            try:
+                await asyncio.wait(
+                    tasks, timeout=remaining, return_when=asyncio.FIRST_COMPLETED
+                )
+            except BaseException as error:
+                self.failed(error)
+        failures, self.failures = self.failures, []
+        _raise_preface_failures(primary, failures, self)
 
 
 def capture_tool() -> str:
@@ -255,32 +589,35 @@ def fixture(
 
 
 async def capture(args: argparse.Namespace) -> None:
+    timeout = validate_options(args)
     certificate = generate_certificate()
     context = server_context(certificate)
     token = secrets.token_hex(8)
     run = Run(token, args.idle, args.short)
-    server = await asyncio.start_server(
-        lambda reader, writer: serve(run, context, reader, writer), args.listen, 0
-    )
-    port = server.sockets[0].getsockname()[1]
-    plan = LaunchPlan(
-        browser=args.browser,
-        executable=args.browser_path,
-        headless=not args.headful,
-        extra_arguments=(
-            f"--host-resolver-rules=MAP {HOSTNAME} {args.listen}, EXCLUDE localhost",
-            "--ignore-certificate-errors-spki-list=" + certificate.spki_sha256_base64,
-            "--disable-quic",
-        ),
-    )
-    url = f"https://{HOSTNAME}:{port}/start?run={token}"
-    timeout = 2 * args.idle + args.short + 30
+    server = PrefaceServer(run, context)
+    primary = None
     try:
+        await server.start(args.listen)
+        port = server.port
+        plan = LaunchPlan(
+            browser=args.browser,
+            executable=args.browser_path,
+            headless=not args.headful,
+            extra_arguments=(
+                f"--host-resolver-rules=MAP {HOSTNAME} {resolver_address(args.listen)}, EXCLUDE localhost",
+                "--ignore-certificate-errors-spki-list="
+                + certificate.spki_sha256_base64,
+                "--disable-quic",
+            ),
+        )
+        url = f"https://{HOSTNAME}:{port}/start?run={token}"
         async with BrowserDriver(plan, url):
             await asyncio.wait_for(run.done.wait(), timeout=timeout)
-    finally:
-        server.close()
-        await server.wait_closed()
+            if run.failure is not None:
+                raise run.failure
+    except BaseException as error:
+        primary = error
+    await server.close(primary)
     arguments = (
         plan.recorded_arguments(url)
         .replace(certificate.spki_sha256_base64, "<certificate-spki>")
@@ -291,6 +628,26 @@ async def capture(args: argparse.Namespace) -> None:
     path = args.output_dir / "preface-ping.txt"
     write_text_fixture(path, fixture(args, plan, arguments, run, run.now()))
     print(f"wrote {path} in {run.now():.1f} s", file=sys.stderr)
+
+
+def validate_options(args: argparse.Namespace) -> float:
+    if not ipaddress.ip_address(args.listen).is_loopback:
+        raise ValueError("the capture listener must be a loopback address")
+    for name in ("idle", "short"):
+        value = getattr(args, name)
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError(f"--{name} must be finite and positive")
+        if value > MAX_TIMER_MILLISECONDS / 1000:
+            raise ValueError(f"--{name} exceeds the page timer limit")
+    timeout = 2 * args.idle + args.short + 30
+    if not math.isfinite(timeout):
+        raise ValueError("combined capture timeout must be finite")
+    return timeout
+
+
+def resolver_address(host: str) -> str:
+    address = str(ipaddress.ip_address(host))
+    return f"[{address}]" if ":" in address else address
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -307,13 +664,9 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
-        loopback = ipaddress.ip_address(args.listen).is_loopback
-    except ValueError:
-        loopback = False
-    if not loopback:
-        parser.error("the capture listener must be a loopback address")
-    if args.idle <= 0 or args.short <= 0:
-        parser.error("--idle and --short must be positive")
+        validate_options(args)
+    except ValueError as error:
+        parser.error(str(error))
     for package, version in SUPPORTED.items():
         if metadata.version(package) != version:
             parser.error(f"{package} {version} is required")
