@@ -63,6 +63,7 @@ from .cookie_crumbs import (
     h2_request_lines,
     h3_request_lines,
     milliseconds,
+    validate_metadata_value,
 )
 from .fixture_file import write_text_fixture
 from .http2_analysis import HeaderBlock, analyze_http2, frame_details
@@ -1541,17 +1542,7 @@ def evidence(key: str, render: Callable[[], list[str]]) -> list[str]:
 
 def render_snapshot(run: SnapshotRun, capture: CaptureMetadata) -> str:
     run.check()
-    for field_name, value in (
-        ("client", capture.client),
-        ("client_version", capture.client_version),
-        ("operating_system", capture.operating_system),
-        ("listen_address", capture.listen_address),
-        ("launch_mode", capture.launch_mode),
-        ("launch_arguments", capture.launch_arguments),
-        ("firefox_preferences", capture.firefox_preferences),
-        ("profile_files", capture.profile_files),
-    ):
-        validate_metadata_value(value, field_name)
+    capture.validate()
 
     http3 = any(record.first_request for record in run.quic_connections)
     lines = [
@@ -1780,11 +1771,6 @@ def validate_capture_options(args: argparse.Namespace) -> None:
 
     validate_metadata_value(args.client_version, "client_version")
     validate_metadata_value(args.operating_system, "operating_system")
-
-
-def validate_metadata_value(value: str, field_name: str) -> None:
-    if any(not " " <= character <= "~" for character in value):
-        raise ValueError(f"{field_name} must contain only printable ASCII characters")
 
 
 def main(argv: Sequence[str] | None = None) -> int:

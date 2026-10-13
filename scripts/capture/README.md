@@ -760,6 +760,10 @@ server-sent events stream ends. It serves plaintext HTTP/1.1 to one
 `new EventSource(...)` page per run and writes one
 `format=phantom-sse-reconnect-v1` fixture per scenario.
 
+Use finite positive run timeouts and single-line printable ASCII metadata.
+Accepted response workers finish within a five-second cooperative cleanup
+deadline. A response or cleanup failure prevents publishing its fixture.
+
 Capture Chrome on Windows:
 
 ```sh
@@ -1191,6 +1195,11 @@ Chromium brackets IPv6 resolver addresses. Firefox accepts only
 `--listen 127.0.0.1` or `--listen ::1`, checked before acquiring a certificate
 or listener. IPv4 disables IPv6. IPv6 prefers IPv6 without excluding IPv4.
 
+Use finite positive run timeouts and single-line printable ASCII metadata.
+The command permits at most 128 scenario runs in total. Shutdown collects
+protocols, timers and the UDP listener within a five-second cooperative
+deadline. Callback failures and incomplete cleanup prevent publication.
+
 Capture Chrome on Windows:
 
 ```sh
@@ -1271,6 +1280,12 @@ the resumed ClientHello, which ticket each connection presents, whether it
 offers and sends early data, and which requests arrive in early data. It
 writes one `format=phantom-tls-resumption-v2` fixture per scenario, named
 `resumption-<scenario>.txt`.
+
+Use finite positive run timeouts and single-line printable ASCII metadata.
+Shutdown collects accepted peers and response tasks within a ten-second
+cooperative deadline. Unexpected serving and cleanup failures prevent writing.
+ClientHello and HTTP/1 headers each have a 32 KiB limit. Bodies have a 64 KiB
+limit. Expected disconnects preserve independent cleanup errors.
 
 Capture Chrome on Windows:
 
@@ -1818,6 +1833,10 @@ those fields, and how each is encoded. It writes one
 Each run collects its registered TCP or QUIC owners before fixture publication.
 Capture and cleanup failures preserve their original causes and prevent writes.
 Cleanup attempts have a ten-second cooperative deadline.
+
+Metadata must contain only printable ASCII on one line. HTTP/3 analysis
+retains each request's decoder history so later table updates do not change
+its recorded entry references.
 
 Run timeouts must be finite and positive. Observation delays may be zero.
 Their sum must be finite. The command allows 128 scenario runs in total.

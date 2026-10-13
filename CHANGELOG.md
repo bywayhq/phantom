@@ -2485,6 +2485,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Collect EventSource, TLS and QUIC capture workers, accepted connections and
+  timers before fixture publication. Retain original serving and cleanup
+  failures, including cleanup errors beside an expected peer disconnect.
+  Keep incomplete shutdown owned for retry.
+- Bound TLS capture input, reject non-finite capture waits and invalid metadata,
+  and bracket EventSource IPv6 listener URLs. Decode split QUIC stream types
+  within their declared frames and reject malformed ClientHello vectors.
 - Retain HTTP/3 WebSocket fixture connections, responders and UDP relays
   through caller failure. Preserve unexpected reset and deadline causes.
 - Collect streamed MASQUE fixture TLS, pump and UDP failures during bounded
