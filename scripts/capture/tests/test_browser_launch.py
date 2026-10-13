@@ -773,6 +773,10 @@ class EnterBrowserTests(unittest.TestCase):
                 except BaseException as error:
                     peers.failures.append(error)
                     peers.pending.extend([peers, cleanup])
+                try:
+                    self.collect_holder()
+                except BaseException as error:
+                    peers.failures.append(error)
             raise_peer_failures(primary, peers.failures, peers.pending)
             return b"".join(peers.reply[:1]), peers.reply[-1:] == [b"released"]
 
