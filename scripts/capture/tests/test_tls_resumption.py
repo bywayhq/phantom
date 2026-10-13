@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import errno
+import http.client
 import io
 import socket
 import ssl
@@ -54,8 +55,36 @@ def client_context(alpn: str) -> ssl.SSLContext:
 HTTP1_CLIENT = client_context("http/1.1")
 
 
+class RecordedResponse:
+    """Keep original response bytes while the standard parser reads framing."""
+
+    def __init__(self, stream):
+        self.reader = stream.makefile("rb")
+        self.data = bytearray()
+
+    def makefile(self, mode):
+        return self
+
+    def read(self, size=-1):
+        data = self.reader.read(size)
+        self.data.extend(data)
+        return data
+
+    def readline(self, limit=-1):
+        data = self.reader.readline(limit)
+        self.data.extend(data)
+        return data
+
+    def close(self):
+        self.reader.close()
+
+
 def blocking_http1_request(
-    port: int, path: str, session: ssl.SSLSession | None
+    port: int,
+    path: str,
+    session: ssl.SSLSession | None,
+    *,
+    read_to_eof: bool = False,
 ) -> tuple[bytes, ssl.SSLSession, bool]:
     raw = socket.create_connection(("127.0.0.1", port), timeout=5)
     with HTTP1_CLIENT.wrap_socket(
@@ -64,19 +93,27 @@ def blocking_http1_request(
         stream.sendall(
             f"GET {path} HTTP/1.1\r\nhost: {HOSTNAME}:{port}\r\n\r\n".encode("ascii")
         )
-        response = b""
-        while chunk := stream.recv(65536):
-            response += chunk
+        if read_to_eof:
+            response = b""
+            while chunk := stream.recv(65536):
+                response += chunk
+        else:
+            recorded = RecordedResponse(stream)
+            with http.client.HTTPResponse(recorded) as parsed:
+                parsed.begin()
+                parsed.read()
+            response = bytes(recorded.data)
         return response, stream.session, stream.session_reused
 
 
 async def http1_request(
     port: int, path: str, *, session: ssl.SSLSession | None = None
 ) -> tuple[bytes, ssl.SSLSession, bool]:
-    """Send one GET over HTTP/1.1 and read until the server closes.
+    """Send one GET over HTTP/1.1 and read the complete framed response.
 
-    OpenSSL reads the server's tickets while it reads the response, so the
-    returned session can resume. The flag says whether this one resumed.
+    OpenSSL processes tickets preceding the response. Connection retirement
+    has its own controls and need not finish before inspecting the session.
+    The flag says whether this one resumed.
     """
     return await asyncio.to_thread(blocking_http1_request, port, path, session)
 
@@ -317,6 +354,95 @@ class LaunchTests(unittest.TestCase):
 
 
 class ServerTests(unittest.IsolatedAsyncioTestCase):
+    async def test_complete_response_does_not_wait_for_server_retirement(self):
+        original_close = capture.Connection.close_by
+
+        def close(connection, who):
+            if who != "server":
+                original_close(connection, who)
+
+        with mock.patch.object(capture.Connection, "close_by", new=close):
+            async with serving(
+                SCENARIOS["sequential-http1"], "127.0.0.1", certificates()
+            ) as server:
+                port = int(server.origins["a"].rsplit(":", 1)[1])
+                response, session, reused = await http1_request(port, "/retire")
+                self.assertTrue(response.startswith(b"HTTP/1.1 200 OK\r\n"))
+                self.assertTrue(response.endswith(b"\r\n\r\nok"))
+                self.assertTrue(session.has_ticket)
+                self.assertFalse(reused)
+                _, _, reused = await http1_request(port, "/done", session=session)
+                self.assertTrue(reused)
+                self.assertTrue(server.run.done.is_set())
+        self.assertTrue(server.finished)
+
+    async def test_truncated_framed_response_is_not_a_complete_response(self):
+        async def respond(connection, request, delay):
+            connection.writer.write(
+                connection.seal(
+                    capture.CONTENT_APPLICATION_DATA,
+                    b"HTTP/1.1 200 OK\r\ncontent-length: 3\r\n\r\nok",
+                )
+            )
+            connection.close_by("server")
+
+        with mock.patch.object(capture.Connection, "respond", new=respond):
+            async with serving(
+                SCENARIOS["sequential-http1"], "127.0.0.1", certificates()
+            ) as server:
+                port = int(server.origins["a"].rsplit(":", 1)[1])
+                with self.assertRaises(http.client.IncompleteRead) as raised:
+                    await http1_request(port, "/done")
+        self.assertEqual(raised.exception.partial, b"ok")
+        self.assertEqual(raised.exception.expected, 1)
+        self.assertTrue(server.finished)
+
+    async def test_native_eof_control_observes_server_close_and_ticket_order(self):
+        scenario = replace(SCENARIOS["issue-once"], alpn="http/1.1")
+        async with serving(scenario, "127.0.0.1", certificates()) as server:
+            port = int(server.origins["a"].rsplit(":", 1)[1])
+            await asyncio.to_thread(
+                lambda: socket.create_connection(("127.0.0.1", port), timeout=5).close()
+            )
+            _, session, _ = await asyncio.to_thread(
+                blocking_http1_request, port, "/retire", None, read_to_eof=True
+            )
+            _, _, reused = await asyncio.to_thread(
+                blocking_http1_request, port, "/retire", session, read_to_eof=True
+            )
+            self.assertTrue(reused)
+            await asyncio.to_thread(
+                blocking_http1_request, port, "/done", None, read_to_eof=True
+            )
+            self.assertTrue(server.run.done.is_set())
+            self.assertEqual(
+                [record.closed_by for record in server.run.connections[1:]],
+                ["server", "server", "server"],
+            )
+        issued = [record.tickets_issued for record in server.run.connections]
+        self.assertEqual(issued[0], ())
+        self.assertEqual(len(issued[1]), scenario.tickets_per_connection)
+        self.assertEqual(issued[2:], [(), ()])
+        self.assertTrue(server.finished)
+
+    async def test_native_eof_control_rejects_a_server_that_withholds_close(self):
+        original_close = capture.Connection.close_by
+
+        def close(connection, who):
+            if who != "server":
+                original_close(connection, who)
+
+        with mock.patch.object(capture.Connection, "close_by", new=close):
+            async with serving(
+                SCENARIOS["sequential-http1"], "127.0.0.1", certificates()
+            ) as server:
+                port = int(server.origins["a"].rsplit(":", 1)[1])
+                with self.assertRaises(TimeoutError):
+                    await asyncio.to_thread(
+                        blocking_http1_request, port, "/done", None, read_to_eof=True
+                    )
+        self.assertTrue(server.finished)
+
     async def test_openssl_client_resumes_a_recorded_ticket(self) -> None:
         scenario = SCENARIOS["sequential-http1"]
         async with serving(scenario, "127.0.0.1", certificates()) as server:
