@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import ipaddress
+import math
 import platform
 import secrets
 import socket
@@ -24,6 +25,67 @@ FORMAT = "phantom-sse-reconnect-v1"
 MAX_REQUEST_HEAD = 64 * 1024
 SENSITIVE_HEADERS = {b"authorization", b"proxy-authorization"}
 PROBE_COOKIE = b"phantom_probe=1"
+CONNECTION_CLEANUP_SECONDS = 5.0
+
+
+@dataclass(frozen=True)
+class ListenAddress:
+    host: str
+    port: int
+
+    def __post_init__(self) -> None:
+        address = ipaddress.ip_address(self.host)
+        if not address.is_loopback:
+            raise ValueError("the capture listener must be a loopback address")
+        if not isinstance(self.port, int) or not 0 <= self.port <= 65535:
+            raise ValueError("the capture listener port must be between 0 and 65535")
+
+    @classmethod
+    def parse(cls, value: str) -> ListenAddress:
+        host, separator, port = value.rpartition(":")
+        if not separator or not port.isascii() or not port.isdecimal():
+            raise ValueError("the capture listener must include an IP address and port")
+        if host.startswith("[") and host.endswith("]"):
+            host = host[1:-1]
+        return cls(host, int(port))
+
+    @property
+    def authority(self) -> str:
+        host = f"[{self.host}]" if ":" in self.host else self.host
+        return f"{host}:{self.port}"
+
+
+class CaptureCleanupFailure(RuntimeError):
+    """Retain the server and original errors when connection cleanup fails."""
+
+    def __init__(self, owner, primary, failures) -> None:
+        self.owner = owner
+        self.primary = primary
+        self.failures = tuple(failures)
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        super().__init__("SSE capture connection cleanup failed")
+
+
+def raise_capture_failures(owner, primary, failures) -> None:
+    if primary is None and failures:
+        primary, *failures = failures
+    if primary is not None:
+        if failures:
+            raise primary from CaptureCleanupFailure(owner, primary, failures)
+        raise primary
+
+
+def validate_capture_limits(repeat: int, run_timeout: float) -> None:
+    if not isinstance(repeat, int) or isinstance(repeat, bool) or repeat < 1:
+        raise ValueError("repeat must be a positive integer")
+    if not math.isfinite(run_timeout) or run_timeout <= 0:
+        raise ValueError("run timeout must be finite and positive")
+
+
+def validate_metadata(name: str, value: str) -> None:
+    if not value or any(not 32 <= ord(character) <= 126 for character in value):
+        raise ValueError(f"{name} must be nonempty, single-line printable ASCII")
 
 
 @dataclass(frozen=True)
@@ -259,6 +321,7 @@ class ScenarioRun:
     last_stimulus: float | None = None
     terminated: float | None = None
     done: asyncio.Event = field(default_factory=asyncio.Event)
+    observation: asyncio.TimerHandle | None = None
 
     def __post_init__(self) -> None:
         self.started = self.clock()
@@ -303,7 +366,7 @@ class ScenarioRun:
             and request.attempt == len(self.scenario.attempts) - 1
         ):
             self.terminated = self.last_stimulus
-            asyncio.get_running_loop().call_later(
+            self.observation = asyncio.get_running_loop().call_later(
                 self.scenario.observation_seconds, self.done.set
             )
 
@@ -315,13 +378,17 @@ class ReconnectServer:
         self.run: ScenarioRun | None = None
         self.server: asyncio.Server | None = None
         self.writers: set[asyncio.StreamWriter] = set()
+        self.tasks: set[asyncio.Task] = set()
+        self.cancelled: set[asyncio.Task] = set()
+        self.writer_tasks: dict[asyncio.StreamWriter, asyncio.Task] = {}
+        self.failures: list[BaseException] = []
+        self.cleanup: asyncio.Task | None = None
         self.address: tuple[str, int] | None = None
 
     async def start(self, host: str, port: int) -> None:
-        if not ipaddress.ip_address(host).is_loopback:
-            raise ValueError("the capture listener must be a loopback address")
+        ListenAddress(host, port)
         self.server = await asyncio.start_server(
-            self.handle, host, port, limit=MAX_REQUEST_HEAD
+            self.accept, host, port, limit=MAX_REQUEST_HEAD
         )
         self.address = self.server.sockets[0].getsockname()[:2]
 
@@ -329,31 +396,165 @@ class ReconnectServer:
         if self.address is None:
             raise RuntimeError("server has not started")
         host, port = self.address
-        return f"http://{host}:{port}{run.page_path()}"
+        return f"http://{ListenAddress(host, port).authority}{run.page_path()}"
 
     async def close(self) -> None:
-        self.drop_connections()
+        primary = None
         if self.server is not None:
-            self.server.close()
-            await self.server.wait_closed()
+            try:
+                self.server.close()
+                await asyncio.wait_for(
+                    self.server.wait_closed(), timeout=CONNECTION_CLEANUP_SECONDS
+                )
+            except BaseException as error:
+                primary = error
 
-    def drop_connections(self) -> None:
-        for writer in list(self.writers):
-            writer.transport.abort()
-        self.writers.clear()
+        failures = []
+        try:
+            await self.finish_run()
+        except BaseException as error:
+            failures.append(error)
+        if primary is not None:
+            raise primary from CaptureCleanupFailure(self, primary, failures)
+        raise_capture_failures(self, primary, failures)
 
-    async def handle(
+    async def finish_run(self) -> None:
+        """Stop and collect accepted workers; interrupted cleanup can be retried."""
+        run, self.run = self.run, None
+        if run is not None and run.observation is not None:
+            run.observation.cancel()
+
+        if self.cleanup is None:
+            self.cleanup = asyncio.create_task(self.collect_connections())
+        try:
+            await asyncio.shield(self.cleanup)
+        except BaseException as primary:
+            raise primary from CaptureCleanupFailure(
+                self, primary, [*self.failures, *self.outcomes()]
+            )
+
+        self.cleanup = None
+        failures = self.failures.copy()
+        if self.tasks or self.writers:
+            primary, *secondary = failures
+            raise primary from CaptureCleanupFailure(self, primary, secondary)
+        self.failures.clear()
+        raise_capture_failures(self, None, failures)
+
+    async def collect_connections(self) -> None:
+        deadline = asyncio.get_running_loop().time() + CONNECTION_CLEANUP_SECONDS
+        while self.tasks or self.writers:
+            if asyncio.get_running_loop().time() >= deadline:
+                self.failures.append(TimeoutError("SSE connection cleanup timed out"))
+                return
+
+            for task in self.tasks:
+                if not task.done() and task not in self.cancelled:
+                    self.cancelled.add(task)
+                    task.cancel()
+
+            failed_closures = False
+            for writer in self.writers:
+                if writer not in self.writer_tasks:
+                    try:
+                        writer.close()
+                    except BaseException as error:
+                        self.failures.append(error)
+                        failed_closures = True
+                    else:
+                        self.writer_tasks[writer] = asyncio.create_task(
+                            writer.wait_closed()
+                        )
+
+            pending_workers = set()
+            if self.tasks:
+                done, pending = await asyncio.wait(
+                    self.tasks,
+                    timeout=max(0.0, deadline - asyncio.get_running_loop().time()),
+                )
+                for task in done:
+                    if task.cancelled():
+                        if task not in self.cancelled:
+                            try:
+                                task.result()
+                            except asyncio.CancelledError as error:
+                                self.failures.append(error)
+                    elif task.result() is not None:
+                        self.failures.append(task.result())
+                    self.tasks.remove(task)
+                    self.cancelled.discard(task)
+                pending_workers = pending
+
+            pending_writers = set()
+            if self.writer_tasks:
+                done, pending = await asyncio.wait(
+                    self.writer_tasks.values(),
+                    timeout=max(0.0, deadline - asyncio.get_running_loop().time()),
+                )
+                for writer, task in list(self.writer_tasks.items()):
+                    if task not in done:
+                        continue
+                    del self.writer_tasks[writer]
+                    try:
+                        task.result()
+                    except BaseException as error:
+                        self.failures.append(error)
+                        failed_closures = True
+                    else:
+                        self.writers.discard(writer)
+                pending_writers = pending
+
+            if pending_workers:
+                self.failures.append(TimeoutError("accepted SSE workers did not stop"))
+            if pending_writers:
+                self.failures.append(TimeoutError("accepted SSE writers did not close"))
+            if pending_workers or pending_writers:
+                return
+
+            if failed_closures:
+                return
+
+    def outcomes(self) -> list[BaseException]:
+        failures = []
+        for task in self.tasks:
+            if task.cancelled():
+                if task not in self.cancelled:
+                    try:
+                        task.result()
+                    except asyncio.CancelledError as error:
+                        failures.append(error)
+            elif task.done() and task.result() is not None:
+                failures.append(task.result())
+        return failures
+
+    def accept(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
         run = self.run
-        if run is None:
-            writer.transport.abort()
-            return
         self.writers.add(writer)
-        connection = RecordedConnection(accepted=run.now())
-        run.connections.append(connection)
-        index = len(run.connections) - 1
+        task = asyncio.create_task(self.handle(reader, writer, run))
+        self.tasks.add(task)
+
+        def completed(task: asyncio.Task) -> None:
+            if not task.cancelled() and task.result() is not None and run is not None:
+                run.done.set()
+
+        task.add_done_callback(completed)
+
+    async def handle(
+        self,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        run: ScenarioRun | None,
+    ) -> BaseException | None:
+        """Keep failures as outcomes, including close errors after owned cancellation."""
+        primary = None
         try:
+            if run is None:
+                return
+            connection = RecordedConnection(accepted=run.now())
+            run.connections.append(connection)
+            index = len(run.connections) - 1
             while True:
                 try:
                     head = await reader.readuntil(b"\r\n\r\n")
@@ -366,10 +567,22 @@ class ReconnectServer:
                 run.requests.append(request)
                 if not await self.respond(run, request, reader, writer):
                     return
+        except BaseException as error:
+            if not (
+                isinstance(error, asyncio.CancelledError)
+                and asyncio.current_task() in self.cancelled
+            ):
+                primary = error
         finally:
-            self.writers.discard(writer)
-            if not writer.transport.is_closing():
+            failures = []
+            try:
                 writer.close()
+            except BaseException as error:
+                failures.append(error)
+            try:
+                raise_capture_failures(self, primary, failures)
+            except BaseException as error:
+                return error
 
     async def respond(
         self,
@@ -514,6 +727,17 @@ class CaptureMetadata:
     launch_mode: str
     launch_arguments: str
 
+    def __post_init__(self) -> None:
+        for name in (
+            "client",
+            "client_version",
+            "operating_system",
+            "listen_address",
+            "launch_mode",
+            "launch_arguments",
+        ):
+            validate_metadata(name, getattr(self, name))
+
 
 def validate_retained_headers(run: ScenarioRun) -> None:
     for request in run.requests:
@@ -622,34 +846,58 @@ async def capture_scenario(
 
     `drive` returns an async context manager that owns the client for the run.
     """
+    validate_capture_limits(repeat, run_timeout)
+    if (
+        server.run is not None
+        or server.cleanup is not None
+        or server.tasks
+        or server.writers
+    ):
+        raise RuntimeError("the previous SSE run must finish before another starts")
     runs = []
     for _ in range(repeat):
         run = ScenarioRun(scenario, secrets.token_hex(8))
         server.run = run
+        primary = None
         try:
             async with drive(server.url(run)):
                 await asyncio.wait_for(
                     run.done.wait(),
                     timeout=run_timeout + scenario.observation_seconds,
                 )
-        finally:
-            server.run = None
-            server.drop_connections()
+        except BaseException as error:
+            primary = error
+
+        failures = []
+        try:
+            await server.finish_run()
+        except BaseException as error:
+            failures.append(error)
+        raise_capture_failures(server, primary, failures)
         runs.append(run)
     return runs
 
 
 async def run(args: argparse.Namespace) -> None:
+    validate_capture_limits(args.repeat, args.run_timeout)
+    address = ListenAddress.parse(args.listen)
+    for name, value in (
+        ("client", args.client if args.client is not None else args.browser),
+        ("client_version", args.client_version),
+        ("operating_system", args.operating_system),
+    ):
+        validate_metadata(name, value)
+
     plan = LaunchPlan(
         browser=args.browser,
         executable=args.browser_path,
         headless=not args.headful,
     )
-    host, port = args.listen.rsplit(":", 1)
     server = ReconnectServer()
-    await server.start(host, int(port))
+    await server.start(address.host, address.port)
+    primary = None
     try:
-        listen = "{}:{}".format(*server.address)
+        listen = ListenAddress(*server.address).authority
         names = list(SCENARIOS) if args.scenario == ["all"] else args.scenario
         args.output_dir.mkdir(parents=True, exist_ok=True)
         for name in names:
@@ -675,8 +923,15 @@ async def run(args: argparse.Namespace) -> None:
                 args.output_dir / f"{name}.txt", fixture(scenario, runs, metadata)
             )
             print(f"captured {name}", file=sys.stderr, flush=True)
-    finally:
+    except BaseException as error:
+        primary = error
+
+    failures = []
+    try:
         await server.close()
+    except BaseException as error:
+        failures.append(error)
+    raise_capture_failures(server, primary, failures)
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -698,10 +953,17 @@ def main(argv: Sequence[str] | None = None) -> None:
     unknown = sorted(set(args.scenario) - set(SCENARIOS) - {"all"})
     if unknown or ("all" in args.scenario and len(args.scenario) > 1):
         parser.error(f"unknown or mixed scenarios: {', '.join(unknown) or 'all'}")
-    if args.repeat < 1:
-        parser.error("--repeat must be positive")
-    if not ipaddress.ip_address(args.listen.rsplit(":", 1)[0]).is_loopback:
-        parser.error("the capture listener must be a loopback address")
+    try:
+        validate_capture_limits(args.repeat, args.run_timeout)
+        ListenAddress.parse(args.listen)
+        for name, value in (
+            ("client", args.client if args.client is not None else args.browser),
+            ("client_version", args.client_version),
+            ("operating_system", args.operating_system),
+        ):
+            validate_metadata(name, value)
+    except ValueError as error:
+        parser.error(str(error))
     asyncio.run(run(args))
 
 
