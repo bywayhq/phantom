@@ -1,12 +1,7 @@
 //! Public HTTP/3 early-data integration tests.
 //!
-//! A relay holds every server datagram briefly, so a new resumed connection
-//! always sends its first request before its handshake can complete.
-
-use crate::support::h3 as h3_support;
-use crate::support::http3_upgrade as http3_upgrade_support;
-use crate::support::tls as tls_support;
-use crate::support::tracing as tracing_support;
+//! Relays delay or gate server replies. Tests observe early dispatch before
+//! allowing a held handshake to complete.
 
 use std::{
     collections::HashMap,
@@ -33,10 +28,16 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{
     net::{TcpListener, UdpSocket},
     sync::mpsc,
-    task::JoinHandle,
     time::timeout,
 };
 use tracing::instrument::WithSubscriber;
+
+use crate::support::{
+    h3 as h3_support, http3_upgrade as http3_upgrade_support, tls as tls_support,
+    tracing as tracing_support,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+};
+use relay_peer::{RelayPeer, RelayWorkers, drain_deadline, stop_fixture_peer};
 
 use h3_support::client_settings;
 use tls_support::{TestIdentity, TestResult, tls_settings};
@@ -56,43 +57,65 @@ async fn rejected_early_data_is_sent_again_on_the_same_connection() -> TestResul
             server_config(&identity, true)?,
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;
-        let (relay, relay_task) = delaying_relay(endpoint.local_addr()?).await?;
-        let (served_tx, mut served) = mpsc::unbounded_channel();
-        let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
-        let declining = server_config(&identity, false)?;
-        let server = tokio::spawn(async move {
-            // The first connection learns a ticket; the second resumes with
-            // early data the server accepts.
-            for _ in 0..2 {
+        let (gate, open) = tokio::sync::watch::channel(true);
+        let (relay, relay_task) = gated_relay(endpoint.local_addr()?, open).await?;
+        let mut server_peer = None;
+        let mut retained_client = None;
+        let outcome: TestResult<()> = async {
+            let (served_tx, mut served) = mpsc::unbounded_channel();
+            let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
+            let declining = server_config(&identity, false)?;
+            server_peer = Some(ConnectionPeer::spawn(async move {
+                // The first connection learns a ticket; the second resumes with
+                // early data the server accepts.
+                for _ in 0..2 {
+                    let path = serve_then_close(&endpoint, &mut read).await?;
+                    let _ = served_tx.send(path);
+                }
+                // The server now declines early data, as after a key rotation.
+                endpoint.set_server_config(Some(declining));
+                let _ = served_tx.send(String::new());
+                // The connection whose early data was rejected carries the
+                // request, and no other connection follows.
                 let path = serve_then_close(&endpoint, &mut read).await?;
                 let _ = served_tx.send(path);
-            }
-            // The server now declines early data, as after a key rotation.
-            endpoint.set_server_config(Some(declining));
-            let _ = served_tx.send(String::new());
-            // The connection whose early data was rejected carries the
-            // request, and no other connection follows.
-            let path = serve_then_close(&endpoint, &mut read).await?;
-            let _ = served_tx.send(path);
-            expect_no_connection(&endpoint).await
-        });
+                expect_no_connection(&endpoint).await
+            }));
 
-        let session = early_data_client(&identity)?;
-        for path in ["/first", "/early"] {
-            send(&session, relay, path).await?;
+            let session = early_data_client(&identity)?;
+            retained_client = Some(session.clone());
+            let fresh = OutcomeSubscriber::default();
+            send(&session, relay, "/first")
+                .with_subscriber(fresh.dispatch())
+                .await?;
+            assert_eq!(fresh.early_data_for("http3.response_head"), ["none"]);
             read_tx.send(())?;
-            assert_eq!(served.recv().await.ok_or("server stopped")?, path);
+            assert_eq!(served.recv().await.ok_or("server stopped")?, "/first");
+
+            let accepted = send_before_opening_reply_gate(&session, relay, "/early", &gate).await?;
+            assert_eq!(accepted, ["sent"]);
+            read_tx.send(())?;
+            assert_eq!(served.recv().await.ok_or("server stopped")?, "/early");
+            assert_eq!(served.recv().await.ok_or("server stopped")?, "");
+
+            let rejected =
+                send_before_opening_reply_gate(&session, relay, "/rejected", &gate).await?;
+            assert_eq!(rejected, ["sent", "after_handshake"]);
+            read_tx.send(())?;
+            assert_eq!(served.recv().await.ok_or("server stopped")?, "/rejected");
+
+            server_peer.take().ok_or("server owner missing")?.await??;
+            drop(session);
+            Ok(())
         }
-        assert_eq!(served.recv().await.ok_or("server stopped")?, "");
+        .await;
+        let cleanup = finish_with_cleanup(
+            stop_fixture_peer(server_peer).await,
+            stop_relay(relay_task).await,
+        );
+        drop(retained_client);
 
-        send(&session, relay, "/rejected").await?;
-        read_tx.send(())?;
-        assert_eq!(served.recv().await.ok_or("server stopped")?, "/rejected");
-
-        server.await??;
-        drop(session);
-        relay_task.abort();
-        Ok(())
+        finish_with_cleanup(outcome, cleanup)
     })
     .await
 }
@@ -170,53 +193,179 @@ fn server_config(identity: &TestIdentity, early_data: bool) -> TestResult<quinn:
 
 /// Forwards each client socket's datagrams to `server` at once and the
 /// server's replies after [`RELAY_DELAY`], one upstream socket per client.
-async fn delaying_relay(server: SocketAddr) -> TestResult<(SocketAddr, JoinHandle<()>)> {
+async fn delaying_relay(server: SocketAddr) -> TestResult<(SocketAddr, RelayPeer)> {
+    delaying_relay_observed(server, None).await
+}
+
+async fn delaying_relay_observed(
+    server: SocketAddr,
+    observation: Option<Arc<relay_observation::RelayObservation>>,
+) -> TestResult<(SocketAddr, RelayPeer)> {
+    relay(server, ReplyDelivery::Delayed, observation).await
+}
+
+enum ReplyDelivery {
+    Delayed,
+    Gated(tokio::sync::watch::Receiver<bool>),
+}
+
+async fn relay(
+    server: SocketAddr,
+    delivery: ReplyDelivery,
+    observation: Option<Arc<relay_observation::RelayObservation>>,
+) -> TestResult<(SocketAddr, RelayPeer)> {
     let front = Arc::new(phantom_testkit::udp::bind_tokio(
         (Ipv4Addr::LOCALHOST, 0).into(),
     )?);
     let address = front.local_addr()?;
-    let task = tokio::spawn(async move {
+    let task = RelayPeer::spawn(|mut stopping| async move {
+        let _lifetime = observation
+            .as_ref()
+            .map(|value| relay_observation::ReadLifetime::front(Arc::clone(value)));
         let mut upstreams: HashMap<SocketAddr, Arc<UdpSocket>> = HashMap::new();
         let mut datagram = vec![0; 65_535];
-        let mut downstream_tasks = Vec::new();
-        while let Ok((len, client)) = front.recv_from(&mut datagram).await {
-            let upstream = match upstreams.get(&client) {
-                Some(upstream) => Arc::clone(upstream),
-                None => {
-                    let Ok(upstream) =
-                        phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())
-                    else {
-                        return;
+        let mut downstream_tasks = RelayWorkers::new();
+        let (outcome, deadline): (TestResult<()>, tokio::time::Instant) = tokio::select! {
+            biased;
+            outcome = async {
+                loop {
+                    let (len, client) = tokio::select! {
+                        biased;
+                        completed = downstream_tasks.completed(), if !downstream_tasks.is_empty() => {
+                            completed?;
+                            continue;
+                        }
+                        received = async {
+                            match &observation {
+                                Some(value) => value.front.recv_from(&front, &mut datagram).await,
+                                None => front.recv_from(&mut datagram).await,
+                            }
+                        } => received?,
                     };
-                    if upstream.connect(server).await.is_err() {
-                        return;
-                    }
-                    let upstream = Arc::new(upstream);
-                    upstreams.insert(client, Arc::clone(&upstream));
-                    downstream_tasks.push(tokio::spawn(forward_delayed(
-                        Arc::clone(&upstream),
-                        Arc::clone(&front),
-                        client,
-                    )));
-                    upstream
+                    let upstream = match upstreams.get(&client) {
+                        Some(upstream) => Arc::clone(upstream),
+                        None => {
+                            let upstream = phantom_testkit::udp::bind_tokio(
+                                (Ipv4Addr::LOCALHOST, 0).into(),
+                            )?;
+                            upstream.connect(server).await?;
+                            let upstream = Arc::new(upstream);
+                            upstreams.insert(client, Arc::clone(&upstream));
+                            let receiver = match &observation {
+                                Some(value) if value.observe_receivers.load(Ordering::SeqCst) => {
+                                    Some(value.receiver(client)?)
+                                }
+                                _ => None,
+                            };
+                            let worker = match &delivery {
+                                ReplyDelivery::Delayed => downstream_tasks.spawn(|stopping| {
+                                    forward_delayed_observed(
+                                        Arc::clone(&upstream),
+                                        Arc::clone(&front),
+                                        client,
+                                        observation.clone(),
+                                        receiver.clone(),
+                                        stopping,
+                                    )
+                                }),
+                                ReplyDelivery::Gated(open) => downstream_tasks.spawn_operation(
+                                    forward_gated_observed(
+                                        Arc::clone(&upstream),
+                                        Arc::clone(&front),
+                                        client,
+                                        open.clone(),
+                                        observation.clone(),
+                                        receiver.clone(),
+                                    ),
+                                ),
+                            };
+                            if let Some(receiver) = receiver {
+                                receiver.publish(worker.clone())?;
+                            }
+                            if let Some(value) = &observation {
+                                value.publish_worker(worker)?;
+                            }
+
+                            upstream
+                        }
+                    };
+                    upstream.send(&datagram[..len]).await?;
                 }
-            };
-            let _ = upstream.send(&datagram[..len]).await;
-        }
+            } => (outcome, drain_deadline()),
+            stopped = &mut stopping => match stopped {
+                Ok(deadline) => (Ok(()), deadline),
+                Err(error) => (Err(error.into()), drain_deadline()),
+            },
+        };
+
+        finish_with_cleanup(outcome, downstream_tasks.finish(deadline).await)
     });
+
     Ok((address, task))
 }
 
-async fn forward_delayed(upstream: Arc<UdpSocket>, front: Arc<UdpSocket>, client: SocketAddr) {
+async fn forward_delayed(
+    upstream: Arc<UdpSocket>,
+    front: Arc<UdpSocket>,
+    client: SocketAddr,
+) -> TestResult<()> {
+    let (stop, stopping) = tokio::sync::oneshot::channel();
+    let result = forward_delayed_observed(upstream, front, client, None, None, stopping).await;
+    drop(stop);
+
+    result
+}
+
+async fn forward_delayed_observed(
+    upstream: Arc<UdpSocket>,
+    front: Arc<UdpSocket>,
+    client: SocketAddr,
+    observation: Option<Arc<relay_observation::RelayObservation>>,
+    receiver: Option<Arc<relay_observation::ReceiverObservation>>,
+    mut stopping: tokio::sync::oneshot::Receiver<tokio::time::Instant>,
+) -> TestResult<()> {
+    let _lifetime = observation
+        .as_ref()
+        .map(|value| relay_observation::ReadLifetime::reply(Arc::clone(value)));
+    let _receiver_lifetime = receiver.clone().map(relay_observation::ReceiverLifetime);
     let mut datagram = vec![0; 65_535];
-    while let Ok(len) = upstream.recv(&mut datagram).await {
-        let front = Arc::clone(&front);
-        let bytes = datagram[..len].to_vec();
-        tokio::spawn(async move {
-            tokio::time::sleep(RELAY_DELAY).await;
-            let _ = front.send_to(&bytes, client).await;
-        });
-    }
+    let mut sends = RelayWorkers::new();
+    let (outcome, deadline): (TestResult<()>, tokio::time::Instant) = tokio::select! {
+        biased;
+        outcome = async {
+            loop {
+                let len = tokio::select! {
+                    biased;
+                    completed = sends.completed(), if !sends.is_empty() => {
+                        completed?;
+                        continue;
+                    }
+                    received = async {
+                        match (&receiver, &observation) {
+                            (Some(receiver), _) => {
+                                receiver.read.recv(&upstream, &mut datagram).await
+                            }
+                            (None, Some(value)) => value.reply.recv(&upstream, &mut datagram).await,
+                            (None, None) => upstream.recv(&mut datagram).await,
+                        }
+                    } => received?,
+                };
+                let front = Arc::clone(&front);
+                let bytes = datagram[..len].to_vec();
+                sends.spawn_operation(async move {
+                    tokio::time::sleep(RELAY_DELAY).await;
+                    front.send_to(&bytes, client).await?;
+                    Ok(())
+                });
+            }
+        } => (outcome, drain_deadline()),
+        stopped = &mut stopping => match stopped {
+            Ok(deadline) => (Ok(()), deadline),
+            Err(error) => (Err(error.into()), drain_deadline()),
+        },
+    };
+
+    finish_with_cleanup(outcome, sends.finish(deadline).await)
 }
 
 /// An HTTP/3 client with session tickets and early data enabled.
@@ -258,98 +407,116 @@ async fn resumed_connection_sends_get_early_and_holds_post() -> TestResult<()> {
         )?;
         let (gate, gate_open) = tokio::sync::watch::channel(true);
         let (relay, relay_task) = gated_relay(endpoint.local_addr()?, gate_open).await?;
-        let (arrived_tx, mut arrived) = mpsc::unbounded_channel();
-        let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
-        let (closed_tx, mut closed) = mpsc::unbounded_channel::<()>();
-        let server_gate = gate.subscribe();
-        let server = tokio::spawn(async move {
-            for _ in 0..3 {
-                let mut connecting = endpoint.accept().await.ok_or("endpoint closed")?.accept()?;
-                // The client's transport parameters, which set how many
-                // streams the server may open, arrive with its ClientHello.
-                connecting.handshake_data().await?;
-                // Serving before the handshake completes (0.5-RTT) lets the
-                // server read early data while the gate holds its replies.
-                let quic = match connecting.into_0rtt() {
-                    Ok((connection, _accepted)) => connection,
-                    Err(connecting) => connecting.await?,
-                };
-                let mut connection = h3::server::Connection::<_, Bytes>::new(
-                    h3_quinn::Connection::new(quic.clone()),
-                )
-                .await?;
-                let resolver = connection
-                    .accept()
-                    .await?
-                    .ok_or("connection closed before its request")?;
-                let (request, mut stream) = resolver.resolve_request().await?;
-                // Whether the client could have completed its handshake.
-                let gate_was_open = *server_gate.borrow();
-                let _ = arrived_tx.send((request.uri().path().to_owned(), gate_was_open));
-                while stream.recv_data().await?.is_some() {}
-                stream
-                    .send_response(Response::builder().status(StatusCode::OK).body(())?)
+        let mut request_peer = None;
+        let mut server_peer = None;
+        let mut retained_client = None;
+        let outcome: TestResult<()> = async {
+            let (arrived_tx, mut arrived) = mpsc::unbounded_channel();
+            let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
+            let (closed_tx, mut closed) = mpsc::unbounded_channel::<()>();
+            let server_gate = gate.subscribe();
+            server_peer = Some(ConnectionPeer::spawn(async move {
+                for _ in 0..3 {
+                    let mut connecting =
+                        endpoint.accept().await.ok_or("endpoint closed")?.accept()?;
+                    // The client's transport parameters, which set how many
+                    // streams the server may open, arrive with its ClientHello.
+                    connecting.handshake_data().await?;
+                    // Serving before the handshake completes (0.5-RTT) lets the
+                    // server read early data while the gate holds its replies.
+                    let quic = match connecting.into_0rtt() {
+                        Ok((connection, _accepted)) => connection,
+                        Err(connecting) => connecting.await?,
+                    };
+                    let mut connection = h3::server::Connection::<_, Bytes>::new(
+                        h3_quinn::Connection::new(quic.clone()),
+                    )
                     .await?;
-                stream.finish().await?;
-                read.recv().await.ok_or("client stopped")?;
-                quic.close(0u32.into(), b"served");
-                drop(connection);
-                // Once drained, the client has seen the close and cannot
-                // reuse the connection.
-                endpoint.wait_idle().await;
-                let _ = closed_tx.send(());
-            }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
+                    let resolver = connection
+                        .accept()
+                        .await?
+                        .ok_or("connection closed before its request")?;
+                    let (request, mut stream) = resolver.resolve_request().await?;
+                    // Whether the client could have completed its handshake.
+                    let gate_was_open = *server_gate.borrow();
+                    let _ = arrived_tx.send((request.uri().path().to_owned(), gate_was_open));
+                    while stream.recv_data().await?.is_some() {}
+                    stream
+                        .send_response(Response::builder().status(StatusCode::OK).body(())?)
+                        .await?;
+                    stream.finish().await?;
+                    read.recv().await.ok_or("client stopped")?;
+                    quic.close(0u32.into(), b"served");
+                    drop(connection);
+                    // Once drained, the client has seen the close and cannot
+                    // reuse the connection.
+                    endpoint.wait_idle().await;
+                    let _ = closed_tx.send(());
+                }
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+            }));
 
-        let client = Client::builder(chrome_profile())
-            .add_root_certificate_der(identity.root_der.clone())
-            .build()?;
-        let subscriber = OutcomeSubscriber::default();
+            let client = Client::builder(chrome_profile())
+                .add_root_certificate_der(identity.root_der.clone())
+                .build()?;
+            retained_client = Some(client.clone());
+            let subscriber = OutcomeSubscriber::default();
 
-        // A full handshake learns a ticket that permits early data.
-        send_with(client.clone(), Method::GET, relay, "/first")
-            .with_subscriber(subscriber.dispatch())
-            .await?;
-        read_tx.send(())?;
-        assert_eq!(arrived.recv().await, Some(("/first".to_owned(), true)));
-        closed.recv().await.ok_or("server stopped")?;
-
-        for (method, path, early) in [
-            (Method::GET, "/early", true),
-            (Method::POST, "/post", false),
-        ] {
-            gate.send_replace(false);
-            let request = tokio::spawn(
-                send_with(client.clone(), method, relay, path)
-                    .with_subscriber(subscriber.dispatch()),
-            );
-            if early {
-                assert_eq!(arrived.recv().await, Some((path.to_owned(), false)));
-                gate.send_replace(true);
-            } else {
-                tokio::time::sleep(RELAY_DELAY * 2).await;
-                assert!(
-                    arrived.try_recv().is_err(),
-                    "{path} arrived before the handshake"
-                );
-                gate.send_replace(true);
-                assert_eq!(arrived.recv().await, Some((path.to_owned(), true)));
-            }
-            request.await??;
+            // A full handshake learns a ticket that permits early data.
+            send_with(client.clone(), Method::GET, relay, "/first")
+                .with_subscriber(subscriber.dispatch())
+                .await?;
             read_tx.send(())?;
+            assert_eq!(arrived.recv().await, Some(("/first".to_owned(), true)));
             closed.recv().await.ok_or("server stopped")?;
-        }
 
-        // The POST's connection offered early data and waited for it to settle.
-        assert_eq!(
-            subscriber.early_data_for("http3.response_head"),
-            ["none", "sent", "after_handshake"]
+            for (method, path, early) in [
+                (Method::GET, "/early", true),
+                (Method::POST, "/post", false),
+            ] {
+                gate.send_replace(false);
+                request_peer = Some(ConnectionPeer::spawn(
+                    send_with(client.clone(), method, relay, path)
+                        .with_subscriber(subscriber.dispatch()),
+                ));
+                if early {
+                    assert_eq!(arrived.recv().await, Some((path.to_owned(), false)));
+                    gate.send_replace(true);
+                } else {
+                    tokio::time::sleep(RELAY_DELAY * 2).await;
+                    assert!(
+                        arrived.try_recv().is_err(),
+                        "{path} arrived before the handshake"
+                    );
+                    gate.send_replace(true);
+                    assert_eq!(arrived.recv().await, Some((path.to_owned(), true)));
+                }
+                request_peer
+                    .take()
+                    .ok_or("request owner missing")?
+                    .await??;
+                read_tx.send(())?;
+                closed.recv().await.ok_or("server stopped")?;
+            }
+
+            // The POST's connection offered early data and waited for it to settle.
+            assert_eq!(
+                subscriber.early_data_for("http3.response_head"),
+                ["none", "sent", "after_handshake"]
+            );
+            server_peer.take().ok_or("server owner missing")?.await??;
+            drop(client);
+            Ok(())
+        }
+        .await;
+        let cleanup = finish_with_cleanup(
+            stop_fixture_peer(request_peer).await,
+            stop_fixture_peer(server_peer).await,
         );
-        server.await??;
-        drop(client);
-        relay_task.abort();
-        Ok(())
+        let cleanup = finish_with_cleanup(cleanup, stop_relay(relay_task).await);
+        drop(retained_client);
+
+        finish_with_cleanup(outcome, cleanup)
     })
     .await
 }
@@ -372,94 +539,116 @@ async fn a_raced_alternative_sends_a_replay_safe_request_as_early_data() -> Test
         )?;
         let (gate, gate_open) = tokio::sync::watch::channel(true);
         let (relay, relay_task) = gated_relay(endpoint.local_addr()?, gate_open).await?;
-        let (arrived_tx, mut arrived) = mpsc::unbounded_channel();
-        let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
-        let (closed_tx, mut closed) = mpsc::unbounded_channel::<()>();
-        let server_gate = gate.subscribe();
-        let server = tokio::spawn(async move {
-            for _ in 0..2 {
-                let mut connecting = endpoint.accept().await.ok_or("endpoint closed")?.accept()?;
-                connecting.handshake_data().await?;
-                let quic = match connecting.into_0rtt() {
-                    Ok((connection, _accepted)) => connection,
-                    Err(connecting) => connecting.await?,
-                };
-                let mut connection = h3::server::Connection::<_, Bytes>::new(
-                    h3_quinn::Connection::new(quic.clone()),
-                )
-                .await?;
-                let resolver = connection
-                    .accept()
-                    .await?
-                    .ok_or("connection closed before its request")?;
-                let (request, mut stream) = resolver.resolve_request().await?;
-                let gate_was_open = *server_gate.borrow();
-                let _ = arrived_tx.send((request.uri().path().to_owned(), gate_was_open));
-                stream
-                    .send_response(Response::builder().status(StatusCode::OK).body(())?)
+        let mut request_peer = None;
+        let mut server_peer = None;
+        let mut retained_client = None;
+        let outcome: TestResult<()> = async {
+            let (arrived_tx, mut arrived) = mpsc::unbounded_channel();
+            let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
+            let (closed_tx, mut closed) = mpsc::unbounded_channel::<()>();
+            let server_gate = gate.subscribe();
+            server_peer = Some(ConnectionPeer::spawn(async move {
+                for _ in 0..2 {
+                    let mut connecting =
+                        endpoint.accept().await.ok_or("endpoint closed")?.accept()?;
+                    connecting.handshake_data().await?;
+                    let quic = match connecting.into_0rtt() {
+                        Ok((connection, _accepted)) => connection,
+                        Err(connecting) => connecting.await?,
+                    };
+                    let mut connection = h3::server::Connection::<_, Bytes>::new(
+                        h3_quinn::Connection::new(quic.clone()),
+                    )
                     .await?;
-                stream.finish().await?;
-                read.recv().await.ok_or("client stopped")?;
-                quic.close(0u32.into(), b"served");
-                drop(connection);
-                endpoint.wait_idle().await;
-                let _ = closed_tx.send(());
-            }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
-
-        // The origin accepts TCP but never answers; the race gives it no
-        // chance, because the alternative wins well before the delay.
-        let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let origin_url = format!("https://localhost:{}", origin.local_addr()?.port());
-        let backoff = AltSvcBrokenBackoff::new(Duration::from_secs(60), Duration::from_secs(600))?;
-        let client = Client::builder(chrome_profile().with_http2(chrome::v154_http2()))
-            .add_root_certificate_der(identity.root_der.clone())
-            .alt_svc(NonZeroUsize::new(8).ok_or("zero Alt-Svc capacity")?)
-            .alt_svc_policy(AltSvcPolicy::race(AltSvcRace::new(
-                Duration::from_secs(10),
-                backoff,
-            )))
-            .build()?;
-        client.import_alt_svc(&AltSvcSnapshot::new(vec![AltSvcSnapshotEntry::new(
-            origin_url.clone(),
-            "127.0.0.1",
-            relay.port(),
-            SystemTime::now() + Duration::from_secs(3600),
-        )]))?;
-        let subscriber = OutcomeSubscriber::default();
-
-        for (path, early) in [("/first", false), ("/raced", true)] {
-            gate.send_replace(!early);
-            let request = tokio::spawn({
-                let client = client.clone();
-                let url = format!("{origin_url}{path}");
-                async move {
-                    let response = client.get_negotiated(&url)?.send().await?;
-                    let protocol = response
-                        .extensions()
-                        .get::<ResponseInfo>()
-                        .map(ResponseInfo::protocol);
-                    response.into_body().collect().await?;
-                    Ok::<_, Box<dyn std::error::Error + Send + Sync>>(protocol)
+                    let resolver = connection
+                        .accept()
+                        .await?
+                        .ok_or("connection closed before its request")?;
+                    let (request, mut stream) = resolver.resolve_request().await?;
+                    let gate_was_open = *server_gate.borrow();
+                    let _ = arrived_tx.send((request.uri().path().to_owned(), gate_was_open));
+                    stream
+                        .send_response(Response::builder().status(StatusCode::OK).body(())?)
+                        .await?;
+                    stream.finish().await?;
+                    read.recv().await.ok_or("client stopped")?;
+                    quic.close(0u32.into(), b"served");
+                    drop(connection);
+                    endpoint.wait_idle().await;
+                    let _ = closed_tx.send(());
                 }
-                .with_subscriber(subscriber.dispatch())
-            });
-            assert_eq!(arrived.recv().await, Some((path.to_owned(), !early)));
-            gate.send_replace(true);
-            assert_eq!(request.await??, Some(HttpProtocol::Http3));
-            read_tx.send(())?;
-            closed.recv().await.ok_or("server stopped")?;
-        }
-        assert_eq!(
-            subscriber.early_data_for("http3.response_head"),
-            ["none", "sent"]
-        );
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+            }));
 
-        server.await??;
-        drop((client, origin));
-        relay_task.abort();
-        Ok(())
+            // The origin accepts TCP but never answers; the race gives it no
+            // chance, because the alternative wins well before the delay.
+            let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let origin_url = format!("https://localhost:{}", origin.local_addr()?.port());
+            let backoff =
+                AltSvcBrokenBackoff::new(Duration::from_secs(60), Duration::from_secs(600))?;
+            let client = Client::builder(chrome_profile().with_http2(chrome::v154_http2()))
+                .add_root_certificate_der(identity.root_der.clone())
+                .alt_svc(NonZeroUsize::new(8).ok_or("zero Alt-Svc capacity")?)
+                .alt_svc_policy(AltSvcPolicy::race(AltSvcRace::new(
+                    Duration::from_secs(10),
+                    backoff,
+                )))
+                .build()?;
+            retained_client = Some(client.clone());
+            client.import_alt_svc(&AltSvcSnapshot::new(vec![AltSvcSnapshotEntry::new(
+                origin_url.clone(),
+                "127.0.0.1",
+                relay.port(),
+                SystemTime::now() + Duration::from_secs(3600),
+            )]))?;
+            let subscriber = OutcomeSubscriber::default();
+
+            for (path, early) in [("/first", false), ("/raced", true)] {
+                gate.send_replace(!early);
+                request_peer = Some(ConnectionPeer::spawn({
+                    let client = client.clone();
+                    let url = format!("{origin_url}{path}");
+                    async move {
+                        let response = client.get_negotiated(&url)?.send().await?;
+                        let protocol = response
+                            .extensions()
+                            .get::<ResponseInfo>()
+                            .map(ResponseInfo::protocol);
+                        response.into_body().collect().await?;
+                        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(protocol)
+                    }
+                    .with_subscriber(subscriber.dispatch())
+                }));
+                assert_eq!(arrived.recv().await, Some((path.to_owned(), !early)));
+                gate.send_replace(true);
+                assert_eq!(
+                    request_peer
+                        .take()
+                        .ok_or("request owner missing")?
+                        .await??,
+                    Some(HttpProtocol::Http3)
+                );
+                read_tx.send(())?;
+                closed.recv().await.ok_or("server stopped")?;
+            }
+            assert_eq!(
+                subscriber.early_data_for("http3.response_head"),
+                ["none", "sent"]
+            );
+
+            server_peer.take().ok_or("server owner missing")?.await??;
+            drop((client, origin));
+            Ok(())
+        }
+        .await;
+        let cleanup = finish_with_cleanup(
+            stop_fixture_peer(request_peer).await,
+            stop_fixture_peer(server_peer).await,
+        );
+        let cleanup = finish_with_cleanup(cleanup, stop_relay(relay_task).await);
+        drop(retained_client);
+
+        finish_with_cleanup(outcome, cleanup)
     })
     .await
 }
@@ -602,37 +791,49 @@ async fn a_caller_can_turn_off_the_recipe_early_data() -> TestResult<()> {
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;
         let (relay, relay_task) = delaying_relay(endpoint.local_addr()?).await?;
-        let (served_tx, mut served) = mpsc::unbounded_channel();
-        let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
-        let server = tokio::spawn(async move {
-            for _ in 0..2 {
-                let path = serve_then_close(&endpoint, &mut read).await?;
-                let _ = served_tx.send(path);
+        let mut server_peer = None;
+        let mut retained_client = None;
+        let outcome: TestResult<()> = async {
+            let (served_tx, mut served) = mpsc::unbounded_channel();
+            let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
+            server_peer = Some(ConnectionPeer::spawn(async move {
+                for _ in 0..2 {
+                    let path = serve_then_close(&endpoint, &mut read).await?;
+                    let _ = served_tx.send(path);
+                }
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+            }));
+
+            let client = Client::builder(chrome_profile())
+                .add_root_certificate_der(identity.root_der.clone())
+                .http3_early_data(false)
+                .build()?;
+            retained_client = Some(client.clone());
+            let subscriber = OutcomeSubscriber::default();
+            for path in ["/first", "/resumed"] {
+                send(&client, relay, path)
+                    .with_subscriber(subscriber.dispatch())
+                    .await?;
+                read_tx.send(())?;
+                assert_eq!(served.recv().await.ok_or("server stopped")?, path);
             }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
+            assert_eq!(
+                subscriber.early_data_for("http3.response_head"),
+                ["none", "none"]
+            );
 
-        let client = Client::builder(chrome_profile())
-            .add_root_certificate_der(identity.root_der.clone())
-            .http3_early_data(false)
-            .build()?;
-        let subscriber = OutcomeSubscriber::default();
-        for path in ["/first", "/resumed"] {
-            send(&client, relay, path)
-                .with_subscriber(subscriber.dispatch())
-                .await?;
-            read_tx.send(())?;
-            assert_eq!(served.recv().await.ok_or("server stopped")?, path);
+            server_peer.take().ok_or("server owner missing")?.await??;
+            drop(client);
+            Ok(())
         }
-        assert_eq!(
-            subscriber.early_data_for("http3.response_head"),
-            ["none", "none"]
+        .await;
+        let cleanup = finish_with_cleanup(
+            stop_fixture_peer(server_peer).await,
+            stop_relay(relay_task).await,
         );
+        drop(retained_client);
 
-        server.await??;
-        drop(client);
-        relay_task.abort();
-        Ok(())
+        finish_with_cleanup(outcome, cleanup)
     })
     .await
 }
@@ -675,66 +876,54 @@ async fn send_with(
 async fn gated_relay(
     server: SocketAddr,
     open: tokio::sync::watch::Receiver<bool>,
-) -> TestResult<(SocketAddr, JoinHandle<()>)> {
-    let front = Arc::new(phantom_testkit::udp::bind_tokio(
-        (Ipv4Addr::LOCALHOST, 0).into(),
-    )?);
-    let address = front.local_addr()?;
-    let task = tokio::spawn(async move {
-        let mut upstreams: HashMap<SocketAddr, Arc<UdpSocket>> = HashMap::new();
-        let mut datagram = vec![0; 65_535];
-        while let Ok((len, client)) = front.recv_from(&mut datagram).await {
-            let upstream = match upstreams.get(&client) {
-                Some(upstream) => Arc::clone(upstream),
-                None => {
-                    let Ok(upstream) =
-                        phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())
-                    else {
-                        return;
-                    };
-                    if upstream.connect(server).await.is_err() {
-                        return;
-                    }
-                    let upstream = Arc::new(upstream);
-                    upstreams.insert(client, Arc::clone(&upstream));
-                    tokio::spawn(forward_gated(
-                        Arc::clone(&upstream),
-                        Arc::clone(&front),
-                        client,
-                        open.clone(),
-                    ));
-                    upstream
-                }
-            };
-            let _ = upstream.send(&datagram[..len]).await;
-        }
-    });
-    Ok((address, task))
+) -> TestResult<(SocketAddr, RelayPeer)> {
+    gated_relay_observed(server, open, None).await
 }
 
-async fn forward_gated(
+async fn gated_relay_observed(
+    server: SocketAddr,
+    open: tokio::sync::watch::Receiver<bool>,
+    observation: Option<Arc<relay_observation::RelayObservation>>,
+) -> TestResult<(SocketAddr, RelayPeer)> {
+    relay(server, ReplyDelivery::Gated(open), observation).await
+}
+
+async fn forward_gated_observed(
     upstream: Arc<UdpSocket>,
     front: Arc<UdpSocket>,
     client: SocketAddr,
     mut open: tokio::sync::watch::Receiver<bool>,
-) {
+    observation: Option<Arc<relay_observation::RelayObservation>>,
+    receiver: Option<Arc<relay_observation::ReceiverObservation>>,
+) -> TestResult<()> {
+    let _lifetime = observation
+        .as_ref()
+        .map(|value| relay_observation::ReadLifetime::reply(Arc::clone(value)));
+    let _receiver_lifetime = receiver.clone().map(relay_observation::ReceiverLifetime);
     let mut held = std::collections::VecDeque::new();
     let mut datagram = vec![0; 65_535];
     loop {
         tokio::select! {
-            received = upstream.recv(&mut datagram) => {
-                let Ok(len) = received else { return };
+            received = async {
+                match (&receiver, &observation) {
+                    (Some(receiver), _) => receiver.read.recv(&upstream, &mut datagram).await,
+                    (None, Some(value)) => value.reply.recv(&upstream, &mut datagram).await,
+                    (None, None) => upstream.recv(&mut datagram).await,
+                }
+            } => {
+                let len = received?;
                 held.push_back(datagram[..len].to_vec());
             }
             changed = open.changed() => {
                 if changed.is_err() {
-                    return;
+                    return Ok(());
                 }
             }
         }
+
         if *open.borrow() {
             while let Some(bytes) = held.pop_front() {
-                let _ = front.send_to(&bytes, client).await;
+                front.send_to(&bytes, client).await?;
             }
         }
     }
@@ -873,52 +1062,63 @@ async fn connect_timeout_bounds_the_wait_for_early_data() -> TestResult<()> {
         )?;
         let (gate, gate_open) = tokio::sync::watch::channel(true);
         let (relay, relay_task) = gated_relay(endpoint.local_addr()?, gate_open).await?;
-        let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
-        let (learned_tx, learned) = tokio::sync::oneshot::channel();
-        let server = tokio::spawn(async move {
-            serve_body_then_close(&endpoint, &mut read).await?;
-            let _ = learned_tx.send(());
-            while let Some(connecting) = endpoint.accept().await {
-                tokio::spawn(async move {
-                    let _ = connecting.await;
-                });
-            }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
+        let mut server_peer = None;
+        let mut retained_client = None;
+        let outcome: TestResult<()> = async {
+            let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
+            let (learned_tx, learned) = tokio::sync::oneshot::channel();
+            server_peer = Some(ConnectionPeer::spawn(async move {
+                serve_body_then_close(&endpoint, &mut read).await?;
+                let _ = learned_tx.send(());
+                while let Some(connecting) = endpoint.accept().await {
+                    tokio::spawn(async move {
+                        let _ = connecting.await;
+                    });
+                }
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+            }));
 
-        let client = Client::builder(chrome_profile())
-            .add_root_certificate_der(identity.root_der.clone())
-            .build()?;
-        send(&client, relay, "/first").await?;
-        read_tx.send(())?;
-        learned.await?;
+            let client = Client::builder(chrome_profile())
+                .add_root_certificate_der(identity.root_der.clone())
+                .build()?;
+            retained_client = Some(client.clone());
+            send(&client, relay, "/first").await?;
+            read_tx.send(())?;
+            learned.await?;
 
-        // The gate holds the server's replies, so the handshake cannot end.
-        gate.send_replace(false);
-        let error = match client
-            .request(
-                HttpProtocol::Http3,
-                Method::POST,
-                &format!("https://{relay}/post"),
-            )?
-            .body(Bytes::from_static(b"body"))
-            .timeouts(
-                RequestTimeoutOverrides::disabled()
-                    .connect(TimeoutOverride::Limit(Duration::from_millis(400))),
-            )
-            .send()
-            .await
-        {
-            Ok(_) => return Err("a held handshake produced a response".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), RequestErrorKind::Timeout);
-        assert_eq!(error.timeout_phase(), Some(TimeoutPhase::Connect));
+            // The gate holds the server's replies, so the handshake cannot end.
+            gate.send_replace(false);
+            let error = match client
+                .request(
+                    HttpProtocol::Http3,
+                    Method::POST,
+                    &format!("https://{relay}/post"),
+                )?
+                .body(Bytes::from_static(b"body"))
+                .timeouts(
+                    RequestTimeoutOverrides::disabled()
+                        .connect(TimeoutOverride::Limit(Duration::from_millis(400))),
+                )
+                .send()
+                .await
+            {
+                Ok(_) => return Err("a held handshake produced a response".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), RequestErrorKind::Timeout);
+            assert_eq!(error.timeout_phase(), Some(TimeoutPhase::Connect));
 
-        gate.send_replace(true);
-        server.abort();
-        relay_task.abort();
-        Ok(())
+            gate.send_replace(true);
+            Ok(())
+        }
+        .await;
+        let cleanup = finish_with_cleanup(
+            stop_fixture_peer(server_peer).await,
+            stop_relay(relay_task).await,
+        );
+        drop(retained_client);
+
+        finish_with_cleanup(outcome, cleanup)
     })
     .await
 }
@@ -935,51 +1135,67 @@ async fn concurrent_requests_share_one_resumed_connection() -> TestResult<()> {
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;
         let (relay, relay_task) = delaying_relay(endpoint.local_addr()?).await?;
-        let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
-        let (learned_tx, learned) = tokio::sync::oneshot::channel();
-        let connections = Arc::new(AtomicUsize::new(0));
-        let counted = Arc::clone(&connections);
-        let server = tokio::spawn(async move {
-            serve_body_then_close(&endpoint, &mut read).await?;
-            let _ = learned_tx.send(());
-            while let Some(connecting) = endpoint.accept().await {
-                counted.fetch_add(1, Ordering::SeqCst);
-                tokio::spawn(serve_every_request(connecting));
-            }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
-
-        let client = Client::builder(chrome_profile())
-            .add_root_certificate_der(identity.root_der.clone())
-            .build()?;
-        send(&client, relay, "/first").await?;
-        read_tx.send(())?;
-        learned.await?;
-
         let mut requests = Vec::new();
-        for method in [
-            Method::GET,
-            Method::HEAD,
-            Method::OPTIONS,
-            Method::POST,
-            Method::PUT,
-            Method::DELETE,
-        ] {
-            requests.push(tokio::spawn(send_with(
-                client.clone(),
-                method,
-                relay,
-                "/concurrent",
-            )));
-        }
-        for request in requests {
-            request.await??;
-        }
-        assert_eq!(connections.load(Ordering::SeqCst), 1);
+        let mut server_peer = None;
+        let mut retained_client = None;
+        let outcome: TestResult<()> = async {
+            let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
+            let (learned_tx, learned) = tokio::sync::oneshot::channel();
+            let connections = Arc::new(AtomicUsize::new(0));
+            let counted = Arc::clone(&connections);
+            server_peer = Some(ConnectionPeer::spawn(async move {
+                serve_body_then_close(&endpoint, &mut read).await?;
+                let _ = learned_tx.send(());
+                while let Some(connecting) = endpoint.accept().await {
+                    counted.fetch_add(1, Ordering::SeqCst);
+                    tokio::spawn(serve_every_request(connecting));
+                }
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+            }));
 
-        server.abort();
-        relay_task.abort();
-        Ok(())
+            let client = Client::builder(chrome_profile())
+                .add_root_certificate_der(identity.root_der.clone())
+                .build()?;
+            retained_client = Some(client.clone());
+            send(&client, relay, "/first").await?;
+            read_tx.send(())?;
+            learned.await?;
+
+            for method in [
+                Method::GET,
+                Method::HEAD,
+                Method::OPTIONS,
+                Method::POST,
+                Method::PUT,
+                Method::DELETE,
+            ] {
+                requests.push(ConnectionPeer::spawn(send_with(
+                    client.clone(),
+                    method,
+                    relay,
+                    "/concurrent",
+                )));
+            }
+            while !requests.is_empty() {
+                let result = (&mut requests[0]).await;
+                drop(requests.remove(0));
+                result??;
+            }
+            assert_eq!(connections.load(Ordering::SeqCst), 1);
+
+            Ok(())
+        }
+        .await;
+        let mut request_cleanup = Ok(());
+        for request in requests {
+            request_cleanup =
+                finish_with_cleanup(request_cleanup, stop_fixture_peer(Some(request)).await);
+        }
+        let cleanup = finish_with_cleanup(request_cleanup, stop_fixture_peer(server_peer).await);
+        let cleanup = finish_with_cleanup(cleanup, stop_relay(relay_task).await);
+        drop(retained_client);
+
+        finish_with_cleanup(outcome, cleanup)
     })
     .await
 }
@@ -1046,14 +1262,16 @@ async fn serve_body_then_close(
     Ok((request.uri().path().to_owned(), body))
 }
 
-/// Fails if another request stream arrives on `connection` within 300 ms,
-/// such as the same request sent twice on the connection.
+/// Observes at most 300 ms for another request stream. A quiet window or an
+/// explicit clean HTTP/3 close passes; protocol and transport failures do not.
 async fn expect_no_second_request(
     connection: &mut h3::server::Connection<h3_quinn::Connection, Bytes>,
 ) -> TestResult<()> {
     match timeout(Duration::from_millis(300), connection.accept()).await {
         Ok(Ok(Some(_))) => Err("a second request arrived on the connection".into()),
-        Ok(_) | Err(_) => Ok(()),
+        Ok(Ok(None)) | Err(_) => Ok(()),
+        Ok(Err(error)) if error.is_h3_no_error() => Ok(()),
+        Ok(Err(error)) => Err(error.into()),
     }
 }
 
@@ -1075,3 +1293,46 @@ where
         .await
         .map_err(|_| "HTTP/3 early-data test exceeded its deadline")?
 }
+
+/// Holds the handshake's server replies until the request stream opens as
+/// early data, then returns every send observed for this one request.
+async fn send_before_opening_reply_gate(
+    session: &Client,
+    relay: SocketAddr,
+    path: &str,
+    gate: &tokio::sync::watch::Sender<bool>,
+) -> TestResult<Vec<String>> {
+    gate.send_replace(false);
+    let subscriber = OutcomeSubscriber::default();
+    let request = send(session, relay, path).with_subscriber(subscriber.dispatch());
+    tokio::pin!(request);
+
+    tokio::select! {
+        result = &mut request => {
+            result?;
+            return Err("a request completed through a closed server reply gate".into());
+        }
+        () = async {
+            while subscriber.early_data_for("http3.response_head").is_empty() {
+                tokio::task::yield_now().await;
+            }
+        } => {}
+    }
+    assert_eq!(subscriber.early_data_for("http3.response_head"), ["sent"]);
+
+    gate.send_replace(true);
+    request.await?;
+    Ok(subscriber.early_data_for("http3.response_head"))
+}
+
+async fn stop_relay(mut task: RelayPeer) -> TestResult<()> {
+    task.stop().await
+}
+
+mod absence_controls;
+mod relay_completion;
+mod relay_controls;
+
+pub(super) mod relay_observation;
+pub(super) mod relay_outcomes;
+pub(super) mod relay_peer;

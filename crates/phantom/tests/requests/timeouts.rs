@@ -1,9 +1,5 @@
 //! Public phase-aware request timeout behavior.
 
-use crate::support::h2 as h2_support;
-use crate::support::h3 as h3_support;
-use crate::support::tls as tls_support;
-
 use std::{error::Error, net::Ipv4Addr, num::NonZeroUsize, time::Duration};
 
 use http::{Response, StatusCode};
@@ -21,9 +17,12 @@ use tokio::{
     time::{sleep, timeout},
 };
 
-use tls_support::{
+use crate::support::tls::{
     H1_ALPN, H2_ALPN, TestIdentity, accept_tls, accept_tls_stream, client_builder, read_head,
 };
+use crate::support::{h2 as h2_support, h3 as h3_support, tls as tls_support};
+
+mod total_body_fixture;
 
 type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -457,15 +456,7 @@ async fn total_deadline_continues_through_response_body_eof() -> TestResult {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let acceptor = identity.acceptor(H1_ALPN)?;
-    let server = tokio::spawn(async move {
-        let mut stream = accept_tls(listener, acceptor).await?;
-        read_head(&mut stream).await?;
-        stream
-            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nx")
-            .await?;
-        std::future::pending::<()>().await;
-        Ok::<_, Box<dyn Error + Send + Sync>>(())
-    });
+    let mut server = Some(total_body_fixture::spawn(listener, acceptor, None));
     let client = client_builder(&identity, false)
         .request_timeouts(
             RequestTimeouts::new()
@@ -473,20 +464,22 @@ async fn total_deadline_continues_through_response_body_eof() -> TestResult {
                 .total(Duration::from_millis(500)),
         )
         .build()?;
-    let response = client
-        .get(HttpProtocol::Http1, &format!("https://{address}/stalled"))?
-        .send()
-        .await?;
-    let error = timeout(TEST_TIMEOUT, response.into_body().collect())
-        .await
-        .map_err(|_| "response body did not observe its total deadline")?
-        .err()
-        .ok_or("response body escaped the whole-operation deadline")?;
-    assert_eq!(error.kind(), RequestErrorKind::Timeout);
-    assert_eq!(error.timeout_phase(), Some(TimeoutPhase::Total));
-    server.abort();
-    let _ = server.await;
-    Ok(())
+
+    total_body_fixture::complete(&mut server, async {
+        let response = client
+            .get(HttpProtocol::Http1, &format!("https://{address}/stalled"))?
+            .send()
+            .await?;
+        let error = total_body_fixture::collect_body(response.into_body(), None)
+            .await?
+            .err()
+            .ok_or("response body escaped the whole-operation deadline")?;
+
+        assert_eq!(error.kind(), RequestErrorKind::Timeout);
+        assert_eq!(error.timeout_phase(), Some(TimeoutPhase::Total));
+        Ok(())
+    })
+    .await
 }
 
 #[tokio::test(start_paused = true)]

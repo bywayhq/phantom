@@ -1,11 +1,9 @@
 //! Opt-in retries after caller-listed retryable response statuses.
 
-use crate::support::tls as tls_support;
-use crate::support::tracing as tracing_support;
-
 use std::{
     collections::VecDeque,
     error::Error,
+    io,
     net::{Ipv4Addr, SocketAddr},
     num::NonZeroUsize,
     sync::{Arc, Mutex},
@@ -23,30 +21,66 @@ use phantom::{
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::TcpListener,
-    task::JoinHandle,
-    time::Instant,
+    sync::watch,
+    time::{Instant, timeout_at},
 };
 use tracing::instrument::WithSubscriber;
 
+use crate::support::deadline::FixtureDeadline;
+use crate::support::tls as tls_support;
+use crate::support::tracing as tracing_support;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
+use ownership::{Control, ObservedStream, State};
 use tls_support::{
     H1_ALPN, TestIdentity, accept_tls_stream, client_builder, is_peer_gone, read_head, tls_settings,
 };
 use tracing_support::OutcomeSubscriber;
 
+mod ownership;
+mod shared_cap_ownership;
+
 type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
 
 const UNAVAILABLE: &str = "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n";
 const OK: &str = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
+const CLEANUP_LIMIT: Duration = Duration::from_secs(2);
 
-/// Request heads in arrival order, across every accepted connection.
-type Received = Arc<Mutex<Vec<String>>>;
+#[derive(Clone, Debug)]
+struct ReceivedRequest {
+    head: String,
+    body: Vec<u8>,
+}
+
+/// Requests in arrival order, across every accepted connection.
+type Received = Arc<Mutex<Vec<ReceivedRequest>>>;
+
+struct AcceptedChild {
+    peer: ConnectionPeer<TestResult>,
+    state: Option<watch::Sender<State>>,
+    abort_requested: bool,
+}
+
+enum AcceptedChildren {
+    Open(Vec<AcceptedChild>),
+    Closed,
+}
+
+impl AcceptedChildren {
+    fn take(&mut self) -> Vec<AcceptedChild> {
+        match std::mem::replace(self, Self::Closed) {
+            Self::Open(children) => children,
+            Self::Closed => Vec::new(),
+        }
+    }
+}
 
 /// Serves scripted HTTP/1.1 responses in order, one per request, on any
 /// number of connections. Plaintext when `acceptor` is `None`.
 struct ScriptedServer {
     address: SocketAddr,
     received: Received,
-    task: JoinHandle<()>,
+    task: ConnectionPeer<TestResult>,
+    children: Arc<Mutex<AcceptedChildren>>,
 }
 
 impl ScriptedServer {
@@ -55,6 +89,14 @@ impl ScriptedServer {
     }
 
     async fn start_with(responses: &[&str], acceptor: Option<SslAcceptor>) -> TestResult<Self> {
+        Self::start_observed(responses, acceptor, None).await
+    }
+
+    async fn start_observed(
+        responses: &[&str],
+        acceptor: Option<SslAcceptor>,
+        mut control: Option<Control>,
+    ) -> TestResult<Self> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let script = Arc::new(Mutex::new(
@@ -65,30 +107,60 @@ impl ScriptedServer {
         ));
         let received = Received::default();
         let connection_received = Arc::clone(&received);
-        let task = tokio::spawn(async move {
-            while let Ok((tcp, _)) = listener.accept().await {
+        let children = Arc::new(Mutex::new(AcceptedChildren::Open(Vec::new())));
+        let accepted_children = Arc::clone(&children);
+
+        let task = ConnectionPeer::spawn(async move {
+            loop {
+                let (tcp, _) = listener.accept().await?;
                 let script = Arc::clone(&script);
                 let received = Arc::clone(&connection_received);
                 let acceptor = acceptor.clone();
-                tokio::spawn(async move {
+                let mut control = control.take();
+                let state = control.as_ref().map(Control::state);
+
+                let mut registry = accepted_children
+                    .lock()
+                    .map_err(|_| "status retry accepted child owner lock was poisoned")?;
+                let AcceptedChildren::Open(children) = &mut *registry else {
+                    return TestResult::Ok(());
+                };
+
+                // Publishing under the seal lock prevents a child escaping finish or Drop.
+                let child = ConnectionPeer::spawn(async move {
+                    let _lifetime = control.as_ref().map(Control::lifetime);
+
                     match acceptor {
                         Some(acceptor) => {
-                            if let Ok(mut stream) = accept_tls_stream(tcp, acceptor).await {
-                                serve_connection(&mut stream, &script, &received).await;
-                            }
+                            let stream = ownership::accept_tls(tcp, acceptor, &mut control).await?;
+                            let mut stream = ObservedStream::new(stream, control);
+                            serve_connection(&mut stream, &script, &received).await
                         }
                         None => {
-                            let mut stream = tcp;
-                            serve_connection(&mut stream, &script, &received).await;
+                            let mut stream = ObservedStream::new(tcp, control);
+                            serve_connection(&mut stream, &script, &received).await
                         }
                     }
                 });
+                let abort = child.abort_handle();
+                children.push(AcceptedChild {
+                    peer: child,
+                    state: state.clone(),
+                    abort_requested: false,
+                });
+                drop(registry);
+
+                if let Some(state) = state {
+                    state.send_modify(|state| state.abort = Some(abort));
+                }
             }
         });
+
         Ok(Self {
             address,
             received,
             task,
+            children,
         })
     }
 
@@ -96,58 +168,172 @@ impl ScriptedServer {
         format!("{scheme}://{}{path}", self.address)
     }
 
-    fn received(&self) -> Vec<String> {
-        match self.received.lock() {
-            Ok(received) => received.clone(),
-            Err(poisoned) => poisoned.into_inner().clone(),
+    fn received(&self) -> TestResult<Vec<ReceivedRequest>> {
+        Ok(self
+            .received
+            .lock()
+            .map_err(|_| "status retry request log was poisoned")?
+            .clone())
+    }
+
+    fn take_children(&self) -> (Vec<AcceptedChild>, TestResult) {
+        match self.children.lock() {
+            Ok(mut children) => (children.take(), Ok(())),
+            Err(poisoned) => (
+                poisoned.into_inner().take(),
+                Err("status retry accepted child owner lock was poisoned".into()),
+            ),
         }
+    }
+
+    async fn finish(mut self, caller: TestResult) -> TestResult {
+        let (mut children, mut cleanup) = self.take_children();
+        let deadline = Instant::now() + CLEANUP_LIMIT;
+        let coordinator_abort_requested = !self.task.is_finished();
+        if coordinator_abort_requested {
+            self.task.abort();
+        }
+
+        for child in &mut children {
+            child.abort_requested = child
+                .state
+                .as_ref()
+                .is_some_and(|state| state.borrow().backup_requested());
+            if !child.peer.is_finished() {
+                child.abort_requested = true;
+                child.peer.abort();
+            }
+        }
+
+        let coordinator = observe_peer(
+            &mut self.task,
+            coordinator_abort_requested,
+            deadline,
+            "status retry coordinator cleanup exceeded its deadline",
+        )
+        .await;
+        cleanup = finish_with_cleanup(cleanup, coordinator);
+
+        for mut child in children {
+            let result = observe_peer(
+                &mut child.peer,
+                child.abort_requested,
+                deadline,
+                "status retry accepted child cleanup exceeded its deadline",
+            )
+            .await;
+            cleanup = finish_with_cleanup(cleanup, result);
+        }
+
+        finish_with_cleanup(caller, cleanup)
     }
 }
 
 impl Drop for ScriptedServer {
     fn drop(&mut self) {
         self.task.abort();
+
+        // Drop cannot report poison; recover the owners solely to stop their tasks.
+        let (children, _failure) = self.take_children();
+        drop(children);
+    }
+}
+
+async fn observe_peer(
+    peer: &mut ConnectionPeer<TestResult>,
+    abort_requested: bool,
+    deadline: Instant,
+    purpose: &'static str,
+) -> TestResult {
+    match timeout_at(deadline, peer).await {
+        Ok(Ok(result)) => result,
+        Ok(Err(error)) if abort_requested && error.is_cancelled() => Ok(()),
+        Ok(Err(error)) => Err(error.into()),
+        Err(elapsed) => Err(FixtureDeadline::new(purpose, elapsed).into()),
     }
 }
 
 async fn serve_connection<S>(
     stream: &mut S,
     script: &Mutex<VecDeque<Vec<u8>>>,
-    received: &Mutex<Vec<String>>,
-) where
+    received: &Mutex<Vec<ReceivedRequest>>,
+) -> TestResult
+where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     loop {
-        let Ok(head) = read_request(stream).await else {
-            return;
+        let Some(request) = read_next_request(stream).await? else {
+            return Ok(());
         };
-        if let Ok(mut received) = received.lock() {
-            received.push(head);
-        }
-        let response = script.lock().ok().and_then(|mut script| script.pop_front());
-        let Some(response) = response else {
-            return;
-        };
+
+        received
+            .lock()
+            .map_err(|_| "status retry request log was poisoned")?
+            .push(request);
+
+        let response = script
+            .lock()
+            .map_err(|_| "status retry response script was poisoned")?
+            .pop_front()
+            .ok_or("status retry response script was exhausted")?;
+
         // The client may retire a connection whose body it dropped unread.
         if let Err(error) = stream.write_all(&response).await {
-            assert!(
-                is_peer_gone(&error),
-                "unexpected server write error: {error}"
-            );
-            return;
+            if matches!(
+                error.kind(),
+                io::ErrorKind::BrokenPipe
+                    | io::ErrorKind::ConnectionReset
+                    | io::ErrorKind::ConnectionAborted
+            ) {
+                return Ok(());
+            }
+
+            return Err(error.into());
         }
-        if stream.flush().await.is_err() {
-            return;
-        }
+
+        stream.flush().await?;
     }
 }
 
-/// Reads one request head and discards its `Content-Length` body.
-async fn read_request<S>(stream: &mut S) -> std::io::Result<String>
+async fn read_next_request<S>(stream: &mut S) -> io::Result<Option<ReceivedRequest>>
+where
+    S: AsyncRead + Unpin,
+{
+    // The shared head reader does not expose whether EOF followed partial input.
+    let mut bytes = Vec::new();
+    let mut byte = [0_u8; 1];
+    while !bytes.ends_with(b"\r\n\r\n") {
+        if bytes.len() == 32 * 1024 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "request head exceeded test bound",
+            ));
+        }
+
+        match stream.read_exact(&mut byte).await {
+            Ok(_) => bytes.push(byte[0]),
+            Err(error) if bytes.is_empty() && is_peer_gone(&error) => return Ok(None),
+            Err(error) => return Err(error),
+        }
+    }
+
+    let head = String::from_utf8_lossy(&bytes).into_owned();
+    read_request_body(stream, head).await.map(Some)
+}
+
+/// Reads one request head and its `Content-Length` body.
+async fn read_request<S>(stream: &mut S) -> std::io::Result<ReceivedRequest>
 where
     S: AsyncRead + Unpin,
 {
     let head = String::from_utf8_lossy(&read_head(stream).await?).into_owned();
+    read_request_body(stream, head).await
+}
+
+async fn read_request_body<S>(stream: &mut S, head: String) -> io::Result<ReceivedRequest>
+where
+    S: AsyncRead + Unpin,
+{
     let length = head
         .to_ascii_lowercase()
         .split("\r\n")
@@ -155,7 +341,8 @@ where
         .unwrap_or(0_usize);
     let mut body = vec![0_u8; length];
     stream.read_exact(&mut body).await?;
-    Ok(head)
+
+    Ok(ReceivedRequest { head, body })
 }
 
 fn unavailable_with(fields: &str) -> String {
@@ -180,107 +367,129 @@ fn retrying_client(status_retry: StatusRetry) -> TestResult<Client> {
         .build()?)
 }
 
-fn request_lines(received: &[String]) -> Vec<&str> {
+fn request_lines(received: &[ReceivedRequest]) -> Vec<&str> {
     received
         .iter()
-        .map(|head| head.split("\r\n").next().unwrap_or_default())
+        .map(|request| request.head.split("\r\n").next().unwrap_or_default())
         .collect()
 }
 
 #[tokio::test]
 async fn status_retry_is_disabled_by_default() -> TestResult {
     let server = ScriptedServer::start(&[UNAVAILABLE, OK]).await?;
-    let client = plain_builder().build()?;
+    let result: TestResult = async {
+        let client = plain_builder().build()?;
 
-    let response = client
-        .get(HttpProtocol::Http1, &server.url("http", "/"))?
-        .send()
-        .await?;
+        let response = client
+            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .send()
+            .await?;
 
-    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-    assert_eq!(request_lines(&server.received()), ["GET / HTTP/1.1"]);
-    Ok(())
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(request_lines(&server.received()?), ["GET / HTTP/1.1"]);
+        Ok(())
+    }
+    .await;
+    server.finish(result).await
 }
 
 #[tokio::test]
 async fn configured_503_is_retried_for_get_and_returns_final_response() -> TestResult {
     let server = ScriptedServer::start(&[UNAVAILABLE, OK]).await?;
-    let client = retrying_client(status_retry(2, Duration::ZERO)?)?;
-    let subscriber = OutcomeSubscriber::default();
+    let result: TestResult = async {
+        let client = retrying_client(status_retry(2, Duration::ZERO)?)?;
+        let subscriber = OutcomeSubscriber::default();
 
-    let response = client
-        .get(HttpProtocol::Http1, &server.url("http", "/resource"))?
-        .send()
-        .with_subscriber(subscriber.dispatch())
-        .await?;
+        let response = client
+            .get(HttpProtocol::Http1, &server.url("http", "/resource"))?
+            .send()
+            .with_subscriber(subscriber.dispatch())
+            .await?;
 
-    assert_eq!(response.status(), StatusCode::OK);
-    let info = response
-        .extensions()
-        .get::<ResponseInfo>()
-        .ok_or("response omitted metadata")?;
-    assert_eq!(info.retries_performed(), 0);
-    assert_eq!(info.protocol(), HttpProtocol::Http1);
-    assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
-    assert_eq!(
-        request_lines(&server.received()),
-        ["GET /resource HTTP/1.1", "GET /resource HTTP/1.1"]
-    );
-    assert_eq!(subscriber.status_retries_for("client.request"), [1]);
-    assert!(
-        subscriber
-            .retries_performed_for("client.request")
-            .is_empty()
-    );
-    assert!(subscriber.retry_reasons_for("client.request").is_empty());
-    Ok(())
+        assert_eq!(response.status(), StatusCode::OK);
+        let info = response
+            .extensions()
+            .get::<ResponseInfo>()
+            .ok_or("response omitted metadata")?;
+        assert_eq!(info.retries_performed(), 0);
+        assert_eq!(info.protocol(), HttpProtocol::Http1);
+        assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+        assert_eq!(
+            request_lines(&server.received()?),
+            ["GET /resource HTTP/1.1", "GET /resource HTTP/1.1"]
+        );
+        assert_eq!(subscriber.status_retries_for("client.request"), [1]);
+        assert!(
+            subscriber
+                .retries_performed_for("client.request")
+                .is_empty()
+        );
+        assert!(subscriber.retry_reasons_for("client.request").is_empty());
+        Ok(())
+    }
+    .await;
+    server.finish(result).await
 }
 
 #[tokio::test]
 async fn status_retry_repeats_idempotent_owned_body_requests() -> TestResult {
     let server = ScriptedServer::start(&[UNAVAILABLE, OK]).await?;
-    let client = retrying_client(status_retry(1, Duration::ZERO)?)?;
+    let result: TestResult = async {
+        let client = retrying_client(status_retry(1, Duration::ZERO)?)?;
 
-    let response = client
-        .request(
-            HttpProtocol::Http1,
-            Method::PUT,
-            &server.url("http", "/item"),
-        )?
-        .body(Bytes::from_static(b"payload"))
-        .send()
-        .await?;
+        let response = client
+            .request(
+                HttpProtocol::Http1,
+                Method::PUT,
+                &server.url("http", "/item"),
+            )?
+            .body(Bytes::from_static(b"payload"))
+            .send()
+            .await?;
 
-    assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(
-        request_lines(&server.received()),
-        ["PUT /item HTTP/1.1", "PUT /item HTTP/1.1"]
-    );
-    Ok(())
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let received = server.received()?;
+        assert_eq!(
+            request_lines(&received),
+            ["PUT /item HTTP/1.1", "PUT /item HTTP/1.1"]
+        );
+        for request in &received {
+            assert_eq!(request.body, b"payload");
+        }
+        Ok(())
+    }
+    .await;
+    server.finish(result).await
 }
 
 #[tokio::test]
 async fn status_retry_skips_non_idempotent_methods() -> TestResult {
     for method in [Method::POST, Method::PATCH] {
         let server = ScriptedServer::start(&[UNAVAILABLE, OK]).await?;
-        let client = retrying_client(status_retry(2, Duration::ZERO)?)?;
+        let result: TestResult = async {
+            let client = retrying_client(status_retry(2, Duration::ZERO)?)?;
 
-        let response = client
-            .request(
-                HttpProtocol::Http1,
-                method.clone(),
-                &server.url("http", "/submit"),
-            )?
-            .body(Bytes::from_static(b"payload"))
-            .send()
-            .await?;
+            let response = client
+                .request(
+                    HttpProtocol::Http1,
+                    method.clone(),
+                    &server.url("http", "/submit"),
+                )?
+                .body(Bytes::from_static(b"payload"))
+                .send()
+                .await?;
 
-        assert_eq!(
-            response.status(),
-            StatusCode::SERVICE_UNAVAILABLE,
-            "{method}"
-        );
-        assert_eq!(server.received().len(), 1, "{method} was retried");
+            assert_eq!(
+                response.status(),
+                StatusCode::SERVICE_UNAVAILABLE,
+                "{method}"
+            );
+            assert_eq!(server.received()?.len(), 1, "{method} was retried");
+            Ok(())
+        }
+        .await;
+        server.finish(result).await?;
     }
     Ok(())
 }
@@ -288,73 +497,89 @@ async fn status_retry_skips_non_idempotent_methods() -> TestResult {
 #[tokio::test]
 async fn status_retry_repeats_a_buffered_streaming_body() -> TestResult {
     let server = ScriptedServer::start(&[UNAVAILABLE, OK]).await?;
-    let client = retrying_client(status_retry(1, Duration::ZERO)?)?;
+    let result: TestResult = async {
+        let client = retrying_client(status_retry(1, Duration::ZERO)?)?;
 
-    let response = client
-        .request(
-            HttpProtocol::Http1,
-            Method::PUT,
-            &server.url("http", "/upload"),
-        )?
-        .buffered_streaming_body(Full::new(Bytes::from_static(b"payload")), 64)
-        .send()
-        .await?;
+        let response = client
+            .request(
+                HttpProtocol::Http1,
+                Method::PUT,
+                &server.url("http", "/upload"),
+            )?
+            .buffered_streaming_body(Full::new(Bytes::from_static(b"payload")), 64)
+            .send()
+            .await?;
 
-    assert_eq!(response.status(), StatusCode::OK);
-    let received = server.received();
-    assert_eq!(
-        request_lines(&received),
-        ["PUT /upload HTTP/1.1", "PUT /upload HTTP/1.1"]
-    );
-    for head in &received {
-        assert!(
-            head.to_ascii_lowercase()
-                .contains("\r\ncontent-length: 7\r\n")
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let received = server.received()?;
+        assert_eq!(
+            request_lines(&received),
+            ["PUT /upload HTTP/1.1", "PUT /upload HTTP/1.1"]
         );
+        for request in &received {
+            assert!(
+                request
+                    .head
+                    .to_ascii_lowercase()
+                    .contains("\r\ncontent-length: 7\r\n")
+            );
+            assert_eq!(request.body, b"payload");
+        }
+        Ok(())
     }
-    Ok(())
+    .await;
+    server.finish(result).await
 }
 
 #[tokio::test]
 async fn status_retry_with_streaming_body_returns_original_response() -> TestResult {
     let server = ScriptedServer::start(&[UNAVAILABLE, OK]).await?;
-    let client = retrying_client(status_retry(2, Duration::ZERO)?)?;
+    let result: TestResult = async {
+        let client = retrying_client(status_retry(2, Duration::ZERO)?)?;
 
-    let response = client
-        .request(
-            HttpProtocol::Http1,
-            Method::PUT,
-            &server.url("http", "/upload"),
-        )?
-        .streaming_body(Full::new(Bytes::from_static(b"payload")))
-        .send()
-        .await?;
+        let response = client
+            .request(
+                HttpProtocol::Http1,
+                Method::PUT,
+                &server.url("http", "/upload"),
+            )?
+            .streaming_body(Full::new(Bytes::from_static(b"payload")))
+            .send()
+            .await?;
 
-    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-    assert_eq!(request_lines(&server.received()), ["PUT /upload HTTP/1.1"]);
-    Ok(())
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(request_lines(&server.received()?), ["PUT /upload HTTP/1.1"]);
+        Ok(())
+    }
+    .await;
+    server.finish(result).await
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn retry_after_delta_seconds_is_honoured_within_cap() -> TestResult {
     let intermediate = unavailable_with("Retry-After: 30\r\n");
     let server = ScriptedServer::start(&[&intermediate, OK]).await?;
-    let client = retrying_client(
-        status_retry(1, Duration::from_millis(1))?.honor_retry_after(Duration::from_secs(60)),
-    )?;
-    let started = Instant::now();
+    let result: TestResult = async {
+        let client = retrying_client(
+            status_retry(1, Duration::from_millis(1))?.honor_retry_after(Duration::from_secs(60)),
+        )?;
+        let started = Instant::now();
 
-    let response = client
-        .get(HttpProtocol::Http1, &server.url("http", "/"))?
-        .send()
-        .await?;
+        let response = client
+            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .send()
+            .await?;
 
-    let waited = started.elapsed();
-    assert_eq!(response.status(), StatusCode::OK);
-    assert!(waited >= Duration::from_secs(30), "waited {waited:?}");
-    assert!(waited < Duration::from_secs(31), "waited {waited:?}");
-    assert_eq!(server.received().len(), 2);
-    Ok(())
+        let waited = started.elapsed();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(waited >= Duration::from_secs(30), "waited {waited:?}");
+        assert!(waited < Duration::from_secs(31), "waited {waited:?}");
+        assert_eq!(server.received()?.len(), 2);
+        Ok(())
+    }
+    .await;
+    server.finish(result).await
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
@@ -362,47 +587,55 @@ async fn retry_after_http_date_is_honoured_within_cap() -> TestResult {
     let retry_at = SystemTime::now() + Duration::from_secs(30);
     let intermediate = unavailable_with(&format!("Retry-After: {}\r\n", imf_fixdate(retry_at)?));
     let server = ScriptedServer::start(&[&intermediate, OK]).await?;
-    let client = retrying_client(
-        status_retry(1, Duration::from_millis(1))?.honor_retry_after(Duration::from_secs(60)),
-    )?;
-    let started = Instant::now();
+    let result: TestResult = async {
+        let client = retrying_client(
+            status_retry(1, Duration::from_millis(1))?.honor_retry_after(Duration::from_secs(60)),
+        )?;
+        let started = Instant::now();
 
-    let response = client
-        .get(HttpProtocol::Http1, &server.url("http", "/"))?
-        .send()
-        .await?;
+        let response = client
+            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .send()
+            .await?;
 
-    // IMF-fixdate truncates to whole seconds, and the wall clock keeps moving.
-    let waited = started.elapsed();
-    assert_eq!(response.status(), StatusCode::OK);
-    assert!(waited >= Duration::from_secs(28), "waited {waited:?}");
-    assert!(waited <= Duration::from_secs(30), "waited {waited:?}");
-    assert_eq!(server.received().len(), 2);
-    Ok(())
+        // IMF-fixdate truncates to whole seconds, and the wall clock keeps moving.
+        let waited = started.elapsed();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(waited >= Duration::from_secs(28), "waited {waited:?}");
+        assert!(waited <= Duration::from_secs(30), "waited {waited:?}");
+        assert_eq!(server.received()?.len(), 2);
+        Ok(())
+    }
+    .await;
+    server.finish(result).await
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn retry_after_beyond_cap_returns_response_without_waiting() -> TestResult {
     let intermediate = unavailable_with("Retry-After: 120\r\n");
     let server = ScriptedServer::start(&[&intermediate, OK]).await?;
-    let client = retrying_client(
-        status_retry(2, Duration::ZERO)?.honor_retry_after(Duration::from_secs(10)),
-    )?;
-    let subscriber = OutcomeSubscriber::default();
-    let started = Instant::now();
+    let result: TestResult = async {
+        let client = retrying_client(
+            status_retry(2, Duration::ZERO)?.honor_retry_after(Duration::from_secs(10)),
+        )?;
+        let subscriber = OutcomeSubscriber::default();
+        let started = Instant::now();
 
-    let response = client
-        .get(HttpProtocol::Http1, &server.url("http", "/"))?
-        .send()
-        .with_subscriber(subscriber.dispatch())
-        .await?;
+        let response = client
+            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .send()
+            .with_subscriber(subscriber.dispatch())
+            .await?;
 
-    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-    assert_eq!(response.headers()["retry-after"], "120");
-    assert!(started.elapsed() < Duration::from_secs(1));
-    assert_eq!(server.received().len(), 1);
-    assert!(subscriber.status_retries_for("client.request").is_empty());
-    Ok(())
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(response.headers()["retry-after"], "120");
+        assert!(started.elapsed() < Duration::from_secs(1));
+        assert_eq!(server.received()?.len(), 1);
+        assert!(subscriber.status_retries_for("client.request").is_empty());
+        Ok(())
+    }
+    .await;
+    server.finish(result).await
 }
 
 #[tokio::test]
@@ -420,26 +653,31 @@ async fn status_retry_delay_observes_total_deadline() -> TestResult {
     ];
     for (intermediate, policy) in cases {
         let server = ScriptedServer::start(&[intermediate, OK]).await?;
-        let client = retrying_client(policy)?;
-        let subscriber = OutcomeSubscriber::default();
-        let started = std::time::Instant::now();
+        let result: TestResult = async {
+            let client = retrying_client(policy)?;
+            let subscriber = OutcomeSubscriber::default();
+            let started = std::time::Instant::now();
 
-        // The delay cannot finish inside the total deadline, so the usable
-        // response is returned at once instead of becoming a timeout.
-        let response = client
-            .get(HttpProtocol::Http1, &server.url("http", "/"))?
-            .timeouts(
-                RequestTimeoutOverrides::disabled()
-                    .total(TimeoutOverride::Limit(Duration::from_secs(10))),
-            )
-            .send()
-            .with_subscriber(subscriber.dispatch())
-            .await?;
+            // The delay cannot finish inside the total deadline, so the usable
+            // response is returned at once instead of becoming a timeout.
+            let response = client
+                .get(HttpProtocol::Http1, &server.url("http", "/"))?
+                .timeouts(
+                    RequestTimeoutOverrides::disabled()
+                        .total(TimeoutOverride::Limit(Duration::from_secs(10))),
+                )
+                .send()
+                .with_subscriber(subscriber.dispatch())
+                .await?;
 
-        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-        assert!(started.elapsed() < Duration::from_secs(5));
-        assert_eq!(server.received().len(), 1, "a retry reached the server");
-        assert!(subscriber.status_retries_for("client.request").is_empty());
+            assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+            assert!(started.elapsed() < Duration::from_secs(5));
+            assert_eq!(server.received()?.len(), 1, "a retry reached the server");
+            assert!(subscriber.status_retries_for("client.request").is_empty());
+            Ok(())
+        }
+        .await;
+        server.finish(result).await?;
     }
     Ok(())
 }
@@ -447,20 +685,24 @@ async fn status_retry_delay_observes_total_deadline() -> TestResult {
 #[tokio::test]
 async fn status_retry_delay_within_total_deadline_still_retries() -> TestResult {
     let server = ScriptedServer::start(&[UNAVAILABLE, OK]).await?;
-    let client = retrying_client(status_retry(1, Duration::from_millis(10))?)?;
+    let result: TestResult = async {
+        let client = retrying_client(status_retry(1, Duration::from_millis(10))?)?;
 
-    let response = client
-        .get(HttpProtocol::Http1, &server.url("http", "/"))?
-        .timeouts(
-            RequestTimeoutOverrides::disabled()
-                .total(TimeoutOverride::Limit(Duration::from_secs(10))),
-        )
-        .send()
-        .await?;
+        let response = client
+            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .timeouts(
+                RequestTimeoutOverrides::disabled()
+                    .total(TimeoutOverride::Limit(Duration::from_secs(10))),
+            )
+            .send()
+            .await?;
 
-    assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(server.received().len(), 2);
-    Ok(())
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(server.received()?.len(), 2);
+        Ok(())
+    }
+    .await;
+    server.finish(result).await
 }
 
 #[cfg(feature = "cookies")]
@@ -468,26 +710,30 @@ async fn status_retry_delay_within_total_deadline_still_retries() -> TestResult 
 async fn status_retry_learns_cookies_from_intermediate_responses() -> TestResult {
     let intermediate = unavailable_with("Set-Cookie: attempt=first; Path=/\r\n");
     let server = ScriptedServer::start(&[&intermediate, OK]).await?;
-    let client = plain_builder()
-        .cookies()
-        .retry_policy(RetryPolicy::none().with_status_retry(status_retry(1, Duration::ZERO)?))
-        .build()?;
+    let result: TestResult = async {
+        let client = plain_builder()
+            .cookies()
+            .retry_policy(RetryPolicy::none().with_status_retry(status_retry(1, Duration::ZERO)?))
+            .build()?;
 
-    let response = client
-        .get(HttpProtocol::Http1, &server.url("http", "/"))?
-        .send()
-        .await?;
+        let response = client
+            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .send()
+            .await?;
 
-    assert_eq!(response.status(), StatusCode::OK);
-    let received = server.received();
-    assert_eq!(received.len(), 2);
-    assert!(!received[0].contains("\r\nCookie:"));
-    assert!(
-        received[1].contains("\r\nCookie: attempt=first\r\n"),
-        "{}",
-        received[1]
-    );
-    Ok(())
+        assert_eq!(response.status(), StatusCode::OK);
+        let received = server.received()?;
+        assert_eq!(received.len(), 2);
+        assert!(!received[0].head.contains("\r\nCookie:"));
+        assert!(
+            received[1].head.contains("\r\nCookie: attempt=first\r\n"),
+            "{}",
+            received[1].head
+        );
+        Ok(())
+    }
+    .await;
+    server.finish(result).await
 }
 
 #[tokio::test]
@@ -496,21 +742,25 @@ async fn status_retry_exhaustion_returns_last_response() -> TestResult {
         format!("HTTP/1.1 503 Service Unavailable\r\nX-Attempt: {attempt}\r\nContent-Length: 5\r\n\r\nbusy!")
     });
     let server = ScriptedServer::start(&[&responses[0], &responses[1], &responses[2], OK]).await?;
-    let client = retrying_client(status_retry(2, Duration::ZERO)?)?;
-    let subscriber = OutcomeSubscriber::default();
+    let result: TestResult = async {
+        let client = retrying_client(status_retry(2, Duration::ZERO)?)?;
+        let subscriber = OutcomeSubscriber::default();
 
-    let response = client
-        .get(HttpProtocol::Http1, &server.url("http", "/"))?
-        .send()
-        .with_subscriber(subscriber.dispatch())
-        .await?;
+        let response = client
+            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .send()
+            .with_subscriber(subscriber.dispatch())
+            .await?;
 
-    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-    assert_eq!(response.headers()["x-attempt"], "three");
-    assert_eq!(response.into_body().collect().await?.to_bytes(), "busy!");
-    assert_eq!(server.received().len(), 3);
-    assert_eq!(subscriber.status_retries_for("client.request"), [1, 2]);
-    Ok(())
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(response.headers()["x-attempt"], "three");
+        assert_eq!(response.into_body().collect().await?.to_bytes(), "busy!");
+        assert_eq!(server.received()?.len(), 3);
+        assert_eq!(subscriber.status_retries_for("client.request"), [1, 2]);
+        Ok(())
+    }
+    .await;
+    server.finish(result).await
 }
 
 #[tokio::test]
@@ -522,28 +772,32 @@ async fn status_retry_budget_is_shared_across_redirect_hops() -> TestResult {
         Some(identity.acceptor(H1_ALPN)?),
     )
     .await?;
-    let client = client_builder(&identity, false)
-        .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-        .retry_policy(RetryPolicy::none().with_status_retry(status_retry(1, Duration::ZERO)?))
-        .build()?;
+    let result: TestResult = async {
+        let client = client_builder(&identity, false)
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+            .retry_policy(RetryPolicy::none().with_status_retry(status_retry(1, Duration::ZERO)?))
+            .build()?;
 
-    let response = client
-        .get(HttpProtocol::Http1, &server.url("https", "/"))?
-        .send()
-        .await?;
+        let response = client
+            .get(HttpProtocol::Http1, &server.url("https", "/"))?
+            .send()
+            .await?;
 
-    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-    let info = response
-        .extensions()
-        .get::<ResponseInfo>()
-        .ok_or("response omitted metadata")?;
-    assert_eq!(info.redirects_followed(), 1);
-    assert_eq!(info.effective_uri().path(), "/next");
-    assert_eq!(
-        request_lines(&server.received()),
-        ["GET / HTTP/1.1", "GET / HTTP/1.1", "GET /next HTTP/1.1"]
-    );
-    Ok(())
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        let info = response
+            .extensions()
+            .get::<ResponseInfo>()
+            .ok_or("response omitted metadata")?;
+        assert_eq!(info.redirects_followed(), 1);
+        assert_eq!(info.effective_uri().path(), "/next");
+        assert_eq!(
+            request_lines(&server.received()?),
+            ["GET / HTTP/1.1", "GET / HTTP/1.1", "GET /next HTTP/1.1"]
+        );
+        Ok(())
+    }
+    .await;
+    server.finish(result).await
 }
 
 #[tokio::test]
@@ -551,26 +805,30 @@ async fn negotiated_status_retry_repeats_on_the_selected_protocol() -> TestResul
     let identity = TestIdentity::generate()?;
     let server =
         ScriptedServer::start_with(&[UNAVAILABLE, OK], Some(identity.acceptor(H1_ALPN)?)).await?;
-    let client = client_builder(&identity, true)
-        .retry_policy(RetryPolicy::none().with_status_retry(status_retry(1, Duration::ZERO)?))
-        .build()?;
+    let result: TestResult = async {
+        let client = client_builder(&identity, true)
+            .retry_policy(RetryPolicy::none().with_status_retry(status_retry(1, Duration::ZERO)?))
+            .build()?;
 
-    let response = client
-        .get_negotiated(&server.url("https", "/negotiated"))?
-        .send()
-        .await?;
+        let response = client
+            .get_negotiated(&server.url("https", "/negotiated"))?
+            .send()
+            .await?;
 
-    assert_eq!(response.status(), StatusCode::OK);
-    let info = response
-        .extensions()
-        .get::<ResponseInfo>()
-        .ok_or("response omitted metadata")?;
-    assert_eq!(info.protocol(), HttpProtocol::Http1);
-    assert_eq!(
-        request_lines(&server.received()),
-        ["GET /negotiated HTTP/1.1", "GET /negotiated HTTP/1.1"]
-    );
-    Ok(())
+        assert_eq!(response.status(), StatusCode::OK);
+        let info = response
+            .extensions()
+            .get::<ResponseInfo>()
+            .ok_or("response omitted metadata")?;
+        assert_eq!(info.protocol(), HttpProtocol::Http1);
+        assert_eq!(
+            request_lines(&server.received()?),
+            ["GET /negotiated HTTP/1.1", "GET /negotiated HTTP/1.1"]
+        );
+        Ok(())
+    }
+    .await;
+    server.finish(result).await
 }
 
 #[test]
@@ -633,95 +891,30 @@ fn imf_fixdate(time: SystemTime) -> TestResult<String> {
 #[tokio::test]
 async fn zero_shared_cap_returns_the_complete_retryable_response() -> TestResult {
     let server = ScriptedServer::start(&[UNAVAILABLE, OK]).await?;
-    let client = retrying_client(status_retry(2, Duration::from_secs(30))?)?;
-    let response = client
-        .get(HttpProtocol::Http1, &server.url("http", "/"))?
-        .retry_policy(
-            RetryPolicy::none()
-                .with_status_retry(status_retry(2, Duration::from_secs(30))?)
-                .with_max_retries(Some(0)),
-        )
-        .send()
-        .await?;
-    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-    assert_eq!(response.headers()["content-length"], "0");
-    assert!(response.into_body().collect().await?.to_bytes().is_empty());
-    assert_eq!(server.received().len(), 1);
-    Ok(())
+    let result: TestResult = async {
+        let client = retrying_client(status_retry(2, Duration::from_secs(30))?)?;
+
+        let response = client
+            .get(HttpProtocol::Http1, &server.url("http", "/"))?
+            .retry_policy(
+                RetryPolicy::none()
+                    .with_status_retry(status_retry(2, Duration::from_secs(30))?)
+                    .with_max_retries(Some(0)),
+            )
+            .send()
+            .await?;
+
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(response.headers()["content-length"], "0");
+        assert!(response.into_body().collect().await?.to_bytes().is_empty());
+        assert_eq!(server.received()?.len(), 1);
+        Ok(())
+    }
+    .await;
+    server.finish(result).await
 }
 
 #[tokio::test]
 async fn reused_replay_and_status_retry_share_the_cap_across_a_redirect() -> TestResult {
-    tokio::time::timeout(Duration::from_secs(10), async {
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            let (mut first, _) = listener.accept().await?;
-            let prime = read_request(&mut first).await?;
-            first.write_all(OK.as_bytes()).await?;
-            first.flush().await?;
-            let stale = read_request(&mut first).await?;
-            drop(first);
-            let (mut second, _) = listener.accept().await?;
-            let replayed = read_request(&mut second).await?;
-            second.write_all(UNAVAILABLE.as_bytes()).await?;
-            second.flush().await?;
-            let status_retried = read_request(&mut second).await?;
-            second
-                .write_all(b"HTTP/1.1 302 Found\r\nLocation: /final\r\nContent-Length: 0\r\n\r\n")
-                .await?;
-            second.flush().await?;
-            let redirected = read_request(&mut second).await?;
-            second.write_all(UNAVAILABLE.as_bytes()).await?;
-            second.flush().await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>([
-                prime,
-                stale,
-                replayed,
-                status_retried,
-                redirected,
-            ])
-        });
-        let client = plain_builder()
-            .redirect_policy(RedirectPolicy::limited(
-                NonZeroUsize::new(5).ok_or("redirect limit is zero")?,
-            ))
-            .retry_policy(
-                RetryPolicy::none()
-                    .with_reused_connection_replay(true)
-                    .with_status_retry(status_retry(3, Duration::ZERO)?)
-                    .with_max_retries(Some(2)),
-            )
-            .build()?;
-        client
-            .get(HttpProtocol::Http1, &format!("http://{address}/prime"))?
-            .send()
-            .await?
-            .into_body()
-            .collect()
-            .await?;
-        let response = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/start"))?
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-        let info = response
-            .extensions()
-            .get::<ResponseInfo>()
-            .ok_or("response omitted metadata")?;
-        assert_eq!(info.retries_performed(), 0);
-        response.into_body().collect().await?;
-        assert_eq!(
-            request_lines(&server.await??),
-            [
-                "GET /prime HTTP/1.1",
-                "GET /start HTTP/1.1",
-                "GET /start HTTP/1.1",
-                "GET /start HTTP/1.1",
-                "GET /final HTTP/1.1",
-            ]
-        );
-        Ok(())
-    })
-    .await?
+    shared_cap_ownership::exchange().await
 }

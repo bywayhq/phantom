@@ -1,7 +1,5 @@
 //! TLS early data over TCP through the public client with the Firefox recipe.
 
-use crate::support::tls as tls_support;
-
 use std::{
     error::Error,
     net::Ipv4Addr,
@@ -23,9 +21,15 @@ use tokio::{
 };
 
 use super::early_data_server::{
-    H2_HEADERS, SERVER_DELAY, TestResult, accept, bounded, h2_frame_types, serve_http1, serve_http2,
+    H2_HEADERS, SERVER_DELAY, TestResult, accept, bounded, finish, h2_frame_types, join,
+    serve_http1, serve_http2,
+};
+use crate::support::{
+    tls as tls_support,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity};
+
 /// What one ClientHello offered.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct Offer {
@@ -42,16 +46,21 @@ const EARLY: Offer = Offer {
     pre_shared_key: true,
 };
 
+// BoringSSL ssl.h at the resolved btls revision: peer certificate alerts.
+const CERTIFICATE_UNKNOWN: i32 = 1046;
+const UNKNOWN_CA: i32 = 1048;
+
 #[tokio::test]
 async fn a_resumed_negotiated_get_travels_as_early_data() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let offers = Offers::default();
         let acceptor = acceptor(&identity, &offers, [H2_ALPN, H2_ALPN])?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let (first_closed, wait_for_first_close) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let first = accept(&listener, &acceptor, Duration::ZERO).await?;
             serve_http2(first, "/").await?;
             first_closed
@@ -65,24 +74,21 @@ async fn a_resumed_negotiated_get_travels_as_early_data() -> TestResult<()> {
             serve_http2(second, "/early").await?;
             let early = early.lock().unwrap_or_else(PoisonError::into_inner).clone();
             Ok::<_, Box<dyn Error + Send + Sync>>(early)
-        });
+        }));
 
         let session = client(&identity)?;
         send_negotiated(&session, Method::GET, &format!("https://{address}/")).await?;
-        if wait_for_first_close.await.is_err() {
-            server.await??;
-            return Err("server stopped before closing the first connection".into());
-        }
+        wait_for_first_close.await?;
         send_negotiated(&session, Method::GET, &format!("https://{address}/early")).await?;
 
-        let early = server.await??;
-        // The preface, SETTINGS, and the request HEADERS went out before the
-        // server answered.
+        let early = join(&mut server).await?;
+        // The server read a request HEADERS frame header before completing TLS.
         assert!(h2_frame_types(&early)?.contains(&H2_HEADERS));
         assert_eq!(offers.take(), [FRESH, EARLY]);
         Ok(())
     })
-    .await
+    .await;
+    finish(result, server).await
 }
 
 /// The second connection resumes a ticket issued under `h2`, but the server
@@ -188,14 +194,15 @@ async fn a_post_waits_for_early_data_within_its_own_connect_attempt() -> TestRes
     // the early-data wait that follows takes SERVER_DELAY, a fifth of it.
     const ADMISSION_WAIT: Duration = Duration::from_millis(1500);
     const CONNECT_LIMIT: Duration = Duration::from_millis(1000);
-    bounded(async {
+    let mut server = None;
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let offers = Offers::default();
         let acceptor = acceptor(&identity, &offers, [H1_ALPN, H1_ALPN])?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let (slow_head_read, wait_for_slow_head) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut slow = accept(&listener, &acceptor, Duration::ZERO).await?;
             tls_support::read_head(&mut slow).await?;
             slow_head_read
@@ -221,7 +228,7 @@ async fn a_post_waits_for_early_data_within_its_own_connect_attempt() -> TestRes
             resumed.shutdown().await?;
             let early = early.lock().unwrap_or_else(PoisonError::into_inner).clone();
             Ok::<_, Box<dyn Error + Send + Sync>>((request, early))
-        });
+        }));
 
         let mut http1 = firefox::v157_http1();
         http1.max_connections_per_origin = std::num::NonZeroUsize::MIN;
@@ -235,9 +242,7 @@ async fn a_post_waits_for_early_data_within_its_own_connect_attempt() -> TestRes
         let slow = send_negotiated(&session, Method::GET, &slow_uri);
         let post = async {
             // The slow request holds the origin's only connection from here on.
-            wait_for_slow_head
-                .await
-                .map_err(|_| "server stopped before reading the slow request")?;
+            wait_for_slow_head.await?;
             let response = session
                 .request_negotiated(Method::POST, &format!("https://{address}/post"))?
                 .body("payload")
@@ -252,31 +257,32 @@ async fn a_post_waits_for_early_data_within_its_own_connect_attempt() -> TestRes
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         };
         let (slow, post) = tokio::join!(slow, post);
-        slow?;
-        post?;
+        finish_with_cleanup(slow, post)?;
 
-        let (request, early) = server.await??;
+        let (request, early) = join(&mut server).await?;
         assert!(request.starts_with(b"POST /post HTTP/1.1\r\n"));
         assert!(request.ends_with(b"\r\n\r\npayload"));
         assert!(early.is_empty());
         assert_eq!(offers.take(), [FRESH, EARLY]);
         Ok(())
     })
-    .await
+    .await;
+    finish(result, server).await
 }
 
 /// Learns an `h2` ticket, then sends `method` to `/restarted` while the
 /// server rejects the resumed connection's early data and selects
 /// `http/1.1`. Returns what the third connection received.
 async fn alpn_change_restart(method: Method) -> TestResult<Vec<u8>> {
-    bounded(async {
+    let mut server = None;
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let offers = Offers::default();
         let acceptor = acceptor(&identity, &offers, [H2_ALPN, H1_ALPN])?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let (first_closed, wait_for_first_close) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let first = accept(&listener, &acceptor, Duration::ZERO).await?;
             serve_http2(first, "/").await?;
             first_closed
@@ -286,9 +292,7 @@ async fn alpn_change_restart(method: Method) -> TestResult<Vec<u8>> {
             // The client drops this connection without sending a request.
             let mut rejected = accept(&listener, &acceptor, SERVER_DELAY).await?;
             assert!(!rejected.stream.ssl().early_data_accepted());
-            let mut unprocessed = Vec::new();
-            let _ = rejected.read_to_end(&mut unprocessed).await;
-            assert!(unprocessed.is_empty(), "{unprocessed:?}");
+            expect_no_request(&mut rejected).await?;
 
             let mut restarted = accept(&listener, &acceptor, Duration::ZERO).await?;
             assert!(!restarted.stream.ssl().session_reused());
@@ -303,21 +307,19 @@ async fn alpn_change_restart(method: Method) -> TestResult<Vec<u8>> {
                 .await?;
             restarted.shutdown().await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(request)
-        });
+        }));
 
         let session = client(&identity)?;
         send_negotiated(&session, Method::GET, &format!("https://{address}/")).await?;
-        if wait_for_first_close.await.is_err() {
-            server.await??;
-            return Err("server stopped before closing the first connection".into());
-        }
+        wait_for_first_close.await?;
         send_negotiated(&session, method, &format!("https://{address}/restarted")).await?;
 
-        let restarted = server.await??;
+        let restarted = join(&mut server).await?;
         assert_eq!(offers.take(), [FRESH, EARLY, FRESH]);
         Ok(restarted)
     })
-    .await
+    .await;
+    finish(result, server).await
 }
 
 /// Learns a ticket over `protocol`, or a negotiated `h2` with `None`, then
@@ -329,7 +331,9 @@ async fn failure_after_early_data(
     alpn: [&'static [u8]; 2],
     untrusted: bool,
 ) -> TestResult<phantom::RequestError> {
-    bounded(async {
+    let mut server = None;
+    let mut client_error = None;
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let offers = Offers::default();
         let acceptor = acceptor(&identity, &offers, alpn)?;
@@ -341,7 +345,7 @@ async fn failure_after_early_data(
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let (first_closed, wait_for_first_close) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let first = accept(&listener, &acceptor, Duration::ZERO).await?;
             if protocol == Some(HttpProtocol::Http1) {
                 serve_http1(first).await?;
@@ -354,14 +358,16 @@ async fn failure_after_early_data(
             // The handshake fails on the client, or the client drops the
             // connection after the ALPN change; either way it sends nothing
             // the server processes.
-            if let Ok(mut rejected) = accept(&listener, &second, SERVER_DELAY).await {
-                assert!(!rejected.stream.ssl().early_data_accepted());
-                let mut unprocessed = Vec::new();
-                let _ = rejected.read_to_end(&mut unprocessed).await;
-                assert!(unprocessed.is_empty(), "{unprocessed:?}");
+            match accept(&listener, &second, SERVER_DELAY).await {
+                Ok(mut rejected) => {
+                    assert!(!rejected.stream.ssl().early_data_accepted());
+                    expect_no_request(&mut rejected).await?;
+                }
+                Err(error) if untrusted && certificate_rejected(error.as_ref()) => {}
+                Err(error) => return Err(error),
             }
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
 
         let session = client(&identity)?;
         let first = format!("https://{address}/");
@@ -369,24 +375,53 @@ async fn failure_after_early_data(
             Some(protocol) => send(&session, protocol, Method::GET, &first).await?,
             None => send_negotiated(&session, Method::GET, &first).await?,
         }
-        if wait_for_first_close.await.is_err() {
-            server.await??;
-            return Err("server stopped before closing the first connection".into());
-        }
+        wait_for_first_close.await?;
         let uri = format!("https://{address}/failed");
         let failed = match protocol {
             Some(protocol) => session.get(protocol, &uri)?,
             None => session.get_negotiated(&uri)?,
         };
-        let error = match failed.send().await {
+        client_error = Some(match failed.send().await {
             Ok(_) => return Err("the request succeeded after the handshake failed".into()),
             Err(error) => error,
-        };
-        server.await??;
+        });
+        join(&mut server).await?;
         assert_eq!(offers.take()[1], EARLY);
-        Ok(error)
+        Ok(())
     })
-    .await
+    .await;
+    let result = finish(result, server).await;
+
+    match (result, client_error) {
+        (Ok(()), Some(error)) => Ok(error),
+        (Err(completion), Some(error)) => finish_with_cleanup(Err(error.into()), Err(completion)),
+        (Err(error), None) => Err(error),
+        (Ok(()), None) => Err("the failed TLS request outcome is missing".into()),
+    }
+}
+
+async fn expect_no_request(stream: &mut (impl tokio::io::AsyncRead + Unpin)) -> TestResult<()> {
+    let mut byte = [0_u8; 1];
+    match stream.read(&mut byte).await {
+        Ok(0) => Ok(()),
+        Ok(_) => Err("rejected TLS connection received request bytes".into()),
+        Err(error) if tls_support::is_peer_gone(&error) => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn certificate_rejected(error: &(dyn Error + 'static)) -> bool {
+    error
+        .downcast_ref::<btls::ssl::Error>()
+        .is_some_and(|error| {
+            error.io_error().is_some_and(tls_support::is_peer_gone)
+                || error.ssl_error().is_some_and(|stack| {
+                    stack.errors().iter().all(|error| {
+                        error.library() == Some("SSL routines")
+                            && matches!(error.reason_code(), CERTIFICATE_UNKNOWN | UNKNOWN_CA)
+                    }) && !stack.errors().is_empty()
+                })
+        })
 }
 
 fn client(identity: &TestIdentity) -> TestResult<Client> {
@@ -487,4 +522,46 @@ fn source_chain(error: &(dyn Error + 'static)) -> String {
         source = error.source();
     }
     messages.join(": ")
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        io,
+        pin::Pin,
+        task::{Context, Poll},
+    };
+
+    use tokio::io::{AsyncRead, ReadBuf};
+
+    use super::{TestResult, expect_no_request};
+
+    #[tokio::test]
+    async fn an_empty_rejected_connection_check_retains_a_local_read_failure() -> TestResult<()> {
+        let mut reader = FailedRead(Some(io::Error::from_raw_os_error(5)));
+        let error = expect_no_request(&mut reader)
+            .await
+            .err()
+            .ok_or("a failed rejected-stream read was accepted as empty")?;
+        let error = error
+            .downcast_ref::<io::Error>()
+            .ok_or("original I/O error was erased")?;
+        assert_eq!(error.raw_os_error(), Some(5));
+        Ok(())
+    }
+
+    struct FailedRead(Option<io::Error>);
+
+    impl AsyncRead for FailedRead {
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            _context: &mut Context<'_>,
+            _buffer: &mut ReadBuf<'_>,
+        ) -> Poll<io::Result<()>> {
+            Poll::Ready(Err(self
+                .0
+                .take()
+                .unwrap_or_else(|| io::Error::other("read repeated"))))
+        }
+    }
 }

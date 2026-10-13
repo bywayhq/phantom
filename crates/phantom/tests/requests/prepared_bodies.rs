@@ -1,9 +1,5 @@
 //! Prepared-body placement, reachability, and redirect provenance.
 
-mod slots;
-mod trailers;
-mod uploads;
-
 use std::{net::Ipv4Addr, num::NonZeroUsize, time::Duration};
 
 use phantom::{
@@ -18,8 +14,27 @@ use tokio::{
     time::{Instant, timeout},
 };
 
-type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
+
+mod slots;
+mod trailers;
+mod uploads;
+
 const BUDGET: Duration = Duration::from_secs(10);
+type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
+
+async fn finish_prepared_peer<T: Send + 'static>(
+    operation: TestResult,
+    mut peer: ConnectionPeer<TestResult<T>>,
+) -> TestResult<T> {
+    match operation {
+        Ok(()) => match timeout(BUDGET, &mut peer).await {
+            Ok(joined) => joined?,
+            Err(error) => finish_with_cleanup(Err(error.into()), peer.stop().await),
+        },
+        Err(primary) => finish_with_cleanup(Err(primary), peer.stop().await),
+    }
+}
 
 fn profile() -> ClientProfile {
     ClientProfile::new(chrome::v154_tcp_tls())
@@ -119,48 +134,75 @@ async fn preserved_body_redirect_checks_new_route_without_refilling_dropped_fiel
             let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
             let origin_address = origin.local_addr()?;
             let deadline = Instant::now() + BUDGET;
-            let peer = tokio::spawn(async move {
-                let (stream, _) = proxy.accept().await?;
-                let mut stream = BufReader::new(stream);
-                let head = capture_request_head(&mut stream, deadline, CaptureLimits::new(8192, 4096, 64)).await?;
-                assert!(head.headers().iter().any(|field| field.name() == b"content-type"));
-                let length = head.headers().iter().find(|field| field.name().eq_ignore_ascii_case(b"content-length"))
-                    .ok_or("body length missing")?;
-                let length: usize = std::str::from_utf8(length.value_bytes())?.trim().parse()?;
-                let mut body = vec![0; length];
-                stream.read_exact(&mut body).await?;
-                assert_eq!(body, b"a=b");
-                stream.get_mut().write_all(format!("HTTP/1.1 {status} Redirect\r\nLocation: http://{origin_address}/upload\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").as_bytes()).await?;
-                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-            });
+
             let env = EnvironmentProxies::from_values([
                 ("http_proxy", format!("http://{proxy_address}")), ("no_proxy", "127.0.0.1".to_owned()),
             ])?;
             let client = Client::builder(profile()).environment_proxies(env)
                 .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
                 .alt_svc(NonZeroUsize::MIN).build()?;
-            let request = client.request_negotiated(Method::POST, "http://origin.invalid/upload")?
-                .template(&template(true, false)?)
-                .prepared_body(PreparedRequestBody::form([("a", "b")], 128)?);
-            if status == 307 {
-                let error = request.send().await.err().ok_or("undeclared redirected slot succeeded")?;
-                assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
-                assert_eq!(error.origin().map(phantom::RequestOrigin::port), Some(origin_address.port()));
-                assert!(timeout(Duration::from_millis(30), origin.accept()).await.is_err());
+            let prepared = template(true, false)?;
+            let body = PreparedRequestBody::form([("a", "b")], 128)?;
+
+            let peer = ConnectionPeer::spawn(async move {
+                let (stream, _) = proxy.accept().await?;
+                let mut stream = BufReader::new(stream);
+                let head = capture_request_head(&mut stream, deadline, CaptureLimits::new(8192, 4096, 64)).await?;
+                assert!(head.headers().iter().any(|field| field.name() == b"content-type"));
+
+                let length = head.headers().iter().find(|field| field.name().eq_ignore_ascii_case(b"content-length"))
+                    .ok_or("body length missing")?;
+                let length: usize = std::str::from_utf8(length.value_bytes())?.trim().parse()?;
+                if length != b"a=b".len() {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "redirect upload must have Content-Length 3",
+                    ).into());
+                }
+
+                let mut body = vec![0; length];
+                stream.read_exact(&mut body).await?;
+                assert_eq!(body, b"a=b");
+
+                stream.get_mut().write_all(format!("HTTP/1.1 {status} Redirect\r\nLocation: http://{origin_address}/upload\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").as_bytes()).await?;
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+            });
+
+            let mut origin_peer = None;
+            let operation = async {
+                let request = client
+                    .request_negotiated(Method::POST, "http://origin.invalid/upload")?
+                    .template(&prepared)
+                    .prepared_body(body);
+
+                if status == 307 {
+                    let error = request.send().await.err().ok_or("undeclared redirected slot succeeded")?;
+                    assert_eq!(error.kind(), RequestErrorKind::RequestTemplate);
+                    assert_eq!(error.origin().map(phantom::RequestOrigin::port), Some(origin_address.port()));
+                    assert!(timeout(Duration::from_millis(30), origin.accept()).await.is_err());
+                } else {
+                    origin_peer = Some(ConnectionPeer::spawn(async move {
+                        let (stream, _) = origin.accept().await?;
+                        let mut stream = BufReader::new(stream);
+                        let head = capture_request_head(&mut stream, deadline, CaptureLimits::new(8192, 4096, 64)).await?;
+                        assert_eq!(head.method(), b"GET");
+                        assert!(!head.headers().iter().any(|field| field.name().eq_ignore_ascii_case(b"content-type")));
+
+                        stream.get_mut().write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n").await?;
+                        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+                    }));
+                    assert_eq!(request.send().await?.status(), phantom::StatusCode::NO_CONTENT);
+                }
+                Ok(())
+            }.await;
+
+            let result = finish_prepared_peer(operation, peer).await;
+            if let Some(origin_peer) = origin_peer {
+                finish_prepared_peer(result, origin_peer).await?;
             } else {
-                let origin_peer = tokio::spawn(async move {
-                    let (stream, _) = origin.accept().await?;
-                    let mut stream = BufReader::new(stream);
-                    let head = capture_request_head(&mut stream, deadline, CaptureLimits::new(8192, 4096, 64)).await?;
-                    assert_eq!(head.method(), b"GET");
-                    assert!(!head.headers().iter().any(|field| field.name().eq_ignore_ascii_case(b"content-type")));
-                    stream.get_mut().write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n").await?;
-                    Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-                });
-                assert_eq!(request.send().await?.status(), phantom::StatusCode::NO_CONTENT);
-                origin_peer.await??;
+                result?;
             }
-            peer.await??;
+
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         }).await??;
     }

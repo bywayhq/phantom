@@ -6,7 +6,7 @@ use tokio::{
     time::timeout,
 };
 
-use super::tls::{TestResult, accept_tls, read_head};
+use super::tls::{TestResult, accept_tls, is_peer_gone, read_head};
 
 pub(crate) const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -137,16 +137,33 @@ pub(crate) async fn forward_one_https_connect(
         .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
         .await?;
     downstream.flush().await?;
-    match copy_bidirectional(&mut downstream, &mut upstream).await {
-        Ok(_) => {}
-        Err(error)
-            if matches!(
-                error.kind(),
-                io::ErrorKind::ConnectionReset | io::ErrorKind::BrokenPipe
-            ) => {}
-        Err(error) => return Err(error.into()),
-    }
+    accept_relay_result(copy_bidirectional(&mut downstream, &mut upstream).await)?;
     Ok(request)
+}
+
+fn accept_relay_result(result: io::Result<(u64, u64)>) -> io::Result<()> {
+    match result {
+        Ok(_) => Ok(()),
+        Err(error) if is_peer_gone(&error) => Ok(()),
+        Err(error) => Err(error),
+    }
+}
+
+#[derive(Debug)]
+struct WebSocketDeadline {
+    elapsed: tokio::time::error::Elapsed,
+}
+
+impl std::fmt::Display for WebSocketDeadline {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("WebSocket integration test exceeded its deadline")
+    }
+}
+
+impl std::error::Error for WebSocketDeadline {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.elapsed)
+    }
 }
 
 pub(crate) async fn bounded<F>(future: F) -> TestResult<()>
@@ -155,5 +172,90 @@ where
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "WebSocket integration test exceeded its deadline")?
+        .map_err(|elapsed| WebSocketDeadline { elapsed })?
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{error::Error, fmt, io};
+
+    use super::{TEST_TIMEOUT, TestResult, accept_relay_result, bounded};
+
+    #[derive(Debug)]
+    struct OperationFailure;
+
+    impl fmt::Display for OperationFailure {
+        fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("controlled WebSocket operation failed")
+        }
+    }
+
+    impl Error for OperationFailure {}
+
+    fn find_source<'a, T: Error + 'static>(mut error: &'a (dyn Error + 'static)) -> Option<&'a T> {
+        loop {
+            if let Some(found) = error.downcast_ref::<T>() {
+                return Some(found);
+            }
+
+            error = error.source()?;
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn a_bounded_deadline_retains_the_actual_elapsed_cause() -> TestResult<()> {
+        let operation = bounded(std::future::pending::<TestResult<()>>());
+        tokio::pin!(operation);
+        assert!(futures_util::poll!(&mut operation).is_pending());
+        tokio::time::advance(TEST_TIMEOUT).await;
+
+        let error = operation.await.err().ok_or("pending operation completed")?;
+        assert!(find_source::<tokio::time::error::Elapsed>(error.as_ref()).is_some());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn a_completed_bounded_operation_retains_its_typed_failure() -> TestResult<()> {
+        let error =
+            bounded(async { Err(Box::new(OperationFailure) as Box<dyn Error + Send + Sync>) })
+                .await
+                .err()
+                .ok_or("failed operation was accepted")?;
+
+        assert!(find_source::<OperationFailure>(error.as_ref()).is_some());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn a_successful_bounded_operation_remains_successful() -> TestResult<()> {
+        bounded(async { Ok(()) }).await
+    }
+
+    #[test]
+    fn https_relay_accepts_all_normal_peer_teardown_errors() {
+        for kind in [
+            io::ErrorKind::ConnectionReset,
+            io::ErrorKind::ConnectionAborted,
+            io::ErrorKind::BrokenPipe,
+        ] {
+            assert!(
+                accept_relay_result(Err(io::Error::new(kind, "peer closed"))).is_ok(),
+                "{kind:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn https_relay_preserves_unrelated_failure() -> TestResult<()> {
+        let error = accept_relay_result(Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "denied",
+        )))
+        .err()
+        .ok_or("unrelated failure was accepted")?;
+        assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(error.to_string(), "denied");
+        assert!(accept_relay_result(Ok((3, 5))).is_ok());
+        Ok(())
+    }
 }

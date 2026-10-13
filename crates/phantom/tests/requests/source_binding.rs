@@ -12,13 +12,15 @@ use phantom::{
     RequestErrorKind, Route, Socks5Proxy,
     profile::{ClientProfile, browser::chrome},
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
+use tokio::{net::TcpListener, sync::oneshot, time::timeout};
 
 use crate::support::{
     h3 as h3_support, masque::masque_client_settings, socks5_udp::forward_one_socks5_udp_associate,
     tls as tls_support,
 };
 use tls_support::{TestIdentity, TestResult, read_head};
+
+mod interface_origin;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const NO_CONNECTION_WINDOW: Duration = Duration::from_millis(200);
@@ -48,10 +50,7 @@ fn profile() -> ClientProfile {
 
 /// Accepts one HTTP/1.1 request and answers it, returning the peer address.
 async fn answer_one(listener: &TcpListener) -> TestResult<SocketAddr> {
-    let (mut stream, peer) = listener.accept().await?;
-    read_head(&mut stream).await?;
-    stream.write_all(b"HTTP/1.1 204 No Content\r\n\r\n").await?;
-    Ok(peer)
+    interface_origin::answer_one(listener, None).await
 }
 
 async fn get(client: &Client, url: String) -> Result<(), RequestError> {
@@ -539,24 +538,27 @@ async fn interface_binding_reaches_a_loopback_origin() -> TestResult<()> {
     let client = Client::builder(profile())
         .interface(LOOPBACK_INTERFACE)
         .build()?;
-    let server =
-        tokio::spawn(async move { answer_one(&listener).await.map_err(|e| e.to_string()) });
+    let server = interface_origin::spawn(listener, None);
 
-    match timeout(TEST_TIMEOUT, get(&client, format!("http://{address}/"))).await? {
-        Ok(()) => {}
-        // Linux before 5.7 lets only CAP_NET_RAW bind to an interface.
-        Err(error)
-            if cfg!(target_os = "linux")
-                && io_error_kind(&error) == Some(io::ErrorKind::PermissionDenied) =>
-        {
-            eprintln!("skipped: this kernel refuses SO_BINDTODEVICE without CAP_NET_RAW");
-            server.abort();
-            return Ok(());
+    let caller = async {
+        match timeout(TEST_TIMEOUT, get(&client, format!("http://{address}/"))).await? {
+            Ok(()) => Ok(interface_origin::Outcome::Answered),
+            // Linux before 5.7 lets only CAP_NET_RAW bind to an interface.
+            Err(error)
+                if cfg!(target_os = "linux")
+                    && io_error_kind(&error) == Some(io::ErrorKind::PermissionDenied) =>
+            {
+                eprintln!("skipped: this kernel refuses SO_BINDTODEVICE without CAP_NET_RAW");
+                Ok(interface_origin::Outcome::CapabilityUnavailable)
+            }
+            Err(error) => Err(error.into()),
         }
-        Err(error) => return Err(error.into()),
     }
-    let peer = timeout(TEST_TIMEOUT, server).await??;
+    .await;
+    let Some(peer) = interface_origin::collect(caller, server).await? else {
+        return Ok(());
+    };
 
-    assert_eq!(peer?.ip(), IPV4_LOOPBACK);
+    assert_eq!(peer.ip(), IPV4_LOOPBACK);
     Ok(())
 }

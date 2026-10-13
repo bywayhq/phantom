@@ -1,9 +1,8 @@
 //! Public cookie-session integration tests.
 
-use crate::support::h3 as h3_support;
-use crate::support::tls as tls_support;
-
 use std::{
+    error::Error,
+    fmt,
     future::Future,
     io,
     net::{Ipv4Addr, SocketAddr},
@@ -35,12 +34,20 @@ use tokio::{
     io::{AsyncWriteExt, copy_bidirectional},
     net::{TcpListener, TcpStream},
     sync::oneshot,
+    task::JoinHandle,
     time::timeout,
 };
 use tokio_btls::SslStream;
 
+use crate::support::h3 as h3_support;
+use crate::support::tls as tls_support;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, read_head, tls_settings};
+
+mod deadline_contract;
+mod redirect_drivers;
+mod task_ownership;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const LEARNED_COOKIES: [&str; 2] = ["root=one; Path=/", "deep=two; Path=/next"];
@@ -49,9 +56,29 @@ const LEARNED_COOKIES: [&str; 2] = ["root=one; Path=/", "deep=two; Path=/next"];
 const ORDERED_COOKIE_CRUMBS: [&str; 2] = ["deep=two", "root=one"];
 const ORDERED_HTTP1_COOKIE_FIELD: &str = "Cookie: deep=two; root=one";
 
+#[derive(Debug)]
+struct CookieDeadline {
+    source: tokio::time::error::Elapsed,
+}
+
+impl fmt::Display for CookieDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("cookie integration test exceeded its deadline")
+    }
+}
+
+impl Error for CookieDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.source)
+    }
+}
+
 #[tokio::test]
 async fn redirect_learns_cookie_and_strips_caller_credentials_across_ports() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let mut client = None;
+
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let first_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let first_address = first_listener.local_addr()?;
@@ -60,62 +87,23 @@ async fn redirect_learns_cookie_and_strips_caller_credentials_across_ports() -> 
         let first_acceptor = identity.acceptor(H2_ALPN)?;
         let second_acceptor = identity.acceptor(H2_ALPN)?;
         let (client_done, wait_for_client) = oneshot::channel();
-        let server = tokio::spawn(async move {
-            let first = accept_tls(&first_listener, &first_acceptor).await?;
-            let mut first_connection = ::http2::server::handshake(first).await?;
-            let (initial, mut initial_response) = accept_http2(&mut first_connection).await?;
-            assert_eq!(initial.uri().path(), "/start");
-            assert_eq!(cookie_fields(initial.headers())?, ["manual=first"]);
-            assert_eq!(
-                initial.headers().get("authorization"),
-                Some(&"secret".parse()?)
-            );
-            assert_eq!(
-                initial.headers().get("proxy-authorization"),
-                Some(&"proxy".parse()?)
-            );
-            assert_eq!(initial.headers().get("cookie2"), Some(&"legacy".parse()?));
-            initial_response.send_response(
-                Response::builder()
-                    .status(StatusCode::TEMPORARY_REDIRECT)
-                    .header("location", format!("https://{second_address}/final"))
-                    .header(SET_COOKIE, "learned=redirect; Secure; Path=/")
-                    .header("content-length", "0")
-                    .body(())?,
-                true,
-            )?;
-            drop(initial);
-            drop(initial_response);
-            let first_driver = tokio::spawn(async move {
-                std::future::poll_fn(|context| first_connection.poll_closed(context)).await
-            });
+        server = Some(ConnectionPeer::from_task(spawn_cookie_redirect_peer(
+            first_listener,
+            first_acceptor,
+            second_listener,
+            second_acceptor,
+            second_address,
+            wait_for_client,
+            None,
+        )));
 
-            let second = accept_tls(&second_listener, &second_acceptor).await?;
-            let mut second_connection = ::http2::server::handshake(second).await?;
-            let (followed, mut final_response) = accept_http2(&mut second_connection).await?;
-            assert_eq!(followed.uri().path(), "/final");
-            assert_eq!(cookie_fields(followed.headers())?, ["learned=redirect"]);
-            assert!(!followed.headers().contains_key("authorization"));
-            assert!(!followed.headers().contains_key("proxy-authorization"));
-            assert!(!followed.headers().contains_key("cookie2"));
-            final_response.send_response(Response::builder().status(204).body(())?, true)?;
-            drop(followed);
-            drop(final_response);
-            let second_driver = tokio::spawn(async move {
-                std::future::poll_fn(|context| second_connection.poll_closed(context)).await
-            });
-            wait_for_client
-                .await
-                .map_err(|_| "client stopped before redirected response completion")?;
-            first_driver.abort();
-            second_driver.abort();
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
-
-        let session = cookie_client_builder(&identity)
-            .cookies()
-            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-            .build()?;
+        client = Some(
+            cookie_client_builder(&identity)
+                .cookies()
+                .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+                .build()?,
+        );
+        let session = client.as_ref().ok_or("cookie client owner missing")?;
         let response = session
             .get(
                 HttpProtocol::Http2,
@@ -134,61 +122,70 @@ async fn redirect_learns_cookie_and_strips_caller_credentials_across_ports() -> 
         client_done
             .send(())
             .map_err(|_| "redirect server stopped before client completion")?;
-        drop(session);
-        server.await??;
+        drop(client.take());
+        join_cookie_peer(&mut server).await?;
         Ok(())
     })
-    .await
+    .await;
+
+    let server_stop = stop_cookie_peer(server).await;
+    drop(client);
+    finish_with_cleanup(result, server_stop)
 }
 
 #[tokio::test]
 async fn http1_cookies_share_the_canonical_host_key() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let mut client = None;
+
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
-            let mut requests = Vec::new();
-            for cookies in [&LEARNED_COOKIES[..], &[][..]] {
-                let mut stream = accept_tls(&listener, &acceptor).await?;
-                requests.push(read_head(&mut stream).await?);
-                write_http1_response(&mut stream, cookies).await?;
-            }
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
-        });
+        server = Some(ConnectionPeer::from_task(spawn_canonical_cookie_peer(
+            listener, acceptor, None,
+        )));
 
-        let session = cookie_client_builder(&identity).cookies().build()?;
+        client = Some(cookie_client_builder(&identity).cookies().build()?);
+        let session = client.as_ref().ok_or("cookie client owner missing")?;
         send_and_drain(
-            &session,
+            session,
             HttpProtocol::Http1,
             &format!("https://１２７．０．０．１:{}/seed", address.port()),
         )
         .await?;
         send_and_drain(
-            &session,
+            session,
             HttpProtocol::Http1,
             &format!("https://{address}/next/page"),
         )
         .await?;
 
-        let requests = server.await??;
+        let requests = join_cookie_peer(&mut server).await?;
         assert_http1_cookie_fields(&requests[0], &[])?;
         assert_http1_cookie_fields(&requests[1], &[ORDERED_HTTP1_COOKIE_FIELD])?;
         Ok(())
     })
-    .await
+    .await;
+
+    let server_stop = stop_cookie_peer(server).await;
+    drop(client);
+    finish_with_cleanup(result, server_stop)
 }
 
 #[tokio::test]
 async fn http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order() -> TestResult<()>
 {
-    bounded(async {
+    let mut server = None;
+    let mut client = None;
+
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::from_task(tokio::spawn(async move {
             let stream = accept_tls(&listener, &acceptor).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
 
@@ -207,38 +204,46 @@ async fn http2_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_orde
             drop(second);
             std::future::poll_fn(|context| connection.poll_closed(context)).await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
-        });
+        })));
 
-        let session = cookie_client_builder(&identity).cookies().build()?;
+        client = Some(cookie_client_builder(&identity).cookies().build()?);
+        let session = client.as_ref().ok_or("cookie client owner missing")?;
         send_and_drain(
-            &session,
+            session,
             HttpProtocol::Http2,
             &format!("https://{address}/seed"),
         )
         .await?;
         send_and_drain(
-            &session,
+            session,
             HttpProtocol::Http2,
             &format!("https://{address}/next/page"),
         )
         .await?;
-        drop(session);
+        drop(client.take());
 
-        assert_eq!(server.await??, ORDERED_COOKIE_CRUMBS);
+        assert_eq!(join_cookie_peer(&mut server).await?, ORDERED_COOKIE_CRUMBS);
         Ok(())
     })
-    .await
+    .await;
+
+    let server_stop = stop_cookie_peer(server).await;
+    drop(client);
+    finish_with_cleanup(result, server_stop)
 }
 
 #[tokio::test]
 async fn http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_order() -> TestResult<()>
 {
-    bounded(async {
+    let mut server = None;
+    let mut client = None;
+
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
         let (first_done, wait_for_first) = oneshot::channel();
         let (second_done, wait_for_second) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::from_task(tokio::spawn(async move {
             let (first, mut stream, mut connection) = accept_request(&endpoint).await?;
             assert_cookie_fields(first.headers(), &[])?;
             stream
@@ -261,11 +266,12 @@ async fn http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_orde
             wait_for_second.await.map_err(io::Error::other)?;
             drop((stream, connection));
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
-        });
+        })));
 
-        let session = cookie_client_builder(&identity).cookies().build()?;
+        client = Some(cookie_client_builder(&identity).cookies().build()?);
+        let session = client.as_ref().ok_or("cookie client owner missing")?;
         send_and_drain(
-            &session,
+            session,
             HttpProtocol::Http3,
             &format!("https://{address}/seed"),
         )
@@ -274,7 +280,7 @@ async fn http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_orde
             .send(())
             .map_err(|_| "HTTP/3 server stopped after its first response")?;
         send_and_drain(
-            &session,
+            session,
             HttpProtocol::Http3,
             &format!("https://{address}/next/page"),
         )
@@ -283,20 +289,27 @@ async fn http3_learns_repeated_set_cookie_and_emits_one_field_per_cookie_in_orde
             .send(())
             .map_err(|_| "HTTP/3 server stopped after its second response")?;
 
-        assert_eq!(server.await??, ORDERED_COOKIE_CRUMBS);
+        assert_eq!(join_cookie_peer(&mut server).await?, ORDERED_COOKIE_CRUMBS);
         Ok(())
     })
-    .await
+    .await;
+
+    let server_stop = stop_cookie_peer(server).await;
+    drop(client);
+    finish_with_cleanup(result, server_stop)
 }
 
 #[tokio::test]
 async fn caller_cookie_suppresses_injection_but_response_learning_continues() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let mut client = None;
+
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::from_task(tokio::spawn(async move {
             let stream = accept_tls(&listener, &acceptor).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
 
@@ -320,11 +333,12 @@ async fn caller_cookie_suppresses_injection_but_response_learning_continues() ->
             drop((first, second, third));
             std::future::poll_fn(|context| connection.poll_closed(context)).await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((explicit, learned))
-        });
+        })));
 
-        let session = cookie_client_builder(&identity).cookies().build()?;
+        client = Some(cookie_client_builder(&identity).cookies().build()?);
+        let session = client.as_ref().ok_or("cookie client owner missing")?;
         let url = format!("https://{address}/");
-        send_and_drain(&session, HttpProtocol::Http2, &url).await?;
+        send_and_drain(session, HttpProtocol::Http2, &url).await?;
         session
             .get(HttpProtocol::Http2, &url)?
             .header(RequestHeader::new("cookie", "manual=caller"))
@@ -333,25 +347,32 @@ async fn caller_cookie_suppresses_injection_but_response_learning_continues() ->
             .into_body()
             .collect()
             .await?;
-        send_and_drain(&session, HttpProtocol::Http2, &url).await?;
-        drop(session);
+        send_and_drain(session, HttpProtocol::Http2, &url).await?;
+        drop(client.take());
 
-        let (explicit, learned) = server.await??;
+        let (explicit, learned) = join_cookie_peer(&mut server).await?;
         assert_eq!(explicit, ["manual=caller"]);
         assert_eq!(learned, ["stored=one", "learned=two"]);
         Ok(())
     })
-    .await
+    .await;
+
+    let server_stop = stop_cookie_peer(server).await;
+    drop(client);
+    finish_with_cleanup(result, server_stop)
 }
 
 #[tokio::test]
 async fn dropping_body_after_headers_preserves_learned_cookie() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let mut client = None;
+
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::from_task(tokio::spawn(async move {
             let stream = accept_tls(&listener, &acceptor).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
             let (first_request, mut first_response) = accept_http2(&mut connection).await?;
@@ -385,38 +406,47 @@ async fn dropping_body_after_headers_preserves_learned_cookie() -> TestResult<()
                 reset.ok_or("stream reset was not retained")?,
                 observed,
             ))
-        });
+        })));
 
-        let session = cookie_client_builder(&identity).cookies().build()?;
+        client = Some(cookie_client_builder(&identity).cookies().build()?);
+        let session = client.as_ref().ok_or("cookie client owner missing")?;
         let response = session
             .get(HttpProtocol::Http2, &format!("https://{address}/abandoned"))?
             .send()
             .await?;
         drop(response);
         send_and_drain(
-            &session,
+            session,
             HttpProtocol::Http2,
             &format!("https://{address}/later"),
         )
         .await?;
-        drop(session);
+        drop(client.take());
 
-        let (reset, observed) = server.await??;
+        let (reset, observed) = join_cookie_peer(&mut server).await?;
         assert_eq!(reset, ::http2::Reason::CANCEL);
         assert_eq!(observed, ["cancelled=kept"]);
         Ok(())
     })
-    .await
+    .await;
+
+    let server_stop = stop_cookie_peer(server).await;
+    drop(client);
+    finish_with_cleanup(result, server_stop)
 }
 
 #[tokio::test]
 async fn rejected_response_cookies_do_not_block_independent_siblings() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let mut client = None;
+    let mut proxy = None;
+
+    let result = bounded(async {
         let identity = NamedTestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::from_task(tokio::spawn(async move {
             let mut first = accept_tls(&listener, &acceptor).await?;
             let first_request = read_head(&mut first).await?;
             write_http1_response(
@@ -435,25 +465,33 @@ async fn rejected_response_cookies_do_not_block_independent_siblings() -> TestRe
             let second_request = read_head(&mut second).await?;
             write_http1_response(&mut second, &[]).await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>((first_request, second_request))
-        });
+        })));
 
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(forward_connects(proxy_listener, address, 2));
+        proxy = Some(ConnectionPeer::from_task(spawn_cookie_proxy(
+            proxy_listener,
+            address,
+            2,
+            None,
+        )));
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
         let mut tls = tls_settings();
         tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
-        let session = Client::builder(ClientProfile::new(tls))
-            .add_root_certificate_der(identity.root_der)
-            .route(route)
-            .cookies()
-            .build()?;
+        client = Some(
+            Client::builder(ClientProfile::new(tls))
+                .add_root_certificate_der(identity.root_der)
+                .route(route)
+                .cookies()
+                .build()?,
+        );
+        let session = client.as_ref().ok_or("cookie client owner missing")?;
         let url = format!("https://example.com:{}/", address.port());
-        send_and_drain(&session, HttpProtocol::Http1, &url).await?;
-        send_and_drain(&session, HttpProtocol::Http1, &url).await?;
+        send_and_drain(session, HttpProtocol::Http1, &url).await?;
+        send_and_drain(session, HttpProtocol::Http1, &url).await?;
 
-        let (first, second) = server.await??;
-        assert_eq!(proxy.await??.len(), 2);
+        let (first, second) = join_cookie_peer(&mut server).await?;
+        assert_eq!(join_cookie_peer(&mut proxy).await?.len(), 2);
         assert_http1_cookie_fields(&first, &[])?;
         assert_http1_cookie_fields(&second, &["Cookie: before=one; after=two"])?;
         assert_eq!(
@@ -462,17 +500,26 @@ async fn rejected_response_cookies_do_not_block_independent_siblings() -> TestRe
         );
         Ok(())
     })
-    .await
+    .await;
+
+    let server_stop = stop_cookie_peer(server).await;
+    let proxy_stop = stop_cookie_peer(proxy).await;
+    let cleanup = finish_with_cleanup(server_stop, proxy_stop);
+    drop(client);
+    finish_with_cleanup(result, cleanup)
 }
 
 #[tokio::test]
 async fn profile_cookie_placement_positions_the_jar_field() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let mut client = None;
+
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::from_task(tokio::spawn(async move {
             let mut requests = Vec::new();
             for _ in 0..2 {
                 let mut stream = accept_tls(&listener, &acceptor).await?;
@@ -480,7 +527,7 @@ async fn profile_cookie_placement_positions_the_jar_field() -> TestResult<()> {
                 write_http1_response(&mut stream, &[]).await?;
             }
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
-        });
+        })));
 
         let url = format!("https://{address}/");
         let caller_fields = || {
@@ -493,10 +540,13 @@ async fn profile_cookie_placement_positions_the_jar_field() -> TestResult<()> {
         };
         for placement in [firefox::v157_cookie_placement(), CookiePlacement::last()] {
             let profile = ClientProfile::new(tls_settings()).with_cookie_placement(placement);
-            let session = Client::builder(profile)
-                .add_root_certificate_der(identity.root_der.clone())
-                .cookies()
-                .build()?;
+            client = Some(
+                Client::builder(profile)
+                    .add_root_certificate_der(identity.root_der.clone())
+                    .cookies()
+                    .build()?,
+            );
+            let session = client.as_ref().ok_or("cookie client owner missing")?;
             session
                 .cookie_jar()
                 .ok_or("cookie jar was disabled")?
@@ -507,9 +557,10 @@ async fn profile_cookie_placement_positions_the_jar_field() -> TestResult<()> {
                 .send()
                 .await?;
             response.into_body().collect().await?;
+            drop(client.take());
         }
 
-        let requests = server.await??;
+        let requests = join_cookie_peer(&mut server).await?;
         assert_eq!(
             field_names(&requests[0])?,
             [
@@ -534,7 +585,11 @@ async fn profile_cookie_placement_positions_the_jar_field() -> TestResult<()> {
         );
         Ok(())
     })
-    .await
+    .await;
+
+    let server_stop = stop_cookie_peer(server).await;
+    drop(client);
+    finish_with_cleanup(result, server_stop)
 }
 
 fn field_names(head: &[u8]) -> TestResult<Vec<String>> {
@@ -543,6 +598,230 @@ fn field_names(head: &[u8]) -> TestResult<Vec<String>> {
         .skip(1)
         .filter_map(|line| line.split_once(':').map(|(name, _)| name.to_owned()))
         .collect())
+}
+
+fn spawn_cookie_redirect_peer(
+    first_listener: TcpListener,
+    first_acceptor: SslAcceptor,
+    second_listener: TcpListener,
+    second_acceptor: SslAcceptor,
+    second_address: SocketAddr,
+    wait_for_client: oneshot::Receiver<()>,
+    mut control: Option<redirect_drivers::RedirectPeerControl>,
+) -> JoinHandle<TestResult<()>> {
+    tokio::spawn(async move {
+        let mut first_driver = None;
+        let mut second_driver = None;
+        let operation = async {
+            let first = accept_tls(&first_listener, &first_acceptor).await?;
+            let mut first_connection = ::http2::server::handshake(first).await?;
+            let (initial, mut initial_response) = accept_http2(&mut first_connection).await?;
+            assert_eq!(initial.uri().path(), "/start");
+            assert_eq!(cookie_fields(initial.headers())?, ["manual=first"]);
+            assert_eq!(
+                initial.headers().get("authorization"),
+                Some(&"secret".parse()?)
+            );
+            assert_eq!(
+                initial.headers().get("proxy-authorization"),
+                Some(&"proxy".parse()?)
+            );
+            assert_eq!(initial.headers().get("cookie2"), Some(&"legacy".parse()?));
+            initial_response.send_response(
+                Response::builder()
+                    .status(StatusCode::TEMPORARY_REDIRECT)
+                    .header("location", format!("https://{second_address}/final"))
+                    .header(SET_COOKIE, "learned=redirect; Secure; Path=/")
+                    .header("content-length", "0")
+                    .body(())?,
+                true,
+            )?;
+            drop(initial);
+            drop(initial_response);
+            first_driver = Some(spawn_cookie_redirect_driver(
+                first_connection,
+                control.as_mut().and_then(|control| control.first.take()),
+            ));
+
+            let second = accept_tls(&second_listener, &second_acceptor).await?;
+            let mut second_connection = ::http2::server::handshake(second).await?;
+            let (followed, mut final_response) = accept_http2(&mut second_connection).await?;
+            assert_eq!(followed.uri().path(), "/final");
+            assert_eq!(cookie_fields(followed.headers())?, ["learned=redirect"]);
+            assert!(!followed.headers().contains_key("authorization"));
+            assert!(!followed.headers().contains_key("proxy-authorization"));
+            assert!(!followed.headers().contains_key("cookie2"));
+            final_response.send_response(Response::builder().status(204).body(())?, true)?;
+            drop(followed);
+            drop(final_response);
+            second_driver = Some(spawn_cookie_redirect_driver(
+                second_connection,
+                control.as_mut().and_then(|control| control.second.take()),
+            ));
+
+            wait_for_client
+                .await
+                .map_err(|_| -> Box<dyn Error + Send + Sync> {
+                    "client stopped before redirected response completion".into()
+                })
+        }
+        .await;
+
+        match control {
+            None => redirect_driver_outcome(operation, first_driver, second_driver).await,
+            Some(control) => {
+                let operation = match operation {
+                    Ok(()) => control.operation,
+                    Err(error) => Err(error),
+                };
+
+                match control.cleanup {
+                    redirect_drivers::DriverCleanup::ActualAbort => {
+                        redirect_driver_outcome(operation, first_driver, second_driver).await
+                    }
+                    redirect_drivers::DriverCleanup::Observe(sender) => {
+                        let first = stop_cookie_peer(first_driver).await;
+                        let second = stop_cookie_peer(second_driver).await;
+                        let observed = sender.send([first, second]).map_err(
+                            |_| -> Box<dyn Error + Send + Sync> {
+                                "driver result observer disappeared".into()
+                            },
+                        );
+                        finish_with_cleanup(operation, observed)
+                    }
+                }
+            }
+        }
+    })
+}
+
+fn spawn_cookie_redirect_driver(
+    mut connection: ::http2::server::Connection<SslStream<TcpStream>, Bytes>,
+    gate: Option<redirect_drivers::DriverGate>,
+) -> ConnectionPeer<TestResult<()>> {
+    let (started, gate) = match gate {
+        Some(gate) => (
+            Some(gate.started),
+            Some((gate.role, gate.trigger, gate.completed)),
+        ),
+        None => (None, None),
+    };
+
+    let task = tokio::spawn(async move {
+        match gate {
+            None => {
+                std::future::poll_fn(|context| connection.poll_closed(context)).await?;
+                Ok(())
+            }
+            Some((role, trigger, completed)) => {
+                tokio::select! {
+                    result = std::future::poll_fn(|context| connection.poll_closed(context)) => {
+                        result?;
+                        Err("redirect driver closed before its controlled completion".into())
+                    }
+                    result = trigger => {
+                        result.map_err(io::Error::other)?;
+                        completed.send(role).map_err(|_| "driver completion observer disappeared")?;
+                        Err(io::Error::new(io::ErrorKind::PermissionDenied, redirect_drivers::DriverFailure(role)).into())
+                    }
+                }
+            }
+        }
+    });
+    if let Some(Err(backup)) = started.map(|started| started.send(task.abort_handle())) {
+        backup.abort();
+    }
+
+    ConnectionPeer::from_task(task)
+}
+
+async fn redirect_driver_outcome(
+    operation: TestResult<()>,
+    first_driver: Option<ConnectionPeer<TestResult<()>>>,
+    second_driver: Option<ConnectionPeer<TestResult<()>>>,
+) -> TestResult<()> {
+    let first = stop_cookie_peer(first_driver).await;
+    let second = stop_cookie_peer(second_driver).await;
+    finish_with_cleanup(operation, finish_with_cleanup(first, second))
+}
+
+fn spawn_canonical_cookie_peer(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    control: Option<task_ownership::CookiePeerControl>,
+) -> JoinHandle<TestResult<Vec<Vec<u8>>>> {
+    tokio::spawn(async move {
+        let (mut first_ready, lifetime) = match control {
+            Some(control) => (Some(control.first_ready), Some(control.lifetime)),
+            None => (None, None),
+        };
+
+        let mut requests = Vec::new();
+        for cookies in [&LEARNED_COOKIES[..], &[][..]] {
+            let mut stream = accept_tls(&listener, &acceptor).await?;
+            requests.push(read_head(&mut stream).await?);
+            write_http1_response(&mut stream, cookies).await?;
+
+            if let Some(ready) = first_ready.take() {
+                ready
+                    .send(requests[0].clone())
+                    .map_err(|_| "cookie readiness observer disappeared")?;
+            }
+        }
+
+        drop(lifetime);
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(requests)
+    })
+}
+
+fn spawn_cookie_proxy(
+    listener: TcpListener,
+    origin: SocketAddr,
+    count: usize,
+    control: Option<task_ownership::ProxyPeerControl>,
+) -> JoinHandle<TestResult<Vec<Vec<u8>>>> {
+    tokio::spawn(async move {
+        let (first_ready, lifetime) = match control {
+            Some(control) => (Some(control.first_ready), Some(control.lifetime)),
+            None => (None, None),
+        };
+
+        let result = forward_connects(listener, origin, count, first_ready).await;
+        drop(lifetime);
+
+        result
+    })
+}
+
+async fn cookie_peer_outcome(
+    operation: TestResult<()>,
+    mut peer: ConnectionPeer<TestResult<Vec<Vec<u8>>>>,
+) -> TestResult<Vec<Vec<u8>>> {
+    if let Err(error) = operation {
+        return finish_with_cleanup(Err(error), peer.stop().await);
+    }
+
+    match timeout(TEST_TIMEOUT, &mut peer).await {
+        Ok(result) => result?,
+        Err(source) => {
+            finish_with_cleanup(Err(CookieDeadline { source }.into()), peer.stop().await)
+        }
+    }
+}
+
+async fn join_cookie_peer<T>(peer: &mut Option<ConnectionPeer<TestResult<T>>>) -> TestResult<T> {
+    let result = peer.as_mut().ok_or("cookie fixture owner missing")?.await;
+    drop(peer.take());
+    result?
+}
+
+async fn stop_cookie_peer<T: Send + 'static>(
+    peer: Option<ConnectionPeer<TestResult<T>>>,
+) -> TestResult<()> {
+    match peer {
+        Some(peer) => peer.stop().await,
+        None => Ok(()),
+    }
 }
 
 fn cookie_client_builder(identity: &TestIdentity) -> ClientBuilder {
@@ -679,11 +958,18 @@ async fn forward_connects(
     listener: TcpListener,
     origin: SocketAddr,
     count: usize,
+    mut first_ready: Option<oneshot::Sender<Vec<u8>>>,
 ) -> TestResult<Vec<Vec<u8>>> {
     let mut requests = Vec::with_capacity(count);
     for _ in 0..count {
         let (mut client, _) = listener.accept().await?;
         requests.push(read_head(&mut client).await?);
+        if let Some(ready) = first_ready.take() {
+            ready
+                .send(requests[0].clone())
+                .map_err(|_| "CONNECT readiness observer disappeared")?;
+        }
+
         let mut upstream = TcpStream::connect(origin).await?;
         client
             .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
@@ -718,5 +1004,5 @@ where
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "cookie integration test exceeded its deadline")?
+        .map_err(|source| CookieDeadline { source })?
 }

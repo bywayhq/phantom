@@ -36,7 +36,15 @@ use tokio::{
     time::timeout,
 };
 
-use crate::support::tls::{TestResult, read_head, tls_settings};
+use crate::support::{
+    deadline::FixtureDeadline,
+    tls::{TestResult, read_head, tls_settings},
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+};
+
+mod owner_contract;
+
+type Peer<T> = ConnectionPeer<TestResult<T>>;
 
 #[derive(Clone, Default)]
 struct Capture {
@@ -73,7 +81,7 @@ impl Visit for Values {
 impl Capture {
     fn dispatch(&self) -> Dispatch {
         let dispatch = Dispatch::new(self.clone());
-        ::tracing::callsite::rebuild_interest_cache();
+        ::tracing::dispatcher::with_default(&dispatch, ::tracing::callsite::rebuild_interest_cache);
         dispatch
     }
 
@@ -195,10 +203,69 @@ fn client() -> TestResult<Client> {
     Ok(Client::builder(ClientProfile::new(tls_settings())).build()?)
 }
 
+fn stalled_origin(
+    listener: TcpListener,
+    released: oneshot::Receiver<()>,
+    mut control: Option<owner_contract::Control>,
+) -> Peer<Vec<u8>> {
+    spawn_peer(async move {
+        let (mut stream, _) = listener.accept().await?;
+        let _life = control.as_ref().map(owner_contract::Control::life);
+        let head = owner_contract::observe_head(&mut stream, &mut control).await?;
+        owner_contract::observe_release(released, control.as_ref())
+            .await
+            .map_err(|_| "client did not release timed-out peer")?;
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
+    })
+}
+
+fn spawn_peer<T: Send + 'static>(
+    future: impl Future<Output = TestResult<T>> + Send + 'static,
+) -> Peer<T> {
+    ConnectionPeer::spawn(future)
+}
+
+async fn finish_peer<T: Send + 'static>(
+    caller: TestResult<Option<Client>>,
+    mut peer: Peer<T>,
+) -> TestResult<(Option<Client>, T)> {
+    match caller {
+        Ok(client) => {
+            let observed =
+                timeout(Duration::from_secs(5), &mut peer)
+                    .await
+                    .map_err(|elapsed| {
+                        FixtureDeadline::new("tracing peer cleanup exceeded its deadline", elapsed)
+                    })???;
+            Ok((client, observed))
+        }
+        Err(primary) => {
+            let requested = !peer.is_finished();
+            if requested {
+                peer.abort();
+            }
+
+            let cleanup = match timeout(Duration::from_secs(5), &mut peer).await {
+                Ok(Ok(result)) => result.map(|_| ()),
+                Ok(Err(error)) if requested && error.is_cancelled() => Ok(()),
+                Ok(Err(error)) => Err(error.into()),
+                Err(elapsed) => Err(FixtureDeadline::new(
+                    "tracing peer cleanup exceeded its deadline",
+                    elapsed,
+                )
+                .into()),
+            };
+            finish_with_cleanup(Err(primary), cleanup)
+        }
+    }
+}
+
 async fn bounded<F: Future<Output = TestResult<()>>>(future: F) -> TestResult<()> {
     timeout(Duration::from_secs(15), future)
         .await
-        .map_err(|_| "tracing wire test exceeded its deadline")?
+        .map_err(|elapsed| {
+            FixtureDeadline::new("tracing wire test exceeded its deadline", elapsed)
+        })?
 }
 
 #[tokio::test]
@@ -213,7 +280,7 @@ async fn facade_traces_preserve_counts_and_retry_status_without_private_wire_val
         let response_body = private[6].clone();
         let response_header = private[5].clone();
         let upload_length = upload.len();
-        let peer = tokio::spawn(async move {
+        let peer = spawn_peer(async move {
             let mut observed = Vec::new();
             for status in [503, 200] {
                 let (mut stream, _) = listener.accept().await?;
@@ -228,18 +295,23 @@ async fn facade_traces_preserve_counts_and_retry_status_without_private_wire_val
             }
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observed)
         });
-        let status_retry = StatusRetry::new(&[StatusCode::SERVICE_UNAVAILABLE], NonZeroUsize::MIN, Duration::ZERO)?;
-        let client = Client::builder(ClientProfile::new(tls_settings()))
-            .retry_policy(RetryPolicy::none().with_status_retry(status_retry)).build()?;
         let capture = Capture::default();
-        let response = client.request(HttpProtocol::Http1, Method::PUT, &url)?
-            .headers(vec![RequestHeader::bearer_authorization(&private[2])?, RequestHeader::new("Cookie", format!("private={}", private[3]))])
-            .body(upload.clone()).send().with_subscriber(capture.dispatch()).await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(response.headers().get("x-private").ok_or("missing private response header")?.to_str()?, private[5]);
-        let body = response.into_body().collect_with_limit(1024).with_subscriber(capture.dispatch()).await?;
-        assert_eq!(body.as_ref(), private[6].as_bytes());
-        for (head, body) in peer.await?? {
+        let caller = async {
+            let status_retry = StatusRetry::new(&[StatusCode::SERVICE_UNAVAILABLE], NonZeroUsize::MIN, Duration::ZERO)?;
+            let client = Client::builder(ClientProfile::new(tls_settings()))
+                .retry_policy(RetryPolicy::none().with_status_retry(status_retry)).build()?;
+            let response = client.request(HttpProtocol::Http1, Method::PUT, &url)?
+                .headers(vec![RequestHeader::bearer_authorization(&private[2])?, RequestHeader::new("Cookie", format!("private={}", private[3]))])
+                .body(upload.clone()).send().with_subscriber(capture.dispatch()).await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response.headers().get("x-private").ok_or("missing private response header")?.to_str()?, private[5]);
+            let body = response.into_body().collect_with_limit(1024).with_subscriber(capture.dispatch()).await?;
+            assert_eq!(body.as_ref(), private[6].as_bytes());
+            Ok(Some(client))
+        }
+        .await;
+        let (_client, observed) = finish_peer(caller, peer).await?;
+        for (head, body) in observed {
             let head = std::str::from_utf8(&head)?;
             for canary in &private[..4] { assert!(head.contains(canary)); }
             assert_eq!(body.as_slice(), upload.as_ref());
@@ -262,7 +334,7 @@ async fn a_deferred_body_failure_keeps_the_completed_request_trace_private() -> 
         let address = listener.local_addr()?;
         let response_header = private[5].clone();
         let invalid_chunk = private[6].clone();
-        let peer = tokio::spawn(async move {
+        let peer = spawn_peer(async move {
             let (mut stream, _) = listener.accept().await?;
             let head = read_head(&mut stream).await?;
             stream.write_all(format!("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nX-Private: {response_header}\r\nConnection: close\r\n\r\n{invalid_chunk}\r\n").as_bytes()).await?;
@@ -270,12 +342,17 @@ async fn a_deferred_body_failure_keeps_the_completed_request_trace_private() -> 
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
         });
         let capture = Capture::default();
-        let response = client()?.get(HttpProtocol::Http1, &format!("http://{address}/{}?private={}", private[0], private[1]))?
-            .send().with_subscriber(capture.dispatch()).await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        let error = response.into_body().collect_with_limit(1024).with_subscriber(capture.dispatch()).await.err().ok_or("invalid chunk accepted")?;
-        assert_eq!(error.kind(), RequestErrorKind::Http1);
-        assert!(std::str::from_utf8(&peer.await??)?.contains(&private[1]));
+        let caller = async {
+            let response = client()?.get(HttpProtocol::Http1, &format!("http://{address}/{}?private={}", private[0], private[1]))?
+                .send().with_subscriber(capture.dispatch()).await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            let error = response.into_body().collect_with_limit(1024).with_subscriber(capture.dispatch()).await.err().ok_or("invalid chunk accepted")?;
+            assert_eq!(error.kind(), RequestErrorKind::Http1);
+            Ok(None)
+        }
+        .await;
+        let (_client, head) = finish_peer(caller, peer).await?;
+        assert!(std::str::from_utf8(&head)?.contains(&private[1]));
         assert_eq!(capture.span_field("client.request", "outcome")?, "ok");
         capture.assert_private(&private);
         Ok(())
@@ -321,7 +398,7 @@ async fn a_caller_body_cause_remains_inspectable_without_entering_facade_traces(
         let address = listener.local_addr()?;
         let (ready, body_ready) = oneshot::channel();
         let (release, released) = oneshot::channel();
-        let peer = tokio::spawn(async move {
+        let peer = spawn_peer(async move {
             let (mut stream, _) = listener.accept().await?;
             let head = read_head(&mut stream).await?;
             ready
@@ -333,38 +410,43 @@ async fn a_caller_body_cause_remains_inspectable_without_entering_facade_traces(
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
         });
         let capture = Capture::default();
-        let body = FailingBody {
-            ready: body_ready,
-            message: private[4].clone(),
-            failed: false,
-        };
-        let error = client()?
-            .request(
-                HttpProtocol::Http1,
-                Method::PUT,
-                &format!("http://{address}/{}?private={}", private[0], private[1]),
-            )?
-            .streaming_body(body)
-            .send()
-            .with_subscriber(capture.dispatch())
-            .await
-            .err()
-            .ok_or("failed body was accepted")?;
-        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
-        let mut cause: &(dyn std::error::Error + 'static) = &error;
-        let body_cause = loop {
-            if let Some(source) = cause.downcast_ref::<io::Error>() {
-                break source;
-            }
-            cause = cause
-                .source()
-                .ok_or("request lost the typed caller body cause")?;
-        };
-        assert_eq!(body_cause.to_string(), private[4]);
-        release
-            .send(())
-            .map_err(|_| "peer stopped before body failure inspection")?;
-        assert!(std::str::from_utf8(&peer.await??)?.contains(&private[1]));
+        let caller = async {
+            let body = FailingBody {
+                ready: body_ready,
+                message: private[4].clone(),
+                failed: false,
+            };
+            let error = client()?
+                .request(
+                    HttpProtocol::Http1,
+                    Method::PUT,
+                    &format!("http://{address}/{}?private={}", private[0], private[1]),
+                )?
+                .streaming_body(body)
+                .send()
+                .with_subscriber(capture.dispatch())
+                .await
+                .err()
+                .ok_or("failed body was accepted")?;
+            assert_eq!(error.kind(), RequestErrorKind::RequestBody);
+            let mut cause: &(dyn std::error::Error + 'static) = &error;
+            let body_cause = loop {
+                if let Some(source) = cause.downcast_ref::<io::Error>() {
+                    break source;
+                }
+                cause = cause
+                    .source()
+                    .ok_or("request lost the typed caller body cause")?;
+            };
+            assert_eq!(body_cause.to_string(), private[4]);
+            release
+                .send(())
+                .map_err(|_| "peer stopped before body failure inspection")?;
+            Ok(None)
+        }
+        .await;
+        let (_client, head) = finish_peer(caller, peer).await?;
+        assert!(std::str::from_utf8(&head)?.contains(&private[1]));
         assert_eq!(capture.span_field("client.request", "body_kind")?, "stream");
         assert_eq!(capture.span_field("client.request", "outcome")?, "error");
         capture.assert_private(&private);
@@ -381,7 +463,7 @@ async fn dropping_a_polled_send_records_cancellation_without_its_uri() -> TestRe
         let address = listener.local_addr()?;
         let (seen, received) = oneshot::channel();
         let (release, released) = oneshot::channel();
-        let peer = tokio::spawn(async move {
+        let peer = spawn_peer(async move {
             let (mut stream, _) = listener.accept().await?;
             let head = read_head(&mut stream).await?;
             seen.send(()).map_err(|_| "client stopped before the request was observed")?;
@@ -389,15 +471,20 @@ async fn dropping_a_polled_send_records_cancellation_without_its_uri() -> TestRe
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
         });
         let capture = Capture::default();
-        let request = client()?.get(HttpProtocol::Http1, &format!("http://{address}/{}?private={}", private[0], private[1]))?;
-        let mut sending = Box::pin(request.send().with_subscriber(capture.dispatch()));
-        tokio::select! {
-            result = &mut sending => { return Err(format!("stalled request completed: {}", result.is_ok()).into()); }
-            result = received => { result.map_err(|_| "peer stopped before reading the request")?; }
+        let caller = async {
+            let request = client()?.get(HttpProtocol::Http1, &format!("http://{address}/{}?private={}", private[0], private[1]))?;
+            let mut sending = Box::pin(request.send().with_subscriber(capture.dispatch()));
+            tokio::select! {
+                result = &mut sending => { return Err(format!("stalled request completed: {}", result.is_ok()).into()); }
+                result = received => { result.map_err(|_| "peer stopped before reading the request")?; }
+            }
+            drop(sending);
+            release.send(()).map_err(|_| "peer stopped before cancellation")?;
+            Ok(None)
         }
-        drop(sending);
-        release.send(()).map_err(|_| "peer stopped before cancellation")?;
-        assert!(std::str::from_utf8(&peer.await??)?.contains(&private[1]));
+        .await;
+        let (_client, head) = finish_peer(caller, peer).await?;
+        assert!(std::str::from_utf8(&head)?.contains(&private[1]));
         assert_eq!(capture.span_field("client.request", "outcome")?, "cancelled");
         capture.assert_private(&private);
         Ok(())
@@ -411,35 +498,33 @@ async fn a_stalled_response_records_the_timeout_phase_without_its_uri() -> TestR
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let (release, released) = oneshot::channel();
-        let peer = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await?;
-            let head = read_head(&mut stream).await?;
-            released
-                .await
-                .map_err(|_| "client did not release timed-out peer")?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
-        });
+        let peer = stalled_origin(listener, released, None);
         let capture = Capture::default();
-        let error = client()?
-            .get(
-                HttpProtocol::Http1,
-                &format!("http://{address}/{}?private={}", private[0], private[1]),
-            )?
-            .timeouts(
-                RequestTimeoutOverrides::disabled()
-                    .response_head(TimeoutOverride::Limit(Duration::from_millis(100))),
-            )
-            .send()
-            .with_subscriber(capture.dispatch())
-            .await
-            .err()
-            .ok_or("stalled request succeeded")?;
-        assert_eq!(error.kind(), RequestErrorKind::Timeout);
-        assert_eq!(error.timeout_phase(), Some(TimeoutPhase::ResponseHead));
-        release
-            .send(())
-            .map_err(|_| "peer stopped before timeout")?;
-        assert!(std::str::from_utf8(&peer.await??)?.contains(&private[1]));
+        let caller = async {
+            let error = client()?
+                .get(
+                    HttpProtocol::Http1,
+                    &format!("http://{address}/{}?private={}", private[0], private[1]),
+                )?
+                .timeouts(
+                    RequestTimeoutOverrides::disabled()
+                        .response_head(TimeoutOverride::Limit(Duration::from_millis(100))),
+                )
+                .send()
+                .with_subscriber(capture.dispatch())
+                .await
+                .err()
+                .ok_or("stalled request succeeded")?;
+            assert_eq!(error.kind(), RequestErrorKind::Timeout);
+            assert_eq!(error.timeout_phase(), Some(TimeoutPhase::ResponseHead));
+            release
+                .send(())
+                .map_err(|_| "peer stopped before timeout")?;
+            Ok(None)
+        }
+        .await;
+        let (_client, head) = finish_peer(caller, peer).await?;
+        assert!(std::str::from_utf8(&head)?.contains(&private[1]));
         assert_eq!(capture.span_field("client.request", "outcome")?, "timeout");
         assert_eq!(
             capture.span_field("client.request", "timeout_phase")?,
@@ -449,4 +534,54 @@ async fn a_stalled_response_records_the_timeout_phase_without_its_uri() -> TestR
         Ok(())
     })
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::Cell, future::poll_fn, io, task::Poll};
+
+    use super::{TestResult, bounded};
+
+    #[tokio::test(start_paused = true)]
+    async fn entered_pending_deadline_retains_its_original_elapsed() -> TestResult<()> {
+        let entered = Cell::new(false);
+        let operation = bounded(poll_fn(|_| {
+            entered.set(true);
+            Poll::<TestResult<()>>::Pending
+        }));
+        tokio::pin!(operation);
+        assert!(futures_util::poll!(&mut operation).is_pending());
+        assert!(entered.get(), "the actual operation was not polled");
+        tokio::time::advance(std::time::Duration::from_secs(15)).await;
+
+        let error = operation.await.err().ok_or("pending operation succeeded")?;
+        assert_eq!(error.to_string(), "tracing wire test exceeded its deadline");
+        assert!(
+            error
+                .source()
+                .is_some_and(|source| source.is::<tokio::time::error::Elapsed>()),
+            "the fixture deadline discarded its original Elapsed"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn ready_deadline_keeps_the_original_operation_error() -> TestResult<()> {
+        let failure = io::Error::new(io::ErrorKind::PermissionDenied, "fixture operation failed");
+        let error = bounded(async { Err(failure.into()) })
+            .await
+            .err()
+            .ok_or("failed operation succeeded")?;
+        let original = error
+            .downcast_ref::<io::Error>()
+            .ok_or("operation error type changed")?;
+        assert_eq!(original.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(original.to_string(), "fixture operation failed");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn ready_deadline_keeps_success() -> TestResult<()> {
+        bounded(async { Ok(()) }).await
+    }
 }

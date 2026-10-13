@@ -1,8 +1,7 @@
-//! Loopback tunnel proxies that record one CONNECT and relay in the background.
+//! Loopback tunnel proxies that return observed CONNECT fields with their relay owner.
 //!
-//! Each function returns as soon as the tunnel is established. The relay runs
-//! in a detached task and ignores teardown errors, so assertions never depend
-//! on how a platform reports the client hanging up. An `_on` variant borrows
+//! Each tunnel function returns as soon as it is established. Keep the returned
+//! owner alive while using it, then cancel and join its tasks. An `_on` variant borrows
 //! the listener, so a test can keep it and check with
 //! [`no_connection_arrives`] that nothing else connected later.
 
@@ -11,6 +10,7 @@ use std::{
     io,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::{Arc, Mutex},
+    task::{Context, Poll, Waker},
     time::Duration,
 };
 
@@ -25,15 +25,65 @@ use tokio::{
 
 use super::tls::{TestResult, accept_tls_stream, read_head};
 
+#[path = "tunnel_proxy/connection_peer.rs"]
+pub(crate) mod connection_peer;
+pub(crate) use connection_peer::{ConnectionPeer, finish_with_cleanup};
+
+#[path = "tunnel_proxy/relay_controls.rs"]
+mod relay_controls;
+
 const ESTABLISHED: &[u8] = b"HTTP/1.1 200 Connection Established\r\n\r\n";
 const BASIC_CHALLENGE: &[u8] = b"HTTP/1.1 407 Proxy Authentication Required\r\n\
     Proxy-Authenticate: Basic realm=\"websocket\"\r\nContent-Length: 0\r\n\r\n";
+
+#[derive(Debug)]
+pub(crate) struct EstablishedTunnel<T> {
+    pub(crate) observed: T,
+    peers: Vec<ConnectionPeer<TestResult<()>>>,
+}
+
+impl<T> EstablishedTunnel<T> {
+    fn new(observed: T, peer: ConnectionPeer<TestResult<()>>) -> Self {
+        Self {
+            observed,
+            peers: vec![peer],
+        }
+    }
+
+    pub(crate) fn map<U>(self, map: impl FnOnce(T) -> U) -> EstablishedTunnel<U> {
+        EstablishedTunnel {
+            observed: map(self.observed),
+            peers: self.peers,
+        }
+    }
+
+    pub(crate) fn combine<U>(mut self, other: EstablishedTunnel<U>) -> EstablishedTunnel<(T, U)> {
+        self.peers.extend(other.peers);
+        EstablishedTunnel {
+            observed: (self.observed, other.observed),
+            peers: self.peers,
+        }
+    }
+
+    pub(crate) async fn cancel(self) -> TestResult<T> {
+        for peer in &self.peers {
+            peer.abort();
+        }
+
+        let mut cleanup = Ok(());
+        for peer in self.peers {
+            cleanup = finish_with_cleanup(cleanup, peer.stop().await);
+        }
+        cleanup?;
+        Ok(self.observed)
+    }
+}
 
 /// Accepts one plaintext HTTP/1.1 CONNECT and tunnels it to `origin`.
 pub(crate) async fn http1_connect(
     listener: TcpListener,
     origin: SocketAddr,
-) -> TestResult<Vec<u8>> {
+) -> TestResult<EstablishedTunnel<Vec<u8>>> {
     http1_connect_on(&listener, origin).await
 }
 
@@ -41,11 +91,11 @@ pub(crate) async fn http1_connect(
 pub(crate) async fn http1_connect_on(
     listener: &TcpListener,
     origin: SocketAddr,
-) -> TestResult<Vec<u8>> {
+) -> TestResult<EstablishedTunnel<Vec<u8>>> {
     let (mut downstream, _) = listener.accept().await?;
     let request = read_head(&mut downstream).await?;
-    establish_relay(downstream, origin).await?;
-    Ok(request)
+    let relay = establish_relay(downstream, origin).await?;
+    Ok(EstablishedTunnel::new(request, relay))
 }
 
 /// Challenges the first plaintext HTTP/1.1 CONNECT with a keep-alive Basic
@@ -57,7 +107,7 @@ pub(crate) async fn http1_connect_on(
 pub(crate) async fn http1_challenge_then_connect(
     listener: TcpListener,
     origin: SocketAddr,
-) -> TestResult<(Vec<u8>, Vec<u8>, bool)> {
+) -> TestResult<EstablishedTunnel<(Vec<u8>, Vec<u8>, bool)>> {
     http1_challenge_then_connect_on(&listener, origin).await
 }
 
@@ -65,28 +115,35 @@ pub(crate) async fn http1_challenge_then_connect(
 pub(crate) async fn http1_challenge_then_connect_on(
     listener: &TcpListener,
     origin: SocketAddr,
-) -> TestResult<(Vec<u8>, Vec<u8>, bool)> {
+) -> TestResult<EstablishedTunnel<(Vec<u8>, Vec<u8>, bool)>> {
     let (mut first, _) = listener.accept().await?;
     let anonymous = read_head(&mut first).await?;
     first.write_all(BASIC_CHALLENGE).await?;
     first.flush().await?;
     let replay = tokio::select! {
-        head = read_head(&mut first) => head.ok(),
+        head = read_head(&mut first) => match head {
+            Ok(head) => Some(head),
+            Err(error) if super::tls::is_peer_gone(&error) => None,
+            Err(error) => return Err(error.into()),
+        },
         accepted = listener.accept() => {
             let (mut second, _) = accepted?;
             let authorized = read_head(&mut second).await?;
-            establish_relay(second, origin).await?;
-            return Ok((anonymous, authorized, false));
+            let relay = establish_relay(second, origin).await?;
+            return Ok(EstablishedTunnel::new((anonymous, authorized, false), relay));
         }
     };
     if let Some(authorized) = replay {
-        establish_relay(first, origin).await?;
-        return Ok((anonymous, authorized, true));
+        let relay = establish_relay(first, origin).await?;
+        return Ok(EstablishedTunnel::new((anonymous, authorized, true), relay));
     }
     let (mut second, _) = listener.accept().await?;
     let authorized = read_head(&mut second).await?;
-    establish_relay(second, origin).await?;
-    Ok((anonymous, authorized, false))
+    let relay = establish_relay(second, origin).await?;
+    Ok(EstablishedTunnel::new(
+        (anonymous, authorized, false),
+        relay,
+    ))
 }
 
 /// Accepts one TLS HTTP/1.1 CONNECT and tunnels it to `origin`.
@@ -94,7 +151,7 @@ pub(crate) async fn https1_connect(
     listener: TcpListener,
     acceptor: SslAcceptor,
     origin: SocketAddr,
-) -> TestResult<Vec<u8>> {
+) -> TestResult<EstablishedTunnel<Vec<u8>>> {
     https1_connect_on(&listener, acceptor, origin).await
 }
 
@@ -103,12 +160,12 @@ pub(crate) async fn https1_connect_on(
     listener: &TcpListener,
     acceptor: SslAcceptor,
     origin: SocketAddr,
-) -> TestResult<Vec<u8>> {
+) -> TestResult<EstablishedTunnel<Vec<u8>>> {
     let (tcp, _) = listener.accept().await?;
     let mut downstream = accept_tls_stream(tcp, acceptor).await?;
     let request = read_head(&mut downstream).await?;
-    establish_relay(downstream, origin).await?;
-    Ok(request)
+    let relay = establish_relay(downstream, origin).await?;
+    Ok(EstablishedTunnel::new(request, relay))
 }
 
 /// Accepts one TLS HTTP/1.1 CONNECT and tunnels it to `origin`, returning
@@ -117,7 +174,7 @@ pub(crate) async fn https1_connect_recording_client_certificate(
     listener: TcpListener,
     acceptor: SslAcceptor,
     origin: SocketAddr,
-) -> TestResult<Option<Vec<u8>>> {
+) -> TestResult<EstablishedTunnel<Option<Vec<u8>>>> {
     let (tcp, _) = listener.accept().await?;
     let mut downstream = accept_tls_stream(tcp, acceptor).await?;
     let presented = downstream
@@ -126,8 +183,8 @@ pub(crate) async fn https1_connect_recording_client_certificate(
         .map(|certificate| certificate.to_der())
         .transpose()?;
     read_head(&mut downstream).await?;
-    establish_relay(downstream, origin).await?;
-    Ok(presented)
+    let relay = establish_relay(downstream, origin).await?;
+    Ok(EstablishedTunnel::new(presented, relay))
 }
 
 /// Accepts one plaintext HTTP/1.1 CONNECT and answers it with `status`.
@@ -154,31 +211,38 @@ pub(crate) async fn https1_challenge_then_connect(
     listener: TcpListener,
     acceptor: SslAcceptor,
     origin: SocketAddr,
-) -> TestResult<(Vec<u8>, Vec<u8>, bool)> {
+) -> TestResult<EstablishedTunnel<(Vec<u8>, Vec<u8>, bool)>> {
     let (first, _) = listener.accept().await?;
     let mut first = accept_tls_stream(first, acceptor.clone()).await?;
     let anonymous = read_head(&mut first).await?;
     first.write_all(BASIC_CHALLENGE).await?;
     first.flush().await?;
     let replay = tokio::select! {
-        head = read_head(&mut first) => head.ok(),
+        head = read_head(&mut first) => match head {
+            Ok(head) => Some(head),
+            Err(error) if super::tls::is_peer_gone(&error) => None,
+            Err(error) => return Err(error.into()),
+        },
         accepted = listener.accept() => {
             let (second, _) = accepted?;
             let mut second = accept_tls_stream(second, acceptor).await?;
             let authorized = read_head(&mut second).await?;
-            establish_relay(second, origin).await?;
-            return Ok((anonymous, authorized, false));
+            let relay = establish_relay(second, origin).await?;
+            return Ok(EstablishedTunnel::new((anonymous, authorized, false), relay));
         }
     };
     if let Some(authorized) = replay {
-        establish_relay(first, origin).await?;
-        return Ok((anonymous, authorized, true));
+        let relay = establish_relay(first, origin).await?;
+        return Ok(EstablishedTunnel::new((anonymous, authorized, true), relay));
     }
     let (second, _) = listener.accept().await?;
     let mut second = accept_tls_stream(second, acceptor).await?;
     let authorized = read_head(&mut second).await?;
-    establish_relay(second, origin).await?;
-    Ok((anonymous, authorized, false))
+    let relay = establish_relay(second, origin).await?;
+    Ok(EstablishedTunnel::new(
+        (anonymous, authorized, false),
+        relay,
+    ))
 }
 
 /// The CONNECT request observed by an HTTP/2 proxy.
@@ -202,7 +266,7 @@ pub(crate) async fn http2_connect(
     listener: TcpListener,
     acceptor: SslAcceptor,
     origin: SocketAddr,
-) -> TestResult<Http2ConnectRecord> {
+) -> TestResult<EstablishedTunnel<Http2ConnectRecord>> {
     http2_connect_on(&listener, acceptor, origin).await
 }
 
@@ -211,9 +275,14 @@ pub(crate) async fn http2_connect_on(
     listener: &TcpListener,
     acceptor: SslAcceptor,
     origin: SocketAddr,
-) -> TestResult<Http2ConnectRecord> {
-    let (mut records, _) = http2_connects(listener, acceptor, origin, false).await?;
-    records.pop().ok_or_else(|| "no CONNECT was served".into())
+) -> TestResult<EstablishedTunnel<Http2ConnectRecord>> {
+    let tunnel = http2_connects(listener, acceptor, origin, false).await?;
+    let EstablishedTunnel {
+        observed: (mut records, _),
+        peers,
+    } = tunnel;
+    let observed = records.pop().ok_or("no CONNECT was served")?;
+    Ok(EstablishedTunnel { observed, peers })
 }
 
 /// Accepts one h2-only TLS proxy connection, answers its first CONNECT with a
@@ -225,9 +294,10 @@ pub(crate) async fn http2_challenge_then_connect(
     listener: TcpListener,
     acceptor: SslAcceptor,
     origin: SocketAddr,
-) -> TestResult<(Vec<Http2ConnectRecord>, bool)> {
-    let (records, _) = http2_challenge_then_connect_on(&listener, acceptor, origin).await?;
-    Ok((records, no_connection_arrives(&listener).await))
+) -> TestResult<EstablishedTunnel<(Vec<Http2ConnectRecord>, bool)>> {
+    let tunnel = http2_challenge_then_connect_on(&listener, acceptor, origin).await?;
+    let quiet = no_connection_arrives(&listener).await;
+    Ok(tunnel.map(|(records, _)| (records, quiet)))
 }
 
 /// Serves [`http2_challenge_then_connect`]'s two CONNECTs on a borrowed
@@ -237,7 +307,7 @@ pub(crate) async fn http2_challenge_then_connect_on(
     listener: &TcpListener,
     acceptor: SslAcceptor,
     origin: SocketAddr,
-) -> TestResult<(Vec<Http2ConnectRecord>, LateConnects)> {
+) -> TestResult<EstablishedTunnel<(Vec<Http2ConnectRecord>, LateConnects)>> {
     http2_connects(listener, acceptor, origin, true).await
 }
 
@@ -253,7 +323,7 @@ async fn http2_connects(
     acceptor: SslAcceptor,
     origin: SocketAddr,
     challenge_first: bool,
-) -> TestResult<(Vec<Http2ConnectRecord>, LateConnects)> {
+) -> TestResult<EstablishedTunnel<(Vec<Http2ConnectRecord>, LateConnects)>> {
     let (tcp, _) = listener.accept().await?;
     let stream = accept_tls_stream(tcp, acceptor).await?;
     if stream.ssl().selected_alpn_protocol() != Some(b"h2") {
@@ -261,6 +331,7 @@ async fn http2_connects(
     }
     let mut connection = ::http2::server::handshake(stream).await?;
     let mut records = Vec::new();
+    let mut peers = Vec::new();
     let mut challenge = challenge_first;
     loop {
         let (request, mut respond) = connection
@@ -282,22 +353,29 @@ async fn http2_connects(
         }
         let send = respond.send_response(Response::new(()), false)?;
         let upstream = TcpStream::connect(origin).await?;
-        spawn_http2_relay(request.into_body(), send, upstream);
+        spawn_http2_relay(request.into_body(), send, upstream, &mut peers);
         break;
     }
     let late = LateConnects::default();
     let log = Arc::clone(&late);
-    tokio::spawn(async move {
+    peers.push(ConnectionPeer::spawn(async move {
         // Dropping each responder resets its stream.
-        while let Some(Ok((request, respond))) = connection.accept().await {
-            if let Ok(record) = connect_record(&request, respond.stream_id().as_u32())
-                && let Ok(mut log) = log.lock()
-            {
-                log.push(record);
-            }
+        while let Some(accepted) = connection.accept().await {
+            let (request, respond) = match accepted {
+                Ok(accepted) => accepted,
+                Err(error) => return relay_result(Err(error.into())),
+            };
+            let record = connect_record(&request, respond.stream_id().as_u32())?;
+            log.lock()
+                .map_err(|_| "late CONNECT log was poisoned")?
+                .push(record);
         }
-    });
-    Ok((records, late))
+        TestResult::Ok(())
+    }));
+    Ok(EstablishedTunnel {
+        observed: (records, late),
+        peers,
+    })
 }
 
 fn connect_record<B>(request: &http::Request<B>, stream_id: u32) -> TestResult<Http2ConnectRecord> {
@@ -326,7 +404,7 @@ pub(crate) enum Socks5Target {
 pub(crate) async fn socks5_connect(
     listener: TcpListener,
     origin: SocketAddr,
-) -> TestResult<(Socks5Target, u16)> {
+) -> TestResult<EstablishedTunnel<(Socks5Target, u16)>> {
     socks5_connect_on(&listener, origin).await
 }
 
@@ -334,7 +412,7 @@ pub(crate) async fn socks5_connect(
 pub(crate) async fn socks5_connect_on(
     listener: &TcpListener,
     origin: SocketAddr,
-) -> TestResult<(Socks5Target, u16)> {
+) -> TestResult<EstablishedTunnel<(Socks5Target, u16)>> {
     let (mut downstream, _) = listener.accept().await?;
     let target = socks5_request(&mut downstream).await?;
     let upstream = TcpStream::connect(origin).await?;
@@ -342,8 +420,10 @@ pub(crate) async fn socks5_connect_on(
         .write_all(&[5, 0, 0, 1, 127, 0, 0, 1, 0, 0])
         .await?;
     downstream.flush().await?;
-    spawn_relay(downstream, upstream);
-    Ok(target)
+    Ok(EstablishedTunnel::new(
+        target,
+        spawn_relay(downstream, upstream),
+    ))
 }
 
 /// Accepts one no-authentication SOCKS5 CONNECT and refuses it.
@@ -394,63 +474,156 @@ async fn socks5_request(stream: &mut TcpStream) -> TestResult<(Socks5Target, u16
     Ok((target, port))
 }
 
-async fn establish_relay<S>(mut downstream: S, origin: SocketAddr) -> io::Result<()>
+async fn establish_relay<S>(
+    mut downstream: S,
+    origin: SocketAddr,
+) -> io::Result<ConnectionPeer<TestResult<()>>>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     let upstream = TcpStream::connect(origin).await?;
     downstream.write_all(ESTABLISHED).await?;
     downstream.flush().await?;
-    spawn_relay(downstream, upstream);
-    Ok(())
+    Ok(spawn_relay(downstream, upstream))
 }
 
-fn spawn_relay<S>(mut downstream: S, mut upstream: TcpStream)
+fn spawn_relay<S>(mut downstream: S, mut upstream: TcpStream) -> ConnectionPeer<TestResult<()>>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    tokio::spawn(async move {
-        let _ = copy_bidirectional(&mut downstream, &mut upstream).await;
-    });
+    ConnectionPeer::spawn(async move {
+        match copy_bidirectional(&mut downstream, &mut upstream).await {
+            Ok(_) => Ok(()),
+            Err(error) if super::tls::is_peer_gone(&error) => Ok(()),
+            Err(error) => Err(error.into()),
+        }
+    })
 }
 
 fn spawn_http2_relay(
     mut downstream: ::http2::RecvStream,
     mut send: ::http2::SendStream<Bytes>,
     upstream: TcpStream,
+    peers: &mut Vec<ConnectionPeer<TestResult<()>>>,
 ) {
     let (mut read, mut write) = upstream.into_split();
-    tokio::spawn(async move {
-        while let Some(Ok(chunk)) = downstream.data().await {
-            let _ = downstream.flow_control().release_capacity(chunk.len());
-            if write.write_all(&chunk).await.is_err() {
-                return;
+    peers.push(ConnectionPeer::spawn(async move {
+        let result: TestResult<()> = async {
+            while let Some(chunk) = downstream.data().await {
+                let chunk = chunk?;
+                downstream.flow_control().release_capacity(chunk.len())?;
+                write.write_all(&chunk).await?;
             }
+            write.shutdown().await?;
+            TestResult::Ok(())
         }
-        let _ = write.shutdown().await;
-    });
-    tokio::spawn(async move {
-        let mut buffer = vec![0_u8; 16 * 1024];
-        loop {
-            let count = match read.read(&mut buffer).await {
-                Ok(0) | Err(_) => {
-                    let _ = send.send_data(Bytes::new(), true);
-                    return;
-                }
-                Ok(count) => count,
-            };
-            let mut chunk = Bytes::copy_from_slice(&buffer[..count]);
-            while !chunk.is_empty() {
-                send.reserve_capacity(chunk.len());
-                let capacity = match poll_fn(|context| send.poll_capacity(context)).await {
-                    Some(Ok(capacity)) => capacity,
-                    _ => return,
+        .await;
+        relay_result(result)
+    }));
+    peers.push(ConnectionPeer::spawn(async move {
+        let result: TestResult<()> = async {
+            let mut buffer = vec![0_u8; 16 * 1024];
+            loop {
+                let count = tokio::select! {
+                    biased;
+                    reset = poll_fn(|context| send.poll_reset(context)) => {
+                        return http2_reset_result(reset);
+                    }
+                    count = read.read(&mut buffer) => count?,
                 };
-                let part = chunk.split_to(capacity.min(chunk.len()));
-                if send.send_data(part, false).is_err() {
-                    return;
+                if count == 0 {
+                    send_http2_data(&mut send, Bytes::new(), true)?;
+                    return TestResult::Ok(());
+                }
+                let mut chunk = Bytes::copy_from_slice(&buffer[..count]);
+                while !chunk.is_empty() {
+                    send.reserve_capacity(chunk.len());
+                    let Some(capacity) = poll_fn(|context| {
+                        match send.poll_reset(context) {
+                            Poll::Ready(reset) => {
+                                return Poll::Ready(http2_reset_result(reset).map(|()| None));
+                            }
+                            Poll::Pending => {}
+                        }
+                        match send.poll_capacity(context) {
+                            Poll::Ready(Some(result)) => {
+                                Poll::Ready(result.map(Some).map_err(Into::into))
+                            }
+                            Poll::Ready(None) => Poll::Ready(Err(
+                                "proxy CONNECT response stream closed during relay".into(),
+                            )),
+                            Poll::Pending => Poll::Pending,
+                        }
+                    })
+                    .await?
+                    else {
+                        return TestResult::Ok(());
+                    };
+                    let part = chunk.split_to(capacity.min(chunk.len()));
+                    send_http2_data(&mut send, part, false)?;
                 }
             }
         }
-    });
+        .await;
+        relay_result(result)
+    }));
+}
+
+fn send_http2_data(
+    send: &mut ::http2::SendStream<Bytes>,
+    data: Bytes,
+    end_stream: bool,
+) -> TestResult<()> {
+    match send.send_data(data, end_stream) {
+        Ok(()) => Ok(()),
+        Err(error) => {
+            // A reset can arrive between reading the origin and sending DATA.
+            // Probe once: awaiting a reset would hang after a local END_STREAM.
+            let mut context = Context::from_waker(Waker::noop());
+            match send.poll_reset(&mut context) {
+                Poll::Ready(reset) => http2_reset_result(reset),
+                Poll::Pending => Err(error.into()),
+            }
+        }
+    }
+}
+
+fn http2_reset_result(reset: Result<::http2::Reason, ::http2::Error>) -> TestResult<()> {
+    match reset {
+        Ok(::http2::Reason::CANCEL) => Ok(()),
+        Ok(reason) => Err(::http2::Error::from(reason).into()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+/// A deliberate peer teardown can reset the stream or close its transport.
+/// Decoder errors, local misuse, and other protocol reasons remain failures.
+pub(crate) fn relay_result(result: TestResult<()>) -> TestResult<()> {
+    match result {
+        Err(error)
+            if error
+                .downcast_ref::<io::Error>()
+                .is_some_and(super::tls::is_peer_gone) =>
+        {
+            Ok(())
+        }
+        Err(error)
+            if error.downcast_ref::<::http2::Error>().is_some_and(|error| {
+                error.get_io().is_some_and(|error| {
+                    matches!(
+                        error.kind(),
+                        io::ErrorKind::BrokenPipe
+                            | io::ErrorKind::ConnectionReset
+                            | io::ErrorKind::ConnectionAborted
+                    )
+                }) || (error.is_remote()
+                    && ((error.is_reset() && error.reason() == Some(::http2::Reason::CANCEL))
+                        || (error.is_go_away()
+                            && error.reason() == Some(::http2::Reason::NO_ERROR))))
+            }) =>
+        {
+            Ok(())
+        }
+        result => result,
+    }
 }

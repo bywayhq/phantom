@@ -1,9 +1,5 @@
 //! Public session connection-reuse integration tests.
 
-#[path = "session/proxy_auth.rs"]
-mod proxy_auth;
-use crate::support::tls as tls_support;
-
 use std::{
     error::Error,
     future::{Future, poll_fn},
@@ -16,18 +12,26 @@ use std::{
 
 use btls::ssl::{Ssl, SslAcceptor};
 use bytes::Bytes;
-use http::{Method, Response, StatusCode};
+use http::Response;
 use http_body_util::BodyExt;
 use phantom::{Client, HttpProtocol, HttpProxy, RequestErrorKind, RequestHeader, Route};
 use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt, copy_bidirectional},
     net::{TcpListener, TcpStream},
     sync::Barrier,
-    time::timeout,
+    time::{Instant, timeout, timeout_at},
 };
 use tokio_btls::SslStream;
 
+use crate::support::{deadline::FixtureDeadline, tls as tls_support};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, client_builder, read_head, test_client};
+
+mod body_ownership;
+mod proxy_auth;
+mod proxy_ownership;
+mod request_ownership;
+mod reuse_ownership;
+mod upload_contract;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const UNICODE_ORIGIN_NAME: &str = "bücher.example";
@@ -36,16 +40,19 @@ type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[tokio::test]
 async fn sequential_same_origin_requests_reuse_one_http2_connection() -> TestResult<()> {
-    bounded(async {
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let (identity, address, server) = timeout_at(deadline, async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
-            let stream = accept_tls(&listener, &acceptor).await?;
-            serve_requests(stream, 2).await
-        });
+        let server = reuse_ownership::spawn_server(listener, acceptor, 2, None);
+        Ok::<_, Box<dyn Error + Send + Sync>>((identity, address, server))
+    })
+    .await
+    .map_err(|elapsed| FixtureDeadline::new("session test exceeded its deadline", elapsed))??;
 
+    let caller = match timeout_at(deadline, async {
         let session = test_client(&identity, true)?;
         for path in ["/first", "/second"] {
             let response = session
@@ -56,287 +63,47 @@ async fn sequential_same_origin_requests_reuse_one_http2_connection() -> TestRes
             response.into_body().collect().await?;
         }
         drop(session);
-
-        let requests = server.await??;
-        assert_eq!(
-            requests,
-            vec![(1, "/first".to_owned()), (3, "/second".to_owned())]
-        );
         Ok(())
     })
     .await
+    {
+        Ok(result) => result,
+        Err(elapsed) => {
+            Err(FixtureDeadline::new("session test exceeded its deadline", elapsed).into())
+        }
+    };
+
+    let requests = reuse_ownership::collect(caller, server).await?;
+    assert_eq!(
+        requests,
+        vec![(1, "/first".to_owned()), (3, "/second".to_owned())]
+    );
+    Ok(())
 }
 
 #[tokio::test]
 async fn session_upload_and_followup_reuse_one_http2_connection() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
-            let stream = accept_tls(&listener, &acceptor).await?;
-            let mut connection = ::http2::server::handshake(stream).await?;
-
-            let (request, mut respond) = connection
-                .accept()
-                .await
-                .ok_or("connection closed before upload")??;
-            let first_id = respond.stream_id().as_u32();
-            assert_eq!(request.method(), Method::POST);
-            let mut incoming = request.into_body();
-            let body = collect_h2_request_body(&mut connection, &mut incoming).await?;
-            respond.send_response(
-                Response::builder()
-                    .status(StatusCode::NO_CONTENT)
-                    .body(())?,
-                true,
-            )?;
-
-            let (request, mut respond) = connection
-                .accept()
-                .await
-                .ok_or("connection closed before follow-up")??;
-            let second_id = respond.stream_id().as_u32();
-            assert_eq!(request.method(), Method::GET);
-            assert_eq!(request.uri().path(), "/after-upload");
-            respond.send_response(
-                Response::builder()
-                    .status(StatusCode::NO_CONTENT)
-                    .body(())?,
-                true,
-            )?;
-            poll_fn(|context| connection.poll_closed(context)).await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>((body, [first_id, second_id]))
-        });
-
-        let session = test_client(&identity, true)?;
-        let response = session
-            .request(
-                HttpProtocol::Http2,
-                Method::POST,
-                &format!("https://{address}/upload"),
-            )?
-            .body(Bytes::from_static(b"pooled-payload"))
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        response.into_body().collect().await?;
-
-        let response = session
-            .get(
-                HttpProtocol::Http2,
-                &format!("https://{address}/after-upload"),
-            )?
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        response.into_body().collect().await?;
-        drop(session);
-
-        let (body, stream_ids) = server.await??;
-        assert_eq!(body, "pooled-payload");
-        assert_eq!(stream_ids, [1, 3]);
-        Ok(())
-    })
-    .await
+    body_ownership::upload().await
 }
 
 #[tokio::test]
 async fn concurrent_cold_requests_through_cloned_session_share_one_connection() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
-            let stream = accept_tls(&listener, &acceptor).await?;
-            serve_requests(stream, 2).await
-        });
-
-        let session = test_client(&identity, true)?;
-        let start = std::sync::Arc::new(Barrier::new(3));
-        let first = tokio::spawn(send_after_barrier(
-            session.clone(),
-            format!("https://{address}/first"),
-            start.clone(),
-        ));
-        let second = tokio::spawn(send_after_barrier(
-            session.clone(),
-            format!("https://{address}/second"),
-            start.clone(),
-        ));
-        start.wait().await;
-
-        first.await??;
-        second.await??;
-        drop(session);
-
-        let requests = server.await??;
-        let mut stream_ids = requests
-            .iter()
-            .map(|(stream_id, _)| *stream_id)
-            .collect::<Vec<_>>();
-        stream_ids.sort_unstable();
-        let mut paths = requests
-            .into_iter()
-            .map(|(_, path)| path)
-            .collect::<Vec<_>>();
-        paths.sort_unstable();
-        assert_eq!(stream_ids, [1, 3]);
-        assert_eq!(paths, vec!["/first".to_owned(), "/second".to_owned()]);
-        Ok(())
-    })
-    .await
+    request_ownership::cold().await
 }
 
 #[tokio::test]
 async fn independently_built_clients_do_not_share_http2_connections() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
-            let first = accept_tls(&listener, &acceptor).await?;
-            let first = tokio::spawn(serve_requests(first, 1));
-            let second = accept_tls(&listener, &acceptor).await?;
-            let second = tokio::spawn(serve_requests(second, 1));
-            Ok::<_, Box<dyn Error + Send + Sync>>([first.await??, second.await??])
-        });
-
-        let first_client = test_client(&identity, true)?;
-        let second_client = test_client(&identity, true)?;
-        let first = tokio::spawn(send(first_client, format!("https://{address}/first")));
-        let second = tokio::spawn(send(second_client, format!("https://{address}/second")));
-
-        first.await??;
-        second.await??;
-
-        let mut connections = server.await??;
-        connections.sort_unstable();
-        assert_eq!(
-            connections,
-            [
-                vec![(1, "/first".to_owned())],
-                vec![(1, "/second".to_owned())]
-            ]
-        );
-        Ok(())
-    })
-    .await
+    request_ownership::independent().await
 }
 
 #[tokio::test]
 async fn idna_equivalent_origins_reuse_one_plaintext_connect_tunnel() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate_for_dns(ASCII_ORIGIN_NAME)?;
-        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let origin_address = origin_listener.local_addr()?;
-        let acceptor = identity.acceptor(H2_ALPN)?;
-        let origin = tokio::spawn(async move {
-            let stream = accept_tls(&origin_listener, &acceptor).await?;
-            serve_requests(stream, 2).await
-        });
-
-        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(forward_one_connect(proxy_listener, origin_address));
-        let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
-        let session = test_client(&identity, true)?;
-        for (host, path) in [
-            (UNICODE_ORIGIN_NAME, "/first"),
-            (ASCII_ORIGIN_NAME, "/second"),
-        ] {
-            let response = session
-                .get(
-                    HttpProtocol::Http2,
-                    &format!("https://{host}:{}{path}", origin_address.port()),
-                )?
-                .route(route.clone())
-                .send()
-                .await?;
-            response.into_body().collect().await?;
-        }
-        drop(session);
-
-        let requests = origin.await??;
-        assert_eq!(
-            requests,
-            vec![(1, "/first".to_owned()), (3, "/second".to_owned())]
-        );
-        assert_eq!(
-            proxy.await??,
-            format!(
-                "CONNECT {ASCII_ORIGIN_NAME}:{} HTTP/1.1\r\nHost: {ASCII_ORIGIN_NAME}:{}\r\n\r\n",
-                origin_address.port(),
-                origin_address.port()
-            )
-            .as_bytes()
-        );
-        Ok(())
-    })
-    .await
+    proxy_ownership::plaintext().await
 }
 
 #[tokio::test]
 async fn idna_equivalent_origins_reuse_one_https_connect_tunnel() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate_for_dns(ASCII_ORIGIN_NAME)?;
-        let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let origin_address = origin_listener.local_addr()?;
-        let acceptor = identity.acceptor(H2_ALPN)?;
-        let origin = tokio::spawn(async move {
-            let stream = accept_tls(&origin_listener, &acceptor).await?;
-            serve_requests(stream, 2).await
-        });
-
-        let proxy_identity = TestIdentity::generate()?;
-        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let proxy_address = proxy_listener.local_addr()?;
-        let proxy_acceptor = proxy_identity.acceptor(H1_ALPN)?;
-        let proxy = tokio::spawn(forward_one_https_connect(
-            proxy_listener,
-            proxy_acceptor,
-            origin_address,
-        ));
-        let route = Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?);
-        let session = client_builder(&identity, true)
-            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
-            .build()?;
-        for (host, path) in [
-            (UNICODE_ORIGIN_NAME, "/first"),
-            (ASCII_ORIGIN_NAME, "/second"),
-        ] {
-            let response = session
-                .get(
-                    HttpProtocol::Http2,
-                    &format!("https://{host}:{}{path}", origin_address.port()),
-                )?
-                .route(route.clone())
-                .send()
-                .await?;
-            response.into_body().collect().await?;
-        }
-        drop(session);
-
-        let requests = origin.await??;
-        assert_eq!(
-            requests,
-            vec![(1, "/first".to_owned()), (3, "/second".to_owned())]
-        );
-        assert_eq!(
-            proxy.await??,
-            format!(
-                "CONNECT {ASCII_ORIGIN_NAME}:{} HTTP/1.1\r\nHost: {ASCII_ORIGIN_NAME}:{}\r\n\r\n",
-                origin_address.port(),
-                origin_address.port()
-            )
-            .as_bytes()
-        );
-        Ok(())
-    })
-    .await
+    proxy_ownership::https().await
 }
 
 #[tokio::test]
@@ -366,77 +133,7 @@ async fn invalid_http2_header_in_session_fails_before_network_io() -> TestResult
 
 #[tokio::test]
 async fn dropping_response_body_cancels_only_its_stream_and_preserves_reuse() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
-            let stream = accept_tls(&listener, &acceptor).await?;
-            let mut connection = ::http2::server::handshake(stream).await?;
-
-            let (_, mut first) = connection
-                .accept()
-                .await
-                .ok_or("connection closed before first request")??;
-            let first_id = first.stream_id().as_u32();
-            let mut first_body =
-                first.send_response(Response::builder().status(200).body(())?, false)?;
-            first_body.send_data(Bytes::from_static(b"partial"), false)?;
-
-            let mut reset = None;
-            let mut later = None;
-            while reset.is_none() || later.is_none() {
-                tokio::select! {
-                    observed = poll_fn(|context| first_body.poll_reset(context)), if reset.is_none() => {
-                        reset = Some(observed?);
-                    }
-                    incoming = connection.accept(), if later.is_none() => {
-                        later = Some(incoming.ok_or("connection closed before later request")??);
-                    }
-                }
-            }
-
-            let (_, mut later) = later.ok_or("later request was not retained")?;
-            let later_id = later.stream_id().as_u32();
-            later.send_response(Response::builder().status(204).body(())?, true)?;
-            drop(first_body);
-            drop(first);
-            drop(later);
-            poll_fn(|context| connection.poll_closed(context)).await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>((
-                reset.ok_or("stream reset was not retained")?,
-                [first_id, later_id],
-            ))
-        });
-
-        let session = test_client(&identity, true)?;
-        let response = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/abandoned"))?
-            .send()
-            .await?;
-        let mut abandoned = response.into_body();
-        let frame = abandoned
-            .frame()
-            .await
-            .ok_or("response ended before partial data")??;
-        assert_eq!(frame.into_data().map_err(|_| "expected response data")?, "partial");
-        drop(abandoned);
-
-        let response = session
-            .get(HttpProtocol::Http2, &format!("https://{address}/later"))?
-            .send()
-            .await?;
-        assert_eq!(response.status(), 204);
-        response.into_body().collect().await?;
-        drop(session);
-
-        let (reset, stream_ids) = server.await??;
-        assert_eq!(reset, ::http2::Reason::CANCEL);
-        assert_eq!(stream_ids, [1, 3]);
-        Ok(())
-    })
-    .await
+    body_ownership::cancelled_body().await
 }
 
 async fn send_after_barrier(
@@ -456,11 +153,21 @@ async fn send(client: Client, uri: String) -> TestResult<()> {
 }
 
 async fn serve_requests(
-    stream: SslStream<TcpStream>,
+    stream: reuse_ownership::Stream,
     count: usize,
 ) -> TestResult<Vec<(u32, String)>> {
+    serve_requests_held(stream, count, None).await
+}
+
+async fn serve_requests_held(
+    stream: reuse_ownership::Stream,
+    count: usize,
+    mut hold: Option<request_ownership::ResponseHold>,
+) -> TestResult<Vec<(u32, String)>> {
+    let observed = stream.observation();
     let mut connection = ::http2::server::handshake(stream).await?;
     let mut requests = Vec::with_capacity(count);
+    let mut responses = Vec::new();
     for _ in 0..count {
         let (request, mut respond) = connection
             .accept()
@@ -470,9 +177,37 @@ async fn serve_requests(
             respond.stream_id().as_u32(),
             request.uri().path().to_owned(),
         ));
-        respond.send_response(Response::builder().status(204).body(())?, true)?;
+        if hold.is_some() {
+            responses.push(respond);
+        } else {
+            respond.send_response(Response::builder().status(204).body(())?, true)?;
+        }
     }
-    poll_fn(|context| connection.poll_closed(context)).await?;
+
+    if let Some(hold) = &mut hold {
+        hold.accepted(&requests);
+        let released = poll_fn(|context| {
+            match reuse_ownership::poll_closed(&mut connection, observed.as_ref(), context) {
+                Poll::Ready(Err(error)) => return Poll::Ready(Err(error.into())),
+                Poll::Ready(Ok(())) => return Poll::Ready(Ok(false)),
+                Poll::Pending => hold.driver_pending(),
+            }
+
+            hold.poll_release(context)
+                .map(|result| result.map(|()| true))
+        })
+        .await?;
+        if !released {
+            return Ok(requests);
+        }
+
+        for mut respond in responses {
+            respond.send_response(Response::builder().status(204).body(())?, true)?;
+        }
+    }
+
+    poll_fn(|context| reuse_ownership::poll_closed(&mut connection, observed.as_ref(), context))
+        .await?;
     Ok(requests)
 }
 
@@ -490,7 +225,8 @@ where
                 return Poll::Ready(item.transpose());
             }
             match connection.poll_closed(context) {
-                Poll::Ready(Ok(())) => Poll::Ready(Ok(None)),
+                // Driving EOF updates the stream's queued data or error.
+                Poll::Ready(Ok(())) => body.poll_data(context).map(|item| item.transpose()),
                 Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
                 Poll::Pending => Poll::Pending,
             }
@@ -515,48 +251,61 @@ async fn accept_tls(
     Ok(stream)
 }
 
-async fn forward_one_connect(
-    listener: TcpListener,
-    origin: std::net::SocketAddr,
-) -> TestResult<Vec<u8>> {
-    let (mut downstream, _) = listener.accept().await?;
-    let request = read_head(&mut downstream).await?;
-    let mut upstream = TcpStream::connect(origin).await?;
-    downstream
-        .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
-        .await?;
-    downstream.flush().await?;
-    copy_bidirectional(&mut downstream, &mut upstream).await?;
-    Ok(request)
-}
-
-async fn forward_one_https_connect(
-    listener: TcpListener,
-    acceptor: SslAcceptor,
-    origin: std::net::SocketAddr,
-) -> TestResult<Vec<u8>> {
-    let mut downstream = accept_tls(&listener, &acceptor).await?;
-    let request = read_head(&mut downstream).await?;
-    let mut upstream = TcpStream::connect(origin).await?;
-    downstream
-        .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
-        .await?;
-    downstream.flush().await?;
-    match copy_bidirectional(&mut downstream, &mut upstream).await {
-        Ok(_) => {}
-        // The client may close its proxy TCP connection before the relay
-        // finishes writing its own TLS close_notify during shutdown.
-        Err(error) if tls_support::is_peer_gone(&error) => {}
-        Err(error) => return Err(error.into()),
-    }
-    Ok(request)
-}
-
 async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "session test exceeded its deadline")?
+        .map_err(|elapsed| FixtureDeadline::new("session test exceeded its deadline", elapsed))?
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::Cell, future::poll_fn, io, task::Poll};
+
+    use super::{TestResult, bounded};
+
+    #[tokio::test(start_paused = true)]
+    async fn entered_pending_deadline_retains_its_original_elapsed() -> TestResult<()> {
+        let entered = Cell::new(false);
+        let operation = bounded(poll_fn(|_| {
+            entered.set(true);
+            Poll::<TestResult<()>>::Pending
+        }));
+        tokio::pin!(operation);
+        assert!(futures_util::poll!(&mut operation).is_pending());
+        assert!(entered.get(), "the actual operation was not polled");
+        tokio::time::advance(super::TEST_TIMEOUT).await;
+
+        let error = operation.await.err().ok_or("pending operation succeeded")?;
+        assert_eq!(error.to_string(), "session test exceeded its deadline");
+        assert!(
+            error
+                .source()
+                .is_some_and(|source| source.is::<tokio::time::error::Elapsed>()),
+            "the fixture deadline discarded its original Elapsed"
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn ready_deadline_keeps_the_original_operation_error() -> TestResult<()> {
+        let failure = io::Error::new(io::ErrorKind::PermissionDenied, "fixture operation failed");
+        let error = bounded(async { Err(failure.into()) })
+            .await
+            .err()
+            .ok_or("failed operation succeeded")?;
+        let original = error
+            .downcast_ref::<io::Error>()
+            .ok_or("operation error type changed")?;
+        assert_eq!(original.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(original.to_string(), "fixture operation failed");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn ready_deadline_keeps_success() -> TestResult<()> {
+        bounded(async { Ok(()) }).await
+    }
 }

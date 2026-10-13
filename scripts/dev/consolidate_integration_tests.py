@@ -48,6 +48,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "direct_http",
                 "error_context",
                 "expect_continue",
+                "h3_received_order",
                 "ping_failure_replay",
                 "plaintext_templates",
                 "prepared_bodies",
@@ -76,6 +77,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "http3_connections",
                 "negotiated",
                 "negotiated_parallel",
+                "peer_completion",
                 "runtimes",
                 "session",
                 "session_http1",
@@ -113,6 +115,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
         "proxies": (
             "HTTP CONNECT, forwarding, and SOCKS5 proxy routes",
             [
+                "configuration_errors",
                 "environment",
                 "forward_proxy",
                 "negotiated_proxy",

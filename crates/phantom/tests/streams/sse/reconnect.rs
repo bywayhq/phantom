@@ -16,7 +16,7 @@ use tokio::{
 use tokio_btls::SslStream;
 
 use super::{
-    TestResult,
+    SsePeer, TEST_TIMEOUT, TestResult, peer_completion,
     polling::read,
     tls_support::{H1_ALPN, TestIdentity, client_builder, read_head, test_client},
 };
@@ -32,6 +32,7 @@ async fn stream_polling_retains_reconnect_delay_request_and_committed_id() -> Te
 }
 
 async fn reconnect_with_committed_state(poll_stream: bool) -> TestResult<()> {
+    let deadline = std::time::Instant::now() + TEST_TIMEOUT;
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
@@ -39,7 +40,7 @@ async fn reconnect_with_committed_state(poll_stream: bool) -> TestResult<()> {
     let (first_complete, first_complete_rx) = oneshot::channel();
     let (second_seen, second_seen_rx) = oneshot::channel();
     let (release_second, release_second_rx) = oneshot::channel();
-    let server = tokio::spawn(async move {
+    let mut server = SsePeer::spawn(async move {
         let mut first = accept_tls_reusable(&listener, &acceptor).await?;
         let first_head = read_head(&mut first).await?;
         first
@@ -62,9 +63,7 @@ async fn reconnect_with_committed_state(poll_stream: bool) -> TestResult<()> {
         second_seen
             .send(())
             .map_err(|_| "client stopped before the reconnect was observed")?;
-        release_second_rx
-            .await
-            .map_err(|_| "client stopped before the reconnect response was released")?;
+        release_second_rx.await?;
         first
             .write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
             .await?;
@@ -73,6 +72,8 @@ async fn reconnect_with_committed_state(poll_stream: bool) -> TestResult<()> {
         Ok::<_, Box<dyn Error + Send + Sync>>((listener, first_head, second_head))
     });
 
+    let ((_source, _session), (listener, first_head, second_head)) =
+        peer_completion::run_wall_clock(&mut server, deadline, TEST_TIMEOUT, async {
     let builder = client_builder(&identity, false);
     #[cfg(feature = "cookies")]
     let builder = builder.cookies();
@@ -118,9 +119,7 @@ async fn reconnect_with_committed_state(poll_stream: bool) -> TestResult<()> {
     assert_eq!(event.id(), "first");
     assert_eq!(source.last_event_id(), "first");
     assert_eq!(source.retry_delay(), Duration::from_secs(1));
-    first_complete_rx
-        .await
-        .map_err(|_| "server stopped before completing the first SSE response")?;
+    first_complete_rx.await?;
 
     assert!(
         timeout(Duration::from_millis(900), read(&mut source, poll_stream))
@@ -137,7 +136,7 @@ async fn reconnect_with_committed_state(poll_stream: bool) -> TestResult<()> {
                 return Err(format!("reconnect completed before its response was released: {result:?}").into());
             }
             observed = second_seen_rx => {
-                observed.map_err(|_| "server stopped before observing the reconnect")?;
+                observed?;
             }
         }
     }
@@ -168,7 +167,8 @@ async fn reconnect_with_committed_state(poll_stream: bool) -> TestResult<()> {
     assert_eq!(read(&mut source, poll_stream).await?, None);
 
     advance(Duration::from_secs(1)).await;
-    let (listener, first_head, second_head) = server.await??;
+    Ok((source, session))
+    }).await?;
     for head in [&first_head, &second_head] {
         assert_eq!(count_header(head, b"accept"), 1);
         assert!(contains_header(head, b"accept", b"text/event-stream"));
@@ -195,11 +195,12 @@ async fn reconnect_with_committed_state(poll_stream: bool) -> TestResult<()> {
 
 #[tokio::test]
 async fn event_source_retries_an_initial_transport_failure() -> TestResult<()> {
+    let deadline = Instant::now() + TEST_TIMEOUT;
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let acceptor = identity.acceptor(H1_ALPN)?;
-    let server = tokio::spawn(async move {
+    let mut server = SsePeer::spawn(async move {
         let (failed, _) = listener.accept().await?;
         drop(failed);
 
@@ -212,27 +213,31 @@ async fn event_source_retries_an_initial_transport_failure() -> TestResult<()> {
         Ok::<_, Box<dyn Error + Send + Sync>>(head)
     });
 
-    let response = test_client(&identity, false)?
-        .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
-        .initial_retry(Duration::ZERO)
-        .max_reconnects(1)
-        .connect()
-        .await?;
-    assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    assert!(response.body().is_closed());
-    assert_eq!(response.body().reconnects(), 1);
+    let (_response, head) = peer_completion::run(&mut server, deadline, TEST_TIMEOUT, async {
+        let response = test_client(&identity, false)?
+            .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
+            .initial_retry(Duration::ZERO)
+            .max_reconnects(1)
+            .connect()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert!(response.body().is_closed());
+        assert_eq!(response.body().reconnects(), 1);
 
-    let head = server.await??;
+        Ok(response)
+    })
+    .await?;
     assert_eq!(count_header(&head, b"last-event-id"), 0);
     Ok(())
 }
 
 #[tokio::test]
 async fn event_source_reports_the_last_initial_failure_after_exhaustion() -> TestResult<()> {
+    let deadline = Instant::now() + TEST_TIMEOUT;
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
-    let server = tokio::spawn(async move {
+    let mut server = SsePeer::spawn(async move {
         for _ in 0..2 {
             let (failed, _) = listener.accept().await?;
             drop(failed);
@@ -240,17 +245,20 @@ async fn event_source_reports_the_last_initial_failure_after_exhaustion() -> Tes
         Ok::<_, Box<dyn Error + Send + Sync>>(())
     });
 
-    let error = test_client(&identity, false)?
-        .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
-        .initial_retry(Duration::ZERO)
-        .max_reconnects(1)
-        .connect()
-        .await
-        .err()
-        .ok_or("exhausted initial reconnects unexpectedly succeeded")?;
-    assert_eq!(error.kind(), SseErrorKind::ReconnectLimit);
-    assert!(error.source().is_some());
-    server.await??;
+    let ((), ()) = peer_completion::run(&mut server, deadline, TEST_TIMEOUT, async {
+        let error = test_client(&identity, false)?
+            .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
+            .initial_retry(Duration::ZERO)
+            .max_reconnects(1)
+            .connect()
+            .await
+            .err()
+            .ok_or("exhausted initial reconnects unexpectedly succeeded")?;
+        assert_eq!(error.kind(), SseErrorKind::ReconnectLimit);
+        assert!(error.source().is_some());
+        Ok(())
+    })
+    .await?;
     Ok(())
 }
 
@@ -281,11 +289,12 @@ async fn deterministic_initial_request_failure_is_not_retried() -> TestResult<()
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn unrepresentable_last_event_id_ends_reconnects_with_request_error() -> TestResult<()> {
+    let deadline = std::time::Instant::now() + TEST_TIMEOUT;
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let acceptor = identity.acceptor(H1_ALPN)?;
-    let server = tokio::spawn(async move {
+    let mut server = SsePeer::spawn(async move {
         let mut stream = accept_tls_reusable(&listener, &acceptor).await?;
         read_head(&mut stream).await?;
         stream
@@ -301,26 +310,36 @@ async fn unrepresentable_last_event_id_ends_reconnects_with_request_error() -> T
         Ok::<_, Box<dyn Error + Send + Sync>>(second.is_err())
     });
 
-    let mut source = test_client(&identity, false)?
-        .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
-        .initial_retry(Duration::ZERO)
-        .max_reconnects(3)
-        .connect()
-        .await?
-        .into_body();
-    let event = source
-        .next_event()
-        .await?
-        .ok_or("first event was not decoded")?;
-    assert_eq!(event.data(), "one");
-    let error = source
-        .next_event()
-        .await
-        .err()
-        .ok_or("reconnect with an unrepresentable ID succeeded")?;
+    // Collect the original sixty-second quiet window without cutting it short.
+    let (_source, quiet) = peer_completion::run_wall_clock(
+        &mut server,
+        deadline,
+        Duration::from_secs(60) + TEST_TIMEOUT,
+        async {
+            let mut source = test_client(&identity, false)?
+                .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
+                .initial_retry(Duration::ZERO)
+                .max_reconnects(3)
+                .connect()
+                .await?
+                .into_body();
+            let event = source
+                .next_event()
+                .await?
+                .ok_or("first event was not decoded")?;
+            assert_eq!(event.data(), "one");
+            let error = source
+                .next_event()
+                .await
+                .err()
+                .ok_or("reconnect with an unrepresentable ID succeeded")?;
 
-    assert_eq!(error.kind(), SseErrorKind::Request);
-    assert!(server.await??, "a reconnect reached the network");
+            assert_eq!(error.kind(), SseErrorKind::Request);
+            Ok(source)
+        },
+    )
+    .await?;
+    assert!(quiet, "a reconnect reached the network");
     Ok(())
 }
 
@@ -403,9 +422,10 @@ async fn minimum_retry_raises_short_server_delays_and_keeps_exact_delays_by_defa
         (Some(Duration::from_millis(500)), Duration::from_millis(500)),
         (Some(Duration::from_millis(50)), Duration::from_millis(100)),
     ] {
+        let deadline = std::time::Instant::now() + TEST_TIMEOUT;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let mut server = SsePeer::spawn(async move {
             let (mut first, _) = listener.accept().await?;
             read_head(&mut first).await?;
             first
@@ -430,29 +450,35 @@ async fn minimum_retry_raises_short_server_delays_and_keeps_exact_delays_by_defa
             Ok::<_, Box<dyn Error + Send + Sync>>(waited)
         });
 
-        let identity = TestIdentity::generate()?;
-        let mut builder = test_client(&identity, false)?
-            .event_source(HttpProtocol::Http1, &format!("http://{address}/events"))?
-            .initial_retry(Duration::from_secs(3))
-            .max_reconnects(1);
-        if let Some(minimum) = minimum {
-            builder = builder.min_retry(minimum);
-        }
-        let mut source = builder.connect().await?.into_body();
-        let event = source.next_event().await?.ok_or("first event missing")?;
-        assert_eq!(event.data(), "one");
-        assert_eq!(source.retry_delay(), expected, "minimum {minimum:?}");
-        assert_eq!(source.next_event().await?, None);
-        assert_eq!(server.await??, expected, "minimum {minimum:?}");
+        let (_source, waited) =
+            peer_completion::run_wall_clock(&mut server, deadline, TEST_TIMEOUT, async {
+                let identity = TestIdentity::generate()?;
+                let mut builder = test_client(&identity, false)?
+                    .event_source(HttpProtocol::Http1, &format!("http://{address}/events"))?
+                    .initial_retry(Duration::from_secs(3))
+                    .max_reconnects(1);
+                if let Some(minimum) = minimum {
+                    builder = builder.min_retry(minimum);
+                }
+                let mut source = builder.connect().await?.into_body();
+                let event = source.next_event().await?.ok_or("first event missing")?;
+                assert_eq!(event.data(), "one");
+                assert_eq!(source.retry_delay(), expected, "minimum {minimum:?}");
+                assert_eq!(source.next_event().await?, None);
+                Ok(source)
+            })
+            .await?;
+        assert_eq!(waited, expected, "minimum {minimum:?}");
     }
     Ok(())
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn minimum_retry_also_delays_initial_connection_retries() -> TestResult<()> {
+    let deadline = std::time::Instant::now() + TEST_TIMEOUT;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
-    let server = tokio::spawn(async move {
+    let mut server = SsePeer::spawn(async move {
         let (failed, _) = listener.accept().await?;
         drop(failed);
         let failed_at = Instant::now();
@@ -466,16 +492,21 @@ async fn minimum_retry_also_delays_initial_connection_retries() -> TestResult<()
         Ok::<_, Box<dyn Error + Send + Sync>>(waited)
     });
 
-    let identity = TestIdentity::generate()?;
-    let response = test_client(&identity, false)?
-        .event_source(HttpProtocol::Http1, &format!("http://{address}/events"))?
-        .initial_retry(Duration::ZERO)
-        .min_retry(Duration::from_millis(500))
-        .max_reconnects(1)
-        .connect()
+    let (_response, waited) =
+        peer_completion::run_wall_clock(&mut server, deadline, TEST_TIMEOUT, async {
+            let identity = TestIdentity::generate()?;
+            let response = test_client(&identity, false)?
+                .event_source(HttpProtocol::Http1, &format!("http://{address}/events"))?
+                .initial_retry(Duration::ZERO)
+                .min_retry(Duration::from_millis(500))
+                .max_reconnects(1)
+                .connect()
+                .await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            Ok(response)
+        })
         .await?;
-    assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    assert_eq!(server.await??, Duration::from_millis(500));
+    assert_eq!(waited, Duration::from_millis(500));
     Ok(())
 }
 

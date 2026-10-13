@@ -10,7 +10,8 @@ use tokio::{
 };
 
 use crate::proxy::{
-    bounded, relay_until_terminal_close,
+    ConnectionPeer, bounded, finish_h2_peers, finish_peer, finish_peers,
+    relay_until_terminal_close,
     tls_support::{
         H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, accept_tls_stream, client_builder,
         read_head,
@@ -24,19 +25,10 @@ async fn basic_challenge_retries_plaintext_proxy_with_ordered_credentials() -> T
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
         let origin_acceptor = identity.acceptor(H1_ALPN)?;
-        let origin = tokio::spawn(async move {
-            let mut stream = accept_tls(origin_listener, origin_acceptor).await?;
-            let request = read_head(&mut stream).await?;
-            stream
-                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
-                .await?;
-            stream.shutdown().await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(request)
-        });
 
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(challenge_then_forward(proxy_listener, origin_address));
+
         let route = Route::http_proxy(
             HttpProxy::new(&format!("http://{proxy_address}"))?
                 .connect_headers(vec![
@@ -49,13 +41,32 @@ async fn basic_challenge_retries_plaintext_proxy_with_ordered_credentials() -> T
         );
         let client = client_builder(&identity, false).route(route).build()?;
 
-        let response = client
-            .get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
-            .send()
-            .await?;
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+        let origin = ConnectionPeer::spawn(async move {
+            let mut stream = accept_tls(origin_listener, origin_acceptor).await?;
+            let request = read_head(&mut stream).await?;
 
-        let (anonymous, authorized) = proxy.await??;
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+                .await?;
+            stream.shutdown().await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(request)
+        });
+
+        let proxy = ConnectionPeer::spawn(challenge_then_forward(proxy_listener, origin_address));
+
+        let operation = async {
+            let response = client
+                .get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
+                .send()
+                .await?;
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        }
+        .await;
+
+        let ((anonymous, authorized), origin_request) =
+            finish_peers(operation, proxy, origin).await?;
+
         assert_eq!(
             anonymous,
             format!(
@@ -77,7 +88,6 @@ async fn basic_challenge_retries_plaintext_proxy_with_ordered_credentials() -> T
             )
             .as_bytes()
         );
-        let origin_request = origin.await??;
         assert_eq!(
             origin_request,
             format!("GET / HTTP/1.1\r\nHost: {origin_address}\r\n\r\n").as_bytes()
@@ -97,28 +107,36 @@ async fn second_basic_challenge_is_bounded_and_redacted() -> TestResult<()> {
         let identity = TestIdentity::generate()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(reject_credentials_twice(proxy_listener));
+
         let route = Route::http_proxy(
             HttpProxy::new(&format!("http://{proxy_address}"))?
                 .with_basic_auth("marker-user", "marker-password")?,
         );
         let client = client_builder(&identity, false).route(route).build()?;
 
-        let result = client
-            .get(HttpProtocol::Http1, "https://127.0.0.1:9/")?
-            .send()
-            .await;
-        let error = match result {
-            Ok(_) => return Err("a second proxy challenge was accepted".into()),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), RequestErrorKind::Proxy);
-        let diagnostic = format!("{error:?} {error}");
-        for secret in ["marker-user", "marker-password", "private realm"] {
-            assert!(!diagnostic.contains(secret));
-        }
+        let proxy = ConnectionPeer::spawn(reject_credentials_twice(proxy_listener));
 
-        let (anonymous, authorized, third_attempted) = proxy.await??;
+        let operation = async {
+            let result = client
+                .get(HttpProtocol::Http1, "https://127.0.0.1:9/")?
+                .send()
+                .await;
+            let error = match result {
+                Ok(_) => return Err("a second proxy challenge was accepted".into()),
+                Err(error) => error,
+            };
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+
+            let diagnostic = format!("{error:?} {error}");
+            for secret in ["marker-user", "marker-password", "private realm"] {
+                assert!(!diagnostic.contains(secret));
+            }
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        }
+        .await;
+
+        let (anonymous, authorized, third_attempted) = finish_peer(operation, proxy).await?;
+
         assert!(!contains_ascii_case_insensitive(
             &anonymous,
             b"proxy-authorization"
@@ -140,32 +158,13 @@ async fn basic_challenge_reconnects_https_proxy_before_http2_origin() -> TestRes
         let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin_listener.local_addr()?;
         let origin_acceptor = origin_identity.acceptor(H2_ALPN)?;
-        let origin = tokio::spawn(async move {
-            let stream = accept_tls(origin_listener, origin_acceptor).await?;
-            let mut connection = ::http2::server::handshake(stream).await?;
-            let (request, mut respond) = connection
-                .accept()
-                .await
-                .ok_or("connection closed before request")??;
-            let method = request.method().clone();
-            let response = Response::builder().status(204).body(())?;
-            respond.send_response(response, true)?;
-            drop(respond);
-            std::future::poll_fn(|context| connection.poll_closed(context)).await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(method)
-        });
 
         let proxy_identity = TestIdentity::generate()?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
         let first_acceptor = proxy_identity.acceptor(H1_ALPN)?;
         let second_acceptor = proxy_identity.acceptor(H1_ALPN)?;
-        let proxy = tokio::spawn(challenge_then_forward_tls(
-            proxy_listener,
-            first_acceptor,
-            second_acceptor,
-            origin_address,
-        ));
+
         let route = Route::http_proxy(
             HttpProxy::new(&format!("https://{proxy_address}"))?
                 .with_basic_auth("alice", "secret")?,
@@ -175,15 +174,45 @@ async fn basic_challenge_reconnects_https_proxy_before_http2_origin() -> TestRes
             .route(route)
             .build()?;
 
-        let response = client
-            .get(HttpProtocol::Http2, &format!("https://{origin_address}/"))?
-            .send()
-            .await?;
-        assert_eq!(response.status(), 204);
-        response.into_body().collect().await?;
-        drop(client);
+        let origin = ConnectionPeer::spawn(async move {
+            let stream = accept_tls(origin_listener, origin_acceptor).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
+            let (request, mut respond) = connection
+                .accept()
+                .await
+                .ok_or("connection closed before request")??;
 
-        let (anonymous, authorized) = proxy.await??;
+            let method = request.method().clone();
+
+            let response = Response::builder().status(204).body(())?;
+            respond.send_response(response, true)?;
+            drop(respond);
+
+            std::future::poll_fn(|context| connection.poll_closed(context)).await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(method)
+        });
+
+        let proxy = ConnectionPeer::spawn(challenge_then_forward_tls(
+            proxy_listener,
+            first_acceptor,
+            second_acceptor,
+            origin_address,
+        ));
+
+        let operation = async {
+            let response = client
+                .get(HttpProtocol::Http2, &format!("https://{origin_address}/"))?
+                .send()
+                .await?;
+            assert_eq!(response.status(), 204);
+            response.into_body().collect().await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        }
+        .await;
+
+        let ((anonymous, authorized), method) =
+            finish_h2_peers(operation, client, proxy, origin).await?;
+
         assert!(!contains_ascii_case_insensitive(
             &anonymous,
             b"proxy-authorization"
@@ -192,7 +221,7 @@ async fn basic_challenge_reconnects_https_proxy_before_http2_origin() -> TestRes
             &authorized,
             b"proxy-authorization: basic ywxpy2u6c2vjcmv0"
         ));
-        assert_eq!(origin.await??, Method::GET);
+        assert_eq!(method, Method::GET);
         Ok(())
     })
     .await
@@ -204,6 +233,7 @@ async fn challenge_then_forward(
 ) -> TestResult<(Vec<u8>, Vec<u8>)> {
     let (mut first, _) = listener.accept().await?;
     let anonymous = read_head(&mut first).await?;
+
     first
         .write_all(
             b"HTTP/1.1 407 Proxy Authentication Required\r\n\
@@ -215,11 +245,13 @@ async fn challenge_then_forward(
 
     let (mut second, _) = listener.accept().await?;
     let authorized = read_head(&mut second).await?;
+
     let mut upstream = TcpStream::connect(origin).await?;
     second
         .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
         .await?;
     second.flush().await?;
+
     relay_until_terminal_close(&mut second, &mut upstream).await?;
     Ok((anonymous, authorized))
 }
@@ -227,6 +259,7 @@ async fn challenge_then_forward(
 async fn reject_credentials_twice(listener: TcpListener) -> TestResult<(Vec<u8>, Vec<u8>, bool)> {
     let (mut first, _) = listener.accept().await?;
     let anonymous = read_head(&mut first).await?;
+
     first
         .write_all(
             b"HTTP/1.1 407 Proxy Authentication Required\r\n\
@@ -238,6 +271,7 @@ async fn reject_credentials_twice(listener: TcpListener) -> TestResult<(Vec<u8>,
 
     let (mut second, _) = listener.accept().await?;
     let authorized = read_head(&mut second).await?;
+
     second
         .write_all(
             b"HTTP/1.1 407 Proxy Authentication Required\r\n\
@@ -246,9 +280,14 @@ async fn reject_credentials_twice(listener: TcpListener) -> TestResult<(Vec<u8>,
         )
         .await?;
     second.shutdown().await?;
-    let third_attempted = timeout(Duration::from_millis(100), listener.accept())
-        .await
-        .is_ok();
+
+    let third_attempted = match timeout(Duration::from_millis(100), listener.accept()).await {
+        Ok(result) => {
+            result?;
+            true
+        }
+        Err(_) => false,
+    };
     Ok((anonymous, authorized, third_attempted))
 }
 
@@ -261,6 +300,7 @@ async fn challenge_then_forward_tls(
     let (first_tcp, _) = listener.accept().await?;
     let mut first = accept_tls_stream(first_tcp, first_acceptor).await?;
     let anonymous = read_head(&mut first).await?;
+
     first
         .write_all(
             b"HTTP/1.1 407 Proxy Authentication Required\r\n\
@@ -273,11 +313,13 @@ async fn challenge_then_forward_tls(
     let (second_tcp, _) = listener.accept().await?;
     let mut second = accept_tls_stream(second_tcp, second_acceptor).await?;
     let authorized = read_head(&mut second).await?;
+
     let mut upstream = TcpStream::connect(origin).await?;
     second
         .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
         .await?;
     second.flush().await?;
+
     relay_until_terminal_close(&mut second, &mut upstream).await?;
     Ok((anonymous, authorized))
 }

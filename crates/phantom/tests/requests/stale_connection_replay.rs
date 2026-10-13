@@ -1,8 +1,5 @@
 //! Opt-in replay after a reused HTTP/1.1 connection closes before a response.
 
-use crate::support::tls as tls_support;
-use crate::support::tracing as tracing_support;
-
 use std::{error::Error, future::Future, net::Ipv4Addr, time::Duration};
 
 use bytes::Bytes;
@@ -12,16 +9,23 @@ use phantom::{
     Client, HttpProtocol, RequestErrorKind, ResponseInfo, RetryPolicy, profile::ClientProfile,
 };
 use tokio::{
-    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
+    io::{AsyncRead, AsyncReadExt, AsyncWrite},
     net::TcpListener,
-    time::timeout,
+    time::{Instant, timeout_at},
 };
 use tracing::instrument::WithSubscriber;
 
+use crate::support::deadline::FixtureDeadline;
+use crate::support::tls as tls_support;
+use crate::support::tracing as tracing_support;
+use ownership::{complete, serve_stale_connection, spawn_single_stale_server};
 use tls_support::{
     H1_ALPN, TestIdentity, accept_tls_stream, client_builder, is_peer_gone, read_head, tls_settings,
 };
 use tracing_support::OutcomeSubscriber;
+
+mod ownership;
+mod raw_server;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 /// Only confirms that no connection is already queued; a replay would have
@@ -41,21 +45,17 @@ struct ReceivedRequest {
 
 #[tokio::test]
 async fn stale_reused_http1_close_replays_idempotent_request_once() -> TestResult {
-    bounded(async {
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let mut server = None;
+    let mut client = None;
+
+    let caller = bounded_until(deadline, async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            let stale = serve_stale_connection(&listener).await?;
-            let (mut replacement, _) = listener.accept().await?;
-            let replayed = read_request(&mut replacement).await?;
-            replacement.write_all(REPLAY_RESPONSE).await?;
-            replacement.flush().await?;
-            let extra = timeout(EXTRA_CONNECTION_WINDOW, listener.accept()).await;
-            Ok::<_, Box<dyn Error + Send + Sync>>((stale, replayed, extra.is_err()))
-        });
-        let client = replaying_client()?;
+        server = Some(raw_server::spawn_replay_with_quiet(listener));
+        let client = client.insert(replaying_client()?);
 
-        prime(&client, &format!("http://{address}/prime")).await?;
+        prime(client, &format!("http://{address}/prime")).await?;
         let response = client
             .request(
                 HttpProtocol::Http1,
@@ -74,29 +74,31 @@ async fn stale_reused_http1_close_replays_idempotent_request_once() -> TestResul
         assert_eq!(info.protocol(), HttpProtocol::Http1);
         assert_eq!(info.retries_performed(), 0);
         assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
-        let (stale, replayed, had_no_extra_connection) = server.await??;
-        assert!(stale.head.starts_with(b"PUT /item HTTP/1.1\r\n"));
-        assert_eq!(stale.framed_body, b"payload");
-        assert_eq!(replayed, stale);
-        assert!(had_no_extra_connection);
         Ok(())
     })
-    .await
+    .await;
+
+    let (stale, replayed, had_no_extra_connection) =
+        complete(&mut server, caller, deadline).await?;
+
+    assert!(stale.head.starts_with(b"PUT /item HTTP/1.1\r\n"));
+    assert_eq!(stale.framed_body, b"payload");
+    assert_eq!(replayed, stale);
+    assert!(had_no_extra_connection);
+    Ok(())
 }
 
 #[tokio::test]
 async fn fresh_http1_close_is_not_replayed() -> TestResult {
-    bounded(async {
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let mut server = None;
+    let mut client = None;
+
+    let caller = bounded_until(deadline, async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            let (mut fresh, _) = listener.accept().await?;
-            read_request(&mut fresh).await?;
-            drop(fresh);
-            let extra = timeout(EXTRA_CONNECTION_WINDOW, listener.accept()).await;
-            Ok::<_, Box<dyn Error + Send + Sync>>(extra.is_err())
-        });
-        let client = replaying_client()?;
+        server = Some(raw_server::spawn_fresh(listener));
+        let client = client.insert(replaying_client()?);
 
         let result = client
             .get(HttpProtocol::Http1, &format!("http://{address}/fresh"))?
@@ -105,19 +107,31 @@ async fn fresh_http1_close_is_not_replayed() -> TestResult {
 
         let error = result.err().ok_or("fresh connection close was answered")?;
         assert_eq!(error.kind(), RequestErrorKind::Http1);
-        assert!(server.await??, "a fresh-connection failure was replayed");
         Ok(())
     })
-    .await
+    .await;
+
+    let had_no_extra_connection = complete(&mut server, caller, deadline).await?;
+
+    assert!(
+        had_no_extra_connection,
+        "a fresh-connection failure was replayed"
+    );
+    Ok(())
 }
 
 #[tokio::test]
 async fn stale_reuse_replay_skips_post() -> TestResult {
-    bounded(async {
-        let (address, server) = spawn_single_stale_server().await?;
-        let client = replaying_client()?;
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let mut server = None;
+    let mut client = None;
 
-        prime(&client, &format!("http://{address}/prime")).await?;
+    let caller = bounded_until(deadline, async {
+        let (address, peer) = spawn_single_stale_server(None).await?;
+        server = Some(peer);
+        let client = client.insert(replaying_client()?);
+
+        prime(client, &format!("http://{address}/prime")).await?;
         let result = client
             .request(
                 HttpProtocol::Http1,
@@ -130,24 +144,32 @@ async fn stale_reuse_replay_skips_post() -> TestResult {
 
         let error = result.err().ok_or("stale POST was answered")?;
         assert_eq!(error.kind(), RequestErrorKind::Http1);
-        let (stale, had_no_extra_connection) = server.await??;
-        assert!(stale.head.starts_with(b"POST /submit HTTP/1.1\r\n"));
-        assert!(
-            had_no_extra_connection,
-            "a non-idempotent request was replayed"
-        );
         Ok(())
     })
-    .await
+    .await;
+
+    let (stale, had_no_extra_connection) = complete(&mut server, caller, deadline).await?;
+
+    assert!(stale.head.starts_with(b"POST /submit HTTP/1.1\r\n"));
+    assert!(
+        had_no_extra_connection,
+        "a non-idempotent request was replayed"
+    );
+    Ok(())
 }
 
 #[tokio::test]
 async fn stale_reuse_replay_refuses_one_shot_streaming_body() -> TestResult {
-    bounded(async {
-        let (address, server) = spawn_single_stale_server().await?;
-        let client = replaying_client()?;
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let mut server = None;
+    let mut client = None;
 
-        prime(&client, &format!("http://{address}/prime")).await?;
+    let caller = bounded_until(deadline, async {
+        let (address, peer) = spawn_single_stale_server(None).await?;
+        server = Some(peer);
+        let client = client.insert(replaying_client()?);
+
+        prime(client, &format!("http://{address}/prime")).await?;
         let result = client
             .request(
                 HttpProtocol::Http1,
@@ -161,31 +183,31 @@ async fn stale_reuse_replay_refuses_one_shot_streaming_body() -> TestResult {
         // The original transport error is returned, not a body-replay error.
         let error = result.err().ok_or("stale streaming upload was answered")?;
         assert_eq!(error.kind(), RequestErrorKind::Http1);
-        let (stale, had_no_extra_connection) = server.await??;
-        assert!(stale.head.starts_with(b"PUT /upload HTTP/1.1\r\n"));
-        assert_eq!(stale.framed_body, b"payload");
-        assert!(had_no_extra_connection, "a one-shot body was replayed");
         Ok(())
     })
-    .await
+    .await;
+
+    let (stale, had_no_extra_connection) = complete(&mut server, caller, deadline).await?;
+
+    assert!(stale.head.starts_with(b"PUT /upload HTTP/1.1\r\n"));
+    assert_eq!(stale.framed_body, b"payload");
+    assert!(had_no_extra_connection, "a one-shot body was replayed");
+    Ok(())
 }
 
 #[tokio::test]
 async fn stale_reuse_replays_a_buffered_streaming_body() -> TestResult {
-    bounded(async {
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let mut server = None;
+    let mut client = None;
+
+    let caller = bounded_until(deadline, async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            let stale = serve_stale_connection(&listener).await?;
-            let (mut replacement, _) = listener.accept().await?;
-            let replayed = read_request(&mut replacement).await?;
-            replacement.write_all(REPLAY_RESPONSE).await?;
-            replacement.flush().await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>((stale, replayed))
-        });
-        let client = replaying_client()?;
+        server = Some(raw_server::spawn_replay(listener, None));
+        let client = client.insert(replaying_client()?);
 
-        prime(&client, &format!("http://{address}/prime")).await?;
+        prime(client, &format!("http://{address}/prime")).await?;
         let response = client
             .request(
                 HttpProtocol::Http1,
@@ -198,13 +220,16 @@ async fn stale_reuse_replays_a_buffered_streaming_body() -> TestResult {
 
         assert_eq!(response.status(), StatusCode::OK);
         response.into_body().collect().await?;
-        let (stale, replayed) = server.await??;
-        assert!(stale.head.starts_with(b"PUT /upload HTTP/1.1\r\n"));
-        assert_eq!(stale.framed_body, b"payload");
-        assert_eq!(replayed, stale);
         Ok(())
     })
-    .await
+    .await;
+
+    let (stale, replayed) = complete(&mut server, caller, deadline).await?;
+
+    assert!(stale.head.starts_with(b"PUT /upload HTTP/1.1\r\n"));
+    assert_eq!(stale.framed_body, b"payload");
+    assert_eq!(replayed, stale);
+    Ok(())
 }
 
 /// A streaming body of several frames and no known length.
@@ -228,20 +253,17 @@ impl http_body::Body for Chunks {
 
 #[tokio::test]
 async fn stale_reuse_replays_a_chunked_buffered_body_with_its_frames() -> TestResult {
-    bounded(async {
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let mut server = None;
+    let mut client = None;
+
+    let caller = bounded_until(deadline, async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            let stale = serve_stale_connection(&listener).await?;
-            let (mut replacement, _) = listener.accept().await?;
-            let replayed = read_request(&mut replacement).await?;
-            replacement.write_all(REPLAY_RESPONSE).await?;
-            replacement.flush().await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>((stale, replayed))
-        });
-        let client = replaying_client()?;
+        server = Some(raw_server::spawn_replay(listener, None));
+        let client = client.insert(replaying_client()?);
 
-        prime(&client, &format!("http://{address}/prime")).await?;
+        prime(client, &format!("http://{address}/prime")).await?;
         let chunks = Chunks(
             [&b"pay"[..], b"lo", b"ad"]
                 .into_iter()
@@ -260,35 +282,35 @@ async fn stale_reuse_replays_a_chunked_buffered_body_with_its_frames() -> TestRe
 
         assert_eq!(response.status(), StatusCode::OK);
         response.into_body().collect().await?;
-        let (stale, replayed) = server.await??;
-        let head = String::from_utf8_lossy(&stale.head).to_ascii_lowercase();
-        assert!(
-            head.contains("\r\ntransfer-encoding: chunked\r\n"),
-            "{head}"
-        );
-        assert_eq!(stale.framed_body, b"payload");
-        assert_eq!(replayed, stale);
         Ok(())
     })
-    .await
+    .await;
+
+    let (stale, replayed) = complete(&mut server, caller, deadline).await?;
+
+    let head = String::from_utf8_lossy(&stale.head).to_ascii_lowercase();
+    assert!(
+        head.contains("\r\ntransfer-encoding: chunked\r\n"),
+        "{head}"
+    );
+    assert_eq!(stale.framed_body, b"payload");
+    assert_eq!(replayed, stale);
+    Ok(())
 }
 
 #[tokio::test]
 async fn stale_reuse_replay_is_bounded() -> TestResult {
-    bounded(async {
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let mut server = None;
+    let mut client = None;
+
+    let caller = bounded_until(deadline, async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            serve_stale_connection(&listener).await?;
-            let (mut replacement, _) = listener.accept().await?;
-            let replayed = read_request(&mut replacement).await?;
-            drop(replacement);
-            let extra = timeout(EXTRA_CONNECTION_WINDOW, listener.accept()).await;
-            Ok::<_, Box<dyn Error + Send + Sync>>((replayed, extra.is_err()))
-        });
-        let client = replaying_client()?;
+        server = Some(raw_server::spawn_closed_replacement(listener));
+        let client = client.insert(replaying_client()?);
 
-        prime(&client, &format!("http://{address}/prime")).await?;
+        prime(client, &format!("http://{address}/prime")).await?;
         let result = client
             .get(HttpProtocol::Http1, &format!("http://{address}/twice"))?
             .send()
@@ -298,31 +320,31 @@ async fn stale_reuse_replay_is_bounded() -> TestResult {
             .err()
             .ok_or("closed replacement connection was answered")?;
         assert_eq!(error.kind(), RequestErrorKind::Http1);
-        let (replayed, had_no_extra_connection) = server.await??;
-        assert!(replayed.head.starts_with(b"GET /twice HTTP/1.1\r\n"));
-        assert!(had_no_extra_connection, "the replay itself was replayed");
         Ok(())
     })
-    .await
+    .await;
+
+    let (replayed, had_no_extra_connection) = complete(&mut server, caller, deadline).await?;
+
+    assert!(replayed.head.starts_with(b"GET /twice HTTP/1.1\r\n"));
+    assert!(had_no_extra_connection, "the replay itself was replayed");
+    Ok(())
 }
 
 #[tokio::test]
 async fn stale_reuse_replay_is_observable() -> TestResult {
-    bounded(async {
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let mut server = None;
+    let mut client = None;
+    let subscriber = OutcomeSubscriber::default();
+
+    let caller = bounded_until(deadline, async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            serve_stale_connection(&listener).await?;
-            let (mut replacement, _) = listener.accept().await?;
-            read_request(&mut replacement).await?;
-            replacement.write_all(REPLAY_RESPONSE).await?;
-            replacement.flush().await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
-        let client = replaying_client()?;
-        let subscriber = OutcomeSubscriber::default();
+        server = Some(raw_server::spawn_observable(listener));
+        let client = client.insert(replaying_client()?);
 
-        prime(&client, &format!("http://{address}/prime")).await?;
+        prime(client, &format!("http://{address}/prime")).await?;
         let response = client
             .get(HttpProtocol::Http1, &format!("http://{address}/observed"))?
             .send()
@@ -335,31 +357,39 @@ async fn stale_reuse_replay_is_observable() -> TestResult {
             .ok_or("response omitted metadata")?;
         assert_eq!(info.retries_performed(), 0);
         response.into_body().collect().await?;
-        server.await??;
-        assert_eq!(
-            subscriber.reused_connection_replays_for("client.request"),
-            [1]
-        );
-        assert!(
-            subscriber
-                .retries_performed_for("client.request")
-                .is_empty()
-        );
-        assert!(subscriber.retry_reasons_for("client.request").is_empty());
-        assert_eq!(subscriber.outcomes_for("client.request"), ["ok"]);
         Ok(())
     })
-    .await
+    .await;
+
+    complete(&mut server, caller, deadline).await?;
+
+    assert_eq!(
+        subscriber.reused_connection_replays_for("client.request"),
+        [1]
+    );
+    assert!(
+        subscriber
+            .retries_performed_for("client.request")
+            .is_empty()
+    );
+    assert!(subscriber.retry_reasons_for("client.request").is_empty());
+    assert_eq!(subscriber.outcomes_for("client.request"), ["ok"]);
+    Ok(())
 }
 
 #[tokio::test]
 async fn stale_reuse_is_not_replayed_by_default() -> TestResult {
-    bounded(async {
-        let (address, server) = spawn_single_stale_server().await?;
-        let client = Client::builder(ClientProfile::new(tls_settings())).build()?;
-        let subscriber = OutcomeSubscriber::default();
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let mut server = None;
+    let mut client = None;
+    let subscriber = OutcomeSubscriber::default();
 
-        prime(&client, &format!("http://{address}/prime")).await?;
+    let caller = bounded_until(deadline, async {
+        let (address, peer) = spawn_single_stale_server(None).await?;
+        server = Some(peer);
+        let client = client.insert(Client::builder(ClientProfile::new(tls_settings())).build()?);
+
+        prime(client, &format!("http://{address}/prime")).await?;
         let result = client
             .get(HttpProtocol::Http1, &format!("http://{address}/default"))?
             .send()
@@ -368,44 +398,44 @@ async fn stale_reuse_is_not_replayed_by_default() -> TestResult {
 
         let error = result.err().ok_or("stale request was answered")?;
         assert_eq!(error.kind(), RequestErrorKind::Http1);
-        let (_, had_no_extra_connection) = server.await??;
-        assert!(had_no_extra_connection, "default policy replayed a request");
-        assert!(
-            subscriber
-                .reused_connection_replays_for("client.request")
-                .is_empty()
-        );
         Ok(())
     })
-    .await
+    .await;
+
+    let (_, had_no_extra_connection) = complete(&mut server, caller, deadline).await?;
+
+    assert!(had_no_extra_connection, "default policy replayed a request");
+    assert!(
+        subscriber
+            .reused_connection_replays_for("client.request")
+            .is_empty()
+    );
+    Ok(())
 }
 
 #[tokio::test]
 async fn negotiated_http1_stale_reuse_replays_once() -> TestResult {
-    bounded(async {
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let mut server = None;
+    let mut client = None;
+
+    let caller = bounded_until(deadline, async {
         let identity = TestIdentity::generate()?;
         let stale_acceptor = identity.acceptor(H1_ALPN)?;
         let replacement_acceptor = identity.acceptor(H1_ALPN)?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            let (tcp, _) = listener.accept().await?;
-            let mut stale = accept_tls_stream(tcp, stale_acceptor).await?;
-            read_request(&mut stale).await?;
-            stale.write_all(PRIMING_RESPONSE).await?;
-            stale.flush().await?;
-            let stale_request = read_request(&mut stale).await?;
-            drop(stale);
-            let (tcp, _) = listener.accept().await?;
-            let mut replacement = accept_tls_stream(tcp, replacement_acceptor).await?;
-            let replayed = read_request(&mut replacement).await?;
-            replacement.write_all(REPLAY_RESPONSE).await?;
-            replacement.flush().await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>((stale_request, replayed))
-        });
-        let client = client_builder(&identity, true)
-            .retry_policy(RetryPolicy::none().with_reused_connection_replay(true))
-            .build()?;
+        server = Some(raw_server::spawn_negotiated(
+            listener,
+            stale_acceptor,
+            replacement_acceptor,
+            None,
+        ));
+        let client = client.insert(
+            client_builder(&identity, true)
+                .retry_policy(RetryPolicy::none().with_reused_connection_replay(true))
+                .build()?,
+        );
 
         client
             .get_negotiated(&format!("https://{address}/prime"))?
@@ -426,12 +456,15 @@ async fn negotiated_http1_stale_reuse_replays_once() -> TestResult {
         assert_eq!(info.protocol(), HttpProtocol::Http1);
         assert_eq!(info.retries_performed(), 0);
         assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
-        let (stale, replayed) = server.await??;
-        assert!(stale.head.starts_with(b"GET /negotiated HTTP/1.1\r\n"));
-        assert_eq!(replayed, stale);
         Ok(())
     })
-    .await
+    .await;
+
+    let (stale, replayed) = complete(&mut server, caller, deadline).await?;
+
+    assert!(stale.head.starts_with(b"GET /negotiated HTTP/1.1\r\n"));
+    assert_eq!(replayed, stale);
+    Ok(())
 }
 
 fn replaying_client() -> TestResult<Client> {
@@ -446,34 +479,6 @@ async fn prime(client: &Client, url: &str) -> TestResult {
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
     response.into_body().collect().await?;
     Ok(())
-}
-
-/// Answers the priming request, then reads the next request on the same
-/// connection and closes it without any response byte.
-async fn serve_stale_connection(listener: &TcpListener) -> TestResult<ReceivedRequest> {
-    let (mut stream, _) = listener.accept().await?;
-    let priming = read_request(&mut stream).await?;
-    assert!(priming.head.starts_with(b"GET /prime HTTP/1.1\r\n"));
-    stream.write_all(PRIMING_RESPONSE).await?;
-    stream.flush().await?;
-    let stale = read_request(&mut stream).await?;
-    // Every request byte was read, so dropping the socket sends FIN, not RST.
-    drop(stream);
-    Ok(stale)
-}
-
-async fn spawn_single_stale_server() -> TestResult<(
-    std::net::SocketAddr,
-    tokio::task::JoinHandle<TestResult<(ReceivedRequest, bool)>>,
-)> {
-    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-    let address = listener.local_addr()?;
-    let server = tokio::spawn(async move {
-        let stale = serve_stale_connection(&listener).await?;
-        let extra = timeout(EXTRA_CONNECTION_WINDOW, listener.accept()).await;
-        Ok((stale, extra.is_err()))
-    });
-    Ok((address, server))
 }
 
 /// Reads one request head and its `Content-Length` or chunked body.
@@ -537,11 +542,14 @@ where
     Ok(String::from_utf8(line)?)
 }
 
-async fn bounded<F>(future: F) -> TestResult
+async fn bounded_until<F>(deadline: Instant, future: F) -> TestResult
 where
     F: Future<Output = TestResult>,
 {
-    timeout(TEST_TIMEOUT, future)
-        .await
-        .map_err(|_| "stale-connection replay test exceeded its deadline")?
+    timeout_at(deadline, future).await.map_err(|elapsed| {
+        FixtureDeadline::new(
+            "stale-connection replay test exceeded its deadline",
+            elapsed,
+        )
+    })?
 }

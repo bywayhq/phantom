@@ -12,8 +12,14 @@ use super::tls::{TestResult, is_peer_gone};
 
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) struct ObservedSocks5Connect {
-    pub(crate) host: String,
+    pub(crate) host: ObservedSocks5Host,
     pub(crate) port: u16,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) enum ObservedSocks5Host {
+    Ip(IpAddr),
+    Domain(String),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -198,7 +204,7 @@ async fn read_connect(stream: &mut TcpStream) -> io::Result<ObservedSocks5Connec
         1 => {
             let mut address = [0_u8; 4];
             stream.read_exact(&mut address).await?;
-            IpAddr::V4(Ipv4Addr::from(address)).to_string()
+            ObservedSocks5Host::Ip(IpAddr::V4(Ipv4Addr::from(address)))
         }
         3 => {
             let length = stream.read_u8().await?;
@@ -210,14 +216,15 @@ async fn read_connect(stream: &mut TcpStream) -> io::Result<ObservedSocks5Connec
             }
             let mut host = vec![0_u8; usize::from(length)];
             stream.read_exact(&mut host).await?;
-            String::from_utf8(host).map_err(|_| {
+            let host = String::from_utf8(host).map_err(|_| {
                 io::Error::new(io::ErrorKind::InvalidData, "SOCKS5 domain was not UTF-8")
-            })?
+            })?;
+            ObservedSocks5Host::Domain(host)
         }
         4 => {
             let mut address = [0_u8; 16];
             stream.read_exact(&mut address).await?;
-            IpAddr::V6(Ipv6Addr::from(address)).to_string()
+            ObservedSocks5Host::Ip(IpAddr::V6(Ipv6Addr::from(address)))
         }
         _ => {
             return Err(io::Error::new(

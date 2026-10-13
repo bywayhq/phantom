@@ -1,8 +1,5 @@
 //! Public connection retry and negotiated pre-selection admission behavior.
 
-use crate::support::tls as tls_support;
-use crate::support::tracing as tracing_support;
-
 use std::{
     error::Error,
     future::{Future, poll_fn},
@@ -22,22 +19,28 @@ use http::{Method, Response, StatusCode};
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::{BodyExt, Full};
 use phantom::{
-    Client, HttpProtocol, RedirectPolicy, RequestErrorKind, RequestHeader, ResponseInfo,
-    RetryPolicy, profile::ClientProfile,
+    Client, HttpProtocol, RedirectPolicy, RequestErrorKind, ResponseInfo, RetryPolicy,
+    profile::ClientProfile,
 };
 use phantom_testkit::tcp::ReservedPort;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
     sync::oneshot,
-    time::{sleep, timeout},
+    time::{Instant, sleep, timeout, timeout_at},
 };
 use tracing::instrument::WithSubscriber;
 
+use crate::support::deadline::FixtureDeadline;
+use crate::support::tls as tls_support;
+use crate::support::tracing as tracing_support;
 use tls_support::{
     H1_ALPN, H2_ALPN, TestIdentity, accept_tls_stream, client_builder, read_head, tls_settings,
 };
 use tracing_support::OutcomeSubscriber;
+
+mod h1_retry;
+mod terminal_status;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 // Covers two refused Windows loopback connects (about two seconds each) plus a
@@ -61,41 +64,27 @@ async fn request_retry_override_waits_for_observed_failure_before_exact_h1_dispa
             .retry_policy(RetryPolicy::none())
             .build()?;
         let subscriber = OutcomeSubscriber::default();
-        let request = client
-            .request(
-                HttpProtocol::Http1,
-                Method::POST,
-                &format!("http://{address}/retried"),
-            )?
-            .header(RequestHeader::new("X-First", "one"))
-            .header(RequestHeader::new("X-Repeat", "alpha"))
-            .header(RequestHeader::new("X-Repeat", "beta"))
-            .streaming_body(Full::new(Bytes::from_static(b"payload")))
-            .trailers(vec![
-                RequestHeader::new("X-Trailer", "first"),
-                RequestHeader::new("X-Trailer", "second"),
-            ])
-            .retry_policy(RetryPolicy::connection_failures(
-                NonZeroUsize::MIN,
-                RETRY_DELAY,
-            ));
-        let request_task = tokio::spawn(request.send().with_subscriber(subscriber.dispatch()));
+        let mut exchange = h1_retry::start(address, &client, &subscriber, None)?;
 
         wait_for_retry_reason(&subscriber).await?;
         let listener = reserved.listen()?;
-        let server = tokio::spawn(serve_one_chunked_request(listener));
+        exchange.listen(listener, None);
 
-        let response = request_task.await??;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        let info = response
-            .extensions()
-            .get::<ResponseInfo>()
-            .ok_or("response omitted retry metadata")?;
-        assert_eq!(info.protocol(), HttpProtocol::Http1);
-        assert_eq!(info.retries_performed(), 1);
-        response.into_body().collect().await?;
+        let caller = async {
+            let response = exchange.response().await?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            let info = response
+                .extensions()
+                .get::<ResponseInfo>()
+                .ok_or("response omitted retry metadata")?;
+            assert_eq!(info.protocol(), HttpProtocol::Http1);
+            assert_eq!(info.retries_performed(), 1);
+            response.into_body().collect().await?;
+            Ok(())
+        }
+        .await;
 
-        let (head, framed, had_no_second_connection) = server.await??;
+        let ((), (head, framed, had_no_second_connection)) = exchange.finish(caller).await?;
         assert_eq!(
             head,
             format!(
@@ -121,20 +110,19 @@ async fn request_retry_override_waits_for_observed_failure_before_exact_h1_dispa
 
 #[tokio::test]
 async fn terminal_http_status_is_not_retried() -> TestResult {
-    bounded(async {
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let (address, server) = timeout_at(deadline, async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            let (mut stream, _) = listener.accept().await?;
-            let head = read_head(&mut stream).await?;
-            stream
-                .write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n")
-                .await?;
-            stream.flush().await?;
-            let second = timeout(SECOND_CONNECTION_WINDOW, listener.accept()).await;
-            Ok::<_, Box<dyn Error + Send + Sync>>((head, second.is_err()))
-        });
+        let server = terminal_status::spawn(listener, None);
+        Ok::<_, Box<dyn Error + Send + Sync>>((address, server))
+    })
+    .await
+    .map_err(|elapsed| {
+        FixtureDeadline::new("connection retry test exceeded its deadline", elapsed)
+    })??;
 
+    let caller: TestResult<_> = match timeout_at(deadline, async {
         let client = Client::builder(ClientProfile::new(tls_settings()))
             .retry_policy(RetryPolicy::connection_failures(
                 NonZeroUsize::MIN,
@@ -142,36 +130,33 @@ async fn terminal_http_status_is_not_retried() -> TestResult {
             ))
             .build()?;
         let subscriber = OutcomeSubscriber::default();
-        let response = client
-            .get(HttpProtocol::Http1, &format!("http://{address}/terminal"))?
-            .send()
-            .with_subscriber(subscriber.dispatch())
-            .await?;
-
-        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
-        let info = response
-            .extensions()
-            .get::<ResponseInfo>()
-            .ok_or("response omitted retry metadata")?;
-        assert_eq!(info.protocol(), HttpProtocol::Http1);
-        assert_eq!(info.retries_performed(), 0);
-        response.into_body().collect().await?;
-
-        let (head, had_no_second_connection) = server.await??;
-        assert_eq!(
-            head,
-            format!("GET /terminal HTTP/1.1\r\nHost: {address}\r\n\r\n").as_bytes()
-        );
-        assert!(had_no_second_connection);
-        assert!(subscriber.retry_reasons_for("client.request").is_empty());
-        assert!(
-            subscriber
-                .retries_performed_for("client.request")
-                .is_empty()
-        );
-        Ok(())
+        let body =
+            terminal_status::caller(&client, &format!("http://{address}/terminal"), &subscriber)
+                .await?;
+        Ok((client, subscriber, body))
     })
     .await
+    {
+        Ok(result) => result,
+        Err(elapsed) => {
+            Err(FixtureDeadline::new("connection retry test exceeded its deadline", elapsed).into())
+        }
+    };
+
+    let ((_client, subscriber, _body), (head, had_no_second_connection)) =
+        terminal_status::collect(caller, server).await?;
+    assert_eq!(
+        head,
+        format!("GET /terminal HTTP/1.1\r\nHost: {address}\r\n\r\n").as_bytes()
+    );
+    assert!(had_no_second_connection);
+    assert!(subscriber.retry_reasons_for("client.request").is_empty());
+    assert!(
+        subscriber
+            .retries_performed_for("client.request")
+            .is_empty()
+    );
+    Ok(())
 }
 
 #[tokio::test]
@@ -650,19 +635,6 @@ impl Body for PollCountingBody {
     fn size_hint(&self) -> SizeHint {
         self.inner.size_hint()
     }
-}
-
-async fn serve_one_chunked_request(listener: TcpListener) -> TestResult<(Vec<u8>, Vec<u8>, bool)> {
-    let (mut stream, _) = listener.accept().await?;
-    let head = read_head(&mut stream).await?;
-    let mut framed = vec![0_u8; EXPECTED_CHUNKED_BODY.len()];
-    stream.read_exact(&mut framed).await?;
-    stream
-        .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n")
-        .await?;
-    stream.flush().await?;
-    let second = timeout(SECOND_CONNECTION_WINDOW, listener.accept()).await;
-    Ok((head, framed, second.is_err()))
 }
 
 async fn assert_pending<F>(mut future: Pin<&mut F>, message: &'static str) -> TestResult

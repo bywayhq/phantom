@@ -4,13 +4,15 @@
 
 use std::{
     collections::VecDeque,
-    io,
+    error::Error,
+    fmt, io,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     pin::Pin,
     sync::{
         Arc, Mutex, MutexGuard,
         atomic::{AtomicUsize, Ordering},
     },
+    time::Duration,
 };
 
 use btls::ssl::{ErrorCode, NameType, Ssl};
@@ -21,7 +23,8 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::watch,
-    task::{JoinHandle, JoinSet},
+    task::{JoinError, JoinHandle, JoinSet},
+    time::{Instant, timeout, timeout_at},
 };
 use tokio_btls::SslStream;
 
@@ -32,6 +35,7 @@ use crate::support::{
 };
 
 const H3_ALPN: &[u8] = b"h3";
+const OWNER_STOP_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// A response served by either the origin or the HTTP/3 alternative.
 #[derive(Clone, Debug)]
@@ -400,26 +404,115 @@ impl Http3UpgradeFixture {
         )
     }
 
-    pub(crate) async fn finish(self) -> TestResult<UpgradeObservations> {
+    pub(crate) async fn finish(mut self) -> TestResult<UpgradeObservations> {
+        // A closed channel needs no additional shutdown notification.
         let _ = self.shutdown.send(true);
         self.alternative_endpoint
             .close(VarInt::from_u32(0), b"test complete");
-        self.origin_task.await??;
-        self.alternative_task.await??;
-        let origin_http3 = match self.origin_http3 {
-            Some(service) => {
-                for endpoint in &service.endpoints {
-                    endpoint.close(VarInt::from_u32(0), b"test complete");
-                }
-                for task in service.tasks {
-                    task.await??;
-                }
-                Some(service.observations)
+        if let Some(service) = &self.origin_http3 {
+            for endpoint in &service.endpoints {
+                endpoint.close(VarInt::from_u32(0), b"test complete");
             }
-            None => None,
-        };
-        snapshot(&self.observations, origin_http3.as_deref())
+        }
+
+        let mut failures = Vec::new();
+        if let Err(error) = finish_owner_task(&mut self.origin_task).await {
+            failures.push(error);
+        }
+        if let Err(error) = finish_owner_task(&mut self.alternative_task).await {
+            failures.push(error);
+        }
+        if let Some(service) = &mut self.origin_http3 {
+            for task in &mut service.tasks {
+                if let Err(error) = finish_owner_task(task).await {
+                    failures.push(error);
+                }
+            }
+        }
+
+        owner_failures("upgrade fixture tasks failed", failures)?;
+        self.snapshot()
     }
+}
+
+impl Drop for Http3UpgradeFixture {
+    fn drop(&mut self) {
+        // This also owns cancellation when finish itself is dropped or unwinds.
+        // A closed channel needs no additional shutdown notification.
+        let _ = self.shutdown.send(true);
+        self.alternative_endpoint
+            .close(VarInt::from_u32(0), b"fixture dropped");
+        if let Some(service) = &self.origin_http3 {
+            for endpoint in &service.endpoints {
+                endpoint.close(VarInt::from_u32(0), b"fixture dropped");
+            }
+            for task in &service.tasks {
+                task.abort();
+            }
+        }
+        self.origin_task.abort();
+        self.alternative_task.abort();
+    }
+}
+
+#[derive(Debug)]
+struct UpgradeTaskFailure {
+    context: &'static str,
+    primary: Box<dyn Error + Send + Sync>,
+    secondary: Vec<Box<dyn Error + Send + Sync>>,
+}
+
+impl fmt::Display for UpgradeTaskFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}: {}", self.context, self.primary)?;
+        for error in &self.secondary {
+            write!(formatter, "; additional task failure: {error}")?;
+        }
+        Ok(())
+    }
+}
+
+impl Error for UpgradeTaskFailure {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&*self.primary)
+    }
+}
+
+fn owner_failures(
+    context: &'static str,
+    failures: Vec<Box<dyn Error + Send + Sync>>,
+) -> TestResult<()> {
+    let mut failures = failures.into_iter();
+    let Some(primary) = failures.next() else {
+        return Ok(());
+    };
+    let secondary: Vec<_> = failures.collect();
+
+    Err(UpgradeTaskFailure {
+        context,
+        primary,
+        secondary,
+    }
+    .into())
+}
+
+async fn finish_owner_task(task: &mut JoinHandle<TestResult<()>>) -> TestResult<()> {
+    let elapsed = match timeout(OWNER_STOP_TIMEOUT, &mut *task).await {
+        Ok(completed) => return completed?,
+        Err(elapsed) => elapsed,
+    };
+
+    task.abort();
+    let mut failures: Vec<Box<dyn Error + Send + Sync>> = vec![elapsed.into()];
+    // Only this owner's explicit abort makes cancellation an expected result.
+    match timeout(OWNER_STOP_TIMEOUT, task).await {
+        Ok(Ok(Err(error))) => failures.push(error),
+        Ok(Err(error)) if error.is_cancelled() => {}
+        Ok(Err(error)) => failures.push(error.into()),
+        Err(error) => failures.push(error.into()),
+        Ok(Ok(Ok(()))) => {}
+    }
+    owner_failures("upgrade fixture task did not stop", failures)
 }
 
 async fn run_origin(
@@ -428,16 +521,43 @@ async fn run_origin(
     responses: Arc<Mutex<VecDeque<PlannedResponse>>>,
     plan: OriginPlan,
     observations: Arc<SharedObservations>,
-    mut shutdown: watch::Receiver<bool>,
+    shutdown: watch::Receiver<bool>,
 ) -> TestResult<()> {
-    let mut connections = JoinSet::new();
+    run_origin_connections(
+        listener,
+        acceptor,
+        responses,
+        plan,
+        observations,
+        shutdown,
+        JoinSet::new(),
+    )
+    .await
+}
+
+async fn run_origin_connections(
+    listener: TcpListener,
+    acceptor: btls::ssl::SslAcceptor,
+    responses: Arc<Mutex<VecDeque<PlannedResponse>>>,
+    plan: OriginPlan,
+    observations: Arc<SharedObservations>,
+    mut shutdown: watch::Receiver<bool>,
+    mut connections: JoinSet<TestResult<()>>,
+) -> TestResult<()> {
+    let mut failures = Vec::new();
     loop {
         tokio::select! {
             _ = shutdown.changed() => {
                 break;
             }
             accepted = listener.accept() => {
-                let (stream, _) = accepted?;
+                let (stream, _) = match accepted {
+                    Ok(accepted) => accepted,
+                    Err(error) => {
+                        failures.push(error.into());
+                        break;
+                    }
+                };
                 connections.spawn(serve_origin_connection(
                     stream,
                     acceptor.clone(),
@@ -448,21 +568,26 @@ async fn run_origin(
                 ));
             }
             completed = connections.join_next(), if !connections.is_empty() => {
-                if let Some(completed) = completed {
-                    completed??;
+                if let Some(completed) = completed
+                    && let Err(error) = connection_result(completed)
+                {
+                    failures.push(error);
+                    break;
                 }
             }
         }
     }
-    connections.abort_all();
-    while let Some(completed) = connections.join_next().await {
-        match completed {
-            Ok(result) => result?,
-            Err(error) if error.is_cancelled() => {}
-            Err(error) => return Err(error.into()),
-        }
+
+    drop(listener);
+    if let Err(error) = stop_origin_connections(connections).await {
+        failures.push(error);
     }
-    Ok(())
+
+    owner_failures("origin worker failed", failures)
+}
+
+async fn stop_origin_connections(connections: JoinSet<TestResult<()>>) -> TestResult<()> {
+    stop_connections(connections, "origin connection tasks failed").await
 }
 
 async fn serve_origin_connection(
@@ -542,7 +667,17 @@ async fn run_alternative(
     endpoint: Endpoint,
     behavior: AlternativeBehavior,
     observations: Arc<SharedObservations>,
+    shutdown: watch::Receiver<bool>,
+) -> TestResult<()> {
+    run_alternative_connections(endpoint, behavior, observations, shutdown, JoinSet::new()).await
+}
+
+async fn run_alternative_connections(
+    endpoint: Endpoint,
+    behavior: AlternativeBehavior,
+    observations: Arc<SharedObservations>,
     mut shutdown: watch::Receiver<bool>,
+    mut connections: JoinSet<TestResult<()>>,
 ) -> TestResult<()> {
     let responses = match &behavior {
         AlternativeBehavior::Responses(responses) => {
@@ -550,7 +685,7 @@ async fn run_alternative(
         }
         AlternativeBehavior::CloseAfterHandshake { .. } => None,
     };
-    let mut connections = JoinSet::new();
+    let mut failures = Vec::new();
     loop {
         tokio::select! {
             _ = shutdown.changed() => {
@@ -569,21 +704,76 @@ async fn run_alternative(
                 ));
             }
             completed = connections.join_next(), if !connections.is_empty() => {
-                if let Some(completed) = completed {
-                    completed??;
+                if let Some(completed) = completed
+                    && let Err(error) = connection_result(completed)
+                {
+                    failures.push(error);
+                    break;
                 }
             }
         }
     }
-    connections.abort_all();
-    while let Some(completed) = connections.join_next().await {
-        match completed {
-            Ok(result) => result?,
-            Err(error) if error.is_cancelled() => {}
-            Err(error) => return Err(error.into()),
+
+    endpoint.close(VarInt::from_u32(0), b"alternative worker stopped");
+    if let Err(error) = stop_alternative_connections(connections).await {
+        failures.push(error);
+    }
+
+    owner_failures("alternative worker failed", failures)
+}
+
+async fn stop_alternative_connections(connections: JoinSet<TestResult<()>>) -> TestResult<()> {
+    stop_connections(connections, "alternative connection tasks failed").await
+}
+
+fn connection_result(completed: Result<TestResult<()>, JoinError>) -> TestResult<()> {
+    completed?
+}
+
+async fn stop_connections(
+    mut connections: JoinSet<TestResult<()>>,
+    context: &'static str,
+) -> TestResult<()> {
+    let mut failures = Vec::new();
+    // Preserve completed errors, including cancellation not requested here.
+    while let Some(completed) = connections.try_join_next() {
+        if let Err(error) = connection_result(completed) {
+            failures.push(error);
         }
     }
-    Ok(())
+
+    connections.abort_all();
+    let deadline = Instant::now() + OWNER_STOP_TIMEOUT;
+    // Remaining children have now received this owner's cancellation request.
+    loop {
+        match timeout_at(deadline, connections.join_next()).await {
+            Ok(None) => break,
+            Ok(Some(Err(error))) if error.is_cancelled() => {}
+            Ok(Some(completed)) => {
+                if let Err(error) = connection_result(completed) {
+                    failures.push(error);
+                }
+            }
+            Err(error) => {
+                failures.push(error.into());
+                // Retain any completed outcomes at the deadline. JoinSet still
+                // aborts unfinished children when this owner is dropped.
+                while let Some(completed) = connections.try_join_next() {
+                    match completed {
+                        Err(error) if error.is_cancelled() => {}
+                        completed => {
+                            if let Err(error) = connection_result(completed) {
+                                failures.push(error);
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    owner_failures(context, failures)
 }
 
 async fn serve_alternative_connection(
@@ -973,3 +1163,11 @@ async fn bind_shared_origin_port(
     )
     .into())
 }
+
+#[cfg(test)]
+#[path = "http3_upgrade/owner_results.rs"]
+mod owner_results;
+
+#[cfg(test)]
+#[path = "http3_upgrade/worker_results.rs"]
+mod worker_results;

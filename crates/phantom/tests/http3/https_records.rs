@@ -1,13 +1,15 @@
 //! HTTP/3 discovery from HTTPS DNS records, against a loopback resolver.
 
-use crate::support::h3 as h3_support;
-use crate::support::http3_upgrade as http3_upgrade_support;
-use crate::support::tls as tls_support;
-
 use std::{
+    error::Error,
+    fmt,
     future::Future,
     net::{IpAddr, Ipv4Addr},
     num::NonZeroUsize,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -16,11 +18,18 @@ use http_body_util::BodyExt;
 use phantom::{
     AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, Client, ClientBuilder, HttpProtocol, HttpProxy,
     RequestErrorKind, ResponseInfo, Route, Socks5Proxy,
-    dns::HttpsRecordResolver,
+    dns::{HttpsLookupErrorKind, HttpsRecordResolver},
     profile::{ClientProfile, browser::chrome},
 };
-use phantom_testkit::dns::{DnsAnswer, DnsQuery, DnsReply, DnsServer};
-use tokio::time::timeout;
+use phantom_testkit::{
+    dns::{DnsAnswer, DnsQuery, DnsReply, DnsServer},
+    tcp::ReservedPort,
+};
+use tokio::{sync::watch, time::timeout};
+
+use crate::support::h3 as h3_support;
+use crate::support::http3_upgrade as http3_upgrade_support;
+use crate::support::tls as tls_support;
 
 use h3_support::{appending_alt_used, client_settings};
 use http3_upgrade_support::{
@@ -37,6 +46,21 @@ const STAND_IN_NAME: &str = "origin.test";
 const H3_RECORD: &[u8] = b"\x00\x01\x00\x00\x01\x00\x06\x02h3\x02h2";
 /// RDATA of a ServiceMode record at the owner name listing only `h2`.
 const H2_RECORD: &[u8] = b"\x00\x01\x00\x00\x01\x00\x03\x02h2";
+
+#[derive(Debug)]
+struct DiscoveryDeadline(tokio::time::error::Elapsed);
+
+impl fmt::Display for DiscoveryDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("HTTPS-record discovery test exceeded its deadline")
+    }
+}
+
+impl Error for DiscoveryDeadline {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.0)
+    }
+}
 
 fn records(rdata: &'static [u8]) -> impl Fn(&DnsQuery) -> DnsReply + Send + Sync + 'static {
     move |_| {
@@ -65,14 +89,15 @@ async fn spawn_fixture(
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn sequential_client_uses_http3_once_the_https_record_is_known() -> TestResult<()> {
     bounded(async {
         let identity = identity()?;
         let fixture = spawn_fixture(&identity, 1, 1).await?;
-        let dns = DnsServer::spawn(records(H3_RECORD)).await?;
+        let mut dns = DnsServer::spawn(records(H3_RECORD)).await?;
+        let mut lookup = observed_resolver(&dns)?;
         let client = client_builder(&identity)
-            .https_record_discovery(resolver(&dns)?)
+            .https_record_discovery(lookup.resolver.clone())
             .build()?;
 
         // The first request does not wait for the lookup it starts.
@@ -82,7 +107,8 @@ async fn sequential_client_uses_http3_once_the_https_record_is_known() -> TestRe
             .await?;
         assert_eq!(protocol(&first)?, HttpProtocol::Http2);
         drain(first).await?;
-        wait_for_lookup().await;
+
+        assert_eq!(lookup.completed().await?, Ok(()));
 
         let second = client
             .get_negotiated(&fixture.origin_url("/second"))?
@@ -109,12 +135,13 @@ async fn sequential_client_uses_http3_once_the_https_record_is_known() -> TestRe
             request.fields.iter().all(|field| field.name != "alt-used"),
             "an HTTPS-record request named an alternative service"
         );
+        dns.finish().await?;
         Ok(())
     })
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn misdirected_http3_marks_the_https_record_location_broken() -> TestResult<()> {
     bounded(async {
         let identity = identity()?;
@@ -131,9 +158,10 @@ async fn misdirected_http3_marks_the_https_record_location_broken() -> TestResul
             .origin_http3([PlannedResponse::new(StatusCode::MISDIRECTED_REQUEST)]),
         )
         .await?;
-        let dns = DnsServer::spawn(records(H3_RECORD)).await?;
+        let mut dns = DnsServer::spawn(records(H3_RECORD)).await?;
+        let mut lookup = observed_resolver(&dns)?;
         let client = client_builder(&identity)
-            .https_record_discovery(resolver(&dns)?)
+            .https_record_discovery(lookup.resolver.clone())
             .build()?;
 
         let mut protocols = Vec::new();
@@ -144,7 +172,10 @@ async fn misdirected_http3_marks_the_https_record_location_broken() -> TestResul
                 .await?;
             protocols.push((protocol(&response)?, response.status()));
             drain(response).await?;
-            wait_for_lookup().await;
+
+            if path == "/learn" {
+                assert_eq!(lookup.completed().await?, Ok(()));
+            }
         }
         // An HTTPS record cannot be evicted, so its location is marked broken
         // and the next request goes to the origin.
@@ -160,12 +191,13 @@ async fn misdirected_http3_marks_the_https_record_location_broken() -> TestResul
         let observed = fixture.finish().await?;
         assert_eq!(observed.origin_requests.len(), 2);
         assert_eq!(observed.origin_http3_requests.len(), 1);
+        dns.finish().await?;
         Ok(())
     })
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn delayed_https_record_does_not_delay_the_request() -> TestResult<()> {
     bounded(async {
         // Under hickory's five-second query timeout, and above the time the
@@ -186,11 +218,16 @@ async fn delayed_https_record_does_not_delay_the_request() -> TestResult<()> {
             ),
         ] {
             let fixture = spawn_fixture(&identity, 1, usize::from(later_http3)).await?;
-            let dns =
-                DnsServer::spawn(|query| records(H3_RECORD)(query).delayed(DNS_DELAY)).await?;
+            let (arrival, mut arrived) = watch::channel(false);
+            let mut dns = DnsServer::spawn(move |query| {
+                arrival.send_replace(true);
+                records(H3_RECORD)(query).delayed(DNS_DELAY)
+            })
+            .await?;
+            let mut lookup = observed_resolver(&dns)?;
             let client = client_builder(&identity)
                 .alt_svc_policy(policy)
-                .https_record_discovery(resolver(&dns)?)
+                .https_record_discovery(lookup.resolver.clone())
                 .build()?;
 
             let started = Instant::now();
@@ -205,12 +242,13 @@ async fn delayed_https_record_does_not_delay_the_request() -> TestResult<()> {
                 elapsed < DNS_DELAY,
                 "{policy:?}: the request took {elapsed:?}, waiting for the HTTPS record"
             );
+
+            drop(arrived.wait_for(|arrived| *arrived).await?);
             assert_eq!(query_ids(&dns), [query_ids(&dns)[0]], "{policy:?}");
 
             if later_http3 {
                 // The late record still reaches the cache for later requests.
-                tokio::time::sleep_until((started + DNS_DELAY).into()).await;
-                wait_for_lookup().await;
+                assert_eq!(lookup.completed().await?, Ok(()));
                 let later = client
                     .get_negotiated(&fixture.origin_url("/later"))?
                     .send()
@@ -220,20 +258,22 @@ async fn delayed_https_record_does_not_delay_the_request() -> TestResult<()> {
             }
             drop(client);
             fixture.finish().await?;
+            dns.finish().await?;
         }
         Ok(())
     })
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn failed_lookup_leaves_the_request_on_the_origin() -> TestResult<()> {
     bounded(async {
         let identity = identity()?;
         let fixture = spawn_fixture(&identity, 2, 0).await?;
-        let dns = DnsServer::spawn(|_| DnsReply::new(DnsAnswer::ServerFailure)).await?;
+        let mut dns = DnsServer::spawn(|_| DnsReply::new(DnsAnswer::ServerFailure)).await?;
+        let mut lookup = observed_resolver(&dns)?;
         let client = client_builder(&identity)
-            .https_record_discovery(resolver(&dns)?)
+            .https_record_discovery(lookup.resolver.clone())
             .build()?;
         let mut queries = Vec::new();
         for path in ["/first", "/second"] {
@@ -243,7 +283,15 @@ async fn failed_lookup_leaves_the_request_on_the_origin() -> TestResult<()> {
                 .await?;
             assert_eq!(protocol(&response)?, HttpProtocol::Http2);
             drain(response).await?;
-            wait_for_lookup().await;
+
+            if path == "/first" {
+                assert_eq!(
+                    lookup.completed().await?,
+                    Err(HttpsLookupErrorKind::Resolve)
+                );
+                assert_eq!(lookup.calls(), 1);
+            }
+
             queries.push(dns.queries().len());
         }
         drop(client);
@@ -252,22 +300,25 @@ async fn failed_lookup_leaves_the_request_on_the_origin() -> TestResult<()> {
         // The failure is cached, so the second request sends no query.
         assert!(queries[0] > 0);
         assert_eq!(queries[0], queries[1]);
+        assert_eq!(lookup.calls(), 1);
+        dns.finish().await?;
         Ok(())
     })
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "current_thread")]
 async fn disabled_discovery_leaves_requests_unchanged() -> TestResult<()> {
     bounded(async {
         let identity = identity()?;
-        let dns = DnsServer::spawn(records(H2_RECORD)).await?;
+        let mut dns = DnsServer::spawn(records(H2_RECORD)).await?;
         let mut observed = Vec::new();
         for discovery in [false, true] {
             let fixture = spawn_fixture(&identity, 2, 0).await?;
+            let mut lookup = observed_resolver(&dns)?;
             let mut builder = client_builder(&identity);
             if discovery {
-                builder = builder.https_record_discovery(resolver(&dns)?);
+                builder = builder.https_record_discovery(lookup.resolver.clone());
             }
             let client = builder.build()?;
             for path in ["/first", "/second"] {
@@ -277,7 +328,10 @@ async fn disabled_discovery_leaves_requests_unchanged() -> TestResult<()> {
                     .await?;
                 assert_eq!(protocol(&response)?, HttpProtocol::Http2);
                 drain(response).await?;
-                wait_for_lookup().await;
+
+                if discovery && path == "/first" {
+                    assert_eq!(lookup.completed().await?, Ok(()));
+                }
             }
             drop(client);
             let requests = fixture.finish().await?.origin_requests;
@@ -288,6 +342,7 @@ async fn disabled_discovery_leaves_requests_unchanged() -> TestResult<()> {
                     .collect::<Vec<_>>(),
             );
             let expected_queries = usize::from(discovery);
+            assert_eq!(lookup.calls(), expected_queries);
             assert_eq!(
                 dns.queries().len(),
                 expected_queries,
@@ -296,6 +351,7 @@ async fn disabled_discovery_leaves_requests_unchanged() -> TestResult<()> {
         }
         // The same requests, field for field, whether or not a lookup ran.
         assert_eq!(observed[0], observed[1]);
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -305,21 +361,25 @@ async fn disabled_discovery_leaves_requests_unchanged() -> TestResult<()> {
 async fn routes_without_direct_dns_send_no_https_query() -> TestResult<()> {
     bounded(async {
         let identity = identity()?;
-        let dns = DnsServer::spawn(records(H3_RECORD)).await?;
+        let mut dns = DnsServer::spawn(records(H3_RECORD)).await?;
+        let proxy = ReservedPort::bind()?;
+        let origin = ReservedPort::bind()?;
+        let proxy_address = proxy.address();
+        let url = format!("https://localhost:{}/", origin.address().port());
         // Like Chromium, where proxied connections perform DNS on the proxy,
-        // a proxy route never queries HTTPS records. Nothing listens on the
-        // discard port, so each request fails at the proxy.
+        // a proxy route never queries HTTPS records. The reserved proxy port
+        // refuses each request before the origin is reached.
         for route in [
-            Route::http_proxy(HttpProxy::new("http://127.0.0.1:9")?),
-            Route::http_proxy(HttpProxy::new("https://127.0.0.1:9")?),
-            Route::socks5(Socks5Proxy::new("socks5h://127.0.0.1:9")?),
+            Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?),
+            Route::http_proxy(HttpProxy::new(&format!("https://{proxy_address}"))?),
+            Route::socks5(Socks5Proxy::new(&format!("socks5h://{proxy_address}"))?),
         ] {
             let client = client_builder(&identity)
                 .route(route)
                 .https_record_discovery(resolver(&dns)?)
                 .build()?;
             let error = client
-                .get_negotiated("https://localhost:8443/")?
+                .get_negotiated(&url)?
                 .send()
                 .await
                 .err()
@@ -327,6 +387,7 @@ async fn routes_without_direct_dns_send_no_https_query() -> TestResult<()> {
             assert_eq!(error.kind(), RequestErrorKind::Proxy);
         }
         assert!(dns.queries().is_empty());
+        dns.finish().await?;
         Ok(())
     })
     .await
@@ -337,7 +398,7 @@ fn discovery_requires_an_alt_svc_store() -> TestResult<()> {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
-    let dns = runtime.block_on(DnsServer::spawn(records(H3_RECORD)))?;
+    let mut dns = runtime.block_on(DnsServer::spawn(records(H3_RECORD)))?;
     let identity = identity()?;
     let error = profile_builder(&identity)
         .https_record_discovery(resolver(&dns)?)
@@ -345,6 +406,7 @@ fn discovery_requires_an_alt_svc_store() -> TestResult<()> {
         .err()
         .ok_or("discovery without an Alt-Svc store was accepted")?;
     assert_eq!(error.kind(), phantom::BuildErrorKind::InvalidPolicy);
+    runtime.block_on(dns.finish())?;
     Ok(())
 }
 
@@ -381,11 +443,56 @@ fn client_builder(identity: &TestIdentity) -> ClientBuilder {
     profile_builder(identity).alt_svc(NonZeroUsize::MIN.saturating_add(7))
 }
 
-/// Lets a spawned lookup finish and store its result.
-///
-/// The loopback resolver answers within milliseconds unless a test delays it.
-async fn wait_for_lookup() {
-    tokio::time::sleep(Duration::from_millis(200)).await;
+type LookupOutcome = Result<(), HttpsLookupErrorKind>;
+
+struct ObservedLookup {
+    resolver: HttpsRecordResolver,
+    completion: watch::Receiver<Option<LookupOutcome>>,
+    calls: Arc<AtomicUsize>,
+}
+
+impl ObservedLookup {
+    fn calls(&self) -> usize {
+        self.calls.load(Ordering::Relaxed)
+    }
+
+    /// On this current-thread runtime, cache insertion follows the signal
+    /// in the same lookup poll before this waiter can resume. The production
+    /// watch send is later and may have no remaining receivers.
+    async fn completed(&mut self) -> TestResult<LookupOutcome> {
+        let observed = self.completion.wait_for(Option::is_some).await?;
+        observed
+            .as_ref()
+            .copied()
+            .ok_or_else(|| "lookup completion omitted its actual result".into())
+    }
+}
+
+fn observed_resolver(dns: &DnsServer) -> TestResult<ObservedLookup> {
+    Ok(observe_resolver(resolver(dns)?))
+}
+
+fn observe_resolver(upstream: HttpsRecordResolver) -> ObservedLookup {
+    let (completion, receiver) = watch::channel(None);
+    let calls = Arc::new(AtomicUsize::new(0));
+    let observer = Arc::clone(&calls);
+    let resolver = HttpsRecordResolver::from_fn(move |host, port| {
+        observer.fetch_add(1, Ordering::Relaxed);
+        let upstream = upstream.clone();
+        let completion = completion.clone();
+        async move {
+            let result = upstream.lookup(&host, port).await;
+            let outcome = result.as_ref().map(|_| ()).map_err(|error| error.kind());
+            completion.send_replace(Some(outcome));
+            result
+        }
+    });
+
+    ObservedLookup {
+        resolver,
+        completion: receiver,
+        calls,
+    }
 }
 
 /// Returns the distinct DNS message IDs received, in arrival order.
@@ -431,5 +538,8 @@ where
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "HTTPS-record discovery test exceeded its deadline")?
+        .map_err(DiscoveryDeadline)?
 }
+
+mod completion_contract;
+mod deadline_contract;

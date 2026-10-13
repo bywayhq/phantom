@@ -1,8 +1,5 @@
 //! HTTP/2 session admission and connection-lifecycle integration tests.
 
-use crate::support::h2 as h2_support;
-use crate::support::tls as tls_support;
-
 use std::{
     error::Error,
     future::{Future, poll_fn},
@@ -26,6 +23,9 @@ use tokio::{
 };
 use tokio_btls::SslStream;
 
+use crate::support::{deadline::FixtureDeadline, h2 as h2_support, tls as tls_support};
+
+use super::peer_completion::{self, Peer};
 use h2_support::{accept_client_preface, read_request_headers, write_frame};
 use tls_support::{H2_ALPN, TestIdentity, client_builder, test_client};
 
@@ -34,12 +34,14 @@ type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[tokio::test]
 async fn http2_admission_is_bounded_until_body_drop_and_cancel_safe() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let mut client_failure = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(Peer::spawn(async move {
             let stream = accept_tls(&listener, &acceptor).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
 
@@ -64,7 +66,7 @@ async fn http2_admission_is_bounded_until_body_drop_and_cancel_safe() -> TestRes
                 first_request.uri().path().to_owned(),
                 later_request.uri().path().to_owned(),
             ])
-        });
+        }));
 
         let one = NonZeroUsize::MIN;
         let session = client_builder(&identity, true)
@@ -105,6 +107,7 @@ async fn http2_admission_is_bounded_until_body_drop_and_cancel_safe() -> TestRes
             Err(error) => error,
         };
         assert_eq!(error.kind(), RequestErrorKind::Capacity);
+        client_failure = Some(error);
 
         drop(held);
         let response = admitted.await?;
@@ -112,20 +115,26 @@ async fn http2_admission_is_bounded_until_body_drop_and_cancel_safe() -> TestRes
         response.into_body().collect().await?;
         drop(session);
 
-        assert_eq!(server.await??, ["/held", "/admitted"]);
+        assert_eq!(
+            peer_completion::join(&mut server).await?,
+            ["/held", "/admitted"]
+        );
         Ok(())
     })
-    .await
+    .await;
+    let result = peer_completion::finish(caller, &mut server).await;
+    peer_completion::finish_negative(result, client_failure)
 }
 
 #[tokio::test]
 async fn peer_http2_stream_limit_remains_authoritative() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(Peer::spawn(async move {
             let stream = accept_tls(&listener, &acceptor).await?;
             let mut builder = ::http2::server::Builder::new();
             builder.max_concurrent_streams(1);
@@ -147,7 +156,7 @@ async fn peer_http2_stream_limit_remains_authoritative() -> TestResult<()> {
             drop(second);
             poll_fn(|context| connection.poll_closed(context)).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
 
         let two = NonZeroUsize::new(2).ok_or("two must be non-zero")?;
         let session = client_builder(&identity, true)
@@ -173,20 +182,22 @@ async fn peer_http2_stream_limit_remains_authoritative() -> TestResult<()> {
         assert_eq!(response.status(), 204);
         response.into_body().collect().await?;
         drop(session);
-        server.await??;
+        peer_completion::join(&mut server).await?;
         Ok(())
     })
-    .await
+    .await;
+    peer_completion::finish(caller, &mut server).await
 }
 
 #[tokio::test]
 async fn goaway_replaces_connection_while_eligible_body_finishes() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(Peer::spawn(async move {
             let mut first = accept_tls(&listener, &acceptor).await?;
             accept_client_preface(&mut first).await?;
             read_request_headers(&mut first, 1).await?;
@@ -197,13 +208,12 @@ async fn goaway_replaces_connection_while_eligible_body_finishes() -> TestResult
             first.flush().await?;
 
             let replacement = accept_tls(&listener, &acceptor).await?;
-            let replacement = tokio::spawn(serve_requests(replacement, 1));
             write_frame(&mut first, 0x0, 0x1, 1, b"after").await?;
             first.flush().await?;
 
-            let requests = replacement.await??;
+            let requests = serve_requests(replacement, 1).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(requests)
-        });
+        }));
 
         let session = test_client(&identity, true)?;
         let response = session
@@ -222,20 +232,25 @@ async fn goaway_replaces_connection_while_eligible_body_finishes() -> TestResult
         assert_eq!(held.collect().await?.to_bytes(), "after");
         drop(session);
 
-        assert_eq!(server.await??, vec![(1, "/later".to_owned())]);
+        assert_eq!(
+            peer_completion::join(&mut server).await?,
+            vec![(1, "/later".to_owned())]
+        );
         Ok(())
     })
-    .await
+    .await;
+    peer_completion::finish(caller, &mut server).await
 }
 
 #[tokio::test]
 async fn graceful_goaway_retries_a_bodyless_get_once_on_a_replacement() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(Peer::spawn(async move {
             let mut first = accept_tls(&listener, &acceptor).await?;
             accept_client_preface(&mut first).await?;
             read_request_headers(&mut first, 1).await?;
@@ -245,7 +260,7 @@ async fn graceful_goaway_retries_a_bodyless_get_once_on_a_replacement() -> TestR
 
             let replacement = accept_tls(&listener, &acceptor).await?;
             serve_requests(replacement, 1).await
-        });
+        }));
 
         let session = test_client(&identity, true)?;
         let response = session
@@ -256,21 +271,26 @@ async fn graceful_goaway_retries_a_bodyless_get_once_on_a_replacement() -> TestR
         response.into_body().collect().await?;
         drop(session);
 
-        assert_eq!(server.await??, vec![(1, "/failed".to_owned())]);
+        assert_eq!(
+            peer_completion::join(&mut server).await?,
+            vec![(1, "/failed".to_owned())]
+        );
         Ok(())
     })
-    .await
+    .await;
+    peer_completion::finish(caller, &mut server).await
 }
 
 #[tokio::test]
 async fn goaway_processed_boundary_preserves_lower_stream_and_retries_higher_stream()
 -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(Peer::spawn(async move {
             let mut first = accept_tls(&listener, &acceptor).await?;
             accept_client_preface(&mut first).await?;
             read_request_headers(&mut first, 1).await?;
@@ -283,7 +303,7 @@ async fn goaway_processed_boundary_preserves_lower_stream_and_retries_higher_str
 
             let replacement = accept_tls(&listener, &acceptor).await?;
             serve_requests(replacement, 1).await
-        });
+        }));
 
         let two = NonZeroUsize::new(2).ok_or("two must be non-zero")?;
         let session = client_builder(&identity, true)
@@ -305,21 +325,27 @@ async fn goaway_processed_boundary_preserves_lower_stream_and_retries_higher_str
         higher.into_body().collect().await?;
         drop(session);
 
-        assert_eq!(server.await??, vec![(1, "/higher".to_owned())]);
+        assert_eq!(
+            peer_completion::join(&mut server).await?,
+            vec![(1, "/higher".to_owned())]
+        );
         Ok(())
     })
-    .await
+    .await;
+    peer_completion::finish(caller, &mut server).await
 }
 
 #[tokio::test]
 async fn graceful_goaway_retry_is_bounded_to_one_replacement() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let mut client_failure = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
         let (client_done_tx, client_done_rx) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(Peer::spawn(async move {
             for _ in 0..2 {
                 let mut stream = accept_tls(&listener, &acceptor).await?;
                 accept_client_preface(&mut stream).await?;
@@ -336,11 +362,11 @@ async fn graceful_goaway_retry_is_bounded_to_one_replacement() -> TestResult<()>
                     Ok::<_, Box<dyn Error + Send + Sync>>(false)
                 }
                 completed = client_done_rx => {
-                    completed.map_err(|_| "client stopped before reporting completion")?;
+                    completed?;
                     Ok(true)
                 }
             }
-        });
+        }));
 
         let session = test_client(&identity, true)?;
         let result = session
@@ -352,13 +378,19 @@ async fn graceful_goaway_retry_is_bounded_to_one_replacement() -> TestResult<()>
             Err(error) => error,
         };
         assert_eq!(error.kind(), RequestErrorKind::Http2);
+        client_failure = Some(error);
         client_done_tx
             .send(())
             .map_err(|_| "server stopped before client completion")?;
-        assert!(server.await??, "a second retry opened a third connection");
+        assert!(
+            peer_completion::join(&mut server).await?,
+            "a second retry opened a third connection"
+        );
         Ok(())
     })
-    .await
+    .await;
+    let result = peer_completion::finish(caller, &mut server).await;
+    peer_completion::finish_negative(result, client_failure)
 }
 
 #[tokio::test]
@@ -388,13 +420,15 @@ async fn assert_goaway_not_retried(
     path: &'static str,
     reason_code: u32,
 ) -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let mut client_failure = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
         let (client_done_tx, client_done_rx) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(Peer::spawn(async move {
             let mut stream = accept_tls(&listener, &acceptor).await?;
             accept_client_preface(&mut stream).await?;
             read_request_headers(&mut stream, 1).await?;
@@ -411,11 +445,11 @@ async fn assert_goaway_not_retried(
                     Ok::<_, Box<dyn Error + Send + Sync>>(false)
                 }
                 completed = client_done_rx => {
-                    completed.map_err(|_| "client stopped before reporting completion")?;
+                    completed?;
                     Ok(true)
                 }
             }
-        });
+        }));
 
         let session = test_client(&identity, true)?;
         let mut request = session.request(
@@ -432,16 +466,19 @@ async fn assert_goaway_not_retried(
             Err(error) => error,
         };
         assert_eq!(error.kind(), RequestErrorKind::Http2);
+        client_failure = Some(error);
         client_done_tx
             .send(())
             .map_err(|_| "server stopped before client completion")?;
         assert!(
-            server.await??,
+            peer_completion::join(&mut server).await?,
             "ineligible replay opened a replacement connection"
         );
         Ok(())
     })
-    .await
+    .await;
+    let result = peer_completion::finish(caller, &mut server).await;
+    peer_completion::finish_negative(result, client_failure)
 }
 
 async fn assert_pending<F>(mut future: Pin<&mut F>, message: &'static str) -> TestResult<()>
@@ -498,11 +535,11 @@ async fn accept_tls(
     Ok(stream)
 }
 
-async fn bounded<F>(future: F) -> TestResult<()>
+pub(super) async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "session test exceeded its deadline")?
+        .map_err(|elapsed| FixtureDeadline::new("session test exceeded its deadline", elapsed))?
 }

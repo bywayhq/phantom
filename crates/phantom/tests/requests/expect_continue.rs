@@ -1,8 +1,5 @@
 //! The opt-in wait for `100 Continue` before a request body is sent.
 
-use crate::support::h2 as h2_support;
-use crate::support::tls as tls_support;
-
 use std::{
     error::Error,
     future::Future,
@@ -21,16 +18,24 @@ use tokio::{
     time::timeout,
 };
 
-use h2_support::{accept_client_preface, read_frame, write_frame};
+use crate::support::h2 as h2_support;
+use crate::support::tls as tls_support;
+use crate::support::{deadline::FixtureDeadline, tunnel_proxy::ConnectionPeer};
+use h2_support::write_frame;
+use ownership::{Control, Observation, PeerLife, Setup};
 use tls_support::{
     H2_ALPN, TestIdentity, accept_tls_stream, client_builder, read_head, tls_settings,
 };
 
 mod http3;
+mod ownership;
 
 type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
+const MAX_BODY_BYTES: usize = 64 * 1024;
+// These workers never advertise a larger HTTP/2 maximum frame size.
+const MAX_FRAME_BYTES: usize = 16 * 1024;
 /// Long enough that a body that did not wait would arrive within it.
 const NO_BODY_WINDOW: Duration = Duration::from_millis(300);
 const OK: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok";
@@ -43,9 +48,9 @@ async fn bounded<F>(future: F) -> TestResult
 where
     F: Future<Output = TestResult>,
 {
-    timeout(TEST_TIMEOUT, future)
-        .await
-        .map_err(|_| "expect-continue test exceeded its deadline")?
+    timeout(TEST_TIMEOUT, future).await.map_err(|elapsed| {
+        FixtureDeadline::new("expect-continue test exceeded its deadline", elapsed)
+    })?
 }
 
 fn lowercase(head: &[u8]) -> String {
@@ -57,7 +62,8 @@ async fn assert_nothing_arrives(stream: &mut (impl AsyncReadExt + Unpin)) -> Tes
     let mut byte = [0_u8; 1];
     match timeout(NO_BODY_WINDOW, stream.read(&mut byte)).await {
         Err(_) => Ok(()),
-        Ok(read) => Err(format!("the body did not wait: read {read:?}").into()),
+        Ok(Ok(read)) => Err(format!("the body did not wait: read {read}").into()),
+        Ok(Err(error)) => Err(error.into()),
     }
 }
 
@@ -65,43 +71,95 @@ async fn assert_nothing_arrives(stream: &mut (impl AsyncReadExt + Unpin)) -> Tes
 /// surface as a reset or an abort as well as an end of stream.
 async fn read_until_closed(stream: &mut TcpStream) -> TestResult<Vec<u8>> {
     let mut rest = Vec::new();
-    match timeout(Duration::from_secs(5), stream.read_to_end(&mut rest)).await? {
-        Ok(_) => Ok(rest),
-        Err(error)
-            if matches!(
-                error.kind(),
-                std::io::ErrorKind::ConnectionReset
-                    | std::io::ErrorKind::ConnectionAborted
-                    | std::io::ErrorKind::BrokenPipe
-            ) =>
-        {
-            Ok(rest)
-        }
-        Err(error) => Err(error.into()),
+    let mut limited = stream.take(u64::try_from(MAX_BODY_BYTES)? + 1);
+    let read = timeout(Duration::from_secs(5), limited.read_to_end(&mut rest))
+        .await
+        .map_err(|elapsed| {
+            FixtureDeadline::new("expect-continue connection did not close", elapsed)
+        })?;
+
+    let bound: TestResult = if rest.len() > MAX_BODY_BYTES {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "expect-continue close tail exceeded byte bound",
+        )
+        .into())
+    } else {
+        Ok(())
+    };
+
+    if let Err(error) = read
+        && !matches!(
+            error.kind(),
+            std::io::ErrorKind::ConnectionReset
+                | std::io::ErrorKind::ConnectionAborted
+                | std::io::ErrorKind::BrokenPipe
+        )
+    {
+        return crate::support::tunnel_proxy::finish_with_cleanup(Err(error.into()), bound);
     }
+
+    bound?;
+    Ok(rest)
 }
 
 #[tokio::test]
 async fn an_http1_body_waits_for_100_continue() -> TestResult {
-    bounded(async {
+    http1_continue(None).await
+}
+
+async fn http1_continue(control: Option<Control>) -> TestResult {
+    let mut server = None;
+    let result = bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let observed = control.as_ref().map(|control| control.observed.clone());
+        server = Some(ConnectionPeer::spawn(async move {
+            let _life = PeerLife(observed.clone());
+
             let (mut stream, _) = listener.accept().await?;
-            let head = lowercase(&read_head(&mut stream).await?);
+            if let Some(observed) = &observed {
+                observed.accepted();
+            }
+
+            let head =
+                lowercase(&ownership::observed(read_head(&mut stream), observed.as_ref()).await?);
+
             assert_nothing_arrives(&mut stream).await?;
+
             stream.write_all(b"HTTP/1.1 100 Continue\r\n\r\n").await?;
+
             let mut body = [0_u8; 7];
             stream.read_exact(&mut body).await?;
+
             stream.write_all(OK).await?;
+
             Ok::<_, Box<dyn Error + Send + Sync>>((head, body))
-        });
+        }));
+
+        let target = match control {
+            Some(control) => {
+                control
+                    .coordinate(Setup {
+                        address,
+                        peer: server
+                            .as_ref()
+                            .ok_or("original expect-continue peer missing")?
+                            .abort_handle(),
+                        root: None,
+                    })
+                    .await?
+            }
+            None => None,
+        };
 
         let response = plain_client()?
             .request(
                 HttpProtocol::Http1,
                 Method::PUT,
-                &format!("http://{address}/upload"),
+                target
+                    .as_deref()
+                    .unwrap_or(&format!("http://{address}/upload")),
             )?
             .body("payload")
             .expect_continue(Duration::from_secs(10))
@@ -110,7 +168,7 @@ async fn an_http1_body_waits_for_100_continue() -> TestResult {
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(response.into_body().collect().await?.to_bytes(), "ok");
 
-        let (head, body) = server.await??;
+        let (head, body) = ownership::join(&mut server).await?;
         // The generated field follows the generated framing.
         assert!(
             head.ends_with("\r\ncontent-length: 7\r\nexpect: 100-continue\r\n\r\n"),
@@ -119,30 +177,64 @@ async fn an_http1_body_waits_for_100_continue() -> TestResult {
         assert_eq!(&body, b"payload");
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::finish(result, server).await
 }
 
 #[tokio::test]
 async fn an_http1_body_is_sent_when_the_wait_ends() -> TestResult {
-    bounded(async {
+    http1_wait_end(None).await
+}
+
+async fn http1_wait_end(control: Option<Control>) -> TestResult {
+    let mut server = None;
+    let result = bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let observed = control.as_ref().map(|control| control.observed.clone());
+        server = Some(ConnectionPeer::spawn(async move {
+            let _life = PeerLife(observed.clone());
+
             let (mut stream, _) = listener.accept().await?;
-            read_head(&mut stream).await?;
+            if let Some(observed) = &observed {
+                observed.accepted();
+            }
+
+            ownership::observed(read_head(&mut stream), observed.as_ref()).await?;
+
             let head_read = Instant::now();
             let mut body = [0_u8; 7];
             stream.read_exact(&mut body).await?;
             let waited = head_read.elapsed();
             stream.write_all(OK).await?;
+
             Ok::<_, Box<dyn Error + Send + Sync>>((body, waited))
-        });
+        }));
+
+        let target = match control {
+            Some(control) => {
+                control
+                    .coordinate(Setup {
+                        address,
+                        peer: server
+                            .as_ref()
+                            .ok_or("original expect-continue peer missing")?
+                            .abort_handle(),
+                        root: None,
+                    })
+                    .await?
+            }
+            None => None,
+        };
 
         let response = plain_client()?
             .request(
                 HttpProtocol::Http1,
                 Method::PUT,
-                &format!("http://{address}/upload"),
+                target
+                    .as_deref()
+                    .unwrap_or(&format!("http://{address}/upload")),
             )?
             .body("payload")
             .expect_continue(Duration::from_millis(500))
@@ -151,7 +243,7 @@ async fn an_http1_body_is_sent_when_the_wait_ends() -> TestResult {
         assert_eq!(response.status(), StatusCode::OK);
         response.into_body().collect().await?;
 
-        let (body, waited) = server.await??;
+        let (body, waited) = ownership::join(&mut server).await?;
         assert_eq!(&body, b"payload");
         assert!(
             waited >= Duration::from_millis(400) && waited < Duration::from_secs(5),
@@ -159,18 +251,32 @@ async fn an_http1_body_is_sent_when_the_wait_ends() -> TestResult {
         );
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::finish(result, server).await
 }
 
 #[tokio::test]
 async fn an_http1_final_response_first_withholds_the_body_and_closes_the_connection() -> TestResult
 {
-    bounded(async {
+    http1_final(None).await
+}
+
+async fn http1_final(control: Option<Control>) -> TestResult {
+    let mut server = None;
+    let result = bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let observed = control.as_ref().map(|control| control.observed.clone());
+        server = Some(ConnectionPeer::spawn(async move {
+            let _life = PeerLife(observed.clone());
+
             let (mut first, _) = listener.accept().await?;
-            read_head(&mut first).await?;
+            if let Some(observed) = &observed {
+                observed.accepted();
+            }
+
+            ownership::observed(read_head(&mut first), observed.as_ref()).await?;
             first
                 .write_all(b"HTTP/1.1 417 Expectation Failed\r\nContent-Length: 0\r\n\r\n")
                 .await?;
@@ -180,12 +286,30 @@ async fn an_http1_final_response_first_withholds_the_body_and_closes_the_connect
             let retry = lowercase(&read_head(&mut second).await?);
             let mut body = [0_u8; 7];
             second.read_exact(&mut body).await?;
+
             second.write_all(OK).await?;
+
             Ok::<_, Box<dyn Error + Send + Sync>>((rest, retry, body))
-        });
+        }));
+
+        let target = match control {
+            Some(control) => {
+                control
+                    .coordinate(Setup {
+                        address,
+                        peer: server
+                            .as_ref()
+                            .ok_or("original expect-continue peer missing")?
+                            .abort_handle(),
+                        root: None,
+                    })
+                    .await?
+            }
+            None => None,
+        };
 
         let client = plain_client()?;
-        let url = format!("http://{address}/upload");
+        let url = target.unwrap_or_else(|| format!("http://{address}/upload"));
         let rejected = client
             .request(HttpProtocol::Http1, Method::PUT, &url)?
             .body("payload")
@@ -194,6 +318,7 @@ async fn an_http1_final_response_first_withholds_the_body_and_closes_the_connect
             .await?;
         assert_eq!(rejected.status(), StatusCode::EXPECTATION_FAILED);
         rejected.into_body().collect().await?;
+
         let accepted = client
             .request(HttpProtocol::Http1, Method::PUT, &url)?
             .body("payload")
@@ -202,23 +327,38 @@ async fn an_http1_final_response_first_withholds_the_body_and_closes_the_connect
         assert_eq!(accepted.status(), StatusCode::OK);
         accepted.into_body().collect().await?;
 
-        let (rest, retry, body) = server.await??;
+        let (rest, retry, body) = ownership::join(&mut server).await?;
         assert!(rest.is_empty(), "the withheld body was sent: {rest:?}");
         assert!(!retry.contains("\r\nexpect:"), "{retry}");
         assert_eq!(&body, b"payload");
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::finish(result, server).await
 }
 
 #[tokio::test]
 async fn a_redirect_that_keeps_the_body_waits_again() -> TestResult {
-    bounded(async {
+    http1_redirect(None).await
+}
+
+async fn http1_redirect(control: Option<Control>) -> TestResult {
+    let mut server = None;
+    let result = bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let observed = control.as_ref().map(|control| control.observed.clone());
+        server = Some(ConnectionPeer::spawn(async move {
+            let _life = PeerLife(observed.clone());
+
             let (mut first, _) = listener.accept().await?;
-            let first_head = lowercase(&read_head(&mut first).await?);
+            if let Some(observed) = &observed {
+                observed.accepted();
+            }
+
+            let first_head =
+                lowercase(&ownership::observed(read_head(&mut first), observed.as_ref()).await?);
             first
                 .write_all(b"HTTP/1.1 307 Temporary Redirect\r\nLocation: /next\r\nContent-Length: 0\r\n\r\n")
                 .await?;
@@ -226,12 +366,32 @@ async fn a_redirect_that_keeps_the_body_waits_again() -> TestResult {
             let (mut second, _) = listener.accept().await?;
             let second_head = lowercase(&read_head(&mut second).await?);
             assert_nothing_arrives(&mut second).await?;
+
             second.write_all(b"HTTP/1.1 100 Continue\r\n\r\n").await?;
+
             let mut body = [0_u8; 7];
             second.read_exact(&mut body).await?;
+
             second.write_all(OK).await?;
+
             Ok::<_, Box<dyn Error + Send + Sync>>((first_head, rest, second_head, body))
-        });
+        }));
+
+        let target = match control {
+            Some(control) => {
+                control
+                    .coordinate(Setup {
+                        address,
+                        peer: server
+                            .as_ref()
+                            .ok_or("original expect-continue peer missing")?
+                            .abort_handle(),
+                        root: None,
+                    })
+                    .await?
+            }
+            None => None,
+        };
 
         let client = Client::builder(ClientProfile::new(tls_settings()))
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
@@ -240,7 +400,7 @@ async fn a_redirect_that_keeps_the_body_waits_again() -> TestResult {
             .request(
                 HttpProtocol::Http1,
                 Method::PUT,
-                &format!("http://{address}/upload"),
+                target.as_deref().unwrap_or(&format!("http://{address}/upload")),
             )?
             .body("payload")
             .expect_continue(Duration::from_secs(10))
@@ -249,7 +409,7 @@ async fn a_redirect_that_keeps_the_body_waits_again() -> TestResult {
         assert_eq!(response.status(), StatusCode::OK);
         response.into_body().collect().await?;
 
-        let (first_head, rest, second_head, body) = server.await??;
+        let (first_head, rest, second_head, body) = ownership::join(&mut server).await?;
         assert!(first_head.contains("\r\nexpect: 100-continue\r\n"), "{first_head}");
         assert!(rest.is_empty(), "the withheld body was sent: {rest:?}");
         assert!(second_head.starts_with("put /next "), "{second_head}");
@@ -257,38 +417,81 @@ async fn a_redirect_that_keeps_the_body_waits_again() -> TestResult {
         assert_eq!(&body, b"payload");
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::finish(result, server).await
 }
 
 #[tokio::test]
 async fn a_request_without_a_body_sends_no_expectation() -> TestResult {
-    bounded(async {
+    http1_no_body(None).await
+}
+
+async fn http1_no_body(control: Option<Control>) -> TestResult {
+    let mut server = None;
+    let result = bounded(async {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let observed = control.as_ref().map(|control| control.observed.clone());
+        server = Some(ConnectionPeer::spawn(async move {
+            let _life = PeerLife(observed.clone());
+
             let (mut stream, _) = listener.accept().await?;
-            let head = lowercase(&read_head(&mut stream).await?);
+            if let Some(observed) = &observed {
+                observed.accepted();
+            }
+
+            let head =
+                lowercase(&ownership::observed(read_head(&mut stream), observed.as_ref()).await?);
             stream.write_all(OK).await?;
+
             Ok::<_, Box<dyn Error + Send + Sync>>(head)
-        });
+        }));
+
+        let target = match control {
+            Some(control) => {
+                control
+                    .coordinate(Setup {
+                        address,
+                        peer: server
+                            .as_ref()
+                            .ok_or("original expect-continue peer missing")?
+                            .abort_handle(),
+                        root: None,
+                    })
+                    .await?
+            }
+            None => None,
+        };
 
         let response = plain_client()?
-            .get(HttpProtocol::Http1, &format!("http://{address}/"))?
+            .get(
+                HttpProtocol::Http1,
+                target.as_deref().unwrap_or(&format!("http://{address}/")),
+            )?
             .expect_continue(Duration::from_secs(10))
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
         response.into_body().collect().await?;
-        let head = server.await??;
+
+        let head = ownership::join(&mut server).await?;
         assert!(!head.contains("\r\nexpect:"), "{head}");
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::finish(result, server).await
 }
 
 #[tokio::test]
 async fn a_caller_expect_field_keeps_its_position_and_must_be_100_continue() -> TestResult {
-    bounded(async {
+    http1_caller_field(None).await
+}
+
+async fn http1_caller_field(control: Option<Control>) -> TestResult {
+    let mut server = None;
+    let result = bounded(async {
         let client = plain_client()?;
         let error = client
             .request(
@@ -307,20 +510,52 @@ async fn a_caller_expect_field_keeps_its_position_and_must_be_100_continue() -> 
 
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        let observed = control.as_ref().map(|control| control.observed.clone());
+        server = Some(ConnectionPeer::spawn(async move {
+            let _life = PeerLife(observed.clone());
+
             let (mut stream, _) = listener.accept().await?;
-            let head = String::from_utf8_lossy(&read_head(&mut stream).await?).into_owned();
+            if let Some(observed) = &observed {
+                observed.accepted();
+            }
+
+            let head = String::from_utf8_lossy(
+                &ownership::observed(read_head(&mut stream), observed.as_ref()).await?,
+            )
+            .into_owned();
             stream.write_all(b"HTTP/1.1 100 Continue\r\n\r\n").await?;
+
             let mut body = [0_u8; 7];
             stream.read_exact(&mut body).await?;
+
             stream.write_all(OK).await?;
+
             Ok::<_, Box<dyn Error + Send + Sync>>(head)
-        });
+        }));
+
+        let target = match control {
+            Some(control) => {
+                control
+                    .coordinate(Setup {
+                        address,
+                        peer: server
+                            .as_ref()
+                            .ok_or("original expect-continue peer missing")?
+                            .abort_handle(),
+                        root: None,
+                    })
+                    .await?
+            }
+            None => None,
+        };
+
         let response = client
             .request(
                 HttpProtocol::Http1,
                 Method::PUT,
-                &format!("http://{address}/upload"),
+                target
+                    .as_deref()
+                    .unwrap_or(&format!("http://{address}/upload")),
             )?
             .header(phantom::RequestHeader::new("EXPECT", "100-Continue"))
             .header(phantom::RequestHeader::new("X-After", "1"))
@@ -329,7 +564,8 @@ async fn a_caller_expect_field_keeps_its_position_and_must_be_100_continue() -> 
             .send()
             .await?;
         response.into_body().collect().await?;
-        let head = server.await??;
+
+        let head = ownership::join(&mut server).await?;
         assert!(
             head.contains("\r\nEXPECT: 100-Continue\r\nX-After: 1\r\n"),
             "{head}"
@@ -337,7 +573,9 @@ async fn a_caller_expect_field_keeps_its_position_and_must_be_100_continue() -> 
         assert_eq!(head.to_ascii_lowercase().matches("expect:").count(), 1);
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::finish(result, server).await
 }
 
 #[tokio::test]
@@ -374,8 +612,20 @@ async fn read_until(
     stream: &mut (impl AsyncReadExt + AsyncWriteExt + Unpin),
     kind: u8,
 ) -> TestResult<h2_support::Frame> {
+    let mut received = 0;
     loop {
         let frame = read_frame(stream).await?;
+        let length = frame.payload.len() + 9;
+        if length > MAX_BODY_BYTES - received {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "expect-continue frame sequence exceeded byte bound",
+            )
+            .into());
+        }
+
+        received += length;
+
         if frame.stream_id == 1 && frame.kind == kind {
             return Ok(frame);
         }
@@ -385,34 +635,119 @@ async fn read_until(
     }
 }
 
+async fn read_frame(stream: &mut (impl AsyncReadExt + Unpin)) -> TestResult<h2_support::Frame> {
+    let mut head = [0_u8; 9];
+    stream.read_exact(&mut head).await?;
+    let length = usize::from(head[0]) << 16 | usize::from(head[1]) << 8 | usize::from(head[2]);
+    if length > MAX_FRAME_BYTES {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "expect-continue HTTP/2 frame exceeded byte bound",
+        )
+        .into());
+    }
+
+    let mut payload = vec![0_u8; length];
+    stream.read_exact(&mut payload).await?;
+
+    Ok(h2_support::Frame {
+        kind: head[3],
+        flags: head[4],
+        stream_id: u32::from_be_bytes([head[5], head[6], head[7], head[8]]) & 0x7fff_ffff,
+        payload,
+    })
+}
+
+async fn accept_client_preface(
+    stream: &mut (impl AsyncReadExt + AsyncWriteExt + Unpin),
+) -> TestResult {
+    let mut preface = [0_u8; 24];
+    stream.read_exact(&mut preface).await?;
+    if &preface != b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n" {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "client omitted the HTTP/2 preface",
+        )
+        .into());
+    }
+
+    let mut received = 0;
+    loop {
+        let frame = read_frame(stream).await?;
+        let length = frame.payload.len() + 9;
+        if length > MAX_BODY_BYTES - received {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "expect-continue preface exceeded byte bound",
+            )
+            .into());
+        }
+
+        received += length;
+
+        if frame.kind == 0x4 && frame.stream_id == 0 && frame.flags & 0x1 == 0 {
+            break;
+        }
+    }
+
+    write_frame(stream, 0x4, 0, 0, &[]).await?;
+    write_frame(stream, 0x4, 0x1, 0, &[]).await?;
+    stream.flush().await?;
+    Ok(())
+}
+
 async fn http2_server(
     listener: TcpListener,
     acceptor: SslAcceptor,
+    observed: Option<&Observation>,
 ) -> TestResult<tokio_btls::SslStream<TcpStream>> {
     let (tcp, _) = listener.accept().await?;
-    let mut stream = accept_tls_stream(tcp, acceptor).await?;
+    if let Some(observed) = observed {
+        observed.accepted();
+    }
+
+    let mut stream = ownership::observed(accept_tls_stream(tcp, acceptor), observed).await?;
     accept_client_preface(&mut stream).await?;
     Ok(stream)
 }
 
 /// Requires that the body waits for `100 Continue`, then answers `200`, and
 /// returns the body.
-async fn serve_100_then_ok(listener: TcpListener, acceptor: SslAcceptor) -> TestResult<Vec<u8>> {
-    let mut stream = http2_server(listener, acceptor).await?;
+async fn serve_100_then_ok(
+    listener: TcpListener,
+    acceptor: SslAcceptor,
+    observed: Option<Observation>,
+) -> TestResult<Vec<u8>> {
+    let _life = PeerLife(observed.clone());
+
+    let mut stream = http2_server(listener, acceptor, observed.as_ref()).await?;
     read_until(&mut stream, HEADERS).await?;
+
     match timeout(NO_BODY_WINDOW, read_until(&mut stream, DATA)).await {
         Err(_) => {}
-        Ok(_) => return Err("the body did not wait".into()),
+        Ok(Ok(_)) => return Err("the body did not wait".into()),
+        Ok(Err(error)) => return Err(error),
     }
+
     write_frame(&mut stream, HEADERS, END_HEADERS, 1, STATUS_100).await?;
+
     let mut body = Vec::new();
     loop {
         let frame = read_until(&mut stream, DATA).await?;
+        if frame.payload.len() > MAX_BODY_BYTES - body.len() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "expect-continue HTTP/2 body exceeded byte bound",
+            )
+            .into());
+        }
+
         body.extend_from_slice(&frame.payload);
         if frame.flags & END_STREAM != 0 {
             break;
         }
     }
+
     write_frame(
         &mut stream,
         HEADERS,
@@ -427,18 +762,46 @@ async fn serve_100_then_ok(listener: TcpListener, acceptor: SslAcceptor) -> Test
 
 #[tokio::test]
 async fn an_http2_body_waits_for_100_continue() -> TestResult {
-    bounded(async {
+    http2_continue(None).await
+}
+
+async fn http2_continue(control: Option<Control>) -> TestResult {
+    let mut server = None;
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(serve_100_then_ok(listener, identity.acceptor(H2_ALPN)?));
+        let observed = control.as_ref().map(|control| control.observed.clone());
+        server = Some(ConnectionPeer::spawn(serve_100_then_ok(
+            listener,
+            identity.acceptor(H2_ALPN)?,
+            observed,
+        )));
+
+        let target = match control {
+            Some(control) => {
+                control
+                    .coordinate(Setup {
+                        address,
+                        peer: server
+                            .as_ref()
+                            .ok_or("original expect-continue peer missing")?
+                            .abort_handle(),
+                        root: None,
+                    })
+                    .await?
+            }
+            None => None,
+        };
 
         let response = client_builder(&identity, true)
             .build()?
             .request(
                 HttpProtocol::Http2,
                 Method::PUT,
-                &format!("https://{address}/upload"),
+                target
+                    .as_deref()
+                    .unwrap_or(&format!("https://{address}/upload")),
             )?
             .body("payload")
             .expect_continue(Duration::from_secs(10))
@@ -446,44 +809,89 @@ async fn an_http2_body_waits_for_100_continue() -> TestResult {
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
         response.into_body().collect().await?;
-        assert_eq!(server.await??, b"payload");
+
+        assert_eq!(ownership::join(&mut server).await?, b"payload");
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::finish(result, server).await
 }
 
 #[tokio::test]
 async fn a_negotiated_body_waits_for_100_continue() -> TestResult {
-    bounded(async {
+    negotiated_continue(None).await
+}
+
+async fn negotiated_continue(control: Option<Control>) -> TestResult {
+    let mut server = None;
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(serve_100_then_ok(listener, identity.acceptor(H2_ALPN)?));
+        let observed = control.as_ref().map(|control| control.observed.clone());
+        server = Some(ConnectionPeer::spawn(serve_100_then_ok(
+            listener,
+            identity.acceptor(H2_ALPN)?,
+            observed,
+        )));
+
+        let target = match control {
+            Some(control) => {
+                control
+                    .coordinate(Setup {
+                        address,
+                        peer: server
+                            .as_ref()
+                            .ok_or("original expect-continue peer missing")?
+                            .abort_handle(),
+                        root: None,
+                    })
+                    .await?
+            }
+            None => None,
+        };
 
         let response = client_builder(&identity, true)
             .build()?
-            .request_negotiated(Method::PUT, &format!("https://{address}/upload"))?
+            .request_negotiated(
+                Method::PUT,
+                target
+                    .as_deref()
+                    .unwrap_or(&format!("https://{address}/upload")),
+            )?
             .body("payload")
             .expect_continue(Duration::from_secs(10))
             .send()
             .await?;
         assert_eq!(response.status(), StatusCode::OK);
         response.into_body().collect().await?;
-        assert_eq!(server.await??, b"payload");
+
+        assert_eq!(ownership::join(&mut server).await?, b"payload");
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::finish(result, server).await
 }
 
 #[tokio::test]
 async fn an_http2_final_response_first_cancels_the_stream_without_data() -> TestResult {
-    bounded(async {
+    http2_final(None).await
+}
+
+async fn http2_final(control: Option<Control>) -> TestResult {
+    let mut server = None;
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
-            let mut stream = http2_server(listener, acceptor).await?;
+        let observed = control.as_ref().map(|control| control.observed.clone());
+        server = Some(ConnectionPeer::spawn(async move {
+            let _life = PeerLife(observed.clone());
+
+            let mut stream = http2_server(listener, acceptor, observed.as_ref()).await?;
             read_until(&mut stream, HEADERS).await?;
             // `:status: 417`, a literal with static name index 8.
             write_frame(
@@ -497,14 +905,32 @@ async fn an_http2_final_response_first_cancels_the_stream_without_data() -> Test
             stream.flush().await?;
             let reset = read_until(&mut stream, RST_STREAM).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(reset.payload)
-        });
+        }));
+
+        let target = match control {
+            Some(control) => {
+                control
+                    .coordinate(Setup {
+                        address,
+                        peer: server
+                            .as_ref()
+                            .ok_or("original expect-continue peer missing")?
+                            .abort_handle(),
+                        root: None,
+                    })
+                    .await?
+            }
+            None => None,
+        };
 
         let response = client_builder(&identity, true)
             .build()?
             .request(
                 HttpProtocol::Http2,
                 Method::PUT,
-                &format!("https://{address}/upload"),
+                target
+                    .as_deref()
+                    .unwrap_or(&format!("https://{address}/upload")),
             )?
             .body("payload")
             .expect_continue(Duration::from_secs(10))
@@ -513,21 +939,31 @@ async fn an_http2_final_response_first_cancels_the_stream_without_data() -> Test
         assert_eq!(response.status(), StatusCode::EXPECTATION_FAILED);
         response.into_body().collect().await?;
         // RST_STREAM(CANCEL), and no DATA before it.
-        assert_eq!(server.await??, 0x8_u32.to_be_bytes());
+        assert_eq!(ownership::join(&mut server).await?, 0x8_u32.to_be_bytes());
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::finish(result, server).await
 }
 
 #[tokio::test]
 async fn an_http2_final_response_with_a_body_cancels_the_upload_when_it_ends() -> TestResult {
-    bounded(async {
+    http2_final_body(None).await
+}
+
+async fn http2_final_body(control: Option<Control>) -> TestResult {
+    let mut server = None;
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
-            let mut stream = http2_server(listener, acceptor).await?;
+        let observed = control.as_ref().map(|control| control.observed.clone());
+        server = Some(ConnectionPeer::spawn(async move {
+            let _life = PeerLife(observed.clone());
+
+            let mut stream = http2_server(listener, acceptor, observed.as_ref()).await?;
             read_until(&mut stream, HEADERS).await?;
             // `:status: 417`, a literal with static name index 8.
             write_frame(
@@ -542,14 +978,32 @@ async fn an_http2_final_response_with_a_body_cancels_the_upload_when_it_ends() -
             stream.flush().await?;
             let reset = read_until(&mut stream, RST_STREAM).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(reset.payload)
-        });
+        }));
+
+        let target = match control {
+            Some(control) => {
+                control
+                    .coordinate(Setup {
+                        address,
+                        peer: server
+                            .as_ref()
+                            .ok_or("original expect-continue peer missing")?
+                            .abort_handle(),
+                        root: None,
+                    })
+                    .await?
+            }
+            None => None,
+        };
 
         let response = client_builder(&identity, true)
             .build()?
             .request(
                 HttpProtocol::Http2,
                 Method::PUT,
-                &format!("https://{address}/upload"),
+                target
+                    .as_deref()
+                    .unwrap_or(&format!("https://{address}/upload")),
             )?
             .body("payload")
             .expect_continue(Duration::from_secs(10))
@@ -558,8 +1012,10 @@ async fn an_http2_final_response_with_a_body_cancels_the_upload_when_it_ends() -
         assert_eq!(response.status(), StatusCode::EXPECTATION_FAILED);
         assert_eq!(response.into_body().collect().await?.to_bytes(), "no");
         // RST_STREAM(CANCEL), and no DATA before it.
-        assert_eq!(server.await??, 0x8_u32.to_be_bytes());
+        assert_eq!(ownership::join(&mut server).await?, 0x8_u32.to_be_bytes());
         Ok(())
     })
-    .await
+    .await;
+
+    ownership::finish(result, server).await
 }

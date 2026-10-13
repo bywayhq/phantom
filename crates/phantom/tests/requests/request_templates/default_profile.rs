@@ -12,13 +12,15 @@ use phantom::{
 use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
 
 use super::{
-    Observed, TEST_TIMEOUT, TestIdentity, TestResult, client_settings, http1_fields, read_head,
-    serve_http1, serve_http2, serve_http3, tls_settings,
+    Observed, OriginFailure, TEST_TIMEOUT, TestIdentity, TestResult, client_settings, http1_fields,
+    read_head, serve_http1, serve_http2, serve_http3, tls_settings,
 };
-use crate::support::tls::accept_tls_stream;
+use crate::support::{tls::accept_tls_stream, tunnel_proxy::ConnectionPeer};
 
 async fn bounded<T>(future: impl Future<Output = TestResult<T>>) -> TestResult<T> {
-    timeout(TEST_TIMEOUT, future).await?
+    timeout(TEST_TIMEOUT, future)
+        .await
+        .map_err(OriginFailure::TestDeadline)?
 }
 
 fn template(value: &str) -> RequestTemplate {
@@ -41,31 +43,57 @@ async fn observe(
     negotiated: bool,
     configure: impl FnOnce(RequestBuilder) -> TestResult<RequestBuilder>,
 ) -> TestResult<Observed> {
+    observe_with_owner(protocol, negotiated, configure, None).await
+}
+
+pub(super) async fn observe_with_owner(
+    protocol: HttpProtocol,
+    negotiated: bool,
+    configure: impl FnOnce(RequestBuilder) -> TestResult<RequestBuilder>,
+    observation: Option<super::owner_contract::Observation>,
+) -> TestResult<Observed> {
     let identity = TestIdentity::generate()?;
     let (client_done, wait_for_client) = oneshot::channel();
     let (url, server) = match protocol {
-        HttpProtocol::Http1 => serve_http1(&identity).await?,
+        HttpProtocol::Http1 => match observation.as_ref() {
+            Some(value) => super::serve_http1_observed(&identity, Some(value.signals())).await?,
+            None => serve_http1(&identity).await?,
+        },
         HttpProtocol::Http2 => serve_http2(&identity, wait_for_client).await?,
         HttpProtocol::Http3 => serve_http3(&identity, wait_for_client)?,
         _ => return Err("no origin for this protocol".into()),
     };
-    let profile = ClientProfile::new(tls_settings())
-        .with_http2(chrome::v154_http2())
-        .with_http3(client_settings())
-        .with_request_template(template("inherited"));
-    let client = Client::builder(profile)
-        .add_root_certificate_der(identity.root_der.clone())
-        .build()?;
-    let request = if negotiated {
-        client.get_negotiated(&url)?
-    } else {
-        client.get(protocol, &url)?
-    };
-    let response = configure(request)?.send().await?;
-    assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    response.into_body().collect().await?;
-    let _ = client_done.send(());
-    server.await?
+    let server = super::TemplateOrigin::new(server, observation);
+
+    let operation: TestResult<Client> = async {
+        let profile = ClientProfile::new(tls_settings())
+            .with_http2(chrome::v154_http2())
+            .with_http3(client_settings())
+            .with_request_template(template("inherited"));
+        let client = Client::builder(profile)
+            .add_root_certificate_der(identity.root_der.clone())
+            .build()?;
+        let request = if negotiated {
+            client.get_negotiated(&url)?
+        } else {
+            client.get(protocol, &url)?
+        };
+        let response = configure(request)?.send().await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        let _ = client_done.send(());
+        Ok(client)
+    }
+    .await;
+
+    match operation {
+        Ok(client) => {
+            let observed = server.complete(Ok(())).await;
+            drop(client);
+            observed
+        }
+        Err(error) => server.complete(Err(error)).await,
+    }
 }
 
 #[tokio::test]
@@ -222,7 +250,7 @@ async fn redirect_hops(opt_out: bool) -> TestResult<Vec<super::Fields>> {
     let second_url = format!("https://{}/", second.local_addr()?);
     let acceptor = identity.acceptor(super::H1_ALPN)?;
     let return_url = first_url.clone();
-    let server = tokio::spawn(async move {
+    let server = ConnectionPeer::spawn(async move {
         let mut observations = Vec::new();
         for (listener, location) in [
             (&first, Some(second_url)),
@@ -244,27 +272,33 @@ async fn redirect_hops(opt_out: bool) -> TestResult<Vec<super::Fields>> {
         }
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(observations)
     });
-    let mut default = template("kept");
-    default.http1_fields.extend([
-        RequestField::literal("Authorization", "Bearer origin"),
-        RequestField::literal("Proxy-Authorization", "Basic dGVzdDpzZWNyZXQ="),
-    ]);
-    let client = Client::builder(ClientProfile::new(tls_settings()).with_request_template(default))
-        .add_root_certificate_der(identity.root_der.clone())
-        .redirect_policy(RedirectPolicy::limited(
-            NonZeroUsize::new(2).ok_or("zero limit")?,
-        ))
-        .build()?;
-    let request = client.get(HttpProtocol::Http1, &first_url)?;
-    let request = if opt_out {
-        request.without_template()
-    } else {
-        request
-    };
-    let response = request.send().await?;
-    assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    response.into_body().collect().await?;
-    server.await?
+    let operation: TestResult<Client> = async {
+        let mut default = template("kept");
+        default.http1_fields.extend([
+            RequestField::literal("Authorization", "Bearer origin"),
+            RequestField::literal("Proxy-Authorization", "Basic dGVzdDpzZWNyZXQ="),
+        ]);
+        let client =
+            Client::builder(ClientProfile::new(tls_settings()).with_request_template(default))
+                .add_root_certificate_der(identity.root_der.clone())
+                .redirect_policy(RedirectPolicy::limited(
+                    NonZeroUsize::new(2).ok_or("zero limit")?,
+                ))
+                .build()?;
+        let request = client.get(HttpProtocol::Http1, &first_url)?;
+        let request = if opt_out {
+            request.without_template()
+        } else {
+            request
+        };
+        let response = request.send().await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        response.into_body().collect().await?;
+        Ok(client)
+    }
+    .await;
+    let (_client, observations) = super::complete_peer(server, operation).await?;
+    Ok(observations)
 }
 
 #[tokio::test]

@@ -1,11 +1,9 @@
 //! Loopback tests of the `diagnostics` feature: the TLS key log and qlog files.
 
-use crate::support::h3 as h3_support;
-use crate::support::tls as tls_support;
-use crate::support::tunnel_proxy;
-
 use std::{
     collections::BTreeMap,
+    error::Error,
+    fmt, io,
     net::{Ipv4Addr, SocketAddr},
     num::NonZeroUsize,
     path::{Path, PathBuf},
@@ -18,11 +16,16 @@ use phantom::{
     Client, ClientBuilder, HttpProtocol, HttpProxy, RequestErrorKind, Route,
     profile::{CipherSuite, ClientProfile, NamedGroup, TlsSettings, TlsVersion},
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, task::JoinHandle, time::timeout};
+use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
+
+use crate::support::{h3 as h3_support, tls as tls_support, tunnel_proxy};
 
 use h3_support::{accept_request, client_settings, server_endpoint};
-// `tunnel_proxy` reaches the TLS helpers as `super::tls`.
 use tls_support::{H1_ALPN, TestIdentity, TestResult, accept_tls, read_head, tls_settings};
+
+use tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
+
+mod cleanup_controls;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -40,7 +43,8 @@ async fn key_log_holds_the_secrets_of_a_loopback_tls_connection() -> TestResult<
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let url = format!("https://{}/", listener.local_addr()?);
-    let origin = tokio::spawn(serve_one_tls_request(listener, identity.acceptor(H1_ALPN)?));
+    let origin =
+        ConnectionPeer::spawn(serve_one_tls_request(listener, identity.acceptor(H1_ALPN)?));
 
     let client = Client::builder(ClientProfile::new(tls13_http1_settings()))
         .add_root_certificate_der(identity.root_der.clone())
@@ -74,8 +78,8 @@ async fn key_log_holds_the_secrets_of_a_loopback_quic_handshake() -> TestResult<
     let handshakes = drain_key_log(&client);
     drop(response);
     drop(client);
-    server.abort();
-    let handshakes = handshakes?;
+    let handshakes = finish_with_cleanup(handshakes, server.stop().await)?;
+
     assert_eq!(handshakes.len(), 1, "{handshakes:?}");
     Ok(())
 }
@@ -85,7 +89,7 @@ async fn key_log_holds_the_proxy_and_origin_handshakes_of_an_https_proxy_route()
     let origin_identity = TestIdentity::generate()?;
     let origin_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let origin_address = origin_listener.local_addr()?;
-    let origin = tokio::spawn(serve_one_tls_request(
+    let origin = ConnectionPeer::spawn(serve_one_tls_request(
         origin_listener,
         origin_identity.acceptor(H1_ALPN)?,
     ));
@@ -93,7 +97,7 @@ async fn key_log_holds_the_proxy_and_origin_handshakes_of_an_https_proxy_route()
     let proxy_identity = TestIdentity::generate()?;
     let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let proxy_address = proxy_listener.local_addr()?;
-    let proxy = tokio::spawn(tunnel_proxy::https1_connect(
+    let proxy = ConnectionPeer::spawn(tunnel_proxy::https1_connect(
         proxy_listener,
         proxy_identity.acceptor(H1_ALPN)?,
         origin_address,
@@ -115,8 +119,13 @@ async fn key_log_holds_the_proxy_and_origin_handshakes_of_an_https_proxy_route()
     )
     .await??;
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
-    timeout(TEST_TIMEOUT, proxy).await???;
-    timeout(TEST_TIMEOUT, origin).await???;
+    let tunnel = timeout(TEST_TIMEOUT, proxy).await???;
+    let served: TestResult<()> = async {
+        timeout(TEST_TIMEOUT, origin).await???;
+        Ok(())
+    }
+    .await;
+    finish_with_cleanup(served, tunnel.cancel().await.map(|_| ()))?;
 
     // The proxy session and the origin session inside its tunnel each log a
     // full set of secrets under their own client random.
@@ -135,13 +144,17 @@ async fn key_log_is_absent_unless_enabled() -> TestResult<()> {
 #[tokio::test]
 async fn qlog_dir_receives_a_file_for_a_loopback_http3_connection() -> TestResult<()> {
     let dir = scratch_dir("qlog")?;
-    let result = send_http3_with_qlog(&dir).await;
-    let files = std::fs::read_dir(&dir)?
-        .map(|entry| entry.map(|entry| entry.path()))
-        .collect::<Result<Vec<_>, _>>();
-    remove_scratch_dir(&dir).await;
-    let contents = result?;
-    let files = files?;
+    let result: TestResult<_> = async {
+        let contents = send_http3_with_qlog(dir.path()).await?;
+        let files = std::fs::read_dir(dir.path())?
+            .map(|entry| entry.map(|entry| entry.path()))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok((contents, files))
+    }
+    .await;
+
+    let cleanup = dir.cleanup().await.map_err(Into::into);
+    let (contents, files) = finish_with_cleanup(result, cleanup)?;
 
     assert_eq!(files.len(), 1, "{files:?}");
     let name = files[0]
@@ -152,6 +165,7 @@ async fn qlog_dir_receives_a_file_for_a_loopback_http3_connection() -> TestResul
         name.starts_with("phantom-") && name.ends_with(".sqlog"),
         "{name}"
     );
+
     // A JSON-SEQ file opens with the record separator of its header record.
     assert!(!contents.is_empty(), "the qlog file is empty");
     assert_eq!(contents[0], 0x1e, "JSON-SEQ record separator");
@@ -215,9 +229,11 @@ async fn send_http3_with_qlog(dir: &Path) -> TestResult<Vec<u8>> {
             .send(),
     )
     .await;
+    let result: TestResult<_> = async { Ok(response??.status()) }.await;
     drop(client);
-    server.abort();
-    assert_eq!(response??.status(), StatusCode::NO_CONTENT);
+    let status = finish_with_cleanup(result, server.stop().await)?;
+
+    assert_eq!(status, StatusCode::NO_CONTENT);
 
     let file = std::fs::read_dir(dir)?
         .next()
@@ -272,9 +288,9 @@ async fn serve_one_tls_request(listener: TcpListener, acceptor: SslAcceptor) -> 
 /// Starts an HTTP/3 endpoint that answers one request with 204.
 fn serve_one_http3_request(
     identity: &TestIdentity,
-) -> TestResult<(SocketAddr, JoinHandle<TestResult<()>>)> {
+) -> TestResult<(SocketAddr, ConnectionPeer<TestResult<()>>)> {
     let (address, endpoint) = server_endpoint(identity)?;
-    let server = tokio::spawn(async move {
+    let server = ConnectionPeer::spawn(async move {
         let (_request, mut stream, _connection) = accept_request(&endpoint).await?;
         stream
             .send_response(
@@ -302,6 +318,7 @@ fn drain_key_log(client: &Client) -> TestResult<BTreeMap<String, Vec<String>>> {
     if key_log.dropped_line_count() != 0 {
         return Err(format!("{} key log lines dropped", key_log.dropped_line_count()).into());
     }
+
     let output = String::from_utf8(output)?;
     if output.lines().count() != written {
         return Err("write_pending miscounted its lines".into());
@@ -313,11 +330,13 @@ fn drain_key_log(client: &Client) -> TestResult<BTreeMap<String, Vec<String>>> {
         let [label, client_random, _secret] = fields[..] else {
             return Err(format!("key log line has {} fields", fields.len()).into());
         };
+
         handshakes
             .entry(client_random.to_owned())
             .or_default()
             .push(label.to_owned());
     }
+
     let mut expected: Vec<String> = TLS13_LABELS.iter().map(|&label| label.into()).collect();
     expected.sort();
     for labels in handshakes.values_mut() {
@@ -329,22 +348,93 @@ fn drain_key_log(client: &Client) -> TestResult<BTreeMap<String, Vec<String>>> {
     Ok(handshakes)
 }
 
-/// Removes a scratch directory, retrying while Windows reports the qlog file
-/// of a closing connection as still open. A directory that outlives the
-/// retries stays behind in the temporary directory.
-async fn remove_scratch_dir(dir: &Path) {
-    for _ in 0..50 {
-        if std::fs::remove_dir_all(dir).is_ok() {
-            return;
+/// Reports the original removal error after bounded retries for Windows sharing
+/// violations. Other errors return immediately; missing directories are clean.
+async fn remove_scratch_dir(dir: &Path) -> io::Result<()> {
+    let mut attempt = 0;
+    loop {
+        match std::fs::remove_dir_all(dir) {
+            Ok(()) => return Ok(()),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                return if dir.try_exists()? {
+                    Err(error)
+                } else {
+                    Ok(())
+                };
+            }
+            Err(error)
+                if cfg!(windows)
+                    && matches!(error.raw_os_error(), Some(32 | 33))
+                    && attempt < 49 =>
+            {
+                attempt += 1;
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+            Err(error) => return Err(error),
         }
-        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
+
+#[derive(Debug)]
+struct ScratchCleanupError {
+    retained_path: PathBuf,
+    source: io::Error,
+}
+
+impl fmt::Display for ScratchCleanupError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "scratch cleanup failed at {}: {}",
+            self.retained_path.display(),
+            self.source
+        )
+    }
+}
+
+impl Error for ScratchCleanupError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.source)
+    }
+}
+
+struct ScratchDir {
+    path: PathBuf,
+    cleanup_on_drop: bool,
+}
+
+impl ScratchDir {
+    fn path(&self) -> &Path {
+        &self.path
+    }
+
+    async fn cleanup(mut self) -> Result<(), ScratchCleanupError> {
+        let result = remove_scratch_dir(&self.path).await;
+        self.cleanup_on_drop = false;
+        result.map_err(|source| ScratchCleanupError {
+            retained_path: std::mem::take(&mut self.path),
+            source,
+        })
+    }
+}
+
+impl Drop for ScratchDir {
+    fn drop(&mut self) {
+        if self.cleanup_on_drop {
+            // Cancellation and panic cannot await retries or report this error.
+            // Normal completion uses explicit fallible cleanup above.
+            let _ = std::fs::remove_dir_all(&self.path);
+        }
     }
 }
 
 /// Creates an empty directory under the system temporary directory.
-fn scratch_dir(prefix: &str) -> TestResult<PathBuf> {
+fn scratch_dir(prefix: &str) -> TestResult<ScratchDir> {
     let nanos = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
     let dir = std::env::temp_dir().join(format!("phantom-{prefix}-{}-{nanos}", std::process::id()));
     std::fs::create_dir(&dir)?;
-    Ok(dir)
+    Ok(ScratchDir {
+        path: dir,
+        cleanup_on_drop: true,
+    })
 }

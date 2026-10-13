@@ -1,14 +1,9 @@
 //! Exact HTTP/3 over RFC 9298 CONNECT-UDP (MASQUE) proxies reached over
 //! HTTP/3, HTTP/2 extended CONNECT, or HTTP/1.1 Upgrade.
 
-use crate::support::client_certificate as client_certificate_support;
-use crate::support::h3 as h3_support;
-use crate::support::masque as masque_support;
-use crate::support::tls as tls_support;
-use crate::support::tracing as tracing_support;
-
 use std::{
     error::Error as StdError,
+    fmt,
     future::Future,
     net::SocketAddr,
     num::NonZeroUsize,
@@ -30,7 +25,7 @@ use phantom::{
     },
 };
 use phantom_net::http3::{ConnectUdpError, ConnectUdpErrorKind};
-use tokio::{task::JoinHandle, time::timeout};
+use tokio::{sync::watch, task::JoinHandle, time::timeout};
 use tracing::{
     Dispatch, Event, Metadata, Subscriber,
     field::{Field, Visit},
@@ -39,6 +34,10 @@ use tracing::{
     subscriber::Interest,
 };
 
+use crate::support::{
+    client_certificate as client_certificate_support, h3 as h3_support, masque as masque_support,
+    tls as tls_support, tracing as tracing_support, tunnel_proxy::finish_with_cleanup,
+};
 use client_certificate_support::{ClientIdentity, presented_leaf, quic_endpoint_requiring};
 use h3_support::server_endpoint;
 use masque_support::{
@@ -46,6 +45,8 @@ use masque_support::{
 };
 use tls_support::{TestIdentity, TestResult, tls_settings};
 use tracing_support::OutcomeSubscriber;
+
+mod origin_tasks;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
@@ -55,19 +56,26 @@ async fn exact_h3_over_connect_udp_completes_request() -> TestResult<()> {
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
         let origin = Origin::spawn(&origin_identity)?;
-        let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?;
-        let client = client(&origin_identity, &proxy_identity, &proxy)?;
+        let mut proxy_owner = None;
+        let mut client_owner = None;
 
-        let response = client
-            .get(HttpProtocol::Http3, &origin.uri("/hello"))?
-            .send()
-            .await?;
+        let result = async {
+            let proxy = proxy_owner.insert(MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?);
+            let client = client_owner.insert(client(&origin_identity, &proxy_identity, proxy)?);
 
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(response.into_body().collect().await?.to_bytes(), "/hello");
-        assert_eq!(proxy.requests().len(), 1);
-        assert_eq!(origin.requests(), ["/hello"]);
-        Ok(())
+            let response = client
+                .get(HttpProtocol::Http3, &origin.uri("/hello"))?
+                .send()
+                .await?;
+
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(response.into_body().collect().await?.to_bytes(), "/hello");
+            assert_eq!(proxy.requests().len(), 1);
+            assert_eq!(origin.requests(), ["/hello"]);
+            Ok(())
+        }
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -81,26 +89,35 @@ async fn connect_udp_proxy_never_receives_the_client_certificate() -> TestResult
             &origin_identity,
             &client_identity.authority_der,
         )?);
-        let proxy = MasqueProxy::spawn_requesting_client_certificates(
-            &proxy_identity,
-            ProxyMode::Relay,
-            &client_identity.authority_der,
-        )?;
-        let client = client_builder(&origin_identity, &proxy_identity)
-            .route(Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?))
-            .client_certificate(client_identity.certificate()?)
-            .build()?;
+        let mut proxy_owner = None;
+        let mut client_owner = None;
 
-        let response = client
-            .get(HttpProtocol::Http3, &origin.uri("/authenticated"))?
-            .send()
-            .await?;
+        let result = async {
+            let proxy = proxy_owner.insert(MasqueProxy::spawn_requesting_client_certificates(
+                &proxy_identity,
+                ProxyMode::Relay,
+                &client_identity.authority_der,
+            )?);
+            let client = client_owner.insert(
+                client_builder(&origin_identity, &proxy_identity)
+                    .route(Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?))
+                    .client_certificate(client_identity.certificate()?)
+                    .build()?,
+            );
 
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(proxy.connections(), 1);
-        assert_eq!(proxy.client_certificates(), 0);
-        assert_eq!(origin.presented(), [Some(client_identity.leaf_der)]);
-        Ok(())
+            let response = client
+                .get(HttpProtocol::Http3, &origin.uri("/authenticated"))?
+                .send()
+                .await?;
+
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(proxy.connections(), 1);
+            assert_eq!(proxy.client_certificates(), 0);
+            assert_eq!(origin.presented(), [Some(client_identity.leaf_der)]);
+            Ok(())
+        }
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -110,46 +127,55 @@ async fn connect_udp_emits_template_path_protocol_and_capsule_field() -> TestRes
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
         let origin = Origin::spawn(&origin_identity)?;
-        let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?;
-        let route = Route::connect_udp(
-            ConnectUdpProxy::new(&proxy.template())?
-                .header(RequestHeader::new("x-masque-client", "phantom")),
-        );
-        let client = client_builder(&origin_identity, &proxy_identity)
-            .route(route)
-            .build()?;
+        let mut proxy_owner = None;
+        let mut client_owner = None;
 
-        client
-            .get(HttpProtocol::Http3, &origin.uri("/fields"))?
-            .send()
-            .await?;
+        let result = async {
+            let proxy = proxy_owner.insert(MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?);
+            let route = Route::connect_udp(
+                ConnectUdpProxy::new(&proxy.template())?
+                    .header(RequestHeader::new("x-masque-client", "phantom")),
+            );
+            let client = client_owner.insert(
+                client_builder(&origin_identity, &proxy_identity)
+                    .route(route)
+                    .build()?,
+            );
 
-        let requests = proxy.requests();
-        let [request] = requests.as_slice() else {
-            return Err("proxy did not observe exactly one CONNECT-UDP request".into());
-        };
-        assert_eq!(request.method, "CONNECT");
-        assert_eq!(request.protocol.as_deref(), Some("connect-udp"));
-        assert_eq!(request.scheme.as_deref(), Some("https"));
-        assert_eq!(
-            request.authority.as_deref(),
-            Some(format!("127.0.0.1:{}", proxy.address.port()).as_str())
-        );
-        assert_eq!(
-            request.path,
-            format!(
-                "/.well-known/masque/udp/127.0.0.1/{}/",
-                origin.address.port()
-            )
-        );
-        assert_eq!(
-            request.fields,
-            [
-                ("capsule-protocol".to_owned(), b"?1".to_vec()),
-                ("x-masque-client".to_owned(), b"phantom".to_vec()),
-            ]
-        );
-        Ok(())
+            client
+                .get(HttpProtocol::Http3, &origin.uri("/fields"))?
+                .send()
+                .await?;
+
+            let requests = proxy.requests();
+            let [request] = requests.as_slice() else {
+                return Err("proxy did not observe exactly one CONNECT-UDP request".into());
+            };
+            assert_eq!(request.method, "CONNECT");
+            assert_eq!(request.protocol.as_deref(), Some("connect-udp"));
+            assert_eq!(request.scheme.as_deref(), Some("https"));
+            assert_eq!(
+                request.authority.as_deref(),
+                Some(format!("127.0.0.1:{}", proxy.address.port()).as_str())
+            );
+            assert_eq!(
+                request.path,
+                format!(
+                    "/.well-known/masque/udp/127.0.0.1/{}/",
+                    origin.address.port()
+                )
+            );
+            assert_eq!(
+                request.fields,
+                [
+                    ("capsule-protocol".to_owned(), b"?1".to_vec()),
+                    ("x-masque-client".to_owned(), b"phantom".to_vec()),
+                ]
+            );
+            Ok(())
+        }
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -159,22 +185,29 @@ async fn connect_udp_route_reuses_session_for_compatible_requests() -> TestResul
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
         let origin = Origin::spawn(&origin_identity)?;
-        let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?;
-        let client = client(&origin_identity, &proxy_identity, &proxy)?;
+        let mut proxy_owner = None;
+        let mut client_owner = None;
 
-        for path in ["/first", "/second"] {
-            let response = client
-                .get(HttpProtocol::Http3, &origin.uri(path))?
-                .send()
-                .await?;
-            assert_eq!(response.into_body().collect().await?.to_bytes(), path);
+        let result = async {
+            let proxy = proxy_owner.insert(MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?);
+            let client = client_owner.insert(client(&origin_identity, &proxy_identity, proxy)?);
+
+            for path in ["/first", "/second"] {
+                let response = client
+                    .get(HttpProtocol::Http3, &origin.uri(path))?
+                    .send()
+                    .await?;
+                assert_eq!(response.into_body().collect().await?.to_bytes(), path);
+            }
+
+            assert_eq!(proxy.connections(), 1);
+            assert_eq!(proxy.requests().len(), 1);
+            assert_eq!(origin.connections(), 1);
+            assert_eq!(origin.requests(), ["/first", "/second"]);
+            Ok(())
         }
-
-        assert_eq!(proxy.connections(), 1);
-        assert_eq!(proxy.requests().len(), 1);
-        assert_eq!(origin.connections(), 1);
-        assert_eq!(origin.requests(), ["/first", "/second"]);
-        Ok(())
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -201,22 +234,29 @@ async fn assert_setup_failure(mode: ProxyMode, expected: ConnectUdpErrorKind) ->
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
         let origin = Origin::spawn(&origin_identity)?;
-        let proxy = MasqueProxy::spawn(&proxy_identity, mode)?;
-        let client = client(&origin_identity, &proxy_identity, &proxy)?;
+        let mut proxy_owner = None;
+        let mut client_owner = None;
 
-        let error = client
-            .get(HttpProtocol::Http3, &origin.uri("/"))?
-            .send()
-            .await
-            .err()
-            .ok_or("CONNECT-UDP setup unexpectedly succeeded")?;
+        let result = async {
+            let proxy = proxy_owner.insert(MasqueProxy::spawn(&proxy_identity, mode)?);
+            let client = client_owner.insert(client(&origin_identity, &proxy_identity, proxy)?);
 
-        assert_eq!(error.kind(), RequestErrorKind::Proxy);
-        assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
-        assert_eq!(connect_udp_kind(&error), Some(expected));
-        assert!(proxy.requests().is_empty());
-        assert_eq!(origin.connections(), 0);
-        Ok(())
+            let error = client
+                .get(HttpProtocol::Http3, &origin.uri("/"))?
+                .send()
+                .await
+                .err()
+                .ok_or("CONNECT-UDP setup unexpectedly succeeded")?;
+
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+            assert_eq!(connect_udp_kind(&error), Some(expected));
+            assert!(proxy.requests().is_empty());
+            assert_eq!(origin.connections(), 0);
+            Ok(())
+        }
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -226,24 +266,32 @@ async fn proxy_rejection_is_typed_without_direct_fallback() -> TestResult<()> {
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
         let origin = Origin::spawn(&origin_identity)?;
-        let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::Reject(403))?;
-        let client = client(&origin_identity, &proxy_identity, &proxy)?;
+        let mut proxy_owner = None;
+        let mut client_owner = None;
 
-        let error = client
-            .get(HttpProtocol::Http3, &origin.uri("/"))?
-            .send()
-            .await
-            .err()
-            .ok_or("rejected CONNECT-UDP request succeeded")?;
+        let result = async {
+            let proxy =
+                proxy_owner.insert(MasqueProxy::spawn(&proxy_identity, ProxyMode::Reject(403))?);
+            let client = client_owner.insert(client(&origin_identity, &proxy_identity, proxy)?);
 
-        assert_eq!(error.kind(), RequestErrorKind::Proxy);
-        let rejection = connect_udp_error(&error).ok_or("rejection lost its typed source")?;
-        assert_eq!(rejection.kind(), ConnectUdpErrorKind::Rejected);
-        assert_eq!(rejection.status(), Some(StatusCode::FORBIDDEN));
-        assert!(rejection.to_string().contains("403"));
-        assert_eq!(proxy.requests().len(), 1);
-        assert_eq!(origin.connections(), 0);
-        Ok(())
+            let error = client
+                .get(HttpProtocol::Http3, &origin.uri("/"))?
+                .send()
+                .await
+                .err()
+                .ok_or("rejected CONNECT-UDP request succeeded")?;
+
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            let rejection = connect_udp_error(&error).ok_or("rejection lost its typed source")?;
+            assert_eq!(rejection.kind(), ConnectUdpErrorKind::Rejected);
+            assert_eq!(rejection.status(), Some(StatusCode::FORBIDDEN));
+            assert!(rejection.to_string().contains("403"));
+            assert_eq!(proxy.requests().len(), 1);
+            assert_eq!(origin.connections(), 0);
+            Ok(())
+        }
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -252,47 +300,60 @@ async fn proxy_rejection_is_typed_without_direct_fallback() -> TestResult<()> {
 async fn origin_and_proxy_trust_roots_are_independent() -> TestResult<()> {
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
-        let origin = Origin::spawn(&origin_identity)?;
-        let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?;
-        let route = Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?);
+        let mut origin = Origin::spawn(&origin_identity)?;
+        let mut proxy_owner = None;
+        let mut origin_only_owner = None;
+        let mut proxy_only_owner = None;
 
-        // The origin root authenticates only the origin, never the proxy.
-        let origin_only = Client::builder(profile())
-            .add_root_certificate_der(origin_identity.root_der.clone())
-            .add_root_certificate_der(proxy_identity.root_der.clone())
-            .route(route.clone())
-            .build()?;
-        let error = origin_only
-            .get(HttpProtocol::Http3, &origin.uri("/"))?
-            .send()
-            .await
-            .err()
-            .ok_or("proxy was authenticated with origin roots")?;
-        assert_eq!(error.kind(), RequestErrorKind::Proxy);
-        assert_eq!(
-            connect_udp_kind(&error),
-            Some(ConnectUdpErrorKind::Handshake)
-        );
-        assert!(proxy.requests().is_empty());
-        assert_eq!(origin.connections(), 0);
+        let result = async {
+            let proxy = proxy_owner.insert(MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?);
+            let route = Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?);
 
-        // The proxy root authenticates only the proxy, never the origin.
-        let proxy_only = Client::builder(profile())
-            .add_proxy_root_certificate_der(origin_identity.root_der.clone())
-            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
-            .route(route)
-            .build()?;
-        let error = proxy_only
-            .get(HttpProtocol::Http3, &origin.uri("/"))?
-            .send()
-            .await
-            .err()
-            .ok_or("origin was authenticated with proxy roots")?;
-        assert_eq!(error.kind(), RequestErrorKind::Tls);
-        assert_eq!(connect_udp_kind(&error), None);
-        assert_eq!(proxy.requests().len(), 1);
-        assert!(origin.requests().is_empty());
-        Ok(())
+            // The origin root authenticates only the origin, never the proxy.
+            let origin_only = origin_only_owner.insert(
+                Client::builder(profile())
+                    .add_root_certificate_der(origin_identity.root_der.clone())
+                    .add_root_certificate_der(proxy_identity.root_der.clone())
+                    .route(route.clone())
+                    .build()?,
+            );
+            let error = origin_only
+                .get(HttpProtocol::Http3, &origin.uri("/"))?
+                .send()
+                .await
+                .err()
+                .ok_or("proxy was authenticated with origin roots")?;
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            assert_eq!(
+                connect_udp_kind(&error),
+                Some(ConnectUdpErrorKind::Handshake)
+            );
+            assert!(proxy.requests().is_empty());
+            assert_eq!(origin.connections(), 0);
+
+            // The proxy root authenticates only the proxy, never the origin.
+            let proxy_only = proxy_only_owner.insert(
+                Client::builder(profile())
+                    .add_proxy_root_certificate_der(origin_identity.root_der.clone())
+                    .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+                    .route(route)
+                    .build()?,
+            );
+            let error = proxy_only
+                .get(HttpProtocol::Http3, &origin.uri("/"))?
+                .send()
+                .await
+                .err()
+                .ok_or("origin was authenticated with proxy roots")?;
+            assert_eq!(error.kind(), RequestErrorKind::Tls);
+            origin.expect_certificate_rejection(&error)?;
+            assert_eq!(connect_udp_kind(&error), None);
+            assert_eq!(proxy.requests().len(), 1);
+            assert!(origin.requests().is_empty());
+            Ok(())
+        }
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -338,6 +399,93 @@ async fn connect_udp_route_rejects_h1_h2_negotiated_and_websocket_before_io() ->
         Ok(())
     })
     .await
+}
+
+#[tokio::test]
+async fn zero_udp_target_port_fails_before_http1_proxy_io() -> TestResult<()> {
+    zero_port_before_tcp_proxy_io(StreamLeg::Http1).await
+}
+
+#[tokio::test]
+async fn zero_udp_target_port_fails_before_http2_proxy_io() -> TestResult<()> {
+    zero_port_before_tcp_proxy_io(StreamLeg::Http2).await
+}
+
+async fn zero_port_before_tcp_proxy_io(leg: StreamLeg) -> TestResult<()> {
+    bounded(async {
+        let (origin_identity, proxy_identity) = identities()?;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let template = format!(
+            "https://{}/.well-known/masque/udp/{{target_host}}/{{target_port}}/",
+            listener.local_addr()?
+        );
+        let client = leg_client(
+            &origin_identity,
+            &proxy_identity,
+            leg_proxy(&template, leg)?,
+        )?;
+        let request = client.get(HttpProtocol::Http3, "https://127.0.0.1:0/")?;
+        let error = tokio::select! {
+            result = request.send() => result.err().ok_or("zero UDP target was accepted")?,
+            incoming = listener.accept() => {
+                drop(incoming?);
+                return Err("zero UDP target caused TCP proxy I/O".into());
+            }
+        };
+        assert_eq!(error.kind(), RequestErrorKind::InvalidTarget);
+        assert!(
+            timeout(Duration::from_millis(100), listener.accept())
+                .await
+                .is_err(),
+            "a TCP proxy connection followed the invalid-target error"
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn zero_udp_target_port_fails_before_http3_proxy_io() -> TestResult<()> {
+    bounded(async {
+        let (origin_identity, proxy_identity) = identities()?;
+        let (address, endpoint) = server_endpoint(&proxy_identity)?;
+        let proxy = ConnectUdpProxy::new(&format!(
+            "https://{address}/.well-known/masque/udp/{{target_host}}/{{target_port}}/"
+        ))?;
+        let client = client_builder(&origin_identity, &proxy_identity)
+            .route(Route::connect_udp(proxy))
+            .build()?;
+        let request = client.get(HttpProtocol::Http3, "https://127.0.0.1:0/")?;
+        let error = tokio::select! {
+            result = request.send() => result.err().ok_or("zero UDP target was accepted")?,
+            incoming = endpoint.accept() => {
+                drop(incoming.ok_or("proxy endpoint closed before observation")?);
+                return Err("zero UDP target caused QUIC proxy I/O".into());
+            }
+        };
+        assert_eq!(error.kind(), RequestErrorKind::InvalidTarget);
+        assert!(
+            timeout(Duration::from_millis(100), endpoint.accept())
+                .await
+                .is_err(),
+            "a QUIC proxy connection followed the invalid-target error"
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn direct_route_keeps_port_zero_request_targets_valid() -> TestResult<()> {
+    let client = Client::builder(profile()).route(Route::Direct).build()?;
+    for protocol in [
+        HttpProtocol::Http1,
+        HttpProtocol::Http2,
+        HttpProtocol::Http3,
+    ] {
+        let _request = client.get(protocol, "https://127.0.0.1:0/")?;
+    }
+    Ok(())
 }
 
 #[tokio::test]
@@ -423,44 +571,53 @@ async fn connect_udp_retries_only_outer_connect_failures() -> TestResult<()> {
         );
 
         // A proxy rejection and an inner handshake failure are terminal.
-        let origin = Origin::spawn(&origin_identity)?;
-        let rejecting = MasqueProxy::spawn(&proxy_identity, ProxyMode::Reject(502))?;
-        let relaying = MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?;
-        let untrusted_origin = Client::builder(profile())
-            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
-            .route(Route::connect_udp(ConnectUdpProxy::new(
-                &relaying.template(),
-            )?))
-            .retry_policy(retries)
-            .build()?;
-        for (terminal_client, proxy, kind) in [
-            (
-                client(&origin_identity, &proxy_identity, &rejecting)?,
-                &rejecting,
-                RequestErrorKind::Proxy,
-            ),
-            (untrusted_origin, &relaying, RequestErrorKind::Tls),
-        ] {
-            let subscriber = OutcomeSubscriber::default();
-            let error = terminal_client
-                .get(HttpProtocol::Http3, &origin.uri("/"))?
+        let mut origin = Origin::spawn(&origin_identity)?;
+        let mut rejecting_owner = None;
+        let mut relaying_owner = None;
+        let mut terminal_client_owners = Vec::new();
+
+        let result = async {
+            let rejecting = rejecting_owner
+                .insert(MasqueProxy::spawn(&proxy_identity, ProxyMode::Reject(502))?);
+            let relaying =
+                relaying_owner.insert(MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?);
+            let untrusted_origin = Client::builder(profile())
+                .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+                .route(Route::connect_udp(ConnectUdpProxy::new(
+                    &relaying.template(),
+                )?))
                 .retry_policy(retries)
-                .send()
-                .with_subscriber(subscriber.dispatch())
-                .await
-                .err()
-                .ok_or("terminal CONNECT-UDP failure succeeded")?;
-            assert_eq!(error.kind(), kind);
-            assert_eq!(proxy.requests().len(), 1);
-            assert!(
-                subscriber
-                    .retries_performed_for("client.request")
-                    .iter()
-                    .all(|retries| *retries == 0)
-            );
+                .build()?;
+            for (terminal_client, proxy, kind) in [
+                (
+                    client(&origin_identity, &proxy_identity, rejecting)?,
+                    &*rejecting,
+                    RequestErrorKind::Proxy,
+                ),
+                (untrusted_origin, &*relaying, RequestErrorKind::Tls),
+            ] {
+                terminal_client_owners.push(terminal_client.clone());
+                let subscriber = OutcomeSubscriber::default();
+                let error = terminal_client
+                    .get(HttpProtocol::Http3, &origin.uri("/"))?
+                    .retry_policy(retries)
+                    .send()
+                    .with_subscriber(subscriber.dispatch())
+                    .await
+                    .err()
+                    .ok_or("terminal CONNECT-UDP failure succeeded")?;
+                assert_eq!(error.kind(), kind);
+                if kind == RequestErrorKind::Tls {
+                    origin.expect_certificate_rejection(&error)?;
+                }
+                assert_eq!(proxy.requests().len(), 1);
+                assert!(observed_zero_request_retries(&subscriber));
+            }
+            assert!(origin.requests().is_empty());
+            Ok(())
         }
-        assert!(origin.requests().is_empty());
-        Ok(())
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -470,44 +627,56 @@ async fn outer_close_fails_inner_connection_and_invalidates_pool_entry() -> Test
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
         let origin = Origin::spawn(&origin_identity)?;
-        let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?;
-        let client = client(&origin_identity, &proxy_identity, &proxy)?;
+        let mut proxy_owner = None;
+        let mut client_owner = None;
 
-        let response = client
-            .get(HttpProtocol::Http3, &origin.uri("/stall"))?
-            .send()
-            .await?;
-        let mut body = response.into_body();
-        let first = body
-            .frame()
-            .await
-            .ok_or("stalled body ended early")??
-            .into_data()
-            .map_err(|_| "stalled body sent trailers")?;
-        assert_eq!(first, "partial");
+        let result = async {
+            let proxy = proxy_owner.insert(MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?);
+            let client = client_owner.insert(client(&origin_identity, &proxy_identity, proxy)?);
 
-        proxy.close_connections();
-        let failure = timeout(TEST_TIMEOUT, body.collect())
-            .await
-            .map_err(|_| "inner body did not fail after the outer connection closed")?;
-        let error = failure
-            .err()
-            .ok_or("inner body completed after the outer connection closed")?;
-        assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
-        proxy.reopen();
+            let response = client
+                .get(HttpProtocol::Http3, &origin.uri("/stall"))?
+                .send()
+                .await?;
+            let mut body = response.into_body();
+            let first = body
+                .frame()
+                .await
+                .ok_or("stalled body ended early")??
+                .into_data()
+                .map_err(|_| "stalled body sent trailers")?;
+            assert_eq!(first, "partial");
 
-        let response = client
-            .get(HttpProtocol::Http3, &origin.uri("/after-close"))?
-            .send()
-            .await?;
-        assert_eq!(
-            response.into_body().collect().await?.to_bytes(),
-            "/after-close"
-        );
-        assert_eq!(proxy.connections(), 2);
-        assert_eq!(proxy.requests().len(), 2);
-        assert_eq!(origin.connections(), 2);
-        Ok(())
+            proxy.close_connections();
+            let failure = timeout(TEST_TIMEOUT, body.collect())
+                .await
+                .map_err(|source| {
+                    ConnectUdpDeadline::new(
+                        "inner body did not fail after the outer connection closed",
+                        source,
+                    )
+                })?;
+            let error = failure
+                .err()
+                .ok_or("inner body completed after the outer connection closed")?;
+            assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
+            proxy.reopen();
+
+            let response = client
+                .get(HttpProtocol::Http3, &origin.uri("/after-close"))?
+                .send()
+                .await?;
+            assert_eq!(
+                response.into_body().collect().await?.to_bytes(),
+                "/after-close"
+            );
+            assert_eq!(proxy.connections(), 2);
+            assert_eq!(proxy.requests().len(), 2);
+            assert_eq!(origin.connections(), 2);
+            Ok(())
+        }
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -517,66 +686,74 @@ async fn connect_udp_diagnostics_exclude_payloads() -> TestResult<()> {
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
         let origin = Origin::spawn(&origin_identity)?;
-        let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?;
-        let route = Route::connect_udp(
-            ConnectUdpProxy::new(&proxy.template())?
-                .header(RequestHeader::new("x-masque-secret", "proxy-credential")),
-        );
-        let client = client_builder(&origin_identity, &proxy_identity)
-            .route(route)
-            .build()?;
-        let capture = FieldCapture::default();
+        let mut proxy_owner = None;
 
-        let body = async {
-            let response = client
-                .get(HttpProtocol::Http3, &origin.uri("/payload-secret"))?
-                .send()
-                .await?;
-            Ok::<_, RequestError>(response.into_body().collect().await?.to_bytes())
-        }
-        .with_subscriber(capture.dispatch())
-        .await?;
-        assert_eq!(body, "/payload-secret");
-        drop(client);
+        let result = async {
+            let proxy = proxy_owner.insert(MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?);
+            let route = Route::connect_udp(
+                ConnectUdpProxy::new(&proxy.template())?
+                    .header(RequestHeader::new("x-masque-secret", "proxy-credential")),
+            );
+            let client = client_builder(&origin_identity, &proxy_identity)
+                .route(route)
+                .build()?;
+            let capture = FieldCapture::default();
 
-        timeout(TEST_TIMEOUT, async {
-            while capture
-                .values("proxy.connect_udp", "dropped_unknown_context")
-                .is_empty()
-            {
-                tokio::time::sleep(POLL_INTERVAL).await;
+            let body = async {
+                let response = client
+                    .get(HttpProtocol::Http3, &origin.uri("/payload-secret"))?
+                    .send()
+                    .await?;
+                Ok::<_, RequestError>(response.into_body().collect().await?.to_bytes())
             }
-        })
-        .await
-        .map_err(|_| "tunnel drop counters were not recorded")?;
+            .with_subscriber(capture.dispatch())
+            .await?;
+            assert_eq!(body, "/payload-secret");
+            drop(client);
 
-        assert_eq!(
-            capture.values("proxy.connect_udp", "proxy_protocol"),
-            ["connect-udp"]
-        );
-        assert_eq!(capture.values("proxy.connect_udp", "status"), ["200"]);
-        assert_eq!(capture.values("proxy.connect_udp", "outcome"), ["accepted"]);
-        for field in [
-            "dropped_overflow",
-            "dropped_early",
-            "dropped_malformed",
-            "dropped_oversized",
-            "dropped_send",
-        ] {
+            timeout(TEST_TIMEOUT, async {
+                while capture
+                    .values("proxy.connect_udp", "dropped_unknown_context")
+                    .is_empty()
+                {
+                    tokio::time::sleep(POLL_INTERVAL).await;
+                }
+            })
+            .await
+            .map_err(|source| {
+                ConnectUdpDeadline::new("tunnel drop counters were not recorded", source)
+            })?;
+
             assert_eq!(
-                capture.values("proxy.connect_udp", field).len(),
-                1,
-                "{field}"
+                capture.values("proxy.connect_udp", "proxy_protocol"),
+                ["connect-udp"]
             );
+            assert_eq!(capture.values("proxy.connect_udp", "status"), ["200"]);
+            assert_eq!(capture.values("proxy.connect_udp", "outcome"), ["accepted"]);
+            for field in [
+                "dropped_overflow",
+                "dropped_early",
+                "dropped_malformed",
+                "dropped_oversized",
+                "dropped_send",
+            ] {
+                assert_eq!(
+                    capture.values("proxy.connect_udp", field).len(),
+                    1,
+                    "{field}"
+                );
+            }
+            let recorded = capture.all_values();
+            for secret in ["proxy-credential", "payload-secret", "unknown-context"] {
+                assert!(
+                    !recorded.iter().any(|value| value.contains(secret)),
+                    "diagnostics recorded {secret}"
+                );
+            }
+            Ok(())
         }
-        let recorded = capture.all_values();
-        for secret in ["proxy-credential", "payload-secret", "unknown-context"] {
-            assert!(
-                !recorded.iter().any(|value| value.contains(secret)),
-                "diagnostics recorded {secret}"
-            );
-        }
-        Ok(())
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -586,38 +763,47 @@ async fn exact_h3_completes_over_http1_upgrade_leg_with_capsule_framing() -> Tes
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
         let origin = Origin::spawn(&origin_identity)?;
-        let proxy =
-            MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http1, StreamMode::Relay).await?;
-        let route = ConnectUdpProxy::new(&proxy.template())?
-            .with_http1_transport()
-            .header(RequestHeader::new("X-Masque-Client", "phantom"));
-        let client = leg_client(&origin_identity, &proxy_identity, route)?;
+        let mut proxy_owner = None;
+        let mut client_owner = None;
 
-        for path in ["/upgrade", "/reused"] {
-            let response = client
-                .get(HttpProtocol::Http3, &origin.uri(path))?
-                .send()
-                .await?;
-            assert_eq!(response.status(), StatusCode::OK);
-            assert_eq!(response.into_body().collect().await?.to_bytes(), path);
-        }
+        let result = async {
+            let proxy = proxy_owner.insert(
+                MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http1, StreamMode::Relay)
+                    .await?,
+            );
+            let route = ConnectUdpProxy::new(&proxy.template())?
+                .with_http1_transport()
+                .header(RequestHeader::new("X-Masque-Client", "phantom"));
+            let client = client_owner.insert(leg_client(&origin_identity, &proxy_identity, route)?);
 
-        let requests = proxy.requests();
-        let [request] = requests.as_slice() else {
-            return Err("proxy did not observe exactly one Upgrade request".into());
-        };
-        let expected = format!(
-            "GET /.well-known/masque/udp/127.0.0.1/{}/ HTTP/1.1\r\n\
+            for path in ["/upgrade", "/reused"] {
+                let response = client
+                    .get(HttpProtocol::Http3, &origin.uri(path))?
+                    .send()
+                    .await?;
+                assert_eq!(response.status(), StatusCode::OK);
+                assert_eq!(response.into_body().collect().await?.to_bytes(), path);
+            }
+
+            let requests = proxy.requests();
+            let [request] = requests.as_slice() else {
+                return Err("proxy did not observe exactly one Upgrade request".into());
+            };
+            let expected = format!(
+                "GET /.well-known/masque/udp/127.0.0.1/{}/ HTTP/1.1\r\n\
              Host: 127.0.0.1:{}\r\nConnection: Upgrade\r\nUpgrade: connect-udp\r\n\
              Capsule-Protocol: ?1\r\nX-Masque-Client: phantom\r\n\r\n",
-            origin.address.port(),
-            proxy.address.port()
-        );
-        assert_eq!(request.head.as_deref(), Some(expected.as_bytes()));
-        assert_capsule_framing(&proxy.client_capsules())?;
-        assert_eq!(proxy.connections(), 1);
-        assert_eq!(origin.connections(), 1);
-        Ok(())
+                origin.address.port(),
+                proxy.address.port()
+            );
+            assert_eq!(request.head.as_deref(), Some(expected.as_bytes()));
+            assert_capsule_framing(&proxy.client_capsules())?;
+            assert_eq!(proxy.connections(), 1);
+            assert_eq!(origin.connections(), 1);
+            Ok(())
+        }
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -627,51 +813,60 @@ async fn exact_h3_completes_over_http2_extended_connect_leg() -> TestResult<()> 
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
         let origin = Origin::spawn(&origin_identity)?;
-        let proxy =
-            MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http2, StreamMode::Relay).await?;
-        let route = ConnectUdpProxy::new(&proxy.template())?
-            .with_http2_transport()
-            .header(RequestHeader::new("x-masque-client", "phantom"));
-        let client = leg_client(&origin_identity, &proxy_identity, route)?;
+        let mut proxy_owner = None;
+        let mut client_owner = None;
 
-        let response = client
-            .get(HttpProtocol::Http3, &origin.uri("/extended"))?
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(
-            response.into_body().collect().await?.to_bytes(),
-            "/extended"
-        );
+        let result = async {
+            let proxy = proxy_owner.insert(
+                MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http2, StreamMode::Relay)
+                    .await?,
+            );
+            let route = ConnectUdpProxy::new(&proxy.template())?
+                .with_http2_transport()
+                .header(RequestHeader::new("x-masque-client", "phantom"));
+            let client = client_owner.insert(leg_client(&origin_identity, &proxy_identity, route)?);
 
-        let requests = proxy.requests();
-        let [request] = requests.as_slice() else {
-            return Err("proxy did not observe exactly one extended CONNECT".into());
-        };
-        assert_eq!(request.method, "CONNECT");
-        assert_eq!(request.protocol.as_deref(), Some("connect-udp"));
-        assert_eq!(request.scheme.as_deref(), Some("https"));
-        assert_eq!(
-            request.authority.as_deref(),
-            Some(format!("127.0.0.1:{}", proxy.address.port()).as_str())
-        );
-        assert_eq!(
-            request.path,
-            format!(
-                "/.well-known/masque/udp/127.0.0.1/{}/",
-                origin.address.port()
-            )
-        );
-        assert_eq!(
-            request.fields,
-            [
-                ("capsule-protocol".to_owned(), b"?1".to_vec()),
-                ("x-masque-client".to_owned(), b"phantom".to_vec()),
-            ]
-        );
-        assert_capsule_framing(&proxy.client_capsules())?;
-        assert_eq!(proxy.connections(), 1);
-        Ok(())
+            let response = client
+                .get(HttpProtocol::Http3, &origin.uri("/extended"))?
+                .send()
+                .await?;
+            assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(
+                response.into_body().collect().await?.to_bytes(),
+                "/extended"
+            );
+
+            let requests = proxy.requests();
+            let [request] = requests.as_slice() else {
+                return Err("proxy did not observe exactly one extended CONNECT".into());
+            };
+            assert_eq!(request.method, "CONNECT");
+            assert_eq!(request.protocol.as_deref(), Some("connect-udp"));
+            assert_eq!(request.scheme.as_deref(), Some("https"));
+            assert_eq!(
+                request.authority.as_deref(),
+                Some(format!("127.0.0.1:{}", proxy.address.port()).as_str())
+            );
+            assert_eq!(
+                request.path,
+                format!(
+                    "/.well-known/masque/udp/127.0.0.1/{}/",
+                    origin.address.port()
+                )
+            );
+            assert_eq!(
+                request.fields,
+                [
+                    ("capsule-protocol".to_owned(), b"?1".to_vec()),
+                    ("x-masque-client".to_owned(), b"phantom".to_vec()),
+                ]
+            );
+            assert_capsule_framing(&proxy.client_capsules())?;
+            assert_eq!(proxy.connections(), 1);
+            Ok(())
+        }
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -681,29 +876,38 @@ async fn http2_leg_requires_the_proxy_extended_connect_setting() -> TestResult<(
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
         let origin = Origin::spawn(&origin_identity)?;
-        let proxy = MasqueStreamProxy::spawn(
-            &proxy_identity,
-            StreamLeg::Http2,
-            StreamMode::WithoutExtendedConnect,
-        )
-        .await?;
-        let route = ConnectUdpProxy::new(&proxy.template())?.with_http2_transport();
-        let client = leg_client(&origin_identity, &proxy_identity, route)?;
+        let mut proxy_owner = None;
+        let mut client_owner = None;
 
-        let error = client
-            .get(HttpProtocol::Http3, &origin.uri("/"))?
-            .send()
-            .await
-            .err()
-            .ok_or("HTTP/2 leg ignored the missing extended CONNECT setting")?;
-        assert_eq!(error.kind(), RequestErrorKind::Proxy);
-        assert_eq!(
-            connect_udp_kind(&error),
-            Some(ConnectUdpErrorKind::ExtendedConnectUnavailable)
-        );
-        assert!(proxy.requests().is_empty());
-        assert_eq!(origin.connections(), 0);
-        Ok(())
+        let result = async {
+            let proxy = proxy_owner.insert(
+                MasqueStreamProxy::spawn(
+                    &proxy_identity,
+                    StreamLeg::Http2,
+                    StreamMode::WithoutExtendedConnect,
+                )
+                .await?,
+            );
+            let route = ConnectUdpProxy::new(&proxy.template())?.with_http2_transport();
+            let client = client_owner.insert(leg_client(&origin_identity, &proxy_identity, route)?);
+
+            let error = client
+                .get(HttpProtocol::Http3, &origin.uri("/"))?
+                .send()
+                .await
+                .err()
+                .ok_or("HTTP/2 leg ignored the missing extended CONNECT setting")?;
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            assert_eq!(
+                connect_udp_kind(&error),
+                Some(ConnectUdpErrorKind::ExtendedConnectUnavailable)
+            );
+            assert!(proxy.requests().is_empty());
+            assert_eq!(origin.connections(), 0);
+            Ok(())
+        }
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -752,29 +956,38 @@ async fn http1_leg_requires_a_101_upgrade_response() -> TestResult<()> {
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
         let origin = Origin::spawn(&origin_identity)?;
-        let proxy = MasqueStreamProxy::spawn(
-            &proxy_identity,
-            StreamLeg::Http1,
-            StreamMode::OkInsteadOfUpgrade,
-        )
-        .await?;
-        let route = ConnectUdpProxy::new(&proxy.template())?.with_http1_transport();
-        let client = leg_client(&origin_identity, &proxy_identity, route)?;
+        let mut proxy_owner = None;
+        let mut client_owner = None;
 
-        let error = client
-            .get(HttpProtocol::Http3, &origin.uri("/"))?
-            .send()
-            .await
-            .err()
-            .ok_or("a 200 response opened an HTTP/1.1 CONNECT-UDP tunnel")?;
-        assert_eq!(error.kind(), RequestErrorKind::Proxy);
-        assert_eq!(
-            connect_udp_kind(&error),
-            Some(ConnectUdpErrorKind::Protocol)
-        );
-        assert_eq!(proxy.requests().len(), 1);
-        assert_eq!(origin.connections(), 0);
-        Ok(())
+        let result = async {
+            let proxy = proxy_owner.insert(
+                MasqueStreamProxy::spawn(
+                    &proxy_identity,
+                    StreamLeg::Http1,
+                    StreamMode::OkInsteadOfUpgrade,
+                )
+                .await?,
+            );
+            let route = ConnectUdpProxy::new(&proxy.template())?.with_http1_transport();
+            let client = client_owner.insert(leg_client(&origin_identity, &proxy_identity, route)?);
+
+            let error = client
+                .get(HttpProtocol::Http3, &origin.uri("/"))?
+                .send()
+                .await
+                .err()
+                .ok_or("a 200 response opened an HTTP/1.1 CONNECT-UDP tunnel")?;
+            assert_eq!(error.kind(), RequestErrorKind::Proxy);
+            assert_eq!(
+                connect_udp_kind(&error),
+                Some(ConnectUdpErrorKind::Protocol)
+            );
+            assert_eq!(proxy.requests().len(), 1);
+            assert_eq!(origin.connections(), 0);
+            Ok(())
+        }
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -784,30 +997,36 @@ async fn tcp_leg_rejection_is_typed_with_status_without_fallback() -> TestResult
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
         let origin = Origin::spawn(&origin_identity)?;
-        for leg in [StreamLeg::Http1, StreamLeg::Http2] {
-            let proxy =
-                MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::Reject(403)).await?;
-            let client = leg_client(
-                &origin_identity,
-                &proxy_identity,
-                leg_proxy(&proxy.template(), leg)?,
-            )?;
 
-            let error = client
-                .get(HttpProtocol::Http3, &origin.uri("/"))?
-                .send()
-                .await
-                .err()
-                .ok_or("rejected CONNECT-UDP request succeeded")?;
-            assert_eq!(error.kind(), RequestErrorKind::Proxy);
-            let rejection = connect_udp_error(&error).ok_or("rejection lost its typed source")?;
-            assert_eq!(rejection.kind(), ConnectUdpErrorKind::Rejected, "{leg:?}");
-            assert_eq!(rejection.status(), Some(StatusCode::FORBIDDEN));
-            assert_eq!(proxy.requests().len(), 1);
-            assert_eq!(proxy.connections(), 1);
+        let result = async {
+            for leg in [StreamLeg::Http1, StreamLeg::Http2] {
+                let proxy =
+                    MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::Reject(403)).await?;
+                let client = leg_client(
+                    &origin_identity,
+                    &proxy_identity,
+                    leg_proxy(&proxy.template(), leg)?,
+                )?;
+
+                let error = client
+                    .get(HttpProtocol::Http3, &origin.uri("/"))?
+                    .send()
+                    .await
+                    .err()
+                    .ok_or("rejected CONNECT-UDP request succeeded")?;
+                assert_eq!(error.kind(), RequestErrorKind::Proxy);
+                let rejection =
+                    connect_udp_error(&error).ok_or("rejection lost its typed source")?;
+                assert_eq!(rejection.kind(), ConnectUdpErrorKind::Rejected, "{leg:?}");
+                assert_eq!(rejection.status(), Some(StatusCode::FORBIDDEN));
+                assert_eq!(proxy.requests().len(), 1);
+                assert_eq!(proxy.connections(), 1);
+            }
+            assert_eq!(origin.connections(), 0);
+            Ok(())
         }
-        assert_eq!(origin.connections(), 0);
-        Ok(())
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -862,73 +1081,88 @@ async fn basic_auth_replays_once_on_a_fresh_connection_for_each_leg() -> TestRes
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
         let origin = Origin::spawn(&origin_identity)?;
-        let authorization = b"Basic cHJveHktdXNlcjpwcm94eS1zZWNyZXQ=".to_vec();
+        let mut stream_proxy_owners = Vec::new();
+        let mut loop_client_owners = Vec::new();
+        let mut proxy_owner = None;
+        let mut client_owner = None;
 
-        for leg in [StreamLeg::Http1, StreamLeg::Http2] {
+        let result = async {
+            let authorization = b"Basic cHJveHktdXNlcjpwcm94eS1zZWNyZXQ=".to_vec();
+
+            for leg in [StreamLeg::Http1, StreamLeg::Http2] {
+                let proxy =
+                    MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::Challenge).await?;
+                stream_proxy_owners.push(proxy);
+                let proxy = &stream_proxy_owners[stream_proxy_owners.len() - 1];
+                let route = leg_proxy(&proxy.template(), leg)?
+                    .header(RequestHeader::new("x-masque-client", "phantom"))
+                    .with_basic_auth("proxy-user", "proxy-secret")?;
+                let client = leg_client(&origin_identity, &proxy_identity, route)?;
+                loop_client_owners.push(client.clone());
+
+                let response = client
+                    .get(HttpProtocol::Http3, &origin.uri("/authorized"))?
+                    .send()
+                    .await?;
+                assert_eq!(
+                    response.into_body().collect().await?.to_bytes(),
+                    "/authorized"
+                );
+                let requests = proxy.requests();
+                let [anonymous, authorized] = requests.as_slice() else {
+                    return Err("proxy did not observe exactly one replay".into());
+                };
+                assert!(
+                    !anonymous
+                        .fields
+                        .iter()
+                        .any(|(name, _)| name.eq_ignore_ascii_case("proxy-authorization")),
+                    "{leg:?}"
+                );
+                let (name, value) = authorized.fields.last().ok_or("replay has no fields")?;
+                assert!(name.eq_ignore_ascii_case("proxy-authorization"), "{leg:?}");
+                assert_eq!(value, &authorization);
+                assert_eq!(proxy.connections(), 2, "{leg:?}");
+            }
+
             let proxy =
-                MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::Challenge).await?;
-            let route = leg_proxy(&proxy.template(), leg)?
+                proxy_owner.insert(MasqueProxy::spawn(&proxy_identity, ProxyMode::Challenge)?);
+            let route = ConnectUdpProxy::new(&proxy.template())?
                 .header(RequestHeader::new("x-masque-client", "phantom"))
                 .with_basic_auth("proxy-user", "proxy-secret")?;
-            let client = leg_client(&origin_identity, &proxy_identity, route)?;
-
+            let client = client_owner.insert(
+                client_builder(&origin_identity, &proxy_identity)
+                    .route(Route::connect_udp(route))
+                    .build()?,
+            );
             let response = client
-                .get(HttpProtocol::Http3, &origin.uri("/authorized"))?
+                .get(HttpProtocol::Http3, &origin.uri("/h3-authorized"))?
                 .send()
                 .await?;
             assert_eq!(
                 response.into_body().collect().await?.to_bytes(),
-                "/authorized"
+                "/h3-authorized"
             );
             let requests = proxy.requests();
             let [anonymous, authorized] = requests.as_slice() else {
-                return Err("proxy did not observe exactly one replay".into());
+                return Err("H3 proxy did not observe exactly one replay".into());
             };
-            assert!(
-                !anonymous
-                    .fields
-                    .iter()
-                    .any(|(name, _)| name.eq_ignore_ascii_case("proxy-authorization")),
-                "{leg:?}"
+            assert!(anonymous.sensitive.is_empty());
+            assert_eq!(
+                authorized.fields,
+                [
+                    ("capsule-protocol".to_owned(), b"?1".to_vec()),
+                    ("x-masque-client".to_owned(), b"phantom".to_vec()),
+                    ("proxy-authorization".to_owned(), authorization.clone()),
+                ]
             );
-            let (name, value) = authorized.fields.last().ok_or("replay has no fields")?;
-            assert!(name.eq_ignore_ascii_case("proxy-authorization"), "{leg:?}");
-            assert_eq!(value, &authorization);
-            assert_eq!(proxy.connections(), 2, "{leg:?}");
+            // QPACK carried the credential as a never-indexed literal.
+            assert_eq!(authorized.sensitive, ["proxy-authorization"]);
+            assert_eq!(proxy.connections(), 2);
+            Ok(())
         }
-
-        let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::Challenge)?;
-        let route = ConnectUdpProxy::new(&proxy.template())?
-            .header(RequestHeader::new("x-masque-client", "phantom"))
-            .with_basic_auth("proxy-user", "proxy-secret")?;
-        let client = client_builder(&origin_identity, &proxy_identity)
-            .route(Route::connect_udp(route))
-            .build()?;
-        let response = client
-            .get(HttpProtocol::Http3, &origin.uri("/h3-authorized"))?
-            .send()
-            .await?;
-        assert_eq!(
-            response.into_body().collect().await?.to_bytes(),
-            "/h3-authorized"
-        );
-        let requests = proxy.requests();
-        let [anonymous, authorized] = requests.as_slice() else {
-            return Err("H3 proxy did not observe exactly one replay".into());
-        };
-        assert!(anonymous.sensitive.is_empty());
-        assert_eq!(
-            authorized.fields,
-            [
-                ("capsule-protocol".to_owned(), b"?1".to_vec()),
-                ("x-masque-client".to_owned(), b"phantom".to_vec()),
-                ("proxy-authorization".to_owned(), authorization.clone()),
-            ]
-        );
-        // QPACK carried the credential as a never-indexed literal.
-        assert_eq!(authorized.sensitive, ["proxy-authorization"]);
-        assert_eq!(proxy.connections(), 2);
-        Ok(())
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -938,47 +1172,54 @@ async fn second_407_is_authentication_rejected_on_every_leg() -> TestResult<()> 
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
         let origin = Origin::spawn(&origin_identity)?;
-        let mut outcomes = Vec::new();
-        for leg in [StreamLeg::Http1, StreamLeg::Http2] {
-            let proxy =
-                MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::AlwaysChallenge).await?;
-            let route = leg_proxy(&proxy.template(), leg)?.with_basic_auth("user", "wrong")?;
-            let client = leg_client(&origin_identity, &proxy_identity, route)?;
+
+        let result = async {
+            let mut outcomes = Vec::new();
+            for leg in [StreamLeg::Http1, StreamLeg::Http2] {
+                let proxy =
+                    MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::AlwaysChallenge)
+                        .await?;
+                let route = leg_proxy(&proxy.template(), leg)?.with_basic_auth("user", "wrong")?;
+                let client = leg_client(&origin_identity, &proxy_identity, route)?;
+                let error = client
+                    .get(HttpProtocol::Http3, &origin.uri("/"))?
+                    .send()
+                    .await
+                    .err()
+                    .ok_or("second 407 was accepted")?;
+                outcomes.push((error, proxy.requests().len(), proxy.connections()));
+            }
+            let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::AlwaysChallenge)?;
+            let route =
+                ConnectUdpProxy::new(&proxy.template())?.with_basic_auth("user", "wrong")?;
+            let client = client_builder(&origin_identity, &proxy_identity)
+                .route(Route::connect_udp(route))
+                .build()?;
             let error = client
                 .get(HttpProtocol::Http3, &origin.uri("/"))?
                 .send()
                 .await
                 .err()
-                .ok_or("second 407 was accepted")?;
+                .ok_or("second 407 was accepted over HTTP/3")?;
             outcomes.push((error, proxy.requests().len(), proxy.connections()));
-        }
-        let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::AlwaysChallenge)?;
-        let route = ConnectUdpProxy::new(&proxy.template())?.with_basic_auth("user", "wrong")?;
-        let client = client_builder(&origin_identity, &proxy_identity)
-            .route(Route::connect_udp(route))
-            .build()?;
-        let error = client
-            .get(HttpProtocol::Http3, &origin.uri("/"))?
-            .send()
-            .await
-            .err()
-            .ok_or("second 407 was accepted over HTTP/3")?;
-        outcomes.push((error, proxy.requests().len(), proxy.connections()));
 
-        for (error, requests, connections) in outcomes {
-            assert_eq!(error.kind(), RequestErrorKind::Proxy);
-            let rejection =
-                connect_udp_error(&error).ok_or("authentication lost its typed source")?;
-            assert_eq!(rejection.kind(), ConnectUdpErrorKind::Authentication);
-            assert_eq!(
-                rejection.status(),
-                Some(StatusCode::PROXY_AUTHENTICATION_REQUIRED)
-            );
-            assert_eq!(requests, 2);
-            assert_eq!(connections, 2);
+            for (error, requests, connections) in outcomes {
+                assert_eq!(error.kind(), RequestErrorKind::Proxy);
+                let rejection =
+                    connect_udp_error(&error).ok_or("authentication lost its typed source")?;
+                assert_eq!(rejection.kind(), ConnectUdpErrorKind::Authentication);
+                assert_eq!(
+                    rejection.status(),
+                    Some(StatusCode::PROXY_AUTHENTICATION_REQUIRED)
+                );
+                assert_eq!(requests, 2);
+                assert_eq!(connections, 2);
+            }
+            assert_eq!(origin.connections(), 0);
+            Ok(())
         }
-        assert_eq!(origin.connections(), 0);
-        Ok(())
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -1017,49 +1258,57 @@ async fn authenticated_leg_diagnostics_exclude_credentials() -> TestResult<()> {
     bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
         let origin = Origin::spawn(&origin_identity)?;
-        let proxy =
-            MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http1, StreamMode::Challenge)
-                .await?;
-        let route = ConnectUdpProxy::new(&proxy.template())?
-            .with_http1_transport()
-            .with_basic_auth("diagnostic-user", "diagnostic-secret")?;
-        assert!(!format!("{route:?}").contains("diagnostic"));
-        let client = leg_client(&origin_identity, &proxy_identity, route)?;
-        let capture = FieldCapture::default();
+        let mut proxy_owner = None;
+        let mut client_owner = None;
 
-        let body = async {
-            let response = client
-                .get(HttpProtocol::Http3, &origin.uri("/diagnostics"))?
-                .send()
-                .await?;
-            Ok::<_, RequestError>(response.into_body().collect().await?.to_bytes())
-        }
-        .with_subscriber(capture.dispatch())
-        .await?;
-        assert_eq!(body, "/diagnostics");
-        assert!(!format!("{client:?}").contains("diagnostic-"));
-
-        assert_eq!(
-            capture.values("proxy.connect_udp", "proxy_leg"),
-            ["http/1.1"]
-        );
-        assert_eq!(
-            capture.values("proxy.connect_udp", "status"),
-            ["407", "101"]
-        );
-        assert_eq!(
-            capture.values("proxy.connect_udp", "authentication_retry"),
-            ["false", "true"]
-        );
-        assert_eq!(capture.values("proxy.connect_udp", "outcome"), ["accepted"]);
-        let recorded = capture.all_values();
-        for secret in ["diagnostic-user", "diagnostic-secret", "ZGlhZ25vc3RpYy"] {
-            assert!(
-                !recorded.iter().any(|value| value.contains(secret)),
-                "diagnostics recorded {secret}"
+        let result = async {
+            let proxy = proxy_owner.insert(
+                MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http1, StreamMode::Challenge)
+                    .await?,
             );
+            let route = ConnectUdpProxy::new(&proxy.template())?
+                .with_http1_transport()
+                .with_basic_auth("diagnostic-user", "diagnostic-secret")?;
+            assert!(!format!("{route:?}").contains("diagnostic"));
+            let client = client_owner.insert(leg_client(&origin_identity, &proxy_identity, route)?);
+            let capture = FieldCapture::default();
+
+            let body = async {
+                let response = client
+                    .get(HttpProtocol::Http3, &origin.uri("/diagnostics"))?
+                    .send()
+                    .await?;
+                Ok::<_, RequestError>(response.into_body().collect().await?.to_bytes())
+            }
+            .with_subscriber(capture.dispatch())
+            .await?;
+            assert_eq!(body, "/diagnostics");
+            assert!(!format!("{client:?}").contains("diagnostic-"));
+
+            assert_eq!(
+                capture.values("proxy.connect_udp", "proxy_leg"),
+                ["http/1.1"]
+            );
+            assert_eq!(
+                capture.values("proxy.connect_udp", "status"),
+                ["407", "101"]
+            );
+            assert_eq!(
+                capture.values("proxy.connect_udp", "authentication_retry"),
+                ["false", "true"]
+            );
+            assert_eq!(capture.values("proxy.connect_udp", "outcome"), ["accepted"]);
+            let recorded = capture.all_values();
+            for secret in ["diagnostic-user", "diagnostic-secret", "ZGlhZ25vc3RpYy"] {
+                assert!(
+                    !recorded.iter().any(|value| value.contains(secret)),
+                    "diagnostics recorded {secret}"
+                );
+            }
+            Ok(())
         }
-        Ok(())
+        .await;
+        finish_with_cleanup(result, origin.finish().await)
     })
     .await
 }
@@ -1155,7 +1404,41 @@ where
 {
     timeout(Duration::from_secs(30), future)
         .await
-        .map_err(|_| "CONNECT-UDP integration test exceeded its deadline")?
+        .map_err(|source| {
+            ConnectUdpDeadline::new("CONNECT-UDP integration test exceeded its deadline", source)
+        })?
+}
+
+#[derive(Debug)]
+struct ConnectUdpDeadline {
+    operation: &'static str,
+    source: tokio::time::error::Elapsed,
+}
+
+impl ConnectUdpDeadline {
+    fn new(operation: &'static str, source: tokio::time::error::Elapsed) -> Self {
+        Self { operation, source }
+    }
+}
+
+impl fmt::Display for ConnectUdpDeadline {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}: {}", self.operation, self.source)
+    }
+}
+
+impl StdError for ConnectUdpDeadline {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        Some(&self.source)
+    }
+}
+
+fn observed_zero_request_retries(subscriber: &OutcomeSubscriber) -> bool {
+    subscriber.outcomes_for("client.request") == ["error"]
+        && subscriber
+            .retries_performed_for("client.request")
+            .iter()
+            .all(|retries| *retries == 0)
 }
 
 type ServerStream = h3::server::RequestStream<h3_quinn::BidiStream<Bytes>, Bytes>;
@@ -1166,9 +1449,13 @@ struct Origin {
     address: SocketAddr,
     connections: Arc<AtomicUsize>,
     requests: Arc<Mutex<Vec<String>>>,
+    responses: Arc<AtomicUsize>,
     /// The client certificate each connection presented, if any.
     presented: Arc<Mutex<Vec<Option<Vec<u8>>>>>,
-    task: JoinHandle<()>,
+    endpoint: quinn::Endpoint,
+    stop: watch::Sender<bool>,
+    expected_certificate_alert: Option<quinn::TransportErrorCode>,
+    task: JoinHandle<Vec<Box<dyn StdError + Send + Sync>>>,
 }
 
 impl Origin {
@@ -1179,52 +1466,83 @@ impl Origin {
     fn serve((address, endpoint): (SocketAddr, quinn::Endpoint)) -> Self {
         let connections = Arc::new(AtomicUsize::new(0));
         let requests = Arc::new(Mutex::new(Vec::new()));
+        let responses = Arc::new(AtomicUsize::new(0));
         let presented = Arc::new(Mutex::new(Vec::new()));
-        let task_connections = Arc::clone(&connections);
-        let task_requests = Arc::clone(&requests);
-        let task_presented = Arc::clone(&presented);
-        let task = tokio::spawn(async move {
-            while let Some(incoming) = endpoint.accept().await {
-                let requests = Arc::clone(&task_requests);
-                let connections = Arc::clone(&task_connections);
-                let presented = Arc::clone(&task_presented);
-                tokio::spawn(async move {
-                    let Ok(connection) = incoming.await else {
-                        return;
-                    };
-                    connections.fetch_add(1, Ordering::SeqCst);
-                    presented
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .push(presented_leaf(&connection));
-                    let Ok(mut connection) = h3::server::Connection::<_, Bytes>::new(
-                        h3_quinn::Connection::new(connection),
-                    )
-                    .await
-                    else {
-                        return;
-                    };
-                    while let Ok(Some(resolver)) = connection.accept().await {
-                        let Ok((request, stream)) = resolver.resolve_request().await else {
-                            return;
-                        };
-                        let path = request.uri().path().to_owned();
-                        requests
-                            .lock()
-                            .unwrap_or_else(std::sync::PoisonError::into_inner)
-                            .push(path.clone());
-                        tokio::spawn(respond(stream, path));
-                    }
-                });
-            }
-        });
+        let observations = OriginObservations {
+            connections: Arc::clone(&connections),
+            requests: Arc::clone(&requests),
+            responses: Arc::clone(&responses),
+            presented: Arc::clone(&presented),
+        };
+        let (stop, receiver) = watch::channel(false);
+        let task = tokio::spawn(origin_tasks::listen(
+            endpoint.clone(),
+            observations,
+            receiver,
+        ));
         Self {
             address,
             connections,
             requests,
+            responses,
             presented,
+            endpoint,
+            stop,
+            expected_certificate_alert: None,
             task,
         }
+    }
+
+    fn expect_certificate_rejection(&mut self, error: &RequestError) -> TestResult<()> {
+        let mut cause: &(dyn StdError + 'static) = error;
+        loop {
+            if let Some(quinn::ConnectionError::TransportError(error)) =
+                cause.downcast_ref::<quinn::ConnectionError>()
+            {
+                // These deliberate trust failures must carry certificate_unknown
+                // or unknown_ca; retain the exact alert this client sent.
+                if error.code == quinn::TransportErrorCode::crypto(46)
+                    || error.code == quinn::TransportErrorCode::crypto(48)
+                {
+                    self.expected_certificate_alert = Some(error.code);
+                    return Ok(());
+                }
+            }
+
+            cause = cause
+                .source()
+                .ok_or("origin trust test lost its concrete certificate alert")?;
+        }
+    }
+
+    async fn finish(mut self) -> TestResult<()> {
+        self.stop.send_modify(|stop| *stop = true);
+        self.endpoint.close(0_u32.into(), b"test origin stopped");
+        let joined = timeout(TEST_TIMEOUT, &mut self.task)
+            .await
+            .map_err(|error| origin_tasks::context("origin task completion deadline", error))?;
+        let failures =
+            joined.map_err(|error| origin_tasks::context("origin listener task", error))?;
+
+        let mut result = Ok(());
+        for error in failures {
+            if self.expected_certificate_alert.is_some_and(|expected| {
+                let mut cause: &(dyn StdError + 'static) = error.as_ref();
+                loop {
+                    if matches!(cause.downcast_ref::<quinn::ConnectionError>(),
+                        Some(quinn::ConnectionError::ConnectionClosed(close)) if close.error_code == expected)
+                    {
+                        return true;
+                    }
+                    let Some(source) = cause.source() else { return false };
+                    cause = source;
+                }
+            }) {
+                continue;
+            }
+            result = finish_with_cleanup(result, Err(error));
+        }
+        result
     }
 
     fn uri(&self, path: &str) -> String {
@@ -1252,7 +1570,32 @@ impl Origin {
 
 impl Drop for Origin {
     fn drop(&mut self) {
+        self.endpoint
+            .close(0_u32.into(), b"test origin owner dropped");
         self.task.abort();
+    }
+}
+
+#[derive(Clone)]
+struct OriginObservations {
+    connections: Arc<AtomicUsize>,
+    requests: Arc<Mutex<Vec<String>>>,
+    responses: Arc<AtomicUsize>,
+    presented: Arc<Mutex<Vec<Option<Vec<u8>>>>>,
+}
+
+struct ActiveResponse(Arc<AtomicUsize>);
+
+impl ActiveResponse {
+    fn new(responses: Arc<AtomicUsize>) -> Self {
+        responses.fetch_add(1, Ordering::SeqCst);
+        Self(responses)
+    }
+}
+
+impl Drop for ActiveResponse {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
     }
 }
 
@@ -1387,3 +1730,12 @@ impl Visit for FieldVisitor {
             .push((field.name().to_owned(), format!("{value:?}")));
     }
 }
+
+#[cfg(test)]
+mod observation_contract;
+
+#[cfg(test)]
+mod origin_ownership;
+
+#[cfg(test)]
+mod origin_failures;

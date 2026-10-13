@@ -23,7 +23,7 @@ use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     net::TcpListener,
     sync::{mpsc, watch},
-    task::JoinHandle,
+    task::{JoinHandle, JoinSet},
 };
 
 use crate::support::client_certificate::{presented_leaf, rustls_config_requesting};
@@ -84,15 +84,42 @@ impl ObservedConnectUdp {
 struct ProxyLog {
     connections: usize,
     requests: Vec<ObservedConnectUdp>,
+    origin_datagrams: usize,
     /// Outer connections on which the client presented a certificate.
     client_certificates: usize,
+    failures: Vec<Box<dyn std::error::Error + Send + Sync>>,
+}
+
+#[derive(Clone, Copy, Default)]
+struct CloseState {
+    generation: u64,
+    closed: bool,
+}
+
+/// Closing the endpoint is distinct from dropping its last user handle:
+/// active connections otherwise keep Quinn's endpoint driver and socket alive.
+struct ProxyEndpoint(quinn::Endpoint);
+
+impl Drop for ProxyEndpoint {
+    fn drop(&mut self) {
+        self.0.close(0_u32.into(), b"test proxy owner dropped");
+    }
+}
+
+struct ProxyConnection<'a>(&'a quinn::Connection);
+
+impl Drop for ProxyConnection<'_> {
+    fn drop(&mut self) {
+        self.0
+            .close(0_u32.into(), b"test proxy closed the connection");
+    }
 }
 
 /// A running CONNECT-UDP proxy; aborted on drop.
 pub(crate) struct MasqueProxy {
     pub(crate) address: SocketAddr,
     log: Arc<Mutex<ProxyLog>>,
-    close: watch::Sender<bool>,
+    close: watch::Sender<CloseState>,
     task: JoinHandle<()>,
 }
 
@@ -126,16 +153,36 @@ impl MasqueProxy {
         mode: ProxyMode,
     ) -> TestResult<Self> {
         let log = Arc::new(Mutex::new(ProxyLog::default()));
-        let (close, close_rx) = watch::channel(false);
+        let (close, mut close_rx) = watch::channel(CloseState::default());
         let task_log = Arc::clone(&log);
         let task = tokio::spawn(async move {
-            while let Some(incoming) = endpoint.accept().await {
-                lock(&task_log).connections += 1;
-                let log = Arc::clone(&task_log);
-                let close_rx = close_rx.clone();
-                tokio::spawn(async move {
-                    let _ = serve_connection(incoming, mode, log, close_rx).await;
-                });
+            let endpoint = ProxyEndpoint(endpoint);
+            let mut connections = JoinSet::new();
+            loop {
+                tokio::select! {
+                    biased;
+                    changed = close_rx.changed() => {
+                        if changed.is_err() {
+                            break;
+                        }
+                    }
+                    completed = connections.join_next(), if !connections.is_empty() => {
+                        match completed {
+                            Some(Ok(Ok(()))) | None => {}
+                            Some(Ok(Err(error))) => lock(&task_log).failures.push(error),
+                            Some(Err(error)) => lock(&task_log).failures.push(error.into()),
+                        }
+                    }
+                    incoming = endpoint.0.accept() => {
+                        let Some(incoming) = incoming else { break };
+                        lock(&task_log).connections += 1;
+                        let log = Arc::clone(&task_log);
+                        let close_rx = close_rx.clone();
+                        // Snapshot in the accepting owner, before the child can be scheduled.
+                        let state = *close_rx.borrow();
+                        connections.spawn(serve_connection(incoming, mode, log, close_rx, state));
+                    }
+                }
             }
         });
         Ok(Self {
@@ -167,14 +214,22 @@ impl MasqueProxy {
         lock(&self.log).client_certificates
     }
 
+    /// Takes completed background failures without turning them into a quiet result.
+    pub(crate) fn take_failures(&self) -> Vec<Box<dyn std::error::Error + Send + Sync>> {
+        std::mem::take(&mut lock(&self.log).failures)
+    }
+
     /// Closes every open outer QUIC connection.
     pub(crate) fn close_connections(&self) {
-        let _ = self.close.send(true);
+        self.close.send_modify(|state| {
+            state.generation = state.generation.wrapping_add(1);
+            state.closed = true;
+        });
     }
 
     /// Accepts outer connections normally again after a close.
     pub(crate) fn reopen(&self) {
-        let _ = self.close.send(false);
+        self.close.send_modify(|state| state.closed = false);
     }
 }
 
@@ -188,12 +243,53 @@ async fn serve_connection(
     incoming: quinn::Incoming,
     mode: ProxyMode,
     log: Arc<Mutex<ProxyLog>>,
-    mut close: watch::Receiver<bool>,
+    mut close: watch::Receiver<CloseState>,
+    initial: CloseState,
 ) -> TestResult<()> {
-    let quinn = incoming.await?;
+    let quinn = tokio::select! {
+        biased;
+        () = connection_closed(&mut close, initial) => return Ok(()),
+        connected = incoming => connected?,
+    };
     if presented_leaf(&quinn).is_some() {
         lock(&log).client_certificates += 1;
     }
+
+    let serving = serve_connected(&quinn, mode, log);
+    tokio::pin!(serving);
+    // This guard drops before the pinned serving future: H3's own Drop sends
+    // H3_NO_ERROR, which must not replace the proxy's explicit QUIC close.
+    let _connection = ProxyConnection(&quinn);
+
+    // Keep serving pinned through this branch so explicit close precedes H3
+    // teardown, including cancellation during its nested setup/relay awaits.
+    tokio::select! {
+        biased;
+        () = connection_closed(&mut close, initial) => {
+            quinn.close(0_u32.into(), b"test proxy closed the connection");
+            Ok(())
+        }
+        result = &mut serving => result,
+    }
+}
+
+async fn connection_closed(close: &mut watch::Receiver<CloseState>, initial: CloseState) {
+    loop {
+        let state = *close.borrow_and_update();
+        if initial.closed || state.closed || state.generation != initial.generation {
+            return;
+        }
+        if close.changed().await.is_err() {
+            return;
+        }
+    }
+}
+
+async fn serve_connected(
+    quinn: &quinn::Connection,
+    mode: ProxyMode,
+    log: Arc<Mutex<ProxyLog>>,
+) -> TestResult<()> {
     let mut builder = h3::server::builder();
     builder
         .enable_extended_connect(mode != ProxyMode::WithoutExtendedConnect)
@@ -244,7 +340,16 @@ async fn serve_connection(
         stream.send_response(response.body(())?).await?;
         stream.finish().await?;
         // Hold the connection until the client closes it.
-        let _ = connection.accept().await;
+        match connection.accept().await {
+            Ok(None) => {}
+            // The rejection test peer deliberately closes QUIC with code zero.
+            Err(h3::error::ConnectionError::Remote(
+                h3::quic::ConnectionErrorIncoming::ApplicationClose { error_code: 0 },
+                ..,
+            )) => {}
+            Err(error) => return Err(error.into()),
+            Ok(Some(_)) => return Err("unexpected second CONNECT-UDP request".into()),
+        }
         return Ok(());
     }
 
@@ -265,40 +370,37 @@ async fn serve_connection(
     let quarter_stream_id = stream.id().into_inner() / 4;
     let mut prefix = Vec::new();
     encode_varint(quarter_stream_id, &mut prefix);
-    let _ = quinn.send_datagram(datagram(&prefix, UNKNOWN_CONTEXT_PAYLOAD));
+    quinn.send_datagram(datagram(&prefix, UNKNOWN_CONTEXT_PAYLOAD))?;
     prefix.push(0);
 
     let mut buffer = vec![0; MAX_UDP_PAYLOAD];
     loop {
         tokio::select! {
             received = quinn.read_datagram() => {
-                let Ok(mut payload) = received else { break };
+                let mut payload = received?;
                 let Some(stream_id) = decode_varint(&mut payload) else { continue };
                 let Some(context) = decode_varint(&mut payload) else { continue };
                 if stream_id == quarter_stream_id && context == 0 {
-                    let _ = udp.send(&payload).await;
+                    udp.send(&payload).await?;
                 }
             }
             received = udp.recv(&mut buffer) => match received {
                 Ok(count) => {
-                    let _ = quinn.send_datagram(datagram(&prefix, &buffer[..count]));
+                    lock(&log).origin_datagrams += 1;
+                    match quinn.send_datagram(datagram(&prefix, &buffer[..count])) {
+                        Ok(()) => {}
+                        // RFC 9298 section 6.1: a payload that cannot fit the
+                        // outer QUIC datagram is dropped without ending the tunnel.
+                        Err(quinn::SendDatagramError::TooLarge) => {}
+                        Err(error) => return Err(error.into()),
+                    }
                 }
                 // Windows reports an earlier ICMP port-unreachable here.
                 Err(error) if error.kind() == std::io::ErrorKind::ConnectionReset => {}
-                Err(_) => break,
+                Err(error) => return Err(error.into()),
             },
-            changed = close.changed() => {
-                let closed = changed.is_err() || *close.borrow_and_update();
-                if closed {
-                    quinn.close(0_u32.into(), b"test proxy closed the connection");
-                    break;
-                }
-            }
         }
     }
-    drop(stream);
-    drop(connection);
-    Ok(())
 }
 
 fn datagram(prefix: &[u8], payload: &[u8]) -> Bytes {
@@ -481,19 +583,28 @@ impl MasqueStreamProxy {
         let log = Arc::new(Mutex::new(StreamLog::default()));
         let task_log = Arc::clone(&log);
         let task = tokio::spawn(async move {
-            while let Ok((tcp, _)) = listener.accept().await {
-                lock(&task_log).connections += 1;
-                let log = Arc::clone(&task_log);
-                let acceptor = acceptor.clone();
-                tokio::spawn(async move {
-                    let Ok(stream) = accept_tls_stream(tcp, acceptor).await else {
-                        return;
-                    };
-                    let _ = match leg {
-                        StreamLeg::Http1 => serve_http1(stream, mode, log).await,
-                        StreamLeg::Http2 => serve_http2(stream, mode, log).await,
-                    };
-                });
+            // Dropping this accept loop also cancels accepted TLS handshakes
+            // and active relays. Reap completed peers during long test runs.
+            let mut connections = JoinSet::new();
+            loop {
+                tokio::select! {
+                    accepted = listener.accept() => {
+                        let Ok((tcp, _)) = accepted else { break };
+                        lock(&task_log).connections += 1;
+                        let log = Arc::clone(&task_log);
+                        let acceptor = acceptor.clone();
+                        connections.spawn(async move {
+                            let Ok(stream) = accept_tls_stream(tcp, acceptor).await else {
+                                return;
+                            };
+                            let _ = match leg {
+                                StreamLeg::Http1 => serve_http1(stream, mode, log).await,
+                                StreamLeg::Http2 => serve_http2(stream, mode, log).await,
+                            };
+                        });
+                    }
+                    Some(_) = connections.join_next(), if !connections.is_empty() => {}
+                }
             }
         });
         Ok(Self { address, log, task })
@@ -611,7 +722,10 @@ where
             let (inbound_tx, inbound) = mpsc::channel(64);
             let (outbound, mut outbound_rx) = mpsc::channel::<Bytes>(64);
             let (mut reader, mut writer) = tokio::io::split(stream);
-            tokio::spawn(async move {
+            // The relay future owns both halves, including on cancellation
+            // while a partial capsule keeps the reader waiting for bytes.
+            let mut pumps = JoinSet::new();
+            pumps.spawn(async move {
                 let mut buffer = vec![0; 16 * 1024];
                 while let Ok(count) = reader.read(&mut buffer).await {
                     if count == 0
@@ -624,7 +738,7 @@ where
                     }
                 }
             });
-            tokio::spawn(async move {
+            pumps.spawn(async move {
                 while let Some(bytes) = outbound_rx.recv().await {
                     match writer.write_all(&bytes).await {
                         Ok(()) => {}
@@ -705,10 +819,12 @@ where
                 false,
             )?;
             let mut body = request.into_body();
-            tokio::spawn(async move { while let Some(Ok(_)) = connection.accept().await {} });
+            // All transport and body pumps share the relay's lifetime.
+            let mut pumps = JoinSet::new();
+            pumps.spawn(async move { while let Some(Ok(_)) = connection.accept().await {} });
             let (inbound_tx, inbound) = mpsc::channel(64);
             let (outbound, mut outbound_rx) = mpsc::channel::<Bytes>(64);
-            tokio::spawn(async move {
+            pumps.spawn(async move {
                 while let Some(Ok(chunk)) = body.data().await {
                     let _ = body.flow_control().release_capacity(chunk.len());
                     if inbound_tx.send(chunk).await.is_err() {
@@ -716,7 +832,7 @@ where
                     }
                 }
             });
-            tokio::spawn(async move {
+            pumps.spawn(async move {
                 while let Some(mut chunk) = outbound_rx.recv().await {
                     while !chunk.is_empty() {
                         send.reserve_capacity(chunk.len());
@@ -814,4 +930,212 @@ fn decode_capsule(input: &[u8]) -> Option<(u64, Vec<u8>, usize)> {
     let header = before - cursor.len();
     let end = header.checked_add(length)?;
     (input.len() >= end).then(|| (capsule_type, input[header..end].to_vec(), end))
+}
+
+#[cfg(test)]
+#[path = "masque/h3_ownership_controls.rs"]
+mod h3_ownership_controls;
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        future::pending,
+        sync::{Arc, Mutex},
+        time::Duration,
+    };
+
+    use bytes::Bytes;
+    use tokio::{
+        io::{AsyncRead, AsyncReadExt, AsyncWriteExt},
+        net::TcpStream,
+        task::JoinSet,
+        time::timeout,
+    };
+
+    use super::{
+        MasqueStreamProxy, StreamLeg, StreamLog, StreamMode, TestIdentity, TestResult,
+        encode_capsule, serve_http1, serve_http2,
+    };
+    use crate::support::tls::{is_peer_gone, read_head};
+
+    const DEADLINE: Duration = Duration::from_secs(5);
+
+    async fn accepted_proxy() -> TestResult<(MasqueStreamProxy, TcpStream)> {
+        let identity = TestIdentity::generate()?;
+        let proxy =
+            MasqueStreamProxy::spawn(&identity, StreamLeg::Http1, StreamMode::Relay).await?;
+        let peer = TcpStream::connect(proxy.address).await?;
+        timeout(DEADLINE, async {
+            while proxy.connections() != 1 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await?;
+        Ok((proxy, peer))
+    }
+
+    async fn assert_peer_closed(peer: &mut (impl AsyncRead + Unpin)) -> TestResult<()> {
+        let mut byte = [0];
+        match timeout(DEADLINE, peer.read(&mut byte)).await? {
+            Ok(0) => Ok(()),
+            Err(error) if is_peer_gone(&error) => Ok(()),
+            Ok(_) => Err("peer sent unexpected bytes instead of closing".into()),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    #[tokio::test]
+    async fn dropping_proxy_closes_an_accepted_stalled_tls_peer() -> TestResult<()> {
+        let (proxy, mut peer) = accepted_proxy().await?;
+        drop(proxy);
+        assert_peer_closed(&mut peer).await
+    }
+
+    #[tokio::test]
+    async fn cancelling_proxy_owner_closes_an_accepted_stalled_tls_peer() -> TestResult<()> {
+        let (proxy, mut peer) = accepted_proxy().await?;
+        let mut owners = JoinSet::new();
+        owners.spawn(async move {
+            let _proxy = proxy;
+            pending::<()>().await;
+        });
+
+        owners.abort_all();
+        assert!(
+            owners
+                .join_next()
+                .await
+                .ok_or("missing owner task")?
+                .err()
+                .ok_or("owner was not cancelled")?
+                .is_cancelled()
+        );
+
+        assert_peer_closed(&mut peer).await
+    }
+
+    #[tokio::test]
+    async fn cancelling_h1_relay_closes_peer_after_a_partial_capsule() -> TestResult<()> {
+        let target = phantom_testkit::udp::bind_tokio("127.0.0.1:0".parse()?)?;
+        let (mut peer, stream) = tokio::io::duplex(4096);
+        let mut owners = JoinSet::new();
+        owners.spawn(serve_http1(
+            stream,
+            StreamMode::Relay,
+            Arc::new(Mutex::new(StreamLog::default())),
+        ));
+
+        let path = format!(
+            "/.well-known/masque/udp/127.0.0.1/{}/",
+            target.local_addr()?.port()
+        );
+        peer.write_all(format!("GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: Upgrade\r\nUpgrade: connect-udp\r\n\r\n").as_bytes()).await?;
+        let response = timeout(DEADLINE, read_head(&mut peer)).await??;
+        assert!(response.starts_with(b"HTTP/1.1 101 "));
+        let mut preamble = vec![
+            0;
+            super::UNKNOWN_CAPSULE.len()
+                + encode_capsule(0, super::UNKNOWN_CONTEXT_PAYLOAD).len()
+        ];
+        timeout(DEADLINE, peer.read_exact(&mut preamble)).await??;
+
+        peer.write_all(&encode_capsule(0, b"\0ready")).await?;
+        let mut datagram = [0; 64];
+        let (count, relay_address) = timeout(DEADLINE, target.recv_from(&mut datagram)).await??;
+        assert_eq!(&datagram[..count], b"ready");
+        target.send_to(b"reply", relay_address).await?;
+        let mut echo = [0; 8];
+        timeout(DEADLINE, peer.read_exact(&mut echo)).await??;
+        assert_eq!(&echo, &[0, 6, 0, b'r', b'e', b'p', b'l', b'y']);
+
+        // A complete exchange proves relay readiness. Leave an incomplete
+        // capsule length queued while cancelling its owner, with the peer live.
+        peer.write_all(&[0, 0x40]).await?;
+        owners.abort_all();
+        assert!(
+            owners
+                .join_next()
+                .await
+                .ok_or("missing relay task")?
+                .err()
+                .ok_or("relay was not cancelled")?
+                .is_cancelled()
+        );
+
+        assert_peer_closed(&mut peer).await
+    }
+
+    #[tokio::test]
+    async fn cancelling_h2_relay_closes_connection_after_a_partial_capsule() -> TestResult<()> {
+        let target = phantom_testkit::udp::bind_tokio("127.0.0.1:0".parse()?)?;
+        let (peer, stream) = tokio::io::duplex(4096);
+        let mut owners = JoinSet::new();
+        owners.spawn(serve_http2(
+            stream,
+            StreamMode::Relay,
+            Arc::new(Mutex::new(StreamLog::default())),
+        ));
+
+        let (client, connection) = timeout(DEADLINE, ::http2::client::handshake(peer)).await??;
+        let mut drivers = JoinSet::new();
+        drivers.spawn(connection);
+        let mut client = timeout(DEADLINE, client.ready()).await??;
+        timeout(DEADLINE, async {
+            while !client.is_extended_connect_protocol_enabled() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await?;
+
+        let uri = format!(
+            "https://localhost/.well-known/masque/udp/127.0.0.1/{}/",
+            target.local_addr()?.port()
+        );
+        let mut request = http::Request::builder()
+            .method("CONNECT")
+            .version(http::Version::HTTP_2)
+            .uri(uri)
+            .body(())?;
+        request
+            .extensions_mut()
+            .insert(::http2::ext::Protocol::from_static("connect-udp"));
+        let (response, mut send) = client.send_request(request, false)?;
+        let mut body = timeout(DEADLINE, response).await??.into_body();
+        let preamble = timeout(DEADLINE, body.data())
+            .await?
+            .ok_or("missing relay preamble")??;
+        body.flow_control().release_capacity(preamble.len())?;
+
+        send.send_data(Bytes::from(encode_capsule(0, b"\0ready")), false)?;
+        let mut datagram = [0; 64];
+        let (count, relay_address) = timeout(DEADLINE, target.recv_from(&mut datagram)).await??;
+        assert_eq!(&datagram[..count], b"ready");
+        target.send_to(b"reply", relay_address).await?;
+        let echo = timeout(DEADLINE, body.data())
+            .await?
+            .ok_or("missing relayed reply")??;
+        assert_eq!(echo.as_ref(), &[0, 6, 0, b'r', b'e', b'p', b'l', b'y']);
+        body.flow_control().release_capacity(echo.len())?;
+
+        send.send_data(Bytes::from_static(&[0, 0x40]), false)?;
+        owners.abort_all();
+        assert!(
+            owners
+                .join_next()
+                .await
+                .ok_or("missing relay task")?
+                .err()
+                .ok_or("relay was not cancelled")?
+                .is_cancelled()
+        );
+
+        // Keep both stream halves and the request handle live. Only release of
+        // the server transport can finish the independently driven client.
+        let closed = timeout(DEADLINE, drivers.join_next())
+            .await?
+            .ok_or("missing client driver")?;
+        // A transport error or EOF is expected; a driver panic is not.
+        let _transport_result = closed?;
+        Ok(())
+    }
 }
