@@ -3185,6 +3185,23 @@ complete logs and separate exact clean-revision bindings. Completion has a
 cooperative five-second deadline; Drop aborts without collecting outcomes.
 Remaining fixture consumers, the raw reply worker and final gates are open.
 
+### Registered local capture completion
+
+Client-hint ownership passes 17 methods on Windows and Linux at `2928f1d0`.
+Cookie ownership passes 17 methods per host at `6e2437a8`, including the
+original HTTP/3 callback failure and actual UDP retirement on Windows.
+All 37 existing snapshot methods also pass at that revision.
+Preface ownership, exact completion token and connection, input guards and
+recording limits pass 15 methods per host at `bc37a5db`.
+
+Root and independent reviewers read original logs and exits and separately
+verify clean source bindings. Scoped lint, formatting and documentation
+checks pass. These controls cover registered protocols and actual loopback
+connections with scripted browser boundaries. They do not establish a fresh
+browser capture, native preemption or ownership before protocol attachment.
+Snapshot and lifecycle remediation, remaining bound controls and final
+integration checks remain open.
+
 ## Next
 
 - [Audit plan](../architecture-audit.md): acceptance and verification.
