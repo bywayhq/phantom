@@ -5,6 +5,7 @@
 //! counts the connections the peer saw.
 
 use crate::support::tls as tls_support;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use crate::support::websocket as websocket_support;
 
 use std::{
@@ -32,7 +33,6 @@ use tokio::{
     io::{AsyncWriteExt, copy_bidirectional},
     net::{TcpListener, TcpStream},
     sync::oneshot,
-    task::JoinHandle,
     time::{Instant, sleep, timeout},
 };
 
@@ -49,13 +49,11 @@ const LIMIT: Duration = Duration::from_millis(200);
 const CANCEL: u32 = 0x8;
 
 /// Accepts one connection and holds it open without answering.
-fn hold_one_connection(listener: TcpListener) -> JoinHandle<TestResult<()>> {
-    tokio::spawn(async move {
-        let (stream, _) = listener.accept().await?;
-        sleep(Duration::from_secs(10)).await;
-        drop(stream);
-        Ok(())
-    })
+async fn hold_one_connection(listener: TcpListener) -> TestResult<()> {
+    let (stream, _) = listener.accept().await?;
+    sleep(Duration::from_secs(10)).await;
+    drop(stream);
+    Ok(())
 }
 
 /// Connects, expects the handshake timeout, and checks that it fired at the
@@ -180,61 +178,82 @@ async fn handshake_timeout_fires_while_the_name_lookup_is_pending() -> TestResul
 
 #[tokio::test]
 async fn handshake_timeout_fires_while_the_tls_handshake_is_unanswered() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = hold_one_connection(listener);
+        server = Some(ConnectionPeer::spawn(hold_one_connection(listener)));
         let client = client_builder(&identity, false).build()?;
         expect_handshake_timeout(
             client.websocket(&format!("wss://{address}/"))?,
             Some(HttpProtocol::Http1),
         )
         .await?;
-        server.abort();
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .shutdown()
+            .await?;
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn handshake_timeout_fires_while_the_upgrade_response_is_pending() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(listener, acceptor).await?;
             read_head(&mut stream).await?;
             sleep(Duration::from_secs(10)).await;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
         let client = client_builder(&identity, false).build()?;
         expect_handshake_timeout(
             client.websocket(&format!("wss://{address}/"))?,
             Some(HttpProtocol::Http1),
         )
         .await?;
-        server.abort();
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .shutdown()
+            .await?;
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn handshake_timeout_fires_while_an_http_proxy_holds_the_connect() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         for protocol in [HttpProtocol::Http1, HttpProtocol::Http2] {
             let proxy = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
             let proxy_address = proxy.local_addr()?;
-            let server = tokio::spawn(async move {
+            server = Some(ConnectionPeer::spawn(async move {
                 let (mut stream, _) = proxy.accept().await?;
                 read_head(&mut stream).await?;
                 sleep(Duration::from_secs(10)).await;
                 Ok::<_, Box<dyn Error + Send + Sync>>(())
-            });
+            }));
             let client = Client::builder(http2_profile())
                 .add_root_certificate_der(identity.root_der.clone())
                 .route(Route::http_proxy(HttpProxy::new(&format!(
@@ -246,20 +265,30 @@ async fn handshake_timeout_fires_while_an_http_proxy_holds_the_connect() -> Test
                 Some(protocol),
             )
             .await?;
-            server.abort();
+            server
+                .as_mut()
+                .ok_or("websocket fixture peer was not acquired")?
+                .shutdown()
+                .await?;
         }
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn handshake_timeout_fires_while_a_socks5_proxy_holds_the_greeting() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let proxy = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy.local_addr()?;
-        let server = hold_one_connection(proxy);
+        server = Some(ConnectionPeer::spawn(hold_one_connection(proxy)));
         let client = client_builder(&identity, false)
             .route(Route::socks5(Socks5Proxy::new(&format!(
                 "socks5h://{proxy_address}"
@@ -270,46 +299,69 @@ async fn handshake_timeout_fires_while_a_socks5_proxy_holds_the_greeting() -> Te
             Some(HttpProtocol::Http1),
         )
         .await?;
-        server.abort();
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .shutdown()
+            .await?;
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn handshake_timeout_fires_while_an_extended_connect_is_unanswered() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let stream = accept_tls(listener, acceptor).await?;
             let mut builder = ::http2::server::Builder::new();
             builder.enable_connect_protocol();
             let mut connection = builder.handshake::<_, Bytes>(stream).await?;
-            let accepted = connection.accept().await;
+            let accepted = connection
+                .accept()
+                .await
+                .ok_or("connection closed before unanswered extended CONNECT")??;
             // Keep the stream and connection alive without answering.
             sleep(Duration::from_secs(10)).await;
             drop(accepted);
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
         let client = http2_client(&identity)?;
         expect_handshake_timeout(
             client.websocket_with_protocol(HttpProtocol::Http2, &format!("wss://{address}/"))?,
             Some(HttpProtocol::Http2),
         )
         .await?;
-        server.abort();
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .shutdown()
+            .await?;
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn handshake_timeout_on_a_pooled_http2_session_cancels_the_stream_and_frees_it()
 -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
@@ -318,7 +370,7 @@ async fn handshake_timeout_on_a_pooled_http2_session_cancels_the_stream_and_free
         let server_wire = Arc::clone(&wire);
         // One connection only: a second one would go unanswered and fail
         // the test by its deadline.
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let (tcp, _) = listener.accept().await?;
             let stream = tls_support::accept_tls_stream(tcp, acceptor).await?;
             let mut builder = ::http2::server::Builder::new();
@@ -345,7 +397,7 @@ async fn handshake_timeout_on_a_pooled_http2_session_cancels_the_stream_and_free
                 }
             }
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
         let profile = http2_profile().with_websocket(chrome::v154_websocket());
         // One stream per origin, so a permit the timed-out stream kept would
         // hold every later request.
@@ -388,15 +440,25 @@ async fn handshake_timeout_on_a_pooled_http2_session_cancels_the_stream_and_free
             sleep(Duration::from_millis(10)).await;
         }
         drop(socket);
-        server.abort();
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .shutdown()
+            .await?;
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn recipe_handshake_timeout_applies_unless_the_caller_removes_it() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let settings = WebSocketSettings {
             handshake_timeout: Some(LIMIT),
@@ -409,7 +471,7 @@ async fn recipe_handshake_timeout_applies_unless_the_caller_removes_it() -> Test
 
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = hold_one_connection(listener);
+        server = Some(ConnectionPeer::spawn(hold_one_connection(listener)));
         let error = expect_error(
             client
                 .websocket_with_profile_policy(&format!("ws://{address}/"))?
@@ -421,11 +483,15 @@ async fn recipe_handshake_timeout_applies_unless_the_caller_removes_it() -> Test
             error.timeout_phase(),
             Some(TimeoutPhase::WebSocketHandshake)
         );
-        server.abort();
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .shutdown()
+            .await?;
 
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = hold_one_connection(listener);
+        server = Some(ConnectionPeer::spawn(hold_one_connection(listener)));
         let unbounded = client
             .websocket(&format!("ws://{address}/"))?
             .handshake_timeout(None)
@@ -434,40 +500,60 @@ async fn recipe_handshake_timeout_applies_unless_the_caller_removes_it() -> Test
             timeout(LIMIT * 3, unbounded).await.is_err(),
             "connect ended although the caller removed the timeout"
         );
-        server.abort();
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .shutdown()
+            .await?;
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn no_handshake_timeout_applies_without_a_recipe() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = hold_one_connection(listener);
+        server = Some(ConnectionPeer::spawn(hold_one_connection(listener)));
         let client = client_builder(&identity, false).build()?;
         let connect = client.websocket(&format!("ws://{address}/"))?.connect();
         assert!(timeout(LIMIT * 2, connect).await.is_err());
-        server.abort();
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .shutdown()
+            .await?;
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn retry_opens_a_new_connection_after_a_failed_lookup() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let port = listener.local_addr()?.port();
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let (stream, _) = listener.accept().await?;
             let request = accept_plaintext_upgrade(stream).await?;
             expect_no_further_connection(&listener).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(request)
-        });
+        }));
         let lookups = Arc::new(AtomicUsize::new(0));
         let client = client_builder(&identity, false)
             .dns_resolver(flaky_resolver(1, &lookups))
@@ -480,22 +566,33 @@ async fn retry_opens_a_new_connection_after_a_failed_lookup() -> TestResult<()> 
             .await?;
         drop(socket);
 
-        let request = server.await??;
+        let request = server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .join()
+            .await??;
         assert!(request.starts_with(b"GET / HTTP/1.1\r\n"));
         assert_eq!(lookups.load(Ordering::SeqCst), 2);
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn retry_covers_a_failed_proxy_lookup_and_an_http2_origin() -> TestResult<()> {
-    bounded(async {
+    let mut origin_server = None;
+    let mut proxy_server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate_for_dns("origin.phantom.test")?;
         let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let origin_address = origin.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let origin_server = tokio::spawn(async move {
+        origin_server = Some(ConnectionPeer::spawn(async move {
             let stream = accept_tls(origin, acceptor).await?;
             let mut builder = ::http2::server::Builder::new();
             builder.enable_connect_protocol();
@@ -506,13 +603,13 @@ async fn retry_covers_a_failed_proxy_lookup_and_an_http2_origin() -> TestResult<
                 .ok_or("connection closed before extended CONNECT")??;
             let _send = respond.send_response(Response::builder().status(200).body(())?, false)?;
             // Drive the connection until the client closes it.
-            while connection.accept().await.is_some() {}
+            drive_until_closed(&mut connection).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
         let proxy = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_port = proxy.local_addr()?.port();
         let (connect_tx, connect_rx) = oneshot::channel();
-        let proxy_server = tokio::spawn(async move {
+        proxy_server = Some(ConnectionPeer::spawn(async move {
             let (mut downstream, _) = proxy.accept().await?;
             let request = read_head(&mut downstream).await?;
             connect_tx
@@ -525,9 +622,13 @@ async fn retry_covers_a_failed_proxy_lookup_and_an_http2_origin() -> TestResult<
             downstream.flush().await?;
             // The tunnel ends when either side goes away; how it ends is not
             // under test.
-            let _ = copy_bidirectional(&mut downstream, &mut upstream).await;
+            match copy_bidirectional(&mut downstream, &mut upstream).await {
+                Ok(_) => {}
+                Err(error) if tls_support::is_peer_gone(&error) => {}
+                Err(error) => return Err(error.into()),
+            }
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
 
         let lookups = Arc::new(AtomicUsize::new(0));
         let client = Client::builder(http2_profile())
@@ -550,12 +651,30 @@ async fn retry_covers_a_failed_proxy_lookup_and_an_http2_origin() -> TestResult<
 
         assert_eq!(lookups.load(Ordering::SeqCst), 2);
         let connect = connect_rx.await?;
-        proxy_server.abort();
+        proxy_server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .shutdown()
+            .await?;
         assert!(connect.starts_with(b"CONNECT origin.phantom.test:"));
-        origin_server.abort();
+        origin_server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .shutdown()
+            .await?;
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match origin_server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    let caller = finish_with_cleanup(caller, cleanup);
+    let cleanup = match proxy_server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
@@ -599,7 +718,8 @@ async fn an_exhausted_retry_budget_returns_the_last_setup_failure() -> TestResul
 
 #[tokio::test]
 async fn no_retry_follows_an_invalid_101_or_a_rejection() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let answers: [(&[u8], WebSocketErrorKind); 2] = [
             (
@@ -617,14 +737,14 @@ async fn no_retry_follows_an_invalid_101_or_a_rejection() -> TestResult<()> {
         for (answer, kind) in answers {
             let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
             let address = listener.local_addr()?;
-            let server = tokio::spawn(async move {
+            server = Some(ConnectionPeer::spawn(async move {
                 let (mut stream, _) = listener.accept().await?;
                 read_head(&mut stream).await?;
                 stream.write_all(answer).await?;
                 stream.flush().await?;
                 expect_no_further_connection(&listener).await?;
                 Ok::<_, Box<dyn Error + Send + Sync>>(stream)
-            });
+            }));
             let client = client_builder(&identity, false).build()?;
             let error = expect_error(
                 client
@@ -634,21 +754,33 @@ async fn no_retry_follows_an_invalid_101_or_a_rejection() -> TestResult<()> {
                     .await,
             )?;
             assert_eq!(error.kind(), kind);
-            drop(server.await??);
+            drop(
+                server
+                    .as_mut()
+                    .ok_or("websocket fixture peer was not acquired")?
+                    .join()
+                    .await??,
+            );
         }
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn no_retry_follows_an_invalid_extended_connect_answer() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let (tcp, _) = listener.accept().await?;
             let stream = tls_support::accept_tls_stream(tcp, acceptor).await?;
             let mut builder = ::http2::server::Builder::new();
@@ -666,10 +798,20 @@ async fn no_retry_follows_an_invalid_extended_connect_answer() -> TestResult<()>
                     .body(())?,
                 false,
             )?;
-            tokio::spawn(async move { while connection.accept().await.is_some() {} });
-            expect_no_further_connection(&listener).await?;
+            let no_further = expect_no_further_connection(&listener);
+            tokio::pin!(no_further);
+            let drive = drive_until_closed(&mut connection);
+            tokio::pin!(drive);
+            tokio::select! {
+                biased;
+                result = &mut drive => {
+                    result?;
+                    no_further.await?;
+                }
+                result = &mut no_further => result?,
+            }
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
         let client = http2_client(&identity)?;
         let error = expect_error(
             client
@@ -679,24 +821,34 @@ async fn no_retry_follows_an_invalid_extended_connect_answer() -> TestResult<()>
                 .await,
         )?;
         assert_eq!(error.kind(), WebSocketErrorKind::InvalidHandshake);
-        server.await??;
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .join()
+            .await??;
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn no_retry_follows_a_tls_failure_or_a_handshake_timeout() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
 
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let (stream, _) = listener.accept().await?;
             drop(stream);
             expect_no_further_connection(&listener).await
-        });
+        }));
         let client = client_builder(&identity, false).build()?;
         let error = expect_error(
             client
@@ -706,16 +858,20 @@ async fn no_retry_follows_a_tls_failure_or_a_handshake_timeout() -> TestResult<(
                 .await,
         )?;
         assert_eq!(error.kind(), WebSocketErrorKind::Tls, "{error}");
-        server.await??;
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .join()
+            .await??;
 
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address: SocketAddr = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let (stream, _) = listener.accept().await?;
             expect_no_further_connection(&listener).await?;
             drop(stream);
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
         let error = expect_error(
             client
                 .websocket(&format!("ws://{address}/"))?
@@ -725,10 +881,19 @@ async fn no_retry_follows_a_tls_failure_or_a_handshake_timeout() -> TestResult<(
                 .await,
         )?;
         assert_eq!(error.kind(), WebSocketErrorKind::Timeout);
-        server.await??;
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .join()
+            .await??;
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
@@ -772,4 +937,18 @@ fn a_recipe_timeout_beyond_the_clock_fails_the_build() -> TestResult<()> {
     };
     assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
     Ok(())
+}
+
+async fn drive_until_closed<T>(
+    connection: &mut ::http2::server::Connection<T, Bytes>,
+) -> TestResult<()>
+where
+    T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
+    match connection.accept().await {
+        None => Ok(()),
+        Some(Ok(_)) => Err("unexpected additional websocket fixture stream".into()),
+        Some(Err(error)) if error.get_io().is_some_and(tls_support::is_peer_gone) => Ok(()),
+        Some(Err(error)) => Err(error.into()),
+    }
 }

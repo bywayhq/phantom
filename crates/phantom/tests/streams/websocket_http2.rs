@@ -1,6 +1,7 @@
 //! HTTP/2 WebSocket extended CONNECT integration tests.
 
 use crate::support::tls as tls_support;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use crate::support::websocket as websocket_support;
 
 use std::{
@@ -55,13 +56,14 @@ enum HpackRepresentation {
 
 #[tokio::test]
 async fn exact_http2_websocket_uses_extended_connect_and_exchanges_frames() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
         let (done_tx, done_rx) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let stream = accept_tls(listener, acceptor).await?;
             let recorded = Arc::new(Mutex::new(Vec::new()));
             let stream = RecordingIo::new(stream, Arc::clone(&recorded));
@@ -83,7 +85,7 @@ async fn exact_http2_websocket_uses_extended_connect_and_exchanges_frames() -> T
                 .header("x-handshake", "h2")
                 .body(())?;
             let mut send = respond.send_response(response, false)?;
-            let handler = tokio::spawn(async move {
+            let handler = async move {
                 let method = request.method().clone();
                 let version = request.version();
                 let scheme = request.uri().scheme_str().map(str::to_owned);
@@ -137,18 +139,19 @@ async fn exact_http2_websocket_uses_extended_connect_and_exchanges_frames() -> T
                     close,
                     pseudo_header_representations,
                 })
-            });
+            };
             tokio::pin!(handler);
 
             tokio::select! {
-                result = &mut handler => result?,
+                biased;
+                result = &mut handler => result,
                 accepted = connection.accept() => match accepted {
                     Some(Ok(_)) => Err("server received an unexpected second stream".into()),
                     Some(Err(error)) => Err(error.into()),
-                    None => handler.await?,
+                    None => handler.await,
                 },
             }
-        });
+        }));
 
         let client = http2_websocket_client(&identity)?;
         let mut socket = client
@@ -198,7 +201,11 @@ async fn exact_http2_websocket_uses_extended_connect_and_exchanges_frames() -> T
             .map_err(|()| "server dropped completion receiver")?;
         drop(socket);
 
-        let request = server.await??;
+        let request = server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .join()
+            .await??;
         assert_eq!(request.method, Method::CONNECT);
         assert_eq!(request.version, Version::HTTP_2);
         assert_eq!(request.scheme.as_deref(), Some("https"));
@@ -257,26 +264,34 @@ async fn exact_http2_websocket_uses_extended_connect_and_exchanges_frames() -> T
         }
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn missing_peer_setting_is_typed_http2_and_sends_no_request() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let stream = accept_tls(listener, acceptor).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
             match timeout(Duration::from_millis(250), connection.accept()).await {
                 Err(_) | Ok(None) => Ok::<_, Box<dyn Error + Send + Sync>>(()),
                 Ok(Some(Ok(_))) => Err("client sent HEADERS without peer capability".into()),
-                Ok(Some(Err(error))) if error.is_io() => Ok(()),
+                Ok(Some(Err(error))) if error.get_io().is_some_and(tls_support::is_peer_gone) => {
+                    Ok(())
+                }
                 Ok(Some(Err(error))) => Err(error.into()),
             }
-        });
+        }));
 
         let client = http2_websocket_client(&identity)?;
         let error = match client
@@ -291,21 +306,31 @@ async fn missing_peer_setting_is_typed_http2_and_sends_no_request() -> TestResul
             Err(error) => error,
         };
         assert_eq!(error.kind(), WebSocketErrorKind::Http2);
-        server.await??;
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .join()
+            .await??;
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn non_success_response_preserves_status_and_body() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
         let (done_tx, done_rx) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let stream = accept_tls(listener, acceptor).await?;
             let mut builder = ::http2::server::Builder::new();
             builder.enable_connect_protocol();
@@ -334,7 +359,7 @@ async fn non_success_response_preserves_status_and_body() -> TestResult<()> {
                     None => Err("connection closed before rejection body was read".into()),
                 },
             }
-        });
+        }));
 
         let client = http2_websocket_client(&identity)?;
         let error = match client
@@ -355,10 +380,19 @@ async fn non_success_response_preserves_status_and_body() -> TestResult<()> {
         done_tx
             .send(())
             .map_err(|()| "server dropped completion receiver")?;
-        server.await??;
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .join()
+            .await??;
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 fn http2_websocket_client(identity: &TestIdentity) -> TestResult<Client> {
@@ -667,9 +701,14 @@ fn read_hpack_integer(block: &[u8], cursor: &mut usize, prefix_bits: u8) -> Test
             .get(*cursor)
             .ok_or("HPACK integer continuation was truncated")?;
         *cursor += 1;
-        let addition = usize::from(byte & 0x7f)
-            .checked_shl(shift)
+        let payload = usize::from(byte & 0x7f);
+        let maximum = usize::MAX
+            .checked_shr(shift)
             .ok_or("HPACK integer shift overflow")?;
+        if payload > maximum {
+            return Err("HPACK integer value overflow".into());
+        }
+        let addition = payload << shift;
         value = value
             .checked_add(addition)
             .ok_or("HPACK integer value overflow")?;
@@ -678,4 +717,28 @@ fn read_hpack_integer(block: &[u8], cursor: &mut usize, prefix_bits: u8) -> Test
         }
         shift = shift.checked_add(7).ok_or("HPACK integer shift overflow")?;
     }
+}
+
+#[test]
+fn hpack_integer_accepts_the_boundary_and_rejects_discarded_high_bits() -> TestResult<()> {
+    #[cfg(target_pointer_width = "64")]
+    let maximum = [
+        0x7f, 0x80, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01,
+    ];
+    #[cfg(target_pointer_width = "32")]
+    let maximum = [0x7f, 0x80, 0xff, 0xff, 0xff, 0x0f];
+    let mut cursor = 0;
+    assert_eq!(read_hpack_integer(&maximum, &mut cursor, 7)?, usize::MAX);
+    assert_eq!(cursor, maximum.len());
+
+    #[cfg(target_pointer_width = "64")]
+    let overflow = [
+        0x7f, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x02,
+    ];
+    #[cfg(target_pointer_width = "32")]
+    let overflow = [0x7f, 0x80, 0x80, 0x80, 0x80, 0x10];
+    assert!(read_hpack_integer(&overflow, &mut 0, 7).is_err());
+    assert!(read_hpack_integer(&[0x7f, 0x80], &mut 0, 7).is_err());
+    assert!(skip_hpack_string(&[0x03, b'a'], &mut 0).is_err());
+    Ok(())
 }

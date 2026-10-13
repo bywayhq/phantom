@@ -6,12 +6,13 @@ use tokio::{
 
 #[tokio::test]
 async fn invalid_accept_is_rejected() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(listener, acceptor).await?;
             read_head(&mut stream).await?;
             stream
@@ -23,7 +24,7 @@ async fn invalid_accept_is_rejected() -> TestResult<()> {
                 )
                 .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
 
         let client = test_client(&identity, false)?;
         let error = match client
@@ -35,20 +36,30 @@ async fn invalid_accept_is_rejected() -> TestResult<()> {
             Err(error) => error,
         };
         assert_eq!(error.kind(), WebSocketErrorKind::InvalidHandshake);
-        server.await??;
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .join()
+            .await??;
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn unsolicited_subprotocol_is_a_typed_handshake_error() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(listener, acceptor).await?;
             let request = read_head(&mut stream).await?;
             if header_value(&request, "sec-websocket-protocol").is_some() {
@@ -70,7 +81,7 @@ async fn unsolicited_subprotocol_is_a_typed_handshake_error() -> TestResult<()> 
                 .await?;
             stream.flush().await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
 
         let client = test_client(&identity, false)?;
         let error = match client
@@ -82,20 +93,30 @@ async fn unsolicited_subprotocol_is_a_typed_handshake_error() -> TestResult<()> 
             Err(error) => error,
         };
         assert_eq!(error.kind(), WebSocketErrorKind::InvalidHandshake);
-        server.await??;
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .join()
+            .await??;
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn masked_server_frame_closes_transport_and_traces_closed_send() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(listener, acceptor).await?;
             let request = read_head(&mut stream).await?;
             let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
@@ -117,12 +138,9 @@ async fn masked_server_frame_closes_transport_and_traces_closed_send() -> TestRe
             stream.flush().await?;
 
             let mut byte = [0_u8; 1];
-            let closed = match timeout(TEST_TIMEOUT, stream.read(&mut byte)).await {
-                Ok(Ok(0) | Err(_)) => true,
-                Ok(Ok(_)) | Err(_) => false,
-            };
+            let closed = peer_closed(timeout(TEST_TIMEOUT, stream.read(&mut byte)).await?)?;
             Ok::<_, Box<dyn Error + Send + Sync>>(closed)
-        });
+        }));
 
         let client = test_client(&identity, false)?;
         let mut socket = client
@@ -147,26 +165,39 @@ async fn masked_server_frame_closes_transport_and_traces_closed_send() -> TestRe
         assert_eq!(error.kind(), WebSocketErrorKind::Closed);
         assert_eq!(subscriber.outcomes_for("websocket.send"), ["error"]);
         assert_eq!(subscriber.error_kinds_for("websocket.send"), ["Closed"]);
-        assert!(server.await??, "fatal frame error retained the transport");
+        assert!(
+            server
+                .as_mut()
+                .ok_or("websocket fixture peer was not acquired")?
+                .join()
+                .await??,
+            "fatal frame error retained the transport"
+        );
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn invalid_peer_close_code_is_rejected_in_each_close_state() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
 
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(listener, acceptor).await?;
             write_handshake_response(&mut stream).await?;
             append_and_write_server_frame(&mut stream, true, 0x8, &1005_u16.to_be_bytes()).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
         let client = test_client(&identity, false)?;
         let mut socket = client
             .websocket(&format!("wss://{address}/"))?
@@ -177,12 +208,16 @@ async fn invalid_peer_close_code_is_rejected_in_each_close_state() -> TestResult
             Err(error) => error,
         };
         assert_eq!(error.kind(), WebSocketErrorKind::Protocol);
-        server.await??;
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .join()
+            .await??;
 
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(listener, acceptor).await?;
             write_handshake_response(&mut stream).await?;
             let close = read_client_frame(&mut stream).await?;
@@ -191,7 +226,7 @@ async fn invalid_peer_close_code_is_rejected_in_each_close_state() -> TestResult
             }
             append_and_write_server_frame(&mut stream, true, 0x8, &1005_u16.to_be_bytes()).await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
         let mut socket = client
             .websocket(&format!("wss://{address}/"))?
             .connect()
@@ -204,20 +239,30 @@ async fn invalid_peer_close_code_is_rejected_in_each_close_state() -> TestResult
             Err(error) => error,
         };
         assert_eq!(error.kind(), WebSocketErrorKind::Protocol);
-        server.await??;
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .join()
+            .await??;
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn invalid_utf8_error_does_not_disclose_fragment_bytes() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(listener, acceptor).await?;
             let request = read_head(&mut stream).await?;
             let key = header_value(&request, "sec-websocket-key").ok_or("missing key")?;
@@ -234,7 +279,7 @@ async fn invalid_utf8_error_does_not_disclose_fragment_bytes() -> TestResult<()>
             stream.write_all(&response).await?;
             stream.flush().await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
 
         let client = test_client(&identity, false)?;
         let mut socket = client
@@ -255,20 +300,30 @@ async fn invalid_utf8_error_does_not_disclose_fragment_bytes() -> TestResult<()>
         }
         assert!(!rendered.contains("226"));
         assert!(!rendered.contains("130"));
-        server.await??;
+        server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .join()
+            .await??;
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 #[tokio::test]
 async fn fragment_count_limit_ignores_control_frames_and_closes_transport() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(listener, acceptor).await?;
             write_handshake_response(&mut stream).await?;
             let mut frames = Vec::new();
@@ -281,12 +336,9 @@ async fn fragment_count_limit_ignores_control_frames_and_closes_transport() -> T
 
             let pong = read_client_frame(&mut stream).await?;
             let mut byte = [0_u8; 1];
-            let closed = match timeout(TEST_TIMEOUT, stream.read(&mut byte)).await {
-                Ok(Ok(0) | Err(_)) => true,
-                Ok(Ok(_)) | Err(_) => false,
-            };
+            let closed = peer_closed(timeout(TEST_TIMEOUT, stream.read(&mut byte)).await?)?;
             Ok::<_, Box<dyn Error + Send + Sync>>((pong, closed))
-        });
+        }));
 
         let maximum = NonZeroUsize::new(2).ok_or("nonzero construction failed")?;
         let limits = WebSocketLimits::default().with_max_message_fragments(maximum);
@@ -313,13 +365,22 @@ async fn fragment_count_limit_ignores_control_frames_and_closes_transport() -> T
         };
         assert_eq!(closed_error.kind(), WebSocketErrorKind::Closed);
 
-        let (pong, closed) = server.await??;
+        let (pong, closed) = server
+            .as_mut()
+            .ok_or("websocket fixture peer was not acquired")?
+            .join()
+            .await??;
         assert_eq!(pong.opcode, 0xA);
         assert_eq!(pong.payload, b"still-alive");
         assert!(closed, "fragment-limit failure retained the transport");
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(caller, cleanup)
 }
 
 async fn write_handshake_response(
@@ -341,4 +402,13 @@ async fn write_handshake_response(
         .await?;
     stream.flush().await?;
     Ok(())
+}
+
+fn peer_closed(result: io::Result<usize>) -> io::Result<bool> {
+    match result {
+        Ok(0) => Ok(true),
+        Ok(_) => Ok(false),
+        Err(error) if tls_support::is_peer_gone(&error) => Ok(true),
+        Err(error) => Err(error),
+    }
 }
