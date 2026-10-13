@@ -20,12 +20,13 @@ import asyncio
 import contextlib
 import ipaddress
 import json
+import math
 import os
 import platform
 import struct
 import sys
 import time
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Coroutine, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -41,6 +42,7 @@ from .http2_session import (
     HOSTNAME,
     Certificate,
     generate_certificate,
+    peer_disconnected,
     websocket_accept,
 )
 from .http3_wire import SENSITIVE_REQUEST_HEADERS
@@ -74,6 +76,8 @@ MAX_HEAD = 32 * 1024
 MAX_CLIENT_HELLO = 32 * 1024
 MAX_RECORD = 16384 + 256
 MAX_SKIPPED_EARLY_DATA = 64 * 1024
+CLEANUP_SECONDS = 10.0
+CANCEL_SECONDS = 1.0
 
 CONTENT_CHANGE_CIPHER_SPEC = 20
 CONTENT_ALERT = 21
@@ -602,20 +606,22 @@ class Http1Parser:
                     if len(self.buffer) > MAX_HEAD:
                         raise ValueError("request head exceeds the capture limit")
                     return complete
+                if end + 4 > MAX_HEAD:
+                    raise ValueError("request head exceeds the capture limit")
                 lines = bytes(self.buffer[:end]).split(b"\r\n")
                 del self.buffer[: end + 4]
                 fields = []
                 for line in lines[1:]:
                     name, _, value = line.partition(b":")
                     fields.append((name, value.strip()))
-                length = next(
-                    (
-                        int(value)
-                        for name, value in fields
-                        if name.lower() == b"content-length"
-                    ),
-                    0,
-                )
+                lengths = [
+                    value for name, value in fields if name.lower() == b"content-length"
+                ]
+                if any(not value.isdigit() for value in lengths):
+                    raise ValueError("Content-Length must be a nonnegative decimal")
+                if len(set(lengths)) > 1:
+                    raise ValueError("request has conflicting Content-Length fields")
+                length = int(lengths[0]) if lengths else 0
                 if length > MAX_BODY:
                     raise ValueError("request body exceeds the capture limit")
                 self.head = (lines[0], fields)
@@ -626,6 +632,13 @@ class Http1Parser:
             line, fields = self.head
             complete.append((line, fields, self.body_remaining))
             self.head = None
+
+
+def peer_gone(error: BaseException) -> bool:
+    # asyncio's drain helper can raise these native types without an errno.
+    return isinstance(
+        error, (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)
+    ) or peer_disconnected(error)
 
 
 class Connection:
@@ -663,6 +676,9 @@ class Connection:
         self.websocket_streams: set[int] = set()
         self.websocket_closed: set[int] = set()
         self.tasks: set[asyncio.Task] = set()
+        self.observed_tasks: set[asyncio.Task] = set()
+        self.cancelled_tasks: set[asyncio.Task] = set()
+        self.cancelled_serve = False
 
     # Handshake ---------------------------------------------------------------
 
@@ -765,9 +781,13 @@ class Connection:
         if self.context is None:
             if record.content_type != CONTENT_HANDSHAKE:
                 raise ValueError("first record is not a handshake record")
+            if len(self.handshake_bytes) + len(record.fragment) > MAX_CLIENT_HELLO:
+                raise ValueError("ClientHello exceeds the capture limit")
             self.handshake_bytes += record.fragment
             if len(self.handshake_bytes) >= 4:
                 length = 4 + int.from_bytes(self.handshake_bytes[1:4], "big")
+                if length > MAX_CLIENT_HELLO:
+                    raise ValueError("ClientHello exceeds the capture limit")
                 if self.handshake_bytes[0] != HANDSHAKE_CLIENT_HELLO:
                     raise ValueError("first handshake message is not a ClientHello")
                 if len(self.handshake_bytes) >= length:
@@ -872,9 +892,7 @@ class Connection:
             return
         self.websocket_closed.add(0)
         self.writer.write(self.seal(CONTENT_APPLICATION_DATA, WEBSOCKET_CLOSE))
-        task = asyncio.get_running_loop().create_task(self.close_soon())
-        self.tasks.add(task)
-        task.add_done_callback(self.tasks.discard)
+        self.start_task(self.close_soon())
 
     async def close_soon(self) -> None:
         await asyncio.sleep(RETIRE_DELAY_SECONDS)
@@ -996,9 +1014,43 @@ class Connection:
         self.responded.add(key)
         path = request.path.split("?", 1)[0]
         delay = SLOW_RESPONSE_SECONDS if path.startswith("/slow/") else 0.0
-        task = asyncio.get_running_loop().create_task(self.respond(request, delay))
+        self.start_task(self.respond(request, delay))
+
+    def start_task(self, operation: Coroutine) -> None:
+        try:
+            task = asyncio.create_task(operation)
+        except BaseException as primary:
+            try:
+                operation.close()
+            except BaseException as cleanup:
+                self.server.failed(cleanup)
+            raise primary
         self.tasks.add(task)
-        task.add_done_callback(self.tasks.discard)
+        task.add_done_callback(self.observe_task)
+
+    def observe_task(self, task: asyncio.Task) -> None:
+        if task in self.observed_tasks:
+            return
+
+        self.observed_tasks.add(task)
+        try:
+            task.result()
+        except asyncio.CancelledError as error:
+            if task not in self.cancelled_tasks:
+                self.server.failed(error)
+        except OSError as error:
+            if not peer_gone(error):
+                self.server.failed(error)
+        except BaseException as error:
+            self.server.failed(error)
+
+    def cancel_tasks(self) -> None:
+        for task in self.tasks:
+            if task.done():
+                self.observe_task(task)
+            elif task not in self.cancelled_tasks:
+                self.cancelled_tasks.add(task)
+                task.cancel()
 
     async def respond(self, request: RequestRecord, delay: float) -> None:
         if delay:
@@ -1056,11 +1108,22 @@ class Connection:
             self.record.closed_by = who
         if self.closing:
             return
+
         self.closing = True
-        if who == "server" and self.encrypt is not None:
-            # close_notify
-            self.writer.write(self.seal(CONTENT_ALERT, b"\x01\x00"))
-        self.writer.close()
+        primary = None
+        cleanup = []
+        try:
+            if who == "server" and self.encrypt is not None:
+                # close_notify
+                self.writer.write(self.seal(CONTENT_ALERT, b"\x01\x00"))
+        except BaseException as error:
+            primary = error
+
+        try:
+            self.writer.close()
+        except BaseException as error:
+            cleanup.append(error)
+        raise_capture_failures(primary, cleanup, self.server)
 
     async def serve(self) -> None:
         try:
@@ -1076,41 +1139,349 @@ class Connection:
                         break
                     self.handle_record(record)
                 await self.writer.drain()
-        except (ConnectionError, OSError):
-            self.close_by("client:reset")
-        except Exception as error:
-            # Any other failure ends this connection and is recorded in the
-            # fixture as the run's page error.
-            reason = str(error) or type(error).__name__
-            self.close_by(f"server:error:{reason}")
-            if self.run.error is None:
-                self.run.error = f"connection_{self.record.index}:{reason}"
+        except OSError as error:
+            if peer_gone(error):
+                self.close_by("client:reset")
+            else:
+                self.server.failed(error)
+        except asyncio.CancelledError as error:
+            if not self.cancelled_serve:
+                self.server.failed(error)
+        except BaseException as error:
+            self.server.failed(error)
         finally:
-            for task in list(self.tasks):
-                task.cancel()
-            if not self.closing:
-                self.close_by("server")
+            self.cancel_tasks()
+            try:
+                self.close_by("server:end")
+            except BaseException as cleanup:
+                self.server.failed(cleanup)
+
+
+class CaptureFailures(Exception):
+    """Retain original caller/cleanup causes and unfinished capture owners."""
+
+    def __init__(
+        self,
+        primary: BaseException | None,
+        cleanup: Sequence[BaseException],
+        server: CaptureServer,
+    ) -> None:
+        self.primary = primary
+        self.cleanup = tuple(cleanup)
+        self.server = server
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        self.interruption_cause: BaseException | None = None
+        self.interruption_context: BaseException | None = None
+        super().__init__("TLS capture cleanup failed")
+
+
+def raise_capture_failures(
+    primary: BaseException | None,
+    cleanup: Sequence[BaseException],
+    server: CaptureServer,
+) -> None:
+    cleanup = tuple(error for error in cleanup if error is not primary)
+    if not cleanup:
+        if primary is not None:
+            raise primary
+        return
+
+    if primary is None and len(cleanup) == 1:
+        primary = cleanup[0]
+        cleanup = ()
+
+    failure = CaptureFailures(primary, cleanup, server)
+    interruption = next(
+        (
+            error
+            for error in (primary, *cleanup)
+            if error is not None and not isinstance(error, Exception)
+        ),
+        None,
+    )
+    if interruption is not None:
+        failure.interruption_cause = interruption.__cause__
+        failure.interruption_context = interruption.__context__
+        raise interruption from failure
+    if primary is not None:
+        raise primary from failure
+    raise failure from cleanup[0]
+
+
+class AcceptedConnection(asyncio.StreamReaderProtocol):
+    """Own the accepted transport before creating or limiting its TLS session."""
+
+    def __init__(self, server: CaptureServer, listener: str) -> None:
+        self.server = server
+        self.listener = listener
+        self.transport: asyncio.Transport | None = None
+        self.writer: asyncio.StreamWriter | None = None
+        self.connection: Connection | None = None
+        self.task: asyncio.Task[None] | None = None
+        self.close_task: asyncio.Task[None] | None = None
+        self.observed: set[asyncio.Task] = set()
+        self.cancelled = False
+        self.retired = asyncio.get_running_loop().create_future()
+        super().__init__(asyncio.StreamReader(), self.connected)
+        self.stream_closed = self._get_close_waiter(None)
+
+    def connection_made(self, transport: asyncio.Transport) -> None:
+        self.transport = transport
+        try:
+            super().connection_made(transport)
+        except BaseException as error:
+            self.server.failed(error)
+            try:
+                transport.abort()
+            except BaseException as cleanup:
+                self.server.failed(cleanup)
+
+    def connected(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        self.writer = writer
+        operation = None
+        try:
+            if self.server.stopping:
+                writer.close()
+                return
+
+            connection = Connection(self.server, self.listener, reader, writer)
+            self.connection = connection
+            self.server.connections.append(connection)
+            operation = connection.serve()
+            self.task = asyncio.create_task(operation)
+            self.task.add_done_callback(self.observe)
+        except BaseException as error:
+            self.server.failed(error)
+            if operation is not None and self.task is None:
+                try:
+                    operation.close()
+                except BaseException as cleanup:
+                    self.server.failed(cleanup)
+            try:
+                writer.close()
+            except BaseException as cleanup:
+                self.server.failed(cleanup)
+
+    def observe(self, task: asyncio.Task) -> None:
+        if task in self.observed:
+            return
+
+        self.observed.add(task)
+        try:
+            task.result()
+        except asyncio.CancelledError as error:
+            if task is not self.task or not self.cancelled:
+                self.server.failed(error)
+        except BaseException as error:
+            self.server.failed(error)
+
+    def connection_lost(self, error: Exception | None) -> None:
+        if error is not None and not peer_gone(error):
+            self.server.failed(error)
+
+        try:
+            super().connection_lost(error)
+        except BaseException as cleanup:
+            self.server.failed(cleanup)
+        finally:
+            if not self.retired.done():
+                self.retired.set_result(None)
+
+    async def wait_closed(self) -> None:
+        try:
+            await asyncio.shield(self.stream_closed)
+        except OSError as error:
+            if not peer_gone(error):
+                raise
+
+    def stop(self, *, force: bool) -> None:
+        if self.connection is not None:
+            self.connection.cancel_tasks()
+            try:
+                self.connection.close_by("server:end")
+            except BaseException as error:
+                self.server.failed(error)
+
+        if self.writer is not None:
+            try:
+                self.writer.close()
+            except BaseException as error:
+                self.server.failed(error)
+
+        if self.transport is not None and not self.retired.done():
+            try:
+                if force:
+                    self.transport.abort()
+                elif self.writer is None or not self.transport.is_closing():
+                    self.transport.close()
+            except BaseException as error:
+                self.server.failed(error)
+
+        if self.close_task is None:
+            operation = self.wait_closed()
+            try:
+                self.close_task = asyncio.create_task(operation)
+                self.close_task.add_done_callback(self.observe)
+            except BaseException as error:
+                self.server.failed(error)
+                try:
+                    operation.close()
+                except BaseException as cleanup:
+                    self.server.failed(cleanup)
 
 
 class CaptureServer:
     def __init__(
-        self,
-        scenario: Scenario,
-        certificates: dict[str, tuple[object, object]],
+        self, scenario: Scenario, certificates: dict[str, tuple[object, object]]
     ) -> None:
         self.scenario = scenario
         self.run = RunRecord()
         self.certificates = certificates
         self.origins: dict[str, str] = {}
         self.connections: list[Connection] = []
+        self.accepted: list[AcceptedConnection] = []
+        self.listeners: list[asyncio.Server] = []
+        self.listener_tasks: list[asyncio.Task[None]] = []
+        self.observed_listeners: set[asyncio.Task] = set()
+        self.failures: list[BaseException] = []
+        self.stopping = False
+        self.finished = False
 
-    def handler(self, listener: str):
-        async def handle(reader, writer) -> None:
-            connection = Connection(self, listener, reader, writer)
-            self.connections.append(connection)
-            await connection.serve()
+    def failed(self, error: BaseException) -> None:
+        if all(previous is not error for previous in self.failures):
+            self.failures.append(error)
+        self.run.done.set()
+        self.stopping = True
 
-        return handle
+        for listener in self.listeners:
+            try:
+                listener.close()
+            except BaseException as cleanup:
+                if all(previous is not cleanup for previous in self.failures):
+                    self.failures.append(cleanup)
+
+    def protocol(self, listener: str) -> AcceptedConnection:
+        protocol = AcceptedConnection(self, listener)
+        self.accepted.append(protocol)
+        return protocol
+
+    async def wait_listener(
+        self, listener: asyncio.Server, ready: asyncio.Event
+    ) -> None:
+        # Python 3.10 must enter the original waiter before close clears its sockets.
+        asyncio.get_running_loop().call_soon(ready.set)
+        await listener.wait_closed()
+
+    async def start(self, listen_host: str) -> None:
+        loop = asyncio.get_running_loop()
+        for name in ("a", "b"):
+            listener = await loop.create_server(
+                lambda selected=name: self.protocol(selected),
+                listen_host,
+                0,
+                start_serving=False,
+            )
+            self.listeners.append(listener)
+
+            ready = asyncio.Event()
+            operation = self.wait_listener(listener, ready)
+            try:
+                task = asyncio.create_task(operation)
+            except BaseException as primary:
+                try:
+                    operation.close()
+                except BaseException as cleanup:
+                    self.failed(cleanup)
+                raise primary
+            self.listener_tasks.append(task)
+            task.add_done_callback(lambda _task, signal=ready: signal.set())
+            await ready.wait()
+            if task.done():
+                task.result()
+
+            await listener.start_serving()
+
+    async def close(self, primary: BaseException | None = None) -> None:
+        self.stopping = True
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + CLEANUP_SECONDS
+        cancel_at = deadline - min(CANCEL_SECONDS, CLEANUP_SECONDS / 2)
+        cancelling = False
+
+        for listener in self.listeners:
+            try:
+                listener.close()
+            except BaseException as error:
+                self.failed(error)
+
+        while True:
+            for protocol in self.accepted:
+                try:
+                    protocol.stop(force=cancelling)
+                except BaseException as error:
+                    self.failed(error)
+
+            tasks = set(self.listener_tasks)
+            for protocol in self.accepted:
+                tasks.add(protocol.retired)
+                tasks.update(
+                    task
+                    for task in (protocol.task, protocol.close_task)
+                    if task is not None
+                )
+                if protocol.connection is not None:
+                    tasks.update(protocol.connection.tasks)
+
+            for task in self.listener_tasks:
+                if task.done() and task not in self.observed_listeners:
+                    self.observed_listeners.add(task)
+                    try:
+                        task.result()
+                    except BaseException as error:
+                        self.failed(error)
+            for protocol in self.accepted:
+                for task in (protocol.task, protocol.close_task):
+                    if task is not None and task.done():
+                        protocol.observe(task)
+                if protocol.connection is not None:
+                    for task in protocol.connection.tasks:
+                        if task.done():
+                            protocol.connection.observe_task(task)
+
+            pending = {task for task in tasks if not task.done()}
+            if not pending:
+                self.finished = True
+                break
+
+            remaining = (deadline if cancelling else cancel_at) - loop.time()
+            if remaining <= 0:
+                self.failed(TimeoutError("TLS capture cleanup exceeded its deadline"))
+                for protocol in self.accepted:
+                    if (
+                        protocol.task is not None
+                        and not protocol.task.done()
+                        and not protocol.cancelled
+                    ):
+                        protocol.cancelled = True
+                        if protocol.connection is not None:
+                            protocol.connection.cancelled_serve = True
+                        protocol.task.cancel()
+                if not cancelling:
+                    cancelling = True
+                    continue
+                break
+
+            try:
+                await asyncio.wait(
+                    pending, timeout=remaining, return_when=asyncio.FIRST_COMPLETED
+                )
+            except BaseException as error:
+                self.failed(error)
+
+        raise_capture_failures(primary, self.failures, self)
 
 
 def is_websocket_opening(fields: list[tuple[bytes, bytes]]) -> bool:
@@ -1147,17 +1518,17 @@ async def serving(
     certificates: dict[str, Certificate],
 ) -> AsyncIterator[CaptureServer]:
     """Serve one run on ephemeral loopback ports: listener `a`, then `b`."""
+    if not ipaddress.ip_address(listen_host).is_loopback:
+        raise ValueError("the capture listener must be a loopback address")
     server = CaptureServer(
         scenario,
         {name: load_certificate(value) for name, value in certificates.items()},
     )
-    listeners = []
+    primary = None
     try:
-        for name in ("a", "b"):
-            listener = await asyncio.start_server(server.handler(name), listen_host, 0)
-            listeners.append(listener)
-        port_a = listeners[0].sockets[0].getsockname()[1]
-        port_b = listeners[1].sockets[0].getsockname()[1]
+        await server.start(listen_host)
+        port_a = server.listeners[0].sockets[0].getsockname()[1]
+        port_b = server.listeners[1].sockets[0].getsockname()[1]
         server.origins = {
             "a": f"https://{HOSTNAME}:{port_a}",
             "b": f"https://{HOSTNAME}:{port_b}",
@@ -1165,12 +1536,10 @@ async def serving(
             "w": f"wss://{HOSTNAME}:{port_a}",
         }
         yield server
+    except BaseException as error:
+        primary = error
     finally:
-        for listener in listeners:
-            listener.close()
-        for connection in server.connections:
-            if not connection.closing:
-                connection.close_by("server:end")
+        await server.close(primary)
 
 
 # -- Browser launch ----------------------------------------------------------------
@@ -1266,6 +1635,9 @@ async def capture_run(
     timeout: float,
     netlog: Path | None = None,
 ) -> RunResult:
+    validate_timeout(timeout)
+    if not ipaddress.ip_address(listen_host).is_loopback:
+        raise ValueError("the capture listener must be a loopback address")
     certificates = {
         HOSTNAME: generate_certificate(HOSTNAME),
         PARTITION_HOSTNAME: generate_certificate(PARTITION_HOSTNAME),
@@ -1292,6 +1664,8 @@ async def capture_run(
         recorded = recorded.replace(f":{ports[0]}", ":<port>")
         if netlog is not None:
             recorded = recorded.replace(str(netlog), "<netlog>")
+        validate_fixture_text(recorded, "launch arguments")
+
         timed_out = False
         async with BrowserDriver(plan, url):
             try:
@@ -1472,6 +1846,16 @@ def render_fixture(
     launch_mode: str,
     listen_host: str,
 ) -> str:
+    for name, value in (
+        ("client", client),
+        ("client version", client_version),
+        ("operating system", operating_system),
+        ("launch mode", launch_mode),
+        ("listen host", listen_host),
+    ):
+        validate_fixture_text(value, name)
+    for result in results:
+        validate_fixture_text(result.launch_arguments, "launch arguments")
     if any(
         result.launch_arguments != results[0].launch_arguments for result in results
     ):
@@ -1515,6 +1899,18 @@ def render_fixture(
     return "\n".join(lines) + "\n"
 
 
+def validate_timeout(timeout: float) -> None:
+    if not math.isfinite(timeout) or timeout <= 0:
+        raise ValueError("timeout must be finite and positive")
+
+
+def validate_fixture_text(value: str, name: str) -> None:
+    if not value.isascii() or any(
+        ord(character) < 32 or ord(character) == 127 for character in value
+    ):
+        raise ValueError(f"{name} must be single-line ASCII")
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -1546,6 +1942,16 @@ def main(argv: Sequence[str] | None = None) -> None:
         parser.error("the capture listener must be a loopback address")
     if args.repeat < 1:
         parser.error("--repeat must be positive")
+    try:
+        validate_timeout(args.timeout)
+        for name, value in (
+            ("client", args.client or ""),
+            ("client version", args.client_version),
+            ("operating system", args.operating_system),
+        ):
+            validate_fixture_text(value, name)
+    except ValueError as error:
+        parser.error(str(error))
     names = list(SCENARIOS) if args.scenario == ["all"] else args.scenario
     unknown = sorted(set(names) - set(SCENARIOS))
     if unknown:

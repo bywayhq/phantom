@@ -1,11 +1,13 @@
 import asyncio
+import contextlib
 import errno
+import io
 import socket
 import ssl
 import unittest
-from unittest import mock
 from dataclasses import replace
 from pathlib import Path
+from unittest import mock
 
 from aioquic import tls
 from cryptography.exceptions import InvalidTag
@@ -456,7 +458,10 @@ def blocking_http1_websocket(port: int) -> tuple[bytes, bytes]:
         )
         received = b""
         while b"\r\n\r\n" not in received:
-            received += stream.recv(65536)
+            chunk = stream.recv(65536)
+            if not chunk:
+                raise EOFError("peer closed before the WebSocket response head")
+            received += chunk
         head, _, rest = received.partition(b"\r\n\r\n")
         stream.sendall(CLIENT_CLOSE)
         while chunk := stream.recv(65536):
@@ -482,7 +487,10 @@ def blocking_http2_websocket(port: int) -> tuple[int | None, bytes | None, bytes
         data = b""
         ended = False
         while not ended:
-            for event in client.receive_data(stream.recv(65536)):
+            chunk = stream.recv(65536)
+            if not chunk:
+                raise EOFError("peer closed before the WebSocket stream ended")
+            for event in client.receive_data(chunk):
                 if (
                     isinstance(event, h2.events.RemoteSettingsChanged)
                     and enabled is None
@@ -661,9 +669,11 @@ class CaptureCompletionTests(unittest.IsolatedAsyncioTestCase):
             ) as server:
                 client = await self.connect(server)
                 connection = server.connections[0]
-                with mock.patch.object(connection.writer, "write", side_effect=primary):
-                    with self.assertRaises(OSError) as raised:
-                        connection.close_by("server")
+                with (
+                    mock.patch.object(connection.writer, "write", side_effect=primary),
+                    self.assertRaises(OSError) as raised,
+                ):
+                    connection.close_by("server")
                 self.assertIs(raised.exception, primary)
                 self.assertTrue(connection.writer.is_closing())
         finally:
@@ -671,10 +681,454 @@ class CaptureCompletionTests(unittest.IsolatedAsyncioTestCase):
                 connection.writer.transport.abort()
             if client is not None:
                 client[1].close()
-                try:
+                with contextlib.suppress(
+                    ConnectionResetError, ConnectionAbortedError, BrokenPipeError
+                ):
                     await asyncio.wait_for(client[1].wait_closed(), 5)
-                except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
-                    pass
+
+
+class CaptureInputTests(unittest.IsolatedAsyncioTestCase):
+    async def test_invalid_waits_fail_before_certificate_or_listener_acquisition(self):
+        for timeout in (0, -1, float("inf"), float("nan")):
+            with (
+                self.subTest(timeout=timeout),
+                mock.patch.object(capture, "generate_certificate") as generate,
+                self.assertRaises(ValueError),
+            ):
+                await capture.capture_run(
+                    SCENARIOS["sequential-http1"],
+                    browser="manual",
+                    executable=None,
+                    headless=False,
+                    listen_host="127.0.0.1",
+                    timeout=timeout,
+                )
+            generate.assert_not_called()
+
+    def test_invalid_cli_metadata_and_repeats_fail_before_runs(self):
+        base = ["--browser", "manual", "--client-version", "1"]
+        cases = (
+            ["--repeat", "0"],
+            ["--timeout", "inf"],
+            ["--timeout", "nan"],
+            ["--client", "name\ninjected=value"],
+            ["--client-version", "1\rnext=value"],
+            ["--operating-system", "système"],
+        )
+        for args in cases:
+            with (
+                self.subTest(args=args),
+                mock.patch.object(capture, "capture_run") as run,
+                contextlib.redirect_stderr(io.StringIO()),
+                self.assertRaises(SystemExit) as raised,
+            ):
+                capture.main([*base, *args])
+            self.assertEqual(raised.exception.code, 2)
+            run.assert_not_called()
+
+    def test_fixture_metadata_cannot_insert_new_records(self):
+        valid = {
+            "client": "test",
+            "client_version": "1",
+            "operating_system": "test",
+            "launch_mode": "manual",
+            "listen_host": "127.0.0.1",
+        }
+        result = RunResult(capture.RunRecord(), (1, 2), "manual", False)
+        self.assertIn(
+            "client=test\n",
+            render_fixture(SCENARIOS["sequential-http1"], [result], **valid),
+        )
+        for field in valid:
+            for invalid in (
+                "value\nforged=true",
+                "value\rforged=true",
+                "value\vforged=true",
+                "value\0",
+                "café",
+            ):
+                with (
+                    self.subTest(field=field, invalid=invalid),
+                    self.assertRaises(ValueError),
+                ):
+                    render_fixture(
+                        SCENARIOS["sequential-http1"],
+                        [result],
+                        **{**valid, field: invalid},
+                    )
+        with self.assertRaises(ValueError):
+            render_fixture(
+                SCENARIOS["sequential-http1"],
+                [replace(result, launch_arguments="launch\nforged=true")],
+                **valid,
+            )
+
+
+class CaptureRetirementTests(unittest.IsolatedAsyncioTestCase):
+    connect = CaptureCompletionTests.connect
+
+    async def test_caller_failure_collects_the_actual_response_and_accepted_peer(self):
+        primary = OSError(errno.EINVAL, "original caller failure")
+        entered = asyncio.Event()
+        retired = asyncio.Event()
+        original = capture.Connection.respond
+        client = None
+
+        async def respond(connection, request, delay):
+            await original(connection, request, delay)
+            entered.set()
+            try:
+                await asyncio.Future()
+            finally:
+                retired.set()
+
+        try:
+            with (
+                mock.patch.object(capture.Connection, "respond", new=respond),
+                self.assertRaises(OSError) as raised,
+            ):
+                async with serving(
+                    SCENARIOS["sequential-http1"], "127.0.0.1", certificates()
+                ) as server:
+                    client = await self.connect(server)
+                    await asyncio.wait_for(entered.wait(), 5)
+                    raise primary
+            self.assertIs(raised.exception, primary)
+            self.assertTrue(retired.is_set())
+            self.assert_retired(server)
+        finally:
+            await self.close_client(client)
+
+    async def test_interrupted_cleanup_retains_caller_and_original_child_failure(self):
+        primary = OSError(errno.EINVAL, "original interrupted caller")
+        cleanup = ValueError("original cancelled response failure")
+        entered = asyncio.Event()
+        cancelling = asyncio.Event()
+        interrupted = asyncio.Event()
+        release = asyncio.Event()
+        original_response = capture.Connection.respond
+        original_failed = capture.CaptureServer.failed
+        client = None
+        server = None
+        completed = asyncio.get_running_loop().create_future()
+
+        async def respond(connection, request, delay):
+            await original_response(connection, request, delay)
+            entered.set()
+            try:
+                await asyncio.Future()
+            except asyncio.CancelledError as cancellation:
+                cancelling.set()
+                await release.wait()
+                raise cleanup from cancellation
+
+        def failed(owner, error):
+            original_failed(owner, error)
+            if isinstance(error, asyncio.CancelledError):
+                interrupted.set()
+
+        async def run():
+            nonlocal client, server
+            try:
+                async with serving(
+                    SCENARIOS["sequential-http1"], "127.0.0.1", certificates()
+                ) as owner:
+                    server = owner
+                    client = await self.connect(owner)
+                    await entered.wait()
+                    raise primary
+            except BaseException as error:
+                completed.set_result(error)
+                raise
+
+        with (
+            mock.patch.object(capture.Connection, "respond", new=respond),
+            mock.patch.object(capture.CaptureServer, "failed", new=failed),
+        ):
+            task = asyncio.create_task(run())
+            try:
+                await asyncio.wait_for(cancelling.wait(), 5)
+                task.cancel()
+                await asyncio.wait_for(interrupted.wait(), 5)
+                release.set()
+                done, pending = await asyncio.wait({task}, timeout=5)
+                self.assertEqual(done, {task})
+                self.assertFalse(pending)
+                with self.assertRaises(asyncio.CancelledError):
+                    await task
+                failure = completed.result()
+                self.assertIsInstance(failure, asyncio.CancelledError)
+                self.assertIn(failure, server.failures)
+                packet = failure.__cause__
+                self.assertIsInstance(packet, capture.CaptureFailures)
+                self.assertIs(packet.primary, primary)
+                self.assertIn(cleanup, packet.cleanup)
+                self.assertIs(packet.server, server)
+                self.assert_retired(server)
+            finally:
+                release.set()
+                if not task.done():
+                    task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+                await self.close_client(client)
+
+    async def test_connection_limit_closes_the_adopted_second_writer(self):
+        client = second = None
+        try:
+            with (
+                mock.patch.object(capture, "MAX_CONNECTIONS", 1),
+                self.assertRaises(ValueError) as raised,
+            ):
+                async with serving(
+                    SCENARIOS["sequential-http1"], "127.0.0.1", certificates()
+                ) as server:
+                    client = await self.connect(server)
+                    port = int(server.origins["a"].rsplit(":", 1)[1])
+                    second = await asyncio.open_connection("127.0.0.1", port)
+                    self.assertEqual(await asyncio.wait_for(second[0].read(1), 5), b"")
+            self.assertIs(raised.exception, server.failures[0])
+            self.assertEqual(len(server.accepted), 2)
+            self.assertIsNone(server.accepted[1].connection)
+            self.assertTrue(server.accepted[1].writer.is_closing())
+            self.assert_retired(server)
+        finally:
+            await self.close_client(second)
+            await self.close_client(client)
+
+    async def test_close_notify_and_close_failures_keep_both_original_causes(self):
+        primary = OSError(errno.EIO, "original alert write")
+        cleanup = ValueError("original writer close")
+        client = None
+        try:
+            async with serving(
+                SCENARIOS["sequential-http1"], "127.0.0.1", certificates()
+            ) as server:
+                client = await self.connect(server)
+                connection = server.connections[0]
+                original_close = connection.writer.close
+
+                def close():
+                    original_close()
+                    raise cleanup
+
+                with (
+                    mock.patch.object(connection.writer, "write", side_effect=primary),
+                    mock.patch.object(connection.writer, "close", new=close),
+                    self.assertRaises(OSError) as raised,
+                ):
+                    connection.close_by("server")
+                self.assertIs(raised.exception, primary)
+                packet = primary.__cause__
+                self.assertIsInstance(packet, capture.CaptureFailures)
+                self.assertEqual(packet.cleanup, (cleanup,))
+                self.assertTrue(connection.writer.is_closing())
+        finally:
+            await self.close_client(client)
+
+    async def test_completed_external_child_cancellation_is_observed(self):
+        entered = asyncio.Event()
+        original = capture.Connection.respond
+        client = None
+
+        async def respond(connection, request, delay):
+            await original(connection, request, delay)
+            entered.set()
+            await asyncio.Future()
+
+        try:
+            with (
+                mock.patch.object(capture.Connection, "respond", new=respond),
+                self.assertRaises(asyncio.CancelledError) as raised,
+            ):
+                async with serving(
+                    SCENARIOS["sequential-http1"], "127.0.0.1", certificates()
+                ) as server:
+                    client = await self.connect(server)
+                    await asyncio.wait_for(entered.wait(), 5)
+                    child = next(iter(server.connections[0].tasks))
+                    child.cancel()
+                    await asyncio.gather(child, return_exceptions=True)
+            self.assertIs(raised.exception, server.failures[0])
+            self.assert_retired(server)
+        finally:
+            await self.close_client(client)
+
+    async def test_real_tls_eof_stops_both_websocket_workers(self):
+        def close_after_input(connection, data):
+            self.assertTrue(data)
+            connection.close_by("server")
+
+        for scenario, worker in (
+            ("websocket-http1", blocking_http1_websocket),
+            ("websocket", blocking_http2_websocket),
+        ):
+            with (
+                self.subTest(scenario=scenario),
+                mock.patch.object(
+                    capture.Connection, "handle_application_data", new=close_after_input
+                ),
+            ):
+                async with serving(
+                    SCENARIOS[scenario], "127.0.0.1", certificates()
+                ) as server:
+                    port = int(server.origins["a"].rsplit(":", 1)[1])
+                    with self.assertRaises(EOFError):
+                        await asyncio.to_thread(worker, port)
+                self.assert_retired(server)
+
+    async def test_partial_second_listener_failure_collects_the_first_listener(self):
+        primary = OSError(errno.EIO, "original second listener failure")
+        loop = asyncio.get_running_loop()
+        original_create = loop.create_server
+        original_start = capture.CaptureServer.start
+        owners = []
+        calls = 0
+
+        async def create(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise primary
+            return await original_create(*args, **kwargs)
+
+        async def start(owner, host):
+            owners.append(owner)
+            await original_start(owner, host)
+
+        with (
+            mock.patch.object(loop, "create_server", new=create),
+            mock.patch.object(capture.CaptureServer, "start", new=start),
+            self.assertRaises(OSError) as raised,
+        ):
+            async with serving(
+                SCENARIOS["sequential-http1"], "127.0.0.1", certificates()
+            ):
+                self.fail("a failed listener acquisition cannot start a run")
+        self.assertIs(raised.exception, primary)
+        self.assertEqual(len(owners[0].listeners), 1)
+        self.assertFalse(owners[0].listeners[0].is_serving())
+        self.assertEqual(owners[0].listeners[0].sockets, ())
+        self.assert_retired(owners[0])
+
+    async def test_cleanup_deadline_retains_the_actual_child_for_collection_retry(self):
+        primary = OSError(errno.EINVAL, "original caller before cleanup deadline")
+        entered = asyncio.Event()
+        release = asyncio.Event()
+        original = capture.Connection.respond
+        client = None
+        server = None
+
+        async def respond(connection, request, delay):
+            await original(connection, request, delay)
+            entered.set()
+            try:
+                await asyncio.Future()
+            except asyncio.CancelledError:
+                await release.wait()
+
+        try:
+            with (
+                mock.patch.object(capture.Connection, "respond", new=respond),
+                mock.patch.object(capture, "CLEANUP_SECONDS", 0.2),
+                self.assertRaises(OSError) as raised,
+            ):
+                async with serving(
+                    SCENARIOS["sequential-http1"], "127.0.0.1", certificates()
+                ) as server:
+                    client = await self.connect(server)
+                    await asyncio.wait_for(entered.wait(), 5)
+                    raise primary
+            self.assertIs(raised.exception, primary)
+            packet = primary.__cause__
+            self.assertIsInstance(packet, capture.CaptureFailures)
+            self.assertIs(packet.server, server)
+            self.assertTrue(
+                any(isinstance(error, TimeoutError) for error in packet.cleanup)
+            )
+            self.assertFalse(server.finished)
+            child = next(iter(server.connections[0].tasks))
+            self.assertFalse(child.done())
+
+            release.set()
+            with self.assertRaises((capture.CaptureFailures, TimeoutError)):
+                await server.close()
+            self.assert_retired(server)
+        finally:
+            release.set()
+            if server is not None:
+                await asyncio.gather(
+                    *(task for peer in server.connections for task in peer.tasks),
+                    return_exceptions=True,
+                )
+            await self.close_client(client)
+
+    async def test_capture_run_keeps_timeout_and_page_error_observations(self):
+        for path in ("/hold", "/error"):
+            with self.subTest(path=path):
+
+                @contextlib.asynccontextmanager
+                async def driver(plan, url, request_path=path):
+                    port = int(url.rsplit(":", 1)[1].rstrip("/"))
+                    reader, writer = await asyncio.open_connection(
+                        "127.0.0.1",
+                        port,
+                        ssl=client_context("http/1.1"),
+                        server_hostname=HOSTNAME,
+                    )
+                    try:
+                        writer.write(
+                            f"GET {request_path} HTTP/1.1\r\nHost: {HOSTNAME}\r\n\r\n".encode()
+                        )
+                        await writer.drain()
+                        head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 5)
+                        self.assertTrue(head.startswith(b"HTTP/1.1 200 OK\r\n"))
+                        self.assertEqual(
+                            await asyncio.wait_for(reader.readexactly(2), 5), b"ok"
+                        )
+                        yield
+                    finally:
+                        await self.close_client((reader, writer))
+
+                with mock.patch.object(capture, "BrowserDriver", new=driver):
+                    result = await capture.capture_run(
+                        SCENARIOS["sequential-http1"],
+                        browser="manual",
+                        executable=None,
+                        headless=False,
+                        listen_host="127.0.0.1",
+                        timeout=0.01,
+                    )
+                self.assertEqual(result.timed_out, path == "/hold")
+                self.assertEqual(result.run.error, path if path == "/error" else None)
+                self.assertEqual(
+                    [request.path for request in result.run.requests], [path]
+                )
+                self.assertTrue(
+                    all(
+                        record.closed_ms is not None
+                        for record in result.run.connections
+                    )
+                )
+
+    def assert_retired(self, server):
+        self.assertTrue(server.finished)
+        self.assertTrue(all(task.done() for task in server.listener_tasks))
+        for peer in server.accepted:
+            self.assertTrue(peer.retired.done())
+            self.assertTrue(peer.transport.is_closing())
+            self.assertTrue(peer.close_task.done())
+            if peer.task is not None:
+                self.assertTrue(peer.task.done())
+            if peer.connection is not None:
+                self.assertTrue(all(task.done() for task in peer.connection.tasks))
+
+    async def close_client(self, client):
+        if client is not None:
+            client[1].close()
+            with contextlib.suppress(
+                ConnectionResetError, ConnectionAbortedError, BrokenPipeError
+            ):
+                await asyncio.wait_for(client[1].wait_closed(), 5)
 
 
 if __name__ == "__main__":
