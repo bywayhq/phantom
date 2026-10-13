@@ -4,7 +4,8 @@ Use this plan to repair the historical timing failures, grow the browser
 corpus, and deliver the named client features. Track each result against its
 acceptance criteria before closing the work.
 
-This is a prepared plan. Implementation begins when the goal is assigned.
+The campaign is active. The plan was committed at `9fd95ff5` before source
+changes began.
 
 ## Starting point
 
@@ -38,10 +39,25 @@ captures when the needed host is available. Choose the next implementation
 by dependencies, downstream value, and uncertainty. Keep unrelated repairs in
 separate PRs. A blocked capture must not stall independent engineering work.
 
-All tasks below start as planned. When you start one, record its owner,
+Unchecked tasks remain open. When you start one, record its owner,
 dependencies, current source, acceptance criteria, and next action here.
 Update it after each verified delivery. Link detailed logs rather than
 copying execution journals into this page.
+
+## Current work
+
+| Task | Owner lane | State and next check |
+| --- | --- | --- |
+| T1 | `h3-drain-diagnosis` | Both draining failures reproduced by delaying peer GOAWAY beyond the fixture's sleep. Verify an observed-readiness barrier under the same delay. |
+| T2 | `tls-done-diagnosis` | Native EOF timeout reproduced after a complete response, with both a delayed loop and withheld close. Verify framed-response completion and independent EOF controls. |
+| P1–P5 | `profile-catalog` | Contract review complete. Implement exact lookup and per-layer records before migrating recipe values. |
+| F8 | `http3-debug-auth` | Explicit origin opt-in implemented. Run native and facade certificate, hostname, clone, and session-isolation controls. |
+
+Neither controlled timing reproduction proves the exact historical host
+delay. The unchanged historical TLS suite also passed all 1,041 tests with
+four skips. Keep original attribution open while repairing the demonstrated
+synchronization weaknesses. Detailed run logs are retained under each
+lane's `target/transport-profile-campaign/` pending a reviewed evidence index.
 
 ## Historical timing failures
 
