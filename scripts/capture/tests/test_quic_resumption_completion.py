@@ -55,6 +55,118 @@ class StreamObservationTests(unittest.TestCase):
 
 
 class CaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
+    async def test_internal_wait_failure_retires_udp_without_faking_protocol_completion(
+        self,
+    ):
+        await self.check_internal_wait_failure(
+            RuntimeError("original internal collector wait failure")
+        )
+
+    async def test_internal_wait_cancellation_retires_udp_and_retains_original_cause(
+        self,
+    ):
+        await self.check_internal_wait_failure(
+            asyncio.CancelledError("original internal collector wait interruption")
+        )
+
+    async def check_internal_wait_failure(self, failure):
+        configuration = QuicConfiguration(
+            is_client=True, alpn_protocols=H3_ALPN, verify_mode=ssl.CERT_NONE
+        )
+        manager = quic_resumption.serving(
+            SCENARIOS["accept"], "127.0.0.1", generate_certificate()
+        )
+        run, port = await manager.__aenter__()
+        peer = connect_loopback(port, configuration, Client)
+        client = await peer.__aenter__()
+        protocol = run.owner.protocols[0]
+        release = asyncio.Event()
+        original_wait_closed = protocol.wait_closed
+        original_wait = asyncio.wait
+        injected = False
+        waiter = None
+        handles = ()
+
+        async def held_wait_closed():
+            await release.wait()
+            await original_wait_closed()
+
+        async def fail_once(tasks, **kwargs):
+            nonlocal injected, waiter, handles
+            if not injected and run.owner.waits:
+                injected = True
+                waiter = run.owner.waits[protocol]
+                handles = tuple(
+                    handle
+                    for handle in (protocol._timer, protocol._transmit_task)
+                    if handle is not None
+                )
+                raise failure
+            return await original_wait(tasks, **kwargs)
+
+        try:
+            await asyncio.wait_for(client.request("GET", "/"), 5)
+            with (
+                mock.patch.object(protocol, "wait_closed", held_wait_closed),
+                mock.patch.object(quic_resumption.asyncio, "wait", fail_once),
+                self.assertRaises(
+                    quic_resumption.ResumptionFailures
+                    if isinstance(failure, Exception)
+                    else type(failure)
+                ) as raised,
+            ):
+                await manager.__aexit__(None, None, None)
+
+            self.assertTrue(injected)
+            retained = raised.exception
+            if not isinstance(failure, Exception):
+                self.assertIs(retained, failure)
+                retained = retained.__cause__
+            self.assertTrue(any(error is failure for error in retained.cleanup))
+            self.assertIs(retained.owner, run.owner)
+            self.assertFalse(run.owner.finished)
+            self.assertFalse(protocol.observed_closed)
+            self.assertFalse(waiter.done())
+            self.assertIs(run.owner.waits[protocol], waiter)
+            self.assertTrue(handles)
+            self.assertTrue(all(handle.cancelled() for handle in handles))
+            self.assertTrue(run.owner.retired.done())
+            self.assertIsNone(run.owner._transport._sock)
+            self.assertIsNone(protocol._timer)
+            self.assertIsNone(protocol._transmit_task)
+            self.assertIsNone(protocol.release_timer)
+            self.assertEqual(protocol.retire_timers, [])
+            self.assertTrue(run.owner.hooks_restored)
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as rebound:
+                rebound.bind(("127.0.0.1", port))
+            with self.assertRaises(type(raised.exception)):
+                render_fixture(
+                    SCENARIOS["accept"],
+                    [RunResult(run, port, "scripted", False)],
+                    client="scripted",
+                    client_version="0",
+                    operating_system="test",
+                    launch_mode="manual",
+                    listen_host="127.0.0.1",
+                )
+
+            release.set()
+            with self.assertRaises(type(failure)) as retried:
+                await run.owner.shutdown()
+            self.assertIs(retried.exception, failure)
+            self.assertIs(run.owner.waits[protocol], waiter)
+            self.assertTrue(waiter.done())
+            self.assertTrue(protocol.observed_closed)
+            self.assertTrue(run.owner.finished)
+        finally:
+            release.set()
+            await peer.__aexit__(None, None, None)
+            if not run.owner.finished:
+                with contextlib.suppress(
+                    quic_resumption.ResumptionFailures, type(failure)
+                ):
+                    await run.owner.shutdown()
+
     async def test_delayed_initial_is_retired_without_starting_after_context_exit(self):
         configuration = QuicConfiguration(
             is_client=True, alpn_protocols=H3_ALPN, verify_mode=ssl.CERT_NONE

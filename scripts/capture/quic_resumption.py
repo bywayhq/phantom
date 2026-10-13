@@ -1103,9 +1103,18 @@ class ResumptionServer(QuicServer):
         if protocol._timer is None:
             protocol._timer_at = None
 
-    async def collect_connections(self):
-        self.stopping = True
-        deadline = asyncio.get_running_loop().time() + CLEANUP_SECONDS
+    def retire_transport(self):
+        if self._transport is not None and not self.retired.done():
+            try:
+                self._transport.abort()
+            except BaseException as error:
+                self.run.failed(error)
+                try:
+                    self._transport.close()
+                except BaseException as cleanup:
+                    self.run.failed(cleanup)
+
+    async def collect_connections(self, deadline):
         for protocol in self.protocols:
             self.cancel_handles(protocol, delayed_only=True)
             if not protocol.started or protocol.observed_closed:
@@ -1136,15 +1145,7 @@ class ResumptionServer(QuicServer):
             remaining = deadline - asyncio.get_running_loop().time()
             if not retiring and (not pending or remaining <= 1.0):
                 retiring = True
-                if self._transport is not None:
-                    try:
-                        self._transport.abort()
-                    except BaseException as error:
-                        self.run.failed(error)
-                        try:
-                            self._transport.close()
-                        except BaseException as cleanup:
-                            self.run.failed(cleanup)
+                self.retire_transport()
             if retiring and self._transport is not None:
                 tasks.add(self.retired)
             pending = {task for task in tasks if not task.done()}
@@ -1175,11 +1176,22 @@ class ResumptionServer(QuicServer):
                     self.run.failed(error)
 
     async def collect(self):
+        self.stopping = True
+        deadline = asyncio.get_running_loop().time() + CLEANUP_SECONDS
         try:
-            await self.collect_connections()
+            await self.collect_connections(deadline)
         except BaseException as error:
             self.run.failed(error)
         finally:
+            self.retire_transport()
+            if self._transport is not None and not self.retired.done():
+                try:
+                    await asyncio.wait_for(
+                        asyncio.shield(self.retired),
+                        timeout=max(0, deadline - asyncio.get_running_loop().time()),
+                    )
+                except BaseException as error:
+                    self.run.failed(error)
             for protocol in self.protocols:
                 self.cancel_handles(protocol)
             callbacks_retired = all(
