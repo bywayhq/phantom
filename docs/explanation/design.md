@@ -117,10 +117,11 @@ pipelines. HTTP/2 (H2) and HTTP/3 (H3) run concurrent streams within local and
 peer limits. Waiters are bounded, cancellation is scoped to a stream where
 possible, and a draining connection accepts no new work.
 
-The H1 bound counts idle connections and connections still in setup. Admission
-uses the same bound, so a request without an idle connection has room to open
-one. Each runtime has its own pool and bound. Using one client across several
-runtimes can therefore exceed Firefox's per-origin count.
+The H1 connection bound counts idle connections and connections still in setup.
+Each runtime has its own pool and connection bound. Active-request admission
+and its waiter bound are shared by origin across runtimes. Using one client
+across several runtimes can exceed Firefox's retained per-origin connection
+count.
 
 `TcpBackupConnection` makes one exception for the slower attempt, which has
 carried no request. Once it connects, it counts toward the key's bound but is

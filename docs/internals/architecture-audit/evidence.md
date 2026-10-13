@@ -28,6 +28,7 @@ receipts remain under `C:/code/phantom/target/architecture-audit`:
 | `fixtures-90b9-final-pr-checks.json` | `90b9b7ea`: applicable PR checks succeed, including both platforms |
 | `tooling-20fa-final-pr-checks.json` | `20fa0d5b`: 42 successful or applicability-skipped PR checks, including both platforms |
 | `tooling-20fa0d5b-windows.gate.log` and `.gate.exit` | `20fa0d5b`: all 24 gate steps pass; exit zero |
+| `main-20fa-final-push-checks.json` | `20fa0d5b`: all eight applicable push workflows succeed |
 
 The tooling packet includes `source-before.log`, `source-after.log`,
 `clean-before.log` and `clean-after.log` with the same
@@ -39,9 +40,23 @@ Independent review accepts the source binding and complete gate logs.
 The failed earlier run remains in `tooling-877c780f-step-logs`; its failures
 are not replaced by the later successful result.
 
-The tooling gate includes Linux Clippy and MSRV through WSL. Main's six
-applicable push workflows passed at `90b9b7ea`. The new push CI at `20fa0d5b`
-is running. PR results and the earlier main run do not establish that result.
+The tooling gate includes Linux Clippy and MSRV through WSL. All eight
+applicable main push workflows passed at exact revision `20fa0d5b`.
+
+The records candidate's original `e74a3e92` gate remains retained under
+`audit-records-e74a3e92-windows` and `audit-records-e74a3e92-failed-step-logs`.
+Its native tests and Python suites pass. Its MSRV feature step fails because
+the local Rust 1.88 installation lacks its standard library and manifest.
+The toolchain has been reinstalled; a successful replacement gate remains
+required. All 37 PR checks passed at that revision, including both platforms.
+
+The current coverage reconciliation is retained in
+`final-coverage-reconciliation-20fa.json` and
+`coverage-reconciliation-source-index.json`. The fresh source read in
+`final-coverage-fresh-source-read-20fa.json` identifies remaining fixture
+ownership and parser findings. Source-byte indexing alone is not semantic
+approval. The parser's baseline and remedy controls remain in
+`fixture-input-validation`; final independent review and integration are open.
 
 ### Source preservation
 

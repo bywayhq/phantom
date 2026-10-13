@@ -58,14 +58,18 @@ This is the delivery snapshot from 2026-10-13. The full audit remains open.
 | Runtime and public APIs, PR 198 | `32a3071f` | Merged; all 43 PR checks passed |
 | Testkit and fixtures, PR 199 | `90b9b7ea` | Merged; applicable PR checks passed, including both platforms |
 | Capture and conformance tools, PR 200 | `20fa0d5b` | Merged; all 24 local gate steps and applicable PR checks passed |
-| Architecture and documentation | `1215ca20` | Original remaining changes retained; current review and integration pending |
+| Architecture and documentation, PR 204 | `e74a3e92` | Original remaining changes retained; current review and integration pending |
 
 The tooling gate includes Linux Clippy and MSRV checks through WSL. Its
 source and complete logs have independent review. The 42 PR checks completed
 successfully or were skipped by applicability, including successful macOS and
-Windows checks. Main's push CI is running at `20fa0d5b`. The previous six
-applicable push workflows passed at `90b9b7ea`; that result does not close
-the new main run.
+Windows checks. All eight applicable main push workflows passed at
+`20fa0d5b`. Their exact-revision receipt is retained with the delivery evidence.
+
+Current coverage reconciliation distinguishes historical complete reads,
+later reviewed changes and actual gaps. Fresh reads found detached test peers
+and a malformed capture parser panic. Their remedies remain required. The
+records PR does not close those findings or the full audit.
 
 Playground's migration branch is ready at `399af77e`. Its quick gate and
 773 selected tests passed locally. The API selection skips 340 other tests.

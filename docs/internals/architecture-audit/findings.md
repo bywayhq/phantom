@@ -309,6 +309,9 @@ and scope; they do not establish final integration.
 | A299 | P2 | WebSocket profile decoding bounds priority payloads | websocket_profile/server.rs indexes a complete HEADERS payload as five priority bytes without checking its length when the PRIORITY flag is set | The profile repair imported at `1f34c5d7` rejects complete HEADERS priority payloads shorter than five bytes before indexing and preserves valid decoding. Its existing typed parser controls remain. Later HPACK integer and string-range repairs at `9f81b91e` add separate overflow controls. Merged PR 199 at `90b9b7ea` includes both repairs and passing applicable PR checks, including macOS and Windows. Historical source evidence remains; current receipt reconciliation and the combined audit remain open. |
 | A300 | P2 | Resolver configuration errors retain original causes | System and builder failures are formatted into strings before address/HTTPS resolver errors are returned | Independently reviewed typed wrapper at a86c1f25 preserves original platform/build causes, public categories and messages. All 51 selected DNS tests pass on both hosts; corrected strict lint passes at 12422fcc. Tests exercise concrete causes rather than host configuration fault injection; final gates open. |
 | A301 | P2 | QUIC profile failures retain the validation cause | QuicTlsProfileError replaces InvalidTlsSettings with its kind, field and message | Independently reviewed repair at d9e6b6e7 retains the original cause through the provider and public client build error. Fifteen provider and fifteen client methods pass per host; focused quality passes after the unrelated DNS assertion correction. Final gates open. |
+| A302 | P2 | WebSocket compression tests retain peer tasks | Complete current read finds raw peer handles inside consuming bounded futures; caller failure or timeout detaches them | Required remediation; source and current blob retained in `final-coverage-fresh-source-read-20fa.json`. No production defect is claimed. |
+| A303 | P2 | Retained WebSocket captures reject malformed fields and counts | Complete current parser read finds UTF-8 byte slicing and caller-declared HPACK capacity; baseline controls reproduce Unicode and allocation panics plus duplicate-key acceptance | Remedy committed at `112bda03`; eight focused standalone controls pass, including three retained browser captures. Independent review and exact integration gate remain required. |
+| A304 | P2 | HTTP/2 count fixtures own child work and retain serving failures | Current partial origin read finds accepted and response children detached, serving errors discarded and Drop aborting only the listener | Required complete source review and ownership remedy; current source evidence retained in `final-coverage-fresh-source-read-20fa.json`. |
 
 At `400a900e`, the two additional A223 sibling and external-cancellation
 controls do not execute: their fixture import fails compilation. The source
@@ -1355,8 +1358,8 @@ Their applicable PR checks passed, including macOS and Windows. Main's six
 applicable push workflows passed at the fixture revision. Tooling PR 200
 merged at `20fa0d5b`, after all 24 local gate steps and independent source/log
 review. Its 42 PR checks completed successfully or were skipped by
-applicability, including successful macOS and Windows checks. Main's new push
-CI is running; the previous main result does not establish this run's outcome.
+applicability, including successful macOS and Windows checks. All eight
+applicable main push workflows passed at exact revision `20fa0d5b`.
 
 Source reconciliation preserves the original implementation changes and later
 reviewed repairs. The remaining architecture/docs branch retains the original

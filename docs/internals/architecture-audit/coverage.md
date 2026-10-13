@@ -14,7 +14,7 @@ Tooling PR 200 merged at `20fa0d5b`. All 24 local gate steps passed, including
 Linux Clippy and MSRV through WSL. Independent review accepts the exact
 source and complete logs. All 42 PR checks completed successfully or were
 skipped by applicability, including successful macOS and Windows checks.
-Main's new push CI is running. The
+All eight applicable main push workflows passed at `20fa0d5b`. The
 [delivery evidence](evidence.md#delivery-reconciliation) records each
 revision's checks and downstream verification.
 
@@ -35,6 +35,14 @@ Remaining work is current receipt reconciliation, complete dispositions for
 qualified gaps, the combined manual architecture/standards review, and the
 architecture/docs candidate's gate, PR and main checks. Each current review
 must establish its revision, source scope, evidence and remaining limits.
+
+The current reconciliation checks retained source hashes and actual read
+ranges. Some rows have exact current complete receipts missing from the index.
+Others need their later changed-source reviews reconciled or a complete read.
+Fresh complete reads of the WebSocket compression tests and profile capture
+parser found peer detachment and malformed-input failures. The HTTP/2
+connection-count origin also detaches children and discards serving errors.
+These remain required fixes, separate from historical verification.
 
 ## Historical verification
 
