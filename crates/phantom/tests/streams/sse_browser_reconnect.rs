@@ -469,7 +469,7 @@ async fn replay_on(
     })
     .await
     .unwrap_or_else(|elapsed| Err(elapsed.into()));
-    finish_with_cleanup(primary, server.stop().await)
+    finish_with_cleanup(primary, server.shutdown().await)
 }
 
 /// One request head, from a fixture or observed from Phantom.

@@ -2,7 +2,11 @@
 //! the TLS session tickets of the request pool key of its origin and route,
 //! in both directions.
 
-use crate::support::{tls as tls_support, websocket as websocket_support};
+use crate::support::{
+    tls as tls_support,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup, relay_result},
+    websocket as websocket_support,
+};
 
 use std::{
     net::Ipv4Addr,
@@ -24,7 +28,9 @@ use phantom::{
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpListener,
-    sync::oneshot,
+    sync::{oneshot, watch},
+    task::JoinSet,
+    time::timeout,
 };
 
 use super::early_data_server::{
@@ -153,10 +159,19 @@ async fn serve_upgrade(mut stream: Server, path: &str) -> TestResult<()> {
         )
         .await?;
     stream.flush().await?;
-    let mut rest = Vec::new();
     // The client closes or resets the connection when it drops the socket.
-    let _ = stream.read_to_end(&mut rest).await;
-    Ok(())
+    read_upgrade_close(&mut stream).await
+}
+
+async fn read_upgrade_close<R: tokio::io::AsyncRead + Unpin>(stream: &mut R) -> TestResult<()> {
+    let mut rest = Vec::new();
+    relay_result(
+        stream
+            .read_to_end(&mut rest)
+            .await
+            .map(|_| ())
+            .map_err(Into::into),
+    )
 }
 
 /// Accepts one extended CONNECT on an HTTP/2 connection that enables it,
@@ -171,7 +186,9 @@ async fn serve_extended_connect(stream: Server) -> TestResult<()> {
         .ok_or("connection closed before the extended CONNECT")??;
     assert_eq!(request.method(), Method::CONNECT);
     let send = respond.send_response(Response::new(()), false)?;
-    while let Some(Ok(_)) = connection.accept().await {}
+    while let Some(accepted) = connection.accept().await {
+        relay_result(accepted.map(|_| ()).map_err(Into::into))?;
+    }
     drop(send);
     Ok(())
 }
@@ -195,33 +212,32 @@ async fn get(client: &Client, protocol: Option<HttpProtocol>, uri: &str) -> Test
 #[tokio::test]
 async fn a_firefox_websocket_after_a_negotiated_request_sends_its_preface_early() -> TestResult<()>
 {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let hellos = Hellos::default();
-        let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let (page_closed, wait_for_page_close) = oneshot::channel();
-        let server = tokio::spawn(async move {
-            let page = accept(&listener, &acceptor, Duration::ZERO).await?;
-            serve_http2(page, "/").await?;
-            page_closed
-                .send(())
-                .map_err(|_| "client stopped before the page's connection closed")?;
+    let identity = TestIdentity::generate()?;
+    let hellos = Hellos::default();
+    let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let (page_closed, wait_for_page_close) = oneshot::channel();
+    let mut server = ConnectionPeer::spawn(async move {
+        let page = accept(&listener, &acceptor, Duration::ZERO).await?;
+        serve_http2(page, "/").await?;
+        page_closed
+            .send(())
+            .map_err(|_| "client stopped before the page's connection closed")?;
 
-            let socket = accept(&listener, &acceptor, SERVER_DELAY).await?;
-            let early = socket.early_bytes();
-            assert!(socket.stream.ssl().session_reused());
-            assert!(socket.stream.ssl().early_data_accepted());
-            serve_extended_connect(socket).await?;
-            let early = early.lock().unwrap_or_else(PoisonError::into_inner).clone();
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(early)
-        });
-
+        let socket = accept(&listener, &acceptor, SERVER_DELAY).await?;
+        let early = socket.early_bytes();
+        assert!(socket.stream.ssl().session_reused());
+        assert!(socket.stream.ssl().early_data_accepted());
+        serve_extended_connect(socket).await?;
+        let early = early.lock().unwrap_or_else(PoisonError::into_inner).clone();
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(early)
+    });
+    let primary = bounded(async {
         let client = firefox_client(&identity)?;
         get(&client, None, &format!("https://{address}/")).await?;
         if wait_for_page_close.await.is_err() {
-            server.await??;
+            server.join().await??;
             return Err("server stopped before closing the page's connection".into());
         }
         let socket = client
@@ -231,7 +247,7 @@ async fn a_firefox_websocket_after_a_negotiated_request_sends_its_preface_early(
         drop(socket);
         drop(client);
 
-        let early = server.await??;
+        let early = server.join().await??;
         // Firefox 157's capture records SETTINGS and then WINDOW_UPDATE.
         assert_eq!(h2_frame_types(&early)?, [H2_SETTINGS, H2_WINDOW_UPDATE]);
         assert_eq!(
@@ -243,7 +259,8 @@ async fn a_firefox_websocket_after_a_negotiated_request_sends_its_preface_early(
         );
         Ok(())
     })
-    .await
+    .await;
+    finish_with_cleanup(primary, server.shutdown().await)
 }
 
 /// Mirrors Firefox 157's `websocket-http1` resumption capture: after an
@@ -251,24 +268,23 @@ async fn a_firefox_websocket_after_a_negotiated_request_sends_its_preface_early(
 /// and sends its Upgrade as early data.
 #[tokio::test]
 async fn a_firefox_upgrade_after_an_http1_request_travels_as_early_data() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let hellos = Hellos::default();
-        let acceptor = acceptor(&identity, &hellos, HTTP1_ONLY)?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            serve_http1(accept(&listener, &acceptor, Duration::ZERO).await?).await?;
+    let identity = TestIdentity::generate()?;
+    let hellos = Hellos::default();
+    let acceptor = acceptor(&identity, &hellos, HTTP1_ONLY)?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let mut server = ConnectionPeer::spawn(async move {
+        serve_http1(accept(&listener, &acceptor, Duration::ZERO).await?).await?;
 
-            let socket = accept(&listener, &acceptor, SERVER_DELAY).await?;
-            let early = socket.early_bytes();
-            assert!(socket.stream.ssl().session_reused());
-            assert!(socket.stream.ssl().early_data_accepted());
-            serve_upgrade(socket, "/socket").await?;
-            let early = early.lock().unwrap_or_else(PoisonError::into_inner).clone();
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(early)
-        });
-
+        let socket = accept(&listener, &acceptor, SERVER_DELAY).await?;
+        let early = socket.early_bytes();
+        assert!(socket.stream.ssl().session_reused());
+        assert!(socket.stream.ssl().early_data_accepted());
+        serve_upgrade(socket, "/socket").await?;
+        let early = early.lock().unwrap_or_else(PoisonError::into_inner).clone();
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(early)
+    });
+    let primary = bounded(async {
         let client = firefox_client(&identity)?;
         get(
             &client,
@@ -283,7 +299,7 @@ async fn a_firefox_upgrade_after_an_http1_request_travels_as_early_data() -> Tes
         drop(socket);
         drop(client);
 
-        let early = server.await??;
+        let early = server.join().await??;
         assert!(early.starts_with(b"GET /socket HTTP/1.1\r\n"));
         assert_eq!(
             hellos.take(),
@@ -294,7 +310,8 @@ async fn a_firefox_upgrade_after_an_http1_request_travels_as_early_data() -> Tes
         );
         Ok(())
     })
-    .await
+    .await;
+    finish_with_cleanup(primary, server.shutdown().await)
 }
 
 /// Follows the order of Firefox 157's `websocket-http1` capture: the
@@ -304,33 +321,32 @@ async fn a_firefox_upgrade_after_an_http1_request_travels_as_early_data() -> Tes
 /// differ, so the request resumes only with one of the page's tickets.
 #[tokio::test]
 async fn a_firefox_request_after_an_upgrade_resumes_the_page_ticket() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let hellos = Hellos::default();
-        let page_acceptor = acceptor(&identity, &hellos, HTTP1_ONLY)?;
-        let socket_acceptor = acceptor(&identity, &hellos, HTTP1_ONLY)?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            serve_http1(accept(&listener, &page_acceptor, Duration::ZERO).await?).await?;
+    let identity = TestIdentity::generate()?;
+    let hellos = Hellos::default();
+    let page_acceptor = acceptor(&identity, &hellos, HTTP1_ONLY)?;
+    let socket_acceptor = acceptor(&identity, &hellos, HTTP1_ONLY)?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let mut server = ConnectionPeer::spawn(async move {
+        serve_http1(accept(&listener, &page_acceptor, Duration::ZERO).await?).await?;
 
-            let socket = accept(&listener, &socket_acceptor, Duration::ZERO).await?;
-            assert!(!socket.stream.ssl().session_reused());
-            serve_upgrade(socket, "/socket").await?;
+        let socket = accept(&listener, &socket_acceptor, Duration::ZERO).await?;
+        assert!(!socket.stream.ssl().session_reused());
+        serve_upgrade(socket, "/socket").await?;
 
-            let done = accept(&listener, &page_acceptor, SERVER_DELAY).await?;
-            let early = done.early_bytes();
-            assert!(done.stream.ssl().session_reused());
-            assert!(done.stream.ssl().early_data_accepted());
-            serve_http1(done).await?;
-            let early = early.lock().unwrap_or_else(PoisonError::into_inner).clone();
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(early)
-        });
-
+        let done = accept(&listener, &page_acceptor, SERVER_DELAY).await?;
+        let early = done.early_bytes();
+        assert!(done.stream.ssl().session_reused());
+        assert!(done.stream.ssl().early_data_accepted());
+        serve_http1(done).await?;
+        let early = early.lock().unwrap_or_else(PoisonError::into_inner).clone();
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(early)
+    });
+    let primary = bounded(async {
         let client = firefox_client(&identity)?;
         exchange_around_an_upgrade(&client, address).await?;
 
-        let early = server.await??;
+        let early = server.join().await??;
         assert!(early.starts_with(b"GET /done HTTP/1.1\r\n"));
         assert_eq!(
             hellos.take(),
@@ -342,7 +358,8 @@ async fn a_firefox_request_after_an_upgrade_resumes_the_page_ticket() -> TestRes
         );
         Ok(())
     })
-    .await
+    .await;
+    finish_with_cleanup(primary, server.shutdown().await)
 }
 
 /// The Chromium twin of the test above: Chrome presents its newest ticket,
@@ -350,29 +367,28 @@ async fn a_firefox_request_after_an_upgrade_resumes_the_page_ticket() -> TestRes
 /// request offers B's ticket to A and makes a full handshake.
 #[tokio::test]
 async fn a_chromium_request_after_an_upgrade_presents_the_upgrade_ticket() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let hellos = Hellos::default();
-        let page_acceptor = acceptor(&identity, &hellos, HTTP1_ONLY)?;
-        let socket_acceptor = acceptor(&identity, &hellos, HTTP1_ONLY)?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            serve_http1(accept(&listener, &page_acceptor, Duration::ZERO).await?).await?;
+    let identity = TestIdentity::generate()?;
+    let hellos = Hellos::default();
+    let page_acceptor = acceptor(&identity, &hellos, HTTP1_ONLY)?;
+    let socket_acceptor = acceptor(&identity, &hellos, HTTP1_ONLY)?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let mut server = ConnectionPeer::spawn(async move {
+        serve_http1(accept(&listener, &page_acceptor, Duration::ZERO).await?).await?;
 
-            let socket = accept(&listener, &socket_acceptor, Duration::ZERO).await?;
-            assert!(!socket.stream.ssl().session_reused());
-            serve_upgrade(socket, "/socket").await?;
+        let socket = accept(&listener, &socket_acceptor, Duration::ZERO).await?;
+        assert!(!socket.stream.ssl().session_reused());
+        serve_upgrade(socket, "/socket").await?;
 
-            let done = accept(&listener, &page_acceptor, Duration::ZERO).await?;
-            assert!(!done.stream.ssl().session_reused());
-            serve_http1(done).await
-        });
-
+        let done = accept(&listener, &page_acceptor, Duration::ZERO).await?;
+        assert!(!done.stream.ssl().session_reused());
+        serve_http1(done).await
+    });
+    let primary = bounded(async {
         let client = chromium_client(&identity)?;
         exchange_around_an_upgrade(&client, address).await?;
 
-        server.await??;
+        server.join().await??;
         assert_eq!(
             hellos.take(),
             [
@@ -383,7 +399,8 @@ async fn a_chromium_request_after_an_upgrade_presents_the_upgrade_ticket() -> Te
         );
         Ok(())
     })
-    .await
+    .await;
+    finish_with_cleanup(primary, server.shutdown().await)
 }
 
 /// Sends an exact HTTP/1.1 request, opens and drops a WebSocket, and sends
@@ -417,32 +434,31 @@ async fn exchange_around_an_upgrade(
 /// host, port, and partition, not by ALPN.
 #[tokio::test]
 async fn a_chromium_upgrade_resumes_the_ticket_of_a_negotiated_request() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let hellos = Hellos::default();
-        let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let (page_closed, wait_for_page_close) = oneshot::channel();
-        let server = tokio::spawn(async move {
-            serve_http2(accept(&listener, &acceptor, Duration::ZERO).await?, "/").await?;
-            page_closed
-                .send(())
-                .map_err(|_| "client stopped before the page's connection closed")?;
+    let identity = TestIdentity::generate()?;
+    let hellos = Hellos::default();
+    let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let (page_closed, wait_for_page_close) = oneshot::channel();
+    let mut server = ConnectionPeer::spawn(async move {
+        serve_http2(accept(&listener, &acceptor, Duration::ZERO).await?, "/").await?;
+        page_closed
+            .send(())
+            .map_err(|_| "client stopped before the page's connection closed")?;
 
-            let socket = accept(&listener, &acceptor, Duration::ZERO).await?;
-            assert!(socket.stream.ssl().session_reused());
-            assert_eq!(
-                socket.stream.ssl().selected_alpn_protocol(),
-                Some(&b"http/1.1"[..])
-            );
-            serve_upgrade(socket, "/socket").await
-        });
-
+        let socket = accept(&listener, &acceptor, Duration::ZERO).await?;
+        assert!(socket.stream.ssl().session_reused());
+        assert_eq!(
+            socket.stream.ssl().selected_alpn_protocol(),
+            Some(&b"http/1.1"[..])
+        );
+        serve_upgrade(socket, "/socket").await
+    });
+    let primary = bounded(async {
         let client = chromium_client(&identity)?;
         get(&client, None, &format!("https://{address}/")).await?;
         if wait_for_page_close.await.is_err() {
-            server.await??;
+            server.join().await??;
             return Err("server stopped before closing the page's connection".into());
         }
         let socket = client
@@ -452,7 +468,7 @@ async fn a_chromium_upgrade_resumes_the_ticket_of_a_negotiated_request() -> Test
         drop(socket);
         drop(client);
 
-        server.await??;
+        server.join().await??;
         assert_eq!(
             hellos.take(),
             [
@@ -462,31 +478,31 @@ async fn a_chromium_upgrade_resumes_the_ticket_of_a_negotiated_request() -> Test
         );
         Ok(())
     })
-    .await
+    .await;
+    finish_with_cleanup(primary, server.shutdown().await)
 }
 
 /// A WebSocket that is the first contact with an origin leaves its ticket
 /// for the origin's later requests.
 #[tokio::test]
 async fn a_negotiated_request_resumes_the_ticket_of_a_chromium_upgrade() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let hellos = Hellos::default();
-        let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            serve_upgrade(
-                accept(&listener, &acceptor, Duration::ZERO).await?,
-                "/socket",
-            )
-            .await?;
+    let identity = TestIdentity::generate()?;
+    let hellos = Hellos::default();
+    let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let mut server = ConnectionPeer::spawn(async move {
+        serve_upgrade(
+            accept(&listener, &acceptor, Duration::ZERO).await?,
+            "/socket",
+        )
+        .await?;
 
-            let page = accept(&listener, &acceptor, Duration::ZERO).await?;
-            assert!(page.stream.ssl().session_reused());
-            serve_http2(page, "/").await
-        });
-
+        let page = accept(&listener, &acceptor, Duration::ZERO).await?;
+        assert!(page.stream.ssl().session_reused());
+        serve_http2(page, "/").await
+    });
+    let primary = bounded(async {
         let client = chromium_client(&identity)?;
         let socket = client
             .websocket_with_profile_policy(&format!("wss://{address}/socket"))?
@@ -496,7 +512,7 @@ async fn a_negotiated_request_resumes_the_ticket_of_a_chromium_upgrade() -> Test
         get(&client, None, &format!("https://{address}/")).await?;
         drop(client);
 
-        server.await??;
+        server.join().await??;
         assert_eq!(
             hellos.take(),
             [
@@ -506,30 +522,30 @@ async fn a_negotiated_request_resumes_the_ticket_of_a_chromium_upgrade() -> Test
         );
         Ok(())
     })
-    .await
+    .await;
+    finish_with_cleanup(primary, server.shutdown().await)
 }
 
 /// An exact HTTP/2 opening shares the exact HTTP/2 pool's tickets.
 #[tokio::test]
 async fn an_exact_http2_websocket_resumes_the_ticket_of_an_exact_http2_request() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let hellos = Hellos::default();
-        let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let (page_closed, wait_for_page_close) = oneshot::channel();
-        let server = tokio::spawn(async move {
-            serve_http2(accept(&listener, &acceptor, Duration::ZERO).await?, "/").await?;
-            page_closed
-                .send(())
-                .map_err(|_| "client stopped before the page's connection closed")?;
+    let identity = TestIdentity::generate()?;
+    let hellos = Hellos::default();
+    let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let (page_closed, wait_for_page_close) = oneshot::channel();
+    let mut server = ConnectionPeer::spawn(async move {
+        serve_http2(accept(&listener, &acceptor, Duration::ZERO).await?, "/").await?;
+        page_closed
+            .send(())
+            .map_err(|_| "client stopped before the page's connection closed")?;
 
-            let socket = accept(&listener, &acceptor, Duration::ZERO).await?;
-            assert!(socket.stream.ssl().session_reused());
-            serve_extended_connect(socket).await
-        });
-
+        let socket = accept(&listener, &acceptor, Duration::ZERO).await?;
+        assert!(socket.stream.ssl().session_reused());
+        serve_extended_connect(socket).await
+    });
+    let primary = bounded(async {
         let client = chromium_client(&identity)?;
         get(
             &client,
@@ -538,7 +554,7 @@ async fn an_exact_http2_websocket_resumes_the_ticket_of_an_exact_http2_request()
         )
         .await?;
         if wait_for_page_close.await.is_err() {
-            server.await??;
+            server.join().await??;
             return Err("server stopped before closing the page's connection".into());
         }
         let socket = client
@@ -548,7 +564,7 @@ async fn an_exact_http2_websocket_resumes_the_ticket_of_an_exact_http2_request()
         drop(socket);
         drop(client);
 
-        server.await??;
+        server.join().await??;
         assert_eq!(
             hellos.take(),
             [
@@ -558,7 +574,8 @@ async fn an_exact_http2_websocket_resumes_the_ticket_of_an_exact_http2_request()
         );
         Ok(())
     })
-    .await
+    .await;
+    finish_with_cleanup(primary, server.shutdown().await)
 }
 
 /// An HTTP/2 connection the page keeps open, whose server never enables
@@ -566,7 +583,7 @@ async fn an_exact_http2_websocket_resumes_the_ticket_of_an_exact_http2_request()
 /// policy's choice for an incapable session.
 struct OpenPage {
     shutdown: oneshot::Sender<()>,
-    driver: tokio::task::JoinHandle<TestResult<()>>,
+    driver: ConnectionPeer<TestResult<()>>,
 }
 
 impl OpenPage {
@@ -581,26 +598,39 @@ impl OpenPage {
         assert_eq!(request.uri().path(), "/");
         respond.send_response(Response::builder().status(StatusCode::OK).body(())?, true)?;
         let (shutdown, closed) = oneshot::channel::<()>();
-        let driver = tokio::spawn(async move {
-            tokio::select! {
-                () = async { while let Some(Ok(_)) = connection.accept().await {} } => {}
-                _ = closed => {}
-            }
+        let driver = ConnectionPeer::spawn(async move {
+            let primary = tokio::select! {
+                result = async {
+                    while let Some(accepted) = connection.accept().await {
+                        relay_result(accepted.map(|_| ()).map_err(Into::into))?;
+                    }
+                    Ok(())
+                } => result,
+                _ = closed => Ok(()),
+            };
             connection.graceful_shutdown();
-            match std::future::poll_fn(|context| connection.poll_closed(context)).await {
-                Ok(()) => Ok(()),
-                Err(error) if error.get_io().is_some_and(tls_support::is_peer_gone) => Ok(()),
-                Err(error) => Err(error.into()),
-            }
+            let cleanup = relay_result(
+                std::future::poll_fn(|context| connection.poll_closed(context))
+                    .await
+                    .map_err(Into::into),
+            );
+            finish_with_cleanup(primary, cleanup)
         });
         Ok(Self { shutdown, driver })
     }
 
     /// Sends GOAWAY and waits until the client has closed the connection.
-    async fn close(self) -> TestResult<()> {
+    async fn close(mut self) -> TestResult<()> {
         // The driver ends on its own once the client closes the connection.
         let _ = self.shutdown.send(());
-        self.driver.await?
+        self.driver.join().await?
+    }
+
+    async fn finish(self, primary: TestResult<()>) -> TestResult<()> {
+        let cleanup = timeout(Duration::from_secs(5), self.close())
+            .await
+            .unwrap_or_else(|elapsed| Err(elapsed.into()));
+        finish_with_cleanup(primary, cleanup)
     }
 }
 
@@ -611,20 +641,22 @@ impl OpenPage {
 #[tokio::test]
 async fn a_firefox_upgrade_beside_an_incapable_session_resumes_without_early_data() -> TestResult<()>
 {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let hellos = Hellos::default();
-        let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
-            let page = OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?).await?;
+    let identity = TestIdentity::generate()?;
+    let hellos = Hellos::default();
+    let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let mut server = ConnectionPeer::spawn(async move {
+        let page = OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?).await?;
+        let primary = async {
             let socket = accept(&listener, &acceptor, Duration::ZERO).await?;
             assert!(socket.stream.ssl().session_reused());
-            serve_upgrade(socket, "/socket").await?;
-            page.close().await
-        });
-
+            serve_upgrade(socket, "/socket").await
+        }
+        .await;
+        page.finish(primary).await
+    });
+    let primary = bounded(async {
         let client = firefox_client(&identity)?;
         get(&client, None, &format!("https://{address}/")).await?;
         let socket = client
@@ -634,7 +666,7 @@ async fn a_firefox_upgrade_beside_an_incapable_session_resumes_without_early_dat
         drop(socket);
         drop(client);
 
-        server.await??;
+        server.join().await??;
         assert_eq!(
             hellos.take(),
             [
@@ -644,7 +676,8 @@ async fn a_firefox_upgrade_beside_an_incapable_session_resumes_without_early_dat
         );
         Ok(())
     })
-    .await
+    .await;
+    finish_with_cleanup(primary, server.shutdown().await)
 }
 
 /// Two such Upgrades use the `h2` page connection's two tickets, so the
@@ -656,40 +689,43 @@ async fn a_firefox_upgrade_beside_an_incapable_session_resumes_without_early_dat
 #[tokio::test]
 async fn a_negotiated_request_after_a_firefox_upgrade_restarts_on_an_alpn_change() -> TestResult<()>
 {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let hellos = Hellos::default();
-        let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let (page_closed, wait_for_page_close) = oneshot::channel();
-        let server = tokio::spawn(async move {
-            let page = OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?).await?;
+    let identity = TestIdentity::generate()?;
+    let hellos = Hellos::default();
+    let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let (page_closed, wait_for_page_close) = oneshot::channel();
+    let mut server = ConnectionPeer::spawn(async move {
+        let page = OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?).await?;
+        let primary = async {
             for _ in 0..2 {
                 let socket = accept(&listener, &acceptor, Duration::ZERO).await?;
                 assert!(socket.stream.ssl().session_reused());
                 serve_upgrade(socket, "/socket").await?;
             }
-            page.close().await?;
-            page_closed
-                .send(())
-                .map_err(|_| "client stopped before the page's connection closed")?;
+            Ok(())
+        }
+        .await;
+        page.finish(primary).await?;
+        page_closed
+            .send(())
+            .map_err(|_| "client stopped before the page's connection closed")?;
 
-            let rejected = accept(&listener, &acceptor, SERVER_DELAY).await?;
-            assert!(rejected.stream.ssl().session_reused());
-            assert!(!rejected.stream.ssl().early_data_accepted());
-            assert_eq!(
-                rejected.stream.ssl().selected_alpn_protocol(),
-                Some(&b"h2"[..])
-            );
-            drop(rejected);
-            serve_http2(
-                accept(&listener, &acceptor, Duration::ZERO).await?,
-                "/later",
-            )
-            .await
-        });
-
+        let rejected = accept(&listener, &acceptor, SERVER_DELAY).await?;
+        assert!(rejected.stream.ssl().session_reused());
+        assert!(!rejected.stream.ssl().early_data_accepted());
+        assert_eq!(
+            rejected.stream.ssl().selected_alpn_protocol(),
+            Some(&b"h2"[..])
+        );
+        drop(rejected);
+        serve_http2(
+            accept(&listener, &acceptor, Duration::ZERO).await?,
+            "/later",
+        )
+        .await
+    });
+    let primary = bounded(async {
         let client = firefox_client(&identity)?;
         get(&client, None, &format!("https://{address}/")).await?;
         for _ in 0..2 {
@@ -700,13 +736,13 @@ async fn a_negotiated_request_after_a_firefox_upgrade_restarts_on_an_alpn_change
             drop(socket);
         }
         if wait_for_page_close.await.is_err() {
-            server.await??;
+            server.join().await??;
             return Err("server stopped before closing the page's connection".into());
         }
         get(&client, None, &format!("https://{address}/later")).await?;
         drop(client);
 
-        server.await??;
+        server.join().await??;
         assert_eq!(
             hellos.take(),
             [
@@ -719,27 +755,74 @@ async fn a_negotiated_request_after_a_firefox_upgrade_restarts_on_an_alpn_change
         );
         Ok(())
     })
-    .await
+    .await;
+    finish_with_cleanup(primary, server.shutdown().await)
 }
 
-/// Relays every CONNECT it accepts to `origin`, as a plaintext HTTP proxy.
-async fn tunnel_every_connect(listener: TcpListener, origin: std::net::SocketAddr) {
-    while let Ok((mut downstream, _)) = listener.accept().await {
-        tokio::spawn(async move {
-            if tls_support::read_head(&mut downstream).await.is_err() {
-                return;
+/// Owns the CONNECT acceptor and every relay until explicit shutdown.
+struct TunnelProxy {
+    shutdown: watch::Sender<bool>,
+    task: ConnectionPeer<TestResult<()>>,
+}
+
+impl TunnelProxy {
+    fn start(listener: TcpListener, origin: std::net::SocketAddr) -> Self {
+        let (shutdown, mut stopping) = watch::channel(false);
+        let task = ConnectionPeer::spawn(async move {
+            let mut relays = JoinSet::new();
+            let primary: TestResult<()> = async {
+                loop {
+                    tokio::select! {
+                        biased;
+                        joined = relays.join_next(), if !relays.is_empty() => {
+                            joined.ok_or("proxy relay disappeared")???;
+                        }
+                        stopped = stopping.wait_for(|stopped| *stopped) => {
+                            stopped?;
+                            break;
+                        }
+                        accepted = listener.accept() => {
+                            let (mut downstream, _) = accepted?;
+                            relays.spawn(async move {
+                                tls_support::read_head(&mut downstream).await?;
+                                let mut upstream = tokio::net::TcpStream::connect(origin).await?;
+                                downstream.write_all(
+                                    b"HTTP/1.1 200 Connection Established\r\n\r\n",
+                                ).await?;
+                                relay_result(
+                                    tokio::io::copy_bidirectional(&mut downstream, &mut upstream)
+                                        .await.map(|_| ()).map_err(Into::into),
+                                )
+                            });
+                        }
+                    }
+                }
+                Ok(())
             }
-            let Ok(mut upstream) = tokio::net::TcpStream::connect(origin).await else {
-                return;
-            };
-            if downstream
-                .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
-                .await
-                .is_ok()
-            {
-                let _ = tokio::io::copy_bidirectional(&mut downstream, &mut upstream).await;
+            .await;
+            relays.abort_all();
+            let mut result = primary;
+            while let Some(joined) = relays.join_next().await {
+                let cleanup = match joined {
+                    Ok(result) => result,
+                    Err(error) if error.is_cancelled() => Ok(()),
+                    Err(error) => Err(error.into()),
+                };
+                result = finish_with_cleanup(result, cleanup);
             }
+            result
         });
+        Self { shutdown, task }
+    }
+
+    async fn finish(&mut self, primary: TestResult<()>) -> TestResult<()> {
+        self.shutdown.send_replace(true);
+        let cleanup = async {
+            timeout(Duration::from_secs(5), self.task.join()).await???;
+            Ok(())
+        }
+        .await;
+        finish_with_cleanup(primary, cleanup)
     }
 }
 
@@ -748,27 +831,26 @@ async fn tunnel_every_connect(listener: TcpListener, origin: std::net::SocketAdd
 #[tokio::test]
 async fn a_chromium_upgrade_through_a_proxy_resumes_the_ticket_of_a_proxied_request()
 -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let hellos = Hellos::default();
-        let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tokio::spawn(tunnel_every_connect(proxy_listener, address));
-        let (page_closed, wait_for_page_close) = oneshot::channel();
-        let server = tokio::spawn(async move {
-            serve_http2(accept(&listener, &acceptor, Duration::ZERO).await?, "/").await?;
-            page_closed
-                .send(())
-                .map_err(|_| "client stopped before the page's connection closed")?;
+    let identity = TestIdentity::generate()?;
+    let hellos = Hellos::default();
+    let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let proxy_address = proxy_listener.local_addr()?;
+    let mut proxy = TunnelProxy::start(proxy_listener, address);
+    let (page_closed, wait_for_page_close) = oneshot::channel();
+    let mut server = ConnectionPeer::spawn(async move {
+        serve_http2(accept(&listener, &acceptor, Duration::ZERO).await?, "/").await?;
+        page_closed
+            .send(())
+            .map_err(|_| "client stopped before the page's connection closed")?;
 
-            let socket = accept(&listener, &acceptor, Duration::ZERO).await?;
-            assert!(socket.stream.ssl().session_reused());
-            serve_upgrade(socket, "/socket").await
-        });
-
+        let socket = accept(&listener, &acceptor, Duration::ZERO).await?;
+        assert!(socket.stream.ssl().session_reused());
+        serve_upgrade(socket, "/socket").await
+    });
+    let primary = bounded(async {
         let profile = ClientProfile::new(chrome::v154_tcp_tls())
             .with_http1(chrome::v154_http1())
             .with_http2(chrome::v154_http2())
@@ -781,7 +863,7 @@ async fn a_chromium_upgrade_through_a_proxy_resumes_the_ticket_of_a_proxied_requ
             .build()?;
         get(&client, None, &format!("https://{address}/")).await?;
         if wait_for_page_close.await.is_err() {
-            server.await??;
+            server.join().await??;
             return Err("server stopped before closing the page's connection".into());
         }
         let socket = client
@@ -791,8 +873,7 @@ async fn a_chromium_upgrade_through_a_proxy_resumes_the_ticket_of_a_proxied_requ
         drop(socket);
         drop(client);
 
-        server.await??;
-        proxy.abort();
+        server.join().await??;
         assert_eq!(
             hellos.take(),
             [
@@ -802,5 +883,9 @@ async fn a_chromium_upgrade_through_a_proxy_resumes_the_ticket_of_a_proxied_requ
         );
         Ok(())
     })
-    .await
+    .await;
+    let primary = finish_with_cleanup(primary, server.shutdown().await);
+    proxy.finish(primary).await
 }
+
+mod peer_controls;
