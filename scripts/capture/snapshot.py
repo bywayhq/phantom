@@ -57,6 +57,8 @@ from .cookie_crumbs import (
     capture_tool,
     check_field,
     content_type,
+    encoder_insert_count,
+    encoder_stream,
     firefox_cert_override,
     h2_request_lines,
     h3_request_lines,
@@ -944,7 +946,14 @@ def quic_protocol(run: SnapshotRun, owner):
             run.record(
                 "h3",
                 RequestRecord(
-                    self.index, run.now(), kind, event.stream_id, decoded=headers
+                    self.index,
+                    run.now(),
+                    kind,
+                    event.stream_id,
+                    decoded=headers,
+                    qpack_inserts=encoder_insert_count(
+                        encoder_stream(self.record.streams)
+                    ),
                 ),
             )
             status, body, extra = run.response(kind, "quic")

@@ -14,6 +14,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Reconstruct cookie capture QPACK references from each decoded request's
+  insertion history. Migrate: pass the decoder's insertion count as the third
+  argument to `field_section`, and retain it in `RequestRecord.qpack_inserts`
+  when assembling HTTP/3 capture records. Pass the captured stream mapping
+  to `encoder_stream` instead of its connection record.
 - Bound capture inputs, connection records and operation waits. Migrate:
   split experiments exceeding the limits in `scripts/capture/README.md`.
   Use finite positive run timeouts and canonical loopback listener addresses.

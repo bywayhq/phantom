@@ -934,7 +934,7 @@ class QpackParserTests(unittest.TestCase):
         parsed = encoder_instructions(stream)
         inserted = {item.inserted: item for item in parsed if item.inserted is not None}
 
-        section = field_section(block, 4096)
+        section = field_section(block, 4096, len(inserted))
         self.assertEqual(len(section.lines), len(fields))
         referenced = [line for line in section.lines if line.absolute is not None]
         self.assertTrue(referenced, "the last block used no dynamic entry")
@@ -953,13 +953,35 @@ class QpackParserTests(unittest.TestCase):
             self.assertTrue(requests, path)
             for key in requests:
                 prefix = key.removesuffix("_block_hex")
-                section = field_section(bytes.fromhex(values[key]), capacity)
+                connection = int(record(values[prefix])["connection"])
+                run = prefix.rsplit("_request_", 1)[0]
+                encoder_key = f"{run}_connection_{connection}_encoder_stream_hex"
+                encoder_bytes = values[encoder_key]
+                instructions = encoder_instructions(
+                    b"" if encoder_bytes == "none" else bytes.fromhex(encoder_bytes)
+                )
+                inserted = sum(item.inserted is not None for item in instructions)
+                self.assertLess(inserted, capacity // 32)
+                section = field_section(
+                    bytes.fromhex(values[key]),
+                    capacity,
+                    inserted,
+                )
+                self.assertEqual(
+                    section.required_insert_count,
+                    int(values[f"{prefix}_required_insert_count"]),
+                )
+                self.assertEqual(section.base, int(values[f"{prefix}_base"]))
                 count = int(values[f"{prefix}_field_count"])
                 self.assertEqual(len(section.lines), count, key)
                 for index, line in enumerate(section.lines):
                     recorded = record(values[f"{prefix}_field_{index}"])
                     self.assertEqual(recorded["repr"], line.representation)
                     self.assertEqual(recorded["table"], line.table)
+                    self.assertEqual(
+                        recorded["absolute"],
+                        "none" if line.absolute is None else str(line.absolute),
+                    )
 
 
 if __name__ == "__main__":

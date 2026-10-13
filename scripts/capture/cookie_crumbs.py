@@ -24,7 +24,7 @@ import platform
 import secrets
 import sys
 import time
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from importlib import metadata
 from pathlib import Path
@@ -38,7 +38,7 @@ from .browser_launch import (
     render_preferences,
 )
 from .fixture_file import write_text_fixture
-from .http2_analysis import HeaderField, analyze_http2, hpack_integer
+from .http2_analysis import HeaderField, analyze_http2
 from .http2_session import (
     HOSTNAME,
     Certificate,
@@ -49,6 +49,7 @@ from .http2_session import (
     peer_disconnected,
     server_context,
 )
+from .http3_wire import pull_varint
 
 FORMAT = "phantom-cookie-crumbs-v1"
 SUPPORTED = {"h2": "4.4.1", "hpack": "4.2.0", "aioquic": "1.3.0"}
@@ -143,6 +144,7 @@ class RequestRecord:
     header_lines: list[bytes] = field(default_factory=list)
     # HTTP/3 only: the fields as the server's QPACK decoder returned them.
     decoded: list[tuple[bytes, bytes]] = field(default_factory=list)
+    qpack_inserts: int | None = None
 
 
 @dataclass
@@ -971,6 +973,9 @@ async def serving_http3(
                     kind,
                     event.stream_id,
                     decoded=[(bytes(n), bytes(v)) for n, v in event.headers],
+                    qpack_inserts=encoder_insert_count(
+                        encoder_stream(self.record.streams)
+                    ),
                 )
             )
             status, body, extra = run.response(kind)
@@ -1027,6 +1032,37 @@ async def serving_http3(
 # -- Offline QPACK analysis ------------------------------------------------
 
 
+class IncompleteQpack(ValueError):
+    """A complete instruction needs more bytes from its encoder stream."""
+
+
+def qpack_integer(data: bytes, offset: int, prefix: int) -> tuple[int, int]:
+    if not 1 <= prefix <= 8 or offset < 0:
+        raise ValueError("invalid QPACK integer position or prefix")
+    if offset >= len(data):
+        raise IncompleteQpack("truncated QPACK integer")
+    limit = (1 << prefix) - 1
+    value = data[offset] & limit
+    offset += 1
+    if value < limit:
+        return value, offset
+
+    shift = 0
+    while True:
+        if offset >= len(data):
+            raise IncompleteQpack("truncated QPACK integer")
+        byte = data[offset]
+        offset += 1
+        value += (byte & 0x7F) << shift
+        if value >= 1 << 62:
+            raise ValueError("QPACK integer exceeds 62 bits")
+        if not byte & 0x80:
+            return value, offset
+        shift += 7
+        if shift >= 63:
+            raise ValueError("QPACK integer exceeds 62 bits")
+
+
 @dataclass(frozen=True)
 class QpackString:
     huffman: bool
@@ -1043,11 +1079,11 @@ class QpackString:
 def qpack_string(data: bytes, offset: int, prefix: int) -> tuple[QpackString, int]:
     """Read a string whose H flag is the bit above a `prefix`-bit length."""
     if offset >= len(data):
-        raise ValueError("truncated QPACK string")
+        raise IncompleteQpack("truncated QPACK string")
     huffman = bool(data[offset] & (1 << prefix))
-    length, offset = hpack_integer(data, offset, prefix)
+    length, offset = qpack_integer(data, offset, prefix)
     if offset + length > len(data):
-        raise ValueError("truncated QPACK string")
+        raise IncompleteQpack("truncated QPACK string")
     return QpackString(huffman, data[offset : offset + length]), offset + length
 
 
@@ -1068,46 +1104,55 @@ class EncoderInstruction:
 
 def encoder_instructions(data: bytes) -> list[EncoderInstruction]:
     """Parse an encoder stream that starts with its stream type."""
-    if not data:
-        return []
-    if data[0] != QPACK_ENCODER_STREAM:
-        raise ValueError("not a QPACK encoder stream")
-    instructions = []
+    return list(iter_encoder_instructions(data))
+
+
+def encoder_insert_count(data: bytes) -> int:
+    """Count complete insertions, leaving a fragmented last instruction pending."""
     inserted = 0
-    offset = 1
+    try:
+        for instruction in iter_encoder_instructions(data):
+            if instruction.inserted is not None:
+                inserted += 1
+    except IncompleteQpack:
+        pass
+    return inserted
+
+
+def iter_encoder_instructions(data: bytes) -> Iterator[EncoderInstruction]:
+    if not data:
+        return
+    stream_type = pull_varint(data, 0)
+    if stream_type is None:
+        raise IncompleteQpack("truncated QPACK encoder stream type")
+    kind, offset = stream_type
+    if kind != QPACK_ENCODER_STREAM:
+        raise ValueError("not a QPACK encoder stream")
+    inserted = 0
     while offset < len(data):
         first = data[offset]
         if first & 0x80:
             table = "static" if first & 0x40 else "dynamic"
-            index, offset = hpack_integer(data, offset, 6)
+            index, offset = qpack_integer(data, offset, 6)
             value, offset = qpack_string(data, offset, 7)
-            instructions.append(
-                EncoderInstruction(
-                    "insert-name-ref", table, index, inserted, None, value
-                )
+            yield EncoderInstruction(
+                "insert-name-ref", table, index, inserted, None, value
             )
             inserted += 1
         elif first & 0x40:
             name, offset = qpack_string(data, offset, 5)
             value, offset = qpack_string(data, offset, 7)
-            instructions.append(
-                EncoderInstruction(
-                    "insert-literal-name", "none", 0, inserted, name, value
-                )
+            yield EncoderInstruction(
+                "insert-literal-name", "none", 0, inserted, name, value
             )
             inserted += 1
         elif first & 0x20:
-            capacity, offset = hpack_integer(data, offset, 5)
-            instructions.append(
-                EncoderInstruction("set-capacity", "none", capacity, None)
-            )
+            capacity, offset = qpack_integer(data, offset, 5)
+            yield EncoderInstruction("set-capacity", "none", capacity, None)
         else:
-            index, offset = hpack_integer(data, offset, 5)
-            instructions.append(
-                EncoderInstruction("duplicate", "dynamic", index, inserted)
-            )
+            index, offset = qpack_integer(data, offset, 5)
+            yield EncoderInstruction("duplicate", "dynamic", index, inserted)
             inserted += 1
-    return instructions
 
 
 @dataclass(frozen=True)
@@ -1134,30 +1179,44 @@ class FieldSection:
     lines: tuple[FieldLine, ...]
 
 
-def field_section(block: bytes, max_table_capacity: int) -> FieldSection:
+def field_section(
+    block: bytes, max_table_capacity: int, total_inserts: int
+) -> FieldSection:
     """Classify each field line of one encoded field section."""
-    encoded, offset = hpack_integer(block, 0, 8)
+    if max_table_capacity < 0 or total_inserts < 0:
+        raise ValueError("QPACK table capacity and insert count must be nonnegative")
+    encoded, offset = qpack_integer(block, 0, 8)
     max_entries = max_table_capacity // 32
     if encoded == 0:
         required = 0
     else:
-        # Exact while fewer than 2 * MaxEntries entries were ever inserted,
-        # which every run of this tool satisfies (RFC 9204 section 4.5.1.1).
-        if max_entries == 0 or encoded > 2 * max_entries:
-            raise ValueError("unsupported Required Insert Count encoding")
-        required = encoded - 1
+        # RFC 9204 section 4.5.1.1 reconstructs the count from the table
+        # state when the decoder processed this field section.
+        full_range = 2 * max_entries
+        if max_entries == 0 or encoded > full_range:
+            raise ValueError("invalid Required Insert Count encoding")
+        maximum = total_inserts + max_entries
+        required = (maximum // full_range) * full_range + encoded - 1
+        if required > maximum:
+            if required <= full_range:
+                raise ValueError("invalid Required Insert Count encoding")
+            required -= full_range
+        if required == 0 or required > total_inserts:
+            raise ValueError("field section requires unavailable QPACK inserts")
     if offset >= len(block):
         raise ValueError("truncated field section prefix")
     sign = bool(block[offset] & 0x80)
-    delta, offset = hpack_integer(block, offset, 7)
+    delta, offset = qpack_integer(block, offset, 7)
     base = required - delta - 1 if sign else required + delta
+    if base < 0:
+        raise ValueError("negative QPACK Base")
     lines = []
     while offset < len(block):
         first = block[offset]
         name_huffman = None
         if first & 0x80:
             table = "static" if first & 0x40 else "dynamic"
-            index, offset = hpack_integer(block, offset, 6)
+            index, offset = qpack_integer(block, offset, 6)
             absolute = base - 1 - index if table == "dynamic" else None
             lines.append(
                 FieldLine("indexed", table, index, absolute, False, None, None)
@@ -1166,7 +1225,7 @@ def field_section(block: bytes, max_table_capacity: int) -> FieldSection:
         if first & 0x40:
             never = bool(first & 0x20)
             table = "static" if first & 0x10 else "dynamic"
-            index, offset = hpack_integer(block, offset, 4)
+            index, offset = qpack_integer(block, offset, 4)
             absolute = base - 1 - index if table == "dynamic" else None
             representation = "literal-name-ref"
         elif first & 0x20:
@@ -1176,7 +1235,7 @@ def field_section(block: bytes, max_table_capacity: int) -> FieldSection:
             name_huffman = name.huffman
             representation = "literal-name"
         elif first & 0x10:
-            index, offset = hpack_integer(block, offset, 4)
+            index, offset = qpack_integer(block, offset, 4)
             lines.append(
                 FieldLine(
                     "indexed-post-base",
@@ -1191,7 +1250,7 @@ def field_section(block: bytes, max_table_capacity: int) -> FieldSection:
             continue
         else:
             never = bool(first & 0x08)
-            index, offset = hpack_integer(block, offset, 3)
+            index, offset = qpack_integer(block, offset, 3)
             table, absolute = "dynamic", base + index
             representation = "literal-post-base-name-ref"
         value, offset = qpack_string(block, offset, 7)
@@ -1206,6 +1265,9 @@ def field_section(block: bytes, max_table_capacity: int) -> FieldSection:
                 value.huffman,
             )
         )
+    for line in lines:
+        if line.absolute is not None and not 0 <= line.absolute < required:
+            raise ValueError("field section references an unavailable QPACK entry")
     return FieldSection(required, base, tuple(lines))
 
 
@@ -1219,9 +1281,14 @@ def http3_headers_block(stream: bytes) -> bytes:
     return frame[2]
 
 
-def encoder_stream(record: QuicRecord) -> bytes:
-    for stream_id, data in record.streams.items():
-        if stream_id % 4 == 2 and data[:1] == bytes([QPACK_ENCODER_STREAM]):
+def encoder_stream(streams: Mapping[int, bytearray]) -> bytes:
+    for stream_id, data in streams.items():
+        stream_type = pull_varint(data, 0)
+        if (
+            stream_id % 4 == 2
+            and stream_type is not None
+            and stream_type[0] == QPACK_ENCODER_STREAM
+        ):
             return bytes(data)
     return b""
 
@@ -1345,7 +1412,9 @@ def h3_request_lines(
 ) -> list[str]:
     record = run.quic_connections[request.connection]
     block = http3_headers_block(bytes(record.streams.get(request.stream_id, b"")))
-    section = field_section(block, max_table_capacity)
+    if request.qpack_inserts is None:
+        raise ValueError("HTTP/3 request is missing its decoded QPACK insert count")
+    section = field_section(block, max_table_capacity, request.qpack_inserts)
     if len(section.lines) != len(decoded):
         raise ValueError("QPACK field lines and decoded fields differ in count")
     lines = [
@@ -1402,7 +1471,7 @@ def run_lines(
         for index, record in enumerate(run.quic_connections):
             key = f"{prefix}_connection_{index}"
             lines.append(f"{key}=accepted_ms:{milliseconds(record.accepted)}")
-            stream = encoder_stream(record)
+            stream = encoder_stream(record.streams)
             lines.extend(encoder_lines(key, encoder_instructions(stream)))
             lines.append(f"{key}_encoder_stream_hex={stream.hex() or 'none'}")
     else:
