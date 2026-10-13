@@ -36,6 +36,7 @@ uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
 Snapshot capture restores your event-loop error handler when it finishes,
 including failures and cancellation. Unrelated callback errors reach your
 handler while capture is running.
+Use a finite positive `--run-timeout` and a finite nonnegative `--observation`.
 
 `--browser` takes `chrome`, `edge`, `brave`, `opera`, or `firefox`, or an
 [Android browser](#snapshots-on-android);

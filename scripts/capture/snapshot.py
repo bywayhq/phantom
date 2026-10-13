@@ -73,6 +73,7 @@ from .http2_session import (
     TlsChannel,
     generate_certificate,
     server_context,
+    validate_duration,
 )
 from .http3_wire import capture_request_snapshot, first_frame, unidirectional_stream
 from .quic_resumption import QUIC_TRANSPORT_PARAMETERS, parse_client_hello
@@ -233,6 +234,7 @@ class SnapshotRun:
     done: asyncio.Event = field(default_factory=asyncio.Event)
 
     def __post_init__(self) -> None:
+        validate_duration(self.observation_seconds, "observation time")
         self.started = self.clock()
 
     def now(self) -> float:
@@ -581,6 +583,7 @@ async def serving(certificate: Certificate, token: str, observation: float):
 
     from .quic_resumption import install_hooks, load_certificate
 
+    validate_duration(observation, "observation time")
     tcp, udp = reserve_shared_port()
     plain = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     plain.bind((HOST, 0))
@@ -1080,6 +1083,7 @@ def page_url(browser: str, port: int, token: str) -> str:
 
 
 async def capture_run(args: argparse.Namespace, certificate: Certificate) -> str:
+    validate_capture_options(args)
     token = secrets.token_hex(8)
     async with serving(certificate, token, args.observation) as run:
         plan = launch_plan(
@@ -1117,6 +1121,7 @@ async def capture_run(args: argparse.Namespace, certificate: Certificate) -> str
 async def capture(args: argparse.Namespace) -> int:
     from .alt_svc_race import capture_exception_handler
 
+    validate_capture_options(args)
     with capture_exception_handler():
         certificate = generate_certificate()
         args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -1135,6 +1140,17 @@ async def capture(args: argparse.Namespace) -> int:
                 file=sys.stderr,
             )
         return 1 if partial and not args.allow_partial else 0
+
+
+def validate_capture_options(args: argparse.Namespace) -> None:
+    if args.repeat < 1:
+        raise ValueError("--repeat must be positive")
+
+    validate_duration(args.run_timeout, "--run-timeout", positive=True)
+    validate_duration(args.observation, "--observation")
+    validate_duration(
+        args.run_timeout + args.observation, "combined capture wait", positive=True
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -1168,8 +1184,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     for option in ("browser", "browser_path", "client_version", "operating_system"):
         if getattr(args, option) is None:
             parser.error(f"--{option.replace('_', '-')} is required")
-    if args.repeat < 1:
-        parser.error("--repeat must be positive")
+    try:
+        validate_capture_options(args)
+    except ValueError as error:
+        parser.error(str(error))
     for package, version in SUPPORTED.items():
         if metadata.version(package) != version:
             parser.error(f"{package} {version} is required")

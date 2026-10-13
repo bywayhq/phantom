@@ -1,5 +1,7 @@
 import argparse
 import asyncio
+import contextlib
+import io
 import ssl
 import struct
 import unittest
@@ -125,7 +127,11 @@ class CaptureHandlerTests(unittest.IsolatedAsyncioTestCase):
         try:
             with TemporaryDirectory() as directory:
                 args = argparse.Namespace(
-                    output_dir=Path(directory), repeat=1, allow_partial=False
+                    output_dir=Path(directory),
+                    repeat=1,
+                    allow_partial=False,
+                    run_timeout=1.0,
+                    observation=0.0,
                 )
                 with (
                     mock.patch.object(snapshot, "capture_run", recorded_run),
@@ -168,7 +174,11 @@ class CaptureHandlerTests(unittest.IsolatedAsyncioTestCase):
                     output = Path(directory) / "snapshot-1.txt"
                     output.write_bytes(b"previous snapshot\n")
                     args = argparse.Namespace(
-                        output_dir=Path(directory), repeat=1, allow_partial=False
+                        output_dir=Path(directory),
+                        repeat=1,
+                        allow_partial=False,
+                        run_timeout=1.0,
+                        observation=0.0,
                     )
                     with (
                         mock.patch.object(snapshot, "capture_run", side_effect=failure),
@@ -201,7 +211,11 @@ class CaptureHandlerTests(unittest.IsolatedAsyncioTestCase):
         try:
             with TemporaryDirectory() as directory:
                 args = argparse.Namespace(
-                    output_dir=Path(directory), repeat=1, allow_partial=False
+                    output_dir=Path(directory),
+                    repeat=1,
+                    allow_partial=False,
+                    run_timeout=1.0,
+                    observation=0.0,
                 )
                 with (
                     mock.patch.object(snapshot, "capture_run", interrupted_run),
@@ -217,6 +231,97 @@ class CaptureHandlerTests(unittest.IsolatedAsyncioTestCase):
                 self.assertFalse((Path(directory) / "snapshot-1.txt").exists())
         finally:
             loop.set_exception_handler(original)
+
+
+class CaptureInputTests(unittest.IsolatedAsyncioTestCase):
+    def test_invalid_cli_waits_fail_before_capture_and_package_probes(self):
+        base = [
+            "--browser",
+            "chrome",
+            "--browser-path",
+            "unused-browser",
+            "--client-version",
+            "0",
+            "--operating-system",
+            "test",
+            "--output-dir",
+            "unused-output",
+        ]
+        invalid = [
+            ["--run-timeout", value] for value in ("nan", "inf", "-inf", "0", "-1")
+        ]
+        invalid.extend(
+            ["--observation", value] for value in ("nan", "inf", "-inf", "-1")
+        )
+        invalid.append(["--repeat", "0"])
+        invalid.append(["--run-timeout", "1e308", "--observation", "1e308"])
+        with (
+            mock.patch.object(snapshot, "capture") as capture,
+            mock.patch.object(snapshot.metadata, "version") as version,
+        ):
+            for options in invalid:
+                with (
+                    self.subTest(options=options),
+                    contextlib.redirect_stderr(io.StringIO()),
+                ):
+                    with self.assertRaises(SystemExit) as raised:
+                        snapshot.main([*base, *options])
+                    self.assertEqual(raised.exception.code, 2)
+
+            capture.assert_not_called()
+            version.assert_not_called()
+
+    async def test_direct_capture_rejects_invalid_waits_before_acquisition(self):
+        loop = asyncio.get_running_loop()
+        handler = loop.get_exception_handler()
+        invalid = (
+            (0, 1.0, 0.0),
+            (1, float("nan"), 0.0),
+            (1, float("inf"), 0.0),
+            (1, 0.0, 0.0),
+            (1, 1.0, float("nan")),
+            (1, 1.0, float("inf")),
+            (1, 1.0, -1.0),
+            (1, 1e308, 1e308),
+        )
+        with (
+            mock.patch.object(snapshot, "generate_certificate") as certificate,
+            mock.patch.object(snapshot, "serving") as serving,
+        ):
+            for repeat, timeout, observation in invalid:
+                args = argparse.Namespace(
+                    repeat=repeat, run_timeout=timeout, observation=observation
+                )
+                with self.subTest(
+                    repeat=repeat, timeout=timeout, observation=observation
+                ):
+                    with self.assertRaises(ValueError):
+                        await snapshot.capture(args)
+                    with self.assertRaises(ValueError):
+                        await snapshot.capture_run(args, CERTIFICATE)
+                    self.assertIs(loop.get_exception_handler(), handler)
+
+            certificate.assert_not_called()
+            serving.assert_not_called()
+
+    async def test_invalid_observation_never_binds_or_starts_the_run_clock(self):
+        with mock.patch.object(snapshot, "reserve_shared_port") as reserve:
+            for observation in (float("nan"), float("inf"), -1.0):
+                clock = mock.Mock()
+                with self.subTest(observation=observation):
+                    with self.assertRaises(ValueError):
+                        SnapshotRun("input", 1, 2, observation, clock=clock)
+                    clock.assert_not_called()
+                    with self.assertRaises(ValueError):
+                        async with serving(CERTIFICATE, "input", observation):
+                            self.fail("invalid observation acquired capture listeners")
+
+            reserve.assert_not_called()
+
+        clock = mock.Mock(return_value=42.0)
+        run = SnapshotRun("valid", 1, 2, 0.0, clock=clock)
+        self.assertEqual(run.started, 42.0)
+        clock.assert_called_once_with()
 
 
 class ClientHelloTests(unittest.TestCase):

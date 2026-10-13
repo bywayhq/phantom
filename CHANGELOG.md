@@ -2575,6 +2575,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Reject non-finite snapshot waits before opening listeners or launching
+  a browser. Run timeouts must be positive; observation delays may be zero.
+
 - Restore the caller's event-loop error handler after snapshot capture,
   including failed and cancelled runs. Forward unrelated callback errors
   to the caller's handler during capture.

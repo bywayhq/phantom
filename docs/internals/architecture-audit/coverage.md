@@ -122,6 +122,12 @@ must fit HTTP syntax and the fixture format; waits must be finite and positive.
 IPv6 URLs use brackets. Other tools' input defects and callback ownership
 remain open under A290–A293.
 
+At `7fbf2a54`, both hosts pass all 34 snapshot methods and eight shared
+loop-handler methods, Ruff, format and docs. Independent review reads the
+complete logs and confirms both clean revisions. Snapshot restores the
+caller's handler on success, failure and cancellation, and forwards unrelated
+callback errors. Snapshot callback ownership and partial startup remain open.
+
 Independent whole-file reads cover client hints, cookie crumbs, snapshot,
 HTTP/2 preface PING and HTTP lifecycle tools and their existing tests.
 The local TCP owners do not collect all serving callbacks. Three commands
