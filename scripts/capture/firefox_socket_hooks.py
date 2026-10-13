@@ -1191,6 +1191,8 @@ class Hooks:
 
     def snapshot(self) -> tuple[list[dict[str, Any]], list[str]]:
         with self._lock:
+            if self.failure is not None:
+                raise self.failure
             return list(self.reports), list(self.errors)
 
     def detach(self) -> None:
@@ -1355,6 +1357,7 @@ class _FirefoxRun:
         self.log_directory: Path | None = None
         self.environment: dict[str, str] = {}
         self.cleanup: asyncio.Task | None = None
+        self.origin_cleanup: asyncio.Task[None] | None = None
         self.primary: BaseException | None = None
         self.collection_abandoned = False
         self.cleanup_failures: tuple[BaseException, ...] = ()
@@ -1380,6 +1383,8 @@ class _FirefoxRun:
                 listener.close()
             except BaseException as error:
                 self.origins.remember_failure(error)
+        if self.primary is not None or self.known_failures():
+            self.start_origin_cleanup(retry=retry)
         if self.native is not None:
             self.native.stop(self.primary)
             try:
@@ -1393,7 +1398,7 @@ class _FirefoxRun:
                 failures.append(_FirefoxCapturePending(self, "native cleanup failed"))
 
         try:
-            await self.origins.shutdown()
+            await asyncio.shield(self.start_origin_cleanup(retry=retry))
         except BaseException as error:
             failures.append(error)
         if self.origins.peers or self.origins.writers:
@@ -1402,6 +1407,38 @@ class _FirefoxRun:
             )
         failures.extend(self.origins.failures)
         return tuple(error for error in failures if error is not self.primary)
+
+    def start_origin_cleanup(self, *, retry: bool = False) -> asyncio.Task[None]:
+        if self.origin_cleanup is None or (
+            retry
+            and self.origin_cleanup.done()
+            and (self.origins.peers or self.origins.writers)
+        ):
+            self.origin_cleanup = asyncio.create_task(self.origins.shutdown())
+            self.origin_cleanup.add_done_callback(self.observe_origin_cleanup)
+        return self.origin_cleanup
+
+    def observe_origin_cleanup(self, task: asyncio.Task[None]) -> None:
+        try:
+            task.result()
+        except BaseException as error:
+            self.origins.remember_failure(error)
+
+    async def collect_pending_origins(self) -> tuple[BaseException, ...]:
+        # Healthy captures observe browser FIN before origin retirement. Once
+        # collection fails, a blocked native worker must not hold loopback peers.
+        task = self.start_origin_cleanup()
+        try:
+            _, pending = await asyncio.wait((task,), timeout=PEER_CLEANUP_SECONDS)
+        except BaseException as error:
+            self.origins.remember_failure(error)
+            return (
+                _FirefoxCapturePending(self, "origin cleanup collection interrupted"),
+            )
+        if pending:
+            return (_FirefoxCapturePending(self, "origin cleanup timed out"),)
+        self.observe_origin_cleanup(task)
+        return ()
 
     async def finish(
         self, primary: BaseException | None = None
@@ -1430,15 +1467,19 @@ class _FirefoxRun:
             )
         except BaseException as error:
             self.collection_abandoned = True
+            origin_failures = await self.collect_pending_origins()
             return (
                 error,
                 *self.known_failures(),
+                *origin_failures,
                 _FirefoxCapturePending(self, "cleanup collection interrupted"),
             )
         if pending:
             self.collection_abandoned = True
+            origin_failures = await self.collect_pending_origins()
             return (
                 *self.known_failures(),
+                *origin_failures,
                 _FirefoxCapturePending(self, "cleanup collection timed out"),
             )
         try:

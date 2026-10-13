@@ -285,6 +285,104 @@ class OriginOwnershipTests(unittest.IsolatedAsyncioTestCase):
 
 
 class NativeOwnershipTests(unittest.IsolatedAsyncioTestCase):
+    async def go_peer(self, owner):
+        owner.origins.go = ObservedEvent()
+        listener = await asyncio.start_server(owner.origins.accept_page, "127.0.0.1", 0)
+        owner.origins.listeners.append(listener)
+        reader, writer = await asyncio.open_connection(
+            "127.0.0.1", listener.sockets[0].getsockname()[1]
+        )
+        writer.write(b"GET /go HTTP/1.1\r\nHost: x\r\n\r\n")
+        await writer.drain()
+        await asyncio.wait_for(owner.origins.go.entered.wait(), 2)
+        return (
+            reader,
+            writer,
+            next(iter(owner.origins.writers)),
+            next(iter(owner.origins.peers)),
+        )
+
+    async def test_healthy_native_exit_still_precedes_origin_retirement(self) -> None:
+        owner = hooks._FirefoxRun(hooks.SCENARIOS["http1-idle"])
+        reader, writer, accepted, peer = await self.go_peer(owner)
+        observations = []
+
+        class Browser:
+            def __init__(self, *_args):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                observations.append((peer.done(), accepted.is_closing()))
+
+        with patch.object(hooks, "LaunchedBrowser", Browser):
+            native = hooks._FirefoxNative(
+                owner, LaunchPlan("firefox", Path("unused"), True), "unused", {}
+            )
+        owner.native = native
+        native.start()
+        try:
+            await owner.wait(native.started, 2)
+            self.assertEqual(await owner.finish(), ())
+            self.assertEqual(observations, [(False, False)])
+            self.assertTrue(native.future.done())
+            self.assertTrue(peer.done())
+            self.assertTrue(accepted.is_closing())
+            self.assertEqual(await asyncio.wait_for(reader.read(), 2), b"")
+        finally:
+            writer.close()
+            await writer.wait_closed()
+            await owner.finish()
+
+    async def test_native_collection_timeout_retires_peers_before_native_exit(
+        self,
+    ) -> None:
+        owner = hooks._FirefoxRun(hooks.SCENARIOS["http1-idle"])
+        reader, writer, accepted, peer = await self.go_peer(owner)
+        release = threading.Event()
+
+        class Browser:
+            def __init__(self, *_args):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                release.wait()
+
+        with patch.object(hooks, "LaunchedBrowser", Browser):
+            native = hooks._FirefoxNative(
+                owner, LaunchPlan("firefox", Path("unused"), True), "unused", {}
+            )
+        owner.native = native
+        native.start()
+        try:
+            await owner.wait(native.started, 2)
+            with patch.object(hooks, "NATIVE_CLEANUP_SECONDS", 0.02):
+                failures = await owner.finish()
+            pending = next(
+                error
+                for error in failures
+                if isinstance(error, hooks._FirefoxCapturePending)
+            )
+            self.assertIs(pending.owner.native, native)
+            self.assertFalse(native.future.done())
+            self.assertFalse(native.future.cancelled())
+            self.assertTrue(peer.done())
+            self.assertTrue(accepted.is_closing())
+            self.assertFalse(owner.origins.peers)
+            self.assertFalse(owner.origins.writers)
+            self.assertEqual(await asyncio.wait_for(reader.read(), 2), b"")
+        finally:
+            release.set()
+            await asyncio.wait_for(asyncio.shield(owner.cleanup), 2)
+            writer.close()
+            await writer.wait_closed()
+            self.assertEqual(await owner.finish(), ())
+
     async def test_explicit_native_cleanup_retry_retires_owner_without_erasing_original_error(
         self,
     ) -> None:
@@ -369,6 +467,18 @@ class NativeOwnershipTests(unittest.IsolatedAsyncioTestCase):
         await asyncio.wait_for(owner.origins.go.entered.wait(), 2)
         accepted = next(iter(owner.origins.writers))
         peer = next(iter(owner.origins.peers))
+        close_cause = ValueError("independent origin close failure")
+        real_close = accepted.close
+        closed = False
+
+        def close():
+            nonlocal closed
+            real_close()
+            if not closed:
+                closed = True
+                raise close_cause
+
+        accepted.close = close
         with patch.object(hooks, "LaunchedBrowser", Browser):
             native = hooks._FirefoxNative(
                 owner,
@@ -397,6 +507,7 @@ class NativeOwnershipTests(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(native.future.cancelled())
             self.assertFalse(native.future.done())
             self.assertFalse(exited.is_set())
+            self.assertIn(close_cause, failures)
             self.assertTrue(peer.done())
             self.assertTrue(accepted.is_closing())
             self.assertFalse(owner.origins.peers)
@@ -413,6 +524,7 @@ class NativeOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 await writer.wait_closed()
 
         self.assertIn(cause, failures)
+        self.assertIn(close_cause, failures)
         self.assertIs(observations[0]["exception"], cause)
         self.assertIs(observations[0]["primary"], cancellation)
         self.assertIs(observations[0]["owner"], owner)
@@ -422,6 +534,26 @@ class NativeOwnershipTests(unittest.IsolatedAsyncioTestCase):
 
 
 class HookBoundaryTests(unittest.TestCase):
+    def test_final_snapshot_keeps_an_original_failure_latched_after_detach(
+        self,
+    ) -> None:
+        class Session:
+            def detach(self):
+                pass
+
+        owner = hooks.Hooks(1, {})
+        owner._session = Session()
+        owner.detach()
+        message = {"type": "error", "description": "independent late callback"}
+        owner._on_message(message, None)
+        cause = owner.failure
+
+        with self.assertRaises(hooks._FirefoxAgentFailure) as observed:
+            owner.snapshot()
+
+        self.assertIs(observed.exception, cause)
+        self.assertIs(observed.exception.message, message)
+
     def test_parent_log_byte_and_file_bounds_preserve_child_filtering(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -460,7 +592,9 @@ class HookBoundaryTests(unittest.TestCase):
 
         self.assertIsInstance(owner.failure, ValueError)
         self.assertTrue(owner.ready.is_set())
-        self.assertEqual(owner.snapshot(), ([], []))
+        with self.assertRaises(ValueError) as observed:
+            owner.snapshot()
+        self.assertIs(observed.exception, owner.failure)
 
     def test_report_count_and_message_bytes_are_bounded_without_dropping_old_reports(
         self,
