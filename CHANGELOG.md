@@ -14,6 +14,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Bound Firefox socket-hook capture records, frames and log input. Migrate:
+  split runs exceeding the limits in `scripts/capture/README.md`. Use finite
+  positive scenario waits and single-line printable ASCII metadata.
 - Reconstruct cookie capture QPACK references from each decoded request's
   insertion history. Migrate: pass the decoder's insertion count as the third
   argument to `field_section`, and retain it in `RequestRecord.qpack_inserts`
@@ -2485,6 +2488,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Collect Firefox capture peers when native cleanup stalls. Preserve serving,
+  hook, lookup and cleanup causes, and reject failed captures before writing.
 - Collect EventSource, TLS and QUIC capture workers, accepted connections and
   timers before fixture publication. Retain original serving and cleanup
   failures, including cleanup errors beside an expected peer disconnect.

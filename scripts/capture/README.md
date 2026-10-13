@@ -2050,6 +2050,19 @@ run --scenario http1-long http1-idle dns-cache
 The tool refuses to start when `application.ini` beside the executable names
 another version, and fails when the version changed during the capture.
 
+Use single-line printable ASCII metadata and finite positive scenario waits.
+The run keeps at most 128 connections, 512 requests and 100,000 hook reports.
+It limits request heads and WebSocket frames to 64 KiB, hook messages to
+16 KiB after Frida parses them, and parent MOZ_LOG input to 64 MiB across
+64 files.
+
+Cleanup attempts collect local peers within five seconds and the native
+worker within 200 seconds. Blocking native calls can outlive that wait.
+Failed or interrupted runs retire local peers separately and retain unfinished
+cleanup for collection through the reported owner. Healthy runs detach hooks
+and close the browser before retiring origins. Serving, hook, lookup and
+cleanup failures prevent fixture publication.
+
 | Scenario | Measured origin | Question |
 | --- | --- | --- |
 | `http1-idle` | HTTP/1.1; `/fast` at once and 90 s later, then idle | Keepalive on a pooled connection past the short-lived period, and when Firefox closes it |
