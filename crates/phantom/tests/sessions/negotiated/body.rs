@@ -129,7 +129,8 @@ mod tests {
         assert_eq!(body, b"payload");
         assert_eq!(
             append_request_data(&mut body, b"!")
-                .expect_err("eighth byte must fail")
+                .err()
+                .ok_or("eighth byte must fail")?
                 .kind(),
             io::ErrorKind::InvalidData
         );
@@ -146,7 +147,8 @@ mod tests {
         assert_eq!(
             read_framed_trailers(&mut input)
                 .await
-                .expect_err("unterminated input must stop at the literal extent")
+                .err()
+                .ok_or("unterminated input must stop at the literal extent")?
                 .kind(),
             io::ErrorKind::InvalidData
         );
@@ -154,7 +156,8 @@ mod tests {
 
         let error = read_framed_trailers(&mut FailedRead)
             .await
-            .expect_err("local reader fault must propagate");
+            .err()
+            .ok_or("local reader fault must propagate")?;
         assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
         assert!(error.get_ref().is_some_and(|cause| cause.is::<ReadFault>()));
         Ok(())
@@ -194,11 +197,13 @@ mod tests {
                 let error = if trailers {
                     next_h2_request_trailers(&mut connection, &mut body)
                         .await
-                        .expect_err("transport EOF must not manufacture absent trailers")
+                        .err()
+                        .ok_or("transport EOF must not manufacture absent trailers")?
                 } else {
                     next_h2_request_data(&mut connection, &mut body)
                         .await
-                        .expect_err("transport EOF must not manufacture completed request data")
+                        .err()
+                        .ok_or("transport EOF must not manufacture completed request data")?
                 };
                 let stream_error = error
                     .downcast_ref::<::http2::Error>()
@@ -244,7 +249,8 @@ mod tests {
                 .await?;
             let error = collect_response(response.into_body())
                 .await
-                .expect_err("six bytes must exceed the five-byte response fixture extent");
+                .err()
+                .ok_or("six bytes must exceed the five-byte response fixture extent")?;
             assert_eq!(
                 error
                     .downcast_ref::<phantom::RequestError>()

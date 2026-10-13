@@ -4,6 +4,7 @@ use std::{
     future::{Future, poll_fn},
     pin::Pin,
     sync::{Arc, Mutex, MutexGuard, Weak},
+    task::Poll,
 };
 
 use tokio::{
@@ -81,13 +82,10 @@ impl Connections {
                 deadline,
                 poll_fn(|context| {
                     let mut state = lock(&self.state);
-                    Pin::new(
-                        state.tasks[index]
-                            .peer
-                            .as_mut()
-                            .expect("uncollected worker"),
-                    )
-                    .poll(context)
+                    let Some(peer) = state.tasks[index].peer.as_mut() else {
+                        return Poll::Ready(Ok(Err("uncollected worker missing".into())));
+                    };
+                    Pin::new(peer).poll(context)
                 }),
             )
             .await;
@@ -103,7 +101,9 @@ impl Connections {
                     }
                 }
                 Err(elapsed) => {
-                    task.peer.as_ref().expect("uncollected worker").abort();
+                    if let Some(peer) = task.peer.as_ref() {
+                        peer.abort();
+                    }
                     Err(FixtureDeadline::new(
                         "negotiated worker cleanup exceeded its deadline",
                         elapsed,
@@ -116,9 +116,11 @@ impl Connections {
             }
         }
         let failures = std::mem::take(&mut lock(&self.state).failures);
-        failures.into_iter().fold(Ok(()), |result, error| {
-            finish_with_cleanup(result, Err(error))
-        })
+        let mut result = Ok(());
+        for error in failures {
+            result = finish_with_cleanup(result, Err(error));
+        }
+        result
     }
 }
 impl Drop for Connections {

@@ -20,6 +20,15 @@ Formatting and docs pass; Clippy and Rust 1.88 encounter the same compile
 errors. Both readers inspect the complete logs and clean revision bindings.
 These failures remain open for correction; final gates remain open.
 
+At `7f7e6886`, both hosts pass all 24 parallel-session methods. Negotiated
+sessions pass 31 of 33: two new controls expect `InvalidUri`, while the
+existing authority parser returns `InvalidAuthority` for their input.
+Their later cleanup assertions do not run. Formatting, Rust 1.88 and docs
+pass; strict Clippy reports 23 test-code diagnostics. Both readers inspect
+the complete logs and verify both clean revisions. Source-reviewed fixes
+retain the original inputs, cleanup assertions and complete error collection.
+The SSE wall-clock correction and this session correction need native runs.
+
 ## Replay fixture completion
 
 Root reads both complete replay scripts, their concrete task registry and its
@@ -55,6 +64,14 @@ without cleanup covering every early failure. QUIC certificate setup has the
 same partial-acquisition gap. Browser cleanup discards profile-removal errors.
 These A288 findings require an owned, bounded command remedy and independent
 review. No baseline execution or fresh browser capture is claimed.
+
+The reviewed startup remedy uses the existing process container and separate
+file readers. Readiness observes finite snapshots without waiting for pipe
+EOF. Failed reads retain observed process exits, and cleanup retries keep
+the original file owners and final snapshot. Native checks remain open.
+Snapshot thresholds do not impose a disk quota or preempt native calls.
+DevTools connection setup still lacks a deadline. HTTP/3 outputs are
+individually atomic and may be written before parent cleanup completes.
 
 ## Local capture owners
 

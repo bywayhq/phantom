@@ -1105,6 +1105,16 @@ Each listener prints a line starting with `listening on <address>` on
 standard error once it has bound, and the tool launches the browser when it
 reads that line. It gives up after `--server-start` seconds (default 30).
 
+`--timeout` and `--server-start` must be finite and positive. `--repeat`
+must be positive, and `--settle` must be finite and nonnegative. The capture
+wait starts after the page is opened. TCP waits for `--timeout` seconds;
+HTTP/3 allows ten more seconds for its listener to finish.
+
+The tool accepts at most 1 MiB of listener output and 64 KiB of diagnostics.
+These limits apply to file snapshots, rather than temporary disk use between
+polls. Cleanup stops owned processes and removes their temporary files.
+Failures retain the initiating error and independent cleanup errors.
+
 ## QUIC resumption and 0-RTT
 
 `quic_resumption.py` records what a browser sends when it resumes a QUIC

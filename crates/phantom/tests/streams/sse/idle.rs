@@ -221,7 +221,7 @@ async fn stream_polling_reports_idle_timeout_once() -> TestResult<()> {
 }
 
 async fn terminal_idle_timeout(poll_stream: bool) -> TestResult<()> {
-    let deadline = Instant::now() + TEST_TIMEOUT;
+    let deadline = std::time::Instant::now() + TEST_TIMEOUT;
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
@@ -241,29 +241,30 @@ async fn terminal_idle_timeout(poll_stream: bool) -> TestResult<()> {
         await_peer_close(&mut stream).await
     });
 
-    let (_source, ()) = peer_completion::run(&mut server, deadline, TEST_TIMEOUT, async {
-        let response = test_client(&identity, false)?
-            .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
-            .idle_timeout(Duration::from_secs(1))
-            .max_reconnects(0)
-            .connect()
-            .await?;
-        let mut source = response.into_body();
-        let started_at = Instant::now();
-        let error = read(&mut source, poll_stream)
-            .await
-            .err()
-            .ok_or("idle response remained open without a reconnect budget")?;
-        assert_eq!(error.kind(), SseErrorKind::IdleTimeout);
-        assert_eq!(
-            Instant::now().duration_since(started_at),
-            Duration::from_secs(1)
-        );
-        assert!(source.is_closed());
-        assert_eq!(read(&mut source, poll_stream).await?, None);
-        Ok(source)
-    })
-    .await?;
+    let (_source, ()) =
+        peer_completion::run_wall_clock(&mut server, deadline, TEST_TIMEOUT, async {
+            let response = test_client(&identity, false)?
+                .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
+                .idle_timeout(Duration::from_secs(1))
+                .max_reconnects(0)
+                .connect()
+                .await?;
+            let mut source = response.into_body();
+            let started_at = Instant::now();
+            let error = read(&mut source, poll_stream)
+                .await
+                .err()
+                .ok_or("idle response remained open without a reconnect budget")?;
+            assert_eq!(error.kind(), SseErrorKind::IdleTimeout);
+            assert_eq!(
+                Instant::now().duration_since(started_at),
+                Duration::from_secs(1)
+            );
+            assert!(source.is_closed());
+            assert_eq!(read(&mut source, poll_stream).await?, None);
+            Ok(source)
+        })
+        .await?;
     Ok(())
 }
 

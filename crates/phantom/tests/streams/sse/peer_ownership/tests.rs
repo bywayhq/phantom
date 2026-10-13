@@ -287,7 +287,9 @@ async fn interrupted_cleanup_keeps_the_original_invalid_target_before_outer_dead
             // waiting for a head, then reach the caller's invalid URI failure.
             let deadline = tokio::time::Instant::now() + CONTROL_LIMIT;
             tokio::time::pause();
-            tokio::time::advance(CONTROL_LIMIT).await;
+            // Tokio rounds timer deadlines up to a millisecond. Cross that
+            // tick while keeping the original caller's five-second deadline.
+            tokio::time::advance(CONTROL_LIMIT + std::time::Duration::from_millis(1)).await;
             release
                 .send(Some(INVALID_TARGET))
                 .map_err(|_| "fixed-response caller stopped before invalid target")?;

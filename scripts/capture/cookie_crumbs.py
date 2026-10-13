@@ -67,6 +67,8 @@ MAX_STREAM_CAPTURE = 1024 * 1024
 READ_SIZE = 64 * 1024
 QPACK_ENCODER_STREAM = 0x02
 QPACK_STATIC_COOKIE = 5
+QPACK_STATIC_AUTHORIZATION = 84
+QPACK_STATIC_ENTRIES = 99
 HTTP3_HEADERS_FRAME = 0x01
 
 
@@ -661,8 +663,8 @@ def check_field(name: bytes, value: bytes) -> None:
         raise ValueError("refusing to retain a cookie that is not a probe")
 
 
-def check_inserted_cookies(instructions: Sequence[EncoderInstruction]) -> None:
-    """Refuse encoder-stream inserts of cookies that are not probes."""
+def check_inserted_fields(instructions: Sequence[EncoderInstruction]) -> None:
+    """Screen every encoder insert, including entries unused by requests."""
     names: dict[int, bytes | None] = {}
     for item in instructions:
         if item.inserted is None:
@@ -670,11 +672,21 @@ def check_inserted_cookies(instructions: Sequence[EncoderInstruction]) -> None:
         if item.kind == "insert-literal-name" and item.name is not None:
             name = item.name.decoded().lower()
         elif item.kind == "insert-name-ref" and item.table == "static":
-            name = b"cookie" if item.index == QPACK_STATIC_COOKIE else None
+            if not 0 <= item.index < QPACK_STATIC_ENTRIES:
+                raise ValueError("invalid QPACK static name reference")
+            # RFC 9204 Appendix A: these are the only protected static names.
+            # None means a known other name, rather than an unresolved reference.
+            name = {
+                QPACK_STATIC_COOKIE: b"cookie",
+                QPACK_STATIC_AUTHORIZATION: b"authorization",
+            }.get(item.index)
         else:
-            name = names.get(item.inserted - 1 - item.index)
+            reference = item.inserted - 1 - item.index
+            if reference not in names:
+                raise ValueError("unresolved QPACK dynamic name reference")
+            name = names[reference]
         names[item.inserted] = name
-        if name == b"cookie" and item.value is not None:
+        if name is not None and item.value is not None:
             check_field(name, item.value.decoded())
 
 
@@ -778,7 +790,7 @@ def h3_request_lines(
 
 
 def encoder_lines(prefix: str, instructions: Sequence[EncoderInstruction]) -> list[str]:
-    check_inserted_cookies(instructions)
+    check_inserted_fields(instructions)
     lines = [f"{prefix}_encoder_instruction_count={len(instructions)}"]
     for index, item in enumerate(instructions):
         inserted = "none" if item.inserted is None else str(item.inserted)

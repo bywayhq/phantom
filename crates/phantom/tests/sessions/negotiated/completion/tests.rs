@@ -39,7 +39,8 @@ async fn caller_failure_retains_completed_descendant_failure() -> TestResult<()>
     let mut owner = Some(peer);
     let error = finish::<(), _>(primary, &mut owner)
         .await
-        .expect_err("both failures must be retained");
+        .err()
+        .ok_or("both failures must be retained")?;
     let failures = error
         .downcast_ref::<FixtureFailures>()
         .ok_or("missing simultaneous fixture causes")?;
@@ -89,7 +90,8 @@ async fn borrowed_join_deadline_observes_accepted_socket_destruction() -> TestRe
     );
     let error = finish(primary, &mut owner)
         .await
-        .expect_err("caller deadline must remain an error");
+        .err()
+        .ok_or("caller deadline must remain an error")?;
     assert!(
         error
             .source()
@@ -125,7 +127,8 @@ async fn only_requested_pending_cancellation_is_accepted() -> TestResult<()> {
         } else {
             finish(Ok(()), &mut owner).await
         }
-        .expect_err("unrequested cancellation must remain a failure");
+        .err()
+        .ok_or("unrequested cancellation must remain a failure")?;
         let join = error
             .downcast_ref::<tokio::task::JoinError>()
             .ok_or("missing original external cancellation")?;
@@ -146,7 +149,8 @@ async fn only_requested_pending_cancellation_is_accepted() -> TestResult<()> {
     .await?;
     let error = cancel(&mut failed)
         .await
-        .expect_err("a panic must not count as cancellation");
+        .err()
+        .ok_or("a panic must not count as cancellation")?;
     let join = error
         .downcast::<tokio::task::JoinError>()
         .map_err(|_| "missing original panic JoinError")?;
@@ -167,7 +171,8 @@ async fn quiet_accept_preserves_io_error_and_observes_real_acceptance() -> TestR
         ))
     })
     .await
-    .expect_err("accept I/O must remain an error");
+    .err()
+    .ok_or("accept I/O must remain an error")?;
     let io = error
         .downcast_ref::<io::Error>()
         .ok_or("missing original accept cause")?;
@@ -191,9 +196,9 @@ async fn negative_client_outcome_survives_worker_completion_failure() -> TestRes
     let client = crate::support::tls::test_client(&identity, true)?;
     let request = match client.get_negotiated("https://[invalid/") {
         Err(error) => error,
-        Ok(_) => return Err("invalid URI unexpectedly built a request".into()),
+        Ok(_) => return Err("malformed authority unexpectedly built a request".into()),
     };
-    assert_eq!(request.kind(), phantom::RequestErrorKind::InvalidUri);
+    assert_eq!(request.kind(), phantom::RequestErrorKind::InvalidAuthority);
     let peer = Peer::spawn(async {
         TestResult::<()>::Err(
             io::Error::new(io::ErrorKind::PermissionDenied, DescendantFault).into(),
@@ -208,8 +213,9 @@ async fn negative_client_outcome_survives_worker_completion_failure() -> TestRes
     .await?;
     let mut owner = Some(peer);
     let completion = finish(Ok(()), &mut owner).await;
-    let error =
-        finish_negative(completion, Some(request)).expect_err("both original outcomes must remain");
+    let error = finish_negative(completion, Some(request))
+        .err()
+        .ok_or("both original outcomes must remain")?;
     let failures = error
         .downcast_ref::<FixtureFailures>()
         .ok_or("missing client and worker outcomes")?;
@@ -219,7 +225,7 @@ async fn negative_client_outcome_survives_worker_completion_failure() -> TestRes
             .downcast_ref::<phantom::RequestError>()
             .ok_or("missing original client error")?
             .kind(),
-        phantom::RequestErrorKind::InvalidUri
+        phantom::RequestErrorKind::InvalidAuthority
     );
     assert_eq!(
         failures
@@ -238,8 +244,9 @@ async fn interrupted_cleanup_retains_client_failure_and_accepted_worker() -> Tes
     let client = crate::support::tls::test_client(&identity, true)?;
     let request = client
         .get_negotiated("https://[invalid/")
-        .expect_err("invalid URI must retain the client failure");
-    assert_eq!(request.kind(), phantom::RequestErrorKind::InvalidUri);
+        .err()
+        .ok_or("malformed authority must retain the client failure")?;
+    assert_eq!(request.kind(), phantom::RequestErrorKind::InvalidAuthority);
 
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
@@ -278,7 +285,8 @@ async fn interrupted_cleanup_retains_client_failure_and_accepted_worker() -> Tes
         tokio::time::advance(TEST_TIMEOUT).await;
         cleanup
             .await
-            .expect_err("ordinary caller watchdog must interrupt cleanup")
+            .err()
+            .ok_or("ordinary caller watchdog must interrupt cleanup")?
     };
     assert!(
         interrupted
@@ -300,7 +308,8 @@ async fn interrupted_cleanup_retains_client_failure_and_accepted_worker() -> Tes
     );
     let error = finish::<(), _>(Err(interrupted), &mut owner)
         .await
-        .expect_err("original client and deadline outcomes must remain");
+        .err()
+        .ok_or("original client and deadline outcomes must remain")?;
     assert!(owner.is_none(), "only an observed join may clear the owner");
     let causes = error
         .downcast_ref::<FixtureFailures>()
@@ -311,7 +320,7 @@ async fn interrupted_cleanup_retains_client_failure_and_accepted_worker() -> Tes
             .downcast_ref::<phantom::RequestError>()
             .ok_or("missing original client failure")?
             .kind(),
-        phantom::RequestErrorKind::InvalidUri
+        phantom::RequestErrorKind::InvalidAuthority
     );
     assert!(
         causes

@@ -589,14 +589,14 @@ async fn concurrently(client: &Client, uris: &[String]) -> TestResult<Vec<HttpPr
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(selected)
         });
     }
-    Ok(timeout(TEST_TIMEOUT, try_join_all(requests))
+    timeout(TEST_TIMEOUT, try_join_all(requests))
         .await
         .map_err(|elapsed| {
             FixtureDeadline::new(
                 "concurrent negotiated GETs exceeded their deadline",
                 elapsed,
             )
-        })??)
+        })?
 }
 
 fn accepted(events: &[Event]) -> usize {
@@ -873,10 +873,10 @@ async fn concurrent_requests_to_a_known_h2_origin_wait_for_the_handshake_in_flig
             first.graceful_shutdown();
             // The client may drop the connection first; Windows reports that
             // as `ConnectionAborted`.
-            while let Some(accepted) = first.accept().await {
+            if let Some(accepted) = first.accept().await {
                 match accepted {
                     Ok(_) => return Err("known-H2 first connection received an extra request".into()),
-                    Err(error) if h2_disconnect(&error) => break,
+                    Err(error) if h2_disconnect(&error) => {},
                     Err(error) => return Err(error.into()),
                 }
             }
@@ -899,10 +899,10 @@ async fn concurrent_requests_to_a_known_h2_origin_wait_for_the_handshake_in_flig
             }
             let extra_after = tokio::select! {
                 result = async {
-                    while let Some(accepted) = second.accept().await {
+                    if let Some(accepted) = second.accept().await {
                         match accepted {
                             Ok(_) => return Err("known-H2 replacement received an extra request".into()),
-                            Err(error) if h2_disconnect(&error) => break,
+                            Err(error) if h2_disconnect(&error) => {},
                             Err(error) => return Err(Box::new(error) as Box<dyn std::error::Error + Send + Sync>),
                         }
                     }

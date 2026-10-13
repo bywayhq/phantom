@@ -2,6 +2,7 @@ import asyncio
 import ssl
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pylsqpack
 from h2.config import H2Configuration
@@ -14,14 +15,16 @@ from scripts.capture.cookie_crumbs import (
     SCENARIOS,
     CaptureMetadata,
     CookieRun,
+    QuicRecord,
     TcpServer,
     check_field,
-    check_inserted_cookies,
+    check_inserted_fields,
     encoder_instructions,
     field_section,
     fixture,
     is_probe_cookie,
 )
+from scripts.capture.fixture_file import write_text_fixture
 from scripts.capture.http2_session import HOSTNAME, generate_certificate
 
 FIXTURES = Path(__file__).resolve().parents[3] / "fixtures" / "cookies"
@@ -135,8 +138,53 @@ class RetainedFieldTests(unittest.TestCase):
         # Insert with static name reference 5 (`cookie`), a raw 14-byte value.
         stream = b"\x02\xc5\x0esession=secret"
         with self.assertRaisesRegex(ValueError, "not a probe"):
-            check_inserted_cookies(encoder_instructions(stream))
-        check_inserted_cookies(encoder_instructions(b"\x02\xc5\x04pa=1"))
+            check_inserted_fields(encoder_instructions(stream))
+        check_inserted_fields(encoder_instructions(b"\x02\xc5\x04pa=1"))
+
+    def test_unused_credential_inserts_refuse_fixture_publication(self) -> None:
+        # Literal names and RFC 9204's static authorization name, index 84.
+        inserts = (
+            b"\x4dauthorization\x05probe",
+            b"\x53proxy-authorization\x05probe",
+            b"\xff\x15\x05probe",
+        )
+        with TemporaryDirectory() as directory:
+            output = Path(directory) / "capture.txt"
+            output.write_bytes(b"previous fixture\n")
+            for insert in inserts:
+                stream = b"\x02\x3f\xe1\x1f" + insert
+                with self.subTest(insert=insert):
+                    decoder = pylsqpack.Decoder(4096, 16)
+                    self.assertEqual(decoder.feed_encoder(stream[1:]), [])
+                    run = CookieRun("probe", 0.0)
+                    run.quic_connections.append(QuicRecord(0.0, {2: bytearray(stream)}))
+
+                    with self.assertRaisesRegex(ValueError, "credential"):
+                        text = fixture(SCENARIOS["h3"], [run], METADATA, 4096)
+                        write_text_fixture(output, text)
+
+                    self.assertEqual(output.read_bytes(), b"previous fixture\n")
+
+    def test_safe_insert_references_and_duplicates_keep_their_names(self) -> None:
+        # Static cookie, duplicate, then dynamic name with a non-probe value.
+        with self.assertRaisesRegex(ValueError, "not a probe"):
+            check_inserted_fields(
+                encoder_instructions(b"\x02\xc5\x04pa=1\x00\x80\x0esession=secret")
+            )
+
+        # Static user-agent, a duplicate and a dynamic reference remain safe.
+        stream = b"\x02\x3f\xe1\x1f\xff\x20\x05probe\x00\x80\x04next"
+        decoder = pylsqpack.Decoder(4096, 16)
+        self.assertEqual(decoder.feed_encoder(stream[1:]), [])
+        check_inserted_fields(encoder_instructions(stream))
+
+    def test_unresolved_encoder_names_are_refused(self) -> None:
+        for stream in (b"\x02\x80\x01x", b"\x02\x00", b"\x02\xff\x24\x01x"):
+            with (
+                self.subTest(stream=stream),
+                self.assertRaisesRegex(ValueError, "reference"),
+            ):
+                check_inserted_fields(encoder_instructions(stream))
 
 
 class QpackParserTests(unittest.TestCase):

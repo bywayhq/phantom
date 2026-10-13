@@ -145,17 +145,15 @@ impl Work {
         if let Err(error) = self.connections.finish(failed, deadline).await {
             self.failures.push(error);
         }
-        let cleanup = std::mem::take(&mut self.failures)
-            .into_iter()
-            .fold(Ok(()), |result, error| {
-                finish_with_cleanup(result, Err(error))
-            });
-        finish_with_cleanup(
-            self.primary
-                .take()
-                .expect("cleanup retained its primary outcome"),
-            cleanup,
-        )
+        let mut cleanup = Ok(());
+        for error in std::mem::take(&mut self.failures) {
+            cleanup = finish_with_cleanup(cleanup, Err(error));
+        }
+        let primary = match self.primary.take() {
+            Some(primary) => primary,
+            None => Err("cleanup lost its primary outcome".into()),
+        };
+        finish_with_cleanup(primary, cleanup)
     }
 }
 // The two caller types above retain their guards and accumulated failures in

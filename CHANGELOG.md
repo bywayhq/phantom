@@ -2575,6 +2575,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Reject unused HTTP/3 encoder inserts containing credentials before cookie
+  capture writes a fixture.
+
+- Keep startup capture listeners, browser profiles and certificate files
+  owned through partial failure and cleanup. Preserve process exits and
+  output errors together, and bound accepted output and diagnostics.
+
 - Reject incomplete header-protection samples and headers exceeding the native
   buffer before decrypting QUIC packets in offline capture analysis.
 
