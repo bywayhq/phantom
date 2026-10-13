@@ -76,6 +76,13 @@ It records A305–A311 and the profile and QUIC MASQUE no-change dispositions.
 These are fixture source findings, without a production-client defect claim.
 Their new controls, source repairs and integration verification remain open.
 
+The composed fixture selection passes all 177 tests at clean `4111f7bf`,
+with 1,179 other tests skipped. Its complete log, zero exit and equal
+before/after source bindings use `fixture-composed-remedy-4111f7bf`.
+Independent source reviews cover the composed ownership and parser changes.
+Initial compile failures and failing controls remain in their earlier logs.
+The exact-candidate full gate and integration checks remain required.
+
 ### Source preservation
 
 Read-only Git comparison uses original audit revision
