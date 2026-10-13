@@ -324,3 +324,95 @@ class LaunchPeerCompletionTests(unittest.TestCase):
             self.assertFalse(packet.pending)
 
         self.run_case("test_the_server_answers_while_a_firefox_launch_waits", body)
+
+
+class CancelledResponseCompletionTests(unittest.IsolatedAsyncioTestCase):
+    async def cancelled_response(self, cleanup_error):
+        actual_start = asyncio.start_server
+        actual_wait = asyncio.wait
+        ready = asyncio.Event()
+        never_released = asyncio.Event()
+        peers = launch_tests.WaitingLaunchPeers(threading.Event())
+        original_waiters = []
+        accepted_sockets = []
+        selected_timeout = False
+
+        async def start(callback, *args, **kwargs):
+            def accept(reader, writer):
+                accepted_sockets.append(writer.get_extra_info("socket")._sock)
+
+                async def drain():
+                    ready.set()
+                    try:
+                        await never_released.wait()
+                    except asyncio.CancelledError as cancellation:
+                        if cleanup_error is not None:
+                            raise asyncio.CancelledError(
+                                "cancelled after response teardown failed"
+                            ) from cleanup_error
+                        raise asyncio.CancelledError(
+                            "ordinary owned response cancellation"
+                        ) from cancellation
+
+                writer.drain = drain
+                return callback(reader, writer)
+
+            return await actual_start(accept, *args, **kwargs)
+
+        async def select(tasks, *, timeout):
+            nonlocal selected_timeout
+            if not selected_timeout and ready.is_set() and tasks == peers.responses:
+                selected_timeout = True
+                original_waiters.extend(tasks)
+                # Select the actual blocked worker at a completed deadline.
+                return await actual_wait(tasks, timeout=0)
+            return await actual_wait(tasks, timeout=timeout)
+
+        try:
+            with mock.patch.object(asyncio, "start_server", start):
+                await peers.start()
+            listener_sockets = [sock._sock for sock in peers.server.sockets]
+            await asyncio.wait_for(ready.wait(), 2)
+            self.assertEqual(len(peers.responses), 1)
+            response = peers.responses[0]
+            self.assertFalse(response.done())
+            with mock.patch.object(asyncio, "wait", select):
+                await peers.close()
+            self.assertTrue(selected_timeout)
+            self.assertEqual(original_waiters, [response])
+            self.assertTrue(response.cancelled())
+            self.assertTrue(all(task.done() for task in peers.closures))
+            self.assertFalse(peers.pending)
+            self.assertFalse(peers.server.is_serving())
+            self.assertTrue(listener_sockets)
+            self.assertTrue(accepted_sockets)
+            self.assertTrue(
+                all(sock.fileno() == -1 for sock in listener_sockets + accepted_sockets)
+            )
+            self.assertTrue(all(writer.is_closing() for writer in peers.writers))
+            self.assertIsNotNone(peers.worker)
+            self.assertFalse(peers.worker.is_alive())
+            self.assertEqual(peers.reply, [b"ok\n", b"released"])
+            return tuple(peers.failures)
+        finally:
+            # The native retirement assertions above precede backup cleanup.
+            never_released.set()
+            await peers.close()
+
+    async def test_owned_cancellation_keeps_independent_original_socket_error(self):
+        cause = OSError("original response cancellation teardown error")
+        failures = await self.cancelled_response(cause)
+        self.assertTrue(any(error is cause for error in failures))
+        self.assertEqual(sum(error is cause for error in failures), 1)
+        self.assertIsInstance(failures[0], TimeoutError)
+        with self.assertRaises(TimeoutError) as caught:
+            launch_tests.raise_peer_failures(None, failures)
+        packet = caught.exception.__cause__
+        self.assertIsInstance(packet, launch_tests.LaunchPeerFailures)
+        self.assertIs(packet.primary, failures[0])
+        self.assertIs(packet.cleanup[0], cause)
+
+    async def test_plain_owned_cancellation_chain_has_only_the_deadline_failure(self):
+        failures = await self.cancelled_response(None)
+        self.assertEqual(len(failures), 1)
+        self.assertIsInstance(failures[0], TimeoutError)

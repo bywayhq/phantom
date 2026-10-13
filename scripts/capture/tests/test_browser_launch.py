@@ -638,11 +638,28 @@ class WaitingLaunchPeers:
             for task in done:
                 try:
                     task.result()
-                except asyncio.CancelledError:
-                    pass  # Only these explicitly cancelled cleanup workers.
+                except asyncio.CancelledError as error:
+                    self.retain_cancellation_causes(error)
                 except BaseException as error:
                     self.failures.append(error)
             self.pending.extend(pending)
+
+    def retain_cancellation_causes(self, cancellation):
+        # Owned cancellation is expected; an attached teardown failure is not.
+        cancellations = [cancellation]
+        observed = []
+        while cancellations:
+            error = cancellations.pop()
+            if any(error is prior for prior in observed):
+                continue
+            observed.append(error)
+            for cause in (error.__cause__, error.__context__):
+                if isinstance(cause, asyncio.CancelledError):
+                    cancellations.append(cause)
+                elif cause is not None and all(
+                    cause is not prior for prior in self.failures
+                ):
+                    self.failures.append(cause)
 
     def retire_writer(self, writer):
         try:
