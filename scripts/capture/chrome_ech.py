@@ -35,13 +35,16 @@ import json
 import re
 import subprocess
 import sys
-import threading
+import tempfile
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import BinaryIO
 
 from .browser_launch import DESKTOP_CHROMIUM_BROWSERS, LaunchedBrowser, LaunchPlan
 from .fixture_file import write_text_fixture
+from .process_container import ProcessCleanupError, ProcessContainer
 
 HOSTNAME = "server.phantom.test"
 URL = f"https://{HOSTNAME}/"
@@ -72,6 +75,11 @@ OPERA_DNS_CONFIGURATION = (
     " dns_over_https.opera.custom_servers=<doh_template>"
 )
 CAPTURE_TIMEOUT_SECONDS = 180
+MAX_CAPTURE_OUTPUT = 16 * 1024 * 1024
+MAX_CAPTURE_DIAGNOSTICS = 1024 * 1024
+MAX_DIAGNOSTIC_LINE = 16 * 1024
+POLL_SECONDS = 0.02
+POLICY_TIMEOUT_SECONDS = 5
 
 
 def local_state(template: str, browser: str = "chrome") -> str:
@@ -108,6 +116,7 @@ def read_policy(
         capture_output=True,
         text=True,
         check=False,
+        timeout=POLICY_TIMEOUT_SECONDS,
     )
     if result.returncode != 0:
         return {}
@@ -228,65 +237,146 @@ def capture(
     if run.dns_from_policy:
         check_policy(run)
     plan = launch_plan(run)
-    process = subprocess.Popen(
-        capture_arguments(run, plan),
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding="ascii",
-    )
-    try:
-        assert process.stderr is not None
-        ready = None
-        for line in process.stderr:
-            ready = parse_ready_line(line)
-            if ready is not None:
-                break
-            report(line.rstrip())
-        if ready is None:
-            raise RuntimeError("the capture server exited before it was ready")
-        template, _origin, spki = ready
-        if run.doh_port is not None and template != doh_template(
-            run.origin, run.doh_port
+    command = capture_arguments(run, plan)
+    deadline = time.monotonic() + CAPTURE_TIMEOUT_SECONDS
+    with tempfile.TemporaryDirectory(prefix="phantom-ech-output-") as directory:
+        output_path = Path(directory) / "fixture"
+        diagnostics_path = Path(directory) / "diagnostics"
+        # Readers need separate open descriptions: seeking a descriptor shared
+        # with the child would change the child's next write position.
+        with (
+            output_path.open("wb") as output,
+            diagnostics_path.open("wb") as diagnostics,
+            output_path.open("rb") as output_reader,
+            diagnostics_path.open("rb") as diagnostics_reader,
         ):
-            raise RuntimeError(f"the capture server listens on {template}")
-        if run.quic != (spki is not None):
-            raise RuntimeError("the capture server's QUIC mode does not match the run")
-        if spki is not None:
-            plan = launch_plan(run, spki)
-        threading.Thread(
-            target=lambda: [report(line.rstrip()) for line in process.stderr or ()],
-            daemon=True,
-        ).start()
-        chunks: list[str] = []
-        reader = threading.Thread(
-            target=lambda: chunks.append(
-                process.stdout.read() if process.stdout else ""
-            ),
-            daemon=True,
-        )
-        reader.start()
-        configured = (
-            plan
-            if run.dns_from_policy
-            else replace(
-                plan,
-                profile_files=((LOCAL_STATE, local_state(template, run.browser)),),
-            )
-        )
-        with LaunchedBrowser(configured, URL):
-            process.wait(timeout=CAPTURE_TIMEOUT_SECONDS)
-        reader.join(timeout=10)
-        if process.returncode != 0:
-            raise RuntimeError(
-                f"capture server failed with exit code {process.returncode}"
-            )
-        return "".join(chunks)
-    finally:
-        if process.poll() is None:
-            process.kill()
-            process.wait(timeout=10)
+            process = ProcessContainer(command, stdout=output, stderr=diagnostics)
+            observer = _CaptureOutput(output_reader, diagnostics_reader, report)
+            try:
+                if not process.start():
+                    raise RuntimeError("the capture server stopped before launch")
+                while observer.ready is None:
+                    code = process.poll()
+                    observer.poll(final=code is not None)
+                    if observer.ready is not None:
+                        break
+                    if code is not None:
+                        raise RuntimeError(
+                            "the capture server exited before it was ready"
+                        )
+                    _wait_for_capture(deadline, command)
+
+                template, _origin, spki = observer.ready
+                if run.doh_port is not None and template != doh_template(
+                    run.origin, run.doh_port
+                ):
+                    raise RuntimeError(f"the capture server listens on {template}")
+                if run.quic != (spki is not None):
+                    raise RuntimeError(
+                        "the capture server's QUIC mode does not match the run"
+                    )
+                if spki is not None:
+                    plan = launch_plan(run, spki)
+                configured = (
+                    plan
+                    if run.dns_from_policy
+                    else replace(
+                        plan,
+                        profile_files=(
+                            (LOCAL_STATE, local_state(template, run.browser)),
+                        ),
+                    )
+                )
+                _check_capture_deadline(deadline, command)
+                with LaunchedBrowser(configured, URL):
+                    while True:
+                        _check_capture_deadline(deadline, command)
+                        code = process.poll()
+                        observer.poll()
+                        if code is not None:
+                            break
+                        _wait_for_capture(deadline, command)
+                if code != 0:
+                    raise RuntimeError(f"capture server failed with exit code {code}")
+            except BaseException as primary:
+                try:
+                    process.close()
+                except BaseException as cleanup:
+                    raise primary from ProcessCleanupError(
+                        (("close ECH capture server", cleanup),),
+                        container=process,
+                        primary=primary,
+                    )
+                raise
+            else:
+                # Stop descendants before the final read. Inherited output
+                # handles cannot keep a reader waiting for pipe EOF.
+                process.close()
+                observer.poll(final=True)
+                fixture = output_reader.read(MAX_CAPTURE_OUTPUT + 1)
+                if len(fixture) > MAX_CAPTURE_OUTPUT:
+                    raise ValueError("ECH fixture exceeds the capture output limit")
+                return fixture.decode("ascii")
+
+
+def _check_capture_deadline(deadline: float, command: Sequence[str]) -> None:
+    if time.monotonic() >= deadline:
+        raise subprocess.TimeoutExpired(command, CAPTURE_TIMEOUT_SECONDS)
+
+
+def _wait_for_capture(deadline: float, command: Sequence[str]) -> None:
+    _check_capture_deadline(deadline, command)
+    time.sleep(min(POLL_SECONDS, max(0.0, deadline - time.monotonic())))
+
+
+class _CaptureOutput:
+    """Read finite output snapshots without background reader tasks."""
+
+    def __init__(
+        self,
+        output: BinaryIO,
+        diagnostics: BinaryIO,
+        report: Callable[[str], None],
+    ) -> None:
+        self.output = output
+        self.diagnostics = diagnostics
+        self.report = report
+        self.ready: tuple[str, str, str | None] | None = None
+        self.pending = bytearray()
+        self.diagnostic_bytes = 0
+
+    def poll(self, *, final: bool = False) -> None:
+        self.output.seek(0, 2)
+        if self.output.tell() > MAX_CAPTURE_OUTPUT:
+            raise ValueError("ECH fixture exceeds the capture output limit")
+        self.output.seek(0)
+        while True:
+            chunk = self.diagnostics.read(4096)
+            if not chunk:
+                break
+            self.diagnostic_bytes += len(chunk)
+            if self.diagnostic_bytes > MAX_CAPTURE_DIAGNOSTICS:
+                raise ValueError("ECH diagnostics exceed the capture output limit")
+            self.pending.extend(chunk)
+            while b"\n" in self.pending:
+                line, _, remainder = self.pending.partition(b"\n")
+                self.pending = bytearray(remainder)
+                self._line(line)
+            if len(self.pending) > MAX_DIAGNOSTIC_LINE:
+                raise ValueError("ECH diagnostic line exceeds the capture limit")
+        if final and self.pending:
+            self._line(bytes(self.pending))
+            self.pending.clear()
+
+    def _line(self, line: bytes) -> None:
+        if len(line) > MAX_DIAGNOSTIC_LINE:
+            raise ValueError("ECH diagnostic line exceeds the capture limit")
+        text = line.decode("ascii").rstrip()
+        ready = parse_ready_line(text) if self.ready is None else None
+        if ready is not None:
+            self.ready = ready
+        else:
+            self.report(text)
 
 
 def port_number(text: str) -> int:

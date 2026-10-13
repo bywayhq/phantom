@@ -34,7 +34,7 @@ AGENTS.md	documentation	source-complete	crate-boundary-standards-review.json#/so
 CHANGELOG.md	documentation	source-partial	a57-shared-composition-independent-review.json#CHANGELOG.md; a57-shared-composition-followup-review.json#CHANGELOG.md; a53-composed-independent-review.json#CHANGELOG.md; a53-composed-followup-independent-review.json#CHANGELOG.md; canonical-api-signed-rebind.json#/rebind_records/0
 CLAUDE.md	documentation	source-complete	client-examples-standards-review.json#/sources/17
 CONTRIBUTING.md	documentation	source-partial	new-tooling-source-pass-04-coverage.json#CONTRIBUTING.md; a57-shared-composition-independent-review.json#CONTRIBUTING.md; a57-shared-composition-followup-review.json#CONTRIBUTING.md; a53-composed-independent-review.json#CONTRIBUTING.md; a53-composed-followup-independent-review.json#CONTRIBUTING.md
-Cargo.lock	configuration	source-partial	tooling-coverage.json: Selected dependency pins and sources traced in prior transport and tooling reads; generated lockfile not reviewed end to end.; new-tooling-source-pass-01-coverage.json#Cargo.lock
+Cargo.lock	configuration	source-complete	coverage.md#dependency-configuration-review: independent whole-file package/source/checksum/dependency review at cdf55ba3; root reviews complete diff and manifest identities; configuration evidence only, not artifact authentication
 Cargo.toml	configuration	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.; new-tooling-source-pass-01-coverage.json#Cargo.toml; crate-boundary-standards-review.json#/source_reads/2
 LICENSE-APACHE	configuration	source-complete	consumer-configuration-coverage.json#LICENSE-APACHE
 LICENSE-MIT	configuration	source-complete	consumer-configuration-coverage.json#LICENSE-MIT
@@ -738,7 +738,7 @@ docs/guides/sse.md	documentation	source-complete	docs-contract-coverage.json#doc
 docs/guides/troubleshooting.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/troubleshooting.md
 docs/guides/websocket-fields.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/websocket-fields.md
 docs/guides/websocket.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/websocket.md; client-examples-standards-review.json#/sources/29
-docs/internals/architecture-audit.md	documentation	pending	introduced source; review pending
+docs/internals/architecture-audit.md	documentation	source-complete	coverage.md#dependency-configuration-review: root and independent whole-document review at cdf55ba3; dated starting point is historical, completion remains open
 docs/internals/architecture-audit/a43-production-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/10
 docs/internals/architecture-audit/a43-production-independent-review.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/11
 docs/internals/architecture-audit/a46-cookie-production-independent-review.json	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/12
@@ -1670,7 +1670,7 @@ fixtures/websocket/opera/136.0.6008.52/windows-11-26200/no-connect-protocol.txt	
 fixtures/websocket/opera/136.0.6008.52/windows-11-26200/refused-stream.txt	fixture	pending	
 fixtures/websocket/opera/136.0.6008.52/windows-11-26200/reject-403.txt	fixture	pending	
 fuzz/.gitignore	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
-fuzz/Cargo.lock	fuzz	partial	testkit-fuzz-coverage.json: machine-parsed TOML dependency graph and checked relevant root/native/parser pins; not line-by-line manual review; baseline source inspection, not runtime proof
+fuzz/Cargo.lock	fuzz	source-complete	coverage.md#dependency-configuration-review: independent whole-file graph/source/checksum review at cdf55ba3; root reviews complete version delta and actual manifests; distinct fuzz graph, no blanket MSRV or downloaded-artifact claim
 fuzz/Cargo.toml	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof; canonical-api-signed-rebind.json#/rebind_records/76
 fuzz/README.md	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof | docs-contract-coverage.json#fuzz/README.md
 fuzz/fuzz_targets/alt_svc_snapshot.rs	fuzz	source-complete	testkit-fuzz-coverage.json: full manual source/configuration/documentation review; baseline source inspection, not runtime proof
@@ -1715,7 +1715,7 @@ scripts/capture/android_device.py	tool	source-complete	android-lifecycle-baselin
 scripts/capture/android_run.py	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json; android-worker-ui-cli-root-checkpoint-a68e171c.json#/source_bindings
 scripts/capture/browser_launch.py	tool	source-complete	confirmed-lifecycle-batch-5973305d.json: prior whole-owner review plus complete current deferred callback diff; nine controls and composed capture execution, remaining limitations retained; android-lifecycle-baseline-root-checkpoint-b8e1d671.json; android-synchronous-followup-root-checkpoint-802517fa.json
 scripts/capture/browser_remote.py	tool	source-complete	capture-owner-evidence-reconciliation-7fd07b02.json: full manual source ranges rebound to current bytes; eight findings remain open; no runtime or final-gate credit
-scripts/capture/chrome_ech.py	tool	pending	
+scripts/capture/chrome_ech.py	tool	source-complete	coverage.md#ech-command-process-repair: root whole-file source and actual process/container boundary review; A287 repair, independent review and native checks pending
 scripts/capture/chrome_http3.py	tool	pending	
 scripts/capture/chrome_netlog.py	tool	source-complete	netlog-middle-record-root-source-baseline-36c99fed.json: whole bounded owner/configuration read; NetLog malformed-record remedy remains open
 scripts/capture/client_hints.py	tool	pending	
@@ -1754,7 +1754,7 @@ scripts/capture/tests/test_alt_svc_race.py	tool	source-partial	udp-listener-acco
 scripts/capture/tests/test_android_device.py	tool	source-complete	android-lifecycle-baseline-root-checkpoint-b8e1d671.json
 scripts/capture/tests/test_browser_launch.py	tool	pending	
 scripts/capture/tests/test_browser_remote.py	tool	source-complete	browser-remote-warning-independent-attribution-0418ee46.json: full437 owner and both complete isolated logs; accepted resource attribution, exact interleaving unmeasured; remedy in progress.; remote-capture-peer-remedy-independent-source-review-cf1bfd76.json; remote-peer-fixed-native-independent-addendum-d27da0c1.json
-scripts/capture/tests/test_chrome_ech.py	tool	pending	
+scripts/capture/tests/test_chrome_ech.py	tool	source-complete	coverage.md#ech-command-process-repair: root whole-file review of original preference, policy, arguments and ready-line controls; process failure controls live in test_chrome_ech_process.py
 scripts/capture/tests/test_chrome_http3.py	tool	pending	
 scripts/capture/tests/test_chrome_http3_startup.py	tool	pending	discovery only; manual review pending
 scripts/capture/tests/test_client_hints.py	tool	pending	
@@ -1801,7 +1801,7 @@ scripts/conformance/autobahn/smoke.json	tool	source-complete	new-tooling-source-
 scripts/conformance/docker_owner.py	tooling	source-complete	a57-production-independent-review.json#scripts/conformance/docker_owner.py; a57-shared-composition-independent-review.json#scripts/conformance/docker_owner.py; a57-shared-composition-followup-review.json#scripts/conformance/docker_owner.py; a53-composed-independent-review.json#scripts/conformance/docker_owner.py; a53-composed-followup-independent-review.json#scripts/conformance/docker_owner.py
 scripts/conformance/loopback_tls.py	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/loopback_tls.py; a52-production-independent-review.json#scripts/conformance/loopback_tls.py; new-tooling-source-pass-01-coverage.json#scripts/conformance/loopback_tls.py; a54-production-independent-review.json#scripts/conformance/loopback_tls.py
 scripts/conformance/quic-interop/Dockerfile	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/quic-interop/Dockerfile; new-tooling-source-pass-01-coverage.json#scripts/conformance/quic-interop/Dockerfile; a50-private-staging-independent-review.json#scripts/conformance/quic-interop/Dockerfile
-scripts/conformance/quic-interop/requirements.txt	tool	source-partial	new-tooling-source-pass-01-coverage.json#scripts/conformance/quic-interop/requirements.txt
+scripts/conformance/quic-interop/requirements.txt	tool	source-complete	coverage.md#dependency-configuration-review: complete independent pin/hash-list review at cdf55ba3; root checks hashed workflow installation and exact runner revision; downloaded hashes and untouched runner implementations not authenticated
 scripts/conformance/quic-interop/run_endpoint.sh	tool	source-complete	new-tooling-source-pass-04-coverage.json#scripts/conformance/quic-interop/run_endpoint.sh; new-tooling-source-pass-01-coverage.json#scripts/conformance/quic-interop/run_endpoint.sh; a50-private-staging-independent-review.json#scripts/conformance/quic-interop/run_endpoint.sh; client-examples-standards-review.json#/sources/39
 scripts/conformance/quic_interop.py	tool	source-complete	a47-production-independent-review.json#scripts/conformance/quic_interop.py; new-tooling-source-pass-04-coverage.json#scripts/conformance/quic_interop.py; new-tooling-source-pass-01-coverage.json#scripts/conformance/quic_interop.py; a53-composed-independent-review.json#scripts/conformance/quic_interop.py; a53-composed-followup-independent-review.json#scripts/conformance/quic_interop.py
 scripts/conformance/tests/__init__.py	tool	source-complete	new-tooling-source-pass-01-coverage.json#scripts/conformance/tests/__init__.py
@@ -1844,7 +1844,7 @@ scripts/docs/tests/__init__.py	tool	source-complete	new-tooling-source-pass-01-c
 scripts/docs/tests/test_check_docs.py	tool	source-complete	new-tooling-source-pass-01-coverage.json#scripts/docs/tests/test_check_docs.py
 scripts/release/publish-crates.sh	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
 scripts/requirements.in	tool	source-complete	tooling-coverage.json: Whole file read and reviewed. Coverage means source review, not execution or platform proof.
-scripts/requirements.txt	tool	source-partial	tooling-coverage.json: Header and first requirement hashes read; complete resolver graph and individual hashes not reviewed.
+scripts/requirements.txt	tool	source-complete	coverage.md#dependency-configuration-review: complete independent pins/markers/hash-list review at cdf55ba3; root checks direct requirement pins and tool checker contract; local direct-pin environment differs from hashed CI
 tests/downstream/public-api/.gitattributes	configuration	source-complete	consumer-configuration-coverage.json#tests/downstream/public-api/.gitattributes
 tests/downstream/public-api/.gitignore	configuration	source-complete	consumer-configuration-coverage.json#tests/downstream/public-api/.gitignore
 tests/downstream/public-api/Cargo.toml	configuration	source-complete	consumer-configuration-coverage.json#tests/downstream/public-api/Cargo.toml
@@ -4544,3 +4544,4 @@ vendor/wreq-proto/patches/h2-io-error-causes.patch	vendor-boundary	source-comple
 scripts/capture/tests/test_socket_hook_origin_ownership.py	tool	source-complete	coverage.md: whole root and independent control review; applicable a3782686 Windows/Linux controls pass; live browser and final gates pending
 scripts/capture/tests/test_socket_hook_browser_ownership.py	tool	source-complete	coverage.md: whole root and independent control review; applicable a3782686 Windows/Linux controls pass; live browser and final gates pending
 scripts/capture/http2_analysis.py	tool	source-complete	coverage.md#capture-and-dns-completion-batch: exact offline extraction reviewed with actual consumers; affected checks pass on both hosts
+scripts/capture/tests/test_chrome_ech_process.py	tool	source-complete	coverage.md#ech-command-process-repair: root whole-control review; real contained servers and mocked browser boundary; independent review and native checks pending

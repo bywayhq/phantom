@@ -1632,6 +1632,13 @@ DNS-over-HTTPS server that answers the origin's `A` query and its `HTTPS`
 query with one record whose `ech` names `public.phantom.test`. Every other
 name gets NXDOMAIN.
 
+The capture has a 180-second deadline from server launch, including readiness.
+It rejects fixtures over 16 MiB, diagnostics over 1 MiB and lines over 16 KiB.
+Process-tree cleanup runs on success and failure. Reporting and decoding
+failures reach the caller. Output files can exceed the limit between polls;
+the limits bound accepted recordings, rather than temporary disk use.
+Blocking callbacks and native operations remain outside deadline preemption.
+
 The browser learns the DNS-over-HTTPS server from the
 `dns_over_https.mode` and `dns_over_https.templates` preferences, which the
 tool writes into the disposable profile's `Local State` file. Nothing outside

@@ -14,6 +14,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Bound ECH capture startup and retain process, reporting and decoding failures.
+  The 180-second capture deadline includes server readiness. Policy queries
+  have a five-second timeout. Migrate: keep fixtures within 16 MiB,
+  diagnostics within 1 MiB and diagnostic lines within 16 KiB.
+
 - Bound Firefox IP-literal captures and retain worker and cleanup failures.
   Use finite positive capture timeouts; the version probe has a five-second
   deadline. Capture limits are listed in the

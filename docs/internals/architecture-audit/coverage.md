@@ -3,6 +3,42 @@
 Use this matrix to see which paths have been examined and what remains.
 Pending means that discovery or assignment has not established review.
 
+## Dependency configuration review
+
+At `cdf55ba3`, an independent whole-file review covers both Cargo locks,
+the complete Python requirement pins and hash lists, and the audit plan.
+Supporting reads cover workspace and fuzz manifests, crate features,
+vendored package identities, CI workflows and tool-pin checks. Root reads
+the complete lockfile diffs and checks their changed identities against the
+actual manifests, Python direct pins, runner installation and dated plan.
+
+The lock diffs change only eleven workspace and nine fuzz local-fork versions.
+Registry versions, checksums and dependency edges remain unchanged. Both locks
+keep the same explicit `btls-sys` Git revision. No configuration defect is
+found within this scope. The plan's starting revision and worktree count are
+historical statements under its dated starting-point section.
+
+These reads do not authenticate downloaded artifacts or audit untouched
+dependency implementations. Fuzz does not inherit a blanket Rust 1.88 claim.
+Local Python checks pin direct dependencies with `uv --with`; they do not
+reproduce the complete hashed CI environment. Final gates remain open.
+
+## ECH command process repair
+
+The previous command blocks on a readiness pipe before applying its timeout.
+Daemon readers can hide reporting or ASCII decoding failures, and output is
+unbounded. The repair uses the existing process-tree container with separate
+recording readers, an absolute deadline and finite accepted output limits.
+It stops descendants before the final recording read and keeps initiating
+and cleanup causes. Policy queries also receive a finite timeout.
+
+Root reads the whole command, original tests, actual container methods and
+relevant browser boundaries. New controls use real contained Python servers
+with mocked browser launch. Independent review and native checks remain open.
+The file thresholds can be exceeded between polls; they bound accepted output,
+rather than temporary disk consumption. Blocking callbacks and native calls
+cannot be preempted by the cooperative deadline. No browser capture is claimed.
+
 ## Native QUIC input and DNS deadline checks
 
 The resolved aioquic 1.3.0 header-protection implementation reads a
