@@ -1532,8 +1532,9 @@ carry this literal value, where the headless desktop Edge templates leave
 `User-Agent` to the caller.
 
 `v153_android_tcp_tls` and `v153_android_quic_tls` are desktop Edge's recipes with
-`EchSettings::Grease`. `v153_http2`, `v153_quic`, `v153_http3`, and
-`v153_http3_request` return the Chromium recipes.
+`EchSettings::Grease`. `v153_android_http2`, `v153_android_quic`,
+`v153_android_http3`, and `v153_android_http3_request` return the Chromium
+recipes.
 `v153_android_client_hints()` sends the captured model, and
 `v153_android_client_hints_for_model` sends another. The templates change only
 `User-Agent` in the Chromium templates. Their H3 lists are the Chromium ones,
@@ -2932,7 +2933,7 @@ is a real reduction, not a restatement.
 | --- | --- | --- |
 | Third-party HTTP/2 observations | The Chrome 152 Pingly and Firefox 154 Peet and Pingly fixtures, with `assert_akamai_summary`, compared a recipe's SETTINGS, window increment, and pseudo-header order against an independent observer's summary of the same browser | No current recipe has a second opinion from outside this repository |
 | Raw Firefox HTTP/2 startup bytes | The Firefox 154 `client-startup.txt` replay compared startup frames byte for byte | `firefox::v157_http2`'s SETTINGS and connection window rest on the HTTP/2 session captures of the WebSocket fixture set. No Firefox 157 equivalent exists: the raw startup tool needs WebDriver certificate trust, and geckodriver is not installed on the capture host |
-| Cross-platform transport parity | The Chrome 152 and Firefox 154 macOS and Windows capture pairs showed that those transport layers did not depend on the host platform | No current recipe has a second platform, so platform independence is not claimed for any of them |
+| Cross-platform transport parity | The Chrome 152 and Firefox 154 macOS and Windows capture pairs compared those transport layers across platforms | Current comparisons cover only the named macOS runs and Android layers. They do not establish platform independence for a whole recipe |
 | Chrome for Testing field-trial comparison | The retained `client-hello-field-trial-config.txt` kept the testing configuration's differences visible; it went with the Chrome 152 fixtures | No Chrome for Testing build of 154.0.8037.58 is published, so build flavor is not isolated at the current version |
 
 ## Feature evidence
@@ -3887,9 +3888,11 @@ Limits:
   (`HttpNetworkTransaction::HandleIOError`,
   `net/http/http_network_transaction.cc:2073-2074`, `:2222-2233`, with
   `kMaxRetryAttempts` of 2 at `:108`). The capture shows the first retry,
-  sent at once on a new connection; a second needs the new connection's
-  PING to fail too, which a fresh connection cannot reach, so the limit of
-  two rests on source, and no test drives a second failure. Chrome counts
+  sent at once on a new connection. The browser's limit of two rests on
+  source. Phantom's
+  `a_request_is_sent_again_at_most_twice_after_ping_failures` test drives
+  three failed attempts, checks the original `PingTimeout` cause and rejects
+  a fourth connection. Chrome counts
   these retries in one `retry_attempts_` with its retries after a refused
   stream and on QUIC (`:2231`, `:2251`, `:2263`); Phantom counts them apart
   from its retry policy's replays. Phantom returns the error for a
@@ -6789,14 +6792,6 @@ allocator owns. Interception is enough for leak detection, which stays on: the
 allocator is replaced process-wide, so a `CallbackState` owner that the
 ex-data destructor fails to free is reported whichever side allocated it. The
 workflow is advisory, not a required check.
-
-The job skips
-`http3::tests::adversarial::ninth_informational_response_fails_the_request`.
-That test bounds an informational flood with a five-second deadline, and
-instrumentation slows the flood enough that the deadline expires before the
-bound is reached, so it reports a timeout rather than a memory defect. It
-asserts a deadline rather than an allocation, and the uninstrumented
-workspace run covers it.
 
 Four callback-failure paths carry most of that FFI risk. A null `SSL_CIPHER`
 and a secret length that disagrees with the cipher are both rejected before

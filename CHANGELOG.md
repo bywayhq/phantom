@@ -2,8 +2,7 @@
 
 Phantom has no releases or tags yet, so this file groups changes by commit
 range instead of by version. Downstream projects pin an exact commit with
-`rev`, and each breaking entry names the commit that introduced it and a
-`Migrate:` note for moving past it.
+`rev`. Breaking entries include a `Migrate:` note for moving past them.
 
 To move `rev`, follow [Adding Phantom to a project](docs/guides/downstream.md).
 The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
@@ -2528,6 +2527,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Close accepted cookie capture sockets when protocol construction fails or
   the connection limit is exceeded. Retain the original failure and wait for
   every accepted peer to retire before returning.
+- Correct the Edge for Android recipe names and the validation notes for
+  cross-platform captures, PING retries and sanitizer test selection.
+
 - Document the pinned Frida dependency for both socket-hook capture tools.
 - Reject malformed retained WebSocket capture fields and record counts
   without panicking or trusting declared allocation sizes.
