@@ -329,9 +329,9 @@ mod tests {
         Ok(())
     }
 
-    fn caller_cause(
-        error: &(dyn Error + Send + Sync + 'static),
-    ) -> TestResult<&(dyn Error + Send + Sync + 'static)> {
+    fn caller_cause<'a>(
+        error: &'a (dyn Error + Send + Sync + 'static),
+    ) -> TestResult<&'a (dyn Error + Send + Sync + 'static)> {
         if let Some(causes) = error.downcast_ref::<FixtureFailures>() {
             assert_shutdown_disconnects(causes.cleanup.as_ref())?;
             Ok(causes.primary.as_ref())
