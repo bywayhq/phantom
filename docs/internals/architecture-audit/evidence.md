@@ -171,6 +171,10 @@ These records remain under the evidence root above:
 | `merged-fixture-13-root-bindings-1806-b694.json` | Root verifies all thirteen source blobs and original receipt hashes; candidate Rust bodies remain unchanged |
 | `merged-shipping-23-current-source-dispositions-b6942293.json` | Seven original whole reviews, five complete baselines with reviewed formatting differences, and eleven fresh independent whole reads of Rust children |
 | `merged-shipping-23-root-bindings-1806-b694.json` | Root checks all twenty-three source bodies and fifteen original receipt hashes; scope and runtime qualifications remain |
+| `capture-completion-b6942293-independent-composition-review.json` | Exact composed capture source and documentation approval |
+| `capture-completion-gate-b6942293-independent-log-review.json` | All 24 full-gate steps and retained raw logs reviewed at the clean candidate |
+| `capture-completion-b6942293-final-pr-checks.json` | All 29 PR checks succeed, including macOS and Windows |
+| `main-b6942293-final-workflows.json` | Both applicable push workflows and the separate main code-analysis run succeed |
 
 The integration owner reads the original review methods, contract assessments
 and limits alongside these records. All 37 source blobs match both revisions.

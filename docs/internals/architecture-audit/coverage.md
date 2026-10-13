@@ -78,6 +78,14 @@ Current dispositions for other qualified gaps, remaining capture remedies,
 the final combined architecture/standards review and exact integration checks
 remain required.
 
+Capture PR 207 merged at `b6942293`. Independent source and raw-log reviews
+approve the combined TLS, QUIC, EventSource, cookie and snapshot remedies.
+All 24 local gate steps and 29 PR checks passed, including macOS and Windows.
+Both applicable main push workflows and main's separate code analysis passed.
+The gate passes 4,574 native tests and 143 doctests, with 989 Python capture
+tests run and four skipped. Linux checks establish compilation and lint.
+They do not establish Linux runtime execution or a fresh browser capture.
+
 ## Historical verification
 
 At `12422fcc`, Windows and Linux each pass 103 selected DNS, WebSocket
