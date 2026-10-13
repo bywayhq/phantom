@@ -1,31 +1,43 @@
+import argparse
 import asyncio
+import errno
 import ssl
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
+from urllib.parse import urlsplit
 
-import pylsqpack
+from aioquic.asyncio import QuicConnectionProtocol
+from aioquic.h3.connection import H3Connection
+from aioquic.quic.configuration import QuicConfiguration
 from h2.config import H2Configuration
 from h2.connection import H2Connection
 from h2.events import StreamEnded
+import pylsqpack
 
+from scripts.capture import cookie_crumbs
 from scripts.capture.cookie_crumbs import (
     FORMAT,
     PROBE_COOKIES,
     SCENARIOS,
     CaptureMetadata,
+    CookieFailures,
     CookieRun,
     QuicRecord,
     TcpServer,
+    capture,
     check_field,
     check_inserted_fields,
     encoder_instructions,
     field_section,
     fixture,
     is_probe_cookie,
+    serving_http3,
 )
 from scripts.capture.fixture_file import write_text_fixture
 from scripts.capture.http2_session import HOSTNAME, generate_certificate
+from scripts.capture.tests.loopback_quic import connect_loopback
 
 FIXTURES = Path(__file__).resolve().parents[3] / "fixtures" / "cookies"
 CERTIFICATE = generate_certificate()
@@ -88,18 +100,289 @@ async def h2_requests(port: int, token: str, cookie: bytes) -> None:
 
 async def scripted_h2_run(cookie: bytes) -> CookieRun:
     server = TcpServer(CERTIFICATE)
-    await server.start("127.0.0.1")
+    run = CookieRun("feedc0de", observation_seconds=0.05)
+    server.run = run
+    primary = None
     try:
-        run = CookieRun("feedc0de", observation_seconds=0.05)
-        server.run = run
+        await server.start("127.0.0.1")
         await asyncio.wait_for(
             h2_requests(server.tls_address[1], run.token, cookie), TIMEOUT
         )
         await asyncio.wait_for(run.done.wait(), TIMEOUT)
         return run
+    except BaseException as error:
+        primary = error
+        raise
     finally:
-        server.run = None
-        await server.close()
+        await server.close(primary)
+
+
+class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
+    async def test_http1_ipv6_url_names_the_actual_loopback_listener(self):
+        observed = []
+
+        async def visit(run, plan, url, timeout):
+            parsed = urlsplit(url)
+            self.assertEqual(parsed.hostname, "::1")
+            self.assertIsNotNone(parsed.port)
+            observed.append(url)
+            reader, writer = await asyncio.open_connection(parsed.hostname, parsed.port)
+            try:
+                writer.write(
+                    f"GET /done?run={run.token} HTTP/1.1\r\nHost: [::1]\r\n\r\n".encode()
+                )
+                await writer.drain()
+                response = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), TIMEOUT)
+                self.assertTrue(response.startswith(b"HTTP/1.1 200 "))
+                await asyncio.wait_for(run.done.wait(), TIMEOUT)
+            finally:
+                writer.close()
+                await writer.wait_closed()
+
+        with TemporaryDirectory() as directory:
+            args = argparse.Namespace(
+                run_timeout=1, observation=0, repeat=1, scenario=["h1"],
+                output_dir=Path(directory), listen="::1", browser="manual",
+                browser_path=None, headful=False, client="scripted",
+                client_version="0", operating_system="test",
+            )
+            with mock.patch.object(cookie_crumbs, "wait_for_run", side_effect=visit):
+                try:
+                    await asyncio.wait_for(capture(args), TIMEOUT)
+                except OSError as error:
+                    if error.errno not in {errno.EAFNOSUPPORT, errno.EADDRNOTAVAIL}:
+                        raise
+                    self.skipTest("IPv6 loopback is unavailable")
+            self.assertEqual(len(observed), 1)
+            self.assertEqual(
+                fixture_values(Path(directory) / "crumbs-h1.txt")["run_0_request_count"],
+                "1",
+            )
+
+    async def test_invalid_run_bounds_fail_before_certificate_or_listener_acquisition(self):
+        for timeout, observation, repeat in ((float("nan"), 0, 1),
+                                             (1, float("inf"), 1),
+                                             (1e308, 1e308, 1), (1, 0, 129)):
+            args = argparse.Namespace(run_timeout=timeout, observation=observation,
+                                      repeat=repeat, scenario=["h1"])
+            with (
+                self.subTest(timeout=timeout, observation=observation, repeat=repeat),
+                mock.patch.object(cookie_crumbs, "generate_certificate") as acquire,
+                self.assertRaises(ValueError),
+            ):
+                await capture(args)
+            acquire.assert_not_called()
+
+    async def test_second_listener_failure_collects_first_accepted_socket(self):
+        server = TcpServer(CERTIFICATE)
+        run = CookieRun("partial", 0)
+        server.run = run
+        primary = OSError(errno.EIO, "original second listener failure")
+        loop = asyncio.get_running_loop()
+        create_server = loop.create_server
+        acquired = []
+        client = None
+
+        async def acquire(*args, **kwargs):
+            nonlocal client
+            if acquired:
+                client = await asyncio.open_connection(*server.tls_address)
+                while not server.protocols or server.protocols[0].task is None:
+                    await asyncio.sleep(0)
+                raise primary
+            listener = await create_server(*args, **kwargs)
+            acquired.append(listener)
+            return listener
+
+        try:
+            with (
+                mock.patch.object(loop, "create_server", side_effect=acquire),
+                self.assertRaises(OSError) as raised,
+            ):
+                await asyncio.wait_for(server.start("127.0.0.1"), TIMEOUT)
+
+            self.assertIs(raised.exception, primary)
+            self.assertTrue(server.finished)
+            self.assertTrue(server.protocols[0].retired.done())
+            self.assertTrue(server.protocols[0].task.done())
+            self.assertEqual(acquired[0].sockets, ())
+            self.assertEqual(await asyncio.wait_for(client[0].read(), TIMEOUT), b"")
+            with self.assertRaises(OSError) as unpublished:
+                fixture(SCENARIOS["h2"], [run], METADATA, 4096)
+            self.assertIs(unpublished.exception, primary)
+
+            rebound = await asyncio.start_server(lambda reader, writer: writer.close(),
+                                                *server.tls_address)
+            rebound.close()
+            await rebound.wait_closed()
+        finally:
+            if client is not None:
+                client[1].close()
+                await client[1].wait_closed()
+            with self.assertRaises(OSError) as cleanup:
+                await server.close()
+            self.assertIs(cleanup.exception, primary)
+
+    async def test_serving_cleanup_and_caller_cancellation_prevent_publication(self):
+        primary = ValueError("original accepted serving failure")
+        cleanup = OSError(errno.EIO, "original accepted writer cleanup failure")
+        arrived = asyncio.Event()
+        release = asyncio.Event()
+        observing_writer = asyncio.Event()
+        finish_writer = asyncio.Event()
+        cancellation_cause = LookupError("original cancellation cause")
+        original_wait = asyncio.wait
+
+        async def observe(*args, **kwargs):
+            try:
+                return await original_wait(*args, **kwargs)
+            except asyncio.CancelledError as error:
+                error.__cause__ = cancellation_cause
+                raise
+
+        async def fail(channel, run, index):
+            await channel.read()
+            arrived.set()
+            await release.wait()
+            raise primary
+
+        async def failed_close():
+            observing_writer.set()
+            await finish_writer.wait()
+            raise cleanup
+
+        server = TcpServer(CERTIFICATE)
+        run = CookieRun("failure", 0)
+        server.run = run
+        client = None
+        cancellation = None
+        try:
+            await server.start("127.0.0.1")
+            with mock.patch.object(cookie_crumbs, "serve_http1", side_effect=fail):
+                client = await asyncio.open_connection(*server.plain_address)
+                client[1].write(b"GET /page?run=failure HTTP/1.1\r\nHost: localhost\r\n\r\n")
+                await client[1].drain()
+                await asyncio.wait_for(arrived.wait(), TIMEOUT)
+                protocol = server.protocols[0]
+                with (
+                    mock.patch.object(protocol.writer, "wait_closed", side_effect=failed_close),
+                    mock.patch.object(cookie_crumbs.asyncio, "wait", side_effect=observe),
+                ):
+                    release.set()
+                    await asyncio.wait_for(run.done.wait(), TIMEOUT)
+                    closing = asyncio.create_task(server.close(primary))
+                    await asyncio.wait_for(observing_writer.wait(), TIMEOUT)
+                    closing.cancel("original caller cleanup cancellation")
+                    finish_writer.set()
+                    with self.assertRaises(asyncio.CancelledError) as raised:
+                        await closing
+
+            cancellation = raised.exception
+            failure = cancellation.__cause__
+            self.assertIsInstance(failure, CookieFailures)
+            self.assertIs(failure.primary, primary)
+            self.assertIs(failure.interruption_cause, cancellation_cause)
+            self.assertTrue(any(error is cleanup for error in failure.cleanup))
+            self.assertTrue(any(error is cancellation for error in failure.cleanup))
+            self.assertEqual(cancellation.args, ("original caller cleanup cancellation",))
+            self.assertIs(run.failures[0], primary)
+            self.assertTrue(any(error is cleanup for error in run.failures))
+            self.assertTrue(any(error is cancellation for error in run.failures))
+            self.assertTrue(protocol.task.done())
+            self.assertTrue(protocol.retired.done())
+            self.assertEqual(await asyncio.wait_for(client[0].read(), TIMEOUT), b"")
+            with TemporaryDirectory() as directory:
+                output = Path(directory) / "capture.txt"
+                output.write_bytes(b"previous fixture\n")
+                with self.assertRaises(asyncio.CancelledError) as unpublished:
+                    write_text_fixture(output, fixture(SCENARIOS["h1"], [run], METADATA, 4096))
+                self.assertIs(unpublished.exception, cancellation)
+                self.assertEqual(output.read_bytes(), b"previous fixture\n")
+        finally:
+            release.set()
+            finish_writer.set()
+            if client is not None:
+                client[1].close()
+                await client[1].wait_closed()
+            if cancellation is None:
+                await server.close()
+            else:
+                with self.assertRaises(asyncio.CancelledError) as final:
+                    await server.close()
+                self.assertIs(final.exception, cancellation)
+
+    async def test_external_handler_cancellation_retains_original_outcome(self):
+        entered = asyncio.Event()
+
+        async def read(channel, run, index):
+            entered.set()
+            await channel.read()
+
+        server = TcpServer(CERTIFICATE)
+        run = CookieRun("cancel", 0)
+        server.run = run
+        client = None
+        original = None
+        try:
+            await server.start("127.0.0.1")
+            with mock.patch.object(cookie_crumbs, "serve_http1", side_effect=read):
+                client = await asyncio.open_connection(*server.plain_address)
+                await asyncio.wait_for(entered.wait(), TIMEOUT)
+                original_task = server.protocols[0].task
+                original_task.cancel("external cookie cancellation")
+                await asyncio.wait_for(run.done.wait(), TIMEOUT)
+                original = run.failures[0]
+                with self.assertRaises(asyncio.CancelledError) as raised:
+                    await server.close()
+
+            self.assertIs(raised.exception, original)
+            self.assertEqual(original.args, ("external cookie cancellation",))
+            self.assertIsNone(original_task.result())
+            self.assertTrue(server.protocols[0].retired.done())
+            self.assertEqual(await asyncio.wait_for(client[0].read(), TIMEOUT), b"")
+        finally:
+            if client is not None:
+                client[1].close()
+                await client[1].wait_closed()
+            if original is None:
+                await server.close()
+            else:
+                with self.assertRaises(asyncio.CancelledError) as final:
+                    await server.close()
+                self.assertIs(final.exception, original)
+
+    async def test_original_http3_callback_failure_is_observed_before_return(self):
+        class Client(QuicConnectionProtocol):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.http = H3Connection(self._quic)
+
+            def quic_event_received(self, event):
+                self.http.handle_event(event)
+
+        run = CookieRun("quic", 0)
+        primary = OSError(errno.EIO, "original HTTP/3 request callback failure")
+        configuration = QuicConfiguration(is_client=True, alpn_protocols=["h3"])
+        configuration.verify_mode = ssl.CERT_NONE
+        with (
+            mock.patch.object(run, "record", side_effect=primary),
+            self.assertRaises(OSError) as raised,
+        ):
+            async with serving_http3(run, "127.0.0.1", CERTIFICATE) as port:
+                async with connect_loopback(port, configuration, Client) as client:
+                    stream = client._quic.get_next_available_stream_id()
+                    client.http.send_headers(stream, [(b":method", b"GET"),
+                        (b":scheme", b"https"), (b":authority", HOSTNAME.encode()),
+                        (b":path", b"/done?run=quic")], end_stream=True)
+                    client.transmit()
+                    await asyncio.wait_for(run.done.wait(), TIMEOUT)
+
+        self.assertIs(raised.exception, primary)
+        self.assertIs(run.failures[0], primary)
+        owner = run.quic_owners[0]
+        self.assertTrue(owner.retired.done())
+        self.assertTrue(owner.finished)
+        self.assertTrue(all(protocol.observed_closed for protocol in owner.protocols))
 
 
 class ScriptedCaptureTests(unittest.TestCase):

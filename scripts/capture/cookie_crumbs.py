@@ -19,6 +19,7 @@ import argparse
 import asyncio
 import contextlib
 import ipaddress
+import math
 import platform
 import secrets
 import sys
@@ -45,6 +46,7 @@ from .http2_session import (
     PlainChannel,
     TlsChannel,
     generate_certificate,
+    peer_disconnected,
     server_context,
 )
 
@@ -65,6 +67,12 @@ MAX_REQUEST_HEAD = 64 * 1024
 MAX_REQUESTS = 32
 MAX_STREAM_CAPTURE = 1024 * 1024
 READ_SIZE = 64 * 1024
+MAX_CONNECTIONS = 128
+MAX_ACTIVE_CONNECTIONS = 32
+MAX_RUNS = 128
+MAX_RUN_CAPTURE = 8 * 1024 * 1024
+MAX_QUIC_STREAMS = 128
+CLEANUP_SECONDS = 10.0
 QPACK_ENCODER_STREAM = 0x02
 QPACK_STATIC_COOKIE = 5
 QPACK_STATIC_AUTHORIZATION = 84
@@ -158,12 +166,35 @@ class CookieRun:
     finished: float | None = None
     timed_out: bool = False
     done: asyncio.Event = field(default_factory=asyncio.Event)
+    failures: list[BaseException] = field(default_factory=list, repr=False)
+    tcp_owner: TcpServer | None = field(default=None, repr=False)
+    quic_owners: list[object] = field(default_factory=list, repr=False)
+    observation_timer: asyncio.TimerHandle | None = field(default=None, repr=False)
+    retained: int = field(default=0, repr=False)
 
     def __post_init__(self) -> None:
+        if not math.isfinite(self.observation_seconds) or self.observation_seconds < 0:
+            raise ValueError("observation duration must be finite and nonnegative")
         self.started = self.clock()
+
+    def failed(self, error: BaseException) -> None:
+        if all(previous is not error for previous in self.failures):
+            self.failures.append(error)
+        self.done.set()
+
+    def check(self) -> None:
+        raise_cookie_failures(None, tuple(self.failures))
+        for owner in (self.tcp_owner, *self.quic_owners):
+            if owner is not None and not owner.finished:
+                raise RuntimeError("cookie capture has unfinished connection owners")
 
     def now(self) -> float:
         return self.clock() - self.started
+
+    def retain(self, size: int) -> None:
+        if self.retained + size > MAX_RUN_CAPTURE:
+            raise ValueError("cookie run exceeds the aggregate capture limit")
+        self.retained += size
 
     def classify(self, target: bytes) -> str:
         parts = urlsplit(target.decode("latin-1"))
@@ -182,7 +213,7 @@ class CookieRun:
         self.requests.append(request)
         if request.kind == "done" and self.finished is None:
             self.finished = self.now()
-            asyncio.get_running_loop().call_later(
+            self.observation_timer = asyncio.get_running_loop().call_later(
                 self.observation_seconds, self.done.set
             )
 
@@ -205,6 +236,110 @@ def content_type(body: bytes) -> bytes:
 # -- HTTP/1.1 and HTTP/2 over TCP ------------------------------------------
 
 
+class CookieFailures(Exception):
+    """Retain the original operation and independent cleanup failures."""
+
+    def __init__(
+        self, primary: BaseException | None, cleanup: tuple[BaseException, ...]
+    ) -> None:
+        self.primary = primary
+        self.cleanup = cleanup
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        self.interruption_cause = None
+        self.interruption_context = None
+        super().__init__("cookie capture cleanup failed")
+
+
+def raise_cookie_failures(
+    primary: BaseException | None, cleanup: tuple[BaseException, ...]
+) -> None:
+    if not cleanup:
+        if primary is not None:
+            raise primary
+        return
+    if primary is None and len(cleanup) == 1:
+        raise cleanup[0]
+
+    failure = CookieFailures(primary, cleanup)
+    interruption = next(
+        (
+            error for error in (primary, *cleanup)
+            if error is not None and not isinstance(error, Exception)
+        ),
+        None,
+    )
+    if interruption is not None:
+        failure.interruption_cause = interruption.__cause__
+        failure.interruption_context = interruption.__context__
+        raise interruption from failure
+    raise failure from primary
+
+
+class CookieProtocol(asyncio.StreamReaderProtocol):
+    """Own the run and accepted stream before its callback is scheduled."""
+
+    def __init__(self, owner: TcpServer, listener: str, run: CookieRun | None):
+        self.owner = owner
+        self.listener = listener
+        self.run = run
+        self.writer: asyncio.StreamWriter | None = None
+        self.task: asyncio.Task[None] | None = None
+        self.close_task: asyncio.Task[None] | None = None
+        self.retired = asyncio.get_running_loop().create_future()
+        reader = asyncio.StreamReader()
+        super().__init__(reader, self.connected)
+
+    def connection_made(self, transport) -> None:
+        try:
+            super().connection_made(transport)
+        except BaseException as error:
+            self.owner.failed(error, self.run)
+            try:
+                transport.abort()
+            except BaseException as cleanup:
+                self.owner.failed(cleanup, self.run)
+                try:
+                    transport.close()
+                except BaseException as failure:
+                    self.owner.failed(failure, self.run)
+
+    def connected(self, reader, writer) -> None:
+        self.writer = writer
+        if self.owner.finished:
+            self.owner.finished = False
+            self.owner.failed(RuntimeError("cookie TCP callback arrived after cleanup"), self.run)
+        if self.owner.stopping or self.run is None:
+            try:
+                writer.transport.abort()
+            except BaseException as error:
+                self.owner.failed(error, self.run)
+                try:
+                    writer.close()
+                except BaseException as cleanup:
+                    self.owner.failed(cleanup, self.run)
+            return
+
+        operation = self.owner.serve(self, reader, writer)
+        try:
+            self.task = asyncio.create_task(operation)
+        except BaseException as error:
+            self.owner.failed(error, self.run)
+            try:
+                operation.close()
+            except BaseException as cleanup:
+                self.owner.failed(cleanup, self.run)
+
+    def connection_lost(self, error) -> None:
+        try:
+            super().connection_lost(error)
+        except BaseException as failure:
+            self.owner.failed(failure, self.run)
+        finally:
+            if not self.retired.done():
+                self.retired.set_result(None)
+
+
 class TcpServer:
     """A TLS listener for `HOSTNAME` (ALPN h2) and a plaintext HTTP/1.1 one."""
 
@@ -212,82 +347,251 @@ class TcpServer:
         self.context = server_context(certificate)
         self.run: CookieRun | None = None
         self.servers: list[asyncio.base_events.Server] = []
-        self.writers: set[asyncio.StreamWriter] = set()
+        self.listener_waits: dict[asyncio.Server, asyncio.Task[None]] = {}
+        self.closed_listeners: set[asyncio.Server] = set()
+        self.observed_listeners: set[asyncio.Server] = set()
+        self.protocols: list[CookieProtocol] = []
+        self.failures: list[BaseException] = []
+        self.primary: BaseException | None = None
+        self.stopping = False
+        self.finished = False
         self.tls_address: tuple[str, int] | None = None
         self.plain_address: tuple[str, int] | None = None
 
     async def start(self, host: str) -> None:
         if not ipaddress.ip_address(host).is_loopback:
             raise ValueError("the capture listener must be a loopback address")
-        tls = await asyncio.start_server(self.handle_tls, host, 0)
-        plain = await asyncio.start_server(self.handle_plain, host, 0)
-        self.servers = [tls, plain]
-        self.tls_address = tls.sockets[0].getsockname()[:2]
-        self.plain_address = plain.sockets[0].getsockname()[:2]
-
-    async def close(self) -> None:
-        self.drop_connections()
-        for server in self.servers:
-            server.close()
-            await server.wait_closed()
-
-    def drop_connections(self) -> None:
-        for writer in list(self.writers):
-            writer.transport.abort()
-        self.writers.clear()
-
-    def accept(
-        self, listener: str, writer: asyncio.StreamWriter
-    ) -> tuple[CookieRun, ConnectionRecord, int] | None:
+        loop = asyncio.get_running_loop()
         run = self.run
-        if run is None:
-            writer.transport.abort()
-            return None
-        self.writers.add(writer)
-        record = ConnectionRecord(listener=listener, accepted=run.now())
-        run.connections.append(record)
-        return run, record, len(run.connections) - 1
-
-    async def handle_tls(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ) -> None:
-        accepted = self.accept("tls", writer)
-        if accepted is None:
-            return
-        run, record, index = accepted
-        channel = TlsChannel(self.context, reader, writer, record, run.now)
+        if run is not None:
+            run.tcp_owner = self
         try:
-            await channel.handshake()
-            record.protocol = record.alpn or "http/1.1"
-            if record.alpn == "h2":
+            for listener in ("tls", "plain"):
+                server = await loop.create_server(
+                    lambda name=listener: self.new_protocol(name, run),
+                    host,
+                    0,
+                    start_serving=False,
+                )
+                self.servers.append(server)
+                ready = loop.create_future()
+                operation = self.wait_listener(server, ready)
+                try:
+                    task = asyncio.create_task(operation)
+                except BaseException as error:
+                    try:
+                        operation.close()
+                    except BaseException as cleanup:
+                        raise_cookie_failures(error, (cleanup,))
+                    raise
+                self.listener_waits[server] = task
+                task.add_done_callback(
+                    lambda completed, signal=ready:
+                    self.listener_finished(completed, signal)
+                )
+                await ready
+                raise_cookie_failures(None, tuple(self.failures))
+                address = server.sockets[0].getsockname()[:2]
+                if listener == "tls":
+                    self.tls_address = address
+                else:
+                    self.plain_address = address
+                await server.start_serving()
+        except BaseException as error:
+            await self.close(error)
+
+    async def wait_listener(self, server, ready) -> None:
+        def registered() -> None:
+            if not ready.done():
+                ready.set_result(None)
+
+        asyncio.get_running_loop().call_soon(registered)
+        try:
+            await server.wait_closed()
+        except BaseException as error:
+            self.failed(error, self.run)
+        else:
+            self.observed_listeners.add(server)
+
+    def listener_finished(self, task, ready) -> None:
+        try:
+            task.result()
+        except BaseException as error:
+            self.failed(error, self.run)
+        if not ready.done():
+            ready.set_result(None)
+
+    def new_protocol(self, listener, run) -> CookieProtocol:
+        protocol = CookieProtocol(self, listener, run)
+        self.protocols.append(protocol)
+        active = sum(not item.retired.done() for item in self.protocols)
+        if len(self.protocols) > MAX_CONNECTIONS or active > MAX_ACTIVE_CONNECTIONS:
+            self.failed(ValueError("cookie capture exceeds the connection limit"), run)
+        return protocol
+
+    def failed(self, error, run) -> None:
+        if all(previous is not error for previous in self.failures):
+            self.failures.append(error)
+        if run is not None:
+            run.failed(error)
+        self.stopping = True
+        for server in self.servers:
+            try:
+                server.close()
+            except BaseException as cleanup:
+                if all(previous is not cleanup for previous in self.failures):
+                    self.failures.append(cleanup)
+            else:
+                self.closed_listeners.add(server)
+
+    async def close_writer(self, protocol) -> None:
+        try:
+            await protocol.writer.wait_closed()
+        except OSError as error:
+            if not peer_disconnected(error):
+                self.failed(error, protocol.run)
+        except BaseException as error:
+            self.failed(error, protocol.run)
+
+    async def close(self, primary=None) -> None:
+        if self.primary is None:
+            self.primary = primary
+        if primary is not None and self.run is not None:
+            self.run.failed(primary)
+        self.stopping = True
+        if self.run is not None and self.run.observation_timer is not None:
+            self.run.observation_timer.cancel()
+        for server in self.servers:
+            try:
+                server.close()
+            except BaseException as error:
+                self.failed(error, self.run)
+            else:
+                self.closed_listeners.add(server)
+
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + CLEANUP_SECONDS
+        cancelling = False
+        while True:
+            for protocol in self.protocols:
+                if protocol.writer is None or protocol.close_task is not None:
+                    continue
+                try:
+                    protocol.writer.transport.abort()
+                except BaseException as error:
+                    self.failed(error, protocol.run)
+                    try:
+                        protocol.writer.close()
+                    except BaseException as cleanup:
+                        self.failed(cleanup, protocol.run)
+                operation = self.close_writer(protocol)
+                try:
+                    protocol.close_task = asyncio.create_task(operation)
+                except BaseException as error:
+                    self.failed(error, protocol.run)
+                    try:
+                        operation.close()
+                    except BaseException as cleanup:
+                        self.failed(cleanup, protocol.run)
+
+            tasks = set(self.listener_waits.values())
+            for protocol in self.protocols:
+                tasks.add(protocol.retired)
+                tasks.update(
+                    task for task in (protocol.task, protocol.close_task)
+                    if task is not None
+                )
+            pending = {task for task in tasks if not task.done()}
+            if not pending:
+                self.finished = all(
+                    protocol.writer is not None and protocol.close_task is not None
+                    for protocol in self.protocols
+                ) and all(
+                    server in self.closed_listeners
+                    and server in self.observed_listeners for server in self.servers
+                )
+                break
+
+            wait_deadline = deadline if cancelling else deadline - 1.0
+            try:
+                await asyncio.wait(
+                    pending,
+                    timeout=max(0, wait_deadline - loop.time()),
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+            except BaseException as error:
+                self.failed(error, self.run)
+            if loop.time() < wait_deadline:
+                continue
+
+            self.failed(TimeoutError("cookie TCP cleanup exceeded its deadline"), self.run)
+            for protocol in self.protocols:
+                if protocol.task is not None and not protocol.task.done():
+                    protocol.task.cancel()
+            if not cancelling and loop.time() < deadline:
+                cancelling = True
+                continue
+            break
+
+        for protocol in self.protocols:
+            for task in (protocol.task, protocol.close_task):
+                if task is not None and task.done():
+                    try:
+                        task.result()
+                    except BaseException as error:
+                        self.failed(error, protocol.run)
+        for task in self.listener_waits.values():
+            if task.done():
+                try:
+                    task.result()
+                except BaseException as error:
+                    self.failed(error, self.run)
+        raise_cookie_failures(
+            self.primary,
+            tuple(error for error in self.failures if error is not self.primary),
+        )
+
+    async def serve(self, protocol, reader, writer) -> None:
+        run = protocol.run
+        record = ConnectionRecord(listener=protocol.listener, accepted=run.now())
+        run.connections.append(record)
+        index = len(run.connections) - 1
+        channel = None
+        try:
+            if protocol.listener == "tls":
+                channel = TlsChannel(
+                    self.context, reader, writer, record, run.now, run
+                )
+                await channel.handshake()
+                record.protocol = record.alpn or "http/1.1"
+            else:
+                record.protocol = "http/1.1"
+                channel = PlainChannel(reader, writer, record, run.now, run=run)
+            if record.protocol == "h2":
                 await serve_http2(channel, run, index)
             else:
                 await serve_http1(channel, run, index)
-        except Exception as error:  # recorded: a capture keeps partial evidence
+        except BaseException as error:
             record.failure = record.failure or type(error).__name__
+            closed_handshake = (
+                self.stopping
+                and isinstance(channel, TlsChannel)
+                and type(error) is ConnectionError
+                and error is channel.peer_handshake_failure
+                and error.errno is None
+                and reader.at_eof()
+                and reader.exception() is None
+                and writer.is_closing()
+            )
+            if not closed_handshake and (
+                channel is None or error is not channel.peer_io_failure
+            ):
+                self.failed(error, run)
         finally:
-            self.release(writer)
-
-    async def handle_plain(
-        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
-    ) -> None:
-        accepted = self.accept("plain", writer)
-        if accepted is None:
-            return
-        run, record, index = accepted
-        record.protocol = "http/1.1"
-        channel = PlainChannel(reader, writer, record, run.now)
-        try:
-            await serve_http1(channel, run, index)
-        except Exception as error:  # recorded: a capture keeps partial evidence
-            record.failure = record.failure or type(error).__name__
-        finally:
-            self.release(writer)
-
-    def release(self, writer: asyncio.StreamWriter) -> None:
-        self.writers.discard(writer)
-        if not writer.transport.is_closing():
-            writer.close()
+            try:
+                writer.close()
+            except BaseException as error:
+                self.failed(error, run)
 
 
 async def serve_http1(channel, run: CookieRun, index: int) -> None:
@@ -296,13 +600,15 @@ async def serve_http1(channel, run: CookieRun, index: int) -> None:
         end = buffer.find(b"\r\n\r\n")
         if end < 0:
             if len(buffer) > MAX_REQUEST_HEAD:
-                return
+                raise ValueError("cookie request exceeds the header limit")
             data = await channel.read()
             if not data:
                 return
             buffer.extend(data)
             continue
         head = bytes(buffer[:end])
+        if end + 4 > MAX_REQUEST_HEAD:
+            raise ValueError("cookie request exceeds the header limit")
         del buffer[: end + 4]
         lines = head.split(b"\r\n")
         parts = lines[0].split(b" ")
@@ -335,8 +641,11 @@ async def serve_http2(channel, run: CookieRun, index: int) -> None:
             events = connection.receive_data(data)
         except h2.exceptions.ProtocolError as error:
             channel.record.failure = f"h2:{type(error).__name__}"
-            await channel.write(connection.data_to_send())
-            return
+            try:
+                await channel.write(connection.data_to_send())
+            except BaseException as cleanup:
+                raise_cookie_failures(error, (cleanup,))
+            raise
         for event in events:
             if isinstance(event, h2.events.RequestReceived):
                 fields = dict(event.headers)
@@ -367,7 +676,8 @@ async def serving_http3(
     run: CookieRun, listen_host: str, certificate: Certificate
 ) -> AsyncIterator[int]:
     """Serve HTTP/3 for one run on an ephemeral loopback UDP port."""
-    from aioquic.asyncio import QuicConnectionProtocol, serve
+    from aioquic.asyncio import QuicConnectionProtocol
+    from aioquic.asyncio.server import QuicServer
     from aioquic.h3.connection import H3_ALPN, H3Connection
     from aioquic.h3.events import HeadersReceived
     from aioquic.quic.configuration import QuicConfiguration
@@ -376,21 +686,166 @@ async def serving_http3(
     from .quic_resumption import load_certificate
     from .reserved_ports import open_past_reserved_ports
 
-    class CookieProtocol(QuicConnectionProtocol):
-        def __init__(self, *args, **kwargs) -> None:
+    class CookieQuicServer(QuicServer):
+        def __init__(self, **kwargs):
+            self.protocols = []
+            self.waits = {}
+            self.stopping = False
+            self.finished = False
+            self.retired = asyncio.get_running_loop().create_future()
+            super().__init__(
+                create_protocol=lambda *args, **options:
+                CookieQuicProtocol(*args, owner=self, **options),
+                **kwargs,
+            )
+
+        def failed(self, error):
+            run.failed(error)
+            self.stopping = True
+
+        def datagram_received(self, data, addr):
+            if self.stopping:
+                return
+            try:
+                super().datagram_received(data, addr)
+            except BaseException as error:
+                self.failed(error)
+
+        def error_received(self, error):
+            self.failed(error)
+
+        def connection_lost(self, error):
+            if error is not None:
+                self.failed(error)
+            if not self.retired.done():
+                self.retired.set_result(None)
+
+        async def wait_protocol(self, protocol):
+            try:
+                await protocol.wait_closed()
+            except BaseException as error:
+                self.failed(error)
+            else:
+                protocol.observed_closed = True
+
+        async def finish(self, deadline):
+            self.stopping = True
+            if run.observation_timer is not None:
+                run.observation_timer.cancel()
+            for protocol in self.protocols:
+                if protocol in self.waits:
+                    continue
+                try:
+                    protocol.close()
+                except BaseException as error:
+                    self.failed(error)
+                operation = self.wait_protocol(protocol)
+                try:
+                    self.waits[protocol] = asyncio.create_task(operation)
+                except BaseException as error:
+                    self.failed(error)
+                    try:
+                        operation.close()
+                    except BaseException as cleanup:
+                        self.failed(cleanup)
+
+            if self._transport is not None:
+                try:
+                    self._transport.close()
+                except BaseException as error:
+                    self.failed(error)
+                    try:
+                        self._transport.abort()
+                    except BaseException as cleanup:
+                        self.failed(cleanup)
+
+            while True:
+                tasks = set(self.waits.values())
+                if self._transport is not None:
+                    tasks.add(self.retired)
+                pending = {task for task in tasks if not task.done()}
+                if not pending:
+                    self.finished = (
+                        self._transport is not None and self.retired.done()
+                        and all(protocol.observed_closed for protocol in self.protocols)
+                    )
+                    if self._transport is None:
+                        self.failed(RuntimeError("cookie QUIC transport acquisition was not observed"))
+                    break
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    self.failed(TimeoutError("cookie QUIC cleanup exceeded its deadline"))
+                    break
+                try:
+                    await asyncio.wait(pending, timeout=remaining,
+                                       return_when=asyncio.FIRST_COMPLETED)
+                except BaseException as error:
+                    self.failed(error)
+
+            for protocol in self.protocols:
+                task = self.waits.get(protocol)
+                if task is not None and task.done():
+                    try:
+                        task.result()
+                    except BaseException as error:
+                        self.failed(error)
+                # Retire local callbacks even when native closure timed out.
+                # The incomplete original protocol remains owned and failed.
+                for attribute in ("_timer", "_transmit_task"):
+                    handle = getattr(protocol, attribute)
+                    if handle is not None:
+                        try:
+                            handle.cancel()
+                        except BaseException as error:
+                            self.failed(error)
+                        else:
+                            setattr(protocol, attribute, None)
+
+    class CookieQuicProtocol(QuicConnectionProtocol):
+        def __init__(self, *args, owner, **kwargs) -> None:
             super().__init__(*args, **kwargs)
+            self.owner = owner
+            self.observed_closed = False
+            self.owner.protocols.append(self)
             self.record = QuicRecord(run.now())
             self.index = len(run.quic_connections)
             run.quic_connections.append(self.record)
             self.http: H3Connection | None = None
+            active = sum(not protocol._closed.is_set()
+                         for protocol in self.owner.protocols)
+            if len(self.owner.protocols) > MAX_CONNECTIONS or active > MAX_ACTIVE_CONNECTIONS:
+                self.owner.failed(ValueError("cookie QUIC capture exceeds the connection limit"))
+
+        def datagram_received(self, data, addr):
+            try:
+                super().datagram_received(data, addr)
+            except BaseException as error:
+                self.owner.failed(error)
+
+        def _handle_timer(self):
+            try:
+                super()._handle_timer()
+            except BaseException as error:
+                self.owner.failed(error)
+
+        def transmit(self):
+            try:
+                super().transmit()
+            except BaseException as error:
+                self.owner.failed(error)
 
         def quic_event_received(self, event) -> None:
+            if self.owner.stopping:
+                return
             if isinstance(event, ProtocolNegotiated):
                 self.http = H3Connection(self._quic)
             if isinstance(event, StreamDataReceived):
                 self.record.received += len(event.data)
                 if self.record.received > MAX_STREAM_CAPTURE:
                     raise ValueError("connection exceeds the capture limit")
+                if event.stream_id not in self.record.streams and len(self.record.streams) >= MAX_QUIC_STREAMS:
+                    raise ValueError("cookie QUIC connection exceeds the stream limit")
+                run.retain(len(event.data))
                 stream = self.record.streams.setdefault(event.stream_id, bytearray())
                 stream.extend(event.data)
             if self.http is None:
@@ -430,17 +885,36 @@ async def serving_http3(
 
     configuration = QuicConfiguration(is_client=False, alpn_protocols=H3_ALPN)
     load_certificate(configuration, certificate)
-    server = await open_past_reserved_ports(
-        lambda host, port: serve(
-            host, port, configuration=configuration, create_protocol=CookieProtocol
-        ),
-        listen_host,
-        0,
-    )
+
+    def protocol_factory():
+        server = CookieQuicServer(configuration=configuration)
+        run.quic_owners.append(server)
+        return server
+
+    async def open_at(host, port):
+        _, server = await asyncio.get_running_loop().create_datagram_endpoint(
+            protocol_factory, local_addr=(host, port)
+        )
+        return server
+
+    primary = None
     try:
+        server = await open_past_reserved_ports(open_at, listen_host, 0)
         yield server._transport.get_extra_info("sockname")[1]
+    except BaseException as error:
+        primary = error
     finally:
-        server.close()
+        if primary is not None:
+            run.failed(primary)
+        deadline = asyncio.get_running_loop().time() + CLEANUP_SECONDS
+        for owner in run.quic_owners:
+            try:
+                await owner.finish(deadline)
+            except BaseException as error:
+                run.failed(error)
+        raise_cookie_failures(
+            primary, tuple(error for error in run.failures if error is not primary)
+        )
 
 
 # -- Offline QPACK analysis ------------------------------------------------
@@ -880,6 +1354,8 @@ def fixture(
     capture: CaptureMetadata,
     max_table_capacity: int,
 ) -> str:
+    for run in runs:
+        run.check()
     lines = [
         f"format={FORMAT}",
         f"captured_at_unix={int(time.time())}",
@@ -975,21 +1451,36 @@ def h3_launch_plan(
 
 
 async def wait_for_run(run: CookieRun, plan: LaunchPlan, url: str, timeout: float):
+    duration = timeout + run.observation_seconds
+    if not math.isfinite(timeout) or timeout <= 0 or not math.isfinite(duration):
+        raise ValueError("combined cookie run duration must be finite and positive")
     async with BrowserDriver(plan, url):
         try:
             await asyncio.wait_for(
-                run.done.wait(), timeout=timeout + run.observation_seconds
+                run.done.wait(), timeout=duration
             )
         except asyncio.TimeoutError:
             run.timed_out = True
 
 
 async def capture(args: argparse.Namespace) -> None:
-    certificate = generate_certificate()
+    if not math.isfinite(args.run_timeout) or args.run_timeout <= 0:
+        raise ValueError("run timeout must be finite and positive")
+    if not math.isfinite(args.observation) or args.observation < 0:
+        raise ValueError("observation duration must be finite and nonnegative")
+    if not math.isfinite(args.run_timeout + args.observation):
+        raise ValueError("combined cookie run duration must be finite")
+    if not 1 <= args.repeat <= MAX_RUNS:
+        raise ValueError("repeat count exceeds the cookie run limit")
     names = list(SCENARIOS) if args.scenario == ["all"] else args.scenario
+    if len(names) * args.repeat > MAX_RUNS:
+        raise ValueError("scenario repeats exceed the cookie run limit")
+    certificate = generate_certificate()
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    server = TcpServer(certificate)
-    await server.start(args.listen)
+    server = None
+    pending_fixtures = []
+    captured_runs = []
+    primary = None
     try:
         for name in names:
             scenario = SCENARIOS[name]
@@ -1014,19 +1505,25 @@ async def capture(args: argparse.Namespace) -> None:
                     )
                     listen = f"{args.listen}:<port>"
                 else:
+                    server = TcpServer(certificate)
+                    server.run = run
+                    await server.start(args.listen)
                     tls_port = server.tls_address[1]
                     plan = tcp_launch_plan(args, certificate, args.listen, tls_port)
                     if scenario.protocol == "h2":
                         url = f"https://{HOSTNAME}:{tls_port}/start?run={token}"
                     else:
                         host, port = server.plain_address
+                        if ":" in host:
+                            host = f"[{host}]"
                         url = f"http://{host}:{port}/start?run={token}"
-                    server.run = run
+                    run_primary = None
                     try:
                         await wait_for_run(run, plan, url, args.run_timeout)
+                    except BaseException as error:
+                        run_primary = error
                     finally:
-                        server.run = None
-                        server.drop_connections()
+                        await server.close(run_primary)
                     launch_arguments = (
                         plan.recorded_arguments(url)
                         .replace(certificate.spki_sha256_base64, "<certificate-spki>")
@@ -1035,7 +1532,9 @@ async def capture(args: argparse.Namespace) -> None:
                     listen = "tls {}:{} plain {}:{}".format(
                         *server.tls_address, *server.plain_address
                     )
+                    server = None
                 runs.append(run)
+            captured_runs.extend(runs)
             assert plan is not None
             metadata_ = CaptureMetadata(
                 client=args.client or plan.client_name,
@@ -1049,14 +1548,21 @@ async def capture(args: argparse.Namespace) -> None:
                 profile_files=",".join(name for name, _ in plan.profile_files)
                 or "none",
             )
-            write_text_fixture(
-                args.output_dir / f"crumbs-{name}.txt",
-                fixture(scenario, runs, metadata_, 4096),
-            )
             timed_out = sum(run.timed_out for run in runs)
-            print(f"captured {name} ({timed_out} timed out)", file=sys.stderr)
+            pending_fixtures.append((args.output_dir / f"crumbs-{name}.txt",
+                                     fixture(scenario, runs, metadata_, 4096),
+                                     name, timed_out))
+    except BaseException as error:
+        primary = error
     finally:
-        await server.close()
+        if server is not None:
+            await server.close(primary)
+    raise_cookie_failures(primary, ())
+    for run in captured_runs:
+        run.check()
+    for path, text, name, timed_out in pending_fixtures:
+        write_text_fixture(path, text)
+        print(f"captured {name} ({timed_out} timed out)", file=sys.stderr)
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -1079,8 +1585,17 @@ def main(argv: Sequence[str] | None = None) -> None:
     unknown = sorted(set(args.scenario) - set(SCENARIOS) - {"all"})
     if unknown or ("all" in args.scenario and len(args.scenario) > 1):
         parser.error(f"unknown or mixed scenarios: {', '.join(unknown) or 'all'}")
-    if args.repeat < 1:
-        parser.error("--repeat must be positive")
+    if not 1 <= args.repeat <= MAX_RUNS:
+        parser.error(f"--repeat must be between 1 and {MAX_RUNS}")
+    if not math.isfinite(args.run_timeout) or args.run_timeout <= 0:
+        parser.error("--run-timeout must be finite and positive")
+    if not math.isfinite(args.observation) or args.observation < 0:
+        parser.error("--observation must be finite and nonnegative")
+    if not math.isfinite(args.run_timeout + args.observation):
+        parser.error("combined cookie run duration must be finite")
+    scenario_count = len(SCENARIOS) if args.scenario == ["all"] else len(args.scenario)
+    if scenario_count * args.repeat > MAX_RUNS:
+        parser.error(f"scenario repeats must total at most {MAX_RUNS} runs")
     try:
         loopback = ipaddress.ip_address(args.listen).is_loopback
     except ValueError:
