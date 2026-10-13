@@ -32,7 +32,7 @@ async fn caller_failure_keeps_the_inline_pages_original_protocol_error() -> Test
         .cert_store_mut()
         .add_cert(btls::x509::X509::from_der(&identity.root_der)?)?;
     connector.set_alpn_protos(b"\x02h2")?;
-    let ssl = connector.build().configure()?.into_ssl("localhost")?;
+    let ssl = connector.build().configure()?.into_ssl("127.0.0.1")?;
     let mut client = tokio_btls::SslStream::new(ssl, TcpStream::connect(address).await?)?;
     Pin::new(&mut client).connect().await?;
     client
@@ -119,7 +119,7 @@ async fn dropping_a_script_closes_its_inline_page_connection() -> TestResult<()>
         .cert_store_mut()
         .add_cert(btls::x509::X509::from_der(&identity.root_der)?)?;
     connector.set_alpn_protos(b"\x02h2")?;
-    let ssl = connector.build().configure()?.into_ssl("localhost")?;
+    let ssl = connector.build().configure()?.into_ssl("127.0.0.1")?;
     let mut tls = tokio_btls::SslStream::new(ssl, TcpStream::connect(address).await?)?;
     Pin::new(&mut tls).connect().await?;
     let (mut sender, connection) = ::http2::client::handshake(tls).await?;
@@ -152,7 +152,10 @@ impl fmt::Display for CloseFailure {
 
 impl Error for CloseFailure {}
 
-struct FailAfterByte(TcpStream);
+struct FailAfterByte {
+    stream: TcpStream,
+    received: Vec<u8>,
+}
 
 impl AsyncRead for FailAfterByte {
     fn poll_read(
@@ -160,11 +163,21 @@ impl AsyncRead for FailAfterByte {
         context: &mut Context<'_>,
         buffer: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
+        if buffer.remaining() == 0 {
+            return Poll::Ready(Ok(()));
+        }
+        if !self.received.is_empty() {
+            return Poll::Ready(Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                CloseFailure,
+            )));
+        }
         let before = buffer.filled().len();
-        match Pin::new(&mut self.0).poll_read(context, buffer) {
-            Poll::Ready(Ok(())) if buffer.filled().len() > before => Poll::Ready(Err(
-                io::Error::new(io::ErrorKind::PermissionDenied, CloseFailure),
-            )),
+        match Pin::new(&mut self.stream).poll_read(context, buffer) {
+            Poll::Ready(Ok(())) if buffer.filled().len() > before => {
+                self.received.extend_from_slice(&buffer.filled()[before..]);
+                Poll::Ready(Ok(()))
+            }
             outcome => outcome,
         }
     }
@@ -176,13 +189,15 @@ async fn opening_close_keeps_a_non_disconnect_error_after_real_input() -> TestRe
     let mut client = TcpStream::connect(listener.local_addr()?).await?;
     let (server, _) = listener.accept().await?;
     client.write_all(b"!").await?;
-    let error = timeout(
-        Duration::from_secs(5),
-        read_upgrade_close(&mut FailAfterByte(server)),
-    )
-    .await?
-    .err()
-    .ok_or("opening read failure was discarded")?;
+    let mut reader = FailAfterByte {
+        stream: server,
+        received: Vec::new(),
+    };
+    let error = timeout(Duration::from_secs(5), read_upgrade_close(&mut reader))
+        .await?
+        .err()
+        .ok_or("opening read failure was discarded")?;
+    assert_eq!(reader.received, b"!");
     let error = error
         .downcast_ref::<io::Error>()
         .ok_or("original I/O error missing")?;
