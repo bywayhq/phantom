@@ -7,40 +7,17 @@ use phantom::{
 use tokio::{io::AsyncWriteExt, net::TcpListener};
 
 use super::{tls_support::*, websocket_support::*};
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 
 #[tokio::test]
 async fn negotiates_and_transfers_compressed_messages() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
-            let mut stream = accept_tls(listener, acceptor).await?;
-            let request = read_head(&mut stream).await?;
-            let key = header_value(&request, "sec-websocket-key")
-                .ok_or("opening handshake omitted Sec-WebSocket-Key")?;
-            let accept = websocket_accept(key);
-            let mut response = format!(
-                "HTTP/1.1 101 Switching Protocols\r\n\
-                 Upgrade: websocket\r\n\
-                 Connection: Upgrade\r\n\
-                 Sec-WebSocket-Accept: {accept}\r\n\
-                 Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_max_window_bits=8\r\n\r\n"
-            )
-            .into_bytes();
-            append_server_frame_with_rsv1(
-                &mut response,
-                true,
-                true,
-                0x1,
-                &[0xca, 0x48, 0xcd, 0xc9, 0xc9, 0x07, 0x00],
-            );
-            stream.write_all(&response).await?;
-            stream.flush().await?;
-            let frame = read_client_frame(&mut stream).await?;
-            Ok::<_, Box<dyn Error + Send + Sync>>((request, frame))
-        });
+        server = Some(ConnectionPeer::spawn(transfer_peer(listener, acceptor)));
 
         let client = test_client(&identity, false)?;
         let mut socket = client
@@ -59,7 +36,7 @@ async fn negotiates_and_transfers_compressed_messages() -> TestResult<()> {
         assert_eq!(socket.receive().await?, WebSocketMessage::Text("hello".into()));
         socket.send(WebSocketMessage::Text("client hello".into())).await?;
 
-        let (request, frame) = server.await??;
+        let (request, frame) = server.as_mut().ok_or("compression peer missing before join")?.join().await??;
         let request = std::str::from_utf8(&request)?;
         assert!(request.contains(
             "Sec-WebSocket-Version: 13\r\nSec-WebSocket-Extensions: permessage-deflate; client_max_window_bits\r\n"
@@ -69,7 +46,12 @@ async fn negotiates_and_transfers_compressed_messages() -> TestResult<()> {
         assert_ne!(frame.payload, b"client hello");
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(server) => server.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(primary, cleanup)
 }
 
 #[tokio::test]
@@ -104,12 +86,13 @@ async fn enabled_compression_requires_its_typed_placeholder_before_io() -> TestR
 
 #[tokio::test]
 async fn preserves_custom_offer_parameter_order_and_values() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(listener, acceptor).await?;
             let request = read_head(&mut stream).await?;
             let key = header_value(&request, "sec-websocket-key")
@@ -125,7 +108,7 @@ async fn preserves_custom_offer_parameter_order_and_values() -> TestResult<()> {
             stream.write_all(response.as_bytes()).await?;
             stream.flush().await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(request)
-        });
+        }));
 
         use PerMessageDeflateOfferParameter::{
             ClientMaxWindowBits, ClientNoContextTakeover, ServerMaxWindowBits,
@@ -147,14 +130,19 @@ async fn preserves_custom_offer_parameter_order_and_values() -> TestResult<()> {
         assert!(negotiated.client_no_context_takeover());
         assert_eq!(negotiated.client_max_window_bits(), 10);
         assert_eq!(negotiated.server_max_window_bits(), 12);
-        let request = server.await??;
+        let request = server.as_mut().ok_or("compression peer missing before join")?.join().await??;
         let request = std::str::from_utf8(&request)?;
         assert!(request.contains(
             "Sec-WebSocket-Extensions: permessage-deflate; client_no_context_takeover; client_max_window_bits=10; server_max_window_bits=12\r\n"
         ));
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match server.as_mut() {
+        Some(server) => server.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(primary, cleanup)
 }
 
 /// The retained `accept-deflate` and `h1-accept-deflate` captures disagree on
@@ -167,12 +155,13 @@ async fn empty_message_follows_the_configured_compression_rule() -> TestResult<(
     for (compress_empty, expected_rsv1, expected_payload_len) in
         [(true, true, 1_usize), (false, false, 0_usize)]
     {
-        bounded(async move {
+        let mut server = None;
+        let primary = bounded(async {
             let identity = TestIdentity::generate()?;
             let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
             let address = listener.local_addr()?;
             let acceptor = identity.acceptor(H1_ALPN)?;
-            let server = tokio::spawn(async move {
+            server = Some(ConnectionPeer::spawn(async move {
                 let mut stream = accept_tls(listener, acceptor).await?;
                 let request = read_head(&mut stream).await?;
                 let key = header_value(&request, "sec-websocket-key")
@@ -190,7 +179,7 @@ async fn empty_message_follows_the_configured_compression_rule() -> TestResult<(
                 let empty = read_client_frame(&mut stream).await?;
                 let non_empty = read_client_frame(&mut stream).await?;
                 Ok::<_, Box<dyn Error + Send + Sync>>((empty, non_empty))
-            });
+            }));
 
             let mut socket = test_client(&identity, false)?
                 .websocket(&format!("wss://{address}/empty-message"))?
@@ -204,7 +193,11 @@ async fn empty_message_follows_the_configured_compression_rule() -> TestResult<(
                 .send(WebSocketMessage::Text("compressible".into()))
                 .await?;
 
-            let (empty, non_empty) = server.await??;
+            let (empty, non_empty) = server
+                .as_mut()
+                .ok_or("compression peer missing before join")?
+                .join()
+                .await??;
             assert_eq!(empty.opcode, 0x1, "empty opcode with {compress_empty}");
             assert_eq!(
                 empty.rsv1, expected_rsv1,
@@ -220,7 +213,45 @@ async fn empty_message_follows_the_configured_compression_rule() -> TestResult<(
             assert_ne!(non_empty.payload, b"compressible");
             Ok(())
         })
-        .await?;
+        .await;
+        let cleanup = match server.as_mut() {
+            Some(server) => server.shutdown().await,
+            None => Ok(()),
+        };
+        finish_with_cleanup(primary, cleanup)?;
     }
     Ok(())
 }
+
+async fn transfer_peer(
+    listener: TcpListener,
+    acceptor: btls::ssl::SslAcceptor,
+) -> TestResult<(Vec<u8>, ClientFrame)> {
+    let mut stream = accept_tls(listener, acceptor).await?;
+    let request = read_head(&mut stream).await?;
+    let key = header_value(&request, "sec-websocket-key")
+        .ok_or("opening handshake omitted Sec-WebSocket-Key")?;
+    let accept = websocket_accept(key);
+    let mut response = format!(
+                "HTTP/1.1 101 Switching Protocols\r\n\
+                 Upgrade: websocket\r\n\
+                 Connection: Upgrade\r\n\
+                 Sec-WebSocket-Accept: {accept}\r\n\
+                 Sec-WebSocket-Extensions: permessage-deflate; server_no_context_takeover; client_max_window_bits=8\r\n\r\n"
+            )
+            .into_bytes();
+    append_server_frame_with_rsv1(
+        &mut response,
+        true,
+        true,
+        0x1,
+        &[0xca, 0x48, 0xcd, 0xc9, 0xc9, 0x07, 0x00],
+    );
+    stream.write_all(&response).await?;
+    stream.flush().await?;
+    let frame = read_client_frame(&mut stream).await?;
+    Ok::<_, Box<dyn Error + Send + Sync>>((request, frame))
+}
+
+#[cfg(test)]
+mod ownership;
