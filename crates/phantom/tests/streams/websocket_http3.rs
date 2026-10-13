@@ -156,7 +156,7 @@ async fn dropping_an_http3_websocket_cancels_only_its_stream() -> TestResult<()>
             SendEnding::Stopped(H3_REQUEST_CANCELLED)
         );
         // The connection outlives the cancelled stream and stays pooled.
-        ordinary_get(&client, &origin).await?;
+        ordinary_get(&client, origin).await?;
         assert_eq!(origin.connections(), 1);
         Ok(())
     })
@@ -305,14 +305,14 @@ async fn http3_websocket_reuses_the_pooled_connection_of_an_ordinary_request() -
         let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
         let client = client(&identity)?;
 
-        ordinary_get(&client, &origin).await?;
+        ordinary_get(&client, origin).await?;
         let mut socket = client
             .websocket_with_protocol(HttpProtocol::Http3, &origin.uri("/after-get"))?
             .connect()
             .await?;
         assert_echoes(&mut socket).await?;
         // The pooled connection still serves requests beside the WebSocket.
-        ordinary_get(&client, &origin).await?;
+        ordinary_get(&client, origin).await?;
 
         assert_eq!(origin.connections(), 1);
         assert_eq!(origin.methods(), ["GET", "CONNECT", "GET"]);
@@ -491,7 +491,7 @@ async fn http3_websocket_handshake_timeout_cancels_only_its_stream() -> TestResu
             Ending::Reset(H3_REQUEST_CANCELLED)
         );
         // The pooled connection stays usable.
-        ordinary_get(&client, &origin).await?;
+        ordinary_get(&client, origin).await?;
         assert_eq!(origin.connections(), 1);
         Ok(())
     })
@@ -688,9 +688,9 @@ async fn connect_udp_http3_websocket_sends_the_origin_certificate_only_to_the_or
             .connect()
             .await;
         let mut socket =
-            masque_diagnostics::observe("extended CONNECT", opening, &origin, &proxy).await?;
+            masque_diagnostics::observe("extended CONNECT", opening, origin, &proxy).await?;
         assert_eq!(socket.handshake_response().version(), Version::HTTP_3);
-        masque_diagnostics::assert_echoes(&mut socket, &origin, &proxy).await?;
+        masque_diagnostics::assert_echoes(&mut socket, origin, &proxy).await?;
         assert_eq!(origin.connections(), 1);
         assert_eq!(origin.methods(), ["CONNECT"]);
         assert_eq!(proxy.connections(), 1);
@@ -725,8 +725,8 @@ async fn http3_websocket_travels_through_a_connect_udp_proxy() -> TestResult<()>
             .connect()
             .await;
         let mut socket =
-            masque_diagnostics::observe("extended CONNECT", opening, &origin, &proxy).await?;
-        masque_diagnostics::assert_echoes(&mut socket, &origin, &proxy).await?;
+            masque_diagnostics::observe("extended CONNECT", opening, origin, &proxy).await?;
+        masque_diagnostics::assert_echoes(&mut socket, origin, &proxy).await?;
 
         let requests = proxy.requests();
         assert_eq!(requests.len(), 1);
