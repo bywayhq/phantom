@@ -941,6 +941,9 @@ HTTP origins as potentially trustworthy, so it sends hints to them.
 separator. `--run-timeout` must be finite and positive. For IPv6 loopback,
 use `--listen '[::1]:0'`.
 
+Use single-line printable ASCII metadata. The tool rejects malformed HTTP
+field names. Valid names keep their original case and order.
+
 Capture Chrome on Windows:
 
 ```sh
@@ -975,6 +978,7 @@ Before another run or fixture publication, the tool collects registered
 connections and their callback outcomes. A callback failure stops the capture.
 A run fails above 64 retained connections. Cleanup has a five-second
 cooperative deadline; incomplete cleanup prevents fixture publication.
+Protocol setup failures retain and retire the accepted socket.
 
 ## HTTP/2 preface PING
 

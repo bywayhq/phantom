@@ -14,6 +14,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Require single-line printable ASCII client-hint capture metadata. Migrate:
+  remove line breaks, control characters and non-ASCII metadata values.
 - Bound Firefox socket-hook capture records, frames and log input. Migrate:
   split runs exceeding the limits in `scripts/capture/README.md`. Use finite
   positive scenario waits and single-line printable ASCII metadata.
@@ -2488,6 +2490,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Retain accepted client-hint capture sockets when protocol setup fails,
+  and reject malformed HTTP field names before fixture publication.
 - Collect Firefox capture peers when native cleanup stalls. Preserve serving,
   hook, lookup and cleanup causes, and reject failed captures before writing.
 - Reject poisoned HTTP/2 WebSocket fixture recorders before reading bytes,
