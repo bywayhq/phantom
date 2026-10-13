@@ -1,16 +1,20 @@
 use std::{
+    error::Error,
     io,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    sync::Arc,
     time::Duration,
 };
 
+use hickory_resolver::{net::NetError, proto::rr::Name};
 use phantom_profile::browser::chrome;
 use phantom_testkit::dns::{DnsAnswer, DnsReply, DnsServer};
 use tokio::{task::JoinHandle, time::timeout};
 
 use super::{
-    HttpsLookupErrorKind, HttpsRecord, HttpsRecordErrorKind, HttpsRecordResolver, TargetName,
-    bind_loopback_nameserver, https_answers_from_message, nameserver, query_name,
+    HttpsLookupError, HttpsLookupErrorKind, HttpsRecord, HttpsRecordErrorKind, HttpsRecordResolver,
+    NameserverConfigurationError, TargetName, bind_loopback_nameserver, https_answers_from_message,
+    nameserver, query_name,
 };
 use crate::udp::observed;
 
@@ -375,10 +379,58 @@ fn query_name_prefixes_non_default_ports() {
 
 #[test]
 fn resolver_needs_a_nameserver() {
-    let error = HttpsRecordResolver::with_nameservers([]).err();
+    let error = HttpsRecordResolver::with_nameservers([]).expect_err("empty configuration");
+    assert_eq!(error.kind(), HttpsLookupErrorKind::Configuration);
     assert_eq!(
-        error.map(|error| error.kind()),
-        Some(HttpsLookupErrorKind::Configuration)
+        error.to_string(),
+        "invalid DNS resolver configuration: no DNS nameserver is configured"
+    );
+    assert!(
+        error
+            .source()
+            .expect("configuration category")
+            .source()
+            .is_none()
+    );
+}
+
+#[test]
+fn https_configuration_errors_retain_the_original_system_io_failure() {
+    let original = Arc::new(io::Error::from_raw_os_error(2));
+    let backend = NetError::Io(Arc::clone(&original));
+
+    let error = HttpsLookupError::configuration(NameserverConfigurationError::system(backend));
+
+    assert_eq!(error.kind(), HttpsLookupErrorKind::Configuration);
+    let backend = error
+        .source()
+        .and_then(Error::source)
+        .and_then(|source| source.downcast_ref::<NetError>())
+        .expect("original system configuration error");
+    let NetError::Io(retained) = backend else {
+        panic!("original I/O error lost");
+    };
+    assert!(Arc::ptr_eq(retained, &original));
+    assert_eq!(retained.raw_os_error(), Some(2));
+}
+
+#[test]
+fn https_configuration_errors_retain_the_original_system_name_failure() {
+    let invalid_domain = format!("{}.example", "a".repeat(64));
+    let original = Name::from_ascii(invalid_domain).expect_err("oversized DNS label");
+    let message = original.to_string();
+
+    let error = HttpsLookupError::configuration(NameserverConfigurationError::system(original));
+
+    let original = error
+        .source()
+        .and_then(Error::source)
+        .and_then(|source| source.downcast_ref::<hickory_resolver::proto::ProtoError>())
+        .expect("original platform configuration error");
+    assert_eq!(original.to_string(), message);
+    assert_eq!(
+        error.to_string(),
+        format!("invalid DNS resolver configuration: {message}")
     );
 }
 

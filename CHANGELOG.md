@@ -2601,6 +2601,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Retain original DNS configuration failures in the error chains of address
+  and HTTPS record resolvers.
+
 - Qualify cookie capture completion using the original request target and
   one exact run token. Bracket Chromium IPv6 resolver mappings in cookie,
   lifecycle and QUIC resumption captures. Firefox IPv6 launches prefer IPv6

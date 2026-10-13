@@ -151,7 +151,8 @@ impl AddressResolver {
     /// # Errors
     ///
     /// Returns an error when the host configuration cannot be read or names
-    /// no nameserver.
+    /// no nameserver. The error has kind [`io::ErrorKind::InvalidInput`] and
+    /// retains the configuration reader's original failure as its source.
     #[cfg(feature = "https-records")]
     pub fn system_nameservers() -> io::Result<Self> {
         crate::dns::AddressLookup::system().map(Self::from_dns)

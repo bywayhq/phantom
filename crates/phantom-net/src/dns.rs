@@ -88,14 +88,16 @@ impl Nameservers {
     /// Reads the nameservers configured on this host: `/etc/resolv.conf` on
     /// Unix, the adapter DNS servers on Windows, and the System
     /// Configuration store on Apple platforms.
-    fn system() -> Result<Self, String> {
-        let (config, _) =
-            hickory_resolver::system_conf::read_system_conf().map_err(|error| error.to_string())?;
+    fn system() -> Result<Self, NameserverConfigurationError> {
+        let (config, _) = hickory_resolver::system_conf::read_system_conf()
+            .map_err(NameserverConfigurationError::system)?;
         let (_, _, nameservers) = config.into_parts();
         Self::new(nameservers)
     }
 
-    fn with_addresses(nameservers: impl IntoIterator<Item = SocketAddr>) -> Result<Self, String> {
+    fn with_addresses(
+        nameservers: impl IntoIterator<Item = SocketAddr>,
+    ) -> Result<Self, NameserverConfigurationError> {
         Self::new(
             nameservers
                 .into_iter()
@@ -105,10 +107,11 @@ impl Nameservers {
     }
 
     /// Builds the resolver once, so a configuration it rejects fails here.
-    fn new(nameservers: Vec<NameServerConfig>) -> Result<Self, String> {
+    fn new(nameservers: Vec<NameServerConfig>) -> Result<Self, NameserverConfigurationError> {
         if nameservers.is_empty() {
-            return Err("no DNS nameserver is configured".to_owned());
+            return Err(NameserverConfigurationError::MissingNameserver);
         }
+
         let nameservers = Self {
             configs: nameservers
                 .into_iter()
@@ -117,7 +120,9 @@ impl Nameservers {
             udp: None,
             resolver: Arc::default(),
         };
-        nameservers.resolver().map_err(|error| error.to_string())?;
+        nameservers
+            .resolver()
+            .map_err(NameserverConfigurationError::Build)?;
         Ok(nameservers)
     }
 
@@ -171,6 +176,40 @@ impl fmt::Debug for Nameservers {
     }
 }
 
+#[derive(Debug)]
+enum NameserverConfigurationError {
+    MissingNameserver,
+    System(Box<dyn StdError + Send + Sync>),
+    Build(NetError),
+}
+
+impl NameserverConfigurationError {
+    fn system(error: impl StdError + Send + Sync + 'static) -> Self {
+        Self::System(Box::new(error))
+    }
+}
+
+impl fmt::Display for NameserverConfigurationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("invalid DNS resolver configuration: ")?;
+        match self {
+            Self::MissingNameserver => formatter.write_str("no DNS nameserver is configured"),
+            Self::System(error) => fmt::Display::fmt(error, formatter),
+            Self::Build(error) => fmt::Display::fmt(error, formatter),
+        }
+    }
+}
+
+impl StdError for NameserverConfigurationError {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        match self {
+            Self::MissingNameserver => None,
+            Self::System(error) => Some(error.as_ref()),
+            Self::Build(error) => Some(error),
+        }
+    }
+}
+
 impl HttpsRecordResolver {
     /// Answers lookups with `lookup`, called with the origin host and port.
     ///
@@ -200,7 +239,8 @@ impl HttpsRecordResolver {
     /// # Errors
     ///
     /// Returns [`HttpsLookupErrorKind::Configuration`] when the host
-    /// configuration cannot be read or names no nameserver.
+    /// configuration cannot be read or names no nameserver. The error retains
+    /// the configuration reader's original failure as its source.
     pub fn system() -> Result<Self, HttpsLookupError> {
         Nameservers::system()
             .map(Self::from_nameservers)
@@ -559,11 +599,11 @@ pub struct HttpsLookupError {
 }
 
 impl HttpsLookupError {
-    fn configuration(detail: String) -> Self {
+    fn configuration(error: NameserverConfigurationError) -> Self {
         Self {
             kind: HttpsLookupErrorKind::Configuration,
-            detail: Some(detail),
-            source: None,
+            detail: None,
+            source: Some(Box::new(error)),
         }
     }
 
@@ -620,6 +660,13 @@ impl HttpsLookupError {
 
 impl fmt::Display for HttpsLookupError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.kind == HttpsLookupErrorKind::Configuration {
+            return match &self.source {
+                Some(error) => fmt::Display::fmt(error, formatter),
+                None => formatter.write_str("invalid DNS resolver configuration"),
+            };
+        }
+
         formatter.write_str(match self.kind {
             HttpsLookupErrorKind::Configuration => "invalid DNS resolver configuration",
             HttpsLookupErrorKind::InvalidName => "host cannot form an HTTPS query name",

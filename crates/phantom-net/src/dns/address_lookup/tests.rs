@@ -1,5 +1,6 @@
 use std::{
     cell::RefCell,
+    error::Error,
     io,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     num::NonZeroUsize,
@@ -7,10 +8,12 @@ use std::{
     time::{Duration, Instant},
 };
 
+use hickory_resolver::net::NetError;
 use phantom_profile::{DnsCacheSettings, UdpSettings, browser::chrome};
 use phantom_testkit::dns::{DnsAnswer, DnsQuery, DnsReply, DnsServer};
 
-use super::{AddressLookup, MAX_FALLBACKS, probe_socket};
+use super::{AddressLookup, MAX_FALLBACKS, configuration_error, probe_socket};
+use crate::dns::NameserverConfigurationError;
 use crate::{address_cache::AddressCache, host_resolver::AddressResolver, udp::observed};
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
@@ -21,6 +24,44 @@ const V4: Ipv4Addr = Ipv4Addr::new(192, 0, 2, 10);
 const V4_OTHER: Ipv4Addr = Ipv4Addr::new(192, 0, 2, 11);
 const V6: Ipv6Addr = Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 10);
 const SYSTEM: IpAddr = IpAddr::V4(Ipv4Addr::new(192, 0, 2, 99));
+
+#[test]
+fn address_configuration_errors_retain_the_original_system_io_failure() {
+    let original = Arc::new(io::Error::from_raw_os_error(2));
+    let backend = NetError::Io(Arc::clone(&original));
+
+    let error = configuration_error(NameserverConfigurationError::system(backend));
+
+    assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+    let backend = error
+        .get_ref()
+        .and_then(Error::source)
+        .and_then(|source| source.downcast_ref::<NetError>())
+        .expect("original system configuration error");
+    let NetError::Io(retained) = backend else {
+        panic!("original I/O error lost");
+    };
+    assert!(Arc::ptr_eq(retained, &original));
+    assert_eq!(retained.raw_os_error(), Some(2));
+}
+
+#[test]
+fn address_resolver_rejects_missing_nameservers_without_a_network_cause() {
+    let error = AddressResolver::with_nameservers([]).expect_err("empty configuration");
+
+    assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "invalid DNS resolver configuration: no DNS nameserver is configured"
+    );
+    assert!(
+        error
+            .get_ref()
+            .expect("configuration category")
+            .source()
+            .is_none()
+    );
+}
 
 /// Answers A and AAAA with fixed records and TTLs.
 fn records(a_ttl: u32, aaaa_ttl: u32) -> impl Fn(&DnsQuery) -> DnsReply + Send + Sync + 'static {

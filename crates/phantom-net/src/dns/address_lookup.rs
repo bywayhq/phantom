@@ -35,7 +35,7 @@ use hickory_resolver::{
 use phantom_profile::UdpSettings;
 use tokio::sync::Notify;
 
-use super::{Nameservers, query_sockets::notify_sent_queries};
+use super::{NameserverConfigurationError, Nameservers, query_sockets::notify_sent_queries};
 use crate::host_resolver::{DnsLookup, ResolveFuture, Resolved};
 
 /// Consecutive lookups that needed the system resolver after which the DNS
@@ -425,11 +425,8 @@ impl SystemResolver {
     }
 }
 
-fn configuration_error(detail: String) -> io::Error {
-    io::Error::new(
-        io::ErrorKind::InvalidInput,
-        format!("invalid DNS resolver configuration: {detail}"),
-    )
+fn configuration_error(error: NameserverConfigurationError) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidInput, error)
 }
 
 #[cfg(test)]
