@@ -24,7 +24,7 @@ use super::{
     H1_ALPN, MasqueStreamProxy, STREAM_SHUTDOWN, StreamLeg, StreamLog, StreamMode, TestIdentity,
     TestResult, encode_capsule, finish_with_cleanup, lock, read_head, serve_http1, serve_http2,
 };
-use crate::support::tunnel_proxy::{ConnectionPeer, FixtureFailures};
+use crate::support::tunnel_proxy::{ConnectionPeer, connection_peer::FixtureFailures};
 
 async fn completed(proxy: &MasqueStreamProxy) -> TestResult<()> {
     timeout(STREAM_SHUTDOWN, async {
