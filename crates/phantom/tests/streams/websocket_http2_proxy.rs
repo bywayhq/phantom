@@ -38,7 +38,7 @@ async fn h2_websocket_over_http_connect_exchanges_messages() -> TestResult<()> {
         let identity = TestIdentity::generate()?;
         let (origin_address, origin) = spawn_h2_origin(&identity).await?;
         let (proxy_address, proxy_listener) = bind().await?;
-        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(
+        proxy_owner = Some(tunnel_proxy::setup::TunnelSetup::spawn(
             tunnel_proxy::http1_connect(proxy_listener, origin_address),
         ));
 
@@ -90,7 +90,7 @@ async fn h2_websocket_over_https_connect_basic_challenge_replays_once() -> TestR
         let (origin_address, origin) = spawn_h2_origin(&identity).await?;
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(
+        proxy_owner = Some(tunnel_proxy::setup::TunnelSetup::spawn(
             tunnel_proxy::https1_challenge_then_connect(
                 proxy_listener,
                 proxy_identity.acceptor(H1_ALPN)?,
@@ -149,7 +149,7 @@ async fn h2_websocket_over_h2_proxy_transport_exchanges_messages() -> TestResult
         let (origin_address, origin) = spawn_h2_origin(&identity).await?;
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(
+        proxy_owner = Some(tunnel_proxy::setup::TunnelSetup::spawn(
             tunnel_proxy::http2_connect(
                 proxy_listener,
                 proxy_identity.acceptor(H2_ALPN)?,
@@ -203,7 +203,7 @@ async fn h2_websocket_over_socks5_local_and_remote_dns() -> TestResult<()> {
         for scheme in ["socks5", "socks5h"] {
             let (origin_address, origin) = spawn_h2_origin(&identity).await?;
             let (proxy_address, proxy_listener) = bind().await?;
-            proxies.push(tunnel_proxy::TunnelSetup::spawn(
+            proxies.push(tunnel_proxy::setup::TunnelSetup::spawn(
                 tunnel_proxy::socks5_connect(proxy_listener, origin_address),
             ));
 
@@ -332,7 +332,7 @@ async fn h2_websocket_over_proxy_requires_peer_setting() -> TestResult<()> {
             ),
         );
         let (proxy_address, proxy_listener) = bind().await?;
-        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(
+        proxy_owner = Some(tunnel_proxy::setup::TunnelSetup::spawn(
             tunnel_proxy::http1_connect(proxy_listener, origin_address),
         ));
 
@@ -457,7 +457,7 @@ async fn http1_websocket_over_h2_proxy_transport_exchanges_messages() -> TestRes
         ));
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(
+        proxy_owner = Some(tunnel_proxy::setup::TunnelSetup::spawn(
             tunnel_proxy::http2_connect(
                 proxy_listener,
                 proxy_identity.acceptor(H2_ALPN)?,
@@ -511,7 +511,7 @@ async fn plaintext_ws_over_h2_proxy_transport_opens_a_connect_stream() -> TestRe
         );
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(
+        proxy_owner = Some(tunnel_proxy::setup::TunnelSetup::spawn(
             tunnel_proxy::http2_connect(
                 proxy_listener,
                 proxy_identity.acceptor(H2_ALPN)?,
@@ -572,7 +572,7 @@ async fn plaintext_ws_over_h2_proxy_replays_a_challenged_connect_on_its_connecti
         );
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(
+        proxy_owner = Some(tunnel_proxy::setup::TunnelSetup::spawn(
             tunnel_proxy::http2_challenge_then_connect(
                 proxy_listener,
                 proxy_identity.acceptor(H2_ALPN)?,
@@ -625,7 +625,7 @@ async fn h2_websocket_over_h2_proxy_replays_a_challenged_connect_on_its_connecti
         let (origin_address, origin) = spawn_h2_origin(&identity).await?;
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(
+        proxy_owner = Some(tunnel_proxy::setup::TunnelSetup::spawn(
             tunnel_proxy::http2_challenge_then_connect(
                 proxy_listener,
                 proxy_identity.acceptor(H2_ALPN)?,
@@ -705,7 +705,7 @@ async fn plaintext_ws_over_h2_proxy_sends_the_profile_connect_fields() -> TestRe
             );
             let proxy_identity = TestIdentity::generate()?;
             let (proxy_address, proxy_listener) = bind().await?;
-            proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(
+            proxy_owner = Some(tunnel_proxy::setup::TunnelSetup::spawn(
                 tunnel_proxy::http2_connect(
                     proxy_listener,
                     proxy_identity.acceptor(H2_ALPN)?,

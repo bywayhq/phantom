@@ -114,10 +114,9 @@ impl<T: Send + 'static> TunnelSetup<T> {
         };
         if let (Some(previous), Some(returned)) =
             (self.failure.as_ref(), error.downcast_ref::<SetupFailure>())
+            && Arc::ptr_eq(&previous.0, &returned.0)
         {
-            if Arc::ptr_eq(&previous.0, &returned.0) {
-                return;
-            }
+            return;
         }
         let combined = match self.failure.take() {
             Some(previous) => finish_with_cleanup::<()>(Err(Box::new(previous)), Err(error)),

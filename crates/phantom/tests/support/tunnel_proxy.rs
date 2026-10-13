@@ -36,8 +36,7 @@ pub(crate) use connection_peer::{ConnectionPeer, finish_with_cleanup};
 #[path = "tunnel_proxy/relay_peer.rs"]
 mod relay_peer;
 #[path = "tunnel_proxy/setup.rs"]
-mod setup;
-pub(crate) use setup::TunnelSetup;
+pub(crate) mod setup;
 
 #[path = "tunnel_proxy/relay_controls.rs"]
 mod relay_controls;

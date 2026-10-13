@@ -623,7 +623,7 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
             tunnel_proxy::ConnectionPeer::spawn(serve(listener, ech_acceptor(&identity)?, 1));
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(
+        proxy_owner = Some(tunnel_proxy::setup::TunnelSetup::spawn(
             tunnel_proxy::http1_connect(proxy_listener, origin),
         ));
 

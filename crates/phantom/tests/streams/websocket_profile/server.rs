@@ -628,7 +628,13 @@ async fn echo_h2(
                 return Err("profile WebSocket buffered-input bound exceeded".into());
             }
             wire.extend_from_slice(&chunk);
-            while let Some((rsv1, opcode, payload, consumed)) = client_frame(&wire)? {
+            while let Some(ParsedFrame {
+                rsv1,
+                opcode,
+                payload,
+                consumed,
+            }) = client_frame(&wire)?
+            {
                 // Recorded before the echo, so a client that has read the echo
                 // has already had its own frame logged.
                 if log
@@ -668,10 +674,10 @@ async fn echo_h2(
             return Err("client ended with a partial WebSocket frame".into());
         }
         // The client ended its side after the close handshake; end ours too.
-        if let Err(error) = send.send_data(Bytes::new(), true) {
-            if !expected_stream_end(&error) {
-                return Err(error.into());
-            }
+        if let Err(error) = send.send_data(Bytes::new(), true)
+            && !expected_stream_end(&error)
+        {
+            return Err(error.into());
         }
         Ok(())
     };
@@ -799,8 +805,9 @@ async fn read_profile_frame(stream: &mut (impl AsyncRead + Unpin)) -> TestResult
     let prefix = wire.len();
     wire.resize(prefix + 4 + length, 0);
     stream.read_exact(&mut wire[prefix..]).await?;
-    let (_, opcode, payload, _) =
-        client_frame(&wire)?.ok_or("complete profile frame was truncated")?;
+    let ParsedFrame {
+        opcode, payload, ..
+    } = client_frame(&wire)?.ok_or("complete profile frame was truncated")?;
     Ok((opcode, payload))
 }
 
@@ -820,8 +827,15 @@ fn decode_alpn(mut wire: &[u8]) -> Vec<String> {
     protocols
 }
 
+struct ParsedFrame {
+    rsv1: bool,
+    opcode: u8,
+    payload: Vec<u8>,
+    consumed: usize,
+}
+
 /// Unmasks one complete client frame, or returns `None` until it is complete.
-fn client_frame(wire: &[u8]) -> TestResult<Option<(bool, u8, Vec<u8>, usize)>> {
+fn client_frame(wire: &[u8]) -> TestResult<Option<ParsedFrame>> {
     let Some(&first) = wire.first() else {
         return Ok(None);
     };
@@ -858,16 +872,16 @@ fn client_frame(wire: &[u8]) -> TestResult<Option<(bool, u8, Vec<u8>, usize)>> {
     let Some(payload) = tail.get(..length) else {
         return Ok(None);
     };
-    Ok(Some((
+    Ok(Some(ParsedFrame {
         rsv1,
         opcode,
-        payload
+        payload: payload
             .iter()
             .enumerate()
             .map(|(index, byte)| byte ^ mask[index % 4])
             .collect(),
-        wire.len() - tail.len() + length,
-    )))
+        consumed: wire.len() - tail.len() + length,
+    }))
 }
 
 /// Incremental parser for the client's side of an HTTP/2 connection.

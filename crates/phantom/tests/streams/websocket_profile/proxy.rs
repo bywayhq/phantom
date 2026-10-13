@@ -30,7 +30,7 @@ use super::{
     pooled_get_at,
 };
 use crate::support::tls::{H1_ALPN, H2_ALPN, TestIdentity, tls_settings};
-use crate::support::tunnel_proxy::{self, Http2ConnectRecord, Socks5Target, TunnelSetup};
+use crate::support::tunnel_proxy::{self, Http2ConnectRecord, Socks5Target, setup::TunnelSetup};
 use crate::support::websocket_origin::header_value;
 
 /// A name, so a SOCKS5 proxy with remote resolution receives a domain.
