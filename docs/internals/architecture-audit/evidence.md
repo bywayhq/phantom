@@ -83,6 +83,28 @@ Independent source reviews cover the composed ownership and parser changes.
 Initial compile failures and failing controls remain in their earlier logs.
 The exact-candidate full gate and integration checks remain required.
 
+The full Windows and Linux gate at clean `5d51de09` fails four of its 24
+steps: native and Linux Clippy, feature-row Clippy, and nextest. The other
+twenty steps pass. Nextest passes 4,502 of 4,505 tests; two H2 fixture
+controls and one DNS fixture control report unexpected cancellation.
+The original gate log and exit use `fixture-gate-5d51de09-windows`.
+All 74 raw step files are preserved in
+`fixture-gate-5d51de09-failed-step-logs`, with a SHA-256 manifest.
+
+The reviewed corrections preserve explicit coordinator stop intent,
+collect H2 drivers before backup cancellation, and deliver observed read
+bytes before injecting a later error. Unexpected external cancellation
+still returns its original join error. Parser assertions and typed causes
+remain intact through the lint corrections.
+
+At clean `ccf8c088`, native strict workspace Clippy passes with all targets
+and features. The expanded fixture selection passes all 239 tests across
+four binaries, with 1,522 other tests skipped. The three earlier failing
+controls and the new read and external-cancellation controls pass.
+Complete logs, zero exits and equal source bindings use
+`fixture-remedies-ccf8c088`. This is focused verification; the replacement
+full gate, PR checks and integration remain required.
+
 ### Source preservation
 
 Read-only Git comparison uses original audit revision

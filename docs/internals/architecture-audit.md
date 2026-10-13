@@ -77,7 +77,10 @@ records PR does not close those findings or the full audit.
 
 The next fixture delivery covers malformed capture input, redirects,
 WebSockets, EventSource reconnects and HTTP/2 and HTTP/3 connection counts.
-Independent source reviews and focused checks are in progress. A separate
+Independent source reviews and 239 selected tests pass locally. The first
+full gate found three fixture cancellation regressions and lint failures;
+their reviewed corrections pass focused checks. The replacement full gate
+and integration checks remain required. A separate
 source review found remaining WebSocket HTTP/3 and MASQUE fixture defects.
 Those repairs remain required before the full audit can close.
 
