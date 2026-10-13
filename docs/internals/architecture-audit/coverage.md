@@ -3,6 +3,49 @@
 Use this matrix to see which paths have been examined and what remains.
 Pending means that discovery or assignment has not established review.
 
+## Native QUIC input and DNS deadline checks
+
+The resolved aioquic 1.3.0 header-protection implementation reads a
+sixteen-byte sample and copies the protected header into a 1500-byte buffer.
+Its Python caller reaches that operation before validating the payload.
+The capture analyzer now checks the header offset and complete sample first.
+The limit applies to the header, rather than the whole packet.
+
+Root and an independent reviewer read the actual C implementation, Python
+caller, packet parser, shared guard and analyzer controls. At `cc6e8fc2`,
+five malformed-input subcases reach an intercepted decryption call on each
+host. These produce two failing methods without entering native decryption.
+The largest accepted header control passes with mocked decryption.
+
+At `33de1fc4`, Windows and Linux each pass all 22 analyzer methods and all
+28 selected DNS methods. The DNS deadline retains its original `Elapsed`.
+Its regression enters the actual pending helper before advancing time.
+No pre-fix execution of the old DNS error mapping is claimed.
+
+Both hosts pass Ruff, strict sessions Clippy, Rust 1.88, warning-denied
+rustdoc and docs. Formatting alone fails on DNS helper wrapping.
+The whitespace-only correction at `327f18a3` passes formatting on both hosts.
+Root and an independent reader inspect the complete logs, exits and separate
+clean revision bindings. Runtime evidence remains at `33de1fc4`.
+Original failed and passing logs remain under the audit scratchpad's
+`quic-boundary-baseline`, `quic-boundary-remedy` and `dns-format` prefixes.
+The IP-literal caller repair and final integration gates remain open.
+
+## Client and route architecture review
+
+At `57a9f1b0`, an independent complete-file pass covers configuration,
+URL preparation, header hooks, environment routing, redirects, route owners
+and client and network request/connection boundaries. It reads relevant pool
+and connector sections. Root reviews the complete client owner and actual
+redirect and route-selection paths. The pass supports the current concrete
+owners and configuration alternatives; it finds no justified new crate split.
+Production source is unchanged through the `7c88d128` ledger update.
+
+Redirect rustdoc now distinguishes explicit routes from environment routes
+selected for each new logical origin. Warning-denied rustdoc passes at
+`33de1fc4`. Deeper transport engines, replay fixtures and the final combined
+standards review remain outside this bounded architecture conclusion.
+
 ## Template, TLS and HTTP/2 fixture completion
 
 The repeated-reply template factory returns its existing owner directly.
@@ -81,10 +124,11 @@ controls and import sorting. After the source correction, `fb7ea503` passed
 combined batch above resolves that lint and passes the affected controls.
 Original failed logs remain in the audit scratchpad.
 
-Root and independent whole-file reads of `quic_packet_diff.py` and its tests
-find no additional defect within bounded QUIC v1 capture analysis. Caller
-review covers packet acquisition, authenticated analysis and cleanup. This
-does not establish general frame validation, secure erasure or browser parity.
+The earlier whole-file pass of `quic_packet_diff.py` and its tests finds no
+additional defect within its then-reviewed contracts. The later resolved
+native-boundary pass identifies A286 and repairs the unchecked header/sample
+extents above. Neither pass establishes general frame validation, secure
+erasure or browser parity.
 
 CI at pushed `0a49baa1` passes 41 checks and fails the macOS platform job and
 its aggregate requirement. The keepalive test's assertions pass, but nextest
