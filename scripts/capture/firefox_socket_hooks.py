@@ -1275,6 +1275,8 @@ class _FirefoxNative:
 
     def work(self) -> None:
         try:
+            if self.stop_requested.is_set():
+                return
             with patched_environment(self.run.environment):
                 self.browser.__enter__()
             self.notify(self.started)

@@ -285,6 +285,60 @@ class OriginOwnershipTests(unittest.IsolatedAsyncioTestCase):
 
 
 class NativeOwnershipTests(unittest.IsolatedAsyncioTestCase):
+    async def test_explicit_native_cleanup_retry_retires_owner_without_erasing_original_error(
+        self,
+    ) -> None:
+        cause = OSError(errno.EIO, "independent native cleanup failure")
+
+        class Browser:
+            def __init__(self, *_args):
+                self.exits = 0
+                self.retired = False
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                self.exits += 1
+                if self.exits == 1:
+                    raise cause
+                self.retired = True
+
+        owner = hooks._FirefoxRun(hooks.SCENARIOS["http1-idle"])
+        with patch.object(hooks, "LaunchedBrowser", Browser):
+            native = hooks._FirefoxNative(
+                owner,
+                LaunchPlan("firefox", Path("unused"), True),
+                "http://127.0.0.1/",
+                {},
+            )
+        owner.native = native
+        native.start()
+        try:
+            await owner.wait(native.started, 2)
+            first = await owner.finish()
+
+            self.assertIn(cause, first)
+            pending = next(
+                error
+                for error in first
+                if isinstance(error, hooks._FirefoxCapturePending)
+            )
+            self.assertIs(pending.owner.native, native)
+            self.assertTrue(native.future.done())
+            self.assertFalse(native.browser.retired)
+
+            second = await pending.owner.finish()
+
+            self.assertIn(cause, second)
+            self.assertFalse(
+                any(isinstance(error, hooks._FirefoxCapturePending) for error in second)
+            )
+            self.assertTrue(native.browser.retired)
+            self.assertEqual(native.browser.exits, 2)
+        finally:
+            await owner.finish()
+
     async def test_interrupted_launch_retains_worker_until_actual_exit(self) -> None:
         entering = threading.Event()
         release = threading.Event()
