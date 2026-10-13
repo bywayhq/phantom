@@ -26,7 +26,7 @@ async fn a_truncated_hop_preserves_the_caller_and_child_failures() -> TestResult
     ));
     let original = ptr::from_ref(caller.as_ref());
     let result: TestResult<()> = finish_with_cleanup(Err(caller), server.shutdown().await);
-    let error = result.expect_err("truncated hop was silently discarded");
+    let error = result.err().ok_or("truncated hop was silently discarded")?;
     let failures = error
         .downcast_ref::<FixtureFailures>()
         .ok_or("combined failure was not retained")?;
@@ -57,11 +57,12 @@ async fn a_caller_timeout_keeps_the_accepted_hop_available_for_cleanup() -> Test
     wait_for_child(&server, false).await?;
 
     let result = timeout(Duration::from_millis(20), received.recv()).await;
-    let elapsed = result.expect_err("incomplete request produced a head");
+    let elapsed = result.err().ok_or("incomplete request produced a head")?;
     let primary: TestResult<()> =
         Err(super::FixtureDeadline::new("redirect caller control expired", elapsed).into());
     let error = finish_with_cleanup(primary, server.shutdown().await)
-        .expect_err("caller deadline was discarded");
+        .err()
+        .ok_or("caller deadline was discarded")?;
     assert!(error.downcast_ref::<super::FixtureDeadline>().is_some());
     assert!(
         error

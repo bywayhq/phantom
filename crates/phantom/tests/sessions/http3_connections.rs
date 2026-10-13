@@ -595,7 +595,7 @@ async fn concurrent_requests_to_a_cold_origin_do_not_stampede() -> TestResult {
         origins.push(Origin::start(&identity)?);
         let origin = origins.last_mut().ok_or("origin owner missing")?;
         let client = client_builder(&identity).build()?;
-        let tasks = spawn_held(&mut requests, &client, &origin, &["warm"; REQUESTS]);
+        let tasks = spawn_held(&mut requests, &client, origin, &["warm"; REQUESTS]);
         // All five share the one connection, two streams at a time.
         assert_eq!(origin.settle(REQUESTS).await?, (1, REQUESTS));
         requests.join(tasks).await?;
@@ -606,7 +606,7 @@ async fn concurrent_requests_to_a_cold_origin_do_not_stampede() -> TestResult {
         let client = client_builder(&identity)
             .max_http3_connections_per_origin(bound(8)?)
             .build()?;
-        let tasks = spawn_held(&mut requests, &client, &origin, &["held"; 6]);
+        let tasks = spawn_held(&mut requests, &client, origin, &["held"; 6]);
         // One setup at a time: each new connection takes two requests before
         // the next opens, so six requests need three connections, not six.
         assert_eq!(origin.settle(6).await?, (3, 6));
@@ -638,7 +638,7 @@ async fn a_draining_connection_takes_no_new_requests() -> TestResult {
         let held = spawn_held(
             &mut requests,
             &client,
-            &origin,
+            origin,
             &["held-1", "held-2", "held-3", "held-4"],
         );
         assert_eq!(origin.settle(5).await?, (2, 5));
@@ -647,7 +647,7 @@ async fn a_draining_connection_takes_no_new_requests() -> TestResult {
         // opens connection 2 instead of queueing on a full one.
         origin.goaway(0);
         sleep(QUIET_WINDOW).await;
-        let next = spawn_held(&mut requests, &client, &origin, &["held-5"]);
+        let next = spawn_held(&mut requests, &client, origin, &["held-5"]);
         assert_eq!(origin.next_accepted().await?, 2);
         assert_eq!(origin.next_request().await?, 2);
         origin.release();
@@ -672,13 +672,13 @@ async fn a_draining_connection_is_replaced_at_the_default_limit() -> TestResult 
         let origin = origins.last_mut().ok_or("origin owner missing")?;
         let client = client_builder(&identity).build()?;
         finish(send(&client, &origin.uri("warm")).await?).await?;
-        let held = spawn_held(&mut requests, &client, &origin, &["held-1"]);
+        let held = spawn_held(&mut requests, &client, origin, &["held-1"]);
         assert_eq!(origin.settle(2).await?, (1, 2));
 
         // The one connection drains, so the next request reconnects.
         origin.goaway(0);
         sleep(QUIET_WINDOW).await;
-        let next = spawn_held(&mut requests, &client, &origin, &["held-2"]);
+        let next = spawn_held(&mut requests, &client, origin, &["held-2"]);
         assert_eq!(origin.next_accepted().await?, 1);
         assert_eq!(origin.next_request().await?, 1);
         origin.release();
@@ -712,7 +712,7 @@ async fn a_new_connection_resumes_the_session_an_earlier_one_learned() -> TestRe
         let held = spawn_held(
             &mut requests,
             &client,
-            &origin,
+            origin,
             &["held-1", "held-2", "held-3"],
         );
         assert_eq!(origin.settle(4).await?, (2, 4));
@@ -761,12 +761,12 @@ async fn a_request_waiting_for_a_setup_takes_room_a_finished_stream_frees() -> T
         let held = spawn_held(
             &mut requests,
             &client,
-            &origin,
+            origin,
             &["held-1", "held-2", "held-3"],
         );
         assert_eq!(origin.settle(3).await?, (2, 3));
         // This request waits: connection 0 is full and a setup is in flight.
-        let waiting = spawn_held(&mut requests, &client, &origin, &["held-4"]);
+        let waiting = spawn_held(&mut requests, &client, origin, &["held-4"]);
         sleep(QUIET_WINDOW).await;
         assert!(!requests.any_finished(waiting.clone())?);
 
