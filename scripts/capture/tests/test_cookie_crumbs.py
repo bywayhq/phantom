@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import contextlib
 import errno
 import socket
 import ssl
@@ -120,6 +121,64 @@ async def scripted_h2_run(cookie: bytes) -> CookieRun:
 
 
 class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
+    async def test_failed_stream_setup_retains_native_transport_and_lost_error(self):
+        server = TcpServer(CERTIFICATE)
+        run = CookieRun("stream-setup", 0)
+        server.run = run
+        primary = RuntimeError("original stream setup failure")
+        secondary = OSError(errno.EIO, "original connection retirement failure")
+        acquired = []
+        connected = asyncio.StreamReaderProtocol.connection_made
+        lost = cookie_crumbs.CookieProtocol.connection_lost
+        client = None
+
+        def reject(protocol, transport):
+            if isinstance(protocol, cookie_crumbs.CookieProtocol):
+                acquired.append((protocol, transport))
+                raise primary
+            connected(protocol, transport)
+
+        def fail_retirement(protocol, error):
+            self.assertIsNone(error)
+            lost(protocol, secondary)
+
+        try:
+            await server.start("127.0.0.1")
+            with (
+                mock.patch.object(
+                    asyncio.StreamReaderProtocol, "connection_made", reject
+                ),
+                mock.patch.object(
+                    cookie_crumbs.CookieProtocol, "connection_lost", fail_retirement
+                ),
+            ):
+                client = await asyncio.open_connection(*server.plain_address)
+                await asyncio.wait_for(run.done.wait(), TIMEOUT)
+                with self.assertRaises(CookieFailures) as raised:
+                    await server.close()
+
+            self.assertEqual(len(acquired), 1)
+            protocol, transport = acquired[0]
+            self.assertIs(protocol.transport, transport)
+            self.assertIsNone(protocol.writer)
+            self.assertTrue(transport.is_closing())
+            self.assertTrue(protocol.retired.done())
+            self.assertTrue(protocol.close_task.done())
+            self.assertTrue(server.finished)
+            self.assertTrue(any(error is primary for error in raised.exception.cleanup))
+            self.assertTrue(
+                any(error is secondary for error in raised.exception.cleanup)
+            )
+            self.assertEqual(await asyncio.wait_for(client[0].read(), TIMEOUT), b"")
+            with self.assertRaises(CookieFailures):
+                fixture(SCENARIOS["h1"], [run], METADATA, 4096)
+        finally:
+            if client is not None:
+                client[1].close()
+                await client[1].wait_closed()
+            with contextlib.suppress(CookieFailures, RuntimeError):
+                await server.close()
+
     async def test_http1_ipv6_url_names_the_actual_loopback_listener(self):
         observed = []
 

@@ -284,6 +284,7 @@ class CookieProtocol(asyncio.StreamReaderProtocol):
         self.owner = owner
         self.listener = listener
         self.run = run
+        self.transport: asyncio.Transport | None = None
         self.writer: asyncio.StreamWriter | None = None
         self.task: asyncio.Task[None] | None = None
         self.close_task: asyncio.Task[None] | None = None
@@ -292,6 +293,7 @@ class CookieProtocol(asyncio.StreamReaderProtocol):
         super().__init__(reader, self.connected)
 
     def connection_made(self, transport) -> None:
+        self.transport = transport
         try:
             super().connection_made(transport)
         except BaseException as error:
@@ -334,6 +336,8 @@ class CookieProtocol(asyncio.StreamReaderProtocol):
                 self.owner.failed(cleanup, self.run)
 
     def connection_lost(self, error) -> None:
+        if error is not None and not peer_disconnected(error):
+            self.owner.failed(error, self.run)
         try:
             super().connection_lost(error)
         except BaseException as failure:
@@ -456,7 +460,12 @@ class TcpServer:
 
     async def close_writer(self, protocol) -> None:
         try:
-            await protocol.writer.wait_closed()
+            if protocol.writer is None:
+                # Python 3.10 uses this original protocol waiter for
+                # StreamWriter.wait_closed(), including setup failures.
+                await protocol._get_close_waiter(None)
+            else:
+                await protocol.writer.wait_closed()
         except OSError as error:
             if not peer_disconnected(error):
                 self.failed(error, protocol.run)
@@ -484,14 +493,14 @@ class TcpServer:
         cancelling = False
         while True:
             for protocol in self.protocols:
-                if protocol.writer is None or protocol.close_task is not None:
+                if protocol.transport is None or protocol.close_task is not None:
                     continue
                 try:
-                    protocol.writer.transport.abort()
+                    protocol.transport.abort()
                 except BaseException as error:
                     self.failed(error, protocol.run)
                     try:
-                        protocol.writer.close()
+                        protocol.transport.close()
                     except BaseException as cleanup:
                         self.failed(cleanup, protocol.run)
                 operation = self.close_writer(protocol)
@@ -515,7 +524,7 @@ class TcpServer:
             pending = {task for task in tasks if not task.done()}
             if not pending:
                 self.finished = all(
-                    protocol.writer is not None and protocol.close_task is not None
+                    protocol.transport is not None and protocol.close_task is not None
                     for protocol in self.protocols
                 ) and all(
                     server in self.closed_listeners
