@@ -4,6 +4,8 @@ import unittest
 from contextlib import ExitStack
 from unittest.mock import patch
 
+from hyperframe.frame import Frame, SettingsFrame
+
 from scripts.capture.tests import test_alt_svc_race as original
 
 
@@ -61,6 +63,19 @@ class SetupPeers:
             self.tasks = list(self.server.handlers)
             if not self.tasks:
                 raise AssertionError("real TLS client has no accepted handler")
+
+            # Receive the real server preface before deliberately closing TLS.
+            # Otherwise its queued SETTINGS can arrive after our close_notify.
+            async def receive_settings():
+                header = await self.reader.readexactly(9)
+                frame, size = Frame.parse_frame_header(memoryview(header), strict=True)
+                if not isinstance(frame, SettingsFrame) or frame.flags:
+                    raise AssertionError("expected the server's initial SETTINGS")
+                if size > 65536:
+                    raise AssertionError("initial SETTINGS exceeds the read bound")
+                frame.parse_body(memoryview(await self.reader.readexactly(size)))
+
+            await asyncio.wait_for(receive_settings(), 5)
 
             if self.stage == "write":
 
@@ -152,7 +167,10 @@ class SetupOwnershipTests(unittest.TestCase):
             case.run(result)
 
         self.assertEqual(result.failures, [])
-        self.assertIs(result.causes[0], peers.caller)
+        expected = [peers.caller, peers.cleanup] if cleanup_failure else [peers.caller]
+        self.assertEqual(len(result.causes), len(expected), result.causes)
+        for actual, cause in zip(result.causes, expected, strict=True):
+            self.assertIs(actual, cause)
         self.assertIs(peers.caller.__cause__, peers.cause)
         self.assertTrue(all(peers.observed.values()), peers.observed)
         return peers, result
