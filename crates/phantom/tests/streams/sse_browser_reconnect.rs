@@ -7,6 +7,7 @@
 //! browser medians may exceed them by at most `TIMER_SLACK`.
 
 use crate::support::tls as tls_support;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 
 use std::{collections::HashMap, net::Ipv4Addr, path::PathBuf, time::Duration};
 
@@ -201,7 +202,11 @@ async fn last_event_id_placeholder_reproduces_each_browser_field_order() -> Test
             .ok_or("reconnect lacks Last-Event-ID")?;
         assert_eq!(index, expected_index, "{browser:?} Last-Event-ID position");
         for run in 1..fixture.runs()? {
-            let names = fixture.sse_requests(run)?[1].names();
+            let names = fixture
+                .sse_requests(run)?
+                .get(1)
+                .ok_or("fixture run lacks the reconnect request")?
+                .names();
             assert_eq!(
                 names,
                 reconnect.names(),
@@ -348,7 +353,11 @@ async fn cookie_placement_presets_reproduce_each_browser_reconnect() -> TestResu
         assert_eq!(reconnect.header(b"cookie"), Some(PROBE_COOKIE.as_bytes()));
         for run in 1..fixture.runs()? {
             assert_eq!(
-                fixture.sse_requests(run)?[1].names(),
+                fixture
+                    .sse_requests(run)?
+                    .get(1)
+                    .ok_or("fixture run lacks the reconnect request")?
+                    .names(),
                 reconnect.names(),
                 "{browser:?} run {run} field order"
             );
@@ -404,10 +413,19 @@ async fn replay_with(
     name: &str,
     configure: impl FnOnce(SseRequestBuilder) -> SseRequestBuilder,
 ) -> TestResult<PhantomRun> {
-    let replies = scenario(name);
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    replay_on(listener, client, name, configure).await
+}
+
+async fn replay_on(
+    listener: TcpListener,
+    client: Client,
+    name: &str,
+    configure: impl FnOnce(SseRequestBuilder) -> SseRequestBuilder,
+) -> TestResult<PhantomRun> {
+    let replies = scenario(name);
     let address = listener.local_addr()?;
-    let server = tokio::spawn(async move {
+    let mut server = ConnectionPeer::spawn(async move {
         let mut requests = Vec::new();
         let mut last_stimulus: Option<Instant> = None;
         for reply in replies {
@@ -422,27 +440,36 @@ async fn replay_with(
             drop(stream);
             last_stimulus = Some(Instant::now());
         }
-        let extra = timeout(OBSERVATION, listener.accept()).await.is_ok();
+        let extra = match timeout(OBSERVATION, listener.accept()).await {
+            Err(_) => false,
+            Ok(Ok(_)) => true,
+            Ok(Err(error)) => return Err(error.into()),
+        };
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>((requests, extra))
     });
 
-    let builder = client
-        .event_source(HttpProtocol::Http1, &format!("http://{address}/events"))?
-        .max_reconnects(8);
-    let mut source = configure(builder).connect().await?.into_body();
-    let terminal = loop {
-        match source.next_event().await {
-            Ok(Some(_)) => {}
-            Ok(None) => break None,
-            Err(error) => break Some(error.kind()),
-        }
-    };
-    let (requests, extra_connection) = server.await??;
-    Ok(PhantomRun {
-        requests,
-        terminal,
-        extra_connection,
+    let primary = timeout(Duration::from_secs(60), async {
+        let builder = client
+            .event_source(HttpProtocol::Http1, &format!("http://{address}/events"))?
+            .max_reconnects(8);
+        let mut source = configure(builder).connect().await?.into_body();
+        let terminal = loop {
+            match source.next_event().await {
+                Ok(Some(_)) => {}
+                Ok(None) => break None,
+                Err(error) => break Some(error.kind()),
+            }
+        };
+        let (requests, extra_connection) = server.join().await??;
+        Ok(PhantomRun {
+            requests,
+            terminal,
+            extra_connection,
+        })
     })
+    .await
+    .unwrap_or_else(|elapsed| Err(elapsed.into()));
+    finish_with_cleanup(primary, server.stop().await)
 }
 
 /// One request head, from a fixture or observed from Phantom.
@@ -534,7 +561,13 @@ impl Fixture {
                     .map(|(key, value)| (key.to_owned(), value.to_owned()))
                     .ok_or_else(|| format!("{}: malformed line {line}", path.display()))
             })
-            .collect::<Result<HashMap<_, _>, _>>()?;
+            .try_fold(HashMap::new(), |mut fields, field| {
+                let (key, value) = field?;
+                if fields.insert(key.clone(), value).is_some() {
+                    return Err(format!("{}: duplicate field {key}", path.display()));
+                }
+                Ok(fields)
+            })?;
         let fixture = Self { fields };
         if fixture.get("format")? != "phantom-sse-reconnect-v1"
             || fixture.get("scenario")? != scenario
@@ -552,11 +585,23 @@ impl Fixture {
     }
 
     fn runs(&self) -> TestResult<usize> {
-        Ok(self.get("repeat_count")?.parse()?)
+        let count = self.count("repeat_count")?;
+        if count == 0 {
+            return Err("fixture has no runs".into());
+        }
+        Ok(count)
+    }
+
+    fn count(&self, key: &str) -> TestResult<usize> {
+        let count = self.get(key)?.parse()?;
+        if count > self.fields.len() {
+            return Err(format!("fixture count {key} exceeds its fields").into());
+        }
+        Ok(count)
     }
 
     fn requests(&self, run: usize) -> TestResult<Vec<Request>> {
-        let count: usize = self.get(&format!("run_{run}_request_count"))?.parse()?;
+        let count = self.count(&format!("run_{run}_request_count"))?;
         (0..count)
             .map(|index| {
                 let prefix = format!("run_{run}_request_{index}");
@@ -565,7 +610,7 @@ impl Fixture {
                     .split(',')
                     .filter_map(|pair| pair.split_once(':'))
                     .collect::<HashMap<_, _>>();
-                let headers: usize = self.get(&format!("{prefix}_header_count"))?.parse()?;
+                let headers = self.count(&format!("{prefix}_header_count"))?;
                 let lines = (0..headers)
                     .map(|header| decode_hex(self.get(&format!("{prefix}_header_{header}"))?))
                     .collect::<TestResult<Vec<_>>>()?;
@@ -594,7 +639,9 @@ impl Fixture {
             .split(',')
             .find_map(|pair| pair.strip_prefix("median:"))
             .ok_or("attempt summary lacks a median")?;
-        Ok(Duration::from_secs_f64(median.parse::<f64>()? / 1000.0))
+        Ok(Duration::try_from_secs_f64(
+            median.parse::<f64>()? / 1000.0,
+        )?)
     }
 }
 
@@ -602,8 +649,10 @@ fn decode_hex(text: &str) -> TestResult<Vec<u8>> {
     if !text.len().is_multiple_of(2) {
         return Err("odd-length hex".into());
     }
-    (0..text.len())
-        .step_by(2)
-        .map(|index| Ok(u8::from_str_radix(&text[index..index + 2], 16)?))
+    text.as_bytes()
+        .chunks_exact(2)
+        .map(|pair| Ok(u8::from_str_radix(std::str::from_utf8(pair)?, 16)?))
         .collect()
 }
+
+mod fixture_controls;
