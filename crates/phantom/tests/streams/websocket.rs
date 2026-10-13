@@ -1,12 +1,5 @@
 //! WebSocket facade integration tests.
 
-#[path = "websocket/adversarial.rs"]
-mod adversarial;
-#[cfg(feature = "websocket-deflate")]
-#[path = "websocket/compression.rs"]
-mod compression;
-#[path = "websocket/routing.rs"]
-mod routing;
 use crate::support::tls as tls_support;
 use crate::support::tracing as tracing_support;
 use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
@@ -28,6 +21,11 @@ use tls_support::{
 };
 use tracing_support::OutcomeSubscriber;
 use websocket_support::*;
+
+mod adversarial;
+#[cfg(feature = "websocket-deflate")]
+mod compression;
+mod routing;
 
 #[tokio::test]
 async fn plaintext_direct_preserves_order_and_upgraded_bytes() -> TestResult<()> {

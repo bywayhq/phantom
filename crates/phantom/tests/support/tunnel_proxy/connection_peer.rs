@@ -77,7 +77,7 @@ impl<T> Future for ConnectionPeer<T> {
         match Pin::new(task).poll(context) {
             Poll::Pending => Poll::Pending,
             Poll::Ready(result) => {
-                owner.task.take();
+                drop(owner.task.take());
                 Poll::Ready(result)
             }
         }
