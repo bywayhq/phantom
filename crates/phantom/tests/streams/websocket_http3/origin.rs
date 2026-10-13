@@ -117,6 +117,25 @@ impl PartialEq for SendEnding {
 
 impl Eq for SendEnding {}
 
+impl fmt::Display for SendEnding {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Acknowledged => formatter.write_str("request send side acknowledged"),
+            Self::Stopped(code) => write!(formatter, "request send side stopped with {code}"),
+            Self::Failed(error) => fmt::Display::fmt(&error.error, formatter),
+        }
+    }
+}
+
+impl Error for SendEnding {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Failed(error) => Some(error.error.as_ref()),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Answer {
     /// Accept with 200 and echo text and binary messages; echo the Close
@@ -637,8 +656,9 @@ async fn serve_stream(
         }
     };
     lock(&log).endings.push(ending.clone());
-    if let Ending::Failed(_) = ending {
-        return Err(ending.into());
+    match ending {
+        Ending::Finished | Ending::Reset(super::H3_REQUEST_CANCELLED) => {}
+        ending => return Err(ending.into()),
     }
     let send_ending = match send.stopped().await {
         Ok(None) => SendEnding::Acknowledged,
@@ -656,8 +676,11 @@ async fn serve_stream(
             return Err(Ending::Failed(error).into());
         }
     };
-    lock(&log).send_endings.push(send_ending);
-    Ok(())
+    lock(&log).send_endings.push(send_ending.clone());
+    match send_ending {
+        SendEnding::Acknowledged | SendEnding::Stopped(super::H3_REQUEST_CANCELLED) => Ok(()),
+        ending => Err(ending.into()),
+    }
 }
 
 /// Copies the payload of each DATA frame into `writer` until the stream

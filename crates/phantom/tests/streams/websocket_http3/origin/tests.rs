@@ -173,6 +173,91 @@ async fn oversized_and_truncated_frame_lengths_keep_original_parser_and_caller_c
 }
 
 #[tokio::test]
+async fn unexpected_reset_and_stop_codes_keep_their_typed_ending_and_caller_cause() -> TestResult<()>
+{
+    const WRONG_CODE: u32 = 0x10f;
+
+    for reset in [true, false] {
+        bounded(async {
+            let identity = TestIdentity::generate()?;
+            let mut origin = Origin::spawn(&identity, Behavior::answering(Answer::Withhold))?;
+            let address = origin.address;
+            let peer = Peer::connect(&identity, address).await?;
+            let (mut send, mut recv) = peer.connection.open_bi().await?;
+            let authority = address.to_string();
+            write_headers(
+                &mut send,
+                &[
+                    (":method", "CONNECT"),
+                    (":protocol", "websocket"),
+                    (":scheme", "https"),
+                    (":authority", &authority),
+                    (":path", "/wrong-code"),
+                    ("sec-websocket-version", "13"),
+                ],
+            )
+            .await?;
+            timeout(CLEANUP_TIMEOUT, async {
+                while origin.requests().is_empty() {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await?;
+            assert_eq!(origin.methods(), ["CONNECT"]);
+
+            if reset {
+                send.reset(WRONG_CODE.into())?;
+            } else {
+                recv.stop(WRONG_CODE.into())?;
+                send.finish()?;
+            }
+            // The wrong code fails its original worker before caller cleanup.
+            let closed = peer.connection.closed().await;
+            assert!(
+                matches!(closed, quinn::ConnectionError::ApplicationClosed(close)
+                if close.error_code.into_inner() == 0)
+            );
+
+            let primary = Box::new(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "caller failed after the peer's wrong code",
+            ));
+            let original = (&*primary) as *const io::Error;
+            let error = origin.finish(Err(primary)).await.unwrap_err();
+            let failures = error.downcast_ref::<FixtureFailures>().unwrap();
+            assert!(std::ptr::eq(
+                failures.primary.downcast_ref::<io::Error>().unwrap(),
+                original
+            ));
+            if reset {
+                assert_eq!(
+                    failures.cleanup.downcast_ref::<Ending>().unwrap(),
+                    &Ending::Reset(u64::from(WRONG_CODE))
+                );
+                assert_eq!(
+                    lock(&origin.log).endings,
+                    [Ending::Reset(u64::from(WRONG_CODE))]
+                );
+            } else {
+                assert_eq!(
+                    failures.cleanup.downcast_ref::<SendEnding>().unwrap(),
+                    &SendEnding::Stopped(u64::from(WRONG_CODE))
+                );
+                assert_eq!(lock(&origin.log).endings, [Ending::Finished]);
+                assert_eq!(
+                    lock(&origin.log).send_endings,
+                    [SendEnding::Stopped(u64::from(WRONG_CODE))]
+                );
+            }
+            assert!(origin.task.is_none());
+            released(address).await
+        })
+        .await?;
+    }
+    Ok(())
+}
+
+#[tokio::test]
 async fn websocket_frame_length_and_partial_eof_are_errors_before_payload_allocation()
 -> TestResult<()> {
     for wire in [

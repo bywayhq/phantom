@@ -3,16 +3,6 @@
 //! The origin speaks raw HTTP/3 over `quinn` so the tests see the request's
 //! field section as the client encoded it and how each stream ended.
 
-mod masque_diagnostics;
-mod origin;
-mod zero_rtt_relay;
-
-use crate::support::client_certificate::{ClientIdentity, quic_endpoint_requiring};
-use crate::support::h3 as h3_support;
-use crate::support::masque as masque_support;
-use crate::support::socks5_udp as socks5_udp_support;
-use crate::support::tls as tls_support;
-
 use std::{
     future::Future,
     net::{Ipv4Addr, SocketAddr},
@@ -36,7 +26,12 @@ use phantom::{
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{net::TcpListener, time::timeout};
 
+use crate::support::client_certificate::{ClientIdentity, quic_endpoint_requiring};
 use crate::support::deadline::FixtureDeadline;
+use crate::support::h3 as h3_support;
+use crate::support::masque as masque_support;
+use crate::support::socks5_udp as socks5_udp_support;
+use crate::support::tls as tls_support;
 use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use h3_support::{client_settings, server_endpoint};
 use masque_support::{
@@ -48,6 +43,10 @@ use socks5_udp_support::{
 };
 use tls_support::{TestIdentity, TestResult, tls_settings};
 use zero_rtt_relay::ZeroRttRelay;
+
+mod masque_diagnostics;
+mod origin;
+mod zero_rtt_relay;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(20);
 /// A name only the SOCKS5 proxy resolves, for `socks5h://`.
