@@ -5,6 +5,8 @@
 //! every field section decodes alone.
 
 use std::{
+    error::Error,
+    fmt, io,
     net::SocketAddr,
     sync::{Arc, Mutex, MutexGuard, PoisonError},
     time::Duration,
@@ -12,16 +14,17 @@ use std::{
 
 use bytes::{Bytes, BytesMut};
 use tokio::{
-    io::{AsyncWriteExt, DuplexStream},
-    sync::oneshot,
-    task::JoinHandle,
+    io::{AsyncRead, AsyncReadExt, AsyncWriteExt, DuplexStream},
+    sync::watch,
+    task::JoinSet,
+    time::timeout,
 };
 
+use crate::support::deadline::FixtureDeadline;
 use crate::support::h3::server_endpoint;
 use crate::support::tls::{TestIdentity, TestResult};
-use crate::support::websocket::{
-    self as websocket_support, ClientFrame, append_server_frame, append_server_frame_with_rsv1,
-};
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
+use crate::support::websocket::{ClientFrame, append_server_frame, append_server_frame_with_rsv1};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(10);
 const DATA_FRAME: u64 = 0x00;
@@ -32,24 +35,87 @@ const SETTINGS_ENABLE_CONNECT_PROTOCOL: u64 = 0x08;
 /// "hello" compressed with a raw DEFLATE block, as RFC 7692 section 7.2.3.1
 /// shows it.
 const COMPRESSED_HELLO: &[u8] = &[0xca, 0x48, 0xcd, 0xc9, 0xc9, 0x07, 0x00];
+const MAX_FRAME_BYTES: usize = 1024 * 1024;
+const MAX_CONNECTIONS: usize = 64;
+const MAX_STREAMS: usize = 128;
+const CLEANUP_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// How the origin's request stream ended.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub(crate) enum Ending {
     Finished,
     Reset(u64),
-    Failed(String),
+    Failed(Arc<StreamFailure>),
+}
+
+/// Retains the original boxed cause while its logged ending is cloned.
+#[derive(Debug)]
+pub(crate) struct StreamFailure {
+    error: Box<dyn Error + Send + Sync>,
+}
+
+impl Ending {
+    fn failed(error: impl Into<Box<dyn Error + Send + Sync>>) -> Self {
+        Self::Failed(Arc::new(StreamFailure {
+            error: error.into(),
+        }))
+    }
+}
+
+impl PartialEq for Ending {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Finished, Self::Finished) => true,
+            (Self::Reset(left), Self::Reset(right)) => left == right,
+            (Self::Failed(left), Self::Failed(right)) => Arc::ptr_eq(left, right),
+            _ => false,
+        }
+    }
+}
+
+impl Eq for Ending {}
+
+impl fmt::Display for Ending {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Finished => formatter.write_str("request stream finished"),
+            Self::Reset(code) => write!(formatter, "request stream reset with {code}"),
+            Self::Failed(error) => fmt::Display::fmt(&error.error, formatter),
+        }
+    }
+}
+
+impl Error for Ending {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Failed(error) => Some(error.error.as_ref()),
+            _ => None,
+        }
+    }
 }
 
 /// How the origin's send side of a WebSocket stream ended after it sent FIN.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub(crate) enum SendEnding {
     /// The client acknowledged every byte and the FIN.
     Acknowledged,
     /// The client sent STOP_SENDING with this code.
     Stopped(u64),
-    Failed(String),
+    Failed(Arc<StreamFailure>),
 }
+
+impl PartialEq for SendEnding {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Acknowledged, Self::Acknowledged) => true,
+            (Self::Stopped(left), Self::Stopped(right)) => left == right,
+            (Self::Failed(left), Self::Failed(right)) => Arc::ptr_eq(left, right),
+            _ => false,
+        }
+    }
+}
+
+impl Eq for SendEnding {}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Answer {
@@ -96,14 +162,17 @@ struct Log {
     endings: Vec<Ending>,
     send_endings: Vec<SendEnding>,
     frames: Vec<ClientFrame>,
+    streams: usize,
 }
 
 /// A raw HTTP/3 origin on a loopback QUIC endpoint; aborted on drop.
 pub(crate) struct Origin {
     pub(crate) address: SocketAddr,
-    endpoint: quinn::Endpoint,
+    endpoint: Option<quinn::Endpoint>,
     log: Arc<Mutex<Log>>,
-    task: JoinHandle<()>,
+    task: Option<ConnectionPeer<TestResult<()>>>,
+    stop: watch::Sender<bool>,
+    failure: Option<Box<dyn Error + Send + Sync>>,
 }
 
 impl Origin {
@@ -121,36 +190,87 @@ impl Origin {
         let log = Arc::new(Mutex::new(Log::default()));
         let task_log = Arc::clone(&log);
         let accepting = endpoint.clone();
-        let task = tokio::spawn(async move {
-            while let Some(incoming) = accepting.accept().await {
-                let attempt = {
-                    let mut log = lock(&task_log);
-                    log.attempts += 1;
-                    log.attempts
-                };
-                if attempt <= refusals {
-                    incoming.refuse();
-                    continue;
-                }
-                let log = Arc::clone(&task_log);
-                tokio::spawn(async move {
-                    let Ok(connection) = incoming.await else {
-                        return;
-                    };
-                    {
-                        let mut log = lock(&log);
-                        log.connections += 1;
-                        log.open.push(connection.clone());
+        let (stop, stopped) = watch::channel(false);
+        let serving = watch::Sender::clone(&stop);
+        let task = ConnectionPeer::spawn(async move {
+            let mut peers = JoinSet::new();
+            let mut stopped = stopped;
+            let result: TestResult<()> =
+                async {
+                    loop {
+                        let incoming = tokio::select! {
+                            biased;
+                            joined = peers.join_next(), if !peers.is_empty() => {
+                                joined.ok_or("origin connection outcome disappeared")???;
+                                continue;
+                            }
+                            result = stopping(&mut stopped) => { result?; break; }
+                            incoming = accepting.accept() => match incoming {
+                                Some(incoming) => incoming,
+                                None => break,
+                            },
+                        };
+                        let attempt = {
+                            let mut log = lock(&task_log);
+                            if log.attempts >= MAX_CONNECTIONS {
+                                return Err("HTTP/3 origin connection bound exceeded".into());
+                            }
+                            log.attempts += 1;
+                            log.attempts
+                        };
+                        if attempt <= refusals {
+                            incoming.refuse();
+                            continue;
+                        }
+                        let log = Arc::clone(&task_log);
+                        let mut stopped = stopped.clone();
+                        peers.spawn(async move {
+                        let connection = tokio::select! {
+                            biased;
+                            connected = incoming => match connected {
+                                Ok(connection) => connection,
+                                Err(error) if expected_connection_close(&error) => return Ok(()),
+                                Err(error) => return Err(error.into()),
+                            },
+                            result = stopping(&mut stopped) => return result,
+                        };
+                        {
+                            let mut log = lock(&log);
+                            log.connections += 1;
+                            log.open.push(connection.clone());
+                        }
+                        let result = serve_connection(connection, behavior, log, stopped).await;
+                        match result {
+                            Err(error)
+                                if error.downcast_ref::<quinn::ConnectionError>()
+                                    .is_some_and(expected_connection_close)
+                                    || error.downcast_ref::<quinn::WriteError>()
+                                        .is_some_and(expected_write_close) => Ok(()),
+                            result => result,
+                        }
+                    });
                     }
-                    let _ = serve_connection(connection, behavior, log).await;
-                });
+                    Ok(())
+                }
+                .await;
+            serving.send_replace(true);
+            accepting.close(0_u32.into(), b"HTTP/3 origin cleanup");
+            let mut result = result;
+            while let Some(joined) = peers.join_next().await {
+                result = finish_with_cleanup(
+                    result,
+                    joined.map_err(Into::into).and_then(|result| result),
+                );
             }
+            result
         });
         Self {
             address,
-            endpoint,
+            endpoint: Some(endpoint),
             log,
-            task,
+            task: Some(task),
+            stop,
+            failure: None,
         }
     }
 
@@ -220,13 +340,53 @@ impl Origin {
         for connection in open {
             connection.close(0u32.into(), b"closed by the test");
         }
-        self.endpoint.wait_idle().await;
+        if let Some(endpoint) = &self.endpoint {
+            endpoint.wait_idle().await;
+        }
+    }
+
+    pub(crate) async fn finish(&mut self, caller: TestResult<()>) -> TestResult<()> {
+        if let Err(error) = caller {
+            retain_failure(&mut self.failure, error);
+        }
+        self.stop.send_replace(true);
+        if let Some(endpoint) = &self.endpoint {
+            endpoint.close(0_u32.into(), b"HTTP/3 origin cleanup");
+        }
+
+        if let Some(task) = self.task.as_mut() {
+            match timeout(CLEANUP_TIMEOUT, task.join()).await {
+                Ok(joined) => {
+                    drop(self.task.take());
+                    lock(&self.log).open.clear();
+                    drop(self.endpoint.take());
+                    if let Err(error) = joined.map_err(Into::into).and_then(|result| result) {
+                        retain_failure(&mut self.failure, error);
+                    }
+                }
+                Err(elapsed) => retain_failure(
+                    &mut self.failure,
+                    FixtureDeadline::new("HTTP/3 origin cleanup exceeded its deadline", elapsed)
+                        .into(),
+                ),
+            }
+        }
+        match self.failure.take() {
+            Some(error) => Err(error),
+            None => Ok(()),
+        }
     }
 }
 
 impl Drop for Origin {
     fn drop(&mut self) {
-        self.task.abort();
+        self.stop.send_replace(true);
+        if let Some(endpoint) = &self.endpoint {
+            endpoint.close(0_u32.into(), b"HTTP/3 origin owner dropped");
+        }
+        if let Some(task) = &self.task {
+            task.abort();
+        }
     }
 }
 
@@ -234,28 +394,107 @@ fn lock(log: &Mutex<Log>) -> MutexGuard<'_, Log> {
     log.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
+async fn stopping(stopped: &mut watch::Receiver<bool>) -> TestResult<()> {
+    stopped.wait_for(|value| *value).await?;
+    Ok(())
+}
+
+fn retain_failure(
+    failure: &mut Option<Box<dyn Error + Send + Sync>>,
+    error: Box<dyn Error + Send + Sync>,
+) {
+    *failure = finish_with_cleanup::<()>(failure.take().map_or(Ok(()), Err), Err(error)).err();
+}
+
+fn expected_connection_close(error: &quinn::ConnectionError) -> bool {
+    matches!(error, quinn::ConnectionError::LocallyClosed)
+        || matches!(error, quinn::ConnectionError::ApplicationClosed(close)
+            if close.error_code.into_inner() == 0 || close.error_code.into_inner() == 0x100)
+}
+
 async fn serve_connection(
     connection: quinn::Connection,
     behavior: Behavior,
     log: Arc<Mutex<Log>>,
+    mut stopped: watch::Receiver<bool>,
 ) -> TestResult<()> {
-    let mut settings = Vec::new();
-    if behavior.extended_connect {
-        put_varint(&mut settings, SETTINGS_ENABLE_CONNECT_PROTOCOL);
-        put_varint(&mut settings, 1);
+    let mut streams = JoinSet::new();
+    let (stream_stop, stream_stopped) = watch::channel(false);
+    let result: TestResult<()> = async {
+        let mut settings = Vec::new();
+        if behavior.extended_connect {
+            put_varint(&mut settings, SETTINGS_ENABLE_CONNECT_PROTOCOL);
+            put_varint(&mut settings, 1);
+        }
+        // The control stream stays open for this connection's lifetime.
+        let setup = async {
+            let mut control = connection.open_uni().await?;
+            let mut opening = vec![0x00];
+            put_frame(&mut opening, SETTINGS_FRAME, &settings);
+            control.write_all(&opening).await?;
+            TestResult::Ok(control)
+        };
+        let _control = tokio::select! {
+            biased;
+            result = setup => result?,
+            result = stopping(&mut stopped) => { result?; return Ok(()); }
+        };
+        let mut count = 0;
+        loop {
+            let (send, recv) = tokio::select! {
+                biased;
+                joined = streams.join_next(), if !streams.is_empty() => {
+                    joined.ok_or("origin request outcome disappeared")???;
+                    continue;
+                }
+                result = stopping(&mut stopped) => { result?; break; }
+                accepted = connection.accept_bi() => match accepted {
+                    Ok(stream) => stream,
+                    Err(error) if expected_connection_close(&error) => break,
+                    Err(error) => return Err(error.into()),
+                },
+            };
+            if count >= MAX_STREAMS {
+                return Err("HTTP/3 origin stream bound exceeded".into());
+            }
+            count += 1;
+            lock(&log).streams += 1;
+            let log = Arc::clone(&log);
+            let mut stopped = stream_stopped.clone();
+            streams.spawn(async move {
+                let result = tokio::select! {
+                    biased;
+                    result = serve_stream(send, recv, behavior.answer, log) => result,
+                    result = stopping(&mut stopped) => result,
+                };
+                match result {
+                    Err(error)
+                        if error
+                            .downcast_ref::<quinn::WriteError>()
+                            .is_some_and(expected_write_close) =>
+                    {
+                        Ok(())
+                    }
+                    result => result,
+                }
+            });
+        }
+        Ok(())
     }
-    // Stream type 0x00 is the control stream (RFC 9114, section 6.2.1); it
-    // must stay open for the connection's lifetime.
-    let mut control = connection.open_uni().await?;
-    let mut opening = vec![0x00];
-    put_frame(&mut opening, SETTINGS_FRAME, &settings);
-    control.write_all(&opening).await?;
-    loop {
-        let (send, recv) = connection.accept_bi().await?;
-        let log = Arc::clone(&log);
-        tokio::spawn(async move {
-            let _ = serve_stream(send, recv, behavior.answer, log).await;
-        });
+    .await;
+    stream_stop.send_replace(true);
+    let mut result = result;
+    while let Some(joined) = streams.join_next().await {
+        result = finish_with_cleanup(result, joined.map_err(Into::into).and_then(|result| result));
+    }
+    result
+}
+
+fn expected_write_close(error: &quinn::WriteError) -> bool {
+    match error {
+        quinn::WriteError::Stopped(code) => code.into_inner() == super::H3_REQUEST_CANCELLED,
+        quinn::WriteError::ConnectionLost(error) => expected_connection_close(error),
+        _ => false,
     }
 }
 
@@ -269,10 +508,12 @@ async fn serve_stream(
         match next_frame(&mut recv).await {
             Ok(Some((HEADERS_FRAME, payload))) => break Bytes::from(payload),
             Ok(Some(_)) => {}
-            Ok(None) | Err(_) => return Err("request stream ended before HEADERS".into()),
+            Ok(None) => return Err("request stream ended before HEADERS".into()),
+            Err(Ending::Finished | Ending::Reset(super::H3_REQUEST_CANCELLED)) => return Ok(()),
+            Err(ending) => return Err(ending.into()),
         }
     };
-    let fields = h3::qpack::decode_stateless(&mut section, u64::MAX)?
+    let fields = h3::qpack::decode_stateless(&mut section, MAX_FRAME_BYTES as u64)?
         .fields
         .into_iter()
         .map(|field| {
@@ -337,32 +578,83 @@ async fn serve_stream(
     }
 
     let (mut reader, writer) = tokio::io::duplex(64 * 1024);
-    let (ended, ending) = oneshot::channel();
-    tokio::spawn(async move {
-        let _ = ended.send(pump_data(recv, writer).await);
-    });
-    while let Ok(frame) = websocket_support::read_client_frame(&mut reader).await {
-        let opcode = frame.opcode;
-        if answer == Answer::Deflate {
-            lock(&log).frames.push(frame);
-            continue;
+    let pump = pump_data(recv, writer);
+    tokio::pin!(pump);
+    let ending = {
+        let frames = async {
+            while let Some(frame) = read_client_frame(&mut reader).await? {
+                let opcode = frame.opcode;
+                if answer == Answer::Deflate {
+                    let mut log = lock(&log);
+                    if log.frames.len() >= MAX_STREAMS {
+                        return Err("HTTP/3 origin frame-record bound exceeded".into());
+                    }
+                    log.frames.push(frame);
+                    continue;
+                }
+                let mut reply = Vec::new();
+                append_server_frame(&mut reply, true, opcode, &frame.payload);
+                write_frame(&mut send, DATA_FRAME, &reply).await?;
+                if opcode == 0x8 {
+                    send.finish()?;
+                    break;
+                }
+            }
+            TestResult::Ok(())
+        };
+        tokio::pin!(frames);
+        tokio::select! {
+            biased;
+            result = &mut frames => {
+                match result {
+                    Ok(()) => pump.await,
+                    Err(error) => {
+                        // Retain a pump error already observed in this poll. A
+                        // pending inline pump owns no detached worker to join.
+                        let cleanup = match futures_util::poll!(&mut pump) {
+                            std::task::Poll::Ready(ending) => {
+                                lock(&log).endings.push(ending.clone());
+                                match ending {
+                                    Ending::Failed(_) => Err(ending.into()),
+                                    _ => Ok(()),
+                                }
+                            }
+                            std::task::Poll::Pending => Ok(()),
+                        };
+                        return finish_with_cleanup(Err(error), cleanup);
+                    }
+                }
+            }
+            ending = &mut pump => {
+                let result = frames.await;
+                let cleanup = match &ending {
+                    Ending::Failed(_) => Err(Box::new(ending.clone()) as Box<dyn Error + Send + Sync>),
+                    _ => Ok(()),
+                };
+                finish_with_cleanup(result, cleanup)?;
+                ending
+            }
         }
-        let mut reply = Vec::new();
-        append_server_frame(&mut reply, true, opcode, &frame.payload);
-        write_frame(&mut send, DATA_FRAME, &reply).await?;
-        if opcode == 0x8 {
-            send.finish()?;
-            break;
-        }
+    };
+    lock(&log).endings.push(ending.clone());
+    if let Ending::Failed(_) = ending {
+        return Err(ending.into());
     }
-    let ending = ending
-        .await
-        .unwrap_or_else(|_| Ending::Failed("DATA pump stopped".into()));
-    lock(&log).endings.push(ending);
     let send_ending = match send.stopped().await {
         Ok(None) => SendEnding::Acknowledged,
         Ok(Some(code)) => SendEnding::Stopped(code.into_inner()),
-        Err(error) => SendEnding::Failed(error.to_string()),
+        Err(quinn::StoppedError::ConnectionLost(error)) if expected_connection_close(&error) => {
+            return Ok(());
+        }
+        Err(error) => {
+            let error = Arc::new(StreamFailure {
+                error: error.into(),
+            });
+            lock(&log)
+                .send_endings
+                .push(SendEnding::Failed(Arc::clone(&error)));
+            return Err(Ending::Failed(error).into());
+        }
     };
     lock(&log).send_endings.push(send_ending);
     Ok(())
@@ -374,8 +666,12 @@ async fn pump_data(mut recv: quinn::RecvStream, mut writer: DuplexStream) -> End
     loop {
         match next_frame(&mut recv).await {
             Ok(Some((DATA_FRAME, payload))) => {
-                if writer.write_all(&payload).await.is_err() {
-                    // The reader stopped; keep draining to see the ending.
+                if let Err(error) = writer.write_all(&payload).await {
+                    // A completed Close stops the reader; keep draining QUIC to
+                    // observe FIN/RESET. Unrelated pipe errors remain failures.
+                    if error.kind() != io::ErrorKind::BrokenPipe {
+                        return Ending::failed(error);
+                    }
                 }
             }
             Ok(Some(_)) => {}
@@ -390,7 +686,7 @@ async fn next_frame(recv: &mut quinn::RecvStream) -> Result<Option<(u64, Vec<u8>
     let mut first = [0];
     match recv.read(&mut first).await {
         Ok(Some(1)) => {}
-        Ok(Some(_)) => return Err(Ending::Failed("empty read".into())),
+        Ok(Some(_)) => return Err(frame_failure("empty read")),
         Ok(None) => return Ok(None),
         Err(error) => return Err(read_ending(error)),
     }
@@ -398,8 +694,11 @@ async fn next_frame(recv: &mut quinn::RecvStream) -> Result<Option<(u64, Vec<u8>
     let mut length = [0];
     read_exact(recv, &mut length).await?;
     let length = read_varint_after(recv, length[0]).await?;
-    let mut payload =
-        vec![0; usize::try_from(length).map_err(|_| Ending::Failed("frame too long".into()))?];
+    if length > MAX_FRAME_BYTES as u64 {
+        return Err(frame_failure("HTTP/3 origin frame bound exceeded"));
+    }
+    let length = usize::try_from(length).map_err(|_| frame_failure("frame too long"))?;
+    let mut payload = vec![0; length];
     read_exact(recv, &mut payload).await?;
     Ok(Some((frame_type, payload)))
 }
@@ -416,7 +715,7 @@ async fn read_varint_after(recv: &mut quinn::RecvStream, first: u8) -> Result<u6
 
 async fn read_exact(recv: &mut quinn::RecvStream, buffer: &mut [u8]) -> Result<(), Ending> {
     recv.read_exact(buffer).await.map_err(|error| match error {
-        quinn::ReadExactError::FinishedEarly(_) => Ending::Failed("frame cut short".into()),
+        error @ quinn::ReadExactError::FinishedEarly(_) => Ending::failed(error),
         quinn::ReadExactError::ReadError(error) => read_ending(error),
     })
 }
@@ -424,8 +723,62 @@ async fn read_exact(recv: &mut quinn::RecvStream, buffer: &mut [u8]) -> Result<(
 fn read_ending(error: quinn::ReadError) -> Ending {
     match error {
         quinn::ReadError::Reset(code) => Ending::Reset(code.into_inner()),
-        error => Ending::Failed(error.to_string()),
+        quinn::ReadError::ConnectionLost(error) if expected_connection_close(&error) => {
+            Ending::Finished
+        }
+        error => Ending::failed(error),
     }
+}
+
+fn frame_failure(message: &'static str) -> Ending {
+    Ending::failed(io::Error::new(io::ErrorKind::InvalidData, message))
+}
+
+async fn read_client_frame(
+    stream: &mut (impl AsyncRead + Unpin),
+) -> io::Result<Option<ClientFrame>> {
+    let mut head = [0_u8; 2];
+    if stream.read(&mut head[..1]).await? == 0 {
+        return Ok(None);
+    }
+    stream.read_exact(&mut head[1..]).await?;
+    if head[1] & 0x80 == 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "client frame was not masked",
+        ));
+    }
+    let length = match head[1] & 0x7f {
+        126 => {
+            let mut encoded = [0; 2];
+            stream.read_exact(&mut encoded).await?;
+            u64::from(u16::from_be_bytes(encoded))
+        }
+        127 => {
+            let mut encoded = [0; 8];
+            stream.read_exact(&mut encoded).await?;
+            u64::from_be_bytes(encoded)
+        }
+        length => u64::from(length),
+    };
+    if length > MAX_FRAME_BYTES as u64 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "HTTP/3 client WebSocket frame bound exceeded",
+        ));
+    }
+    let mut mask = [0; 4];
+    stream.read_exact(&mut mask).await?;
+    let mut payload = vec![0; length as usize];
+    stream.read_exact(&mut payload).await?;
+    for (index, byte) in payload.iter_mut().enumerate() {
+        *byte ^= mask[index % 4];
+    }
+    Ok(Some(ClientFrame {
+        rsv1: head[0] & 0x40 != 0,
+        opcode: head[0] & 0x0f,
+        payload,
+    }))
 }
 
 async fn write_headers(send: &mut quinn::SendStream, fields: &[(&str, &str)]) -> TestResult<()> {
@@ -467,3 +820,6 @@ fn put_varint(output: &mut Vec<u8>, value: u64) {
         output.extend_from_slice(&(value | 0xc000_0000_0000_0000).to_be_bytes());
     }
 }
+
+#[cfg(test)]
+mod tests;

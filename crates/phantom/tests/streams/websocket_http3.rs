@@ -5,6 +5,7 @@
 
 mod masque_diagnostics;
 mod origin;
+mod zero_rtt_relay;
 
 use crate::support::client_certificate::{ClientIdentity, quic_endpoint_requiring};
 use crate::support::h3 as h3_support;
@@ -13,7 +14,6 @@ use crate::support::socks5_udp as socks5_udp_support;
 use crate::support::tls as tls_support;
 
 use std::{
-    collections::HashMap,
     future::Future,
     net::{Ipv4Addr, SocketAddr},
     num::NonZeroUsize,
@@ -34,8 +34,10 @@ use phantom::{
     },
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
-use tokio::{net::TcpListener, net::UdpSocket, task::JoinHandle, time::timeout};
+use tokio::{net::TcpListener, time::timeout};
 
+use crate::support::deadline::FixtureDeadline;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use h3_support::{client_settings, server_endpoint};
 use masque_support::{
     MasqueProxy, MasqueStreamProxy, ProxyMode, StreamLeg, StreamMode, extended_request_settings,
@@ -45,6 +47,7 @@ use socks5_udp_support::{
     forward_one_remote_dns_socks5_udp_associate, forward_one_socks5_udp_associate,
 };
 use tls_support::{TestIdentity, TestResult, tls_settings};
+use zero_rtt_relay::ZeroRttRelay;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(20);
 /// A name only the SOCKS5 proxy resolves, for `socks5h://`.
@@ -56,9 +59,11 @@ const ADMISSION_WAIT: Duration = Duration::from_millis(200);
 
 #[tokio::test]
 async fn http3_websocket_sends_ordered_extended_connect_and_echoes_messages() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
-        let origin = Origin::spawn(&identity, Behavior::ECHO)?;
+        origins.push(Origin::spawn(&identity, Behavior::ECHO)?);
+        let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
         let client = client(&identity)?;
 
         let mut socket = client
@@ -91,14 +96,17 @@ async fn http3_websocket_sends_ordered_extended_connect_and_echoes_messages() ->
         );
         Ok(())
     })
-    .await
+    .await;
+    finish_origins(&mut origins, caller).await
 }
 
 #[tokio::test]
 async fn closing_an_http3_websocket_ends_both_directions_with_fin() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
-        let origin = Origin::spawn(&identity, Behavior::ECHO)?;
+        origins.push(Origin::spawn(&identity, Behavior::ECHO)?);
+        let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
         let client = client(&identity)?;
         let mut socket = client
             .websocket_with_protocol(HttpProtocol::Http3, &origin.uri("/close"))?
@@ -115,14 +123,17 @@ async fn closing_an_http3_websocket_ends_both_directions_with_fin() -> TestResul
         assert_eq!(origin.next_send_ending().await?, SendEnding::Acknowledged);
         Ok(())
     })
-    .await
+    .await;
+    finish_origins(&mut origins, caller).await
 }
 
 #[tokio::test]
 async fn dropping_an_http3_websocket_cancels_only_its_stream() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
-        let origin = Origin::spawn(&identity, Behavior::ECHO)?;
+        origins.push(Origin::spawn(&identity, Behavior::ECHO)?);
+        let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
         let client = client(&identity)?;
         let mut socket = client
             .websocket_with_protocol(HttpProtocol::Http3, &origin.uri("/drop"))?
@@ -149,20 +160,23 @@ async fn dropping_an_http3_websocket_cancels_only_its_stream() -> TestResult<()>
         assert_eq!(origin.connections(), 1);
         Ok(())
     })
-    .await
+    .await;
+    finish_origins(&mut origins, caller).await
 }
 
 #[tokio::test]
 async fn http3_websocket_needs_a_peer_that_enables_extended_connect() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
-        let origin = Origin::spawn(
+        origins.push(Origin::spawn(
             &identity,
             Behavior {
                 extended_connect: false,
                 answer: Answer::Echo,
             },
-        )?;
+        )?);
+        let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
         let client = client(&identity)?;
 
         let error = match client
@@ -179,14 +193,20 @@ async fn http3_websocket_needs_a_peer_that_enables_extended_connect() -> TestRes
         assert_eq!(origin.connections(), 1);
         Ok(())
     })
-    .await
+    .await;
+    finish_origins(&mut origins, caller).await
 }
 
 #[tokio::test]
 async fn rejected_http3_websocket_returns_the_response_with_its_body() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
-        let origin = Origin::spawn(&identity, Behavior::answering(Answer::Reject))?;
+        origins.push(Origin::spawn(
+            &identity,
+            Behavior::answering(Answer::Reject),
+        )?);
+        let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
         let client = client(&identity)?;
 
         let error = match client
@@ -208,7 +228,8 @@ async fn rejected_http3_websocket_returns_the_response_with_its_body() -> TestRe
         );
         Ok(())
     })
-    .await
+    .await;
+    finish_origins(&mut origins, caller).await
 }
 
 #[tokio::test]
@@ -277,9 +298,11 @@ async fn plaintext_scheme_and_http_proxy_route_fail_before_io_over_http3() -> Te
 
 #[tokio::test]
 async fn http3_websocket_reuses_the_pooled_connection_of_an_ordinary_request() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
-        let origin = Origin::spawn(&identity, Behavior::ECHO)?;
+        origins.push(Origin::spawn(&identity, Behavior::ECHO)?);
+        let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
         let client = client(&identity)?;
 
         ordinary_get(&client, &origin).await?;
@@ -295,14 +318,18 @@ async fn http3_websocket_reuses_the_pooled_connection_of_an_ordinary_request() -
         assert_eq!(origin.methods(), ["GET", "CONNECT", "GET"]);
         Ok(())
     })
-    .await
+    .await;
+    finish_origins(&mut origins, caller).await
 }
 
 #[tokio::test]
 async fn an_open_http3_websocket_holds_its_origin_admission_until_dropped() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let mut waiting_owner = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
-        let origin = Origin::spawn(&identity, Behavior::ECHO)?;
+        origins.push(Origin::spawn(&identity, Behavior::ECHO)?);
+        let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
         let client = client_builder(&identity, extended_request_settings())
             .max_concurrent_http3_requests_per_origin(NonZeroUsize::MIN)
             .build()?;
@@ -312,11 +339,14 @@ async fn an_open_http3_websocket_holds_its_origin_admission_until_dropped() -> T
             .await?;
         assert_echoes(&mut socket).await?;
 
-        let waiting = tokio::spawn({
+        waiting_owner = Some(ConnectionPeer::spawn({
             let client = client.clone();
             let uri = format!("https://{}/ordinary", origin.address);
             async move { get_body(&client, &uri).await }
-        });
+        }));
+        let waiting = waiting_owner
+            .as_mut()
+            .ok_or("ordinary request peer was not acquired")?;
         tokio::time::sleep(ADMISSION_WAIT).await;
         assert!(
             !waiting.is_finished(),
@@ -325,18 +355,26 @@ async fn an_open_http3_websocket_holds_its_origin_admission_until_dropped() -> T
         assert_eq!(origin.methods(), ["CONNECT"]);
 
         drop(socket);
-        assert_eq!(waiting.await??, "ordinary");
+        assert_eq!(waiting.join().await??, "ordinary");
         assert_eq!(origin.methods(), ["CONNECT", "GET"]);
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match waiting_owner.as_mut() {
+        Some(waiting) => waiting.shutdown().await,
+        None => Ok(()),
+    };
+    finish_origins(&mut origins, finish_with_cleanup(caller, cleanup)).await
 }
 
 #[tokio::test]
 async fn an_http3_websocket_fails_with_capacity_when_the_origin_queue_is_full() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let mut waiting_owner = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
-        let origin = Origin::spawn(&identity, Behavior::ECHO)?;
+        origins.push(Origin::spawn(&identity, Behavior::ECHO)?);
+        let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
         let client = client_builder(&identity, extended_request_settings())
             .max_concurrent_http3_requests_per_origin(NonZeroUsize::MIN)
             .max_pending_http3_requests_per_origin(NonZeroUsize::MIN)
@@ -345,11 +383,14 @@ async fn an_http3_websocket_fails_with_capacity_when_the_origin_queue_is_full() 
             .websocket_with_protocol(HttpProtocol::Http3, &origin.uri("/held"))?
             .connect()
             .await?;
-        let waiting = tokio::spawn({
+        waiting_owner = Some(ConnectionPeer::spawn({
             let client = client.clone();
             let uri = format!("https://{}/ordinary", origin.address);
             async move { get_body(&client, &uri).await }
-        });
+        }));
+        let waiting = waiting_owner
+            .as_mut()
+            .ok_or("ordinary request peer was not acquired")?;
         tokio::time::sleep(ADMISSION_WAIT).await;
 
         let error = match client
@@ -363,19 +404,30 @@ async fn an_http3_websocket_fails_with_capacity_when_the_origin_queue_is_full() 
 
         assert_eq!(error.kind(), WebSocketErrorKind::Capacity);
         drop(socket);
-        assert_eq!(waiting.await??, "ordinary");
+        assert_eq!(waiting.join().await??, "ordinary");
         assert_eq!(origin.methods(), ["CONNECT", "GET"]);
         Ok(())
     })
-    .await
+    .await;
+    let cleanup = match waiting_owner.as_mut() {
+        Some(waiting) => waiting.shutdown().await,
+        None => Ok(()),
+    };
+    finish_origins(&mut origins, finish_with_cleanup(caller, cleanup)).await
 }
 
 #[tokio::test]
 async fn http3_websocket_retry_policy_retries_a_refused_quic_handshake() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         // The first two attempts are refused with CONNECTION_REFUSED.
-        let origin = Origin::serve(server_endpoint(&identity)?, Behavior::ECHO, 2);
+        origins.push(Origin::serve(
+            server_endpoint(&identity)?,
+            Behavior::ECHO,
+            2,
+        ));
+        let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
         let client = client(&identity)?;
 
         let error = match client
@@ -403,14 +455,20 @@ async fn http3_websocket_retry_policy_retries_a_refused_quic_handshake() -> Test
         assert_eq!(origin.methods(), ["CONNECT"]);
         Ok(())
     })
-    .await
+    .await;
+    finish_origins(&mut origins, caller).await
 }
 
 #[tokio::test]
 async fn http3_websocket_handshake_timeout_cancels_only_its_stream() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
-        let origin = Origin::spawn(&identity, Behavior::answering(Answer::Withhold))?;
+        origins.push(Origin::spawn(
+            &identity,
+            Behavior::answering(Answer::Withhold),
+        )?);
+        let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
         let client = client(&identity)?;
 
         let error = match client
@@ -437,7 +495,8 @@ async fn http3_websocket_handshake_timeout_cancels_only_its_stream() -> TestResu
         assert_eq!(origin.connections(), 1);
         Ok(())
     })
-    .await
+    .await;
+    finish_origins(&mut origins, caller).await
 }
 
 /// A resumed connection that an HTTP/3 WebSocket opens offers early data as
@@ -445,14 +504,24 @@ async fn http3_websocket_handshake_timeout_cancels_only_its_stream() -> TestResu
 /// connection's handshake does not depend on which caller opened it.
 #[tokio::test]
 async fn a_resumed_connection_opened_by_an_http3_websocket_sends_early_data() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let mut relay_owner = None;
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let endpoint = h3_support::quic_server(
             early_data_server(&identity)?,
             (Ipv4Addr::LOCALHOST, 0).into(),
         )?;
-        let origin = Origin::serve((endpoint.local_addr()?, endpoint), Behavior::ECHO, 0);
-        let (relay, zero_rtt, relay_task) = zero_rtt_relay(origin.address).await?;
+        origins.push(Origin::serve(
+            (endpoint.local_addr()?, endpoint),
+            Behavior::ECHO,
+            0,
+        ));
+        let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
+        relay_owner = Some(ZeroRttRelay::spawn(origin.address).await?);
+        let relay = relay_owner.as_ref().ok_or("0-RTT relay was not acquired")?;
+        let zero_rtt = Arc::clone(&relay.log);
+        let relay = relay.address;
         let client = early_data_client(&identity)?;
 
         // A full handshake that earns a ticket, then a GET and a WebSocket
@@ -477,19 +546,26 @@ async fn a_resumed_connection_opened_by_an_http3_websocket_sends_early_data() ->
             "connections that sent 0-RTT packets, in order"
         );
         drop(socket);
-        relay_task.abort();
         Ok(())
     })
-    .await
+    .await;
+    let caller = match relay_owner.as_mut() {
+        Some(relay) => relay.finish(caller).await,
+        None => caller,
+    };
+    finish_origins(&mut origins, caller).await
 }
 
 #[tokio::test]
 async fn http3_websocket_travels_through_a_socks5_udp_association() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let mut proxies = Vec::new();
+    let caller = bounded(async {
         for remote_dns in [false, true] {
             let identity =
                 TestIdentity::generate_for_ip_and_dns(Ipv4Addr::LOCALHOST.into(), REMOTE_ORIGIN)?;
-            let origin = Origin::spawn(&identity, Behavior::ECHO)?;
+            origins.push(Origin::spawn(&identity, Behavior::ECHO)?);
+            let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
             let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
             let proxy_address = listener.local_addr()?;
             let port = origin.address.port();
@@ -510,6 +586,8 @@ async fn http3_websocket_travels_through_a_socks5_udp_association() -> TestResul
                     tokio::spawn(forward_one_socks5_udp_associate(listener, origin.address));
                 (proxy, "socks5", origin.uri("/socks"))
             };
+            proxies.push(ConnectionPeer::from_task(proxy));
+            let proxy = proxies.last_mut().ok_or("SOCKS5 peer was not acquired")?;
             let client = client_builder(&identity, extended_request_settings())
                 .route(Route::socks5(Socks5Proxy::new(&format!(
                     "{scheme}://{proxy_address}"
@@ -524,28 +602,35 @@ async fn http3_websocket_travels_through_a_socks5_udp_association() -> TestResul
             drop(socket);
             drop(client);
 
-            let observed = proxy.await??;
+            let observed = proxy.join().await??;
             assert!(observed.client_datagrams > 0);
             assert!(observed.origin_datagrams > 0);
             assert_eq!(origin.methods(), ["CONNECT"]);
         }
         Ok(())
     })
-    .await
+    .await;
+    let mut caller = caller;
+    for proxy in &mut proxies {
+        caller = finish_with_cleanup(caller, proxy.shutdown().await);
+    }
+    finish_origins(&mut origins, caller).await
 }
 
 #[tokio::test]
 async fn direct_http3_websocket_uses_the_origin_scoped_client_certificate() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let mapped = ClientIdentity::p256()?;
         let default = ClientIdentity::p256()?;
         // Only the mapped certificate's authority can authenticate here.
-        let origin = Origin::serve(
+        origins.push(Origin::serve(
             quic_endpoint_requiring(&identity, &mapped.authority_der)?,
             Behavior::ECHO,
             0,
-        );
+        ));
+        let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
         let client = client_builder(&identity, extended_request_settings())
             .client_certificate(default.certificate()?)
             .client_certificate_for(
@@ -563,22 +648,25 @@ async fn direct_http3_websocket_uses_the_origin_scoped_client_certificate() -> T
         assert_eq!(origin.methods(), ["CONNECT"]);
         Ok(())
     })
-    .await
+    .await;
+    finish_origins(&mut origins, caller).await
 }
 
 #[tokio::test]
 async fn connect_udp_http3_websocket_sends_the_origin_certificate_only_to_the_origin()
 -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let proxy_identity = TestIdentity::generate()?;
         let mapped = ClientIdentity::p256()?;
         let default = ClientIdentity::p256()?;
-        let origin = Origin::serve(
+        origins.push(Origin::serve(
             quic_endpoint_requiring(&identity, &mapped.authority_der)?,
             Behavior::ECHO,
             0,
-        );
+        ));
+        let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
         let proxy = MasqueProxy::spawn_requesting_client_certificates(
             &proxy_identity,
             ProxyMode::Relay,
@@ -614,15 +702,18 @@ async fn connect_udp_http3_websocket_sends_the_origin_certificate_only_to_the_or
         assert_eq!(request.protocol.as_deref(), Some("connect-udp"));
         Ok(())
     })
-    .await
+    .await;
+    finish_origins(&mut origins, caller).await
 }
 
 #[tokio::test]
 async fn http3_websocket_travels_through_a_connect_udp_proxy() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
         let proxy_identity = TestIdentity::generate()?;
-        let origin = Origin::spawn(&identity, Behavior::ECHO)?;
+        origins.push(Origin::spawn(&identity, Behavior::ECHO)?);
+        let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
         let proxy = MasqueProxy::spawn(&proxy_identity, ProxyMode::Relay)?;
         let client = client_builder(&identity, extended_request_settings())
             .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
@@ -643,16 +734,19 @@ async fn http3_websocket_travels_through_a_connect_udp_proxy() -> TestResult<()>
         assert_eq!(origin.methods(), ["CONNECT"]);
         Ok(())
     })
-    .await
+    .await;
+    finish_origins(&mut origins, caller).await
 }
 
 #[tokio::test]
 async fn http3_websocket_travels_through_connect_udp_over_http1_and_http2_legs() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let caller = bounded(async {
         for (leg, expected_method) in [(StreamLeg::Http1, "GET"), (StreamLeg::Http2, "CONNECT")] {
             let identity = TestIdentity::generate()?;
             let proxy_identity = TestIdentity::generate()?;
-            let origin = Origin::spawn(&identity, Behavior::ECHO)?;
+            origins.push(Origin::spawn(&identity, Behavior::ECHO)?);
+            let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
             let proxy = MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::Relay).await?;
             let route = match leg {
                 StreamLeg::Http1 => ConnectUdpProxy::new(&proxy.template())?.with_http1_transport(),
@@ -687,15 +781,21 @@ async fn http3_websocket_travels_through_connect_udp_over_http1_and_http2_legs()
         }
         Ok(())
     })
-    .await
+    .await;
+    finish_origins(&mut origins, caller).await
 }
 
 #[cfg(feature = "websocket-deflate")]
 #[tokio::test]
 async fn http3_websocket_negotiates_and_transfers_compressed_messages() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let caller = bounded(async {
         let identity = TestIdentity::generate()?;
-        let origin = Origin::spawn(&identity, Behavior::answering(Answer::Deflate))?;
+        origins.push(Origin::spawn(
+            &identity,
+            Behavior::answering(Answer::Deflate),
+        )?);
+        let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
         let client = client(&identity)?;
 
         let mut socket = client
@@ -728,7 +828,8 @@ async fn http3_websocket_negotiates_and_transfers_compressed_messages() -> TestR
         )));
         Ok(())
     })
-    .await
+    .await;
+    finish_origins(&mut origins, caller).await
 }
 
 /// Sends a text and a binary message and expects each echoed back.
@@ -801,9 +902,16 @@ async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(TEST_TIMEOUT, future)
-        .await
-        .map_err(|_| "HTTP/3 WebSocket test exceeded its deadline")?
+    timeout(TEST_TIMEOUT, future).await.map_err(|elapsed| {
+        FixtureDeadline::new("HTTP/3 WebSocket test exceeded its deadline", elapsed)
+    })?
+}
+
+async fn finish_origins(origins: &mut [Origin], mut caller: TestResult<()>) -> TestResult<()> {
+    for origin in origins {
+        caller = origin.finish(caller).await;
+    }
+    caller
 }
 
 /// A QUIC server configuration whose session tickets permit early data.
@@ -847,63 +955,6 @@ fn early_data_client(identity: &TestIdentity) -> TestResult<Client> {
 /// the connections first reached the relay.
 type ZeroRttLog = Arc<Mutex<Vec<bool>>>;
 
-/// Relays UDP between clients and `server`, one upstream socket per client
-/// address, and records which client connections sent 0-RTT packets.
-async fn zero_rtt_relay(
-    server: SocketAddr,
-) -> TestResult<(SocketAddr, ZeroRttLog, JoinHandle<()>)> {
-    let front = Arc::new(phantom_testkit::udp::bind_tokio(
-        (Ipv4Addr::LOCALHOST, 0).into(),
-    )?);
-    let address = front.local_addr()?;
-    let log: ZeroRttLog = Arc::default();
-    let task_log = Arc::clone(&log);
-    let task = tokio::spawn(async move {
-        let mut upstreams: HashMap<SocketAddr, (usize, Arc<UdpSocket>)> = HashMap::new();
-        let mut datagram = vec![0; 65_535];
-        while let Ok((len, client)) = front.recv_from(&mut datagram).await {
-            let (index, upstream) = match upstreams.get(&client) {
-                Some((index, upstream)) => (*index, Arc::clone(upstream)),
-                None => {
-                    let Ok(upstream) =
-                        phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())
-                    else {
-                        return;
-                    };
-                    if upstream.connect(server).await.is_err() {
-                        return;
-                    }
-                    let upstream = Arc::new(upstream);
-                    let index = {
-                        let mut log = task_log.lock().unwrap_or_else(PoisonError::into_inner);
-                        log.push(false);
-                        log.len() - 1
-                    };
-                    upstreams.insert(client, (index, Arc::clone(&upstream)));
-                    tokio::spawn(forward_replies(
-                        Arc::clone(&upstream),
-                        Arc::clone(&front),
-                        client,
-                    ));
-                    (index, upstream)
-                }
-            };
-            if carries_zero_rtt(&datagram[..len]) {
-                task_log.lock().unwrap_or_else(PoisonError::into_inner)[index] = true;
-            }
-            let _ = upstream.send(&datagram[..len]).await;
-        }
-    });
-    Ok((address, log, task))
-}
-
-async fn forward_replies(upstream: Arc<UdpSocket>, front: Arc<UdpSocket>, client: SocketAddr) {
-    let mut datagram = vec![0; 65_535];
-    while let Ok(len) = upstream.recv(&mut datagram).await {
-        let _ = front.send_to(&datagram[..len], client).await;
-    }
-}
-
 /// Returns whether a client datagram holds a 0-RTT packet among its
 /// coalesced long-header packets (RFC 9000, section 17.2; RFC 9369,
 /// section 3.2 for QUIC version 2's packet types).
@@ -941,17 +992,18 @@ fn long_header_packet(packet: &[u8]) -> Option<LongPacket<'_>> {
     if kind == zero_rtt {
         return Some(LongPacket::ZeroRtt);
     }
-    let mut at = 5;
+    let mut at = 5_usize;
     let destination = usize::from(*packet.get(at)?);
     at += 1 + destination;
     let source = usize::from(*packet.get(at)?);
     at += 1 + source;
     if kind == initial {
         let (token, width) = varint(packet.get(at..)?)?;
-        at += width + token;
+        at = at.checked_add(width)?.checked_add(token)?;
     }
     let (length, width) = varint(packet.get(at..)?)?;
-    Some(LongPacket::Other(packet.get(at + width + length..)?))
+    let end = at.checked_add(width)?.checked_add(length)?;
+    Some(LongPacket::Other(packet.get(end..)?))
 }
 
 /// Reads a QUIC variable-length integer and returns it with its width.
