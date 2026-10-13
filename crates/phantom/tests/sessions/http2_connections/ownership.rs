@@ -269,7 +269,7 @@ fn lock(state: &Mutex<State>) -> MutexGuard<'_, State> {
 
 #[cfg(test)]
 mod tests {
-    use std::{io, sync::Arc};
+    use std::{error::Error, io, sync::Arc};
 
     use tokio::{
         io::AsyncWriteExt,
@@ -279,7 +279,10 @@ mod tests {
 
     use super::super::{Mode, Origin, TEST_TIMEOUT, send, spawn_held};
     use super::*;
-    use crate::support::tls::{TestIdentity, client_builder};
+    use crate::support::{
+        tls::{TestIdentity, client_builder},
+        tunnel_proxy::connection_peer::FixtureFailures,
+    };
 
     struct HeldOrigin {
         origin: Origin,
@@ -326,6 +329,38 @@ mod tests {
         Ok(())
     }
 
+    fn caller_cause(
+        error: &(dyn Error + Send + Sync + 'static),
+    ) -> TestResult<&(dyn Error + Send + Sync + 'static)> {
+        if let Some(causes) = error.downcast_ref::<FixtureFailures>() {
+            assert_shutdown_disconnects(causes.cleanup.as_ref())?;
+            Ok(causes.primary.as_ref())
+        } else {
+            Ok(error)
+        }
+    }
+
+    fn assert_shutdown_disconnects(error: &(dyn Error + Send + Sync + 'static)) -> TestResult {
+        if let Some(causes) = error.downcast_ref::<FixtureFailures>() {
+            assert_shutdown_disconnects(causes.primary.as_ref())?;
+            return assert_shutdown_disconnects(causes.cleanup.as_ref());
+        }
+
+        let original = error
+            .downcast_ref::<http2::Error>()
+            .ok_or("retained cleanup failure was not an HTTP/2 error")?;
+        let disconnected = original
+            .get_io()
+            .ok_or("retained HTTP/2 cleanup error lacked its original I/O cause")?;
+        assert!(matches!(
+            disconnected.kind(),
+            io::ErrorKind::BrokenPipe
+                | io::ErrorKind::ConnectionReset
+                | io::ErrorKind::ConnectionAborted
+        ));
+        Ok(())
+    }
+
     #[tokio::test]
     async fn dropping_the_root_owner_stops_actual_listener_connection_response_and_request()
     -> TestResult {
@@ -365,7 +400,7 @@ mod tests {
             .await
             .err()
             .ok_or("caller deadline was discarded")?;
-        assert!(error.is::<tokio::time::error::Elapsed>());
+        assert!(caller_cause(error.as_ref())?.is::<tokio::time::error::Elapsed>());
         stopped(&witnesses).await?;
         let rebound = TcpListener::bind(address).await?;
         assert_eq!(rebound.local_addr()?, address);
@@ -393,7 +428,7 @@ mod tests {
             .await
             .err()
             .ok_or("caller failure was discarded")?;
-        let original = error
+        let original = caller_cause(error.as_ref())?
             .downcast_ref::<io::Error>()
             .ok_or("original caller I/O error missing")?;
         let payload = original
