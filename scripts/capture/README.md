@@ -761,8 +761,9 @@ server-sent events stream ends. It serves plaintext HTTP/1.1 to one
 `format=phantom-sse-reconnect-v1` fixture per scenario.
 
 Use finite positive run timeouts and single-line printable ASCII metadata.
-Accepted response workers finish within a five-second cooperative cleanup
-deadline. A response or cleanup failure prevents publishing its fixture.
+Cleanup attempts to collect accepted response workers within a five-second
+cooperative deadline. A response or cleanup failure prevents publishing its
+fixture.
 
 Capture Chrome on Windows:
 
