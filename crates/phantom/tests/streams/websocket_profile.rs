@@ -8,7 +8,6 @@
 pub(crate) mod fixture;
 pub(crate) mod forward_proxy;
 mod proxy;
-#[path = "websocket_profile/server.rs"]
 pub(crate) mod server;
 use crate::support::tls as tls_support;
 use crate::support::tracing as tracing_support;

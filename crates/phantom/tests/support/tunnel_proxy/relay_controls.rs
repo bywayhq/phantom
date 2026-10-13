@@ -16,6 +16,7 @@ mod h2_teardown;
 #[path = "relay_controls/h2_failed_send.rs"]
 mod h2_failed_send;
 
+#[path = "relay_controls/shutdown.rs"]
 mod shutdown;
 
 #[tokio::test]
