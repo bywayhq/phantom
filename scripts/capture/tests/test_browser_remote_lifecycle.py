@@ -342,6 +342,15 @@ class RemoteClientLifecycleTests(unittest.IsolatedAsyncioTestCase):
         original_causes = []
         drain_patches = []
 
+        async def observe_setup():
+            try:
+                return await browser_remote.RemoteSocket.connect(
+                    f"ws://127.0.0.1:{port}/setup-deadline"
+                )
+            except BaseException as actual:
+                # Observe the caller's error before Task transforms cancellation.
+                return actual
+
         async def record_open(*args, **kwargs):
             reader, writer = await original_open(*args, **kwargs)
             peer.clients.append(writer)
@@ -365,11 +374,7 @@ class RemoteClientLifecycleTests(unittest.IsolatedAsyncioTestCase):
                 patch.object(browser_remote.asyncio, "open_connection", record_open),
                 patch.object(browser_remote, "REMOTE_SETUP_TIMEOUT", 0.5),
             ):
-                task = asyncio.create_task(
-                    browser_remote.RemoteSocket.connect(
-                        f"ws://127.0.0.1:{port}/setup-deadline"
-                    )
-                )
+                task = asyncio.create_task(observe_setup())
                 peer.calls.append(task)
                 await asyncio.wait_for(peer.request_seen.wait(), DEADLINE)
                 self.assertEqual(len(peer.clients), 1)
@@ -398,10 +403,7 @@ class RemoteClientLifecycleTests(unittest.IsolatedAsyncioTestCase):
 
                     done, _ = await asyncio.wait([task], timeout=DEADLINE)
                     self.assertIn(task, done, "remote setup did not reach its deadline")
-                    try:
-                        task.result()
-                    except BaseException as actual:
-                        error = actual
+                    error = task.result()
 
             self.assertEqual(len(original_causes), 1)
             primary = original_causes[0]
