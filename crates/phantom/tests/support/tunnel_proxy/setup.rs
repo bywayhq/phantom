@@ -74,10 +74,11 @@ impl<T: Send + 'static> TunnelSetup<T> {
                     self.task = None;
                     self.accept_outcome(joined);
                 }
-                Err(elapsed) => self.retain_failure(Err(
-                    FixtureDeadline::new("tunnel setup cleanup exceeded five seconds", elapsed)
-                        .into(),
-                )),
+                Err(elapsed) => self.retain_failure(Err(FixtureDeadline::new(
+                    "tunnel setup cleanup exceeded five seconds",
+                    elapsed,
+                )
+                .into())),
             }
         }
 
@@ -111,10 +112,9 @@ impl<T: Send + 'static> TunnelSetup<T> {
         let Err(error) = result else {
             return;
         };
-        if let (Some(previous), Some(returned)) = (
-            self.failure.as_ref(),
-            error.downcast_ref::<SetupFailure>(),
-        ) {
+        if let (Some(previous), Some(returned)) =
+            (self.failure.as_ref(), error.downcast_ref::<SetupFailure>())
+        {
             if Arc::ptr_eq(&previous.0, &returned.0) {
                 return;
             }
@@ -227,7 +227,11 @@ mod tests {
             .await
             .err()
             .ok_or("collected setup cancellation disappeared")?;
-        assert!(retry.source().is_some_and(|source| source.is::<JoinError>()));
+        assert!(
+            retry
+                .source()
+                .is_some_and(|source| source.is::<JoinError>())
+        );
         closed(&mut client).await?;
         Ok(())
     }
@@ -332,7 +336,10 @@ mod tests {
             Pin::new(&mut self.0).poll_flush(context)
         }
 
-        fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        fn poll_shutdown(
+            mut self: Pin<&mut Self>,
+            context: &mut Context<'_>,
+        ) -> Poll<io::Result<()>> {
             Pin::new(&mut self.0).poll_shutdown(context)
         }
     }

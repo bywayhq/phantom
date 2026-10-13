@@ -1,6 +1,9 @@
 use std::{error::Error, fmt, future::Future, sync::Arc, time::Duration};
 
-use tokio::{sync::oneshot, time::{Instant, timeout_at}};
+use tokio::{
+    sync::oneshot,
+    time::{Instant, timeout_at},
+};
 
 use super::{ConnectionPeer, TestResult, finish_with_cleanup};
 use crate::support::deadline::FixtureDeadline;
@@ -32,7 +35,10 @@ impl RelayPeer {
                 },
             }
         });
-        Self { task: Some(task), stop: Some(stop) }
+        Self {
+            task: Some(task),
+            stop: Some(stop),
+        }
     }
 
     pub(super) fn is_finished(&self) -> bool {
@@ -53,7 +59,9 @@ impl RelayPeer {
     }
 
     async fn collect(&mut self, deadline: Instant) -> TestResult<()> {
-        let Some(task) = self.task.as_mut() else { return Ok(()); };
+        let Some(task) = self.task.as_mut() else {
+            return Ok(());
+        };
         let joined = timeout_at(deadline, task).await.map_err(|elapsed| {
             FixtureDeadline::new("tunnel relay cleanup exceeded five seconds", elapsed)
         })?;
@@ -131,6 +139,8 @@ impl fmt::Display for TunnelCleanupFailure {
 
 impl Error for TunnelCleanupFailure {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.failure.as_ref().map(|failure| failure as &(dyn Error + 'static))
+        self.failure
+            .as_ref()
+            .map(|failure| failure as &(dyn Error + 'static))
     }
 }

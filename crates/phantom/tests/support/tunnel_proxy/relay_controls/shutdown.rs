@@ -1,4 +1,11 @@
-use std::{error::Error, future::{Future, poll_fn}, io, net::Ipv4Addr, pin::Pin, task::{Context, Poll}};
+use std::{
+    error::Error,
+    future::{Future, poll_fn},
+    io,
+    net::Ipv4Addr,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf},
@@ -7,8 +14,8 @@ use tokio::{
     time::timeout,
 };
 
-use super::{ConnectionPeer, DEADLINE, TestResult, http1_connect};
 use super::super::{EstablishedTunnel, connection_peer::FixtureFailures, spawn_relay};
+use super::{ConnectionPeer, DEADLINE, TestResult, http1_connect};
 
 async fn ready_tunnel() -> TestResult<(EstablishedTunnel<Vec<u8>>, TcpStream, TcpStream)> {
     let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -16,7 +23,9 @@ async fn ready_tunnel() -> TestResult<(EstablishedTunnel<Vec<u8>>, TcpStream, Tc
     let address = proxy.local_addr()?;
     let launcher = ConnectionPeer::spawn(http1_connect(proxy, origin.local_addr()?));
     let mut client = timeout(DEADLINE, TcpStream::connect(address)).await??;
-    client.write_all(b"CONNECT shutdown.test:443 HTTP/1.1\r\n\r\n").await?;
+    client
+        .write_all(b"CONNECT shutdown.test:443 HTTP/1.1\r\n\r\n")
+        .await?;
     let (mut upstream, _) = timeout(DEADLINE, origin.accept()).await??;
     let mut established = [0_u8; 39];
     timeout(DEADLINE, client.read_exact(&mut established)).await??;
@@ -32,7 +41,10 @@ async fn ready_tunnel() -> TestResult<(EstablishedTunnel<Vec<u8>>, TcpStream, Tc
 
 async fn assert_closed(stream: &mut TcpStream) -> TestResult<()> {
     let closed = timeout(DEADLINE, stream.read(&mut [0_u8; 1])).await?;
-    assert!(matches!(closed, Ok(0)) || matches!(closed, Err(ref error) if crate::support::tls::is_peer_gone(error)));
+    assert!(
+        matches!(closed, Ok(0))
+            || matches!(closed, Err(ref error) if crate::support::tls::is_peer_gone(error))
+    );
     Ok(())
 }
 
@@ -47,11 +59,16 @@ fn cause<'a, E: Error + 'static>(error: &'a (dyn Error + 'static)) -> Option<&'a
 }
 
 fn caller_failure() -> TestResult<Box<dyn Error + Send + Sync>> {
-    use phantom::{Client, HttpProtocol, RequestErrorKind, profile::{ClientProfile, browser::chrome}};
+    use phantom::{
+        Client, HttpProtocol, RequestErrorKind,
+        profile::{ClientProfile, browser::chrome},
+    };
 
     let client = Client::builder(ClientProfile::new(chrome::v154_tcp_tls())).build()?;
-    let error = client.get(HttpProtocol::Http1, "https://[invalid/")
-        .err().ok_or("malformed authority was accepted")?;
+    let error = client
+        .get(HttpProtocol::Http1, "https://[invalid/")
+        .err()
+        .ok_or("malformed authority was accepted")?;
     assert_eq!(error.kind(), RequestErrorKind::InvalidAuthority);
     Ok(Box::new(error))
 }
@@ -60,7 +77,9 @@ fn caller_failure() -> TestResult<Box<dyn Error + Send + Sync>> {
 async fn tunnel_shutdown_distinguishes_local_stop_from_pending_external_abort() -> TestResult<()> {
     for external in [false, true] {
         let (mut tunnel, mut client, mut upstream) = ready_tunnel().await?;
-        let task = tunnel.peers[0].abort_handle().ok_or("relay was not owned")?;
+        let task = tunnel.peers[0]
+            .abort_handle()
+            .ok_or("relay was not owned")?;
         let task_id = task.id();
         if external {
             task.abort();
@@ -86,26 +105,36 @@ async fn tunnel_shutdown_distinguishes_local_stop_from_pending_external_abort() 
 }
 
 #[tokio::test]
-async fn interrupted_tunnel_finish_retains_the_caller_failure_and_original_relay() -> TestResult<()> {
+async fn interrupted_tunnel_finish_retains_the_caller_failure_and_original_relay() -> TestResult<()>
+{
     let (mut tunnel, mut client, mut upstream) = ready_tunnel().await?;
-    let task = tunnel.peers[0].abort_handle().ok_or("relay was not owned")?;
+    let task = tunnel.peers[0]
+        .abort_handle()
+        .ok_or("relay was not owned")?;
     let primary = caller_failure()?;
-    let original = primary.downcast_ref::<phantom::RequestError>()
-        .ok_or("caller did not return its original request error")? as *const phantom::RequestError;
+    let original = primary
+        .downcast_ref::<phantom::RequestError>()
+        .ok_or("caller did not return its original request error")?
+        as *const phantom::RequestError;
     {
         let finish = tunnel.finish(Err(primary));
         tokio::pin!(finish);
         poll_fn(|context| {
             assert!(finish.as_mut().poll(context).is_pending());
             Poll::Ready(())
-        }).await;
+        })
+        .await;
         // Dropping this borrowed cleanup future leaves its actual worker and the
         // initiating error on the outer owner for a later cleanup attempt.
     }
 
-    let error = tunnel.finish(Ok(())).await.err().ok_or("caller failure was discarded")?;
-    let retained = cause::<phantom::RequestError>(error.as_ref())
-        .ok_or("original caller error was lost")?;
+    let error = tunnel
+        .finish(Ok(()))
+        .await
+        .err()
+        .ok_or("caller failure was discarded")?;
+    let retained =
+        cause::<phantom::RequestError>(error.as_ref()).ok_or("original caller error was lost")?;
     assert!(std::ptr::eq(retained, original));
     assert!(tunnel.peers.is_empty());
     assert!(task.is_finished());
@@ -117,13 +146,24 @@ async fn interrupted_tunnel_finish_retains_the_caller_failure_and_original_relay
 struct FailedRead(TcpStream);
 
 impl AsyncRead for FailedRead {
-    fn poll_read(self: Pin<&mut Self>, _: &mut Context<'_>, _: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
-        Poll::Ready(Err(io::Error::new(io::ErrorKind::PermissionDenied, "original relay read failure")))
+    fn poll_read(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+        _: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
+        Poll::Ready(Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "original relay read failure",
+        )))
     }
 }
 
 impl AsyncWrite for FailedRead {
-    fn poll_write(mut self: Pin<&mut Self>, context: &mut Context<'_>, bytes: &[u8]) -> Poll<io::Result<usize>> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        bytes: &[u8],
+    ) -> Poll<io::Result<usize>> {
         Pin::new(&mut self.0).poll_write(context, bytes)
     }
 
@@ -137,7 +177,8 @@ impl AsyncWrite for FailedRead {
 }
 
 #[tokio::test]
-async fn completed_relay_failure_and_caller_failure_collect_later_tunnel_owners() -> TestResult<()> {
+async fn completed_relay_failure_and_caller_failure_collect_later_tunnel_owners() -> TestResult<()>
+{
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let mut client = timeout(DEADLINE, TcpStream::connect(listener.local_addr()?)).await??;
     let (downstream, _) = timeout(DEADLINE, listener.accept()).await??;
@@ -149,12 +190,19 @@ async fn completed_relay_failure_and_caller_failure_collect_later_tunnel_owners(
         while !failed.peers[0].is_finished() {
             tokio::task::yield_now().await;
         }
-    }).await?;
+    })
+    .await?;
     let (later, mut later_client, mut later_origin) = ready_tunnel().await?;
-    let later_task = later.peers[0].abort_handle().ok_or("later relay was not owned")?;
+    let later_task = later.peers[0]
+        .abort_handle()
+        .ok_or("later relay was not owned")?;
     let mut tunnel = failed.combine(later).map(|(_, head)| head);
 
-    let error = tunnel.finish(Err(caller_failure()?)).await.err().ok_or("both failures were discarded")?;
+    let error = tunnel
+        .finish(Err(caller_failure()?))
+        .await
+        .err()
+        .ok_or("both failures were discarded")?;
     let worker = cause::<io::Error>(error.as_ref()).ok_or("original worker I/O error was lost")?;
     assert_eq!(worker.kind(), io::ErrorKind::PermissionDenied);
     assert_eq!(worker.to_string(), "original relay read failure");

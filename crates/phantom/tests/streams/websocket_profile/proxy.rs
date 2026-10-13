@@ -30,9 +30,7 @@ use super::{
     pooled_get_at,
 };
 use crate::support::tls::{H1_ALPN, H2_ALPN, TestIdentity, tls_settings};
-use crate::support::tunnel_proxy::{
-    self, Http2ConnectRecord, Socks5Target, TunnelSetup,
-};
+use crate::support::tunnel_proxy::{self, Http2ConnectRecord, Socks5Target, TunnelSetup};
 use crate::support::websocket_origin::header_value;
 
 /// A name, so a SOCKS5 proxy with remote resolution receives a domain.
@@ -229,8 +227,12 @@ async fn websocket_with_other_proxy_credentials_opens_its_own_tunnel() -> TestRe
         exchange(socket).await?;
 
         let alice = &alice_tunnel.establish().await?.1;
-        let bob = &bob_tunnel.as_mut().ok_or("Bob's tunnel was not acquired")?
-            .establish().await?.1;
+        let bob = &bob_tunnel
+            .as_mut()
+            .ok_or("Bob's tunnel was not acquired")?
+            .establish()
+            .await?
+            .1;
         let heads = [alice, bob];
         for head in heads {
             assert!(head.starts_with(format!("CONNECT {origin} HTTP/1.1\r\n").as_bytes()));
@@ -268,9 +270,10 @@ async fn chromium_websocket_beside_an_incapable_proxied_session_upgrades_through
         let (identity, mut server) = start_origin(behavior).await?;
         let origin = server.address;
         let serving = Arc::clone(&listener);
-        let mut first = TunnelSetup::spawn(async move {
-            tunnel_proxy::http1_connect_on(&serving, origin).await
-        });
+        let mut first =
+            TunnelSetup::spawn(
+                async move { tunnel_proxy::http1_connect_on(&serving, origin).await },
+            );
         let mut second = None;
         let caller = bounded(async {
             let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
@@ -291,8 +294,14 @@ async fn chromium_websocket_beside_an_incapable_proxied_session_upgrades_through
             assert_eq!(socket.handshake_response().version(), Version::HTTP_11);
             exchange(socket).await?;
 
-            let heads = [first.establish().await?, second.as_mut()
-                .ok_or("second tunnel was not acquired")?.establish().await?];
+            let heads = [
+                first.establish().await?,
+                second
+                    .as_mut()
+                    .ok_or("second tunnel was not acquired")?
+                    .establish()
+                    .await?,
+            ];
             for head in heads {
                 assert!(head.starts_with(format!("CONNECT {origin} HTTP/1.1\r\n").as_bytes()));
             }
@@ -329,9 +338,10 @@ async fn ignore_policy_opens_its_own_tunnel_beside_a_proxied_session() -> TestRe
         let (identity, mut server) = start_origin(Behavior::ACCEPT).await?;
         let origin = server.address;
         let serving = Arc::clone(&listener);
-        let mut first = TunnelSetup::spawn(async move {
-            tunnel_proxy::http1_connect_on(&serving, origin).await
-        });
+        let mut first =
+            TunnelSetup::spawn(
+                async move { tunnel_proxy::http1_connect_on(&serving, origin).await },
+            );
         let mut second = None;
         let caller = bounded(async {
             let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
@@ -355,8 +365,14 @@ async fn ignore_policy_opens_its_own_tunnel_beside_a_proxied_session() -> TestRe
             assert_eq!(socket.handshake_response().version(), Version::HTTP_2);
             exchange(socket).await?;
 
-            let heads = [first.establish().await?, second.as_mut()
-                .ok_or("second tunnel was not acquired")?.establish().await?];
+            let heads = [
+                first.establish().await?,
+                second
+                    .as_mut()
+                    .ok_or("second tunnel was not acquired")?
+                    .establish()
+                    .await?,
+            ];
             for head in heads {
                 assert!(head.starts_with(format!("CONNECT {origin} HTTP/1.1\r\n").as_bytes()));
             }
@@ -606,7 +622,10 @@ impl Proxy {
             }
         }
         assert!(
-            tunnel_proxy::no_connection_arrives(self.listener.as_ref().ok_or("proxy listener was retired")?).await,
+            tunnel_proxy::no_connection_arrives(
+                self.listener.as_ref().ok_or("proxy listener was retired")?
+            )
+            .await,
             "the WebSocket opened another {:?} proxy connection",
             self.tunnel
         );

@@ -149,7 +149,13 @@ impl TestServer {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let log = Log::default();
-        Ok(Self::listening(listener, address, log, Some(identity), behavior))
+        Ok(Self::listening(
+            listener,
+            address,
+            log,
+            Some(identity),
+            behavior,
+        ))
     }
 
     /// Starts a plaintext HTTP/1.1 origin for `ws://` openings.
@@ -170,20 +176,41 @@ impl TestServer {
         let (stop, stopped) = watch::channel(false);
         let serving_failure = ServingFailure::default();
         let task = ConnectionPeer::spawn(serve_listener(
-            listener, Arc::clone(&log), identity, behavior, stop.clone(), stopped,
+            listener,
+            Arc::clone(&log),
+            identity,
+            behavior,
+            stop.clone(),
+            stopped,
             Arc::clone(&serving_failure),
         ));
-        Self { address, log, task: Some(task), stop, failure: None, serving_failure, incomplete_shutdown: false }
+        Self {
+            address,
+            log,
+            task: Some(task),
+            stop,
+            failure: None,
+            serving_failure,
+            incomplete_shutdown: false,
+        }
     }
 
     pub(crate) fn connections(&self) -> TestResult<Vec<ConnectionLog>> {
-        self.log.lock().map_err(|_| "server log lock was poisoned")?
-            .iter().map(|connection| {
+        self.log
+            .lock()
+            .map_err(|_| "server log lock was poisoned")?
+            .iter()
+            .map(|connection| {
                 let mut connection = connection.clone();
-                connection.resets = client_resets(&connection.client_wire.lock()
-                    .map_err(|_| "recorded wire lock was poisoned")?);
+                connection.resets = client_resets(
+                    &connection
+                        .client_wire
+                        .lock()
+                        .map_err(|_| "recorded wire lock was poisoned")?,
+                );
                 Ok(connection)
-            }).collect()
+            })
+            .collect()
     }
 
     /// Stop admission, then observe every accepted connection before returning
@@ -191,27 +218,43 @@ impl TestServer {
     pub(crate) async fn finish<T>(&mut self, caller: TestResult<T>) -> TestResult<T> {
         let value = match caller {
             Ok(value) => Some(value),
-            Err(error) => { retain_failure(&mut self.failure, error); None }
+            Err(error) => {
+                retain_failure(&mut self.failure, error);
+                None
+            }
         };
         self.stop.send_replace(true);
         let Some(task) = self.task.as_mut() else {
-            if let Some(error) = self.failure.take() { return Err(error); }
-            if self.incomplete_shutdown { return Err("an earlier profile shutdown returned before collection completed".into()); }
+            if let Some(error) = self.failure.take() {
+                return Err(error);
+            }
+            if self.incomplete_shutdown {
+                return Err(
+                    "an earlier profile shutdown returned before collection completed".into(),
+                );
+            }
             return value.ok_or_else(|| "profile server caller completed without a value".into());
         };
         let joined = match timeout(CLEANUP_TIMEOUT, &mut *task).await {
             Ok(joined) => Some(joined),
             Err(elapsed) => {
-                retain_failure(&mut self.failure, FixtureDeadline::new(
-                    "profile server cleanup exceeded its deadline", elapsed,
-                ).into());
+                retain_failure(
+                    &mut self.failure,
+                    FixtureDeadline::new("profile server cleanup exceeded its deadline", elapsed)
+                        .into(),
+                );
                 task.abort();
                 match timeout(CLEANUP_TIMEOUT, &mut *task).await {
                     Ok(joined) => Some(joined),
                     Err(elapsed) => {
-                        retain_failure(&mut self.failure, FixtureDeadline::new(
-                            "profile server abort exceeded its deadline", elapsed,
-                        ).into());
+                        retain_failure(
+                            &mut self.failure,
+                            FixtureDeadline::new(
+                                "profile server abort exceeded its deadline",
+                                elapsed,
+                            )
+                            .into(),
+                        );
                         self.incomplete_shutdown = true;
                         None
                     }
@@ -222,9 +265,14 @@ impl TestServer {
             self.task.take();
             match self.serving_failure.lock() {
                 Ok(mut serving) => {
-                    if let Some(error) = serving.take() { retain_failure(&mut self.failure, error); }
+                    if let Some(error) = serving.take() {
+                        retain_failure(&mut self.failure, error);
+                    }
                 }
-                Err(_) => retain_failure(&mut self.failure, "profile serving outcome lock was poisoned".into()),
+                Err(_) => retain_failure(
+                    &mut self.failure,
+                    "profile serving outcome lock was poisoned".into(),
+                ),
             }
             match joined {
                 Ok(Ok(())) => {}
@@ -232,8 +280,12 @@ impl TestServer {
                 Err(error) => retain_failure(&mut self.failure, error.into()),
             }
         }
-        if let Some(error) = self.failure.take() { return Err(error); }
-        if self.incomplete_shutdown { return Err("an earlier profile shutdown returned before collection completed".into()); }
+        if let Some(error) = self.failure.take() {
+            return Err(error);
+        }
+        if self.incomplete_shutdown {
+            return Err("an earlier profile shutdown returned before collection completed".into());
+        }
         value.ok_or_else(|| "profile server caller completed without a value".into())
     }
 }
@@ -243,7 +295,9 @@ impl Drop for TestServer {
         self.stop.send_replace(true);
         // External destruction cannot asynchronously join. The retained worker
         // owns its JoinSet, whose Drop aborts remaining accepted connections.
-        if let Some(task) = &self.task { task.abort(); }
+        if let Some(task) = &self.task {
+            task.abort();
+        }
     }
 }
 
@@ -252,13 +306,18 @@ pub(super) fn retain_failure(
     error: Box<dyn std::error::Error + Send + Sync>,
 ) {
     *failure = Some(match failure.take() {
-        Some(primary) => Box::new(FixtureFailures { primary, cleanup: error }),
+        Some(primary) => Box::new(FixtureFailures {
+            primary,
+            cleanup: error,
+        }),
         None => error,
     });
 }
 
 async fn stop_requested(stopped: &mut watch::Receiver<bool>) -> TestResult<()> {
-    if !*stopped.borrow() { stopped.changed().await?; }
+    if !*stopped.borrow() {
+        stopped.changed().await?;
+    }
     Ok(())
 }
 
@@ -325,7 +384,9 @@ fn retain_serving_failure(
     failure: &ServingFailure,
     error: Box<dyn std::error::Error + Send + Sync>,
 ) -> TestResult<()> {
-    let mut failure = failure.lock().map_err(|_| "profile serving outcome lock was poisoned")?;
+    let mut failure = failure
+        .lock()
+        .map_err(|_| "profile serving outcome lock was poisoned")?;
     retain_failure(&mut failure, error);
     Ok(())
 }
@@ -367,7 +428,13 @@ async fn serve(
     }
 }
 
-async fn serve_h2<T>(stream: T, index: usize, log: &Log, behavior: Behavior, mut stopped: watch::Receiver<bool>) -> TestResult<()>
+async fn serve_h2<T>(
+    stream: T,
+    index: usize,
+    log: &Log,
+    behavior: Behavior,
+    mut stopped: watch::Receiver<bool>,
+) -> TestResult<()>
 where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
@@ -474,9 +541,14 @@ where
     echo_stop.send_replace(true);
     let mut failure = result.err();
     while let Some(result) = echoes.next().await {
-        if let Err(error) = result { retain_failure(&mut failure, error); }
+        if let Err(error) = result {
+            retain_failure(&mut failure, error);
+        }
     }
-    match failure { Some(error) => Err(error), None => Ok(()) }
+    match failure {
+        Some(error) => Err(error),
+        None => Ok(()),
+    }
 }
 
 /// Accepts one extended CONNECT, selecting compression when asked, and starts
@@ -540,53 +612,68 @@ async fn echo_h2(
     mut stopped: watch::Receiver<bool>,
 ) -> TestResult<()> {
     let operation = async {
-    let mut wire = Vec::new();
-    while let Some(chunk) = body.data().await {
-        let chunk = match chunk {
-            Ok(chunk) => chunk,
-            Err(error) if expected_stream_end(&error) => return Ok(()),
-            Err(error) => return Err(error.into()),
-        };
-        body.flow_control().release_capacity(chunk.len())?;
-        if wire.len().checked_add(chunk.len()).is_none_or(|length| length > MAX_WIRE_BYTES) {
-            return Err("profile WebSocket buffered-input bound exceeded".into());
-        }
-        wire.extend_from_slice(&chunk);
-        while let Some((rsv1, opcode, payload, consumed)) = client_frame(&wire)? {
-            // Recorded before the echo, so a client that has read the echo
-            // has already had its own frame logged.
-            if log.lock().map_err(|_| "server log lock was poisoned")?
-                .get(index).ok_or("missing connection log")?.client_frames.len() >= MAX_RECORDS {
-                return Err("profile WebSocket record bound exceeded".into());
+        let mut wire = Vec::new();
+        while let Some(chunk) = body.data().await {
+            let chunk = match chunk {
+                Ok(chunk) => chunk,
+                Err(error) if expected_stream_end(&error) => return Ok(()),
+                Err(error) => return Err(error.into()),
+            };
+            body.flow_control().release_capacity(chunk.len())?;
+            if wire
+                .len()
+                .checked_add(chunk.len())
+                .is_none_or(|length| length > MAX_WIRE_BYTES)
+            {
+                return Err("profile WebSocket buffered-input bound exceeded".into());
             }
-            update(&log, index, |connection| {
-                connection.client_frames.push(ClientDataFrame {
-                    rsv1,
-                    opcode,
-                    payload_len: payload.len(),
-                });
-            })?;
-            let mut echo = Vec::new();
-            // With compression selected the client's payload is deflated, so
-            // it is echoed as uncompressed binary rather than replayed as
-            // text the client would UTF-8 validate.
-            let echo_opcode = if deflate && opcode < 0x8 { 0x2 } else { opcode };
-            append_server_frame(&mut echo, true, echo_opcode, &payload);
-            if let Err(error) = send.send_data(Bytes::from(echo), false) {
-                if expected_stream_end(&error) {
-                    return Ok(());
+            wire.extend_from_slice(&chunk);
+            while let Some((rsv1, opcode, payload, consumed)) = client_frame(&wire)? {
+                // Recorded before the echo, so a client that has read the echo
+                // has already had its own frame logged.
+                if log
+                    .lock()
+                    .map_err(|_| "server log lock was poisoned")?
+                    .get(index)
+                    .ok_or("missing connection log")?
+                    .client_frames
+                    .len()
+                    >= MAX_RECORDS
+                {
+                    return Err("profile WebSocket record bound exceeded".into());
                 }
+                update(&log, index, |connection| {
+                    connection.client_frames.push(ClientDataFrame {
+                        rsv1,
+                        opcode,
+                        payload_len: payload.len(),
+                    });
+                })?;
+                let mut echo = Vec::new();
+                // With compression selected the client's payload is deflated, so
+                // it is echoed as uncompressed binary rather than replayed as
+                // text the client would UTF-8 validate.
+                let echo_opcode = if deflate && opcode < 0x8 { 0x2 } else { opcode };
+                append_server_frame(&mut echo, true, echo_opcode, &payload);
+                if let Err(error) = send.send_data(Bytes::from(echo), false) {
+                    if expected_stream_end(&error) {
+                        return Ok(());
+                    }
+                    return Err(error.into());
+                }
+                wire.drain(..consumed);
+            }
+        }
+        if !wire.is_empty() {
+            return Err("client ended with a partial WebSocket frame".into());
+        }
+        // The client ended its side after the close handshake; end ours too.
+        if let Err(error) = send.send_data(Bytes::new(), true) {
+            if !expected_stream_end(&error) {
                 return Err(error.into());
             }
-            wire.drain(..consumed);
         }
-    }
-    if !wire.is_empty() { return Err("client ended with a partial WebSocket frame".into()); }
-    // The client ended its side after the close handshake; end ours too.
-    if let Err(error) = send.send_data(Bytes::new(), true) {
-        if !expected_stream_end(&error) { return Err(error.into()); }
-    }
-    Ok(())
+        Ok(())
     };
     tokio::select! {
         biased;
@@ -595,47 +682,53 @@ async fn echo_h2(
     }
 }
 
-async fn serve_h1<T>(mut stream: T, index: usize, log: &Log, behavior: Behavior, mut stopped: watch::Receiver<bool>) -> TestResult<()>
+async fn serve_h1<T>(
+    mut stream: T,
+    index: usize,
+    log: &Log,
+    behavior: Behavior,
+    mut stopped: watch::Receiver<bool>,
+) -> TestResult<()>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
     let operation = async {
-    let head = String::from_utf8(read_head(&mut stream).await?)?;
-    let mut lines = head.trim_end().split("\r\n");
-    let request_line = lines.next().ok_or("empty H1 request")?.to_owned();
-    let fields = lines
-        .map(|line| {
-            line.split_once(": ")
-                .map(|(name, value)| (name.to_owned(), value.to_owned()))
-                .ok_or("H1 field has no `: `")
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    let key = fields
-        .iter()
-        .find(|(name, _)| name.eq_ignore_ascii_case("sec-websocket-key"))
-        .map(|(_, value)| value.clone());
-    update(log, index, |connection| {
-        connection.h1.push(H1Request {
-            request_line,
-            fields,
-        });
-    })?;
-    let Some(key) = key else {
+        let head = String::from_utf8(read_head(&mut stream).await?)?;
+        let mut lines = head.trim_end().split("\r\n");
+        let request_line = lines.next().ok_or("empty H1 request")?.to_owned();
+        let fields = lines
+            .map(|line| {
+                line.split_once(": ")
+                    .map(|(name, value)| (name.to_owned(), value.to_owned()))
+                    .ok_or("H1 field has no `: `")
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let key = fields
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case("sec-websocket-key"))
+            .map(|(_, value)| value.clone());
+        update(log, index, |connection| {
+            connection.h1.push(H1Request {
+                request_line,
+                fields,
+            });
+        })?;
+        let Some(key) = key else {
+            stream
+                .write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\nok")
+                .await?;
+            return Ok(());
+        };
+        if behavior.upgrade != Reply::Accept {
+            stream
+                .write_all(b"HTTP/1.1 403 Forbidden\r\ncontent-length: 0\r\n\r\n")
+                .await?;
+            return Ok(());
+        }
+        let mut input = key.into_bytes();
+        input.extend_from_slice(ACCEPT_GUID);
+        let accept = btls::base64::encode_block(&btls::sha::sha1(&input));
         stream
-            .write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\nok")
-            .await?;
-        return Ok(());
-    };
-    if behavior.upgrade != Reply::Accept {
-        stream
-            .write_all(b"HTTP/1.1 403 Forbidden\r\ncontent-length: 0\r\n\r\n")
-            .await?;
-        return Ok(());
-    }
-    let mut input = key.into_bytes();
-    input.extend_from_slice(ACCEPT_GUID);
-    let accept = btls::base64::encode_block(&btls::sha::sha1(&input));
-    stream
         .write_all(
             format!(
                 "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n"
@@ -643,24 +736,26 @@ where
             .as_bytes(),
         )
         .await?;
-    let (opcode, payload) = read_profile_frame(&mut stream).await?;
-    let mut echo = Vec::new();
-    append_server_frame(&mut echo, true, opcode, &payload);
-    stream.write_all(&echo).await?;
-    let mut rest = [0_u8; 1024];
-    let mut received = 0_usize;
-    loop {
-        match stream.read(&mut rest).await {
-            Ok(0) => break,
-            Ok(length) => {
-                received += length;
-                if received > MAX_FRAME_BYTES { return Err("profile post-echo input bound exceeded".into()); }
+        let (opcode, payload) = read_profile_frame(&mut stream).await?;
+        let mut echo = Vec::new();
+        append_server_frame(&mut echo, true, opcode, &payload);
+        stream.write_all(&echo).await?;
+        let mut rest = [0_u8; 1024];
+        let mut received = 0_usize;
+        loop {
+            match stream.read(&mut rest).await {
+                Ok(0) => break,
+                Ok(length) => {
+                    received += length;
+                    if received > MAX_FRAME_BYTES {
+                        return Err("profile post-echo input bound exceeded".into());
+                    }
+                }
+                Err(error) if super::tls_support::is_peer_gone(&error) => break,
+                Err(error) => return Err(error.into()),
             }
-            Err(error) if super::tls_support::is_peer_gone(&error) => break,
-            Err(error) => return Err(error.into()),
         }
-    }
-    Ok(())
+        Ok(())
     };
     tokio::select! {
         biased;
@@ -673,13 +768,19 @@ fn expected_stream_end(error: &::http2::Error) -> bool {
     // The scripts deliberately drop accepted WebSockets as well as closing
     // them gracefully. Local protocol/I/O errors remain failures.
     error.get_io().is_some_and(super::tls_support::is_peer_gone)
-        || (error.is_remote() && error.is_reset() && error.reason() == Some(::http2::Reason::CANCEL))
+        || (error.is_remote()
+            && error.is_reset()
+            && error.reason() == Some(::http2::Reason::CANCEL))
 }
 
 async fn read_profile_frame(stream: &mut (impl AsyncRead + Unpin)) -> TestResult<(u8, Vec<u8>)> {
     let mut head = [0_u8; 2];
     stream.read_exact(&mut head).await?;
-    let extended = match head[1] & 0x7f { 126 => 2, 127 => 8, _ => 0 };
+    let extended = match head[1] & 0x7f {
+        126 => 2,
+        127 => 8,
+        _ => 0,
+    };
     let mut wire = head.to_vec();
     wire.resize(2 + extended, 0);
     stream.read_exact(&mut wire[2..]).await?;
@@ -689,13 +790,17 @@ async fn read_profile_frame(stream: &mut (impl AsyncRead + Unpin)) -> TestResult
         _ => usize::from(head[1] & 0x7f),
     };
     if head[1] & 0x80 == 0 || length > MAX_FRAME_BYTES {
-        return Err(io::Error::new(io::ErrorKind::InvalidData,
-            "profile client frame was unmasked or exceeded its bound").into());
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "profile client frame was unmasked or exceeded its bound",
+        )
+        .into());
     }
     let prefix = wire.len();
     wire.resize(prefix + 4 + length, 0);
     stream.read_exact(&mut wire[prefix..]).await?;
-    let (_, opcode, payload, _) = client_frame(&wire)?.ok_or("complete profile frame was truncated")?;
+    let (_, opcode, payload, _) =
+        client_frame(&wire)?.ok_or("complete profile frame was truncated")?;
     Ok((opcode, payload))
 }
 
@@ -717,26 +822,42 @@ fn decode_alpn(mut wire: &[u8]) -> Vec<String> {
 
 /// Unmasks one complete client frame, or returns `None` until it is complete.
 fn client_frame(wire: &[u8]) -> TestResult<Option<(bool, u8, Vec<u8>, usize)>> {
-    let Some(&first) = wire.first() else { return Ok(None); };
+    let Some(&first) = wire.first() else {
+        return Ok(None);
+    };
     let (rsv1, opcode) = (first & 0x40 != 0, first & 0x0f);
-    let Some((&second, mut rest)) = wire.get(1..).and_then(|tail| tail.split_first()) else { return Ok(None); };
-    if second & 0x80 == 0 { return Err("client WebSocket frame was not masked".into()); }
+    let Some((&second, mut rest)) = wire.get(1..).and_then(|tail| tail.split_first()) else {
+        return Ok(None);
+    };
+    if second & 0x80 == 0 {
+        return Err("client WebSocket frame was not masked".into());
+    }
     let length = match second & 0x7f {
         126 => {
-            let Some((bytes, tail)) = rest.split_at_checked(2) else { return Ok(None); };
+            let Some((bytes, tail)) = rest.split_at_checked(2) else {
+                return Ok(None);
+            };
             rest = tail;
             usize::from(u16::from_be_bytes([bytes[0], bytes[1]]))
         }
         127 => {
-            let Some((bytes, tail)) = rest.split_at_checked(8) else { return Ok(None); };
+            let Some((bytes, tail)) = rest.split_at_checked(8) else {
+                return Ok(None);
+            };
             rest = tail;
             usize::try_from(u64::from_be_bytes(bytes.try_into()?))?
         }
         length => usize::from(length),
     };
-    if length > MAX_FRAME_BYTES { return Err("profile WebSocket frame bound exceeded".into()); }
-    let Some((mask, tail)) = rest.split_at_checked(4) else { return Ok(None); };
-    let Some(payload) = tail.get(..length) else { return Ok(None); };
+    if length > MAX_FRAME_BYTES {
+        return Err("profile WebSocket frame bound exceeded".into());
+    }
+    let Some((mask, tail)) = rest.split_at_checked(4) else {
+        return Ok(None);
+    };
+    let Some(payload) = tail.get(..length) else {
+        return Ok(None);
+    };
     Ok(Some((
         rsv1,
         opcode,
@@ -786,8 +907,9 @@ impl WireDecoder {
                 return Err("test decoder supports only unpadded single-frame HEADERS".into());
             }
             let (priority, block) = if flags & 0x20 != 0 {
-                let priority = payload.get(..5).ok_or_else(||
-                    io::Error::new(io::ErrorKind::InvalidData, "HEADERS priority was truncated"))?;
+                let priority = payload.get(..5).ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidData, "HEADERS priority was truncated")
+                })?;
                 let dependency =
                     u32::from_be_bytes([priority[0], priority[1], priority[2], priority[3]]);
                 (
@@ -802,7 +924,9 @@ impl WireDecoder {
                 (None, payload)
             };
             let pseudo = self.decode_block(block)?;
-            if self.headers.len() >= MAX_RECORDS { return Err("profile decoded-header bound exceeded".into()); }
+            if self.headers.len() >= MAX_RECORDS {
+                return Err("profile decoded-header bound exceeded".into());
+            }
             self.headers.push((id, priority, pseudo));
         }
         self.headers
@@ -893,12 +1017,26 @@ fn read_integer(block: &[u8], cursor: &mut usize, prefix_bits: u8) -> TestResult
     loop {
         let byte = *block.get(*cursor).ok_or("HPACK integer is truncated")?;
         *cursor += 1;
-        let factor = 1_usize.checked_shl(shift).ok_or_else(||
-            io::Error::new(io::ErrorKind::InvalidData, "HPACK integer exceeds the fixture's range"))?;
-        let part = usize::from(byte & 0x7f).checked_mul(factor).ok_or_else(||
-            io::Error::new(io::ErrorKind::InvalidData, "HPACK integer exceeds the fixture's range"))?;
-        value = value.checked_add(part).ok_or_else(||
-            io::Error::new(io::ErrorKind::InvalidData, "HPACK integer exceeds the fixture's range"))?;
+        let factor = 1_usize.checked_shl(shift).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "HPACK integer exceeds the fixture's range",
+            )
+        })?;
+        let part = usize::from(byte & 0x7f)
+            .checked_mul(factor)
+            .ok_or_else(|| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "HPACK integer exceeds the fixture's range",
+                )
+            })?;
+        value = value.checked_add(part).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "HPACK integer exceeds the fixture's range",
+            )
+        })?;
         if byte & 0x80 == 0 {
             return Ok(value);
         }
@@ -910,8 +1048,9 @@ fn read_integer(block: &[u8], cursor: &mut usize, prefix_bits: u8) -> TestResult
 fn read_literal_name(block: &[u8], cursor: &mut usize) -> TestResult<(Option<String>, bool)> {
     let huffman = block.get(*cursor).ok_or("HPACK string is truncated")? & 0x80 != 0;
     let length = read_integer(block, cursor, 7)?;
-    let end = cursor.checked_add(length).ok_or_else(||
-        io::Error::new(io::ErrorKind::InvalidData, "HPACK string range overflows"))?;
+    let end = cursor.checked_add(length).ok_or_else(|| {
+        io::Error::new(io::ErrorKind::InvalidData, "HPACK string range overflows")
+    })?;
     let bytes = block
         .get(*cursor..end)
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "HPACK string is truncated"))?;
@@ -928,8 +1067,9 @@ fn read_literal_name(block: &[u8], cursor: &mut usize) -> TestResult<(Option<Str
 fn skip_string(block: &[u8], cursor: &mut usize) -> TestResult<bool> {
     let huffman = block.get(*cursor).ok_or("HPACK string is truncated")? & 0x80 != 0;
     let length = read_integer(block, cursor, 7)?;
-    let end = cursor.checked_add(length).ok_or_else(||
-        io::Error::new(io::ErrorKind::InvalidData, "HPACK string range overflows"))?;
+    let end = cursor.checked_add(length).ok_or_else(|| {
+        io::Error::new(io::ErrorKind::InvalidData, "HPACK string range overflows")
+    })?;
     if block.len() < end {
         return Err(io::Error::new(io::ErrorKind::InvalidData, "HPACK string is truncated").into());
     }
@@ -955,10 +1095,19 @@ where
         let before = buffer.filled().len();
         let result = Pin::new(&mut this.inner).poll_read(context, buffer);
         if let Poll::Ready(Ok(())) = result {
-            let mut recorded = this.read.lock().map_err(|_| io::Error::other("recorded wire lock was poisoned"))?;
+            let mut recorded = this
+                .read
+                .lock()
+                .map_err(|_| io::Error::other("recorded wire lock was poisoned"))?;
             let bytes = &buffer.filled()[before..];
-            if recorded.len().checked_add(bytes.len()).is_none_or(|length| length > MAX_WIRE_BYTES) {
-                return Poll::Ready(Err(io::Error::other("profile recorded-wire bound exceeded")));
+            if recorded
+                .len()
+                .checked_add(bytes.len())
+                .is_none_or(|length| length > MAX_WIRE_BYTES)
+            {
+                return Poll::Ready(Err(io::Error::other(
+                    "profile recorded-wire bound exceeded",
+                )));
             }
             recorded.extend_from_slice(bytes);
         }

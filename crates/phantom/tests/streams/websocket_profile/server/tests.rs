@@ -1,4 +1,8 @@
-use std::{io, net::Ipv4Addr, sync::{Arc, Mutex}};
+use std::{
+    io,
+    net::Ipv4Addr,
+    sync::{Arc, Mutex},
+};
 
 use bytes::Bytes;
 
@@ -26,11 +30,24 @@ async fn interrupted_shutdown_retains_the_caller_and_accepted_connection() -> Te
         tokio::pin!(finish);
         assert!(futures_util::poll!(&mut finish).is_pending());
     }
-    assert!(server.task.is_some(), "interrupted shutdown removed the original worker");
-    let error = server.finish(Ok(())).await.err().ok_or("caller failure was discarded")?;
-    let cause = error.downcast_ref::<io::Error>().ok_or("original caller I/O cause was lost")?;
+    assert!(
+        server.task.is_some(),
+        "interrupted shutdown removed the original worker"
+    );
+    let error = server
+        .finish(Ok(()))
+        .await
+        .err()
+        .ok_or("caller failure was discarded")?;
+    let cause = error
+        .downcast_ref::<io::Error>()
+        .ok_or("original caller I/O cause was lost")?;
     assert_eq!(cause.kind(), io::ErrorKind::PermissionDenied);
-    assert!(cause.get_ref().is_some_and(|error| error.is::<CallerFailure>()));
+    assert!(
+        cause
+            .get_ref()
+            .is_some_and(|error| error.is::<CallerFailure>())
+    );
     assert!(server.task.is_none(), "completed worker was not collected");
     assert_peer_closed(&mut client).await?;
     let rebound = TcpListener::bind(address).await?;
@@ -51,15 +68,33 @@ async fn caller_failure_and_original_accepted_frame_failure_are_both_observed() 
     // before explicit shutdown or any independent repair.
     assert_peer_closed(&mut client).await?;
     let primary = io::Error::new(io::ErrorKind::PermissionDenied, CallerFailure);
-    let error = server.finish::<()>(Err(primary.into())).await.err()
+    let error = server
+        .finish::<()>(Err(primary.into()))
+        .await
+        .err()
         .ok_or("caller and serving failures were discarded")?;
-    let failures = error.downcast_ref::<FixtureFailures>().ok_or("independent serving failure was lost")?;
-    let caller = failures.primary.downcast_ref::<io::Error>().ok_or("original caller cause was lost")?;
-    let serving = failures.cleanup.downcast_ref::<io::Error>().ok_or("original serving cause was lost")?;
+    let failures = error
+        .downcast_ref::<FixtureFailures>()
+        .ok_or("independent serving failure was lost")?;
+    let caller = failures
+        .primary
+        .downcast_ref::<io::Error>()
+        .ok_or("original caller cause was lost")?;
+    let serving = failures
+        .cleanup
+        .downcast_ref::<io::Error>()
+        .ok_or("original serving cause was lost")?;
     assert_eq!(caller.kind(), io::ErrorKind::PermissionDenied);
-    assert!(caller.get_ref().is_some_and(|error| error.is::<CallerFailure>()));
+    assert!(
+        caller
+            .get_ref()
+            .is_some_and(|error| error.is::<CallerFailure>())
+    );
     assert_eq!(serving.kind(), io::ErrorKind::InvalidData);
-    assert_eq!(serving.to_string(), "profile client frame was unmasked or exceeded its bound");
+    assert_eq!(
+        serving.to_string(),
+        "profile client frame was unmasked or exceeded its bound"
+    );
     let rebound = TcpListener::bind(address).await?;
     assert_eq!(rebound.local_addr()?, address);
     Ok(())
@@ -69,13 +104,23 @@ async fn caller_failure_and_original_accepted_frame_failure_are_both_observed() 
 async fn a_pending_external_abort_is_not_classified_as_requested_shutdown() -> TestResult<()> {
     let mut server = TestServer::start_plaintext(Behavior::ACCEPT).await?;
     let mut client = accepted_idle_client(&server).await?;
-    let abort = server.task.as_ref().ok_or("listener was not owned")?.abort_handle();
+    let abort = server
+        .task
+        .as_ref()
+        .ok_or("listener was not owned")?
+        .abort_handle();
     let id = abort.id();
     abort.abort();
     // Do not wait for the pending abort to complete before asking for normal
     // fixture shutdown: is_finished cannot establish cancellation provenance.
-    let error = server.finish(Ok(())).await.err().ok_or("external cancellation was suppressed")?;
-    let join = error.downcast_ref::<JoinError>().ok_or("original cancelled JoinError was lost")?;
+    let error = server
+        .finish(Ok(()))
+        .await
+        .err()
+        .ok_or("external cancellation was suppressed")?;
+    let join = error
+        .downcast_ref::<JoinError>()
+        .ok_or("original cancelled JoinError was lost")?;
     assert!(join.is_cancelled());
     assert_eq!(join.id(), id);
     assert_peer_closed(&mut client).await?;
@@ -87,7 +132,9 @@ async fn normal_shutdown_collects_a_healthy_request_and_idle_accepted_peer() -> 
     let mut server = TestServer::start_plaintext(Behavior::ACCEPT).await?;
     let address = server.address;
     let mut client = TcpStream::connect(address).await?;
-    client.write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n").await?;
+    client
+        .write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+        .await?;
     let response = timeout(CLEANUP_TIMEOUT, read_head(&mut client)).await??;
     assert_eq!(response, b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\n");
     let mut body = [0_u8; 2];
@@ -110,9 +157,13 @@ fn a_complete_truncated_priority_returns_its_typed_parser_failure() -> TestResul
         let mut wire = PREFACE.to_vec();
         wire.extend_from_slice(&[0, 0, length, 1, 0x24, 0, 0, 0, 1]);
         wire.extend_from_slice(&vec![0; usize::from(length)]);
-        let error = WireDecoder::default().headers_for(&wire, 1).err()
+        let error = WireDecoder::default()
+            .headers_for(&wire, 1)
+            .err()
             .ok_or("short complete HEADERS priority was accepted")?;
-        let cause = error.downcast_ref::<io::Error>().ok_or("priority parser failure was not typed")?;
+        let cause = error
+            .downcast_ref::<io::Error>()
+            .ok_or("priority parser failure was not typed")?;
         assert_eq!(cause.kind(), io::ErrorKind::InvalidData);
     }
     let mut healthy = PREFACE.to_vec();
@@ -124,14 +175,21 @@ fn a_complete_truncated_priority_returns_its_typed_parser_failure() -> TestResul
 }
 
 #[test]
-fn oversized_hpack_continuations_return_typed_failures_without_losing_valid_fields() -> TestResult<()> {
+fn oversized_hpack_continuations_return_typed_failures_without_losing_valid_fields()
+-> TestResult<()> {
     // Literal base-128 encodings exercise both addition overflow and the
     // largest representable value; no test encoder repeats the parser.
     let (overflow, maximum, overflowing_part): (&[u8], &[u8], &[u8]) = match usize::BITS {
         64 => (
-            &[0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01],
-            &[0x3f, 0xe0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01],
-            &[0x3f, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x02],
+            &[
+                0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01,
+            ],
+            &[
+                0x3f, 0xe0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01,
+            ],
+            &[
+                0x3f, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x02,
+            ],
         ),
         32 => (
             &[0x3f, 0xff, 0xff, 0xff, 0xff, 0x0f],
@@ -144,11 +202,18 @@ fn oversized_hpack_continuations_return_typed_failures_without_losing_valid_fiel
     excessive_shift.extend(vec![0x80; usize::try_from(usize::BITS / 7 + 2)?]);
     excessive_shift.push(0);
     for block in [overflow, overflowing_part, excessive_shift.as_slice()] {
-        let error = WireDecoder::default().decode_block(block).err()
+        let error = WireDecoder::default()
+            .decode_block(block)
+            .err()
             .ok_or("oversized HPACK continuation was accepted")?;
-        let cause = error.downcast_ref::<io::Error>().ok_or("original HPACK range failure was not typed")?;
+        let cause = error
+            .downcast_ref::<io::Error>()
+            .ok_or("original HPACK range failure was not typed")?;
         assert_eq!(cause.kind(), io::ErrorKind::InvalidData);
-        assert_eq!(cause.to_string(), "HPACK integer exceeds the fixture's range");
+        assert_eq!(
+            cause.to_string(),
+            "HPACK integer exceeds the fixture's range"
+        );
     }
     let mut cursor = 0;
     assert_eq!(super::read_integer(maximum, &mut cursor, 5)?, usize::MAX);
@@ -166,7 +231,9 @@ fn oversized_hpack_continuations_return_typed_failures_without_losing_valid_fiel
 #[test]
 fn hpack_name_and_value_ranges_reject_overflow_and_truncation() -> TestResult<()> {
     let maximum_length: &[u8] = match usize::BITS {
-        64 => &[0x7f, 0x80, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01],
+        64 => &[
+            0x7f, 0x80, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01,
+        ],
         32 => &[0x7f, 0x80, 0xff, 0xff, 0xff, 0x0f],
         _ => return Err("HPACK control requires a 32-bit or 64-bit usize".into()),
     };
@@ -179,9 +246,13 @@ fn hpack_name_and_value_ranges_reject_overflow_and_truncation() -> TestResult<()
             (overflowing, "HPACK string range overflows"),
             (vec![first, 0x05, b'a'], "HPACK string is truncated"),
         ] {
-            let error = WireDecoder::default().decode_block(&block).err()
+            let error = WireDecoder::default()
+                .decode_block(&block)
+                .err()
                 .ok_or("invalid HPACK string range was accepted")?;
-            let cause = error.downcast_ref::<io::Error>().ok_or("original HPACK string failure was not typed")?;
+            let cause = error
+                .downcast_ref::<io::Error>()
+                .ok_or("original HPACK string failure was not typed")?;
             assert_eq!(cause.kind(), io::ErrorKind::InvalidData);
             assert_eq!(cause.to_string(), message);
         }
@@ -216,28 +287,56 @@ async fn one_http2_data_chunk_echoes_both_coalesced_websocket_frames() -> TestRe
                     let mut requests = requests.ready().await?;
                     // Reading the first response also observes the peer's
                     // earlier SETTINGS enabling extended CONNECT.
-                    let (response, _) = requests.send_request(http::Request::builder()
-                        .uri("http://localhost/ready").body(())?, true)?;
+                    let (response, _) = requests.send_request(
+                        http::Request::builder()
+                            .uri("http://localhost/ready")
+                            .body(())?,
+                        true,
+                    )?;
                     let mut body = response.await?.into_body();
-                    let chunk = body.data().await.ok_or("ordinary response ended before its body")??;
+                    let chunk = body
+                        .data()
+                        .await
+                        .ok_or("ordinary response ended before its body")??;
                     assert_eq!(chunk, Bytes::from_static(b"ok"));
                     body.flow_control().release_capacity(chunk.len())?;
-                    let mut request = http::Request::builder().method(http::Method::CONNECT)
-                        .uri("http://localhost/echo").body(())?;
-                    request.extensions_mut().insert(::http2::ext::Protocol::from_static("websocket"));
+                    let mut request = http::Request::builder()
+                        .method(http::Method::CONNECT)
+                        .uri("http://localhost/echo")
+                        .body(())?;
+                    request
+                        .extensions_mut()
+                        .insert(::http2::ext::Protocol::from_static("websocket"));
                     let (response, mut send) = requests.send_request(request, false)?;
                     let mut body = response.await?.into_body();
                     // Both complete masked frames are in one original DATA
                     // chunk. Clearing the whole input after the first frame
                     // loses the second echo and fails this actual script.
-                    send.send_data(Bytes::from_static(&[
-                        0x81, 0x81, 1, 2, 3, 4, b'a' ^ 1,
-                        0x81, 0x81, 1, 2, 3, 4, b'b' ^ 1,
-                    ]), false)?;
+                    send.send_data(
+                        Bytes::from_static(&[
+                            0x81,
+                            0x81,
+                            1,
+                            2,
+                            3,
+                            4,
+                            b'a' ^ 1,
+                            0x81,
+                            0x81,
+                            1,
+                            2,
+                            3,
+                            4,
+                            b'b' ^ 1,
+                        ]),
+                        false,
+                    )?;
                     let mut echoes = Vec::new();
                     while echoes.len() < 6 {
                         let chunk = body.data().await.ok_or("second frame was not echoed")??;
-                        if echoes.len() + chunk.len() > 6 { return Err("echo exceeded the two-frame contract".into()); }
+                        if echoes.len() + chunk.len() > 6 {
+                            return Err("echo exceeded the two-frame contract".into());
+                        }
                         body.flow_control().release_capacity(chunk.len())?;
                         echoes.extend_from_slice(&chunk);
                     }
@@ -253,7 +352,8 @@ async fn one_http2_data_chunk_echoes_both_coalesced_websocket_frames() -> TestRe
                         Ok(()) => Err("HTTP/2 driver ended before both echoes".into()),
                     }
                 }
-            }.await;
+            }
+            .await;
             stop.send_replace(true);
             result
         };
@@ -262,7 +362,8 @@ async fn one_http2_data_chunk_echoes_both_coalesced_websocket_frames() -> TestRe
         let log = log.lock().map_err(|_| "coalesced-frame log was poisoned")?;
         assert_eq!(log[0].client_frames.len(), 2);
         Ok(())
-    }).await?
+    })
+    .await?
 }
 
 async fn accepted_idle_client(server: &TestServer) -> TestResult<TcpStream> {
@@ -271,17 +372,23 @@ async fn accepted_idle_client(server: &TestServer) -> TestResult<TcpStream> {
     client.write_all(b"GET ").await?;
     timeout(CLEANUP_TIMEOUT, async {
         loop {
-            if server.connections()?.len() > previous { return TestResult::Ok(()); }
+            if server.connections()?.len() > previous {
+                return TestResult::Ok(());
+            }
             tokio::task::yield_now().await;
         }
-    }).await??;
+    })
+    .await??;
     Ok(client)
 }
 
 async fn assert_peer_closed(client: &mut TcpStream) -> TestResult<()> {
     let outcome = timeout(CLEANUP_TIMEOUT, client.read(&mut [0_u8; 1])).await?;
-    assert!(matches!(outcome, Ok(0)) || matches!(outcome,
-        Err(ref error) if crate::support::tls::is_peer_gone(error)));
+    assert!(
+        matches!(outcome, Ok(0))
+            || matches!(outcome,
+        Err(ref error) if crate::support::tls::is_peer_gone(error))
+    );
     Ok(())
 }
 

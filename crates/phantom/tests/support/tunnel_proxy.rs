@@ -26,8 +26,8 @@ use tokio::{
 };
 
 use super::tls::{TestResult, accept_tls_stream, read_head};
-use relay_peer::{RelayFailure, RelayPeer, collect_relays, retain_failure};
 pub(crate) use relay_peer::TunnelCleanupFailure;
+use relay_peer::{RelayFailure, RelayPeer, collect_relays, retain_failure};
 
 #[path = "tunnel_proxy/connection_peer.rs"]
 pub(crate) mod connection_peer;
@@ -308,12 +308,12 @@ pub(crate) async fn http2_connect_on(
             return Err("no CONNECT was served".into());
         }
     };
-    let EstablishedTunnel {
+    let EstablishedTunnel { peers, failure, .. } = tunnel;
+    Ok(EstablishedTunnel {
+        observed,
         peers,
         failure,
-        ..
-    } = tunnel;
-    Ok(EstablishedTunnel { observed, peers, failure })
+    })
 }
 
 /// Accepts one h2-only TLS proxy connection, answers its first CONNECT with a
@@ -506,10 +506,7 @@ async fn socks5_request(stream: &mut TcpStream) -> TestResult<(Socks5Target, u16
     Ok((target, port))
 }
 
-async fn establish_relay<S>(
-    mut downstream: S,
-    origin: SocketAddr,
-) -> io::Result<RelayPeer>
+async fn establish_relay<S>(mut downstream: S, origin: SocketAddr) -> io::Result<RelayPeer>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {

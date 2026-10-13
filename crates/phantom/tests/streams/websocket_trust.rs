@@ -20,6 +20,7 @@ use crate::websocket_profile::fixture;
 use crate::websocket_profile::forward_proxy::ForwardProxy;
 use crate::websocket_profile::server;
 
+use fixture::Capture;
 use phantom::{
     Client, HttpProxy, RequestHeader, Route, WebSocketMessage, WebSocketRequestBuilder,
     profile::{
@@ -27,7 +28,6 @@ use phantom::{
         browser::{chrome, firefox},
     },
 };
-use fixture::Capture;
 use server::{Behavior, TestServer};
 use tls_support::tls_settings;
 use websocket_support::bounded;
@@ -137,10 +137,8 @@ async fn built_in_websocket_openings_send_the_captured_named_origin_fields() -> 
             let caller = bounded(async {
                 proxy = Some(ForwardProxy::start(server.address).await?);
                 let proxy = proxy.as_mut().ok_or("CONNECT proxy was not acquired")?;
-                let route = Route::http_proxy(HttpProxy::new(&format!(
-                    "http://{}",
-                    proxy.address
-                ))?);
+                let route =
+                    Route::http_proxy(HttpProxy::new(&format!("http://{}", proxy.address))?);
                 let upgrade = capture.upgrade()?;
                 let host = upgrade
                     .fields

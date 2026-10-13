@@ -406,10 +406,9 @@ async fn proxy_route_sends_no_ech(opening: Opening) -> TestResult<()> {
         let origin = Origin::spawn(acceptor, vec![opening]).await?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(tunnel_proxy::http1_connect(
-            proxy_listener,
-            origin.address(),
-        )));
+        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(
+            tunnel_proxy::http1_connect(proxy_listener, origin.address()),
+        ));
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
         let client = discovering_client(&identity, &dns, Opening::profile(true), Some(route))?;
 
