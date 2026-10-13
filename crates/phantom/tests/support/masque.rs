@@ -7,11 +7,10 @@
 //! connected local UDP socket per request.
 
 use std::{
-    net::SocketAddr,
+    future::poll_fn,
+    net::{IpAddr, SocketAddr},
     sync::{Arc, Mutex, MutexGuard},
 };
-
-use std::future::poll_fn;
 
 use bytes::{Buf, Bytes, BytesMut};
 use http::{Response, StatusCode};
@@ -353,7 +352,7 @@ async fn serve_connected(
         return Ok(());
     }
 
-    let target = parse_target(&observed.path).ok_or("CONNECT-UDP path has no target")?;
+    let target = parse_target(&observed.path).ok_or("CONNECT-UDP path has no loopback target")?;
     let udp = phantom_testkit::udp::bind_tokio("127.0.0.1:0".parse()?)?;
     udp.connect(target).await?;
     stream
@@ -416,8 +415,8 @@ fn parse_target(path: &str) -> Option<SocketAddr> {
     let mut parts = rest.trim_end_matches('/').split('/');
     let host = parts.next()?.replace("%3A", ":");
     let port = parts.next()?.parse::<u16>().ok()?;
-    let ip = host.parse().ok()?;
-    Some(SocketAddr::new(ip, port))
+    let ip: IpAddr = host.parse().ok()?;
+    ip.is_loopback().then_some(SocketAddr::new(ip, port))
 }
 
 fn decode_varint(buffer: &mut Bytes) -> Option<u64> {
@@ -712,7 +711,7 @@ where
             Ok(())
         }
         Answer::Relay => {
-            let target = target.ok_or("CONNECT-UDP path has no target")?;
+            let target = target.ok_or("CONNECT-UDP path has no loopback target")?;
             stream
                 .write_all(
                     b"HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\n\
@@ -810,7 +809,7 @@ where
             Ok(())
         }
         Answer::Ok200 | Answer::Relay => {
-            let target = target.ok_or("CONNECT-UDP path has no target")?;
+            let target = target.ok_or("CONNECT-UDP path has no loopback target")?;
             let mut send = respond.send_response(
                 Response::builder()
                     .status(StatusCode::OK)
@@ -933,8 +932,10 @@ fn decode_capsule(input: &[u8]) -> Option<(u64, Vec<u8>, usize)> {
 }
 
 #[cfg(test)]
-#[path = "masque/h3_ownership_controls.rs"]
 mod h3_ownership_controls;
+
+#[cfg(test)]
+mod input_controls;
 
 #[cfg(test)]
 mod tests {
