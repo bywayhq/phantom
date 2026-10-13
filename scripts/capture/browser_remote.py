@@ -21,6 +21,7 @@ from urllib.parse import urlsplit
 
 WEBSOCKET_GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 MAX_MESSAGE = 16 * 1024 * 1024
+REMOTE_SETUP_TIMEOUT = 5.0
 REMOTE_CLOSE_TIMEOUT = 2.0
 OPCODE_CONTINUATION = 0x0
 OPCODE_TEXT = 0x1
@@ -114,11 +115,16 @@ class RemoteSocket:
 
     @classmethod
     async def connect(cls, url: str) -> RemoteSocket:
+        """Connect and upgrade within one five-second setup deadline."""
         parts = urlsplit(url)
         if parts.scheme != "ws" or parts.hostname not in {"127.0.0.1", "localhost"}:
             raise ValueError("the remote protocol endpoint must be loopback ws://")
 
-        reader, writer = await asyncio.open_connection(parts.hostname, parts.port)
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + REMOTE_SETUP_TIMEOUT
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(parts.hostname, parts.port), deadline - loop.time()
+        )
         try:
             key = base64.b64encode(os.urandom(16))
             path = parts.path or "/"
@@ -129,7 +135,10 @@ class RemoteSocket:
                 + key
                 + b"\r\n\r\n"
             )
-            head = await reader.readuntil(b"\r\n\r\n")
+            await asyncio.wait_for(writer.drain(), deadline - loop.time())
+            head = await asyncio.wait_for(
+                reader.readuntil(b"\r\n\r\n"), deadline - loop.time()
+            )
             lines = head.split(b"\r\n")
             if not lines[0].startswith(b"HTTP/1.1 101"):
                 raise ConnectionError(f"remote protocol upgrade refused: {lines[0]!r}")
@@ -146,6 +155,11 @@ class RemoteSocket:
             )
             if accept != expected:
                 raise ConnectionError("remote protocol upgrade has a wrong accept key")
+
+            if loop.time() >= deadline:
+                raise asyncio.TimeoutError(
+                    "remote protocol setup exceeded its deadline"
+                )
 
             return cls(reader, writer)
         except BaseException as primary:

@@ -1110,6 +1110,9 @@ must be positive, and `--settle` must be finite and nonnegative. The capture
 wait starts after the page is opened. TCP waits for `--timeout` seconds;
 HTTP/3 allows ten more seconds for its listener to finish.
 
+Remote browser TCP connection and WebSocket upgrade share a five-second
+setup deadline. Cleanup can take additional time after setup fails.
+
 The tool accepts at most 1 MiB of listener output and 64 KiB of diagnostics.
 These limits apply to file snapshots, rather than temporary disk use between
 polls. Cleanup stops owned processes and removes their temporary files.

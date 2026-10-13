@@ -2575,6 +2575,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Bound remote browser socket connection and WebSocket upgrade by one
+  five-second setup deadline. Retain timeout and cleanup errors together.
+
 - Reject unused HTTP/3 encoder inserts containing credentials before cookie
   capture writes a fixture.
 

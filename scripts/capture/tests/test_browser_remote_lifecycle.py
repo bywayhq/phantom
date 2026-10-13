@@ -1,4 +1,5 @@
 import asyncio
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -311,6 +312,139 @@ class RemoteClientLifecycleTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_cancelled_upgrade_closes_the_acquired_writer(self) -> None:
         await self.upgrade_exit(None)
+
+    async def test_silent_upgrade_deadline_retains_timeout_and_close_failure(
+        self,
+    ) -> None:
+        for failure in (None, CloseFailure("controlled upgrade close failure")):
+            with self.subTest(cleanup_failure=failure):
+                await self.setup_deadline_exit("read", failure)
+
+    async def test_stalled_upgrade_drain_is_bounded(self) -> None:
+        await self.setup_deadline_exit("drain", None)
+
+    async def test_cancelled_upgrade_retains_original_cancellation_and_close_failure(
+        self,
+    ) -> None:
+        await self.setup_deadline_exit(
+            "cancel", CloseFailure("controlled cancelled upgrade close failure")
+        )
+
+    async def setup_deadline_exit(
+        self, phase: str, cleanup_failure: CloseFailure | None
+    ) -> None:
+        peer = UpgradePeer(None)
+        self.addAsyncCleanup(peer.finish)
+        port = await peer.start()
+        original_open = asyncio.open_connection
+        drain_entered = asyncio.Event()
+        release_drain = asyncio.Event()
+        original_causes = []
+        drain_patches = []
+
+        async def record_open(*args, **kwargs):
+            reader, writer = await original_open(*args, **kwargs)
+            peer.clients.append(writer)
+            if phase == "drain":
+                original_drain = writer.drain
+
+                async def held_drain():
+                    await original_drain()
+                    drain_entered.set()
+                    await release_drain.wait()
+
+                drain_patch = patch.object(writer, "drain", held_drain)
+                drain_patch.start()
+                drain_patches.append(drain_patch)
+
+            return reader, writer
+
+        error = None
+        try:
+            with (
+                patch.object(browser_remote.asyncio, "open_connection", record_open),
+                patch.object(browser_remote, "REMOTE_SETUP_TIMEOUT", 0.5),
+            ):
+                task = asyncio.create_task(
+                    browser_remote.RemoteSocket.connect(
+                        f"ws://127.0.0.1:{port}/setup-deadline"
+                    )
+                )
+                peer.calls.append(task)
+                await asyncio.wait_for(peer.request_seen.wait(), DEADLINE)
+                self.assertEqual(len(peer.clients), 1)
+                self.assertEqual(len(peer.connections), 1)
+                self.assertTrue(
+                    peer.request.startswith(b"GET /setup-deadline HTTP/1.1\r\n")
+                )
+                self.assertIn(b"\r\nSec-WebSocket-Version: 13\r\n", peer.request)
+                if phase == "drain":
+                    await asyncio.wait_for(drain_entered.wait(), DEADLINE)
+
+                writer = peer.clients[0]
+                original_close = writer.close
+
+                def observed_close():
+                    # Observe the actual initiating exception before injecting cleanup.
+                    original_causes.append(sys.exc_info()[1])
+                    original_close()
+                    if cleanup_failure is not None:
+                        raise cleanup_failure
+
+                with patch.object(writer, "close", observed_close):
+                    self.assertFalse(task.done())
+                    if phase == "cancel":
+                        task.cancel("controlled setup cancellation")
+
+                    done, _ = await asyncio.wait([task], timeout=DEADLINE)
+                    self.assertIn(task, done, "remote setup did not reach its deadline")
+                    try:
+                        task.result()
+                    except BaseException as actual:
+                        error = actual
+
+            self.assertEqual(len(original_causes), 1)
+            primary = original_causes[0]
+            if phase == "cancel":
+                self.assertIsInstance(primary, asyncio.CancelledError)
+                self.assertIs(error, primary)
+                self.assertEqual(error.args, ("controlled setup cancellation",))
+                peer.calls.remove(task)
+                combined = error.__cause__
+            else:
+                self.assertIsInstance(primary, asyncio.TimeoutError)
+                self.assertIsInstance(primary.__cause__, asyncio.CancelledError)
+                peer.allowed = (error,)
+                combined = error
+
+            if cleanup_failure is None:
+                self.assertIs(error, primary)
+            else:
+                self.assertIsInstance(combined, browser_remote.RemoteFailures)
+                self.assertIs(combined.primary, primary)
+                self.assertEqual(combined.cleanup, (cleanup_failure,))
+
+            closed_before_backup = writer.is_closing()
+            worker = peer.connections[0][1]
+            done, _ = await asyncio.wait([worker], timeout=DEADLINE)
+            completed_before_backup = worker in done
+            read_outcome_before_backup = peer.read_outcome
+            if completed_before_backup:
+                worker.result()
+        finally:
+            for drain_patch in reversed(drain_patches):
+                drain_patch.stop()
+
+        await peer.finish()
+        self.assertTrue(closed_before_backup)
+        self.assertTrue(completed_before_backup, "setup failure retained its real peer")
+        self.assertTrue(
+            read_outcome_before_backup == b""
+            or isinstance(
+                read_outcome_before_backup,
+                (ConnectionResetError, ConnectionAbortedError, BrokenPipeError),
+            )
+        )
 
     async def upgrade_exit(self, partial: bytes | None) -> None:
         peer = UpgradePeer(partial)

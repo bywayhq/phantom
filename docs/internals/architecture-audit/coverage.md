@@ -29,6 +29,14 @@ the complete logs and verify both clean revisions. Source-reviewed fixes
 retain the original inputs, cleanup assertions and complete error collection.
 The SSE wall-clock correction and this session correction need native runs.
 
+At `fcb848da`, both hosts pass 33 negotiated-session, 24 parallel-session,
+75 SSE-filter and 10 cookie methods. Formatting, strict Clippy, Rust 1.88,
+Ruff and docs pass. Startup passes 22 methods on Linux and 21 on Windows.
+Its descendant-retirement control retains a diagnostics deletion error
+(`WinError 32`). Root and the independent reader inspect all 22 complete
+logs and exits, then separately verify both clean exact revisions. This
+closes the failed packet for investigation, rather than the startup finding.
+
 ## Replay fixture completion
 
 Root reads both complete replay scripts, their concrete task registry and its
@@ -70,8 +78,24 @@ file readers. Readiness observes finite snapshots without waiting for pipe
 EOF. Failed reads retain observed process exits, and cleanup retries keep
 the original file owners and final snapshot. Native checks remain open.
 Snapshot thresholds do not impose a disk quota or preempt native calls.
-DevTools connection setup still lacks a deadline. HTTP/3 outputs are
+DevTools connection setup lacks a deadline at this revision. HTTP/3 outputs are
 individually atomic and may be written before parent cleanup completes.
+
+The Windows failure exposes an unobserved descendant termination in the
+shared process owner. Closing its job handle requests termination, then
+cleanup waits only for the original bootstrap. An owned-process probe shows
+zero active job processes while the retained descendant handle is still
+unsignaled. The probe removes diagnostics after that original handle signals.
+The process owner needs a completion remedy; retrying file
+deletion or treating the active count as completion would hide the cause.
+
+The independently reviewed remote-socket correction applies one absolute
+five-second deadline to TCP acquisition, upgrade drain and upgrade read.
+It retains raised timeouts and cancellations with independent close errors.
+Its real loopback controls need native verification. Standard Python 3.10
+`wait_for` may prefer a ready result over simultaneous cancellation and
+waits for cooperative cancellation. This bounds setup awaits, rather than
+the whole browser navigation or blocking native work.
 
 ## Local capture owners
 
