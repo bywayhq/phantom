@@ -35,6 +35,14 @@ These local checks cover their stated hosts and revisions. They do not
 replace final workspace, vendor, platform, PR or main checks. Source reviews
 also retain their limits on untouched upstream code and browser acceptance.
 
+The later `fafa0a4e` capture checks remain in
+`C:/code/phantom/target/architecture-audit`, outside the checkpoint archive.
+Their runner is `run-capture-input-peers.sh`. Original logs and exits use
+`capture-input-peers-fafa0a4e2dbe4a4448b75fd0d5b17f3500b90210-<host>.<step>`.
+Hosts are `windows` and `linux`; steps are `lifecycle`, `cookie`, `quic`,
+`ruff`, `format` and `docs`. Both original handles finish with exit zero.
+Each host passes 26, 21 and 12 methods respectively, with no skips.
+
 ## Next
 
 - [Coverage](coverage.md): reviewed paths and remaining gaps.

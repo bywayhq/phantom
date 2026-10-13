@@ -13,14 +13,60 @@ failed two unsupported immediate port-reuse assertions; the corrected controls
 observe original listener and connection retirement. Those failures remain
 in the retained evidence.
 
-Lifecycle and cookie input follow-ups, shared browser address policy, coverage
-reconciliation and combined architecture review remain open. The final
-workspace, vendor, platform, PR and main checks remain required. The sections
-below retain earlier source reviews and results at their stated revisions.
+At `fafa0a4e`, lifecycle, cookie and shared QUIC launch repairs pass all 26,
+21 and 12 methods respectively on each host. Both readers inspect every
+original log and exit and separately bind both clean checkouts to that
+revision. Scoped lint, formatting and documentation checks pass. This covers
+loopback peers, original failures, retirement, fixture refusal and launch
+policy. It does not establish a fresh browser capture.
+
+The inventory at `fafa0a4e` lists 37 first-party Rust integration test and
+support files awaiting complete review. This pass reads two session files
+and leaves their remedies open. Other rows still need coverage reconciliation;
+a prior assignment or passing suite does not close a row. Combined architecture
+review and final workspace, vendor, platform, PR and main checks remain required.
+The sections below retain earlier source reviews at their stated revisions.
 
 Historical record names in this page refer to the
 [retained evidence](evidence.md). Earlier results keep their original revision
 and scope; they do not establish final integration.
+
+## Capture input and lifecycle completion
+
+Root and independent review cover the complete lifecycle server and tests,
+including TLS close observation, HTTP/1 and HTTP/2 request recording,
+listener startup, accepted protocols, original stream-close futures, event
+observers, remote browser close and fixture publication. Cleanup retains its
+five-second cooperative deadline. Local aborts do not become browser close
+measurements. Malformed request tokens and fixture delimiters fail before
+recording. Original-target qualification requires one exact completion token.
+
+Cookie review covers completion classification, retained request records,
+HTTP/1 completed-head and aggregate boundaries, fixture refusal and native
+TCP collection. Shared address review traces cookie HTTP/3 launch into the
+QUIC helper and the actual browser preference plumbing. Firefox requires
+literal `127.0.0.1` or `::1` before acquisition. Its IPv6 setting prefers IPv6
+and retains IPv4 fallback. Chromium brackets canonical IPv6 resolver targets.
+This source pass does not close unrelated cookie or QUIC implementation paths.
+
+The signed composition is `fafa0a4e`. Windows and Linux each pass all 59
+methods and all three scoped quality checks. The original runner and logs
+are indexed in [retained evidence](evidence.md#original-local-checks).
+
+## Remaining session fixture ownership
+
+Root reads the complete current `session_http3.rs` and
+`session_http2_lifecycle.rs`; the source auditor independently traces their
+original server, request and replacement tasks. Caller errors or consuming
+five-second timeouts can drop raw handles and lose the peer outcome. Their
+deadline helpers replace the original `Elapsed` with text. The HTTP/2
+GOAWAY replacement also creates a child task inside the server task.
+
+These are reviewed sources with open remedies, recorded as A296. The
+session lane retains concrete peers outside the caller deadline and reuses
+the existing error and task owners. Original admission, reuse, wire and
+timeout assertions remain the acceptance contract. No native verification
+or completion follows from this inspection.
 
 ## Stream and negotiated-session completion
 
