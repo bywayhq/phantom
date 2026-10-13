@@ -2482,6 +2482,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Retain test fixture workers and their original errors through caller
   failure and cleanup. Preserve the integration module roster when rerunning
   consolidation, including the session peer-completion controls.
+- Retain browser profiles when shutdown fails so cleanup can retry with the
+  same process and profile ownership.
+
 - Collect capture processes, connections, callbacks and partial acquisitions
   before publication. Retain original operation and cleanup failures together.
 - Validate capture timeouts, repetitions, listener addresses, request input,
