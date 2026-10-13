@@ -43,6 +43,19 @@ Hosts are `windows` and `linux`; steps are `lifecycle`, `cookie`, `quic`,
 `ruff`, `format` and `docs`. Both original handles finish with exit zero.
 Each host passes 26, 21 and 12 methods respectively, with no skips.
 
+The session/configuration packet uses `run-config-session-remedy.sh` and
+`config-session-remedy-d9e6b6e7dacff2366a5846154835c8d0db81404c-<host>.<step>`.
+Steps are `dns`, `quic`, `client`, `sessions`, `peers`, `fmt`, `clippy`,
+`msrv`, `rustdoc` and `docs`. Both original handles exit one: eight DNS
+test assertions fail strict Clippy. Every other step exits zero.
+
+The corrected DNS/Close packet uses `run-dns-drain-remedy.sh` and
+`dns-drain-remedy-12422fcc03515b73644d6728f828418a47526e08-<host>.<step>`.
+Steps are `dns`, `origins`, `proxy`, `certs`, `fmt`, `clippy`, `msrv` and
+`docs`. Both original handles and all sixteen steps exit zero. Each host
+passes 103 tests with no skips. Root and independent reviewers read complete
+logs and exits, then separately verify both clean exact revisions.
+
 ## Next
 
 - [Coverage](coverage.md): reviewed paths and remaining gaps.

@@ -6,6 +6,12 @@ Pending means that discovery or assignment has not established review.
 ## Current state
 
 The audit remains on its integration branch and has not merged into `main`.
+At `12422fcc`, Windows and Linux each pass 103 selected DNS, WebSocket
+origin/proxy and per-origin certificate tests. Formatting, strict Clippy,
+Rust 1.88 and docs pass. Root and independent review cover all original logs,
+exits and both clean revisions. Session and TLS-validation results from
+`d9e6b6e7` remain qualified below. Final combined checks remain open.
+
 At `1da2ba31`, all 45 snapshot methods pass on Windows and Linux. Independent
 review covers the source, complete original logs and exact clean revisions.
 Scoped lint, formatting and documentation checks pass. The first Linux run
@@ -62,11 +68,37 @@ five-second timeouts can drop raw handles and lose the peer outcome. Their
 deadline helpers replace the original `Elapsed` with text. The HTTP/2
 GOAWAY replacement also creates a child task inside the server task.
 
-These are reviewed sources with open remedies, recorded as A296. The
-session lane retains concrete peers outside the caller deadline and reuses
-the existing error and task owners. Original admission, reuse, wire and
-timeout assertions remain the acceptance contract. No native verification
-or completion follows from this inspection.
+The reviewed A296 repair retains concrete peers outside the caller deadline
+and keeps original admission, reuse, wire and timeout assertions. At
+`d9e6b6e7`, the session selection passes 80 methods on Windows and 79 on
+Linux, plus three peer-completion controls per host. The difference is one
+Windows-only Firefox timing method. Blocking work cannot be preempted, and
+Drop aborts without joining. This is focused verification, not final sign-off.
+
+## DNS configuration and WebSocket close completion
+
+The `d9e6b6e7` packet passes 164 tests on Windows and 163 on Linux, including
+51 DNS, 15 QUIC-provider and 15 client methods per host. Strict Clippy fails
+on eight new DNS test assertions; the original failure remains retained.
+Formatting, Rust 1.88, warning-denied rustdoc and docs pass.
+
+The reviewed correction at `12422fcc` preserves those DNS assertions in the
+existing fallible style. Each host passes 51 DNS, 19 WebSocket-origin,
+16 HTTP/2 WebSocket-proxy and 17 per-origin certificate methods, with no
+skips. Formatting, strict Clippy, Rust 1.88 and docs pass. Both readers inspect
+all original logs and exits and independently bind both clean checkouts.
+
+A300 retains original system/configuration errors through the resolver
+wrappers. Tests exercise actual typed errors and empty public configuration,
+rather than injecting a host configuration failure. A301 retains profile
+validation causes through the QUIC provider and public client build path.
+Existing categories and messages remain unchanged.
+
+A298 replaces the ignored, unbounded post-Close read with a five-second,
+64 KiB discard bound. Original unrelated I/O and deadline causes remain
+available. New helper controls cover causes, literal byte boundaries and a
+held duplex peer; existing echo and native proxy/certificate callers pass.
+They do not establish whole-caller ownership or arbitrary Drop completion.
 
 ## Stream and negotiated-session completion
 
