@@ -12,6 +12,49 @@ use tokio::{
 
 use super::*;
 
+#[tokio::test]
+async fn dropping_an_open_page_ends_its_original_http2_driver() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let hellos = Hellos::default();
+    let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let (ready, page) = oneshot::channel();
+    let mut server = ConnectionPeer::spawn(async move {
+        let page = OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?).await?;
+        ready
+            .send(page)
+            .map_err(|_| "page owner receiver disappeared")?;
+        Ok::<_, Box<dyn Error + Send + Sync>>(())
+    });
+    let mut connector = btls::ssl::SslConnector::builder(btls::ssl::SslMethod::tls())?;
+    connector
+        .cert_store_mut()
+        .add_cert(btls::x509::X509::from_der(&identity.root_der)?)?;
+    connector.set_alpn_protos(b"\x02h2")?;
+    let ssl = connector.build().configure()?.into_ssl("localhost")?;
+    let mut tls = tokio_btls::SslStream::new(ssl, TcpStream::connect(address).await?)?;
+    Pin::new(&mut tls).connect().await?;
+    let (mut sender, connection) = ::http2::client::handshake(tls).await?;
+    let mut driver =
+        ConnectionPeer::spawn(async move { relay_result(connection.await.map_err(Into::into)) });
+    let request = http::Request::builder()
+        .uri(format!("https://localhost:{}/", address.port()))
+        .body(())?;
+    let (response, _) = sender.send_request(request, true)?;
+    assert_eq!(
+        timeout(Duration::from_secs(5), response).await??.status(),
+        StatusCode::OK
+    );
+    let page = timeout(Duration::from_secs(5), page).await??;
+    server.join().await??;
+    drop(page);
+    timeout(Duration::from_secs(5), driver.join()).await???;
+    let rebound = TcpListener::bind(address).await?;
+    assert_eq!(rebound.local_addr()?, address);
+    Ok(())
+}
+
 #[derive(Debug)]
 struct CloseFailure;
 

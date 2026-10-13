@@ -7,12 +7,16 @@
 
 use crate::support::h3 as h3_support;
 use crate::support::tls as tls_support;
+use crate::support::{
+    deadline::FixtureDeadline,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+};
 
 use std::{
     net::{Ipv4Addr, SocketAddr},
     num::NonZeroUsize,
     sync::{
-        Arc,
+        Arc, Mutex, PoisonError,
         atomic::{AtomicUsize, Ordering},
     },
     time::Duration,
@@ -31,7 +35,7 @@ use tokio::{
     io::AsyncWriteExt,
     net::TcpListener,
     sync::{mpsc, watch},
-    task::JoinHandle,
+    task::JoinSet,
     time::{sleep, timeout},
 };
 
@@ -53,6 +57,7 @@ const REQUESTS: usize = 5;
 enum Event {
     Accepted(usize),
     Request { connection: usize },
+    Failed,
 }
 
 /// A TLS session store that counts the tickets a client presented and the
@@ -96,7 +101,9 @@ struct Origin {
     goaway: watch::Sender<Option<usize>>,
     handshakes: watch::Sender<bool>,
     tickets: Arc<CountingStore>,
-    task: JoinHandle<()>,
+    stopping: watch::Sender<bool>,
+    failures: Arc<Mutex<Vec<Box<dyn std::error::Error + Send + Sync>>>>,
+    task: ConnectionPeer<TestResult>,
 }
 
 impl Origin {
@@ -120,29 +127,78 @@ impl Origin {
         let (release, released) = watch::channel(false);
         let (goaway, goaway_requested) = watch::channel(None);
         let (handshakes, handshakes_released) = watch::channel(false);
-        let task = tokio::spawn(async move {
+        let (stopping, mut stopped) = watch::channel(false);
+        let shutdown = stopping.clone();
+        let failures = Arc::new(Mutex::new(Vec::new()));
+        let errors = Arc::clone(&failures);
+        let endpoint = EndpointOwner(endpoint);
+        let task = ConnectionPeer::spawn(async move {
+            let mut peers = JoinSet::new();
             let mut accepted = 0;
-            while let Some(incoming) = endpoint.accept().await {
-                let index = accepted;
-                accepted += 1;
-                if sender.send(Event::Accepted(index)).is_err() {
-                    return;
-                }
-                let (sender, released, goaway, mut handshakes) = (
-                    sender.clone(),
-                    released.clone(),
-                    goaway_requested.clone(),
-                    handshakes_released.clone(),
-                );
-                tokio::spawn(async move {
-                    if stalled == Some(index)
-                        && handshakes.wait_for(|released| *released).await.is_err()
-                    {
-                        return;
+            let primary: TestResult = async {
+                loop {
+                    tokio::select! {
+                        biased;
+                        joined = peers.join_next(), if !peers.is_empty() => {
+                            joined.ok_or("origin connection disappeared")???;
+                        }
+                        changed = stopped.wait_for(|stopped| *stopped) => {
+                            changed?;
+                            break;
+                        }
+                        incoming = endpoint.0.accept() => {
+                            let incoming = incoming.ok_or("origin acceptor stopped")?;
+                            let index = accepted;
+                            accepted += 1;
+                            sender.send(Event::Accepted(index))?;
+                            let (sender, released, goaway, mut handshakes, mut stopping) = (
+                                sender.clone(),
+                                released.clone(),
+                                goaway_requested.clone(),
+                                handshakes_released.clone(),
+                                stopped.clone(),
+                            );
+                            peers.spawn(async move {
+                                if stalled == Some(index) {
+                                    tokio::select! {
+                                        released = handshakes.wait_for(|released| *released) => {
+                                            released?;
+                                        }
+                                        changed = stopping.wait_for(|stopped| *stopped) => {
+                                            changed?;
+                                            return Ok(());
+                                        }
+                                    }
+                                }
+                                serve(incoming, index, sender, released, goaway, stopping).await
+                            });
+                        }
                     }
-                    let _ = serve(incoming, index, sender, released, goaway).await;
-                });
+                }
+                Ok(())
             }
+            .await;
+            if let Err(error) = primary {
+                errors
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .push(error);
+                let _ = sender.send(Event::Failed);
+            }
+            shutdown.send_replace(true);
+            while let Some(joined) = peers.join_next().await {
+                let result = joined.map_err(Into::into).and_then(|result| result);
+                if let Err(error) = result {
+                    errors
+                        .lock()
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .push(error);
+                    let _ = sender.send(Event::Failed);
+                }
+            }
+            endpoint.0.close(0u32.into(), b"fixture finished");
+            endpoint.0.wait_idle().await;
+            Ok(())
         });
         Ok(Self {
             address,
@@ -151,6 +207,8 @@ impl Origin {
             goaway,
             handshakes,
             tickets,
+            stopping,
+            failures,
             task,
         })
     }
@@ -164,10 +222,11 @@ impl Origin {
         loop {
             match timeout(TEST_TIMEOUT, self.events.recv())
                 .await?
-                .ok_or("origin stopped")?
+                .ok_or_else(|| self.failure())?
             {
                 Event::Accepted(index) => return Ok(index),
                 Event::Request { .. } => {}
+                Event::Failed => return Err(self.failure()),
             }
         }
     }
@@ -192,16 +251,20 @@ impl Origin {
         while seen < requests {
             match timeout(TEST_TIMEOUT, self.events.recv())
                 .await?
-                .ok_or("origin stopped")?
+                .ok_or_else(|| self.failure())?
             {
                 Event::Accepted(_) => connections += 1,
                 Event::Request { .. } => seen += 1,
+                Event::Failed => return Err(self.failure()),
             }
         }
-        while let Ok(Some(event)) = timeout(QUIET_WINDOW, self.events.recv()).await {
-            match event {
-                Event::Accepted(_) => connections += 1,
-                Event::Request { .. } => seen += 1,
+        loop {
+            match timeout(QUIET_WINDOW, self.events.recv()).await {
+                Err(_) => break,
+                Ok(None) => return Err(self.failure()),
+                Ok(Some(Event::Failed)) => return Err(self.failure()),
+                Ok(Some(Event::Accepted(_))) => connections += 1,
+                Ok(Some(Event::Request { .. })) => seen += 1,
             }
         }
         Ok((connections, seen))
@@ -212,18 +275,44 @@ impl Origin {
         loop {
             match timeout(TEST_TIMEOUT, self.events.recv())
                 .await?
-                .ok_or("origin stopped")?
+                .ok_or_else(|| self.failure())?
             {
                 Event::Request { connection } => return Ok(connection),
                 Event::Accepted(_) => {}
+                Event::Failed => return Err(self.failure()),
             }
         }
     }
+    fn failure(&self) -> Box<dyn std::error::Error + Send + Sync> {
+        self.failures
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .pop()
+            .unwrap_or_else(|| "origin stopped".into())
+    }
+
+    async fn finish<T>(&mut self, primary: TestResult<T>) -> TestResult<T> {
+        self.stopping.send_replace(true);
+        let cleanup = async {
+            timeout(Duration::from_secs(5), self.task.join()).await???;
+            Ok(())
+        }
+        .await;
+        let mut result = finish_with_cleanup(primary, cleanup);
+        let errors =
+            std::mem::take(&mut *self.failures.lock().unwrap_or_else(PoisonError::into_inner));
+        for error in errors {
+            result = finish_with_cleanup(result, Err(error));
+        }
+        result
+    }
 }
 
-impl Drop for Origin {
+struct EndpointOwner(quinn::Endpoint);
+
+impl Drop for EndpointOwner {
     fn drop(&mut self) {
-        self.task.abort();
+        self.0.close(0u32.into(), b"fixture dropped");
     }
 }
 
@@ -254,50 +343,95 @@ async fn serve(
     events: mpsc::UnboundedSender<Event>,
     released: watch::Receiver<bool>,
     mut goaway: watch::Receiver<Option<usize>>,
+    mut stopping: watch::Receiver<bool>,
 ) -> TestResult {
-    let quic = incoming.await?;
-    let mut server: h3::server::Connection<h3_quinn::Connection, Bytes> =
-        h3::server::Connection::new(h3_quinn::Connection::new(quic)).await?;
-    let mut shutting_down = false;
-    loop {
-        let accepted = tokio::select! {
-            accepted = server.accept() => accepted?,
-            changed = async {
-                goaway
-                    .wait_for(|target| *target == Some(connection))
-                    .await
-                    .map(drop)
-            },
-                if !shutting_down =>
-            {
-                changed?;
-                // Streams already open still finish.
-                server.shutdown(0).await?;
-                shutting_down = true;
-                continue;
-            }
-        };
-        let Some(resolver) = accepted else {
-            // Keep the connection open for the streams still being served.
-            std::future::pending::<()>().await;
+    let quic = tokio::select! {
+        quic = incoming => quic?,
+        stopped = stopping.wait_for(|stopped| *stopped) => {
+            stopped?;
             return Ok(());
-        };
-        let (request, mut stream) = resolver.resolve_request().await?;
-        events.send(Event::Request { connection })?;
-        let path = request.uri().path().to_owned();
-        let mut released = released.clone();
-        tokio::spawn(async move {
-            if path != "/warm" {
-                released.wait_for(|released| *released).await?;
-            }
-            stream
-                .send_response(Response::builder().status(StatusCode::OK).body(())?)
-                .await?;
-            stream.send_data(Bytes::from_static(b"done")).await?;
-            stream.finish().await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
+        }
+    };
+    let mut server: h3::server::Connection<h3_quinn::Connection, Bytes> = tokio::select! {
+        server = h3::server::Connection::new(h3_quinn::Connection::new(quic)) => server?,
+        stopped = stopping.wait_for(|stopped| *stopped) => {
+            stopped?;
+            return Ok(());
+        }
+    };
+    let mut streams = JoinSet::new();
+    let mut shutting_down = false;
+    let mut accepting = true;
+    let primary: TestResult = async {
+        loop {
+            let accepted = tokio::select! {
+                biased;
+                joined = streams.join_next(), if !streams.is_empty() => {
+                    joined.ok_or("response task disappeared")???;
+                    continue;
+                }
+                stopped = stopping.wait_for(|stopped| *stopped) => {
+                    stopped?;
+                    break;
+                }
+                accepted = server.accept(), if accepting => match accepted {
+                    Ok(accepted) => accepted,
+                    Err(error) if error.is_h3_no_error() => {
+                        accepting = false;
+                        continue;
+                    }
+                    Err(error) => return Err(error.into()),
+                },
+                changed = async {
+                    goaway.wait_for(|target| *target == Some(connection)).await.map(drop)
+                }, if !shutting_down => {
+                    changed?;
+                    server.shutdown(0).await?;
+                    shutting_down = true;
+                    continue;
+                }
+            };
+            let Some(resolver) = accepted else {
+                // Keep the connection open for its owned response streams.
+                accepting = false;
+                continue;
+            };
+            let (request, mut stream) = tokio::select! {
+                request = resolver.resolve_request() => request?,
+                stopped = stopping.wait_for(|stopped| *stopped) => {
+                    stopped?;
+                    break;
+                }
+            };
+            events.send(Event::Request { connection })?;
+            let path = request.uri().path().to_owned();
+            let mut released = released.clone();
+            streams.spawn(async move {
+                if path != "/warm" {
+                    released.wait_for(|released| *released).await?;
+                }
+                stream
+                    .send_response(Response::builder().status(StatusCode::OK).body(())?)
+                    .await?;
+                stream.send_data(Bytes::from_static(b"done")).await?;
+                stream.finish().await?;
+                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+            });
+        }
+        Ok(())
     }
+    .await;
+    streams.abort_all();
+    let mut result = primary;
+    while let Some(joined) = streams.join_next().await {
+        let cleanup = match joined {
+            Ok(result) => result,
+            Err(error) if error.is_cancelled() => Ok(()),
+            Err(error) => Err(error.into()),
+        };
+        result = finish_with_cleanup(result, cleanup);
+    }
+    result
 }
 
 fn bound(value: usize) -> TestResult<NonZeroUsize> {
@@ -340,21 +474,29 @@ async fn finish(response: Response<phantom::ResponseBody>) -> TestResult {
 }
 
 /// Sends one held request per path at once and returns their tasks.
-fn spawn_held(client: &Client, origin: &Origin, paths: &[&str]) -> Vec<JoinHandle<TestResult>> {
+fn spawn_held(client: &Client, origin: &Origin, paths: &[&str]) -> Vec<ConnectionPeer<TestResult>> {
     paths
         .iter()
         .map(|path| {
             let (client, uri) = (client.clone(), origin.uri(path));
-            tokio::spawn(async move { finish(send(&client, &uri).await?).await })
+            ConnectionPeer::spawn(async move { finish(send(&client, &uri).await?).await })
         })
         .collect()
 }
 
-async fn join(tasks: Vec<JoinHandle<TestResult>>) -> TestResult {
-    for task in tasks {
-        timeout(TEST_TIMEOUT, task).await???;
+async fn join(mut tasks: Vec<ConnectionPeer<TestResult>>) -> TestResult {
+    let primary = async {
+        for task in &mut tasks {
+            timeout(TEST_TIMEOUT, task.join()).await???;
+        }
+        Ok(())
     }
-    Ok(())
+    .await;
+    let mut result = primary;
+    for task in &mut tasks {
+        result = finish_with_cleanup(result, task.shutdown().await);
+    }
+    result
 }
 
 /// Sends `/warm` so the client knows the server's stream limit, then
@@ -366,15 +508,19 @@ async fn connections_for(
     expected: usize,
 ) -> TestResult<(usize, usize)> {
     let mut origin = Origin::start(identity)?;
-    let client = builder.build()?;
-    finish(send(&client, &origin.uri("warm")).await?).await?;
+    let primary = async {
+        let client = builder.build()?;
+        finish(send(&client, &origin.uri("warm")).await?).await?;
 
-    let held = spawn_held(&client, &origin, &["held"; REQUESTS]);
-    // The warm request's connection and request count too.
-    let observed = origin.settle(expected + 1).await?;
-    origin.release();
-    join(held).await?;
-    Ok((observed.0, observed.1 - 1))
+        let held = spawn_held(&client, &origin, &["held"; REQUESTS]);
+        // The warm request's connection and request count too.
+        let observed = origin.settle(expected + 1).await?;
+        origin.release();
+        join(held).await?;
+        Ok((observed.0, observed.1 - 1))
+    }
+    .await;
+    origin.finish(primary).await
 }
 
 async fn bounded<F>(future: F) -> TestResult
@@ -383,7 +529,9 @@ where
 {
     timeout(Duration::from_secs(30), future)
         .await
-        .map_err(|_| "HTTP/3 connection test exceeded its deadline")?
+        .map_err(|elapsed| {
+            FixtureDeadline::new("HTTP/3 connection test exceeded its deadline", elapsed)
+        })?
 }
 
 #[tokio::test]
@@ -428,9 +576,11 @@ async fn saturated_connections_open_more_up_to_the_configured_limit() -> TestRes
 /// instead of opening one each.
 #[tokio::test]
 async fn concurrent_requests_to_a_cold_origin_do_not_stampede() -> TestResult {
-    bounded(async {
+    let mut origins = Vec::new();
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
-        let mut origin = Origin::start(&identity)?;
+        origins.push(Origin::start(&identity)?);
+        let origin = origins.last_mut().ok_or("origin owner missing")?;
         let client = client_builder(&identity).build()?;
         let tasks = spawn_held(&client, &origin, &["warm"; REQUESTS]);
         // All five share the one connection, two streams at a time.
@@ -438,7 +588,8 @@ async fn concurrent_requests_to_a_cold_origin_do_not_stampede() -> TestResult {
         join(tasks).await?;
 
         let identity = TestIdentity::generate()?;
-        let mut origin = Origin::start(&identity)?;
+        origins.push(Origin::start(&identity)?);
+        let origin = origins.last_mut().ok_or("origin owner missing")?;
         let client = client_builder(&identity)
             .max_http3_connections_per_origin(bound(8)?)
             .build()?;
@@ -449,14 +600,21 @@ async fn concurrent_requests_to_a_cold_origin_do_not_stampede() -> TestResult {
         origin.release();
         join(tasks).await
     })
-    .await
+    .await;
+    let mut result = primary;
+    for origin in &mut origins {
+        result = origin.finish(result).await;
+    }
+    result
 }
 
 #[tokio::test]
 async fn a_draining_connection_takes_no_new_requests() -> TestResult {
-    bounded(async {
+    let mut origins = Vec::new();
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
-        let mut origin = Origin::start(&identity)?;
+        origins.push(Origin::start(&identity)?);
+        let origin = origins.last_mut().ok_or("origin owner missing")?;
         let client = client_builder(&identity)
             .max_http3_connections_per_origin(bound(2)?)
             .build()?;
@@ -477,14 +635,21 @@ async fn a_draining_connection_takes_no_new_requests() -> TestResult {
         join(held).await?;
         join(next).await
     })
-    .await
+    .await;
+    let mut result = primary;
+    for origin in &mut origins {
+        result = origin.finish(result).await;
+    }
+    result
 }
 
 #[tokio::test]
 async fn a_draining_connection_is_replaced_at_the_default_limit() -> TestResult {
-    bounded(async {
+    let mut origins = Vec::new();
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
-        let mut origin = Origin::start(&identity)?;
+        origins.push(Origin::start(&identity)?);
+        let origin = origins.last_mut().ok_or("origin owner missing")?;
         let client = client_builder(&identity).build()?;
         finish(send(&client, &origin.uri("warm")).await?).await?;
         let held = spawn_held(&client, &origin, &["held-1"]);
@@ -500,14 +665,21 @@ async fn a_draining_connection_is_replaced_at_the_default_limit() -> TestResult 
         join(held).await?;
         join(next).await
     })
-    .await
+    .await;
+    let mut result = primary;
+    for origin in &mut origins {
+        result = origin.finish(result).await;
+    }
+    result
 }
 
 #[tokio::test]
 async fn a_new_connection_resumes_the_session_an_earlier_one_learned() -> TestResult {
-    bounded(async {
+    let mut origins = Vec::new();
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
-        let mut origin = Origin::start(&identity)?;
+        origins.push(Origin::start(&identity)?);
+        let origin = origins.last_mut().ok_or("origin owner missing")?;
         let client = client_builder(&identity)
             .max_http3_connections_per_origin(bound(2)?)
             .build()?;
@@ -522,7 +694,12 @@ async fn a_new_connection_resumes_the_session_an_earlier_one_learned() -> TestRe
         origin.release();
         join(held).await
     })
-    .await
+    .await;
+    let mut result = primary;
+    for origin in &mut origins {
+        result = origin.finish(result).await;
+    }
+    result
 }
 
 #[test]
@@ -542,10 +719,12 @@ fn a_limit_above_the_ceiling_is_rejected_at_build() -> TestResult {
 
 #[tokio::test]
 async fn a_request_waiting_for_a_setup_takes_room_a_finished_stream_frees() -> TestResult {
-    bounded(async {
+    let mut origins = Vec::new();
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         // Connection 1's handshake waits until the test releases it.
-        let mut origin = Origin::with(&identity, Some(1))?;
+        origins.push(Origin::with(&identity, Some(1))?);
+        let origin = origins.last_mut().ok_or("origin owner missing")?;
         let client = client_builder(&identity)
             .max_http3_connections_per_origin(bound(2)?)
             .build()?;
@@ -557,7 +736,7 @@ async fn a_request_waiting_for_a_setup_takes_room_a_finished_stream_frees() -> T
         // This request waits: connection 0 is full and a setup is in flight.
         let waiting = spawn_held(&client, &origin, &["held-4"]);
         sleep(QUIET_WINDOW).await;
-        assert!(!waiting.iter().any(JoinHandle::is_finished));
+        assert!(!waiting.iter().any(ConnectionPeer::is_finished));
 
         // Connection 0's streams end, which wakes the waiting request while
         // connection 1's setup is still held.
@@ -568,42 +747,99 @@ async fn a_request_waiting_for_a_setup_takes_room_a_finished_stream_frees() -> T
         origin.release_handshake();
         join(held).await
     })
-    .await
+    .await;
+    let mut result = primary;
+    for origin in &mut origins {
+        result = origin.finish(result).await;
+    }
+    result
+}
+
+/// Owns the advertising listener and each TLS response child.
+struct AdvertisingOrigin {
+    stopping: watch::Sender<bool>,
+    task: ConnectionPeer<TestResult>,
+}
+
+impl AdvertisingOrigin {
+    async fn finish(&mut self, primary: TestResult) -> TestResult {
+        self.stopping.send_replace(true);
+        let cleanup = async {
+            timeout(Duration::from_secs(5), self.task.join()).await???;
+            Ok(())
+        }
+        .await;
+        finish_with_cleanup(primary, cleanup)
+    }
 }
 
 /// An H1 origin that advertises the H3 alternative at `alternative`'s port.
 async fn advertising_origin(
     identity: &TestIdentity,
     alternative: u16,
-) -> TestResult<(SocketAddr, JoinHandle<()>)> {
+) -> TestResult<(SocketAddr, AdvertisingOrigin)> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let acceptor = identity.acceptor(H1_ALPN)?;
-    let task = tokio::spawn(async move {
-        while let Ok((tcp, _)) = listener.accept().await {
-            let acceptor = acceptor.clone();
-            tokio::spawn(async move {
-                let mut stream = accept_tls_stream(tcp, acceptor).await?;
-                read_head(&mut stream).await?;
-                let response = format!(
-                    "HTTP/1.1 200 OK\r\nalt-svc: h3=\":{alternative}\"\r\n\
-                     content-length: 4\r\nconnection: close\r\n\r\ndone"
-                );
-                stream.write_all(response.as_bytes()).await?;
-                stream.shutdown().await?;
-                Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-            });
+    let (stopping, mut stopped) = watch::channel(false);
+    let task = ConnectionPeer::spawn(async move {
+        let mut peers = JoinSet::new();
+        let primary: TestResult = async {
+            loop {
+                tokio::select! {
+                    biased;
+                    joined = peers.join_next(), if !peers.is_empty() => {
+                        joined.ok_or("advertising response disappeared")???;
+                    }
+                    changed = stopped.wait_for(|stopped| *stopped) => {
+                        changed?;
+                        break;
+                    }
+                    accepted = listener.accept() => {
+                        let (tcp, _) = accepted?;
+                        let acceptor = acceptor.clone();
+                        peers.spawn(async move {
+                            let mut stream = accept_tls_stream(tcp, acceptor).await?;
+                            read_head(&mut stream).await?;
+                            let response = format!(
+                                "HTTP/1.1 200 OK\r\nalt-svc: h3=\":{alternative}\"\r\n\
+                                 content-length: 4\r\nconnection: close\r\n\r\ndone"
+                            );
+                            stream.write_all(response.as_bytes()).await?;
+                            stream.shutdown().await?;
+                            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+                        });
+                    }
+                }
+            }
+            Ok(())
         }
+        .await;
+        peers.abort_all();
+        let mut result = primary;
+        while let Some(joined) = peers.join_next().await {
+            let cleanup = match joined {
+                Ok(result) => result,
+                Err(error) if error.is_cancelled() => Ok(()),
+                Err(error) => Err(error.into()),
+            };
+            result = finish_with_cleanup(result, cleanup);
+        }
+        result
     });
-    Ok((address, task))
+    Ok((address, AdvertisingOrigin { stopping, task }))
 }
 
 #[tokio::test]
 async fn an_alt_svc_alternative_opens_more_connections_up_to_the_limit() -> TestResult {
-    bounded(async {
+    let mut origins = Vec::new();
+    let mut advertiser = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
-        let mut alternative = Origin::start(&identity)?;
+        origins.push(Origin::start(&identity)?);
+        let alternative = origins.last_mut().ok_or("origin owner missing")?;
         let (address, origin) = advertising_origin(&identity, alternative.address.port()).await?;
+        advertiser = Some(origin);
         let base = client_settings();
         let http3 = Http3ClientSettings::new(
             base.tls().clone(),
@@ -639,11 +875,11 @@ async fn an_alt_svc_alternative_opens_more_connections_up_to_the_limit() -> Test
 
         // Three held requests at two streams per connection use both
         // connections the limit allows to the alternative.
-        let held: Vec<JoinHandle<TestResult>> = ["held-1", "held-2", "held-3"]
+        let held: Vec<ConnectionPeer<TestResult>> = ["held-1", "held-2", "held-3"]
             .iter()
             .map(|path| {
                 let (client, uri) = (client.clone(), format!("https://{address}/{path}"));
-                tokio::spawn(async move {
+                ConnectionPeer::spawn(async move {
                     let request = client.get_negotiated(&uri)?;
                     finish(timeout(TEST_TIMEOUT, request.send()).await??).await
                 })
@@ -652,8 +888,17 @@ async fn an_alt_svc_alternative_opens_more_connections_up_to_the_limit() -> Test
         assert_eq!(alternative.settle(3).await?, (2, 3));
         alternative.release();
         join(held).await?;
-        origin.abort();
         Ok(())
     })
-    .await
+    .await;
+    let mut result = primary;
+    for origin in &mut origins {
+        result = origin.finish(result).await;
+    }
+    if let Some(origin) = &mut advertiser {
+        result = origin.finish(result).await;
+    }
+    result
 }
+
+mod peer_controls;
