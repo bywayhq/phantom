@@ -366,7 +366,10 @@ class CaptureControl:
                     json.dumps({"constants": CONSTANTS, "events": []}),
                     encoding="utf-8",
                 )
-                if control.browser_error is not None:
+                if (
+                    control.browser_error is not None
+                    or control.stderr.action == "fail_after_ready"
+                ):
                     if not control.stderr.failure_raised.wait(CONTROL_TIMEOUT):
                         raise TimeoutError("controlled stderr failure was not observed")
 
@@ -375,6 +378,13 @@ class CaptureControl:
                             "controlled stdout completion was not observed"
                         )
 
+                    control.server.wait(timeout=CONTROL_TIMEOUT)
+                    for reader in control.threads:
+                        reader.join(timeout=CONTROL_TIMEOUT)
+                        if reader.is_alive():
+                            raise TimeoutError("controlled reader did not finish")
+
+                if control.browser_error is not None:
                     raise control.browser_error
 
                 return self

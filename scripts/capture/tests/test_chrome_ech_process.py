@@ -6,6 +6,7 @@ import time
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from scripts.capture import chrome_ech
@@ -24,6 +25,7 @@ RUN = chrome_ech.CaptureRun(
     headless=True,
 )
 READY = "ready doh_template=https://127.0.0.1:5/dns-query origin=127.0.0.1:443"
+CONTROL_TIMEOUT = 5
 
 
 class EchProcessTests(unittest.TestCase):
@@ -59,6 +61,51 @@ class EchProcessTests(unittest.TestCase):
         self.assertEqual(len(self.containers), 1)
         self.assertTrue(self.containers[0]._cleanup_complete)
         self.assertIsNotNone(self.containers[0]._process.returncode)
+
+    def capture_at_absolute_deadline(self, script: str, **options) -> None:
+        elapsed = 0.0
+        entered = False
+        watchdog = time.monotonic() + CONTROL_TIMEOUT
+        actual_poll = chrome_ech._CaptureOutput.poll
+
+        def monotonic():
+            if time.monotonic() >= watchdog:
+                raise TimeoutError("ECH control exceeded its readiness watchdog")
+            return elapsed
+
+        def poll(observer, *, final=False):
+            nonlocal elapsed
+            actual_poll(observer, final=final)
+            if observer.ready is not None and not entered:
+                elapsed = 0.75
+
+        def enter():
+            nonlocal elapsed, entered
+            entered = True
+            elapsed = 1.0
+
+        def sleep(seconds):
+            nonlocal elapsed
+            if entered:
+                elapsed += seconds
+            else:
+                time.sleep(seconds)
+
+        self.browser.return_value.__enter__.side_effect = enter
+        with (
+            patch.object(chrome_ech, "CAPTURE_TIMEOUT_SECONDS", 1),
+            patch.object(
+                chrome_ech, "time", SimpleNamespace(monotonic=monotonic, sleep=sleep)
+            ),
+            patch.object(chrome_ech._CaptureOutput, "poll", poll),
+            self.assertRaises(subprocess.TimeoutExpired) as raised,
+        ):
+            self.capture(script, **options)
+
+        self.assertEqual(raised.exception.timeout, 1)
+        self.assertEqual(elapsed, 1.0, "capture reset its deadline after readiness")
+        self.browser.assert_called_once()
+        self.assert_stopped()
 
     def test_completed_fixture_and_final_diagnostic_are_preserved(self) -> None:
         reported = []
@@ -196,16 +243,10 @@ class EchProcessTests(unittest.TestCase):
         self.assert_stopped()
 
     def test_active_server_has_an_absolute_capture_deadline(self) -> None:
-        with (
-            patch.object(chrome_ech, "CAPTURE_TIMEOUT_SECONDS", 1),
-            self.assertRaises(subprocess.TimeoutExpired),
-        ):
-            self.capture(
-                f"import sys, time; print({READY!r}, file=sys.stderr, flush=True); "
-                "time.sleep(60)"
-            )
-        self.browser.assert_called_once()
-        self.assert_stopped()
+        self.capture_at_absolute_deadline(
+            f"import sys, time; print({READY!r}, file=sys.stderr, flush=True); "
+            "time.sleep(60)"
+        )
 
     def test_browser_launch_error_is_preserved_and_server_stops(self) -> None:
         failure = OSError("browser launch failed")
@@ -219,17 +260,11 @@ class EchProcessTests(unittest.TestCase):
         self.assert_stopped()
 
     def test_bare_cr_readiness_is_observed_while_the_server_is_alive(self) -> None:
-        with (
-            patch.object(chrome_ech, "CAPTURE_TIMEOUT_SECONDS", 1),
-            self.assertRaises(subprocess.TimeoutExpired),
-        ):
-            self.capture(
-                f"import sys, time; sys.stderr.buffer.write({READY.encode()!r} "
-                "+ b'\\rstarted\\r\\n'); sys.stderr.flush(); time.sleep(60)",
-                report=lambda _: None,
-            )
-        self.browser.assert_called_once()
-        self.assert_stopped()
+        self.capture_at_absolute_deadline(
+            f"import sys, time; sys.stderr.buffer.write({READY.encode()!r} "
+            "+ b'\\rstarted\\r\\n'); sys.stderr.flush(); time.sleep(60)",
+            report=lambda _: None,
+        )
 
     def test_mismatched_server_template_fails_before_browser_launch(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "server listens"):
