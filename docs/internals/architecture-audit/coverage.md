@@ -3,6 +3,17 @@
 Use this matrix to see which paths have been examined and what remains.
 Pending means that discovery or assignment has not established review.
 
+## Stream and negotiated-session completion
+
+The SSE candidate (`021da888`, `35b11350`, `ef7d56af`), negotiated-session
+candidate (`ab50b8b3`, `e2e64a86`) and parallel-session candidate (`4eb9e2d9`,
+`62da9e13`) have independent source reviews. Integration keeps their original
+protocol assertions and timing windows, retains initiating failures across
+interrupted joins, and distinguishes cooperative stop from external cancellation.
+The replay control now starts cleanup through an explicit signal and observes
+actual collection while allowing the paused clock to progress. The prior two
+failed replay runs remain evidence; the combined native checks are pending.
+
 ## Replay fixture completion
 
 Root reads both complete replay scripts, their concrete task registry and its

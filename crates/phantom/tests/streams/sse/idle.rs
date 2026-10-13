@@ -12,7 +12,7 @@ use tokio_btls::SslStream;
 use tracing::instrument::WithSubscriber;
 
 use super::{
-    TestResult,
+    SsePeer, TEST_TIMEOUT, TestResult, peer_completion,
     polling::read,
     tls_support::{H1_ALPN, TestIdentity, client_builder, is_peer_gone, read_head, test_client},
     tracing_support::OutcomeSubscriber,
@@ -31,12 +31,14 @@ async fn stream_polling_ends_ordinary_body_timeouts_when_established() -> TestRe
 }
 
 async fn ordinary_body_timeouts(poll_stream: bool) -> TestResult<()> {
+    // The caller deliberately advances beyond its former thirty-second body timeout.
+    let deadline = Instant::now() + Duration::from_secs(31) + TEST_TIMEOUT;
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let acceptor = identity.acceptor(H1_ALPN)?;
     let (release_event, event_released) = oneshot::channel();
-    let server = tokio::spawn(async move {
+    let mut server = SsePeer::spawn(async move {
         let mut stream = accept_tls_reusable(&listener, &acceptor).await?;
         read_head(&mut stream).await?;
         stream
@@ -47,37 +49,39 @@ async fn ordinary_body_timeouts(poll_stream: bool) -> TestResult<()> {
             )
             .await?;
         stream.flush().await?;
-        event_released
-            .await
-            .map_err(|_| "client stopped before releasing the SSE event")?;
+        event_released.await?;
         stream.write_all(b"data: later\n\n").await?;
         stream.shutdown().await?;
         Ok::<_, Box<dyn Error + Send + Sync>>(())
     });
-    let client = client_builder(&identity, false)
-        .request_timeouts(
-            RequestTimeouts::new()
-                .read_idle(Duration::from_secs(30))
-                .total(Duration::from_secs(30)),
-        )
-        .build()?;
-    let response = client
-        .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
-        .max_reconnects(0)
-        .connect()
-        .await?;
-    let mut source = response.into_body();
+    let ((_source, _client), ()) =
+        peer_completion::run(&mut server, deadline, TEST_TIMEOUT, async {
+            let client = client_builder(&identity, false)
+                .request_timeouts(
+                    RequestTimeouts::new()
+                        .read_idle(Duration::from_secs(30))
+                        .total(Duration::from_secs(30)),
+                )
+                .build()?;
+            let response = client
+                .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
+                .max_reconnects(0)
+                .connect()
+                .await?;
+            let mut source = response.into_body();
 
-    tokio::time::pause();
-    tokio::time::advance(Duration::from_secs(31)).await;
-    release_event
-        .send(())
-        .map_err(|_| "server stopped before SSE event release")?;
-    let event = read(&mut source, poll_stream)
-        .await?
-        .ok_or("event stream ended before the delayed event")?;
-    assert_eq!(event.data(), "later");
-    server.await??;
+            tokio::time::pause();
+            tokio::time::advance(Duration::from_secs(31)).await;
+            release_event
+                .send(())
+                .map_err(|_| "server stopped before SSE event release")?;
+            let event = read(&mut source, poll_stream)
+                .await?
+                .ok_or("event stream ended before the delayed event")?;
+            assert_eq!(event.data(), "later");
+            Ok((source, client))
+        })
+        .await?;
     Ok(())
 }
 
@@ -97,12 +101,13 @@ async fn activity_resets_deadline(poll_stream: bool) -> TestResult<()> {
     // deadline; the cancelled read leaves about 500 ms of the reset deadline.
     const ACTIVITY_INTERVAL: Duration = Duration::from_millis(400);
     const CANCELLED_READ: Duration = Duration::from_millis(500);
+    let deadline = Instant::now() + TEST_TIMEOUT;
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let acceptor = identity.acceptor(H1_ALPN)?;
     let (response_ready, response_ready_rx) = oneshot::channel();
-    let server = tokio::spawn(async move {
+    let mut server = SsePeer::spawn(async move {
         let mut first = accept_tls_reusable(&listener, &acceptor).await?;
         let _first_head = read_head(&mut first).await?;
         first
@@ -141,61 +146,67 @@ async fn activity_resets_deadline(poll_stream: bool) -> TestResult<()> {
         Ok::<_, Box<dyn Error + Send + Sync>>(())
     });
 
-    let response = test_client(&identity, false)?
-        .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
-        .idle_timeout(IDLE_TIMEOUT)
-        .initial_retry(Duration::ZERO)
-        .max_reconnects(1)
-        .connect()
-        .await?;
-    let mut source = response.into_body();
-    assert_eq!(source.idle_timeout(), Some(IDLE_TIMEOUT));
-    response_ready_rx
-        .await
-        .map_err(|_| "server stopped before the idle response was ready")?;
+    let (_source, ()) = peer_completion::run(&mut server, deadline, TEST_TIMEOUT, async {
+        let response = test_client(&identity, false)?
+            .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
+            .idle_timeout(IDLE_TIMEOUT)
+            .initial_retry(Duration::ZERO)
+            .max_reconnects(1)
+            .connect()
+            .await?;
+        let mut source = response.into_body();
+        assert_eq!(source.idle_timeout(), Some(IDLE_TIMEOUT));
+        response_ready_rx.await?;
 
-    let active = read(&mut source, poll_stream)
-        .await?
-        .ok_or("event after keepalive comment was missing")?;
-    assert_eq!(active.data(), "alive");
-    // Without the activity resets, the deadline from the response head
-    // would expire during this cancelled read.
-    let subscriber = OutcomeSubscriber::default();
-    assert!(
-        timeout(
-            CANCELLED_READ,
-            read(&mut source, poll_stream).with_subscriber(subscriber.dispatch()),
-        )
-        .await
-        .is_err(),
-        "idle deadline elapsed too early"
-    );
-    if !poll_stream {
-        assert_eq!(subscriber.outcomes_for("sse.next_event"), ["cancelled"]);
-        assert_eq!(
-            subscriber.outcomes_for("sse.event_source.next_event"),
-            ["cancelled"]
+        let active = read(&mut source, poll_stream)
+            .await?
+            .ok_or("event after keepalive comment was missing")?;
+        assert_eq!(active.data(), "alive");
+        // Without the activity resets, the deadline from the response head
+        // would expire during this cancelled read.
+        let subscriber = OutcomeSubscriber::default();
+        assert!(
+            timeout(
+                CANCELLED_READ,
+                read(&mut source, poll_stream).with_subscriber(subscriber.dispatch()),
+            )
+            .await
+            .is_err(),
+            "idle deadline elapsed too early"
         );
-    }
-    let resumed_at = Instant::now();
-    let event = timeout(IDLE_TIMEOUT * 2, read(&mut source, poll_stream))
-        .await
-        .map_err(|_| "cancelling the read discarded the idle deadline")??
-        .ok_or("reconnected event was missing")?;
-    assert_eq!(event.data(), "resumed");
-    assert_eq!(
-        source.reconnects(),
-        1,
-        "the idle deadline did not trigger exactly one reconnect"
-    );
-    // A deadline restarted by the cancelled read could not fire before a
-    // full idle timeout after the read resumed.
-    let remaining = Instant::now().duration_since(resumed_at);
-    assert!(
-        remaining < IDLE_TIMEOUT,
-        "cancelling the read restarted the idle deadline: {remaining:?}"
-    );
-    server.await??;
+        if !poll_stream {
+            assert_eq!(subscriber.outcomes_for("sse.next_event"), ["cancelled"]);
+            assert_eq!(
+                subscriber.outcomes_for("sse.event_source.next_event"),
+                ["cancelled"]
+            );
+        }
+        let resumed_at = Instant::now();
+        let event = timeout(IDLE_TIMEOUT * 2, read(&mut source, poll_stream))
+            .await
+            .map_err(|elapsed| {
+                super::FixtureDeadline::new(
+                    "cancelling the read discarded the idle deadline",
+                    elapsed,
+                )
+            })??
+            .ok_or("reconnected event was missing")?;
+        assert_eq!(event.data(), "resumed");
+        assert_eq!(
+            source.reconnects(),
+            1,
+            "the idle deadline did not trigger exactly one reconnect"
+        );
+        // A deadline restarted by the cancelled read could not fire before a
+        // full idle timeout after the read resumed.
+        let remaining = Instant::now().duration_since(resumed_at);
+        assert!(
+            remaining < IDLE_TIMEOUT,
+            "cancelling the read restarted the idle deadline: {remaining:?}"
+        );
+        Ok(source)
+    })
+    .await?;
     Ok(())
 }
 
@@ -210,11 +221,12 @@ async fn stream_polling_reports_idle_timeout_once() -> TestResult<()> {
 }
 
 async fn terminal_idle_timeout(poll_stream: bool) -> TestResult<()> {
+    let deadline = Instant::now() + TEST_TIMEOUT;
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let acceptor = identity.acceptor(H1_ALPN)?;
-    let server = tokio::spawn(async move {
+    let mut server = SsePeer::spawn(async move {
         let mut stream = accept_tls_reusable(&listener, &acceptor).await?;
         let _head = read_head(&mut stream).await?;
         stream
@@ -229,26 +241,29 @@ async fn terminal_idle_timeout(poll_stream: bool) -> TestResult<()> {
         await_peer_close(&mut stream).await
     });
 
-    let response = test_client(&identity, false)?
-        .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
-        .idle_timeout(Duration::from_secs(1))
-        .max_reconnects(0)
-        .connect()
-        .await?;
-    let mut source = response.into_body();
-    let started_at = Instant::now();
-    let error = read(&mut source, poll_stream)
-        .await
-        .err()
-        .ok_or("idle response remained open without a reconnect budget")?;
-    assert_eq!(error.kind(), SseErrorKind::IdleTimeout);
-    assert_eq!(
-        Instant::now().duration_since(started_at),
-        Duration::from_secs(1)
-    );
-    assert!(source.is_closed());
-    assert_eq!(read(&mut source, poll_stream).await?, None);
-    server.await??;
+    let (_source, ()) = peer_completion::run(&mut server, deadline, TEST_TIMEOUT, async {
+        let response = test_client(&identity, false)?
+            .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
+            .idle_timeout(Duration::from_secs(1))
+            .max_reconnects(0)
+            .connect()
+            .await?;
+        let mut source = response.into_body();
+        let started_at = Instant::now();
+        let error = read(&mut source, poll_stream)
+            .await
+            .err()
+            .ok_or("idle response remained open without a reconnect budget")?;
+        assert_eq!(error.kind(), SseErrorKind::IdleTimeout);
+        assert_eq!(
+            Instant::now().duration_since(started_at),
+            Duration::from_secs(1)
+        );
+        assert!(source.is_closed());
+        assert_eq!(read(&mut source, poll_stream).await?, None);
+        Ok(source)
+    })
+    .await?;
     Ok(())
 }
 

@@ -1,4 +1,4 @@
-use std::{net::Ipv4Addr, time::Duration};
+use std::{io, net::Ipv4Addr, time::Duration};
 
 use btls::ssl::SslAcceptor;
 use http::StatusCode;
@@ -12,57 +12,120 @@ use phantom::{
 use tokio::{
     io::AsyncWriteExt,
     net::TcpListener,
-    task::{AbortHandle, JoinError},
+    sync::watch,
+    task::JoinError,
     time::{Instant, error::Elapsed, timeout, timeout_at},
 };
 
 use crate::support::{
     deadline::FixtureDeadline,
-    tunnel_proxy::{ConnectionPeer, connection_peer::FixtureFailures, finish_with_cleanup},
+    tunnel_proxy::{connection_peer::FixtureFailures, finish_with_cleanup},
 };
 
 use super::{
-    TestResult,
+    SsePeer, TEST_TIMEOUT, TestResult, peer_completion,
     tls_support::{H1_ALPN, accept_tls, read_head, test_client},
 };
 
 mod managed_id_cycle;
 mod owner_contract;
 
-type CrossOriginPeer = ConnectionPeer<TestResult<Vec<String>>>;
-type CrossOriginJoin = Result<Result<TestResult<Vec<String>>, JoinError>, Elapsed>;
+type CrossOriginPeer = SsePeer<Vec<String>>;
+type CrossOriginJoin = Result<Result<TestResult<Option<Vec<String>>>, JoinError>, Elapsed>;
 // Keep caller resources alive through worker joins and header assertions.
 type CrossOriginCaller = Option<(phantom::SseEventSource, Client)>;
 
 #[tokio::test]
 async fn replacing_headers_removes_event_source_defaults() -> TestResult<()> {
+    replace_headers(HeaderReplacementExit::Success).await
+}
+
+#[derive(Debug)]
+enum HeaderReplacementExit {
+    Success,
+    CallerAndPeer { caller: io::Error, peer: io::Error },
+}
+
+async fn replace_headers(exit: HeaderReplacementExit) -> TestResult<()> {
+    let deadline = Instant::now() + TEST_TIMEOUT;
     let identity = super::tls_support::TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let acceptor = identity.acceptor(H1_ALPN)?;
-    let server = tokio::spawn(async move {
+    let (caller_failure, peer_failure) = match exit {
+        HeaderReplacementExit::Success => (None, None),
+        HeaderReplacementExit::CallerAndPeer { caller, peer } => (Some(caller), Some(peer)),
+    };
+    let mut server = SsePeer::spawn(async move {
         let mut stream = accept_tls(listener, acceptor).await?;
         let head = read_head(&mut stream).await?;
         stream
             .write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
             .await?;
         stream.shutdown().await?;
+        if let Some(error) = peer_failure {
+            return Err(error.into());
+        }
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
     });
+    let completed = server.abort_handle();
 
-    let response = test_client(&identity, false)?
-        .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
-        .headers(vec![SseHeader::field(RequestHeader::new(
-            "X-Custom", "only",
-        ))])
-        .connect()
-        .await?;
-    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    let (_response, head) = peer_completion::run(&mut server, deadline, TEST_TIMEOUT, async {
+        let response = test_client(&identity, false)?
+            .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
+            .headers(vec![SseHeader::field(RequestHeader::new(
+                "X-Custom", "only",
+            ))])
+            .connect()
+            .await?;
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        if let Some(error) = caller_failure {
+            while !completed.is_finished() {
+                tokio::task::yield_now().await;
+            }
+            return Err(error.into());
+        }
+        Ok(response)
+    })
+    .await?;
 
-    let head = String::from_utf8(server.await??)?;
+    let head = String::from_utf8(head)?;
     assert!(head.lines().any(|line| line == "X-Custom: only"));
     assert!(!head.lines().any(|line| line.starts_with("Accept:")));
     assert!(!head.lines().any(|line| line.starts_with("Cache-Control:")));
+    Ok(())
+}
+
+#[tokio::test]
+async fn replacing_headers_keeps_a_caller_failure_and_completed_tls_peer_failure() -> TestResult<()>
+{
+    let caller = io::Error::new(
+        io::ErrorKind::InvalidInput,
+        "header caller failed after response",
+    );
+    let peer = io::Error::new(
+        io::ErrorKind::PermissionDenied,
+        "header peer failed after shutdown",
+    );
+    let error = replace_headers(HeaderReplacementExit::CallerAndPeer { caller, peer })
+        .await
+        .err()
+        .ok_or("header caller and peer failures were discarded")?;
+    let failures = error
+        .downcast_ref::<FixtureFailures>()
+        .ok_or("completed TLS peer failure was not collected with the caller")?;
+    let caller = failures
+        .primary
+        .downcast_ref::<io::Error>()
+        .ok_or("original caller I/O error type changed")?;
+    let peer = failures
+        .cleanup
+        .downcast_ref::<io::Error>()
+        .ok_or("original TLS peer I/O error type changed")?;
+    assert_eq!(caller.kind(), io::ErrorKind::InvalidInput);
+    assert_eq!(caller.to_string(), "header caller failed after response");
+    assert_eq!(peer.kind(), io::ErrorKind::PermissionDenied);
+    assert_eq!(peer.to_string(), "header peer failed after shutdown");
     Ok(())
 }
 
@@ -82,7 +145,12 @@ async fn inherited_last_event_id_defaults_fail_before_connecting() -> TestResult
         .connect();
     let error = timeout(super::TEST_TIMEOUT, connecting)
         .await
-        .map_err(|_| "inherited ID rejection stalled during network setup")?
+        .map_err(|elapsed| {
+            FixtureDeadline::new(
+                "inherited ID rejection stalled during network setup",
+                elapsed,
+            )
+        })?
         .err()
         .ok_or("inherited Last-Event-ID default reached the network")?;
     assert_eq!(error.kind(), SseErrorKind::InvalidRequestHeader);
@@ -117,7 +185,12 @@ async fn automatic_last_event_id_hints_fail_before_connecting() -> TestResult<()
             .connect();
         let error = timeout(super::TEST_TIMEOUT, connecting)
             .await
-            .map_err(|_| "automatic ID rejection stalled during network setup")?
+            .map_err(|elapsed| {
+                FixtureDeadline::new(
+                    "automatic ID rejection stalled during network setup",
+                    elapsed,
+                )
+            })?
             .err()
             .ok_or("automatic Last-Event-ID reached the network")?;
         assert_eq!(error.kind(), SseErrorKind::InvalidRequestHeader);
@@ -285,48 +358,68 @@ async fn redirect_activating_an_inherited_id_default_fails_before_the_next_hop()
     use phantom::{RedirectPolicy, RequestError, RequestErrorKind};
     use std::num::NonZeroUsize;
 
-    super::bounded(async {
-        let identity = super::tls_support::TestIdentity::generate()?;
-        let initial_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let initial_address = initial_listener.local_addr()?;
-        let target_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let target_address = target_listener.local_addr()?;
-        let acceptor = identity.acceptor(H1_ALPN)?;
-        let mut template = id_slot_template();
-        template.http1_fields[1] = RequestField::ByTrust {
-            name: "Last-Event-ID".into(),
-            trustworthy: None,
-            untrustworthy: Some("unmanaged-canary".into()),
-        };
-        // This DNS override gives the redirected URL an untrustworthy logical
-        // origin while keeping every socket on loopback.
-        let client = Client::builder(ClientProfile::new(super::tls_support::tls_settings())
-            .with_request_template(template))
-            .add_root_certificate_der(identity.root_der.clone())
-            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
-            .resolve("redirect.phantom.test", [target_address.ip()])
-            .build()?;
-        let server = tokio::spawn(async move {
-            let mut stream = accept_tls(initial_listener, acceptor).await?;
-            let head = String::from_utf8(read_head(&mut stream).await?)?;
-            assert!(!head.to_ascii_lowercase().contains("last-event-id:"));
-            let response = format!("HTTP/1.1 302 Found\r\nLocation: http://redirect.phantom.test:{}/events\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", target_address.port());
-            stream.write_all(response.as_bytes()).await?;
-            stream.shutdown().await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
-        let error = client.event_source(HttpProtocol::Http1, &format!("https://{initial_address}/events"))?
-            .initial_retry(Duration::ZERO).max_reconnects(2).connect().await
-            .err().ok_or("activated default reached the redirected origin")?;
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let identity = super::tls_support::TestIdentity::generate()?;
+    let initial_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let initial_address = initial_listener.local_addr()?;
+    let target_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let target_address = target_listener.local_addr()?;
+    let acceptor = identity.acceptor(H1_ALPN)?;
+    let mut template = id_slot_template();
+    template.http1_fields[1] = RequestField::ByTrust {
+        name: "Last-Event-ID".into(),
+        trustworthy: None,
+        untrustworthy: Some("unmanaged-canary".into()),
+    };
+    // This DNS override gives the redirected URL an untrustworthy logical
+    // origin while keeping every socket on loopback.
+    let client = Client::builder(
+        ClientProfile::new(super::tls_support::tls_settings()).with_request_template(template),
+    )
+    .add_root_certificate_der(identity.root_der.clone())
+    .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+    .resolve("redirect.phantom.test", [target_address.ip()])
+    .build()?;
+    let mut server = SsePeer::spawn(async move {
+        let mut stream = accept_tls(initial_listener, acceptor).await?;
+        let head = String::from_utf8(read_head(&mut stream).await?)?;
+        assert!(!head.to_ascii_lowercase().contains("last-event-id:"));
+        let response = format!(
+            "HTTP/1.1 302 Found\r\nLocation: http://redirect.phantom.test:{}/events\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            target_address.port()
+        );
+        stream.write_all(response.as_bytes()).await?;
+        stream.shutdown().await?;
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+    });
+    let ((), ()) = peer_completion::run(&mut server, deadline, TEST_TIMEOUT, async {
+        let error = client
+            .event_source(
+                HttpProtocol::Http1,
+                &format!("https://{initial_address}/events"),
+            )?
+            .initial_retry(Duration::ZERO)
+            .max_reconnects(2)
+            .connect()
+            .await
+            .err()
+            .ok_or("activated default reached the redirected origin")?;
         assert_eq!(error.kind(), SseErrorKind::Request);
         let request_error = std::error::Error::source(&error)
             .and_then(|source| source.downcast_ref::<RequestError>())
             .ok_or("validation error source missing")?;
         assert_eq!(request_error.kind(), RequestErrorKind::RequestTemplate);
-        server.await??;
-        assert!(timeout(Duration::from_millis(25), target_listener.accept()).await.is_err());
         Ok(())
-    }).await
+    })
+    .await?;
+    let quiet = timeout_at(
+        deadline,
+        timeout(Duration::from_millis(25), target_listener.accept()),
+    )
+    .await
+    .map_err(|elapsed| FixtureDeadline::new("SSE test exceeded its deadline", elapsed))?;
+    assert!(quiet.is_err());
+    Ok(())
 }
 
 #[tokio::test]
@@ -473,7 +566,7 @@ fn cross_origin_peers(
     let destination_lifetime = destination_control
         .as_ref()
         .map(owner_contract::Control::lifetime);
-    let origin_server = ConnectionPeer::spawn(async move {
+    let origin_server = SsePeer::spawn(async move {
         let _lifetime = origin_lifetime;
         let mut heads = Vec::new();
         for attempt in 0..3 {
@@ -501,7 +594,7 @@ fn cross_origin_peers(
         }
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>(heads)
     });
-    let destination_server = ConnectionPeer::spawn(async move {
+    let destination_server = SsePeer::spawn(async move {
         let _lifetime = destination_lifetime;
         let mut heads = Vec::new();
         for attempt in 0..2 {
@@ -535,13 +628,11 @@ async fn finish_cross_origin(
     mut origin_server: CrossOriginPeer,
     mut destination_server: CrossOriginPeer,
 ) -> TestResult<(CrossOriginCaller, Vec<String>, Vec<String>)> {
-    let origin_abort = origin_server.abort_handle();
-    let destination_abort = destination_server.abort_handle();
-    let mut origin_requested = false;
-    let mut destination_requested = false;
+    let origin_stop = origin_server.stop_signal();
+    let destination_stop = destination_server.stop_signal();
     if caller.is_err() {
-        abort_cross_origin_peer(&origin_abort, &mut origin_requested);
-        abort_cross_origin_peer(&destination_abort, &mut destination_requested);
+        stop_cross_origin_peer(&origin_stop);
+        stop_cross_origin_peer(&destination_stop);
     }
 
     let (origin_joined, destination_joined) = {
@@ -550,37 +641,37 @@ async fn finish_cross_origin(
         tokio::pin!(origin_join, destination_join);
         tokio::select! {
             joined = &mut origin_join => {
-                if !matches!(&joined, Ok(Ok(Ok(_)))) {
-                    abort_cross_origin_peer(&origin_abort, &mut origin_requested);
-                    abort_cross_origin_peer(&destination_abort, &mut destination_requested);
+                if !matches!(&joined, Ok(Ok(Ok(Some(_))))) {
+                    stop_cross_origin_peer(&origin_stop);
+                    stop_cross_origin_peer(&destination_stop);
                 }
                 (joined, destination_join.await)
             }
             joined = &mut destination_join => {
-                if !matches!(&joined, Ok(Ok(Ok(_)))) {
-                    abort_cross_origin_peer(&origin_abort, &mut origin_requested);
-                    abort_cross_origin_peer(&destination_abort, &mut destination_requested);
+                if !matches!(&joined, Ok(Ok(Ok(Some(_))))) {
+                    stop_cross_origin_peer(&origin_stop);
+                    stop_cross_origin_peer(&destination_stop);
                 }
                 (origin_join.await, joined)
             }
         }
     };
 
-    if !matches!(&origin_joined, Ok(Ok(Ok(_)))) || !matches!(&destination_joined, Ok(Ok(Ok(_)))) {
-        abort_cross_origin_peer(&origin_abort, &mut origin_requested);
-        abort_cross_origin_peer(&destination_abort, &mut destination_requested);
+    if !matches!(&origin_joined, Ok(Ok(Ok(Some(_)))))
+        || !matches!(&destination_joined, Ok(Ok(Ok(Some(_)))))
+    {
+        stop_cross_origin_peer(&origin_stop);
+        stop_cross_origin_peer(&destination_stop);
     }
 
     let origin_result = complete_cross_origin_join(
         &mut origin_server,
-        origin_requested,
         origin_joined,
         "cross-origin origin peer did not finish",
     )
     .await;
     let destination_result = complete_cross_origin_join(
         &mut destination_server,
-        destination_requested,
         destination_joined,
         "cross-origin destination peer did not finish",
     )
@@ -603,26 +694,21 @@ async fn finish_cross_origin(
     Ok((caller, origin_heads, destination_heads))
 }
 
-fn abort_cross_origin_peer(abort: &AbortHandle, requested: &mut bool) {
-    if !abort.is_finished() {
-        *requested = true;
-        abort.abort();
-    }
+fn stop_cross_origin_peer(stop: &watch::Sender<bool>) {
+    stop.send_replace(true);
 }
 
 async fn complete_cross_origin_join(
     peer: &mut CrossOriginPeer,
-    requested: bool,
     joined: CrossOriginJoin,
     message: &'static str,
 ) -> TestResult<Option<Vec<String>>> {
     match joined {
-        Ok(result) => cross_origin_join_outcome(result, requested),
+        Ok(result) => cross_origin_join_outcome(result),
         Err(elapsed) => {
-            let mut requested = requested;
-            abort_cross_origin_peer(&peer.abort_handle(), &mut requested);
+            peer.request_stop();
             let cleanup = match timeout(super::TEST_TIMEOUT, peer).await {
-                Ok(result) => cross_origin_join_outcome(result, requested).map(|_| ()),
+                Ok(result) => cross_origin_join_outcome(result).map(|_| ()),
                 Err(elapsed) => Err(FixtureDeadline::new(message, elapsed).into()),
             };
             finish_with_cleanup(Err(FixtureDeadline::new(message, elapsed).into()), cleanup)
@@ -631,14 +717,102 @@ async fn complete_cross_origin_join(
 }
 
 fn cross_origin_join_outcome(
-    joined: Result<TestResult<Vec<String>>, JoinError>,
-    requested: bool,
+    joined: Result<TestResult<Option<Vec<String>>>, JoinError>,
 ) -> TestResult<Option<Vec<String>>> {
     match joined {
-        Ok(result) => result.map(Some),
-        Err(error) if requested && error.is_cancelled() => Ok(None),
+        Ok(result) => result,
         Err(error) => Err(error.into()),
     }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn cross_origin_cleanup_keeps_a_pending_external_abort_and_stops_its_sibling()
+-> TestResult<()> {
+    use std::pin::Pin;
+
+    use btls::{
+        ssl::{SslConnector, SslMethod, SslVerifyMode},
+        x509::X509,
+    };
+    use tokio::{io::AsyncReadExt, net::TcpStream};
+    use tokio_btls::SslStream;
+
+    let identity = super::tls_support::TestIdentity::generate()?;
+    let origin = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let destination = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let origin_address = origin.local_addr()?;
+    let destination_address = destination.local_addr()?;
+    let origin_acceptor = identity.acceptor(H1_ALPN)?;
+    let destination_acceptor = identity.acceptor(H1_ALPN)?;
+    let (origin_server, destination_server) = cross_origin_peers(
+        origin,
+        destination,
+        origin_acceptor,
+        destination_acceptor,
+        destination_address,
+        None,
+    );
+    let original_task = origin_server.abort_handle().id();
+    let mut clients = Vec::new();
+    let caller: TestResult<CrossOriginCaller> = async {
+        let mut connector = SslConnector::bare_builder(SslMethod::tls())?;
+        connector.set_verify(SslVerifyMode::PEER);
+        connector
+            .cert_store_mut()
+            .add_cert(X509::from_der(&identity.root_der)?)?;
+        connector.set_alpn_protos(H1_ALPN)?;
+        let connector = connector.build();
+        for address in [origin_address, destination_address] {
+            let ssl = connector.configure()?.into_ssl("127.0.0.1")?;
+            let socket = timeout(TEST_TIMEOUT, TcpStream::connect(address)).await??;
+            clients.push(SslStream::new(ssl, socket)?);
+            let client = clients
+                .last_mut()
+                .ok_or("cross-origin control client missing")?;
+            timeout(TEST_TIMEOUT, Pin::new(client).connect()).await??;
+        }
+        origin_server.abort_handle().abort();
+        assert!(!origin_server.is_finished());
+        Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "original cross-origin caller failure",
+        )
+        .into())
+    }
+    .await;
+
+    let error = finish_cross_origin(caller, origin_server, destination_server)
+        .await
+        .err()
+        .ok_or("pending cross-origin external cancellation was discarded")?;
+    let failures = error
+        .downcast_ref::<FixtureFailures>()
+        .ok_or("external cross-origin cancellation was mistaken for local cleanup")?;
+    let caller = failures
+        .primary
+        .downcast_ref::<io::Error>()
+        .ok_or("original cross-origin caller error lost")?;
+    assert_eq!(caller.kind(), io::ErrorKind::InvalidInput);
+    assert_eq!(caller.to_string(), "original cross-origin caller failure");
+    let cancelled = failures
+        .cleanup
+        .downcast_ref::<JoinError>()
+        .ok_or("original cross-origin cancellation type lost")?;
+    assert!(cancelled.is_cancelled());
+    assert_eq!(cancelled.id(), original_task);
+    for client in &mut clients {
+        match timeout(TEST_TIMEOUT, client.read(&mut [0_u8; 1])).await? {
+            Ok(0) => {}
+            Err(error) if super::tls_support::is_peer_gone(&error) => {}
+            Err(error) => return Err(error.into()),
+            Ok(_) => return Err("cross-origin cleanup left unexpected bytes".into()),
+        }
+    }
+    for address in [origin_address, destination_address] {
+        let rebound = TcpListener::bind(address).await?;
+        assert_eq!(rebound.local_addr()?, address);
+    }
+    Ok(())
 }
 
 fn id_slot_template() -> RequestTemplate {

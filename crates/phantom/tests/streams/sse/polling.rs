@@ -4,10 +4,16 @@ use futures_core::Stream;
 use phantom::{
     HttpProtocol, SseError, SseErrorKind, SseEvent, SseEventSource, SseLimits, SseStream,
 };
-use tokio::{io::AsyncWriteExt, net::TcpListener, sync::oneshot, time::timeout};
+use tokio::{
+    io::AsyncWriteExt,
+    net::TcpListener,
+    sync::oneshot,
+    time::{Instant, timeout, timeout_at},
+};
 
 use super::{
-    TestResult, bounded, fixed_response,
+    FixedResponsePeer, FixtureDeadline, SsePeer, TEST_TIMEOUT, TestResult, fixed_response,
+    peer_completion,
     tls_support::{H1_ALPN, TestIdentity, accept_tls, read_head, test_client},
     write_chunk,
 };
@@ -39,35 +45,34 @@ fn stream_types_remain_send_and_unpin() {
 
 #[tokio::test]
 async fn pending_stream_poll_can_be_dropped_and_resumed_with_next_event() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let acceptor = identity.acceptor(H1_ALPN)?;
-        let (partial_sent, partial_received) = oneshot::channel();
-        let (release, released) = oneshot::channel();
-        let server = tokio::spawn(async move {
-            let mut stream = accept_tls(listener, acceptor).await?;
-            read_head(&mut stream).await?;
-            stream
-                .write_all(
-                    b"HTTP/1.1 200 OK\r\n\
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let identity = TestIdentity::generate()?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let acceptor = identity.acceptor(H1_ALPN)?;
+    let (partial_sent, partial_received) = oneshot::channel();
+    let (release, released) = oneshot::channel();
+    let mut server = SsePeer::spawn(async move {
+        let mut stream = accept_tls(listener, acceptor).await?;
+        read_head(&mut stream).await?;
+        stream
+            .write_all(
+                b"HTTP/1.1 200 OK\r\n\
                       Content-Type: text/event-stream\r\n\
                       Transfer-Encoding: chunked\r\n\r\n",
-                )
-                .await?;
-            write_chunk(&mut stream, b"retry: 25\nid: private-event-id\ndata: hel").await?;
-            partial_sent
-                .send(())
-                .map_err(|_| "client dropped before partial event")?;
-            released
-                .await
-                .map_err(|_| "client did not resume polling")?;
-            write_chunk(&mut stream, b"lo\n\ndata: second\n\n").await?;
-            stream.write_all(b"0\r\n\r\n").await?;
-            stream.shutdown().await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
+            )
+            .await?;
+        write_chunk(&mut stream, b"retry: 25\nid: private-event-id\ndata: hel").await?;
+        partial_sent
+            .send(())
+            .map_err(|_| "client dropped before partial event")?;
+        released.await?;
+        write_chunk(&mut stream, b"lo\n\ndata: second\n\n").await?;
+        stream.write_all(b"0\r\n\r\n").await?;
+        stream.shutdown().await?;
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+    });
+    let (_stream, ()) = peer_completion::run(&mut server, deadline, TEST_TIMEOUT, async {
         let response = test_client(&identity, false)?
             .get(HttpProtocol::Http1, &format!("https://{address}/events"))?
             .send()
@@ -101,17 +106,20 @@ async fn pending_stream_poll_can_be_dropped_and_resumed_with_next_event() -> Tes
         assert_eq!(second.id(), first.id());
         assert!(next(&mut stream).await.is_none());
         assert_eq!(stream.next_event().await?, None);
-        server.await??;
-        Ok(())
+        Ok(stream)
     })
-    .await
+    .await?;
+    Ok(())
 }
 
 #[tokio::test]
 async fn stream_trait_reports_each_terminal_error_once() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        for (bytes, limits, kind) in [
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let mut peer = FixedResponsePeer::default();
+    let caller = {
+        let operation = async {
+            let identity = TestIdentity::generate()?;
+            for (bytes, limits, kind) in [
             (
                 b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: 11\r\n\r\ndata: abc\n\n".as_slice(),
                 SseLimits::new(4, 32),
@@ -128,7 +136,7 @@ async fn stream_trait_reports_each_terminal_error_once() -> TestResult<()> {
                 SseErrorKind::Body,
             ),
         ] {
-            let response = fixed_response(&identity, bytes).await?;
+            let response = fixed_response(&mut peer, &identity, bytes).await?;
             let mut stream = SseStream::from_response_with_limits(response, limits)?.into_body();
             let error = next(&mut stream)
                 .await
@@ -139,31 +147,40 @@ async fn stream_trait_reports_each_terminal_error_once() -> TestResult<()> {
             assert!(next(&mut stream).await.is_none());
             assert_eq!(stream.next_event().await?, None);
         }
-        Ok(())
-    })
-    .await
+            Ok(())
+        };
+        tokio::pin!(operation);
+        match timeout_at(deadline, &mut operation).await {
+            Ok(result) => result,
+            Err(elapsed) => {
+                Err(FixtureDeadline::new("SSE test exceeded its deadline", elapsed).into())
+            }
+        }
+    };
+    peer.finish(caller).await
 }
 
 #[tokio::test]
 async fn event_source_trait_reports_reconnect_exhaustion_once() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let acceptor = identity.acceptor(H1_ALPN)?;
-        let server = tokio::spawn(async move {
-            let mut stream = accept_tls(listener, acceptor).await?;
-            read_head(&mut stream).await?;
-            stream
-                .write_all(
-                    b"HTTP/1.1 200 OK\r\n\
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let identity = TestIdentity::generate()?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let acceptor = identity.acceptor(H1_ALPN)?;
+    let mut server = SsePeer::spawn(async move {
+        let mut stream = accept_tls(listener, acceptor).await?;
+        read_head(&mut stream).await?;
+        stream
+            .write_all(
+                b"HTTP/1.1 200 OK\r\n\
                       Content-Type: text/event-stream\r\n\
                       Content-Length: 0\r\n\r\n",
-                )
-                .await?;
-            stream.shutdown().await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
+            )
+            .await?;
+        stream.shutdown().await?;
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+    });
+    let (_source, ()) = peer_completion::run(&mut server, deadline, TEST_TIMEOUT, async {
         let response = test_client(&identity, false)?
             .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
             .max_reconnects(0)
@@ -182,10 +199,10 @@ async fn event_source_trait_reports_reconnect_exhaustion_once() -> TestResult<()
         assert_eq!(source.reconnects(), 0);
         assert!(next(&mut source).await.is_none());
         assert_eq!(source.next_event().await?, None);
-        server.await??;
-        Ok(())
+        Ok(source)
     })
-    .await
+    .await?;
+    Ok(())
 }
 
 #[test]
@@ -195,11 +212,12 @@ fn stream_polling_reports_missing_timer_driver_once() -> TestResult<()> {
             .enable_all()
             .build()?;
         let mut source = runtime.block_on(async {
+            let deadline = Instant::now() + TEST_TIMEOUT;
             let identity = TestIdentity::generate()?;
             let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
             let address = listener.local_addr()?;
             let acceptor = identity.acceptor(H1_ALPN)?;
-            let server = tokio::spawn(async move {
+            let mut server = SsePeer::spawn(async move {
                 let mut stream = accept_tls(listener, acceptor).await?;
                 read_head(&mut stream).await?;
                 stream
@@ -208,6 +226,7 @@ fn stream_polling_reports_missing_timer_driver_once() -> TestResult<()> {
                 stream.shutdown().await?;
                 Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
             });
+            let (source, ()) = peer_completion::run(&mut server, deadline, TEST_TIMEOUT, async {
             let builder = test_client(&identity, false)?
                 .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
                 .initial_retry(Duration::ZERO)
@@ -217,7 +236,8 @@ fn stream_polling_reports_missing_timer_driver_once() -> TestResult<()> {
                 None => builder,
             };
             let source = builder.connect().await?.into_body();
-            server.await??;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(source)
+            }).await?;
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(source)
         })?;
         drop(runtime);
@@ -246,33 +266,34 @@ fn stream_polling_reports_missing_timer_driver_once() -> TestResult<()> {
 
 #[tokio::test(flavor = "current_thread")]
 async fn cancelled_stream_poll_does_not_start_a_reconnect_between_polls() -> TestResult<()> {
-    bounded(async {
-        let identity = TestIdentity::generate()?;
-        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-        let address = listener.local_addr()?;
-        let acceptor = identity.acceptor(H1_ALPN)?;
-        let (second_seen, mut second_seen_rx) = oneshot::channel();
-        let server = tokio::spawn(async move {
-            let mut stream = accept_tls(listener, acceptor).await?;
-            read_head(&mut stream).await?;
-            stream
-                .write_all(
-                    b"HTTP/1.1 200 OK\r\n\
+    let deadline = Instant::now() + TEST_TIMEOUT;
+    let identity = TestIdentity::generate()?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let acceptor = identity.acceptor(H1_ALPN)?;
+    let (second_seen, mut second_seen_rx) = oneshot::channel();
+    let mut server = SsePeer::spawn(async move {
+        let mut stream = accept_tls(listener, acceptor).await?;
+        read_head(&mut stream).await?;
+        stream
+            .write_all(
+                b"HTTP/1.1 200 OK\r\n\
                       Content-Type: text/event-stream\r\n\
                       Content-Length: 0\r\n\r\n",
-                )
-                .await?;
-            stream.flush().await?;
-            read_head(&mut stream).await?;
-            second_seen
-                .send(())
-                .map_err(|_| "client stopped before the reconnect was observed")?;
-            stream
-                .write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
-                .await?;
-            stream.shutdown().await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
-        });
+            )
+            .await?;
+        stream.flush().await?;
+        read_head(&mut stream).await?;
+        second_seen
+            .send(())
+            .map_err(|_| "client stopped before the reconnect was observed")?;
+        stream
+            .write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
+            .await?;
+        stream.shutdown().await?;
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+    });
+    let (_source, ()) = peer_completion::run(&mut server, deadline, TEST_TIMEOUT, async {
         let mut source = test_client(&identity, false)?
             .event_source(HttpProtocol::Http1, &format!("https://{address}/events"))?
             .initial_retry(Duration::from_secs(1))
@@ -299,8 +320,8 @@ async fn cancelled_stream_poll_does_not_start_a_reconnect_between_polls() -> Tes
         second_seen_rx.await?;
         assert_eq!(source.reconnects(), 1);
         assert!(source.is_closed());
-        server.await??;
-        Ok(())
+        Ok(source)
     })
-    .await
+    .await?;
+    Ok(())
 }

@@ -323,4 +323,64 @@ impl fmt::Display for ShutdownFailure {
 
 impl Error for ShutdownFailure {}
 
+#[tokio::test(flavor = "current_thread")]
+async fn ordinary_fixed_response_deadline_collects_its_original_pending_peer() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let (observation, mut backup, release) = Observation::pair(None);
+    let mut peer = super::FixedResponsePeer::default();
+    let deadline = tokio::time::Instant::now() + super::TEST_TIMEOUT;
+    let primary = async {
+        let caller = {
+            let mut operation = Box::pin(peer.response(&identity, RESPONSE, Some(observation)));
+            let mut watchdog = Box::pin(tokio::time::timeout_at(deadline, &mut operation));
+            tokio::select! {
+                result = &mut watchdog => {
+                    result??;
+                    return Err("ordinary response completed before worker attachment".into());
+                }
+                result = backup.attached() => result?,
+            }
+            backup.connect(&identity).await?;
+            assert!(backup.state.borrow().head_pending);
+            assert!(!backup.witness()?.abort.is_finished());
+
+            // Expire the original caller budget after real TLS setup. The
+            // operation stays borrowed until the watchdog has returned.
+            tokio::time::pause();
+            tokio::time::advance(deadline.saturating_duration_since(tokio::time::Instant::now()))
+                .await;
+            let expired = watchdog.await;
+            tokio::time::resume();
+            let elapsed = expired
+                .err()
+                .ok_or("ordinary response watchdog did not expire")?;
+            Err::<(), _>(
+                super::FixtureDeadline::new("SSE test exceeded its deadline", elapsed).into(),
+            )
+        };
+
+        let error = peer
+            .finish(caller)
+            .await
+            .err()
+            .ok_or("ordinary caller deadline was discarded")?;
+        assert_eq!(error.to_string(), "SSE test exceeded its deadline");
+        assert!(
+            error
+                .source()
+                .is_some_and(|cause| cause.is::<tokio::time::error::Elapsed>())
+        );
+        assert!(
+            peer.worker.is_none(),
+            "original worker join was not collected"
+        );
+        backup.destroyed().await?;
+        assert_eq!(backup.state.borrow().written, 0);
+        drop(release);
+        Ok(())
+    }
+    .await;
+    finish_with_cleanup(primary, backup.stop().await)
+}
+
 mod tests;
