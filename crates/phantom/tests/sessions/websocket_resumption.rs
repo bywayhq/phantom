@@ -578,18 +578,33 @@ async fn an_exact_http2_websocket_resumes_the_ticket_of_an_exact_http2_request()
     finish_with_cleanup(primary, server.shutdown().await)
 }
 
+#[derive(Clone, Default)]
+struct PageFailures(Arc<Mutex<Vec<Box<dyn std::error::Error + Send + Sync>>>>);
+
+impl PageFailures {
+    fn finish<T>(&self, primary: TestResult<T>) -> TestResult<T> {
+        let errors = std::mem::take(&mut *self.0.lock().unwrap_or_else(PoisonError::into_inner));
+        let mut result = primary;
+        for error in errors {
+            result = finish_with_cleanup(result, Err(error));
+        }
+        result
+    }
+}
+
 /// An HTTP/2 connection the page keeps open, whose server never enables
 /// extended CONNECT, so a profile-policy opening beside it takes the
 /// policy's choice for an incapable session.
 struct OpenPage {
     shutdown: oneshot::Sender<()>,
     driver: ConnectionPeer<TestResult<()>>,
+    failures: PageFailures,
 }
 
 impl OpenPage {
     /// Answers the page's GET to `/` and keeps serving the connection until
     /// [`Self::close`].
-    async fn serve(stream: Server) -> TestResult<Self> {
+    async fn serve(stream: Server, failures: PageFailures) -> TestResult<Self> {
         let mut connection = ::http2::server::handshake(stream).await?;
         let (request, mut respond) = connection
             .accept()
@@ -598,6 +613,7 @@ impl OpenPage {
         assert_eq!(request.uri().path(), "/");
         respond.send_response(Response::builder().status(StatusCode::OK).body(())?, true)?;
         let (shutdown, closed) = oneshot::channel::<()>();
+        let errors = failures.clone();
         let driver = ConnectionPeer::spawn(async move {
             let primary = tokio::select! {
                 result = async {
@@ -614,16 +630,28 @@ impl OpenPage {
                     .await
                     .map_err(Into::into),
             );
-            finish_with_cleanup(primary, cleanup)
+            if let Err(error) = finish_with_cleanup(primary, cleanup) {
+                errors
+                    .0
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .push(error);
+            }
+            Ok(())
         });
-        Ok(Self { shutdown, driver })
+        Ok(Self {
+            shutdown,
+            driver,
+            failures,
+        })
     }
 
     /// Sends GOAWAY and waits until the client has closed the connection.
     async fn close(mut self) -> TestResult<()> {
         // The driver ends on its own once the client closes the connection.
         let _ = self.shutdown.send(());
-        self.driver.join().await?
+        let joined = self.driver.join().await?;
+        self.failures.finish(joined)
     }
 
     async fn finish(self, primary: TestResult<()>) -> TestResult<()> {
@@ -646,8 +674,11 @@ async fn a_firefox_upgrade_beside_an_incapable_session_resumes_without_early_dat
     let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
+    let failures = PageFailures::default();
+    let errors = failures.clone();
     let mut server = ConnectionPeer::spawn(async move {
-        let page = OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?).await?;
+        let page =
+            OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?, errors).await?;
         let primary = async {
             let socket = accept(&listener, &acceptor, Duration::ZERO).await?;
             assert!(socket.stream.ssl().session_reused());
@@ -677,7 +708,7 @@ async fn a_firefox_upgrade_beside_an_incapable_session_resumes_without_early_dat
         Ok(())
     })
     .await;
-    finish_with_cleanup(primary, server.shutdown().await)
+    failures.finish(finish_with_cleanup(primary, server.shutdown().await))
 }
 
 /// Two such Upgrades use the `h2` page connection's two tickets, so the
@@ -695,8 +726,11 @@ async fn a_negotiated_request_after_a_firefox_upgrade_restarts_on_an_alpn_change
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
     let (page_closed, wait_for_page_close) = oneshot::channel();
+    let failures = PageFailures::default();
+    let errors = failures.clone();
     let mut server = ConnectionPeer::spawn(async move {
-        let page = OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?).await?;
+        let page =
+            OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?, errors).await?;
         let primary = async {
             for _ in 0..2 {
                 let socket = accept(&listener, &acceptor, Duration::ZERO).await?;
@@ -756,7 +790,7 @@ async fn a_negotiated_request_after_a_firefox_upgrade_restarts_on_an_alpn_change
         Ok(())
     })
     .await;
-    finish_with_cleanup(primary, server.shutdown().await)
+    failures.finish(finish_with_cleanup(primary, server.shutdown().await))
 }
 
 /// Owns the CONNECT acceptor and every relay until explicit shutdown.
@@ -777,7 +811,7 @@ impl TunnelProxy {
                         joined = relays.join_next(), if !relays.is_empty() => {
                             joined.ok_or("proxy relay disappeared")???;
                         }
-                        stopped = stopping.wait_for(|stopped| *stopped) => {
+                        stopped = async { stopping.wait_for(|stopped| *stopped).await.map(drop) } => {
                             stopped?;
                             break;
                         }

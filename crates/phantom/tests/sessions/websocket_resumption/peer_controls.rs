@@ -13,6 +13,103 @@ use tokio::{
 use super::*;
 
 #[tokio::test]
+async fn cancelling_the_script_keeps_its_already_failed_original_page_driver() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let hellos = Hellos::default();
+    let acceptor = acceptor(&identity, &hellos, H2_THEN_HTTP1)?;
+    let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+    let address = listener.local_addr()?;
+    let failures = PageFailures::default();
+    let errors = failures.clone();
+    let (ready, page_ready) = oneshot::channel();
+    let mut server = ConnectionPeer::spawn(async move {
+        let page =
+            OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?, errors).await?;
+        ready
+            .send(())
+            .map_err(|_| "page readiness receiver disappeared")?;
+        // Keep the real page owner while this later scripted phase waits.
+        std::future::pending::<()>().await;
+        page.close().await
+    });
+    let mut connector = btls::ssl::SslConnector::builder(btls::ssl::SslMethod::tls())?;
+    connector
+        .cert_store_mut()
+        .add_cert(btls::x509::X509::from_der(&identity.root_der)?)?;
+    connector.set_alpn_protos(b"\x02h2")?;
+    let ssl = connector.build().configure()?.into_ssl("localhost")?;
+    let mut client = tokio_btls::SslStream::new(ssl, TcpStream::connect(address).await?)?;
+    Pin::new(&mut client).connect().await?;
+    client
+        .write_all(b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")
+        .await?;
+    client.write_all(&[0, 0, 0, 4, 0, 0, 0, 0, 0]).await?;
+    // GET /, :scheme https, :authority localhost. The stream ends in HEADERS.
+    let headers = b"\x82\x87\x84\x01\x09localhost";
+    client.write_all(&[0, 0, 14, 1, 5, 0, 0, 0, 1]).await?;
+    client.write_all(headers).await?;
+    timeout(Duration::from_secs(5), async {
+        loop {
+            let mut header = [0; 9];
+            client.read_exact(&mut header).await?;
+            let length =
+                usize::from(header[0]) << 16 | usize::from(header[1]) << 8 | usize::from(header[2]);
+            let mut payload = vec![0; length];
+            client.read_exact(&mut payload).await?;
+            if header[3] == 1 && header[8] == 1 {
+                break;
+            }
+        }
+        Ok::<_, Box<dyn Error + Send + Sync>>(())
+    })
+    .await??;
+    timeout(Duration::from_secs(5), page_ready).await??;
+    // SETTINGS payload lengths must be multiples of six.
+    client.write_all(&[0, 0, 1, 4, 0, 0, 0, 0, 0, 0]).await?;
+    timeout(Duration::from_secs(5), async {
+        loop {
+            if !failures
+                .0
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .is_empty()
+            {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await?;
+    let primary = Err(io::Error::new(io::ErrorKind::InvalidInput, "script stopped").into());
+    let error = failures
+        .finish(finish_with_cleanup(primary, server.shutdown().await))
+        .err()
+        .ok_or("page driver failure was discarded")?;
+    let failures = error
+        .downcast_ref::<crate::support::tunnel_proxy::connection_peer::FixtureFailures>()
+        .ok_or("caller and page failures were not retained together")?;
+    assert_eq!(
+        failures
+            .primary
+            .downcast_ref::<io::Error>()
+            .ok_or("caller cause missing")?
+            .kind(),
+        io::ErrorKind::InvalidInput
+    );
+    let mut cause: &(dyn Error + 'static) = failures.cleanup.as_ref();
+    loop {
+        if let Some(error) = cause.downcast_ref::<::http2::Error>() {
+            assert_eq!(error.reason(), Some(::http2::Reason::FRAME_SIZE_ERROR));
+            break;
+        }
+        cause = cause
+            .source()
+            .ok_or("original HTTP/2 protocol cause missing")?;
+    }
+    Ok(())
+}
+
+#[tokio::test]
 async fn dropping_an_open_page_ends_its_original_http2_driver() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let hellos = Hellos::default();
@@ -21,7 +118,11 @@ async fn dropping_an_open_page_ends_its_original_http2_driver() -> TestResult<()
     let address = listener.local_addr()?;
     let (ready, page) = oneshot::channel();
     let mut server = ConnectionPeer::spawn(async move {
-        let page = OpenPage::serve(accept(&listener, &acceptor, Duration::ZERO).await?).await?;
+        let page = OpenPage::serve(
+            accept(&listener, &acceptor, Duration::ZERO).await?,
+            PageFailures::default(),
+        )
+        .await?;
         ready
             .send(page)
             .map_err(|_| "page owner receiver disappeared")?;

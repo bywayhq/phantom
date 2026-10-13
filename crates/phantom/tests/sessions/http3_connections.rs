@@ -5,13 +5,6 @@
 //! find every connection at the server's `initial_max_streams_bidi` open
 //! another, up to the configured count.
 
-use crate::support::h3 as h3_support;
-use crate::support::tls as tls_support;
-use crate::support::{
-    deadline::FixtureDeadline,
-    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
-};
-
 use std::{
     net::{Ipv4Addr, SocketAddr},
     num::NonZeroUsize,
@@ -38,6 +31,15 @@ use tokio::{
     task::JoinSet,
     time::{sleep, timeout},
 };
+
+use crate::support::{
+    deadline::FixtureDeadline,
+    h3 as h3_support, tls as tls_support,
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+};
+
+mod request_workers;
+use request_workers::Requests;
 
 use h3_support::client_settings;
 use tls_support::{H1_ALPN, TestIdentity, accept_tls_stream, read_head, tls_settings};
@@ -142,7 +144,7 @@ impl Origin {
                         joined = peers.join_next(), if !peers.is_empty() => {
                             joined.ok_or("origin connection disappeared")???;
                         }
-                        changed = stopped.wait_for(|stopped| *stopped) => {
+                        changed = async { stopped.wait_for(|stopped| *stopped).await.map(drop) } => {
                             changed?;
                             break;
                         }
@@ -161,10 +163,10 @@ impl Origin {
                             peers.spawn(async move {
                                 if stalled == Some(index) {
                                     tokio::select! {
-                                        released = handshakes.wait_for(|released| *released) => {
+                                        released = async { handshakes.wait_for(|released| *released).await.map(drop) } => {
                                             released?;
                                         }
-                                        changed = stopping.wait_for(|stopped| *stopped) => {
+                                        changed = async { stopping.wait_for(|stopped| *stopped).await.map(drop) } => {
                                             changed?;
                                             return Ok(());
                                         }
@@ -283,6 +285,7 @@ impl Origin {
             }
         }
     }
+
     fn failure(&self) -> Box<dyn std::error::Error + Send + Sync> {
         self.failures
             .lock()
@@ -347,14 +350,14 @@ async fn serve(
 ) -> TestResult {
     let quic = tokio::select! {
         quic = incoming => quic?,
-        stopped = stopping.wait_for(|stopped| *stopped) => {
+        stopped = async { stopping.wait_for(|stopped| *stopped).await.map(drop) } => {
             stopped?;
             return Ok(());
         }
     };
     let mut server: h3::server::Connection<h3_quinn::Connection, Bytes> = tokio::select! {
         server = h3::server::Connection::new(h3_quinn::Connection::new(quic)) => server?,
-        stopped = stopping.wait_for(|stopped| *stopped) => {
+        stopped = async { stopping.wait_for(|stopped| *stopped).await.map(drop) } => {
             stopped?;
             return Ok(());
         }
@@ -370,7 +373,7 @@ async fn serve(
                     joined.ok_or("response task disappeared")???;
                     continue;
                 }
-                stopped = stopping.wait_for(|stopped| *stopped) => {
+                stopped = async { stopping.wait_for(|stopped| *stopped).await.map(drop) } => {
                     stopped?;
                     break;
                 }
@@ -398,7 +401,7 @@ async fn serve(
             };
             let (request, mut stream) = tokio::select! {
                 request = resolver.resolve_request() => request?,
-                stopped = stopping.wait_for(|stopped| *stopped) => {
+                stopped = async { stopping.wait_for(|stopped| *stopped).await.map(drop) } => {
                     stopped?;
                     break;
                 }
@@ -474,29 +477,18 @@ async fn finish(response: Response<phantom::ResponseBody>) -> TestResult {
 }
 
 /// Sends one held request per path at once and returns their tasks.
-fn spawn_held(client: &Client, origin: &Origin, paths: &[&str]) -> Vec<ConnectionPeer<TestResult>> {
-    paths
-        .iter()
-        .map(|path| {
-            let (client, uri) = (client.clone(), origin.uri(path));
-            ConnectionPeer::spawn(async move { finish(send(&client, &uri).await?).await })
-        })
-        .collect()
-}
-
-async fn join(mut tasks: Vec<ConnectionPeer<TestResult>>) -> TestResult {
-    let primary = async {
-        for task in &mut tasks {
-            timeout(TEST_TIMEOUT, task.join()).await???;
-        }
-        Ok(())
+fn spawn_held(
+    requests: &mut Requests,
+    client: &Client,
+    origin: &Origin,
+    paths: &[&str],
+) -> std::ops::Range<usize> {
+    let start = requests.len();
+    for path in paths {
+        let (client, uri) = (client.clone(), origin.uri(path));
+        requests.spawn(async move { finish(send(&client, &uri).await?).await });
     }
-    .await;
-    let mut result = primary;
-    for task in &mut tasks {
-        result = finish_with_cleanup(result, task.shutdown().await);
-    }
-    result
+    start..requests.len()
 }
 
 /// Sends `/warm` so the client knows the server's stream limit, then
@@ -506,21 +498,19 @@ async fn connections_for(
     builder: ClientBuilder,
     identity: &TestIdentity,
     expected: usize,
+    origins: &mut Vec<Origin>,
+    requests: &mut Requests,
 ) -> TestResult<(usize, usize)> {
-    let mut origin = Origin::start(identity)?;
-    let primary = async {
-        let client = builder.build()?;
-        finish(send(&client, &origin.uri("warm")).await?).await?;
-
-        let held = spawn_held(&client, &origin, &["held"; REQUESTS]);
-        // The warm request's connection and request count too.
-        let observed = origin.settle(expected + 1).await?;
-        origin.release();
-        join(held).await?;
-        Ok((observed.0, observed.1 - 1))
-    }
-    .await;
-    origin.finish(primary).await
+    origins.push(Origin::start(identity)?);
+    let origin = origins.last_mut().ok_or("origin owner missing")?;
+    let client = builder.build()?;
+    finish(send(&client, &origin.uri("warm")).await?).await?;
+    let held = spawn_held(requests, &client, origin, &["held"; REQUESTS]);
+    // The warm request's connection and request count too.
+    let observed = origin.settle(expected + 1).await?;
+    origin.release();
+    requests.join(held).await?;
+    Ok((observed.0, observed.1 - 1))
 }
 
 async fn bounded<F>(future: F) -> TestResult
@@ -536,40 +526,62 @@ where
 
 #[tokio::test]
 async fn requests_queue_on_one_connection_by_default() -> TestResult {
-    bounded(async {
+    let mut origins = Vec::new();
+    let mut requests = Requests::default();
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
-        let (connections, requests) =
-            connections_for(client_builder(&identity), &identity, 2).await?;
+        let (connections, requests) = connections_for(
+            client_builder(&identity),
+            &identity,
+            2,
+            &mut origins,
+            &mut requests,
+        )
+        .await?;
         assert_eq!(connections, 1);
         // The server allows two streams; the rest wait on the one connection
         // for stream credit until those end.
         assert_eq!(requests, PEER_STREAMS as usize);
         Ok(())
     })
-    .await
+    .await;
+    let mut result = primary;
+    for origin in &mut origins {
+        result = origin.finish(result).await;
+    }
+    requests.finish(result).await
 }
 
 /// Five requests at a server limit of two streams need three connections,
 /// and a limit of two connections caps them at two.
 #[tokio::test]
 async fn saturated_connections_open_more_up_to_the_configured_limit() -> TestResult {
-    bounded(async {
+    let mut origins = Vec::new();
+    let mut requests = Requests::default();
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let builder = client_builder(&identity).max_http3_connections_per_origin(bound(4)?);
-        let (connections, requests) = connections_for(builder, &identity, REQUESTS).await?;
+        let (connections, requests) =
+            connections_for(builder, &identity, REQUESTS, &mut origins, &mut requests).await?;
         // ceil(5 / 2) = 3 connections, below the limit of 4.
         assert_eq!(connections, 3);
         assert_eq!(requests, REQUESTS);
 
         let identity = TestIdentity::generate()?;
         let builder = client_builder(&identity).max_http3_connections_per_origin(bound(2)?);
-        let (connections, requests) = connections_for(builder, &identity, 4).await?;
+        let (connections, requests) =
+            connections_for(builder, &identity, 4, &mut origins, &mut requests).await?;
         // The limit caps it at two; the fifth stream waits for credit.
         assert_eq!(connections, 2);
         assert_eq!(requests, 4);
         Ok(())
     })
-    .await
+    .await;
+    let mut result = primary;
+    for origin in &mut origins {
+        result = origin.finish(result).await;
+    }
+    requests.finish(result).await
 }
 
 /// Concurrent requests to an origin with no connection share each setup
@@ -577,15 +589,16 @@ async fn saturated_connections_open_more_up_to_the_configured_limit() -> TestRes
 #[tokio::test]
 async fn concurrent_requests_to_a_cold_origin_do_not_stampede() -> TestResult {
     let mut origins = Vec::new();
+    let mut requests = Requests::default();
     let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         origins.push(Origin::start(&identity)?);
         let origin = origins.last_mut().ok_or("origin owner missing")?;
         let client = client_builder(&identity).build()?;
-        let tasks = spawn_held(&client, &origin, &["warm"; REQUESTS]);
+        let tasks = spawn_held(&mut requests, &client, &origin, &["warm"; REQUESTS]);
         // All five share the one connection, two streams at a time.
         assert_eq!(origin.settle(REQUESTS).await?, (1, REQUESTS));
-        join(tasks).await?;
+        requests.join(tasks).await?;
 
         let identity = TestIdentity::generate()?;
         origins.push(Origin::start(&identity)?);
@@ -593,24 +606,25 @@ async fn concurrent_requests_to_a_cold_origin_do_not_stampede() -> TestResult {
         let client = client_builder(&identity)
             .max_http3_connections_per_origin(bound(8)?)
             .build()?;
-        let tasks = spawn_held(&client, &origin, &["held"; 6]);
+        let tasks = spawn_held(&mut requests, &client, &origin, &["held"; 6]);
         // One setup at a time: each new connection takes two requests before
         // the next opens, so six requests need three connections, not six.
         assert_eq!(origin.settle(6).await?, (3, 6));
         origin.release();
-        join(tasks).await
+        requests.join(tasks).await
     })
     .await;
     let mut result = primary;
     for origin in &mut origins {
         result = origin.finish(result).await;
     }
-    result
+    requests.finish(result).await
 }
 
 #[tokio::test]
 async fn a_draining_connection_takes_no_new_requests() -> TestResult {
     let mut origins = Vec::new();
+    let mut requests = Requests::default();
     let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         origins.push(Origin::start(&identity)?);
@@ -621,61 +635,68 @@ async fn a_draining_connection_takes_no_new_requests() -> TestResult {
         finish(send(&client, &origin.uri("warm")).await?).await?;
 
         // Both connections fill up, so the location is at its limit.
-        let held = spawn_held(&client, &origin, &["held-1", "held-2", "held-3", "held-4"]);
+        let held = spawn_held(
+            &mut requests,
+            &client,
+            &origin,
+            &["held-1", "held-2", "held-3", "held-4"],
+        );
         assert_eq!(origin.settle(5).await?, (2, 5));
 
         // After GOAWAY on connection 0, it no longer counts: the next request
         // opens connection 2 instead of queueing on a full one.
         origin.goaway(0);
         sleep(QUIET_WINDOW).await;
-        let next = spawn_held(&client, &origin, &["held-5"]);
+        let next = spawn_held(&mut requests, &client, &origin, &["held-5"]);
         assert_eq!(origin.next_accepted().await?, 2);
         assert_eq!(origin.next_request().await?, 2);
         origin.release();
-        join(held).await?;
-        join(next).await
+        requests.join(held).await?;
+        requests.join(next).await
     })
     .await;
     let mut result = primary;
     for origin in &mut origins {
         result = origin.finish(result).await;
     }
-    result
+    requests.finish(result).await
 }
 
 #[tokio::test]
 async fn a_draining_connection_is_replaced_at_the_default_limit() -> TestResult {
     let mut origins = Vec::new();
+    let mut requests = Requests::default();
     let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         origins.push(Origin::start(&identity)?);
         let origin = origins.last_mut().ok_or("origin owner missing")?;
         let client = client_builder(&identity).build()?;
         finish(send(&client, &origin.uri("warm")).await?).await?;
-        let held = spawn_held(&client, &origin, &["held-1"]);
+        let held = spawn_held(&mut requests, &client, &origin, &["held-1"]);
         assert_eq!(origin.settle(2).await?, (1, 2));
 
         // The one connection drains, so the next request reconnects.
         origin.goaway(0);
         sleep(QUIET_WINDOW).await;
-        let next = spawn_held(&client, &origin, &["held-2"]);
+        let next = spawn_held(&mut requests, &client, &origin, &["held-2"]);
         assert_eq!(origin.next_accepted().await?, 1);
         assert_eq!(origin.next_request().await?, 1);
         origin.release();
-        join(held).await?;
-        join(next).await
+        requests.join(held).await?;
+        requests.join(next).await
     })
     .await;
     let mut result = primary;
     for origin in &mut origins {
         result = origin.finish(result).await;
     }
-    result
+    requests.finish(result).await
 }
 
 #[tokio::test]
 async fn a_new_connection_resumes_the_session_an_earlier_one_learned() -> TestResult {
     let mut origins = Vec::new();
+    let mut requests = Requests::default();
     let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         origins.push(Origin::start(&identity)?);
@@ -688,18 +709,23 @@ async fn a_new_connection_resumes_the_session_an_earlier_one_learned() -> TestRe
         assert_eq!(origin.tickets.accepted.load(Ordering::SeqCst), 0);
 
         // Filling connection 0 opens connection 1, which presents a ticket.
-        let held = spawn_held(&client, &origin, &["held-1", "held-2", "held-3"]);
+        let held = spawn_held(
+            &mut requests,
+            &client,
+            &origin,
+            &["held-1", "held-2", "held-3"],
+        );
         assert_eq!(origin.settle(4).await?, (2, 4));
         assert_eq!(origin.tickets.accepted.load(Ordering::SeqCst), 1);
         origin.release();
-        join(held).await
+        requests.join(held).await
     })
     .await;
     let mut result = primary;
     for origin in &mut origins {
         result = origin.finish(result).await;
     }
-    result
+    requests.finish(result).await
 }
 
 #[test]
@@ -720,6 +746,7 @@ fn a_limit_above_the_ceiling_is_rejected_at_build() -> TestResult {
 #[tokio::test]
 async fn a_request_waiting_for_a_setup_takes_room_a_finished_stream_frees() -> TestResult {
     let mut origins = Vec::new();
+    let mut requests = Requests::default();
     let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         // Connection 1's handshake waits until the test releases it.
@@ -731,28 +758,33 @@ async fn a_request_waiting_for_a_setup_takes_room_a_finished_stream_frees() -> T
         finish(send(&client, &origin.uri("warm")).await?).await?;
 
         // Two streams fill connection 0 and a third starts connection 1.
-        let held = spawn_held(&client, &origin, &["held-1", "held-2", "held-3"]);
+        let held = spawn_held(
+            &mut requests,
+            &client,
+            &origin,
+            &["held-1", "held-2", "held-3"],
+        );
         assert_eq!(origin.settle(3).await?, (2, 3));
         // This request waits: connection 0 is full and a setup is in flight.
-        let waiting = spawn_held(&client, &origin, &["held-4"]);
+        let waiting = spawn_held(&mut requests, &client, &origin, &["held-4"]);
         sleep(QUIET_WINDOW).await;
-        assert!(!waiting.iter().any(ConnectionPeer::is_finished));
+        assert!(!requests.any_finished(waiting.clone())?);
 
         // Connection 0's streams end, which wakes the waiting request while
         // connection 1's setup is still held.
         origin.release();
         assert_eq!(origin.next_request().await?, 0);
-        join(waiting).await?;
+        requests.join(waiting).await?;
 
         origin.release_handshake();
-        join(held).await
+        requests.join(held).await
     })
     .await;
     let mut result = primary;
     for origin in &mut origins {
         result = origin.finish(result).await;
     }
-    result
+    requests.finish(result).await
 }
 
 /// Owns the advertising listener and each TLS response child.
@@ -791,7 +823,7 @@ async fn advertising_origin(
                     joined = peers.join_next(), if !peers.is_empty() => {
                         joined.ok_or("advertising response disappeared")???;
                     }
-                    changed = stopped.wait_for(|stopped| *stopped) => {
+                    changed = async { stopped.wait_for(|stopped| *stopped).await.map(drop) } => {
                         changed?;
                         break;
                     }
@@ -833,6 +865,7 @@ async fn advertising_origin(
 #[tokio::test]
 async fn an_alt_svc_alternative_opens_more_connections_up_to_the_limit() -> TestResult {
     let mut origins = Vec::new();
+    let mut requests = Requests::default();
     let mut advertiser = None;
     let primary = bounded(async {
         let identity = TestIdentity::generate()?;
@@ -875,19 +908,18 @@ async fn an_alt_svc_alternative_opens_more_connections_up_to_the_limit() -> Test
 
         // Three held requests at two streams per connection use both
         // connections the limit allows to the alternative.
-        let held: Vec<ConnectionPeer<TestResult>> = ["held-1", "held-2", "held-3"]
-            .iter()
-            .map(|path| {
-                let (client, uri) = (client.clone(), format!("https://{address}/{path}"));
-                ConnectionPeer::spawn(async move {
-                    let request = client.get_negotiated(&uri)?;
-                    finish(timeout(TEST_TIMEOUT, request.send()).await??).await
-                })
-            })
-            .collect();
+        let start = requests.len();
+        for path in ["held-1", "held-2", "held-3"] {
+            let (client, uri) = (client.clone(), format!("https://{address}/{path}"));
+            requests.spawn(async move {
+                let request = client.get_negotiated(&uri)?;
+                finish(timeout(TEST_TIMEOUT, request.send()).await??).await
+            });
+        }
+        let held = start..requests.len();
         assert_eq!(alternative.settle(3).await?, (2, 3));
         alternative.release();
-        join(held).await?;
+        requests.join(held).await?;
         Ok(())
     })
     .await;
@@ -898,7 +930,7 @@ async fn an_alt_svc_alternative_opens_more_connections_up_to_the_limit() -> Test
     if let Some(origin) = &mut advertiser {
         result = origin.finish(result).await;
     }
-    result
+    requests.finish(result).await
 }
 
 mod peer_controls;
