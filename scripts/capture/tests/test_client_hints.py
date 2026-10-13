@@ -306,10 +306,8 @@ class ClientHintOwnershipTest(unittest.IsolatedAsyncioTestCase):
 
         async def close():
             writer.close()
-            try:
+            with contextlib.suppress(*client_hints.PEER_DISCONNECT):
                 await asyncio.wait_for(writer.wait_closed(), 2.0)
-            except client_hints.PEER_DISCONNECT:
-                pass
 
         self.addAsyncCleanup(close)
         return reader, writer
@@ -325,10 +323,8 @@ class ClientHintOwnershipTest(unittest.IsolatedAsyncioTestCase):
         if operation.done():
             return
         operation.cancel("test backup")
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await asyncio.wait_for(operation, 2.0)
-        except asyncio.CancelledError:
-            pass
 
     def retired(self, server, protocols):
         self.assertTrue(protocols)
@@ -510,7 +506,16 @@ class ClientHintOwnershipTest(unittest.IsolatedAsyncioTestCase):
             primary = run.failure
             self.assertIsInstance(primary, ValueError)
             await asyncio.wait_for(lost.wait(), 2.0)
-            cleanup = asyncio.create_task(server.finish_run(run, primary))
+            outcomes = []
+
+            async def finish():
+                try:
+                    await server.finish_run(run, primary)
+                except BaseException as error:
+                    outcomes.append(error)
+                    raise
+
+            cleanup = asyncio.create_task(finish())
             self.addAsyncCleanup(self.stop_operation, cleanup)
             entered = asyncio.Event()
             wait = asyncio.wait
@@ -536,18 +541,21 @@ class ClientHintOwnershipTest(unittest.IsolatedAsyncioTestCase):
                 await asyncio.sleep(0)
                 for protocol, error in callbacks:
                     original(protocol, error)
-                with self.assertRaises(asyncio.CancelledError) as raised:
+                with self.assertRaises(asyncio.CancelledError):
                     await cleanup
             self.assertEqual(len(interruptions), 1)
-            self.assertIs(raised.exception, interruptions[0])
-            self.assertEqual(raised.exception.args, ("cancel during owned cleanup",))
-            group = raised.exception.__cause__
+            self.assertTrue(cleanup.cancelled())
+            self.assertEqual(len(outcomes), 1)
+            interruption = outcomes[0]
+            self.assertIs(interruption, interruptions[0])
+            self.assertEqual(interruption.args, ("cancel during owned cleanup",))
+            group = interruption.__cause__
             self.assertIsInstance(group, client_hints.HintFailures)
             self.assertIs(group.primary, primary)
             self.assertIs(group.server, server)
             self.assertIs(group.interruption_cause, earlier_cause)
             self.assertIs(group.interruption_context, earlier_context)
-            self.assertIn(raised.exception, group.cleanup)
+            self.assertIn(interruption, group.cleanup)
             await self.eof(reader)
         self.retired(server, protocols)
 
