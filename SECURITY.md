@@ -26,7 +26,7 @@ Report it through GitHub's private vulnerability reporting: open the
 repository's **Security** tab and choose **Report a vulnerability**, or go
 directly to the
 [new advisory form](https://github.com/bywayhq/phantom/security/advisories/new).
-Only maintainers can see the report.
+Use that private form to share the report with maintainers.
 
 If that form is unavailable, open a public issue that asks maintainers to
 establish private contact. Do not include any vulnerability details in that
@@ -98,34 +98,26 @@ the file. An organization owner applies that file with the
 schedule stay in the repository's Advanced Security settings.
 
 [OpenSSF Scorecard](.github/workflows/scorecard.yml) reports supply-chain
-posture to the same Security tab and is deliberately left unfiltered. Its
-findings are keyed by check rather than by a line of code, so dismissing one
-would hide every later instance of the same check. They stay open and are
-answered here instead.
+posture to the same Security tab. Review each finding against the revision
+and configuration that produced it.
 
-- **Vulnerabilities.** The advisories Scorecard reports are not in Phantom's
-  dependency graph. Each was checked against the workspace lockfile:
-  `rustls` and `serde_with` are at the fixed versions, and the rest do not
-  appear at all. They come from the standalone lockfiles inside vendored
-  packages, which are upstream development metadata for packages the
-  workspace excludes from its build.
-- **Pinned dependencies.** The one unpinned download is in an upstream CI
-  script inside a vendored package. Phantom never runs it. Removing the
-  upstream CI directories would both answer this and reduce what Phantom
-  redistributes, but it changes a vendored tree, so it belongs to that
-  package's next refresh rather than to a patch of its own.
-- **Code review.** Approved changesets require a second person. Every change
-  reaches `main` through a pull request whose required check must pass, and
-  lane work is reviewed against the working agreement before integration,
-  but a solo maintainer cannot approve their own pull request.
-- **Branch protection.** The `main` ruleset requires signed commits, linear
-  history, up-to-date branches, and the `CI required` check, and refuses
-  deletion and non-fast-forward pushes. It does not require a pull request,
-  because GitHub cannot sign a rebase merge and a squash merge would discard
-  each lane's commits; see [CONTRIBUTING.md](CONTRIBUTING.md).
-- **Maintained.** Resolves on its own once the repository is older than
-  ninety days.
-- **Best practices badge.** Not applied for.
+For a dependency advisory, compare the affected versions with the workspace
+`Cargo.lock` and the resolved build graph. Standalone lockfiles inside vendored
+packages describe upstream development dependencies; the workspace excludes
+those packages as members. Their metadata can still identify a dependency
+that needs investigation. Do not dismiss an advisory solely because its
+location is under `vendor/`.
+
+For an unpinned download, check its callers before deciding whether Phantom
+executes it. Changes to vendored scripts follow the package's `PHANTOM.md`
+and patch workflow.
+
+The `main` ruleset requires signed commits, linear history, up-to-date
+branches, and the `CI required` check. It refuses deletion and
+non-fast-forward pushes. The ruleset does not require a pull request or a
+review approval. The integration process separately requires independent
+lane review, passing checks, and a fast-forward merge; see
+[CONTRIBUTING.md](CONTRIBUTING.md#continuous-integration).
 
 A dismissed code scanning alert records its reason and a justification. Reopen
 one rather than working around it if the justification no longer holds.

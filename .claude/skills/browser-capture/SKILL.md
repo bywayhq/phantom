@@ -40,8 +40,8 @@ exists. Read the relevant sections before capturing.
   `docs/explanation/validation.md` or the capture README, not in the fixture.
 - Never retain credentials, authorization headers, or cookies other than a
   tool's own probe cookie.
-- Bind port 0 for loopback listeners. The Windows development host reserves
-  UDP ports 49841 to 50959.
+- Bind port 0 for loopback listeners. Windows excluded port ranges can change
+  between boots; follow [Windows hosts](../../../AGENTS.md#windows-hosts).
 
 ## After capturing
 

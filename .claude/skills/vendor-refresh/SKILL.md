@@ -39,9 +39,10 @@ GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=core.autocrlf GIT_CONFIG_VALUE_0=false \
   scripts/dev/with-cargo-lock.sh scripts/ci/check-vendor.sh <package>
 ```
 
-The script downloads the checksummed upstream source, replays the series,
-compares the result byte-for-byte with `vendor/<package>`, and runs the
-package's focused Cargo checks. Record the upstream version, checksum, and the
-reason for each patch in `PHANTOM.md`, then run the workspace gate from
-`AGENTS.md`. `scripts/ci/report-upstream-freshness.sh` reports upstream
-releases newer than the vendored baselines.
+The script stages the pinned upstream source and verifies checksums for
+archives. It replays the series, compares the result byte-for-byte with
+`vendor/<package>`, and runs the package's focused Cargo checks. Record the
+upstream version, source revision or archive checksum, and the reason for each
+patch in `PHANTOM.md`, then run the workspace gate from `AGENTS.md`.
+`scripts/ci/report-upstream-freshness.sh` reports upstream releases newer than
+the vendored baselines.

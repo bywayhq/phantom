@@ -15,8 +15,8 @@ queues. Packet keys, key derivation, version helpers, and Retry helpers are
 private; Quinn receives them through its crypto traits.
 
 The public API intentionally uses `btls` context types, `quinn-proto` config
-types and crypto traits, and `phantom-profile` settings. These are part of
-the provider interface. BoringSSL FFI and its supporting libraries stay
+types and crypto traits, and `phantom-profile` settings. With `keylog`,
+`NssKeyLogLine` also implements `zeroize::Zeroize`. BoringSSL FFI remains
 private.
 
 ## Next

@@ -758,15 +758,18 @@ its handshake runs.
 
 ### Racing
 
-Under `AltSvcPolicy::race`, one request runs two candidates:
+Under `AltSvcPolicy::race`, a request starts one alternative QUIC connection
+and a delayed origin H1/H2 connection by default.
+`AltSvcRace::with_max_alternatives` allows up to three alternatives alongside
+the origin. This larger race is caller policy, beyond browser behavior.
 
-- Before any I/O, Phantom validates both the H3 and the H1/H2 form of the
-  request.
+- Before any I/O, Phantom validates each alternative's H3 fields and the
+  origin's H1/H2 fields.
 - Each candidate holds its own pool admission and makes at most one setup
-  attempt. Both keep the request's origin authority, TLS name, and route.
+  attempt. All keep the request's origin authority, TLS name, and route.
 - The request body, including a one-shot stream, is built only for the
   winner, and the request is dispatched once.
-- Cancelling the request before a winner cancels both setups. The connect and
+- Cancelling the request before a winner cancels all setups. The connect and
   total deadlines bound each setup and the whole race.
 - When the alternative wins, a still-connecting origin setup is cancelled.
 
@@ -785,15 +788,20 @@ alternative then loses to the origin and is marked broken as in any race. The
 retry allows no early data, so it is never raced again, even when it wins on a
 pooled connection whose own early data is unanswered.
 
-When the origin wins, an alternative setup that has begun connecting keeps
-running in the background, like Chromium's orphaned alternative job. If it
-connects, the connection is pooled for later requests. If it fails, including
-at the 4-second limit, the alternative is marked broken. A background setup
-that resumed with early data connects before its handshake completes. It
+When another candidate wins, each alternative setup that has begun connecting
+keeps running in the background, like Chromium's orphaned alternative job. If it
+connects, the connection is pooled for later requests. A failure that invalidates
+the alternative, including reaching the 4-second limit, marks it broken. A
+background setup that resumed with early data connects before its handshake
+completes. It
 confirms the alternative once that handshake completes, and marks nothing if
 the handshake fails, as Chromium marks nothing for a session that carried no
-request. Until it finishes, it keeps its H3 admission permit for the origin
-and route.
+request. The setup keeps its H3 admission permit for the origin and route
+until it returns. An early-data handshake can finish later.
+
+Failures returned by the race are marked broken after the winner's handshake
+completes. Only errors that invalidate their alternatives count. When every
+candidate fails, nothing is marked broken.
 
 A setup still waiting for admission, or for another setup to the same QUIC
 location, has done no network work, so it is cancelled instead. The

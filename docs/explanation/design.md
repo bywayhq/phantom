@@ -520,10 +520,14 @@ flowchart LR
 
 ### Async and features
 
-Phantom is async-first and targets Tokio. Library code does not create a
-global runtime or install a tracing subscriber. Supporting another runtime
-would need a second implementation that preserves cancellation, timer,
-socket, DNS, and driver-lifecycle behavior.
+Requests run on the caller's Tokio runtime. A deadline service starts lazily
+on a separate thread and runs for the life of the process. It owns shutdown,
+fallback, keepalive and discovery deadlines, plus idle-connection cleanup.
+The service runs independently of the caller's timer driver. Dropping a
+deadline receiver cancels that timer. Phantom does not install a tracing
+subscriber. Supporting another runtime would need an
+implementation that preserves cancellation, timers, sockets, DNS and driver
+ownership.
 
 Each optional Cargo feature adds a coherent public capability. Features are
 not backend toggles.
@@ -544,15 +548,16 @@ not backend toggles.
   hints, and request policy stay attached to the original HTTPS origin. A
   different transport location cannot reuse the previous H3 connection
   generation.
-- Alt-Svc use is sequential by default. Opt-in racing chooses between exactly
-  two pre-declared candidates on the same route, the alternative QUIC
-  connection and then, after a delay, the origin H1/H2 connection, and sends
-  the request once, on the winner. If the origin connects and the alternative
-  fails, the alternative is marked broken with a bounded doubling backoff.
-  Both candidates failing leaves that state unchanged.
+- Alt-Svc use is sequential by default. Opt-in racing starts one alternative
+  QUIC connection and, after a delay, the origin H1/H2 connection, on the same
+  route. `AltSvcRace::with_max_alternatives` allows up to three alternatives
+  alongside the origin. The request is sent once, on the winner. Failures that
+  invalidate an alternative trigger backoff when another candidate succeeds.
+  Every candidate failing leaves that state unchanged.
 - Response content decoding is an opt-in facade body stage above every
-  transport. It is gated by the caller's own `Accept-Encoding`, never edits
-  request fields, and keeps the response fields as the wire view.
+  transport. It uses the request's `Accept-Encoding`, supplied by the caller
+  or a template. It never edits request fields and keeps response fields as
+  the wire view.
 - A streaming request body declares its complete, ordered plan of trailer
   names before I/O. The shared body boundary validates the final semantic map
   and rebuilds the ordered values. Each transport then validates and emits its
