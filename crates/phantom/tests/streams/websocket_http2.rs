@@ -749,7 +749,9 @@ fn poisoned_wire_recorder_rejects_read_before_consuming_bytes() {
     let poison = Arc::clone(&recorded);
     assert!(
         std::panic::catch_unwind(move || {
-            let _guard = poison.lock().unwrap();
+            let Ok(_guard) = poison.lock() else {
+                return;
+            };
             panic!("poison the wire recorder");
         })
         .is_err()
