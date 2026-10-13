@@ -1,6 +1,6 @@
 //! Exercise the public harness against real plaintext HTTP/1 requests.
 
-use std::{net::Ipv4Addr, time::Duration};
+use std::{error::Error, fmt, net::Ipv4Addr, time::Duration};
 
 use phantom::{
     Client, HttpProtocol, StatusCode,
@@ -15,8 +15,9 @@ use phantom_testkit::http1::{
 };
 use tokio::{
     io::{AsyncWriteExt, BufReader},
-    net::TcpListener,
-    time::{Instant, timeout_at},
+    net::{TcpListener, TcpStream},
+    task::JoinHandle,
+    time::{Instant, timeout, timeout_at},
 };
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -53,7 +54,8 @@ async fn check_navigation(
     user_agent_index: Option<usize>,
 ) -> TestResult {
     let deadline = Instant::now() + Duration::from_secs(10);
-    timeout_at(deadline, async {
+    let mut peer = None;
+    let primary = timeout_at(deadline, async {
         let limits = CaptureLimits::new(32_768, 8_192, 128);
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let authority = listener.local_addr()?.to_string();
@@ -82,16 +84,10 @@ async fn check_navigation(
                 format!(" {CHROME_USER_AGENT}").as_bytes(),
             )?;
         }
-        let peer = tokio::spawn(async move {
+        peer = Some(WirePeer::new(tokio::spawn(async move {
             let (stream, _) = listener.accept().await?;
-            let mut stream = BufReader::new(stream);
-            let head = capture_request_head(&mut stream, deadline, limits).await?;
-            stream
-                .get_mut()
-                .write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
-                .await?;
-            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(head)
-        });
+            capture_stream(stream, deadline, limits).await
+        })));
         let client = Client::builder(profile).build()?;
         let response = client
             .get(HttpProtocol::Http1, &format!("http://{authority}{TARGET}"))?
@@ -105,12 +101,111 @@ async fn check_navigation(
                 .await?
                 .is_empty()
         );
-        let actual = peer.await??;
+        let actual = peer.as_mut().ok_or("wire peer missing")?.join().await?;
         expected.compare(&actual)?;
         check_negative_controls(&expected, &actual, limits)?;
         Ok(())
     })
-    .await?
+    .await;
+    let primary = match primary {
+        Ok(result) => result,
+        Err(elapsed) => Err(elapsed.into()),
+    };
+    match peer {
+        Some(mut peer) => peer.finish(primary).await,
+        None => primary,
+    }
+}
+
+async fn capture_stream(
+    stream: TcpStream,
+    deadline: Instant,
+    limits: CaptureLimits,
+) -> TestResult<RequestHeadCapture> {
+    let mut stream = BufReader::new(stream);
+    let head = capture_request_head(&mut stream, deadline, limits).await?;
+    stream
+        .get_mut()
+        .write_all(b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n")
+        .await?;
+    Ok(head)
+}
+
+/// Retains the plaintext capture task when the consuming caller stops early.
+struct WirePeer {
+    task: Option<JoinHandle<TestResult<RequestHeadCapture>>>,
+}
+
+impl WirePeer {
+    fn new(task: JoinHandle<TestResult<RequestHeadCapture>>) -> Self {
+        Self { task: Some(task) }
+    }
+
+    async fn join(&mut self) -> TestResult<RequestHeadCapture> {
+        let result = self
+            .task
+            .as_mut()
+            .ok_or("wire peer already collected")?
+            .await;
+        self.task = None;
+        result?
+    }
+
+    async fn stop(&mut self) -> TestResult {
+        let Some(task) = self.task.as_mut() else {
+            return Ok(());
+        };
+        let cancelled = !task.is_finished();
+        if cancelled {
+            task.abort();
+        }
+        let result = timeout(Duration::from_secs(5), task).await?;
+        self.task = None;
+        match result {
+            Ok(result) => result.map(drop),
+            Err(error) if cancelled && error.is_cancelled() => Ok(()),
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    async fn finish<T>(&mut self, primary: TestResult<T>) -> TestResult<T> {
+        let cleanup = self.stop().await;
+        match (primary, cleanup) {
+            (Err(primary), Err(cleanup)) => Err(Box::new(WireFailures { primary, cleanup })),
+            (Err(error), Ok(())) | (Ok(_), Err(error)) => Err(error),
+            (Ok(value), Ok(())) => Ok(value),
+        }
+    }
+}
+
+impl Drop for WirePeer {
+    fn drop(&mut self) {
+        if let Some(task) = &self.task {
+            task.abort();
+        }
+    }
+}
+
+#[derive(Debug)]
+struct WireFailures {
+    primary: Box<dyn Error + Send + Sync>,
+    cleanup: Box<dyn Error + Send + Sync>,
+}
+
+impl fmt::Display for WireFailures {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "wire caller failed: {}; peer cleanup failed: {}",
+            self.primary, self.cleanup
+        )
+    }
+}
+
+impl Error for WireFailures {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(self.primary.as_ref())
+    }
 }
 
 fn check_negative_controls(
@@ -173,4 +268,175 @@ fn mutant(
     }
     bytes.extend_from_slice(b"\r\n");
     Ok(RequestHeadCapture::parse(&bytes, limits)?)
+}
+
+mod peer_controls {
+    use std::{
+        io,
+        net::SocketAddr,
+        sync::{
+            Arc,
+            atomic::{AtomicBool, Ordering},
+        },
+    };
+
+    use tokio::{io::AsyncReadExt, task::yield_now, time::error::Elapsed};
+
+    use super::*;
+
+    async fn blocked_capture() -> TestResult<(WirePeer, TcpStream, SocketAddr)> {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let accepted = Arc::new(AtomicBool::new(false));
+        let observed = accepted.clone();
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let limits = CaptureLimits::new(32_768, 8_192, 128);
+        let peer = WirePeer::new(tokio::spawn(async move {
+            let (stream, _) = listener.accept().await?;
+            observed.store(true, Ordering::SeqCst);
+            capture_stream(stream, deadline, limits).await
+        }));
+        let mut client = TcpStream::connect(address).await?;
+        client.write_all(b"G").await?;
+        timeout(Duration::from_secs(2), async {
+            while !accepted.load(Ordering::SeqCst) {
+                yield_now().await;
+            }
+        })
+        .await?;
+        Ok((peer, client, address))
+    }
+
+    async fn retired(client: &mut TcpStream, address: SocketAddr) -> TestResult {
+        let mut byte = [0];
+        let read = timeout(Duration::from_secs(2), client.read(&mut byte)).await??;
+        if read != 0 {
+            return Err("capture socket did not reach EOF".into());
+        }
+        let rebound = TcpListener::bind(address).await?;
+        assert_eq!(rebound.local_addr()?, address);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn failed_caller_collects_the_actual_capture_socket_and_listener() -> TestResult {
+        let (mut peer, mut client, address) = blocked_capture().await?;
+        let backup = peer
+            .task
+            .as_ref()
+            .ok_or("capture peer missing")?
+            .abort_handle();
+        let caller = Box::new(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "original caller",
+        ));
+        let original = std::ptr::from_ref(caller.as_ref());
+
+        let result = async {
+            let Err(error) = peer.finish::<()>(Err(caller)).await else {
+                return Err("failed caller was accepted".into());
+            };
+            let retained = error
+                .downcast_ref::<io::Error>()
+                .ok_or("caller cause lost")?;
+            assert!(std::ptr::eq(retained, original));
+            retired(&mut client, address).await?;
+            assert!(peer.task.is_none());
+            Ok(())
+        }
+        .await;
+        // Backup runs only after the actual retirement assertions above.
+        backup.abort();
+        result
+    }
+
+    #[tokio::test]
+    async fn caller_deadline_keeps_elapsed_and_collects_the_actual_capture() -> TestResult {
+        let (mut peer, mut client, address) = blocked_capture().await?;
+        let backup = peer
+            .task
+            .as_ref()
+            .ok_or("capture peer missing")?
+            .abort_handle();
+        let Err(elapsed) = timeout(Duration::ZERO, std::future::pending::<()>()).await else {
+            return Err("pending caller completed".into());
+        };
+        let caller = Box::new(elapsed);
+        let original = std::ptr::from_ref(caller.as_ref());
+
+        let result = async {
+            let Err(error) = peer.finish::<()>(Err(caller)).await else {
+                return Err("expired caller was accepted".into());
+            };
+            let retained = error
+                .downcast_ref::<Elapsed>()
+                .ok_or("elapsed cause lost")?;
+            assert!(std::ptr::eq(retained, original));
+            retired(&mut client, address).await?;
+            assert!(peer.task.is_none());
+            Ok(())
+        }
+        .await;
+        backup.abort();
+        result
+    }
+
+    #[tokio::test]
+    async fn completed_capture_failure_and_caller_keep_both_original_errors() -> TestResult {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let limits = CaptureLimits::new(32_768, 8_192, 128);
+        let cause = Box::new(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "original peer",
+        ));
+        let original_peer = std::ptr::from_ref(cause.as_ref());
+        let mut peer = WirePeer::new(tokio::spawn(async move {
+            let (stream, _) = listener.accept().await?;
+            capture_stream(stream, deadline, limits).await?;
+            let cause: Box<dyn Error + Send + Sync> = cause;
+            Err(cause)
+        }));
+        let mut client = TcpStream::connect(address).await?;
+        client
+            .write_all(b"GET / HTTP/1.1\r\nHost: local\r\n\r\n")
+            .await?;
+        let mut response = Vec::new();
+        timeout(Duration::from_secs(2), client.read_to_end(&mut response)).await??;
+        assert_eq!(
+            response,
+            b"HTTP/1.1 204 No Content\r\nConnection: close\r\n\r\n"
+        );
+        timeout(Duration::from_secs(2), async {
+            while peer.task.as_ref().is_some_and(|task| !task.is_finished()) {
+                yield_now().await;
+            }
+        })
+        .await?;
+        let caller = Box::new(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "original caller",
+        ));
+        let original_caller = std::ptr::from_ref(caller.as_ref());
+
+        let Err(error) = peer.finish::<()>(Err(caller)).await else {
+            return Err("failed caller and peer were accepted".into());
+        };
+        let failures = error
+            .downcast_ref::<WireFailures>()
+            .ok_or("peer cause lost")?;
+        let caller = failures
+            .primary
+            .downcast_ref::<io::Error>()
+            .ok_or("caller cause lost")?;
+        let peer_error = failures
+            .cleanup
+            .downcast_ref::<io::Error>()
+            .ok_or("peer cause changed")?;
+        assert!(std::ptr::eq(caller, original_caller));
+        assert!(std::ptr::eq(peer_error, original_peer));
+        assert!(peer.task.is_none());
+        retired(&mut client, address).await
+    }
 }
