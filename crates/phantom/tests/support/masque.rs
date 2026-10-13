@@ -21,7 +21,7 @@ use phantom::profile::{
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{
-    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
+    io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader},
     net::TcpListener,
     sync::{mpsc, watch},
     task::{JoinHandle, JoinSet},
@@ -894,7 +894,7 @@ where
 }
 
 async fn serve_http2_until<S>(
-    mut stream: S,
+    stream: S,
     mode: StreamMode,
     log: Arc<Mutex<StreamLog>>,
     mut stopped: watch::Receiver<bool>,
@@ -902,14 +902,14 @@ async fn serve_http2_until<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let mut first = [0];
+    let mut stream = BufReader::new(stream);
     let first_read = tokio::select! {
         biased;
-        result = stream.read(&mut first) => result,
+        result = stream.fill_buf() => result,
         stopped = stream_outcomes::stopped(&mut stopped) => return stopped,
     };
     match first_read {
-        Ok(0) => return Ok(()),
+        Ok(bytes) if bytes.is_empty() => return Ok(()),
         Ok(_) => {}
         Err(error) if stream_outcomes::peer_gone(&error) => return Ok(()),
         Err(error) => return Err(error.into()),
@@ -917,7 +917,6 @@ where
 
     // A peer may retire after ALPN selection, before any H2 preface. Once
     // its first byte arrives, the H2 parser owns all truncation failures.
-    let stream = AsyncReadExt::chain(io::Cursor::new(first), stream);
     let mut builder = ::http2::server::Builder::new();
     if mode != StreamMode::WithoutExtendedConnect {
         builder.enable_connect_protocol();

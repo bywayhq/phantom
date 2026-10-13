@@ -182,7 +182,7 @@ async fn an_actual_non_cancel_h2_reset_keeps_its_remote_typed_error() -> TestRes
         StreamMode::Relay,
         Arc::new(Mutex::new(StreamLog::default())),
     ));
-    let mut driver = None;
+    let mut driver: Option<ConnectionPeer<TestResult<()>>> = None;
     let primary = async {
         let (client, connection) =
             timeout(STREAM_SHUTDOWN, ::http2::client::handshake(peer)).await??;
