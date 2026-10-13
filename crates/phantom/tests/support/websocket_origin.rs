@@ -19,9 +19,13 @@ use tokio::{
 };
 
 use super::{
+    deadline::FixtureDeadline,
     tls::{TestResult, accept_tls, is_peer_gone, read_head},
     tunnel_proxy::finish_with_cleanup,
 };
+
+const CLOSE_DRAIN_TIMEOUT: Duration = Duration::from_secs(5);
+const MAX_CLOSE_DRAIN_BYTES: usize = 64 * 1024;
 
 /// One masked client frame after unmasking.
 #[derive(Debug, Eq, PartialEq)]
@@ -370,10 +374,37 @@ async fn echo_h1(
     append_server_frame(&mut reply, 0x8, &close.payload);
     stream.write_all(&reply).await?;
     stream.flush().await?;
-    let mut rest = Vec::new();
     // Drain until the client hangs up so the Close reply is not reset away.
-    let _ = stream.read_to_end(&mut rest).await;
+    drain_after_close(&mut stream).await?;
     Ok((request, message))
+}
+
+async fn drain_after_close(stream: &mut (impl tokio::io::AsyncRead + Unpin)) -> TestResult<()> {
+    let drain = async {
+        let mut buffer = [0_u8; 1024];
+        let mut received = 0;
+        loop {
+            let count = match stream.read(&mut buffer).await {
+                Ok(0) => return Ok(()),
+                Ok(count) => count,
+                Err(error) if is_peer_gone(&error) => return Ok(()),
+                Err(error) => return Err(error.into()),
+            };
+            received += count;
+            if received > MAX_CLOSE_DRAIN_BYTES {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "WebSocket peer exceeded the post-Close drain bound",
+                )
+                .into());
+            }
+        }
+    };
+    timeout(CLOSE_DRAIN_TIMEOUT, drain)
+        .await
+        .map_err(|elapsed| {
+            FixtureDeadline::new("WebSocket post-Close drain exceeded its deadline", elapsed)
+        })?
 }
 
 pub(crate) fn header_value<'a>(head: &'a [u8], name: &str) -> Option<&'a str> {
@@ -482,16 +513,97 @@ fn append_server_frame(output: &mut Vec<u8>, opcode: u8, payload: &[u8]) {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::{
+        io,
+        pin::Pin,
+        task::{Context, Poll},
+        time::Duration,
+    };
 
     use tokio::{
-        io::{AsyncReadExt, AsyncWriteExt},
+        io::{AsyncRead, AsyncReadExt, AsyncWriteExt, ReadBuf},
         sync::oneshot,
         task::JoinSet,
         time::timeout,
     };
 
-    use super::{TestResult, echo_h1, observe_h2_without_connect_protocol};
+    use super::{TestResult, drain_after_close, echo_h1, observe_h2_without_connect_protocol};
+
+    #[tokio::test]
+    async fn post_close_drain_retains_unrelated_io_failures() -> TestResult<()> {
+        let mut stream = FailedDrain(Some(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "original post-Close failure",
+        )));
+
+        let error = drain_after_close(&mut stream)
+            .await
+            .err()
+            .ok_or("unrelated I/O failure was discarded")?;
+
+        let cause = error
+            .downcast_ref::<io::Error>()
+            .ok_or("original I/O cause missing")?;
+        assert_eq!(cause.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(cause.to_string(), "original post-Close failure");
+        for kind in [
+            io::ErrorKind::ConnectionReset,
+            io::ErrorKind::ConnectionAborted,
+            io::ErrorKind::BrokenPipe,
+        ] {
+            drain_after_close(&mut FailedDrain(Some(io::Error::from(kind)))).await?;
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn post_close_drain_discards_only_a_bounded_tail() -> TestResult<()> {
+        let bytes = vec![0_u8; 65_537];
+        drain_after_close(&mut &bytes[..65_536]).await?;
+
+        let error = drain_after_close(&mut bytes.as_slice())
+            .await
+            .err()
+            .ok_or("oversized tail was accepted")?;
+
+        assert_eq!(
+            error
+                .downcast_ref::<io::Error>()
+                .ok_or("missing drain bound failure")?
+                .kind(),
+            io::ErrorKind::InvalidData
+        );
+        Ok(())
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn post_close_drain_retains_the_deadline_when_a_peer_stays_open() -> TestResult<()> {
+        let (_peer, mut stream) = tokio::io::duplex(1);
+
+        let error = drain_after_close(&mut stream)
+            .await
+            .err()
+            .ok_or("peer remained open beyond deadline")?;
+
+        assert!(
+            error
+                .source()
+                .is_some_and(|cause| cause.is::<tokio::time::error::Elapsed>())
+        );
+        Ok(())
+    }
+
+    struct FailedDrain(Option<io::Error>);
+
+    impl AsyncRead for FailedDrain {
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            _context: &mut Context<'_>,
+            _buffer: &mut ReadBuf<'_>,
+        ) -> Poll<io::Result<()>> {
+            Poll::Ready(self.0.take().map_or(Ok(()), Err))
+        }
+    }
 
     async fn observed_h2_frames(frames: &[u8]) -> TestResult<bool> {
         let (mut client, server) = tokio::io::duplex(4096);
