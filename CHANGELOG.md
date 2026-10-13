@@ -14,6 +14,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Bound Firefox IP-literal captures and retain worker and cleanup failures.
+  Use finite positive capture timeouts; the version probe has a five-second
+  deadline. Capture limits are listed in the
+  [tool instructions](scripts/capture/README.md#clienthellos-to-ip-literals).
+  Migrate: iterate `crypto_frames()` as `(offset, bytes)` pairs instead of a
+  dictionary. Replace calls to `bind()` or `bind_shared_port()` with
+  `capture_tcp()` or `capture_quic()`, which own their sockets and workers.
+
 - Keep process-container ownership private. Migrate: replace
   `ProcessContainer.process` access with `wait(timeout=...)`, `poll()` and
   `pid`; do not reap its child yourself. Use finite nonnegative wait

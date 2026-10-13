@@ -1303,6 +1303,28 @@ first connection's ClientHello is read from its Initial packets with the
 Initial keys. Nothing answers a handshake. On Windows, Firefox 157.0 sent no
 QUIC datagram to `[::1]`.
 
+`--timeout` must be finite and positive. It limits recording after the browser
+starts. The version probe has a five-second deadline. TCP reads have an
+absolute five-second deadline, including partial input. A run keeps at most
+128 connections, 64 TCP ClientHellos or 256 UDP datagrams, and 1 MiB of
+recorded bytes. TLS input allows 128 records and 128 KiB per connection.
+Each ClientHello or reconstructed CRYPTO stream is limited to 64 KiB.
+QUIC analysis allows 1,024 packets per run, 4,096 frames per packet and
+128 ACK ranges per ACK. Oversized input and malformed packet or frame
+encodings fail the run. An incomplete ClientHello can remain absent when
+the recording deadline ends.
+
+QUIC reconstruction selects the first authenticated Initial connection.
+Matching CRYPTO overlaps preserve all bytes; conflicting overlaps fail.
+The tool stops parsing a packet at an unsupported frame. Initial keys are
+public, so authentication does not establish which browser sent the packet.
+
+Worker and socket failures remain errors even after a ClientHello arrives.
+Cleanup waits up to five seconds for cooperative worker completion.
+An unfinished worker stays attached to the reported failure. These deadlines
+do not preempt a blocking native operation or bound shared browser startup.
+The version probe buffers process output during its finite wait.
+
 The fixture keeps `client_version`, `url`, a `prefs=` line naming every
 preference the run set, `datagrams=` for QUIC, and `client_hello_<n>_hex`
 lines. The `tcp-*-sweep-<label>.txt` fixtures come from an earlier version of
