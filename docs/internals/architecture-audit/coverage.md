@@ -24,10 +24,11 @@ gate steps passed. All 37 applicable PR checks and all six main push
 workflows passed, including macOS and Windows PR checks. This delivery
 preserves the original changes and their historical review scope.
 
-The inventory includes all 2,484 paths on merged revision `f146e52c`, plus
-five retired historical paths. All eleven new control files are delivered.
-Existing review dispositions retain their original source scope. Presence
-and pending row counts do not measure unfinished implementation.
+This pre-integration inventory includes all 2,484 merged `f146e52c` paths,
+one final candidate control file and five retired historical paths. The
+eleven earlier control files are delivered. The new A348 control row records
+its candidate state in PR 210. Exact delivery checks are retained separately.
+Existing review dispositions keep their original source scope.
 
 The four remaining audit-document rows now have qualified dispositions.
 Coverage, findings and evidence retain complete independent manual baselines
@@ -166,9 +167,17 @@ applicable main push workflows passed. The native suite passes 4,574 methods,
 with 143 doctests passing separately. Linux checks cover compilation and lint,
 not Linux runtime execution. No browser capture follows from these results.
 
-Current dispositions for other qualified gaps, remaining capture remedies,
-the final combined architecture/standards review and exact integration checks
-remain required.
+The final completion assessment reconciles seven stale first-party
+partial labels with their complete baselines and reviewed later differences.
+Their original independence and evidence limits remain in each receipt.
+The final original Alt-Svc test review finds A348. Its independently approved
+remedy registers cleanup during setup; four complete-original controls fail
+and all 17 repaired tests pass. All 48 original assertions remain unchanged.
+The new control has an independent whole-source disposition.
+
+These are pre-integration source records. The exact composed gate, PR 210
+checks, fast-forward and main checks remain separate delivery requirements.
+The earlier failed gates retain their unresolved causes.
 
 Capture PR 207 merged at `b6942293`. Independent source and raw-log reviews
 approve the combined TLS, QUIC, EventSource, cookie and snapshot remedies.

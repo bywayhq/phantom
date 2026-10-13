@@ -274,6 +274,11 @@ actual read scope, original source bindings and verification limits.
 
 | Receipt | Scope and result |
 | --- | --- |
+| `final-goal-completion-assessment-df58f626-independent.json` | Seven qualified complete first-party review chains reconciled; fresh original Alt-Svc test review finds A348 |
+| `alt-svc-test-setup-owner-handoff-e71b055c.json` | Complete immutable original module fails four controls; clean remedy passes 17 tests; 48 original assertions preserved |
+| `alt-svc-test-setup-owner-e71b055c-independent-source-review.json` | Whole original/current test and new controls independently approved; all 59 handoff artifacts checked; injected-cancellation and close-fault limits retained |
+| `final-audit-docs-gate-df58f626-independent-log-review.json` | Earlier documentation candidate passes all 24 steps; superseded before integration after A348 discovery |
+| `pr210-df58f626-integration-not-performed.json` | Main stayed at `f146e52c` during the superseded attempt; no integration mutation occurred |
 | `tooling-ten-and-trust-root-bindings-b6942293.json` | Thirteen source dispositions, original-object hashes and qualified supporting reads |
 | `documentation-config-current-source-dispositions-b6942293.json` | Six complete document reads and structured inventory validation; six identified factual corrections applied at `a365837d` |
 | `final-architecture-current-independent-review-b8ab9851.json` | Twelve cross-crate boundaries; 24 whole files and 35 partial files; no new supported source blocker |

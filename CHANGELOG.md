@@ -2492,6 +2492,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Retire Alt-Svc test sockets, listeners and clients when setup fails.
+
 - Collect downstream API smoke-test peers after caller failure or timeout.
   Retain the initiating error and any completed peer failure.
 - Retain accepted writers, worker tasks and original cleanup errors in the
