@@ -12,11 +12,6 @@ use http::{
     header::{CONNECTION, HeaderName},
 };
 use http_body::Body as _;
-use phantom_net::http1::{
-    AbsoluteForm, Http1Body, Http1Connection, Http1TlsConnector, Http1TlsError, OriginForm,
-    RequestHeader, validate_forward_request_body_source_with_trailers,
-    validate_request_body_source_with_trailers,
-};
 use phantom_net::proxy::{HttpsProxyConnector, MAX_CHALLENGE_BODY_BYTES};
 use phantom_net::request::RequestBody;
 use phantom_net::route::{
@@ -24,6 +19,14 @@ use phantom_net::route::{
     TcpRoute,
 };
 use phantom_net::tcp::{AddressFamilyMemory, SlowerConnection, SlowerProgress};
+use phantom_net::{
+    http1::{
+        Http1Body, Http1Connection, Http1TlsConnector, Http1TlsError,
+        validate_forward_request_body_source_with_trailers,
+        validate_request_body_source_with_trailers,
+    },
+    request::{AbsoluteForm, OriginForm, RequestHeader},
+};
 use tokio::{
     sync::{Mutex, oneshot},
     task::AbortHandle,
@@ -964,6 +967,18 @@ impl EntryConnections {
         }
     }
 
+    /// Rechecks a learned family when the last active owner leaves no socket.
+    fn prune_empty_family(&self) {
+        let Some(timer) = &self.prune else {
+            return;
+        };
+        let empty = self.lock().is_empty();
+
+        if empty && self.family.family().is_some() {
+            timer.idle_added(Duration::from_secs(1));
+        }
+    }
+
     /// Keeps the slower attempt of a backup connection, which finishes its
     /// setup on its own task and then joins the idle list or the request
     /// that claimed it.
@@ -978,6 +993,8 @@ impl EntryConnections {
             let mut set = self.lock();
             let id = set.next_spare;
             set.next_spare = set.next_spare.wrapping_add(1);
+
+            self.family.mark_active();
             set.spares.push(Spare {
                 id,
                 progress,
@@ -1007,7 +1024,9 @@ impl EntryConnections {
         let mut set = self.lock();
         let claim = set.take_spare(id).and_then(|spare| spare.claim);
         let Some(connection) = connection.filter(Http1Connection::is_reusable) else {
+            drop(set);
             debug!(outcome = "failed", "HTTP/1 slower backup connection failed");
+            self.prune_empty_family();
             // A claimant finds its claim dropped and chooses again.
             return;
         };
@@ -1062,6 +1081,11 @@ impl EntryConnections {
         } else {
             set.idle.pop().map(|idle| idle.connection)
         };
+
+        if idle.is_none() {
+            self.family.mark_active();
+        }
+
         set.leased += 1;
         let reservation = Reservation {
             connections: Arc::clone(self),
@@ -1083,10 +1107,14 @@ impl EntryConnections {
                 drop(set);
                 self.idle_added();
             }
-            _ => debug!(
-                outcome = "invalidated",
-                "HTTP/1 pooled connection invalidated"
-            ),
+            _ => {
+                drop(set);
+                debug!(
+                    outcome = "invalidated",
+                    "HTTP/1 pooled connection invalidated"
+                );
+                self.prune_empty_family();
+            }
         }
     }
 

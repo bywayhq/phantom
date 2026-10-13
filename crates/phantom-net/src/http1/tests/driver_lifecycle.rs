@@ -16,7 +16,8 @@ use tokio::{
 use tracing::{dispatcher, instrument::WithSubscriber};
 
 use super::{
-    TestResult, bounded_peer_test, host, read_head, send_once, target, wait_for_driver_outcome,
+    TestResult, bounded_peer_test, host, peer_task::PeerTask, read_head, send_once, target,
+    wait_for_driver_outcome,
 };
 use crate::http1::PreparedRequest;
 use crate::tracing_test::OutcomeSubscriber;
@@ -26,7 +27,7 @@ async fn dropping_body_closes_stream() -> TestResult {
     bounded_peer_test(async {
         let subscriber = OutcomeSubscriber::default();
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nfirst")
@@ -74,7 +75,7 @@ async fn response_body_may_be_dropped_on_plain_thread() -> TestResult {
         let subscriber = OutcomeSubscriber::default();
         let other_subscriber = OutcomeSubscriber::default();
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nfirst")
@@ -136,7 +137,7 @@ fn response_body_poll_uses_origin_dispatch_on_plain_thread() -> TestResult {
         runtime.block_on(async move {
             let origin_subscriber = OutcomeSubscriber::default();
             let (client, mut server) = duplex(4096);
-            let server_task = tokio::spawn(async move {
+            let server_task = PeerTask::spawn(async move {
                 read_head(&mut server).await?;
                 server
                     .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello")
@@ -203,7 +204,7 @@ async fn connection_driver_panic_records_task_error() -> TestResult {
             panic_reads: Arc::clone(&panic_reads),
         };
         let (release_tx, release_rx) = oneshot::channel();
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nfirst")
@@ -251,10 +252,10 @@ fn runtime_shutdown_records_driver_outcome_once() -> TestResult {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
-    let body = runtime.block_on(
+    let (body, server_task) = runtime.block_on(
         async {
             let (client, mut server) = duplex(4096);
-            tokio::spawn(async move {
+            let server_task = PeerTask::spawn(async move {
                 read_head(&mut server).await?;
                 server
                     .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nfirst")
@@ -277,12 +278,13 @@ fn runtime_shutdown_records_driver_outcome_once() -> TestResult {
                 .into_data()
                 .map_err(|_| "expected a data frame")?;
             assert_eq!(data, "first");
-            Ok::<_, Box<dyn std::error::Error>>(body)
+            Ok::<_, Box<dyn std::error::Error>>((body, server_task))
         }
         .with_subscriber(subscriber.dispatch()),
     )?;
 
     drop(runtime);
+    drop(server_task);
     assert_eq!(
         subscriber.outcomes_for("http1.connection_driver"),
         ["runtime_shutdown"]
@@ -299,7 +301,7 @@ fn runtime_shutdown_records_driver_outcome_once() -> TestResult {
 async fn completed_body_deliberately_prevents_reuse() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")

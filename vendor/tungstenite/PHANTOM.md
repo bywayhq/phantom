@@ -12,7 +12,7 @@ unrecorded edit to the vendored crate.
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
 renames the package (`tungstenite` becomes `phantom-tungstenite` at
-`0.30.0-phantom.2`), keeps the upstream library name so source, tests, and
+`0.30.0-phantom.3`), keeps the upstream library name so source, tests, and
 examples are unchanged, and points the repository metadata at Phantom. It
 removes the upstream documentation link, keeps Cargo's reserved archive files
 out of the packaged crate, and records the upstream package, version, and
@@ -51,6 +51,11 @@ decompression or reassembly, and makes that receive failure terminal. The
 `deprecated-max-value.patch` replaces the two `usize::max_value` calls, which
 Rust 1.99 deprecates, with `usize::MAX`. It changes no behavior, and upstream
 `master` still has the deprecated calls as of this patch.
+
+`deflate-http-whitespace.patch` limits padding around compression parameters
+to HTTP space and horizontal tab. Unicode whitespace remains part of the
+parameter and is rejected by its grammar. The separate regression patch
+checks invalid padding around names and values, plus legal space/tab controls.
 
 ## Required check
 

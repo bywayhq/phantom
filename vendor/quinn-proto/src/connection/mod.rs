@@ -2600,7 +2600,8 @@ impl Connection {
             }
             State::Closed(_) => {
                 let frames = frame::Iter::new(packet.payload.freeze())?
-                    .reset_stream_at(self.config.reset_stream_at);
+                    .reset_stream_at(self.config.reset_stream_at)
+                    .ack_frequency_draft(self.config.ack_frequency_draft);
                 for result in frames {
                     let frame = match result {
                         Ok(frame) => frame,
@@ -2861,8 +2862,9 @@ impl Connection {
         debug_assert_ne!(packet.header.space(), SpaceId::Data);
         let payload_len = packet.payload.len();
         let mut ack_eliciting = false;
-        let frames =
-            frame::Iter::new(packet.payload.freeze())?.reset_stream_at(self.config.reset_stream_at);
+        let frames = frame::Iter::new(packet.payload.freeze())?
+            .reset_stream_at(self.config.reset_stream_at)
+            .ack_frequency_draft(self.config.ack_frequency_draft);
         for result in frames {
             let frame = result?;
             let span = match frame {
@@ -2921,7 +2923,9 @@ impl Connection {
         let mut close = None;
         let payload_len = payload.len();
         let mut ack_eliciting = false;
-        let frames = frame::Iter::new(payload)?.reset_stream_at(self.config.reset_stream_at);
+        let frames = frame::Iter::new(payload)?
+            .reset_stream_at(self.config.reset_stream_at)
+            .ack_frequency_draft(self.config.ack_frequency_draft);
         for result in frames {
             let frame = result?;
             let span = match frame {

@@ -56,6 +56,7 @@ zstd.workspace = true
 
 [dev-dependencies]
 btls.workspace = true
+futures-util = { version = "=0.3.34", default-features = false, features = ["async-await", "std"] }
 h3 = { workspace = true, features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }
 h3-quinn.workspace = true
 http-body-util = "0.1.3"

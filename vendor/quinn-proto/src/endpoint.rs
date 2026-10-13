@@ -366,9 +366,16 @@ impl Endpoint {
             &mut self.rng,
         );
         params.version_information = VersionInformation::local(config.version, &self.config);
-        let tls = config
+        let tls = match config
             .crypto
-            .start_session(config.version, server_name, &params)?;
+            .start_session(config.version, server_name, &params)
+        {
+            Ok(session) => session,
+            Err(error) => {
+                self.index.retire(loc_cid);
+                return Err(error);
+            }
+        };
         let initial_crypto = match tls.initial_keys(&remote_id, Side::Client) {
             Ok(keys) => keys,
             Err(_) => {
@@ -1324,6 +1331,10 @@ pub enum ConnectError {
     /// Initial packet protection keys could not be derived
     #[error("initial key derivation failed")]
     InitialCrypto,
+    /// The cryptography provider could not start a session.
+    /// Carries a bounded, non-sensitive operation or configuration description.
+    #[error("cryptography provider failed to start a session: {0}")]
+    CryptoProvider(&'static str),
     /// The cryptography provider rejected locally constructed transport parameters
     #[error("invalid local transport parameters: {0}")]
     InvalidTransportParameters(String),

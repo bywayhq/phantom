@@ -59,7 +59,7 @@ pub(crate) const CAPTURED_MODEL: &str = "Pixel 7";
 /// For another phone, use [`v154_android_client_hints_for_model`].
 #[must_use]
 pub fn v154_android_client_hints() -> ClientHintSettings {
-    v154_android_client_hints_for_model(CAPTURED_MODEL)
+    client_hints_for_model(CAPTURED_MODEL)
 }
 
 /// Returns the client hints of [`v154_android_client_hints`] with another
@@ -68,8 +68,19 @@ pub fn v154_android_client_hints() -> ClientHintSettings {
 /// Pass the model as Android's `Build.MODEL` reports it; it is sent as a
 /// structured-field string. Only the Pixel 7 value is captured, and the
 /// platform version stays Android 17's.
-#[must_use]
-pub fn v154_android_client_hints_for_model(model: &str) -> ClientHintSettings {
+///
+/// # Errors
+///
+/// Returns an error if the model contains anything outside printable ASCII
+/// (space through `~`). Quotes and backslashes are escaped in the hint value.
+pub fn v154_android_client_hints_for_model(
+    model: &str,
+) -> Result<ClientHintSettings, crate::InvalidClientHintSettings> {
+    validate_model(model)?;
+    Ok(client_hints_for_model(model))
+}
+
+fn client_hints_for_model(model: &str) -> ClientHintSettings {
     use ClientHintDelivery::{AcceptCh, Default};
 
     ClientHintSettings::new(vec![
@@ -215,6 +226,18 @@ pub fn v154_android_navigation_template() -> RequestTemplate {
 #[must_use]
 pub fn v154_android_fetch_no_store_template() -> RequestTemplate {
     chrome::v154_fetch_no_store_template(Some(V154_ANDROID_USER_AGENT))
+}
+
+pub(crate) fn validate_model(model: &str) -> Result<(), crate::InvalidClientHintSettings> {
+    if model.bytes().all(|byte| matches!(byte, b' '..=b'~')) {
+        Ok(())
+    } else {
+        Err(crate::InvalidClientHintSettings::new(
+            crate::ValidationErrorKind::InvalidValue,
+            "model",
+            "device model must contain only printable ASCII",
+        ))
+    }
 }
 
 /// Encodes a device model as the structured-field string `sec-ch-ua-model`

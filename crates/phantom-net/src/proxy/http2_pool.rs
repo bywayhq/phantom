@@ -23,7 +23,7 @@ use std::{
     },
 };
 
-use tokio::sync::Notify;
+use tokio::sync::{Notify, watch};
 use tracing::debug;
 
 use super::{HttpBasicCredentials, HttpConnectError, HttpConnectErrorKind};
@@ -178,7 +178,7 @@ impl Http2ProxyPool {
     {
         let route = self.route(key);
         // The setup attempt this tunnel last waited for.
-        let mut waited_for = None;
+        let mut waited_for: Option<watch::Receiver<Option<HttpConnectErrorKind>>> = None;
         let reservation = loop {
             let mut changed = pin!(route.changed.notified());
             // Registered before the check, so a setup that finishes in
@@ -186,11 +186,10 @@ impl Http2ProxyPool {
             changed.as_mut().enable();
             {
                 let mut state = route.lock();
-                if let Some((attempt, kind)) = state.failed
-                    && waited_for == Some(attempt)
-                {
+                if let Some(kind) = waited_for.as_ref().and_then(|attempt| *attempt.borrow()) {
                     return Err(HttpConnectError::PooledSetupFailed { kind });
                 }
+
                 state.slots.retain(|slot| slot.connection.is_reusable());
                 if let Choice::Use(index) = state.choose(self.max_connections.get())
                     && let Some(slot) = state.slots.get(index)
@@ -198,16 +197,16 @@ impl Http2ProxyPool {
                     debug!(outcome = "hit", "HTTP/2 proxy connection reused");
                     return Ok(slot.lease(&route, true));
                 }
-                if !state.connecting {
-                    state.connecting = true;
-                    state.attempt += 1;
+                if state.connecting.is_none() {
+                    let (failed, attempt) = watch::channel(None);
+                    state.connecting = Some(attempt);
                     break SetupReservation {
                         route: &route,
-                        attempt: state.attempt,
+                        failed,
                         finished: false,
                     };
                 }
-                waited_for = Some(state.attempt);
+                waited_for = state.connecting.clone();
             }
             changed.await;
         };
@@ -322,13 +321,10 @@ impl RouteConnections {
 #[derive(Default)]
 struct RouteState {
     slots: Vec<Slot>,
-    /// Whether the route's one connection setup is in flight.
-    connecting: bool,
-    /// The number of the latest setup attempt.
-    attempt: u64,
-    /// The latest failed attempt and its error kind. Tunnels that waited
-    /// for that attempt fail with it.
-    failed: Option<(u64, HttpConnectErrorKind)>,
+    /// The route's current setup, whose failure remains owned by its waiters
+    /// after a later setup replaces it. Success and cancellation close the
+    /// channel without a failure; waiters then reuse or open a connection.
+    connecting: Option<watch::Receiver<Option<HttpConnectErrorKind>>>,
 }
 
 enum Choice {
@@ -401,7 +397,7 @@ impl Slot {
 /// every tunnel waiting for it; whichever runs first makes the next attempt.
 struct SetupReservation<'a> {
     route: &'a Arc<RouteConnections>,
-    attempt: u64,
+    failed: watch::Sender<Option<HttpConnectErrorKind>>,
     finished: bool,
 }
 
@@ -414,7 +410,7 @@ impl SetupReservation<'_> {
         };
         let lease = slot.lease(self.route, false);
         let mut state = self.route.lock();
-        state.connecting = false;
+        state.connecting = None;
         state.slots.push(slot);
         drop(state);
         self.route.changed.notify_waiters();
@@ -426,8 +422,8 @@ impl SetupReservation<'_> {
     fn fail(mut self, kind: HttpConnectErrorKind) {
         self.finished = true;
         let mut state = self.route.lock();
-        state.connecting = false;
-        state.failed = Some((self.attempt, kind));
+        self.failed.send_replace(Some(kind));
+        state.connecting = None;
         drop(state);
         self.route.changed.notify_waiters();
     }
@@ -436,7 +432,7 @@ impl SetupReservation<'_> {
 impl Drop for SetupReservation<'_> {
     fn drop(&mut self) {
         if !self.finished {
-            self.route.lock().connecting = false;
+            self.route.lock().connecting = None;
             self.route.changed.notify_waiters();
         }
     }

@@ -127,9 +127,9 @@ tells you which protocol and URL produced the response.
 
 ## 4. Send Chrome's request headers
 
-The request in step 2 has Chrome's handshake but only the one header you
-added. When Chrome loads a page, it sends about a dozen headers in a fixed
-order. A request template adds them for you:
+The request in step 2 has Chrome's handshake, its three default client hints,
+and the `accept` header you added. When Chrome loads a page, it sends about a
+dozen headers in a fixed order. A request template adds them for you:
 
 ```rust
 use phantom::profile::browser::chrome;
@@ -168,6 +168,7 @@ No feature is on by default. Add the ones you need to the `phantom` line in
 | `sse` | Server-sent events |
 | `websocket` | WebSocket |
 | `websocket-deflate` | WebSocket compression |
+| `json` | JSON request bodies and bounded, typed JSON response reads |
 | `serde` | Saving and loading cookie jars |
 | `full` | All of the above |
 | `diagnostics` | `ClientBuilder::key_log` and `ClientBuilder::qlog_dir` |

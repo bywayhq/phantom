@@ -23,7 +23,8 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send + 'static> Stream for T {}
 ///
 /// ```no_run
 /// use phantom_net::{
-///     http1::{Http1TlsConnector, OriginForm, RequestHeader},
+///     http1::Http1TlsConnector,
+///     request::{OriginForm, RequestHeader},
 ///     route::{ConnectedStream, Http1Route, OriginRoute, TcpRoute},
 /// };
 /// use phantom_profile::browser::chrome;

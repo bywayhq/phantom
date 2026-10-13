@@ -160,3 +160,87 @@ fn retry_key_failure_closes_without_changing_retry_state() {
     );
     assert_eq!(pair.server.inbound.len(), 1, "client did not send a close");
 }
+
+struct FailingStartupClientConfig {
+    error: ConnectError,
+    calls: AtomicUsize,
+}
+
+impl crypto::ClientConfig for FailingStartupClientConfig {
+    fn start_session(
+        self: Arc<Self>,
+        _version: u32,
+        _server_name: &str,
+        _params: &TransportParameters,
+    ) -> Result<Box<dyn crypto::Session>, ConnectError> {
+        self.calls.fetch_add(1, Ordering::Relaxed);
+        Err(self.error.clone())
+    }
+}
+
+// Test-only IDs make wrapping and exhaustion deterministic.
+struct SequentialClientIds(u8);
+
+impl ConnectionIdGenerator for SequentialClientIds {
+    fn generate_cid(&mut self) -> ConnectionId {
+        let cid = ConnectionId::new(&[self.0]);
+        self.0 = self.0.wrapping_add(1);
+        cid
+    }
+
+    fn cid_len(&self) -> usize {
+        1
+    }
+
+    fn cid_lifetime(&self) -> Option<Duration> {
+        None
+    }
+}
+
+#[test]
+fn provider_startup_failures_retire_only_their_cids_and_preserve_errors() {
+    for error in [
+        ConnectError::CryptoProvider("fixture provider startup"),
+        ConnectError::InvalidServerName("invalid fixture name".into()),
+        ConnectError::InvalidTransportParameters("invalid fixture parameters".into()),
+        ConnectError::TransportParameterEncoding("fixture entropy failure".into()),
+    ] {
+        for keep_connection in [false, true] {
+            let mut endpoint_config = EndpointConfig::default();
+            endpoint_config.cid_generator(|| Box::new(SequentialClientIds(0)));
+            let mut endpoint = Endpoint::new(Arc::new(endpoint_config), None, true, None);
+            let remote = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 4433);
+            let now = Instant::now();
+            let live_connection = keep_connection.then(|| {
+                endpoint
+                    .connect(now, client_config(), remote, "localhost")
+                    .expect("valid provider startup")
+            });
+            let retained_connections = endpoint.open_connections();
+            let retained_cids = endpoint.known_cids();
+            assert_eq!(retained_connections, usize::from(keep_connection));
+            assert_eq!(retained_cids, retained_connections);
+            let provider = Arc::new(FailingStartupClientConfig {
+                error: error.clone(),
+                calls: AtomicUsize::new(0),
+            });
+            let config = ClientConfig::new(provider.clone());
+
+            // More failures than a one-byte CID space can retain, including a wrap.
+            for _ in 0..256 {
+                let result = endpoint.connect(now, config.clone(), remote, "localhost");
+                assert_matches!(result, Err(ref returned) if returned == &error);
+                assert_eq!(endpoint.open_connections(), retained_connections);
+                assert_eq!(endpoint.known_cids(), retained_cids);
+            }
+            assert_eq!(provider.calls.load(Ordering::Relaxed), 256);
+            let connection = endpoint
+                .connect(now, client_config(), remote, "localhost")
+                .expect("valid startup after repeated provider failures");
+            assert_eq!(endpoint.open_connections(), retained_connections + 1);
+            assert_eq!(endpoint.known_cids(), retained_cids + 1);
+            drop(connection);
+            drop(live_connection);
+        }
+    }
+}

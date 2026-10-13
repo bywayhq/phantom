@@ -344,14 +344,18 @@ impl CookieSnapshotEntry {
         if !self.host_only && is_public_suffix(&CookieDomain::Suffix(self.domain.to_string())) {
             return Err(CookieSnapshotErrorKind::PublicSuffix);
         }
+
         let candidate = Candidate::new(&self.set_cookie_field(), &url, limits)
             .map_err(|error| CookieSnapshotErrorKind::from_storage(error.kind()))?;
-        if candidate.partition_site.as_deref() != self.partition_key.as_deref() {
+
+        if candidate.key.partition_site.as_deref() != self.partition_key.as_deref() {
             return Err(CookieSnapshotErrorKind::InvalidPartitionKey);
         }
+
         if !self.describes(&candidate) {
             return Err(CookieSnapshotErrorKind::InvalidCookie);
         }
+
         Ok(ImportCandidate {
             candidate,
             url,
@@ -534,14 +538,16 @@ impl JarState {
         self.purge_expired();
         let system_now = SystemTime::now();
         let mut cookies = Vec::with_capacity(self.metadata.len());
-        for (store, partitioned) in self.stores.all() {
+        for (store, partition_site) in self.stores.all() {
             for cookie in store.iter_unexpired() {
-                let Ok(key) = CookieKey::from_cookie(cookie, partitioned) else {
+                let Ok(key) = CookieKey::from_cookie(cookie, partition_site) else {
                     continue;
                 };
+
                 let Some(metadata) = self.metadata.get(&key) else {
                     continue;
                 };
+
                 let expires_at = match &cookie.expires {
                     CookieExpiration::SessionEnd => None,
                     CookieExpiration::AtUtc(expires_at) => {
@@ -557,6 +563,7 @@ impl JarState {
                         Some(expires_at)
                     }
                 };
+
                 cookies.push((
                     metadata.sequence,
                     CookieSnapshotEntry {
@@ -569,12 +576,13 @@ impl JarState {
                         secure: cookie.secure() == Some(true),
                         http_only: cookie.http_only() == Some(true),
                         same_site: cookie.same_site().map(CookieSameSite::from_raw),
-                        partition_key: metadata.partition_site.as_deref().map(Box::from),
+                        partition_key: key.partition_site.as_deref().map(Box::from),
                         expires_at,
                     },
                 ));
             }
         }
+
         cookies.sort_unstable_by_key(|(sequence, _)| *sequence);
         CookieSnapshot::new(cookies.into_iter().map(|(_, entry)| entry).collect())
     }
@@ -610,6 +618,7 @@ impl JarState {
             if !seen.insert(candidate.key.clone()) {
                 continue;
             }
+
             candidate.cookie.expires = match expires_at {
                 None => CookieExpiration::SessionEnd,
                 Some(expires_at) => match expiry_at_or_before(expires_at, system_now) {
@@ -617,12 +626,14 @@ impl JarState {
                     None => continue,
                 },
             };
+
             if candidate.cookie.expires.expires_by(&now)
                 || self.metadata.contains_key(&candidate.key)
                 || candidate.overlays_held_secure_cookie(&self.stores)
             {
                 continue;
             }
+
             let quota_domain = quota_domain(&candidate.key.domain);
             let domain_count = domain_counts.entry(quota_domain.clone()).or_default();
             if total >= limits.max_cookies().get()
@@ -630,6 +641,7 @@ impl JarState {
             {
                 continue;
             }
+
             *domain_count += 1;
             total += 1;
             accepted.push((candidate, url, quota_domain));
@@ -650,14 +662,11 @@ impl JarState {
                 cookie,
                 key,
                 source_scheme,
-                partition_site,
                 ..
             } = candidate;
             let secure = cookie.secure() == Some(true);
-            let inserted = self
-                .stores
-                .get_mut(key.host_only, key.partitioned)
-                .insert(cookie, &url);
+            let inserted = self.stores.insert(&key, cookie, &url);
+
             if !matches!(
                 inserted,
                 Ok(cookie_store::StoreAction::Inserted
@@ -665,6 +674,7 @@ impl JarState {
             ) {
                 continue;
             }
+
             let position = position as u64;
             self.metadata.insert(
                 key,
@@ -673,7 +683,6 @@ impl JarState {
                     last_access: position,
                     quota_domain,
                     secure,
-                    partition_site,
                     source_scheme,
                 },
             );

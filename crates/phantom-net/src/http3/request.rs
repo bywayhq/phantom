@@ -14,7 +14,9 @@ use http::{
 use phantom_profile::{Http3CookieCrumbs, Http3PseudoHeader, Http3RequestSettings};
 
 use super::{Http3Error, Http3ErrorKind, OriginForm, RequestHeader};
-use crate::request::{RequestBody, RequestBodyMetadata, is_continue_expectation};
+use crate::request::{
+    RequestBody, RequestBodyMetadata, is_continue_expectation, is_forbidden_trailer,
+};
 
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
 pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
@@ -248,7 +250,8 @@ fn prepare_profiled_request_head(
     request
         .extensions_mut()
         .insert(pseudo_header_order(request_settings)?);
-    validate_request(&request)?;
+    // ValidatedHeaders checks supplied fields before cookies are split.
+    validate_request_target(&request)?;
     validate_ordered_headers(&request)?;
     validate_pseudo_header_order(&request)?;
     Ok(request)
@@ -278,7 +281,8 @@ pub(super) fn prepare_request_body_with_trailers(
 ) -> Result<PreparedRequest, Http3Error> {
     PreparedTrailers::validate_body_plan(body.as_ref(), &trailers)?;
     apply_content_length(&mut request, body.as_ref().map(RequestBody::metadata))?;
-    validate_request(&request)?;
+    validate_request_target(&request)?;
+    validate_semantic_headers(request.headers())?;
     validate_ordered_headers(&request)?;
     validate_pseudo_header_order(&request)?;
     Ok(PreparedRequest {
@@ -339,7 +343,7 @@ fn exact_body_length(metadata: Option<RequestBodyMetadata>) -> Result<u64, Http3
     }
 }
 
-fn validate_request(request: &Request<()>) -> Result<(), Http3Error> {
+fn validate_request_target(request: &Request<()>) -> Result<(), Http3Error> {
     let uri = request.uri();
     if uri.scheme() != Some(&Scheme::HTTPS) || uri.authority().is_none() {
         return Err(invalid("HTTP/3 requests require an absolute HTTPS URI"));
@@ -358,9 +362,10 @@ fn validate_request(request: &Request<()>) -> Result<(), Http3Error> {
         ));
     }
 
-    validate_semantic_headers(request.headers())
+    Ok(())
 }
 
+#[cfg(test)]
 fn validate_semantic_headers(headers: &HeaderMap) -> Result<(), Http3Error> {
     if headers.len() > MAX_REQUEST_HEADERS {
         return Err(invalid("HTTP/3 request has too many headers"));
@@ -497,7 +502,6 @@ pub(super) fn prepare_extended_connect(
         .insert(OrderedHeaders::new(headers.ordered));
     request.extensions_mut().insert(protocol);
     request.extensions_mut().insert(pseudo_order);
-    validate_semantic_headers(request.headers())?;
     validate_ordered_headers(&request)?;
     Ok(request)
 }
@@ -738,24 +742,9 @@ impl PreparedTrailers {
             let mut value = HeaderValue::from_bytes(trailer.value())
                 .map_err(|_| invalid("HTTP/3 request trailer value is invalid"))?;
             value.set_sensitive(trailer.is_sensitive());
-            if name == CONTENT_LENGTH
-                || name == TE
-                || matches!(
-                    name.as_str(),
-                    "authorization"
-                        | "cache-control"
-                        | "content-encoding"
-                        | "content-range"
-                        | "content-type"
-                        | "max-forwards"
-                        | "proxy-authorization"
-                        | "set-cookie"
-                )
-            {
+            if is_forbidden_trailer(&name) {
                 return Err(invalid("HTTP/3 request contains a forbidden trailer field"));
             }
-            validate_field(&name, &value)
-                .map_err(|_| invalid("HTTP/3 request contains a forbidden trailer field"))?;
             fields
                 .try_append(&name, value.clone())
                 .map_err(|_| invalid("HTTP/3 request trailers exceed HeaderMap capacity"))?;

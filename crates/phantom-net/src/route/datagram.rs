@@ -2,8 +2,9 @@
 
 use super::{Endpoint, Socks5Target};
 use crate::{
-    http3::{Http3Connector, OriginForm, RequestHeader},
+    http3::Http3Connector,
     proxy::{HttpBasicCredentials, HttpsProxyConnector, HttpsProxyProtocol, Socks5Auth},
+    request::{OriginForm, RequestHeader},
 };
 
 /// Transport used to reach a CONNECT-UDP proxy.

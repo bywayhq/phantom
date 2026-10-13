@@ -11,9 +11,10 @@ use bytes::Bytes;
 use http::{HeaderMap, HeaderValue, Method, Response, StatusCode, header};
 use http_body_util::BodyExt;
 use phantom::{
-    Client, ContentCoding, ContentDecoding, HttpProtocol, RedirectPolicy, RequestErrorKind,
-    RequestHeader, RequestTimeoutOverrides, ResponseBody, ResponseInfo, TimeoutOverride,
-    profile::ClientProfile,
+    Client, ContentCoding, ContentDecoding, HttpProtocol, HttpProxy, RedirectPolicy,
+    RequestErrorKind, RequestHeader, RequestTimeoutOverrides, ResponseBody, ResponseInfo, Route,
+    TimeoutOverride,
+    profile::{ClientProfile, RequestField, browser::firefox},
 };
 use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt},
@@ -40,6 +41,207 @@ fn gzip(data: &[u8]) -> TestResult<Vec<u8>> {
     let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
     encoder.write_all(data)?;
     Ok(encoder.finish()?)
+}
+
+fn deflate(data: &[u8]) -> TestResult<Vec<u8>> {
+    let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+    encoder.write_all(data)?;
+    Ok(encoder.finish()?)
+}
+
+fn forwarding_coding_profile(forwarded: &str) -> ClientProfile {
+    let mut template = firefox::v157_windows_navigation_template();
+    let field = RequestField::ByForwarding {
+        name: "accept-encoding".into(),
+        unforwarded: Some("gzip".into()),
+        forwarded: Some(forwarded.into()),
+    };
+    template.http1_fields = vec![field.clone()];
+    template.http2_fields = vec![field];
+    template.http3_fields = None;
+    ClientProfile::new(tls_settings()).with_request_template(template)
+}
+
+fn forwarding_coding_client(route: Route, forwarded: &str) -> TestResult<Client> {
+    Ok(Client::builder(forwarding_coding_profile(forwarded))
+        .route(route)
+        .build()?)
+}
+
+#[tokio::test]
+async fn forwarded_template_coding_decodes_the_coding_sent_to_the_proxy() -> TestResult<()> {
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let data = payload();
+        let encoded = deflate(&data)?;
+        let server = tokio::spawn(async move {
+            let stream = accept_plaintext(&listener).await?;
+            serve_http1(stream, vec![http1_response("deflate", &encoded)]).await
+        });
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
+        let response = forwarding_coding_client(route, "deflate")?
+            .get(HttpProtocol::Http1, "http://origin.test/coded")?
+            .content_decoding(ContentDecoding::advertised(DECODED_LIMIT))
+            .send()
+            .await?;
+        let heads = server.await??;
+        assert!(heads[0].starts_with(b"GET http://origin.test/coded HTTP/1.1\r\n"));
+        assert!(String::from_utf8(heads[0].clone())?.contains("accept-encoding: deflate\r\n"));
+        assert_eq!(
+            response_info(&response)?.decoded_content_codings(),
+            [ContentCoding::Deflate]
+        );
+        assert_eq!(
+            response.into_body().collect_with_limit(usize::MAX).await?,
+            data
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn direct_template_coding_decodes_gzip_and_ignores_inactive_forwarding_value()
+-> TestResult<()> {
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let data = payload();
+        let encoded = gzip(&data)?;
+        let server = tokio::spawn(async move {
+            let stream = accept_plaintext(&listener).await?;
+            serve_http1(stream, vec![http1_response("gzip", &encoded)]).await
+        });
+        let response = forwarding_coding_client(Route::direct(), "gzip;q=2")?
+            .get(HttpProtocol::Http1, &format!("http://{address}/coded"))?
+            .content_decoding(ContentDecoding::advertised(DECODED_LIMIT))
+            .send()
+            .await?;
+        let heads = server.await??;
+        assert!(heads[0].starts_with(b"GET /coded HTTP/1.1\r\n"));
+        assert!(String::from_utf8(heads[0].clone())?.contains("accept-encoding: gzip\r\n"));
+        assert_eq!(
+            response_info(&response)?.decoded_content_codings(),
+            [ContentCoding::Gzip]
+        );
+        assert_eq!(
+            response.into_body().collect_with_limit(usize::MAX).await?,
+            data
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn invalid_active_forwarded_coding_fails_before_opening_the_proxy_connection()
+-> TestResult<()> {
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
+        let client = forwarding_coding_client(route, "gzip;q=2")?;
+        let sending = client
+            .get(HttpProtocol::Http1, "http://origin.test/coded")?
+            .content_decoding(ContentDecoding::advertised(DECODED_LIMIT))
+            .send();
+        let error = tokio::select! {
+            result = sending => result.err().ok_or("invalid active coding was accepted")?,
+            accepted = listener.accept() => {
+                accepted?;
+                return Err("invalid active coding opened a proxy connection".into());
+            }
+        };
+        assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
+        assert!(
+            timeout(NO_CONNECTION_WINDOW, listener.accept())
+                .await
+                .is_err()
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn caller_coding_overrides_an_invalid_forwarded_template_value() -> TestResult<()> {
+    bounded(async {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let data = payload();
+        let encoded = gzip(&data)?;
+        let server = tokio::spawn(async move {
+            let stream = accept_plaintext(&listener).await?;
+            serve_http1(stream, vec![http1_response("gzip", &encoded)]).await
+        });
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
+        let response = forwarding_coding_client(route, "gzip;q=2")?
+            .get(HttpProtocol::Http1, "http://origin.test/coded")?
+            .header(RequestHeader::new("Accept-Encoding", "gzip"))
+            .content_decoding(ContentDecoding::advertised(DECODED_LIMIT))
+            .send()
+            .await?;
+        let heads = server.await??;
+        assert!(String::from_utf8(heads[0].clone())?.contains("accept-encoding: gzip\r\n"));
+        assert_eq!(
+            response.into_body().collect_with_limit(usize::MAX).await?,
+            data
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn redirect_activating_invalid_forwarded_coding_fails_before_the_next_hop() -> TestResult<()>
+{
+    bounded(async {
+        let identity = TestIdentity::generate_for_dns("origin.test")?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let acceptor = identity.acceptor(H1_ALPN)?;
+        let server = tokio::spawn(async move {
+            let mut stream = accept_plaintext(&listener).await?;
+            let connect = read_head(&mut stream).await?;
+            assert!(connect.starts_with(b"CONNECT origin.test:443 HTTP/1.1\r\n"));
+            stream.write_all(b"HTTP/1.1 200 Connection established\r\n\r\n").await?;
+            stream.flush().await?;
+            let mut stream = accept_tls_stream(stream, acceptor).await?;
+            let initial = read_head(&mut stream).await?;
+            stream.write_all(b"HTTP/1.1 302 Found\r\nLocation: http://origin.test/coded\r\nConnection: close\r\nContent-Length: 0\r\n\r\n").await?;
+            stream.flush().await?;
+            drop(stream);
+            let next_hop = match timeout(NO_CONNECTION_WINDOW, listener.accept()).await {
+                Ok(accepted) => {
+                    let (mut stream, _) = accepted?;
+                    read_head(&mut stream).await?;
+                    stream.write_all(&http1_response("identity", b"unexpected")).await?;
+                    true
+                }
+                Err(_) => false,
+            };
+            Ok::<_, Box<dyn Error + Send + Sync>>((initial, next_hop))
+        });
+        let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
+        let client = Client::builder(forwarding_coding_profile("gzip;q=2"))
+            .add_root_certificate_der(identity.root_der)
+            .route(route)
+            .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
+            .build()?;
+        let result = client
+            .get(HttpProtocol::Http1, "https://origin.test/start")?
+            .content_decoding(ContentDecoding::advertised(DECODED_LIMIT))
+            .send()
+            .await;
+        let (initial, next_hop) = server.await??;
+        assert!(String::from_utf8(initial)?.contains("accept-encoding: gzip\r\n"));
+        let error = result.err().ok_or("invalid redirect coding was sent")?;
+        assert_eq!(error.kind(), RequestErrorKind::InvalidHeader);
+        assert!(!next_hop, "the invalid redirected request opened a connection");
+        Ok(())
+    })
+    .await
 }
 
 fn brotli(data: &[u8]) -> TestResult<Vec<u8>> {

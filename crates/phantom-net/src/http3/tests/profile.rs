@@ -80,7 +80,7 @@ async fn rejects_http_datagrams_when_quic_datagrams_are_disabled() -> TestResult
     quic.wire_parameters.retain(|parameter| {
         !matches!(
             &parameter.kind,
-            phantom_profile::quic::QuicTransportParameterKind::MaxDatagramFrameSize { .. }
+            phantom_profile::QuicTransportParameterKind::MaxDatagramFrameSize { .. }
         )
     });
     let request = Request::get("https://server.phantom.test/").body(())?;

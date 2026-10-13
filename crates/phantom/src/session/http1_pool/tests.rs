@@ -6,6 +6,7 @@ use tokio::io::{DuplexStream, duplex};
 use super::{Checkout, EntryConnections, Http1ConnectionMode, Http1Pool, PoolKey};
 use crate::{Route, authority::Endpoint};
 
+mod prune_family;
 mod slower_connection;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -321,8 +322,8 @@ fn challenge_drain_without_a_time_driver_is_runtime_unavailable() -> TestResult 
         .build()?;
     let (mut body, _server, _connection) = complete.block_on(async {
         let (connection, mut server) = connection().await?;
-        let target = phantom_net::http1::OriginForm::parse("/").map_err(|_| "invalid target")?;
-        let host = vec![phantom_net::http1::RequestHeader::new(
+        let target = phantom_net::request::OriginForm::parse("/").map_err(|_| "invalid target")?;
+        let host = vec![phantom_net::request::RequestHeader::new(
             "host",
             b"proxy.test",
         )];

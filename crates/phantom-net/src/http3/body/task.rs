@@ -1,4 +1,9 @@
-use std::{any::Any, future::pending, future::poll_fn, pin::Pin, task::Poll};
+use std::{
+    any::Any,
+    future::{Future, pending, poll_fn},
+    pin::Pin,
+    task::Poll,
+};
 
 use bytes::{Buf, Bytes};
 use h3::error::{Code, StreamError};
@@ -7,6 +12,7 @@ use http_body::Frame;
 use tokio::{
     runtime::Handle,
     sync::{mpsc, watch},
+    task::{JoinError, JoinHandle},
 };
 use tracing::{Dispatch, Instrument, Span, debug_span, dispatcher, instrument::WithSubscriber};
 
@@ -24,6 +30,7 @@ pub(super) enum BodyEvent {
     Frame(Frame<Bytes>),
     End,
     Error(Http3Error),
+    TaskError(JoinError),
 }
 
 pub(super) struct BodyTask {
@@ -31,6 +38,7 @@ pub(super) struct BodyTask {
     events: mpsc::Receiver<BodyEvent>,
     _cancel: watch::Sender<()>,
     cleanup_guards: mpsc::UnboundedSender<Box<dyn Any + Send>>,
+    worker: Option<JoinHandle<()>>,
     pending: bool,
 }
 
@@ -64,14 +72,16 @@ impl BodyTask {
         }
         .instrument(span)
         .with_subscriber(dispatch);
-        // The channels own cancellation; the detached task must finish the QUIC stream.
-        drop(runtime.spawn(task));
+
+        // Channels request cancellation; dropping the handle leaves QUIC cleanup running.
+        let worker = runtime.spawn(task);
 
         Self {
             demand,
             events: receiver,
             _cancel: cancel,
             cleanup_guards,
+            worker: Some(worker),
             pending: false,
         }
     }
@@ -89,7 +99,10 @@ impl BodyTask {
     ) -> Poll<Option<BodyEvent>> {
         if let Poll::Ready(event) = Pin::new(&mut self.events).poll_recv(context) {
             self.pending = false;
-            return Poll::Ready(event);
+            return match event {
+                Some(event) => Poll::Ready(Some(event)),
+                None => self.poll_worker(context),
+            };
         }
 
         if !self.pending {
@@ -99,7 +112,24 @@ impl BodyTask {
             }
         }
 
-        Pin::new(&mut self.events).poll_recv(context)
+        match Pin::new(&mut self.events).poll_recv(context) {
+            Poll::Ready(None) => self.poll_worker(context),
+            event => event,
+        }
+    }
+
+    fn poll_worker(&mut self, context: &mut std::task::Context<'_>) -> Poll<Option<BodyEvent>> {
+        let Some(worker) = self.worker.as_mut() else {
+            return Poll::Ready(None);
+        };
+
+        let result = match Pin::new(worker).poll(context) {
+            Poll::Ready(result) => result,
+            Poll::Pending => return Poll::Pending,
+        };
+        drop(self.worker.take());
+
+        Poll::Ready(result.err().map(BodyEvent::TaskError))
     }
 }
 

@@ -97,9 +97,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.4.14"
+version = "0.4.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "171fefbc92fe4a4de27e0698d6a5b392d6a0e333506bc49133760b3bcf948733"
+checksum = "a9f37a958b41b3b19ee2707c06439c0e9e547e847223eb791ecb0cb821c65e27"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -277,7 +277,7 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
 name = "phantom-http2"
-version = "0.5.20-phantom.10"
+version = "0.5.20-phantom.16"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -295,7 +295,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-wreq-proto"
-version = "0.2.5-phantom.10"
+version = "0.2.5-phantom.16"
 dependencies = [
  "bytes",
  "futures-channel",

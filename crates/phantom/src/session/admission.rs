@@ -118,3 +118,26 @@ impl AdmissionPermit {
         &self._admission
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::num::NonZeroUsize;
+
+    use tokio::sync::Semaphore;
+
+    use super::Admission;
+
+    #[test]
+    fn semaphore_ceiling_is_a_valid_active_and_pending_bound()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let ceiling = NonZeroUsize::new(Semaphore::MAX_PERMITS).ok_or("zero semaphore ceiling")?;
+        let admission = Admission::new(ceiling, ceiling);
+
+        assert_eq!(admission.active.available_permits(), Semaphore::MAX_PERMITS);
+        assert_eq!(
+            admission.pending.available_permits(),
+            Semaphore::MAX_PERMITS
+        );
+        Ok(())
+    }
+}

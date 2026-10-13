@@ -1,6 +1,6 @@
 //! Public QUIC profile construction checks.
 
-use phantom_profile::quic::{
+use phantom_profile::{
     QuicTransportParameter, QuicTransportParameterKind, QuicTransportParameterOrder,
     QuicTransportSettings, QuicVarIntWidth,
 };

@@ -34,6 +34,259 @@ fn rdata(priority: u16, target: &[&str], params: &[(u16, &[u8])]) -> Vec<u8> {
     bytes
 }
 
+#[derive(Default)]
+struct LookupCounts {
+    started: AtomicUsize,
+    active: AtomicUsize,
+    hosts: tokio::sync::Mutex<Vec<String>>,
+    changed: tokio::sync::Notify,
+}
+
+impl LookupCounts {
+    async fn enter(self: &Arc<Self>, host: String) -> ActiveLookup {
+        self.hosts.lock().await.push(host);
+        self.active.fetch_add(1, Ordering::SeqCst);
+        self.started.fetch_add(1, Ordering::SeqCst);
+        self.changed.notify_one();
+        ActiveLookup(Arc::clone(self))
+    }
+
+    async fn wait_started(&self, expected: usize) -> TestResult<()> {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while self.started.load(Ordering::SeqCst) < expected {
+                self.changed.notified().await;
+            }
+        })
+        .await
+        .map_err(|_| "controlled lookup did not start".into())
+    }
+
+    async fn wait_inactive(&self) -> TestResult<()> {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while self.active.load(Ordering::SeqCst) != 0 {
+                self.changed.notified().await;
+            }
+        })
+        .await
+        .map_err(|_| "controlled lookup remained active".into())
+    }
+}
+
+struct ActiveLookup(Arc<LookupCounts>);
+
+impl Drop for ActiveLookup {
+    fn drop(&mut self) {
+        self.0.active.fetch_sub(1, Ordering::SeqCst);
+        self.0.changed.notify_one();
+    }
+}
+
+fn controlled_discovery() -> TestResult<(
+    HttpsRecordDiscovery,
+    Arc<LookupCounts>,
+    tokio::sync::watch::Sender<bool>,
+)> {
+    let counts = Arc::new(LookupCounts::default());
+    let advertised = record(&rdata(1, &[], &[H3]))?;
+    let (release, released) = tokio::sync::watch::channel(false);
+    let resolver = {
+        let counts = Arc::clone(&counts);
+        HttpsRecordResolver::from_fn(move |host, _| {
+            let counts = Arc::clone(&counts);
+            let advertised = advertised.clone();
+            let mut released = released.clone();
+            async move {
+                let _active = counts.enter(host.clone()).await;
+                while !*released.borrow() {
+                    if released.changed().await.is_err() {
+                        break;
+                    }
+                }
+                Ok(HttpsRecordLookup::new(
+                    vec![HttpsRecordAnswer::new(host, 300, advertised)],
+                    None,
+                ))
+            }
+        })
+    };
+    let discovery = HttpsRecordDiscovery::new(resolver, NonZeroUsize::MIN);
+    Ok((discovery, counts, release))
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn cancelled_waiters_and_origin_churn_keep_lookup_work_bounded() -> TestResult<()> {
+    let (discovery, counts, release) = controlled_discovery()?;
+    let first = endpoint("first.test")?;
+    let second = endpoint("second.test")?;
+
+    let Discovery::Pending(lookup) = discovery.discover(&first) else {
+        return Err("first lookup was not started".into());
+    };
+    drop(lookup);
+    counts.wait_started(1).await?;
+
+    assert!(matches!(
+        discovery.discover(&second),
+        Discovery::NotAdvertised
+    ));
+    let Discovery::Pending(joined) = discovery.discover(&first) else {
+        return Err("same-origin lookup was not shared".into());
+    };
+    drop(joined);
+    tokio::task::yield_now().await;
+    assert_eq!(counts.started.load(Ordering::SeqCst), 1);
+    assert_eq!(counts.active.load(Ordering::SeqCst), 1);
+    assert_eq!(*counts.hosts.lock().await, ["first.test"]);
+
+    release.send_replace(true);
+    assert!(settle(&discovery, &first).await?);
+    counts.wait_inactive().await?;
+    assert!(matches!(discovery.discover(&first), Discovery::Advertised));
+
+    assert!(settle(&discovery, &second).await?);
+    counts.wait_started(2).await?;
+    counts.wait_inactive().await?;
+    assert!(matches!(discovery.discover(&second), Discovery::Advertised));
+    assert!(settle(&discovery, &first).await?);
+    assert_eq!(counts.started.load(Ordering::SeqCst), 3);
+    assert_eq!(counts.active.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[test]
+fn runtime_shutdown_releases_lookup_work_after_waiter_cancellation() -> TestResult<()> {
+    let (discovery, counts, _release) = controlled_discovery()?;
+    let origin = endpoint("origin.test")?;
+
+    for (drive_lookup, expected) in [(false, 0), (true, 1), (true, 2)] {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()?;
+        runtime.block_on(async {
+            let Discovery::Pending(lookup) = discovery.discover(&origin) else {
+                return Err("lookup was not started on its runtime".into());
+            };
+            drop(lookup);
+            if drive_lookup {
+                counts.wait_started(expected).await?;
+                assert_eq!(counts.active.load(Ordering::SeqCst), 1);
+            } else {
+                assert_eq!(counts.started.load(Ordering::SeqCst), 0);
+            }
+            Ok::<_, Box<dyn std::error::Error>>(())
+        })?;
+
+        drop(runtime);
+        assert_eq!(counts.active.load(Ordering::SeqCst), 0);
+        assert!(discovery.cache.lock_state().pending.is_empty());
+    }
+    Ok(())
+}
+
+#[test]
+fn completed_cache_churn_does_not_duplicate_a_pending_origin() -> TestResult<()> {
+    let counts = Arc::new(LookupCounts::default());
+    let advertised = record(&rdata(1, &[], &[H3]))?;
+    let (release, released) = tokio::sync::watch::channel(false);
+    let resolver = {
+        let counts = Arc::clone(&counts);
+        HttpsRecordResolver::from_fn(move |host, _| {
+            let counts = Arc::clone(&counts);
+            let advertised = advertised.clone();
+            let mut released = released.clone();
+            async move {
+                let _active = counts.enter(host.clone()).await;
+                if host == "first.test" {
+                    while !*released.borrow() {
+                        if released.changed().await.is_err() {
+                            break;
+                        }
+                    }
+                }
+                Ok(HttpsRecordLookup::new(
+                    vec![HttpsRecordAnswer::new(host, 300, advertised)],
+                    None,
+                ))
+            }
+        })
+    };
+    let discovery = HttpsRecordDiscovery::new(resolver, NonZeroUsize::MIN);
+    let first = endpoint("first.test")?;
+    let second = endpoint("second.test")?;
+    let first_runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    let second_runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+
+    first_runtime.block_on(async {
+        let Discovery::Pending(lookup) = discovery.discover(&first) else {
+            return Err("first lookup was not started".into());
+        };
+        drop(lookup);
+        counts.wait_started(1).await
+    })?;
+    assert!(second_runtime.block_on(settle(&discovery, &second))?);
+    assert_eq!(counts.started.load(Ordering::SeqCst), 2);
+    assert_eq!(counts.active.load(Ordering::SeqCst), 1);
+
+    first_runtime.block_on(async {
+        let Discovery::Pending(joined) = discovery.discover(&first) else {
+            return Err("cache churn lost the pending lookup".into());
+        };
+        drop(joined);
+        tokio::task::yield_now().await;
+        assert_eq!(counts.started.load(Ordering::SeqCst), 2);
+        assert_eq!(counts.active.load(Ordering::SeqCst), 1);
+        assert_eq!(discovery.cache.lock_state().ready.len(), 1);
+        Ok::<_, Box<dyn std::error::Error>>(())
+    })?;
+
+    release.send_replace(true);
+    assert!(first_runtime.block_on(settle(&discovery, &first))?);
+    assert_eq!(counts.active.load(Ordering::SeqCst), 0);
+    assert!(second_runtime.block_on(settle(&discovery, &second))?);
+    assert_eq!(counts.started.load(Ordering::SeqCst), 3);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn resolver_panic_releases_its_lookup_reservation() -> TestResult<()> {
+    let counts = Arc::new(LookupCounts::default());
+    let advertised = record(&rdata(1, &[], &[H3]))?;
+    let resolver = {
+        let counts = Arc::clone(&counts);
+        HttpsRecordResolver::from_fn(move |host, _| {
+            let counts = Arc::clone(&counts);
+            let advertised = advertised.clone();
+            async move {
+                let _active = counts.enter(host.clone()).await;
+                if host == "panic.test" {
+                    panic!("controlled resolver panic");
+                }
+                Ok(HttpsRecordLookup::new(
+                    vec![HttpsRecordAnswer::new(host, 300, advertised)],
+                    None,
+                ))
+            }
+        })
+    };
+    let discovery = HttpsRecordDiscovery::new(resolver, NonZeroUsize::MIN);
+    let panicking = endpoint("panic.test")?;
+    let valid = endpoint("valid.test")?;
+
+    assert!(!settle(&discovery, &panicking).await?);
+    assert_eq!(counts.started.load(Ordering::SeqCst), 1);
+    assert_eq!(counts.active.load(Ordering::SeqCst), 0);
+    assert!(discovery.cache.lock_state().pending.is_empty());
+
+    assert!(settle(&discovery, &valid).await?);
+    assert_eq!(counts.started.load(Ordering::SeqCst), 2);
+    assert_eq!(counts.active.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
 fn record(bytes: &[u8]) -> TestResult<HttpsRecord> {
     Ok(HttpsRecord::from_rdata(bytes)?)
 }
@@ -142,7 +395,7 @@ async fn settle(discovery: &HttpsRecordDiscovery, origin: &Endpoint) -> TestResu
 
 #[tokio::test]
 async fn concurrent_requests_share_one_lookup_and_reuse_its_result() -> TestResult<()> {
-    let server = server(300, Duration::from_millis(100)).await?;
+    let mut server = server(300, Duration::from_millis(100)).await?;
     let discovery = discovery(&server, 4)?;
     let origin = endpoint("origin.test:8443")?;
 
@@ -156,40 +409,43 @@ async fn concurrent_requests_share_one_lookup_and_reuse_its_result() -> TestResu
     assert!(matches!(discovery.discover(&origin), Discovery::Advertised));
     assert_eq!(server.queries().len(), 1);
     assert_eq!(server.queries()[0].name(), OWNER);
+    server.finish().await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn expired_results_are_looked_up_again() -> TestResult<()> {
-    let server = server(0, Duration::ZERO).await?;
+    let mut server = server(0, Duration::ZERO).await?;
     let discovery = discovery(&server, 4)?;
     let origin = endpoint("origin.test:8443")?;
     assert!(settle(&discovery, &origin).await?);
     assert!(matches!(discovery.discover(&origin), Discovery::Pending(_)));
+    server.finish().await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn cache_holds_at_most_its_capacity() -> TestResult<()> {
-    let server = server(300, Duration::ZERO).await?;
+    let mut server = server(300, Duration::ZERO).await?;
     let discovery = discovery(&server, 1)?;
     let first = endpoint("origin.test:8443")?;
     let second = endpoint("other.test")?;
     assert!(settle(&discovery, &first).await?);
     assert!(settle(&discovery, &second).await?);
-    assert_eq!(discovery.cache.lock_entries().len(), 1);
+    assert_eq!(discovery.cache.lock_state().ready.len(), 1);
     // The first origin was evicted, so it is queried again.
     let Discovery::Pending(lookup) = discovery.discover(&first) else {
         return Err("an evicted origin was still cached".into());
     };
     assert!(lookup.advertises_h3().await);
     assert_eq!(server.queries().len(), 3);
+    server.finish().await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn failed_lookup_is_remembered_as_no_advertisement() -> TestResult<()> {
-    let server = DnsServer::spawn(|_| DnsReply::new(DnsAnswer::ServerFailure)).await?;
+    let mut server = DnsServer::spawn(|_| DnsReply::new(DnsAnswer::ServerFailure)).await?;
     let discovery = discovery(&server, 4)?;
     let origin = endpoint("origin.test:8443")?;
     assert!(!settle(&discovery, &origin).await?);
@@ -199,6 +455,7 @@ async fn failed_lookup_is_remembered_as_no_advertisement() -> TestResult<()> {
         Discovery::NotAdvertised
     ));
     assert_eq!(server.queries().len(), queries);
+    server.finish().await?;
     Ok(())
 }
 
@@ -314,13 +571,13 @@ fn alternating_runtimes_each_start_at_most_one_lookup() -> TestResult<()> {
         ));
     }
     assert_eq!(calls.load(Ordering::SeqCst), 2);
-    assert_eq!(discovery.cache.lock_entries().len(), 1);
+    assert_eq!(discovery.cache.lock_state().ready.len(), 1);
     Ok(())
 }
 
 #[tokio::test]
 async fn ip_literal_origins_are_never_queried() -> TestResult<()> {
-    let server = server(300, Duration::ZERO).await?;
+    let mut server = server(300, Duration::ZERO).await?;
     let discovery = discovery(&server, 4)?;
     for authority in ["127.0.0.1:8443", "[::1]:8443"] {
         assert!(matches!(
@@ -330,6 +587,7 @@ async fn ip_literal_origins_are_never_queried() -> TestResult<()> {
     }
     tokio::task::yield_now().await;
     assert!(server.queries().is_empty());
+    server.finish().await?;
     Ok(())
 }
 

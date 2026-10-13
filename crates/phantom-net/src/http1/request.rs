@@ -9,11 +9,7 @@ use std::{
 use bytes::Bytes;
 use http::{
     HeaderMap, HeaderValue, Method, Request, Version,
-    header::{
-        AUTHORIZATION, CACHE_CONTROL, CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE,
-        CONTENT_TYPE, EXPECT, HOST, HeaderName, MAX_FORWARDS, PROXY_AUTHORIZATION, SET_COOKIE, TE,
-        TRAILER, TRANSFER_ENCODING, UPGRADE,
-    },
+    header::{CONNECTION, CONTENT_LENGTH, EXPECT, HOST, HeaderName, TRAILER, TRANSFER_ENCODING},
 };
 use http_body::{Body, Frame, SizeHint};
 use http_body_util::Empty;
@@ -25,7 +21,9 @@ use wreq_proto::ext::{
 use tracing::{debug_span, field};
 
 use super::{AbsoluteForm, Http1Error, OperationOutcome, OriginForm, RequestHeader};
-use crate::request::{ContinueSignal, RequestBody, RequestBodyMetadata, is_continue_expectation};
+use crate::request::{
+    ContinueSignal, RequestBody, RequestBodyMetadata, is_continue_expectation, is_forbidden_trailer,
+};
 
 pub(super) const MAX_REQUEST_HEADERS: usize = 100;
 pub(super) const MAX_REQUEST_HEADER_BYTES: usize = 32 * 1024;
@@ -876,27 +874,6 @@ impl ValidatedTrailers {
             dynamic: true,
         })
     }
-}
-
-fn is_forbidden_trailer(name: &HeaderName) -> bool {
-    matches!(
-        *name,
-        AUTHORIZATION
-            | CACHE_CONTROL
-            | CONTENT_ENCODING
-            | CONTENT_LENGTH
-            | CONTENT_RANGE
-            | CONTENT_TYPE
-            | HOST
-            | MAX_FORWARDS
-            | PROXY_AUTHORIZATION
-            | SET_COOKIE
-            | TRAILER
-            | TRANSFER_ENCODING
-            | TE
-            | CONNECTION
-            | UPGRADE
-    ) || matches!(name.as_str(), "keep-alive" | "proxy-connection")
 }
 
 impl OnPreserveTrailerCallback for ValidatedTrailers {

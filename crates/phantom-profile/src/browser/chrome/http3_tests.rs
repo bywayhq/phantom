@@ -276,11 +276,16 @@ fn request_fields(fixture: &str) -> Result<Vec<(String, String)>, Box<dyn std::e
         .collect()
 }
 
-fn decode_ascii_hex(encoded: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let bytes = encoded
-        .as_bytes()
-        .as_chunks::<2>()
-        .0
+fn decode_ascii_hex(value: &str) -> Result<String, Box<dyn std::error::Error>> {
+    if !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("invalid hexadecimal value".into());
+    }
+
+    let (pairs, remainder) = value.as_bytes().as_chunks::<2>();
+    if !remainder.is_empty() {
+        return Err("odd-length hexadecimal value".into());
+    }
+    let bytes = pairs
         .iter()
         .map(|pair| Ok(u8::from_str_radix(std::str::from_utf8(pair)?, 16)?))
         .collect::<Result<Vec<u8>, Box<dyn std::error::Error>>>()?;
@@ -326,29 +331,15 @@ fn assert_settings_match_control_stream(
     Ok(())
 }
 
-fn fixture_request_name(fixture: &str, index: usize) -> Result<String, std::string::FromUtf8Error> {
+fn fixture_request_name(fixture: &str, index: usize) -> Result<String, Box<dyn std::error::Error>> {
     let prefix = format!("request_header_{index}=");
-    let line = fixture
+    let encoded = fixture
         .lines()
-        .find(|line| line.starts_with(&prefix))
-        .unwrap_or_else(|| panic!("fixture must contain {prefix}"));
-    let encoded = line[prefix.len()..]
-        .split_once(':')
+        .find_map(|line| line.strip_prefix(&prefix))
+        .and_then(|field| field.split_once(':'))
         .map(|(name, _)| name)
-        .unwrap_or_else(|| panic!("fixture request header must contain a value"));
-    let bytes = encoded
-        .as_bytes()
-        .as_chunks::<2>()
-        .0
-        .iter()
-        .map(|pair| {
-            std::str::from_utf8(pair)
-                .ok()
-                .and_then(|digits| u8::from_str_radix(digits, 16).ok())
-                .unwrap_or_else(|| panic!("fixture request header name must be valid hex"))
-        })
-        .collect();
-    String::from_utf8(bytes)
+        .ok_or("fixture request header must contain a name and value")?;
+    decode_ascii_hex(encoded)
 }
 
 fn fixture_value(fixture: &str, index: usize) -> u64 {
@@ -639,5 +630,22 @@ fn chromium_family_macos_h3_captures_match_the_chromium_recipe()
             .collect())
     };
     assert_eq!(names(EDGE)?, names(EDGE_154_WINDOWS_FIXTURE)?);
+    Ok(())
+}
+
+#[test]
+fn request_header_hex_rejects_malformed_text() -> Result<(), Box<dyn std::error::Error>> {
+    for malformed in [
+        "+1", "+f", "4a+1", "-1", " 1", "1 ", "0", "410", "gg", "0\u{e9}0", "ff",
+    ] {
+        assert!(decode_ascii_hex(malformed).is_err(), "{malformed:?}");
+        let fixture = format!("request_header_0={malformed}:41");
+        assert!(fixture_request_name(&fixture, 0).is_err());
+    }
+    assert!(fixture_request_name("", 0).is_err());
+    assert!(fixture_request_name("request_header_0=41", 0).is_err());
+    assert_eq!(decode_ascii_hex("4a4A")?, "JJ");
+    assert_eq!(fixture_request_name("request_header_0=4a4A:41", 0)?, "JJ");
+    assert_eq!(decode_ascii_hex("")?, "");
     Ok(())
 }

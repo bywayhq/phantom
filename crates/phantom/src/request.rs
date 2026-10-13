@@ -3,12 +3,12 @@ use std::{error::Error as StdError, fmt};
 use bytes::Bytes;
 use http::{Method, Response, Uri};
 use http_body::Body;
-use phantom_net::{
-    http1::{AbsoluteForm, OriginForm},
-    request::{RequestBody, RequestHeader, RequestTrailerName},
+use phantom_net::request::{
+    AbsoluteForm, OriginForm, RequestBody, RequestHeader, RequestTrailerName,
 };
 use tracing::{Instrument, Span, debug, debug_span, field};
 
+use crate::session::alt_svc::PinnedAlternative;
 use crate::{
     Client, ContentCoding, ContentDecoding, HttpProtocol, RequestError, RequestTimeoutOverrides,
     ResponseBody, ResponseInfo, RetryPolicy, Route,
@@ -17,6 +17,10 @@ use crate::{
     redirect::{RedirectAction, RedirectState},
     retry::ConnectionSetupRetryState,
 };
+use attempt::{AttemptLifecycle, AttemptRequest, send_once};
+use replay::ReplayState;
+use replay_buffer::{NoReplay, ReplayBuffer};
+pub use template::PreparedRequestTemplate;
 
 mod alt_svc_attempt;
 mod attempt;
@@ -25,13 +29,6 @@ mod replay;
 mod replay_buffer;
 pub(crate) mod secure_context;
 pub(crate) mod template;
-
-pub use template::PreparedRequestTemplate;
-
-use crate::session::alt_svc::PinnedAlternative;
-use attempt::{AttemptLifecycle, AttemptRequest, send_once};
-use replay::ReplayState;
-use replay_buffer::{NoReplay, ReplayBuffer};
 
 /// Set a request's headers, body and options before you send it.
 ///
@@ -306,9 +303,21 @@ impl RequestBuilder {
         self
     }
 
+    /// The template conditions of a request that can reach the wire.
+    #[cfg(feature = "sse")]
+    pub(crate) fn supported_template_conditions(&self) -> Option<(bool, bool)> {
+        let route = self.selected_route();
+        ensure_request_supported(self.selection, &route, &self.request).ok()?;
+        Some((
+            secure_context::is_potentially_trustworthy(&self.request.url),
+            route.forwards(&self.request.uri),
+        ))
+    }
+
     #[cfg(feature = "sse")]
     pub(crate) fn protect_event_source_headers(mut self) -> Self {
         self.protected_hook_headers = &["last-event-id"];
+        self.request.managed_headers = self.protected_hook_headers;
         self
     }
 
@@ -350,7 +359,7 @@ impl RequestBuilder {
     ///
     /// The template is checked when you prepare it. Sending returns
     /// [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)
-    /// before I/O for any of these cases:
+    /// before the affected hop's I/O for any of these cases:
     ///
     /// - The template lacks an HTTP/3 list for an exact HTTP/3 request.
     /// - It lacks that list for a negotiated request with Alt-Svc enabled on
@@ -478,11 +487,11 @@ impl RequestBuilder {
     /// Sets a pull-driven request body that a later attempt of this request
     /// may send again, keeping at most `maximum_bytes` of its data.
     ///
-    /// The body streams as [`Self::streaming_body`] does, and each data frame
-    /// is kept as it is sent, so the first attempt is not delayed. When a
-    /// redirect, retry, or replay needs another attempt, that attempt sends
-    /// the kept frames with the same frame boundaries and then reads on from
-    /// the body where the last attempt stopped. Each replay keeps its own
+    /// The body streams as [`Self::streaming_body`] does, and each nonempty
+    /// data frame is kept as it is sent, so the first attempt is not delayed.
+    /// When a redirect, retry, or replay needs another attempt, that attempt
+    /// sends the kept frames with the same frame boundaries and then reads on
+    /// from the body where the last attempt stopped. Each replay keeps its own
     /// method and policy rules: the Chromium recipes' resend after a failed
     /// HTTP/2 PING, for one, sends any method again, so a server may receive
     /// a `POST` twice.
@@ -492,6 +501,7 @@ impl RequestBuilder {
     /// sends all of it, and a later attempt fails with
     /// [`RequestErrorKind::RequestBody`](crate::RequestErrorKind::RequestBody),
     /// or, for a replay after a failure, the request returns that failure.
+    /// Empty data frames pass through as read but are not kept for replay.
     /// The limit counts data bytes; a kept frame holds the buffer its bytes
     /// come from. Once [`Self::send`] returns, the kept frames are freed, at
     /// once or, while an attempt is still uploading, as it sends them.
@@ -659,14 +669,16 @@ impl RequestBuilder {
     /// poll with
     /// [`RequestErrorKind::ContentDecoding`](crate::RequestErrorKind::ContentDecoding);
     /// the status and fields remain visible. With decoding enabled,
-    /// [`Self::send`] fails before I/O with
+    /// [`Self::send`] fails before the affected hop's I/O with
     /// [`RequestErrorKind::InvalidHeader`](crate::RequestErrorKind::InvalidHeader)
     /// for a malformed `Accept-Encoding` field, and with
     /// [`RequestErrorKind::RequestTemplate`](crate::RequestErrorKind::RequestTemplate)
     /// when the template's per-protocol lists carry different
-    /// `Accept-Encoding` values. With a template and no `Accept-Encoding` of
-    /// your own, the template's value for the final hop's URL decides which
-    /// codings are decoded.
+    /// `Accept-Encoding` values for that forwarding state. With a template
+    /// and no `Accept-Encoding` of your own, the final hop's URL and route
+    /// select the template value used for decoding. Inactive forwarding
+    /// values are ignored. A redirect that activates an invalid value fails
+    /// before sending that hop.
     pub fn content_decoding(mut self, policy: ContentDecoding) -> Self {
         self.content_decoding = policy;
         self
@@ -703,7 +715,8 @@ impl RequestBuilder {
     /// # Errors
     ///
     /// Returns a [`RequestError`]. [`RequestError::kind`] gives the category.
-    /// These kinds are returned before any I/O:
+    /// Initial validation returns these kinds before any I/O. A redirect
+    /// that activates an invalid template value fails before that hop's I/O:
     ///
     /// - [`InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout) when a
     ///   timeout or retry delay exceeds the runtime clock range;
@@ -808,6 +821,7 @@ impl RequestBuilder {
         let initial_fallback = http2_fallback && self.alternative.is_none();
         let scope = self.slot_scope();
         let mut filled_slots = std::mem::take(&mut self.filled_slots);
+
         if let Some(content_type) = &self.prepared_content_type {
             if !self
                 .headers
@@ -839,6 +853,7 @@ impl RequestBuilder {
             {
                 filled_slots.push(Box::<str>::from("content-type"));
             }
+
             if self.trailers.is_empty()
                 && !self.body.has_trailers()
                 && template::place_prepared_content_length(
@@ -852,6 +867,7 @@ impl RequestBuilder {
                 filled_slots.push(Box::<str>::from("content-length"));
             }
         }
+
         {
             let mut context = crate::HeaderHookContext {
                 method: &self.method,
@@ -864,10 +880,12 @@ impl RequestBuilder {
                     hook.run(&mut context).map_err(RequestError::header_hook)?;
                 }
             }
+
             for hook in &self.header_hooks {
                 hook.run(&mut context).map_err(RequestError::header_hook)?;
             }
         }
+
         if let Some(content_type) = &self.prepared_content_type {
             let mut fields = self
                 .headers
@@ -883,6 +901,7 @@ impl RequestBuilder {
                 ));
             }
         }
+
         template::check_filled_slots(
             self.request.template.as_ref(),
             self.slot_scope(),
@@ -890,17 +909,21 @@ impl RequestBuilder {
             &self.headers,
             &filled_slots,
         )?;
+
         let timeout_budget = crate::timeout::TimeoutBudget::new(
             self.timeouts
                 .unwrap_or_default()
                 .resolve(self.client.state.request_timeouts),
         )?;
+
         if !retry_policy.validate() {
             return Err(RequestError::invalid_retry_delay());
         }
+
         if !self.trailers.is_empty() && self.body.has_trailers() {
             return Err(RequestError::ambiguous_request_trailers());
         }
+
         if self
             .headers
             .iter()
@@ -908,10 +931,12 @@ impl RequestBuilder {
         {
             return Err(RequestError::authority_header());
         }
+
         if let Some(wait) = self.request.expect_continue {
             if std::time::Instant::now().checked_add(wait).is_none() {
                 return Err(RequestError::invalid_timeout());
             }
+
             let mut expectations = self
                 .headers
                 .iter()
@@ -926,6 +951,7 @@ impl RequestBuilder {
                 return Err(RequestError::expectation_header());
             }
         }
+
         let alternative = match &self.alternative {
             Some(_)
                 if !matches!(
@@ -941,6 +967,7 @@ impl RequestBuilder {
             ),
             None => None,
         };
+
         if (self.client.alt_svc_enabled() || alternative.is_some())
             && contains_caller_alt_used(
                 &self.headers,
@@ -950,6 +977,7 @@ impl RequestBuilder {
         {
             return Err(RequestError::alt_used_header());
         }
+
         let content_decoding = self.content_decoding;
         if let Some(template) = &self.request.template {
             let route = self.selected_route();
@@ -963,34 +991,19 @@ impl RequestBuilder {
                 alt_svc: self.client.alt_svc_enabled() && route.carries_quic_alternative(),
                 content_decoding: content_decoding.is_enabled(),
             };
-            template::check(
+            template::check_with_managed_headers(
                 template,
                 scope,
                 initial_fallback,
                 &self.headers,
                 self.client.inner.client_hints.as_ref(),
+                self.request.managed_headers,
+                (
+                    secure_context::is_potentially_trustworthy(&self.request.url),
+                    route.forwards(&self.request.uri),
+                ),
             )?;
         }
-        // A template's `Accept-Encoding` depends on whether the URL is
-        // potentially trustworthy, which a redirect can change, so the final
-        // hop's URL picks the codings that decide how its response is decoded.
-        // Both are parsed here so that a bad caller field fails before I/O.
-        let advertised = if content_decoding.is_enabled() {
-            AdvertisedByTrust {
-                untrustworthy: advertised_codings(
-                    self.request.template.as_ref(),
-                    &self.headers,
-                    false,
-                )?,
-                trustworthy: advertised_codings(
-                    self.request.template.as_ref(),
-                    &self.headers,
-                    true,
-                )?,
-            }
-        } else {
-            AdvertisedByTrust::default()
-        };
 
         let Self {
             client,
@@ -1047,6 +1060,12 @@ impl RequestBuilder {
 
         if policy.max_hops().is_none() {
             let mut body = body;
+            let advertised = AdvertisedByTrust::for_route(
+                content_decoding,
+                request.template.as_ref(),
+                &request_headers,
+                route.forwards(&request.uri),
+            )?;
             let decoding =
                 FinalDecoding::new(content_decoding, advertised.for_url(&request.url), &method);
             let outcome = send_once(
@@ -1124,7 +1143,7 @@ impl RequestBuilder {
                     .map_err(|error| error.with_origin(resolved.origin()))?;
             }
             if let Some(template) = &resolved.template {
-                template::check(
+                template::check_with_managed_headers(
                     template,
                     template::ProtocolScope {
                         exact: match selection {
@@ -1137,9 +1156,21 @@ impl RequestBuilder {
                     http2_fallback && resolved.alternative.is_none(),
                     redirect.headers(),
                     client.inner.client_hints.as_ref(),
+                    resolved.managed_headers,
+                    (
+                        secure_context::is_potentially_trustworthy(&resolved.url),
+                        route.forwards(&resolved.uri),
+                    ),
                 )
                 .map_err(|error| error.with_origin(resolved.origin()))?;
             }
+            let advertised = AdvertisedByTrust::for_route(
+                content_decoding,
+                resolved.template.as_ref(),
+                redirect.headers(),
+                route.forwards(&resolved.uri),
+            )
+            .map_err(|error| error.with_origin(resolved.origin()))?;
             let outcome = send_once(
                 &client,
                 &resolved,
@@ -1187,7 +1218,7 @@ impl RequestBuilder {
                 }
                 RedirectAction::Follow { same_origin } => {
                     if !same_origin && let Some(settings) = client.inner.client_hints.as_ref() {
-                        redirect.strip_client_hints(settings);
+                        redirect.strip_client_hints(settings, resolved.managed_headers);
                     }
                     debug!(
                         hop = redirect.followed(),
@@ -1201,11 +1232,13 @@ impl RequestBuilder {
                         template = template.map(|template| template.without_credentials());
                     }
                     let expect_continue = resolved.expect_continue;
+                    let managed_headers = resolved.managed_headers;
                     let alternative = resolved.alternative.take().filter(|_| same_origin);
                     resolved = ResolvedRequest::from_redirect_url(redirect.current_url())
                         .map_err(|error| error.with_origin(resolved.origin()))?;
                     resolved.template = template;
                     resolved.expect_continue = expect_continue;
+                    resolved.managed_headers = managed_headers;
                     resolved.alternative = alternative;
                 }
             }
@@ -1221,6 +1254,23 @@ struct AdvertisedByTrust {
 }
 
 impl AdvertisedByTrust {
+    /// Parses both URL-trust values for this hop's actual forwarding state.
+    /// A redirect may activate another state, which is checked before its I/O.
+    fn for_route(
+        policy: ContentDecoding,
+        template: Option<&PreparedRequestTemplate>,
+        headers: &[RequestHeader],
+        forwarded: bool,
+    ) -> Result<Self, RequestError> {
+        if !policy.is_enabled() {
+            return Ok(Self::default());
+        }
+        Ok(Self {
+            untrustworthy: advertised_codings(template, headers, false, forwarded)?,
+            trustworthy: advertised_codings(template, headers, true, forwarded)?,
+        })
+    }
+
     fn for_url(self, url: &url::Url) -> AdvertisedContentCodings {
         if secure_context::is_potentially_trustworthy(url) {
             self.trustworthy
@@ -1231,7 +1281,7 @@ impl AdvertisedByTrust {
 }
 
 /// Returns the content codings the request advertises to a URL of this
-/// trust.
+/// trust and forwarding state.
 ///
 /// A template's `Accept-Encoding` for that trust is sent when the caller
 /// supplies none, so it is advertised too.
@@ -1239,11 +1289,12 @@ fn advertised_codings(
     template: Option<&PreparedRequestTemplate>,
     headers: &[RequestHeader],
     trustworthy: bool,
+    forwarded: bool,
 ) -> Result<AdvertisedContentCodings, RequestError> {
     let caller_supplied = headers
         .iter()
         .any(|header| header.name().eq_ignore_ascii_case("accept-encoding"));
-    match template.and_then(|template| template.accept_encoding(trustworthy)) {
+    match template.and_then(|template| template.accept_encoding(trustworthy, forwarded)) {
         Some(value) if !caller_supplied => {
             AdvertisedContentCodings::from_request_headers(&[RequestHeader::new(
                 "accept-encoding",
@@ -1572,6 +1623,8 @@ struct ResolvedRequest {
     target: OriginForm,
     absolute_target: AbsoluteForm,
     template: Option<PreparedRequestTemplate>,
+    /// Fields owned by a higher-level request, excluded from hint handling.
+    managed_headers: &'static [&'static str],
     /// How long each attempt waits for `100 Continue` before it sends a
     /// body, when it sends `Expect: 100-continue`.
     expect_continue: Option<std::time::Duration>,
@@ -1638,6 +1691,7 @@ impl ResolvedRequest {
             target,
             absolute_target,
             template: None,
+            managed_headers: &[],
             expect_continue: None,
             alternative: None,
         })
@@ -1680,6 +1734,7 @@ impl ResolvedRequest {
             target,
             absolute_target,
             template: None,
+            managed_headers: &[],
             expect_continue: None,
             alternative: None,
         })
@@ -1719,599 +1774,4 @@ impl Drop for RequestOutcome {
 }
 
 #[cfg(test)]
-mod tests {
-    use bytes::Bytes;
-    use phantom_net::request::{RequestBody, RequestHeader, RequestTrailerName};
-
-    use super::{
-        ProtocolSelection, RequestBodySource, ResolvedRequest, contains_caller_alt_used,
-        declares_alt_used_trailer, ensure_request_supported,
-    };
-    use crate::{HttpProtocol, HttpProxy, RequestErrorKind, Route, Socks5Proxy};
-
-    #[test]
-    fn new_requests_share_the_prepared_profile_default() -> Result<(), Box<dyn std::error::Error>> {
-        use phantom_profile::{ClientProfile, browser::chrome};
-
-        let profile = ClientProfile::new(chrome::v154_tcp_tls())
-            .with_http2(chrome::v154_http2())
-            .with_request_template(chrome::v154_windows_navigation_template());
-        let client = crate::Client::builder(profile).build()?;
-        let prepared = client
-            .inner
-            .request_template
-            .as_ref()
-            .ok_or("default was not prepared")?;
-        for request in [
-            client.get(HttpProtocol::Http1, "https://example.com/")?,
-            client.request(
-                HttpProtocol::Http2,
-                http::Method::POST,
-                "https://example.com/",
-            )?,
-            client.get_negotiated("https://example.com/")?,
-            client.request_negotiated(http::Method::POST, "https://example.com/")?,
-        ] {
-            let inherited = request
-                .request
-                .template
-                .as_ref()
-                .ok_or("default was not inherited")?;
-            assert!(std::ptr::eq(
-                prepared
-                    .fields_for(HttpProtocol::Http1)
-                    .ok_or("missing H1 fields")?,
-                inherited
-                    .fields_for(HttpProtocol::Http1)
-                    .ok_or("missing H1 fields")?,
-            ));
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn template_override_and_opt_out_apply_only_to_the_current_request()
-    -> Result<(), Box<dyn std::error::Error>> {
-        use phantom_profile::{ClientProfile, browser::chrome};
-
-        let profile = ClientProfile::new(chrome::v154_tcp_tls())
-            .with_request_template(chrome::v154_windows_navigation_template());
-        let client = crate::Client::builder(profile).build()?;
-        let explicit =
-            crate::PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
-        let request = client
-            .get(HttpProtocol::Http1, "https://example.com/")?
-            .without_template()
-            .template(&explicit);
-        let applied = request
-            .request
-            .template
-            .as_ref()
-            .ok_or("explicit template was not restored")?;
-        assert!(std::ptr::eq(
-            explicit
-                .fields_for(HttpProtocol::Http1)
-                .ok_or("missing H1 fields")?,
-            applied
-                .fields_for(HttpProtocol::Http1)
-                .ok_or("missing H1 fields")?,
-        ));
-        assert!(request.without_template().request.template.is_none());
-        assert!(
-            client
-                .get(HttpProtocol::Http1, "https://example.com/")?
-                .request
-                .template
-                .is_some()
-        );
-        let no_default =
-            crate::Client::builder(ClientProfile::new(chrome::v154_tcp_tls())).build()?;
-        assert!(
-            no_default
-                .get(HttpProtocol::Http1, "https://example.com/")?
-                .request
-                .template
-                .is_none()
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn appending_queries_keeps_raw_targets_and_normalized_redirect_state()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let original = "https://example.test/a/%2e%2e/final?x=%2f+old&bare&x=second&&";
-        let mut request = ResolvedRequest::new(&original.parse()?)?;
-        let endpoint = request.endpoint.clone();
-        request.append_query("x=new&empty=&=value")?;
-        let expected = format!("{original}&x=new&empty=&=value");
-        assert_eq!(request.uri.to_string(), expected);
-        assert_eq!(request.endpoint, endpoint);
-        assert_eq!(
-            request.target,
-            phantom_net::request::OriginForm::parse(
-                "/a/%2e%2e/final?x=%2f+old&bare&x=second&&&x=new&empty=&=value"
-            )?
-        );
-        assert_eq!(
-            request.absolute_target,
-            phantom_net::request::AbsoluteForm::parse(&expected)?
-        );
-        assert_eq!(
-            request.url.query(),
-            Some("x=%2f+old&bare&x=second&&&x=new&empty=&=value")
-        );
-        assert_eq!(
-            request.url.join("?follow=next")?.as_str(),
-            "https://example.test/final?follow=next"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn failed_query_updates_leave_all_resolved_fields_unchanged()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let mut request = ResolvedRequest::new(&"https://example.test/old?q=original".parse()?)?;
-        let original_uri = request.uri.clone();
-        let original_url = request.url.clone();
-        let original_target = request.target.clone();
-        let original_absolute_target = request.absolute_target.clone();
-        request.expect_continue = Some(std::time::Duration::from_millis(37));
-        request.alternative = super::PinnedAlternative::parse("alternative.test", 443);
-        let original_alternative = request.alternative.clone();
-        let error = request
-            .append_query("invalid\r\nquery")
-            .err()
-            .ok_or("invalid URI accepted")?;
-        assert_eq!(error.kind(), RequestErrorKind::InvalidUri);
-        assert_eq!(request.uri, original_uri);
-        assert_eq!(request.url, original_url);
-        assert_eq!(request.target, original_target);
-        assert_eq!(request.absolute_target, original_absolute_target);
-        assert_eq!(
-            request.expect_continue,
-            Some(std::time::Duration::from_millis(37))
-        );
-        assert_eq!(request.alternative, original_alternative);
-        Ok(())
-    }
-
-    #[test]
-    fn query_pairs_keep_template_choices_body_waits_and_pinned_alternatives()
-    -> Result<(), Box<dyn std::error::Error>> {
-        use phantom_profile::{ClientProfile, browser::chrome};
-
-        let profile = ClientProfile::new(chrome::v154_tcp_tls())
-            .with_request_template(chrome::v154_windows_navigation_template());
-        let client = crate::Client::builder(profile).build()?;
-        let explicit =
-            crate::PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
-        let default = client
-            .inner
-            .request_template
-            .as_ref()
-            .ok_or("missing default")?;
-        let wait = std::time::Duration::from_millis(37);
-        let mut initial = client
-            .get(HttpProtocol::Http1, "https://example.test/path?old=%2f")?
-            .body("payload")
-            .expect_continue(wait)
-            .alt_svc_alternative("alternative.test", 8443);
-        initial.request.alternative = super::PinnedAlternative::parse("resolved.test", 9443);
-        let original_alternative = initial.request.alternative.clone();
-        for (request, expected_template) in [
-            (initial, Some(default)),
-            (
-                client
-                    .get(HttpProtocol::Http1, "https://example.test/path")?
-                    .template(&explicit),
-                Some(&explicit),
-            ),
-            (
-                client
-                    .get(HttpProtocol::Http1, "https://example.test/path")?
-                    .without_template(),
-                None,
-            ),
-        ] {
-            let old_wait = request.request.expect_continue;
-            let old_body_len = request.body.exact_length();
-            let old_builder_alternative = request.alternative.clone();
-            let old_resolved_alternative = request.request.alternative.clone();
-            let request = request.query_pairs([("q", "one"), ("q", "two")])?;
-            assert_eq!(request.request.expect_continue, old_wait);
-            assert_eq!(request.body.exact_length(), old_body_len);
-            assert_eq!(request.alternative, old_builder_alternative);
-            assert_eq!(request.request.alternative, old_resolved_alternative);
-            if old_wait.is_some() {
-                assert_eq!(request.request.alternative, original_alternative);
-                assert_eq!(request.alternative, Some(("alternative.test".into(), 8443)));
-            }
-            match expected_template {
-                Some(expected) => assert!(std::ptr::eq(
-                    expected
-                        .fields_for(HttpProtocol::Http1)
-                        .ok_or("missing H1 fields")?,
-                    request
-                        .request
-                        .template
-                        .as_ref()
-                        .ok_or("template lost")?
-                        .fields_for(HttpProtocol::Http1)
-                        .ok_or("missing H1 fields")?,
-                )),
-                None => assert!(request.request.template.is_none()),
-            }
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn empty_query_inputs_preserve_the_existing_empty_query_marker()
-    -> Result<(), Box<dyn std::error::Error>> {
-        use phantom_profile::{ClientProfile, browser::chrome};
-        let client = crate::Client::builder(ClientProfile::new(chrome::v154_tcp_tls())).build()?;
-        for original in ["https://example.test/path", "https://example.test/path?"] {
-            let request = client
-                .get(HttpProtocol::Http1, original)?
-                .query_pairs(std::iter::empty::<(&str, &str)>())?;
-            assert_eq!(request.request.uri.to_string(), original);
-            assert_eq!(
-                request.query_pairs([("", "")])?.request.uri.to_string(),
-                "https://example.test/path?="
-            );
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn streaming_body_cannot_be_replayed_for_a_second_attempt() {
-        let mut body = RequestBodySource::Streaming(Some(RequestBody::from_bytes(
-            Bytes::from_static(b"payload"),
-        )));
-
-        assert!(matches!(body.next_attempt(), Ok(Some(_))));
-        let error = match body.next_attempt() {
-            Ok(_) => panic!("second attempt accepted a consumed stream"),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
-    }
-
-    /// Reads one attempt's body to its end or first error.
-    fn drain(body: &mut RequestBody) -> Result<Vec<u8>, ()> {
-        use http_body::Body as _;
-        let mut context = std::task::Context::from_waker(std::task::Waker::noop());
-        let mut sent = Vec::new();
-        loop {
-            match std::pin::Pin::new(&mut *body).poll_frame(&mut context) {
-                std::task::Poll::Ready(Some(Ok(frame))) => {
-                    if let Ok(data) = frame.into_data() {
-                        sent.extend_from_slice(&data);
-                    }
-                }
-                std::task::Poll::Ready(Some(Err(_))) => return Err(()),
-                std::task::Poll::Ready(None) => return Ok(sent),
-                std::task::Poll::Pending => return Err(()),
-            }
-        }
-    }
-
-    #[test]
-    fn a_buffered_body_is_replayable_within_its_limit_and_not_past_it() {
-        let full = |bytes: &'static [u8]| http_body_util::Full::new(Bytes::from_static(bytes));
-        let mut within =
-            RequestBodySource::Buffered(super::ReplayBuffer::new(full(b"payload"), Vec::new(), 7));
-        for _ in 0..2 {
-            let Ok(Some(mut attempt)) = within.next_attempt() else {
-                panic!("a buffered body within its limit was refused");
-            };
-            assert_eq!(drain(&mut attempt), Ok(b"payload".to_vec()));
-            assert!(within.can_replay());
-        }
-
-        let mut past =
-            RequestBodySource::Buffered(super::ReplayBuffer::new(full(b"payload"), Vec::new(), 6));
-        let Ok(Some(mut attempt)) = past.next_attempt() else {
-            panic!("the first attempt was refused");
-        };
-        assert_eq!(drain(&mut attempt), Ok(b"payload".to_vec()));
-        assert!(!past.can_replay());
-        let error = match past.next_attempt() {
-            Ok(_) => panic!("a body past its limit was sent again"),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
-        assert!(error.to_string().contains("replay limit"));
-    }
-
-    /// A body whose first poll fails.
-    struct Failing;
-
-    impl http_body::Body for Failing {
-        type Data = Bytes;
-        type Error = std::io::Error;
-
-        fn poll_frame(
-            self: std::pin::Pin<&mut Self>,
-            _context: &mut std::task::Context<'_>,
-        ) -> std::task::Poll<Option<Result<http_body::Frame<Bytes>, std::io::Error>>> {
-            std::task::Poll::Ready(Some(Err(std::io::Error::other("source failed"))))
-        }
-    }
-
-    #[test]
-    fn a_buffered_body_whose_source_failed_is_not_sent_again() {
-        let mut body =
-            RequestBodySource::Buffered(super::ReplayBuffer::new(Failing, Vec::new(), 64));
-        let Ok(Some(mut attempt)) = body.next_attempt() else {
-            panic!("the first attempt was refused");
-        };
-        assert_eq!(drain(&mut attempt), Err(()));
-        assert!(!body.can_replay());
-        let error = match body.next_attempt() {
-            Ok(_) => panic!("a failed body was sent again"),
-            Err(error) => error,
-        };
-        assert_eq!(error.kind(), RequestErrorKind::RequestBody);
-        assert!(error.to_string().contains("one-shot"));
-    }
-
-    #[test]
-    fn recognizes_alt_used_in_each_caller_controlled_field_source() {
-        assert!(contains_caller_alt_used(
-            &[RequestHeader::new("ALT-USED", "alt.example:443")],
-            &[],
-            false,
-        ));
-        assert!(contains_caller_alt_used(
-            &[],
-            &[RequestHeader::new("Alt-Used", "alt.example:443")],
-            false,
-        ));
-        assert!(declares_alt_used_trailer(&[RequestTrailerName::new(
-            "alt-used",
-        )]));
-        assert!(contains_caller_alt_used(&[], &[], true));
-        assert!(!contains_caller_alt_used(
-            &[RequestHeader::new("x-field", "value")],
-            &[RequestHeader::new("x-trailer", "value")],
-            false,
-        ));
-    }
-
-    #[test]
-    fn http_proxy_routes_reject_http3_without_network_io() -> Result<(), Box<dyn std::error::Error>>
-    {
-        let routes = [Route::http_proxy(HttpProxy::new("http://127.0.0.1:9")?)];
-        let request = ResolvedRequest::new(&"https://example.test/".parse()?)?;
-
-        for route in routes {
-            let error = match ensure_request_supported(
-                ProtocolSelection::Exact(HttpProtocol::Http3),
-                &route,
-                &request,
-            ) {
-                Ok(()) => panic!("HTTP proxy route accepted HTTP/3"),
-                Err(error) => error,
-            };
-
-            assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
-            assert_eq!(error.protocol(), Some(HttpProtocol::Http3));
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn local_dns_socks5_route_accepts_http3() -> Result<(), Box<dyn std::error::Error>> {
-        let route = Route::socks5(Socks5Proxy::new("socks5://127.0.0.1:9")?);
-        let request = ResolvedRequest::new(&"https://example.test/".parse()?)?;
-
-        assert!(
-            ensure_request_supported(
-                ProtocolSelection::Exact(HttpProtocol::Http3),
-                &route,
-                &request,
-            )
-            .is_ok()
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn remote_dns_socks5_route_accepts_http3() -> Result<(), Box<dyn std::error::Error>> {
-        let route = Route::socks5(Socks5Proxy::new("socks5h://127.0.0.1:9")?);
-        let request = ResolvedRequest::new(&"https://example.test/".parse()?)?;
-
-        assert!(
-            ensure_request_supported(
-                ProtocolSelection::Exact(HttpProtocol::Http3),
-                &route,
-                &request,
-            )
-            .is_ok()
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn connect_udp_route_accepts_only_exact_http3() -> Result<(), Box<dyn std::error::Error>> {
-        let route = Route::connect_udp(crate::ConnectUdpProxy::new(
-            "https://127.0.0.1:9/masque/{target_host}/{target_port}/",
-        )?);
-        let secure = ResolvedRequest::new(&"https://example.test/".parse()?)?;
-        let plaintext = ResolvedRequest::new(&"http://example.test/".parse()?)?;
-
-        assert!(
-            ensure_request_supported(
-                ProtocolSelection::Exact(HttpProtocol::Http3),
-                &route,
-                &secure,
-            )
-            .is_ok()
-        );
-        for (selection, request, protocol) in [
-            (
-                ProtocolSelection::Exact(HttpProtocol::Http1),
-                &secure,
-                Some(HttpProtocol::Http1),
-            ),
-            (
-                ProtocolSelection::Exact(HttpProtocol::Http2),
-                &secure,
-                Some(HttpProtocol::Http2),
-            ),
-            (ProtocolSelection::Http1Or2, &secure, None),
-            (
-                ProtocolSelection::Exact(HttpProtocol::Http1),
-                &plaintext,
-                Some(HttpProtocol::Http1),
-            ),
-        ] {
-            let error = match ensure_request_supported(selection, &route, request) {
-                Ok(()) => panic!("CONNECT-UDP route accepted {selection:?}"),
-                Err(error) => error,
-            };
-            assert_eq!(error.kind(), RequestErrorKind::UnsupportedRoute);
-            assert_eq!(error.protocol(), protocol);
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn direct_route_accepts_each_supported_protocol() -> Result<(), Box<dyn std::error::Error>> {
-        let request = ResolvedRequest::new(&"https://example.test/".parse()?)?;
-        for protocol in [
-            HttpProtocol::Http1,
-            HttpProtocol::Http2,
-            HttpProtocol::Http3,
-        ] {
-            assert!(
-                ensure_request_supported(
-                    ProtocolSelection::Exact(protocol),
-                    &Route::Direct,
-                    &request,
-                )
-                .is_ok()
-            );
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn initial_uri_is_not_reserialized_through_whatwg_rules()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let uri = "https://example.test/a/%2e%2e/final?value=%2f".parse()?;
-        let request = ResolvedRequest::new(&uri)?;
-
-        assert_eq!(request.uri, uri);
-        Ok(())
-    }
-
-    #[test]
-    fn initial_uri_uses_one_canonical_host_for_wire_and_url_state()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let uri = super::parse_absolute_uri("https://BÜCHER.Example:443/a/%2e%2e/final?value=%2f")?;
-        let request = ResolvedRequest::new(&uri)?;
-
-        assert_eq!(request.endpoint.host(), "xn--bcher-kva.example");
-        assert_eq!(
-            request.endpoint.authority().as_str(),
-            "xn--bcher-kva.example:443"
-        );
-        assert_eq!(
-            request.uri,
-            "https://xn--bcher-kva.example:443/a/%2e%2e/final?value=%2f".parse::<http::Uri>()?
-        );
-        assert_eq!(
-            request.url.origin().ascii_serialization(),
-            "https://xn--bcher-kva.example"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn redirect_fragments_are_not_sent() -> Result<(), Box<dyn std::error::Error>> {
-        let url = url::Url::parse("https://example.test/final?value=yes#section")?;
-        let request = ResolvedRequest::from_redirect_url(&url)?;
-
-        assert_eq!(
-            request.uri,
-            "https://example.test/final?value=yes".parse::<http::Uri>()?
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn redirect_url_retains_the_same_canonical_endpoint() -> Result<(), Box<dyn std::error::Error>>
-    {
-        let url = url::Url::parse("https://BÜCHER.Example:8443/next")?;
-        let request = ResolvedRequest::from_redirect_url(&url)?;
-
-        assert_eq!(request.endpoint.host(), "xn--bcher-kva.example");
-        assert_eq!(
-            request.endpoint.authority().as_str(),
-            "xn--bcher-kva.example:8443"
-        );
-        assert_eq!(request.url, url);
-        Ok(())
-    }
-
-    /// A request's future holds every future on its path inline, and a debug
-    /// build's poll frames grow with them; see `phantom_testkit::future_size`.
-    ///
-    /// With all features, the largest, `RequestBuilder::send_inner`, is
-    /// 14,264 bytes as measured on Windows (x86-64, Rust 1.99.0); other
-    /// platforms may differ. When this fails, for example after a toolchain
-    /// upgrade, run it with `--nocapture` to see every size, then box the
-    /// largest cold branch with `Box::pin`. Raise `FUTURE_BUDGET` only with the measurements
-    /// that justify it, and never box the path of an ordinary request.
-    #[cfg(debug_assertions)]
-    #[test]
-    fn request_futures_stay_within_the_stack_budget() {
-        use phantom_testkit::future_size::{assert_within_budget, future_size};
-
-        use super::{RequestBuilder, alt_svc_attempt, attempt};
-        use crate::session::{
-            http1_or_2_pool::Http1Or2Pool, http1_pool::Http1Pool, http2_pool::Http2Pool,
-            http3_pool::Http3Pool,
-        };
-
-        assert_within_budget(&[
-            ("RequestBuilder::send", future_size(&RequestBuilder::send)),
-            (
-                "RequestBuilder::send_inner",
-                future_size(&RequestBuilder::send_inner),
-            ),
-            ("send_once", future_size(&attempt::send_once)),
-            ("send_once_origin", future_size(&attempt::send_once_origin)),
-            (
-                "send_once_alt_svc",
-                future_size(&alt_svc_attempt::send_once_alt_svc),
-            ),
-            (
-                "send_once_raced",
-                future_size(&alt_svc_attempt::send_once_raced),
-            ),
-            (
-                "Http1Pool::send_request",
-                future_size(&Http1Pool::send_request),
-            ),
-            (
-                "Http2Pool::send_request",
-                future_size(&Http2Pool::send_request),
-            ),
-            (
-                "Http1Or2Pool::send_request",
-                future_size(&Http1Or2Pool::send_request),
-            ),
-            (
-                "Http3Pool::send_request",
-                future_size(&Http3Pool::send_request),
-            ),
-            (
-                "Http3Pool::send_request_on_lease",
-                future_size(&Http3Pool::send_request_on_lease),
-            ),
-        ]);
-    }
-}
+mod tests;

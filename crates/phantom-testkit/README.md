@@ -119,6 +119,18 @@ lengths and extensions and keeps their order. Later records remain unread.
 Extra bytes after ClientHello within its final record return an error.
 The summary describes the ClientHello, rather than completing a TLS handshake.
 
+## Observe DNS fixture completion
+
+Call `server.finish().await?` after your resolver assertions. It stops new
+queries, cancels pending replies and collects original background failures.
+Deliberate silence succeeds. Invalid replies, socket failures and task panics
+return `DnsServerError` with their original causes.
+
+Completion uses a five-second cooperative timeout. A cancelled or timed-out
+wait retains the task for another call. Responders must return promptly;
+the timeout cannot preempt a blocking callback. Dropping the server aborts
+its tasks without collecting their outcomes.
+
 ## Run asynchronous helpers
 
 Poll deadline-based captures in a Tokio runtime with its timer enabled.

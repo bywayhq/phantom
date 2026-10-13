@@ -402,8 +402,10 @@ without response data before it stops taking new requests and closes.
   exception: it closes only when the next tunnel replaces it.
 - A profile with an HTTP/2 limit runs this timer even without an HTTP/1.1
   limit. Each time it fires, it also drops idle HTTP/1.1 connections the
-  server already closed, and forgets the remembered address family of an
-  origin with no connections, as Firefox's prune does.
+  server already closed. It forgets the address family of an origin with
+  no connections, setup, or slower attempt if no activity intervenes during
+  the sweep. Intervening activity schedules another check. Setup or connections
+  that leave an empty origin also schedule one.
 - `Http2Settings::validate` accepts 1 to 65,535 seconds, the range Firefox
   allows.
 
@@ -521,7 +523,7 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 | Your fields | A field whose name matches an entry takes that entry's position and name spelling, and keeps your value and sensitivity. |
 | Unfilled entries | A literal entry you do not override sends its captured value. A caller slot you do not fill sends nothing. |
 | Extra fields | Fields the template does not name follow its last field, in your order. They are sent, not rejected. |
-| Slot hook | `fill_slots` accepts only caller slots declared on every protocol the request may use. It runs once. Retries keep its fields, and cross-origin redirects strip credentials without rerunning it. Later setters recheck the declarations. `headers` clears the recorded fills. |
+| Slot hook | `fill_slots` accepts only caller slots declared on every protocol the request may use. It runs once. Retries keep its fields. Cross-origin redirects remove `Authorization`, `Cookie`, `Cookie2`, and `Proxy-Authorization` without rerunning it. That rule does not protect custom credential fields, even when sensitive. Later setters recheck the declarations. `headers` clears the recorded fills. |
 | Prepared content type | `prepared_body` fills a declared `Content-Type` caller slot. Without one, supply exactly one matching field in your chosen position. Missing placement, duplicates, or a different value return `InvalidHeader`. |
 | Prepared content length | With no trailers or explicit length, a declared `Content-Length` caller slot receives the exact byte length. A slot on only some selected protocols rejects the request. Without a slot, ordinary body framing applies. |
 | Cookies | Templates cannot contain `Cookie`. The profile's `CookiePlacement` inserts the jar's field; a `Cookie` field of your own replaces it. |

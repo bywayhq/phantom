@@ -7,7 +7,7 @@
 //! call `if_nametoindex` through `libc` and the IP Helper LUID conversions
 //! through `windows-sys`.
 
-use std::{io, num::NonZeroU32};
+use std::{error::Error, fmt, io, num::NonZeroU32};
 
 #[cfg(windows)]
 use std::os::windows::io::BorrowedSocket;
@@ -49,7 +49,7 @@ pub(crate) fn index(name: &str) -> io::Result<NonZeroU32> {
         let error = io::Error::last_os_error();
         match error.raw_os_error() {
             None | Some(0 | libc::ENODEV | libc::ENXIO) => no_such_interface(),
-            Some(_) => lookup_failed(&error),
+            Some(_) => lookup_failed(error),
         }
     })
 }
@@ -65,6 +65,7 @@ pub(crate) fn index(name: &str) -> io::Result<NonZeroU32> {
     if name.contains('\0') {
         return Err(nul_in_name());
     }
+
     let name: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
     let mut luid = NET_LUID_LH::default();
     // SAFETY: `name` is a live, NUL-terminated UTF-16 buffer that outlives
@@ -75,7 +76,7 @@ pub(crate) fn index(name: &str) -> io::Result<NonZeroU32> {
     let status = unsafe { ConvertInterfaceAliasToLuid(name.as_ptr(), &raw mut luid) };
     if status != NO_ERROR {
         if !absent(status) {
-            return Err(lookup_failed(&win32_error(status)));
+            return Err(lookup_failed(win32_error(status)));
         }
         // SAFETY: the same buffer and local as in the alias lookup above,
         // with the same reads and writes, and no pointer kept.
@@ -84,10 +85,11 @@ pub(crate) fn index(name: &str) -> io::Result<NonZeroU32> {
             return Err(if absent(status) {
                 no_such_interface()
             } else {
-                lookup_failed(&win32_error(status))
+                lookup_failed(win32_error(status))
             });
         }
     }
+
     let mut index: u32 = 0;
     // SAFETY: `luid` is an initialized local that the call only reads, and
     // `index` is a live, writable local `u32` that it may write. Both are
@@ -97,9 +99,10 @@ pub(crate) fn index(name: &str) -> io::Result<NonZeroU32> {
         return Err(if absent(status) {
             no_such_interface()
         } else {
-            lookup_failed(&win32_error(status))
+            lookup_failed(win32_error(status))
         });
     }
+
     NonZeroU32::new(index).ok_or_else(no_such_interface)
 }
 
@@ -147,6 +150,7 @@ pub(crate) fn set_unicast_interface(
         // read here straight after the failed call.
         return Err(io::Error::last_os_error());
     }
+
     Ok(())
 }
 
@@ -171,11 +175,13 @@ pub(crate) fn unicast_interface(socket: BorrowedSocket<'_>, domain: Domain) -> i
     if result == SOCKET_ERROR {
         return Err(io::Error::last_os_error());
     }
+
     if usize::try_from(length).ok() != Some(value.len()) {
         return Err(io::Error::other(format!(
             "the unicast interface option returned {length} bytes"
         )));
     }
+
     Ok(value)
 }
 
@@ -196,11 +202,32 @@ fn no_such_interface() -> io::Error {
     )
 }
 
-fn lookup_failed(error: &io::Error) -> io::Error {
-    io::Error::new(
-        error.kind(),
-        format!("could not look up the network interface by name: {error}"),
-    )
+fn lookup_failed(error: io::Error) -> io::Error {
+    io::Error::new(error.kind(), InterfaceLookupError(error))
+}
+
+#[derive(Debug)]
+struct InterfaceLookupError(io::Error);
+
+impl fmt::Display for InterfaceLookupError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "could not look up the network interface by name: {}",
+            self.0
+        )
+    }
+}
+
+impl Error for InterfaceLookupError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        // io::Error::source skips its custom payload, so expose that payload
+        // directly; a native error has no payload and must remain an io::Error.
+        match self.0.get_ref() {
+            Some(inner) => Some(inner),
+            None => Some(&self.0),
+        }
+    }
 }
 
 fn nul_in_name() -> io::Error {
@@ -208,4 +235,74 @@ fn nul_in_name() -> io::Error {
         io::ErrorKind::InvalidInput,
         "an interface name cannot hold a NUL byte",
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{error::Error, fmt, io};
+
+    #[derive(Debug)]
+    struct LookupFailure;
+
+    impl fmt::Display for LookupFailure {
+        fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            formatter.write_str("typed lookup failure")
+        }
+    }
+
+    impl Error for LookupFailure {}
+
+    fn find_source<'a, T: Error + 'static>(error: &'a (dyn Error + 'static)) -> Option<&'a T> {
+        let mut current = Some(error);
+        while let Some(error) = current {
+            if let Some(source) = error.downcast_ref::<T>() {
+                return Some(source);
+            }
+            current = error.source();
+        }
+        None
+    }
+
+    #[test]
+    fn lookup_context_keeps_the_original_os_error() {
+        let original = io::Error::from_raw_os_error(123_456);
+        let kind = original.kind();
+        let message = original.to_string();
+
+        let error = super::lookup_failed(original);
+
+        assert_eq!(error.kind(), kind);
+        assert_eq!(
+            error.to_string(),
+            format!("could not look up the network interface by name: {message}")
+        );
+        let cause = error.source().and_then(find_source::<io::Error>);
+        assert_eq!(cause.and_then(io::Error::raw_os_error), Some(123_456));
+    }
+
+    #[test]
+    fn lookup_context_keeps_a_typed_cause() {
+        let original = io::Error::new(io::ErrorKind::PermissionDenied, LookupFailure);
+
+        let error = super::lookup_failed(original);
+
+        assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(
+            error.to_string(),
+            "could not look up the network interface by name: typed lookup failure"
+        );
+        assert!(find_source::<LookupFailure>(&error).is_some());
+    }
+
+    #[test]
+    fn an_absent_interface_keeps_the_not_found_context() {
+        let error = super::no_such_interface();
+
+        assert_eq!(error.kind(), io::ErrorKind::NotFound);
+        assert_eq!(
+            error.to_string(),
+            "no network interface on this host has this name"
+        );
+        assert!(error.source().is_none());
+    }
 }

@@ -23,7 +23,8 @@ fn opera_android_102_client_hints_match_navigation_capture()
 }
 
 #[test]
-fn opera_android_102_client_hints_share_the_chromium_names_order_and_delivery() {
+fn opera_android_102_client_hints_share_the_chromium_names_order_and_delivery()
+-> Result<(), Box<dyn std::error::Error>> {
     let names = |settings: crate::ClientHintSettings| {
         settings
             .hints()
@@ -32,9 +33,10 @@ fn opera_android_102_client_hints_share_the_chromium_names_order_and_delivery() 
             .collect::<Vec<_>>()
     };
     assert_eq!(
-        names(v102_android_client_hints_for_model("Pixel 9")),
+        names(v102_android_client_hints_for_model("Pixel 9")?),
         names(chrome::v154_windows_client_hints())
     );
+    Ok(())
 }
 
 /// Opera for Android sends Chrome's ClientHello without trust-anchor IDs,

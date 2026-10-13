@@ -1,5 +1,6 @@
 use std::{
-    io,
+    error::Error,
+    fmt, io,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
 };
 
@@ -230,11 +231,92 @@ async fn tcp_bind_to_a_foreign_address_fails_before_connecting() -> TestResult {
     )
     .await;
 
-    assert_eq!(
-        result.map(drop).map_err(|error| error.kind()),
-        Err(io::ErrorKind::AddrNotAvailable)
-    );
+    let error = result.err().ok_or("the foreign source address was bound")?;
+
+    assert_eq!(error.kind(), io::ErrorKind::AddrNotAvailable);
+    let cause = error.source().and_then(find_source::<io::Error>);
+    assert!(cause.and_then(io::Error::raw_os_error).is_some());
     Ok(())
+}
+
+#[test]
+fn address_bind_context_keeps_the_original_os_error() {
+    for protocol in ["TCP", "UDP"] {
+        let original = io::Error::from_raw_os_error(123_456);
+        let kind = original.kind();
+        let message = original.to_string();
+
+        let error = super::bind_error(protocol, IPV4_LOOPBACK, original);
+
+        assert_eq!(error.kind(), kind);
+        assert_eq!(
+            error.to_string(),
+            format!("failed to bind a {protocol} socket to source address 127.0.0.1: {message}")
+        );
+        let cause = error.source().and_then(find_source::<io::Error>);
+        assert_eq!(cause.and_then(io::Error::raw_os_error), Some(123_456));
+    }
+}
+
+#[test]
+fn address_bind_context_keeps_a_typed_cause() {
+    for protocol in ["TCP", "UDP"] {
+        let original = io::Error::new(io::ErrorKind::PermissionDenied, BindFailure);
+
+        let error = super::bind_error(protocol, IPV4_LOOPBACK, original);
+
+        assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+        assert_eq!(
+            error.to_string(),
+            format!(
+                "failed to bind a {protocol} socket to source address 127.0.0.1: typed bind failure"
+            )
+        );
+        assert!(find_source::<BindFailure>(&error).is_some());
+    }
+}
+
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
+#[test]
+fn interface_bind_context_keeps_the_original_os_error() {
+    let original = io::Error::from_raw_os_error(123_456);
+    let kind = original.kind();
+    let message = original.to_string();
+
+    let error = super::interface_error(UNKNOWN_INTERFACE, original);
+
+    assert_eq!(error.kind(), kind);
+    assert_eq!(
+        error.to_string(),
+        format!("failed to bind a socket to interface \"phantom-none0\": {message}")
+    );
+    let cause = error.source().and_then(find_source::<io::Error>);
+    assert_eq!(cause.and_then(io::Error::raw_os_error), Some(123_456));
+}
+
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
+#[test]
+fn interface_bind_context_keeps_a_typed_cause() {
+    let original = io::Error::new(io::ErrorKind::PermissionDenied, BindFailure);
+
+    let error = super::interface_error(UNKNOWN_INTERFACE, original);
+
+    assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+    assert_eq!(
+        error.to_string(),
+        "failed to bind a socket to interface \"phantom-none0\": typed bind failure"
+    );
+    assert!(find_source::<BindFailure>(&error).is_some());
 }
 
 #[cfg(any(
@@ -313,6 +395,7 @@ async fn a_socket_cannot_bind_to_an_interface_no_host_has() -> TestResult {
     if !cfg!(any(target_os = "android", target_os = "linux")) {
         assert_eq!(error.kind(), io::ErrorKind::NotFound, "{message}");
     }
+    assert!(error.source().is_some(), "{message}");
     Ok(())
 }
 
@@ -363,6 +446,28 @@ fn an_ipv6_socket_sets_the_unicast_interface_in_host_order() -> TestResult {
         index.get().to_ne_bytes()
     );
     Ok(())
+}
+
+#[derive(Debug)]
+struct BindFailure;
+
+impl fmt::Display for BindFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("typed bind failure")
+    }
+}
+
+impl Error for BindFailure {}
+
+fn find_source<'a, T: Error + 'static>(error: &'a (dyn Error + 'static)) -> Option<&'a T> {
+    let mut current = Some(error);
+    while let Some(error) = current {
+        if let Some(source) = error.downcast_ref::<T>() {
+            return Some(source);
+        }
+        current = error.source();
+    }
+    None
 }
 
 /// Whether `error` is Linux refusing to bind a socket to an interface; prints

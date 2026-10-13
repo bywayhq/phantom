@@ -1,0 +1,82 @@
+--- a/src/hpack/encoder.rs
++++ b/src/hpack/encoder.rs
+@@ -1300,6 +1300,79 @@
+         );
+     }
+
++    #[test]
++    fn three_quarter_indexing_accepts_maximum_peer_table_size() {
++        check_large_peer_table_size(u32::MAX as usize, &[63, 224, 255, 255, 255, 15]);
++    }
++
++    #[test]
++    fn three_quarter_indexing_accepts_peer_size_past_u32_multiplication_boundary() {
++        // On a 32-bit target, multiplying this legal peer setting by three
++        // overflows to two. A small field must still be indexed.
++        check_large_peer_table_size(1_431_655_766, &[63, 183, 170, 213, 170, 5]);
++    }
++
++    fn check_large_peer_table_size(max_size: usize, size_update: &[u8]) {
++        let mut encoder = Encoder::default();
++        encoder.set_profile(HpackEncoderProfile::new().huffman_coding(HuffmanCoding::WhenShorter));
++        encoder.update_max_size(max_size);
++
++        // Raw x-a: ~ has a 36-byte entry size. Its name has equal Huffman
++        // length, and its value would grow, so both strings stay raw.
++        let mut expected = size_update.to_vec();
++        expected.extend_from_slice(&[0x40, 3, b'x', b'-', b'a', 1, b'~']);
++        let block = encode(&mut encoder, vec![header("x-a", "~")]);
++        assert_eq!(&block[..], &expected[..]);
++        assert_eq!(encoder.table.max_size(), max_size);
++        assert_eq!(encoder.table.len(), 1);
++        assert_eq!(encoder.table.size(), 36);
++
++        // The second block must reuse the first dynamic entry, not emit a
++        // fresh literal after wrapping arithmetic classified it too large.
++        let repeated = encode(&mut encoder, vec![header("x-a", "~")]);
++        assert_eq!(&repeated[..], &[0x80 | 62]);
++    }
++
++    #[test]
++    fn three_quarter_indexing_preserves_inclusive_and_fractional_boundaries() {
++        // Independent integer thresholds: 3/4 of 128, 129, 130 and 131.
++        // The non-integral cases round down because entry sizes are whole
++        // bytes. No test oracle repeats the production multiplication.
++        for (max_size, threshold) in [(128, 96), (129, 96), (130, 97), (131, 98)] {
++            for (entry_size, indexed) in [
++                (threshold - 1, true),
++                (threshold, true),
++                (threshold + 1, false),
++            ] {
++                let mut encoder = Encoder::new(max_size, 0);
++                encoder.set_profile(
++                    HpackEncoderProfile::new().huffman_coding(HuffmanCoding::WhenShorter),
++                );
++                // Entry accounting is 32 bytes plus the 3-byte x-a name.
++                let value_len = entry_size - 35;
++                let value = "~".repeat(value_len);
++                let mut expected = vec![if indexed { 0x40 } else { 0 }, 3, b'x', b'-', b'a'];
++                expected.push(value_len as u8);
++                expected.extend_from_slice(value.as_bytes());
++
++                let block = encode(&mut encoder, vec![header("x-a", &value)]);
++                assert_eq!(
++                    &block[..],
++                    &expected[..],
++                    "table {max_size}, entry {entry_size}"
++                );
++                assert_eq!(encoder.table.len(), usize::from(indexed));
++                assert_eq!(encoder.table.size(), if indexed { entry_size } else { 0 });
++                let repeated = encode(&mut encoder, vec![header("x-a", &value)]);
++                if indexed {
++                    assert_eq!(&repeated[..], &[0x80 | 62]);
++                } else {
++                    assert_eq!(&repeated[..], &expected[..]);
++                }
++            }
++        }
++    }
++
+     /// Firefox stops indexing above half the table, and indexes nothing in a
+     /// table smaller than 128 bytes.
+     #[test]

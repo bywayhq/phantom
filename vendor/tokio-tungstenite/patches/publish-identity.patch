@@ -1,5 +1,5 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index 4306355..8457c10 100644
+index 4306355..fdad325 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -12,8 +12,8 @@
@@ -9,7 +9,7 @@ index 4306355..8457c10 100644
 -name = "tokio-tungstenite"
 -version = "0.30.0"
 +name = "phantom-tokio-tungstenite"
-+version = "0.30.0-phantom.2"
++version = "0.30.0-phantom.3"
  authors = [
      "Daniel Abramov <dabramov@snapview.de>",
      "Alexey Galakhov <agalakhov@snapview.de>",
@@ -51,7 +51,7 @@ index 4306355..8457c10 100644
  
  [dependencies.tungstenite]
 -version = "0.30.0"
-+version = "=0.30.0-phantom.2"
++version = "=0.30.0-phantom.3"
 +package = "phantom-tungstenite"
 +path = "../tungstenite"
  default-features = false

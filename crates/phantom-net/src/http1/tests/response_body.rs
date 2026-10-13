@@ -6,7 +6,8 @@ use tokio::{
 use tracing::instrument::WithSubscriber;
 
 use super::{
-    TestResult, bounded_peer_test, host, read_head, send_once, target, wait_for_driver_outcome,
+    TestResult, bounded_peer_test, host, peer_task::PeerTask, read_head, send_once, target,
+    wait_for_driver_outcome,
 };
 use crate::http1::PreparedRequest;
 use crate::{
@@ -19,7 +20,7 @@ async fn streams_first_data_before_later_data_exists() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
         let (release_tx, release_rx) = oneshot::channel();
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nfirst")
@@ -59,7 +60,7 @@ async fn content_length_ends_without_socket_eof() -> TestResult {
     bounded_peer_test(async {
         let subscriber = OutcomeSubscriber::default();
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello")
@@ -98,7 +99,7 @@ async fn content_length_ends_without_socket_eof() -> TestResult {
 async fn content_length_does_not_expose_surplus_bytes() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhellosurplus")
@@ -129,7 +130,7 @@ async fn content_length_does_not_expose_surplus_bytes() -> TestResult {
 async fn decodes_fragmented_chunk_extensions_and_trailers_then_reuses_connection() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             let first = read_head(&mut server).await?;
             for fragment in [
                 b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nTrailer: X-Final\r\n\r\n"
@@ -188,7 +189,7 @@ async fn reads_close_delimited_body() -> TestResult {
     bounded_peer_test(async {
         let subscriber = OutcomeSubscriber::default();
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nclose body")
@@ -224,7 +225,7 @@ async fn reports_truncated_content_length() -> TestResult {
     bounded_peer_test(async {
         let subscriber = OutcomeSubscriber::default();
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nshort")
@@ -266,7 +267,7 @@ async fn reports_truncated_content_length() -> TestResult {
 async fn status_204_has_no_body_without_socket_eof() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let server_task = tokio::spawn(async move {
+        let server_task = PeerTask::spawn(async move {
             read_head(&mut server).await?;
             server
                 .write_all(b"HTTP/1.1 204 No Content\r\nContent-Length: 99\r\n\r\n")

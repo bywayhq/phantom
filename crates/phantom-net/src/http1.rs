@@ -18,7 +18,7 @@ use request::{
     MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, MAX_REQUEST_TRAILER_BYTES, MAX_REQUEST_TRAILERS,
 };
 
-pub use crate::request::{AbsoluteForm, InvalidAbsoluteForm, OriginForm, RequestHeader};
+use crate::request::{AbsoluteForm, OriginForm, RequestHeader};
 use crate::request::{RequestBody, RequestBodyMetadata};
 pub use body::Http1Body;
 pub use connection::Http1Connection;
@@ -634,6 +634,4 @@ mod upgrade;
 
 #[cfg(test)]
 pub(crate) use tls::slower_plaintext;
-pub use tls::{
-    EchFailure, Http1TlsConnector, Http1TlsError, Http1TlsErrorKind, TlsError, TlsErrorKind,
-};
+pub use tls::{Http1TlsConnector, Http1TlsError, Http1TlsErrorKind};

@@ -16,7 +16,7 @@ use super::{
     Http2TlsConnector, TEST_AUTHORITY, TEST_SERVER_NAME, TestIdentity, TestResult,
     bounded_tls_test, tls_settings,
 };
-use crate::http2::OriginForm;
+use crate::request::OriginForm;
 
 const CLIENT_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 const TLS_FRAGMENT_SIZE: usize = 1024;

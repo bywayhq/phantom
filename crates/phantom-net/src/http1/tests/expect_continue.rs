@@ -8,11 +8,13 @@ use tokio::{
     time::timeout,
 };
 
-use super::{TestResult, bounded_peer_test, host, read_head, send_once, target};
+use super::{
+    TestResult, bounded_peer_test, host, peer_task::PeerTask, read_head, send_once, target,
+};
 use crate::http1::PreparedRequest;
 use crate::{
-    http1::{Http1Error, RequestHeader},
-    request::RequestBody,
+    http1::Http1Error,
+    request::{RequestBody, RequestHeader},
 };
 
 /// Longer than any test runs, so only `100 Continue` releases the body.
@@ -28,7 +30,7 @@ fn waiting_body(bytes: &'static [u8]) -> RequestBody {
 async fn generated_expectation_follows_framing_and_the_body_waits_for_100() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_once(client, {
+        let transaction = PeerTask::spawn(send_once(client, {
 let method = Method::POST;
 let target = target()?;
 let headers = vec![host(), RequestHeader::new("X-Order", "before-length")];
@@ -66,7 +68,7 @@ move || PreparedRequest::new_body(method, target, headers, body)
 async fn a_caller_expectation_keeps_its_spelling_and_position() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_once(client, {
+        let transaction = PeerTask::spawn(send_once(client, {
 let method = Method::PUT;
 let target = target()?;
 let headers = vec![
@@ -100,7 +102,7 @@ move || PreparedRequest::new_body(method, target, headers, body)
 async fn an_empty_body_sends_no_expectation() -> TestResult {
     bounded_peer_test(async {
         let (client, mut server) = duplex(4096);
-        let transaction = tokio::spawn(send_once(client, {
+        let transaction = PeerTask::spawn(send_once(client, {
             let method = Method::POST;
             let target = target()?;
             let headers = vec![host()];

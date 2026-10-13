@@ -4,15 +4,6 @@
 //! removes, or reorders request fields: the caller's own ordered
 //! `Accept-Encoding` fields decide which codings a response may use.
 
-mod brotli_stream;
-mod field;
-mod gzip;
-mod inflate;
-mod zstd_stream;
-
-#[cfg(test)]
-mod tests;
-
 use std::error::Error as StdError;
 
 use bytes::{Buf, Bytes, BytesMut};
@@ -20,7 +11,6 @@ use http::{HeaderMap, Method, StatusCode, header};
 use phantom_net::request::RequestHeader;
 
 use crate::{HttpProtocol, RequestError};
-
 use brotli_stream::BrotliDecoder;
 use field::{ContentEncodingList, parse_accept_encoding, parse_content_encoding};
 use gzip::GzipDecoder;
@@ -29,8 +19,17 @@ use zstd_stream::ZstdDecoder;
 
 pub(crate) use field::AdvertisedContentCodings;
 
+mod brotli_stream;
+mod field;
+mod gzip;
+mod inflate;
+mod zstd_stream;
+
 /// Largest decoded data frame yielded by a decoding response body.
 const DECODED_FRAME_BYTES: usize = 16 * 1024;
+
+/// Maximum reverse passes before no-output work returns to the body caller.
+const MAXIMUM_PUMP_PASSES: usize = 8;
 
 /// A response content coding Phantom can decode.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -206,6 +205,8 @@ pub(crate) enum Pump {
     Data(Bytes),
     /// Every buffered byte is consumed; the next wire frame is needed.
     NeedInput,
+    /// This pump reached its work quota; resume without supplying input.
+    Yield,
     /// The wire body ended and every stage completed.
     Finished,
 }
@@ -246,16 +247,9 @@ impl ContentDecoder {
         })
     }
 
-    /// Appends one encoded wire data frame.
+    /// Sets a wire frame on a new decoder or after [`Pump::NeedInput`].
     pub(crate) fn push(&mut self, data: Bytes) {
-        if self.wire.is_empty() {
-            self.wire = data;
-        } else {
-            let mut combined = BytesMut::with_capacity(self.wire.len() + data.len());
-            combined.extend_from_slice(&self.wire);
-            combined.extend_from_slice(&data);
-            self.wire = combined.freeze();
-        }
+        self.wire = data;
     }
 
     /// Records that the wire body has no further data.
@@ -263,7 +257,15 @@ impl ContentDecoder {
         self.wire_ended = true;
     }
 
-    /// Decodes buffered input into at most one bounded data frame.
+    /// Reports completion without driving another decoding step.
+    pub(crate) fn is_finished(&self) -> bool {
+        self.wire_ended
+            && self.wire.is_empty()
+            && self.buffers.iter().all(StageBuffer::is_empty)
+            && self.stages.iter().all(Stage::is_complete)
+    }
+
+    /// Runs bounded reverse passes into at most one bounded data frame.
     pub(crate) fn pump(&mut self) -> Result<Pump, RequestError> {
         let remaining = self
             .maximum_decoded_bytes
@@ -274,7 +276,7 @@ impl ContentDecoder {
         let mut output = BytesMut::zeroed(capacity);
         let mut written = 0;
 
-        loop {
+        for pass in 0..MAXIMUM_PUMP_PASSES {
             let mut progressed = false;
             for index in (0..self.stages.len()).rev() {
                 let (stage_progressed, produced) = self
@@ -285,6 +287,14 @@ impl ContentDecoder {
             }
             if written == capacity || !progressed {
                 break;
+            }
+
+            if pass + 1 == MAXIMUM_PUMP_PASSES && written == 0 {
+                return Ok(if self.is_finished() {
+                    Pump::Finished
+                } else {
+                    Pump::Yield
+                });
             }
         }
 
@@ -334,6 +344,8 @@ impl ContentDecoder {
             Some(buffer) => buffer.pending(),
             None => &self.wire,
         };
+        // Optional headers and skippable frames can consume without output.
+        let input = &input[..input.len().min(DECODED_FRAME_BYTES)];
         let output: &mut [u8] = if last {
             final_output
         } else {
@@ -473,3 +485,6 @@ impl StageError {
         RequestError::content_decoding(protocol, self.message, self.source)
     }
 }
+
+#[cfg(test)]
+mod tests;

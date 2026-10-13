@@ -24,15 +24,17 @@ use tokio::{
     net::{TcpSocket, TcpStream},
 };
 
-use crate::{host_resolver::HostResolver, source_binding::SourceBinding};
+use crate::{SourceBinding, host_resolver::HostResolver};
+
+pub use backup_connection::{
+    AddressFamily, AddressFamilyMemory, AddressFamilySnapshot, SlowerConnection, SlowerProgress,
+};
+pub(crate) use backup_connection::{SlowerAttempt, SlowerKeepalive};
+pub(crate) use keepalive_schedule::TcpKeepaliveControl;
 
 mod address_racing;
 mod backup_connection;
 mod keepalive_schedule;
-
-pub use backup_connection::{AddressFamily, AddressFamilyMemory, SlowerConnection, SlowerProgress};
-pub(crate) use backup_connection::{SlowerAttempt, SlowerKeepalive};
-pub(crate) use keepalive_schedule::TcpKeepaliveControl;
 
 /// A TCP connection opened with a profile's [`TcpSettings`].
 ///

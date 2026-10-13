@@ -8,7 +8,10 @@ mod fixture;
 use std::{error::Error, time::Duration};
 
 use fixture::Fixture;
-use phantom_net::http2::{Http2Connection, Http2Error, OriginForm};
+use phantom_net::{
+    http2::{Http2Connection, Http2Error},
+    request::OriginForm,
+};
 use phantom_profile::Http2Settings;
 use phantom_testkit::http2::{CaptureCompletion, ClientFrameCapture, capture_client_frames};
 use tokio::{io::duplex, time::timeout};

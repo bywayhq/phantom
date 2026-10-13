@@ -2,6 +2,7 @@
 
 use std::{
     collections::HashMap,
+    error::Error,
     fmt,
     future::Future,
     io,
@@ -96,6 +97,9 @@ struct State {
     entries: HashMap<Box<str>, Entry>,
     /// Shared resolutions in flight, at most `max_entries` of them.
     pending: HashMap<PendingKey, watch::Receiver<Option<Outcome>>>,
+    /// Shared resolutions still running, including those a clear detached
+    /// from `pending`. Their publishers release these reservations on drop.
+    shared_resolutions: usize,
     /// Advanced by [`AddressCache::clear`], so that a resolution started
     /// before the clear does not store its answer after it.
     generation: u64,
@@ -124,10 +128,25 @@ enum Outcome {
     /// The resolver's answer, possibly empty; each connection path reports an
     /// empty answer as it would without the cache.
     Resolved(Arc<[SocketAddr]>),
-    Failed {
-        kind: io::ErrorKind,
-        message: Arc<str>,
-    },
+    Failed(SharedResolverError),
+}
+
+/// Shares one original resolver failure across waiters and stored outcomes.
+#[derive(Clone, Debug)]
+struct SharedResolverError {
+    original: Arc<io::Error>,
+}
+
+impl fmt::Display for SharedResolverError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self.original.as_ref(), formatter)
+    }
+}
+
+impl Error for SharedResolverError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(self.original.as_ref())
+    }
 }
 
 impl Outcome {
@@ -142,10 +161,9 @@ impl Outcome {
     fn from_result(result: io::Result<Vec<SocketAddr>>) -> Self {
         match result {
             Ok(addresses) => Self::Resolved(addresses.into()),
-            Err(error) => Self::Failed {
-                kind: error.kind(),
-                message: Arc::from(error.to_string()),
-            },
+            Err(error) => Self::Failed(SharedResolverError {
+                original: Arc::new(error),
+            }),
         }
     }
 
@@ -153,7 +171,7 @@ impl Outcome {
     fn is_negative(&self) -> bool {
         match self {
             Self::Resolved(addresses) => addresses.is_empty(),
-            Self::Failed { .. } => true,
+            Self::Failed(_) => true,
         }
     }
 
@@ -167,7 +185,7 @@ impl Outcome {
                     address
                 })
                 .collect()),
-            Self::Failed { kind, message } => Err(io::Error::new(*kind, message.to_string())),
+            Self::Failed(error) => Err(io::Error::new(error.original.kind(), error.clone())),
         }
     }
 }
@@ -268,54 +286,71 @@ impl AddressCache {
         if let Ok(address) = host.parse::<IpAddr>() {
             return Ok((vec![SocketAddr::new(address, port)], false));
         }
-        let mut receiver =
-            match self.cached_or_pending(host.to_ascii_lowercase().into_boxed_str())? {
-                Answer::Wait(receiver) => receiver,
-                Answer::Inline {
-                    host,
-                    generation,
-                    resolution,
-                } => {
-                    let (outcome, record_ttl) = Outcome::from_resolution(resolution.await);
-                    self.complete(&host, None, generation, &outcome, record_ttl);
-                    return outcome.addresses(port).map(|addresses| (addresses, false));
-                }
-            };
-        let stored = receiver.borrow().is_some();
+
+        let answer = self.cached_or_pending(host.to_ascii_lowercase().into_boxed_str())?;
+        self.consume_answer(answer, port).await
+    }
+
+    /// Waits for the selected answer and gives its addresses the caller's port.
+    async fn consume_answer(
+        &self,
+        answer: Answer,
+        port: u16,
+    ) -> io::Result<(Vec<SocketAddr>, bool)> {
+        let mut receiver = match answer {
+            Answer::Stored(outcome) => {
+                return outcome.addresses(port).map(|addresses| (addresses, true));
+            }
+            Answer::Wait(receiver) => receiver,
+            Answer::Inline {
+                host,
+                generation,
+                resolution,
+            } => {
+                let (outcome, record_ttl) = Outcome::from_resolution(resolution.await);
+                self.complete(&host, None, generation, &outcome, record_ttl);
+                return outcome.addresses(port).map(|addresses| (addresses, false));
+            }
+        };
+
         let outcome = match receiver.wait_for(Option::is_some).await {
             Ok(outcome) => outcome.clone(),
             Err(_) => None,
         };
+
         match outcome {
-            Some(outcome) => outcome.addresses(port).map(|addresses| (addresses, stored)),
+            Some(outcome) => outcome.addresses(port).map(|addresses| (addresses, false)),
             None => Err(io::Error::other(
                 "the address lookup ended without an answer",
             )),
         }
     }
 
-    /// Returns a receiver already holding the stored outcome for `host`, or
-    /// one for the resolution in flight, starting it when there is none; or,
-    /// past the bound on shared resolutions, a caller's resolution to run
-    /// inline.
+    /// Selects a stored outcome or a resolution, starting one when needed.
+    ///
+    /// Provenance is decided under the lock: a resolution publishing before
+    /// its caller starts waiting does not make that lookup a cache hit.
+    /// Past the shared bound, a caller's resolution runs inline.
     fn cached_or_pending(&self, host: Box<str>) -> io::Result<Answer> {
         let mut state = self.lock();
         let now = Instant::now();
         match state.entries.get(&host) {
             Some(entry) if entry.is_fresh(now) => {
-                return Ok(Answer::Wait(watch::channel(Some(entry.outcome.clone())).1));
+                return Ok(Answer::Stored(entry.outcome.clone()));
             }
             Some(_) => {
                 state.entries.remove(&host);
             }
             None => {}
         }
+
         // A resolution that ended without an answer, as when its runtime shut
         // down or its task panicked, has dropped its sender; such entries are
         // pruned here and the name is resolved again.
         state
             .pending
             .retain(|_, receiver| receiver.has_changed().is_ok());
+
         let runtime = tokio::runtime::Handle::try_current()
             .map_err(|_| io::Error::other("an address lookup needs a Tokio runtime"))?;
         let key = match &self.inner.lookup {
@@ -325,8 +360,9 @@ impl AddressCache {
         if let Some(receiver) = state.pending.get(&key) {
             return Ok(Answer::Wait(receiver.clone()));
         }
+
         let generation = state.generation;
-        let shared = state.pending.len() < self.inner.settings.max_entries.get();
+        let shared = state.shared_resolutions < self.inner.settings.max_entries.get();
         if !shared && let Lookup::Task(resolver) = &self.inner.lookup {
             drop(state);
             let resolution = resolver.lookup(&key.0);
@@ -336,8 +372,10 @@ impl AddressCache {
                 resolution,
             });
         }
+
         let (sender, receiver) = watch::channel(None);
         if shared {
+            state.shared_resolutions += 1;
             state.pending.insert(key.clone(), receiver.clone());
         }
         drop(state);
@@ -370,6 +408,7 @@ impl AddressCache {
                 }));
             }
         }
+
         Ok(Answer::Wait(receiver))
     }
 
@@ -390,6 +429,7 @@ impl AddressCache {
         if state.generation != generation {
             return;
         }
+
         if let Some(key) = pending {
             state.pending.remove(key);
         }
@@ -427,6 +467,7 @@ impl AddressCache {
                 state.entries.remove(&soonest);
             }
         }
+
         state.entries.insert(
             host.into(),
             Entry {
@@ -475,9 +516,14 @@ impl Publisher {
 
 impl Drop for Publisher {
     fn drop(&mut self) {
-        if self.sender.take().is_some() {
-            self.cache
-                .lock()
+        let unanswered = self.sender.take().is_some();
+        let mut state = self.cache.lock();
+        if self.shared {
+            state.shared_resolutions -= 1;
+        }
+
+        if unanswered {
+            state
                 .pending
                 .retain(|_, receiver| receiver.has_changed().is_ok());
         }
@@ -486,7 +532,9 @@ impl Drop for Publisher {
 
 /// How [`AddressCache::cached_or_pending`] answers a lookup.
 enum Answer {
-    /// The stored outcome, or the shared resolution to wait for.
+    /// A fresh cache entry selected while holding the cache lock.
+    Stored(Outcome),
+    /// A newly started or joined resolution, whether or not it has published.
     Wait(watch::Receiver<Option<Outcome>>),
     /// A caller's resolution past the bound, for the lookup to run itself.
     Inline {

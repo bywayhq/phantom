@@ -1,0 +1,21 @@
+--- a/src/protocol/deflate/negotiate.rs
++++ b/src/protocol/deflate/negotiate.rs
+@@ -194,10 +194,16 @@
+     // extension and parameter names while keeping parameter values exact.
+     let mut parsed = Params::default();
+     for parameter in &parts[1..] {
++        // RFC 6455 section 9.1 uses HTTP whitespace, not Unicode whitespace.
++        let parameter = parameter.trim_matches([' ', '\t']);
+         let (name, value) = parameter
+-            .trim()
+             .split_once('=')
+-            .map_or((parameter.trim(), None), |(name, value)| (name.trim(), Some(value.trim())));
++            .map_or((parameter, None), |(name, value)| {
++                (
++                    name.trim_matches([' ', '\t']),
++                    Some(value.trim_matches([' ', '\t'])),
++                )
++            });
+         let bit = if name.eq_ignore_ascii_case("server_no_context_takeover") {
+             1
+         } else if name.eq_ignore_ascii_case("client_no_context_takeover") {

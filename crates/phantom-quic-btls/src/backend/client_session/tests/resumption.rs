@@ -321,6 +321,88 @@ fn session_tickets_require_a_prepared_context() {
 }
 
 #[test]
+fn disabling_session_tickets_discards_a_populated_cache() {
+    let server_context = server_context();
+    let config = Arc::new(
+        resuming_config()
+            .with_isolated_session_cache()
+            .with_early_data(),
+    );
+    accepting_handshake(&config, &server_context);
+    assert!(config.has_ticket_for(SERVER_NAME));
+
+    let config = test_ok(Arc::try_unwrap(config), "owned configuration");
+    let disabled = test_ok(
+        config.with_tls_profile(&ticketless_tls_settings()),
+        "disabled session tickets",
+    );
+    assert!(!disabled.resumes_sessions());
+    assert!(!disabled.sends_early_data());
+    assert!(!disabled.has_ticket_for(SERVER_NAME));
+    assert!(disabled.session_cache().is_none());
+
+    // Opting into early data cannot restore the discarded ticket or cache.
+    let disabled = Arc::new(disabled.with_early_data());
+    let client = start(&disabled);
+    assert!(client.early_crypto().is_none());
+    let client = handshake_with(
+        client,
+        test_ok(
+            RawServer::new_accepting_early_data(&server_context),
+            "server accepting early data",
+        ),
+    );
+    assert!(!resumed(client.as_ref()));
+    assert_eq!(client.early_data_accepted(), Some(false));
+    assert!(!disabled.has_ticket_for(SERVER_NAME));
+    assert!(disabled.session_cache().is_none());
+}
+
+#[test]
+fn enabling_session_tickets_again_requires_a_new_isolated_cache() {
+    let disabled = test_ok(
+        resuming_config()
+            .with_isolated_session_cache()
+            .with_tls_profile(&ticketless_tls_settings()),
+        "disabled session tickets",
+    );
+    let enabled = test_ok(
+        disabled.with_tls_profile(&resuming_tls_settings()),
+        "enabled session tickets",
+    );
+    assert!(!enabled.resumes_sessions());
+
+    let server_context = server_context();
+    let enabled = Arc::new(enabled);
+    handshake(&enabled, &server_context);
+    assert!(!enabled.has_ticket_for(SERVER_NAME));
+    assert!(!resumed(handshake(&enabled, &server_context).as_ref()));
+
+    let isolated = Arc::new(enabled.with_isolated_session_cache());
+    assert!(!resumed(handshake(&isolated, &server_context).as_ref()));
+    assert!(isolated.has_ticket_for(SERVER_NAME));
+    assert!(resumed(handshake(&isolated, &server_context).as_ref()));
+}
+
+#[test]
+fn changing_an_enabled_profile_preserves_its_isolated_cache() {
+    let server_context = server_context();
+    let config = Arc::new(resuming_config().with_isolated_session_cache());
+    handshake(&config, &server_context);
+    assert!(config.has_ticket_for(SERVER_NAME));
+
+    let config = test_ok(Arc::try_unwrap(config), "owned configuration");
+    let mut settings = resuming_tls_settings();
+    settings.session_ticket_order = phantom_profile::SessionTicketOrder::OldestFirst;
+    let changed = Arc::new(test_ok(
+        config.with_tls_profile(&settings),
+        "changed enabled profile",
+    ));
+    assert!(changed.has_ticket_for(SERVER_NAME));
+    assert!(resumed(handshake(&changed, &server_context).as_ref()));
+}
+
+#[test]
 fn a_full_handshake_retry_stores_tickets_without_presenting_one() {
     let server_context = server_context();
     let config = Arc::new(resuming_config().with_isolated_session_cache());

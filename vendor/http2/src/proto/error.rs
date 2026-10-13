@@ -1,9 +1,9 @@
-use crate::codec::SendError;
-use crate::frame::{Reason, StreamId};
+use std::{fmt, io, sync::Arc};
 
 use bytes::Bytes;
-use std::fmt;
-use std::io;
+
+use crate::codec::SendError;
+use crate::frame::{Reason, StreamId};
 
 /// GOAWAY debug data sent when an unanswered preface PING closes the
 /// connection, as Chromium's `SpdySession::CheckPingStatus` sends it.
@@ -14,7 +14,7 @@ pub(crate) const PING_TIMEOUT_DEBUG_DATA: &[u8] = b"Failed ping.";
 pub enum Error {
     Reset(StreamId, Reason, Initiator),
     GoAway(Bytes, Reason, Initiator),
-    Io(io::ErrorKind, Option<String>),
+    Io(Arc<io::Error>),
 }
 
 pub struct GoAway {
@@ -79,21 +79,20 @@ impl fmt::Display for Error {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Self::Reset(_, reason, _) | Self::GoAway(_, reason, _) => reason.fmt(fmt),
-            Self::Io(_, Some(ref inner)) => inner.fmt(fmt),
-            Self::Io(kind, None) => io::Error::from(kind).fmt(fmt),
+            Self::Io(ref error) => error.fmt(fmt),
         }
     }
 }
 
 impl From<io::ErrorKind> for Error {
     fn from(src: io::ErrorKind) -> Self {
-        Error::Io(src, None)
+        io::Error::from(src).into()
     }
 }
 
 impl From<io::Error> for Error {
     fn from(src: io::Error) -> Self {
-        Error::Io(src.kind(), src.get_ref().map(|inner| inner.to_string()))
+        Error::Io(Arc::new(src))
     }
 }
 

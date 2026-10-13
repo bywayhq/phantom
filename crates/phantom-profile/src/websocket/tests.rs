@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, time::Duration};
+use std::{
+    collections::BTreeMap,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use super::{
     WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
@@ -6,11 +9,58 @@ use super::{
     WebSocketSettings,
 };
 use crate::{
-    AlpsSettings, Http2Priority, Http2PseudoHeader, Http2Settings, TlsSettings, browser::chrome,
-    browser::firefox,
+    AlpsSettings, ClientProfile, Http2Priority, Http2PseudoHeader, Http2Settings, TlsSettings,
+    browser::chrome, browser::firefox,
 };
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
+
+#[test]
+fn debug_redacts_websocket_values_through_nested_profiles() -> TestResult {
+    let canary = format!(
+        "websocket-field-{}-{}",
+        std::process::id(),
+        SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos(),
+    );
+    let fields = [
+        WebSocketField::literal("x-api-key", format!("{canary}-literal")),
+        WebSocketField::by_trust(
+            "x-trust-value",
+            format!("{canary}-trustworthy"),
+            format!("{canary}-untrustworthy"),
+        ),
+        WebSocketField::trustworthy_only("x-trust-only", format!("{canary}-trust-only")),
+    ];
+    let mut settings = chrome::v154_websocket();
+    settings.http1_fields.extend(fields.clone());
+    settings.http2_fields.extend(fields.clone());
+    settings.validate()?;
+    let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_websocket(settings.clone());
+
+    for debug in [
+        format!("{fields:?}"),
+        format!("{settings:#?}"),
+        format!("{profile:?}"),
+    ] {
+        assert!(!debug.contains(&canary));
+        assert!(debug.contains("x-api-key"));
+        assert!(debug.contains("<redacted>"));
+        assert!(debug.contains("ByTrust"));
+    }
+
+    let optional = format!("{:?}", fields[2]);
+    assert!(optional.contains("trustworthy: Some(\"<redacted>\")"));
+    assert!(optional.contains("untrustworthy: None"));
+    assert_eq!(
+        format!("{:?}", WebSocketField::key("Sec-WebSocket-Key")),
+        "Key { name: \"Sec-WebSocket-Key\" }",
+    );
+    assert_eq!(
+        fields[1].default_value(crate::UrlTrust::PotentiallyTrustworthy),
+        Some(format!("{canary}-trustworthy").as_str()),
+    );
+    Ok(())
+}
 
 const SCENARIOS: [&str; 9] = [
     "accept",
@@ -700,13 +750,18 @@ fn attribute<'a>(record: &'a str, name: &str) -> TestResult<&'a str> {
 }
 
 fn decode_hex(value: &str) -> TestResult<String> {
-    if !value.len().is_multiple_of(2) {
+    if !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err("invalid hexadecimal value".into());
+    }
+
+    let (pairs, remainder) = value.as_bytes().as_chunks::<2>();
+    if !remainder.is_empty() {
         return Err("odd-length hexadecimal value".into());
     }
-    let bytes = (0..value.len())
-        .step_by(2)
-        .map(|index| u8::from_str_radix(&value[index..index + 2], 16))
-        .collect::<Result<Vec<_>, _>>()?;
+    let bytes = pairs
+        .iter()
+        .map(|pair| Ok(u8::from_str_radix(std::str::from_utf8(pair)?, 16)?))
+        .collect::<Result<Vec<u8>, Box<dyn std::error::Error>>>()?;
     Ok(String::from_utf8(bytes)?)
 }
 
@@ -913,4 +968,16 @@ fn both_recipes_reuse_a_proxied_http2_session() {
             WebSocketProxiedSession::Reuse
         );
     }
+}
+
+#[test]
+fn websocket_field_hex_rejects_malformed_text() -> TestResult {
+    for malformed in [
+        "+1", "+f", "4a+1", "-1", " 1", "1 ", "0", "410", "gg", "0\u{e9}0", "ff",
+    ] {
+        assert!(decode_hex(malformed).is_err(), "{malformed:?}");
+    }
+    assert_eq!(decode_hex("4a4A")?, "JJ");
+    assert_eq!(decode_hex("")?, "");
+    Ok(())
 }

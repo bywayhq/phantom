@@ -11,7 +11,11 @@ use std::{
 use bytes::Bytes;
 use http::{
     HeaderMap, Method, Uri,
-    header::HeaderName,
+    header::{
+        AUTHORIZATION, CACHE_CONTROL, CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_RANGE,
+        CONTENT_TYPE, HOST, HeaderName, MAX_FORWARDS, PROXY_AUTHORIZATION, SET_COOKIE, TE, TRAILER,
+        TRANSFER_ENCODING, UPGRADE,
+    },
     uri::{Authority, PathAndQuery},
 };
 use http_body::{Body, Frame, SizeHint};
@@ -445,6 +449,27 @@ impl Body for RequestBody {
 /// expectation RFC 9110, section 10.1.1, defines.
 pub(crate) fn is_continue_expectation(value: &[u8]) -> bool {
     value.trim_ascii().eq_ignore_ascii_case(b"100-continue")
+}
+
+pub(crate) fn is_forbidden_trailer(name: &HeaderName) -> bool {
+    matches!(
+        *name,
+        AUTHORIZATION
+            | CACHE_CONTROL
+            | CONNECTION
+            | CONTENT_ENCODING
+            | CONTENT_LENGTH
+            | CONTENT_RANGE
+            | CONTENT_TYPE
+            | HOST
+            | MAX_FORWARDS
+            | PROXY_AUTHORIZATION
+            | SET_COOKIE
+            | TE
+            | TRAILER
+            | TRANSFER_ENCODING
+            | UPGRADE
+    ) || matches!(name.as_str(), "keep-alive" | "proxy-connection")
 }
 
 fn order_body_trailers(

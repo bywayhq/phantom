@@ -7,12 +7,15 @@ use std::{
 };
 
 use http::Method;
-use phantom_net::http2::{
-    Http2Body, Http2Connection, Http2Error, Http2ProtocolErrorKind, Http2TlsConnector,
-    Http2TlsError, OriginForm, RequestHeader, validate_request_body_source_with_trailers,
-};
 use phantom_net::proxy::HttpsProxyConnector;
 use phantom_net::request::RequestBody;
+use phantom_net::{
+    http2::{
+        Http2Body, Http2Connection, Http2Error, Http2ProtocolErrorKind, Http2TlsConnector,
+        Http2TlsError, validate_request_body_source_with_trailers,
+    },
+    request::{OriginForm, RequestHeader},
+};
 use phantom_profile::Http2Priority;
 use tokio::{
     sync::{Mutex, Notify},

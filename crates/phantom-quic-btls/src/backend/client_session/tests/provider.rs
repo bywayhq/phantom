@@ -27,6 +27,76 @@ fn client_transport_parameters() -> TransportParameters {
     )
 }
 
+#[test]
+fn a_live_provider_with_disabled_verification_does_not_report_endpoint_shutdown() {
+    let context = client_context(false);
+    let config = Arc::new(QuicClientConfig::new(context.0));
+    let result = crypto::ClientConfig::start_session(
+        config,
+        0x0000_0001,
+        SERVER_NAME,
+        &client_transport_parameters(),
+    );
+
+    let error = match result {
+        Ok(_) => panic!("verification-disabled provider started a session"),
+        Err(error) => error,
+    };
+    assert_eq!(
+        error,
+        ConnectError::CryptoProvider("peer verification disabled")
+    );
+    assert_eq!(
+        error.to_string(),
+        "cryptography provider failed to start a session: peer verification disabled"
+    );
+}
+
+#[test]
+fn invalid_ech_reports_a_safe_provider_error_and_records_the_outcome() {
+    let offer = crate::EchOffer::new(b"\x00\x03\xfe\x0d\x00private-ech-payload");
+    let config = Arc::new(QuicClientConfig::new(client_context(true).0).with_ech(&offer));
+    let result = crypto::ClientConfig::start_session(
+        config,
+        0x0000_0001,
+        SERVER_NAME,
+        &client_transport_parameters(),
+    );
+    let error = match result {
+        Ok(_) => panic!("invalid ECH configuration started a session"),
+        Err(error) => error,
+    };
+    assert_eq!(
+        error,
+        ConnectError::CryptoProvider("invalid ECH configuration list")
+    );
+    assert_eq!(offer.outcome(), Some(crate::EchOutcome::InvalidConfigList));
+    assert_eq!(
+        error.to_string(),
+        "cryptography provider failed to start a session: invalid ECH configuration list"
+    );
+    assert_eq!(
+        format!("{error:?}"),
+        "CryptoProvider(\"invalid ECH configuration list\")"
+    );
+}
+
+#[test]
+fn a_verified_provider_starts_and_derives_initial_packet_keys() {
+    let config = Arc::new(QuicClientConfig::new(client_context(true).0));
+    let session = test_ok(
+        crypto::ClientConfig::start_session(
+            config,
+            0x0000_0001,
+            SERVER_NAME,
+            &client_transport_parameters(),
+        ),
+        "verified provider startup",
+    );
+    let destination = ConnectionId::new(&[0x83, 0x94, 0xc8, 0xf0]);
+    assert!(session.initial_keys(&destination, Side::Client).is_ok());
+}
+
 fn quinn_client_handshake(
     failure: Option<TestDerivationFailure>,
 ) -> Result<(Box<dyn crypto::Session>, RawServer, usize), TransportError> {

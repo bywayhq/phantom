@@ -1,20 +1,5 @@
 //! Binding outgoing sockets to a local address or a network interface.
 //!
-//! A [`SourceBinding`] is a caller option, not part of any browser recipe:
-//! without one, every socket keeps the operating system's choice of source
-//! address and interface. Each platform binds an interface with its own
-//! socket option, set before the socket binds an address or connects:
-//!
-//! | Platform | Option | Name |
-//! | --- | --- | --- |
-//! | Linux, Android | `SO_BINDTODEVICE` | Up to 15 bytes, such as `eth0` |
-//! | macOS | `IP_BOUND_IF`, `IPV6_BOUND_IF` | Up to 15 bytes, such as `en0` |
-//! | Windows | `IP_UNICAST_IF`, `IPV6_UNICAST_IF` | An alias, such as `Ethernet`, or an NDIS name, such as `ethernet_32768`; up to 256 UTF-16 code units |
-//!
-//! macOS and Windows take an interface index, which each socket looks up
-//! from the name when it binds, so a name no interface has fails that
-//! socket with [`io::ErrorKind::NotFound`]. The macOS code also compiles for
-//! iOS and the other Apple platforms, where no test runs it.
 
 use std::{
     error::Error,
@@ -88,12 +73,25 @@ impl InterfaceNameLimit {
 ///
 /// An interface name binds each socket to that interface before the socket
 /// binds an address or connects, on Linux, Android, macOS, and Windows, with
-/// the options the [module documentation](self) lists;
+/// the options listed below;
 /// elsewhere [`Self::validate`] rejects it. On Windows the option chooses
 /// the interface of the socket's outgoing unicast packets only, and does not
 /// filter what the socket receives. An address set alongside the interface
 /// must belong to that interface; Phantom does not check that the two agree.
 /// Name resolution is not bound.
+///
+/// | Platform | Option | Name |
+/// | --- | --- | --- |
+/// | Linux, Android | `SO_BINDTODEVICE` | Up to 15 bytes, such as `eth0` |
+/// | macOS | `IP_BOUND_IF`, `IPV6_BOUND_IF` | Up to 15 bytes, such as `en0` |
+/// | Windows | `IP_UNICAST_IF`, `IPV6_UNICAST_IF` | An alias, such as `Ethernet`, or an NDIS name, such as `ethernet_32768`; up to 256 UTF-16 code units |
+///
+/// macOS and Windows resolve the name to an interface index when each socket
+/// binds. An unknown name fails with [`io::ErrorKind::NotFound`]. The macOS
+/// implementation also compiles for other Apple platforms, which are untested.
+///
+/// Binding errors retain their kind and expose the underlying OS error or
+/// typed cause through [`Error::source`].
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct SourceBinding {
     ipv4: Option<Ipv4Addr>,
@@ -373,8 +371,55 @@ pub(crate) fn unicast_interface_value(index: u32, domain: Domain) -> [u8; 4] {
 fn interface_error(name: &str, error: io::Error) -> io::Error {
     io::Error::new(
         error.kind(),
-        format!("failed to bind a socket to interface {name:?}: {error}"),
+        InterfaceBindingError {
+            name: name.into(),
+            error,
+        },
     )
+}
+
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
+#[derive(Debug)]
+struct InterfaceBindingError {
+    name: Box<str>,
+    error: io::Error,
+}
+
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
+impl fmt::Display for InterfaceBindingError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "failed to bind a socket to interface {:?}: {}",
+            self.name, self.error
+        )
+    }
+}
+
+#[cfg(any(
+    target_os = "android",
+    target_os = "linux",
+    target_vendor = "apple",
+    windows
+))]
+impl Error for InterfaceBindingError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        // io::Error::source skips a custom payload, including lookup context.
+        match self.error.get_ref() {
+            Some(inner) => Some(inner),
+            None => Some(&self.error),
+        }
+    }
 }
 
 fn no_bound_family() -> io::Error {
@@ -387,8 +432,39 @@ fn no_bound_family() -> io::Error {
 pub(crate) fn bind_error(protocol: &str, address: IpAddr, error: io::Error) -> io::Error {
     io::Error::new(
         error.kind(),
-        format!("failed to bind a {protocol} socket to source address {address}: {error}"),
+        AddressBindingError {
+            protocol: protocol.into(),
+            address,
+            error,
+        },
     )
+}
+
+#[derive(Debug)]
+struct AddressBindingError {
+    protocol: Box<str>,
+    address: IpAddr,
+    error: io::Error,
+}
+
+impl fmt::Display for AddressBindingError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "failed to bind a {} socket to source address {}: {}",
+            self.protocol, self.address, self.error
+        )
+    }
+}
+
+impl Error for AddressBindingError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        // Preserve custom causes as well as raw OS errors.
+        match self.error.get_ref() {
+            Some(inner) => Some(inner),
+            None => Some(&self.error),
+        }
+    }
 }
 
 /// Error returned when a [`SourceBinding`] cannot be applied as written.

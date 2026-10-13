@@ -76,8 +76,12 @@ fn sockets_without_udp_settings_leave_port_randomization_off() -> TestResult {
 /// error comes back with its Winsock code.
 #[test]
 fn a_bound_udp_socket_rejects_port_randomization() -> TestResult {
-    let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, None)?;
-    socket.bind(&SocketAddr::from((Ipv4Addr::LOCALHOST, 0)).into())?;
+    let socket = bind_socket(
+        SocketAddr::from((Ipv4Addr::LOCALHOST, 443)),
+        SocketAddr::from((Ipv4Addr::LOCALHOST, 0)),
+        None,
+        None,
+    )?;
     let error = match port_randomization::enable(socket.as_socket()) {
         Ok(()) => return Err("a bound socket took SO_RANDOMIZE_PORT".into()),
         Err(error) => error,

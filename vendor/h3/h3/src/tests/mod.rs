@@ -12,10 +12,12 @@ mod h3_quinn;
 mod connection;
 mod qpack_request;
 mod request;
+mod socket;
 
 use std::{
     convert::TryInto,
-    net::{Ipv6Addr, ToSocketAddrs},
+    io,
+    net::{Ipv6Addr, ToSocketAddrs, UdpSocket},
     sync::Arc,
     time::Duration,
 };
@@ -45,6 +47,35 @@ async fn get_stream_blocking<C: quic::Connection<B>, B: Buf>(
     let request_resolver = incoming.accept().await.ok()??;
     let (request, stream) = request_resolver.resolve_request().await.ok()?;
     Some((request, stream))
+}
+
+// Keep this standalone vendor harness independent of the first-party testkit.
+// Mirror its ephemeral-port rule locally instead of adding a workspace dependency.
+fn bind_loopback_socket() -> io::Result<UdpSocket> {
+    retry_reserved_ports(cfg!(windows), || UdpSocket::bind((Ipv6Addr::LOCALHOST, 0)))
+}
+
+// Three additional attempts let Windows advance past a transient reserved-port
+// refusal. Only WSAENOBUFS (10055) is retried; all other errors are returned as-is.
+const RESERVED_PORT_RETRIES: usize = 3;
+
+fn retry_reserved_ports<T>(
+    windows: bool,
+    mut bind: impl FnMut() -> io::Result<T>,
+) -> io::Result<T> {
+    let mut retries = 0;
+    loop {
+        match bind() {
+            Err(error)
+                if windows
+                    && error.raw_os_error() == Some(10_055)
+                    && retries < RESERVED_PORT_RETRIES =>
+            {
+                retries += 1;
+            }
+            result => return result,
+        }
+    }
 }
 
 pub struct Pair {
@@ -92,8 +123,13 @@ impl Pair {
             QuicServerConfig::try_from(crypto).unwrap(),
         ));
         server_config.transport = self.config.clone();
-        let endpoint =
-            h3_quinn::quinn::Endpoint::server(server_config, "[::]:0".parse().unwrap()).unwrap();
+        let endpoint = quinn::Endpoint::new(
+            quinn::EndpointConfig::default(),
+            Some(server_config),
+            bind_loopback_socket().unwrap(),
+            Arc::new(quinn::TokioRuntime),
+        )
+        .unwrap();
 
         self.port = endpoint.local_addr().unwrap().port();
 
@@ -105,13 +141,7 @@ impl Pair {
         Server { endpoint }
     }
 
-    pub async fn client_inner(&self) -> quinn::Connection {
-        let addr = (Ipv6Addr::LOCALHOST, self.port)
-            .to_socket_addrs()
-            .unwrap()
-            .next()
-            .unwrap();
-
+    fn client_endpoint(&self) -> quinn::Endpoint {
         let mut root_cert_store = rustls::RootCertStore::empty();
         root_cert_store.add(self.cert.clone()).unwrap();
         let mut crypto = rustls::ClientConfig::builder_with_provider(Arc::new(
@@ -128,10 +158,25 @@ impl Pair {
             QuicClientConfig::try_from(crypto).unwrap(),
         ));
 
-        let mut client_endpoint =
-            h3_quinn::quinn::Endpoint::client("[::]:0".parse().unwrap()).unwrap();
-        client_endpoint.set_default_client_config(client_config);
-        client_endpoint
+        let mut endpoint = quinn::Endpoint::new(
+            quinn::EndpointConfig::default(),
+            None,
+            bind_loopback_socket().unwrap(),
+            Arc::new(quinn::TokioRuntime),
+        )
+        .unwrap();
+        endpoint.set_default_client_config(client_config);
+        endpoint
+    }
+
+    pub async fn client_inner(&self) -> quinn::Connection {
+        let addr = (Ipv6Addr::LOCALHOST, self.port)
+            .to_socket_addrs()
+            .unwrap()
+            .next()
+            .unwrap();
+
+        self.client_endpoint()
             .connect(addr, "localhost")
             .unwrap()
             .await

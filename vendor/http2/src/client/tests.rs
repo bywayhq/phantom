@@ -19,12 +19,14 @@ use tokio::{
 };
 
 use super::Peer;
+#[cfg(feature = "unstable")]
+use crate::frame::Settings;
 use crate::{
     codec::{SendError, UserError},
     ext::{
         HeadersFrameOverrides, HpackEncoderProfile, HuffmanCoding, OrderedHeaders, StaticNameIndex,
     },
-    frame::{Headers, PseudoId, PseudoOrder, Settings, StreamDependency, StreamId},
+    frame::{Headers, PseudoId, PseudoOrder, StreamDependency, StreamId},
     hpack::{huffman, Decoder, Encoder, Header},
 };
 
@@ -499,6 +501,77 @@ async fn dropping_final_client_stream_flushes_reset_before_close() {
 }
 
 #[tokio::test]
+async fn explicit_reset_after_connection_eof_preserves_the_closed_stream_error(
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    timeout(Duration::from_secs(5), async {
+        let (client_io, server_io) = duplex(64 * 1024);
+        let (mut sender, connection) = super::handshake(client_io).await?;
+
+        let server = async {
+            let mut builder = crate::server::Builder::new();
+            builder.initial_window_size(0);
+            let mut connection = builder.handshake::<_, Bytes>(server_io).await?;
+            let (request, respond) = connection
+                .accept()
+                .await
+                .ok_or("connection closed before the upload")??;
+            assert_eq!(request.method(), Method::POST);
+            assert_eq!(request.uri().path(), "/cancel-upload");
+
+            drop(request);
+            drop(respond);
+            connection.abrupt_shutdown(crate::Reason::NO_ERROR);
+            poll_fn(|cx| connection.poll_closed(cx)).await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        };
+        let upload = async {
+            let request = Request::builder()
+                .method(Method::POST)
+                .uri("https://example.test/cancel-upload")
+                .body(())?;
+            let (response, send) = sender.send_request(request, false)?;
+            let error = match response.await {
+                Err(error) => error,
+                Ok(_) => return Err("closed upload received a response".into()),
+            };
+            let kind = error
+                .get_io()
+                .ok_or("closed upload lost its I/O cause")?
+                .kind();
+            assert!(matches!(
+                kind,
+                std::io::ErrorKind::BrokenPipe | std::io::ErrorKind::UnexpectedEof
+            ));
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>((send, kind))
+        };
+
+        let (server_result, driver_result, upload_result) =
+            tokio::join!(server, connection, upload);
+        server_result?;
+        driver_result?;
+        let (mut send, original_kind) = upload_result?;
+
+        send.send_reset(crate::Reason::CANCEL);
+        let error = match poll_fn(|cx| send.poll_reset(cx)).await {
+            Err(error) => error,
+            Ok(_) => return Err("closed upload replaced its I/O failure with a reset".into()),
+        };
+        assert_eq!(
+            error
+                .get_io()
+                .ok_or("reset replaced the original I/O cause")?
+                .kind(),
+            original_kind
+        );
+        drop(send);
+        drop(sender);
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+    })
+    .await??;
+    Ok(())
+}
+
+#[tokio::test]
 async fn pending_shutdown_is_not_self_woken_after_idle_close_transition() {
     let shutdown_polls = Arc::new(AtomicUsize::new(0));
     let (sender, mut connection) = super::handshake(PendingShutdownIo {
@@ -553,6 +626,7 @@ async fn full_codec_does_not_repeat_idle_close_self_wake() {
     assert_eq!(wake_count.load(Ordering::SeqCst), 1);
 }
 
+#[cfg(feature = "unstable")]
 #[tokio::test]
 async fn seeded_peer_limits_apply_to_the_first_request() {
     let (client_io, _peer_io) = duplex(16 * 1024);
@@ -591,6 +665,7 @@ async fn seeded_peer_limits_apply_to_the_first_request() {
     assert_eq!(send.capacity(), 0, "seeded stream window was not applied");
 }
 
+#[cfg(feature = "unstable")]
 #[tokio::test]
 async fn extended_connect_readiness_is_immediate_for_enabled_seed() {
     let (client_io, _peer_io) = duplex(16 * 1024);
@@ -732,6 +807,7 @@ async fn extended_connect_readiness_wakes_when_peer_closes_before_settings() {
     .expect("readiness EOF test timed out");
 }
 
+#[cfg(feature = "unstable")]
 #[tokio::test]
 async fn seeded_peer_settings_change_first_headers_without_an_ack() {
     timeout(Duration::from_secs(2), async {
@@ -788,6 +864,7 @@ async fn seeded_peer_settings_change_first_headers_without_an_ack() {
     .expect("seeded-settings wire test timed out");
 }
 
+#[cfg(feature = "unstable")]
 #[tokio::test]
 async fn seed_controls_whether_a_non_settings_first_peer_frame_is_valid() {
     timeout(Duration::from_secs(2), async {
@@ -827,6 +904,7 @@ async fn seed_controls_whether_a_non_settings_first_peer_frame_is_valid() {
     .expect("initial peer frame test timed out");
 }
 
+#[cfg(feature = "unstable")]
 #[tokio::test]
 async fn seeded_sticky_settings_reject_later_disable() {
     timeout(Duration::from_secs(2), async {
@@ -1094,6 +1172,7 @@ async fn retained_initial_stream_limit_holds_until_the_peer_states_one() {
     .expect("retained stream limit test timed out");
 }
 
+#[cfg(feature = "unstable")]
 #[tokio::test]
 async fn retained_initial_stream_limit_holds_through_a_seed_without_a_limit() {
     timeout(Duration::from_secs(5), async {
@@ -1151,6 +1230,7 @@ async fn initial_stream_limit_is_lifted_by_settings_without_a_limit_by_default()
     .expect("default stream limit test timed out");
 }
 
+#[cfg(feature = "unstable")]
 #[tokio::test]
 async fn initial_stream_id_numbers_requests_from_it() {
     timeout(Duration::from_secs(5), async {
@@ -2375,3 +2455,5 @@ async fn informational_response_over_the_limit_resets_with_typed_error() {
     .await
     .expect("informational limit test timed out");
 }
+
+mod io_causes;

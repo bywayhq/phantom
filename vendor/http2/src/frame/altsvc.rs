@@ -26,6 +26,7 @@ pub struct AltSvc {
 }
 
 impl AltSvc {
+    #[cfg(feature = "unstable")]
     pub fn new(stream_id: StreamId, origin: Bytes, field_value: Bytes) -> AltSvc {
         AltSvc {
             stream_id,

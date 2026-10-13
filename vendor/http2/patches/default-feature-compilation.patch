@@ -1,0 +1,146 @@
+diff --git a/src/client.rs b/src/client.rs
+index d0f7bef2..49829c2b 100644
+--- a/src/client.rs
++++ b/src/client.rs
+@@ -1699,7 +1699,7 @@ where
+             .buffer((builder.settings.clone()).into())
+             .expect("invalid SETTINGS frame");
+ 
+-        let mut inner = proto::Connection::new(
++        let inner = proto::Connection::new(
+             codec,
+             proto::Config {
+                 next_stream_id: builder.stream_id,
+@@ -1725,6 +1725,8 @@ where
+             },
+         );
+         #[cfg(feature = "unstable")]
++        let mut inner = inner;
++        #[cfg(feature = "unstable")]
+         if let Some(settings) = initial_peer_settings {
+             inner.apply_initial_peer_settings(settings)?;
+         }
+diff --git a/src/client/tests.rs b/src/client/tests.rs
+index 033f13cd..e013f1af 100644
+--- a/src/client/tests.rs
++++ b/src/client/tests.rs
+@@ -19,12 +19,14 @@ use tokio::{
+ };
+ 
+ use super::Peer;
++#[cfg(feature = "unstable")]
++use crate::frame::Settings;
+ use crate::{
+     codec::{SendError, UserError},
+     ext::{
+         HeadersFrameOverrides, HpackEncoderProfile, HuffmanCoding, OrderedHeaders, StaticNameIndex,
+     },
+-    frame::{Headers, PseudoId, PseudoOrder, Settings, StreamDependency, StreamId},
++    frame::{Headers, PseudoId, PseudoOrder, StreamDependency, StreamId},
+     hpack::{huffman, Decoder, Encoder, Header},
+ };
+ 
+@@ -624,6 +624,7 @@ async fn full_codec_does_not_repeat_idle_close_self_wake() {
+     assert_eq!(wake_count.load(Ordering::SeqCst), 1);
+ }
+ 
++#[cfg(feature = "unstable")]
+ #[tokio::test]
+ async fn seeded_peer_limits_apply_to_the_first_request() {
+     let (client_io, _peer_io) = duplex(16 * 1024);
+@@ -662,6 +663,7 @@ async fn seeded_peer_limits_apply_to_the_first_request() {
+     assert_eq!(send.capacity(), 0, "seeded stream window was not applied");
+ }
+ 
++#[cfg(feature = "unstable")]
+ #[tokio::test]
+ async fn extended_connect_readiness_is_immediate_for_enabled_seed() {
+     let (client_io, _peer_io) = duplex(16 * 1024);
+@@ -803,6 +805,7 @@ async fn extended_connect_readiness_wakes_when_peer_closes_before_settings() {
+     .expect("readiness EOF test timed out");
+ }
+ 
++#[cfg(feature = "unstable")]
+ #[tokio::test]
+ async fn seeded_peer_settings_change_first_headers_without_an_ack() {
+     timeout(Duration::from_secs(2), async {
+@@ -859,6 +862,7 @@ async fn seeded_peer_settings_change_first_headers_without_an_ack() {
+     .expect("seeded-settings wire test timed out");
+ }
+ 
++#[cfg(feature = "unstable")]
+ #[tokio::test]
+ async fn seed_controls_whether_a_non_settings_first_peer_frame_is_valid() {
+     timeout(Duration::from_secs(2), async {
+@@ -898,6 +902,7 @@ async fn seed_controls_whether_a_non_settings_first_peer_frame_is_valid() {
+     .expect("initial peer frame test timed out");
+ }
+ 
++#[cfg(feature = "unstable")]
+ #[tokio::test]
+ async fn seeded_sticky_settings_reject_later_disable() {
+     timeout(Duration::from_secs(2), async {
+@@ -1165,6 +1170,7 @@ async fn retained_initial_stream_limit_holds_until_the_peer_states_one() {
+     .expect("retained stream limit test timed out");
+ }
+ 
++#[cfg(feature = "unstable")]
+ #[tokio::test]
+ async fn retained_initial_stream_limit_holds_through_a_seed_without_a_limit() {
+     timeout(Duration::from_secs(5), async {
+@@ -1222,6 +1228,7 @@ async fn initial_stream_limit_is_lifted_by_settings_without_a_limit_by_default()
+     .expect("default stream limit test timed out");
+ }
+ 
++#[cfg(feature = "unstable")]
+ #[tokio::test]
+ async fn initial_stream_id_numbers_requests_from_it() {
+     timeout(Duration::from_secs(5), async {
+diff --git a/src/codec/framed_read.rs b/src/codec/framed_read.rs
+index aaa51294..e29cd941 100644
+--- a/src/codec/framed_read.rs
++++ b/src/codec/framed_read.rs
+@@ -102,6 +102,7 @@ impl<T> FramedRead<T> {
+     }
+ 
+     /// Returns the current max frame size setting
++    #[cfg(feature = "unstable")]
+     #[inline]
+     pub fn max_frame_size(&self) -> usize {
+         self.inner.decoder().max_frame_length()
+diff --git a/src/frame/altsvc.rs b/src/frame/altsvc.rs
+index 9eaa9b6e..f4148911 100644
+--- a/src/frame/altsvc.rs
++++ b/src/frame/altsvc.rs
+@@ -26,6 +26,7 @@ pub struct AltSvc {
+ }
+ 
+ impl AltSvc {
++    #[cfg(feature = "unstable")]
+     pub fn new(stream_id: StreamId, origin: Bytes, field_value: Bytes) -> AltSvc {
+         AltSvc {
+             stream_id,
+diff --git a/src/frame/headers.rs b/src/frame/headers.rs
+index 413a0af9..4f255410 100644
+--- a/src/frame/headers.rs
++++ b/src/frame/headers.rs
+@@ -371,6 +371,7 @@ impl Headers {
+         self.header_block.is_over_size
+     }
+ 
++    #[cfg(feature = "unstable")]
+     pub fn into_parts(self) -> (Pseudo, HeaderMap) {
+         (self.header_block.pseudo, self.header_block.fields)
+     }
+diff --git a/src/proto/settings.rs b/src/proto/settings.rs
+index cdd7a75c..ab691c9a 100644
+--- a/src/proto/settings.rs
++++ b/src/proto/settings.rs
+@@ -108,6 +108,7 @@ impl Settings {
+         }
+     }
+ 
++    #[cfg(feature = "unstable")]
+     pub(crate) fn apply_initial_peer_settings<T, B, C, P>(
+         &mut self,
+         frame: frame::Settings,

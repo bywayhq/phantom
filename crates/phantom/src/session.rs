@@ -6,6 +6,16 @@ use crate::{
 #[cfg(feature = "sse")]
 use crate::{HttpProtocol, RequestError, SseRequestBuilder};
 
+pub use alt_svc::{
+    AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry,
+    AltSvcSnapshotError, AltSvcSnapshotErrorKind,
+};
+#[cfg(feature = "cookies")]
+pub use cookies::{
+    CookieError, CookieErrorKind, CookieJar, CookieLimits, CookieSameSite, CookieSnapshot,
+    CookieSnapshotEntry, CookieSnapshotError, CookieSnapshotErrorKind, CookieSourceScheme,
+};
+
 mod address_families;
 mod admission;
 pub(crate) mod alt_svc;
@@ -20,50 +30,6 @@ mod http3_connections;
 pub(crate) mod http3_pool;
 mod prune_timer;
 mod stream_count;
-
-/// A future boxed by [`box_send`].
-pub(crate) type SendBox<'a, T> =
-    std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
-
-/// Boxes `future` as a `Send` trait object.
-///
-/// The connector futures are deep: a request future nests the request path,
-/// the pool, and the connector state machines, and proving the whole nest
-/// `Send` exceeds the compiler's default recursion limit
-/// (rust-lang/rust#159228), in this crate and in a caller that spawns a
-/// request. A trait object ends that proof where it is created, so each
-/// existing box on the request and connection setup paths uses this helper
-/// instead of `Box::pin`.
-pub(crate) fn box_send<'a, T>(
-    future: impl std::future::Future<Output = T> + Send + 'a,
-) -> SendBox<'a, T> {
-    Box::pin(future)
-}
-
-/// The runtime the calling task runs on, which every pool key includes.
-///
-/// A connection's driver runs on the runtime that opened it and stops being
-/// polled once that runtime is dropped or no longer driven, as a
-/// current-thread runtime is after `block_on` returns. Keying pools by
-/// runtime keeps a client that outlives a runtime from sending on such a
-/// connection, where the request would never be answered. Per-origin
-/// admission and learned protocol state use the key without its runtime, so
-/// they stay per origin across runtimes.
-fn current_runtime() -> Option<tokio::runtime::Id> {
-    tokio::runtime::Handle::try_current()
-        .ok()
-        .map(|runtime| runtime.id())
-}
-
-pub use alt_svc::{
-    AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry,
-    AltSvcSnapshotError, AltSvcSnapshotErrorKind,
-};
-#[cfg(feature = "cookies")]
-pub use cookies::{
-    CookieError, CookieErrorKind, CookieJar, CookieLimits, CookieSameSite, CookieSnapshot,
-    CookieSnapshotEntry, CookieSnapshotError, CookieSnapshotErrorKind, CookieSourceScheme,
-};
 
 const DEFAULT_MAX_RETAINED_HTTP1_CONNECTIONS: NonZeroUsize = match NonZeroUsize::new(32) {
     Some(value) => value,
@@ -100,6 +66,41 @@ const DEFAULT_MAX_CLIENT_HINT_ORIGINS: NonZeroUsize = match NonZeroUsize::new(64
     Some(value) => value,
     None => NonZeroUsize::MIN,
 };
+
+/// A future boxed by [`box_send`].
+pub(crate) type SendBox<'a, T> =
+    std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
+
+/// Boxes `future` as a `Send` trait object.
+///
+/// The connector futures are deep: a request future nests the request path,
+/// the pool, and the connector state machines, and proving the whole nest
+/// `Send` exceeds the compiler's default recursion limit
+/// (rust-lang/rust#159228), in this crate and in a caller that spawns a
+/// request. A trait object ends that proof where it is created, so each
+/// existing box on the request and connection setup paths uses this helper
+/// instead of `Box::pin`.
+pub(crate) fn box_send<'a, T>(
+    future: impl std::future::Future<Output = T> + Send + 'a,
+) -> SendBox<'a, T> {
+    Box::pin(future)
+}
+
+/// The runtime the calling task runs on, which every pool key includes.
+///
+/// A connection's driver runs on the runtime that opened it and stops being
+/// polled once that runtime is dropped or no longer driven, as a
+/// current-thread runtime is after `block_on` returns. Keying pools by
+/// runtime keeps a client that outlives a runtime from sending on such a
+/// connection, where the request would never be answered. Per-origin
+/// admission and learned protocol state use the key without its runtime, so
+/// they stay per origin across runtimes.
+fn current_runtime() -> Option<tokio::runtime::Id> {
+    tokio::runtime::Handle::try_current()
+        .ok()
+        .map(|runtime| runtime.id())
+}
+
 pub(crate) struct ClientOptions {
     pub(crate) redirect_policy: RedirectPolicy,
     pub(crate) retry_policy: RetryPolicy,
@@ -191,7 +192,42 @@ pub(crate) struct ClientState {
 
 impl ClientOptions {
     /// Checks the options that do not depend on the transport.
-    pub(crate) fn validate_policies(&self) -> Result<(), BuildError> {
+    pub(crate) fn validate_policies(
+        &self,
+        profile_http1_bound: NonZeroUsize,
+    ) -> Result<(), BuildError> {
+        for (bound, message) in [
+            (
+                self.max_concurrent_http1_requests_per_origin
+                    .unwrap_or(profile_http1_bound),
+                "HTTP/1.1 active-request bound exceeds the semaphore limit",
+            ),
+            (
+                self.max_pending_http1_requests_per_origin,
+                "HTTP/1.1 pending-request bound exceeds the semaphore limit",
+            ),
+            (
+                self.max_concurrent_http2_requests_per_origin,
+                "HTTP/2 active-request bound exceeds the semaphore limit",
+            ),
+            (
+                self.max_pending_http2_requests_per_origin,
+                "HTTP/2 pending-request bound exceeds the semaphore limit",
+            ),
+            (
+                self.max_concurrent_http3_requests_per_origin,
+                "HTTP/3 active-request bound exceeds the semaphore limit",
+            ),
+            (
+                self.max_pending_http3_requests_per_origin,
+                "HTTP/3 pending-request bound exceeds the semaphore limit",
+            ),
+        ] {
+            if bound.get() > tokio::sync::Semaphore::MAX_PERMITS {
+                return Err(BuildError::invalid_policy(message));
+            }
+        }
+
         if !self.request_timeouts.validate() {
             return Err(BuildError::invalid_policy(
                 "request timeout exceeds the runtime clock range",
@@ -536,12 +572,15 @@ impl Client {
         settings: &phantom_profile::ClientHintSettings,
         response: &http::HeaderMap,
         sent: &[phantom_net::request::RequestHeader],
+        managed: &[&str],
     ) -> bool {
         self.state
             .client_hints
             .as_ref()
             .is_some_and(|client_hints| {
-                client_hints.learn_and_should_retry(endpoint, https, settings, response, sent)
+                client_hints.learn_and_should_retry_with_managed_headers(
+                    endpoint, https, settings, response, sent, managed,
+                )
             })
     }
 
@@ -826,9 +865,9 @@ impl Client {
     /// store only a cookie a response could have stored.
     ///
     /// Expired entries are dropped, a later entry with the same name, domain,
-    /// path, and host-only and partitioned flags wins, and expiry is rounded
-    /// down to a second and never extended. Cookies the jar already holds
-    /// take precedence, as does a held `Secure` cookie that an entry from an
+    /// path, host-only flag, and schemeful partition site wins. Expiry is
+    /// rounded down to a second and never extended. Cookies the jar already
+    /// holds take precedence, as does a held `Secure` cookie that an entry from an
     /// untrustworthy origin would overlay. Imported cookies rank as created
     /// and used before every held cookie. The jar's count limits admit
     /// imported cookies up to each limit instead of evicting, so capacity

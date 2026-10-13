@@ -164,6 +164,102 @@ fn import_keeps_the_exported_cookie_order() -> TestResult {
 }
 
 #[test]
+fn import_preserves_same_name_cookies_in_distinct_schemeful_partitions() -> TestResult {
+    let entries = [
+        (CookieSourceScheme::Http, "http", "http://app.localhost"),
+        (CookieSourceScheme::Https, "https", "https://app.localhost"),
+    ]
+    .into_iter()
+    .flat_map(|(scheme, value, site)| {
+        [true, false].map(|host_only| {
+            CookieSnapshotEntry::new(
+                scheme,
+                "id",
+                format!("{value}-{}", if host_only { "host" } else { "domain" }),
+                "app.localhost",
+                "/",
+            )
+            .with_host_only(host_only)
+            .with_secure(true)
+            .with_partition_key(site)
+        })
+    })
+    .collect();
+    let snapshot = CookieSnapshot::new(entries);
+    let jar = CookieJar::default();
+
+    jar.import(&snapshot)?;
+
+    assert_eq!(jar.len(), 4);
+    assert_eq!(jar.export(), snapshot);
+    assert_eq!(
+        jar.request_value("http://app.localhost/")?.as_deref(),
+        Some("id=http-host; id=http-domain")
+    );
+    assert_eq!(
+        jar.request_value("https://app.localhost/")?.as_deref(),
+        Some("id=https-host; id=https-domain")
+    );
+
+    let held = CookieJar::default();
+    held.set_cookie(
+        "http://app.localhost/",
+        "id=held; Secure; Partitioned; Path=/",
+    )?;
+    held.import(&snapshot)?;
+
+    assert_eq!(held.len(), 4);
+    assert_eq!(
+        held.request_value("http://app.localhost/")?.as_deref(),
+        Some("id=http-domain; id=held")
+    );
+    assert_eq!(
+        held.request_value("https://app.localhost/")?.as_deref(),
+        Some("id=https-host; id=https-domain")
+    );
+    Ok(())
+}
+
+#[test]
+fn export_round_trips_same_name_cookies_in_distinct_schemeful_partitions() -> TestResult {
+    let jar = CookieJar::default();
+    for (url, value) in [
+        ("http://app.localhost/", "http"),
+        ("https://app.localhost/", "https"),
+    ] {
+        jar.set_cookie(url, &format!("id={value}; Secure; Partitioned; Path=/"))?;
+    }
+
+    let snapshot = jar.export();
+    assert_eq!(snapshot.len(), 2);
+    let [http, https] = snapshot.entries() else {
+        return Err("expected both schemeful partitions".into());
+    };
+    assert_eq!(
+        (http.value(), http.partition_key()),
+        ("http", Some("http://app.localhost"))
+    );
+    assert_eq!(
+        (https.value(), https.partition_key()),
+        ("https", Some("https://app.localhost"))
+    );
+
+    let restored = CookieJar::default();
+    restored.import(&snapshot)?;
+
+    assert_eq!(restored.export(), snapshot);
+    assert_eq!(
+        restored.request_value("http://app.localhost/")?.as_deref(),
+        Some("id=http")
+    );
+    assert_eq!(
+        restored.request_value("https://app.localhost/")?.as_deref(),
+        Some("id=https")
+    );
+    Ok(())
+}
+
+#[test]
 fn import_rejects_secure_cookie_from_untrustworthy_origin() -> TestResult {
     let jar = CookieJar::default();
     let entry = CookieSnapshotEntry::new(CookieSourceScheme::Http, "sid", "1", "example.test", "/")

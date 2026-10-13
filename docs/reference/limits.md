@@ -37,6 +37,12 @@ explains how Phantom limits the state a client keeps.
 | Limit on waiting for another negotiated handshake | Waits until it ends | `ClientBuilder::negotiated_setup_wait_limit` |
 | Cargo features | None | See [Getting started](../getting-started.md#optional-features) |
 
+Content decoding limits each stage input to 16 KiB and each pump to eight
+passes. A body poll handles at most eight pumps before yielding. Buffered
+work that produces no data checks idle and total deadlines when it yields.
+Completed bodies still check the total deadline. These quotas bound work
+between checks; they cannot interrupt a codec call already running.
+
 Some requests are sent again by default.
 [Retries and replays](../guides/retries.md) lists each case. A bodyless HTTP/2
 GET refused by `GOAWAY(NO_ERROR)` is always
@@ -71,6 +77,8 @@ connection. Unchanged fields inherit the client limit.
 
 Each phase limit restarts for every redirect, retry, and replay. The total
 limit is one deadline over all attempts, delays, and the final response body.
+Buffered response frames remain subject to the total deadline. A ready
+wire frame satisfies the read-idle limit.
 
 `RetryPolicy::with_max_retries(Some(n))` caps caller-enabled retries across
 all redirect hops. Connection setup, reused connections, unprocessed
@@ -86,7 +94,10 @@ error names `TimeoutPhase::WebSocketHandshake`
 
 ## Connection pools
 
-`ClientBuilder` can set each bound to any nonzero value. A
+Pool bounds are nonzero. Active and waiting request bounds must also fit
+`tokio::sync::Semaphore::MAX_PERMITS`; `build` rejects larger values with
+`BuildErrorKind::InvalidPolicy`. H3 connection counts have their separate
+ceiling below. A
 [pool key](glossary.md#pool-key) is the origin plus the complete route.
 
 | Bound | Default | Builder method |

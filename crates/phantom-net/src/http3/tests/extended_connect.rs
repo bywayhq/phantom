@@ -19,9 +19,9 @@ use crate::{
     OrderedResponseHeaders,
     http3::{
         Http3Connection, Http3Connector, Http3ConnectorErrorKind, Http3Error, Http3ErrorKind,
-        Http3ExtendedConnectOutcome, Http3ExtendedConnectStream, Http3ExtendedProtocol, OriginForm,
-        RequestHeader,
+        Http3ExtendedConnectOutcome, Http3ExtendedConnectStream, Http3ExtendedProtocol,
     },
+    request::{OriginForm, RequestHeader},
     tls::test_support::{TEST_SERVER_NAME, TEST_TIMEOUT, TestIdentity},
     tracing_test::OutcomeSubscriber,
 };

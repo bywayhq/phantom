@@ -14,8 +14,11 @@ use tracing::instrument::WithSubscriber;
 
 use super::{TestResult, prime_request_trace_callsites, send_once, target};
 use crate::http2::PreparedRequest;
-use crate::http2::{Http2Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS, RequestHeader};
 use crate::tracing_test::OutcomeSubscriber;
+use crate::{
+    http2::{Http2Error, MAX_REQUEST_HEADER_BYTES, MAX_REQUEST_HEADERS},
+    request::RequestHeader,
+};
 
 #[tokio::test]
 async fn invalid_settings_and_request_never_touch_stream() -> TestResult<()> {

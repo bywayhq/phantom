@@ -292,11 +292,9 @@ impl Error {
     }
 
     pub(super) fn new_h2(cause: ::http2::Error) -> Error {
-        if cause.is_io() {
-            Error::new_io(cause.into_io().expect("http2::Error::is_io"))
-        } else {
-            Error::new(Kind::Http2).with(cause)
-        }
+        let kind = if cause.is_io() { Kind::Io } else { Kind::Http2 };
+
+        Error::new(kind).with(cause)
     }
 
     fn description(&self) -> &str {

@@ -24,33 +24,6 @@
 
 #![deny(unsafe_code)]
 
-// Raw BoringSSL access is isolated here so safe protocol code cannot grow new
-// unsafe operations without crossing an explicit, reviewable module boundary.
-#[allow(unsafe_code, reason = "private BoringSSL FFI boundary")]
-mod backend;
-mod ech;
-mod error;
-mod header;
-mod hkdf;
-mod initial;
-#[cfg(feature = "keylog")]
-mod key_log;
-mod key_schedule;
-mod packet;
-mod quinn;
-mod reset;
-mod resumption;
-mod retry;
-mod secret;
-mod transport_parameters;
-
-#[cfg(test)]
-mod suite_tests;
-#[cfg(test)]
-mod tests;
-#[cfg(test)]
-mod version_2_tests;
-
 pub use backend::client::{
     HandshakeData, InvalidServerName, PeerIdentity, QuicClientCertificate, QuicClientConfig,
     QuicTlsProfileError, QuicTlsProfileErrorKind,
@@ -73,6 +46,26 @@ pub use resumption::ApplicationState;
 pub(crate) use retry::retry_integrity_tag;
 pub(crate) use retry::verify_retry_integrity;
 pub use transport_parameters::{QuicTransportProfileError, QuicTransportProfileErrorKind};
+
+// Raw BoringSSL access is isolated here so safe protocol code cannot grow new
+// unsafe operations without crossing an explicit, reviewable module boundary.
+#[allow(unsafe_code, reason = "private BoringSSL FFI boundary")]
+mod backend;
+mod ech;
+mod error;
+mod header;
+mod hkdf;
+mod initial;
+#[cfg(feature = "keylog")]
+mod key_log;
+mod key_schedule;
+mod packet;
+mod quinn;
+mod reset;
+mod resumption;
+mod retry;
+mod secret;
+mod transport_parameters;
 
 /// The QUIC protocol version understood by this packet-crypto slice.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -170,3 +163,10 @@ impl QuicVersion {
         }
     }
 }
+
+#[cfg(test)]
+mod suite_tests;
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+mod version_2_tests;

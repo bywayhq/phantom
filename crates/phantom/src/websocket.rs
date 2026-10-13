@@ -6,7 +6,7 @@ use std::{
     time::Duration,
 };
 
-use phantom_net::{http1::OriginForm, request::RequestHeader};
+use phantom_net::request::{OriginForm, RequestHeader};
 use tracing::{Instrument, Span, debug_span, field};
 
 use crate::{

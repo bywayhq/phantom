@@ -21,10 +21,11 @@ use crate::{RequestError, request::RequestBodySource};
 /// `Location`, a location that does not resolve, or a hop past the limit
 /// also fails with that kind, and the redirect response is not returned.
 ///
-/// Each hop keeps the request's route and protocol rule, its total timeout,
-/// and its retry budget. A hop they cannot carry fails before it is sent,
-/// with the same typed error the first request would get; Phantom never
-/// changes the protocol or route to follow a redirect. A 307 or 308 resends
+/// Each hop keeps the request's explicit route overrides and protocol rule,
+/// its total timeout, and its retry budget. Environment routing selects a
+/// route for each new logical origin, as [`crate::EnvironmentProxies`] describes.
+/// An unsupported hop fails before it is sent, with the same typed error
+/// the first request would get. A 307 or 308 resends
 /// the method and body; a one-shot streaming body cannot be resent and fails
 /// with [`RequestErrorKind::RequestBody`](crate::RequestErrorKind::RequestBody).
 /// A cross-origin hop, including a change between `http://` and `https://`,
@@ -143,12 +144,13 @@ impl RedirectState {
         self.followed
     }
 
-    pub(crate) fn strip_client_hints(&mut self, settings: &ClientHintSettings) {
+    pub(crate) fn strip_client_hints(&mut self, settings: &ClientHintSettings, managed: &[&str]) {
         self.headers.retain(|header| {
-            !settings
-                .hints()
-                .iter()
-                .any(|hint| header.name().eq_ignore_ascii_case(hint.name()))
+            crate::request::template::is_managed(managed, header.name())
+                || !settings
+                    .hints()
+                    .iter()
+                    .any(|hint| header.name().eq_ignore_ascii_case(hint.name()))
         });
     }
 
@@ -159,16 +161,20 @@ impl RedirectState {
         if !is_redirect(response.status()) {
             return Ok(RedirectAction::Stop);
         }
+
         let Some(maximum) = self.policy.maximum else {
             return Ok(RedirectAction::Stop);
         };
+
         let mut locations = response.headers().get_all(http::header::LOCATION).iter();
         let Some(location) = locations.next() else {
             return Ok(RedirectAction::Stop);
         };
+
         if locations.next().is_some() {
             return Err(RequestError::ambiguous_redirect_location());
         }
+
         if self.followed >= maximum.get() {
             return Err(RequestError::redirect_limit());
         }
@@ -242,5 +248,4 @@ pub(crate) fn is_credential_header(name: &str) -> bool {
 }
 
 #[cfg(test)]
-#[path = "redirect/tests.rs"]
 mod tests;

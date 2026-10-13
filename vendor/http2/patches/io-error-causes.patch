@@ -1,0 +1,410 @@
+diff --git a/src/client/tests.rs b/src/client/tests.rs
+index 16c06ac0..155b849d 100644
+--- a/src/client/tests.rs
++++ b/src/client/tests.rs
+@@ -2455,3 +2455,5 @@ async fn informational_response_over_the_limit_resets_with_typed_error() {
+     .await
+     .expect("informational limit test timed out");
+ }
++
++mod io_causes;
+diff --git a/src/client/tests/io_causes.rs b/src/client/tests/io_causes.rs
+new file mode 100644
+index 00000000..e2721ed7
+--- /dev/null
++++ b/src/client/tests/io_causes.rs
+@@ -0,0 +1,191 @@
++use std::{
++    fmt,
++    future::Future,
++    io,
++    pin::Pin,
++    sync::Arc,
++    task::{Context, Poll},
++    time::Duration,
++};
++
++use http::Request;
++use tokio::{
++    io::{duplex, AsyncRead, AsyncWrite, DuplexStream, ReadBuf},
++    sync::oneshot,
++    time::timeout,
++};
++
++use super::{accept_client_handshake, read_request_headers};
++
++#[tokio::test]
++async fn connection_and_two_streams_share_the_original_typed_io_failure() {
++    let identity = Arc::new(());
++    let fault = io::Error::new(
++        io::ErrorKind::PermissionDenied,
++        ReadFailure(identity.clone()),
++    );
++    let errors = failed_connection(fault).await;
++
++    for error in &errors {
++        let original = error.get_io().expect("original transport error missing");
++        assert_eq!(original.kind(), io::ErrorKind::PermissionDenied);
++        let payload = original
++            .get_ref()
++            .and_then(|cause| cause.downcast_ref::<ReadFailure>())
++            .expect("original typed transport payload missing");
++        assert!(Arc::ptr_eq(&payload.0, &identity));
++    }
++
++    assert_shared_original(errors);
++}
++
++#[tokio::test]
++async fn connection_and_two_streams_preserve_the_original_os_error() {
++    let fault = io::Error::from_raw_os_error(13);
++    let original_kind = fault.kind();
++    let original_message = fault.to_string();
++    let errors = failed_connection(fault).await;
++
++    for error in &errors {
++        let original = error.get_io().expect("original OS error missing");
++        assert_eq!(original.raw_os_error(), Some(13));
++        assert_eq!(original.kind(), original_kind);
++        assert_eq!(original.to_string(), original_message);
++    }
++
++    assert_shared_original(errors);
++}
++
++async fn failed_connection(fault: io::Error) -> [crate::Error; 3] {
++    timeout(Duration::from_secs(5), async {
++        let (client_io, mut peer_io) = duplex(16 * 1024);
++        let (arm, fault_received) = oneshot::channel();
++        let io = ReadFault {
++            inner: client_io,
++            fault: Some(fault_received),
++        };
++        let (mut sender, connection) = super::super::handshake(io)
++            .await
++            .expect("client handshake failed");
++        let first = Request::builder()
++            .uri("https://example.test/first")
++            .body(())
++            .expect("first static request must build");
++        let second = Request::builder()
++            .uri("https://example.test/second")
++            .body(())
++            .expect("second static request must build");
++        let (first_response, first_send) = sender
++            .send_request(first, true)
++            .expect("first request was rejected");
++        let (second_response, second_send) = sender
++            .send_request(second, true)
++            .expect("second request was rejected");
++
++        let peer = async move {
++            accept_client_handshake(&mut peer_io).await;
++            read_request_headers(&mut peer_io, 1).await;
++            read_request_headers(&mut peer_io, 3).await;
++            arm.send(fault)
++                .expect("original read fault receiver closed");
++            peer_io
++        };
++        let (driver, peer_io) = tokio::join!(connection, peer);
++        let driver = driver.expect_err("faulted connection completed successfully");
++        let first = first_response
++            .await
++            .expect_err("first stream lost its failure");
++        let second = second_response
++            .await
++            .expect_err("second stream lost its failure");
++
++        drop((first_send, second_send, sender, peer_io));
++
++        [driver, first, second]
++    })
++    .await
++    .expect("actual transport failure propagation timed out")
++}
++
++fn assert_shared_original(errors: [crate::Error; 3]) {
++    let original = errors[0].get_io().expect("connection I/O cause missing");
++    for error in &errors {
++        let io = error.get_io().expect("stream I/O cause missing");
++        assert!(std::ptr::eq(original, io));
++
++        let source = std::error::Error::source(error)
++            .and_then(|cause| cause.downcast_ref::<io::Error>())
++            .expect("transport error missing from the public source chain");
++        assert!(std::ptr::eq(original, source));
++    }
++
++    let [driver, first, second] = errors.map(|error| {
++        error
++            .into_io()
++            .expect("consuming error lost the original I/O cause")
++    });
++    assert!(Arc::ptr_eq(&driver, &first));
++    assert!(Arc::ptr_eq(&driver, &second));
++}
++
++#[derive(Debug)]
++struct ReadFailure(Arc<()>);
++
++impl fmt::Display for ReadFailure {
++    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
++        formatter.write_str("injected transport read failure")
++    }
++}
++
++impl std::error::Error for ReadFailure {}
++
++struct ReadFault {
++    inner: DuplexStream,
++    fault: Option<oneshot::Receiver<io::Error>>,
++}
++
++impl AsyncRead for ReadFault {
++    fn poll_read(
++        self: Pin<&mut Self>,
++        context: &mut Context<'_>,
++        buffer: &mut ReadBuf<'_>,
++    ) -> Poll<io::Result<()>> {
++        let this = self.get_mut();
++        let result = Pin::new(&mut this.inner).poll_read(context, buffer);
++        if result.is_pending() {
++            if let Some(fault) = &mut this.fault {
++                match Pin::new(fault).poll(context) {
++                    Poll::Ready(Ok(error)) => {
++                        this.fault = None;
++                        return Poll::Ready(Err(error));
++                    }
++                    Poll::Ready(Err(error)) => {
++                        this.fault = None;
++                        return Poll::Ready(Err(io::Error::new(io::ErrorKind::Other, error)));
++                    }
++                    Poll::Pending => {}
++                }
++            }
++        }
++
++        result
++    }
++}
++
++impl AsyncWrite for ReadFault {
++    fn poll_write(
++        self: Pin<&mut Self>,
++        context: &mut Context<'_>,
++        bytes: &[u8],
++    ) -> Poll<io::Result<usize>> {
++        Pin::new(&mut self.get_mut().inner).poll_write(context, bytes)
++    }
++
++    fn poll_flush(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
++        Pin::new(&mut self.get_mut().inner).poll_flush(context)
++    }
++
++    fn poll_shutdown(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
++        Pin::new(&mut self.get_mut().inner).poll_shutdown(context)
++    }
++}
+diff --git a/src/error.rs b/src/error.rs
+index dadfc575..d894861f 100644
+--- a/src/error.rs
++++ b/src/error.rs
+@@ -1,11 +1,11 @@
+-use crate::codec::{SendError, UserError};
+-use crate::frame::StreamId;
+-use crate::proto::{self, Initiator};
++use std::{error, fmt, io, sync::Arc};
+ 
+ use bytes::Bytes;
+-use std::{error, fmt, io};
+ 
++use crate::codec::{SendError, UserError};
+ pub use crate::frame::Reason;
++use crate::frame::StreamId;
++use crate::proto::{self, Initiator};
+ 
+ /// Represents HTTP/2 operation errors.
+ ///
+@@ -49,7 +49,7 @@ enum Kind {
+     User(UserError),
+ 
+     /// An `io::Error` occurred while trying to read or write.
+-    Io(io::Error),
++    Io(Arc<io::Error>),
+ }
+ 
+ // ===== impl Error =====
+@@ -73,16 +73,18 @@ impl Error {
+         matches!(self.kind, Kind::Io(..))
+     }
+ 
+-    /// Returns the error if the error is an io::Error
++    /// Borrows the original transport error, including its payload and OS code.
+     pub fn get_io(&self) -> Option<&io::Error> {
+         match self.kind {
+-            Kind::Io(ref e) => Some(e),
++            Kind::Io(ref e) => Some(e.as_ref()),
+             _ => None,
+         }
+     }
+ 
+-    /// Returns the error if the error is an io::Error
+-    pub fn into_io(self) -> Option<io::Error> {
++    /// Returns the shared original transport error, or `None` for other errors.
++    ///
++    /// The connection and its failed streams share this same error.
++    pub fn into_io(self) -> Option<Arc<io::Error>> {
+         match self.kind {
+             Kind::Io(e) => Some(e),
+             _ => None,
+@@ -91,7 +93,7 @@ impl Error {
+ 
+     pub(crate) fn from_io(err: io::Error) -> Self {
+         Error {
+-            kind: Kind::Io(err),
++            kind: Kind::Io(Arc::new(err)),
+             local_limit: None,
+         }
+     }
+@@ -186,9 +188,7 @@ impl From<proto::Error> for Error {
+                 GoAway(debug_data, reason, initiator) => {
+                     Kind::GoAway(debug_data, reason, initiator)
+                 }
+-                Io(kind, inner) => {
+-                    Kind::Io(inner.map_or_else(|| kind.into(), |inner| io::Error::new(kind, inner)))
+-                }
++                Io(error) => Kind::Io(error),
+             },
+             local_limit: None,
+         }
+@@ -259,10 +259,17 @@ impl fmt::Display for Error {
+     }
+ }
+ 
+-impl error::Error for Error {}
++impl error::Error for Error {
++    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
++        self.get_io()
++            .map(|error| error as &(dyn error::Error + 'static))
++    }
++}
+ 
+ #[cfg(test)]
+ mod tests {
++    use std::io;
++
+     use super::Error;
+     use crate::Reason;
+ 
+@@ -271,4 +278,42 @@ mod tests {
+         let err = Error::from(Reason::HTTP_1_1_REQUIRED);
+         assert_eq!(err.reason(), Some(Reason::HTTP_1_1_REQUIRED));
+     }
++
++    #[test]
++    fn direct_io_error_keeps_its_payload_and_public_source() {
++        let payload = "https://example.test/invalid uri"
++            .parse::<http::Uri>()
++            .expect_err("invalid static URI was accepted");
++        let error = Error::from_io(io::Error::new(io::ErrorKind::PermissionDenied, payload));
++        let original = error.get_io().expect("direct I/O error missing");
++        assert!(matches!(
++            original.get_ref(),
++            Some(cause) if cause.is::<http::uri::InvalidUri>()
++        ));
++
++        let source = std::error::Error::source(&error)
++            .and_then(|cause| cause.downcast_ref::<io::Error>())
++            .expect("direct I/O source missing");
++        assert!(std::ptr::eq(original, source));
++
++        let owned = error.into_io().expect("direct I/O owner missing");
++        assert_eq!(owned.kind(), io::ErrorKind::PermissionDenied);
++        assert!(matches!(
++            owned.get_ref(),
++            Some(cause) if cause.is::<http::uri::InvalidUri>()
++        ));
++    }
++
++    #[test]
++    fn kind_only_io_error_keeps_its_kind_and_source() {
++        let error = Error::from(crate::proto::Error::from(io::ErrorKind::UnexpectedEof));
++        let original = error.get_io().expect("kind-only I/O error missing");
++        assert_eq!(original.kind(), io::ErrorKind::UnexpectedEof);
++        assert!(original.get_ref().is_none());
++
++        let source = std::error::Error::source(&error)
++            .and_then(|cause| cause.downcast_ref::<io::Error>())
++            .expect("kind-only I/O source missing");
++        assert!(std::ptr::eq(original, source));
++    }
+ }
+diff --git a/src/proto/connection.rs b/src/proto/connection.rs
+index 4ccab653..bd6f983e 100644
+--- a/src/proto/connection.rs
++++ b/src/proto/connection.rs
+@@ -610,9 +610,10 @@ where
+             // active streams must be reset.
+             //
+             // TODO: Are I/O errors recoverable?
+-            Err(Error::Io(kind, inner)) => {
++            Err(Error::Io(error)) => {
++                let kind = error.kind();
+                 tracing::debug!(error = ?kind, "Connection::poll; IO error");
+-                let e = Error::Io(kind, inner);
++                let e = Error::Io(error);
+ 
+                 // Reset all active streams
+                 self.streams.handle_error(e.clone());
+diff --git a/src/proto/error.rs b/src/proto/error.rs
+index 52b462a9..3280439b 100644
+--- a/src/proto/error.rs
++++ b/src/proto/error.rs
+@@ -1,9 +1,9 @@
+-use crate::codec::SendError;
+-use crate::frame::{Reason, StreamId};
++use std::{fmt, io, sync::Arc};
+ 
+ use bytes::Bytes;
+-use std::fmt;
+-use std::io;
++
++use crate::codec::SendError;
++use crate::frame::{Reason, StreamId};
+ 
+ /// GOAWAY debug data sent when an unanswered preface PING closes the
+ /// connection, as Chromium's `SpdySession::CheckPingStatus` sends it.
+@@ -14,7 +14,7 @@ pub(crate) const PING_TIMEOUT_DEBUG_DATA: &[u8] = b"Failed ping.";
+ pub enum Error {
+     Reset(StreamId, Reason, Initiator),
+     GoAway(Bytes, Reason, Initiator),
+-    Io(io::ErrorKind, Option<String>),
++    Io(Arc<io::Error>),
+ }
+ 
+ pub struct GoAway {
+@@ -79,21 +79,20 @@ impl fmt::Display for Error {
+     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+         match *self {
+             Self::Reset(_, reason, _) | Self::GoAway(_, reason, _) => reason.fmt(fmt),
+-            Self::Io(_, Some(ref inner)) => inner.fmt(fmt),
+-            Self::Io(kind, None) => io::Error::from(kind).fmt(fmt),
++            Self::Io(ref error) => error.fmt(fmt),
+         }
+     }
+ }
+ 
+ impl From<io::ErrorKind> for Error {
+     fn from(src: io::ErrorKind) -> Self {
+-        Error::Io(src, None)
++        io::Error::from(src).into()
+     }
+ }
+ 
+ impl From<io::Error> for Error {
+     fn from(src: io::Error) -> Self {
+-        Error::Io(src.kind(), src.get_ref().map(|inner| inner.to_string()))
++        Error::Io(Arc::new(src))
+     }
+ }
+ 

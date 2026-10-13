@@ -4,7 +4,10 @@ use bytes::Bytes;
 use http::Method;
 
 use super::{TestResult, target};
-use crate::http2::{Http2Error, RequestBody, RequestBodyMetadata, RequestHeader};
+use crate::{
+    http2::Http2Error,
+    request::{RequestBody, RequestBodyMetadata, RequestHeader},
+};
 
 /// A field's name and value as prepared.
 type Field = (String, Vec<u8>);

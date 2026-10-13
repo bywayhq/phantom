@@ -1,7 +1,42 @@
 use std::collections::{HashMap, HashSet};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::{Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate};
-use crate::{browser::chrome, browser::firefox};
+use crate::{ClientProfile, browser::chrome, browser::firefox};
+
+#[test]
+fn debug_redacts_connect_values_through_nested_profiles() -> Result<(), Box<dyn std::error::Error>>
+{
+    let canary = format!(
+        "connect-field-{}-{}",
+        std::process::id(),
+        SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos(),
+    );
+    let field = ProxyConnectField::literal("x-api-key", canary.clone());
+    let mut template = chrome::v154_proxy_connect();
+    template.http1_fields.push(field.clone());
+    template.http2_fields.push(field.clone());
+    template.validate()?;
+    let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_proxy_connect(template.clone());
+
+    for debug in [
+        format!("{field:?}"),
+        format!("{template:#?}"),
+        format!("{profile:?}"),
+    ] {
+        assert!(!debug.contains(&canary));
+        assert!(debug.contains("x-api-key"));
+        assert!(debug.contains("<redacted>"));
+        assert!(debug.contains("Literal"));
+    }
+
+    assert_eq!(
+        format!("{:?}", ProxyConnectField::from_request("User-Agent")),
+        "FromRequest { name: \"User-Agent\" }",
+    );
+    assert_eq!(field.name(), "x-api-key");
+    Ok(())
+}
 
 #[test]
 fn every_connect_recipe_is_valid() {

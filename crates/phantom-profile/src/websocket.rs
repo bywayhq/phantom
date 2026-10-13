@@ -13,8 +13,8 @@ const HTTP1_ALPN: &[u8] = b"http/1.1";
 /// One field, caller slot, or generated value in an ordered opening template.
 ///
 /// Field-name spelling is emitted exactly as written. HTTP/2 templates must
-/// use lowercase names.
-#[derive(Clone, Debug, Eq, PartialEq)]
+/// use lowercase names. `Debug` hides all field values.
+#[derive(Clone, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum WebSocketField {
     /// A fixed field emitted with this exact name and value.
@@ -71,6 +71,48 @@ pub enum WebSocketField {
         /// unless the caller supplies the field.
         untrustworthy: Option<Box<str>>,
     },
+}
+
+impl fmt::Debug for WebSocketField {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Literal { name, .. } => formatter
+                .debug_struct("Literal")
+                .field("name", name)
+                .field("value", &"<redacted>")
+                .finish(),
+            Self::Caller { name } => formatter
+                .debug_struct("Caller")
+                .field("name", name)
+                .finish(),
+            Self::Authority { name } => formatter
+                .debug_struct("Authority")
+                .field("name", name)
+                .finish(),
+            Self::Key { name } => formatter.debug_struct("Key").field("name", name).finish(),
+            Self::PerMessageDeflate { name } => formatter
+                .debug_struct("PerMessageDeflate")
+                .field("name", name)
+                .finish(),
+            Self::ClientCookies { name } => formatter
+                .debug_struct("ClientCookies")
+                .field("name", name)
+                .finish(),
+            Self::ByTrust {
+                name,
+                trustworthy,
+                untrustworthy,
+            } => formatter
+                .debug_struct("ByTrust")
+                .field("name", name)
+                .field("trustworthy", &trustworthy.as_ref().map(|_| "<redacted>"))
+                .field(
+                    "untrustworthy",
+                    &untrustworthy.as_ref().map(|_| "<redacted>"),
+                )
+                .finish(),
+        }
+    }
 }
 
 impl WebSocketField {

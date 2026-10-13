@@ -40,7 +40,7 @@ the patch when a refresh brings an upstream fix.
 ## Publish identity
 
 `publish-identity.patch` renames the package to `phantom-tokio-tungstenite` at
-`0.30.0-phantom.2`, keeps the `tokio_tungstenite` library name, and points the
+`0.30.0-phantom.3`, keeps the `tokio_tungstenite` library name, and points the
 repository metadata at Phantom. It removes the upstream documentation link,
 adds this file and the patches to the packaged crate, records the upstream
 source under `[package.metadata.phantom]`. The standalone `Cargo.lock` is

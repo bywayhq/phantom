@@ -9,7 +9,10 @@ use http::Method;
 use http_body::{Body, Frame, SizeHint};
 
 use super::{TestResult, target};
-use crate::http2::{Http2Error, RequestBody, RequestBodyMetadata, RequestHeader, validate_request};
+use crate::{
+    http2::{Http2Error, validate_request},
+    request::{RequestBody, RequestBodyMetadata, RequestHeader},
+};
 
 fn exact_body(length: usize) -> Option<RequestBodyMetadata> {
     Some(RequestBody::from_bytes(Bytes::from(vec![0; length])).metadata())

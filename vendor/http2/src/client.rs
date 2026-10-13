@@ -1699,7 +1699,7 @@ where
             .buffer((builder.settings.clone()).into())
             .expect("invalid SETTINGS frame");
 
-        let mut inner = proto::Connection::new(
+        let inner = proto::Connection::new(
             codec,
             proto::Config {
                 next_stream_id: builder.stream_id,
@@ -1724,6 +1724,8 @@ where
                 settings: builder.settings,
             },
         );
+        #[cfg(feature = "unstable")]
+        let mut inner = inner;
         #[cfg(feature = "unstable")]
         if let Some(settings) = initial_peer_settings {
             inner.apply_initial_peer_settings(settings)?;

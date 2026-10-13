@@ -668,8 +668,11 @@ pub(super) unsafe extern "C" fn raw_msg_callback<F>(
         // SAFETY: BoringSSL provides `len` initialized bytes for the callback duration.
         unsafe { slice::from_raw_parts(data.cast::<u8>(), len) }
     };
+    // BoringSSL retains the original message callback when SNI changes the
+    // active context. Ssl::new owns that original context in this SSL's ex-data.
     let callback = ssl
-        .ssl_context()
+        .ex_data(*SESSION_CTX_INDEX)
+        .expect("BUG: session context missing")
         .ex_data(SslContext::cached_ex_index::<F>())
         .expect("BUG: message callback missing");
     let direction = if is_write == 0 {

@@ -1,0 +1,56 @@
+diff --git a/examples/Cargo.toml b/examples/Cargo.toml
+index 16446da..6c13df0 100644
+--- a/examples/Cargo.toml
++++ b/examples/Cargo.toml
+@@ -1,4 +1,5 @@
+ [package]
++rust-version = "1.88"
+ name = "examples"
+ version = "0.0.0"
+ publish = false
+diff --git a/h3-datagram/Cargo.toml b/h3-datagram/Cargo.toml
+index a2cdbf1..26682b3 100644
+--- a/h3-datagram/Cargo.toml
++++ b/h3-datagram/Cargo.toml
+@@ -1,4 +1,5 @@
+ [package]
++rust-version = "1.88"
+ name = "h3-datagram"
+ version = "0.0.2"
+ edition = "2021"
+diff --git a/h3-quinn/Cargo.toml b/h3-quinn/Cargo.toml
+index bbb8914..89bcd26 100644
+--- a/h3-quinn/Cargo.toml
++++ b/h3-quinn/Cargo.toml
+@@ -1,7 +1,7 @@
+ [package]
+ name = "h3-quinn"
+ version = "0.0.10"
+-rust-version = "1.74"
++rust-version = "1.88"
+ authors = ["Jean-Christophe BEGUE <jc.begue@pm.me>"]
+ edition = "2021"
+ documentation = "https://docs.rs/h3-quinn"
+diff --git a/h3-webtransport/Cargo.toml b/h3-webtransport/Cargo.toml
+index 28009d6..d73e845 100644
+--- a/h3-webtransport/Cargo.toml
++++ b/h3-webtransport/Cargo.toml
+@@ -1,4 +1,5 @@
+ [package]
++rust-version = "1.88"
+ name = "h3-webtransport"
+ version = "0.1.2"
+ edition = "2021"
+diff --git a/h3/Cargo.toml b/h3/Cargo.toml
+index c6767a4..d074363 100644
+--- a/h3/Cargo.toml
++++ b/h3/Cargo.toml
+@@ -1,7 +1,7 @@
+ [package]
+ name = "h3"
+ version = "0.0.8"
+-rust-version = "1.74"
++rust-version = "1.88"
+ authors = [
+     "Sean McArthur <sean@seanmonstar.com>",
+     "Jean-Christophe BEGUE <jc.begue@pm.me>",

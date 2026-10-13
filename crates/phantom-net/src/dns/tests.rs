@@ -1,11 +1,20 @@
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::{
+    error::Error,
+    io,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+    sync::Arc,
+    time::Duration,
+};
 
+use hickory_resolver::{net::NetError, proto::rr::Name};
 use phantom_profile::browser::chrome;
 use phantom_testkit::dns::{DnsAnswer, DnsReply, DnsServer};
+use tokio::{task::JoinHandle, time::timeout};
 
 use super::{
-    HttpsLookupErrorKind, HttpsRecord, HttpsRecordErrorKind, HttpsRecordResolver, TargetName,
-    bind_loopback_nameserver, https_answers_from_message, nameserver, query_name,
+    HttpsLookupError, HttpsLookupErrorKind, HttpsRecord, HttpsRecordErrorKind, HttpsRecordResolver,
+    NameserverConfigurationError, TargetName, bind_loopback_nameserver, https_answers_from_message,
+    nameserver, query_name,
 };
 use crate::udp::observed;
 
@@ -369,12 +378,67 @@ fn query_name_prefixes_non_default_ports() {
 }
 
 #[test]
-fn resolver_needs_a_nameserver() {
-    let error = HttpsRecordResolver::with_nameservers([]).err();
+fn resolver_needs_a_nameserver() -> TestResult<()> {
+    let error = HttpsRecordResolver::with_nameservers([])
+        .err()
+        .ok_or("empty configuration was accepted")?;
+    assert_eq!(error.kind(), HttpsLookupErrorKind::Configuration);
     assert_eq!(
-        error.map(|error| error.kind()),
-        Some(HttpsLookupErrorKind::Configuration)
+        error.to_string(),
+        "invalid DNS resolver configuration: no DNS nameserver is configured"
     );
+    assert!(
+        error
+            .source()
+            .ok_or("configuration category missing")?
+            .source()
+            .is_none()
+    );
+    Ok(())
+}
+
+#[test]
+fn https_configuration_errors_retain_the_original_system_io_failure() -> TestResult<()> {
+    let original = Arc::new(io::Error::from_raw_os_error(2));
+    let backend = NetError::Io(Arc::clone(&original));
+
+    let error = HttpsLookupError::configuration(NameserverConfigurationError::system(backend));
+
+    assert_eq!(error.kind(), HttpsLookupErrorKind::Configuration);
+    let backend = error
+        .source()
+        .and_then(Error::source)
+        .and_then(|source| source.downcast_ref::<NetError>())
+        .ok_or("original system configuration error missing")?;
+    let NetError::Io(retained) = backend else {
+        panic!("original I/O error lost");
+    };
+    assert!(Arc::ptr_eq(retained, &original));
+    assert_eq!(retained.raw_os_error(), Some(2));
+    Ok(())
+}
+
+#[test]
+fn https_configuration_errors_retain_the_original_system_name_failure() -> TestResult<()> {
+    let invalid_domain = format!("{}.example", "a".repeat(64));
+    let original = Name::from_ascii(invalid_domain)
+        .err()
+        .ok_or("oversized DNS label was accepted")?;
+    let message = original.to_string();
+
+    let error = HttpsLookupError::configuration(NameserverConfigurationError::system(original));
+
+    let original = error
+        .source()
+        .and_then(Error::source)
+        .and_then(|source| source.downcast_ref::<hickory_resolver::proto::ProtoError>())
+        .ok_or("original platform configuration error missing")?;
+    assert_eq!(original.to_string(), message);
+    assert_eq!(
+        error.to_string(),
+        format!("invalid DNS resolver configuration: {message}")
+    );
+    Ok(())
 }
 
 /// The HTTPS query socket of a Chromium profile sets `SO_RANDOMIZE_PORT`
@@ -382,7 +446,7 @@ fn resolver_needs_a_nameserver() {
 /// itself.
 #[tokio::test]
 async fn https_queries_randomize_their_port_with_the_profiles_udp_settings() -> TestResult<()> {
-    let server = DnsServer::spawn(|_| {
+    let mut server = DnsServer::spawn(|_| {
         DnsReply::new(DnsAnswer::NoData {
             soa_minimum: Some(60),
         })
@@ -400,6 +464,7 @@ async fn https_queries_randomize_their_port_with_the_profiles_udp_settings() -> 
         assert_eq!(sockets.len(), 1);
         assert_eq!(sockets[0].random_port, randomized);
     }
+    server.finish().await?;
     Ok(())
 }
 
@@ -413,7 +478,7 @@ async fn lookup_sends_one_plain_recursive_question_and_parses_answers() -> TestR
             &[(3, &8443_u16.to_be_bytes())],
         ),
     ];
-    let server = DnsServer::spawn(move |_| {
+    let mut server = DnsServer::spawn(move |_| {
         DnsReply::new(DnsAnswer::Records {
             ttl: 120,
             rdata: records.clone(),
@@ -445,12 +510,13 @@ async fn lookup_sends_one_plain_recursive_question_and_parses_answers() -> TestR
 
     resolver.lookup("origin.example.test", 443).await?;
     assert_eq!(server.queries()[1].name(), "origin.example.test");
+    server.finish().await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn lookup_without_records_is_empty_with_the_negative_ttl() -> TestResult<()> {
-    let server = DnsServer::spawn(|_| {
+    let mut server = DnsServer::spawn(|_| {
         DnsReply::new(DnsAnswer::NoData {
             soa_minimum: Some(90),
         })
@@ -460,12 +526,13 @@ async fn lookup_without_records_is_empty_with_the_negative_ttl() -> TestResult<(
     let lookup = resolver.lookup("origin.example.test", 443).await?;
     assert!(lookup.answers().is_empty());
     assert_eq!(lookup.negative_ttl(), Some(90));
+    server.finish().await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn special_use_names_are_answered_without_a_query() -> TestResult<()> {
-    let server = DnsServer::spawn(|_| {
+    let mut server = DnsServer::spawn(|_| {
         DnsReply::new(DnsAnswer::Records {
             ttl: 60,
             rdata: vec![rdata(1, &[], &[(1, b"\x02h3")])],
@@ -483,6 +550,7 @@ async fn special_use_names_are_answered_without_a_query() -> TestResult<()> {
         assert!(lookup.answers().is_empty(), "{host}");
     }
     assert!(server.queries().is_empty());
+    server.finish().await?;
     Ok(())
 }
 
@@ -512,7 +580,7 @@ async fn function_resolver_answers_through_the_caller() -> TestResult<()> {
 
 #[tokio::test]
 async fn server_failure_is_a_resolve_error() -> TestResult<()> {
-    let server = DnsServer::spawn(|_| DnsReply::new(DnsAnswer::ServerFailure)).await?;
+    let mut server = DnsServer::spawn(|_| DnsReply::new(DnsAnswer::ServerFailure)).await?;
     let resolver = HttpsRecordResolver::with_nameservers([server.address()])?;
     let error = resolver
         .lookup("origin.example.test", 443)
@@ -520,6 +588,7 @@ async fn server_failure_is_a_resolve_error() -> TestResult<()> {
         .err()
         .ok_or("SERVFAIL produced records")?;
     assert_eq!(error.kind(), HttpsLookupErrorKind::Resolve);
+    server.finish().await?;
     Ok(())
 }
 
@@ -528,7 +597,7 @@ async fn malformed_answer_record_is_a_typed_error() -> TestResult<()> {
     // hickory decodes this record, but RFC 9460 section 8 makes a missing
     // mandatory key malformed.
     let record = rdata(1, &[], &[(0, &[0, 3]), (1, b"\x02h3")]);
-    let server = DnsServer::spawn(move |_| {
+    let mut server = DnsServer::spawn(move |_| {
         DnsReply::new(DnsAnswer::Records {
             ttl: 60,
             rdata: vec![record.clone()],
@@ -542,6 +611,7 @@ async fn malformed_answer_record_is_a_typed_error() -> TestResult<()> {
         .err()
         .ok_or("malformed record parsed")?;
     assert_eq!(error.kind(), HttpsLookupErrorKind::MalformedRecord);
+    server.finish().await?;
     Ok(())
 }
 
@@ -707,34 +777,67 @@ fn an_undecodable_message_is_a_resolve_error() -> TestResult<()> {
     Ok(())
 }
 
-/// Answers every query with its own question and `answers`, byte for byte.
-async fn raw_dns_server(answers: Vec<RawRecord<'static>>) -> TestResult<std::net::SocketAddr> {
+#[derive(Debug)]
+struct RawDnsServer {
+    address: SocketAddr,
+    task: Option<JoinHandle<io::Result<()>>>,
+}
+
+impl RawDnsServer {
+    async fn finish(&mut self) -> TestResult<()> {
+        let Some(task) = self.task.as_mut() else {
+            return Ok(());
+        };
+        let outcome = timeout(Duration::from_secs(5), task).await?;
+        drop(self.task.take());
+        outcome??;
+        Ok(())
+    }
+}
+
+impl Drop for RawDnsServer {
+    fn drop(&mut self) {
+        if let Some(task) = &self.task {
+            task.abort();
+        }
+    }
+}
+
+/// Answers one query with its own question and `answers`, byte for byte.
+/// The caller rejects the answer after hickory accepts it, so no retry follows.
+async fn raw_dns_server(answers: Vec<RawRecord<'static>>) -> TestResult<RawDnsServer> {
+    let answer_count = u16::try_from(answers.len())?;
     let socket = phantom_testkit::udp::bind_tokio("127.0.0.1:0".parse()?)?;
     let address = socket.local_addr()?;
-    tokio::spawn(async move {
+    let task = tokio::spawn(async move {
         let mut buffer = vec![0; 512];
-        while let Ok((length, peer)) = socket.recv_from(&mut buffer).await {
+        loop {
+            let (length, peer) = socket.recv_from(&mut buffer).await?;
             // The query carries one question and nothing after it.
             let Some(question) = buffer.get(12..length) else {
                 continue;
             };
             let mut message = buffer[..2].to_vec();
             message.extend_from_slice(&[0x81, 0x80, 0, 1]);
-            message.extend_from_slice(&u16::try_from(answers.len()).unwrap_or(0).to_be_bytes());
+            message.extend_from_slice(&answer_count.to_be_bytes());
             message.extend_from_slice(&[0, 0, 0, 0]);
             message.extend_from_slice(question);
             push_answers(&mut message, &answers);
-            let _ = socket.send_to(&message, peer).await;
+            socket.send_to(&message, peer).await?;
+            return Ok(());
         }
     });
-    Ok(address)
+    Ok(RawDnsServer {
+        address,
+        task: Some(task),
+    })
 }
 
 #[tokio::test]
 async fn resolver_rejects_an_answer_owned_by_another_name() -> TestResult<()> {
     // hickory accepts this response: one record answers the question, so it
     // hands back the whole answer section, stray record included.
-    let address = raw_dns_server(vec![
+    let mut server = raw_dns_server(vec![
         (
             "origin.example.test",
             TYPE_HTTPS,
@@ -744,12 +847,13 @@ async fn resolver_rejects_an_answer_owned_by_another_name() -> TestResult<()> {
         ("other.example.test", TYPE_HTTPS, CLASS_IN, h3_record()),
     ])
     .await?;
-    let resolver = HttpsRecordResolver::with_nameservers([address])?;
+    let resolver = HttpsRecordResolver::with_nameservers([server.address])?;
     let error = resolver
         .lookup("origin.example.test", 443)
         .await
         .err()
         .ok_or("a stray answer was accepted")?;
     assert_eq!(error.kind(), HttpsLookupErrorKind::Resolve);
+    server.finish().await?;
     Ok(())
 }

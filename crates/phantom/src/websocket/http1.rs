@@ -9,8 +9,9 @@ use phantom_net::route::{
     Socks5Target, TcpRoute,
 };
 
-use phantom_net::http1::{
-    Http1TlsConnector, Http1TlsError, Http1UpgradeOutcome, OriginForm, RequestHeader,
+use phantom_net::{
+    http1::{Http1TlsConnector, Http1TlsError, Http1UpgradeOutcome},
+    request::{OriginForm, RequestHeader},
 };
 
 #[cfg(feature = "websocket-deflate")]

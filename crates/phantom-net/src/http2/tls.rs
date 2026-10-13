@@ -19,17 +19,17 @@ use super::{
     translate_extended_connect_settings, translate_settings, validate_extended_connect,
 };
 use crate::{
+    SourceBinding,
     connection_leg::{self, ConnectionLegError},
     direct::{Dialer, DirectConnectError},
     host_resolver::HostResolver,
     proxy::{HttpConnectError, HttpsProxyConnector, ProxyCredentialCache, Socks5Error},
     route::{DirectTlsSetup, Http2Route, OriginRoute, ProxyTransport, TcpRoute},
-    source_binding::SourceBinding,
     tcp::{TcpKeepaliveControl, TcpKeepaliveSource},
     tls::{ClientCertificate, ServerAuthentication, TlsConnector, TlsStream, trace_alpn},
 };
 
-pub use crate::tls::{EchFailure, TlsError, TlsErrorKind};
+use crate::tls::{EchFailure, TlsError};
 
 /// Reusable TLS and HTTP/2 settings for connections and one-shot requests.
 ///
@@ -37,7 +37,8 @@ pub use crate::tls::{EchFailure, TlsError, TlsErrorKind};
 ///
 /// ```no_run
 /// use phantom_net::{
-///     http2::{Http2TlsConnector, OriginForm, RequestHeader},
+///     http2::Http2TlsConnector,
+///     request::{OriginForm, RequestHeader},
 ///     route::{DirectTlsSetup, Endpoint, Http2Route, OriginRoute, TcpRoute},
 /// };
 /// use phantom_profile::browser::chrome;

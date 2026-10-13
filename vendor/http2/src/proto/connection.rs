@@ -610,9 +610,10 @@ where
             // active streams must be reset.
             //
             // TODO: Are I/O errors recoverable?
-            Err(Error::Io(kind, inner)) => {
+            Err(Error::Io(error)) => {
+                let kind = error.kind();
                 tracing::debug!(error = ?kind, "Connection::poll; IO error");
-                let e = Error::Io(kind, inner);
+                let e = Error::Io(error);
 
                 // Reset all active streams
                 self.streams.handle_error(e.clone());

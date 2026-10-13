@@ -180,7 +180,7 @@ impl InvalidClientHintSettings {
         self.kind
     }
 
-    const fn new(
+    pub(crate) const fn new(
         kind: crate::ValidationErrorKind,
         field: &'static str,
         message: &'static str,

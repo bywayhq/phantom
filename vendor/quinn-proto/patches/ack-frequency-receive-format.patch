@@ -1,0 +1,329 @@
+diff --git a/src/config/transport.rs b/src/config/transport.rs
+--- a/src/config/transport.rs
++++ b/src/config/transport.rs
+@@ -658,8 +658,10 @@
+ #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+ #[non_exhaustive]
+ pub enum AckFrequencyDraft {
+-    /// draft-ietf-quic-ack-frequency-02: `min_ack_delay` is `0xff02de1a`, and a frame carries a
+-    /// packet tolerance and a one-byte Ignore Order flag.
++    /// Firefox 157's older format (neqo 0.31.1): `min_ack_delay` is `0xff02de1a`, and a frame
++    /// carries a packet tolerance and a one-byte Ignore Order flag.
++    ///
++    /// The wire fields match draft-ietf-quic-ack-frequency-00, sections 3 and 4.
+     Draft02,
+     /// draft-ietf-quic-ack-frequency-07: `min_ack_delay` is `0xff04de1b`, and a frame carries an
+     /// ack-eliciting threshold and a reordering threshold.
+diff --git a/src/connection/mod.rs b/src/connection/mod.rs
+--- a/src/connection/mod.rs
++++ b/src/connection/mod.rs
+@@ -2600,7 +2600,8 @@
+             }
+             State::Closed(_) => {
+                 let frames = frame::Iter::new(packet.payload.freeze())?
+-                    .reset_stream_at(self.config.reset_stream_at);
++                    .reset_stream_at(self.config.reset_stream_at)
++                    .ack_frequency_draft(self.config.ack_frequency_draft);
+                 for result in frames {
+                     let frame = match result {
+                         Ok(frame) => frame,
+@@ -2861,8 +2862,9 @@
+         debug_assert_ne!(packet.header.space(), SpaceId::Data);
+         let payload_len = packet.payload.len();
+         let mut ack_eliciting = false;
+-        let frames =
+-            frame::Iter::new(packet.payload.freeze())?.reset_stream_at(self.config.reset_stream_at);
++        let frames = frame::Iter::new(packet.payload.freeze())?
++            .reset_stream_at(self.config.reset_stream_at)
++            .ack_frequency_draft(self.config.ack_frequency_draft);
+         for result in frames {
+             let frame = result?;
+             let span = match frame {
+@@ -2921,7 +2923,9 @@
+         let mut close = None;
+         let payload_len = payload.len();
+         let mut ack_eliciting = false;
+-        let frames = frame::Iter::new(payload)?.reset_stream_at(self.config.reset_stream_at);
++        let frames = frame::Iter::new(payload)?
++            .reset_stream_at(self.config.reset_stream_at)
++            .ack_frequency_draft(self.config.ack_frequency_draft);
+         for result in frames {
+             let frame = result?;
+             let span = match frame {
+diff --git a/src/frame.rs b/src/frame.rs
+--- a/src/frame.rs
++++ b/src/frame.rs
+@@ -8,8 +8,8 @@
+ use tinyvec::TinyVec;
+ 
+ use crate::{
+-    Dir, MAX_CID_SIZE, RESET_TOKEN_SIZE, ResetToken, StreamId, TransportError, TransportErrorCode,
+-    VarInt,
++    AckFrequencyDraft, Dir, MAX_CID_SIZE, RESET_TOKEN_SIZE, ResetToken, StreamId, TransportError,
++    TransportErrorCode, VarInt,
+     coding::{self, BufExt, BufMutExt, UnexpectedEnd},
+     range_set::ArrayRangeSet,
+     shared::{ConnectionId, EcnCodepoint},
+@@ -550,6 +550,7 @@
+     bytes: Bytes,
+     last_ty: Option<FrameType>,
+     reset_stream_at: bool,
++    ack_frequency_draft: AckFrequencyDraft,
+ }
+ 
+ impl Iter {
+@@ -567,6 +568,7 @@
+             bytes: payload,
+             last_ty: None,
+             reset_stream_at: false,
++            ack_frequency_draft: AckFrequencyDraft::Draft07,
+         })
+     }
+ 
+@@ -575,6 +577,12 @@
+     /// Otherwise the frame type is unknown, and its body is never read, as upstream treats it.
+     pub(crate) fn reset_stream_at(mut self, accept: bool) -> Self {
+         self.reset_stream_at = accept;
++        self
++    }
++
++    /// Selects whether ACK_FREQUENCY ends with a byte flag or a varint threshold.
++    pub(crate) fn ack_frequency_draft(mut self, draft: AckFrequencyDraft) -> Self {
++        self.ack_frequency_draft = draft;
+         self
+     }
+ 
+@@ -718,7 +726,16 @@
+                 sequence: self.bytes.get()?,
+                 ack_eliciting_threshold: self.bytes.get()?,
+                 request_max_ack_delay: self.bytes.get()?,
+-                reordering_threshold: self.bytes.get()?,
++                reordering_threshold: match self.ack_frequency_draft {
++                    AckFrequencyDraft::Draft02 => {
++                        let flag = self.bytes.get::<u8>()?;
++                        if flag > 1 {
++                            return Err(IterErr::Malformed);
++                        }
++                        VarInt(u64::from(flag))
++                    }
++                    AckFrequencyDraft::Draft07 => self.bytes.get()?,
++                },
+             }),
+             FrameType::IMMEDIATE_ACK => Frame::ImmediateAck,
+             _ => {
+@@ -978,9 +995,9 @@
+ }
+ 
+ impl AckFrequency {
+-    /// Reads a frame decoded with draft 07 field names as a draft 02 frame
++    /// Maps the older Firefox wire fields to the draft 07 ACK behavior
+     ///
+-    /// Draft 02 (section 4) sends Sequence Number, Packet Tolerance, Update Max Ack Delay, and a
++    /// Firefox 157 (neqo 0.31.1) sends Sequence Number, Packet Tolerance, Update Max Ack Delay, and a
+     /// one-byte Ignore Order flag. A packet tolerance of N means acknowledging every Nth
+     /// ack-eliciting packet, which is an ack-eliciting threshold of N - 1; ignoring order is a
+     /// reordering threshold of 0, and not ignoring it is 1.
+@@ -1184,7 +1201,11 @@
+     fn draft02_ack_frequency_ignore_order_byte_decodes() {
+         // neqo writes Ignore Order as one byte after three varints.
+         let buf = vec![0x40, 0xaf, 0x0a, 0x05, 0x47, 0xd0, 0x01];
+-        let frames = frames(buf);
++        let frames = Iter::new(Bytes::from(buf))
++            .unwrap()
++            .ack_frequency_draft(AckFrequencyDraft::Draft02)
++            .collect::<Result<Vec<_>, _>>()
++            .unwrap();
+         assert_matches!(
+             &frames[0],
+             Frame::AckFrequency(AckFrequency {
+@@ -1195,4 +1216,74 @@
+             })
+         );
+     }
+-}
++
++    #[test]
++    fn draft02_parser_checks_every_flag_byte_and_following_frame() {
++        for flag in 0..=u8::MAX {
++            for following in [0, 1] {
++                let mut bytes = vec![0x40, 0xaf, 0, 2, 0x43, 0xe8, flag, following];
++                bytes.extend_from_slice(&[0; 7]);
++                let mut frames = Iter::new(Bytes::from(bytes))
++                    .unwrap()
++                    .ack_frequency_draft(AckFrequencyDraft::Draft02);
++                let first = frames.next().unwrap();
++                if flag > 1 {
++                    let error = TransportError::from(first.unwrap_err());
++                    assert_eq!(error.code, TransportErrorCode::FRAME_ENCODING_ERROR);
++                    assert_eq!(error.frame, Some(FrameType::ACK_FREQUENCY));
++                    assert!(frames.next().is_none());
++                    continue;
++                }
++                let Frame::AckFrequency(frame) = first.unwrap() else {
++                    panic!("ACK_FREQUENCY decoded as another frame");
++                };
++                assert_eq!(frame.reordering_threshold, VarInt(u64::from(flag)));
++                let normalized = frame.read_as_draft02().unwrap();
++                assert_eq!(normalized.ack_eliciting_threshold, VarInt(1));
++                assert_eq!(normalized.reordering_threshold, VarInt(u64::from(1 - flag)));
++                match following {
++                    0 => assert_matches!(frames.next(), Some(Ok(Frame::Padding))),
++                    _ => assert_matches!(frames.next(), Some(Ok(Frame::Ping))),
++                }
++                assert_eq!(frames.count(), 7);
++            }
++        }
++    }
++
++    #[test]
++    fn draft02_parser_requires_the_ignore_order_byte() {
++        let mut frames = Iter::new(Bytes::from_static(&[0x40, 0xaf, 0, 2, 0x43, 0xe8]))
++            .unwrap()
++            .ack_frequency_draft(AckFrequencyDraft::Draft02);
++        let error = TransportError::from(frames.next().unwrap().unwrap_err());
++        assert_eq!(error.code, TransportErrorCode::FRAME_ENCODING_ERROR);
++        assert_eq!(error.frame, Some(FrameType::ACK_FREQUENCY));
++        assert!(frames.next().is_none());
++    }
++
++    #[test]
++    fn draft07_parser_keeps_varint_thresholds_and_following_frame() {
++        let cases: &[(&[u8], u64)] = &[
++            (&[1], 1),
++            (&[0x40, 0x40], 64),
++            (&[0x80, 0, 0x40, 0], 16_384),
++            (&[0xc0, 0, 0, 0, 0x40, 0, 0, 0], 1 << 30),
++        ];
++        for &(encoded, expected) in cases {
++            let mut bytes = vec![0x40, 0xaf, 0, 1, 0x43, 0xe8];
++            bytes.extend_from_slice(encoded);
++            bytes.extend_from_slice(&[0, 1]);
++            let mut frames = Iter::new(Bytes::from(bytes)).unwrap();
++            assert_matches!(
++                frames.next(),
++                Some(Ok(Frame::AckFrequency(AckFrequency {
++                    reordering_threshold: VarInt(value),
++                    ..
++                }))) if value == expected
++            );
++            assert_matches!(frames.next(), Some(Ok(Frame::Padding)));
++            assert_matches!(frames.next(), Some(Ok(Frame::Ping)));
++            assert!(frames.next().is_none());
++        }
++    }
++}
+diff --git a/src/tests/transport_limits.rs b/src/tests/transport_limits.rs
+--- a/src/tests/transport_limits.rs
++++ b/src/tests/transport_limits.rs
+@@ -286,3 +286,99 @@
+         .expect("client sent an Initial");
+     assert_eq!(transmit.size, usize::from(INITIAL_MTU));
+ }
++
++#[test]
++fn draft02_rejects_invalid_ignore_order_bytes() {
++    let _guard = subscribe();
++    let mut pair = Pair::default();
++    let mut transport = TransportConfig::default();
++    transport.ack_frequency_draft(AckFrequencyDraft::Draft02);
++    let mut config = client_config();
++    config.transport_config(Arc::new(transport));
++    let (client_ch, _) = pair.connect_with(config);
++    let now = pair.time;
++    let conn = pair.client_conn_mut(client_ch);
++    for flag in 2..=u8::MAX {
++        // Sequence 0, tolerance 2, delay 1000 us, followed by padding and PING.
++        // Enough padding follows to expose an accidental 2-, 4-, or 8-byte read.
++        let mut frames = vec![0x40, 0xaf, 0, 2, 0x43, 0xe8, flag];
++        frames.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 1]);
++        let error = conn
++            .process_frames_for_test(now, &frames)
++            .expect_err("invalid one-byte Ignore Order was accepted");
++        assert_eq!(error.code, TransportErrorCode::FRAME_ENCODING_ERROR);
++    }
++}
++
++#[test]
++fn draft02_canonical_ignore_order_keeps_following_ping() {
++    let _guard = subscribe();
++    let mut pair = Pair::default();
++    let mut transport = TransportConfig::default();
++    transport.ack_frequency_draft(AckFrequencyDraft::Draft02);
++    let mut config = client_config();
++    config.transport_config(Arc::new(transport));
++    let (client_ch, _) = pair.connect_with(config);
++    let now = pair.time;
++    let conn = pair.client_conn_mut(client_ch);
++    for flag in [0, 1] {
++        let before = conn.stats().frame_rx;
++        let frames = [0x40, 0xaf, flag, 2, 0x43, 0xe8, flag, 0, 1];
++        conn.process_frames_for_test(now, &frames).unwrap();
++        assert_eq!(conn.stats().frame_rx.ping, before.ping + 1);
++        assert_eq!(
++            conn.stats().frame_rx.ack_frequency,
++            before.ack_frequency + 1
++        );
++    }
++}
++
++#[test]
++fn draft07_accepts_each_reordering_varint_width_and_following_ping() {
++    let _guard = subscribe();
++    let mut pair = Pair::default();
++    let (client_ch, _) = pair.connect();
++    let now = pair.time;
++    let conn = pair.client_conn_mut(client_ch);
++    for (tag, width) in [(0, 1), (0x40, 2), (0x80, 4), (0xc0, 8)] {
++        let before = conn.stats().frame_rx;
++        let mut frames = vec![0x40, 0xaf, 0, 1, 0x43, 0xe8];
++        let mut reordering = vec![0; width];
++        reordering[0] = tag;
++        reordering[width - 1] |= 1;
++        frames.extend_from_slice(&reordering);
++        frames.extend_from_slice(&[0, 1]);
++        conn.process_frames_for_test(now, &frames).unwrap();
++        assert_eq!(conn.stats().frame_rx.ping, before.ping + 1);
++        assert_eq!(
++            conn.stats().frame_rx.ack_frequency,
++            before.ack_frequency + 1
++        );
++    }
++}
++
++#[test]
++fn draft02_invalid_flag_is_an_encoding_error_in_initial_and_handshake() {
++    let _guard = subscribe();
++    let mut pair = Pair::default();
++    let mut transport = TransportConfig::default();
++    transport.ack_frequency_draft(AckFrequencyDraft::Draft02);
++    let mut config = client_config();
++    config.transport_config(Arc::new(transport));
++    let (client_ch, _) = pair.connect_with(config);
++    let now = pair.time;
++    let conn = pair.client_conn_mut(client_ch);
++    for initial in [false, true] {
++        let invalid = [0x40, 0xaf, 0, 2, 0x43, 0xe8, 0x40, 0, 1];
++        let error = conn
++            .process_early_frames_for_test(now, initial, &invalid)
++            .unwrap_err();
++        assert_eq!(error.code, TransportErrorCode::FRAME_ENCODING_ERROR);
++        assert_eq!(error.frame, Some(frame::FrameType::ACK_FREQUENCY));
++        let canonical = [0x40, 0xaf, 0, 2, 0x43, 0xe8, 1];
++        let error = conn
++            .process_early_frames_for_test(now, initial, &canonical)
++            .unwrap_err();
++        assert_eq!(error.code, TransportErrorCode::PROTOCOL_VIOLATION);
++    }
++}
+diff --git a/src/transport_parameters.rs b/src/transport_parameters.rs
+--- a/src/transport_parameters.rs
++++ b/src/transport_parameters.rs
+@@ -873,7 +873,7 @@
+     }
+ }
+ 
+-/// `min_ack_delay` in draft-ietf-quic-ack-frequency-02, section 3
++/// Firefox 157/neqo 0.31.1 `min_ack_delay` (draft-ietf-quic-ack-frequency-00, section 3)
+ const MIN_ACK_DELAY_DRAFT02: u64 = 0xff02_de1a;
+ 
+ fn decode_cid(len: usize, value: &mut Option<ConnectionId>, r: &mut impl Buf) -> Result<(), Error> {

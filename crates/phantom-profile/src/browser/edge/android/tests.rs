@@ -42,7 +42,8 @@ fn edge_android_153_client_hints_match_navigation_capture() -> TestResult {
 /// Edge for Android sends the Chromium hint names in the Chromium order and
 /// delivery, and the Edge 153 brand list it was captured with.
 #[test]
-fn edge_android_153_client_hints_share_desktop_edge_names_and_carry_the_edge_153_brands() {
+fn edge_android_153_client_hints_share_desktop_edge_names_and_carry_the_edge_153_brands()
+-> TestResult {
     let names = |settings: &crate::ClientHintSettings| {
         settings
             .hints()
@@ -64,12 +65,13 @@ fn edge_android_153_client_hints_share_desktop_edge_names_and_carry_the_edge_153
         value(&android, "sec-ch-ua").as_deref(),
         Some(&br#""Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153""#[..])
     );
-    let other = v153_android_client_hints_for_model("Pixel 9");
+    let other = v153_android_client_hints_for_model("Pixel 9")?;
     assert!(other.validate().is_ok());
     assert_eq!(
         value(&other, "sec-ch-ua-model").as_deref(),
         Some(&br#""Pixel 9""#[..])
     );
+    Ok(())
 }
 
 /// Apart from the ECH lookup that no Android capture covers, the TLS recipes

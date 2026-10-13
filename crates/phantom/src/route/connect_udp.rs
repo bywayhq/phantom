@@ -5,6 +5,7 @@ use phantom_net::{
     request::{InvalidOriginForm, OriginForm, RequestHeader},
 };
 
+use super::ProxyConfigSource;
 use crate::authority::{Endpoint, ParseUriError, parse_absolute_uri};
 
 const TARGET_HOST: &str = "target_host";
@@ -34,6 +35,30 @@ pub struct ConnectUdpProxy {
     headers: Vec<RequestHeader>,
     transport: ConnectUdpTransport,
     credentials: Option<HttpBasicCredentials>,
+}
+
+#[derive(Debug)]
+pub(crate) enum ConnectUdpTargetError {
+    ZeroPort,
+    InvalidOriginForm(InvalidOriginForm),
+}
+
+impl fmt::Display for ConnectUdpTargetError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ZeroPort => formatter.write_str("connect-udp target port must be nonzero"),
+            Self::InvalidOriginForm(source) => fmt::Display::fmt(source, formatter),
+        }
+    }
+}
+
+impl StdError for ConnectUdpTargetError {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        match self {
+            Self::ZeroPort => None,
+            Self::InvalidOriginForm(source) => Some(source),
+        }
+    }
 }
 
 /// Protocol spoken on the proxy leg of a CONNECT-UDP route.
@@ -171,11 +196,12 @@ impl ConnectUdpProxy {
         };
         // A representative expansion proves the literal text forms a valid
         // origin-form target before any request uses it.
-        proxy.expand("example.com", 443).map_err(|_| {
+        proxy.expand("example.com", 443).map_err(|source| {
             ConnectUdpProxyConfigError::new(
                 Kind::InvalidTemplate,
                 "CONNECT-UDP template does not expand to a valid request target",
             )
+            .with_source(ProxyConfigSource::Target(source))
         })?;
         Ok(proxy)
     }
@@ -249,11 +275,11 @@ impl ConnectUdpProxy {
         username: impl AsRef<str>,
         password: impl AsRef<str>,
     ) -> Result<Self, ConnectUdpProxyConfigError> {
-        let credentials = HttpBasicCredentials::new(username, password).map_err(|_| {
+        let credentials = HttpBasicCredentials::new(username, password).map_err(|source| {
             ConnectUdpProxyConfigError::new(
                 ConnectUdpProxyConfigErrorKind::InvalidCredentials,
                 "HTTP Basic proxy credentials must fit the credential-field bound, use ASCII without control characters, and have a nonempty username without a colon",
-            )
+            ).with_source(ProxyConfigSource::Credentials(Box::new(source)))
         })?;
         self.credentials = Some(credentials);
         Ok(self)
@@ -297,7 +323,15 @@ impl ConnectUdpProxy {
     }
 
     /// Expands the template for one UDP target (RFC 6570 section 3.2).
-    pub(crate) fn expand(&self, host: &str, port: u16) -> Result<OriginForm, InvalidOriginForm> {
+    pub(crate) fn expand(
+        &self,
+        host: &str,
+        port: u16,
+    ) -> Result<OriginForm, ConnectUdpTargetError> {
+        // RFC 9298 section 3 requires target_port in the range 1..=65535.
+        if port == 0 {
+            return Err(ConnectUdpTargetError::ZeroPort);
+        }
         let port = port.to_string();
         let value = |variable: Variable| match variable {
             Variable::TargetHost => host,
@@ -334,7 +368,7 @@ impl ConnectUdpProxy {
                 }
             }
         }
-        OriginForm::parse(&output)
+        OriginForm::parse(&output).map_err(ConnectUdpTargetError::InvalidOriginForm)
     }
 }
 
@@ -368,16 +402,19 @@ fn parse_authority(authority: &str) -> Result<Endpoint, ConnectUdpProxyConfigErr
     }
     let uri =
         parse_absolute_uri(&format!("https://{authority}/")).map_err(|error| match error {
-            ParseUriError::Authority(error) => invalid(error.message()),
-            ParseUriError::Syntax(_) | ParseUriError::Fragment => {
-                invalid("CONNECT-UDP proxy authority is invalid")
+            ParseUriError::Authority(error) => {
+                invalid(error.message()).with_source(ProxyConfigSource::Authority(error))
             }
+            ParseUriError::Syntax(error) => invalid("CONNECT-UDP proxy authority is invalid")
+                .with_source(ProxyConfigSource::Uri(error)),
+            ParseUriError::Fragment => invalid("CONNECT-UDP proxy authority is invalid"),
         })?;
     let authority = uri
         .authority()
         .cloned()
         .ok_or_else(|| invalid("CONNECT-UDP template must include a proxy authority"))?;
-    Endpoint::new(authority, 443).map_err(|error| invalid(error.message()))
+    Endpoint::new(authority, 443)
+        .map_err(|error| invalid(error.message()).with_source(ProxyConfigSource::Authority(error)))
 }
 
 fn parse_path_and_query(value: &str) -> Result<Vec<TemplatePart>, ConnectUdpProxyConfigError> {
@@ -502,15 +539,27 @@ pub enum ConnectUdpProxyConfigErrorKind {
 }
 
 /// Error returned while constructing a CONNECT-UDP proxy route.
+///
+/// Its source retains URI, authority, credential and target validation errors.
 #[derive(Debug)]
 pub struct ConnectUdpProxyConfigError {
     kind: ConnectUdpProxyConfigErrorKind,
     message: &'static str,
+    source: Option<ProxyConfigSource>,
 }
 
 impl ConnectUdpProxyConfigError {
     const fn new(kind: ConnectUdpProxyConfigErrorKind, message: &'static str) -> Self {
-        Self { kind, message }
+        Self {
+            kind,
+            message,
+            source: None,
+        }
+    }
+
+    fn with_source(mut self, source: ProxyConfigSource) -> Self {
+        self.source = Some(source);
+        self
     }
 
     const fn fragment() -> Self {
@@ -533,7 +582,11 @@ impl fmt::Display for ConnectUdpProxyConfigError {
     }
 }
 
-impl StdError for ConnectUdpProxyConfigError {}
+impl StdError for ConnectUdpProxyConfigError {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        self.source.as_ref().map(ProxyConfigSource::as_error)
+    }
+}
 
 #[cfg(test)]
 mod tests;

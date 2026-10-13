@@ -5,16 +5,20 @@ use std::{
     task::{Context, Poll},
 };
 
+use bytes::{Bytes, BytesMut};
+use http::HeaderMap;
+use http_body::{Body, Frame, SizeHint};
+use phantom_net::{http1::Http1Body, http2::Http2Body, http3::Http3Body};
+
 use crate::{
     HttpProtocol, RequestError,
     authority::RequestOrigin,
     content_coding::{ContentDecoder, Pump},
     timeout::{ResponseTimeouts, TimeoutBudget},
 };
-use bytes::{Bytes, BytesMut};
-use http::HeaderMap;
-use http_body::{Body, Frame, SizeHint};
-use phantom_net::{http1::Http1Body, http2::Http2Body, http3::Http3Body};
+
+/// Bounds ready wire frames that produce no decoded data in one body poll.
+const MAXIMUM_DECODING_PUMPS: usize = 8;
 
 /// Read a response body frame by frame or collect it with a byte limit.
 ///
@@ -206,7 +210,14 @@ impl ResponseBody {
         &mut self,
         context: &mut Context<'_>,
     ) -> Poll<Option<Result<Frame<Bytes>, RequestError>>> {
-        loop {
+        for _ in 0..MAXIMUM_DECODING_PUMPS {
+            if let Some(timeouts) = self.timeouts.as_mut()
+                && let Poll::Ready(error) = timeouts.poll_total_expired(context)
+            {
+                self.close();
+                return Poll::Ready(Some(Err(error)));
+            }
+
             let Some(ContentState::Decode(decoder)) = self.content.as_mut() else {
                 return Poll::Ready(None);
             };
@@ -233,12 +244,9 @@ impl ResponseBody {
                     }
                     return Poll::Ready(Some(Ok(Frame::data(data))));
                 }
-                Ok(Pump::Finished) => {
-                    let trailers = self.held_trailers.take();
-                    self.close();
-                    return Poll::Ready(trailers.map(|trailers| Ok(Frame::trailers(trailers))));
-                }
+                Ok(Pump::Finished) => return self.finish_decoding(context),
                 Ok(Pump::NeedInput) => {}
+                Ok(Pump::Yield) => return self.yield_decoding(context),
             }
 
             let protocol = self.protocol();
@@ -277,6 +285,46 @@ impl ResponseBody {
                 }
             }
         }
+
+        self.yield_decoding(context)
+    }
+
+    /// No returned data satisfies idle while buffered decoding yields.
+    fn yield_decoding(
+        &mut self,
+        context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Bytes>, RequestError>>> {
+        if let Some(ContentState::Decode(decoder)) = self.content.as_ref()
+            && decoder.is_finished()
+        {
+            return self.finish_decoding(context);
+        }
+
+        if let Some(timeouts) = self.timeouts.as_mut()
+            && let Poll::Ready(error) = timeouts.poll_expired(context)
+        {
+            self.close();
+            return Poll::Ready(Some(Err(error)));
+        }
+
+        context.waker().wake_by_ref();
+        Poll::Pending
+    }
+
+    fn finish_decoding(
+        &mut self,
+        context: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Bytes>, RequestError>>> {
+        if let Some(timeouts) = self.timeouts.as_mut()
+            && let Poll::Ready(error) = timeouts.poll_total_expired(context)
+        {
+            self.close();
+            return Poll::Ready(Some(Err(error)));
+        }
+
+        let trailers = self.held_trailers.take();
+        self.close();
+        Poll::Ready(trailers.map(|trailers| Ok(Frame::trailers(trailers))))
     }
 
     const fn protocol(&self) -> HttpProtocol {
@@ -305,12 +353,20 @@ impl ResponseBody {
         };
         match result {
             Poll::Ready(Some(Ok(frame))) => {
-                if let Some(timeouts) = self.timeouts.as_mut()
-                    && let Err(error) = timeouts.record_activity()
-                {
-                    self.inner.take();
-                    self.timeouts.take();
-                    return Poll::Ready(Some(Err(error)));
+                if let Some(timeouts) = self.timeouts.as_mut() {
+                    // Ready data can satisfy the idle limit, but cannot
+                    // extend the fixed deadline while waiting in a buffer.
+                    let error = match timeouts.record_activity() {
+                        Err(error) => Some(error),
+                        Ok(()) => match timeouts.poll_total_expired(context) {
+                            Poll::Ready(error) => Some(error),
+                            Poll::Pending => None,
+                        },
+                    };
+                    if let Some(error) = error {
+                        self.close();
+                        return Poll::Ready(Some(Err(error)));
+                    }
                 }
                 Poll::Ready(Some(Ok(frame)))
             }
@@ -431,26 +487,4 @@ impl Body for ResponseBody {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::checked_body_length;
-    use crate::RequestErrorKind;
-
-    #[test]
-    fn collection_limit_is_inclusive() -> Result<(), Box<dyn std::error::Error>> {
-        assert_eq!(checked_body_length(3, 2, 5)?, 5);
-        Ok(())
-    }
-
-    #[test]
-    fn collection_limit_rejects_excess_and_arithmetic_overflow() {
-        let Err(excess) = checked_body_length(3, 3, 5) else {
-            panic!("excess length was accepted");
-        };
-        assert_eq!(excess.kind(), RequestErrorKind::ResponseBodyLimit);
-
-        let Err(overflow) = checked_body_length(usize::MAX, 1, usize::MAX) else {
-            panic!("overflowing length was accepted");
-        };
-        assert_eq!(overflow.kind(), RequestErrorKind::ResponseBodyLimit);
-    }
-}
+mod tests;

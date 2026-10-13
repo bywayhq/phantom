@@ -112,7 +112,9 @@ pub struct QuicVersionInformation {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum QuicAckFrequencyDraft {
-    /// draft-ietf-quic-ack-frequency-02: identifier `0xff02de1a`.
+    /// Firefox 157's older format (neqo 0.31.1): identifier `0xff02de1a`.
+    ///
+    /// Its wire fields match draft-ietf-quic-ack-frequency-00, sections 3 and 4.
     Draft02,
     /// draft-ietf-quic-ack-frequency-07: identifier `0xff04de1b`.
     Draft07,

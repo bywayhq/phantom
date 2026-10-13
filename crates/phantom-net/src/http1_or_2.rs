@@ -12,6 +12,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use crate::{
+    SourceBinding,
     connection_leg::{self, ConnectionLegError},
     direct::{Dialer, DirectConnectError, connect_tcp_keeping_slower},
     host_resolver::HostResolver,
@@ -22,12 +23,11 @@ use crate::{
     },
     proxy::{HttpConnectError, ProxyCredentialCache, Socks5Error},
     route::{DirectTlsSetup, OriginRoute, TcpRoute},
-    source_binding::SourceBinding,
     tcp::{SlowerAttempt, SlowerConnection, SlowerKeepalive, TcpKeepaliveSource},
     tls::{ClientCertificate, TlsConnector, TlsError, trace_alpn},
 };
 
-pub use crate::tls::EchFailure;
+use crate::tls::EchFailure;
 
 /// An established connection selected from one TLS ALPN negotiation.
 #[derive(Debug)]

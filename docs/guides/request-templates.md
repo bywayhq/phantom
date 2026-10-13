@@ -34,9 +34,10 @@ let response_without_template = client
 ```
 
 `RequestBuilder::template` replaces the default for that request.
-`without_template` disables it. Redirects keep the selected template and
-still remove credentials when crossing origins. WebSocket openings use their
-own profile settings.
+`without_template` disables it. Redirects keep the selected template. At
+another origin, they remove `Authorization`, `Cookie`, `Cookie2`, and
+`Proxy-Authorization`. Custom credential fields are not protected by that
+rule. WebSocket openings use their own profile settings.
 
 ## Apply a captured request template
 
@@ -119,9 +120,10 @@ async fn fetch(
 ```
 
 Pass a fetch template with a `Referer` caller slot. The closure runs once
-when you call `fill_slots`. Retries reuse its values. Cross-origin redirects
-strip credentials without calling it again. You cannot replace literals,
-fill a slot twice, or add an undeclared name through this hook.
+when you call `fill_slots`. Retries reuse its values. Redirects do not rerun
+it. For custom credential fields, disable automatic redirects and check
+each new origin yourself ([header hooks](request-customization.md)). You
+cannot replace literals, fill a slot twice, or add an undeclared name.
 
 Later template, route, and retry changes recheck whether each filled name
 is still a caller slot on every possible protocol. Replacing all headers
@@ -163,8 +165,9 @@ methods such as GET once with it. Clones of a client share what sites asked for.
 [client-hint reference](../reference/profiles.md#client-hints) has the full
 rules.
 
-Hints go only to HTTPS sites and to `localhost` and loopback addresses. An
-`http://` host name gets none, as in Chrome.
+Hints go to HTTPS sites and to HTTP origins on loopback addresses,
+`localhost`, or `.localhost` names. Host names ignore ASCII case and one
+trailing dot. Other HTTP origins get no automatic hints.
 
 ## Limits
 

@@ -1,18 +1,23 @@
 use std::{
+    error::Error,
+    fmt,
+    future::{Future, poll_fn},
     io,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6},
     num::NonZeroUsize,
+    pin::Pin,
     sync::{
         Arc, Mutex,
         atomic::{AtomicUsize, Ordering},
     },
+    task::Poll,
     time::Duration,
 };
 
 use phantom_profile::DnsCacheSettings;
 use tokio::sync::watch;
 
-use super::AddressCache;
+use super::{AddressCache, Answer};
 use crate::host_resolver::{AddressResolver, Resolved};
 
 mod routes;
@@ -103,6 +108,83 @@ fn answer(
 
 fn not_found() -> io::Result<Vec<SocketAddr>> {
     Err(io::Error::new(io::ErrorKind::NotFound, "no such host"))
+}
+
+/// Waits for the real resolver's publisher before consuming its selected answer.
+async fn wait_until_published(answer: &mut Answer) -> TestResult {
+    let Answer::Wait(receiver) = answer else {
+        return Err("expected a shared resolution receiver".into());
+    };
+    tokio::time::timeout(Duration::from_secs(5), receiver.wait_for(Option::is_some)).await??;
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_new_resolution_published_before_consumption_is_not_a_cache_hit() -> TestResult {
+    let recorder = Recorder::open();
+    let cache = recorder.cache(long_lived(), answer(&[V6, V4]));
+    let mut selected = cache.cached_or_pending("origin.phantom.test".into())?;
+    wait_until_published(&mut selected).await?;
+
+    let (addresses, stored) = cache.consume_answer(selected, 8443).await?;
+
+    assert_eq!(
+        addresses,
+        [SocketAddr::new(V6, 8443), SocketAddr::new(V4, 8443)]
+    );
+    assert_eq!(recorder.calls(), 1);
+    assert_eq!(cache.len(), 1, "the real publisher stored its answer");
+    assert!(
+        !stored,
+        "publication does not turn a resolution into a cache hit"
+    );
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_joined_resolution_published_before_consumption_is_not_a_cache_hit() -> TestResult {
+    let (open, gate) = watch::channel(false);
+    let recorder = Recorder::gated(gate);
+    let cache = recorder.cache(long_lived(), answer(&[V4]));
+    let first = cache.cached_or_pending("origin.phantom.test".into())?;
+    let mut joined = cache.cached_or_pending("origin.phantom.test".into())?;
+    assert_eq!(
+        recorder.calls(),
+        1,
+        "the second lookup joined real pending work"
+    );
+    open.send(true)?;
+    wait_until_published(&mut joined).await?;
+
+    let (addresses, stored) = cache.consume_answer(joined, 443).await?;
+
+    assert_eq!(addresses, [SocketAddr::new(V4, 443)]);
+    assert_eq!(recorder.calls(), 1);
+    assert_eq!(cache.len(), 1, "the shared publisher stored its answer");
+    assert!(!stored, "a pending waiter did not select a stored entry");
+    drop(first);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_fresh_stored_entry_reports_a_cache_hit_without_another_resolution() -> TestResult {
+    let recorder = Recorder::open();
+    let cache = recorder.cache(long_lived(), answer(&[V4]));
+    cache.lookup("origin.phantom.test", 443).await?;
+
+    let (addresses, stored) = cache
+        .lookup_noting_cache("Origin.Phantom.TEST", 8443)
+        .await?;
+
+    assert_eq!(addresses, [SocketAddr::new(V4, 8443)]);
+    assert_eq!(recorder.calls(), 1);
+    assert!(stored);
+
+    let (literal, stored) = cache.lookup_noting_cache("127.0.0.1", 443).await?;
+    assert_eq!(literal, [SocketAddr::new(V4, 443)]);
+    assert!(!stored, "an IP literal is not a cache entry");
+    assert_eq!(recorder.calls(), 1);
+    Ok(())
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -215,22 +297,37 @@ async fn concurrent_lookups_share_one_resolution() -> TestResult {
     let (open, gate) = watch::channel(false);
     let recorder = Recorder::gated(gate);
     let cache = recorder.cache(long_lived(), answer(&[V6, V4]));
-
-    let lookups = (0..8)
-        .map(|_| {
-            let cache = cache.clone();
-            tokio::spawn(async move { cache.lookup("origin.phantom.test", 443).await })
-        })
+    let mut lookups = (0..8)
+        .map(|_| Box::pin(cache.lookup_noting_cache("origin.phantom.test", 443)))
         .collect::<Vec<_>>();
-    tokio::task::yield_now().await;
+
+    let mut selected = Vec::with_capacity(lookups.len());
+    for lookup in &mut lookups {
+        selected.push(poll_fn(|context| Poll::Ready(lookup.as_mut().poll(context))).await);
+    }
+    let calls_before_release = recorder.calls();
     open.send(true)?;
+
+    for selection in selected {
+        if let Poll::Ready(result) = selection {
+            result?;
+            return Err("a gated lookup finished before its resolver was released".into());
+        }
+    }
+    assert_eq!(
+        calls_before_release, 1,
+        "all eight lookups selected pending work"
+    );
+
     for lookup in lookups {
+        let (addresses, stored) = tokio::time::timeout(Duration::from_secs(5), lookup).await??;
+
         assert_eq!(
-            lookup.await??,
+            addresses,
             [SocketAddr::new(V6, 443), SocketAddr::new(V4, 443)]
         );
+        assert!(!stored, "a pending lookup did not select a stored answer");
     }
-
     assert_eq!(recorder.calls(), 1);
     Ok(())
 }
@@ -260,43 +357,90 @@ fn a_lookup_does_not_depend_on_another_runtime_being_driven() -> TestResult {
     let (open, gate) = watch::channel(false);
     let recorder = Recorder::gated(gate);
     let cache = recorder.cache(long_lived(), answer(&[V4]));
-
-    // The first runtime starts the shared resolution, then is never driven
-    // again while it stays alive.
     let first = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?;
-    let abandoned = first.block_on(async {
-        tokio::time::timeout(
-            Duration::from_millis(20),
-            cache.lookup("origin.phantom.test", 443),
-        )
-        .await
-    });
-    assert!(abandoned.is_err(), "the gated lookup finished early");
-    let second = std::thread::spawn({
-        let cache = cache.clone();
-        move || -> Result<Vec<SocketAddr>, String> {
-            let runtime = tokio::runtime::Builder::new_current_thread()
-                .build()
-                .map_err(|error| error.to_string())?;
-            runtime
-                .block_on(cache.lookup("origin.phantom.test", 443))
-                .map_err(|error| error.to_string())
-        }
-    });
-    std::thread::sleep(Duration::from_millis(20));
-    open.send(true)?;
-    let addresses = second.join().map_err(|_| "the second lookup panicked")??;
+    let mut first_lookup = Box::pin(cache.lookup_noting_cache("origin.phantom.test", 443));
 
-    assert_eq!(addresses, [SocketAddr::new(V4, 443)]);
-    assert_eq!(
-        recorder.calls(),
-        1,
-        "the second runtime joined the first resolution"
-    );
+    let first_poll = first.block_on(poll_fn(|context| {
+        Poll::Ready(first_lookup.as_mut().poll(context))
+    }));
+    let first_calls = recorder.calls();
+
+    // The first runtime and its pending lookup stay alive without being driven.
+    let observed = std::thread::scope(|scope| -> TestResult {
+        let (ready, readiness) = std::sync::mpsc::channel();
+        let (completed, completion) = std::sync::mpsc::channel();
+        let second = match std::thread::Builder::new().spawn_scoped(scope, {
+            let cache = cache.clone();
+            move || {
+                let result = (|| -> io::Result<(Vec<SocketAddr>, bool)> {
+                    let runtime = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()?;
+                    let mut lookup =
+                        Box::pin(cache.lookup_noting_cache("origin.phantom.test", 443));
+
+                    runtime.block_on(async {
+                        if let Poll::Ready(result) =
+                            poll_fn(|context| Poll::Ready(lookup.as_mut().poll(context))).await
+                        {
+                            result?;
+                            return Err(io::Error::other(
+                                "the second lookup finished before its resolver was released",
+                            ));
+                        }
+
+                        ready.send(()).map_err(io::Error::other)?;
+
+                        tokio::time::timeout(Duration::from_secs(5), lookup)
+                            .await
+                            .map_err(io::Error::other)?
+                    })
+                })();
+
+                completed.send(result)
+            }
+        }) {
+            Ok(second) => second,
+            Err(error) => {
+                open.send(true)?;
+                return Err(error.into());
+            }
+        };
+
+        let ready_result = readiness.recv_timeout(Duration::from_secs(5));
+        let calls_before_release = recorder.calls();
+        let released = open.send(true);
+        let second_result = completion.recv_timeout(Duration::from_secs(10));
+        let joined = second.join().map_err(|_| "the second lookup panicked");
+
+        // Release the resolver and observe the thread before any failing assertion.
+        joined??;
+
+        if let Poll::Ready(result) = first_poll {
+            result?;
+            return Err("the first lookup finished before its resolver was released".into());
+        }
+
+        let (addresses, stored) = second_result??;
+        ready_result?;
+        released?;
+
+        assert_eq!(first_calls, 1, "the first lookup invoked the real resolver");
+        assert_eq!(
+            calls_before_release, 1,
+            "the second lookup joined pending work"
+        );
+        assert_eq!(addresses, [SocketAddr::new(V4, 443)]);
+        assert!(!stored, "the second runtime did not select a stored answer");
+        assert_eq!(recorder.calls(), 1);
+        Ok(())
+    });
+
+    drop(first_lookup);
     drop(first);
-    Ok(())
+    observed
 }
 
 #[test]
@@ -477,6 +621,256 @@ async fn failures_are_kept_for_the_negative_ttl() -> TestResult {
     Ok(())
 }
 
+#[derive(Debug)]
+struct ResolverFailure {
+    identity: Arc<()>,
+    cause: NestedResolverFailure,
+}
+
+impl fmt::Display for ResolverFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("resolver refused the name")
+    }
+}
+
+impl Error for ResolverFailure {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.cause)
+    }
+}
+
+#[derive(Debug)]
+struct NestedResolverFailure(u32);
+
+impl fmt::Display for NestedResolverFailure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "resolver detail {}", self.0)
+    }
+}
+
+impl Error for NestedResolverFailure {}
+
+fn failing_resolver(
+    identity: &Arc<()>,
+    calls: &Arc<AtomicUsize>,
+    gate: watch::Receiver<bool>,
+) -> AddressResolver {
+    let identity = Arc::clone(identity);
+    let calls = Arc::clone(calls);
+    AddressResolver::from_fn(move |host| {
+        calls.fetch_add(1, Ordering::SeqCst);
+        let identity = Arc::clone(&identity);
+        let mut gate = gate.clone();
+        async move {
+            if host == "held.phantom.test" {
+                gate.wait_for(|open| *open)
+                    .await
+                    .map_err(io::Error::other)?;
+                return Ok(vec![V4]);
+            }
+
+            gate.wait_for(|open| *open)
+                .await
+                .map_err(io::Error::other)?;
+            Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                ResolverFailure {
+                    identity,
+                    cause: NestedResolverFailure(47),
+                },
+            ))
+        }
+    })
+}
+
+fn assert_typed_resolver_cause<'a>(
+    error: &'a io::Error,
+    identity: &Arc<()>,
+) -> TestResult<&'a io::Error> {
+    assert_eq!(error.kind(), io::ErrorKind::PermissionDenied);
+    assert_eq!(error.to_string(), "resolver refused the name");
+    let mut cause: &(dyn Error + 'static) = error;
+    loop {
+        if let Some(original) = cause.downcast_ref::<io::Error>()
+            && let Some(resolver) = original
+                .get_ref()
+                .and_then(|payload| payload.downcast_ref::<ResolverFailure>())
+        {
+            assert!(Arc::ptr_eq(&resolver.identity, identity));
+            let nested = original
+                .source()
+                .and_then(|source| source.downcast_ref::<NestedResolverFailure>())
+                .ok_or("the resolver's nested source was lost")?;
+            assert_eq!(nested.0, 47);
+            return Ok(original);
+        }
+
+        cause = cause
+            .source()
+            .ok_or("the original resolver error was lost")?;
+    }
+}
+
+async fn consume_failure(cache: &AddressCache, answer: Answer) -> TestResult<io::Error> {
+    tokio::time::timeout(Duration::from_secs(5), cache.consume_answer(answer, 443))
+        .await?
+        .err()
+        .ok_or_else(|| "the failing resolver returned addresses".into())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn an_uncached_resolver_preserves_its_typed_and_nested_cause() -> TestResult {
+    let identity = Arc::new(());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let resolver = failing_resolver(&identity, &calls, watch::channel(true).1);
+
+    let error = resolver
+        .lookup("missing.phantom.test")
+        .await
+        .err()
+        .ok_or("the failing resolver returned addresses")?;
+
+    assert_typed_resolver_cause(&error, &identity)?;
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_first_cached_lookup_preserves_the_resolver_cause() -> TestResult {
+    let identity = Arc::new(());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let cache = AddressCache::with_resolver(
+        long_lived(),
+        failing_resolver(&identity, &calls, watch::channel(true).1),
+    );
+    let selected = cache.cached_or_pending("missing.phantom.test".into())?;
+    assert!(matches!(selected, Answer::Wait(_)));
+
+    let error = consume_failure(&cache, selected).await?;
+
+    assert_typed_resolver_cause(&error, &identity)?;
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert!(cache.is_empty(), "no negative TTL was configured");
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn joined_cached_lookups_share_the_original_resolver_cause() -> TestResult {
+    let identity = Arc::new(());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let (open, gate) = watch::channel(false);
+    let cache =
+        AddressCache::with_resolver(long_lived(), failing_resolver(&identity, &calls, gate));
+    let first = cache.cached_or_pending("missing.phantom.test".into())?;
+    let joined = cache.cached_or_pending("missing.phantom.test".into())?;
+    assert!(matches!(first, Answer::Wait(_)));
+    assert!(matches!(joined, Answer::Wait(_)));
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    open.send(true)?;
+
+    let first = consume_failure(&cache, first).await?;
+    let joined = consume_failure(&cache, joined).await?;
+
+    let original = assert_typed_resolver_cause(&first, &identity)?;
+    let shared = assert_typed_resolver_cause(&joined, &identity)?;
+    assert!(std::ptr::eq(original, shared));
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_stored_negative_answer_preserves_the_original_resolver_cause() -> TestResult {
+    let identity = Arc::new(());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let cache = AddressCache::with_resolver(
+        settings(1, Duration::from_secs(600), Some(Duration::from_secs(600))),
+        failing_resolver(&identity, &calls, watch::channel(true).1),
+    );
+    let first = cache.cached_or_pending("missing.phantom.test".into())?;
+    let first = consume_failure(&cache, first).await?;
+    let stored = cache.cached_or_pending("missing.phantom.test".into())?;
+    assert!(matches!(stored, Answer::Stored(_)));
+    assert_eq!(cache.len(), 1);
+
+    let stored = consume_failure(&cache, stored).await?;
+
+    let original = assert_typed_resolver_cause(&first, &identity)?;
+    let retained = assert_typed_resolver_cause(&stored, &identity)?;
+    assert!(std::ptr::eq(original, retained));
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn an_inline_lookup_preserves_the_resolver_cause_without_new_shared_work() -> TestResult {
+    let identity = Arc::new(());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let (open, gate) = watch::channel(false);
+    let cache = AddressCache::with_resolver(
+        settings(1, Duration::from_secs(600), None),
+        failing_resolver(&identity, &calls, gate),
+    );
+    let held = cache.cached_or_pending("held.phantom.test".into())?;
+    assert!(matches!(held, Answer::Wait(_)));
+    let inline = cache.cached_or_pending("missing.phantom.test".into())?;
+    assert!(matches!(inline, Answer::Inline { .. }));
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    open.send(true)?;
+
+    let error = consume_failure(&cache, inline).await?;
+    let (addresses, stored) =
+        tokio::time::timeout(Duration::from_secs(5), cache.consume_answer(held, 443)).await??;
+
+    assert_typed_resolver_cause(&error, &identity)?;
+    assert_eq!(addresses, [SocketAddr::new(V4, 443)]);
+    assert!(!stored);
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn cached_failures_retain_the_original_os_error_code() -> TestResult {
+    const OS_CODE: i32 = 0x5a31;
+    let calls = Arc::new(AtomicUsize::new(0));
+    let resolver = AddressResolver::from_fn({
+        let calls = Arc::clone(&calls);
+        move |_| {
+            calls.fetch_add(1, Ordering::SeqCst);
+            async { Err(io::Error::from_raw_os_error(OS_CODE)) }
+        }
+    });
+    let cache = AddressCache::with_resolver(
+        settings(1, Duration::from_secs(600), Some(Duration::from_secs(600))),
+        resolver,
+    );
+    let expected = io::Error::from_raw_os_error(OS_CODE);
+
+    for _ in 0..2 {
+        let error = cache
+            .lookup("missing.phantom.test", 443)
+            .await
+            .err()
+            .ok_or("the failing resolver returned addresses")?;
+        assert_eq!(error.kind(), expected.kind());
+        assert_eq!(error.to_string(), expected.to_string());
+        let mut cause: &(dyn Error + 'static) = &error;
+        loop {
+            if let Some(original) = cause.downcast_ref::<io::Error>()
+                && original.raw_os_error() == Some(OS_CODE)
+            {
+                break;
+            }
+
+            cause = cause
+                .source()
+                .ok_or("the original OS error code was lost")?;
+        }
+    }
+
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    Ok(())
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn an_empty_answer_is_returned_and_kept_as_a_failure() -> TestResult {
     let recorder = Recorder::open();
@@ -536,15 +930,31 @@ async fn clear_forgets_answers_and_drops_resolutions_in_flight() -> TestResult {
     let (open, gate) = watch::channel(false);
     let recorder = Recorder::gated(gate);
     let cache = recorder.cache(long_lived(), answer(&[V4]));
+    let mut in_flight = Box::pin(cache.lookup_noting_cache("origin.phantom.test", 443));
 
-    let in_flight = tokio::spawn({
-        let cache = cache.clone();
-        async move { cache.lookup("origin.phantom.test", 443).await }
-    });
-    tokio::task::yield_now().await;
-    cache.clear();
+    let selected = poll_fn(|context| Poll::Ready(in_flight.as_mut().poll(context))).await;
+    let calls_before_clear = recorder.calls();
+    if selected.is_pending() {
+        cache.clear();
+    }
     open.send(true)?;
-    assert_eq!(in_flight.await??, [SocketAddr::new(V4, 443)]);
+
+    if let Poll::Ready(result) = selected {
+        result?;
+        return Err("the pre-clear lookup finished before its resolver was released".into());
+    }
+    assert_eq!(
+        calls_before_clear, 1,
+        "the pre-clear resolution was invoked"
+    );
+
+    let (addresses, stored) = tokio::time::timeout(Duration::from_secs(5), in_flight).await??;
+
+    assert_eq!(addresses, [SocketAddr::new(V4, 443)]);
+    assert!(
+        !stored,
+        "the pre-clear lookup did not select a stored answer"
+    );
     assert!(
         cache.is_empty(),
         "an answer started before the clear was stored"
@@ -658,4 +1068,158 @@ async fn lookups_past_the_shared_bound_run_inline_and_are_stored() -> TestResult
     assert_eq!(calls.load(Ordering::SeqCst), 2);
     hung.abort();
     Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn clearing_and_cancelling_lookups_preserves_the_background_work_bound() -> TestResult {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        let active = Arc::new(AtomicUsize::new(0));
+        let started = Arc::new(AtomicUsize::new(0));
+        let (open, gate) = watch::channel(false);
+        let resolver = gated_resolver(&active, &started, gate);
+        let cache =
+            AddressCache::with_resolver(settings(1, Duration::from_secs(600), None), resolver);
+
+        let mut first = Box::pin(cache.lookup("origin.phantom.test", 443));
+        assert!(!poll_lookup_once(&mut first).await);
+        while active.load(Ordering::SeqCst) == 0 {
+            tokio::task::yield_now().await;
+        }
+        drop(first);
+
+        for expected in 2..=5 {
+            cache.clear();
+            let mut next = Box::pin(cache.lookup("origin.phantom.test", 443));
+            assert!(!poll_lookup_once(&mut next).await);
+            drop(next);
+            while started.load(Ordering::SeqCst) < expected {
+                tokio::task::yield_now().await;
+            }
+
+            assert_eq!(
+                active.load(Ordering::SeqCst),
+                1,
+                "a cleared lookup must still count against background capacity"
+            );
+        }
+
+        open.send(true)?;
+        while active.load(Ordering::SeqCst) != 0 {
+            tokio::task::yield_now().await;
+        }
+        assert!(cache.is_empty(), "the old generation must not publish");
+
+        open.send(false)?;
+        let mut later = Box::pin(cache.lookup("origin.phantom.test", 443));
+        assert!(!poll_lookup_once(&mut later).await);
+        drop(later);
+        while started.load(Ordering::SeqCst) < 6 {
+            tokio::task::yield_now().await;
+        }
+        assert_eq!(
+            active.load(Ordering::SeqCst),
+            1,
+            "completed old work must release capacity for a new background lookup"
+        );
+
+        open.send(true)?;
+        assert_eq!(
+            cache.lookup("origin.phantom.test", 443).await?,
+            [SocketAddr::new(V4, 443)]
+        );
+        assert_eq!(active.load(Ordering::SeqCst), 0);
+        Ok::<_, Box<dyn std::error::Error>>(())
+    })
+    .await?
+}
+
+#[test]
+fn dropping_the_resolver_runtime_releases_background_capacity_after_clear() -> TestResult {
+    let active = Arc::new(AtomicUsize::new(0));
+    let started = Arc::new(AtomicUsize::new(0));
+    let (open, gate) = watch::channel(false);
+    let cache = AddressCache::with_resolver(
+        settings(1, Duration::from_secs(600), None),
+        gated_resolver(&active, &started, gate),
+    );
+    let first = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+
+    first.block_on(async {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            let mut lookup = Box::pin(cache.lookup("origin.phantom.test", 443));
+            assert!(!poll_lookup_once(&mut lookup).await);
+            while active.load(Ordering::SeqCst) == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+    })?;
+    cache.clear();
+    drop(first);
+    assert_eq!(active.load(Ordering::SeqCst), 0);
+
+    let second = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?;
+    second.block_on(async {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            let mut lookup = Box::pin(cache.lookup("origin.phantom.test", 443));
+            assert!(!poll_lookup_once(&mut lookup).await);
+            drop(lookup);
+            while started.load(Ordering::SeqCst) < 2 {
+                tokio::task::yield_now().await;
+            }
+            assert_eq!(
+                active.load(Ordering::SeqCst),
+                1,
+                "a dropped runtime must free the old background reservation"
+            );
+
+            open.send(true)?;
+            assert_eq!(
+                cache.lookup("origin.phantom.test", 443).await?,
+                [SocketAddr::new(V4, 443)]
+            );
+            Ok::<_, Box<dyn std::error::Error>>(())
+        })
+        .await?
+    })
+}
+
+/// Counts live resolver futures independently of the cache's bookkeeping.
+struct LiveLookup(Arc<AtomicUsize>);
+
+impl Drop for LiveLookup {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+fn gated_resolver(
+    active: &Arc<AtomicUsize>,
+    started: &Arc<AtomicUsize>,
+    gate: watch::Receiver<bool>,
+) -> AddressResolver {
+    let active = Arc::clone(active);
+    let started = Arc::clone(started);
+    AddressResolver::from_fn(move |_| {
+        let active = Arc::clone(&active);
+        let started = Arc::clone(&started);
+        let mut gate = gate.clone();
+        async move {
+            active.fetch_add(1, Ordering::SeqCst);
+            let _live = LiveLookup(active);
+            started.fetch_add(1, Ordering::SeqCst);
+            gate.wait_for(|open| *open)
+                .await
+                .map_err(io::Error::other)?;
+            Ok(vec![V4])
+        }
+    })
+}
+
+async fn poll_lookup_once<F: Future>(lookup: &mut Pin<Box<F>>) -> bool {
+    poll_fn(|context| Poll::Ready(lookup.as_mut().poll(context).is_ready())).await
 }

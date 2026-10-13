@@ -1,11 +1,11 @@
-use crate::codec::{SendError, UserError};
-use crate::frame::StreamId;
-use crate::proto::{self, Initiator};
+use std::{error, fmt, io, sync::Arc};
 
 use bytes::Bytes;
-use std::{error, fmt, io};
 
+use crate::codec::{SendError, UserError};
 pub use crate::frame::Reason;
+use crate::frame::StreamId;
+use crate::proto::{self, Initiator};
 
 /// Represents HTTP/2 operation errors.
 ///
@@ -49,7 +49,7 @@ enum Kind {
     User(UserError),
 
     /// An `io::Error` occurred while trying to read or write.
-    Io(io::Error),
+    Io(Arc<io::Error>),
 }
 
 // ===== impl Error =====
@@ -73,16 +73,18 @@ impl Error {
         matches!(self.kind, Kind::Io(..))
     }
 
-    /// Returns the error if the error is an io::Error
+    /// Borrows the original transport error, including its payload and OS code.
     pub fn get_io(&self) -> Option<&io::Error> {
         match self.kind {
-            Kind::Io(ref e) => Some(e),
+            Kind::Io(ref e) => Some(e.as_ref()),
             _ => None,
         }
     }
 
-    /// Returns the error if the error is an io::Error
-    pub fn into_io(self) -> Option<io::Error> {
+    /// Returns the shared original transport error, or `None` for other errors.
+    ///
+    /// The connection and its failed streams share this same error.
+    pub fn into_io(self) -> Option<Arc<io::Error>> {
         match self.kind {
             Kind::Io(e) => Some(e),
             _ => None,
@@ -91,7 +93,7 @@ impl Error {
 
     pub(crate) fn from_io(err: io::Error) -> Self {
         Error {
-            kind: Kind::Io(err),
+            kind: Kind::Io(Arc::new(err)),
             local_limit: None,
         }
     }
@@ -186,9 +188,7 @@ impl From<proto::Error> for Error {
                 GoAway(debug_data, reason, initiator) => {
                     Kind::GoAway(debug_data, reason, initiator)
                 }
-                Io(kind, inner) => {
-                    Kind::Io(inner.map_or_else(|| kind.into(), |inner| io::Error::new(kind, inner)))
-                }
+                Io(error) => Kind::Io(error),
             },
             local_limit: None,
         }
@@ -259,10 +259,17 @@ impl fmt::Display for Error {
     }
 }
 
-impl error::Error for Error {}
+impl error::Error for Error {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        self.get_io()
+            .map(|error| error as &(dyn error::Error + 'static))
+    }
+}
 
 #[cfg(test)]
 mod tests {
+    use std::io;
+
     use super::Error;
     use crate::Reason;
 
@@ -270,5 +277,43 @@ mod tests {
     fn error_from_reason() {
         let err = Error::from(Reason::HTTP_1_1_REQUIRED);
         assert_eq!(err.reason(), Some(Reason::HTTP_1_1_REQUIRED));
+    }
+
+    #[test]
+    fn direct_io_error_keeps_its_payload_and_public_source() {
+        let payload = "https://example.test/invalid uri"
+            .parse::<http::Uri>()
+            .expect_err("invalid static URI was accepted");
+        let error = Error::from_io(io::Error::new(io::ErrorKind::PermissionDenied, payload));
+        let original = error.get_io().expect("direct I/O error missing");
+        assert!(matches!(
+            original.get_ref(),
+            Some(cause) if cause.is::<http::uri::InvalidUri>()
+        ));
+
+        let source = std::error::Error::source(&error)
+            .and_then(|cause| cause.downcast_ref::<io::Error>())
+            .expect("direct I/O source missing");
+        assert!(std::ptr::eq(original, source));
+
+        let owned = error.into_io().expect("direct I/O owner missing");
+        assert_eq!(owned.kind(), io::ErrorKind::PermissionDenied);
+        assert!(matches!(
+            owned.get_ref(),
+            Some(cause) if cause.is::<http::uri::InvalidUri>()
+        ));
+    }
+
+    #[test]
+    fn kind_only_io_error_keeps_its_kind_and_source() {
+        let error = Error::from(crate::proto::Error::from(io::ErrorKind::UnexpectedEof));
+        let original = error.get_io().expect("kind-only I/O error missing");
+        assert_eq!(original.kind(), io::ErrorKind::UnexpectedEof);
+        assert!(original.get_ref().is_none());
+
+        let source = std::error::Error::source(&error)
+            .and_then(|cause| cause.downcast_ref::<io::Error>())
+            .expect("kind-only I/O source missing");
+        assert!(std::ptr::eq(original, source));
     }
 }

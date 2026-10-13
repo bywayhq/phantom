@@ -824,7 +824,7 @@ impl VersionInformation {
 
     /// Reads a peer's parameter from its whole body
     fn read(side: Side, r: &mut impl Buf) -> Result<Self, Error> {
-        if r.remaining() < 4 || r.remaining() % 4 != 0 {
+        if r.remaining() < 4 || !r.remaining().is_multiple_of(4) {
             return Err(Error::Malformed);
         }
         // RFC 9368 section 4: a zero Chosen or Available Version is a parsing failure. A
@@ -873,7 +873,7 @@ impl VersionInformation {
     }
 }
 
-/// `min_ack_delay` in draft-ietf-quic-ack-frequency-02, section 3
+/// Firefox 157/neqo 0.31.1 `min_ack_delay` (draft-ietf-quic-ack-frequency-00, section 3)
 const MIN_ACK_DELAY_DRAFT02: u64 = 0xff02_de1a;
 
 fn decode_cid(len: usize, value: &mut Option<ConnectionId>, r: &mut impl Buf) -> Result<(), Error> {

@@ -1,15 +1,15 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index 4f87fd3..0975e27 100644
+index 6883a43..13a50f7 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -12,15 +12,20 @@
  [package]
  edition = "2021"
- rust-version = "1.85"
+ rust-version = "1.88"
 -name = "quinn"
 -version = "0.11.12"
 +name = "phantom-quinn"
-+version = "0.11.12-phantom.2"
++version = "0.11.12-phantom.5"
  build = "build.rs"
 +exclude = [
 +    ".cargo_vcs_info.json",
@@ -26,7 +26,7 @@ index 4f87fd3..0975e27 100644
  readme = "README.md"
  keywords = ["quic"]
  categories = [
-@@ -28,7 +33,12 @@ categories = [
+@@ -28,7 +33,12 @@
      "asynchronous",
  ]
  license = "MIT OR Apache-2.0"
@@ -40,16 +40,17 @@ index 4f87fd3..0975e27 100644
  
  [package.metadata.docs.rs]
  features = [
-@@ -164,9 +174,10 @@ optional = true
+@@ -164,9 +174,10 @@
  version = "0.2"
  
  [dependencies.proto]
 -version = "0.11.18"
-+version = "=0.11.18-phantom.2"
+-default-features = false
+-package = "quinn-proto"
++version = "=0.11.18-phantom.5"
 +package = "phantom-quinn-proto"
 +path = "../quinn-proto"
- default-features = false
--package = "quinn-proto"
++default-features = false
  
  [dependencies.rustc-hash]
  version = "2"

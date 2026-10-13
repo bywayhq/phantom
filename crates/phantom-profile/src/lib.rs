@@ -1,5 +1,7 @@
 //! Browser recipes and typed settings for Phantom connections.
 //!
+//! Import settings from the crate root and recipes from [`browser`].
+//!
 //! Public settings fields let you combine recipe components and change the
 //! values you need. Call each changed settings type's `validate` method when
 //! it has one before passing it to a transport. Backend and host checks can
@@ -17,26 +19,6 @@
 //! can carry runtime or backend sources and are outside this contract.
 //! Defaults, builders, and Hash are provided only by types that implement
 //! them.
-
-pub mod browser;
-
-pub mod client_hints;
-pub mod cookie;
-pub mod dns_cache;
-pub mod http1;
-pub mod http2;
-pub mod http3;
-pub mod proxy_connect;
-pub mod quic;
-pub mod request_template;
-pub mod tcp;
-pub mod tls;
-pub mod udp;
-pub mod websocket;
-
-mod client;
-mod url_trust;
-mod validation;
 
 pub use client::{ClientProfile, Http3ClientSettings};
 pub use client_hints::{
@@ -61,13 +43,22 @@ pub use proxy_connect::{
     Http2ProxyConnections, Http2RejectedConnect, InvalidProxyConnectTemplate, ProxyConnectField,
     ProxyConnectTemplate,
 };
+pub use quic::{
+    GoogleConnectionOption, InvalidQuicTransportSettings, QuicAckFrequencyDraft,
+    QuicConnectionIdLength, QuicTransportGrease, QuicTransportParameter,
+    QuicTransportParameterKind, QuicTransportParameterOrder, QuicTransportSettings,
+    QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
+};
+#[doc(hidden)]
+pub use request_template::{ClientHintSlot, client_hint_placement, restart_client_hint_placement};
 pub use request_template::{
     InvalidRequestTemplate, ProxyAuthorizationAttempt, RequestField, RequestTemplate,
 };
 pub use tcp::{
-    InvalidTcpSettings, TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection,
-    TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy, TcpKeepaliveSchedule,
-    TcpPortRandomization, TcpSettings,
+    InvalidTcpSettings, MAX_TCP_BACKUP_TIMEOUT_SECONDS, MAX_TCP_FALLBACK_DELAY,
+    MAX_TCP_KEEPALIVE_PROBES, MAX_TCP_KEEPALIVE_SECONDS, MAX_TCP_SHORT_LIVED_SECONDS,
+    TcpAddressAdvance, TcpAddressRacing, TcpAddressSelection, TcpBackupConnection, TcpKeepalive,
+    TcpKeepalivePolicy, TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings,
 };
 pub use tls::{
     AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,
@@ -84,6 +75,25 @@ pub use websocket::{
     WebSocketEmptyMessageCompression, WebSocketField, WebSocketNewConnection,
     WebSocketProxiedSession, WebSocketRefusedStreamRetry, WebSocketSettings,
 };
+
+pub mod browser;
+
+mod client;
+mod client_hints;
+mod cookie;
+mod dns_cache;
+mod http1;
+mod http2;
+mod http3;
+mod proxy_connect;
+mod quic;
+mod request_template;
+mod tcp;
+mod tls;
+mod udp;
+mod url_trust;
+mod validation;
+mod websocket;
 
 #[cfg(test)]
 mod tests {

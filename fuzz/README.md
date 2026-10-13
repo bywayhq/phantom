@@ -62,12 +62,11 @@ The 16 KiB limit for `http1_response` stays under the 32 KiB response-head
 limit: both the head observer and the protocol engine reparse their buffered
 head on every read, so a longer head combined with one-byte reads costs
 quadratic time and would report a timeout rather than a defect. That bound
-costs coverage, and the cost is paid elsewhere: no fuzzed response can reach
-the observer's head-byte or field-count limits, so `ResponseHeadTooLarge` and
-`TooManyResponseHeaders` are unreachable under fuzzing. Both are pinned by
-deterministic regressions in
-[`src/http1_response/tests.rs`](src/http1_response/tests.rs), which is where a
-limit boundary belongs: it is a fixed threshold, not a mutated input.
+excludes the observer's head-byte limit, so `ResponseHeadTooLarge` cannot
+occur under this run's input limit. Short fields can still reach the
+field-count limit and produce `TooManyResponseHeaders`. Deterministic
+regressions cover both boundaries in
+[`src/http1_response/tests.rs`](src/http1_response/tests.rs).
 
 ## What the targets feed
 

@@ -35,9 +35,10 @@ use tokio::{
 use tokio_btls::SslStream;
 
 use crate::{
+    EchFailure,
     direct::https_record_extra_time,
     dns::EchConfigList,
-    http1_or_2::{EchFailure, Http1Or2Connection, Http1Or2TlsConnector, Http1Or2TlsError},
+    http1_or_2::{Http1Or2Connection, Http1Or2TlsConnector, Http1Or2TlsError},
     tls::{
         TlsErrorKind,
         test_support::{TEST_TIMEOUT, TestIdentity, TestResult},

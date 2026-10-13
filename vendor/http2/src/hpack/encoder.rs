@@ -154,7 +154,7 @@ impl Encoder {
                     if remark {
                         // The entry is written; marking it again keeps the
                         // credential out of the table's `Debug` output.
-                        self.table.mark_inserted_sensitive(&index);
+                        self.table.mark_retained_sensitive(&index);
                     }
 
                     last_index = Some(index);
@@ -206,6 +206,11 @@ impl Encoder {
                 value: crumb,
             });
             self.encode_header(&index, dst);
+            if value.is_sensitive() {
+                // The profile chose the wire representation. Preserve the
+                // caller's diagnostic mark only after writing the crumb.
+                self.table.mark_retained_sensitive(&index);
+            }
             last = Some(index);
         }
         last
@@ -1300,6 +1305,79 @@ mod test {
         );
     }
 
+    #[test]
+    fn three_quarter_indexing_accepts_maximum_peer_table_size() {
+        check_large_peer_table_size(u32::MAX as usize, &[63, 224, 255, 255, 255, 15]);
+    }
+
+    #[test]
+    fn three_quarter_indexing_accepts_peer_size_past_u32_multiplication_boundary() {
+        // On a 32-bit target, multiplying this legal peer setting by three
+        // overflows to two. A small field must still be indexed.
+        check_large_peer_table_size(1_431_655_766, &[63, 183, 170, 213, 170, 5]);
+    }
+
+    fn check_large_peer_table_size(max_size: usize, size_update: &[u8]) {
+        let mut encoder = Encoder::default();
+        encoder.set_profile(HpackEncoderProfile::new().huffman_coding(HuffmanCoding::WhenShorter));
+        encoder.update_max_size(max_size);
+
+        // Raw x-a: ~ has a 36-byte entry size. Its name has equal Huffman
+        // length, and its value would grow, so both strings stay raw.
+        let mut expected = size_update.to_vec();
+        expected.extend_from_slice(&[0x40, 3, b'x', b'-', b'a', 1, b'~']);
+        let block = encode(&mut encoder, vec![header("x-a", "~")]);
+        assert_eq!(&block[..], &expected[..]);
+        assert_eq!(encoder.table.max_size(), max_size);
+        assert_eq!(encoder.table.len(), 1);
+        assert_eq!(encoder.table.size(), 36);
+
+        // The second block must reuse the first dynamic entry, not emit a
+        // fresh literal after wrapping arithmetic classified it too large.
+        let repeated = encode(&mut encoder, vec![header("x-a", "~")]);
+        assert_eq!(&repeated[..], &[0x80 | 62]);
+    }
+
+    #[test]
+    fn three_quarter_indexing_preserves_inclusive_and_fractional_boundaries() {
+        // Independent integer thresholds: 3/4 of 128, 129, 130 and 131.
+        // The non-integral cases round down because entry sizes are whole
+        // bytes. No test oracle repeats the production multiplication.
+        for (max_size, threshold) in [(128, 96), (129, 96), (130, 97), (131, 98)] {
+            for (entry_size, indexed) in [
+                (threshold - 1, true),
+                (threshold, true),
+                (threshold + 1, false),
+            ] {
+                let mut encoder = Encoder::new(max_size, 0);
+                encoder.set_profile(
+                    HpackEncoderProfile::new().huffman_coding(HuffmanCoding::WhenShorter),
+                );
+                // Entry accounting is 32 bytes plus the 3-byte x-a name.
+                let value_len = entry_size - 35;
+                let value = "~".repeat(value_len);
+                let mut expected = vec![if indexed { 0x40 } else { 0 }, 3, b'x', b'-', b'a'];
+                expected.push(value_len as u8);
+                expected.extend_from_slice(value.as_bytes());
+
+                let block = encode(&mut encoder, vec![header("x-a", &value)]);
+                assert_eq!(
+                    &block[..],
+                    &expected[..],
+                    "table {max_size}, entry {entry_size}"
+                );
+                assert_eq!(encoder.table.len(), usize::from(indexed));
+                assert_eq!(encoder.table.size(), if indexed { entry_size } else { 0 });
+                let repeated = encode(&mut encoder, vec![header("x-a", &value)]);
+                if indexed {
+                    assert_eq!(&repeated[..], &[0x80 | 62]);
+                } else {
+                    assert_eq!(&repeated[..], &expected[..]);
+                }
+            }
+        }
+    }
+
     /// Firefox stops indexing above half the table, and indexes nothing in a
     /// table smaller than 128 bytes.
     #[test]
@@ -1608,6 +1686,161 @@ mod test {
             );
             assert_eq!(representations(&block), [0x10]);
             assert_eq!(decode(&mut Decoder::new(4096), block), expected);
+        }
+    }
+
+    #[test]
+    fn index_all_cookie_debug_hides_sensitive_crumbs() {
+        check_sensitive_cookie_crumb_debug(CookieCrumbs::IndexAll);
+    }
+
+    #[test]
+    fn long_firefox_cookie_debug_hides_sensitive_crumbs() {
+        check_sensitive_cookie_crumb_debug(CookieCrumbs::NeverIndexShort);
+    }
+
+    #[test]
+    fn index_all_cookie_debug_hides_a_reused_sensitive_entry() {
+        check_reused_sensitive_cookie_debug(CookieCrumbs::IndexAll);
+    }
+
+    #[test]
+    fn long_firefox_cookie_debug_hides_a_reused_sensitive_entry() {
+        check_reused_sensitive_cookie_debug(CookieCrumbs::NeverIndexShort);
+    }
+
+    fn check_sensitive_cookie_crumb_debug(policy: CookieCrumbs) {
+        let (short, long, further) = diagnostic_cookies();
+        let profile = HpackEncoderProfile::new().cookie_crumbs(policy);
+        let mut encoder = Encoder::default();
+        encoder.set_profile(profile);
+        let mut control = Encoder::default();
+        control.set_profile(profile);
+        let mut decoder = Decoder::new(4096);
+        let expected = pairs(&[("cookie", &short), ("cookie", &long), ("cookie", &further)]);
+
+        // Named and nameless values retain the same crumb order and wire
+        // representations whether or not the caller marks them sensitive.
+        for _ in 0..2 {
+            let observed = encode(
+                &mut encoder,
+                diagnostic_cookie_fields(&short, &long, &further, true),
+            );
+            let unmarked = encode(
+                &mut control,
+                diagnostic_cookie_fields(&short, &long, &further, false),
+            );
+            assert_eq!(
+                observed, unmarked,
+                "diagnostic sensitivity changed wire bytes"
+            );
+            assert_eq!(decode(&mut decoder, observed), expected);
+        }
+        let retained = if policy == CookieCrumbs::IndexAll {
+            3
+        } else {
+            2
+        };
+        assert_eq!(
+            encoder.table.len(),
+            retained,
+            "wire indexing policy changed"
+        );
+        assert_cookie_debug_hides_values(&encoder, &[&short, &long, &further]);
+    }
+
+    fn check_reused_sensitive_cookie_debug(policy: CookieCrumbs) {
+        let (_, long, _) = diagnostic_cookies();
+        let profile = HpackEncoderProfile::new().cookie_crumbs(policy);
+        let mut encoder = Encoder::default();
+        encoder.set_profile(profile);
+        let mut control = Encoder::default();
+        control.set_profile(profile);
+        let mut decoder = Decoder::new(4096);
+        let initial = encode(&mut encoder, vec![header("cookie", &long)]);
+        assert_eq!(initial, encode(&mut control, vec![header("cookie", &long)]));
+        assert_eq!(decode(&mut decoder, initial), pairs(&[("cookie", &long)]));
+        assert_eq!(encoder.table.len(), 1);
+        assert!(format!("{:?}", encoder.table).contains(&long));
+
+        // An exact cached match must retain its indexed wire representation
+        // while respecting the later caller's diagnostic sensitivity.
+        let mut value = HeaderValue::from_bytes(long.as_bytes()).unwrap();
+        value.set_sensitive(true);
+        let repeated = encode(
+            &mut encoder,
+            vec![Header::Field {
+                name: Some(http::header::COOKIE),
+                value,
+            }],
+        );
+        assert_eq!(
+            repeated,
+            encode(&mut control, vec![header("cookie", &long)])
+        );
+        assert_eq!(
+            &repeated[..],
+            &[0x80 | 62],
+            "cached crumb stopped using its index"
+        );
+        assert_eq!(decode(&mut decoder, repeated), pairs(&[("cookie", &long)]));
+        assert_eq!(encoder.table.len(), 1);
+        assert_cookie_debug_hides_values(&encoder, &[&long]);
+    }
+
+    fn diagnostic_cookies() -> (String, String, String) {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let short = format!("s={}", std::process::id());
+        let long = format!("private-session-{nonce}=first");
+        let further = format!("private-session-{nonce}=second");
+        assert!(short.len() < 20);
+        assert!(long.len() >= 20 && further.len() >= 20);
+        (short, long, further)
+    }
+
+    fn diagnostic_cookie_fields(
+        short: &str,
+        long: &str,
+        further: &str,
+        sensitive: bool,
+    ) -> Vec<Header<Option<HeaderName>>> {
+        let mut first = HeaderValue::from_bytes(format!("{short}; {long}").as_bytes()).unwrap();
+        first.set_sensitive(sensitive);
+        let mut second = HeaderValue::from_bytes(further.as_bytes()).unwrap();
+        second.set_sensitive(sensitive);
+        vec![
+            Header::Field {
+                name: Some(http::header::COOKIE),
+                value: first,
+            },
+            Header::Field {
+                name: None,
+                value: second,
+            },
+        ]
+    }
+
+    fn assert_cookie_debug_hides_values(encoder: &Encoder, values: &[&str]) {
+        for debug in [
+            format!("{encoder:?}"),
+            format!("{encoder:#?}"),
+            format!("{:?}", encoder.table),
+            format!("{:#?}", encoder.table),
+        ] {
+            assert!(debug.contains("Table") && debug.contains("slots"));
+            for value in values {
+                assert!(
+                    !debug.contains(value),
+                    "sensitive cookie exposed in Debug: {debug}"
+                );
+            }
+            assert!(
+                debug.contains("Sensitive"),
+                "diagnostic marks were not retained: {debug}"
+            );
         }
     }
 

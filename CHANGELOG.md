@@ -14,6 +14,31 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Give shared support types one public path. Migrate: import settings and
+  TCP bounds from `phantom_profile`, request types from
+  `phantom_net::request`, and source-binding and TLS errors from
+  `phantom_net`. Browser recipes stay under `phantom_profile::browser`.
+
+- Make custom Android model constructors fallible. Migrate: handle the
+  `Result` from the Chrome, Edge and Opera `*_client_hints_for_model`
+  functions. They reject characters outside printable ASCII.
+
+- Bound buffered replay metadata. Migrate: buffered streaming bodies omit
+  previously read empty DATA frames on later attempts. Use unbuffered
+  streaming bodies when every empty frame must be preserved.
+
+- Update the repaired transport forks. Migrate: use the workspace's exact
+  pins and Rust 1.88 or newer. HTTP/2 `Error::into_io()` now returns
+  `Option<Arc<io::Error>>`; `get_io()` borrows the original error. Handle
+  QUIC `ConnectError::CryptoProvider` for provider startup failures.
+  H3 backend callers use named `RequestParts` instead of the tuple from
+  `Header::into_request_parts`; `ordered_headers` retains ordinary fields.
+
+- Make address-family pruning conditional on connection activity. Migrate:
+  replace the hidden `AddressFamilyMemory::forget` seam with a locked
+  `snapshot()` followed by `forget_if_unchanged(&snapshot)`. Mark new work
+  active before publishing it and retry a rejected empty observation.
+
 - Allow transport enums to grow and retire unused validator wrappers.
   Migrate: keep a fallback arm when matching public `phantom-net` enums.
   Replace `http1::validate_request_body` and `_with_trailers` with
@@ -1026,6 +1051,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `HostResolver::new().with_override(..).with_resolver(..).with_cache(..)`.
 
 ### Added
+
+- Observe DNS fixture failures with `phantom_testkit::dns::DnsServer::finish`.
+  Interrupted completion waits retain the original task for another call.
 
 - Resolve relative HTTP request URLs with `ClientBuilder::base_url`.
   Standard URL joining applies, and absolute request URLs override the base.
@@ -2425,6 +2453,35 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   rejected early data each make one for their retry.
 
 ### Fixed
+
+- Enforce total request deadlines on buffered response frames and yield
+  during bounded decompression work. Reject admission bounds above the
+  runtime semaphore limit before preparing a connection.
+- Keep partitioned cookies from different schemeful sites separate in
+  storage, deletion and snapshots. Preserve Firefox address-family memory
+  when an origin becomes active during idle pruning.
+- Retain original DNS, socket-binding, proxy configuration, HTTP/2,
+  HTTP/3 upload-worker and TLS validation failures through error chains.
+  Keep HTTP/2 proxy setup failures available to their original waiters.
+- Keep address and HTTPS-record resolutions within their shared limits
+  across cancellation, cache clears and completed-answer publication.
+- Release WebSocket transport and admission after failed close delivery
+  or shutdown. Preserve managed EventSource IDs across origin redirects
+  and keep them out of inherited defaults and automatic client hints.
+- Decode responses using the template encoding for the actual forwarding
+  route. Reject invalid active encodings before sending that hop.
+- Redact sensitive template, cookie-cache and TLS-message debug output.
+  Preserve TLS callback ownership when SNI changes the active context.
+- Bound WebSocket compression offers and reject invalid parameter spacing.
+  Avoid HTTP/2 indexing overflow on 32-bit targets.
+- Validate HTTP/3 frame payloads and bound buffered frame retention. Apply
+  request field limits before cookie splitting and retain received order.
+  Reject zero CONNECT-UDP target ports before connecting to a proxy.
+- Decode Firefox ACK frequency flags at their byte width, constrain QUIC
+  GREASE identifiers to their configured width, retire failed startup IDs,
+  and discard cached sessions when tickets are disabled.
+- Classify unknown SOCKS replies as negotiation errors and preserve their
+  original causes. Compile HTTP/2 fork targets without unstable features.
 
 - HTTP/1.1 setup through an HTTPS proxy no longer exceeds the pinned
   nightly compiler's `Send` proof depth on Windows.

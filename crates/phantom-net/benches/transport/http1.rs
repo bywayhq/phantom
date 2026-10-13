@@ -3,7 +3,10 @@ use std::hint::black_box;
 use bytes::Bytes;
 use criterion::{BatchSize, Criterion, Throughput};
 use http_body_util::BodyExt;
-use phantom_net::http1::{Http1Connection, Http1TlsConnector, OriginForm, RequestHeader};
+use phantom_net::{
+    http1::{Http1Connection, Http1TlsConnector},
+    request::{OriginForm, RequestHeader},
+};
 use phantom_profile::browser::chrome::v154_tcp_tls;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream, duplex};
 

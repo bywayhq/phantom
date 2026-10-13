@@ -10,7 +10,7 @@
 use std::{env, error::Error, fs, time::Duration};
 
 use http_body_util::BodyExt as _;
-use phantom_net::http3::{Http3Connector, OriginForm};
+use phantom_net::{http3::Http3Connector, request::OriginForm};
 use phantom_profile::browser::firefox;
 use tokio::time::{sleep, timeout};
 

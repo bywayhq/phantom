@@ -57,14 +57,25 @@ pub fn v102_android_tcp_tls() -> TlsSettings {
 /// For another phone, use [`v102_android_client_hints_for_model`].
 #[must_use]
 pub fn v102_android_client_hints() -> ClientHintSettings {
-    v102_android_client_hints_for_model(crate::browser::chrome::CAPTURED_MODEL)
+    client_hints_for_model(crate::browser::chrome::CAPTURED_MODEL)
 }
 
 /// Returns the client hints of [`v102_android_client_hints`] with another
 /// device model in `sec-ch-ua-model`, as Android's `Build.MODEL` reports it.
 /// Only the Pixel 7 value is captured.
-#[must_use]
-pub fn v102_android_client_hints_for_model(model: &str) -> ClientHintSettings {
+///
+/// # Errors
+///
+/// Returns an error if the model contains anything outside printable ASCII
+/// (space through `~`). Quotes and backslashes are escaped in the hint value.
+pub fn v102_android_client_hints_for_model(
+    model: &str,
+) -> Result<ClientHintSettings, crate::InvalidClientHintSettings> {
+    crate::browser::chrome::validate_model(model)?;
+    Ok(client_hints_for_model(model))
+}
+
+fn client_hints_for_model(model: &str) -> ClientHintSettings {
     use ClientHintDelivery::{AcceptCh, Default};
 
     ClientHintSettings::new(vec![

@@ -131,6 +131,7 @@ impl CapsuleDecoder {
             if length > MAX_DATAGRAM_CAPSULE_LEN {
                 return Err(CapsuleError::Oversized);
             }
+
             if length == 0 {
                 on_datagram(Bytes::new());
                 State::new_header()

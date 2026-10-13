@@ -451,12 +451,9 @@ where
 }
 
 fn h2_to_io_error(e: http2::Error) -> std::io::Error {
-    if e.is_io() {
-        e.into_io()
-            .expect("[BUG] http2::Error::is_io() is true, but into_io() failed")
-    } else {
-        std::io::Error::other(e)
-    }
+    let kind = e.get_io().map_or(io::ErrorKind::Other, io::Error::kind);
+
+    io::Error::new(kind, e)
 }
 
 /// Builder for `Http2Options`.
@@ -901,3 +898,6 @@ impl Default for Http2Options {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

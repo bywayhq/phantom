@@ -8,7 +8,10 @@ use std::{env, error::Error, fs, net::SocketAddr, path::PathBuf, time::Duration}
 
 use btls::x509::X509;
 use http_body_util::BodyExt as _;
-use phantom_net::http3::{Http3Connector, OriginForm, RequestHeader};
+use phantom_net::{
+    http3::Http3Connector,
+    request::{OriginForm, RequestHeader},
+};
 use phantom_profile::browser::chrome;
 use tokio::time::timeout;
 

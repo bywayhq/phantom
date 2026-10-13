@@ -2,7 +2,8 @@ use std::{error::Error as StdError, fmt};
 
 use phantom_net::proxy::Socks5Auth;
 
-use crate::authority::{Endpoint, ParseUriError, parse_absolute_uri};
+use super::ProxyConfigSource;
+use crate::authority::{AuthorityError, Endpoint, ParseUriError, parse_absolute_uri};
 
 /// Ownership of SOCKS5 target DNS resolution.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -73,7 +74,7 @@ impl Socks5Proxy {
     pub fn new(uri: &str) -> Result<Self, Socks5ProxyConfigError> {
         let uri = parse_absolute_uri(uri).map_err(|error| match error {
             ParseUriError::Syntax(error) => Socks5ProxyConfigError::invalid_uri(error),
-            ParseUriError::Authority(error) => Socks5ProxyConfigError::authority(error.message()),
+            ParseUriError::Authority(error) => Socks5ProxyConfigError::authority(error),
             ParseUriError::Fragment => Socks5ProxyConfigError::unexpected_path(),
         })?;
         let dns_mode = match uri.scheme_str() {
@@ -91,8 +92,7 @@ impl Socks5Proxy {
         ) {
             return Err(Socks5ProxyConfigError::unexpected_path());
         }
-        let endpoint = Endpoint::new(authority, 1080)
-            .map_err(|error| Socks5ProxyConfigError::authority(error.message()))?;
+        let endpoint = Endpoint::new(authority, 1080).map_err(Socks5ProxyConfigError::authority)?;
         Ok(Self {
             endpoint,
             dns_mode,
@@ -187,11 +187,13 @@ pub enum Socks5ProxyConfigErrorKind {
 }
 
 /// Error returned while constructing a [`Socks5Proxy`].
+///
+/// Its source retains URI syntax and authority validation errors.
 #[derive(Debug)]
 pub struct Socks5ProxyConfigError {
     kind: Socks5ProxyConfigErrorKind,
     message: &'static str,
-    source: Option<http::uri::InvalidUri>,
+    source: Option<ProxyConfigSource>,
 }
 
 impl Socks5ProxyConfigError {
@@ -199,7 +201,7 @@ impl Socks5ProxyConfigError {
         Self {
             kind: Socks5ProxyConfigErrorKind::InvalidUri,
             message: "invalid SOCKS5 proxy URI",
-            source: Some(source),
+            source: Some(ProxyConfigSource::Uri(source)),
         }
     }
 
@@ -217,8 +219,12 @@ impl Socks5ProxyConfigError {
         )
     }
 
-    fn authority(message: &'static str) -> Self {
-        Self::without_source(Socks5ProxyConfigErrorKind::InvalidAuthority, message)
+    fn authority(source: AuthorityError) -> Self {
+        Self {
+            kind: Socks5ProxyConfigErrorKind::InvalidAuthority,
+            message: source.message(),
+            source: Some(ProxyConfigSource::Authority(source)),
+        }
     }
 
     fn unexpected_path() -> Self {
@@ -258,9 +264,7 @@ impl fmt::Display for Socks5ProxyConfigError {
 
 impl StdError for Socks5ProxyConfigError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        self.source
-            .as_ref()
-            .map(|source| source as &(dyn StdError + 'static))
+        self.source.as_ref().map(ProxyConfigSource::as_error)
     }
 }
 

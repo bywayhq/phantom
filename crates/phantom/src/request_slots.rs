@@ -53,12 +53,15 @@ impl<'a> RequestSlots<'a> {
         if !self.declares(header.name()) {
             return Err(RequestSlotError::new(RequestSlotErrorKind::Undeclared));
         }
+
         if self.is_filled(header.name()) {
             return Err(RequestSlotError::new(RequestSlotErrorKind::AlreadyFilled));
         }
+
         if HeaderValue::from_bytes(header.value()).is_err() {
             return Err(RequestSlotError::new(RequestSlotErrorKind::InvalidValue));
         }
+
         self.headers.push(header);
         Ok(())
     }
