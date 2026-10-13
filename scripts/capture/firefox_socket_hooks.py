@@ -80,6 +80,8 @@ MAX_CONNECTIONS = 128
 MAX_REQUESTS = 512
 MAX_HOOK_REPORTS = 100_000
 MAX_HOOK_MESSAGE_BYTES = 16 * 1024
+MAX_MOZ_LOG_BYTES = 64 * 1024 * 1024
+MAX_MOZ_LOG_FILES = 64
 MAX_WEBSOCKET_FRAME = 64 * 1024
 PEER_CLEANUP_SECONDS = 5.0
 # A pending lookup takes at most 60 s, then browser cleanup has two 60 s
@@ -561,11 +563,23 @@ def moz_log_lines(text: str, port: int, start_ms: int) -> list[str]:
 
 def parent_moz_log(directory: Path) -> str:
     """The parent process's MOZ_LOG text; child process files are skipped."""
-    texts = [
-        path.read_text(encoding="utf-8", errors="replace")
-        for path in sorted(directory.glob("moz*"))
-        if ".child-" not in path.name
-    ]
+    paths = []
+    for path in directory.glob("moz*"):
+        if ".child-" in path.name:
+            continue
+        if len(paths) >= MAX_MOZ_LOG_FILES:
+            raise ValueError("Firefox parent log file limit exceeded")
+        paths.append(path)
+
+    texts = []
+    remaining = MAX_MOZ_LOG_BYTES
+    for path in sorted(paths):
+        with path.open("rb") as source:
+            raw = source.read(remaining + 1)
+        if len(raw) > remaining:
+            raise ValueError("Firefox parent log byte limit exceeded")
+        remaining -= len(raw)
+        texts.append(raw.decode("utf-8", errors="replace"))
     return "\n".join(texts)
 
 

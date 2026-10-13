@@ -2,6 +2,7 @@ import asyncio
 import errno
 import json
 import subprocess
+import tempfile
 import threading
 import unittest
 from dataclasses import replace
@@ -348,6 +349,26 @@ class NativeOwnershipTests(unittest.IsolatedAsyncioTestCase):
 
 
 class HookBoundaryTests(unittest.TestCase):
+    def test_parent_log_byte_and_file_bounds_preserve_child_filtering(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "moz-1").write_bytes(b"first")
+            (root / "moz-2").write_bytes(b"second")
+            (root / "moz.child-1").write_bytes(b"ignored child")
+            self.assertEqual(hooks.parent_moz_log(root), "first\nsecond")
+
+            with (
+                patch.object(hooks, "MAX_MOZ_LOG_BYTES", 10),
+                self.assertRaises(ValueError),
+            ):
+                hooks.parent_moz_log(root)
+
+            with (
+                patch.object(hooks, "MAX_MOZ_LOG_FILES", 1),
+                self.assertRaises(ValueError),
+            ):
+                hooks.parent_moz_log(root)
+
     def test_native_error_message_keeps_the_original_structured_message(self) -> None:
         message = {"type": "error", "description": "independent native hook failure"}
         owner = hooks.Hooks(1, {})
