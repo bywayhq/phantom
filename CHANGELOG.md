@@ -2492,6 +2492,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Reject snapshot metadata containing line breaks, control characters or
   non-ASCII text before capture or fixture rendering.
+- Reject cookie capture metadata containing newlines, control characters or
+  non-ASCII text before acquisition and fixture publication.
 - Close accepted cookie capture sockets when protocol construction fails or
   the connection limit is exceeded. Retain the original failure and wait for
   every accepted peer to retire before returning.

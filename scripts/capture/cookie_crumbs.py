@@ -25,7 +25,7 @@ import secrets
 import sys
 import time
 from collections.abc import AsyncIterator, Callable, Iterator, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from importlib import metadata
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -1352,6 +1352,15 @@ class CaptureMetadata:
     firefox_preferences: str = "none"
     profile_files: str = "none"
 
+    def validate(self) -> None:
+        for item in fields(self):
+            validate_metadata_value(getattr(self, item.name), item.name)
+
+
+def validate_metadata_value(value: str, field_name: str) -> None:
+    if any(not 0x20 <= ord(character) <= 0x7E for character in value):
+        raise ValueError(f"{field_name} must contain only printable ASCII characters")
+
 
 def milliseconds(value: float | None) -> str:
     return "none" if value is None else f"{value * 1000:.3f}"
@@ -1530,6 +1539,7 @@ def fixture(
     capture: CaptureMetadata,
     max_table_capacity: int,
 ) -> str:
+    capture.validate()
     for run in runs:
         run.check()
     lines = [
@@ -1645,6 +1655,9 @@ async def wait_for_run(run: CookieRun, plan: LaunchPlan, url: str, timeout: floa
 
 
 async def capture(args: argparse.Namespace) -> None:
+    validate_metadata_value(args.client or "", "client")
+    validate_metadata_value(args.client_version, "client_version")
+    validate_metadata_value(args.operating_system, "operating_system")
     if not math.isfinite(args.run_timeout) or args.run_timeout <= 0:
         raise ValueError("run timeout must be finite and positive")
     if not math.isfinite(args.observation) or args.observation < 0:
@@ -1791,6 +1804,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         loopback = False
     if not loopback:
         parser.error("the capture listener must be a loopback address")
+    try:
+        validate_metadata_value(args.client or "", "client")
+        validate_metadata_value(args.client_version, "client_version")
+        validate_metadata_value(args.operating_system, "operating_system")
+    except ValueError as error:
+        parser.error(str(error))
     for package, version in SUPPORTED.items():
         if metadata.version(package) != version:
             parser.error(f"{package} {version} is required")
