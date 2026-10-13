@@ -1,7 +1,12 @@
 //! Redirect behavior exercised through the public session paths.
 
+use crate::support::deadline::FixtureDeadline;
 use crate::support::h3 as h3_support;
 use crate::support::tls as tls_support;
+use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
+
+mod hop_server;
+use hop_server::HopServer;
 
 use std::{
     error::Error,
@@ -37,13 +42,14 @@ type TestResult<T> = Result<T, Box<dyn Error + Send + Sync>>;
 
 #[tokio::test]
 async fn session_matches_redirect_and_url_contract() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
         let (first_drained, wait_for_first_drain) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let first = accept_tls(&listener, &acceptor).await?;
             serve_redirect_probe(first, StatusCode::FOUND, b"probe-302").await?;
             first_drained
@@ -52,7 +58,7 @@ async fn session_matches_redirect_and_url_contract() -> TestResult<()> {
 
             let replacement = accept_tls(&listener, &acceptor).await?;
             serve_redirect_probe(replacement, StatusCode::TEMPORARY_REDIRECT, b"probe-307").await
-        });
+        }));
 
         let one = NonZeroUsize::MIN;
         let session = client_builder(&identity, true)
@@ -70,7 +76,11 @@ async fn session_matches_redirect_and_url_contract() -> TestResult<()> {
         if wait_for_first_drain.await.is_err() {
             // The server dropped the signal because its task failed; report
             // that failure rather than the lost signal.
-            server.await??;
+            server
+                .as_mut()
+                .ok_or("redirect peer was not started")?
+                .join()
+                .await??;
             return Err("server stopped before the first connection drained".into());
         }
 
@@ -83,20 +93,30 @@ async fn session_matches_redirect_and_url_contract() -> TestResult<()> {
         temporary.into_body().collect().await?;
 
         drop(session);
-        server.await??;
+        server
+            .as_mut()
+            .ok_or("redirect peer was not started")?
+            .join()
+            .await??;
         Ok(())
     })
-    .await
+    .await;
+    let server_cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(primary, server_cleanup)
 }
 
 #[tokio::test]
 async fn http1_redirect_does_not_drain_an_adversarial_body() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(tls_support::H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut first = accept_tls(&listener, &acceptor).await?;
             let first_head = tls_support::read_head(&mut first).await?;
             assert!(first_head.starts_with(b"POST /start HTTP/1.1\r\n"));
@@ -119,7 +139,7 @@ async fn http1_redirect_does_not_drain_an_adversarial_body() -> TestResult<()> {
                 .await?;
             replacement.shutdown().await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
 
         let session = client_builder(&identity, false)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
@@ -137,21 +157,27 @@ async fn http1_redirect_does_not_drain_an_adversarial_body() -> TestResult<()> {
         assert_response_info(&response, &format!("https://{address}/final"))?;
         response.into_body().collect().await?;
         drop(session);
-        server.await??;
+        server.as_mut().ok_or("redirect peer was not started")?.join().await??;
         Ok(())
     })
-    .await
+    .await;
+    let server_cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(primary, server_cleanup)
 }
 
 #[tokio::test]
 async fn body_preserving_redirect_rejects_one_shot_stream_before_second_request() -> TestResult<()>
 {
-    bounded(async {
+    let mut server = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(tls_support::H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut first = accept_tls(&listener, &acceptor).await?;
             let head = tls_support::read_head(&mut first).await?;
             let mut body = [0_u8; 7];
@@ -164,7 +190,7 @@ async fn body_preserving_redirect_rejects_one_shot_stream_before_second_request(
             first.flush().await?;
             let second = timeout(Duration::from_millis(100), listener.accept()).await;
             Ok::<_, Box<dyn Error + Send + Sync>>((head, body, second.is_err()))
-        });
+        }));
 
         let client = client_builder(&identity, false)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
@@ -184,23 +210,29 @@ async fn body_preserving_redirect_rejects_one_shot_stream_before_second_request(
         };
         assert_eq!(error.kind(), RequestErrorKind::RequestBody);
 
-        let (head, body, no_second_request) = server.await??;
+        let (head, body, no_second_request) = server.as_mut().ok_or("redirect peer was not started")?.join().await??;
         assert!(head.starts_with(b"POST /start HTTP/1.1\r\n"));
         assert_eq!(&body, b"payload");
         assert!(no_second_request);
         Ok(())
     })
-    .await
+    .await;
+    let server_cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(primary, server_cleanup)
 }
 
 #[tokio::test]
 async fn body_preserving_redirect_resends_a_buffered_stream() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(tls_support::H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut requests = Vec::new();
             for response in [
                 &b"HTTP/1.1 307 Temporary Redirect\r\nLocation: /final\r\nConnection: close\r\nContent-Length: 0\r\n\r\n"[..],
@@ -215,7 +247,7 @@ async fn body_preserving_redirect_resends_a_buffered_stream() -> TestResult<()> 
                 requests.push((head, body));
             }
             Ok::<_, Box<dyn Error + Send + Sync>>(requests)
-        });
+        }));
 
         let client = client_builder(&identity, false)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
@@ -233,7 +265,7 @@ async fn body_preserving_redirect_resends_a_buffered_stream() -> TestResult<()> 
         response.into_body().collect().await?;
         drop(client);
 
-        let requests = server.await??;
+        let requests = server.as_mut().ok_or("redirect peer was not started")?.join().await??;
         assert_eq!(requests.len(), 2);
         for ((head, body), path) in requests.iter().zip(["/start", "/final"]) {
             assert!(head.starts_with(format!("POST {path} HTTP/1.1\r\n").as_bytes()));
@@ -243,17 +275,23 @@ async fn body_preserving_redirect_resends_a_buffered_stream() -> TestResult<()> 
         }
         Ok(())
     })
-    .await
+    .await;
+    let server_cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(primary, server_cleanup)
 }
 
 #[tokio::test]
 async fn body_preserving_redirect_rejects_a_buffered_stream_past_its_limit() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(tls_support::H1_ALPN)?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let mut first = accept_tls(&listener, &acceptor).await?;
             tls_support::read_head(&mut first).await?;
             let mut body = [0_u8; 7];
@@ -266,7 +304,7 @@ async fn body_preserving_redirect_rejects_a_buffered_stream_past_its_limit() -> 
             first.flush().await?;
             let second = timeout(Duration::from_millis(100), listener.accept()).await;
             Ok::<_, Box<dyn Error + Send + Sync>>((body, second.is_err()))
-        });
+        }));
 
         let client = client_builder(&identity, false)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
@@ -287,21 +325,27 @@ async fn body_preserving_redirect_rejects_a_buffered_stream_past_its_limit() -> 
         assert_eq!(error.kind(), RequestErrorKind::RequestBody);
 
         // The first attempt still sent the whole body.
-        let (body, no_second_request) = server.await??;
+        let (body, no_second_request) = server.as_mut().ok_or("redirect peer was not started")?.join().await??;
         assert_eq!(&body, b"payload");
         assert!(no_second_request);
         Ok(())
     })
-    .await
+    .await;
+    let server_cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(primary, server_cleanup)
 }
 
 #[tokio::test]
 async fn http3_temporary_redirect_replays_the_owned_body() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = h3_support::server_endpoint(&identity)?;
         let (client_done, wait_for_client) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
             let quic = incoming.await?;
             let mut connection =
@@ -339,7 +383,7 @@ async fn http3_temporary_redirect_replays_the_owned_body() -> TestResult<()> {
                 .await
                 .map_err(|_| "client stopped before HTTP/3 response completion")?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
 
         let session = http3_client_builder(&identity)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
@@ -360,20 +404,30 @@ async fn http3_temporary_redirect_replays_the_owned_body() -> TestResult<()> {
             .send(())
             .map_err(|_| "HTTP/3 server stopped before client completion")?;
         drop(session);
-        server.await??;
+        server
+            .as_mut()
+            .ok_or("redirect peer was not started")?
+            .join()
+            .await??;
         Ok(())
     })
-    .await
+    .await;
+    let server_cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(primary, server_cleanup)
 }
 
 #[tokio::test]
 async fn h3_redirect_follows_before_response_fin_on_same_connection() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = h3_support::server_endpoint(&identity)?;
         let callback = "/.well-known/phantom/h3-redirect/0123456789abcdef0123456789abcdef";
         let (client_done, wait_for_client) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let incoming = endpoint.accept().await.ok_or("test endpoint closed")?;
             let quic = incoming.await?;
             let mut connection =
@@ -404,12 +458,17 @@ async fn h3_redirect_follows_before_response_fin_on_same_connection() -> TestRes
                 )
                 .await?;
             followed_stream.finish().await?;
-            let _ = initial_stream.finish().await;
+            match initial_stream.finish().await {
+                Ok(()) => {}
+                Err(h3::error::StreamError::RemoteTerminate { code, .. })
+                    if code == h3::error::Code::H3_REQUEST_CANCELLED => {}
+                Err(error) => return Err(error.into()),
+            }
             wait_for_client
                 .await
                 .map_err(|_| "client stopped before HTTP/3 response completion")?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
 
         let session = http3_client_builder(&identity)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
@@ -428,26 +487,36 @@ async fn h3_redirect_follows_before_response_fin_on_same_connection() -> TestRes
             .send(())
             .map_err(|_| "HTTP/3 server stopped before client completion")?;
         drop(session);
-        server.await??;
+        server
+            .as_mut()
+            .ok_or("redirect peer was not started")?
+            .join()
+            .await??;
         Ok(())
     })
-    .await
+    .await;
+    let server_cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(primary, server_cleanup)
 }
 
 #[tokio::test]
 async fn plaintext_request_that_is_not_redirected_is_sent_with_a_policy() -> TestResult<()> {
-    bounded(async {
+    let mut server = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
-        let server = tokio::spawn(async move {
+        server = Some(ConnectionPeer::spawn(async move {
             let (mut stream, _) = listener.accept().await?;
             let head = tls_support::read_head(&mut stream).await?;
             stream
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nplain")
                 .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(head)
-        });
+        }));
 
         let session = client_builder(&identity, false)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
@@ -464,16 +533,27 @@ async fn plaintext_request_that_is_not_redirected_is_sent_with_a_policy() -> Tes
         assert_eq!(info.redirects_followed(), 0);
         assert_eq!(response.into_body().collect().await?.to_bytes(), "plain");
 
-        let head = server.await??;
+        let head = server
+            .as_mut()
+            .ok_or("redirect peer was not started")?
+            .join()
+            .await??;
         assert!(head.starts_with(b"GET /plain HTTP/1.1\r\n"));
         Ok(())
     })
-    .await
+    .await;
+    let server_cleanup = match server.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(primary, server_cleanup)
 }
 
 #[tokio::test]
 async fn plaintext_moved_permanently_to_https_is_followed() -> TestResult<()> {
-    bounded(async {
+    let mut plain = None;
+    let mut secure = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let secure_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let secure_address = secure_listener.local_addr()?;
@@ -481,7 +561,7 @@ async fn plaintext_moved_permanently_to_https_is_followed() -> TestResult<()> {
         let plain_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let plain_address = plain_listener.local_addr()?;
         let location = format!("https://{secure_address}/secure");
-        let plain = tokio::spawn(async move {
+        plain = Some(ConnectionPeer::spawn(async move {
             let (mut stream, _) = plain_listener.accept().await?;
             let head = tls_support::read_head(&mut stream).await?;
             stream
@@ -493,15 +573,15 @@ async fn plaintext_moved_permanently_to_https_is_followed() -> TestResult<()> {
                 )
                 .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(head)
-        });
-        let secure = tokio::spawn(async move {
+        }));
+        secure = Some(ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(&secure_listener, &acceptor).await?;
             let head = tls_support::read_head(&mut stream).await?;
             stream
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nsecure")
                 .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(head)
-        });
+        }));
 
         let session = client_builder(&identity, false)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
@@ -516,17 +596,26 @@ async fn plaintext_moved_permanently_to_https_is_followed() -> TestResult<()> {
         assert_response_info(&response, &format!("https://{secure_address}/secure"))?;
         assert_eq!(response.into_body().collect().await?.to_bytes(), "secure");
 
-        let plain_head = plain.await??;
+        let plain_head = plain.as_mut().ok_or("redirect peer was not started")?.join().await??;
         assert!(plain_head.starts_with(b"GET /start HTTP/1.1\r\n"));
         assert!(contains_header(&plain_head, b"authorization"));
-        let secure_head = secure.await??;
+        let secure_head = secure.as_mut().ok_or("redirect peer was not started")?.join().await??;
         assert!(secure_head.starts_with(b"GET /secure HTTP/1.1\r\n"));
         // A scheme change is a new origin, so credentials are dropped.
         assert!(!contains_header(&secure_head, b"authorization"));
         assert!(contains_header(&secure_head, b"x-kept"));
         Ok(())
     })
-    .await
+    .await;
+    let plain_cleanup = match plain.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    let secure_cleanup = match secure.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(primary, finish_with_cleanup(plain_cleanup, secure_cleanup))
 }
 
 /// Credentials a template sends itself stay on a same-origin hop and leave at
@@ -535,7 +624,9 @@ async fn plaintext_moved_permanently_to_https_is_followed() -> TestResult<()> {
 /// removes `Authorization` there whoever set it.
 #[tokio::test]
 async fn cross_origin_redirect_drops_template_credentials() -> TestResult<()> {
-    bounded(async {
+    let mut first = None;
+    let mut second = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let first_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let first_address = first_listener.local_addr()?;
@@ -548,12 +639,8 @@ async fn cross_origin_redirect_drops_template_credentials() -> TestResult<()> {
             "/cross" => Some(format!("http://{first_address}/back")),
             _ => None,
         };
-        let first = tokio::spawn(serve_redirect_hops(
-            first_listener,
-            heads_tx.clone(),
-            routes,
-        ));
-        let second = tokio::spawn(serve_redirect_hops(second_listener, heads_tx, routes));
+        first = Some(HopServer::spawn(first_listener, heads_tx.clone(), routes));
+        second = Some(HopServer::spawn(second_listener, heads_tx, routes));
         let fields = |names: [&str; 3]| {
             vec![
                 RequestField::literal(names[0], "Bearer template"),
@@ -603,11 +690,18 @@ async fn cross_origin_redirect_drops_template_credentials() -> TestResult<()> {
             );
             assert!(contains_header(&head, b"x-kept"), "{path}");
         }
-        first.abort();
-        second.abort();
         Ok(())
     })
-    .await
+    .await;
+    let first_cleanup = match first.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    let second_cleanup = match second.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(primary, finish_with_cleanup(first_cleanup, second_cleanup))
 }
 
 /// A template slot for the caller's `Authorization` does not fail the hop
@@ -615,7 +709,9 @@ async fn cross_origin_redirect_drops_template_credentials() -> TestResult<()> {
 /// slot leaves with it, even when the template requires the field.
 #[tokio::test]
 async fn required_credential_slot_leaves_at_a_cross_origin_hop() -> TestResult<()> {
-    bounded(async {
+    let mut first = None;
+    let mut second = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let first_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let first_address = first_listener.local_addr()?;
@@ -624,12 +720,8 @@ async fn required_credential_slot_leaves_at_a_cross_origin_hop() -> TestResult<(
         let (heads_tx, mut heads) = tokio::sync::mpsc::unbounded_channel();
         let routes =
             move |path: &str| (path == "/first").then(|| format!("http://{second_address}/second"));
-        let first = tokio::spawn(serve_redirect_hops(
-            first_listener,
-            heads_tx.clone(),
-            routes,
-        ));
-        let second = tokio::spawn(serve_redirect_hops(second_listener, heads_tx, routes));
+        first = Some(HopServer::spawn(first_listener, heads_tx.clone(), routes));
+        second = Some(HopServer::spawn(second_listener, heads_tx, routes));
         let template = PreparedRequestTemplate::new(RequestTemplate {
             http1_fields: vec![RequestField::required_caller("Authorization")],
             http2_fields: vec![RequestField::required_caller("authorization")],
@@ -664,50 +756,24 @@ async fn required_credential_slot_leaves_at_a_cross_origin_hop() -> TestResult<(
         let second_head = heads.recv().await.ok_or("the redirect was not served")?;
         assert!(second_head.starts_with(b"GET /second HTTP/1.1\r\n"));
         assert!(!contains_header(&second_head, b"authorization"));
-        first.abort();
-        second.abort();
         Ok(())
     })
-    .await
-}
-
-/// Serves every connection on `listener`, answering each request with a
-/// `302` to `routes(path)`, or a `200` when it returns `None`, and sends each
-/// request head to `heads`.
-async fn serve_redirect_hops(
-    listener: TcpListener,
-    heads: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
-    routes: impl Fn(&str) -> Option<String> + Clone + Send + 'static,
-) -> TestResult<()> {
-    loop {
-        let (mut stream, _) = listener.accept().await?;
-        let heads = heads.clone();
-        let routes = routes.clone();
-        tokio::spawn(async move {
-            while let Ok(head) = tls_support::read_head(&mut stream).await {
-                let path = head
-                    .split(|byte| *byte == b' ')
-                    .nth(1)
-                    .map(|path| String::from_utf8_lossy(path).into_owned())
-                    .unwrap_or_default();
-                let _ = heads.send(head);
-                let response = match routes(&path) {
-                    Some(location) => format!(
-                        "HTTP/1.1 302 Found\r\nLocation: {location}\r\nContent-Length: 0\r\n\r\n"
-                    ),
-                    None => "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n".to_owned(),
-                };
-                if stream.write_all(response.as_bytes()).await.is_err() {
-                    return;
-                }
-            }
-        });
-    }
+    .await;
+    let first_cleanup = match first.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    let second_cleanup = match second.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(primary, finish_with_cleanup(first_cleanup, second_cleanup))
 }
 
 #[tokio::test]
 async fn redirect_to_plaintext_under_exact_http2_fails_at_that_hop() -> TestResult<()> {
-    bounded(async {
+    let mut secure = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let secure_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let secure_address = secure_listener.local_addr()?;
@@ -715,8 +781,8 @@ async fn redirect_to_plaintext_under_exact_http2_fails_at_that_hop() -> TestResu
         let plain_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let plain_address = plain_listener.local_addr()?;
         let location = format!("http://{plain_address}/plain");
-        let (client_done, wait_for_client) = oneshot::channel::<()>();
-        let secure = tokio::spawn(async move {
+        let (client_done, mut wait_for_client) = oneshot::channel::<()>();
+        secure = Some(ConnectionPeer::spawn(async move {
             let stream = accept_tls(&secure_listener, &acceptor).await?;
             let mut connection = ::http2::server::handshake(stream).await?;
             let (request, mut respond) = accept_request(&mut connection).await?;
@@ -730,12 +796,15 @@ async fn redirect_to_plaintext_under_exact_http2_fails_at_that_hop() -> TestResu
                 true,
             )?;
             // Keep the connection served until the client has its result.
-            let _ = tokio::select! {
-                _ = wait_for_client => Ok(()),
-                closed = poll_fn(|context| connection.poll_closed(context)) => closed,
-            };
+            tokio::select! {
+                result = &mut wait_for_client => result?,
+                closed = poll_fn(|context| connection.poll_closed(context)) => {
+                    finish_h2_redirect(closed)?;
+                    wait_for_client.await?;
+                }
+            }
             Ok::<_, Box<dyn Error + Send + Sync>>(())
-        });
+        }));
 
         let session = client_builder(&identity, true)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
@@ -752,9 +821,15 @@ async fn redirect_to_plaintext_under_exact_http2_fails_at_that_hop() -> TestResu
             Err(error) => error,
         };
         assert_eq!(error.kind(), RequestErrorKind::UnsupportedScheme);
-        let _ = client_done.send(());
+        client_done
+            .send(())
+            .map_err(|_| "redirect peer stopped before the client result")?;
         drop(session);
-        secure.await??;
+        secure
+            .as_mut()
+            .ok_or("redirect peer was not started")?
+            .join()
+            .await??;
         assert!(
             timeout(Duration::from_millis(100), plain_listener.accept())
                 .await
@@ -763,12 +838,19 @@ async fn redirect_to_plaintext_under_exact_http2_fails_at_that_hop() -> TestResu
         );
         Ok(())
     })
-    .await
+    .await;
+    let secure_cleanup = match secure.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(primary, secure_cleanup)
 }
 
 #[tokio::test]
 async fn negotiated_redirect_to_plaintext_is_followed_over_http1() -> TestResult<()> {
-    bounded(async {
+    let mut secure = None;
+    let mut plain = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let secure_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let secure_address = secure_listener.local_addr()?;
@@ -776,7 +858,7 @@ async fn negotiated_redirect_to_plaintext_is_followed_over_http1() -> TestResult
         let plain_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let plain_address = plain_listener.local_addr()?;
         let location = format!("http://{plain_address}/plain");
-        let secure = tokio::spawn(async move {
+        secure = Some(ConnectionPeer::spawn(async move {
             let mut stream = accept_tls(&secure_listener, &acceptor).await?;
             let head = tls_support::read_head(&mut stream).await?;
             stream
@@ -789,15 +871,15 @@ async fn negotiated_redirect_to_plaintext_is_followed_over_http1() -> TestResult
                 .await?;
             stream.flush().await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(head)
-        });
-        let plain = tokio::spawn(async move {
+        }));
+        plain = Some(ConnectionPeer::spawn(async move {
             let (mut stream, _) = plain_listener.accept().await?;
             let head = tls_support::read_head(&mut stream).await?;
             stream
                 .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nplain")
                 .await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(head)
-        });
+        }));
 
         let session = client_builder(&identity, true)
             .redirect_policy(RedirectPolicy::limited(NonZeroUsize::MIN))
@@ -815,11 +897,34 @@ async fn negotiated_redirect_to_plaintext_is_followed_over_http1() -> TestResult
         assert_eq!(protocol, Some(HttpProtocol::Http1));
         assert_eq!(response.into_body().collect().await?.to_bytes(), "plain");
 
-        assert!(secure.await??.starts_with(b"GET /start HTTP/1.1\r\n"));
-        assert!(plain.await??.starts_with(b"GET /plain HTTP/1.1\r\n"));
+        assert!(
+            secure
+                .as_mut()
+                .ok_or("redirect peer was not started")?
+                .join()
+                .await??
+                .starts_with(b"GET /start HTTP/1.1\r\n")
+        );
+        assert!(
+            plain
+                .as_mut()
+                .ok_or("redirect peer was not started")?
+                .join()
+                .await??
+                .starts_with(b"GET /plain HTTP/1.1\r\n")
+        );
         Ok(())
     })
-    .await
+    .await;
+    let secure_cleanup = match secure.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    let plain_cleanup = match plain.as_mut() {
+        Some(peer) => peer.shutdown().await,
+        None => Ok(()),
+    };
+    finish_with_cleanup(primary, finish_with_cleanup(secure_cleanup, plain_cleanup))
 }
 
 async fn send_redirect_probe(
@@ -892,7 +997,7 @@ async fn serve_redirect_probe(
     // The final response and graceful GOAWAY are the fixture's completion
     // boundary. The client may close its side while retiring this generation;
     // the next accepted connection below proves that it replaced the drain.
-    let _ = poll_fn(|context| connection.poll_closed(context)).await;
+    finish_h2_redirect(poll_fn(|context| connection.poll_closed(context)).await)?;
     Ok(())
 }
 
@@ -1001,5 +1106,21 @@ where
 {
     timeout(TEST_TIMEOUT, future)
         .await
-        .map_err(|_| "redirect test exceeded its deadline")?
+        .map_err(|elapsed| FixtureDeadline::new("redirect test exceeded its deadline", elapsed))?
+}
+
+// Only completed redirect responses permit a graceful peer disconnect here.
+fn finish_h2_redirect(result: Result<(), ::http2::Error>) -> TestResult<()> {
+    match result {
+        Ok(()) => Ok(()),
+        Err(error)
+            if error.get_io().is_some_and(tls_support::is_peer_gone)
+                || (error.is_remote()
+                    && error.is_go_away()
+                    && error.reason() == Some(::http2::Reason::NO_ERROR)) =>
+        {
+            Ok(())
+        }
+        Err(error) => Err(error.into()),
+    }
 }
