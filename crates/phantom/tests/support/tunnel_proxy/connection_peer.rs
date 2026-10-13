@@ -3,6 +3,7 @@ use std::{
     fmt,
     future::Future,
     pin::Pin,
+    sync::atomic::{AtomicBool, Ordering},
     task::{Context, Poll},
     time::Duration,
 };
@@ -16,18 +17,24 @@ use super::TestResult;
 
 #[derive(Debug)]
 pub(crate) struct ConnectionPeer<T> {
-    task: JoinHandle<T>,
+    task: Option<JoinHandle<T>>,
+    abort: AbortHandle,
+    abort_requested: AtomicBool,
 }
 
 impl<T> Drop for ConnectionPeer<T> {
     fn drop(&mut self) {
-        self.task.abort();
+        self.abort.abort();
     }
 }
 
 impl<T: Send + 'static> ConnectionPeer<T> {
     pub(crate) fn from_task(task: JoinHandle<T>) -> Self {
-        Self { task }
+        Self {
+            abort: task.abort_handle(),
+            task: Some(task),
+            abort_requested: AtomicBool::new(false),
+        }
     }
 
     pub(crate) fn spawn(future: impl Future<Output = T> + Send + 'static) -> Self {
@@ -35,15 +42,20 @@ impl<T: Send + 'static> ConnectionPeer<T> {
     }
 
     pub(crate) fn abort(&self) {
-        self.task.abort();
+        self.abort_requested.store(true, Ordering::Relaxed);
+        self.abort.abort();
     }
 
     pub(crate) fn abort_handle(&self) -> AbortHandle {
-        self.task.abort_handle()
+        self.abort.clone()
     }
 
     pub(crate) fn is_finished(&self) -> bool {
-        self.task.is_finished()
+        self.abort.is_finished()
+    }
+
+    pub(crate) async fn join(&mut self) -> Result<T, JoinError> {
+        self.await
     }
 }
 
@@ -57,17 +69,39 @@ impl<T> Future for ConnectionPeer<T> {
     type Output = Result<T, JoinError>;
 
     fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
-        Pin::new(&mut self.get_mut().task).poll(context)
+        let owner = self.get_mut();
+        let task = owner
+            .task
+            .as_mut()
+            .expect("connection peer polled after completion");
+        match Pin::new(task).poll(context) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(result) => {
+                owner.task.take();
+                Poll::Ready(result)
+            }
+        }
     }
 }
 
 impl<T: Send + 'static> ConnectionPeer<TestResult<T>> {
     pub(crate) async fn stop(mut self) -> TestResult<()> {
-        self.abort();
+        self.shutdown().await
+    }
 
-        match timeout(Duration::from_secs(5), &mut self).await? {
+    /// Keeps an interrupted collection owned so the caller can retry it.
+    pub(crate) async fn shutdown(&mut self) -> TestResult<()> {
+        if self.task.is_none() {
+            return Ok(());
+        }
+        if !self.is_finished() {
+            self.abort();
+        }
+        let requested = self.abort_requested.load(Ordering::Relaxed);
+
+        match timeout(Duration::from_secs(5), self.join()).await? {
             Ok(result) => result.map(|_| ()),
-            Err(error) if error.is_cancelled() => Ok(()),
+            Err(error) if error.is_cancelled() && requested => Ok(()),
             Err(error) => Err(error.into()),
         }
     }
@@ -152,6 +186,64 @@ mod tests {
         );
         let rebound = TcpListener::bind(address).await?;
         assert_eq!(rebound.local_addr()?, address);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn joined_peer_shutdown_does_not_poll_its_result_again() -> TestResult<()> {
+        let (mut peer, mut client, address) = ready_peer().await?;
+        client.write_all(b"!").await?;
+        timeout(DEADLINE, peer.join()).await???;
+        peer.shutdown().await?;
+        peer.shutdown().await?;
+        let closed = timeout(DEADLINE, client.read(&mut [0_u8; 1])).await?;
+        assert!(
+            matches!(closed, Ok(0))
+                || matches!(closed, Err(ref error) if super::super::super::tls::is_peer_gone(error))
+        );
+        let rebound = TcpListener::bind(address).await?;
+        assert_eq!(rebound.local_addr()?, address);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn interrupted_join_keeps_the_original_peer_for_shutdown() -> TestResult<()> {
+        let (mut peer, mut client, address) = ready_peer().await?;
+        assert!(
+            timeout(Duration::from_millis(20), peer.join())
+                .await
+                .is_err()
+        );
+        peer.shutdown().await?;
+        let closed = timeout(DEADLINE, client.read(&mut [0_u8; 1])).await?;
+        assert!(
+            matches!(closed, Ok(0))
+                || matches!(closed, Err(ref error) if super::super::super::tls::is_peer_gone(error))
+        );
+        let rebound = TcpListener::bind(address).await?;
+        assert_eq!(rebound.local_addr()?, address);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn completed_external_abort_is_kept_as_a_join_failure() -> TestResult<()> {
+        let (mut peer, _client, _address) = ready_peer().await?;
+        peer.abort_handle().abort();
+        timeout(DEADLINE, async {
+            while !peer.is_finished() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await?;
+        let error = peer
+            .shutdown()
+            .await
+            .expect_err("external abort was hidden");
+        assert!(
+            error
+                .downcast_ref::<tokio::task::JoinError>()
+                .is_some_and(tokio::task::JoinError::is_cancelled)
+        );
         Ok(())
     }
 
