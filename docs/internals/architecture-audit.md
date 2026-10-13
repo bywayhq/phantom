@@ -61,6 +61,8 @@ This is the delivery snapshot from 2026-10-13. The full audit remains open.
 | Architecture and documentation, PR 204 | `d1d353e8` | Merged; all 22 local gate steps, applicable PR checks and six main workflows passed |
 | Fixture ownership and parsing, PR 205 | `7e153e1a` | Merged; all 24 local gate steps, 41 PR checks and four applicable main workflows passed |
 | HTTP/3 WebSocket and MASQUE fixtures, PR 206 | `1806cb77` | Merged; all 24 local gate steps, 41 PR checks and four applicable main workflows passed |
+| Capture workers, input and QPACK repairs, PR 207 | `b6942293` | Merged; all 24 local gate steps, 29 PR checks and applicable main workflows passed |
+| Firefox and HTTP/2 preface captures, PR 208 | `b8ab9851` | Merged; all 24 local gate steps, 29 PR checks and three applicable main workflows passed |
 
 The tooling gate includes Linux Clippy and MSRV checks through WSL. Its
 source and complete logs have independent review. The 42 PR checks completed

@@ -24,10 +24,10 @@ gate steps passed. All 37 applicable PR checks and all six main push
 workflows passed, including macOS and Windows PR checks. This delivery
 preserves the original changes; the whole audit remains open.
 
-The inventory's delivery column now records presence at `1806cb77`.
-It contains 2,473 merged paths and five retired historical paths. Existing
-review dispositions retain their original source scope. Presence and pending
-row counts do not measure unfinished implementation.
+The inventory now includes all 2,484 paths on candidate `f146e52c`, plus
+five retired historical paths. Three new control files await delivery.
+Existing review dispositions retain their original source scope. Presence
+and pending row counts do not measure unfinished implementation.
 
 The thirteen added fixture paths now have reconciled individual review
 records. Nine original receipts cover their exact current source. Four
@@ -79,6 +79,13 @@ twelve current bodies, twenty historical source bindings and fifteen
 original receipts. Complete baselines and every reviewed later difference
 remain distinct from fresh whole reads. The two client-hint rows still have
 known defects on main; their reviewed remedy awaits integration.
+
+Eleven new capture-control files now have individual source dispositions.
+Each retains an independent whole-source review or complete baseline and
+every later reviewed difference. Root reads their methods, contracts and
+limits, then checks the current bodies and original receipt hashes. Browser
+authorship remains excluded from self-approval. Eight files are already on
+main; the remaining three belong to the pending composition.
 
 The first client-hints and recorder composition is approved at `89524379`.
 Its full gate passes 23 of 24 steps. Nextest passes 4,573 of 4,575 tests;

@@ -284,6 +284,10 @@ actual read scope, original source bindings and verification limits.
 | `capture-validation-completion-gate-39488c23-independent-log-review.json` | All 25 raw logs read and 74 hashes verified; TLS capture failure blocks integration |
 | `tls-done-39488c23-independent-diagnosis.json` | Actual native read timeout; unchanged TLS source; long generic callback does not identify the failing timer or cause |
 | `tls-39488c23-focused.log` | Three unchanged OpenSSL server controls pass in isolation; no cause or full-gate closure follows |
+| `eleven-tool-controls-current-source-reconciliation-39488c23.json` | Eleven new control files retain independent whole/delta reads and individual contracts and limits |
+| `eleven-tool-controls-current-source-reconciliation-f146e52c-root-bindings.json` | Current and reviewed bodies and original receipts checked; eleven inventory rows added without closing findings |
+| `downstream-wire-peer-completion-handoff-42a24a66-v2.json` | Qualified extracted task baseline fails three controls; remedy passes 11 default and 13 all-feature tests, Clippy and Rust 1.88 |
+| `downstream-wire-peer-42a24a66-independent-source-review.json` | Whole original and repaired wire source, actual ownership controls and complete retained checks independently approved |
 
 The first draining diagnostic had two writers sharing one log. Its overwritten
 prefix and NUL gap make it unsuitable as a complete verification receipt.
