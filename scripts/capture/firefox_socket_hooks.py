@@ -24,8 +24,11 @@ import asyncio
 import base64
 import contextlib
 import datetime
+import errno
 import hashlib
 import json
+import math
+import os
 import platform
 import re
 import shutil
@@ -41,6 +44,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from . import socket_hooks
+from .browser_failures import BrowserLaunchFailures, raise_browser_failures
 from .browser_launch import (
     CLIENT_NAMES,
     LaunchedBrowser,
@@ -71,6 +75,16 @@ MOZ_LOG_MODULES = (
 )
 MAX_REQUEST_HEAD = 64 * 1024
 ATTACH_LIMIT_SECONDS = 30.0
+MAX_ACTIVE_PEERS = 32
+MAX_CONNECTIONS = 128
+MAX_REQUESTS = 512
+MAX_HOOK_REPORTS = 100_000
+MAX_HOOK_MESSAGE_BYTES = 16 * 1024
+MAX_WEBSOCKET_FRAME = 64 * 1024
+PEER_CLEANUP_SECONDS = 5.0
+# A pending lookup takes at most 60 s, then browser cleanup has two 60 s
+# commands and a 5 s process join. Native calls cannot be preempted by asyncio.
+NATIVE_CLEANUP_SECONDS = 200.0
 # The address the `backup` scenario's lookups return: Windows answers
 # `localhost` with [::1] first, then 127.0.0.1.
 REWRITE_TO = "localhost"
@@ -585,6 +599,114 @@ class Origins:
     page_requested: asyncio.Event = field(default_factory=asyncio.Event)
     go: asyncio.Event = field(default_factory=asyncio.Event)
     done: asyncio.Event = field(default_factory=asyncio.Event)
+    peers: dict[asyncio.Task, tuple[asyncio.StreamWriter, bool]] = field(
+        default_factory=dict
+    )
+    writers: set[asyncio.StreamWriter] = field(default_factory=set)
+    listeners: list[asyncio.Server] = field(default_factory=list)
+    failures: list[BaseException] = field(default_factory=list)
+    failed: asyncio.Event = field(default_factory=asyncio.Event)
+    stopping: bool = False
+    changed: asyncio.Event = field(default_factory=asyncio.Event)
+    accepted: int = 0
+    request_count: int = 0
+
+    def remember_failure(self, error: BaseException) -> None:
+        if all(error is not previous for previous in self.failures):
+            self.failures.append(error)
+        self.failed.set()
+        self.changed.set()
+        for listener in self.listeners:
+            try:
+                listener.close()
+            except BaseException as close_error:
+                if all(close_error is not old for old in self.failures):
+                    self.failures.append(close_error)
+
+    def accept_page(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        self.accept(reader, writer, page=True)
+
+    def accept_target(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        self.accept(reader, writer, page=False)
+
+    def accept(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, *, page: bool
+    ) -> None:
+        self.writers.add(writer)
+        self.accepted += 1
+        over_limit = (
+            self.stopping
+            or len(self.peers) >= MAX_ACTIVE_PEERS
+            or self.accepted > MAX_CONNECTIONS
+        )
+        work = (
+            self.close_rejected(writer)
+            if over_limit
+            else self.handle_page(reader, writer)
+            if page
+            else self.handle_target(reader, writer)
+        )
+        task = asyncio.create_task(work)
+        self.peers[task] = (writer, False)
+        task.add_done_callback(self.completed)
+        self.changed.set()
+        if over_limit:
+            self.remember_failure(ValueError("Firefox origin peer limit exceeded"))
+
+    async def close_rejected(self, writer: asyncio.StreamWriter) -> None:
+        await close_writer(writer, None)
+
+    def completed(self, task: asyncio.Task) -> None:
+        _, requested = self.peers.pop(task)
+        try:
+            task.result()
+        except asyncio.CancelledError as error:
+            if not requested or isinstance(error.__cause__, BrowserLaunchFailures):
+                self.remember_failure(error)
+        except BaseException as error:
+            self.remember_failure(error)
+
+    def record_request(self) -> None:
+        self.request_count += 1
+        if self.request_count > MAX_REQUESTS:
+            raise ValueError("Firefox origin request limit exceeded")
+
+    async def shutdown(self) -> None:
+        self.stopping = True
+        for listener in self.listeners:
+            try:
+                listener.close()
+            except BaseException as error:
+                self.remember_failure(error)
+        for task, (writer, _) in tuple(self.peers.items()):
+            # Close wakes reads, and cancellation wakes /go, slow responses and ticks.
+            try:
+                writer.close()
+            except BaseException as error:
+                self.remember_failure(error)
+            self.peers[task] = (writer, task.cancel())
+
+        for listener in self.listeners:
+            try:
+                await listener.wait_closed()
+            except BaseException as error:
+                self.remember_failure(error)
+        if self.peers:
+            await asyncio.wait(tuple(self.peers))
+        # Task done callbacks retire each peer and observe its original outcome.
+        await asyncio.sleep(0)
+        # Retain failed close attempts until this explicit collection succeeds.
+        for writer in tuple(self.writers):
+            try:
+                await close_writer(writer, None)
+            except BaseException as error:
+                self.remember_failure(error)
+            else:
+                self.writers.remove(writer)
 
     @property
     def target_url(self) -> str:
@@ -605,14 +727,17 @@ class Origins:
     async def handle_page(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
+        primary = None
         try:
             while True:
                 head = await read_head(reader)
                 if head is None:
                     break
+                self.record_request()
                 path = urlsplit(request_target(head)).path
                 if path == "/":
                     self.page_requested.set()
+                    self.changed.set()
                     body, kind = self.page(), "text/html"
                 else:
                     body, kind = b"ok\n", "text/plain"
@@ -625,33 +750,40 @@ class Origins:
                 await write_response(writer, body, kind, close=False)
                 if path == "/done":
                     self.done.set()
-        except (ConnectionError, OSError):
-            pass
+                    self.changed.set()
+        except BaseException as error:
+            if not peer_gone(error):
+                primary = error
         finally:
-            writer.close()
+            await close_writer(writer, primary)
 
     async def handle_target(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
-        peer = writer.get_extra_info("peername")
-        connection = ServerConnection(f"{peer[0]}:{peer[1]}", now_ms())
-        self.connections.append(connection)
-        self.open.append((connection, writer))
+        connection = None
+        primary = None
         try:
+            peer = writer.get_extra_info("peername")
+            connection = ServerConnection(f"{peer[0]}:{peer[1]}", now_ms())
+            self.connections.append(connection)
+            self.open.append((connection, writer))
             if self.scenario.target == "h2":
                 await self.serve_h2(reader, writer, connection)
             else:
                 await self.serve_http1(reader, writer, connection)
-        except ConnectionResetError:
-            connection.close_kind = "reset"
-        except (ConnectionError, OSError):
-            pass
+        except ConnectionResetError as error:
+            if not peer_gone(error):
+                primary = error
+            elif connection is not None:
+                connection.close_kind = "reset"
+        except BaseException as error:
+            if not peer_gone(error):
+                primary = error
         finally:
-            connection.closed_ms = now_ms()
-            self.open.remove((connection, writer))
-            writer.close()
-            with contextlib.suppress(ConnectionError, OSError):
-                await writer.wait_closed()
+            if connection is not None:
+                connection.closed_ms = now_ms()
+                self.open.remove((connection, writer))
+            await close_writer(writer, primary)
 
     async def serve_http1(
         self,
@@ -662,7 +794,9 @@ class Origins:
         while True:
             try:
                 head = await read_head(reader)
-            except ConnectionResetError:
+            except ConnectionResetError as error:
+                if not peer_gone(error):
+                    raise
                 connection.close_kind = "reset"
                 return
             if head is None:
@@ -670,6 +804,7 @@ class Origins:
                     connection.close_kind = "fin"
                 return
             target = request_target(head)
+            self.record_request()
             connection.requests.append((now_ms(), target))
             path = urlsplit(target).path
             if path == "/ws":
@@ -714,6 +849,7 @@ class Origins:
                 return
             for event in session.receive_data(data):
                 if isinstance(event, h2.events.RequestReceived):
+                    self.record_request()
                     fields = dict(event.headers)
                     connection.requests.append((now_ms(), fields.get(":path", "")))
                     session.send_headers(
@@ -732,6 +868,34 @@ class Origins:
                     connection.close_kind = "goaway"
             writer.write(session.data_to_send())
             await writer.drain()
+
+
+def peer_gone(error: BaseException) -> bool:
+    if isinstance(error.__cause__, BrowserLaunchFailures):
+        return False
+    return isinstance(
+        error, (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)
+    ) or (
+        isinstance(error, OSError)
+        and error.errno in (errno.EPIPE, errno.ECONNRESET, errno.ECONNABORTED)
+    )
+
+
+async def close_writer(
+    writer: asyncio.StreamWriter, primary: BaseException | None
+) -> None:
+    failures = []
+    try:
+        writer.close()
+    except BaseException as error:
+        if not peer_gone(error):
+            failures.append(error)
+    try:
+        await writer.wait_closed()
+    except BaseException as error:
+        if not peer_gone(error):
+            failures.append(error)
+    raise_browser_failures(primary, tuple(failures))
 
 
 async def read_head(reader: asyncio.StreamReader) -> bytes | None:
@@ -811,26 +975,70 @@ async def serve_websocket(
             await writer.drain()
 
     ticker = asyncio.create_task(tick())
+    primary = None
     try:
         while True:
             first = await reader.readexactly(2)
+            opcode = first[0] & 0x0F
             length = first[1] & 0x7F
             if length == 126:
                 length = int.from_bytes(await reader.readexactly(2), "big")
             elif length == 127:
                 length = int.from_bytes(await reader.readexactly(8), "big")
+            if length > MAX_WEBSOCKET_FRAME or (opcode >= 8 and length > 125):
+                raise ValueError("Firefox WebSocket frame exceeds its byte limit")
+            if opcode >= 8 and not first[0] & 0x80:
+                raise ValueError("Firefox WebSocket control frame is fragmented")
+            if not first[1] & 0x80:
+                raise ValueError("Firefox WebSocket client frame is not masked")
             mask = await reader.readexactly(4) if first[1] & 0x80 else b""
             payload = await reader.readexactly(length)
-            if first[0] & 0x0F == 0x8:
+            if opcode == 0x8:
                 if mask:
                     payload = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
                 writer.write(bytes([0x88, len(payload)]) + payload)
                 await writer.drain()
-                return
+                break
     except asyncio.IncompleteReadError:
-        return
+        pass
+    except BaseException as error:
+        primary = error
     finally:
-        ticker.cancel()
+        requested = ticker.cancel()
+        failures = []
+        try:
+            _, pending = await asyncio.wait((ticker,), timeout=PEER_CLEANUP_SECONDS)
+            if pending:
+                failures.append(_FirefoxTickerPending(ticker))
+            else:
+                try:
+                    ticker.result()
+                except asyncio.CancelledError as error:
+                    if not requested or isinstance(
+                        error.__cause__, BrowserLaunchFailures
+                    ):
+                        failures.append(error)
+                except BaseException as error:
+                    failures.append(error)
+        except BaseException as error:
+            failures.extend((error, _FirefoxTickerPending(ticker)))
+        raise_browser_failures(primary, tuple(failures))
+
+
+class _FirefoxTickerPending(RuntimeError):
+    def __init__(self, task: asyncio.Task) -> None:
+        self.task = task
+        super().__init__("Firefox WebSocket ticker has not stopped")
+
+    async def finish(self) -> None:
+        # The task was explicitly asked to stop before this pending owner formed.
+        try:
+            await asyncio.shield(self.task)
+        except asyncio.CancelledError as error:
+            if not self.task.done() or isinstance(
+                error.__cause__, BrowserLaunchFailures
+            ):
+                raise
 
 
 def now_ms() -> int:
@@ -872,18 +1080,23 @@ def browser_process(listing: Sequence[dict[str, Any]]) -> int | None:
 
 
 def profile_processes(profile: Path) -> list[dict[str, Any]]:
-    # The profile path is a mkdtemp name without quotes, so it is safe to embed.
     script = (
+        "$ErrorActionPreference = 'Stop'; "
+        "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding; "
+        "$profile = [Environment]::GetEnvironmentVariable('PHANTOM_FIREFOX_PROFILE'); "
         "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and "
-        f"$_.CommandLine.Contains('{profile}') }} | "
+        "$_.CommandLine.Contains($profile) } | "
         "Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json -Compress"
     )
-    output = subprocess.run(
+    result = subprocess.run(
         ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+        env={**os.environ, "PHANTOM_FIREFOX_PROFILE": str(profile)},
         capture_output=True,
         check=False,
         timeout=60,
-    ).stdout.decode(errors="replace")
+    )
+    result.check_returncode()
+    output = result.stdout.decode("utf-8", errors="strict")
     if not output.strip():
         return []
     listing = json.loads(output)
@@ -902,6 +1115,9 @@ class Hooks:
         self.ready = threading.Event()
         self._lock = threading.Lock()
         self._session: Any = None
+        self._script: Any = None
+        self.failure: BaseException | None = None
+        self._detaching = False
 
     def attach(self) -> None:
         import frida  # noqa: PLC0415 - only a capture needs Frida
@@ -913,7 +1129,9 @@ class Hooks:
             + EXTENSION.read_text(encoding="utf-8")
         )
         self._session = frida.get_local_device().attach(self.pid)
+        self._session.on("detached", self._on_detached)
         script = self._session.create_script(source)
+        self._script = script
         script.on("message", self._on_message)
         script.load()
         script.post({"type": "config", "slow_ipv6_refusal": False})
@@ -921,12 +1139,41 @@ class Hooks:
 
     def _on_message(self, message: dict[str, Any], _data: object) -> None:
         with self._lock:
-            if message.get("type") == "send":
-                self.reports.append(message["payload"])
-                if message["payload"]["kind"] == "firefox-config":
-                    self.ready.set()
-            else:
-                self.errors.append(json.dumps(message, sort_keys=True))
+            try:
+                if self.failure is not None:
+                    return
+                if not isinstance(message, dict):
+                    raise ValueError("Firefox hook message must be an object")
+                encoded = json.dumps(message, allow_nan=False).encode("utf-8")
+                if len(encoded) > MAX_HOOK_MESSAGE_BYTES:
+                    raise ValueError("Firefox hook message exceeds its byte limit")
+                if len(self.reports) + len(self.errors) >= MAX_HOOK_REPORTS:
+                    raise ValueError("Firefox hook report limit exceeded")
+                if message.get("type") == "send":
+                    report = message["payload"]
+                    if not isinstance(report, dict) or not isinstance(
+                        report.get("kind"), str
+                    ):
+                        raise ValueError("Firefox hook report must name its kind")
+                    if type(report.get("time_ms")) is not int:
+                        raise ValueError("Firefox hook report must name its time")
+                    self.reports.append(report)
+                    if report["kind"] == "firefox-config":
+                        self.ready.set()
+                else:
+                    self.errors.append(json.dumps(message, sort_keys=True))
+                    raise RuntimeError("Firefox native hook reported an error")
+            except BaseException as error:
+                self.failure = error
+                self.ready.set()
+
+    def _on_detached(self, reason: str, crash: object) -> None:
+        with self._lock:
+            if self._detaching and reason == "application-requested":
+                return
+            if self.failure is None:
+                self.failure = _FirefoxSessionDetached(reason, crash)
+            self.ready.set()
 
     def snapshot(self) -> tuple[list[dict[str, Any]], list[str]]:
         with self._lock:
@@ -934,8 +1181,20 @@ class Hooks:
 
     def detach(self) -> None:
         if self._session is not None:
-            with contextlib.suppress(Exception):
+            self._detaching = True
+            try:
                 self._session.detach()
+            finally:
+                self._detaching = False
+            self._session = None
+            self._script = None
+
+
+class _FirefoxSessionDetached(RuntimeError):
+    def __init__(self, reason: str, crash: object) -> None:
+        self.reason = reason
+        self.crash = crash
+        super().__init__(f"Firefox hook session detached unexpectedly: {reason}")
 
 
 @dataclass
@@ -952,104 +1211,383 @@ class RunResult:
     moz_log_text: str = ""
 
 
-async def run_once(scenario: Scenario, executable: Path) -> tuple[RunResult, str]:
-    origins = Origins(scenario)
-    page = await asyncio.start_server(
-        origins.handle_page, "127.0.0.1", 0, limit=MAX_REQUEST_HEAD
-    )
-    origins.page_port = page.sockets[0].getsockname()[1]
-    context = None
-    files: tuple[tuple[str, str], ...] = ()
-    if scenario.target == "h2":
-        from .http2_session import generate_certificate, server_context  # noqa: PLC0415
+class _FirefoxNative:
+    """Serialize one browser launch, attachment and teardown in one worker.
 
-        certificate = generate_certificate(TARGET_HOST)
-        context = server_context(certificate)
-        context.set_alpn_protocols(["h2"])
-    target = await asyncio.start_server(
-        origins.handle_target, "127.0.0.1", 0, limit=MAX_REQUEST_HEAD, ssl=context
-    )
-    origins.port = target.sockets[0].getsockname()[1]
-    if scenario.target == "h2":
-        files = (
-            (
-                "cert_override.txt",
-                firefox_cert_override(
-                    TARGET_HOST, origins.port, certificate.sha256_fingerprint
-                ),
-            ),
-        )
-    if scenario.rewrite_lookup and not localhost_ipv6_free(origins.port):
-        page.close()
-        target.close()
-        raise RuntimeError(f"[::1]:{origins.port} is in use")
-    url = f"http://127.0.0.1:{origins.page_port}/"
-    plan = LaunchPlan(
-        browser="firefox", executable=executable, headless=True, profile_files=files
-    )
-    log_directory = Path(tempfile.mkdtemp(prefix="phantom-capture-moz-log-"))
-    config = (
-        {"rewrite_host": TARGET_HOST, "rewrite_to": REWRITE_TO}
-        if scenario.rewrite_lookup
-        else {}
-    )
-    hooks: Hooks | None = None
-    timed_out = False
-    launcher = False
-    errors: list[str] = []
-    environment = {
-        "MOZ_LOG": MOZ_LOG_MODULES,
-        "MOZ_LOG_FILE": str(log_directory / "moz"),
-    }
-    try:
-        with patched_environment(environment):
-            browser = LaunchedBrowser(plan, url)
-            await asyncio.to_thread(browser.__enter__)
+    Cancelling the asyncio waiter cannot interrupt a blocking native call. A
+    pending cleanup error retains this owner so the caller can collect it later.
+    """
+
+    def __init__(
+        self, run: _FirefoxRun, plan: LaunchPlan, url: str, config: dict
+    ) -> None:
+        self.run = run
+        self.browser = LaunchedBrowser(plan, url)
+        self.hooks: Hooks | None = None
+        self.config = config
+        self.future: asyncio.Future | None = None
+        self.started = asyncio.Event()
+        self.attached = asyncio.Event()
+        self.attach_requested = threading.Event()
+        self.stop_requested = threading.Event()
+        self.failures: list[BaseException] = []
+        self.cleanup_failed = False
+        self.launcher = False
+        self.primary: BaseException | None = None
+
+    def notify(self, event: asyncio.Event) -> None:
+        self.run.loop.call_soon_threadsafe(event.set)
+        self.run.loop.call_soon_threadsafe(self.run.changed.set)
+
+    def remember(self, error: BaseException) -> None:
+        if all(error is not old for old in self.failures):
+            self.failures.append(error)
         try:
-            await asyncio.wait_for(origins.page_requested.wait(), ATTACH_LIMIT_SECONDS)
-            assert browser.profile is not None
-            listing = await asyncio.to_thread(profile_processes, browser.profile)
+            self.run.loop.call_soon_threadsafe(self.run.changed.set)
+        except BaseException as notification_error:
+            if all(notification_error is not old for old in self.failures):
+                self.failures.append(notification_error)
+            self.stop_requested.set()
+            self.attach_requested.set()
+
+    def start(self) -> None:
+        self.future = self.run.loop.run_in_executor(None, self.work)
+
+    def work(self) -> None:
+        try:
+            with patched_environment(self.run.environment):
+                self.browser.__enter__()
+            self.notify(self.started)
+            self.attach_requested.wait()
+            if self.stop_requested.is_set():
+                return
+
+            profile = self.browser.profile
+            if profile is None:
+                raise RuntimeError("Firefox launch did not retain its profile")
+            listing = profile_processes(profile)
             pid = browser_process(listing)
             if pid is None:
-                raise RuntimeError(f"no Firefox parent process among {listing}")
-            launcher = browser.process is not None and pid != browser.process.pid
-            hooks = Hooks(pid, config)
-            await asyncio.to_thread(hooks.attach)
-            if not await asyncio.to_thread(hooks.ready.wait, ATTACH_LIMIT_SECONDS):
-                raise RuntimeError("the agents did not report ready")
-            origins.go.set()
-            try:
-                await asyncio.wait_for(origins.done.wait(), scenario.limit_seconds)
-            except asyncio.TimeoutError:
-                timed_out = True
-            await asyncio.sleep(1.0)
+                raise RuntimeError("no Firefox parent process for the capture profile")
+            self.launcher = (
+                self.browser.process is not None and pid != self.browser.process.pid
+            )
+            self.hooks = Hooks(pid, self.config)
+            self.hooks.attach()
+            if not self.hooks.ready.wait(ATTACH_LIMIT_SECONDS):
+                raise RuntimeError("Firefox agents did not report ready")
+            if self.hooks.failure is not None:
+                raise self.hooks.failure
+            self.notify(self.attached)
+            while not self.stop_requested.wait(0.1):
+                if self.hooks.failure is not None:
+                    raise self.hooks.failure
+        except BaseException as error:
+            self.remember(error)
         finally:
-            if hooks is not None:
-                await asyncio.to_thread(hooks.detach)
-            await asyncio.to_thread(browser.__exit__, None, None, None)
-    except asyncio.TimeoutError:
-        timed_out = True
-        errors.append("the page was not requested")
-    finally:
-        page.close()
-        target.close()
-    reports, hook_errors = hooks.snapshot() if hooks is not None else ([], [])
-    start_ms = reports[0]["time_ms"] if reports else now_ms()
-    moz_log_text = parent_moz_log(log_directory)
-    moz_log = moz_log_lines(moz_log_text, origins.port, start_ms)
-    shutil.rmtree(log_directory, ignore_errors=True)
-    result = RunResult(
-        reports,
-        [*errors, *hook_errors],
-        origins,
-        timed_out,
-        hooks.frida_version if hooks is not None else "",
-        launcher,
-        moz_log,
-        start_ms,
-        moz_log_text,
-    )
+            self.cleanup()
+
+    def cleanup(self) -> None:
+        self.cleanup_failed = False
+        if self.hooks is not None:
+            try:
+                self.hooks.detach()
+            except BaseException as error:
+                self.cleanup_failed = True
+                self.remember(error)
+            if self.hooks.failure is not None:
+                self.remember(self.hooks.failure)
+
+        try:
+            self.browser.__exit__(None, self.primary, None)
+        except BaseException as error:
+            self.cleanup_failed = True
+            self.remember(error)
+
+    def stop(self, primary: BaseException | None) -> None:
+        self.primary = primary
+        self.stop_requested.set()
+        self.attach_requested.set()
+
+    async def collect(self) -> None:
+        if self.future is not None:
+            await asyncio.shield(self.future)
+
+    async def retry_cleanup(self) -> None:
+        # Explicit caller retry after the previous worker finished, never overlap.
+        await self.collect()
+        if self.cleanup_failed:
+            self.future = self.run.loop.run_in_executor(None, self.cleanup)
+            await self.collect()
+
+
+class _FirefoxRun:
+    """Own listeners, peers, the native worker and temporary log publication."""
+
+    def __init__(self, scenario: Scenario) -> None:
+        self.loop = asyncio.get_running_loop()
+        self.changed = asyncio.Event()
+        self.origins = Origins(scenario)
+        self.origins.changed = self.changed
+        self.native: _FirefoxNative | None = None
+        self.log_directory: Path | None = None
+        self.environment: dict[str, str] = {}
+        self.cleanup: asyncio.Task | None = None
+        self.primary: BaseException | None = None
+        self.collection_abandoned = False
+        self.cleanup_failures: tuple[BaseException, ...] = ()
+
+    async def wait(self, event: asyncio.Event, seconds: float) -> None:
+        deadline = self.loop.time() + seconds
+        while True:
+            self.changed.clear()
+            if self.origins.failures:
+                raise self.origins.failures[0]
+            if self.native is not None and self.native.failures:
+                raise self.native.failures[0]
+            if event.is_set():
+                return
+            await asyncio.wait_for(
+                self.changed.wait(), max(0.0, deadline - self.loop.time())
+            )
+
+    async def cleanup_work(self, *, retry: bool = False) -> tuple[BaseException, ...]:
+        failures = []
+        for listener in self.origins.listeners:
+            try:
+                listener.close()
+            except BaseException as error:
+                self.origins.remember_failure(error)
+        if self.native is not None:
+            self.native.stop(self.primary)
+            try:
+                await self.native.collect()
+                if retry:
+                    await self.native.retry_cleanup()
+            except BaseException as error:
+                failures.append(error)
+            failures.extend(self.native.failures)
+            if self.native.cleanup_failed:
+                failures.append(_FirefoxCapturePending(self, "native cleanup failed"))
+
+        try:
+            await self.origins.shutdown()
+        except BaseException as error:
+            failures.append(error)
+        if self.origins.peers or self.origins.writers:
+            failures.append(
+                _FirefoxCapturePending(self, "origin cleanup has not completed")
+            )
+        failures.extend(self.origins.failures)
+        return tuple(error for error in failures if error is not self.primary)
+
+    async def finish(
+        self, primary: BaseException | None = None
+    ) -> tuple[BaseException, ...]:
+        self.primary = primary
+        self.collection_abandoned = False
+        if self.native is not None:
+            self.native.stop(primary)
+        if (
+            self.cleanup is not None
+            and self.cleanup.done()
+            and (
+                self.origins.peers
+                or self.origins.writers
+                or (self.native is not None and self.native.cleanup_failed)
+            )
+        ):
+            self.cleanup = asyncio.create_task(self.cleanup_work(retry=True))
+            self.cleanup.add_done_callback(self.observe_cleanup)
+        elif self.cleanup is None:
+            self.cleanup = asyncio.create_task(self.cleanup_work())
+            self.cleanup.add_done_callback(self.observe_cleanup)
+        try:
+            _, pending = await asyncio.wait(
+                (self.cleanup,), timeout=NATIVE_CLEANUP_SECONDS
+            )
+        except BaseException as error:
+            self.collection_abandoned = True
+            return (
+                error,
+                *self.known_failures(),
+                _FirefoxCapturePending(self, "cleanup collection interrupted"),
+            )
+        if pending:
+            self.collection_abandoned = True
+            return (
+                *self.known_failures(),
+                _FirefoxCapturePending(self, "cleanup collection timed out"),
+            )
+        try:
+            return self.cleanup.result()
+        except BaseException as error:
+            return (error, _FirefoxCapturePending(self, "cleanup failed"))
+
+    def observe_cleanup(self, task: asyncio.Task) -> None:
+        try:
+            self.cleanup_failures = task.result()
+        except BaseException as error:
+            self.cleanup_failures = (error,)
+        if self.collection_abandoned and self.cleanup_failures:
+            self.loop.call_exception_handler(
+                {
+                    "message": "Firefox capture cleanup failed after collection stopped",
+                    "exception": self.cleanup_failures[0],
+                    "failures": self.cleanup_failures,
+                    "primary": self.primary,
+                    "owner": self,
+                    "task": task,
+                }
+            )
+
+    def known_failures(self) -> tuple[BaseException, ...]:
+        errors = [*self.origins.failures]
+        if self.native is not None:
+            errors.extend(self.native.failures)
+        return tuple(error for error in errors if error is not self.primary)
+
+    def remove_log(self) -> tuple[BaseException, ...]:
+        if self.log_directory is None:
+            return ()
+        try:
+            shutil.rmtree(self.log_directory)
+        except BaseException as error:
+            return (error, _FirefoxCapturePending(self, "log cleanup failed"))
+        self.log_directory = None
+        return ()
+
+
+class _FirefoxCapturePending(RuntimeError):
+    def __init__(self, owner: _FirefoxRun, message: str) -> None:
+        self.owner = owner
+        super().__init__(
+            f"Firefox capture {message}; owner remains available for collection"
+        )
+
+
+async def run_once(scenario: Scenario, executable: Path) -> tuple[RunResult, str]:
+    validate_waits(scenario)
+    owner = _FirefoxRun(scenario)
+    origins = owner.origins
+    primary = None
+    result = None
+    plan = None
+    try:
+        page = await asyncio.start_server(
+            origins.accept_page, "127.0.0.1", 0, limit=MAX_REQUEST_HEAD
+        )
+        origins.listeners.append(page)
+        origins.page_port = page.sockets[0].getsockname()[1]
+        context = None
+        files: tuple[tuple[str, str], ...] = ()
+        if scenario.target == "h2":
+            from .http2_session import (  # noqa: PLC0415
+                generate_certificate,
+                server_context,
+            )
+
+            certificate = generate_certificate(TARGET_HOST)
+            context = server_context(certificate)
+            context.set_alpn_protocols(["h2"])
+        target = await asyncio.start_server(
+            origins.accept_target, "127.0.0.1", 0, limit=MAX_REQUEST_HEAD, ssl=context
+        )
+        origins.listeners.append(target)
+        origins.port = target.sockets[0].getsockname()[1]
+        if scenario.target == "h2":
+            files = (
+                (
+                    "cert_override.txt",
+                    firefox_cert_override(
+                        TARGET_HOST, origins.port, certificate.sha256_fingerprint
+                    ),
+                ),
+            )
+        if scenario.rewrite_lookup and not localhost_ipv6_free(origins.port):
+            raise RuntimeError(f"[::1]:{origins.port} is in use")
+
+        url = f"http://127.0.0.1:{origins.page_port}/"
+        plan = LaunchPlan(
+            browser="firefox", executable=executable, headless=True, profile_files=files
+        )
+        owner.log_directory = Path(tempfile.mkdtemp(prefix="phantom-capture-moz-log-"))
+        owner.environment = {
+            "MOZ_LOG": MOZ_LOG_MODULES,
+            "MOZ_LOG_FILE": str(owner.log_directory / "moz"),
+        }
+        config = (
+            {"rewrite_host": TARGET_HOST, "rewrite_to": REWRITE_TO}
+            if scenario.rewrite_lookup
+            else {}
+        )
+        owner.native = _FirefoxNative(owner, plan, url, config)
+        owner.native.start()
+        await owner.wait(owner.native.started, ATTACH_LIMIT_SECONDS)
+        await owner.wait(origins.page_requested, ATTACH_LIMIT_SECONDS)
+        owner.native.attach_requested.set()
+        await owner.wait(owner.native.attached, ATTACH_LIMIT_SECONDS)
+        origins.go.set()
+        timed_out = False
+        try:
+            await owner.wait(origins.done, scenario.limit_seconds)
+        except asyncio.TimeoutError:
+            timed_out = True
+        await asyncio.sleep(1.0)
+        result = timed_out
+    except BaseException as error:
+        primary = error
+
+    cleanup = await owner.finish(primary)
+    if primary is not None or cleanup:
+        if (
+            owner.cleanup is not None
+            and owner.cleanup.done()
+            and not (owner.native and owner.native.cleanup_failed)
+            and not any(isinstance(error, _FirefoxCapturePending) for error in cleanup)
+        ):
+            cleanup = (*cleanup, *owner.remove_log())
+        raise_browser_failures(primary, cleanup)
+
+    try:
+        native = owner.native
+        hooks = native.hooks
+        reports, errors = hooks.snapshot()
+        start_ms = reports[0]["time_ms"] if reports else now_ms()
+        moz_log_text = parent_moz_log(owner.log_directory)
+        result = RunResult(
+            reports,
+            errors,
+            origins,
+            result,
+            hooks.frida_version,
+            native.launcher,
+            moz_log_lines(moz_log_text, origins.port, start_ms),
+            start_ms,
+            moz_log_text,
+        )
+    except BaseException as error:
+        primary = error
+    raise_browser_failures(primary, owner.remove_log())
     return result, plan.recorded_arguments(url)
+
+
+def validate_waits(scenario: Scenario) -> None:
+    for name, value in (
+        ("scenario limit", scenario.limit_seconds),
+        ("attachment limit", ATTACH_LIMIT_SECONDS),
+        ("peer cleanup", PEER_CLEANUP_SECONDS),
+        ("native cleanup", NATIVE_CLEANUP_SECONDS),
+    ):
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError(f"Firefox {name} must be finite and positive")
+
+
+def validate_metadata(name: str, value: str) -> None:
+    if not isinstance(value, str) or any(
+        ord(char) < 32 or ord(char) > 126 for char in value
+    ):
+        raise ValueError(f"Firefox {name} must be single-line printable ASCII")
 
 
 @contextlib.contextmanager
@@ -1140,6 +1678,17 @@ def render_fixture(
     runs: Sequence[Sequence[str]],
 ) -> str:
     """The fixture text: provenance header first, then each run."""
+    for name, value in (
+        ("version", client_version),
+        ("build ID", build_id),
+        ("operating system", operating_system),
+        ("hook version", frida_version),
+        ("launch arguments", launch_arguments),
+        ("scenario", scenario.name),
+        ("question", scenario.question),
+        ("intervention", scenario.intervention),
+    ):
+        validate_metadata(name, value)
     header = [
         f"format={FORMAT}",
         "evidence=hook",
@@ -1170,6 +1719,11 @@ def render_fixture(
 
 
 async def capture(args: argparse.Namespace, scenario: Scenario) -> tuple[str, bool]:
+    validate_metadata("version", args.client_version)
+    validate_metadata("operating system", args.operating_system)
+    validate_waits(scenario)
+    if type(args.repeat) is not int or args.repeat < 1:
+        raise ValueError("Firefox repeat count must be a positive integer")
     runs = []
     recorded = ""
     frida_version = ""
@@ -1233,6 +1787,11 @@ def main(argv: Sequence[str] | None = None) -> None:
         parser.error("the agents hook Winsock, so this tool runs on Windows only")
     if args.repeat < 1:
         parser.error("--repeat must be at least 1")
+    try:
+        validate_metadata("version", args.client_version)
+        validate_metadata("operating system", args.operating_system)
+    except ValueError as error:
+        parser.error(str(error))
     version, _ = installed_build(args.browser_path)
     if version != args.client_version:
         parser.error(f"the installed Firefox is {version}, not {args.client_version}")

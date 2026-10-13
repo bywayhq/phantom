@@ -255,16 +255,25 @@ class OriginTests(unittest.TestCase):
     def exchange(self, scenario: str, requests: bytes) -> tuple[bytes, Origins]:
         async def run() -> tuple[bytes, Origins]:
             origins = Origins(SCENARIOS[scenario])
-            server = await asyncio.start_server(origins.handle_target, "127.0.0.1", 0)
+            server = await asyncio.start_server(origins.accept_target, "127.0.0.1", 0)
+            origins.listeners.append(server)
             port = server.sockets[0].getsockname()[1]
             async with server:
                 reader, writer = await asyncio.open_connection("127.0.0.1", port)
-                writer.write(requests)
-                await writer.drain()
-                received = await reader.read(4096)
-                writer.close()
-                await writer.wait_closed()
-                await asyncio.sleep(0.1)
+                try:
+                    writer.write(requests)
+                    await writer.drain()
+                    received = await reader.read(4096)
+                    writer.close()
+                    await writer.wait_closed()
+                    if origins.peers:
+                        _, pending = await asyncio.wait(tuple(origins.peers), timeout=2)
+                        self.assertFalse(pending)
+                finally:
+                    writer.close()
+                    await writer.wait_closed()
+                    await origins.shutdown()
+                self.assertFalse(origins.failures)
             return received, origins
 
         return asyncio.run(run())

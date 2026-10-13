@@ -46,7 +46,9 @@ class OriginalFailureTests(unittest.IsolatedAsyncioTestCase):
                 self.assertIs(observed.exception, cause)
                 self.assertTrue(writer.closed)
 
-    async def test_an_oversized_websocket_frame_is_rejected_before_payload(self) -> None:
+    async def test_an_oversized_websocket_frame_is_rejected_before_payload(
+        self,
+    ) -> None:
         reader = asyncio.StreamReader()
         reader.feed_data(b"\x82\xff" + (2**63).to_bytes(8, "big"))
         cause = RuntimeError("must not read a payload")
@@ -83,9 +85,11 @@ class CaptureBoundaryTests(unittest.TestCase):
         result = subprocess.CompletedProcess(
             ["powershell"], 1, stdout=b"", stderr=b"independent CIM failure"
         )
-        with patch.object(hooks.subprocess, "run", return_value=result):
-            with self.assertRaises(subprocess.CalledProcessError) as observed:
-                hooks.profile_processes(Path("C:/Temp/profile"))
+        with (
+            patch.object(hooks.subprocess, "run", return_value=result),
+            self.assertRaises(subprocess.CalledProcessError) as observed,
+        ):
+            hooks.profile_processes(Path("C:/Temp/profile"))
 
         self.assertEqual(observed.exception.returncode, 1)
         self.assertEqual(observed.exception.stderr, b"independent CIM failure")
