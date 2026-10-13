@@ -21,6 +21,7 @@ import argparse
 import asyncio
 import contextlib
 import ipaddress
+import math
 import platform
 import sys
 import tempfile
@@ -79,6 +80,7 @@ MAX_CONNECTIONS = 16
 MAX_REQUESTS = 64
 MAX_BODY = 64 * 1024
 MAX_CLIENT_HELLO = 32 * 1024
+MAX_RUNS = 128
 PRE_SHARED_KEY = 0x0029
 EARLY_DATA = 0x002A
 PSK_KEY_EXCHANGE_MODES = 0x002D
@@ -210,38 +212,58 @@ class ClientHelloShape:
         body = self.extension(KEY_SHARE)
         if body is None:
             return ()
-        buf = Buffer(data=body)
-        length = buf.pull_uint16()
-        end = buf.tell() + length
-        groups = []
-        while buf.tell() < end:
-            groups.append(buf.pull_uint16())
-            buf.pull_bytes(buf.pull_uint16())
+        try:
+            buf = Buffer(data=body)
+            length = buf.pull_uint16()
+            end = buf.tell() + length
+            if end != len(body):
+                raise ValueError("key share vector length does not match its body")
+
+            groups = []
+            while buf.tell() < end:
+                groups.append(buf.pull_uint16())
+                buf.pull_bytes(buf.pull_uint16())
+        except BufferReadError as error:
+            raise ValueError("truncated key share vector") from error
         return tuple(groups)
 
     def psk_key_exchange_modes(self) -> tuple[int, ...]:
         body = self.extension(PSK_KEY_EXCHANGE_MODES)
         if body is None:
             return ()
-        return tuple(body[1 : 1 + body[0]])
+        if not body or body[0] != len(body) - 1:
+            raise ValueError("PSK exchange modes length does not match its body")
+        return tuple(body[1:])
 
     def pre_shared_key(self) -> tuple[tuple[int, ...], tuple[int, ...]] | None:
         """Identity and binder lengths of the offered PSKs."""
         body = self.extension(PRE_SHARED_KEY)
         if body is None:
             return None
-        buf = Buffer(data=body)
-        identities = []
-        length = buf.pull_uint16()
-        end = buf.tell() + length
-        while buf.tell() < end:
-            identities.append(len(buf.pull_bytes(buf.pull_uint16())))
-            buf.pull_uint32()
-        binders = []
-        length = buf.pull_uint16()
-        end = buf.tell() + length
-        while buf.tell() < end:
-            binders.append(len(buf.pull_bytes(buf.pull_uint8())))
+        try:
+            buf = Buffer(data=body)
+            identities = []
+            length = buf.pull_uint16()
+            end = buf.tell() + length
+            if end > len(body):
+                raise ValueError("PSK identity vector exceeds its body")
+
+            while buf.tell() < end:
+                identities.append(len(buf.pull_bytes(buf.pull_uint16())))
+                buf.pull_uint32()
+            if buf.tell() != end:
+                raise ValueError("PSK identity crosses its vector boundary")
+
+            binders = []
+            length = buf.pull_uint16()
+            end = buf.tell() + length
+            if end != len(body):
+                raise ValueError("PSK binder vector length does not match its body")
+
+            while buf.tell() < end:
+                binders.append(len(buf.pull_bytes(buf.pull_uint8())))
+        except BufferReadError as error:
+            raise ValueError("truncated PSK vector") from error
         return tuple(identities), tuple(binders)
 
     def transport_parameters(self) -> dict[int, bytes]:
@@ -313,10 +335,14 @@ def parse_client_hello(message: bytes) -> ClientHelloShape:
         buf.pull_bytes(32)
         buf.pull_bytes(buf.pull_uint8())
         suites_length = buf.pull_uint16()
-        suites_end = buf.tell() + suites_length
+        if suites_length == 0 or suites_length % 2:
+            raise ValueError(
+                "ClientHello cipher suites must contain whole uint16 values"
+            )
+        suites_buf = Buffer(data=buf.pull_bytes(suites_length))
         suites = []
-        while buf.tell() < suites_end:
-            suites.append(buf.pull_uint16())
+        while not suites_buf.eof():
+            suites.append(suites_buf.pull_uint16())
         buf.pull_bytes(buf.pull_uint8())
         extensions_length = buf.pull_uint16()
         extensions_end = buf.tell() + extensions_length
@@ -329,6 +355,16 @@ def parse_client_hello(message: bytes) -> ClientHelloShape:
     except BufferReadError as error:
         raise ValueError("truncated ClientHello") from error
     return ClientHelloShape(tuple(suites), tuple(extensions))
+
+
+def validate_metadata(name: str, value: str) -> None:
+    if not value or any(not 0x20 <= ord(character) <= 0x7E for character in value):
+        raise ValueError(f"{name} must be nonempty printable ASCII")
+
+
+def validate_timeout(timeout: float) -> None:
+    if not math.isfinite(timeout) or timeout <= 0:
+        raise ValueError("run timeout must be finite and positive")
 
 
 def is_reserved_version(value: bytes) -> bool:
@@ -879,6 +915,9 @@ async def capture_run(
     netlog: Path | None = None,
     android_entry: str = "typed",
 ) -> RunResult:
+    validate_timeout(timeout)
+    if not ipaddress.ip_address(listen_host).is_loopback:
+        raise ValueError("the capture listener must be a loopback address")
     if browser == "firefox" and listen_host not in ("127.0.0.1", "::1"):
         raise ValueError("Firefox hostname mapping requires 127.0.0.1 or ::1")
 
@@ -1133,6 +1172,14 @@ def render_fixture(
     launch_mode: str,
     listen_host: str,
 ) -> str:
+    for name, value in (
+        ("client", client),
+        ("client version", client_version),
+        ("operating system", operating_system),
+        ("launch mode", launch_mode),
+        ("listen host", listen_host),
+    ):
+        validate_metadata(name, value)
     lines = [
         f"format={FORMAT}",
         f"captured_at_unix={int(time.time())}",
@@ -1204,12 +1251,28 @@ def main(argv: Sequence[str] | None = None) -> None:
         parser.error("--browser-path is required unless --browser manual")
     if not ipaddress.ip_address(args.listen).is_loopback:
         parser.error("the capture listener must be a loopback address")
-    if args.repeat < 1:
-        parser.error("--repeat must be positive")
+    if not 1 <= args.repeat <= MAX_RUNS:
+        parser.error(f"--repeat must be between 1 and {MAX_RUNS}")
     names = list(SCENARIOS) if args.scenario == ["all"] else args.scenario
     unknown = sorted(set(names) - set(SCENARIOS))
     if unknown:
         parser.error(f"unknown scenarios: {', '.join(unknown)}")
+    if not 1 <= len(names) * args.repeat <= MAX_RUNS:
+        parser.error(f"scenario repeats must total between 1 and {MAX_RUNS} runs")
+    try:
+        validate_timeout(args.timeout)
+        for name, value in (
+            (
+                "client",
+                args.client
+                or LaunchPlan(args.browser, args.browser_path, True).client_name,
+            ),
+            ("client version", args.client_version),
+            ("operating system", args.operating_system),
+        ):
+            validate_metadata(name, value)
+    except ValueError as error:
+        parser.error(str(error))
     if args.netlog_dir is not None:
         args.netlog_dir.mkdir(parents=True, exist_ok=True)
     for name in names:
