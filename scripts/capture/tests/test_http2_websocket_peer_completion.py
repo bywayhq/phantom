@@ -46,14 +46,34 @@ class TlsPeer:
             await self.server.wait_closed()
         for writer in self.writers:
             writer.close()
+        cancelled = []
         for task in self.tasks:
             if not task.done():
+                cancelled.append(task)
                 task.cancel()
-        await asyncio.gather(*self.tasks, return_exceptions=True)
-        await asyncio.gather(
+        failures = []
+        for task, result in zip(
+            self.tasks,
+            await asyncio.gather(*self.tasks, return_exceptions=True),
+            strict=True,
+        ):
+            if isinstance(result, asyncio.CancelledError) and task in cancelled:
+                continue
+            if isinstance(result, BaseException) and not peers.peer_disconnected(
+                result
+            ):
+                failures.append(result)
+
+        for result in await asyncio.gather(
             *(writer.wait_closed() for writer in self.writers),
             return_exceptions=True,
-        )
+        ):
+            if isinstance(result, BaseException) and not peers.peer_disconnected(
+                result
+            ):
+                failures.append(result)
+        if failures:
+            peers.raise_scripted_failures(failures[0], failures, self)
 
 
 class PeerCompletionTests(unittest.IsolatedAsyncioTestCase):
@@ -77,10 +97,14 @@ class PeerCompletionTests(unittest.IsolatedAsyncioTestCase):
             await peer.input.wait()
             raise marker
 
-        with patch.object(peers.asyncio, "open_connection", return_value=(reader, writer)):
-            with patch.object(peers.ScriptedH2, "wait", settings):
-                with self.assertRaises(OSError) as observed:
-                    await peers.ScriptedH2.open(0)
+        with (
+            patch.object(
+                peers.asyncio, "open_connection", return_value=(reader, writer)
+            ),
+            patch.object(peers.ScriptedH2, "wait", settings),
+            self.assertRaises(OSError) as observed,
+        ):
+            await peers.ScriptedH2.open(0)
 
         self.assertIs(observed.exception, marker)
         self.assertTrue(peer.data.startswith(b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"))
@@ -89,9 +113,15 @@ class PeerCompletionTests(unittest.IsolatedAsyncioTestCase):
 
     async def retire(self, writer):
         writer.close()
-        await asyncio.gather(writer.wait_closed(), return_exceptions=True)
+        try:
+            await writer.wait_closed()
+        except OSError as error:
+            if not peers.peer_disconnected(error):
+                raise
 
-    async def test_original_completed_connection_error_is_observed_and_writer_retired(self):
+    async def test_original_completed_connection_error_is_observed_and_writer_retired(
+        self,
+    ):
         peer = TlsPeer()
         self.addAsyncCleanup(peer.backup)
         reader, writer = await self.connect(peer)
@@ -122,7 +152,6 @@ class PeerCompletionTests(unittest.IsolatedAsyncioTestCase):
         parser = []
         close_failure = ValueError("actual writer close failed")
         original_receive = client.connection.receive_data
-        original_close = writer.close
 
         def receive(data):
             try:
@@ -132,7 +161,6 @@ class PeerCompletionTests(unittest.IsolatedAsyncioTestCase):
                 raise
 
         def close():
-            original_close()
             raise close_failure
 
         await peer.accepted.wait()
@@ -141,18 +169,25 @@ class PeerCompletionTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(client.connection, "receive_data", receive):
             client.task = asyncio.create_task(client.pump())
             await asyncio.wait_for(asyncio.wait((client.task,)), 1)
-            with patch.object(writer, "close", close):
-                with self.assertRaises(BaseException) as observed:
-                    await client.close()
+            with self.assertRaises(ProtocolError) as waiting:
+                await client.wait(lambda: False)
+            with (
+                patch.object(writer, "close", close),
+                self.assertRaises(BaseException) as observed,
+            ):
+                await client.close()
 
         self.assertEqual(len(parser), 1)
+        self.assertIs(waiting.exception, parser[0])
         self.assertIs(observed.exception, parser[0])
         self.assertTrue(writer.is_closing())
         self.assertIsInstance(observed.exception.__cause__, peers.ScriptedPeerFailures)
         self.assertIn(close_failure, observed.exception.__cause__.cleanup)
         await asyncio.wait_for(peer.eof.wait(), 1)
 
-    async def test_driver_cancellation_collects_blocked_pump_and_keeps_caller_identity(self):
+    async def test_driver_cancellation_collects_blocked_pump_and_keeps_caller_identity(
+        self,
+    ):
         peer = TlsPeer()
         self.addAsyncCleanup(peer.backup)
         reader, writer = await self.connect(peer)
@@ -178,15 +213,145 @@ class PeerCompletionTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(reader, "read", read):
             client.task = asyncio.create_task(client.pump())
             await pump_ready.wait()
-            with patch.object(peers.ScriptedBrowser, "run", run):
-                with self.assertRaises(PermissionError) as observed:
-                    async with peers.driver()("https://fixture.test/"):
-                        await browser_ready.wait()
-                        raise marker
+            with (
+                patch.object(peers.ScriptedBrowser, "run", run),
+                self.assertRaises(PermissionError) as observed,
+            ):
+                async with peers.driver()("https://fixture.test/"):
+                    await browser_ready.wait()
+                    raise marker
 
         self.assertIs(observed.exception, marker)
         self.assertTrue(client.task.done())
         self.assertTrue(pump_retired.is_set())
+        self.assertTrue(writer.is_closing())
+        await asyncio.wait_for(peer.eof.wait(), 1)
+
+    async def test_driver_first_peer_error_does_not_skip_second_actual_writer(self):
+        peers_and_clients = []
+        for _ in range(2):
+            peer = TlsPeer()
+            self.addAsyncCleanup(peer.backup)
+            reader, writer = await self.connect(peer)
+            self.addAsyncCleanup(self.retire, writer)
+            peers_and_clients.append((peer, peers.ScriptedH2(reader, writer)))
+        first, second = [client for _, client in peers_and_clients]
+        marker = ConnectionResetError(errno.EIO, "first real peer input failed")
+        caller = PermissionError("driver caller failed")
+        ready = asyncio.Event()
+
+        async def failed_read(size):
+            raise marker
+
+        async def run(browser):
+            browser.page_client = first
+            browser.socket_client = second
+            ready.set()
+            await asyncio.Future()
+
+        with patch.object(first.reader, "read", failed_read):
+            first.task = asyncio.create_task(first.pump())
+            await asyncio.wait((first.task,))
+            second.task = asyncio.create_task(second.pump())
+            with (
+                patch.object(peers.ScriptedBrowser, "run", run),
+                self.assertRaises(PermissionError) as observed,
+            ):
+                async with peers.driver()("https://fixture.test/"):
+                    await ready.wait()
+                    raise caller
+
+        self.assertIs(observed.exception, caller)
+        self.assertIsInstance(caller.__cause__, peers.ScriptedPeerFailures)
+        self.assertIn(marker, caller.__cause__.cleanup)
+        for peer, client in peers_and_clients:
+            self.assertTrue(client.writer.is_closing())
+            self.assertTrue(client.task.done())
+            await asyncio.wait_for(peer.eof.wait(), 1)
+
+    async def test_close_interruption_retains_original_pump_until_actual_release(self):
+        peer = TlsPeer()
+        self.addAsyncCleanup(peer.backup)
+        reader, writer = await self.connect(peer)
+        self.addAsyncCleanup(self.retire, writer)
+        client = peers.ScriptedH2(reader, writer)
+        ready = asyncio.Event()
+        cancelled = asyncio.Event()
+        release = asyncio.Event()
+        marker = OSError(errno.EIO, "late real peer input failed")
+        cancellation = []
+
+        async def read(size):
+            ready.set()
+            try:
+                return await asyncio.StreamReader.read(reader, size)
+            except asyncio.CancelledError as error:
+                cancelled.set()
+                await release.wait()
+                raise marker from error
+
+        async def close():
+            try:
+                await client.close()
+            except asyncio.CancelledError as error:
+                cancellation.append(error)
+                raise
+
+        with patch.object(reader, "read", read):
+            client.task = asyncio.create_task(client.pump())
+            await ready.wait()
+            closing = asyncio.create_task(close())
+            self.addAsyncCleanup(self.release_pump, release, client, closing, marker)
+            await cancelled.wait()
+            closing.cancel("caller interrupted peer collection")
+            await asyncio.wait_for(peer.eof.wait(), 1)
+
+            self.assertFalse(client.task.done())
+            self.assertFalse(client.close_task.done())
+            self.assertTrue(writer.is_closing())
+            release.set()
+            await asyncio.wait((closing,), timeout=1)
+
+        self.assertTrue(closing.done())
+        self.assertEqual(len(cancellation), 1)
+        self.assertIs(cancellation[0], client.failures[0])
+        self.assertIsInstance(cancellation[0].__cause__, peers.ScriptedPeerFailures)
+        self.assertIn(marker, cancellation[0].__cause__.cleanup)
+        self.assertTrue(client.task.done())
+
+    async def release_pump(self, release, client, closing, marker):
+        release.set()
+        tasks = [client.task, closing]
+        if client.close_task is not None:
+            tasks.append(client.close_task)
+        for result in await asyncio.gather(*tasks, return_exceptions=True):
+            if result is marker or isinstance(result, asyncio.CancelledError):
+                continue
+            if isinstance(result, BaseException):
+                raise result
+
+    async def test_first_flush_failure_retires_writer_before_pump_exists(self):
+        peer = TlsPeer()
+        self.addAsyncCleanup(peer.backup)
+        reader, writer = await self.connect(peer)
+        self.addAsyncCleanup(self.retire, writer)
+        marker = OSError(errno.EIO, "first preface drain failed")
+
+        async def drain():
+            await peer.input.wait()
+            raise marker
+
+        with (
+            patch.object(
+                peers.asyncio, "open_connection", return_value=(reader, writer)
+            ),
+            patch.object(writer, "drain", drain),
+            self.assertRaises(OSError) as observed,
+        ):
+            await peers.ScriptedH2.open(0)
+
+        self.assertIs(observed.exception, marker)
+        self.assertTrue(peer.data.startswith(b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"))
         self.assertTrue(writer.is_closing())
         await asyncio.wait_for(peer.eof.wait(), 1)
 

@@ -44,6 +44,7 @@ from scripts.capture.http2_session import (
     MalformedCaptureError,
     PlainChannel,
     generate_certificate,
+    peer_disconnected,
 )
 from scripts.capture.http2_websocket import (
     CATALOG,
@@ -82,6 +83,7 @@ METADATA = CaptureMetadata(
 )
 CERTIFICATE = generate_certificate()
 TIMEOUT = 20.0
+PEER_CLEANUP_TIMEOUT = 5.0
 
 
 def client_context(alpn):
@@ -126,19 +128,46 @@ class SendPolicy:
         return b"".join(output)
 
 
+class ScriptedPeerFailures(Exception):
+    def __init__(self, primary, cleanup, owner):
+        self.primary = primary
+        self.cleanup = tuple(cleanup)
+        self.owner = owner
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        super().__init__("scripted WebSocket peer cleanup failed")
+
+
+def raise_scripted_failures(primary, cleanup, owner):
+    cleanup = [error for error in cleanup if error is not primary]
+    if cleanup:
+        packet = ScriptedPeerFailures(primary, cleanup, owner)
+        if primary is not None:
+            raise primary from packet
+        raise cleanup[0] from packet
+
+    if primary is not None:
+        raise primary
+
+
 class ScriptedH2:
     """A minimal H2 client over TLS with a background frame pump."""
 
     def __init__(self, reader, writer):
         self.reader = reader
         self.writer = writer
-        self.connection = H2Connection(
-            H2Configuration(client_side=True, header_encoding=None)
-        )
         self.events = []
         self.changed = asyncio.Event()
         self.settings_received = False
         self.task = None
+        self.pump_observed = False
+        self.cancel_requested = False
+        self.close_task = None
+        self.closed = None
+        self.failures = []
+        self.connection = H2Connection(
+            H2Configuration(client_side=True, header_encoding=None)
+        )
 
     @classmethod
     async def open(cls, port):
@@ -148,11 +177,20 @@ class ScriptedH2:
             ssl=client_context(("h2", "http/1.1")),
             server_hostname=HOSTNAME,
         )
-        client = cls(reader, writer)
-        client.connection.initiate_connection()
-        await client.flush()
-        client.task = asyncio.create_task(client.pump())
-        await client.wait(lambda: client.settings_received)
+        client = cls.__new__(cls)
+        try:
+            client.__init__(reader, writer)
+            client.connection.initiate_connection()
+            await client.flush()
+            work = client.pump()
+            try:
+                client.task = asyncio.create_task(work)
+            except BaseException:
+                work.close()
+                raise
+            await client.wait(lambda: client.settings_received)
+        except BaseException as error:
+            await client.close(error)
         return client
 
     async def flush(self):
@@ -162,26 +200,32 @@ class ScriptedH2:
             await self.writer.drain()
 
     async def pump(self):
-        while True:
-            data = await self.reader.read(65536)
-            if not data:
+        try:
+            while True:
+                data = await self.reader.read(65536)
+                if not data:
+                    return
+                events = self.connection.receive_data(data)
+                for event in events:
+                    if isinstance(event, RemoteSettingsChanged):
+                        self.settings_received = True
+                    if isinstance(event, DataReceived) and event.flow_controlled_length:
+                        self.connection.acknowledge_received_data(
+                            event.flow_controlled_length, event.stream_id
+                        )
+                self.events.extend(events)
+                await self.flush()
                 self.changed.set()
-                return
-            events = self.connection.receive_data(data)
-            for event in events:
-                if isinstance(event, RemoteSettingsChanged):
-                    self.settings_received = True
-                if isinstance(event, DataReceived) and event.flow_controlled_length:
-                    self.connection.acknowledge_received_data(
-                        event.flow_controlled_length, event.stream_id
-                    )
-            self.events.extend(events)
-            await self.flush()
+        finally:
             self.changed.set()
 
     async def wait(self, predicate):
         async def loop():
             while not predicate():
+                if self.task is not None and self.task.done():
+                    self.task.result()
+                    raise EOFError("scripted HTTP2 peer ended before its response")
+
                 self.changed.clear()
                 if predicate():
                     return
@@ -235,12 +279,94 @@ class ScriptedH2:
             )
         )
 
-    async def close(self):
-        if self.task is not None:
+    def failed(self, error):
+        if not any(previous is error for previous in self.failures):
+            self.failures.append(error)
+
+    async def collect(self, task):
+        deadline = asyncio.get_running_loop().time() + PEER_CLEANUP_TIMEOUT
+        while not task.done():
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                self.failed(
+                    TimeoutError("scripted HTTP2 peer cleanup is still pending")
+                )
+                return False
+            try:
+                await asyncio.wait((task,), timeout=remaining)
+            except BaseException as error:
+                self.failed(error)
+        return True
+
+    async def close_work(self):
+        if self.task is not None and self.task.done() and not self.pump_observed:
+            self.observe_pump()
+
+        if self.task is not None and not self.task.done():
+            self.cancel_requested = True
             self.task.cancel()
-            with contextlib.suppress(asyncio.CancelledError, ConnectionError):
-                await self.task
-        self.writer.close()
+
+        try:
+            self.writer.close()
+        except BaseException as error:
+            self.failed(error)
+            try:
+                self.writer.transport.abort()
+            except BaseException as cleanup:
+                self.failed(cleanup)
+
+        if self.closed is None:
+            work = self.writer.wait_closed()
+            try:
+                self.closed = asyncio.create_task(work)
+            except BaseException as error:
+                work.close()
+                self.failed(error)
+
+        if (
+            self.task is not None
+            and not self.pump_observed
+            and await self.collect(self.task)
+        ):
+            self.observe_pump()
+
+        if self.closed is not None and await self.collect(self.closed):
+            try:
+                self.closed.result()
+            except BaseException as error:
+                if not peer_disconnected(error) or error.__cause__ is not None:
+                    self.failed(error)
+
+    def observe_pump(self):
+        self.pump_observed = True
+        try:
+            self.task.result()
+        except asyncio.CancelledError as error:
+            if not self.cancel_requested or error.__cause__ is not None:
+                self.failed(error)
+        except BaseException as error:
+            self.failed(error)
+
+    def start_close(self):
+        if self.close_task is None or self.close_task.done():
+            work = self.close_work()
+            try:
+                self.close_task = asyncio.create_task(work)
+            except BaseException as error:
+                work.close()
+                self.failed(error)
+
+    async def close(self, primary=None):
+        self.start_close()
+        if self.close_task is not None and await self.collect(self.close_task):
+            try:
+                self.close_task.result()
+            except BaseException as error:
+                self.failed(error)
+
+        if primary is None and self.failures:
+            primary = self.failures[0]
+        raise_scripted_failures(primary, self.failures, self)
 
 
 class ScriptedBrowser:
@@ -264,6 +390,127 @@ class ScriptedBrowser:
         self.fallback_alpn = fallback_alpn
         self.page_client = None
         self.socket_client = None
+        self.task = None
+        self.cancel_requested = False
+        self.close_task = None
+        self.writers = []
+        self.closed = {}
+        self.failures = []
+
+    def failed(self, error):
+        if not any(previous is error for previous in self.failures):
+            self.failures.append(error)
+
+    async def collect(self, task):
+        deadline = asyncio.get_running_loop().time() + PEER_CLEANUP_TIMEOUT
+        while not task.done():
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                self.failed(TimeoutError("scripted browser cleanup is still pending"))
+                return False
+            try:
+                await asyncio.wait((task,), timeout=remaining)
+            except BaseException as error:
+                self.failed(error)
+        return True
+
+    async def retire(self, writer, primary=None):
+        failures = []
+        try:
+            writer.close()
+        except BaseException as error:
+            failures.append(error)
+            self.failed(error)
+            try:
+                writer.transport.abort()
+            except BaseException as cleanup:
+                failures.append(cleanup)
+                self.failed(cleanup)
+
+        waiter = self.closed.get(writer)
+        if waiter is None:
+            work = writer.wait_closed()
+            try:
+                waiter = asyncio.create_task(work)
+                self.closed[writer] = waiter
+            except BaseException as error:
+                work.close()
+                failures.append(error)
+                self.failed(error)
+
+        if waiter is not None:
+            seen = len(self.failures)
+            collected = await self.collect(waiter)
+            failures.extend(self.failures[seen:])
+            if collected:
+                try:
+                    waiter.result()
+                except BaseException as error:
+                    if not peer_disconnected(error) or error.__cause__ is not None:
+                        failures.append(error)
+                        self.failed(error)
+
+        raise_scripted_failures(primary, failures, self)
+
+    async def close_work(self):
+        if self.task is not None and not self.task.done():
+            self.cancel_requested = True
+            self.task.cancel()
+
+        for writer in self.writers:
+            try:
+                writer.close()
+            except BaseException as error:
+                self.failed(error)
+                try:
+                    writer.transport.abort()
+                except BaseException as cleanup:
+                    self.failed(cleanup)
+
+        for client in (self.page_client, self.socket_client):
+            if client is not None:
+                client.start_close()
+
+        for client in (self.page_client, self.socket_client):
+            if client is not None:
+                try:
+                    await client.close()
+                except BaseException as error:
+                    self.failed(error)
+
+        for writer in self.writers:
+            try:
+                await self.retire(writer)
+            except BaseException as error:
+                self.failed(error)
+
+        if self.task is not None and await self.collect(self.task):
+            try:
+                self.task.result()
+            except asyncio.CancelledError as error:
+                if not self.cancel_requested or error.__cause__ is not None:
+                    self.failed(error)
+            except BaseException as error:
+                self.failed(error)
+
+    async def close(self, primary=None):
+        if self.close_task is None or self.close_task.done():
+            work = self.close_work()
+            try:
+                self.close_task = asyncio.create_task(work)
+            except BaseException as error:
+                work.close()
+                self.failed(error)
+
+        if self.close_task is not None and await self.collect(self.close_task):
+            try:
+                self.close_task.result()
+            except BaseException as error:
+                self.failed(error)
+
+        if primary is None and self.failures:
+            primary = self.failures[0]
+        raise_scripted_failures(primary, self.failures, self)
 
     async def run(self):
         parts = urlsplit(self.page_url)
@@ -272,7 +519,7 @@ class ScriptedBrowser:
             self.page_client = await ScriptedH2.open(parts.port)
             body = await self.page_client.get(target)
         else:
-            body = await http1_get(parts.port, target)
+            body = await http1_get(parts.port, target, self)
         socket_url = re.search(rb'const socketUrl = "([^"]+)"', body).group(1)
         done = re.search(rb'const doneUrl = "([^"]+)"', body).group(1).decode()
         result = await self.websocket(urlsplit(socket_url.decode()))
@@ -280,7 +527,7 @@ class ScriptedBrowser:
         if self.page_client is not None:
             await self.page_client.get(done_target)
         else:
-            await http1_get(parts.port, done_target)
+            await http1_get(parts.port, done_target, self)
 
     async def websocket(self, url):
         client = self.page_client
@@ -369,6 +616,8 @@ class ScriptedBrowser:
             )
         else:
             reader, writer = await asyncio.open_connection("127.0.0.1", url.port)
+        self.writers.append(writer)
+        primary = None
         try:
             target = f"{url.path}?{url.query}"
             fields = self.upgrade_fields or [
@@ -401,12 +650,17 @@ class ScriptedBrowser:
                     break
                 received.extend(frames.feed(data))
             return {"opened": "true", "code": "1000", "echoed": str(len(received) - 1)}
+        except BaseException as error:
+            primary = error
+            raise
         finally:
-            writer.close()
+            await self.retire(writer, primary)
 
 
-async def http1_get(port, target):
+async def http1_get(port, target, browser):
     reader, writer = await asyncio.open_connection("127.0.0.1", port)
+    browser.writers.append(writer)
+    primary = None
     try:
         writer.write(
             f"GET {target} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\r\n".encode()
@@ -415,33 +669,41 @@ async def http1_get(port, target):
         head = await reader.readuntil(b"\r\n\r\n")
         length = int(re.search(rb"content-length: (\d+)", head).group(1))
         return await reader.readexactly(length)
+    except BaseException as error:
+        primary = error
+        raise
     finally:
-        writer.close()
+        await browser.retire(writer, primary)
 
 
 def driver(**options):
     @contextlib.asynccontextmanager
     async def drive(url):
         browser = ScriptedBrowser(url, **options)
-        task = asyncio.create_task(browser.run())
+        primary = None
+        work = browser.run()
         try:
+            browser.task = asyncio.create_task(work)
             yield
-            await asyncio.wait_for(task, TIMEOUT)
-        finally:
-            task.cancel()
-            with contextlib.suppress(asyncio.CancelledError, ConnectionError):
-                await task
-            for client in (browser.page_client, browser.socket_client):
-                if client is not None:
-                    await client.close()
+            done, _ = await asyncio.wait((browser.task,), timeout=TIMEOUT)
+            if not done:
+                raise TimeoutError("scripted browser did not complete")
+            browser.task.result()
+        except BaseException as error:
+            primary = error
+            if browser.task is None:
+                work.close()
+        await browser.close(primary)
 
     return drive
 
 
 async def capture(name, **options):
     server = CaptureServer(CERTIFICATE)
-    await server.start("127.0.0.1")
+    primary = None
+    cleanup = []
     try:
+        await server.start("127.0.0.1")
         [run] = await capture_scenario(
             server,
             SCENARIOS[name],
@@ -450,9 +712,15 @@ async def capture(name, **options):
             observation_seconds=0.2,
             drive=driver(**options),
         )
-        return run
-    finally:
+    except BaseException as error:
+        primary = error
+
+    try:
         await server.close()
+    except BaseException as error:
+        cleanup.append(error)
+    raise_scripted_failures(primary, cleanup, server)
+    return run
 
 
 def fixture_fields(text):
