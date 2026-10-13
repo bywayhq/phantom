@@ -6,6 +6,7 @@
 
 #[path = "websocket_profile/fixture.rs"]
 pub(crate) mod fixture;
+pub(crate) mod forward_proxy;
 mod proxy;
 #[path = "websocket_profile/server.rs"]
 pub(crate) mod server;
@@ -13,7 +14,7 @@ use crate::support::tls as tls_support;
 use crate::support::tracing as tracing_support;
 use crate::support::websocket as websocket_support;
 
-use std::{net::Ipv4Addr, num::NonZeroUsize, sync::Arc, time::Duration};
+use std::{num::NonZeroUsize, sync::Arc, time::Duration};
 
 use http::Version;
 use http_body_util::BodyExt;
@@ -27,6 +28,7 @@ use phantom::{
 };
 
 use fixture::{Capture, Representation};
+use forward_proxy::ForwardProxy;
 #[cfg(feature = "websocket-deflate")]
 use server::ClientDataFrame;
 use server::{Behavior, ConnectionLog, H2Headers, Reply, TestServer, client_resets};
@@ -186,9 +188,9 @@ async fn chromium_without_a_session_upgrades_on_a_new_http1_only_connection() ->
     ] {
         let capture = Capture::parse(fixture)?;
         assert_eq!(capture.value("scenario")?, "fresh-origin");
-        bounded(async {
-            let identity = Arc::new(TestIdentity::generate()?);
-            let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+        let identity = Arc::new(TestIdentity::generate()?);
+        let mut server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+        let caller = bounded(async {
             let settings = chrome::v154_websocket();
             let client = profile_client(&identity, chrome::v154_http2(), settings.clone())?;
 
@@ -201,7 +203,8 @@ async fn chromium_without_a_session_upgrades_on_a_new_http1_only_connection() ->
             assert_http1_upgrade(&connections[0], &capture)?;
             Ok(())
         })
-        .await?;
+        .await;
+        server.finish(caller).await?;
     }
     Ok(())
 }
@@ -226,9 +229,9 @@ async fn firefox_with_an_incapable_session_upgrades_on_a_new_http1_only_connecti
 async fn firefox_without_a_session_opens_a_new_http2_connection() -> TestResult<()> {
     let capture = Capture::parse(FIREFOX_FRESH)?;
     assert_eq!(capture.value("scenario")?, "fresh-origin");
-    bounded(async {
-        let identity = Arc::new(TestIdentity::generate()?);
-        let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+    let identity = Arc::new(TestIdentity::generate()?);
+    let mut server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+    let caller = bounded(async {
         let settings = firefox::v157_websocket();
         let client = profile_client(&identity, firefox::v157_http2(), settings.clone())?;
         let connect = capture.connect()?;
@@ -250,7 +253,8 @@ async fn firefox_without_a_session_opens_a_new_http2_connection() -> TestResult<
         assert_connect_matches(&connection.h2[0], &connect)?;
         Ok(())
     })
-    .await
+    .await;
+    server.finish(caller).await
 }
 
 #[tokio::test]
@@ -261,9 +265,9 @@ async fn plaintext_websocket_upgrades_with_the_captured_http1_fields() -> TestRe
     ] {
         let capture = Capture::parse(fixture)?;
         assert_eq!(capture.value("socket_scheme")?, "ws");
-        bounded(async {
-            let identity = TestIdentity::generate()?;
-            let server = TestServer::start_plaintext(Behavior::ACCEPT).await?;
+        let identity = TestIdentity::generate()?;
+        let mut server = TestServer::start_plaintext(Behavior::ACCEPT).await?;
+        let caller = bounded(async {
             let client = profile_client(&identity, http2, settings.clone())?;
             let upgrade = capture.upgrade()?;
             let path = upgrade
@@ -285,7 +289,8 @@ async fn plaintext_websocket_upgrades_with_the_captured_http1_fields() -> TestRe
             assert_http1_upgrade(&connections[0], &capture)?;
             Ok(())
         })
-        .await?;
+        .await;
+        server.finish(caller).await?;
     }
     Ok(())
 }
@@ -325,15 +330,13 @@ async fn plaintext_websocket_through_an_http_proxy_tunnels_the_captured_opening(
         let direct = Capture::parse(direct)?;
         let proxied = Capture::parse(proxied)?;
         assert_eq!(proxied.value("proxy")?, "http");
-        bounded(async {
-            let identity = TestIdentity::generate()?;
-            let server = TestServer::start_plaintext(Behavior::ACCEPT).await?;
-            let proxy_listener = tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
-            let proxy_address = proxy_listener.local_addr()?;
-            let proxy = tokio::spawn(websocket_support::forward_one_connect(
-                proxy_listener,
-                server.address,
-            ));
+        let identity = TestIdentity::generate()?;
+        let mut server = TestServer::start_plaintext(Behavior::ACCEPT).await?;
+        let mut proxy = None;
+        let caller = bounded(async {
+            proxy = Some(ForwardProxy::start(server.address).await?);
+            let proxy = proxy.as_mut().ok_or("CONNECT proxy was not acquired")?;
+            let proxy_address = proxy.address;
             let captured_connect = proxied.tunnel_connect()?;
             // The profile's CONNECT recipe supplies the fields; the route
             // sets none.
@@ -360,7 +363,7 @@ async fn plaintext_websocket_through_an_http_proxy_tunnels_the_captured_opening(
                 .await?;
             exchange(socket).await?;
 
-            let connect = proxy.await??;
+            let connect = proxy.head().await?;
             let connect = String::from_utf8(connect)?;
             let mut lines = connect.trim_end().split("\r\n");
             assert_eq!(
@@ -410,20 +413,25 @@ async fn plaintext_websocket_through_an_http_proxy_tunnels_the_captured_opening(
             );
             Ok(())
         })
-        .await?;
+        .await;
+        let caller = match proxy.as_mut() {
+            Some(proxy) => proxy.finish(caller).await,
+            None => caller,
+        };
+        server.finish(caller).await?;
     }
     Ok(())
 }
 
 #[tokio::test]
 async fn rejected_connect_on_a_pooled_session_is_returned_without_fallback() -> TestResult<()> {
-    bounded(async {
-        let identity = Arc::new(TestIdentity::generate()?);
-        let behavior = Behavior {
-            connect: Reply::Reject,
-            ..Behavior::ACCEPT
-        };
-        let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+    let identity = Arc::new(TestIdentity::generate()?);
+    let behavior = Behavior {
+        connect: Reply::Reject,
+        ..Behavior::ACCEPT
+    };
+    let mut server = TestServer::start(Arc::clone(&identity), behavior).await?;
+    let caller = bounded(async {
         let client = profile_client(&identity, chrome::v154_http2(), chrome::v154_websocket())?;
         ordinary_get(&client, &server).await?;
 
@@ -442,7 +450,8 @@ async fn rejected_connect_on_a_pooled_session_is_returned_without_fallback() -> 
         assert_eq!(methods(&connections[0]), ["GET", "CONNECT"]);
         Ok(())
     })
-    .await
+    .await;
+    server.finish(caller).await
 }
 
 /// Chrome 154 and Edge 154 answer `RST_STREAM(REFUSED_STREAM)` with one more
@@ -450,13 +459,13 @@ async fn rejected_connect_on_a_pooled_session_is_returned_without_fallback() -> 
 /// the peer then accepted; see the retained `refused-stream` captures.
 #[tokio::test]
 async fn refused_connect_stream_reopens_once_on_the_same_session() -> TestResult<()> {
-    bounded(async {
-        let identity = Arc::new(TestIdentity::generate()?);
-        let behavior = Behavior {
-            connect: Reply::RefuseFirstStream,
-            ..Behavior::ACCEPT
-        };
-        let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+    let identity = Arc::new(TestIdentity::generate()?);
+    let behavior = Behavior {
+        connect: Reply::RefuseFirstStream,
+        ..Behavior::ACCEPT
+    };
+    let mut server = TestServer::start(Arc::clone(&identity), behavior).await?;
+    let caller = bounded(async {
         let client = profile_client(&identity, chrome::v154_http2(), chrome::v154_websocket())?;
         ordinary_get(&client, &server).await?;
 
@@ -486,7 +495,8 @@ async fn refused_connect_stream_reopens_once_on_the_same_session() -> TestResult
         // block to a 58-byte one.
         Ok(())
     })
-    .await
+    .await;
+    server.finish(caller).await
 }
 
 /// Proves the span signal the exclusion tests rely on is actually recorded, so
@@ -495,19 +505,20 @@ async fn refused_connect_stream_reopens_once_on_the_same_session() -> TestResult
 async fn reopening_is_recorded_in_the_connect_span() -> TestResult<()> {
     let subscriber = OutcomeSubscriber::default();
     async {
-        bounded(async {
-            let identity = Arc::new(TestIdentity::generate()?);
-            let behavior = Behavior {
-                connect: Reply::RefuseFirstStream,
-                ..Behavior::ACCEPT
-            };
-            let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+        let identity = Arc::new(TestIdentity::generate()?);
+        let behavior = Behavior {
+            connect: Reply::RefuseFirstStream,
+            ..Behavior::ACCEPT
+        };
+        let mut server = TestServer::start(Arc::clone(&identity), behavior).await?;
+        let caller = bounded(async {
             let client = profile_client(&identity, chrome::v154_http2(), chrome::v154_websocket())?;
             ordinary_get(&client, &server).await?;
             websocket(&client, &server)?.connect().await?;
             Ok(())
         })
-        .await
+        .await;
+        server.finish(caller).await
     }
     .with_subscriber(subscriber.dispatch())
     .await?;
@@ -525,13 +536,13 @@ async fn reopening_is_recorded_in_the_connect_span() -> TestResult<()> {
 async fn reset_other_than_refused_stream_is_not_reopened() -> TestResult<()> {
     let subscriber = OutcomeSubscriber::default();
     async {
-        bounded(async {
-            let identity = Arc::new(TestIdentity::generate()?);
-            let behavior = Behavior {
-                connect: Reply::ResetStream,
-                ..Behavior::ACCEPT
-            };
-            let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+        let identity = Arc::new(TestIdentity::generate()?);
+        let behavior = Behavior {
+            connect: Reply::ResetStream,
+            ..Behavior::ACCEPT
+        };
+        let mut server = TestServer::start(Arc::clone(&identity), behavior).await?;
+        let caller = bounded(async {
             let client = profile_client(&identity, chrome::v154_http2(), chrome::v154_websocket())?;
             ordinary_get(&client, &server).await?;
 
@@ -546,7 +557,8 @@ async fn reset_other_than_refused_stream_is_not_reopened() -> TestResult<()> {
             assert_eq!(methods(&connections[0]), ["GET", "CONNECT"]);
             Ok(())
         })
-        .await
+        .await;
+        server.finish(caller).await
     }
     .with_subscriber(subscriber.dispatch())
     .await?;
@@ -562,13 +574,13 @@ async fn reset_other_than_refused_stream_is_not_reopened() -> TestResult<()> {
 /// A second refusal is reported: the profile allows one reopening, not a loop.
 #[tokio::test]
 async fn twice_refused_connect_stream_fails_without_a_third_attempt() -> TestResult<()> {
-    bounded(async {
-        let identity = Arc::new(TestIdentity::generate()?);
-        let behavior = Behavior {
-            connect: Reply::RefuseStream,
-            ..Behavior::ACCEPT
-        };
-        let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+    let identity = Arc::new(TestIdentity::generate()?);
+    let behavior = Behavior {
+        connect: Reply::RefuseStream,
+        ..Behavior::ACCEPT
+    };
+    let mut server = TestServer::start(Arc::clone(&identity), behavior).await?;
+    let caller = bounded(async {
         let client = profile_client(&identity, chrome::v154_http2(), chrome::v154_websocket())?;
         ordinary_get(&client, &server).await?;
 
@@ -583,7 +595,8 @@ async fn twice_refused_connect_stream_fails_without_a_third_attempt() -> TestRes
         assert_eq!(methods(&connections[0]), ["GET", "CONNECT", "CONNECT"]);
         Ok(())
     })
-    .await
+    .await;
+    server.finish(caller).await
 }
 
 /// A peer that shuts the session down under the extended CONNECT fails the
@@ -597,13 +610,13 @@ async fn twice_refused_connect_stream_fails_without_a_third_attempt() -> TestRes
 async fn session_shutdown_under_the_connect_stream_is_not_reopened() -> TestResult<()> {
     let subscriber = OutcomeSubscriber::default();
     async {
-        bounded(async {
-            let identity = Arc::new(TestIdentity::generate()?);
-            let behavior = Behavior {
-                connect: Reply::GoAway,
-                ..Behavior::ACCEPT
-            };
-            let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+        let identity = Arc::new(TestIdentity::generate()?);
+        let behavior = Behavior {
+            connect: Reply::GoAway,
+            ..Behavior::ACCEPT
+        };
+        let mut server = TestServer::start(Arc::clone(&identity), behavior).await?;
+        let caller = bounded(async {
             let client = profile_client(&identity, chrome::v154_http2(), chrome::v154_websocket())?;
             ordinary_get(&client, &server).await?;
 
@@ -618,7 +631,8 @@ async fn session_shutdown_under_the_connect_stream_is_not_reopened() -> TestResu
             assert_eq!(methods(&connections[0]), ["GET", "CONNECT"]);
             Ok(())
         })
-        .await
+        .await;
+        server.finish(caller).await
     }
     .with_subscriber(subscriber.dispatch())
     .await?;
@@ -635,13 +649,13 @@ async fn session_shutdown_under_the_connect_stream_is_not_reopened() -> TestResu
 /// in the retained captures, so its recipe reopens nothing.
 #[tokio::test]
 async fn refused_connect_stream_is_not_retried_without_the_profile_rule() -> TestResult<()> {
-    bounded(async {
-        let identity = Arc::new(TestIdentity::generate()?);
-        let behavior = Behavior {
-            connect: Reply::RefuseFirstStream,
-            ..Behavior::ACCEPT
-        };
-        let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+    let identity = Arc::new(TestIdentity::generate()?);
+    let behavior = Behavior {
+        connect: Reply::RefuseFirstStream,
+        ..Behavior::ACCEPT
+    };
+    let mut server = TestServer::start(Arc::clone(&identity), behavior).await?;
+    let caller = bounded(async {
         let client = profile_client(&identity, firefox::v157_http2(), firefox::v157_websocket())?;
         ordinary_get(&client, &server).await?;
 
@@ -656,19 +670,20 @@ async fn refused_connect_stream_is_not_retried_without_the_profile_rule() -> Tes
         assert_eq!(methods(&connections[0]), ["GET", "CONNECT"]);
         Ok(())
     })
-    .await
+    .await;
+    server.finish(caller).await
 }
 
 #[tokio::test]
 async fn new_http2_connection_without_the_peer_setting_fails_without_http1_fallback()
 -> TestResult<()> {
-    bounded(async {
-        let identity = Arc::new(TestIdentity::generate()?);
-        let behavior = Behavior {
-            connect_protocol: false,
-            ..Behavior::ACCEPT
-        };
-        let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+    let identity = Arc::new(TestIdentity::generate()?);
+    let behavior = Behavior {
+        connect_protocol: false,
+        ..Behavior::ACCEPT
+    };
+    let mut server = TestServer::start(Arc::clone(&identity), behavior).await?;
+    let caller = bounded(async {
         let client = profile_client(&identity, firefox::v157_http2(), firefox::v157_websocket())?;
 
         let error = match websocket(&client, &server)?.connect().await {
@@ -684,18 +699,19 @@ async fn new_http2_connection_without_the_peer_setting_fails_without_http1_fallb
         assert!(connections[0].h1.is_empty());
         Ok(())
     })
-    .await
+    .await;
+    server.finish(caller).await
 }
 
 #[tokio::test]
 async fn rejected_http1_upgrade_is_returned_without_another_connection() -> TestResult<()> {
-    bounded(async {
-        let identity = Arc::new(TestIdentity::generate()?);
-        let behavior = Behavior {
-            upgrade: Reply::Reject,
-            ..Behavior::ACCEPT
-        };
-        let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+    let identity = Arc::new(TestIdentity::generate()?);
+    let behavior = Behavior {
+        upgrade: Reply::Reject,
+        ..Behavior::ACCEPT
+    };
+    let mut server = TestServer::start(Arc::clone(&identity), behavior).await?;
+    let caller = bounded(async {
         let client = profile_client(&identity, chrome::v154_http2(), chrome::v154_websocket())?;
 
         let error = match websocket(&client, &server)?.connect().await {
@@ -709,15 +725,16 @@ async fn rejected_http1_upgrade_is_returned_without_another_connection() -> Test
         assert_eq!(connections[0].h1.len(), 1);
         Ok(())
     })
-    .await
+    .await;
+    server.finish(caller).await
 }
 
 #[tokio::test]
 async fn exact_http2_uses_the_profile_template_and_connect_priority() -> TestResult<()> {
     let capture = Capture::parse(FIREFOX_FRESH)?;
-    bounded(async {
-        let identity = Arc::new(TestIdentity::generate()?);
-        let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+    let identity = Arc::new(TestIdentity::generate()?);
+    let mut server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+    let caller = bounded(async {
         let settings = firefox::v157_websocket();
         let client = profile_client(&identity, firefox::v157_http2(), settings.clone())?;
         let connect = capture.connect()?;
@@ -738,7 +755,8 @@ async fn exact_http2_uses_the_profile_template_and_connect_priority() -> TestRes
         assert_eq!(connections[0].h2[0].priority, Some(connect.priority));
         Ok(())
     })
-    .await
+    .await;
+    server.finish(caller).await
 }
 
 #[tokio::test]
@@ -758,9 +776,9 @@ async fn profile_policy_requires_websocket_settings() -> TestResult<()> {
 
 #[tokio::test]
 async fn profile_policy_rejects_a_replaced_field_sequence_before_io() -> TestResult<()> {
-    bounded(async {
-        let identity = Arc::new(TestIdentity::generate()?);
-        let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+    let identity = Arc::new(TestIdentity::generate()?);
+    let mut server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+    let caller = bounded(async {
         let client = profile_client(&identity, chrome::v154_http2(), chrome::v154_websocket())?;
         let error = match websocket(&client, &server)?
             .headers(vec![WebSocketHeader::field(RequestHeader::new(
@@ -777,55 +795,53 @@ async fn profile_policy_rejects_a_replaced_field_sequence_before_io() -> TestRes
         assert!(server.connections()?.is_empty());
         Ok(())
     })
-    .await
+    .await;
+    server.finish(caller).await
 }
 
 #[tokio::test]
 async fn websocket_on_pooled_session_counts_against_origin_admission() -> TestResult<()> {
     for negotiated in [true, false] {
-        bounded(async {
-            let identity = Arc::new(TestIdentity::generate()?);
-            let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+        let identity = Arc::new(TestIdentity::generate()?);
+        let mut server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+        let caller = bounded(async {
             let client = bounded_client(&identity, NonZeroUsize::MIN, NonZeroUsize::MIN)?;
             pooled_get(&client, &server, negotiated).await?;
             let mut socket = websocket(&client, &server)?.connect().await?;
             assert_eq!(socket.handshake_response().version(), Version::HTTP_2);
 
             // With one active slot per origin, the open WebSocket holds it.
-            let waiting = tokio::spawn({
-                let client = client.clone();
-                let address = server.address;
-                async move {
-                    pooled_get_at(&client, address, negotiated)
-                        .await
-                        .map_err(|error| error.to_string())
+            let waiting = pooled_get_at(&client, server.address, negotiated);
+            tokio::pin!(waiting);
+            tokio::select! {
+                biased;
+                result = &mut waiting => {
+                    result?;
+                    return Err("request bypassed the WebSocket's admission".into());
                 }
-            });
-            tokio::time::sleep(Duration::from_millis(200)).await;
-            assert!(
-                !waiting.is_finished(),
-                "request bypassed the WebSocket's admission"
-            );
+                () = tokio::time::sleep(Duration::from_millis(200)) => {}
+            }
             assert_eq!(methods(&server.connections()?[0]), ["GET", "CONNECT"]);
 
             close_gracefully(&mut socket).await?;
-            waiting.await??;
+            waiting.await?;
             assert_eq!(
                 methods(&server.connections()?[0]),
                 ["GET", "CONNECT", "GET"]
             );
             Ok(())
         })
-        .await?;
+        .await;
+        server.finish(caller).await?;
     }
     Ok(())
 }
 
 #[tokio::test]
 async fn admission_released_when_pooled_websocket_closes() -> TestResult<()> {
-    bounded(async {
-        let identity = Arc::new(TestIdentity::generate()?);
-        let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+    let identity = Arc::new(TestIdentity::generate()?);
+    let mut server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+    let caller = bounded(async {
         let client = bounded_client(&identity, NonZeroUsize::MIN, NonZeroUsize::MIN)?;
         ordinary_get(&client, &server).await?;
 
@@ -851,29 +867,30 @@ async fn admission_released_when_pooled_websocket_closes() -> TestResult<()> {
         );
         Ok(())
     })
-    .await
+    .await;
+    server.finish(caller).await
 }
 
 #[tokio::test]
 async fn pooled_websocket_fails_with_capacity_when_origin_waiters_are_full() -> TestResult<()> {
-    bounded(async {
-        let identity = Arc::new(TestIdentity::generate()?);
-        let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+    let identity = Arc::new(TestIdentity::generate()?);
+    let mut server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+    let caller = bounded(async {
         let client = bounded_client(&identity, NonZeroUsize::MIN, NonZeroUsize::MIN)?;
         ordinary_get(&client, &server).await?;
         let socket = websocket(&client, &server)?.connect().await?;
 
         // The active slot is taken and one request fills the waiting bound.
-        let waiting = tokio::spawn({
-            let client = client.clone();
-            let address = server.address;
-            async move {
-                pooled_get_at(&client, address, true)
-                    .await
-                    .map_err(|error| error.to_string())
+        let waiting = pooled_get_at(&client, server.address, true);
+        tokio::pin!(waiting);
+        tokio::select! {
+            biased;
+            result = &mut waiting => {
+                result?;
+                return Err("request bypassed the WebSocket's admission".into());
             }
-        });
-        tokio::time::sleep(Duration::from_millis(200)).await;
+            () = tokio::time::sleep(Duration::from_millis(200)) => {}
+        }
         let error = match websocket(&client, &server)?.connect().await {
             Ok(_) => return Err("WebSocket exceeded the origin's waiting bound".into()),
             Err(error) => error,
@@ -881,11 +898,12 @@ async fn pooled_websocket_fails_with_capacity_when_origin_waiters_are_full() -> 
         assert_eq!(error.kind(), WebSocketErrorKind::Capacity);
 
         drop(socket);
-        waiting.await??;
+        waiting.await?;
         assert_eq!(server.connections()?.len(), 1);
         Ok(())
     })
-    .await
+    .await;
+    server.finish(caller).await
 }
 
 #[test]
@@ -909,9 +927,9 @@ async fn assert_reuses_session(
     http2: Http2Settings,
     settings: WebSocketSettings,
 ) -> TestResult<()> {
-    bounded(async {
-        let identity = Arc::new(TestIdentity::generate()?);
-        let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+    let identity = Arc::new(TestIdentity::generate()?);
+    let mut server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+    let caller = bounded(async {
         let client = profile_client(&identity, http2.clone(), settings.clone())?;
         let session = PooledSession {
             authority: &server.address.to_string(),
@@ -920,7 +938,8 @@ async fn assert_reuses_session(
         assert_websocket_joins_the_session(&client, &server, session, capture, &http2, &settings)
             .await
     })
-    .await
+    .await;
+    server.finish(caller).await
 }
 
 /// The origin and pool of the ordinary requests around a WebSocket.
@@ -992,13 +1011,13 @@ async fn assert_incapable_session_upgrades(
     settings: WebSocketSettings,
 ) -> TestResult<()> {
     assert_eq!(capture.value("scenario")?, "no-connect-protocol");
-    bounded(async {
-        let identity = Arc::new(TestIdentity::generate()?);
-        let behavior = Behavior {
-            connect_protocol: false,
-            ..Behavior::ACCEPT
-        };
-        let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+    let identity = Arc::new(TestIdentity::generate()?);
+    let behavior = Behavior {
+        connect_protocol: false,
+        ..Behavior::ACCEPT
+    };
+    let mut server = TestServer::start(Arc::clone(&identity), behavior).await?;
+    let caller = bounded(async {
         let client = profile_client(&identity, http2, settings.clone())?;
 
         ordinary_get(&client, &server).await?;
@@ -1017,7 +1036,8 @@ async fn assert_incapable_session_upgrades(
         assert_http1_upgrade(&connections[1], capture)?;
         Ok(())
     })
-    .await
+    .await;
+    server.finish(caller).await
 }
 
 fn assert_http1_upgrade(connection: &ConnectionLog, capture: &Capture) -> TestResult<()> {
@@ -1107,9 +1127,9 @@ async fn emitted_connect_pseudo(
     settings: WebSocketSettings,
 ) -> TestResult<Vec<(String, Representation)>> {
     let mut pseudo = Vec::new();
-    bounded(async {
-        let identity = Arc::new(TestIdentity::generate()?);
-        let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+    let identity = Arc::new(TestIdentity::generate()?);
+    let mut server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+    let caller = bounded(async {
         let client = profile_client(&identity, http2, settings)?;
         ordinary_get(&client, &server).await?;
         let socket = websocket(&client, &server)?.connect().await?;
@@ -1124,7 +1144,8 @@ async fn emitted_connect_pseudo(
             .clone();
         Ok(())
     })
-    .await?;
+    .await;
+    server.finish(caller).await?;
     Ok(pseudo)
 }
 
@@ -1383,13 +1404,13 @@ async fn profile_empty_message_rule_reaches_the_wire() -> TestResult<()> {
             },
         ),
     ] {
-        bounded(async move {
-            let identity = Arc::new(TestIdentity::generate()?);
-            let behavior = Behavior {
-                deflate: true,
-                ..Behavior::ACCEPT
-            };
-            let server = TestServer::start(Arc::clone(&identity), behavior).await?;
+        let identity = Arc::new(TestIdentity::generate()?);
+        let behavior = Behavior {
+            deflate: true,
+            ..Behavior::ACCEPT
+        };
+        let mut server = TestServer::start(Arc::clone(&identity), behavior).await?;
+        let caller = bounded(async {
             let client = profile_client(&identity, http2, settings.clone())?;
             ordinary_get(&client, &server).await?;
 
@@ -1414,7 +1435,8 @@ async fn profile_empty_message_rule_reaches_the_wire() -> TestResult<()> {
             assert!(non_empty.payload_len > 0);
             Ok(())
         })
-        .await?;
+        .await;
+        server.finish(caller).await?;
     }
     Ok(())
 }
@@ -1446,9 +1468,9 @@ fn pseudo_value<'a>(
 async fn extended_connect_sends_one_cookie_field_per_jar_cookie() -> TestResult<()> {
     let capture = Capture::parse(CHROME_ACCEPT)?;
     let settings = chrome::v154_websocket();
-    bounded(async {
-        let identity = Arc::new(TestIdentity::generate()?);
-        let server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+    let identity = Arc::new(TestIdentity::generate()?);
+    let mut server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+    let caller = bounded(async {
         let profile = ClientProfile::new(tls_settings())
             .with_http2(chrome::v154_http2())
             .with_websocket(settings.clone());
@@ -1479,5 +1501,6 @@ async fn extended_connect_sends_one_cookie_field_per_jar_cookie() -> TestResult<
         assert_eq!(cookies, ["first=1", "second=2"]);
         Ok(())
     })
-    .await
+    .await;
+    server.finish(caller).await
 }

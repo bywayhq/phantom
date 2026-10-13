@@ -17,9 +17,8 @@
 use crate::support::tls as tls_support;
 use crate::support::websocket as websocket_support;
 use crate::websocket_profile::fixture;
+use crate::websocket_profile::forward_proxy::ForwardProxy;
 use crate::websocket_profile::server;
-
-use std::net::Ipv4Addr;
 
 use phantom::{
     Client, HttpProxy, RequestHeader, Route, WebSocketMessage, WebSocketRequestBuilder,
@@ -28,12 +27,10 @@ use phantom::{
         browser::{chrome, firefox},
     },
 };
-use tokio::net::TcpListener;
-
 use fixture::Capture;
 use server::{Behavior, TestServer};
 use tls_support::tls_settings;
-use websocket_support::{bounded, forward_one_connect};
+use websocket_support::bounded;
 
 pub(crate) type TestResult<T> = tls_support::TestResult<T>;
 
@@ -110,8 +107,8 @@ async fn built_in_websocket_openings_send_the_captured_loopback_fields() -> Test
             let capture = Capture::parse(case.loopback)?;
             assert_eq!(capture.value("client")?, case.client);
             assert_eq!(capture.value("scenario")?, "direct-loopback");
-            bounded(async {
-                let server = TestServer::start_plaintext(Behavior::ACCEPT).await?;
+            let mut server = TestServer::start_plaintext(Behavior::ACCEPT).await?;
+            let caller = bounded(async {
                 let upgrade = capture.upgrade()?;
                 let path = target(&upgrade.request_line)?;
                 let url = format!("ws://{}{path}", server.address);
@@ -121,7 +118,8 @@ async fn built_in_websocket_openings_send_the_captured_loopback_fields() -> Test
                 let expected = expected_fields(&upgrade.fields, Some(&authority));
                 assert_opening(&server, &upgrade.request_line, &expected, &case, builder)
             })
-            .await?;
+            .await;
+            server.finish(caller).await?;
         }
     }
     Ok(())
@@ -134,14 +132,15 @@ async fn built_in_websocket_openings_send_the_captured_named_origin_fields() -> 
             let capture = Capture::parse(case.named)?;
             assert_eq!(capture.value("client")?, case.client);
             assert_eq!(capture.value("scenario")?, "http-proxy-hostname");
-            bounded(async {
-                let server = TestServer::start_plaintext(Behavior::ACCEPT).await?;
-                let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let mut server = TestServer::start_plaintext(Behavior::ACCEPT).await?;
+            let mut proxy = None;
+            let caller = bounded(async {
+                proxy = Some(ForwardProxy::start(server.address).await?);
+                let proxy = proxy.as_mut().ok_or("CONNECT proxy was not acquired")?;
                 let route = Route::http_proxy(HttpProxy::new(&format!(
                     "http://{}",
-                    proxy_listener.local_addr()?
+                    proxy.address
                 ))?);
-                let proxy = tokio::spawn(forward_one_connect(proxy_listener, server.address));
                 let upgrade = capture.upgrade()?;
                 let host = upgrade
                     .fields
@@ -153,7 +152,7 @@ async fn built_in_websocket_openings_send_the_captured_named_origin_fields() -> 
                 let url = format!("ws://{host}{path}");
                 open(&case, builder, &url, route, &upgrade.fields).await?;
 
-                let connect = String::from_utf8(proxy.await??)?;
+                let connect = String::from_utf8(proxy.head().await?)?;
                 assert!(
                     connect.starts_with(&format!("CONNECT {host} HTTP/1.1\r\n")),
                     "{connect}"
@@ -161,7 +160,12 @@ async fn built_in_websocket_openings_send_the_captured_named_origin_fields() -> 
                 let expected = expected_fields(&upgrade.fields, None);
                 assert_opening(&server, &upgrade.request_line, &expected, &case, builder)
             })
-            .await?;
+            .await;
+            let caller = match proxy.as_mut() {
+                Some(proxy) => proxy.finish(caller).await,
+                None => caller,
+            };
+            server.finish(caller).await?;
         }
     }
     Ok(())
@@ -171,9 +175,9 @@ async fn built_in_websocket_openings_send_the_captured_named_origin_fields() -> 
 /// origin, in the recipe's position.
 #[tokio::test]
 async fn caller_accept_encoding_replaces_the_recipe_value_in_place() -> TestResult<()> {
-    bounded(async {
-        let [chrome, ..] = cases();
-        let server = TestServer::start_plaintext(Behavior::ACCEPT).await?;
+    let [chrome, ..] = cases();
+    let mut server = TestServer::start_plaintext(Behavior::ACCEPT).await?;
+    let caller = bounded(async {
         let client = profile_client(&chrome, Route::direct())?;
         let socket = client
             .websocket(&format!("ws://{}/echo", server.address))?
@@ -202,7 +206,8 @@ async fn caller_accept_encoding_replaces_the_recipe_value_in_place() -> TestResu
         );
         Ok(())
     })
-    .await
+    .await;
+    server.finish(caller).await
 }
 
 /// Opens one WebSocket, filling only the recipe's caller slots from the

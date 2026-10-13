@@ -31,7 +31,7 @@ use super::{
 };
 use crate::support::tls::{H1_ALPN, H2_ALPN, TestIdentity, tls_settings};
 use crate::support::tunnel_proxy::{
-    self, ConnectionPeer, EstablishedTunnel, Http2ConnectRecord, Socks5Target,
+    self, Http2ConnectRecord, Socks5Target, TunnelSetup,
 };
 use crate::support::websocket_origin::header_value;
 
@@ -103,15 +103,15 @@ async fn firefox_websocket_joins_an_exact_http2_session_through_a_proxy() -> Tes
 #[tokio::test]
 async fn websocket_on_a_challenged_http1_tunnel_sends_no_connect_or_credentials() -> TestResult<()>
 {
-    bounded(async {
-        let (identity, server) = start_origin(Behavior::ACCEPT).await?;
-        let listener = bind().await?;
-        let address = listener.local_addr()?;
-        let origin = server.address;
-        let task = ConnectionPeer::spawn(async move {
-            let heads = tunnel_proxy::http1_challenge_then_connect_on(&listener, origin).await?;
-            TestResult::<_>::Ok((heads, listener))
-        });
+    let listener = Arc::new(bind().await?);
+    let address = listener.local_addr()?;
+    let (identity, mut server) = start_origin(Behavior::ACCEPT).await?;
+    let origin = server.address;
+    let serving = Arc::clone(&listener);
+    let mut tunnel = TunnelSetup::spawn(async move {
+        tunnel_proxy::http1_challenge_then_connect_on(&serving, origin).await
+    });
+    let caller = bounded(async {
         let route = Route::http_proxy(
             HttpProxy::new(&format!("http://{address}"))?.with_basic_auth("alice", "secret")?,
         );
@@ -121,35 +121,35 @@ async fn websocket_on_a_challenged_http1_tunnel_sends_no_connect_or_credentials(
             .assert_joins(&client, &server, &origin.to_string(), true)
             .await?;
 
-        let (tunnel, listener) = task.await??;
-        let (anonymous, authorized, _) = &tunnel.observed;
+        let (anonymous, authorized, _) = tunnel.establish().await?;
         assert_eq!(header_value(anonymous, "proxy-authorization"), None);
         assert_eq!(header_value(authorized, "proxy-authorization"), Some(ALICE));
         assert!(
             tunnel_proxy::no_connection_arrives(&listener).await,
             "the WebSocket opened another proxy connection"
         );
-        tunnel.cancel().await?;
         Ok(())
     })
-    .await
+    .await;
+    drop(listener);
+    let caller = tunnel.finish(caller).await;
+    server.finish(caller).await
 }
 
 #[tokio::test]
 async fn websocket_on_a_challenged_http2_tunnel_sends_no_connect_or_credentials() -> TestResult<()>
 {
-    bounded(async {
-        let (identity, server) = start_origin(Behavior::ACCEPT).await?;
-        let proxy_identity = TestIdentity::generate()?;
-        let acceptor = proxy_identity.acceptor(H2_ALPN)?;
-        let listener = bind().await?;
-        let address = listener.local_addr()?;
-        let origin = server.address;
-        let task = ConnectionPeer::spawn(async move {
-            let tunnel =
-                tunnel_proxy::http2_challenge_then_connect_on(&listener, acceptor, origin).await?;
-            TestResult::<_>::Ok((tunnel, listener))
-        });
+    let proxy_identity = TestIdentity::generate()?;
+    let acceptor = proxy_identity.acceptor(H2_ALPN)?;
+    let listener = Arc::new(bind().await?);
+    let address = listener.local_addr()?;
+    let (identity, mut server) = start_origin(Behavior::ACCEPT).await?;
+    let origin = server.address;
+    let serving = Arc::clone(&listener);
+    let mut tunnel = TunnelSetup::spawn(async move {
+        tunnel_proxy::http2_challenge_then_connect_on(&serving, acceptor, origin).await
+    });
+    let caller = bounded(async {
         let route = Route::http_proxy(
             HttpProxy::new(&format!("https://{address}"))?
                 .with_basic_auth("alice", "secret")?
@@ -167,8 +167,7 @@ async fn websocket_on_a_challenged_http2_tunnel_sends_no_connect_or_credentials(
             .assert_joins(&client, &server, &origin.to_string(), true)
             .await?;
 
-        let (tunnel, listener) = task.await??;
-        let (records, late) = &tunnel.observed;
+        let (records, late) = tunnel.establish().await?;
         let sent: Vec<_> = records
             .iter()
             .map(|record| (record.stream_id, proxy_authorization(record)))
@@ -188,33 +187,37 @@ async fn websocket_on_a_challenged_http2_tunnel_sends_no_connect_or_credentials(
             tunnel_proxy::no_connection_arrives(&listener).await,
             "the WebSocket opened another proxy connection"
         );
-        tunnel.cancel().await?;
         Ok(())
     })
-    .await
+    .await;
+    drop(listener);
+    let caller = tunnel.finish(caller).await;
+    server.finish(caller).await
 }
 
 #[tokio::test]
 async fn websocket_with_other_proxy_credentials_opens_its_own_tunnel() -> TestResult<()> {
-    bounded(async {
-        let (identity, server) = start_origin(Behavior::ACCEPT).await?;
-        let listener = bind().await?;
-        let address = listener.local_addr()?;
-        let origin = server.address;
-        let task = ConnectionPeer::spawn(async move {
-            let alice = tunnel_proxy::http1_challenge_then_connect_on(&listener, origin).await?;
-            let bob = tunnel_proxy::http1_challenge_then_connect_on(&listener, origin).await?;
-            let tunnels = alice
-                .combine(bob)
-                .map(|((_, alice, _), (_, bob, _))| [alice, bob]);
-            TestResult::<_>::Ok((tunnels, listener))
-        });
+    let listener = Arc::new(bind().await?);
+    let address = listener.local_addr()?;
+    let (identity, mut server) = start_origin(Behavior::ACCEPT).await?;
+    let origin = server.address;
+    let serving = Arc::clone(&listener);
+    let mut alice_tunnel = TunnelSetup::spawn(async move {
+        tunnel_proxy::http1_challenge_then_connect_on(&serving, origin).await
+    });
+    let mut bob_tunnel = None;
+    let caller = bounded(async {
         let proxy = HttpProxy::new(&format!("http://{address}"))?;
         let alice = Route::http_proxy(proxy.clone().with_basic_auth("alice", "secret")?);
         let bob = Route::http_proxy(proxy.with_basic_auth("bob", "secret")?);
         let client = client_on(Recipe::Chromium.profile(), &identity, alice, None).build()?;
 
         pooled_get_at(&client, origin, true).await?;
+        alice_tunnel.establish().await?;
+        let serving = Arc::clone(&listener);
+        bob_tunnel = Some(TunnelSetup::spawn(async move {
+            tunnel_proxy::http1_challenge_then_connect_on(&serving, origin).await
+        }));
         let socket = client
             .websocket_with_profile_policy(&format!("wss://{origin}/echo"))?
             .route(bob)
@@ -225,8 +228,10 @@ async fn websocket_with_other_proxy_credentials_opens_its_own_tunnel() -> TestRe
         assert_eq!(socket.handshake_response().version(), Version::HTTP_11);
         exchange(socket).await?;
 
-        let (tunnels, listener) = task.await??;
-        let heads = &tunnels.observed;
+        let alice = &alice_tunnel.establish().await?.1;
+        let bob = &bob_tunnel.as_mut().ok_or("Bob's tunnel was not acquired")?
+            .establish().await?.1;
+        let heads = [alice, bob];
         for head in heads {
             assert!(head.starts_with(format!("CONNECT {origin} HTTP/1.1\r\n").as_bytes()));
         }
@@ -238,37 +243,45 @@ async fn websocket_with_other_proxy_credentials_opens_its_own_tunnel() -> TestRe
         assert_eq!(connections.len(), 2);
         assert_eq!(methods(&connections[0]), ["GET"]);
         assert_eq!(connections[1].h1.len(), 1);
-        tunnels.cancel().await?;
         Ok(())
     })
-    .await
+    .await;
+    drop(listener);
+    let caller = match bob_tunnel.as_mut() {
+        Some(tunnel) => tunnel.finish(caller).await,
+        None => caller,
+    };
+    let caller = alice_tunnel.finish(caller).await;
+    server.finish(caller).await
 }
 
 #[tokio::test]
 async fn chromium_websocket_beside_an_incapable_proxied_session_upgrades_through_a_new_tunnel()
 -> TestResult<()> {
     for negotiated in [true, false] {
-        bounded(async {
-            let behavior = Behavior {
-                connect_protocol: false,
-                ..Behavior::ACCEPT
-            };
-            let (identity, server) = start_origin(behavior).await?;
-            let listener = bind().await?;
-            let address = listener.local_addr()?;
-            let origin = server.address;
-            let task = ConnectionPeer::spawn(async move {
-                let first = tunnel_proxy::http1_connect_on(&listener, origin).await?;
-                let second = tunnel_proxy::http1_connect_on(&listener, origin).await?;
-                TestResult::<_>::Ok((
-                    first.combine(second).map(|(first, second)| [first, second]),
-                    listener,
-                ))
-            });
+        let behavior = Behavior {
+            connect_protocol: false,
+            ..Behavior::ACCEPT
+        };
+        let listener = Arc::new(bind().await?);
+        let address = listener.local_addr()?;
+        let (identity, mut server) = start_origin(behavior).await?;
+        let origin = server.address;
+        let serving = Arc::clone(&listener);
+        let mut first = TunnelSetup::spawn(async move {
+            tunnel_proxy::http1_connect_on(&serving, origin).await
+        });
+        let mut second = None;
+        let caller = bounded(async {
             let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
             let client = client_on(Recipe::Chromium.profile(), &identity, route, None).build()?;
 
             pooled_get_at(&client, origin, negotiated).await?;
+            first.establish().await?;
+            let serving = Arc::clone(&listener);
+            second = Some(TunnelSetup::spawn(async move {
+                tunnel_proxy::http1_connect_on(&serving, origin).await
+            }));
             let socket = client
                 .websocket_with_profile_policy(&format!("wss://{origin}/echo"))?
                 .connect()
@@ -278,8 +291,8 @@ async fn chromium_websocket_beside_an_incapable_proxied_session_upgrades_through
             assert_eq!(socket.handshake_response().version(), Version::HTTP_11);
             exchange(socket).await?;
 
-            let (tunnels, listener) = task.await??;
-            let heads = &tunnels.observed;
+            let heads = [first.establish().await?, second.as_mut()
+                .ok_or("second tunnel was not acquired")?.establish().await?];
             for head in heads {
                 assert!(head.starts_with(format!("CONNECT {origin} HTTP/1.1\r\n").as_bytes()));
             }
@@ -294,10 +307,16 @@ async fn chromium_websocket_beside_an_incapable_proxied_session_upgrades_through
             );
             assert_eq!(connections[1].protocol.as_deref(), Some("http/1.1"));
             assert_eq!(connections[1].h1.len(), 1);
-            tunnels.cancel().await?;
             Ok(())
         })
-        .await?;
+        .await;
+        drop(listener);
+        let caller = match second.as_mut() {
+            Some(tunnel) => tunnel.finish(caller).await,
+            None => caller,
+        };
+        let caller = first.finish(caller).await;
+        server.finish(caller).await?;
     }
     Ok(())
 }
@@ -305,19 +324,16 @@ async fn chromium_websocket_beside_an_incapable_proxied_session_upgrades_through
 #[tokio::test]
 async fn ignore_policy_opens_its_own_tunnel_beside_a_proxied_session() -> TestResult<()> {
     for negotiated in [true, false] {
-        bounded(async {
-            let (identity, server) = start_origin(Behavior::ACCEPT).await?;
-            let listener = bind().await?;
-            let address = listener.local_addr()?;
-            let origin = server.address;
-            let task = ConnectionPeer::spawn(async move {
-                let first = tunnel_proxy::http1_connect_on(&listener, origin).await?;
-                let second = tunnel_proxy::http1_connect_on(&listener, origin).await?;
-                TestResult::<_>::Ok((
-                    first.combine(second).map(|(first, second)| [first, second]),
-                    listener,
-                ))
-            });
+        let listener = Arc::new(bind().await?);
+        let address = listener.local_addr()?;
+        let (identity, mut server) = start_origin(Behavior::ACCEPT).await?;
+        let origin = server.address;
+        let serving = Arc::clone(&listener);
+        let mut first = TunnelSetup::spawn(async move {
+            tunnel_proxy::http1_connect_on(&serving, origin).await
+        });
+        let mut second = None;
+        let caller = bounded(async {
             let route = Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?);
             let mut websocket = firefox::v157_websocket();
             websocket.connection.proxied_http2_session = WebSocketProxiedSession::Ignore;
@@ -325,6 +341,11 @@ async fn ignore_policy_opens_its_own_tunnel_beside_a_proxied_session() -> TestRe
             let client = client_on(profile, &identity, route, None).build()?;
 
             pooled_get_at(&client, origin, negotiated).await?;
+            first.establish().await?;
+            let serving = Arc::clone(&listener);
+            second = Some(TunnelSetup::spawn(async move {
+                tunnel_proxy::http1_connect_on(&serving, origin).await
+            }));
             let socket = client
                 .websocket_with_profile_policy(&format!("wss://{origin}/echo"))?
                 .connect()
@@ -334,8 +355,8 @@ async fn ignore_policy_opens_its_own_tunnel_beside_a_proxied_session() -> TestRe
             assert_eq!(socket.handshake_response().version(), Version::HTTP_2);
             exchange(socket).await?;
 
-            let (tunnels, listener) = task.await??;
-            let heads = &tunnels.observed;
+            let heads = [first.establish().await?, second.as_mut()
+                .ok_or("second tunnel was not acquired")?.establish().await?];
             for head in heads {
                 assert!(head.starts_with(format!("CONNECT {origin} HTTP/1.1\r\n").as_bytes()));
             }
@@ -344,24 +365,32 @@ async fn ignore_policy_opens_its_own_tunnel_beside_a_proxied_session() -> TestRe
             assert_eq!(connections.len(), 2, "negotiated: {negotiated}");
             assert_eq!(methods(&connections[0]), ["GET"]);
             assert_eq!(methods(&connections[1]), ["CONNECT"]);
-            tunnels.cancel().await?;
             Ok(())
         })
-        .await?;
+        .await;
+        drop(listener);
+        let caller = match second.as_mut() {
+            Some(tunnel) => tunnel.finish(caller).await,
+            None => caller,
+        };
+        let caller = first.finish(caller).await;
+        server.finish(caller).await?;
     }
     Ok(())
 }
 
 #[tokio::test]
 async fn refused_connect_stream_reopens_once_on_the_proxied_session() -> TestResult<()> {
-    bounded(async {
-        let behavior = Behavior {
-            connect: Reply::RefuseFirstStream,
-            ..Behavior::ACCEPT
-        };
-        let (identity, server) = start_origin(behavior).await?;
+    let behavior = Behavior {
+        connect: Reply::RefuseFirstStream,
+        ..Behavior::ACCEPT
+    };
+    let (identity, mut server) = start_origin(behavior).await?;
+    let mut proxy = None;
+    let caller = bounded(async {
         let origin = server.address;
-        let proxy = Tunnel::Http1.start(origin).await?;
+        proxy = Some(Tunnel::Http1.start(origin).await?);
+        let proxy = proxy.as_mut().ok_or("proxy was not acquired")?;
         let client = client_on(
             Recipe::Chromium.profile(),
             &identity,
@@ -383,15 +412,22 @@ async fn refused_connect_stream_reopens_once_on_the_proxied_session() -> TestRes
         assert_eq!(methods(&connections[0]), ["GET", "CONNECT", "CONNECT"]);
         Ok(())
     })
-    .await
+    .await;
+    let caller = match proxy.as_mut() {
+        Some(proxy) => proxy.finish(caller).await,
+        None => caller,
+    };
+    server.finish(caller).await
 }
 
 #[tokio::test]
 async fn proxied_websocket_counts_against_origin_admission() -> TestResult<()> {
-    bounded(async {
-        let (identity, server) = start_origin(Behavior::ACCEPT).await?;
+    let (identity, mut server) = start_origin(Behavior::ACCEPT).await?;
+    let mut proxy = None;
+    let caller = bounded(async {
         let origin = server.address;
-        let proxy = Tunnel::Http1.start(origin).await?;
+        proxy = Some(Tunnel::Http1.start(origin).await?);
+        let proxy = proxy.as_mut().ok_or("proxy was not acquired")?;
         let client = client_on(
             Recipe::Chromium.profile(),
             &identity,
@@ -408,18 +444,19 @@ async fn proxied_websocket_counts_against_origin_admission() -> TestResult<()> {
             .connect()
             .await?;
         // With one active slot per origin, the open WebSocket holds it.
-        let waiting = ConnectionPeer::spawn({
-            let client = client.clone();
-            async move { pooled_get_at(&client, origin, true).await }
-        });
-        tokio::time::sleep(Duration::from_millis(200)).await;
-        assert!(
-            !waiting.is_finished(),
-            "request bypassed the WebSocket's admission"
-        );
+        let waiting = pooled_get_at(&client, origin, true);
+        tokio::pin!(waiting);
+        tokio::select! {
+            biased;
+            result = &mut waiting => {
+                result?;
+                return Err("request bypassed the WebSocket's admission".into());
+            }
+            () = tokio::time::sleep(Duration::from_millis(200)) => {}
+        }
 
         close_gracefully(&mut socket).await?;
-        waiting.await??;
+        waiting.await?;
         proxy.assert_one_tunnel(origin).await?;
         assert_eq!(
             methods(&server.connections()?[0]),
@@ -427,7 +464,12 @@ async fn proxied_websocket_counts_against_origin_admission() -> TestResult<()> {
         );
         Ok(())
     })
-    .await
+    .await;
+    let caller = match proxy.as_mut() {
+        Some(proxy) => proxy.finish(caller).await,
+        None => caller,
+    };
+    server.finish(caller).await
 }
 
 /// A proxy that tunnels to the origin.
@@ -454,21 +496,23 @@ struct Proxy {
     tunnel: Tunnel,
     route: Route,
     root: Option<Vec<u8>>,
-    task: ConnectionPeer<TestResult<(EstablishedTunnel<Served>, TcpListener)>>,
+    setup: TunnelSetup<Served>,
+    listener: Option<Arc<TcpListener>>,
 }
 
 impl Tunnel {
     async fn start(self, origin: SocketAddr) -> TestResult<Proxy> {
-        let listener = bind().await?;
+        let listener = Arc::new(bind().await?);
         let address = listener.local_addr()?;
         let identity = TestIdentity::generate()?;
-        let (route, root, task) = match self {
+        let serving = Arc::clone(&listener);
+        let (route, root, setup) = match self {
             Self::Http1 => (
                 Route::http_proxy(HttpProxy::new(&format!("http://{address}"))?),
                 None,
-                ConnectionPeer::spawn(async move {
-                    let head = tunnel_proxy::http1_connect_on(&listener, origin).await?;
-                    Ok((head.map(Served::Http1), listener))
+                TunnelSetup::spawn(async move {
+                    let head = tunnel_proxy::http1_connect_on(&serving, origin).await?;
+                    Ok(head.map(Served::Http1))
                 }),
             ),
             Self::Https1 => {
@@ -476,10 +520,10 @@ impl Tunnel {
                 (
                     Route::http_proxy(HttpProxy::new(&format!("https://{address}"))?),
                     Some(identity.root_der.clone()),
-                    ConnectionPeer::spawn(async move {
+                    TunnelSetup::spawn(async move {
                         let head =
-                            tunnel_proxy::https1_connect_on(&listener, acceptor, origin).await?;
-                        Ok((head.map(Served::Http1), listener))
+                            tunnel_proxy::https1_connect_on(&serving, acceptor, origin).await?;
+                        Ok(head.map(Served::Http1))
                     }),
                 )
             }
@@ -490,10 +534,10 @@ impl Tunnel {
                         HttpProxy::new(&format!("https://{address}"))?.with_http2_transport()?,
                     ),
                     Some(identity.root_der.clone()),
-                    ConnectionPeer::spawn(async move {
+                    TunnelSetup::spawn(async move {
                         let record =
-                            tunnel_proxy::http2_connect_on(&listener, acceptor, origin).await?;
-                        Ok((record.map(Served::Http2), listener))
+                            tunnel_proxy::http2_connect_on(&serving, acceptor, origin).await?;
+                        Ok(record.map(Served::Http2))
                     }),
                 )
             }
@@ -506,12 +550,9 @@ impl Tunnel {
                 (
                     Route::socks5(Socks5Proxy::new(&format!("{scheme}://{address}"))?),
                     None,
-                    ConnectionPeer::spawn(async move {
-                        let tunnel = tunnel_proxy::socks5_connect_on(&listener, origin).await?;
-                        Ok((
-                            tunnel.map(|(target, port)| Served::Socks5(target, port)),
-                            listener,
-                        ))
+                    TunnelSetup::spawn(async move {
+                        let tunnel = tunnel_proxy::socks5_connect_on(&serving, origin).await?;
+                        Ok(tunnel.map(|(target, port)| Served::Socks5(target, port)))
                     }),
                 )
             }
@@ -520,7 +561,8 @@ impl Tunnel {
             tunnel: self,
             route,
             root,
-            task,
+            setup,
+            listener: Some(listener),
         })
     }
 
@@ -541,10 +583,10 @@ impl Proxy {
     ///
     /// A second CONNECT stream on an HTTP/2 proxy connection is reset by the
     /// proxy, so it would already have failed the WebSocket.
-    async fn assert_one_tunnel(self, origin: SocketAddr) -> TestResult<()> {
+    async fn assert_one_tunnel(&mut self, origin: SocketAddr) -> TestResult<()> {
         let authority = self.tunnel.authority(origin);
-        let (tunnel, listener) = self.task.await??;
-        match (self.tunnel, &tunnel.observed) {
+        let observed = self.setup.establish().await?;
+        match (self.tunnel, observed) {
             (Tunnel::Http1 | Tunnel::Https1, Served::Http1(head)) => {
                 assert!(head.starts_with(format!("CONNECT {authority} HTTP/1.1\r\n").as_bytes()));
             }
@@ -564,12 +606,16 @@ impl Proxy {
             }
         }
         assert!(
-            tunnel_proxy::no_connection_arrives(&listener).await,
+            tunnel_proxy::no_connection_arrives(self.listener.as_ref().ok_or("proxy listener was retired")?).await,
             "the WebSocket opened another {:?} proxy connection",
             self.tunnel
         );
-        tunnel.cancel().await?;
         Ok(())
+    }
+
+    async fn finish(&mut self, caller: TestResult<()>) -> TestResult<()> {
+        self.listener = None;
+        self.setup.finish(caller).await
     }
 }
 
@@ -577,9 +623,11 @@ impl Proxy {
 /// profile-policy WebSocket through `tunnel`, and checks that the WebSocket
 /// joined the GET's session without a second tunnel.
 async fn assert_joins_through(recipe: Recipe, tunnel: Tunnel, negotiated: bool) -> TestResult<()> {
-    bounded(async {
-        let (identity, server) = start_origin(Behavior::ACCEPT).await?;
-        let proxy = tunnel.start(server.address).await?;
+    let (identity, mut server) = start_origin(Behavior::ACCEPT).await?;
+    let mut proxy = None;
+    let caller = bounded(async {
+        proxy = Some(tunnel.start(server.address).await?);
+        let proxy = proxy.as_mut().ok_or("proxy was not acquired")?;
         let client = client_on(
             recipe.profile(),
             &identity,
@@ -593,7 +641,12 @@ async fn assert_joins_through(recipe: Recipe, tunnel: Tunnel, negotiated: bool) 
             .await?;
         proxy.assert_one_tunnel(server.address).await
     })
-    .await
+    .await;
+    let caller = match proxy.as_mut() {
+        Some(proxy) => proxy.finish(caller).await,
+        None => caller,
+    };
+    server.finish(caller).await
 }
 
 /// A named recipe family whose WebSocket recipe sets `Reuse`.

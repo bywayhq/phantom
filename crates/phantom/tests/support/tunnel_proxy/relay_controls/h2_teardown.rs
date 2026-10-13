@@ -47,6 +47,7 @@ impl H2Relay {
                 .send(EstablishedTunnel {
                     observed: (),
                     peers,
+                    failure: None,
                 })
                 .map_err(|_| "CONNECT observation receiver was dropped")?;
 

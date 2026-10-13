@@ -4,6 +4,8 @@
 //! owner alive while using it, then cancel and join its tasks. An `_on` variant borrows
 //! the listener, so a test can keep it and check with
 //! [`no_connection_arrives`] that nothing else connected later.
+//! Borrow [`EstablishedTunnel::finish`] when a caller deadline can interrupt
+//! cleanup. Dropping the owner aborts tasks but cannot join them.
 
 use std::{
     future::poll_fn,
@@ -24,10 +26,16 @@ use tokio::{
 };
 
 use super::tls::{TestResult, accept_tls_stream, read_head};
+use relay_peer::{RelayFailure, RelayPeer, collect_relays, retain_failure};
+pub(crate) use relay_peer::TunnelCleanupFailure;
 
 #[path = "tunnel_proxy/connection_peer.rs"]
 pub(crate) mod connection_peer;
 pub(crate) use connection_peer::{ConnectionPeer, finish_with_cleanup};
+
+mod relay_peer;
+mod setup;
+pub(crate) use setup::TunnelSetup;
 
 #[path = "tunnel_proxy/relay_controls.rs"]
 mod relay_controls;
@@ -39,14 +47,16 @@ const BASIC_CHALLENGE: &[u8] = b"HTTP/1.1 407 Proxy Authentication Required\r\n\
 #[derive(Debug)]
 pub(crate) struct EstablishedTunnel<T> {
     pub(crate) observed: T,
-    peers: Vec<ConnectionPeer<TestResult<()>>>,
+    peers: Vec<RelayPeer>,
+    failure: Option<RelayFailure>,
 }
 
 impl<T> EstablishedTunnel<T> {
-    fn new(observed: T, peer: ConnectionPeer<TestResult<()>>) -> Self {
+    fn new(observed: T, peer: RelayPeer) -> Self {
         Self {
             observed,
             peers: vec![peer],
+            failure: None,
         }
     }
 
@@ -54,27 +64,41 @@ impl<T> EstablishedTunnel<T> {
         EstablishedTunnel {
             observed: map(self.observed),
             peers: self.peers,
+            failure: self.failure,
         }
     }
 
     pub(crate) fn combine<U>(mut self, other: EstablishedTunnel<U>) -> EstablishedTunnel<(T, U)> {
         self.peers.extend(other.peers);
+        if let Some(failure) = other.failure {
+            retain_failure(&mut self.failure, Err(Box::new(failure)));
+        }
         EstablishedTunnel {
             observed: (self.observed, other.observed),
             peers: self.peers,
+            failure: self.failure,
         }
     }
 
-    pub(crate) async fn cancel(self) -> TestResult<T> {
-        for peer in &self.peers {
-            peer.abort();
-        }
+    /// Retains the caller failure and original workers while collecting all
+    /// relays under one five-second deadline. Interrupted cleanup can be retried.
+    pub(crate) async fn finish(&mut self, primary: TestResult<()>) -> TestResult<()> {
+        retain_failure(&mut self.failure, primary);
+        collect_relays(&mut self.peers, &mut self.failure).await
+    }
 
-        let mut cleanup = Ok(());
-        for peer in self.peers {
-            cleanup = finish_with_cleanup(cleanup, peer.stop().await);
+    /// Completes shutdown and returns the observation. Use `finish` instead
+    /// when an outer caller deadline can interrupt this consuming future.
+    pub(crate) async fn cancel(mut self) -> TestResult<T> {
+        if let Err(error) = self.finish(Ok(())).await {
+            if self.peers.is_empty() {
+                return Err(error);
+            }
+            return Err(Box::new(TunnelCleanupFailure {
+                peers: self.peers,
+                failure: self.failure,
+            }));
         }
-        cleanup?;
         Ok(self.observed)
     }
 }
@@ -276,13 +300,20 @@ pub(crate) async fn http2_connect_on(
     acceptor: SslAcceptor,
     origin: SocketAddr,
 ) -> TestResult<EstablishedTunnel<Http2ConnectRecord>> {
-    let tunnel = http2_connects(listener, acceptor, origin, false).await?;
+    let mut tunnel = http2_connects(listener, acceptor, origin, false).await?;
+    let observed = match tunnel.observed.0.pop() {
+        Some(observed) => observed,
+        None => {
+            tunnel.finish(Err("no CONNECT was served".into())).await?;
+            return Err("no CONNECT was served".into());
+        }
+    };
     let EstablishedTunnel {
-        observed: (mut records, _),
         peers,
+        failure,
+        ..
     } = tunnel;
-    let observed = records.pop().ok_or("no CONNECT was served")?;
-    Ok(EstablishedTunnel { observed, peers })
+    Ok(EstablishedTunnel { observed, peers, failure })
 }
 
 /// Accepts one h2-only TLS proxy connection, answers its first CONNECT with a
@@ -358,7 +389,7 @@ async fn http2_connects(
     }
     let late = LateConnects::default();
     let log = Arc::clone(&late);
-    peers.push(ConnectionPeer::spawn(async move {
+    peers.push(RelayPeer::spawn(async move {
         // Dropping each responder resets its stream.
         while let Some(accepted) = connection.accept().await {
             let (request, respond) = match accepted {
@@ -375,6 +406,7 @@ async fn http2_connects(
     Ok(EstablishedTunnel {
         observed: (records, late),
         peers,
+        failure: None,
     })
 }
 
@@ -477,7 +509,7 @@ async fn socks5_request(stream: &mut TcpStream) -> TestResult<(Socks5Target, u16
 async fn establish_relay<S>(
     mut downstream: S,
     origin: SocketAddr,
-) -> io::Result<ConnectionPeer<TestResult<()>>>
+) -> io::Result<RelayPeer>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
@@ -487,11 +519,11 @@ where
     Ok(spawn_relay(downstream, upstream))
 }
 
-fn spawn_relay<S>(mut downstream: S, mut upstream: TcpStream) -> ConnectionPeer<TestResult<()>>
+fn spawn_relay<S>(mut downstream: S, mut upstream: TcpStream) -> RelayPeer
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    ConnectionPeer::spawn(async move {
+    RelayPeer::spawn(async move {
         match copy_bidirectional(&mut downstream, &mut upstream).await {
             Ok(_) => Ok(()),
             Err(error) if super::tls::is_peer_gone(&error) => Ok(()),
@@ -504,10 +536,10 @@ fn spawn_http2_relay(
     mut downstream: ::http2::RecvStream,
     mut send: ::http2::SendStream<Bytes>,
     upstream: TcpStream,
-    peers: &mut Vec<ConnectionPeer<TestResult<()>>>,
+    peers: &mut Vec<RelayPeer>,
 ) {
     let (mut read, mut write) = upstream.into_split();
-    peers.push(ConnectionPeer::spawn(async move {
+    peers.push(RelayPeer::spawn(async move {
         let result: TestResult<()> = async {
             while let Some(chunk) = downstream.data().await {
                 let chunk = chunk?;
@@ -520,7 +552,7 @@ fn spawn_http2_relay(
         .await;
         relay_result(result)
     }));
-    peers.push(ConnectionPeer::spawn(async move {
+    peers.push(RelayPeer::spawn(async move {
         let result: TestResult<()> = async {
             let mut buffer = vec![0_u8; 16 * 1024];
             loop {

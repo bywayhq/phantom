@@ -11,22 +11,31 @@ use std::{
     pin::Pin,
     sync::{Arc, Mutex},
     task::{Context, Poll},
+    time::Duration,
 };
 
 use btls::ssl::{AlpnError, select_next_proto};
 use bytes::Bytes;
+use futures_util::{StreamExt, stream::FuturesUnordered};
 use http::{Method, Response};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf},
     net::{TcpListener, TcpStream},
-    task::JoinHandle,
+    sync::watch,
+    task::JoinSet,
+    time::timeout,
+};
+
+use crate::support::{
+    deadline::FixtureDeadline,
+    tunnel_proxy::{ConnectionPeer, connection_peer::FixtureFailures},
 };
 
 use super::{
     TestResult,
     fixture::Representation,
     tls_support::{H2_ALPN, TestIdentity, accept_tls_stream, read_head},
-    websocket_support::{append_server_frame, read_client_frame},
+    websocket_support::append_server_frame,
 };
 
 const ALPN_PREFERENCE: &[u8] = b"\x02h2\x08http/1.1";
@@ -34,6 +43,14 @@ const ACCEPT_GUID: &[u8] = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 const PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 /// HPACK Huffman encoding of `:protocol`, the only literal pseudo-field name.
 const PROTOCOL_HUFFMAN: &[u8] = &[0xb9, 0x5d, 0x87, 0x49, 0xc8, 0x7a, 0x3f];
+// Fixture guardrails, comfortably above the scripts' two connections and six
+// requests. They bound a defective client without changing the expected wire.
+const MAX_CONNECTIONS: usize = 64;
+const MAX_ACTIVE_CONNECTIONS: usize = 16;
+const MAX_RECORDS: usize = 128;
+const MAX_WIRE_BYTES: usize = 4 * 1024 * 1024;
+const MAX_FRAME_BYTES: usize = 64 * 1024;
+const CLEANUP_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Reply {
@@ -110,15 +127,21 @@ pub(crate) struct H1Request {
 }
 
 type Log = Arc<Mutex<Vec<ConnectionLog>>>;
+type ServingFailure = Arc<Mutex<Option<Box<dyn std::error::Error + Send + Sync>>>>;
 /// RFC 7540 HEADERS priority as (exclusive, dependency, weight).
 pub(crate) type Priority = (bool, u32, u16);
 /// Pseudo-field names with their HPACK representation, in wire order.
 pub(crate) type PseudoFields = Vec<(String, Representation)>;
 
+#[derive(Debug)]
 pub(crate) struct TestServer {
     pub(crate) address: SocketAddr,
     log: Log,
-    task: JoinHandle<()>,
+    task: Option<ConnectionPeer<TestResult<()>>>,
+    stop: watch::Sender<bool>,
+    failure: Option<Box<dyn std::error::Error + Send + Sync>>,
+    serving_failure: ServingFailure,
+    incomplete_shutdown: bool,
 }
 
 impl TestServer {
@@ -126,26 +149,7 @@ impl TestServer {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let log = Log::default();
-        let task_log = Arc::clone(&log);
-        let task = tokio::spawn(async move {
-            while let Ok((tcp, _)) = listener.accept().await {
-                let index = match task_log.lock() {
-                    Ok(mut log) => {
-                        log.push(ConnectionLog::default());
-                        log.len() - 1
-                    }
-                    Err(_) => return,
-                };
-                let log = Arc::clone(&task_log);
-                let identity = Arc::clone(&identity);
-                tokio::spawn(async move {
-                    // Connection failures are the client's observable
-                    // behavior; the log keeps what arrived before them.
-                    let _ = serve(tcp, &identity, index, &log, behavior).await;
-                });
-            }
-        });
-        Ok(Self { address, log, task })
+        Ok(Self::listening(listener, address, log, Some(identity), behavior))
     }
 
     /// Starts a plaintext HTTP/1.1 origin for `ws://` openings.
@@ -153,47 +157,177 @@ impl TestServer {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let log = Log::default();
-        let task_log = Arc::clone(&log);
-        let task = tokio::spawn(async move {
-            while let Ok((tcp, _)) = listener.accept().await {
-                let index = match task_log.lock() {
-                    Ok(mut log) => {
-                        log.push(ConnectionLog::default());
-                        log.len() - 1
-                    }
-                    Err(_) => return,
-                };
-                let log = Arc::clone(&task_log);
-                tokio::spawn(async move {
-                    let _ = serve_h1(tcp, index, &log, behavior).await;
-                });
-            }
-        });
-        Ok(Self { address, log, task })
+        Ok(Self::listening(listener, address, log, None, behavior))
+    }
+
+    fn listening(
+        listener: TcpListener,
+        address: SocketAddr,
+        log: Log,
+        identity: Option<Arc<TestIdentity>>,
+        behavior: Behavior,
+    ) -> Self {
+        let (stop, stopped) = watch::channel(false);
+        let serving_failure = ServingFailure::default();
+        let task = ConnectionPeer::spawn(serve_listener(
+            listener, Arc::clone(&log), identity, behavior, stop.clone(), stopped,
+            Arc::clone(&serving_failure),
+        ));
+        Self { address, log, task: Some(task), stop, failure: None, serving_failure, incomplete_shutdown: false }
     }
 
     pub(crate) fn connections(&self) -> TestResult<Vec<ConnectionLog>> {
-        Ok(self
-            .log
-            .lock()
-            .map_err(|_| "server log lock was poisoned")?
-            .iter()
-            .map(|connection| {
+        self.log.lock().map_err(|_| "server log lock was poisoned")?
+            .iter().map(|connection| {
                 let mut connection = connection.clone();
-                connection.resets = connection
-                    .client_wire
-                    .lock()
-                    .map_or_else(|_| Vec::new(), |wire| client_resets(&wire));
-                connection
-            })
-            .collect())
+                connection.resets = client_resets(&connection.client_wire.lock()
+                    .map_err(|_| "recorded wire lock was poisoned")?);
+                Ok(connection)
+            }).collect()
+    }
+
+    /// Stop admission, then observe every accepted connection before returning
+    /// the caller's result. The worker remains owned if this await is dropped.
+    pub(crate) async fn finish<T>(&mut self, caller: TestResult<T>) -> TestResult<T> {
+        let value = match caller {
+            Ok(value) => Some(value),
+            Err(error) => { retain_failure(&mut self.failure, error); None }
+        };
+        self.stop.send_replace(true);
+        let Some(task) = self.task.as_mut() else {
+            if let Some(error) = self.failure.take() { return Err(error); }
+            if self.incomplete_shutdown { return Err("an earlier profile shutdown returned before collection completed".into()); }
+            return value.ok_or_else(|| "profile server caller completed without a value".into());
+        };
+        let joined = match timeout(CLEANUP_TIMEOUT, &mut *task).await {
+            Ok(joined) => Some(joined),
+            Err(elapsed) => {
+                retain_failure(&mut self.failure, FixtureDeadline::new(
+                    "profile server cleanup exceeded its deadline", elapsed,
+                ).into());
+                task.abort();
+                match timeout(CLEANUP_TIMEOUT, &mut *task).await {
+                    Ok(joined) => Some(joined),
+                    Err(elapsed) => {
+                        retain_failure(&mut self.failure, FixtureDeadline::new(
+                            "profile server abort exceeded its deadline", elapsed,
+                        ).into());
+                        self.incomplete_shutdown = true;
+                        None
+                    }
+                }
+            }
+        };
+        if let Some(joined) = joined {
+            self.task.take();
+            match self.serving_failure.lock() {
+                Ok(mut serving) => {
+                    if let Some(error) = serving.take() { retain_failure(&mut self.failure, error); }
+                }
+                Err(_) => retain_failure(&mut self.failure, "profile serving outcome lock was poisoned".into()),
+            }
+            match joined {
+                Ok(Ok(())) => {}
+                Ok(Err(error)) => retain_failure(&mut self.failure, error),
+                Err(error) => retain_failure(&mut self.failure, error.into()),
+            }
+        }
+        if let Some(error) = self.failure.take() { return Err(error); }
+        if self.incomplete_shutdown { return Err("an earlier profile shutdown returned before collection completed".into()); }
+        value.ok_or_else(|| "profile server caller completed without a value".into())
     }
 }
 
 impl Drop for TestServer {
     fn drop(&mut self) {
-        self.task.abort();
+        self.stop.send_replace(true);
+        // External destruction cannot asynchronously join. The retained worker
+        // owns its JoinSet, whose Drop aborts remaining accepted connections.
+        if let Some(task) = &self.task { task.abort(); }
     }
+}
+
+pub(super) fn retain_failure(
+    failure: &mut Option<Box<dyn std::error::Error + Send + Sync>>,
+    error: Box<dyn std::error::Error + Send + Sync>,
+) {
+    *failure = Some(match failure.take() {
+        Some(primary) => Box::new(FixtureFailures { primary, cleanup: error }),
+        None => error,
+    });
+}
+
+async fn stop_requested(stopped: &mut watch::Receiver<bool>) -> TestResult<()> {
+    if !*stopped.borrow() { stopped.changed().await?; }
+    Ok(())
+}
+
+async fn serve_listener(
+    listener: TcpListener,
+    log: Log,
+    identity: Option<Arc<TestIdentity>>,
+    behavior: Behavior,
+    stop: watch::Sender<bool>,
+    mut stopped: watch::Receiver<bool>,
+    failure: ServingFailure,
+) -> TestResult<()> {
+    let mut children = JoinSet::new();
+    loop {
+        tokio::select! {
+            biased;
+            result = stop_requested(&mut stopped) => {
+                if let Err(error) = result { retain_serving_failure(&failure, error)?; }
+                break;
+            }
+            joined = children.join_next(), if !children.is_empty() => {
+                match joined.ok_or("accepted peer outcome disappeared")? {
+                    Ok(Ok(())) => {}
+                    Ok(Err(error)) => { retain_serving_failure(&failure, error)?; break; }
+                    Err(error) => { retain_serving_failure(&failure, error.into())?; break; }
+                }
+            }
+            accepted = listener.accept() => {
+                let (tcp, _) = match accepted {
+                    Ok(accepted) => accepted,
+                    Err(error) => { retain_serving_failure(&failure, error.into())?; break; }
+                };
+                let index = match log.lock() {
+                    Ok(mut log) if log.len() < MAX_CONNECTIONS && children.len() < MAX_ACTIVE_CONNECTIONS => {
+                        log.push(ConnectionLog::default()); log.len() - 1
+                    }
+                    Ok(_) => { retain_serving_failure(&failure, "profile connection bound exceeded".into())?; break; }
+                    Err(_) => { retain_serving_failure(&failure, "server log lock was poisoned".into())?; break; }
+                };
+                let log = Arc::clone(&log);
+                let stopped = stopped.clone();
+                if let Some(identity) = &identity {
+                    let identity = Arc::clone(identity);
+                    children.spawn(async move { serve(tcp, &identity, index, &log, behavior, stopped).await });
+                } else {
+                    children.spawn(async move { serve_h1(tcp, index, &log, behavior, stopped).await });
+                }
+            }
+        }
+    }
+    drop(listener);
+    stop.send_replace(true);
+    while let Some(joined) = children.join_next().await {
+        match joined {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => retain_serving_failure(&failure, error)?,
+            Err(error) => retain_serving_failure(&failure, error.into())?,
+        }
+    }
+    Ok(())
+}
+
+fn retain_serving_failure(
+    failure: &ServingFailure,
+    error: Box<dyn std::error::Error + Send + Sync>,
+) -> TestResult<()> {
+    let mut failure = failure.lock().map_err(|_| "profile serving outcome lock was poisoned")?;
+    retain_failure(&mut failure, error);
+    Ok(())
 }
 
 async fn serve(
@@ -202,6 +336,7 @@ async fn serve(
     index: usize,
     log: &Log,
     behavior: Behavior,
+    mut stopped: watch::Receiver<bool>,
 ) -> TestResult<()> {
     let offer = Arc::new(Mutex::new(Vec::new()));
     let mut builder = identity.acceptor_builder(H2_ALPN)?;
@@ -212,25 +347,27 @@ async fn serve(
         }
         select_next_proto(ALPN_PREFERENCE, offered).ok_or(AlpnError::NOACK)
     });
-    let stream = accept_tls_stream(tcp, builder.build()).await?;
+    let stream = tokio::select! {
+        biased;
+        result = accept_tls_stream(tcp, builder.build()) => result?,
+        result = stop_requested(&mut stopped) => return result,
+    };
     let protocol = stream
         .ssl()
         .selected_alpn_protocol()
         .map(|protocol| String::from_utf8_lossy(protocol).into_owned());
+    let alpn_offer = decode_alpn(&offer.lock().map_err(|_| "ALPN offer lock was poisoned")?);
     update(log, index, |connection| {
-        connection.alpn_offer = offer
-            .lock()
-            .map(|offer| decode_alpn(&offer))
-            .unwrap_or_default();
+        connection.alpn_offer = alpn_offer;
         connection.protocol.clone_from(&protocol);
     })?;
     match protocol.as_deref() {
-        Some("h2") => serve_h2(stream, index, log, behavior).await,
-        _ => serve_h1(stream, index, log, behavior).await,
+        Some("h2") => serve_h2(stream, index, log, behavior, stopped).await,
+        _ => serve_h1(stream, index, log, behavior, stopped).await,
     }
 }
 
-async fn serve_h2<T>(stream: T, index: usize, log: &Log, behavior: Behavior) -> TestResult<()>
+async fn serve_h2<T>(stream: T, index: usize, log: &Log, behavior: Behavior, mut stopped: watch::Receiver<bool>) -> TestResult<()>
 where
     T: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
@@ -246,11 +383,32 @@ where
     update(log, index, |connection| {
         connection.client_wire = Arc::clone(&recorded);
     })?;
-    let mut connection = builder.handshake::<_, Bytes>(io).await?;
+    let mut connection = tokio::select! {
+        biased;
+        result = builder.handshake::<_, Bytes>(io) => result?,
+        result = stop_requested(&mut stopped) => return result,
+    };
     let mut wire = WireDecoder::default();
     let mut refused_any = false;
-    while let Some(accepted) = connection.accept().await {
-        let (request, mut respond) = accepted?;
+    let mut echoes = FuturesUnordered::new();
+    let (echo_stop, echo_stopped) = watch::channel(false);
+    let result: TestResult<()> = async {
+    loop {
+        let accepted = tokio::select! {
+            biased;
+            result = echoes.next(), if !echoes.is_empty() => {
+                result.ok_or("echo outcome disappeared")??;
+                continue;
+            }
+            accepted = connection.accept() => match accepted {
+                Some(Ok(accepted)) => accepted,
+                Some(Err(error)) if error.get_io().is_some_and(super::tls_support::is_peer_gone) => break,
+                Some(Err(error)) => return Err(error.into()),
+                None => break,
+            },
+            result = stop_requested(&mut stopped) => { result?; break; }
+        };
+        let (request, mut respond) = accepted;
         let stream_id = u32::from(respond.stream_id());
         let (priority, pseudo) = {
             let bytes = recorded.lock().map_err(|_| "wire lock was poisoned")?;
@@ -271,8 +429,12 @@ where
                     })
                     .collect()
             })
-            .unwrap_or_default();
+            .ok_or("HTTP/2 request omitted ordered fields")?;
         let method = request.method().clone();
+        if log.lock().map_err(|_| "server log lock was poisoned")?
+            .get(index).ok_or("missing connection log")?.h2.len() >= MAX_RECORDS {
+            return Err("profile request bound exceeded".into());
+        }
         update(log, index, |connection| {
             connection.h2.push(H2Headers {
                 stream_id,
@@ -285,7 +447,7 @@ where
         if method == Method::CONNECT {
             match behavior.connect {
                 Reply::Accept => {
-                    accept_connect(request, respond, behavior, log, index)?;
+                    echoes.push(accept_connect(request, respond, behavior, log, index, echo_stopped.clone())?);
                 }
                 Reply::ResetStream => respond.send_reset(::http2::Reason::INTERNAL_ERROR),
                 Reply::GoAway => connection.abrupt_shutdown(::http2::Reason::NO_ERROR),
@@ -299,7 +461,7 @@ where
                     respond.send_reset(::http2::Reason::REFUSED_STREAM);
                 }
                 Reply::RefuseFirstStream => {
-                    accept_connect(request, respond, behavior, log, index)?;
+                    echoes.push(accept_connect(request, respond, behavior, log, index, echo_stopped.clone())?);
                 }
             }
         } else {
@@ -308,6 +470,13 @@ where
         }
     }
     Ok(())
+    }.await;
+    echo_stop.send_replace(true);
+    let mut failure = result.err();
+    while let Some(result) = echoes.next().await {
+        if let Err(error) = result { retain_failure(&mut failure, error); }
+    }
+    match failure { Some(error) => Err(error), None => Ok(()) }
 }
 
 /// Accepts one extended CONNECT, selecting compression when asked, and starts
@@ -318,7 +487,8 @@ fn accept_connect(
     behavior: Behavior,
     log: &Log,
     index: usize,
-) -> TestResult<()> {
+    stopped: watch::Receiver<bool>,
+) -> TestResult<impl std::future::Future<Output = TestResult<()>> + Send + 'static + use<>> {
     let response = if behavior.deflate {
         Response::builder()
             .header("sec-websocket-extensions", "permessage-deflate")
@@ -327,14 +497,14 @@ fn accept_connect(
         Response::new(())
     };
     let send = respond.send_response(response, false)?;
-    tokio::spawn(echo_h2(
+    Ok(echo_h2(
         request.into_body(),
         send,
         Arc::clone(log),
         index,
         behavior.deflate,
-    ));
-    Ok(())
+        stopped,
+    ))
 }
 
 /// Returns the client's `RST_STREAM` frames as (stream, error code).
@@ -367,41 +537,69 @@ async fn echo_h2(
     log: Log,
     index: usize,
     deflate: bool,
-) {
+    mut stopped: watch::Receiver<bool>,
+) -> TestResult<()> {
+    let operation = async {
     let mut wire = Vec::new();
-    while let Some(Ok(chunk)) = body.data().await {
-        let _ = body.flow_control().release_capacity(chunk.len());
+    while let Some(chunk) = body.data().await {
+        let chunk = match chunk {
+            Ok(chunk) => chunk,
+            Err(error) if expected_stream_end(&error) => return Ok(()),
+            Err(error) => return Err(error.into()),
+        };
+        body.flow_control().release_capacity(chunk.len())?;
+        if wire.len().checked_add(chunk.len()).is_none_or(|length| length > MAX_WIRE_BYTES) {
+            return Err("profile WebSocket buffered-input bound exceeded".into());
+        }
         wire.extend_from_slice(&chunk);
-        if let Some((rsv1, opcode, payload)) = client_frame(&wire) {
+        while let Some((rsv1, opcode, payload, consumed)) = client_frame(&wire)? {
             // Recorded before the echo, so a client that has read the echo
             // has already had its own frame logged.
-            let _ = update(&log, index, |connection| {
+            if log.lock().map_err(|_| "server log lock was poisoned")?
+                .get(index).ok_or("missing connection log")?.client_frames.len() >= MAX_RECORDS {
+                return Err("profile WebSocket record bound exceeded".into());
+            }
+            update(&log, index, |connection| {
                 connection.client_frames.push(ClientDataFrame {
                     rsv1,
                     opcode,
                     payload_len: payload.len(),
                 });
-            });
+            })?;
             let mut echo = Vec::new();
             // With compression selected the client's payload is deflated, so
             // it is echoed as uncompressed binary rather than replayed as
             // text the client would UTF-8 validate.
             let echo_opcode = if deflate && opcode < 0x8 { 0x2 } else { opcode };
             append_server_frame(&mut echo, true, echo_opcode, &payload);
-            if send.send_data(Bytes::from(echo), false).is_err() {
-                return;
+            if let Err(error) = send.send_data(Bytes::from(echo), false) {
+                if expected_stream_end(&error) {
+                    return Ok(());
+                }
+                return Err(error.into());
             }
-            wire.clear();
+            wire.drain(..consumed);
         }
     }
+    if !wire.is_empty() { return Err("client ended with a partial WebSocket frame".into()); }
     // The client ended its side after the close handshake; end ours too.
-    let _ = send.send_data(Bytes::new(), true);
+    if let Err(error) = send.send_data(Bytes::new(), true) {
+        if !expected_stream_end(&error) { return Err(error.into()); }
+    }
+    Ok(())
+    };
+    tokio::select! {
+        biased;
+        result = operation => result,
+        result = stop_requested(&mut stopped) => result,
+    }
 }
 
-async fn serve_h1<T>(mut stream: T, index: usize, log: &Log, behavior: Behavior) -> TestResult<()>
+async fn serve_h1<T>(mut stream: T, index: usize, log: &Log, behavior: Behavior, mut stopped: watch::Receiver<bool>) -> TestResult<()>
 where
     T: AsyncRead + AsyncWrite + Unpin,
 {
+    let operation = async {
     let head = String::from_utf8(read_head(&mut stream).await?)?;
     let mut lines = head.trim_end().split("\r\n");
     let request_line = lines.next().ok_or("empty H1 request")?.to_owned();
@@ -445,13 +643,60 @@ where
             .as_bytes(),
         )
         .await?;
-    let frame = read_client_frame(&mut stream).await?;
+    let (opcode, payload) = read_profile_frame(&mut stream).await?;
     let mut echo = Vec::new();
-    append_server_frame(&mut echo, true, frame.opcode, &frame.payload);
+    append_server_frame(&mut echo, true, opcode, &payload);
     stream.write_all(&echo).await?;
-    let mut rest = Vec::new();
-    let _ = stream.read_to_end(&mut rest).await;
+    let mut rest = [0_u8; 1024];
+    let mut received = 0_usize;
+    loop {
+        match stream.read(&mut rest).await {
+            Ok(0) => break,
+            Ok(length) => {
+                received += length;
+                if received > MAX_FRAME_BYTES { return Err("profile post-echo input bound exceeded".into()); }
+            }
+            Err(error) if super::tls_support::is_peer_gone(&error) => break,
+            Err(error) => return Err(error.into()),
+        }
+    }
     Ok(())
+    };
+    tokio::select! {
+        biased;
+        result = operation => result,
+        result = stop_requested(&mut stopped) => result,
+    }
+}
+
+fn expected_stream_end(error: &::http2::Error) -> bool {
+    // The scripts deliberately drop accepted WebSockets as well as closing
+    // them gracefully. Local protocol/I/O errors remain failures.
+    error.get_io().is_some_and(super::tls_support::is_peer_gone)
+        || (error.is_remote() && error.is_reset() && error.reason() == Some(::http2::Reason::CANCEL))
+}
+
+async fn read_profile_frame(stream: &mut (impl AsyncRead + Unpin)) -> TestResult<(u8, Vec<u8>)> {
+    let mut head = [0_u8; 2];
+    stream.read_exact(&mut head).await?;
+    let extended = match head[1] & 0x7f { 126 => 2, 127 => 8, _ => 0 };
+    let mut wire = head.to_vec();
+    wire.resize(2 + extended, 0);
+    stream.read_exact(&mut wire[2..]).await?;
+    let length = match extended {
+        2 => usize::from(u16::from_be_bytes([wire[2], wire[3]])),
+        8 => usize::try_from(u64::from_be_bytes(wire[2..10].try_into()?))?,
+        _ => usize::from(head[1] & 0x7f),
+    };
+    if head[1] & 0x80 == 0 || length > MAX_FRAME_BYTES {
+        return Err(io::Error::new(io::ErrorKind::InvalidData,
+            "profile client frame was unmasked or exceeded its bound").into());
+    }
+    let prefix = wire.len();
+    wire.resize(prefix + 4 + length, 0);
+    stream.read_exact(&mut wire[prefix..]).await?;
+    let (_, opcode, payload, _) = client_frame(&wire)?.ok_or("complete profile frame was truncated")?;
+    Ok((opcode, payload))
 }
 
 fn update(log: &Log, index: usize, change: impl FnOnce(&mut ConnectionLog)) -> TestResult<()> {
@@ -471,22 +716,28 @@ fn decode_alpn(mut wire: &[u8]) -> Vec<String> {
 }
 
 /// Unmasks one complete client frame, or returns `None` until it is complete.
-fn client_frame(wire: &[u8]) -> Option<(bool, u8, Vec<u8>)> {
-    let first = *wire.first()?;
+fn client_frame(wire: &[u8]) -> TestResult<Option<(bool, u8, Vec<u8>, usize)>> {
+    let Some(&first) = wire.first() else { return Ok(None); };
     let (rsv1, opcode) = (first & 0x40 != 0, first & 0x0f);
-    let (&second, mut rest) = wire.get(1..)?.split_first()?;
+    let Some((&second, mut rest)) = wire.get(1..).and_then(|tail| tail.split_first()) else { return Ok(None); };
+    if second & 0x80 == 0 { return Err("client WebSocket frame was not masked".into()); }
     let length = match second & 0x7f {
         126 => {
-            let (bytes, tail) = rest.split_at_checked(2)?;
+            let Some((bytes, tail)) = rest.split_at_checked(2) else { return Ok(None); };
             rest = tail;
             usize::from(u16::from_be_bytes([bytes[0], bytes[1]]))
         }
-        127 => return None,
+        127 => {
+            let Some((bytes, tail)) = rest.split_at_checked(8) else { return Ok(None); };
+            rest = tail;
+            usize::try_from(u64::from_be_bytes(bytes.try_into()?))?
+        }
         length => usize::from(length),
     };
-    let (mask, tail) = rest.split_at_checked(4)?;
-    let payload = tail.get(..length)?;
-    Some((
+    if length > MAX_FRAME_BYTES { return Err("profile WebSocket frame bound exceeded".into()); }
+    let Some((mask, tail)) = rest.split_at_checked(4) else { return Ok(None); };
+    let Some(payload) = tail.get(..length) else { return Ok(None); };
+    Ok(Some((
         rsv1,
         opcode,
         payload
@@ -494,7 +745,8 @@ fn client_frame(wire: &[u8]) -> Option<(bool, u8, Vec<u8>)> {
             .enumerate()
             .map(|(index, byte)| byte ^ mask[index % 4])
             .collect(),
-    ))
+        wire.len() - tail.len() + length,
+    )))
 }
 
 /// Incremental parser for the client's side of an HTTP/2 connection.
@@ -534,13 +786,15 @@ impl WireDecoder {
                 return Err("test decoder supports only unpadded single-frame HEADERS".into());
             }
             let (priority, block) = if flags & 0x20 != 0 {
+                let priority = payload.get(..5).ok_or_else(||
+                    io::Error::new(io::ErrorKind::InvalidData, "HEADERS priority was truncated"))?;
                 let dependency =
-                    u32::from_be_bytes([payload[0], payload[1], payload[2], payload[3]]);
+                    u32::from_be_bytes([priority[0], priority[1], priority[2], priority[3]]);
                 (
                     Some((
                         dependency & 0x8000_0000 != 0,
                         dependency & 0x7fff_ffff,
-                        u16::from(payload[4]) + 1,
+                        u16::from(priority[4]) + 1,
                     )),
                     &payload[5..],
                 )
@@ -548,6 +802,7 @@ impl WireDecoder {
                 (None, payload)
             };
             let pseudo = self.decode_block(block)?;
+            if self.headers.len() >= MAX_RECORDS { return Err("profile decoded-header bound exceeded".into()); }
             self.headers.push((id, priority, pseudo));
         }
         self.headers
@@ -691,10 +946,12 @@ where
         let before = buffer.filled().len();
         let result = Pin::new(&mut this.inner).poll_read(context, buffer);
         if let Poll::Ready(Ok(())) = result {
-            this.read
-                .lock()
-                .map_err(|_| io::Error::other("recorded wire lock was poisoned"))?
-                .extend_from_slice(&buffer.filled()[before..]);
+            let mut recorded = this.read.lock().map_err(|_| io::Error::other("recorded wire lock was poisoned"))?;
+            let bytes = &buffer.filled()[before..];
+            if recorded.len().checked_add(bytes.len()).is_none_or(|length| length > MAX_WIRE_BYTES) {
+                return Poll::Ready(Err(io::Error::other("profile recorded-wire bound exceeded")));
+            }
+            recorded.extend_from_slice(bytes);
         }
         result
     }
@@ -720,3 +977,6 @@ where
         Pin::new(&mut self.get_mut().inner).poll_shutdown(context)
     }
 }
+
+#[cfg(test)]
+mod tests;
