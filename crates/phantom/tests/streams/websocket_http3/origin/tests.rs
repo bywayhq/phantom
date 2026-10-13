@@ -114,8 +114,11 @@ async fn interrupted_finish_keeps_caller_and_original_accepted_connection() -> T
         }
         assert!(origin.task.is_some());
 
-        let error = origin.finish(Ok(())).await.unwrap_err();
-        assert!(std::ptr::eq(error.downcast_ref::<io::Error>().unwrap(), original));
+        let error = origin.finish(Ok(())).await.err().ok_or("cleanup lost the caller failure")?;
+        assert!(std::ptr::eq(
+            error.downcast_ref::<io::Error>().ok_or("caller cause changed type")?,
+            original
+        ));
         assert!(origin.task.is_none());
         assert!(matches!(peer.connection.closed().await,
             quinn::ConnectionError::ApplicationClosed(close) if close.error_code.into_inner() == 0));
@@ -149,16 +152,32 @@ async fn oversized_and_truncated_frame_lengths_keep_original_parser_and_caller_c
                 "caller failed",
             ));
             let original = (&*primary) as *const io::Error;
-            let error = origin.finish(Err(primary)).await.unwrap_err();
-            let failures = error.downcast_ref::<FixtureFailures>().unwrap();
+            let error = origin
+                .finish(Err(primary))
+                .await
+                .err()
+                .ok_or("cleanup lost both causes")?;
+            let failures = error
+                .downcast_ref::<FixtureFailures>()
+                .ok_or("cleanup did not retain grouped causes")?;
             assert!(std::ptr::eq(
-                failures.primary.downcast_ref::<io::Error>().unwrap(),
+                failures
+                    .primary
+                    .downcast_ref::<io::Error>()
+                    .ok_or("caller cause changed type")?,
                 original
             ));
-            let ending = failures.cleanup.downcast_ref::<Ending>().unwrap();
-            let cause = ending.source().unwrap();
+            let ending = failures
+                .cleanup
+                .downcast_ref::<Ending>()
+                .ok_or("parser ending changed type")?;
+            let cause = ending
+                .source()
+                .ok_or("parser ending lost its original cause")?;
             if oversized {
-                let cause = cause.downcast_ref::<io::Error>().unwrap();
+                let cause = cause
+                    .downcast_ref::<io::Error>()
+                    .ok_or("frame-bound cause changed type")?;
                 assert_eq!(cause.kind(), io::ErrorKind::InvalidData);
                 assert_eq!(cause.to_string(), "HTTP/3 origin frame bound exceeded");
             } else {
@@ -223,15 +242,27 @@ async fn unexpected_reset_and_stop_codes_keep_their_typed_ending_and_caller_caus
                 "caller failed after the peer's wrong code",
             ));
             let original = (&*primary) as *const io::Error;
-            let error = origin.finish(Err(primary)).await.unwrap_err();
-            let failures = error.downcast_ref::<FixtureFailures>().unwrap();
+            let error = origin
+                .finish(Err(primary))
+                .await
+                .err()
+                .ok_or("cleanup lost both causes")?;
+            let failures = error
+                .downcast_ref::<FixtureFailures>()
+                .ok_or("cleanup did not retain grouped causes")?;
             assert!(std::ptr::eq(
-                failures.primary.downcast_ref::<io::Error>().unwrap(),
+                failures
+                    .primary
+                    .downcast_ref::<io::Error>()
+                    .ok_or("caller cause changed type")?,
                 original
             ));
             if reset {
                 assert_eq!(
-                    failures.cleanup.downcast_ref::<Ending>().unwrap(),
+                    failures
+                        .cleanup
+                        .downcast_ref::<Ending>()
+                        .ok_or("RESET ending changed type")?,
                     &Ending::Reset(u64::from(WRONG_CODE))
                 );
                 assert_eq!(
@@ -240,7 +271,10 @@ async fn unexpected_reset_and_stop_codes_keep_their_typed_ending_and_caller_caus
                 );
             } else {
                 assert_eq!(
-                    failures.cleanup.downcast_ref::<SendEnding>().unwrap(),
+                    failures
+                        .cleanup
+                        .downcast_ref::<SendEnding>()
+                        .ok_or("STOP ending changed type")?,
                     &SendEnding::Stopped(u64::from(WRONG_CODE))
                 );
                 assert_eq!(lock(&origin.log).endings, [Ending::Finished]);
@@ -265,7 +299,10 @@ async fn websocket_frame_length_and_partial_eof_are_errors_before_payload_alloca
         vec![0x81],
     ] {
         let mut input = wire.as_slice();
-        let error = read_client_frame(&mut input).await.unwrap_err();
+        let error = read_client_frame(&mut input)
+            .await
+            .err()
+            .ok_or("malformed frame was accepted")?;
         assert!(matches!(
             error.kind(),
             io::ErrorKind::InvalidData | io::ErrorKind::UnexpectedEof
@@ -273,7 +310,9 @@ async fn websocket_frame_length_and_partial_eof_are_errors_before_payload_alloca
     }
     let wire = [0x81, 0x81, 1, 2, 3, 4, b'a' ^ 1];
     let mut input = wire.as_slice();
-    let frame = read_client_frame(&mut input).await?.unwrap();
+    let frame = read_client_frame(&mut input)
+        .await?
+        .ok_or("healthy masked frame was lost")?;
     assert_eq!(frame.payload, b"a");
     assert!(read_client_frame(&mut input).await?.is_none());
     Ok(())

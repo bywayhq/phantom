@@ -203,9 +203,15 @@ mod tests {
             "caller failed",
         ));
         let original = (&*primary) as *const io::Error;
-        let error = relay.finish(Err(primary)).await.unwrap_err();
+        let error = relay
+            .finish(Err(primary))
+            .await
+            .err()
+            .ok_or("cleanup lost the caller failure")?;
         assert!(std::ptr::eq(
-            error.downcast_ref::<io::Error>().unwrap(),
+            error
+                .downcast_ref::<io::Error>()
+                .ok_or("caller cause changed type")?,
             original
         ));
         assert!(relay.task.is_none());
@@ -229,8 +235,18 @@ mod tests {
             assert!(futures_util::poll!(&mut finishing).is_pending());
         }
         assert!(relay.task.is_some());
-        let error = relay.finish(Ok(())).await.unwrap_err();
-        assert!(error.source().unwrap().downcast_ref::<Elapsed>().is_some());
+        let error = relay
+            .finish(Ok(()))
+            .await
+            .err()
+            .ok_or("cleanup lost the caller deadline")?;
+        assert!(
+            error
+                .source()
+                .ok_or("deadline lost its original Elapsed")?
+                .downcast_ref::<Elapsed>()
+                .is_some()
+        );
         assert!(relay.task.is_none());
         assert_eq!(phantom_testkit::udp::bind(address)?.local_addr()?, address);
         assert_eq!(
