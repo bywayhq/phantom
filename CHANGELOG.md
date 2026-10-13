@@ -2454,6 +2454,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Require `http-body` 1.1 or newer so projects with an older lockfile
+  resolve the `SizeHint` API used by buffered request bodies.
+
 - Enforce total request deadlines on buffered response frames and yield
   during bounded decompression work. Reject admission bounds above the
   runtime semaphore limit before preparing a connection.

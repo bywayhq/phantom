@@ -37,7 +37,7 @@ cookie = { version = "=0.18.2", optional = true }
 cookie_store = { version = "=0.22.1", optional = true, default-features = false }
 flate2.workspace = true
 http = "1.4.0"
-http-body = "1.0.1"
+http-body = "1.1.0"
 futures-core = { version = "=0.3.34", optional = true, default-features = false }
 futures-util = { version = "=0.3.34", optional = true, default-features = false, features = ["sink", "std"] }
 parking_lot = { version = "=0.12.5", optional = true }
