@@ -223,7 +223,13 @@ impl Origin {
     async fn next_accepted(&mut self) -> TestResult<usize> {
         loop {
             match timeout(TEST_TIMEOUT, self.events.recv())
-                .await?
+                .await
+                .map_err(|elapsed| {
+                    FixtureDeadline::new(
+                        "HTTP/3 origin acceptance wait exceeded its deadline",
+                        elapsed,
+                    )
+                })?
                 .ok_or_else(|| self.failure())?
             {
                 Event::Accepted(index) => return Ok(index),
@@ -235,6 +241,7 @@ impl Origin {
 
     /// Sends GOAWAY on the numbered connection; its open streams finish.
     fn goaway(&self, connection: usize) {
+        eprintln!("HTTP/3 fixture: connection={connection} phase=goaway-requested");
         self.goaway.send_replace(Some(connection));
     }
 
@@ -252,7 +259,13 @@ impl Origin {
         let (mut connections, mut seen) = (0, 0);
         while seen < requests {
             match timeout(TEST_TIMEOUT, self.events.recv())
-                .await?
+                .await
+                .map_err(|elapsed| {
+                    FixtureDeadline::new(
+                        "HTTP/3 origin request-count wait exceeded its deadline",
+                        elapsed,
+                    )
+                })?
                 .ok_or_else(|| self.failure())?
             {
                 Event::Accepted(_) => connections += 1,
@@ -276,7 +289,13 @@ impl Origin {
     async fn next_request(&mut self) -> TestResult<usize> {
         loop {
             match timeout(TEST_TIMEOUT, self.events.recv())
-                .await?
+                .await
+                .map_err(|elapsed| {
+                    FixtureDeadline::new(
+                        "HTTP/3 origin request wait exceeded its deadline",
+                        elapsed,
+                    )
+                })?
                 .ok_or_else(|| self.failure())?
             {
                 Event::Request { connection } => return Ok(connection),
@@ -297,7 +316,11 @@ impl Origin {
     async fn finish<T>(&mut self, primary: TestResult<T>) -> TestResult<T> {
         self.stopping.send_replace(true);
         let cleanup = async {
-            timeout(Duration::from_secs(5), self.task.join()).await???;
+            timeout(Duration::from_secs(5), self.task.join())
+                .await
+                .map_err(|elapsed| {
+                    FixtureDeadline::new("HTTP/3 origin cleanup exceeded its deadline", elapsed)
+                })???;
             Ok(())
         }
         .await;
@@ -390,6 +413,7 @@ async fn serve(
                 }, if !shutting_down => {
                     changed?;
                     server.shutdown(0).await?;
+                    eprintln!("HTTP/3 fixture: connection={connection} phase=goaway-write-completed");
                     shutting_down = true;
                     continue;
                 }
@@ -460,7 +484,11 @@ fn client_builder(identity: &TestIdentity) -> ClientBuilder {
 
 async fn send(client: &Client, uri: &str) -> TestResult<Response<phantom::ResponseBody>> {
     let request = client.get(HttpProtocol::Http3, uri)?;
-    Ok(timeout(TEST_TIMEOUT, request.send()).await??)
+    Ok(timeout(TEST_TIMEOUT, request.send())
+        .await
+        .map_err(|elapsed| {
+            FixtureDeadline::new("HTTP/3 request send exceeded its deadline", elapsed)
+        })??)
 }
 
 async fn finish(response: Response<phantom::ResponseBody>) -> TestResult {
@@ -470,7 +498,10 @@ async fn finish(response: Response<phantom::ResponseBody>) -> TestResult {
         .map(ResponseInfo::protocol);
     assert_eq!(protocol, Some(HttpProtocol::Http3));
     let body = timeout(TEST_TIMEOUT, response.into_body().collect())
-        .await??
+        .await
+        .map_err(|elapsed| {
+            FixtureDeadline::new("HTTP/3 response body exceeded its deadline", elapsed)
+        })??
         .to_bytes();
     assert_eq!(body, "done");
     Ok(())
@@ -797,7 +828,14 @@ impl AdvertisingOrigin {
     async fn finish(&mut self, primary: TestResult) -> TestResult {
         self.stopping.send_replace(true);
         let cleanup = async {
-            timeout(Duration::from_secs(5), self.task.join()).await???;
+            timeout(Duration::from_secs(5), self.task.join())
+                .await
+                .map_err(|elapsed| {
+                    FixtureDeadline::new(
+                        "Alt-Svc advertiser cleanup exceeded its deadline",
+                        elapsed,
+                    )
+                })???;
             Ok(())
         }
         .await;
@@ -896,7 +934,10 @@ async fn an_alt_svc_alternative_opens_more_connections_up_to_the_limit() -> Test
                 .get_negotiated(&format!("https://{address}/warm"))?
                 .send(),
         )
-        .await??;
+        .await
+        .map_err(|elapsed| {
+            FixtureDeadline::new("Alt-Svc discovery request exceeded its deadline", elapsed)
+        })??;
         assert_eq!(
             learned
                 .extensions()
@@ -904,7 +945,11 @@ async fn an_alt_svc_alternative_opens_more_connections_up_to_the_limit() -> Test
                 .map(ResponseInfo::protocol),
             Some(HttpProtocol::Http1)
         );
-        timeout(TEST_TIMEOUT, learned.into_body().collect()).await??;
+        timeout(TEST_TIMEOUT, learned.into_body().collect())
+            .await
+            .map_err(|elapsed| {
+                FixtureDeadline::new("Alt-Svc discovery body exceeded its deadline", elapsed)
+            })??;
 
         // Three held requests at two streams per connection use both
         // connections the limit allows to the alternative.
@@ -913,7 +958,16 @@ async fn an_alt_svc_alternative_opens_more_connections_up_to_the_limit() -> Test
             let (client, uri) = (client.clone(), format!("https://{address}/{path}"));
             requests.spawn(async move {
                 let request = client.get_negotiated(&uri)?;
-                finish(timeout(TEST_TIMEOUT, request.send()).await??).await
+                let response =
+                    timeout(TEST_TIMEOUT, request.send())
+                        .await
+                        .map_err(|elapsed| {
+                            FixtureDeadline::new(
+                                "Alt-Svc held request exceeded its deadline",
+                                elapsed,
+                            )
+                        })??;
+                finish(response).await
             });
         }
         let held = start..requests.len();

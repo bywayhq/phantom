@@ -41,7 +41,14 @@ impl Requests {
 
     pub(super) async fn join(&mut self, indices: Range<usize>) -> TestResult {
         for index in indices {
-            timeout(TEST_TIMEOUT, self.peer(index)?.join()).await???;
+            timeout(TEST_TIMEOUT, self.peer(index)?.join())
+                .await
+                .map_err(|elapsed| {
+                    FixtureDeadline::new(
+                        "HTTP/3 request worker join exceeded its deadline",
+                        elapsed,
+                    )
+                })???;
         }
         Ok(())
     }
