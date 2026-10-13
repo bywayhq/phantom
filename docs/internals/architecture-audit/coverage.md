@@ -112,9 +112,10 @@ reads or fresh browser captures. Their current guards do not strengthen
 historical observations. No finding closes solely from these dispositions.
 
 A347 records an additional downstream smoke-test owner gap. Caller failure
-or an outer deadline drops its raw peer handle before collection. A bounded
-repair and native controls are underway in a separate lane. Playground's
-prepared migration remains unchanged.
+or an outer deadline drops its raw peer handle before collection. The
+independently approved repair passes its focused tests, Clippy and Rust 1.88.
+Composition `f146e52c` passes all 24 local gate steps and awaits platform CI
+and integration. Playground's prepared migration remains unchanged.
 
 Independent architecture review at `b8ab9851` traces twelve shared boundaries.
 It binds 59 source files, with complete reads of 24 and partial reads of the
