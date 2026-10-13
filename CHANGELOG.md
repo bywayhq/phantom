@@ -2492,6 +2492,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Mark the architecture audit complete and retire its completed checklist.
+
 - Retire Alt-Svc test sockets, listeners and clients when setup fails.
 
 - Collect downstream API smoke-test peers after caller failure or timeout.

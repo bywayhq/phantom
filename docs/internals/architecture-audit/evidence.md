@@ -10,7 +10,7 @@ The per-pass records remain in the
 Record names in the inventory's evidence column refer to files there.
 Their fragments and source ranges retain their original meaning.
 
-The working tree keeps the plan, coverage, findings and source inventory.
+The working tree keeps the completion record, coverage, findings and inventory.
 Generated audit records are excluded from the source-review inventory.
 Their removal does not change any remaining file's review disposition.
 Earlier reports remain historical evidence, including corrections and failed

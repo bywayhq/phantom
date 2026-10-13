@@ -1,13 +1,12 @@
 # Roadmap
 
-Phases 1 and 2 are complete within their agreed scope. The
-[architecture audit](internals/architecture-audit.md) is now in progress
-before release preparation. Runtime and fixture repairs have merged through
-PRs 198 and 199. Tooling PR 200 has merged after its local gate and PR checks.
-All eight applicable main push workflows passed at the tooling revision.
-The remaining architecture/docs review is open. Playground's migration branch
-is ready with local downstream checks passing; Foundry remains active.
-Hardening and profiling remain later work.
+Phases 1 and 2 and the
+[architecture audit](internals/architecture-audit.md) are complete within
+their agreed scopes. The audit's final delivery, PR 210 at `f0148f11`, passed
+its full gate, all applicable PR checks and subsequent main checks, including
+Windows and macOS. Playground's migration branch is ready and unlanded;
+Foundry remains active. Release preparation, hardening and profiling remain
+separate work.
 This page states intent, not commitments or dates; for exact current
 support, see [Coverage](reference/coverage.md).
 
