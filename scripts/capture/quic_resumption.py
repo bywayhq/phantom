@@ -32,7 +32,8 @@ from pathlib import Path
 
 import aioquic
 from aioquic import tls
-from aioquic.asyncio import QuicConnectionProtocol, serve
+from aioquic.asyncio import QuicConnectionProtocol
+from aioquic.asyncio.server import QuicServer
 from aioquic.buffer import Buffer, BufferReadError, encode_uint_var
 from aioquic.h3.connection import (
     H3_ALPN,
@@ -81,6 +82,10 @@ MAX_REQUESTS = 64
 MAX_BODY = 64 * 1024
 MAX_CLIENT_HELLO = 32 * 1024
 MAX_RUNS = 128
+MAX_STREAMS = 128
+MAX_HELD_DATAGRAMS = 128
+MAX_HELD_BYTES = 1024 * 1024
+CLEANUP_SECONDS = 5.0
 PRE_SHARED_KEY = 0x0029
 EARLY_DATA = 0x002A
 PSK_KEY_EXCHANGE_MODES = 0x002D
@@ -450,6 +455,12 @@ class UnidirectionalStream:
 
 
 @dataclass
+class StreamTypePrefix:
+    bytes_by_offset: dict[int, int] = field(default_factory=dict)
+    first: tuple[str, int, float] | None = None
+
+
+@dataclass
 class ConnectionRecord:
     index: int
     first_datagram_ms: float
@@ -482,6 +493,18 @@ class RunRecord:
     done: asyncio.Event = field(default_factory=asyncio.Event)
     error: str | None = None
     current: ConnectionRecord | None = None
+    failures: list[BaseException] = field(default_factory=list)
+    owner: ResumptionServer | None = None
+
+    def failed(self, error: BaseException) -> None:
+        if all(previous is not error for previous in self.failures):
+            self.failures.append(error)
+        self.done.set()
+
+    def check(self) -> None:
+        raise_resumption_failures(None, tuple(self.failures), self.owner)
+        if self.owner is not None and not self.owner.finished:
+            raise RuntimeError("QUIC capture cleanup is incomplete")
 
     def now(self) -> float:
         return round((time.perf_counter() - self.started) * 1000, 1)
@@ -544,14 +567,37 @@ def record_stream_start(
     stream_id = buf.pull_uint_var()
     offset = buf.pull_uint_var() if frame_type & 0x04 else 0
     length = buf.pull_uint_var() if frame_type & 0x02 else buf.capacity - buf.tell()
-    if offset != 0 or length == 0:
+    data = buf.pull_bytes(length)
+    if stream_id in streams or not data or offset >= 8:
         return
+
+    prefixes = getattr(connection, "_phantom_stream_prefixes", None)
+    if prefixes is None:
+        prefixes = connection._phantom_stream_prefixes = {}
+    if stream_id not in prefixes and len(prefixes) + len(streams) >= MAX_STREAMS:
+        raise ValueError("unidirectional stream count exceeds the capture limit")
+
+    prefix = prefixes.setdefault(stream_id, StreamTypePrefix())
+    if offset == 0 and prefix.first is None:
+        prefix.first = (EPOCH_NAMES[context.epoch], length, connection._phantom_clock())
+    for index, byte in enumerate(data[: 8 - offset], offset):
+        previous = prefix.bytes_by_offset.setdefault(index, byte)
+        if previous != byte:
+            raise ValueError("conflicting unidirectional stream type bytes")
+
+    if prefix.first is None:
+        return
+    width = 1 << (prefix.bytes_by_offset[0] >> 6)
+    if any(index not in prefix.bytes_by_offset for index in range(width)):
+        return
+
+    encoded = bytes(prefix.bytes_by_offset[index] for index in range(width))
+    stream_type = Buffer(data=encoded).pull_uint_var()
+    space, first_frame_bytes, first_ms = prefix.first
     streams[stream_id] = UnidirectionalStream(
-        stream_type=buf.pull_uint_var(),
-        space=EPOCH_NAMES[context.epoch],
-        first_frame_bytes=length,
-        first_ms=connection._phantom_clock(),
+        stream_type, space, first_frame_bytes, first_ms
     )
+    del prefixes[stream_id]
 
 
 def install_hooks(accept_early_data: bool) -> Callable[[], None]:
@@ -575,19 +621,22 @@ def install_hooks(accept_early_data: bool) -> Callable[[], None]:
 
     def handle_stream_frame(self, context, frame_type, buf):
         start = buf.tell()
-        stream_id = buf.pull_uint_var()
-        buf.seek(start)
+        result = original_stream(self, context, frame_type, buf)
+        observed = Buffer(data=buf.data_slice(start, buf.tell()))
+        stream_id = observed.pull_uint_var()
+        observed.seek(0)
         spaces = getattr(self, "_phantom_stream_spaces", None)
         if spaces is not None:
+            if stream_id not in spaces and len(spaces) >= MAX_STREAMS:
+                raise ValueError("stream count exceeds the capture limit")
             names = spaces.setdefault(stream_id, [])
             name = EPOCH_NAMES[context.epoch]
             if name not in names:
                 names.append(name)
         streams = getattr(self, "_phantom_unidirectional_streams", None)
         if streams is not None and stream_id % 4 == 2 and stream_id not in streams:
-            record_stream_start(self, streams, context, frame_type, buf)
-            buf.seek(start)
-        return original_stream(self, context, frame_type, buf)
+            record_stream_start(self, streams, context, frame_type, observed)
+        return result
 
     tls.Context._server_handle_hello = server_handle_hello
     QuicConnection._handle_stream_frame = handle_stream_frame
@@ -604,12 +653,19 @@ def install_hooks(accept_early_data: bool) -> Callable[[], None]:
 
 class ResumptionProtocol(QuicConnectionProtocol):
     def __init__(
-        self, *args, run: RunRecord, handshake_delay_ms: int = 0, **kwargs
+        self, *args, owner: ResumptionServer, handshake_delay_ms: int = 0, **kwargs
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.run = run
+        self.owner = owner
+        self.run = run = owner.run
+        self.owner.protocols.append(self)
+        self.observed_closed = False
+        self.started = False
         self.handshake_delay_ms = handshake_delay_ms
         self.held: list[tuple[bytes, object]] | None = None
+        self.held_bytes = 0
+        self.release_timer = None
+        self.retire_timers = []
         self.record = run.new_connection()
         self._quic._phantom_stream_spaces = self.record.stream_spaces
         self._quic._phantom_unidirectional_streams = self.record.unidirectional_streams
@@ -619,28 +675,73 @@ class ResumptionProtocol(QuicConnectionProtocol):
         self.responded: set[int] = set()
 
     def datagram_received(self, data: bytes, addr) -> None:
+        try:
+            self.receive(data, addr)
+        except BaseException as error:
+            self.run.failed(error)
+
+    def receive(self, data: bytes, addr) -> None:
+        if self.owner.stopping:
+            if self.started:
+                self.deliver(data, addr)
+            return
         for name in count_packets(data, self._quic.configuration.connection_id_length):
             self.record.packets[name] = self.record.packets.get(name, 0) + 1
         if self.record.first_packet_version is None:
             self.record.first_packet_version = first_long_header_version(data)
         if self.handshake_delay_ms and self.held is None:
             self.held = [(data, addr)]
-            asyncio.get_running_loop().call_later(
+            self.held_bytes = len(data)
+            self.release_timer = asyncio.get_running_loop().call_later(
                 self.handshake_delay_ms / 1000, self.release
             )
             self.handshake_delay_ms = 0
             return
         if self.held:
+            if (
+                len(self.held) >= MAX_HELD_DATAGRAMS
+                or self.held_bytes + len(data) > MAX_HELD_BYTES
+            ):
+                raise ValueError("delayed datagrams exceed the capture limit")
             self.held.append((data, addr))
+            self.held_bytes += len(data)
             return
         self.deliver(data, addr)
 
     def release(self) -> None:
+        self.release_timer = None
         held, self.held = self.held or [], []
+        self.held_bytes = 0
+        if self.owner.stopping:
+            return
         for data, addr in held:
-            self.deliver(data, addr)
+            try:
+                self.deliver(data, addr)
+            except BaseException as error:
+                self.run.failed(error)
+
+    def _handle_timer(self) -> None:
+        try:
+            super()._handle_timer()
+        except BaseException as error:
+            self.run.failed(error)
+
+    def transmit(self) -> None:
+        try:
+            super().transmit()
+        except BaseException as error:
+            self.run.failed(error)
+            # A failed send must not lose the timer completing QUIC closure.
+            try:
+                timer_at = self._quic.get_timer()
+                if self._timer is None and timer_at is not None:
+                    self._timer_at = timer_at
+                    self._timer = self._loop.call_at(timer_at, self._handle_timer)
+            except BaseException as cleanup:
+                self.run.failed(cleanup)
 
     def deliver(self, data: bytes, addr) -> None:
+        self.started = True
         self.run.current = self.record
         try:
             super().datagram_received(data, addr)
@@ -648,6 +749,8 @@ class ResumptionProtocol(QuicConnectionProtocol):
             self.run.current = None
 
     def quic_event_received(self, event: QuicEvent) -> None:
+        if self.owner.stopping:
+            return
         record = self.record
         if isinstance(event, ProtocolNegotiated):
             # Emitted while the ClientHello is handled, before any 0-RTT
@@ -726,7 +829,9 @@ class ResumptionProtocol(QuicConnectionProtocol):
         self.transmit()
         if path == "/retire":
             self.goaway(stream_id + 4)
-            asyncio.get_running_loop().call_later(RETIRE_DELAY_SECONDS, self.retire)
+            self.retire_timers.append(
+                asyncio.get_running_loop().call_later(RETIRE_DELAY_SECONDS, self.retire)
+            )
         elif path == "/error":
             self.run.error = request.path
             self.run.done.set()
@@ -745,12 +850,17 @@ class ResumptionProtocol(QuicConnectionProtocol):
         self.transmit()
 
     def retire(self) -> None:
+        if self.owner.stopping:
+            return
         if self.record.closed_ms is None:
             self.record.closed_ms = self.run.now()
             self.record.closed_by = "server"
         # APPLICATION_CLOSE with H3_NO_ERROR: code 0 is not an H3 error code,
         # and Firefox excludes HTTP/3 for the origin after receiving it.
-        self.close(error_code=ErrorCode.H3_NO_ERROR)
+        try:
+            self.close(error_code=ErrorCode.H3_NO_ERROR)
+        except BaseException as error:
+            self.run.failed(error)
 
 
 # -- Run orchestration ---------------------------------------------------------
@@ -868,6 +978,261 @@ class RunResult:
     timed_out: bool
 
 
+class ResumptionFailures(Exception):
+    def __init__(self, primary, cleanup, owner):
+        self.primary = primary
+        self.cleanup = cleanup
+        self.owner = owner
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        self.interruption_cause = None
+        self.interruption_context = None
+        super().__init__("QUIC capture cleanup failed")
+
+
+def raise_resumption_failures(primary, cleanup, owner) -> None:
+    if not cleanup:
+        if primary is not None:
+            raise primary
+        return
+    if primary is None and len(cleanup) == 1 and (owner is None or owner.finished):
+        raise cleanup[0]
+
+    failure = ResumptionFailures(primary, cleanup, owner)
+    interruption = next(
+        (
+            error
+            for error in (primary, *cleanup)
+            if error is not None and not isinstance(error, Exception)
+        ),
+        None,
+    )
+    if interruption is not None:
+        failure.interruption_cause = interruption.__cause__
+        failure.interruption_context = interruption.__context__
+        raise interruption from failure
+    raise failure from primary
+
+
+class ResumptionServer(QuicServer):
+    """Own one capture's protocols, callback handles and UDP retirement."""
+
+    def __init__(self, run, configuration, scenario, restore):
+        self.run = run
+        self.protocols = []
+        self.waits = {}
+        self.stopping = False
+        self.finished = False
+        self.retired = asyncio.get_running_loop().create_future()
+        self.cleanup_task = None
+        self.restore = restore
+        self.hooks_restored = False
+        super().__init__(
+            configuration=configuration,
+            create_protocol=lambda *args, **kwargs: ResumptionProtocol(
+                *args,
+                owner=self,
+                handshake_delay_ms=scenario.handshake_delay_ms,
+                **kwargs,
+            ),
+            session_ticket_fetcher=run.fetch_ticket,
+            session_ticket_handler=run.store_ticket,
+        )
+        run.owner = self
+
+    def datagram_received(self, data, addr):
+        try:
+            if self.stopping:
+                try:
+                    header = pull_quic_header(
+                        Buffer(data=data),
+                        host_cid_length=self._configuration.connection_id_length,
+                    )
+                except (BufferReadError, ValueError):
+                    return
+                if header.destination_cid not in self._protocols:
+                    return
+            super().datagram_received(data, addr)
+        except BaseException as error:
+            self.run.failed(error)
+
+    def error_received(self, error):
+        self.run.failed(error)
+
+    def connection_lost(self, error):
+        if error is not None:
+            self.run.failed(error)
+        elif not self.stopping:
+            self.run.failed(
+                ConnectionError("QUIC capture UDP transport retired unexpectedly")
+            )
+        if not self.retired.done():
+            self.retired.set_result(None)
+
+    async def wait_protocol(self, protocol):
+        try:
+            await protocol.wait_closed()
+        except BaseException as error:
+            self.run.failed(error)
+        else:
+            protocol.observed_closed = True
+
+    def cancel_handles(self, protocol, *, delayed_only=False):
+        attributes = ["release_timer"]
+        if not delayed_only:
+            attributes.extend(("_timer", "_transmit_task"))
+        for attribute in attributes:
+            handle = getattr(protocol, attribute)
+            if handle is not None:
+                try:
+                    handle.cancel()
+                except BaseException as error:
+                    self.run.failed(error)
+                else:
+                    setattr(protocol, attribute, None)
+        retained = []
+        for handle in protocol.retire_timers:
+            try:
+                handle.cancel()
+            except BaseException as error:
+                self.run.failed(error)
+                retained.append(handle)
+        protocol.retire_timers = retained
+        protocol.held = []
+        protocol.held_bytes = 0
+        if protocol._timer is None:
+            protocol._timer_at = None
+
+    async def collect_connections(self):
+        self.stopping = True
+        deadline = asyncio.get_running_loop().time() + CLEANUP_SECONDS
+        for protocol in self.protocols:
+            self.cancel_handles(protocol, delayed_only=True)
+            if not protocol.started or protocol.observed_closed:
+                continue
+            try:
+                protocol.close()
+            except BaseException as error:
+                self.run.failed(error)
+            if (
+                protocol not in self.waits
+                or self.waits[protocol].done()
+                and not protocol.observed_closed
+            ):
+                operation = self.wait_protocol(protocol)
+                try:
+                    self.waits[protocol] = asyncio.create_task(operation)
+                except BaseException as error:
+                    self.run.failed(error)
+                    try:
+                        operation.close()
+                    except BaseException as cleanup:
+                        self.run.failed(cleanup)
+
+        retiring = False
+        while True:
+            tasks = set(self.waits.values())
+            pending = {task for task in tasks if not task.done()}
+            remaining = deadline - asyncio.get_running_loop().time()
+            if not retiring and (not pending or remaining <= 1.0):
+                retiring = True
+                if self._transport is not None:
+                    try:
+                        self._transport.abort()
+                    except BaseException as error:
+                        self.run.failed(error)
+                        try:
+                            self._transport.close()
+                        except BaseException as cleanup:
+                            self.run.failed(cleanup)
+            if retiring and self._transport is not None:
+                tasks.add(self.retired)
+            pending = {task for task in tasks if not task.done()}
+            if not pending:
+                self.finished = (
+                    self._transport is None or self.retired.done()
+                ) and all(
+                    protocol.observed_closed or not protocol.started
+                    for protocol in self.protocols
+                )
+                break
+            if remaining <= 0:
+                self.run.failed(
+                    TimeoutError("QUIC capture cleanup exceeded its deadline")
+                )
+                break
+            await asyncio.wait(
+                pending,
+                timeout=remaining if retiring else max(0, remaining - 1.0),
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+
+        for task in self.waits.values():
+            if task.done():
+                try:
+                    task.result()
+                except BaseException as error:
+                    self.run.failed(error)
+
+    async def collect(self):
+        try:
+            await self.collect_connections()
+        except BaseException as error:
+            self.run.failed(error)
+        finally:
+            for protocol in self.protocols:
+                self.cancel_handles(protocol)
+            callbacks_retired = all(
+                protocol.release_timer is None
+                and not protocol.retire_timers
+                and protocol._timer is None
+                and protocol._transmit_task is None
+                for protocol in self.protocols
+            )
+            transport_retired = self._transport is None or self.retired.done()
+            self.finished = self.finished and callbacks_retired and transport_retired
+            if not self.hooks_restored and callbacks_retired and transport_retired:
+                try:
+                    self.restore()
+                except BaseException as error:
+                    self.run.failed(error)
+                    self.finished = False
+                else:
+                    self.hooks_restored = True
+
+    def cleanup_finished(self, task):
+        try:
+            task.result()
+        except BaseException as error:
+            self.run.failed(error)
+
+    async def shutdown(self, primary=None):
+        if primary is not None:
+            self.run.failed(primary)
+        if self.cleanup_task is None or self.cleanup_task.done() and not self.finished:
+            operation = self.collect()
+            try:
+                self.cleanup_task = asyncio.create_task(operation)
+            except BaseException as error:
+                self.run.failed(error)
+                try:
+                    operation.close()
+                except BaseException as cleanup:
+                    self.run.failed(cleanup)
+                raise_resumption_failures(primary, tuple(self.run.failures), self)
+            self.cleanup_task.add_done_callback(self.cleanup_finished)
+        try:
+            await asyncio.shield(self.cleanup_task)
+        except BaseException as error:
+            self.run.failed(error)
+            raise_resumption_failures(primary, tuple(self.run.failures), self)
+        raise_resumption_failures(
+            primary,
+            tuple(error for error in self.run.failures if error is not primary),
+            self,
+        )
+
+
 @contextlib.asynccontextmanager
 async def serving(
     scenario: Scenario, listen_host: str, certificate: Certificate
@@ -878,29 +1243,27 @@ async def serving(
     load_certificate(configuration, certificate)
     restore = install_hooks(scenario.accept_early_data)
     try:
-        server = await open_past_reserved_ports(
-            lambda host, port: serve(
-                host,
-                port,
-                configuration=configuration,
-                create_protocol=lambda *values, **kwargs: ResumptionProtocol(
-                    *values,
-                    run=run,
-                    handshake_delay_ms=scenario.handshake_delay_ms,
-                    **kwargs,
-                ),
-                session_ticket_fetcher=run.fetch_ticket,
-                session_ticket_handler=run.store_ticket,
+        server = ResumptionServer(run, configuration, scenario, restore)
+    except BaseException as primary:
+        try:
+            restore()
+        except BaseException as cleanup:
+            raise_resumption_failures(primary, (cleanup,), run.owner)
+        raise
+    primary = None
+    try:
+        await open_past_reserved_ports(
+            lambda host, port: asyncio.get_running_loop().create_datagram_endpoint(
+                lambda: server, local_addr=(host, port)
             ),
             listen_host,
             0,
         )
-        try:
-            yield run, server._transport.get_extra_info("sockname")[1]
-        finally:
-            server.close()
+        yield run, server._transport.get_extra_info("sockname")[1]
+    except BaseException as error:
+        primary = error
     finally:
-        restore()
+        await server.shutdown(primary)
 
 
 async def capture_run(
@@ -1172,6 +1535,8 @@ def render_fixture(
     launch_mode: str,
     listen_host: str,
 ) -> str:
+    if not 1 <= len(results) <= MAX_RUNS:
+        raise ValueError(f"fixture must contain between 1 and {MAX_RUNS} runs")
     for name, value in (
         ("client", client),
         ("client version", client_version),
@@ -1180,6 +1545,9 @@ def render_fixture(
         ("listen host", listen_host),
     ):
         validate_metadata(name, value)
+    for result in results:
+        validate_metadata("launch arguments", result.launch_arguments)
+        result.run.check()
     lines = [
         f"format={FORMAT}",
         f"captured_at_unix={int(time.time())}",
