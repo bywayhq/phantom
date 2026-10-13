@@ -634,8 +634,8 @@ async fn serve_stream(
                             std::task::Poll::Ready(ending) => {
                                 lock(&log).endings.push(ending.clone());
                                 match ending {
-                                    Ending::Failed(_) => Err(ending.into()),
-                                    _ => Ok(()),
+                                    Ending::Finished | Ending::Reset(super::H3_REQUEST_CANCELLED) => Ok(()),
+                                    ending => Err(ending.into()),
                                 }
                             }
                             std::task::Poll::Pending => Ok(()),
@@ -646,10 +646,13 @@ async fn serve_stream(
             }
             ending = &mut pump => {
                 let result = frames.await;
-                let cleanup = match &ending {
-                    Ending::Failed(_) => Err(Box::new(ending.clone()) as Box<dyn Error + Send + Sync>),
-                    _ => Ok(()),
+                let cleanup = match ending.clone() {
+                    Ending::Finished | Ending::Reset(super::H3_REQUEST_CANCELLED) => Ok(()),
+                    ending => Err(ending.into()),
                 };
+                if result.is_err() || cleanup.is_err() {
+                    lock(&log).endings.push(ending.clone());
+                }
                 finish_with_cleanup(result, cleanup)?;
                 ending
             }
