@@ -37,6 +37,13 @@ context reads do not become independent approval, and child reviews do not
 extend to their parents. These records establish source scope, without new
 runtime verification.
 
+Twenty-three added Rust children now have individual review dispositions.
+Seven match original independent whole-source reviews. Five retain complete
+baselines and reviewed formatting differences. Eleven have fresh independent
+whole-source reads. Root review checked their contracts, scope, source bodies
+and original receipt hashes. These dispositions do not extend to parent files
+or establish new runtime results.
+
 Receipt reconciliation covers 37 previously uncredited paths at `d1d353e8`.
 Twenty-four have complete reviews of their exact current source. Thirteen
 have a complete baseline and reviewed later differences, including two

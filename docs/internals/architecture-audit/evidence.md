@@ -169,6 +169,8 @@ These records remain under the evidence root above:
 | `coverage-37-root-original-receipt-bindings.json` | All 56 selected original receipt objects retain their recorded bytes |
 | `merged-fixture-13-current-source-dispositions-1806cb77.json` | Exact-current reviews and baseline-plus-difference chains for the thirteen added fixture paths, with nine new independent current-source reads |
 | `merged-fixture-13-root-bindings-1806-b694.json` | Root verifies all thirteen source blobs and original receipt hashes; candidate Rust bodies remain unchanged |
+| `merged-shipping-23-current-source-dispositions-b6942293.json` | Seven original whole reviews, five complete baselines with reviewed formatting differences, and eleven fresh independent whole reads of Rust children |
+| `merged-shipping-23-root-bindings-1806-b694.json` | Root checks all twenty-three source bodies and fifteen original receipt hashes; scope and runtime qualifications remain |
 
 The integration owner reads the original review methods, contract assessments
 and limits alongside these records. All 37 source blobs match both revisions.
