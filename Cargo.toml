@@ -48,7 +48,7 @@ tokio-btls = { package = "phantom-tokio-btls", version = "=0.5.6-phantom.6", pat
 tokio-tungstenite = { package = "phantom-tokio-tungstenite", version = "=0.30.0-phantom.3", path = "vendor/tokio-tungstenite", default-features = false }
 tungstenite = { package = "phantom-tungstenite", version = "=0.30.0-phantom.3", path = "vendor/tungstenite", default-features = false }
 wreq-proto = { package = "phantom-wreq-proto", version = "=0.2.5-phantom.16", path = "vendor/wreq-proto" }
-zeroize = "=1.9.0"
+zeroize = "=1.9.1"
 zstd = "0.14.0"
 
 [workspace.lints.rust]
