@@ -259,6 +259,26 @@ Steps are `dns`, `origins`, `proxy`, `certs`, `fmt`, `clippy`, `msrv` and
 passes 103 tests with no skips. Root and independent reviewers read complete
 logs and exits, then separately verify both clean exact revisions.
 
+### Current source and failure records
+
+The following records remain under the local evidence root. Each states its
+actual read scope, original source bindings and verification limits.
+
+| Receipt | Scope and result |
+| --- | --- |
+| `tooling-ten-and-trust-root-bindings-b6942293.json` | Thirteen source dispositions, original-object hashes and qualified supporting reads |
+| `documentation-config-current-source-dispositions-b6942293.json` | Six complete document reads and structured inventory validation; six identified factual corrections applied at `a365837d` |
+| `final-architecture-current-independent-review-b8ab9851.json` | Twelve cross-crate boundaries; 24 whole files and 35 partial files; no new supported source blocker |
+| `capture-validation-completion-89524379-independent-composition-review.json` | Exact six-file source composition approved |
+| `capture-validation-completion-gate-89524379-step-logs-manifest.json` | All 74 raw gate files retained; nextest fails two draining tests, while 23 other steps pass |
+| `h3-drain-89524379-focused-v2.log` | Both draining tests pass in isolation; the earlier full failure remains unresolved |
+| `h2-websocket-peer-completion-6ec7e1f5-independent-source-review.json` | Whole helper and controls approved; 41 retained native passes; integration required |
+| `browser-launch-peer-completion-662aa729-independent-source-review.json` | Whole helper and controls reviewed; attached teardown error is still discarded, so changes are required |
+
+The first draining diagnostic had two writers sharing one log. Its overwritten
+prefix and NUL gap make it unsuitable as a complete verification receipt.
+The separate v2 log is complete. The failed full gate archive is unchanged.
+
 ## Next
 
 - [Coverage](coverage.md): reviewed paths and remaining gaps.

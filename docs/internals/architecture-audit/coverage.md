@@ -61,6 +61,29 @@ original receipt hashes. This pass found no new supported runtime defect.
 It does not establish exhaustive third-party review or current advisory
 clearance.
 
+Ten remaining tool rows now have individual source dispositions. Six have
+fresh independent whole-current reads. Two retain exact original independent
+reviews, and two retain complete baselines with every later difference.
+The fresh browser-launch review found A345 and A346. The HTTP/2 WebSocket
+owner repair for A344 has independent approval. Both repairs remain outside
+main, and completed source coverage does not close their integration checks.
+
+The trust-root difference child has a fresh independent whole-current read.
+Root also read its complete parent and the default-feature vendor patch.
+Their supporting peer and upstream contexts remain partial. These reads found
+no new supported defect and add no runtime or vendor-replay results.
+
+The current client-hints and recorder composition is approved at `89524379`.
+Its full gate passes 23 of 24 steps. Nextest passes 4,573 of 4,575 tests;
+two existing HTTP/3 draining tests time out. Later isolated passes do not
+resolve that failure. Stage and GOAWAY observation remain under investigation.
+
+Independent architecture review at `b8ab9851` traces twelve shared boundaries.
+It binds 59 source files, with complete reads of 24 and partial reads of the
+rest. It found no new supported runtime blocker or reason to split crates.
+The review retains the draining-test failure and remaining delivery work.
+It does not claim a fresh exhaustive read of every crate or goal completion.
+
 Receipt reconciliation covers 37 previously uncredited paths at `d1d353e8`.
 Twenty-four have complete reviews of their exact current source. Thirteen
 have a complete baseline and reviewed later differences, including two
