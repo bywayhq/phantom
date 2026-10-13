@@ -162,7 +162,9 @@ class BrowserLaunchThreadedLifecycleTests(unittest.IsolatedAsyncioTestCase):
         reports, ended, removed = await context.complete_and_snapshot()
 
         self.assertEqual(ended, (True,))
-        self.assertTrue(removed)
+        self.assertFalse(removed)
+        self.assertIs(context.browser.process, context.processes[0])
+        self.assertIs(context.browser.profile, context.profile)
         self.assertEqual(context.tree_attempts, 1)
         self.assertEqual(context.sweep_attempts, 1)
         self.assertIs(context.future.exception(), failure)
@@ -173,3 +175,14 @@ class BrowserLaunchThreadedLifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertIs(reports[0].get("exception"), failure)
         self.assertIs(reports[0].get("future"), context.future)
         self.assertIs(reports[0].get("cancellation"), context.cancellation)
+
+        with mock.patch.object(context, "tree_failure", None):
+            context.browser.__exit__(None, None, None)
+        ended, removed = context.snapshot()
+
+        self.assertEqual(ended, (True,))
+        self.assertTrue(removed)
+        self.assertEqual(context.tree_attempts, 2)
+        self.assertEqual(context.sweep_attempts, 2)
+        self.assertIs(context.future.exception(), failure)
+        self.assertEqual(tuple(context.reports), reports)
