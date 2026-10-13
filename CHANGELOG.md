@@ -2490,6 +2490,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Collect Firefox capture peers when native cleanup stalls. Preserve serving,
   hook, lookup and cleanup causes, and reject failed captures before writing.
+- Reject poisoned HTTP/2 WebSocket fixture recorders before reading bytes,
+  preserving the async-read error contract.
 - Collect EventSource, TLS and QUIC capture workers, accepted connections and
   timers before fixture publication. Retain original serving and cleanup
   failures, including cleanup errors beside an expected peer disconnect.

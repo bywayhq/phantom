@@ -504,17 +504,18 @@ where
         buffer: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
         let this = self.get_mut();
+        let mut read = match this.read.lock() {
+            Ok(read) => read,
+            Err(_) => {
+                return Poll::Ready(Err(io::Error::other(
+                    "recorded HTTP/2 wire lock was poisoned",
+                )));
+            }
+        };
+
         let before = buffer.filled().len();
         match Pin::new(&mut this.inner).poll_read(context, buffer) {
             Poll::Ready(Ok(())) => {
-                let mut read = match this.read.lock() {
-                    Ok(read) => read,
-                    Err(_) => {
-                        return Poll::Ready(Err(io::Error::other(
-                            "recorded HTTP/2 wire lock was poisoned",
-                        )));
-                    }
-                };
                 read.extend_from_slice(&buffer.filled()[before..]);
                 Poll::Ready(Ok(()))
             }
@@ -740,4 +741,31 @@ fn hpack_integer_accepts_the_boundary_and_rejects_discarded_high_bits() -> TestR
     assert!(read_hpack_integer(&[0x7f, 0x80], &mut 0, 7).is_err());
     assert!(skip_hpack_string(&[0x03, b'a'], &mut 0).is_err());
     Ok(())
+}
+
+#[test]
+fn poisoned_wire_recorder_rejects_read_before_consuming_bytes() {
+    let recorded = Arc::new(Mutex::new(Vec::new()));
+    let poison = Arc::clone(&recorded);
+    assert!(
+        std::panic::catch_unwind(move || {
+            let _guard = poison.lock().unwrap();
+            panic!("poison the wire recorder");
+        })
+        .is_err()
+    );
+
+    let input = b"wire".as_slice();
+    let mut stream = RecordingIo::new(input, recorded);
+    let mut storage = [0; 8];
+    let mut buffer = ReadBuf::new(&mut storage);
+    buffer.put_slice(b"old");
+    let mut context = Context::from_waker(std::task::Waker::noop());
+
+    let Poll::Ready(Err(error)) = Pin::new(&mut stream).poll_read(&mut context, &mut buffer) else {
+        panic!("poisoned recorder must reject the read");
+    };
+    assert_eq!(error.kind(), io::ErrorKind::Other);
+    assert_eq!(buffer.filled(), b"old");
+    assert_eq!(stream.inner, b"wire");
 }
