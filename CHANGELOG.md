@@ -2601,6 +2601,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Retain the original TLS settings validation error when building an HTTP/3
+  client or configuring QUIC TLS.
+
 - Retain original DNS configuration failures in the error chains of address
   and HTTPS record resolvers.
 

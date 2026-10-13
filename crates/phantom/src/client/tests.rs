@@ -36,6 +36,56 @@ fn invalid_default_request_template_is_an_invalid_profile() {
 }
 
 #[test]
+fn invalid_http3_tls_settings_retain_the_validation_cause() -> Result<(), Box<dyn std::error::Error>>
+{
+    use std::error::Error as _;
+
+    use phantom_net::http3::{Http3ConnectorError, Http3ConnectorErrorKind};
+    use phantom_profile::{InvalidTlsSettings, ValidationErrorKind};
+    use phantom_quic_btls::{QuicTlsProfileError, QuicTlsProfileErrorKind};
+
+    let mut tls = chrome::v154_quic_tls();
+    tls.alpn_protocols.clear();
+    let http3 = Http3ClientSettings::new(
+        tls,
+        chrome::v154_quic(),
+        chrome::v154_http3(),
+        chrome::v154_http3_request(),
+    );
+    let profile = ClientProfile::new(chrome::v154_tcp_tls()).with_http3(http3);
+
+    let error = Client::builder(profile)
+        .build()
+        .err()
+        .ok_or("HTTP/3 TLS settings without ALPN were accepted")?;
+    let connector = error
+        .source()
+        .and_then(|source| source.downcast_ref::<Http3ConnectorError>())
+        .ok_or("the HTTP/3 connector error was lost")?;
+    let quic = connector
+        .source()
+        .and_then(|source| source.downcast_ref::<QuicTlsProfileError>())
+        .ok_or("the QUIC TLS profile error was lost")?;
+    let validation = quic
+        .source()
+        .and_then(|source| source.downcast_ref::<InvalidTlsSettings>())
+        .ok_or("the original TLS validation error was lost")?;
+
+    assert_eq!(error.kind(), BuildErrorKind::InvalidProfile);
+    assert_eq!(error.to_string(), "failed to configure HTTP/3");
+    assert_eq!(connector.kind(), Http3ConnectorErrorKind::InvalidProfile);
+    assert_eq!(quic.kind(), QuicTlsProfileErrorKind::InvalidProfile);
+    assert_eq!(quic.field(), "alpn_protocols");
+    assert_eq!(validation.kind(), ValidationErrorKind::Missing);
+    assert_eq!(validation.field(), "alpn_protocols");
+    assert_eq!(
+        validation.reason(),
+        "at least one ALPN protocol is required"
+    );
+    Ok(())
+}
+
+#[test]
 fn connect_udp_proxy_connection_omits_resumption_additions() {
     use phantom_profile::QuicTransportParameterKind;
 

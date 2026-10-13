@@ -10,8 +10,8 @@ use btls::pkey::{PKey, Private};
 use btls::ssl::{KeyShare, SslContext, SslContextBuilder};
 use btls::x509::X509;
 use phantom_profile::{
-    AlpsSettings, CipherSuite, EchGreasePayloadLength, NamedGroup, QuicTransportSettings,
-    TlsSettings, TlsVersion, TrustAnchorIds,
+    AlpsSettings, CipherSuite, EchGreasePayloadLength, InvalidTlsSettings, NamedGroup,
+    QuicTransportSettings, TlsSettings, TlsVersion, TrustAnchorIds,
 };
 use quinn_proto::crypto::{self, ExportKeyingMaterialError, KeyPair, Keys};
 use quinn_proto::{
@@ -850,7 +850,7 @@ impl ClientTlsProfile {
     fn new(settings: &TlsSettings) -> Result<Self, QuicTlsProfileError> {
         settings
             .validate()
-            .map_err(|error| QuicTlsProfileError::invalid(error.field(), error.to_string()))?;
+            .map_err(QuicTlsProfileError::validation)?;
         if settings.versions.min() != TlsVersion::Tls13
             || settings.versions.max() != TlsVersion::Tls13
         {
@@ -994,19 +994,32 @@ fn key_share(group: NamedGroup) -> Result<KeyShare, QuicTlsProfileError> {
 }
 
 /// Failure while applying TLS controls to QUIC sessions.
+///
+/// Invalid TLS settings retain [`InvalidTlsSettings`] as their error source.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct QuicTlsProfileError {
     kind: QuicTlsProfileErrorKind,
     field: &'static str,
     message: Box<str>,
+    source: Option<InvalidTlsSettings>,
 }
 
 impl QuicTlsProfileError {
+    fn validation(source: InvalidTlsSettings) -> Self {
+        Self {
+            kind: QuicTlsProfileErrorKind::InvalidProfile,
+            field: source.field(),
+            message: source.to_string().into(),
+            source: Some(source),
+        }
+    }
+
     fn invalid(field: &'static str, message: impl Into<Box<str>>) -> Self {
         Self {
             kind: QuicTlsProfileErrorKind::InvalidProfile,
             field,
             message: message.into(),
+            source: None,
         }
     }
 
@@ -1015,6 +1028,7 @@ impl QuicTlsProfileError {
             kind: QuicTlsProfileErrorKind::ContextConflict,
             field,
             message: message.into(),
+            source: None,
         }
     }
 
@@ -1023,6 +1037,7 @@ impl QuicTlsProfileError {
             kind: QuicTlsProfileErrorKind::UnsupportedSetting,
             field,
             message: message.into(),
+            source: None,
         }
     }
 
@@ -1049,7 +1064,13 @@ impl fmt::Display for QuicTlsProfileError {
     }
 }
 
-impl std::error::Error for QuicTlsProfileError {}
+impl std::error::Error for QuicTlsProfileError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.source
+            .as_ref()
+            .map(|source| source as &(dyn std::error::Error + 'static))
+    }
+}
 
 /// Category of a QUIC TLS profile failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

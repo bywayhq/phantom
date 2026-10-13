@@ -1,6 +1,58 @@
 use super::*;
 
 #[test]
+fn tls_profile_validation_retains_the_typed_settings_error() -> FixtureResult {
+    use std::error::Error as _;
+
+    use phantom_profile::{ValidationErrorKind, browser::chrome};
+
+    let mut settings = chrome::v154_quic_tls();
+    settings.alpn_protocols.clear();
+
+    let error = QuicClientConfig::validate_tls_profile(&settings)
+        .err()
+        .ok_or("TLS settings without ALPN were accepted")?;
+    let source = error
+        .source()
+        .and_then(|source| source.downcast_ref::<InvalidTlsSettings>())
+        .ok_or("the original TLS validation error was lost")?;
+
+    assert_eq!(error.kind(), QuicTlsProfileErrorKind::InvalidProfile);
+    assert_eq!(error.field(), "alpn_protocols");
+    assert_eq!(source.kind(), ValidationErrorKind::Missing);
+    assert_eq!(source.field(), "alpn_protocols");
+    assert_eq!(source.reason(), "at least one ALPN protocol is required");
+    assert_eq!(
+        error.to_string(),
+        "QUIC TLS profile alpn_protocols: invalid TLS alpn_protocols: at least one ALPN protocol is required"
+    );
+    Ok(())
+}
+
+#[test]
+fn quic_version_requirement_has_no_underlying_settings_error() -> FixtureResult {
+    use std::error::Error as _;
+
+    use phantom_profile::browser::chrome;
+
+    let settings = chrome::v154_tcp_tls();
+    settings.validate()?;
+
+    let error = QuicClientConfig::validate_tls_profile(&settings)
+        .err()
+        .ok_or("a TCP TLS recipe was accepted for QUIC")?;
+
+    assert_eq!(error.kind(), QuicTlsProfileErrorKind::InvalidProfile);
+    assert_eq!(error.field(), "version range");
+    assert_eq!(
+        error.to_string(),
+        "QUIC TLS profile version range: QUIC requires an explicit TLS 1.3-only profile"
+    );
+    assert!(error.source().is_none());
+    Ok(())
+}
+
+#[test]
 fn version_validation_happens_before_io() {
     assert_eq!(interpret_version(0x0000_0001), Ok(QuicVersion::V1));
     assert_eq!(interpret_version(0x6b33_43cf), Ok(QuicVersion::V2));
