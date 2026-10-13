@@ -2,6 +2,7 @@ use std::{error::Error, fmt, future::Future, sync::Arc, time::Duration};
 
 use tokio::{sync::oneshot, time::timeout};
 
+use super::relay_peer::RetainedCause;
 use super::{ConnectionPeer, EstablishedTunnel, TestResult, finish_with_cleanup};
 use crate::support::deadline::FixtureDeadline;
 
@@ -122,22 +123,24 @@ impl<T: Send + 'static> TunnelSetup<T> {
             Some(previous) => finish_with_cleanup::<()>(Err(Box::new(previous)), Err(error)),
             None => Err(error),
         };
-        self.failure = combined.err().map(|error| SetupFailure(Arc::from(error)));
+        self.failure = combined
+            .err()
+            .map(|error| SetupFailure(Arc::new(RetainedCause { error })));
     }
 }
 
 #[derive(Clone, Debug)]
-struct SetupFailure(Arc<dyn Error + Send + Sync>);
+struct SetupFailure(Arc<RetainedCause>);
 
 impl fmt::Display for SetupFailure {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(self.0.as_ref(), formatter)
+        fmt::Display::fmt(self.0.error.as_ref(), formatter)
     }
 }
 
 impl Error for SetupFailure {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(self.0.as_ref())
+        Some(self.0.error.as_ref())
     }
 }
 

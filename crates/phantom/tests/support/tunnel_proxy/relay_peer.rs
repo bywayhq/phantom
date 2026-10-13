@@ -75,17 +75,23 @@ impl RelayPeer {
 
 /// Shares an original collected cause with a retained owner across cleanup retries.
 #[derive(Clone, Debug)]
-pub(super) struct RelayFailure(Arc<dyn Error + Send + Sync>);
+pub(super) struct RelayFailure(Arc<RetainedCause>);
+
+// Keep the box allocation: converting it directly to an Arc moves its cause.
+#[derive(Debug)]
+pub(super) struct RetainedCause {
+    pub(super) error: Box<dyn Error + Send + Sync>,
+}
 
 impl fmt::Display for RelayFailure {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(self.0.as_ref(), formatter)
+        fmt::Display::fmt(self.0.error.as_ref(), formatter)
     }
 }
 
 impl Error for RelayFailure {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(self.0.as_ref())
+        Some(self.0.error.as_ref())
     }
 }
 
@@ -95,7 +101,9 @@ pub(super) fn retain_failure(failure: &mut Option<RelayFailure>, result: TestRes
             Some(previous) => finish_with_cleanup(Err(Box::new(previous)), Err(error)),
             None => Err(error),
         };
-        *failure = combined.err().map(|error| RelayFailure(Arc::from(error)));
+        *failure = combined
+            .err()
+            .map(|error| RelayFailure(Arc::new(RetainedCause { error })));
     }
 }
 
