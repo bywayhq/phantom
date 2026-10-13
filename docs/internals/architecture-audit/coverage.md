@@ -128,6 +128,12 @@ complete logs and confirms both clean revisions. Snapshot restores the
 caller's handler on success, failure and cancellation, and forwards unrelated
 callback errors. Snapshot callback ownership and partial startup remain open.
 
+At `d31f4f9a`, both hosts pass all 37 snapshot methods, eight shared-handler
+methods and focused quality checks. Independent review reads complete logs
+and confirms both clean revisions. Snapshot validates individual and combined
+waits before resource acquisition. All eight PR workflows pass at `1fdefb1a`,
+including Windows and macOS; this precedes the snapshot changes.
+
 Independent whole-file reads cover client hints, cookie crumbs, snapshot,
 HTTP/2 preface PING and HTTP lifecycle tools and their existing tests.
 The local TCP owners do not collect all serving callbacks. Three commands
