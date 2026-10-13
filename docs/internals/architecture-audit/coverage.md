@@ -29,6 +29,12 @@ five retired historical paths. Three new control files await delivery.
 Existing review dispositions retain their original source scope. Presence
 and pending row counts do not measure unfinished implementation.
 
+The four remaining audit-document rows now have qualified dispositions.
+Coverage, findings and evidence retain complete independent manual baselines
+and every reviewed later difference. The inventory has a complete structured
+review of its schema, membership, categories and provenance. This does not
+claim manual review of every row or referenced payload.
+
 The thirteen added fixture paths now have reconciled individual review
 records. Nine original receipts cover their exact current source. Four
 retain complete independent baselines and every later reviewed difference.
@@ -95,7 +101,7 @@ identify their cause. Stage diagnostics preserve the existing deadlines.
 The expanded composition has independent source approval at `39488c23`.
 Its native suite passes all 4,575 tests. The full gate again passes 23 of
 24 steps: one TLS capture test times out while reading `/done`. Its 74 raw
-gate files are retained. This failure still blocks integration. A passing
+gate files are retained. That failure blocked the candidate. A passing
 native suite does not establish the cause of the earlier draining failures.
 
 Independent follow-up approves the browser peer repair at `fb6adf73`.
@@ -116,6 +122,12 @@ or an outer deadline drops its raw peer handle before collection. The
 independently approved repair passes its focused tests, Clippy and Rust 1.88.
 Composition `f146e52c` passes all 24 local gate steps and awaits platform CI
 and integration. Playground's prepared migration remains unchanged.
+
+The exact `f146e52c` composition has independent source and gate-log approval.
+All 24 local steps pass, including 4,575 native tests and Linux compile/lint
+checks. The capture suite runs 1,041 tests with four skips. PR 209 still
+requires its applicable CI checks and integration, followed by main CI.
+The earlier failed gates remain recorded with unresolved causes.
 
 Independent architecture review at `b8ab9851` traces twelve shared boundaries.
 It binds 59 source files, with complete reads of 24 and partial reads of the

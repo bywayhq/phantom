@@ -741,9 +741,9 @@ docs/guides/troubleshooting.md	documentation	source-complete	docs-contract-cover
 docs/guides/websocket-fields.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/websocket-fields.md	merged
 docs/guides/websocket.md	documentation	source-complete	docs-contract-coverage.json#docs/guides/websocket.md; client-examples-standards-review.json#/sources/29	merged
 docs/internals/architecture-audit.md	documentation	source-complete	coverage.md#dependency-configuration-review: root and independent whole-document review at cdf55ba3; dated starting point is historical, completion remains open	merged
-docs/internals/architecture-audit/coverage.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/62	merged
-docs/internals/architecture-audit/findings.md	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/66	merged
-docs/internals/architecture-audit/inventory.tsv	documentation	pending	continued-source-review-reconciliation.json#/discovered_rows/69	merged
+docs/internals/architecture-audit/coverage.md	documentation	source-complete	continued-source-review-reconciliation.json#/discovered_rows/62; audit-coverage-febb7748-independent-documentation-composition-review-v2.json; complete independent b694 manual baseline and every reviewed later difference; qualified cumulative document source coverage	merged
+docs/internals/architecture-audit/findings.md	documentation	source-complete	continued-source-review-reconciliation.json#/discovered_rows/66; audit-coverage-febb7748-independent-documentation-composition-review-v2.json; complete independent b694 manual baseline and every reviewed later difference; qualified cumulative document source coverage	merged
+docs/internals/architecture-audit/inventory.tsv	documentation	artifact-context	continued-source-review-reconciliation.json#/discovered_rows/69; documentation-inventory-916459fe-independent-structured-review.json; complete structured schema, membership, category and provenance disposition; no manual semantic review of every row or payload	merged
 docs/internals/browser-recipes.md	documentation	source-complete	docs-contract-coverage.json#docs/internals/browser-recipes.md	merged
 docs/internals/documentation.md	documentation	source-complete	docs-contract-coverage.json#docs/internals/documentation.md; client-examples-standards-review.json#/sources/21	merged
 docs/internals/http3.md	documentation	source-complete	docs-contract-coverage.json#docs/internals/http3.md	merged
@@ -2454,7 +2454,7 @@ crates/phantom/tests/streams/websocket_profile/server/tests.rs	crate	source-comp
 crates/phantom/tests/support/tunnel_proxy/relay_controls/shutdown.rs	crate	source-complete	merged-shipping-23-current-source-dispositions-b6942293.json#/records/20; fresh exact-current independent whole manual read	merged
 crates/phantom/tests/support/tunnel_proxy/relay_peer.rs	crate	source-complete	merged-shipping-23-current-source-dispositions-b6942293.json#/records/21; fresh exact-current independent whole manual read	merged
 crates/phantom/tests/support/tunnel_proxy/setup.rs	crate	source-complete	merged-shipping-23-current-source-dispositions-b6942293.json#/records/22; fresh exact-current independent whole manual read	merged
-docs/internals/architecture-audit/evidence.md	documentation	receipt-pending	evidence.md#delivery-reconciliation	merged
+docs/internals/architecture-audit/evidence.md	documentation	source-complete	evidence.md#delivery-reconciliation; audit-coverage-febb7748-independent-documentation-composition-review-v2.json; complete independent b694 manual baseline and every reviewed later difference; qualified cumulative document source coverage	merged
 scripts/capture/tests/test_alt_svc_race_admission_limits.py	tool	source-complete	alt-svc-admission-current-independent-review-b6942293.json; fresh independent complete current read	merged
 scripts/capture/tests/test_alt_svc_race_fatal_ownership.py	tool	source-complete	tooling-ten-current-source-dispositions-b6942293.json#/rows/7; fresh-whole-current; source coverage only, findings remain separate	merged
 scripts/capture/tests/test_android_browser_exit_cancellation.py	tool	source-complete	tooling-ten-current-source-dispositions-b6942293.json#/rows/8; exact-historical-independent-whole; source coverage only, findings remain separate	merged

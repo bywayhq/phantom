@@ -276,18 +276,22 @@ actual read scope, original source bindings and verification limits.
 | `browser-launch-peer-completion-662aa729-independent-source-review.json` | Whole helper and controls reviewed; attached teardown error is still discarded, so changes are required |
 | `browser-launch-peer-completion-fb6adf73-independent-source-addendum.json` | Complete reviewed baseline plus complete follow-up; independent error cause retained; 37 native controls pass |
 | `capture-validation-completion-39488c23-independent-composition-review.json` | Exact twelve-file composition approved; no runtime or vendor change |
-| `capture-validation-completion-gate-39488c23-step-logs-manifest.json` | All 74 raw files retained; 4,575 native tests pass; one TLS capture `/done` read times out, blocking integration |
+| `capture-validation-completion-gate-39488c23-step-logs-manifest.json` | All 74 raw files retained; 4,575 native tests pass; one TLS capture `/done` read times out and blocks that candidate |
 | `fixture-artifact-dispositions-b8ab9851.json` | Twelve retained capture groups; provenance and data contracts, with no individual full-payload or fresh-capture claim |
 | `fixture-artifact-dispositions-b8ab9851-root-bindings.json` | All 480 identities, eight mirrors and three original receipt hashes checked; zero findings closed |
 | `remaining-twelve-tool-source-dispositions-b8ab9851.json` | Twelve qualified whole-current tool reviews; original methods, contracts, authorship and limits retained |
 | `remaining-twelve-tool-source-dispositions-b8ab9851-root-bindings.json` | Twelve current bodies, twenty historical source bindings and fifteen original receipt hashes checked |
-| `capture-validation-completion-gate-39488c23-independent-log-review.json` | All 25 raw logs read and 74 hashes verified; TLS capture failure blocks integration |
+| `capture-validation-completion-gate-39488c23-independent-log-review.json` | All 25 raw logs read and 74 hashes verified; TLS capture failure blocks that historical candidate |
 | `tls-done-39488c23-independent-diagnosis.json` | Actual native read timeout; unchanged TLS source; long generic callback does not identify the failing timer or cause |
 | `tls-39488c23-focused.log` | Three unchanged OpenSSL server controls pass in isolation; no cause or full-gate closure follows |
 | `eleven-tool-controls-current-source-reconciliation-39488c23.json` | Eleven new control files retain independent whole/delta reads and individual contracts and limits |
 | `eleven-tool-controls-current-source-reconciliation-f146e52c-root-bindings.json` | Current and reviewed bodies and original receipts checked; eleven inventory rows added without closing findings |
 | `downstream-wire-peer-completion-handoff-42a24a66-v2.json` | Qualified extracted task baseline fails three controls; remedy passes 11 default and 13 all-feature tests, Clippy and Rust 1.88 |
 | `downstream-wire-peer-42a24a66-independent-source-review.json` | Whole original and repaired wire source, actual ownership controls and complete retained checks independently approved |
+| `capture-validation-completion-f146e52c-independent-composition-addendum.json` | Exact final source approved; prior complete reviews and new wire repair retain separate independence |
+| `capture-validation-completion-gate-f146e52c-independent-log-review.json` | All 25 raw logs assessed and 74 archive hashes verified; 24 steps pass on the clean exact head; earlier failure causes remain unresolved |
+| `audit-coverage-febb7748-independent-documentation-composition-review-v2.json` | Eight document dispositions approved; complete manual baselines plus every later reviewed difference retain their qualifications |
+| `documentation-inventory-916459fe-independent-structured-review.json` | All 2,489 rows structurally reviewed and 309 JSON references resolved; no manual semantic review of every row or payload |
 
 The first draining diagnostic had two writers sharing one log. Its overwritten
 prefix and NUL gap make it unsuitable as a complete verification receipt.
