@@ -2490,6 +2490,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Retain accepted writers, worker tasks and original cleanup errors in the
+  browser-launch and HTTP/2 WebSocket test peers. Name HTTP/3 fixture timeout
+  stages and retain their original causes.
+
 - Retain accepted client-hint capture sockets when protocol setup fails,
   and reject malformed HTTP field names before fixture publication.
 - Collect Firefox capture peers when native cleanup stalls. Preserve serving,
