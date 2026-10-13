@@ -448,7 +448,7 @@ async fn replay_on(
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>((requests, extra))
     });
 
-    let primary = timeout(Duration::from_secs(60), async {
+    let primary = async {
         let builder = client
             .event_source(HttpProtocol::Http1, &format!("http://{address}/events"))?
             .max_reconnects(8);
@@ -460,15 +460,17 @@ async fn replay_on(
                 Err(error) => break Some(error.kind()),
             }
         };
-        let (requests, extra_connection) = server.join().await??;
+        // The workflow uses a paused retry clock. Start the peer deadline only
+        // after the client ends, so it cannot advance past a pending OS read.
+        let (requests, extra_connection) =
+            timeout(Duration::from_secs(5), server.join()).await???;
         Ok(PhantomRun {
             requests,
             terminal,
             extra_connection,
         })
-    })
-    .await
-    .unwrap_or_else(|elapsed| Err(elapsed.into()));
+    }
+    .await;
     finish_with_cleanup(primary, server.shutdown().await)
 }
 
