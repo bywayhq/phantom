@@ -33,14 +33,15 @@ const ORIGIN_NAME: &str = "localhost";
 
 #[tokio::test]
 async fn h2_websocket_over_http_connect_exchanges_messages() -> TestResult<()> {
-    bounded(async {
+    let mut proxy_owner = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let (origin_address, origin) = spawn_h2_origin(&identity).await?;
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
+        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(tunnel_proxy::http1_connect(
             proxy_listener,
             origin_address,
-        ));
+        )));
 
         let client = h2_websocket_client(
             &identity,
@@ -56,8 +57,11 @@ async fn h2_websocket_over_http_connect_exchanges_messages() -> TestResult<()> {
             .await?;
         exchange_echo(socket).await?;
 
+        let proxy = proxy_owner.as_mut().ok_or("missing proxy setup")?;
+        proxy.establish().await?;
+        proxy.finish(Ok(())).await?;
         assert_eq!(
-            proxy.await??.cancel().await?,
+            proxy.establish().await?.as_slice(),
             format!("CONNECT {origin_address} HTTP/1.1\r\nHost: {origin_address}\r\n\r\n")
                 .as_bytes()
         );
@@ -72,22 +76,27 @@ async fn h2_websocket_over_http_connect_exchanges_messages() -> TestResult<()> {
         assert_eq!(record.message, text_frame("hello"));
         Ok(())
     })
-    .await
+    .await;
+    match proxy_owner {
+        Some(mut proxy) => proxy.finish(primary).await,
+        None => primary,
+    }
 }
 
 #[tokio::test]
 async fn h2_websocket_over_https_connect_basic_challenge_replays_once() -> TestResult<()> {
-    bounded(async {
+    let mut proxy_owner = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let (origin_address, origin) = spawn_h2_origin(&identity).await?;
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy =
-            tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::https1_challenge_then_connect(
+        proxy_owner = Some(
+            tunnel_proxy::TunnelSetup::spawn(tunnel_proxy::https1_challenge_then_connect(
                 proxy_listener,
                 proxy_identity.acceptor(H1_ALPN)?,
                 origin_address,
-            ));
+            )));
 
         let client = h2_websocket_client(
             &identity,
@@ -106,15 +115,18 @@ async fn h2_websocket_over_https_connect_basic_challenge_replays_once() -> TestR
             .await?;
         exchange_echo(socket).await?;
 
-        let (anonymous, authorized, challenged_reused) = proxy.await??.cancel().await?;
+        let proxy = proxy_owner.as_mut().ok_or("missing proxy setup")?;
+        proxy.establish().await?;
+        proxy.finish(Ok(())).await?;
+        let (anonymous, authorized, challenged_reused) = proxy.establish().await?;
         assert!(anonymous.starts_with(format!("CONNECT {origin_address} HTTP/1.1\r\n").as_bytes()));
-        assert_eq!(header_value(&anonymous, "proxy-authorization"), None);
+        assert_eq!(header_value(anonymous, "proxy-authorization"), None);
         assert_eq!(
-            header_value(&authorized, "proxy-authorization"),
+            header_value(authorized, "proxy-authorization"),
             Some("Basic YWxpY2U6c2VjcmV0")
         );
         assert!(
-            challenged_reused,
+            *challenged_reused,
             "the replay opened a new proxy connection"
         );
         let record = origin.await??;
@@ -122,21 +134,26 @@ async fn h2_websocket_over_https_connect_basic_challenge_replays_once() -> TestR
         assert_eq!(record.message, text_frame("hello"));
         Ok(())
     })
-    .await
+    .await;
+    match proxy_owner {
+        Some(mut proxy) => proxy.finish(primary).await,
+        None => primary,
+    }
 }
 
 #[tokio::test]
 async fn h2_websocket_over_h2_proxy_transport_exchanges_messages() -> TestResult<()> {
-    bounded(async {
+    let mut proxy_owner = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let (origin_address, origin) = spawn_h2_origin(&identity).await?;
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http2_connect(
+        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(tunnel_proxy::http2_connect(
             proxy_listener,
             proxy_identity.acceptor(H2_ALPN)?,
             origin_address,
-        ));
+        )));
 
         let client = h2_websocket_client(
             &identity,
@@ -154,7 +171,10 @@ async fn h2_websocket_over_h2_proxy_transport_exchanges_messages() -> TestResult
             .await?;
         exchange_echo(socket).await?;
 
-        let record = proxy.await??.cancel().await?;
+        let proxy = proxy_owner.as_mut().ok_or("missing proxy setup")?;
+        proxy.establish().await?;
+        proxy.finish(Ok(())).await?;
+        let record = proxy.establish().await?;
         assert_eq!(
             record.authority.as_deref(),
             Some(origin_address.to_string().as_str())
@@ -166,20 +186,25 @@ async fn h2_websocket_over_h2_proxy_transport_exchanges_messages() -> TestResult
         assert_eq!(origin_record.message, text_frame("hello"));
         Ok(())
     })
-    .await
+    .await;
+    match proxy_owner {
+        Some(mut proxy) => proxy.finish(primary).await,
+        None => primary,
+    }
 }
 
 #[tokio::test]
 async fn h2_websocket_over_socks5_local_and_remote_dns() -> TestResult<()> {
-    bounded(async {
+    let mut proxies = Vec::new();
+    let primary = bounded(async {
         let identity = TestIdentity::generate_for_dns(ORIGIN_NAME)?;
         for scheme in ["socks5", "socks5h"] {
             let (origin_address, origin) = spawn_h2_origin(&identity).await?;
             let (proxy_address, proxy_listener) = bind().await?;
-            let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::socks5_connect(
+            proxies.push(tunnel_proxy::TunnelSetup::spawn(tunnel_proxy::socks5_connect(
                 proxy_listener,
                 origin_address,
-            ));
+            )));
 
             let client = h2_websocket_client(
                 &identity,
@@ -196,11 +221,14 @@ async fn h2_websocket_over_socks5_local_and_remote_dns() -> TestResult<()> {
                 .await?;
             exchange_echo(socket).await?;
 
-            let (target, target_port) = proxy.await??.cancel().await?;
-            assert_eq!(target_port, port);
+            let proxy = proxies.last_mut().ok_or("missing SOCKS setup")?;
+            proxy.establish().await?;
+            proxy.finish(Ok(())).await?;
+            let (target, target_port) = proxy.establish().await?;
+            assert_eq!(*target_port, port);
             match (scheme, target) {
                 ("socks5", Socks5Target::Ip(address)) => assert!(address.is_loopback()),
-                ("socks5h", Socks5Target::Domain(name)) => assert_eq!(name, ORIGIN_NAME),
+                ("socks5h", Socks5Target::Domain(name)) => assert_eq!(name.as_str(), ORIGIN_NAME),
                 (scheme, target) => {
                     return Err(format!("{scheme} sent unexpected target {target:?}").into());
                 }
@@ -216,7 +244,12 @@ async fn h2_websocket_over_socks5_local_and_remote_dns() -> TestResult<()> {
         }
         Ok(())
     })
-    .await
+    .await;
+    let mut outcome = primary;
+    for proxy in proxies.iter_mut().rev() {
+        outcome = proxy.finish(outcome).await;
+    }
+    outcome
 }
 
 #[tokio::test]
@@ -285,7 +318,8 @@ async fn h2_websocket_proxy_failure_never_falls_back() -> TestResult<()> {
 
 #[tokio::test]
 async fn h2_websocket_over_proxy_requires_peer_setting() -> TestResult<()> {
-    bounded(async {
+    let mut proxy_owner = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let (origin_address, origin_listener) = bind().await?;
         let (client_done, done_signal) = oneshot::channel();
@@ -297,10 +331,10 @@ async fn h2_websocket_over_proxy_requires_peer_setting() -> TestResult<()> {
             ),
         );
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
+        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(tunnel_proxy::http1_connect(
             proxy_listener,
             origin_address,
-        ));
+        )));
 
         let client = h2_websocket_client(
             &identity,
@@ -321,17 +355,20 @@ async fn h2_websocket_over_proxy_requires_peer_setting() -> TestResult<()> {
             .send(())
             .map_err(|()| "origin dropped completion receiver")?;
 
-        let tunnel = proxy.await??;
-        let observation: TestResult<bool> = async { origin.await? }.await;
-        let observed =
-            tunnel_proxy::finish_with_cleanup(observation, tunnel.cancel().await.map(|_| ()))?;
+        let proxy = proxy_owner.as_mut().ok_or("missing proxy setup")?;
+        proxy.establish().await?;
+        let observed = origin.await??;
         assert!(
             !observed,
             "extended CONNECT HEADERS were sent without the peer setting"
         );
         Ok(())
     })
-    .await
+    .await;
+    match proxy_owner {
+        Some(mut proxy) => proxy.finish(primary).await,
+        None => primary,
+    }
 }
 
 #[tokio::test]
@@ -410,7 +447,8 @@ async fn h2_websocket_rejects_connect_udp_route_before_io() -> TestResult<()> {
 
 #[tokio::test]
 async fn http1_websocket_over_h2_proxy_transport_exchanges_messages() -> TestResult<()> {
-    bounded(async {
+    let mut proxy_owner = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let (origin_address, origin_listener) = bind().await?;
         let origin = tunnel_proxy::ConnectionPeer::spawn(websocket_origin::serve_h1_echo(
@@ -419,11 +457,11 @@ async fn http1_websocket_over_h2_proxy_transport_exchanges_messages() -> TestRes
         ));
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http2_connect(
+        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(tunnel_proxy::http2_connect(
             proxy_listener,
             proxy_identity.acceptor(H2_ALPN)?,
             origin_address,
-        ));
+        )));
 
         let route = Route::http_proxy(
             HttpProxy::new(&format!("https://{proxy_address}"))?.with_http2_transport()?,
@@ -439,7 +477,10 @@ async fn http1_websocket_over_h2_proxy_transport_exchanges_messages() -> TestRes
         assert_eq!(socket.handshake_response().status(), 101);
         exchange_echo(socket).await?;
 
-        let record = proxy.await??.cancel().await?;
+        let proxy = proxy_owner.as_mut().ok_or("missing proxy setup")?;
+        proxy.establish().await?;
+        proxy.finish(Ok(())).await?;
+        let record = proxy.establish().await?;
         assert_eq!(
             record.authority.as_deref(),
             Some(origin_address.to_string().as_str())
@@ -450,12 +491,17 @@ async fn http1_websocket_over_h2_proxy_transport_exchanges_messages() -> TestRes
 
         Ok(())
     })
-    .await
+    .await;
+    match proxy_owner {
+        Some(mut proxy) => proxy.finish(primary).await,
+        None => primary,
+    }
 }
 
 #[tokio::test]
 async fn plaintext_ws_over_h2_proxy_transport_opens_a_connect_stream() -> TestResult<()> {
-    bounded(async {
+    let mut proxy_owner = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let (origin_address, origin_listener) = bind().await?;
         let origin = tunnel_proxy::ConnectionPeer::spawn(
@@ -463,11 +509,11 @@ async fn plaintext_ws_over_h2_proxy_transport_opens_a_connect_stream() -> TestRe
         );
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http2_connect(
+        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(tunnel_proxy::http2_connect(
             proxy_listener,
             proxy_identity.acceptor(H2_ALPN)?,
             origin_address,
-        ));
+        )));
 
         let route = Route::http_proxy(
             HttpProxy::new(&format!("https://{proxy_address}"))?.with_http2_transport()?,
@@ -485,7 +531,10 @@ async fn plaintext_ws_over_h2_proxy_transport_opens_a_connect_stream() -> TestRe
 
         // An RFC 9113 CONNECT stream to the origin, as for `wss://`; the
         // Upgrade inside it is plaintext and origin-form.
-        let record = proxy.await??.cancel().await?;
+        let proxy = proxy_owner.as_mut().ok_or("missing proxy setup")?;
+        proxy.establish().await?;
+        proxy.finish(Ok(())).await?;
+        let record = proxy.establish().await?;
         assert_eq!(
             record.authority.as_deref(),
             Some(origin_address.to_string().as_str())
@@ -497,7 +546,11 @@ async fn plaintext_ws_over_h2_proxy_transport_opens_a_connect_stream() -> TestRe
         assert_eq!(message, text_frame("hello"));
         Ok(())
     })
-    .await
+    .await;
+    match proxy_owner {
+        Some(mut proxy) => proxy.finish(primary).await,
+        None => primary,
+    }
 }
 
 /// A `ws://` opening whose CONNECT an HTTP/2 proxy challenges replays it as
@@ -506,7 +559,8 @@ async fn plaintext_ws_over_h2_proxy_transport_opens_a_connect_stream() -> TestRe
 #[tokio::test]
 async fn plaintext_ws_over_h2_proxy_replays_a_challenged_connect_on_its_connection()
 -> TestResult<()> {
-    bounded(async {
+    let mut proxy_owner = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let (origin_address, origin_listener) = bind().await?;
         let origin = tunnel_proxy::ConnectionPeer::spawn(
@@ -514,12 +568,12 @@ async fn plaintext_ws_over_h2_proxy_replays_a_challenged_connect_on_its_connecti
         );
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy =
-            tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http2_challenge_then_connect(
+        proxy_owner = Some(
+            tunnel_proxy::TunnelSetup::spawn(tunnel_proxy::http2_challenge_then_connect(
                 proxy_listener,
                 proxy_identity.acceptor(H2_ALPN)?,
                 origin_address,
-            ));
+            )));
 
         let route = Route::http_proxy(
             HttpProxy::new(&format!("https://{proxy_address}"))?
@@ -536,15 +590,22 @@ async fn plaintext_ws_over_h2_proxy_replays_a_challenged_connect_on_its_connecti
             .await?;
         exchange_echo(socket).await?;
 
-        let (records, one_connection) = proxy.await??.cancel().await?;
-        assert!(one_connection, "the replay opened a new proxy connection");
-        assert_challenged_then_authorized(&records);
+        let proxy = proxy_owner.as_mut().ok_or("missing proxy setup")?;
+        proxy.establish().await?;
+        proxy.finish(Ok(())).await?;
+        let (records, one_connection) = proxy.establish().await?;
+        assert!(*one_connection, "the replay opened a new proxy connection");
+        assert_challenged_then_authorized(records);
         let (request, message) = origin.await??;
         assert!(request.starts_with(b"GET /challenged HTTP/1.1\r\n"));
         assert_eq!(message, text_frame("hello"));
         Ok(())
     })
-    .await
+    .await;
+    match proxy_owner {
+        Some(mut proxy) => proxy.finish(primary).await,
+        None => primary,
+    }
 }
 
 /// An HTTP/2 WebSocket through an HTTP/2 proxy replays a challenged CONNECT
@@ -553,17 +614,18 @@ async fn plaintext_ws_over_h2_proxy_replays_a_challenged_connect_on_its_connecti
 #[tokio::test]
 async fn h2_websocket_over_h2_proxy_replays_a_challenged_connect_on_its_connection()
 -> TestResult<()> {
-    bounded(async {
+    let mut proxy_owner = None;
+    let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         let (origin_address, origin) = spawn_h2_origin(&identity).await?;
         let proxy_identity = TestIdentity::generate()?;
         let (proxy_address, proxy_listener) = bind().await?;
-        let proxy =
-            tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http2_challenge_then_connect(
+        proxy_owner = Some(
+            tunnel_proxy::TunnelSetup::spawn(tunnel_proxy::http2_challenge_then_connect(
                 proxy_listener,
                 proxy_identity.acceptor(H2_ALPN)?,
                 origin_address,
-            ));
+            )));
 
         let client = h2_websocket_client(
             &identity,
@@ -583,15 +645,22 @@ async fn h2_websocket_over_h2_proxy_replays_a_challenged_connect_on_its_connecti
             .await?;
         exchange_echo(socket).await?;
 
-        let (records, one_connection) = proxy.await??.cancel().await?;
-        assert!(one_connection, "the replay opened a new proxy connection");
-        assert_challenged_then_authorized(&records);
+        let proxy = proxy_owner.as_mut().ok_or("missing proxy setup")?;
+        proxy.establish().await?;
+        proxy.finish(Ok(())).await?;
+        let (records, one_connection) = proxy.establish().await?;
+        assert!(*one_connection, "the replay opened a new proxy connection");
+        assert_challenged_then_authorized(records);
         let origin_record = origin.await??;
         assert_eq!(origin_record.protocol.as_deref(), Some("websocket"));
         assert_eq!(origin_record.path.as_deref(), Some("/challenged"));
         Ok(())
     })
-    .await
+    .await;
+    match proxy_owner {
+        Some(mut proxy) => proxy.finish(primary).await,
+        None => primary,
+    }
 }
 
 /// Checks an anonymous CONNECT on stream 1 and its credentialed replay on
@@ -622,18 +691,19 @@ fn assert_challenged_then_authorized(records: &[tunnel_proxy::Http2ConnectRecord
 #[tokio::test]
 async fn plaintext_ws_over_h2_proxy_sends_the_profile_connect_fields() -> TestResult<()> {
     for connect in [chrome::v154_proxy_connect(), firefox::v157_proxy_connect()] {
-        bounded(async {
+        let mut proxy_owner = None;
+        let primary = bounded(async {
             let (origin_address, origin_listener) = bind().await?;
             let origin = tunnel_proxy::ConnectionPeer::spawn(
                 websocket_origin::serve_plaintext_h1_echo(origin_listener),
             );
             let proxy_identity = TestIdentity::generate()?;
             let (proxy_address, proxy_listener) = bind().await?;
-            let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http2_connect(
+            proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(tunnel_proxy::http2_connect(
                 proxy_listener,
                 proxy_identity.acceptor(H2_ALPN)?,
                 origin_address,
-            ));
+            )));
             let route = Route::http_proxy(
                 HttpProxy::new(&format!("https://{proxy_address}"))?.with_http2_transport()?,
             );
@@ -651,7 +721,10 @@ async fn plaintext_ws_over_h2_proxy_sends_the_profile_connect_fields() -> TestRe
                 .await?;
             exchange_echo(socket).await?;
 
-            let record = proxy.await??.cancel().await?;
+            let proxy = proxy_owner.as_mut().ok_or("missing proxy setup")?;
+            proxy.establish().await?;
+            proxy.finish(Ok(())).await?;
+            let record = proxy.establish().await?;
             assert_eq!(
                 record.fields,
                 [("user-agent".to_owned(), b"opening-agent".to_vec())]
@@ -659,7 +732,11 @@ async fn plaintext_ws_over_h2_proxy_sends_the_profile_connect_fields() -> TestRe
             origin.await??;
             Ok(())
         })
-        .await?;
+        .await;
+        match proxy_owner {
+            Some(mut proxy) => proxy.finish(primary).await?,
+            None => primary?,
+        }
     }
     Ok(())
 }

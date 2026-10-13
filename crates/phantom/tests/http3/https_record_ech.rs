@@ -604,7 +604,8 @@ async fn futures_join_all<F: std::future::Future>(futures: Vec<F>) -> Vec<F::Out
 /// as Chrome does: a proxied request's DNS happens at the proxy.
 #[tokio::test]
 async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()> {
-    bounded(async {
+    let mut proxy_owner = None;
+    let primary = bounded(async {
         let identity =
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), ORIGIN_NAME)?;
         let config = ech_config(1, &TEST_ECH_KEYS[0], PUBLIC_NAME);
@@ -622,10 +623,10 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
             tunnel_proxy::ConnectionPeer::spawn(serve(listener, ech_acceptor(&identity)?, 1));
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
+        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(tunnel_proxy::http1_connect(
             proxy_listener,
             origin,
-        ));
+        )));
 
         let upstream = HttpsRecordResolver::with_nameservers([dns.address()])?;
         let resolver = HttpsRecordResolver::from_fn(move |_, port| {
@@ -650,7 +651,9 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
             .await?;
         response.into_body().collect().await?;
 
-        proxy.await??.cancel().await?;
+        let proxy = proxy_owner.as_mut().ok_or("missing proxy setup")?;
+        proxy.establish().await?;
+        proxy.finish(Ok(())).await?;
         let observed = server.await??;
         assert_eq!(observed[0].outer_server_name.as_deref(), Some(ORIGIN_NAME));
         assert!(!observed[0].ech_accepted);
@@ -658,7 +661,11 @@ async fn a_proxied_request_sends_the_origin_name_without_ech() -> TestResult<()>
         dns.finish().await?;
         Ok(())
     })
-    .await
+    .await;
+    match proxy_owner {
+        Some(mut proxy) => proxy.finish(primary).await,
+        None => primary,
+    }
 }
 
 async fn bounded(test: impl Future<Output = TestResult<()>>) -> TestResult<()> {

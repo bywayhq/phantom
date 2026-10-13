@@ -398,23 +398,26 @@ async fn rejection_is_retried_once(opening: Opening) -> TestResult<()> {
 
 /// Through an HTTP proxy, the client sends no HTTPS query and no ECH.
 async fn proxy_route_sends_no_ech(opening: Opening) -> TestResult<()> {
-    bounded(async {
+    let mut proxy_owner = None;
+    let primary = bounded(async {
         let identity = origin_identity()?;
         let mut dns = published_record().await?;
         let acceptor = ech_acceptor(&identity, opening.server_alpn(), 1, &TEST_ECH_KEYS[0])?;
         let origin = Origin::spawn(acceptor, vec![opening]).await?;
         let proxy_listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let proxy_address = proxy_listener.local_addr()?;
-        let proxy = tunnel_proxy::ConnectionPeer::spawn(tunnel_proxy::http1_connect(
+        proxy_owner = Some(tunnel_proxy::TunnelSetup::spawn(tunnel_proxy::http1_connect(
             proxy_listener,
             origin.address(),
-        ));
+        )));
         let route = Route::http_proxy(HttpProxy::new(&format!("http://{proxy_address}"))?);
         let client = discovering_client(&identity, &dns, Opening::profile(true), Some(route))?;
 
         opening.send(&client, origin.port, "/").await?;
 
-        proxy.await??.cancel().await?;
+        let proxy = proxy_owner.as_mut().ok_or("missing proxy setup")?;
+        proxy.establish().await?;
+        proxy.finish(Ok(())).await?;
         let observed = origin.finish().await?;
         let [only] = &observed[..] else {
             return Err(format!("expected one connection, saw {observed:?}").into());
@@ -425,7 +428,11 @@ async fn proxy_route_sends_no_ech(opening: Opening) -> TestResult<()> {
         dns.finish().await?;
         Ok(())
     })
-    .await
+    .await;
+    match proxy_owner {
+        Some(mut proxy) => proxy.finish(primary).await,
+        None => primary,
+    }
 }
 
 /// With HTTPS record ECH disabled, the client makes no HTTPS query for
