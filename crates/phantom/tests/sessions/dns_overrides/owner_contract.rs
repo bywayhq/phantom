@@ -488,7 +488,37 @@ async fn aborting_the_closing_coordinator_destroys_its_actual_pending_worker() -
     let primary = async {
         backup.start_closing(control, true).await?;
         backup.abort_closing_coordinator().await?;
-        backup.destroyed().await
+        backup.destroyed().await?;
+        backup.joined_worker().await
+    }
+    .await;
+    let cleanup = backup.stop().await;
+    finish_with_cleanup(primary, cleanup)
+}
+
+#[tokio::test]
+async fn an_unknown_external_abort_retains_the_actual_closing_worker_join_error() -> TestResult<()>
+{
+    let (mut backup, control, _) = Backup::prepare(None, 1);
+    let primary = async {
+        backup.start_closing(control, true).await?;
+        backup
+            .worker
+            .as_ref()
+            .ok_or("original worker missing")?
+            .abort_handle()
+            .abort();
+        backup.destroyed().await?;
+        let error = backup
+            .joined_worker()
+            .await
+            .err()
+            .ok_or("unknown worker cancellation became success")?;
+        let original = error
+            .downcast_ref::<tokio::task::JoinError>()
+            .ok_or("original worker join error was lost")?;
+        assert!(original.is_cancelled());
+        Ok(())
     }
     .await;
     let cleanup = backup.stop().await;

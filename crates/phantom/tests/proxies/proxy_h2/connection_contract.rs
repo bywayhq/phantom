@@ -350,57 +350,60 @@ async fn completed_outcome(fail_peer: bool, fail_caller: bool) -> TestResult<()>
         Ok(())
     };
     let result = finish_forward_exchange(primary, peer).await;
-    probe.backup().await?;
     drop(client);
 
-    match (fail_peer, fail_caller) {
-        (true, true) => {
-            let error = result
-                .err()
-                .ok_or("both failed H2 outcomes became success")?;
-            let failures = error
-                .downcast_ref::<FixtureFailures>()
-                .ok_or("actual H2 caller discarded its completed secondary failure")?;
-            assert_eq!(
-                failures
-                    .primary
-                    .downcast_ref::<io::Error>()
-                    .ok_or("primary caller type was lost")?
-                    .kind(),
-                io::ErrorKind::PermissionDenied
-            );
-            assert!(
-                failures
-                    .cleanup
-                    .downcast_ref::<CompletedPeerFailure>()
-                    .is_some()
-            );
-        }
-        (true, false) => {
-            assert!(
-                result
+    let primary = async {
+        match (fail_peer, fail_caller) {
+            (true, true) => {
+                let error = result
                     .err()
-                    .ok_or("completed peer failure disappeared")?
-                    .downcast_ref::<CompletedPeerFailure>()
-                    .is_some()
-            );
+                    .ok_or("both failed H2 outcomes became success")?;
+                let failures = error
+                    .downcast_ref::<FixtureFailures>()
+                    .ok_or("actual H2 caller discarded its completed secondary failure")?;
+                assert_eq!(
+                    failures
+                        .primary
+                        .downcast_ref::<io::Error>()
+                        .ok_or("primary caller type was lost")?
+                        .kind(),
+                    io::ErrorKind::PermissionDenied
+                );
+                assert!(
+                    failures
+                        .cleanup
+                        .downcast_ref::<CompletedPeerFailure>()
+                        .is_some()
+                );
+            }
+            (true, false) => {
+                assert!(
+                    result
+                        .err()
+                        .ok_or("completed peer failure disappeared")?
+                        .downcast_ref::<CompletedPeerFailure>()
+                        .is_some()
+                );
+            }
+            (false, false) => {
+                result?.finish().await?;
+            }
+            (false, true) => {
+                assert_eq!(
+                    result
+                        .err()
+                        .ok_or("caller failure disappeared")?
+                        .downcast_ref::<io::Error>()
+                        .ok_or("caller type disappeared")?
+                        .kind(),
+                    io::ErrorKind::PermissionDenied
+                );
+            }
         }
-        (false, false) => {
-            result?.finish().await?;
-        }
-        (false, true) => {
-            assert_eq!(
-                result
-                    .err()
-                    .ok_or("caller failure disappeared")?
-                    .downcast_ref::<io::Error>()
-                    .ok_or("caller type disappeared")?
-                    .kind(),
-                io::ErrorKind::PermissionDenied
-            );
-        }
+        Ok(())
     }
-    Ok(())
+    .await;
+    crate::support::tunnel_proxy::finish_with_cleanup(primary, probe.backup().await)
 }
 
 #[tokio::test]
@@ -481,25 +484,28 @@ async fn recording(poison: bool) -> TestResult<()> {
         }
     }
     let result = timeout(Duration::from_secs(5), &mut peer).await??;
-    probe.backup().await?;
     drop(client);
 
-    if poison {
-        let error = result.err().ok_or("poisoned recording was successful")?;
-        let mut cause: &(dyn Error + 'static) = error.as_ref();
-        while !cause.is::<io::Error>() {
-            cause = cause
-                .source()
-                .ok_or("actual recording lost its typed poison cause")?;
+    let primary = async {
+        if poison {
+            let error = result.err().ok_or("poisoned recording was successful")?;
+            let mut cause: &(dyn Error + 'static) = error.as_ref();
+            while !cause.is::<io::Error>() {
+                cause = cause
+                    .source()
+                    .ok_or("actual recording lost its typed poison cause")?;
+            }
+        } else {
+            let record = result?;
+            assert_eq!(record.requests.len(), 1);
+            assert_eq!(record.requests[0].method, Method::GET.as_str());
+            assert!(!record.client_wire.is_empty());
+            record.finish().await?;
         }
-    } else {
-        let record = result?;
-        assert_eq!(record.requests.len(), 1);
-        assert_eq!(record.requests[0].method, Method::GET.as_str());
-        assert!(!record.client_wire.is_empty());
-        record.finish().await?;
+        Ok(())
     }
-    Ok(())
+    .await;
+    crate::support::tunnel_proxy::finish_with_cleanup(primary, probe.backup().await)
 }
 
 #[tokio::test]

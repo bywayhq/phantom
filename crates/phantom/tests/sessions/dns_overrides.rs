@@ -27,7 +27,6 @@ use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt},
     net::TcpListener,
     sync::oneshot,
-    task::AbortHandle,
     time::timeout,
 };
 
@@ -49,7 +48,7 @@ const JOIN_TIMEOUT: Duration = Duration::from_secs(5);
 
 struct OriginWorkers {
     owned: Vec<ConnectionPeer<TestResult<()>>>,
-    observed: Vec<AbortHandle>,
+    observed: Vec<oneshot::Sender<()>>,
 }
 
 impl OriginWorkers {
@@ -69,16 +68,24 @@ impl OriginWorkers {
         future: impl Future<Output = TestResult<()>> + Send + 'static,
         owner: owner_contract::ResultOwner,
     ) -> TestResult<()> {
-        let task = tokio::spawn(future);
         match owner {
             owner_contract::ResultOwner::Backup(returned) => {
-                self.observed.push(task.abort_handle());
+                let (stop, stopped) = oneshot::channel();
+                let task = tokio::spawn(async move {
+                    tokio::select! {
+                        biased;
+                        result = future => result,
+                        requested = stopped => requested.map_err(Into::into),
+                    }
+                });
+                self.observed.push(stop);
                 if let Err(task) = returned.send(task) {
                     self.owned.push(ConnectionPeer::from_task(task));
                     return Err("DNS worker observation receiver closed".into());
                 }
             }
             owner_contract::ResultOwner::Coordinator(completion) => {
+                let task = tokio::spawn(future);
                 let witness = task.abort_handle();
                 self.owned.push(ConnectionPeer::from_task(task));
                 completion
@@ -90,8 +97,9 @@ impl OriginWorkers {
     }
 
     async fn stop(&mut self) -> TestResult<()> {
-        for task in &self.observed {
-            task.abort();
+        for stop in self.observed.drain(..) {
+            // Closed receivers have completed; the transferred owner keeps their result.
+            let _ = stop.send(());
         }
         let mut cleanup = Ok(());
         // Record the cancellation decision before aborting any worker.
@@ -116,8 +124,9 @@ impl OriginWorkers {
 
 impl Drop for OriginWorkers {
     fn drop(&mut self) {
-        for task in &self.observed {
-            task.abort();
+        for stop in self.observed.drain(..) {
+            // Explicit coordinator cancellation must reach the transferred worker.
+            let _ = stop.send(());
         }
     }
 }
