@@ -309,9 +309,16 @@ and scope; they do not establish final integration.
 | A299 | P2 | WebSocket profile decoding bounds priority payloads | websocket_profile/server.rs indexes a complete HEADERS payload as five priority bytes without checking its length when the PRIORITY flag is set | The profile repair imported at `1f34c5d7` rejects complete HEADERS priority payloads shorter than five bytes before indexing and preserves valid decoding. Its existing typed parser controls remain. Later HPACK integer and string-range repairs at `9f81b91e` add separate overflow controls. Merged PR 199 at `90b9b7ea` includes both repairs and passing applicable PR checks, including macOS and Windows. Historical source evidence remains; current receipt reconciliation and the combined audit remain open. |
 | A300 | P2 | Resolver configuration errors retain original causes | System and builder failures are formatted into strings before address/HTTPS resolver errors are returned | Independently reviewed typed wrapper at a86c1f25 preserves original platform/build causes, public categories and messages. All 51 selected DNS tests pass on both hosts; corrected strict lint passes at 12422fcc. Tests exercise concrete causes rather than host configuration fault injection; final gates open. |
 | A301 | P2 | QUIC profile failures retain the validation cause | QuicTlsProfileError replaces InvalidTlsSettings with its kind, field and message | Independently reviewed repair at d9e6b6e7 retains the original cause through the provider and public client build error. Fifteen provider and fifteen client methods pass per host; focused quality passes after the unrelated DNS assertion correction. Final gates open. |
-| A302 | P2 | WebSocket compression tests retain peer tasks | Complete current read finds raw peer handles inside consuming bounded futures; caller failure or timeout detaches them | Required remediation; source and current blob retained in `final-coverage-fresh-source-read-20fa.json`. No production defect is claimed. |
-| A303 | P2 | Retained WebSocket captures reject malformed fields and counts | Complete current parser read finds UTF-8 byte slicing and caller-declared HPACK capacity; baseline controls reproduce Unicode and allocation panics plus duplicate-key acceptance | Remedy committed at `112bda03`; eight focused standalone controls pass, including three retained browser captures. Independent review and exact integration gate remain required. |
-| A304 | P2 | HTTP/2 count fixtures own child work and retain serving failures | Current partial origin read finds accepted and response children detached, serving errors discarded and Drop aborting only the listener | Required complete source review and ownership remedy; current source evidence retained in `final-coverage-fresh-source-read-20fa.json`. |
+| A302 | P2 | WebSocket compression tests retain peer tasks | Complete current read finds raw peer handles inside consuming bounded futures; caller failure or timeout detaches them | Source remedy independently approved and composed. Selected stream tests pass locally; exact-candidate gate and integration remain open. |
+| A303 | P2 | Retained WebSocket captures reject malformed fields and counts | Complete current parser read finds UTF-8 byte slicing and caller-declared HPACK capacity; baseline controls reproduce Unicode and allocation panics plus duplicate-key acceptance | Remedy rebased at `50674b82`; eight standalone controls pass, including three retained browser captures. Independent source review approved; exact integration gate remains required. |
+| A304 | P2 | HTTP/2 count fixtures own child work and retain serving failures | Current origin read finds accepted and response children detached, serving errors discarded and Drop aborting only the listener | Complete source remedy independently approved and composed. Original behavioral tests pass locally; two new controls need corrected assertions for retained grouped errors. Gate and integration remain open. |
+| A305 | P2 | WebSocket HTTP/3 fixtures retain caller and relay workers | Complete current read finds raw caller and relay tasks acquired inside consuming deadlines, plus detached UDP reply children | Confirmed fixture defect; bounded ownership remedy in progress. |
+| A306 | P2 | WebSocket HTTP/3 origins own their full worker tree | Connection, stream and DATA workers detach; retained connection logs can keep endpoints alive; serving outcomes are discarded | Confirmed fixture defect; bounded origin remedy in progress. |
+| A307 | P2 | WebSocket HTTP/3 origins bound received frames | Received frame lengths directly size allocations; partial input loses its original error | Confirmed malformed-input fixture defect; frame-bound remedy in progress. |
+| A308 | P2 | Stream MASQUE fixtures retain serving and pump failures | Existing child JoinSets own lifetime, but accepted TLS, protocol, pump and UDP outcomes are discarded | Confirmed fixture defect; outcome collection and actual caller integration remain required. |
+| A309 | P2 | MASQUE fixtures bound partial capsules and rejection drains | Partial capsules accumulate without a bound; partial EOF succeeds; rejection drains allocate without a bound | Confirmed malformed-input fixture defect; bounded parsing and drain remedy required. |
+| A310 | P2 | MASQUE fixtures reject targets outside loopback | Numeric request targets reach UDP forwarding without loopback validation | Confirmed fixture trust-boundary defect; validation and forwarding controls required. |
+| A311 | P2 | WebSocket HTTP/3 caller deadlines retain their typed cause | The fixture replaces original Elapsed with a string | Confirmed fixture diagnostic defect; cause-preserving remedy in progress. |
 
 At `400a900e`, the two additional A223 sibling and external-cancellation
 controls do not execute: their fixture import fails compilation. The source
@@ -1362,11 +1369,13 @@ applicability, including successful macOS and Windows checks. All eight
 applicable main push workflows passed at exact revision `20fa0d5b`.
 
 Source reconciliation preserves the original implementation changes and later
-reviewed repairs. The remaining architecture/docs branch retains the original
-three testkit layout changes and seventeen docs/config paths. Historical
-inventory dispositions need current source-review receipts. Combined manual
-standards/architecture review and the remaining candidate's gate, PR and main
-checks remain open. See [delivery evidence](evidence.md#delivery-reconciliation).
+reviewed repairs. PR 204 merged the retained architecture/docs and three
+testkit layout changes at `d1d353e8`. All 22 native gate steps and 37
+applicable PR checks passed, including both platforms. All six applicable
+main push workflows passed. Historical inventory dispositions still need
+current source-review receipts. Remaining fixture findings and source-coverage
+gaps keep the full audit open. See
+[delivery evidence](evidence.md#delivery-reconciliation).
 
 The Playground migration branch is ready at `399af77e`, with its quick gate
 and 773 selected local tests passing. The preserved Byway snapshot passes

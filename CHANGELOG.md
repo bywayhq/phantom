@@ -2484,6 +2484,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   without panicking or trusting declared allocation sizes.
 - Keep fixture peers owned across interrupted joins. Observe each completion
   once and retain already-completed external cancellation as a failure.
+- Retain redirect, WebSocket and connection-count fixture workers through
+  caller failure. Collect their original errors during bounded cleanup.
+  Reject malformed EventSource records and overflowing HPACK integers.
 - Require `http-body` 1.1 or newer so projects with an older lockfile
   resolve the `SizeHint` API used by buffered request bodies.
 - Retain test fixture workers and their original errors through caller

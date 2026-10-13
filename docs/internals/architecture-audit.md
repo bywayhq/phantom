@@ -58,7 +58,7 @@ This is the delivery snapshot from 2026-10-13. The full audit remains open.
 | Runtime and public APIs, PR 198 | `32a3071f` | Merged; all 43 PR checks passed |
 | Testkit and fixtures, PR 199 | `90b9b7ea` | Merged; applicable PR checks passed, including both platforms |
 | Capture and conformance tools, PR 200 | `20fa0d5b` | Merged; all 24 local gate steps and applicable PR checks passed |
-| Architecture and documentation, PR 204 | `e74a3e92` | Original remaining changes retained; current review and integration pending |
+| Architecture and documentation, PR 204 | `d1d353e8` | Merged; all 22 local gate steps and applicable PR checks passed |
 
 The tooling gate includes Linux Clippy and MSRV checks through WSL. Its
 source and complete logs have independent review. The 42 PR checks completed
@@ -66,10 +66,20 @@ successfully or were skipped by applicability, including successful macOS and
 Windows checks. All eight applicable main push workflows passed at
 `20fa0d5b`. Their exact-revision receipt is retained with the delivery evidence.
 
+The records delivery passed all 37 applicable PR checks, including macOS and
+Windows. All six applicable main push workflows passed at `d1d353e8`.
+Its source, gate logs and independent reviews remain with the delivery evidence.
+
 Current coverage reconciliation distinguishes historical complete reads,
 later reviewed changes and actual gaps. Fresh reads found detached test peers
 and a malformed capture parser panic. Their remedies remain required. The
 records PR does not close those findings or the full audit.
+
+The next fixture delivery covers malformed capture input, redirects,
+WebSockets, EventSource reconnects and HTTP/2 and HTTP/3 connection counts.
+Independent source reviews and focused checks are in progress. A separate
+source review found remaining WebSocket HTTP/3 and MASQUE fixture defects.
+Those repairs remain required before the full audit can close.
 
 Playground's migration branch is ready at `399af77e`. Its quick gate and
 773 selected tests passed locally. The API selection skips 340 other tests.

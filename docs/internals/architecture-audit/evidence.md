@@ -47,8 +47,20 @@ The records candidate's original `e74a3e92` gate remains retained under
 `audit-records-e74a3e92-windows` and `audit-records-e74a3e92-failed-step-logs`.
 Its native tests and Python suites pass. Its MSRV feature step fails because
 the local Rust 1.88 installation lacks its standard library and manifest.
-The toolchain has been reinstalled; a successful replacement gate remains
-required. All 37 PR checks passed at that revision, including both platforms.
+The toolchain was reinstalled before the replacement gate below.
+All 37 PR checks passed at that revision, including both platforms.
+
+The replacement records gate at `d1d353e8` passes all 22 native steps.
+Its logs and zero exit use the `audit-records-d1d353e8-windows` prefix.
+Raw per-step logs remain in `audit-records-d1d353e8-step-logs`, with their
+SHA-256 manifest. Source and clean-state records bind the exact revision
+before and after the gate. Independent source and log reviews accept it.
+No Linux-only implementation changed in that delivery.
+
+PR 204 merged that revision after all 37 applicable PR checks passed,
+including macOS and Windows. `main-d1d353e8-push-checks.json` records all six
+applicable main push workflows succeeding. The integrated worktree has been
+removed after preserving its logs. The earlier failed gate remains retained.
 
 The current coverage reconciliation is retained in
 `final-coverage-reconciliation-20fa.json` and
@@ -57,6 +69,12 @@ The current coverage reconciliation is retained in
 ownership and parser findings. Source-byte indexing alone is not semantic
 approval. The parser's baseline and remedy controls remain in
 `fixture-input-validation`; final independent review and integration are open.
+
+`websocket-h3-profile-masque-whole-source-review-d1d353e8.json` binds complete
+current reads of the assigned WebSocket HTTP/3, profile and MASQUE fixtures.
+It records A305–A311 and the profile and QUIC MASQUE no-change dispositions.
+These are fixture source findings, without a production-client defect claim.
+Their new controls, source repairs and integration verification remain open.
 
 ### Source preservation
 
