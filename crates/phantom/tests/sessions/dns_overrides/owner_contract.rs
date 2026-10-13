@@ -89,6 +89,7 @@ impl WorkerControl {
                 stream,
                 after_response: self.after_response,
                 response_written: false,
+                read_fault_ready: false,
                 pending: self.pending,
                 destroyed: self.destroyed,
                 reached: self.reached,
@@ -104,6 +105,7 @@ pub(super) struct ObservedStream<T> {
     stream: T,
     after_response: bool,
     response_written: bool,
+    read_fault_ready: bool,
     pending: watch::Sender<bool>,
     destroyed: watch::Sender<bool>,
     reached: watch::Sender<bool>,
@@ -124,6 +126,15 @@ impl<T: AsyncRead + Unpin> AsyncRead for ObservedStream<T> {
         buffer: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
         let this = self.get_mut();
+        if buffer.remaining() == 0 {
+            return Poll::Ready(Ok(()));
+        }
+        if this.read_fault_ready
+            && let Some(fault) = this.fault.take()
+        {
+            this.reached.send_replace(true);
+            return Poll::Ready(Err(fault.error));
+        }
         let before = buffer.filled().len();
         let result = Pin::new(&mut this.stream).poll_read(context, buffer);
         if result.is_pending() && (!this.after_response || this.response_written) {
@@ -139,10 +150,9 @@ impl<T: AsyncRead + Unpin> AsyncRead for ObservedStream<T> {
                     ..
                 })
             )
-            && let Some(fault) = this.fault.take()
         {
-            this.reached.send_replace(true);
-            return Poll::Ready(Err(fault.error));
+            // A successful read must deliver its bytes before a later injected error.
+            this.read_fault_ready = true;
         }
         result
     }
@@ -445,6 +455,27 @@ fn retains_fault(result: TestResult<()>, identity: &Arc<FailureIdentity>) -> Tes
         return Err(error);
     }
 
+    Ok(())
+}
+
+#[tokio::test]
+async fn the_read_control_delivers_input_before_its_original_failure() -> TestResult<()> {
+    let (backup, control, identity) = Backup::prepare(Some(FaultBoundary::Read), 0);
+    let (reader, mut writer) = tokio::io::duplex(1);
+    let (mut stream, _owner) = control.attach(reader);
+    backup.armed.store(true, Ordering::Release);
+    writer.write_all(b"G").await?;
+
+    let mut byte = [0; 1];
+    stream.read_exact(&mut byte).await?;
+    assert_eq!(byte, *b"G");
+    assert!(!*backup.reached.borrow());
+    assert_eq!(stream.read(&mut []).await?, 0);
+    assert!(!*backup.reached.borrow());
+
+    let result = stream.read(&mut byte).await.map(|_| ()).map_err(Into::into);
+    retains_fault(result, &identity)?;
+    assert!(*backup.reached.borrow());
     Ok(())
 }
 
