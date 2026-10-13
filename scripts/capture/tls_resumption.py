@@ -636,9 +636,12 @@ class Http1Parser:
 
 def peer_gone(error: BaseException) -> bool:
     # asyncio's drain helper can raise these native types without an errno.
-    return isinstance(
-        error, (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)
-    ) or peer_disconnected(error)
+    return not independent_failures(error) and (
+        isinstance(
+            error, (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)
+        )
+        or peer_disconnected(error)
+    )
 
 
 class Connection:
@@ -1036,7 +1039,7 @@ class Connection:
         try:
             task.result()
         except asyncio.CancelledError as error:
-            if task not in self.cancelled_tasks:
+            if task not in self.cancelled_tasks or independent_failures(error):
                 self.server.failed(error)
         except OSError as error:
             if not peer_gone(error):
@@ -1145,7 +1148,7 @@ class Connection:
             else:
                 self.server.failed(error)
         except asyncio.CancelledError as error:
-            if not self.cancelled_serve:
+            if not self.cancelled_serve or independent_failures(error):
                 self.server.failed(error)
         except BaseException as error:
             self.server.failed(error)
@@ -1174,6 +1177,30 @@ class CaptureFailures(Exception):
         self.interruption_cause: BaseException | None = None
         self.interruption_context: BaseException | None = None
         super().__init__("TLS capture cleanup failed")
+
+
+def independent_failures(error: BaseException) -> tuple[BaseException, ...]:
+    """Original causes carried beside the raised capture error."""
+    pending = [error.__cause__]
+    seen = set()
+    originals = []
+    while pending:
+        packet = pending.pop()
+        if not isinstance(packet, CaptureFailures) or id(packet) in seen:
+            continue
+
+        seen.add(id(packet))
+        pending.extend((packet.previous_cause, packet.previous_context))
+        for original in (packet.primary, *packet.cleanup):
+            if original is None:
+                continue
+
+            pending.append(original.__cause__)
+            if original is not error and all(
+                previous is not original for previous in originals
+            ):
+                originals.append(original)
+    return tuple(originals)
 
 
 def raise_capture_failures(
@@ -1273,7 +1300,11 @@ class AcceptedConnection(asyncio.StreamReaderProtocol):
         try:
             task.result()
         except asyncio.CancelledError as error:
-            if task is not self.task or not self.cancelled:
+            if (
+                task is not self.task
+                or not self.cancelled
+                or independent_failures(error)
+            ):
                 self.server.failed(error)
         except BaseException as error:
             self.server.failed(error)
@@ -1350,9 +1381,13 @@ class CaptureServer:
         self.stopping = False
         self.finished = False
 
+    def remember_failure(self, error: BaseException) -> None:
+        for original in (error, *independent_failures(error)):
+            if all(previous is not original for previous in self.failures):
+                self.failures.append(original)
+
     def failed(self, error: BaseException) -> None:
-        if all(previous is not error for previous in self.failures):
-            self.failures.append(error)
+        self.remember_failure(error)
         self.run.done.set()
         self.stopping = True
 
@@ -1360,8 +1395,7 @@ class CaptureServer:
             try:
                 listener.close()
             except BaseException as cleanup:
-                if all(previous is not cleanup for previous in self.failures):
-                    self.failures.append(cleanup)
+                self.remember_failure(cleanup)
 
     def protocol(self, listener: str) -> AcceptedConnection:
         protocol = AcceptedConnection(self, listener)

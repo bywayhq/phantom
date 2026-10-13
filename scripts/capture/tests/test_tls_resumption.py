@@ -925,6 +925,82 @@ class CaptureRetirementTests(unittest.IsolatedAsyncioTestCase):
         finally:
             await self.close_client(client)
 
+    async def test_peer_gone_response_preserves_an_independent_close_failure(self):
+        async def check(with_cleanup):
+            primary = BrokenPipeError("original response close_notify disconnect")
+            cleanup = ValueError("original one-shot writer close failure")
+            client = None
+            raised = None
+            closes = 0
+            try:
+                with contextlib.ExitStack() as patches:
+                    try:
+                        async with serving(
+                            SCENARIOS["sequential-http1"],
+                            "127.0.0.1",
+                            certificates(),
+                        ) as server:
+                            client = await self.connect(server)
+                            connection = server.connections[0]
+                            original_write = connection.writer.write
+                            original_close = connection.writer.close
+
+                            def write(data):
+                                if connection.closing:
+                                    raise primary
+                                original_write(data)
+
+                            def close(with_close_failure=with_cleanup):
+                                nonlocal closes
+                                closes += 1
+                                original_close()
+                                if with_close_failure and closes == 1:
+                                    raise cleanup
+
+                            patches.enter_context(
+                                mock.patch.object(connection.writer, "write", new=write)
+                            )
+                            patches.enter_context(
+                                mock.patch.object(connection.writer, "close", new=close)
+                            )
+                            before = set(connection.tasks)
+                            client[1].write(
+                                b"GET /retire HTTP/1.1\r\nHost: server.phantom.test\r\n\r\n"
+                            )
+                            await client[1].drain()
+                            head = await asyncio.wait_for(
+                                client[0].readuntil(b"\r\n\r\n"), 5
+                            )
+                            self.assertTrue(head.startswith(b"HTTP/1.1 200 OK\r\n"))
+                            self.assertIn(b"connection: close\r\n", head)
+                            self.assertEqual(
+                                await asyncio.wait_for(client[0].readexactly(2), 5),
+                                b"ok",
+                            )
+                            response = connection.tasks - before
+                            self.assertEqual(len(response), 1)
+                            done, pending = await asyncio.wait(response, timeout=5)
+                            self.assertEqual(done, response)
+                            self.assertFalse(pending)
+                    except BaseException as error:
+                        raised = error
+                self.assertGreaterEqual(closes, 2)
+                self.assert_retired(server)
+                if with_cleanup:
+                    self.assertIsInstance(raised, capture.CaptureFailures)
+                    self.assertTrue(any(error is primary for error in raised.cleanup))
+                    self.assertTrue(any(error is cleanup for error in raised.cleanup))
+                else:
+                    self.assertIsNone(raised)
+                    self.assertIsNone(server.run.error)
+                    self.assertFalse(server.failures)
+            finally:
+                await self.close_client(client)
+
+        for with_cleanup in (False, True):
+            with self.subTest(with_cleanup=with_cleanup):
+                await check(with_cleanup)
+
     async def test_completed_external_child_cancellation_is_observed(self):
         entered = asyncio.Event()
         original = capture.Connection.respond
