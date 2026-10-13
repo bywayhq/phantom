@@ -207,6 +207,10 @@ class PrefaceOwnershipTests(unittest.IsolatedAsyncioTestCase):
     async def test_original_tls_callback_error_prevents_fixture_publication(self):
         owners = []
         failures = []
+        peer_ready = asyncio.Event()
+        release_input = asyncio.Event()
+        callback_failed = asyncio.Event()
+        driver_closed = asyncio.Event()
         feed = FrameLog.feed
 
         def observed(log, data, milliseconds):
@@ -214,6 +218,7 @@ class PrefaceOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 return feed(log, data, milliseconds)
             except ValueError as error:
                 failures.append(error)
+                callback_failed.set()
                 raise
 
         def created(run, context):
@@ -225,6 +230,8 @@ class PrefaceOwnershipTests(unittest.IsolatedAsyncioTestCase):
         async def drive(_plan, _url):
             owner, protocols = owners[0]
             reader, writer = await self.peer(owner)
+            peer_ready.set()
+            await release_input.wait()
             writer.write(b"GET / HTTP/1.1\r\n\r\n" + b"x" * 16)
             await writer.drain()
             try:
@@ -233,6 +240,7 @@ class PrefaceOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 await self.eof(reader)
                 self.assertIs(owner.run.failure, failures[0])
                 self.assertTrue(protocols[0].handler.done())
+                driver_closed.set()
 
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "preface-ping.txt"
@@ -257,6 +265,10 @@ class PrefaceOwnershipTests(unittest.IsolatedAsyncioTestCase):
             ):
                 operation = asyncio.create_task(preface.capture(args))
                 self.addAsyncCleanup(self.stop_operation, operation)
+                await asyncio.wait_for(peer_ready.wait(), 2)
+                release_input.set()
+                await asyncio.wait_for(callback_failed.wait(), 2)
+                await asyncio.wait_for(driver_closed.wait(), 2)
                 done, _ = await asyncio.wait({operation}, timeout=2)
                 self.assertIn(operation, done, "callback did not wake capture")
                 with self.assertRaises(ValueError) as raised:

@@ -11,7 +11,7 @@ from aioquic.asyncio.protocol import QuicConnectionProtocol
 from aioquic.h3.connection import H3_ALPN, FrameUnexpected, H3Connection
 from aioquic.h3.events import DataReceived, HeadersReceived
 from aioquic.quic.configuration import QuicConfiguration
-from aioquic.quic.connection import QuicConnection
+from aioquic.quic.connection import QuicConnection, QuicConnectionState
 from aioquic.quic.events import HandshakeCompleted
 
 from scripts.capture import alt_svc_race as race
@@ -176,6 +176,19 @@ class H3DeferredPeer:
             raise AssertionError("actual trusted H3 peer did not receive 200/ok")
 
     async def close_h3(self):
+        async def wait_closed(protocol):
+            seconds = DEADLINE
+            if protocol._quic._state in {
+                QuicConnectionState.CLOSING,
+                QuicConnectionState.DRAINING,
+            }:
+                close_at = protocol._quic.get_timer()
+                if close_at is None:
+                    raise AssertionError("closing QUIC peer did not retain its timer")
+                # Native termination takes three PTOs; the guard bounds callback delay.
+                seconds += max(0, close_at - asyncio.get_running_loop().time())
+            await asyncio.wait_for(protocol.wait_closed(), seconds)
+
         failures = []
         client = self.client
         transport = self.client_transport
@@ -185,13 +198,13 @@ class H3DeferredPeer:
             except BaseException as error:
                 failures.append(error)
             try:
-                await asyncio.wait_for(client.wait_closed(), DEADLINE)
+                await wait_closed(client)
             except BaseException as error:
                 failures.append(error)
             try:
                 for protocol in self.server_protocols:
                     try:
-                        await asyncio.wait_for(protocol.wait_closed(), DEADLINE)
+                        await wait_closed(protocol)
                     except BaseException as error:
                         failures.append(error)
             finally:

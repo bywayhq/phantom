@@ -15,6 +15,7 @@ from aioquic.quic.connection import QuicConnection
 from scripts.capture import alt_svc_race as race
 from scripts.capture.tests.test_alt_svc_race_h3_deferred_response_classification import (
     H3DeferredPeer,
+    H3ResponseClient,
 )
 from scripts.capture.tests.test_alt_svc_race_startup_lifecycle import DEADLINE, HOST
 
@@ -383,6 +384,40 @@ class RaceAdmissionLimitTests(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertEqual(controls.probe_sender.fileno(), -1)
+
+    async def test_udp_quota_cause_survives_a_native_close_timer_past_the_guard(self):
+        controls = self.acquire()
+        actual_close = H3ResponseClient.close
+        timers = []
+
+        def slow_close(client, *args, **kwargs):
+            if not timers:
+                # Model delayed loopback packets through the actual recovery state.
+                self.assertTrue(client._quic._loss._rtt_initialized)
+                client._quic._loss._rtt_smoothed = 2.0
+                client._quic._loss._rtt_variance = 0.0
+            actual_close(client, *args, **kwargs)
+            if not timers:
+                close_at = client._quic.get_timer()
+                self.assertGreater(
+                    close_at - asyncio.get_running_loop().time(), DEADLINE
+                )
+                self.assertEqual(client._timer.when(), close_at)
+                timers.append(client._timer)
+
+        with patch.object(H3ResponseClient, "close", slow_close):
+            result, observed, closed = await controls.run_case("udp-peer")
+
+        self.assert_failure(
+            controls,
+            result,
+            observed,
+            closed,
+            "race capture exceeds the UDP peer limit",
+        )
+        self.assert_no_allocations(controls)
+        self.assertTrue(timers)
+        self.assertIsNone(controls.client._timer)
 
     async def test_request_overflow_does_not_retain_another_hold(self):
         controls = self.acquire()

@@ -71,6 +71,7 @@ class ObservedProtocol(QuicConnectionProtocol):
         self.queued_transmit_observations = []
         self.wait_failure = None
         self.close_returned = False
+        self.close_started = asyncio.Event()
         self.wait_returned = False
         self.observe_cancellation = False
         self.pending_wait = asyncio.get_running_loop().create_future()
@@ -101,6 +102,7 @@ class ObservedProtocol(QuicConnectionProtocol):
         queued = self._transmit_task
         super().close(*args, **kwargs)
         self.close_returned = True
+        self.close_started.set()
         if self.observe_queued_transmit:
             self.close_queued_transmit_observation = (queued, self._transmit_task)
 
@@ -239,8 +241,16 @@ class LoopbackResources:
         self.tasks.append(task)
         return task
 
-    async def outcome(self, task):
-        done, _ = await asyncio.wait({task}, timeout=CONTROL_TIMEOUT)
+    async def close_timeout(self):
+        await asyncio.wait_for(self.client.close_started.wait(), CONTROL_TIMEOUT)
+        close_at = self.client._quic.get_timer()
+        seconds = CONTROL_TIMEOUT
+        if close_at is not None:
+            seconds += max(0, close_at - asyncio.get_running_loop().time())
+        return seconds
+
+    async def outcome(self, task, *, timeout=CONTROL_TIMEOUT):
+        done, _ = await asyncio.wait({task}, timeout=timeout)
         if not done:
             raise AssertionError("loopback target did not finish before watchdog")
         self.observed_tasks.add(task)
@@ -497,6 +507,11 @@ class LoopbackCleanupTests(unittest.IsolatedAsyncioTestCase):
         primary.__cause__ = original_cause
         inner_cleanup = WaitClosedFailure("inner error after actual QUIC termination")
         outer_cleanup = WaitClosedFailure("outer error after actual QUIC termination")
+        outer_ready = asyncio.Event()
+        inner_ready = asyncio.Event()
+        release_inner = asyncio.Event()
+        inner_closed = asyncio.Event()
+        release_outer = asyncio.Event()
 
         async with ready_resources() as outer, ready_resources() as inner:
 
@@ -507,11 +522,14 @@ class LoopbackCleanupTests(unittest.IsolatedAsyncioTestCase):
                     inner.client_endpoint.transport, outer.client_endpoint.transport
                 )
                 client.wait_failure = inner_cleanup
+                inner_ready.set()
+                await release_inner.wait()
                 raise primary
 
             async def outer_body(client):
                 self.assert_ready(outer)
                 client.wait_failure = outer_cleanup
+                outer_ready.set()
 
                 propagated = await inner.target(inner_body)
                 self.assertIs(propagated, primary)
@@ -520,10 +538,18 @@ class LoopbackCleanupTests(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue(inner.client.wait_returned)
                 self.assertTrue(inner.client.terminated)
                 await self.assert_transport_closed(inner)
+                inner_closed.set()
+                await release_outer.wait()
 
                 raise propagated
 
-            result = await outer.outcome(outer.spawn_target(outer_body))
+            target = outer.spawn_target(outer_body)
+            await asyncio.wait_for(outer_ready.wait(), CONTROL_TIMEOUT)
+            await asyncio.wait_for(inner_ready.wait(), CONTROL_TIMEOUT)
+            release_inner.set()
+            await asyncio.wait_for(inner_closed.wait(), await inner.close_timeout())
+            release_outer.set()
+            result = await outer.outcome(target, timeout=await outer.close_timeout())
             self.assertTrue(outer.client.wait_returned)
             self.assertTrue(outer.client.terminated)
             self.assertTrue(inner.client.terminated)
