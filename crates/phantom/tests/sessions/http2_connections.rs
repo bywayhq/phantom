@@ -260,7 +260,19 @@ async fn serve(
                 None => respond
                     .send_response(Response::builder().status(StatusCode::OK).body(())?, false)?,
             };
-            body.send_data(Bytes::from_static(b"done"), true)?;
+            if let Err(error) = body.send_data(Bytes::from_static(b"done"), true) {
+                let reset = std::future::poll_fn(|context| {
+                    std::task::Poll::Ready(body.poll_reset(context))
+                })
+                .await;
+                // A release may win the wait above after an intentional reset.
+                if path != "/warm"
+                    && matches!(reset, std::task::Poll::Ready(Ok(::http2::Reason::CANCEL)))
+                {
+                    return Ok(());
+                }
+                return Err(error.into());
+            }
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         })?;
     }
