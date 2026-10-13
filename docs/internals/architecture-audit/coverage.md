@@ -18,31 +18,44 @@ All eight applicable main push workflows passed at `20fa0d5b`. The
 [delivery evidence](evidence.md#delivery-reconciliation) records each
 revision's checks and downstream verification.
 
-The original implementation changes are preserved across these deliveries.
-The remaining three testkit layout changes and seventeen docs/config paths
-are retained on the architecture/docs branch. This reconciles source
-preservation; it does not complete the manual architecture or standards
-review.
+Architecture and documentation PR 204 merged at `d1d353e8`, including the
+three testkit layout changes and seventeen docs/config paths. Its 22 local
+gate steps passed. All 37 applicable PR checks and all six main push
+workflows passed, including macOS and Windows PR checks. This delivery
+preserves the original changes; the whole audit remains open.
 
-The inventory distinguishes paths merged at exact revision `20fa0d5b`, five
-candidate-only audit records and five retired historical paths. It adds
-33 newer paths. Existing review dispositions and evidence pointers retain
-their historical scope. The new rows require their actual
-review receipts to be indexed. Counts of pending rows are not a percentage
-of unfinished implementation or a fresh review of current source.
+The inventory's delivery column now records presence at `d1d353e8`.
+It contains 2,460 merged paths and five retired historical paths. Existing
+review dispositions retain their original source scope. Presence and pending
+row counts do not measure unfinished implementation.
 
-Remaining work is current receipt reconciliation, complete dispositions for
-qualified gaps, the combined manual architecture/standards review, and the
-architecture/docs candidate's gate, PR and main checks. Each current review
-must establish its revision, source scope, evidence and remaining limits.
+Receipt reconciliation covers 37 previously uncredited paths at `d1d353e8`.
+Twenty-four have complete reviews of their exact current source. Thirteen
+have a complete baseline and reviewed later differences, including two
+previously missed exact-current complete receipts. The original methods,
+contracts and limits were read, and the source and receipt bytes checked.
+These records establish source coverage, not fresh runtime verification.
 
-The current reconciliation checks retained source hashes and actual read
-ranges. Some rows have exact current complete receipts missing from the index.
-Others need their later changed-source reviews reconciled or a complete read.
-Fresh complete reads of the WebSocket compression tests and profile capture
-parser found peer detachment and malformed-input failures. The HTTP/2
-connection-count origin also detaches children and discards serving errors.
-These remain required fixes, separate from historical verification.
+Three exact-current reviews keep qualified independence: two capture files
+lack an explicit independent-review statement, and one WebSocket control
+has an author-only complete read. The Alt-Svc race baseline also lacks an
+explicit independence statement. Later independent repairs do not change
+that baseline's provenance. Test, manifest and patch reviews credit their
+own files, without extending coverage to their parents or upstream crates.
+The [receipt index](evidence.md#current-source-receipt-reconciliation)
+records these distinctions.
+
+Fixture PR 205 at `7e153e1a` repairs peer ownership, error collection and
+capture parsing. Its independent source and complete gate-log reviews are
+approved. All 24 local gate steps passed, including native and Linux
+Clippy/MSRV, 4,507 native tests and 143 doctests. All 41 PR checks passed,
+including both platforms and conformance suites. PR 205 is merged; main CI
+is running. The earlier failed gate remains retained.
+
+HTTP/3 WebSocket ownership and MASQUE input bounds have source reviews.
+Their combined runtime checks and MASQUE relay outcome collection remain
+open. Current dispositions for other qualified gaps, the final combined
+architecture/standards review and exact integration checks remain required.
 
 ## Historical verification
 

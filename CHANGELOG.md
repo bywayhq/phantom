@@ -1945,6 +1945,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Reconcile the architecture audit records with delivered PR checks and
+  37 retained source reviews, keeping their original scope and review limits.
+
 - Record the architecture audit's findings, review scope and phased delivery.
   Correct ownership, public API and conformance recovery documentation.
 
