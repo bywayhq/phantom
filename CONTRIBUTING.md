@@ -195,8 +195,8 @@ uv run --no-project --python 3.10 python scripts/docs/check_docs.py
 - CI installs ruff and the Python test dependencies from the hash-pinned
   `scripts/requirements.txt`, generated from `scripts/requirements.in` by the
   command in its header. That file is the source of each Python tool version
-  except Frida, which only `scripts/capture/socket_hooks.py` needs and which
-  `scripts/capture/hooks-requirements.txt` pins the same way. Dependabot
+  except Frida. The Chromium and Firefox socket-hook tools need Frida,
+  which `scripts/capture/hooks-requirements.txt` pins the same way. Dependabot
   updates only `scripts/requirements.in` and `scripts/requirements.txt`. The `ruff@` and
   `--with` pins above, the ruff `required-version` in `pyproject.toml`, and
   the permission rules in `.claude/settings.json` are copies:

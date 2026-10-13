@@ -71,7 +71,7 @@ including macOS and Windows. `main-d1d353e8-push-checks.json` records all six
 applicable main push workflows succeeding. The integrated worktree has been
 removed after preserving its logs. The earlier failed gate remains retained.
 
-The current coverage reconciliation is retained in
+The earlier coverage checkpoint is retained in
 `final-coverage-reconciliation-20fa.json` and
 `coverage-reconciliation-source-index.json`. The fresh source read in
 `final-coverage-fresh-source-read-20fa.json` identifies remaining fixture
@@ -85,13 +85,16 @@ in `fixture-gate-7e153e1a-step-logs`. The failed `5d51de09` gate is retained
 in its separate failed-step archive. All 41 PR checks passed, including
 both platforms and conformance suites, before fast-forwarding main.
 `fixture-7e153e1a-final-pr-checks.json` retains the exact PR checks.
-Main push CI is running.
+All four applicable main push workflows passed at `7e153e1a`.
 
 `websocket-h3-profile-masque-whole-source-review-d1d353e8.json` binds complete
-current reads of the assigned WebSocket HTTP/3, profile and MASQUE fixtures.
+reads of the assigned WebSocket HTTP/3, profile and MASQUE fixtures at that
+historical checkpoint.
 It records A305–A311 and the profile and QUIC MASQUE no-change dispositions.
 These are fixture source findings, without a production-client defect claim.
-Their new controls, source repairs and integration verification remain open.
+Their controls and repairs later merged in PR 206 at `1806cb77`. Independent
+source and complete gate-log reviews accept that candidate. All 24 local
+gate steps, 41 PR checks and four applicable main push workflows passed.
 
 The composed fixture selection passes all 177 tests at clean `4111f7bf`,
 with 1,179 other tests skipped. Its complete log, zero exit and equal
