@@ -2487,6 +2487,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Reject snapshot metadata containing line breaks, control characters or
   non-ASCII text before capture or fixture rendering.
+- Close accepted cookie capture sockets when protocol construction fails or
+  the connection limit is exceeded. Retain the original failure and wait for
+  every accepted peer to retire before returning.
 - Reject malformed retained WebSocket capture fields and record counts
   without panicking or trusting declared allocation sizes.
 - Keep fixture peers owned across interrupted joins. Observe each completion

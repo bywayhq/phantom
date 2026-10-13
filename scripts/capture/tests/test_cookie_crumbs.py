@@ -529,7 +529,15 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
             self.assertIs(cleanup.exception, primary)
 
     async def test_accepted_protocol_factory_failure_prevents_publication(self):
-        primary = ValueError("original accepted protocol construction failure")
+        for primary in (
+            ValueError("original accepted protocol construction failure"),
+            OSError(errno.EIO, "original accepted protocol I/O failure"),
+            MemoryError("original accepted protocol allocation failure"),
+        ):
+            with self.subTest(error=type(primary)):
+                await self.accepted_factory_failure(primary)
+
+    async def accepted_factory_failure(self, primary):
         server = TcpServer(CERTIFICATE)
         run = CookieRun("factory", 0)
         server.run = run
@@ -563,17 +571,19 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
             ):
                 client = await asyncio.open_connection(*server.plain_address)
                 await asyncio.wait_for(run.done.wait(), TIMEOUT)
-                with self.assertRaises(ValueError) as raised:
+                with self.assertRaises(type(primary)) as raised:
                     await server.close()
 
             self.assertIs(raised.exception, primary)
             self.assertIs(run.failures[0], primary)
-            self.assertEqual(server.protocols, [])
+            self.assertEqual(await asyncio.wait_for(client[0].read(1), 2.0), b"")
+            self.assertEqual(len(server.protocols), 1)
+            self.assertTrue(server.protocols[0].retired.done())
             self.assertTrue(server.finished)
             self.assertTrue(all(not listener.sockets for listener in server.servers))
             self.assertEqual(unexpected, [])
-            self.assertTrue(accepted_sockets)
-            with self.assertRaises(ValueError) as unpublished:
+            self.assertEqual(accepted_sockets, [])
+            with self.assertRaises(type(primary)) as unpublished:
                 fixture(SCENARIOS["h1"], [run], METADATA, 4096)
             self.assertIs(unpublished.exception, primary)
             rebound = await asyncio.start_server(
@@ -589,9 +599,49 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 client[1].close()
                 await client[1].wait_closed()
             if run.failures:
-                with self.assertRaises(ValueError) as final:
+                with self.assertRaises(type(primary)) as final:
                     await server.close()
                 self.assertIs(final.exception, primary)
+            else:
+                await server.close()
+
+    async def test_connection_limit_retires_every_accepted_peer(self):
+        server = TcpServer(CERTIFICATE)
+        run = CookieRun("connection-limit", 0)
+        server.run = run
+        clients = []
+        loop = asyncio.get_running_loop()
+        previous_handler = loop.get_exception_handler()
+        unexpected = []
+        try:
+            await server.start("127.0.0.1")
+            loop.set_exception_handler(
+                lambda _loop, context: unexpected.append(context)
+            )
+            with mock.patch.object(cookie_crumbs, "MAX_CONNECTIONS", 1):
+                for _ in range(2):
+                    clients.append(await asyncio.open_connection(*server.plain_address))
+                await asyncio.wait_for(run.done.wait(), TIMEOUT)
+                with self.assertRaisesRegex(ValueError, "connection limit"):
+                    await server.close()
+
+            self.assertEqual(len(server.protocols), 2)
+            self.assertTrue(
+                all(protocol.retired.done() for protocol in server.protocols)
+            )
+            for reader, _writer in clients:
+                self.assertEqual(await asyncio.wait_for(reader.read(1), 2.0), b"")
+            self.assertTrue(server.finished)
+            self.assertTrue(all(not listener.sockets for listener in server.servers))
+            self.assertEqual(unexpected, [])
+        finally:
+            loop.set_exception_handler(previous_handler)
+            for _reader, writer in clients:
+                writer.close()
+                await writer.wait_closed()
+            if run.failures:
+                with self.assertRaises(ValueError):
+                    await server.close()
             else:
                 await server.close()
 

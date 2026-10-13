@@ -330,6 +330,8 @@ class CookieProtocol(asyncio.StreamReaderProtocol):
                 RuntimeError("cookie TCP callback arrived after cleanup"), self.run
             )
         if self.owner.stopping or self.run is None:
+            if self.owner.stopping:
+                self.owner.stop_listeners()
             try:
                 writer.transport.abort()
             except BaseException as error:
@@ -362,6 +364,40 @@ class CookieProtocol(asyncio.StreamReaderProtocol):
                 self.retired.set_result(None)
 
 
+class RetiringCookieProtocol(asyncio.Protocol):
+    """Retire an accepted transport after its serving protocol cannot start."""
+
+    def __init__(self, owner: TcpServer, run: CookieRun | None) -> None:
+        self.owner = owner
+        self.run = run
+        self.transport: asyncio.Transport | None = None
+        self.writer = None
+        self.task = None
+        self.close_task = None
+        self.retired = asyncio.get_running_loop().create_future()
+
+    def connection_made(self, transport) -> None:
+        self.transport = transport
+        self.owner.stop_listeners()
+        try:
+            transport.abort()
+        except BaseException as error:
+            self.owner.failed(error, self.run)
+            try:
+                transport.close()
+            except BaseException as cleanup:
+                self.owner.failed(cleanup, self.run)
+
+    def connection_lost(self, error) -> None:
+        if error is not None and not peer_disconnected(error):
+            self.owner.failed(error, self.run)
+        if not self.retired.done():
+            self.retired.set_result(None)
+
+    def _get_close_waiter(self, _writer):
+        return self.retired
+
+
 class TcpServer:
     """A TLS listener for `HOSTNAME` (ALPN h2) and a plaintext HTTP/1.1 one."""
 
@@ -372,7 +408,7 @@ class TcpServer:
         self.listener_waits: dict[asyncio.Server, asyncio.Task[None]] = {}
         self.closed_listeners: set[asyncio.Server] = set()
         self.observed_listeners: set[asyncio.Server] = set()
-        self.protocols: list[CookieProtocol] = []
+        self.protocols: list[CookieProtocol | RetiringCookieProtocol] = []
         self.failures: list[BaseException] = []
         self.primary: BaseException | None = None
         self.stopping = False
@@ -444,26 +480,35 @@ class TcpServer:
         if not ready.done():
             ready.set_result(None)
 
-    def new_protocol(self, listener, run) -> CookieProtocol:
+    def new_protocol(self, listener, run) -> CookieProtocol | RetiringCookieProtocol:
+        # The event loop attaches the accepted transport to its Server after
+        # this factory returns. Close listeners only from connection_made.
         try:
             protocol = CookieProtocol(self, listener, run)
-            self.protocols.append(protocol)
-            active = sum(not item.retired.done() for item in self.protocols)
-            if len(self.protocols) > MAX_CONNECTIONS or active > MAX_ACTIVE_CONNECTIONS:
-                self.failed(
-                    ValueError("cookie capture exceeds the connection limit"), run
-                )
-            return protocol
         except BaseException as error:
-            self.failed(error, run)
-            raise
+            self.record_failure(error, run)
+            protocol = RetiringCookieProtocol(self, run)
 
-    def failed(self, error, run) -> None:
+        self.protocols.append(protocol)
+        active = sum(not item.retired.done() for item in self.protocols)
+        if len(self.protocols) > MAX_CONNECTIONS or active > MAX_ACTIVE_CONNECTIONS:
+            self.record_failure(
+                ValueError("cookie capture exceeds the connection limit"), run
+            )
+        return protocol
+
+    def record_failure(self, error, run) -> None:
         if all(previous is not error for previous in self.failures):
             self.failures.append(error)
         if run is not None:
             run.failed(error)
         self.stopping = True
+
+    def failed(self, error, run) -> None:
+        self.record_failure(error, run)
+        self.stop_listeners()
+
+    def stop_listeners(self) -> None:
         for server in self.servers:
             try:
                 server.close()
