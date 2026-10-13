@@ -16,6 +16,14 @@ The controls exercise accepted CONNECT sockets, pending external cancellation,
 interrupted cleanup, body limits and original timer causes. The original request,
 body, route, retry and protocol assertions remain. Root formats only the affected
 package. Independent follow-up review and native checks remain open.
+At `2528f857`, each host passes 17 of 18 PING methods and all 16 unprocessed
+replay methods. Formatting, strict Clippy, Rust 1.88 and docs pass. Both readers
+inspect all complete logs and separately verify both clean source revisions.
+The new interruption control assumes one manual poll collects ready joins.
+Tokio can yield its cooperative budget first. The correction drives the original
+caller alongside a finite progress observation before advancing its deadline;
+the original typed failure, retained-owner and socket assertions stay in place.
+Its rerun remains open.
 Raw frame payload allocation still uses the existing shared parser. Cleanup
 expiry and owner destruction retain abort fallback without proving a completed
 join. These fixture findings do not establish production leaks.
@@ -50,6 +58,18 @@ These reads do not authenticate downloaded artifacts or audit untouched
 dependency implementations. Fuzz does not inherit a blanket Rust 1.88 claim.
 Local Python checks pin direct dependencies with `uv --with`; they do not
 reproduce the complete hashed CI environment. Final gates remain open.
+
+## WebSocket compression parameter review
+
+Root reads the complete extension parser, its settings owner, all 187 lines of
+the RFC controls and both HTTP-whitespace patches. Supporting reads trace the
+public configuration methods and Phantom's validated compression settings.
+The four parser, control and patch files are unchanged from the independently
+approved `4aa8fa90` content. The earlier review covers the whole parser plus the
+changed whitespace block; current reads also check the RFC extension grammar.
+No additional defect is found in this scope. Codec internals and complete
+transport openings remain separate reviews; final vendor and integration gates
+remain open.
 
 ## ECH command process repair
 

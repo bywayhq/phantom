@@ -2032,7 +2032,7 @@ vendor/tungstenite/Cargo.toml	vendor-boundary	source-complete	vendor-reviewed-re
 vendor/tungstenite/Cargo.toml.orig	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tungstenite/Cargo.toml.orig
 vendor/tungstenite/PHANTOM.md	vendor-boundary	source-complete	a49-independent-review.json#vendor/tungstenite/PHANTOM.md; vendor-reviewed-records.json#vendor/tungstenite/PHANTOM.md
 vendor/tungstenite/patches/deflate-http-whitespace-tests.patch	vendor-boundary	source-complete	introduced source; review pending; a49-independent-review.json#vendor/tungstenite/patches/deflate-http-whitespace-tests.patch
-vendor/tungstenite/patches/deflate-http-whitespace.patch	vendor-boundary	source-partial	introduced source; review pending; a49-independent-review.json#vendor/tungstenite/patches/deflate-http-whitespace.patch
+vendor/tungstenite/patches/deflate-http-whitespace.patch	vendor-boundary	source-complete	coverage.md#websocket-compression-parameter-review: root whole-current parser/control/patch read; exact unchanged independently approved 4aa8fa90 content; final gates open
 vendor/tungstenite/patches/deprecated-max-value.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tungstenite/patches/deprecated-max-value.patch
 vendor/tungstenite/patches/message-fragment-limit.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tungstenite/patches/message-fragment-limit.patch
 vendor/tungstenite/patches/permessage-deflate.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tungstenite/patches/permessage-deflate.patch
@@ -2040,8 +2040,8 @@ vendor/tungstenite/patches/phantom-integration.patch	vendor-boundary	source-comp
 vendor/tungstenite/patches/publish-identity.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tungstenite/patches/publish-identity.patch
 vendor/tungstenite/patches/redacted-fallible-masking.patch	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/tungstenite/patches/redacted-fallible-masking.patch
 vendor/tungstenite/patches/series	vendor-boundary	source-complete	a49-independent-review.json#vendor/tungstenite/patches/series; vendor-reviewed-records.json#vendor/tungstenite/patches/series
-vendor/tungstenite/src/protocol/deflate/negotiate.rs	vendor-boundary	pending	discovery only; manual review pending
-vendor/tungstenite/src/protocol/deflate/tests/rfc_7692.rs	vendor-boundary	pending	discovery only; manual review pending
+vendor/tungstenite/src/protocol/deflate/negotiate.rs	vendor-boundary	source-complete	coverage.md#websocket-compression-parameter-review: root whole-current parser/control/patch read; exact unchanged independently approved 4aa8fa90 content; final gates open
+vendor/tungstenite/src/protocol/deflate/tests/rfc_7692.rs	vendor-boundary	source-complete	coverage.md#websocket-compression-parameter-review: root whole-current parser/control/patch read; exact unchanged independently approved 4aa8fa90 content; final gates open
 vendor/wreq-proto/Cargo.lock	vendor-boundary	pending	discovery only; manual review pending
 vendor/wreq-proto/Cargo.toml	vendor-boundary	source-complete	new-tooling-source-pass-01-coverage.json#vendor/wreq-proto/Cargo.toml; vendor-reviewed-records.json#vendor/wreq-proto/Cargo.toml
 vendor/wreq-proto/Cargo.toml.orig	vendor-boundary	source-complete	vendor-reviewed-records.json#vendor/wreq-proto/Cargo.toml.orig

@@ -272,10 +272,22 @@ async fn an_interrupted_finish_retains_collected_failures_and_actual_connect_own
             tokio::pin!(pending);
             assert!(futures_util::poll!(&mut pending).is_pending());
             tokio::time::advance(TEST_TIMEOUT - Duration::from_secs(1)).await;
-            assert!(futures_util::poll!(&mut pending).is_pending());
-            {
-                let state = lock(&retained);
-                assert_eq!(state.peers.len(), 2);
+            // A cooperative poll can yield before reading an already ready join.
+            // Drive the caller until it actually collects both completed tasks.
+            tokio::select! {
+                result = &mut pending => {
+                    result?;
+                    return Err("cleanup finished before pending CONNECT collection".into());
+                }
+                observed = async {
+                    for _ in 0..256 {
+                        if lock(&retained).peers.len() == 2 {
+                            return Ok::<(), Box<dyn Error + Send + Sync>>(());
+                        }
+                        tokio::task::yield_now().await;
+                    }
+                    Err("replay cleanup did not collect its ready outcomes".into())
+                } => observed?,
             }
             tokio::time::advance(Duration::from_secs(1)).await;
             pending.await
