@@ -1115,26 +1115,26 @@ async def capture_run(args: argparse.Namespace, certificate: Certificate) -> str
 
 
 async def capture(args: argparse.Namespace) -> int:
-    from .alt_svc_race import ignore_peer_resets
+    from .alt_svc_race import capture_exception_handler
 
-    asyncio.get_running_loop().set_exception_handler(ignore_peer_resets)
-    certificate = generate_certificate()
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-    partial = False
-    for index in range(1, args.repeat + 1):
-        began = time.perf_counter()
-        text = await capture_run(args, certificate)
-        path = args.output_dir / f"snapshot-{index}.txt"
-        write_text_fixture(path, text)
-        found = problems(text)
-        partial |= bool(found)
-        print(
-            f"run {index}: {time.perf_counter() - began:.1f} s -> {path}",
-            *found,
-            sep="\n  ",
-            file=sys.stderr,
-        )
-    return 1 if partial and not args.allow_partial else 0
+    with capture_exception_handler():
+        certificate = generate_certificate()
+        args.output_dir.mkdir(parents=True, exist_ok=True)
+        partial = False
+        for index in range(1, args.repeat + 1):
+            began = time.perf_counter()
+            text = await capture_run(args, certificate)
+            path = args.output_dir / f"snapshot-{index}.txt"
+            write_text_fixture(path, text)
+            found = problems(text)
+            partial |= bool(found)
+            print(
+                f"run {index}: {time.perf_counter() - began:.1f} s -> {path}",
+                *found,
+                sep="\n  ",
+                file=sys.stderr,
+            )
+        return 1 if partial and not args.allow_partial else 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:

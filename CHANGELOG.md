@@ -2575,6 +2575,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Restore the caller's event-loop error handler after snapshot capture,
+  including failed and cancelled runs. Forward unrelated callback errors
+  to the caller's handler during capture.
+
 - Wait for retained Windows capture-process handles after job termination,
   so cleanup observes their exit before removing output files. Keep failed
   waits and their original owners available for another cleanup attempt.

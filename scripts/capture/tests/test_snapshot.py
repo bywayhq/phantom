@@ -1,8 +1,11 @@
+import argparse
 import asyncio
 import ssl
 import struct
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest import mock
 
 from aioquic.asyncio.protocol import QuicConnectionProtocol
 from aioquic.h3.connection import H3_ALPN, H3Connection
@@ -12,6 +15,7 @@ from h2.config import H2Configuration
 from h2.connection import H2Connection
 from h2.events import ConnectionTerminated, ResponseReceived, StreamEnded
 
+from scripts.capture import snapshot
 from scripts.capture.browser_launch import LaunchedBrowser
 from scripts.capture.cookie_crumbs import CaptureMetadata
 from scripts.capture.http2_session import (
@@ -83,6 +87,136 @@ def client_hello(extensions: list[tuple[int, bytes]]) -> bytes:
         )
     )
     return b"\x01" + vector(3, body)
+
+
+class CaptureHandlerTests(unittest.IsolatedAsyncioTestCase):
+    async def dispatch(self, error: BaseException) -> None:
+        fired = asyncio.Event()
+
+        def fail() -> None:
+            try:
+                raise error
+            finally:
+                fired.set()
+
+        handle = asyncio.get_running_loop().call_soon(fail)
+        try:
+            await asyncio.wait_for(fired.wait(), 5)
+        finally:
+            handle.cancel()
+
+    async def test_capture_restores_and_forwards_the_callers_handler(self) -> None:
+        loop = asyncio.get_running_loop()
+        original = loop.get_exception_handler()
+        reports = []
+        failure = RuntimeError("unrelated snapshot callback")
+
+        def caller(active_loop, context):
+            reports.append((active_loop, context))
+
+        async def recorded_run(_args, _certificate):
+            self.assertIsNot(loop.get_exception_handler(), caller)
+            await self.dispatch(ConnectionResetError("closed capture peer"))
+            self.assertEqual(reports, [])
+            await self.dispatch(failure)
+            return "snapshot payload\n"
+
+        loop.set_exception_handler(caller)
+        try:
+            with TemporaryDirectory() as directory:
+                args = argparse.Namespace(
+                    output_dir=Path(directory), repeat=1, allow_partial=False
+                )
+                with (
+                    mock.patch.object(snapshot, "capture_run", recorded_run),
+                    mock.patch.object(
+                        snapshot, "generate_certificate", return_value=None
+                    ),
+                    mock.patch.object(snapshot, "problems", return_value=[]),
+                ):
+                    self.assertEqual(await snapshot.capture(args), 0)
+
+                self.assertIs(loop.get_exception_handler(), caller)
+                self.assertEqual(
+                    (Path(directory) / "snapshot-1.txt").read_text(),
+                    "snapshot payload\n",
+                )
+
+            self.assertEqual(len(reports), 1)
+            self.assertIs(reports[0][0], loop)
+            self.assertIs(reports[0][1]["exception"], failure)
+            reset = ConnectionResetError("after snapshot completion")
+            await self.dispatch(reset)
+            self.assertIs(reports[-1][1]["exception"], reset)
+        finally:
+            loop.set_exception_handler(original)
+
+    async def test_failed_or_cancelled_capture_restores_handler_before_return(self):
+        loop = asyncio.get_running_loop()
+        original = loop.get_exception_handler()
+        caller = mock.Mock()
+        loop.set_exception_handler(caller)
+        try:
+            for failure in (
+                RuntimeError("snapshot run failed"),
+                asyncio.CancelledError("snapshot interrupted"),
+            ):
+                with (
+                    self.subTest(failure=type(failure).__name__),
+                    TemporaryDirectory() as directory,
+                ):
+                    output = Path(directory) / "snapshot-1.txt"
+                    output.write_bytes(b"previous snapshot\n")
+                    args = argparse.Namespace(
+                        output_dir=Path(directory), repeat=1, allow_partial=False
+                    )
+                    with (
+                        mock.patch.object(snapshot, "capture_run", side_effect=failure),
+                        mock.patch.object(
+                            snapshot, "generate_certificate", return_value=None
+                        ),
+                    ):
+                        try:
+                            await snapshot.capture(args)
+                        except BaseException as observed:
+                            self.assertIs(observed, failure)
+                        else:
+                            self.fail("capture discarded the initiating failure")
+
+                    self.assertIs(loop.get_exception_handler(), caller)
+                    self.assertEqual(output.read_bytes(), b"previous snapshot\n")
+        finally:
+            loop.set_exception_handler(original)
+
+    async def test_capture_keeps_a_handler_installed_by_its_caller(self):
+        loop = asyncio.get_running_loop()
+        original = loop.get_exception_handler()
+        replacement = mock.Mock()
+        failure = RuntimeError("caller changed handler during capture")
+
+        async def interrupted_run(_args, _certificate):
+            loop.set_exception_handler(replacement)
+            raise failure
+
+        try:
+            with TemporaryDirectory() as directory:
+                args = argparse.Namespace(
+                    output_dir=Path(directory), repeat=1, allow_partial=False
+                )
+                with (
+                    mock.patch.object(snapshot, "capture_run", interrupted_run),
+                    mock.patch.object(
+                        snapshot, "generate_certificate", return_value=None
+                    ),
+                    self.assertRaises(RuntimeError) as raised,
+                ):
+                    await snapshot.capture(args)
+
+                self.assertIs(raised.exception, failure)
+                self.assertIs(loop.get_exception_handler(), replacement)
+                self.assertFalse((Path(directory) / "snapshot-1.txt").exists())
+        finally:
+            loop.set_exception_handler(original)
 
 
 class ClientHelloTests(unittest.TestCase):

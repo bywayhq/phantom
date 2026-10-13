@@ -33,6 +33,10 @@ uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
   <scratch-directory>/chrome/snapshot-1.txt
 ```
 
+Snapshot capture restores your event-loop error handler when it finishes,
+including failures and cancellation. Unrelated callback errors reach your
+handler while capture is running.
+
 `--browser` takes `chrome`, `edge`, `brave`, `opera`, or `firefox`, or an
 [Android browser](#snapshots-on-android);
 [`run_matrix.py`](#run-captures-from-a-manifest) runs it as the `snapshot`
