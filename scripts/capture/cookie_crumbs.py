@@ -1655,9 +1655,6 @@ async def wait_for_run(run: CookieRun, plan: LaunchPlan, url: str, timeout: floa
 
 
 async def capture(args: argparse.Namespace) -> None:
-    validate_metadata_value(args.client or "", "client")
-    validate_metadata_value(args.client_version, "client_version")
-    validate_metadata_value(args.operating_system, "operating_system")
     if not math.isfinite(args.run_timeout) or args.run_timeout <= 0:
         raise ValueError("run timeout must be finite and positive")
     if not math.isfinite(args.observation) or args.observation < 0:
@@ -1672,6 +1669,9 @@ async def capture(args: argparse.Namespace) -> None:
     if args.browser == "firefox" and args.listen not in ("127.0.0.1", "::1"):
         raise ValueError("Firefox hostname mapping requires 127.0.0.1 or ::1")
 
+    validate_metadata_value(args.client or "", "client")
+    validate_metadata_value(args.client_version, "client_version")
+    validate_metadata_value(args.operating_system, "operating_system")
     certificate = generate_certificate()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     server = None
