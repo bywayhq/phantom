@@ -97,6 +97,12 @@ Its real loopback controls need native verification. Standard Python 3.10
 waits for cooperative cancellation. This bounds setup awaits, rather than
 the whole browser navigation or blocking native work.
 
+At `5ad5b8ac`, both hosts pass all 38 remote-client methods, Ruff check and
+format, and docs. Both readers inspect the complete logs and verify clean
+exact revisions. The earlier cancellation control failed at the task result
+boundary; it now observes the original exception inside the caller coroutine.
+Its identity, cleanup causes and accepted-peer closure assertions remain.
+
 ## Local capture owners
 
 Independent whole-file reads cover client hints, cookie crumbs, snapshot,

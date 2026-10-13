@@ -1,8 +1,11 @@
 import asyncio
 import contextlib
+import io
 import unittest
+from unittest import mock
 from urllib.parse import urljoin, urlsplit
 
+from scripts.capture import client_hints
 from scripts.capture.client_hints import (
     FORMAT,
     USER_AGENT_HINTS,
@@ -199,6 +202,85 @@ class ClientHintCaptureTest(unittest.TestCase):
             main([*base, "--accept-ch", "Sec-CH-UA"])
         with self.assertRaises(SystemExit):
             main(["--browser", "chrome", "--client-version", "0", "--output", "x.txt"])
+
+    def test_invalid_arguments_fail_before_starting_capture(self) -> None:
+        base = ["--browser", "manual", "--client-version", "0", "--output", "x.txt"]
+        invalid = [
+            ["--accept-ch", name]
+            for name in (
+                "sec-ch-ua\r\nx-injected: yes",
+                "sec-ch-ua\t",
+                "bad:name",
+                "x|y",
+                "é",
+                "",
+            )
+        ]
+        invalid.extend(
+            ["--run-timeout", value] for value in ("nan", "inf", "-inf", "0", "-1")
+        )
+        invalid.extend(
+            ["--listen", value]
+            for value in ("not-an-ip:0", "127.0.0.1:-1", "[::1]:65536", "127.0.0.1")
+        )
+        with mock.patch.object(client_hints, "run") as capture_run:
+            for arguments in invalid:
+                with (
+                    self.subTest(arguments=arguments),
+                    contextlib.redirect_stderr(io.StringIO()),
+                ):
+                    with self.assertRaises(SystemExit) as raised:
+                        main([*base, *arguments])
+                    self.assertEqual(raised.exception.code, 2)
+            capture_run.assert_not_called()
+
+    def test_direct_capture_rejects_invalid_options_before_driving(self) -> None:
+        server = HintServer()
+        drive = mock.Mock()
+        options = [
+            (1, ("sec-ch-ua\r\nx-injected: yes",), 1.0),
+            (1, ("x|y",), 1.0),
+            (1, USER_AGENT_HINTS, float("nan")),
+            (1, USER_AGENT_HINTS, float("inf")),
+            (1, USER_AGENT_HINTS, 0.0),
+            (0, USER_AGENT_HINTS, 1.0),
+        ]
+        for repeat, names, timeout in options:
+            with self.subTest(repeat=repeat, names=names, timeout=timeout):
+                with self.assertRaises(ValueError):
+                    asyncio.run(
+                        capture_runs(
+                            server,
+                            repeat=repeat,
+                            accept_ch=names,
+                            run_timeout=timeout,
+                            drive=drive,
+                        )
+                    )
+                self.assertIsNone(server.run)
+        drive.assert_not_called()
+
+    def test_ipv6_navigation_url_and_listen_address_are_valid(self) -> None:
+        server = HintServer()
+        server.address = ("::1", 12345)
+        run = HintRun("literal-token", USER_AGENT_HINTS)
+        address = urlsplit(server.url(run))
+        self.assertEqual(address.hostname, "::1")
+        self.assertEqual(address.port, 12345)
+        self.assertEqual(address.path, "/run/literal-token/first")
+        self.assertEqual(client_hints.parse_listen("[::1]:0"), ("::1", 0))
+        self.assertEqual(client_hints.parse_listen("::1:0"), ("::1", 0))
+
+    def test_hint_separator_is_rejected_in_requests_and_fixture_records(self) -> None:
+        head = b"GET / HTTP/1.1\r\nHost: a\r\nSec-CH-X|Y: literal\r\n\r\n"
+        with self.assertRaisesRegex(ValueError, "fixture separator"):
+            parse_navigation(head, USER_AGENT_HINTS)
+
+        run = HintRun("literal", USER_AGENT_HINTS)
+        run.first = navigation()
+        run.second = navigation(("sec-ch-x|y", b"literal"))
+        with self.assertRaisesRegex(ValueError, "fixture separator"):
+            fixture([run], METADATA, USER_AGENT_HINTS)
 
 
 if __name__ == "__main__":

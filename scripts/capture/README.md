@@ -909,6 +909,10 @@ serves two plaintext HTTP/1.1 navigations on a loopback origin per run and
 writes one `format=phantom-client-hints-v2` fixture. Chromium treats loopback
 HTTP origins as potentially trustworthy, so it sends hints to them.
 
+`--accept-ch` takes lowercase HTTP field names without `|`, the fixture
+separator. `--run-timeout` must be finite and positive. For IPv6 loopback,
+use `--listen '[::1]:0'`.
+
 Capture Chrome on Windows:
 
 ```sh

@@ -5,7 +5,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import ipaddress
+import math
 import platform
+import re
 import secrets
 import sys
 import time
@@ -94,7 +96,9 @@ def parse_navigation(head: bytes, requested: Sequence[str]) -> Navigation:
             raise ValueError("refusing to retain a credential-bearing request field")
         names.append(name)
         if is_hint(name, requested):
-            hints.append((name.lower().decode("ascii"), value.strip()))
+            hint_name = name.lower().decode("ascii")
+            validate_hint_name(hint_name)
+            hints.append((hint_name, value.strip()))
     return Navigation(tuple(names), tuple(hints))
 
 
@@ -119,6 +123,7 @@ class HintServer:
         if self.address is None:
             raise RuntimeError("server has not started")
         host, port = self.address
+        host = f"[{host}]" if ":" in host else host
         return f"http://{host}:{port}{run.first_path()}"
 
     async def close(self) -> None:
@@ -216,6 +221,9 @@ def derived_hints(runs: Sequence[HintRun]) -> list[tuple[str, str, bytes]]:
     for run in runs:
         if run.first is None or run.second is None:
             raise ValueError("a run did not complete both navigations")
+        for navigation in (run.first, run.second):
+            for name, _value in navigation.hints:
+                validate_hint_name(name)
     reference = runs[0]
     for run in runs[1:]:
         if run.first.hints != reference.first.hints:
@@ -295,6 +303,7 @@ async def capture_runs(
     drive: Callable[[str], object],
 ) -> list[HintRun]:
     """Run `repeat` fresh clients; `drive(url)` returns an async context."""
+    validate_options(repeat, accept_ch, run_timeout)
     runs = []
     for _ in range(repeat):
         run = HintRun(secrets.token_hex(8), tuple(accept_ch))
@@ -310,17 +319,20 @@ async def capture_runs(
 
 
 async def run(args: argparse.Namespace) -> None:
+    validate_options(args.repeat, args.accept_ch, args.run_timeout)
+    host, port = parse_listen(args.listen)
     plan = LaunchPlan(
         browser=args.browser,
         executable=args.browser_path,
         headless=not args.headful,
         extra_arguments=tuple(args.browser_switch),
     )
-    host, port = args.listen.rsplit(":", 1)
     server = HintServer()
-    await server.start(host, int(port))
+    await server.start(host, port)
     try:
-        listen = "{}:{}".format(*server.address)
+        host, port = server.address
+        host = f"[{host}]" if ":" in host else host
+        listen = f"{host}:{port}"
         runs = await capture_runs(
             server,
             repeat=args.repeat,
@@ -345,6 +357,35 @@ async def run(args: argparse.Namespace) -> None:
         await server.close()
 
 
+def validate_options(repeat: int, accept_ch: Sequence[str], run_timeout: float) -> None:
+    if repeat < 1:
+        raise ValueError("--repeat must be positive")
+    if not math.isfinite(run_timeout) or run_timeout <= 0:
+        raise ValueError("--run-timeout must be finite and positive")
+    for name in accept_ch:
+        validate_hint_name(name)
+
+
+def validate_hint_name(name: str) -> None:
+    if re.fullmatch(r"[!#$%&'*+\-.^_`|~0-9a-z]+", name) is None:
+        raise ValueError("client-hint names must be lowercase HTTP field names")
+    if "|" in name:
+        raise ValueError("client-hint names cannot contain the fixture separator '|'")
+
+
+def parse_listen(value: str) -> tuple[str, int]:
+    host, port_text = value.rsplit(":", 1)
+    if host.startswith("[") and host.endswith("]"):
+        host = host[1:-1]
+    address = ipaddress.ip_address(host)
+    if not address.is_loopback:
+        raise ValueError("the capture listener must be a loopback address")
+    port = int(port_text)
+    if not 0 <= port <= 65535:
+        raise ValueError("the capture listener port must be between 0 and 65535")
+    return str(address), port
+
+
 def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--browser", choices=(*BROWSERS, "manual"), required=True)
@@ -363,15 +404,11 @@ def main(argv: Sequence[str] | None = None) -> None:
     check_browser_switches(parser, args)
     if args.browser != "manual" and args.browser_path is None:
         parser.error("--browser-path is required unless --browser manual")
-    if args.repeat < 1:
-        parser.error("--repeat must be positive")
-    if any(
-        not name or name != name.lower() or "," in name or " " in name
-        for name in args.accept_ch
-    ):
-        parser.error("--accept-ch names must be lowercase field names")
-    if not ipaddress.ip_address(args.listen.rsplit(":", 1)[0]).is_loopback:
-        parser.error("the capture listener must be a loopback address")
+    try:
+        validate_options(args.repeat, args.accept_ch, args.run_timeout)
+        parse_listen(args.listen)
+    except ValueError as error:
+        parser.error(str(error))
     asyncio.run(run(args))
 
 

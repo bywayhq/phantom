@@ -2575,6 +2575,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Reject invalid or unrepresentable client-hint names and non-finite waits before
+  launch. Generate valid loopback IPv6 navigation URLs.
+
 - Bound remote browser socket connection and WebSocket upgrade by one
   five-second setup deadline. Retain timeout and cleanup errors together.
 
