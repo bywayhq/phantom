@@ -760,17 +760,22 @@ async fn connect_udp_diagnostics_exclude_payloads() -> TestResult<()> {
 
 #[tokio::test]
 async fn exact_h3_completes_over_http1_upgrade_leg_with_capsule_framing() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let mut stream_proxies = Vec::new();
+    let primary = bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
-        let origin = Origin::spawn(&origin_identity)?;
-        let mut proxy_owner = None;
+        origins.push(Origin::spawn(&origin_identity)?);
+        let origin = origins.last_mut().ok_or("MASQUE origin owner missing")?;
         let mut client_owner = None;
 
-        let result = async {
-            let proxy = proxy_owner.insert(
+        async {
+            stream_proxies.push(
                 MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http1, StreamMode::Relay)
                     .await?,
             );
+            let proxy = stream_proxies
+                .last_mut()
+                .ok_or("MASQUE proxy owner missing")?;
             let route = ConnectUdpProxy::new(&proxy.template())?
                 .with_http1_transport()
                 .header(RequestHeader::new("X-Masque-Client", "phantom"));
@@ -802,25 +807,38 @@ async fn exact_h3_completes_over_http1_upgrade_leg_with_capsule_framing() -> Tes
             assert_eq!(origin.connections(), 1);
             Ok(())
         }
-        .await;
-        finish_with_cleanup(result, origin.finish().await)
+        .await
     })
-    .await
+    .await;
+
+    let mut result = primary;
+    for proxy in &mut stream_proxies {
+        result = finish_with_cleanup(result, proxy.shutdown().await);
+    }
+    for origin in origins {
+        result = finish_with_cleanup(result, origin.finish().await);
+    }
+    result
 }
 
 #[tokio::test]
 async fn exact_h3_completes_over_http2_extended_connect_leg() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let mut stream_proxies = Vec::new();
+    let primary = bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
-        let origin = Origin::spawn(&origin_identity)?;
-        let mut proxy_owner = None;
+        origins.push(Origin::spawn(&origin_identity)?);
+        let origin = origins.last_mut().ok_or("MASQUE origin owner missing")?;
         let mut client_owner = None;
 
-        let result = async {
-            let proxy = proxy_owner.insert(
+        async {
+            stream_proxies.push(
                 MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http2, StreamMode::Relay)
                     .await?,
             );
+            let proxy = stream_proxies
+                .last_mut()
+                .ok_or("MASQUE proxy owner missing")?;
             let route = ConnectUdpProxy::new(&proxy.template())?
                 .with_http2_transport()
                 .header(RequestHeader::new("x-masque-client", "phantom"));
@@ -865,22 +883,32 @@ async fn exact_h3_completes_over_http2_extended_connect_leg() -> TestResult<()> 
             assert_eq!(proxy.connections(), 1);
             Ok(())
         }
-        .await;
-        finish_with_cleanup(result, origin.finish().await)
+        .await
     })
-    .await
+    .await;
+
+    let mut result = primary;
+    for proxy in &mut stream_proxies {
+        result = finish_with_cleanup(result, proxy.shutdown().await);
+    }
+    for origin in origins {
+        result = finish_with_cleanup(result, origin.finish().await);
+    }
+    result
 }
 
 #[tokio::test]
 async fn http2_leg_requires_the_proxy_extended_connect_setting() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let mut stream_proxies = Vec::new();
+    let primary = bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
-        let origin = Origin::spawn(&origin_identity)?;
-        let mut proxy_owner = None;
+        origins.push(Origin::spawn(&origin_identity)?);
+        let origin = origins.last_mut().ok_or("MASQUE origin owner missing")?;
         let mut client_owner = None;
 
-        let result = async {
-            let proxy = proxy_owner.insert(
+        async {
+            stream_proxies.push(
                 MasqueStreamProxy::spawn(
                     &proxy_identity,
                     StreamLeg::Http2,
@@ -888,6 +916,9 @@ async fn http2_leg_requires_the_proxy_extended_connect_setting() -> TestResult<(
                 )
                 .await?,
             );
+            let proxy = stream_proxies
+                .last_mut()
+                .ok_or("MASQUE proxy owner missing")?;
             let route = ConnectUdpProxy::new(&proxy.template())?.with_http2_transport();
             let client = client_owner.insert(leg_client(&origin_identity, &proxy_identity, route)?);
 
@@ -906,18 +937,31 @@ async fn http2_leg_requires_the_proxy_extended_connect_setting() -> TestResult<(
             assert_eq!(origin.connections(), 0);
             Ok(())
         }
-        .await;
-        finish_with_cleanup(result, origin.finish().await)
+        .await
     })
-    .await
+    .await;
+
+    let mut result = primary;
+    for proxy in &mut stream_proxies {
+        result = finish_with_cleanup(result, proxy.shutdown().await);
+    }
+    for origin in origins {
+        result = finish_with_cleanup(result, origin.finish().await);
+    }
+    result
 }
 
 #[tokio::test]
 async fn http2_leg_without_profile_extended_connect_order_fails_before_io() -> TestResult<()> {
-    bounded(async {
+    let mut stream_proxies = Vec::new();
+    let primary = bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
-        let proxy =
-            MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http2, StreamMode::Relay).await?;
+        stream_proxies.push(
+            MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http2, StreamMode::Relay).await?,
+        );
+        let proxy = stream_proxies
+            .last_mut()
+            .ok_or("MASQUE proxy owner missing")?;
         // A profile whose HTTP/2 settings carry no extended CONNECT order
         // cannot send one, whatever the route asks for.
         let mut http2 = chrome::v154_http2();
@@ -948,19 +992,27 @@ async fn http2_leg_without_profile_extended_connect_order_fails_before_io() -> T
         assert_eq!(proxy.connections(), 0);
         Ok(())
     })
-    .await
+    .await;
+
+    let mut result = primary;
+    for proxy in &mut stream_proxies {
+        result = finish_with_cleanup(result, proxy.shutdown().await);
+    }
+    result
 }
 
 #[tokio::test]
 async fn http1_leg_requires_a_101_upgrade_response() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let mut stream_proxies = Vec::new();
+    let primary = bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
-        let origin = Origin::spawn(&origin_identity)?;
-        let mut proxy_owner = None;
+        origins.push(Origin::spawn(&origin_identity)?);
+        let origin = origins.last_mut().ok_or("MASQUE origin owner missing")?;
         let mut client_owner = None;
 
-        let result = async {
-            let proxy = proxy_owner.insert(
+        async {
+            stream_proxies.push(
                 MasqueStreamProxy::spawn(
                     &proxy_identity,
                     StreamLeg::Http1,
@@ -968,6 +1020,9 @@ async fn http1_leg_requires_a_101_upgrade_response() -> TestResult<()> {
                 )
                 .await?,
             );
+            let proxy = stream_proxies
+                .last_mut()
+                .ok_or("MASQUE proxy owner missing")?;
             let route = ConnectUdpProxy::new(&proxy.template())?.with_http1_transport();
             let client = client_owner.insert(leg_client(&origin_identity, &proxy_identity, route)?);
 
@@ -986,22 +1041,37 @@ async fn http1_leg_requires_a_101_upgrade_response() -> TestResult<()> {
             assert_eq!(origin.connections(), 0);
             Ok(())
         }
-        .await;
-        finish_with_cleanup(result, origin.finish().await)
+        .await
     })
-    .await
+    .await;
+
+    let mut result = primary;
+    for proxy in &mut stream_proxies {
+        result = finish_with_cleanup(result, proxy.shutdown().await);
+    }
+    for origin in origins {
+        result = finish_with_cleanup(result, origin.finish().await);
+    }
+    result
 }
 
 #[tokio::test]
 async fn tcp_leg_rejection_is_typed_with_status_without_fallback() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let mut stream_proxies = Vec::new();
+    let primary = bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
-        let origin = Origin::spawn(&origin_identity)?;
+        origins.push(Origin::spawn(&origin_identity)?);
+        let origin = origins.last_mut().ok_or("MASQUE origin owner missing")?;
 
-        let result = async {
+        async {
             for leg in [StreamLeg::Http1, StreamLeg::Http2] {
-                let proxy =
-                    MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::Reject(403)).await?;
+                stream_proxies.push(
+                    MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::Reject(403)).await?,
+                );
+                let proxy = stream_proxies
+                    .last_mut()
+                    .ok_or("MASQUE proxy owner missing")?;
                 let client = leg_client(
                     &origin_identity,
                     &proxy_identity,
@@ -1025,31 +1095,45 @@ async fn tcp_leg_rejection_is_typed_with_status_without_fallback() -> TestResult
             assert_eq!(origin.connections(), 0);
             Ok(())
         }
-        .await;
-        finish_with_cleanup(result, origin.finish().await)
+        .await
     })
-    .await
+    .await;
+
+    let mut result = primary;
+    for proxy in &mut stream_proxies {
+        result = finish_with_cleanup(result, proxy.shutdown().await);
+    }
+    for origin in origins {
+        result = finish_with_cleanup(result, origin.finish().await);
+    }
+    result
 }
 
 #[tokio::test]
 async fn proxy_alpn_mismatch_is_typed_without_protocol_fallback() -> TestResult<()> {
-    bounded(async {
+    let mut stream_proxies = Vec::new();
+    let primary = bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
         for (leg, served_alpn) in [
             (StreamLeg::Http1, tls_support::H2_ALPN),
             (StreamLeg::Http2, tls_support::H1_ALPN),
         ] {
             // Each proxy speaks the other leg, so only ALPN can disagree.
-            let proxy = MasqueStreamProxy::spawn_with_alpn(
-                &proxy_identity,
-                match leg {
-                    StreamLeg::Http1 => StreamLeg::Http2,
-                    StreamLeg::Http2 => StreamLeg::Http1,
-                },
-                StreamMode::Relay,
-                served_alpn,
-            )
-            .await?;
+            stream_proxies.push(
+                MasqueStreamProxy::spawn_with_alpn(
+                    &proxy_identity,
+                    match leg {
+                        StreamLeg::Http1 => StreamLeg::Http2,
+                        StreamLeg::Http2 => StreamLeg::Http1,
+                    },
+                    StreamMode::Relay,
+                    served_alpn,
+                )
+                .await?,
+            );
+            let proxy = stream_proxies
+                .last_mut()
+                .ok_or("MASQUE proxy owner missing")?;
             let client = leg_client(
                 &origin_identity,
                 &proxy_identity,
@@ -1073,27 +1157,37 @@ async fn proxy_alpn_mismatch_is_typed_without_protocol_fallback() -> TestResult<
         }
         Ok(())
     })
-    .await
+    .await;
+
+    let mut result = primary;
+    for proxy in &mut stream_proxies {
+        result = finish_with_cleanup(result, proxy.shutdown().await);
+    }
+    result
 }
 
 #[tokio::test]
 async fn basic_auth_replays_once_on_a_fresh_connection_for_each_leg() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let mut stream_proxies = Vec::new();
+    let primary = bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
-        let origin = Origin::spawn(&origin_identity)?;
-        let mut stream_proxy_owners = Vec::new();
+        origins.push(Origin::spawn(&origin_identity)?);
+        let origin = origins.last_mut().ok_or("MASQUE origin owner missing")?;
         let mut loop_client_owners = Vec::new();
         let mut proxy_owner = None;
         let mut client_owner = None;
 
-        let result = async {
+        async {
             let authorization = b"Basic cHJveHktdXNlcjpwcm94eS1zZWNyZXQ=".to_vec();
 
             for leg in [StreamLeg::Http1, StreamLeg::Http2] {
-                let proxy =
-                    MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::Challenge).await?;
-                stream_proxy_owners.push(proxy);
-                let proxy = &stream_proxy_owners[stream_proxy_owners.len() - 1];
+                stream_proxies.push(
+                    MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::Challenge).await?,
+                );
+                let proxy = stream_proxies
+                    .last_mut()
+                    .ok_or("MASQUE proxy owner missing")?;
                 let route = leg_proxy(&proxy.template(), leg)?
                     .header(RequestHeader::new("x-masque-client", "phantom"))
                     .with_basic_auth("proxy-user", "proxy-secret")?;
@@ -1161,24 +1255,39 @@ async fn basic_auth_replays_once_on_a_fresh_connection_for_each_leg() -> TestRes
             assert_eq!(proxy.connections(), 2);
             Ok(())
         }
-        .await;
-        finish_with_cleanup(result, origin.finish().await)
+        .await
     })
-    .await
+    .await;
+
+    let mut result = primary;
+    for proxy in &mut stream_proxies {
+        result = finish_with_cleanup(result, proxy.shutdown().await);
+    }
+    for origin in origins {
+        result = finish_with_cleanup(result, origin.finish().await);
+    }
+    result
 }
 
 #[tokio::test]
 async fn second_407_is_authentication_rejected_on_every_leg() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let mut stream_proxies = Vec::new();
+    let primary = bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
-        let origin = Origin::spawn(&origin_identity)?;
+        origins.push(Origin::spawn(&origin_identity)?);
+        let origin = origins.last_mut().ok_or("MASQUE origin owner missing")?;
 
-        let result = async {
+        async {
             let mut outcomes = Vec::new();
             for leg in [StreamLeg::Http1, StreamLeg::Http2] {
-                let proxy =
+                stream_proxies.push(
                     MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::AlwaysChallenge)
-                        .await?;
+                        .await?,
+                );
+                let proxy = stream_proxies
+                    .last_mut()
+                    .ok_or("MASQUE proxy owner missing")?;
                 let route = leg_proxy(&proxy.template(), leg)?.with_basic_auth("user", "wrong")?;
                 let client = leg_client(&origin_identity, &proxy_identity, route)?;
                 let error = client
@@ -1218,19 +1327,32 @@ async fn second_407_is_authentication_rejected_on_every_leg() -> TestResult<()> 
             assert_eq!(origin.connections(), 0);
             Ok(())
         }
-        .await;
-        finish_with_cleanup(result, origin.finish().await)
+        .await
     })
-    .await
+    .await;
+
+    let mut result = primary;
+    for proxy in &mut stream_proxies {
+        result = finish_with_cleanup(result, proxy.shutdown().await);
+    }
+    for origin in origins {
+        result = finish_with_cleanup(result, origin.finish().await);
+    }
+    result
 }
 
 #[tokio::test]
 async fn challenge_without_credentials_is_a_407_rejection() -> TestResult<()> {
-    bounded(async {
+    let mut stream_proxies = Vec::new();
+    let primary = bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
-        let proxy =
+        stream_proxies.push(
             MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http1, StreamMode::Challenge)
-                .await?;
+                .await?,
+        );
+        let proxy = stream_proxies
+            .last_mut()
+            .ok_or("MASQUE proxy owner missing")?;
         let route = ConnectUdpProxy::new(&proxy.template())?.with_http1_transport();
         let client = leg_client(&origin_identity, &proxy_identity, route)?;
 
@@ -1250,22 +1372,33 @@ async fn challenge_without_credentials_is_a_407_rejection() -> TestResult<()> {
         assert_eq!(proxy.connections(), 1);
         Ok(())
     })
-    .await
+    .await;
+
+    let mut result = primary;
+    for proxy in &mut stream_proxies {
+        result = finish_with_cleanup(result, proxy.shutdown().await);
+    }
+    result
 }
 
 #[tokio::test]
 async fn authenticated_leg_diagnostics_exclude_credentials() -> TestResult<()> {
-    bounded(async {
+    let mut origins = Vec::new();
+    let mut stream_proxies = Vec::new();
+    let primary = bounded(async {
         let (origin_identity, proxy_identity) = identities()?;
-        let origin = Origin::spawn(&origin_identity)?;
-        let mut proxy_owner = None;
+        origins.push(Origin::spawn(&origin_identity)?);
+        let origin = origins.last_mut().ok_or("MASQUE origin owner missing")?;
         let mut client_owner = None;
 
-        let result = async {
-            let proxy = proxy_owner.insert(
+        async {
+            stream_proxies.push(
                 MasqueStreamProxy::spawn(&proxy_identity, StreamLeg::Http1, StreamMode::Challenge)
                     .await?,
             );
+            let proxy = stream_proxies
+                .last_mut()
+                .ok_or("MASQUE proxy owner missing")?;
             let route = ConnectUdpProxy::new(&proxy.template())?
                 .with_http1_transport()
                 .with_basic_auth("diagnostic-user", "diagnostic-secret")?;
@@ -1307,10 +1440,18 @@ async fn authenticated_leg_diagnostics_exclude_credentials() -> TestResult<()> {
             }
             Ok(())
         }
-        .await;
-        finish_with_cleanup(result, origin.finish().await)
+        .await
     })
-    .await
+    .await;
+
+    let mut result = primary;
+    for proxy in &mut stream_proxies {
+        result = finish_with_cleanup(result, proxy.shutdown().await);
+    }
+    for origin in origins {
+        result = finish_with_cleanup(result, origin.finish().await);
+    }
+    result
 }
 
 /// Every client capsule is a Context ID zero DATAGRAM capsule, and the first
