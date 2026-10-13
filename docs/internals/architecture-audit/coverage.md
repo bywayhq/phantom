@@ -5,7 +5,39 @@ Pending means that discovery or assignment has not established review.
 
 ## Current state
 
-The audit remains on its integration branch and has not merged into `main`.
+Runtime changes merged through PR 198 at `32a3071f`. Fixture changes merged
+through PR 199 at `90b9b7ea`. Their applicable PR checks passed, including
+macOS and Windows. Main's six applicable push workflows passed at that
+fixture revision.
+
+Tooling PR 200 merged at `20fa0d5b`. All 24 local gate steps passed, including
+Linux Clippy and MSRV through WSL. Independent review accepts the exact
+source and complete logs. All 42 PR checks completed successfully or were
+skipped by applicability, including successful macOS and Windows checks.
+Main's new push CI is running. The
+[delivery evidence](evidence.md#delivery-reconciliation) records each
+revision's checks and downstream verification.
+
+The original implementation changes are preserved across these deliveries.
+The remaining three testkit layout changes and seventeen docs/config paths
+are retained on the architecture/docs branch. This reconciles source
+preservation; it does not complete the manual architecture or standards
+review.
+
+The inventory distinguishes paths merged at exact revision `20fa0d5b`, five
+candidate-only audit records and five retired historical paths. It adds
+33 newer paths. Existing review dispositions and evidence pointers retain
+their historical scope. The new rows require their actual
+review receipts to be indexed. Counts of pending rows are not a percentage
+of unfinished implementation or a fresh review of current source.
+
+Remaining work is current receipt reconciliation, complete dispositions for
+qualified gaps, the combined manual architecture/standards review, and the
+architecture/docs candidate's gate, PR and main checks. Each current review
+must establish its revision, source scope, evidence and remaining limits.
+
+## Historical verification
+
 At `12422fcc`, Windows and Linux each pass 103 selected DNS, WebSocket
 origin/proxy and per-origin certificate tests. Formatting, strict Clippy,
 Rust 1.88 and docs pass. Root and independent review cover all original logs,
@@ -26,11 +58,11 @@ revision. Scoped lint, formatting and documentation checks pass. This covers
 loopback peers, original failures, retirement, fixture refusal and launch
 policy. It does not establish a fresh browser capture.
 
-The inventory at `fafa0a4e` lists 37 first-party Rust integration test and
-support files awaiting complete review. This pass reads two session files
-and leaves their remedies open. Other rows still need coverage reconciliation;
-a prior assignment or passing suite does not close a row. Combined architecture
-review and final workspace, vendor, platform, PR and main checks remain required.
+At `fafa0a4e`, the inventory listed 37 first-party Rust integration test and
+support files awaiting complete review. That pass read two session files
+without closing their remedies. Later deliveries preserve subsequent repairs,
+including the session and profile owners. Current review receipts still need
+reconciliation; an assignment or passing suite alone does not close a row.
 The sections below retain earlier source reviews at their stated revisions.
 
 Historical record names in this page refer to the

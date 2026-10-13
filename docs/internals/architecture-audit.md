@@ -49,6 +49,35 @@ Pin Playground to the exact merged revision and check its actual transport
 features and workflows. Check the Solve consumer after that migration.
 Existing downstream changes and the original audit branches remain intact.
 
+## Current deliveries
+
+This is the delivery snapshot from 2026-10-13. The full audit remains open.
+
+| Delivery | Revision | State |
+| --- | --- | --- |
+| Runtime and public APIs, PR 198 | `32a3071f` | Merged; all 43 PR checks passed |
+| Testkit and fixtures, PR 199 | `90b9b7ea` | Merged; applicable PR checks passed, including both platforms |
+| Capture and conformance tools, PR 200 | `20fa0d5b` | Merged; all 24 local gate steps and applicable PR checks passed |
+| Architecture and documentation | `1215ca20` | Original remaining changes retained; current review and integration pending |
+
+The tooling gate includes Linux Clippy and MSRV checks through WSL. Its
+source and complete logs have independent review. The 42 PR checks completed
+successfully or were skipped by applicability, including successful macOS and
+Windows checks. Main's push CI is running at `20fa0d5b`. The previous six
+applicable push workflows passed at `90b9b7ea`; that result does not close
+the new main run.
+
+Playground's migration branch is ready at `399af77e`. Its quick gate and
+773 selected tests passed locally. The API selection skips 340 other tests.
+The preserved Byway source snapshot passes 35 Solve and worker tests against
+that Playground revision. These are local consumer checks, without a fresh
+browser capture or live server acceptance.
+
+The user chose to leave the migration branch ready and keep Foundry active.
+The primary downstream working trees remain intact. The
+[delivery evidence](architecture-audit/evidence.md#delivery-reconciliation)
+records source preservation, retained logs and verification limits.
+
 ## Review plan
 
 1. Inventory tracked files and assign bounded source reviews.
