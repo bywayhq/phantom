@@ -3,6 +3,34 @@
 Use this matrix to see which paths have been examined and what remains.
 Pending means that discovery or assignment has not established review.
 
+## Replay fixture completion
+
+Root reads both complete replay scripts, their concrete task registry and its
+controls. The composed `d6c95874` and `9f004cd9` candidates retain coordinators,
+CONNECT children, TLS drains and HTTP/2 drivers outside caller deadlines.
+Pending handles and collected failures also survive an interrupted completion.
+A private stop signal produces an explicit worker outcome; external cancellation
+keeps its original join error and task identity.
+
+The controls exercise accepted CONNECT sockets, pending external cancellation,
+interrupted cleanup, body limits and original timer causes. The original request,
+body, route, retry and protocol assertions remain. Root formats only the affected
+package. Independent follow-up review and native checks remain open.
+Raw frame payload allocation still uses the existing shared parser. Cleanup
+expiry and owner destruction retain abort fallback without proving a completed
+join. These fixture findings do not establish production leaks.
+
+## Startup capture review
+
+Root reads the whole startup command and its original controls. The readiness
+reader can wait indefinitely when a descendant retains stderr after its parent
+is killed. Reader errors are not returned, and its accumulation is unbounded.
+TCP and QUIC startup acquire their listener before fallible browser setup,
+without cleanup covering every early failure. QUIC certificate setup has the
+same partial-acquisition gap. Browser cleanup discards profile-removal errors.
+These A288 findings require an owned, bounded command remedy and independent
+review. No baseline execution or fresh browser capture is claimed.
+
 ## Dependency configuration review
 
 At `cdf55ba3`, an independent whole-file review covers both Cargo locks,
@@ -41,7 +69,9 @@ inspect all logs and bind both clean sources to that exact revision.
 The independently reviewed correction restores universal newlines for fixtures
 and diagnostics. It also keeps server errors through browser cleanup and retains
 both retry owners when process and directory cleanup fail. Five added controls
-bring the focused suite to 41 methods; their native checks remain open.
+bring the focused suite to 41 methods. At `d7e89a26`, all 41 pass on each host,
+with Ruff check/format and docs also passing. Both readers inspect every full
+log and exit, then separately verify both clean exact source revisions.
 The file thresholds can be exceeded between polls; they bound accepted output,
 rather than temporary disk consumption. Blocking callbacks and native calls
 cannot be preempted by the cooperative deadline. No browser capture is claimed.

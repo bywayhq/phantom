@@ -12,7 +12,10 @@ use std::{
     net::Ipv4Addr,
     num::NonZeroUsize,
     pin::Pin,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{
+        Arc, Mutex, MutexGuard,
+        atomic::{AtomicUsize, Ordering},
+    },
     time::Duration,
 };
 
@@ -30,7 +33,6 @@ use tokio::{
     io::AsyncWriteExt,
     net::{TcpListener, TcpStream},
     sync::oneshot,
-    task::JoinHandle,
     time::timeout,
 };
 use tokio_btls::SslStream;
@@ -40,6 +42,11 @@ use h2_support::{accept_client_preface, read_frame, read_request_headers, write_
 use h3_support::{accept_request, client_settings, server_endpoint};
 use tls_support::{H2_ALPN, TestIdentity, client_builder, is_peer_gone, tls_settings};
 use tracing_support::OutcomeSubscriber;
+
+use super::ping_failure_replay::{
+    drain_tls,
+    replay_connections::{ReplayConnections, ReplaySpawner},
+};
 
 type TestResult<T = ()> = Result<T, Box<dyn Error + Send + Sync>>;
 
@@ -51,6 +58,12 @@ const END_STREAM_AND_HEADERS: u8 = 0x5;
 const NO_ERROR: u32 = 0x0;
 const INTERNAL_ERROR: u32 = 0x2;
 const ENHANCE_YOUR_CALM: u32 = 0xb;
+// The longest script has three connections, their drivers, one body handler
+// and its coordinator. Eight lifetime task slots cover that actual script.
+const MAX_REPLAY_TASKS: usize = 8;
+// The longest recorded body in these scripts is the seven-byte "payload".
+const MAX_REQUEST_BODY_BYTES: usize = b"payload".len();
+const MAX_GOAWAY_FRAMES: usize = 8;
 
 fn replay_policy(maximum: usize) -> TestResult<RetryPolicy> {
     let maximum = NonZeroUsize::new(maximum).ok_or("replay budget must be non-zero")?;
@@ -109,29 +122,34 @@ type ObservedLog = Arc<Mutex<Vec<Observed>>>;
 struct ScriptedHttp2Server {
     address: std::net::SocketAddr,
     client_done: oneshot::Sender<()>,
-    task: JoinHandle<TestResult<(Vec<Observed>, bool)>>,
+    observed: oneshot::Receiver<(Vec<Observed>, bool)>,
 }
 
 impl ScriptedHttp2Server {
-    async fn start(identity: &TestIdentity, scripts: Vec<Script>) -> TestResult<Self> {
+    async fn start(
+        identity: &TestIdentity,
+        scripts: Vec<Script>,
+        connections: ReplaySpawner,
+    ) -> TestResult<Self> {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let acceptor = identity.acceptor(H2_ALPN)?;
         let (client_done, done_received) = oneshot::channel();
-        let task = tokio::spawn(async move {
+        let (observed_send, observed_received) = oneshot::channel();
+        let children = connections.clone();
+        connections.spawn(async move {
             let observed = ObservedLog::default();
-            let mut handlers = Vec::new();
             for (connection, script) in scripts.into_iter().enumerate() {
                 let stream = accept_tls(&listener, &acceptor).await?;
                 match script {
                     Script::GoAway {
                         last_stream_id,
                         code,
-                    } => send_goaway(stream, last_stream_id, code).await?,
+                    } => send_goaway(stream, last_stream_id, code, &children).await?,
                     Script::Serve(replies) => {
-                        serve(stream, connection, replies, &observed, &mut handlers).await?;
+                        serve(stream, connection, replies, &observed, &children).await?;
                     }
-                    Script::IgnorePing => ignore_ping(stream).await?,
+                    Script::IgnorePing => ignore_ping(stream, &children).await?,
                 }
             }
             let finished = tokio::select! {
@@ -141,20 +159,20 @@ impl ScriptedHttp2Server {
                     false
                 }
                 completed = done_received => {
-                    completed.map_err(|_| "client stopped before reporting completion")?;
+                    completed?;
                     true
                 }
             };
-            for handler in handlers {
-                handler.await??;
-            }
             let observed = std::mem::take(&mut *lock(&observed));
-            Ok((observed, finished))
-        });
+            observed_send
+                .send((observed, finished))
+                .map_err(|_| "client stopped before receiving replay observations")?;
+            Ok(())
+        })?;
         Ok(Self {
             address,
             client_done,
-            task,
+            observed: observed_received,
         })
     }
 
@@ -167,7 +185,7 @@ impl ScriptedHttp2Server {
         self.client_done
             .send(())
             .map_err(|_| "server stopped before client completion")?;
-        let (observed, finished) = self.task.await??;
+        let (observed, finished) = self.observed.await?;
         assert!(finished, "the client opened an unscripted connection");
         Ok(observed)
     }
@@ -187,6 +205,7 @@ async fn send_goaway(
     mut stream: SslStream<TcpStream>,
     last_stream_id: u32,
     code: u32,
+    connections: &ReplaySpawner,
 ) -> TestResult<()> {
     accept_client_preface(&mut stream).await?;
     read_request_headers(&mut stream, 1).await?;
@@ -199,15 +218,16 @@ async fn send_goaway(
         Err(error) if !is_peer_gone(&error) => return Err(error.into()),
         _ => {}
     }
-    tokio::spawn(async move {
-        let _ = tokio::io::copy(&mut stream, &mut tokio::io::sink()).await;
-    });
+    connections.spawn(drain_tls(stream))?;
     Ok(())
 }
 
 /// Plays [`Script::IgnorePing`], then drains the socket until the client
 /// closes it.
-async fn ignore_ping(mut stream: SslStream<TcpStream>) -> TestResult<()> {
+async fn ignore_ping(
+    mut stream: SslStream<TcpStream>,
+    connections: &ReplaySpawner,
+) -> TestResult<()> {
     accept_client_preface(&mut stream).await?;
     read_request_headers(&mut stream, 1).await?;
     // `:status: 200` is static table entry 8.
@@ -218,20 +238,21 @@ async fn ignore_ping(mut stream: SslStream<TcpStream>) -> TestResult<()> {
     if (ping.kind, ping.flags) != (PING, 0) {
         return Err("the request HEADERS were not followed by a PING".into());
     }
-    let go_away = loop {
+    let mut go_away = None;
+    for _ in 0..MAX_GOAWAY_FRAMES {
         let frame = read_frame(&mut stream).await?;
         if frame.kind == GOAWAY {
-            break frame;
+            go_away = Some(frame);
+            break;
         }
-    };
+    }
+    let go_away = go_away.ok_or("failed PING script exceeded its frame limit before GOAWAY")?;
     let mut expected = vec![0, 0, 0, 0, 0, 0, 0, 1];
     expected.extend_from_slice(b"Failed ping.");
     if go_away.payload != expected {
         return Err("the client's GOAWAY was not GOAWAY(0, PROTOCOL_ERROR, Failed ping.)".into());
     }
-    tokio::spawn(async move {
-        let _ = tokio::io::copy(&mut stream, &mut tokio::io::sink()).await;
-    });
+    connections.spawn(drain_tls(stream))?;
     Ok(())
 }
 
@@ -243,9 +264,11 @@ async fn serve(
     connection_index: usize,
     replies: Vec<Reply>,
     observed: &ObservedLog,
-    handlers: &mut Vec<JoinHandle<TestResult>>,
+    connections: &ReplaySpawner,
 ) -> TestResult<()> {
     let mut connection = ::http2::server::handshake(stream).await?;
+    let expected = replies.len();
+    let answered = Arc::new(AtomicUsize::new(0));
     for reply in replies {
         let (request, mut respond) = connection
             .accept()
@@ -257,6 +280,7 @@ async fn serve(
             Reply::Refuse => {
                 respond.send_reset(::http2::Reason::REFUSED_STREAM);
                 lock(observed).push(Observed::new(connection_index, method, &path, b""));
+                answered.fetch_add(1, Ordering::Release);
                 continue;
             }
             Reply::Status(status) => Response::builder().status(status).body(())?,
@@ -266,22 +290,42 @@ async fn serve(
                 .body(())?,
         };
         let observed = Arc::clone(observed);
-        handlers.push(tokio::spawn(async move {
+        let answered = Arc::clone(&answered);
+        connections.spawn(async move {
             let mut body = request.into_body();
             let mut bytes = Vec::new();
             while let Some(chunk) = body.data().await {
                 let chunk = chunk?;
+                if chunk.len() > MAX_REQUEST_BODY_BYTES - bytes.len() {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "unprocessed replay request body exceeded its script limit",
+                    )
+                    .into());
+                }
                 body.flow_control().release_capacity(chunk.len())?;
                 bytes.extend_from_slice(&chunk);
             }
             lock(&observed).push(Observed::new(connection_index, method, &path, &bytes));
             respond.send_response(response, true)?;
+            answered.fetch_add(1, Ordering::Release);
             Ok(())
-        }));
+        })?;
     }
-    tokio::spawn(async move {
-        let _ = poll_fn(|context| connection.poll_closed(context)).await;
-    });
+    // Accept peer hangup only after every scripted response or reset was
+    // queued successfully. Earlier I/O errors retain their original cause.
+    connections.spawn(async move {
+        match poll_fn(|context| connection.poll_closed(context)).await {
+            Ok(()) => Ok(()),
+            Err(error)
+                if answered.load(Ordering::Acquire) == expected
+                    && error.get_io().is_some_and(is_peer_gone) =>
+            {
+                Ok(())
+            }
+            Err(error) => Err(error.into()),
+        }
+    })?;
     Ok(())
 }
 
@@ -319,9 +363,12 @@ async fn bounded<F>(future: F) -> TestResult<()>
 where
     F: Future<Output = TestResult<()>>,
 {
-    timeout(TEST_TIMEOUT, future)
-        .await
-        .map_err(|_| "unprocessed replay test exceeded its deadline")?
+    timeout(TEST_TIMEOUT, future).await.map_err(|elapsed| {
+        crate::support::deadline::FixtureDeadline::new(
+            "unprocessed replay test exceeded its deadline",
+            elapsed,
+        )
+    })?
 }
 
 fn expect_error<T>(
@@ -347,7 +394,8 @@ fn http2_protocol_error(error: &RequestError) -> Option<&Http2ProtocolError> {
 
 #[tokio::test]
 async fn refused_stream_replays_owned_body_post_when_policy_allows() -> TestResult {
-    bounded(async {
+    let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let server = ScriptedHttp2Server::start(
             &identity,
@@ -355,6 +403,7 @@ async fn refused_stream_replays_owned_body_post_when_policy_allows() -> TestResu
                 Script::Serve(vec![Reply::Refuse]),
                 Script::Serve(vec![Reply::Status(201)]),
             ],
+            connections.spawner(),
         )
         .await?;
 
@@ -385,12 +434,14 @@ async fn refused_stream_replays_owned_body_post_when_policy_allows() -> TestResu
         );
         Ok(())
     })
-    .await
+    .await;
+    connections.finish(result).await
 }
 
 #[tokio::test]
 async fn goaway_above_last_stream_id_with_error_code_replays_when_policy_allows() -> TestResult {
-    bounded(async {
+    let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let server = ScriptedHttp2Server::start(
             &identity,
@@ -401,6 +452,7 @@ async fn goaway_above_last_stream_id_with_error_code_replays_when_policy_allows(
                 },
                 Script::Serve(vec![Reply::Status(204)]),
             ],
+            connections.spawner(),
         )
         .await?;
 
@@ -421,12 +473,14 @@ async fn goaway_above_last_stream_id_with_error_code_replays_when_policy_allows(
         );
         Ok(())
     })
-    .await
+    .await;
+    connections.finish(result).await
 }
 
 #[tokio::test]
 async fn processed_stream_closed_after_goaway_is_not_replayed() -> TestResult {
-    bounded(async {
+    let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         // Stream 1 is at the last-stream-id, so the peer may have processed
         // it; the connection then closes before any response.
@@ -436,6 +490,7 @@ async fn processed_stream_closed_after_goaway_is_not_replayed() -> TestResult {
                 last_stream_id: 1,
                 code: INTERNAL_ERROR,
             }],
+            connections.spawner(),
         )
         .await?;
 
@@ -456,7 +511,8 @@ async fn processed_stream_closed_after_goaway_is_not_replayed() -> TestResult {
         assert!(server.finish().await?.is_empty());
         Ok(())
     })
-    .await
+    .await;
+    connections.finish(result).await
 }
 
 /// A request whose connection closes after an unanswered PING fails with
@@ -466,11 +522,13 @@ async fn processed_stream_closed_after_goaway_is_not_replayed() -> TestResult {
 /// next request opens a new one.
 #[tokio::test]
 async fn ping_timeout_fails_the_request_without_replay_and_retires_the_connection() -> TestResult {
-    bounded(async {
+    let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let server = ScriptedHttp2Server::start(
             &identity,
             vec![Script::IgnorePing, Script::Serve(vec![Reply::Status(204)])],
+            connections.spawner(),
         )
         .await?;
         let client = short_ping_timeout_client(&identity)?;
@@ -510,7 +568,8 @@ async fn ping_timeout_fails_the_request_without_replay_and_retires_the_connectio
         );
         Ok(())
     })
-    .await
+    .await;
+    connections.finish(result).await
 }
 
 fn source_chain_has_ping_timeout(error: &RequestError) -> bool {
@@ -529,10 +588,15 @@ fn source_chain_has_ping_timeout(error: &RequestError) -> bool {
 
 #[tokio::test]
 async fn unprocessed_replay_refuses_one_shot_streaming_body() -> TestResult {
-    bounded(async {
+    let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
-        let server =
-            ScriptedHttp2Server::start(&identity, vec![Script::Serve(vec![Reply::Refuse])]).await?;
+        let server = ScriptedHttp2Server::start(
+            &identity,
+            vec![Script::Serve(vec![Reply::Refuse])],
+            connections.spawner(),
+        )
+        .await?;
 
         let client = http2_client(&identity)?;
         let result = client
@@ -554,12 +618,14 @@ async fn unprocessed_replay_refuses_one_shot_streaming_body() -> TestResult {
         );
         Ok(())
     })
-    .await
+    .await;
+    connections.finish(result).await
 }
 
 #[tokio::test]
 async fn refused_stream_replays_a_buffered_streaming_body() -> TestResult {
-    bounded(async {
+    let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let server = ScriptedHttp2Server::start(
             &identity,
@@ -567,6 +633,7 @@ async fn refused_stream_replays_a_buffered_streaming_body() -> TestResult {
                 Script::Serve(vec![Reply::Refuse]),
                 Script::Serve(vec![Reply::Status(201)]),
             ],
+            connections.spawner(),
         )
         .await?;
 
@@ -590,12 +657,14 @@ async fn refused_stream_replays_a_buffered_streaming_body() -> TestResult {
         );
         Ok(())
     })
-    .await
+    .await;
+    connections.finish(result).await
 }
 
 #[tokio::test]
 async fn unprocessed_replay_budget_is_bounded_across_redirects() -> TestResult {
-    bounded(async {
+    let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let server = ScriptedHttp2Server::start(
             &identity,
@@ -604,6 +673,7 @@ async fn unprocessed_replay_budget_is_bounded_across_redirects() -> TestResult {
                 Script::Serve(vec![Reply::Redirect("/next"), Reply::Refuse]),
                 Script::Serve(vec![Reply::Refuse]),
             ],
+            connections.spawner(),
         )
         .await?;
 
@@ -630,16 +700,22 @@ async fn unprocessed_replay_budget_is_bounded_across_redirects() -> TestResult {
         );
         Ok(())
     })
-    .await
+    .await;
+    connections.finish(result).await
 }
 
 #[tokio::test]
 async fn unprocessed_replay_is_disabled_by_default() -> TestResult {
-    bounded(async {
+    let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+    let result = bounded(async {
         assert_eq!(RetryPolicy::default().unprocessed_replay(), None);
         let identity = TestIdentity::generate()?;
-        let server =
-            ScriptedHttp2Server::start(&identity, vec![Script::Serve(vec![Reply::Refuse])]).await?;
+        let server = ScriptedHttp2Server::start(
+            &identity,
+            vec![Script::Serve(vec![Reply::Refuse])],
+            connections.spawner(),
+        )
+        .await?;
 
         let client = http2_client(&identity)?;
         let result = client
@@ -656,14 +732,16 @@ async fn unprocessed_replay_is_disabled_by_default() -> TestResult {
         );
         Ok(())
     })
-    .await
+    .await;
+    connections.finish(result).await
 }
 
 #[tokio::test]
 async fn default_graceful_goaway_retry_is_unchanged_without_policy() -> TestResult {
     let subscriber = OutcomeSubscriber::default();
     async {
-        bounded(async {
+        let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+        let result = bounded(async {
             let identity = TestIdentity::generate()?;
             let server = ScriptedHttp2Server::start(
                 &identity,
@@ -674,6 +752,7 @@ async fn default_graceful_goaway_retry_is_unchanged_without_policy() -> TestResu
                     },
                     Script::Serve(vec![Reply::Status(204)]),
                 ],
+                connections.spawner(),
             )
             .await?;
 
@@ -693,7 +772,8 @@ async fn default_graceful_goaway_retry_is_unchanged_without_policy() -> TestResu
             );
             Ok(())
         })
-        .await
+        .await;
+        connections.finish(result).await
     }
     .with_subscriber(subscriber.dispatch())
     .await?;
@@ -709,7 +789,8 @@ async fn default_graceful_goaway_retry_is_unchanged_without_policy() -> TestResu
 async fn replay_is_recorded_in_span() -> TestResult {
     let subscriber = OutcomeSubscriber::default();
     async {
-        bounded(async {
+        let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+        let result = bounded(async {
             let identity = TestIdentity::generate()?;
             let server = ScriptedHttp2Server::start(
                 &identity,
@@ -717,6 +798,7 @@ async fn replay_is_recorded_in_span() -> TestResult {
                     Script::Serve(vec![Reply::Refuse]),
                     Script::Serve(vec![Reply::Status(200)]),
                 ],
+                connections.spawner(),
             )
             .await?;
 
@@ -734,7 +816,8 @@ async fn replay_is_recorded_in_span() -> TestResult {
             assert_eq!(server.finish().await?.len(), 2);
             Ok(())
         })
-        .await
+        .await;
+        connections.finish(result).await
     }
     .with_subscriber(subscriber.dispatch())
     .await?;
@@ -769,6 +852,13 @@ async fn answer_http3(
     let mut body = Vec::new();
     while let Some(mut chunk) = stream.recv_data().await? {
         let remaining = chunk.remaining();
+        if remaining > MAX_REQUEST_BODY_BYTES - body.len() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "HTTP/3 replay request body exceeded its script limit",
+            )
+            .into());
+        }
         body.extend_from_slice(&chunk.copy_to_bytes(remaining));
     }
     stream
@@ -784,11 +874,13 @@ async fn answer_http3(
 
 #[tokio::test]
 async fn h3_request_rejected_replays_on_same_route_and_location() -> TestResult {
-    bounded(async {
+    let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
         let (client_done, done_received) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        let (observed_send, observed_received) = oneshot::channel();
+        connections.spawner().spawn(async move {
             let (_, mut rejected, first_connection) = accept_request(&endpoint).await?;
             rejected.stop_sending(h3::error::Code::H3_REQUEST_REJECTED);
             rejected.stop_stream(h3::error::Code::H3_REQUEST_REJECTED);
@@ -796,12 +888,13 @@ async fn h3_request_rejected_replays_on_same_route_and_location() -> TestResult 
             // The replay arrives on a new QUIC connection to this endpoint.
             let (request, mut stream, second_connection) = accept_request(&endpoint).await?;
             let observed = answer_http3(&request, &mut stream, StatusCode::CREATED).await?;
-            done_received
-                .await
-                .map_err(|_| "client stopped before reporting completion")?;
+            done_received.await?;
             drop((first_connection, second_connection));
-            Ok::<_, Box<dyn Error + Send + Sync>>(observed)
-        });
+            observed_send
+                .send(observed)
+                .map_err(|_| "HTTP/3 replay observer stopped")?;
+            Ok(())
+        })?;
 
         let client = http3_client(&identity)?;
         let response = client
@@ -827,13 +920,14 @@ async fn h3_request_rejected_replays_on_same_route_and_location() -> TestResult 
         client_done
             .send(())
             .map_err(|_| "HTTP/3 server stopped before client completion")?;
-        let (method, path, body) = server.await??;
+        let (method, path, body) = observed_received.await?;
         assert_eq!(method, Method::POST);
         assert_eq!(path, "/orders");
         assert_eq!(body, b"payload");
         Ok(())
     })
-    .await
+    .await;
+    connections.finish(result).await
 }
 
 /// Once the first connection sends `GOAWAY(0)` after serving stream 0, a
@@ -845,12 +939,14 @@ async fn h3_request_rejected_replays_on_same_route_and_location() -> TestResult 
 /// is the phantom-net connection test that waits for the closing state.
 #[tokio::test]
 async fn h3_request_after_goaway_is_served_once_on_a_new_connection() -> TestResult {
-    bounded(async {
+    let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = server_endpoint(&identity)?;
         let (goaway_sent, goaway_received) = oneshot::channel();
         let (client_done, done_received) = oneshot::channel();
-        let server = tokio::spawn(async move {
+        let (observed_send, observed_received) = oneshot::channel();
+        connections.spawner().spawn(async move {
             let (request, mut stream, mut first_connection) = accept_request(&endpoint).await?;
             let first = answer_http3(&request, &mut stream, StatusCode::OK).await?;
             // Stream 0 was the last accepted, so this sends GOAWAY(0), and
@@ -869,7 +965,12 @@ async fn h3_request_after_goaway_is_served_once_on_a_new_connection() -> TestRes
             let second = loop {
                 tokio::select! {
                     accepted = first_connection.accept(), if first_open => {
-                        served_on_first |= matches!(accepted, Ok(Some(_)));
+                        match accepted {
+                            Ok(Some(_)) => served_on_first = true,
+                            Ok(None) => {},
+                            Err(error) if error.is_h3_no_error() => {},
+                            Err(error) => return Err(error.into()),
+                        }
                         first_open = false;
                     }
                     accepted = &mut replacement => {
@@ -880,12 +981,13 @@ async fn h3_request_after_goaway_is_served_once_on_a_new_connection() -> TestRes
                     }
                 }
             };
-            done_received
-                .await
-                .map_err(|_| "client stopped before reporting completion")?;
+            done_received.await?;
             drop((first_connection, second.1));
-            Ok::<_, Box<dyn Error + Send + Sync>>((first, second.0, served_on_first))
-        });
+            observed_send
+                .send((first, second.0, served_on_first))
+                .map_err(|_| "HTTP/3 GOAWAY replay observer stopped")?;
+            Ok(())
+        })?;
 
         let client = http3_client(&identity)?;
         let exchange = async {
@@ -895,9 +997,7 @@ async fn h3_request_after_goaway_is_served_once_on_a_new_connection() -> TestRes
                 .await?;
             assert_eq!(first.status(), StatusCode::OK);
             first.into_body().collect().await?;
-            goaway_received
-                .await
-                .map_err(|_| "HTTP/3 server stopped before GOAWAY")?;
+            goaway_received.await?;
 
             let response = client
                 .request(
@@ -913,21 +1013,12 @@ async fn h3_request_after_goaway_is_served_once_on_a_new_connection() -> TestRes
             response.into_body().collect().await?;
             Ok::<_, Box<dyn Error + Send + Sync>>(())
         };
-        if let Err(error) = exchange.await {
-            // A server failure closes its connections, so report it first.
-            server.abort();
-            return match server.await {
-                Ok(Err(server_error)) => {
-                    Err(format!("server: {server_error}; client: {error}").into())
-                }
-                _ => Err(error),
-            };
-        }
+        exchange.await?;
 
         client_done
             .send(())
             .map_err(|_| "HTTP/3 server stopped before client completion")?;
-        let (first, second, served_on_first) = server.await??;
+        let (first, second, served_on_first) = observed_received.await?;
         assert_eq!(first, (Method::GET, "/first".to_owned(), Vec::new()));
         assert_eq!(
             second,
@@ -939,15 +1030,21 @@ async fn h3_request_after_goaway_is_served_once_on_a_new_connection() -> TestRes
         );
         Ok(())
     })
-    .await
+    .await;
+    connections.finish(result).await
 }
 
 #[tokio::test]
 async fn zero_shared_cap_returns_refused_stream_without_a_replay() -> TestResult {
-    bounded(async {
+    let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+    let result = bounded(async {
         let identity = TestIdentity::generate()?;
-        let server =
-            ScriptedHttp2Server::start(&identity, vec![Script::Serve(vec![Reply::Refuse])]).await?;
+        let server = ScriptedHttp2Server::start(
+            &identity,
+            vec![Script::Serve(vec![Reply::Refuse])],
+            connections.spawner(),
+        )
+        .await?;
         let client = http2_client(&identity)?;
         let error = client
             .request(HttpProtocol::Http2, Method::POST, &server.url("/capped"))?
@@ -965,5 +1062,129 @@ async fn zero_shared_cap_returns_refused_stream_without_a_replay() -> TestResult
         );
         Ok(())
     })
-    .await
+    .await;
+    connections.finish(result).await
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{cell::Cell, io, task::Poll};
+
+    use crate::support::tunnel_proxy::connection_peer::FixtureFailures;
+
+    use super::*;
+
+    #[tokio::test(start_paused = true)]
+    async fn actual_pending_replay_caller_retains_its_contextual_elapsed() -> TestResult {
+        let entered = Cell::new(false);
+        let pending = bounded(poll_fn(|_| {
+            entered.set(true);
+            Poll::<TestResult>::Pending
+        }));
+        tokio::pin!(pending);
+        assert!(futures_util::poll!(&mut pending).is_pending());
+        tokio::time::advance(TEST_TIMEOUT).await;
+        let error = pending
+            .await
+            .err()
+            .ok_or("pending replay caller did not time out")?;
+        assert!(entered.get());
+        assert_eq!(
+            error.to_string(),
+            "unprocessed replay test exceeded its deadline"
+        );
+        assert!(
+            error
+                .source()
+                .is_some_and(|cause| cause.is::<tokio::time::error::Elapsed>())
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn actual_scripted_http2_body_limit_survives_coordinator_shutdown() -> TestResult {
+        let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+        let result = bounded(async {
+            let identity = TestIdentity::generate()?;
+            let server = ScriptedHttp2Server::start(
+                &identity,
+                vec![Script::Serve(vec![Reply::Status(204)])],
+                connections.spawner(),
+            )
+            .await?;
+            let client = http2_client(&identity)?;
+            let request = client
+                .request(HttpProtocol::Http2, Method::POST, &server.url("/oversized"))?
+                .body("payload!")
+                .send()
+                .await;
+            let error = expect_error(request, "oversized scripted body received a response")?;
+            drop(client);
+            let error = connections
+                .finish(Err(error.into()))
+                .await
+                .err()
+                .ok_or("scripted body failure disappeared")?;
+            assert!(contains_body_limit(
+                &*error,
+                "unprocessed replay request body exceeded its script limit"
+            ));
+            Ok(())
+        })
+        .await;
+        connections.finish(result).await
+    }
+
+    #[tokio::test]
+    async fn actual_http3_body_limit_remains_a_typed_original_server_failure() -> TestResult {
+        let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+        let result = bounded(async {
+            let identity = TestIdentity::generate()?;
+            let (address, endpoint) = server_endpoint(&identity)?;
+            connections.spawner().spawn(async move {
+                let (request, mut stream, _connection) = accept_request(&endpoint).await?;
+                answer_http3(&request, &mut stream, StatusCode::CREATED).await?;
+                Ok(())
+            })?;
+            let client = http3_client(&identity)?;
+            let request = client
+                .request(
+                    HttpProtocol::Http3,
+                    Method::POST,
+                    &format!("https://{address}/oversized"),
+                )?
+                .body("payload!")
+                .send()
+                .await;
+            let error = expect_error(request, "oversized HTTP/3 body received a response")?;
+            drop(client);
+            let error = connections
+                .finish(Err(error.into()))
+                .await
+                .err()
+                .ok_or("HTTP/3 body failure disappeared")?;
+            assert!(contains_body_limit(
+                &*error,
+                "HTTP/3 replay request body exceeded its script limit"
+            ));
+            Ok(())
+        })
+        .await;
+        connections.finish(result).await
+    }
+
+    fn contains_body_limit(error: &(dyn Error + 'static), message: &str) -> bool {
+        if error.downcast_ref::<io::Error>().is_some_and(|error| {
+            error.kind() == io::ErrorKind::InvalidData && error.to_string() == message
+        }) {
+            return true;
+        }
+        if let Some(failures) = error.downcast_ref::<FixtureFailures>() {
+            return contains_body_limit(&*failures.primary, message)
+                || contains_body_limit(&*failures.cleanup, message);
+        }
+        error
+            .source()
+            .is_some_and(|cause| contains_body_limit(cause, message))
+    }
 }
