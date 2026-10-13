@@ -740,13 +740,18 @@ async fn http3_websocket_travels_through_a_connect_udp_proxy() -> TestResult<()>
 #[tokio::test]
 async fn http3_websocket_travels_through_connect_udp_over_http1_and_http2_legs() -> TestResult<()> {
     let mut origins = Vec::new();
+    let mut stream_proxies = Vec::new();
     let caller = bounded(async {
         for (leg, expected_method) in [(StreamLeg::Http1, "GET"), (StreamLeg::Http2, "CONNECT")] {
             let identity = TestIdentity::generate()?;
             let proxy_identity = TestIdentity::generate()?;
             origins.push(Origin::spawn(&identity, Behavior::ECHO)?);
             let origin = origins.last_mut().ok_or("HTTP/3 origin was not acquired")?;
-            let proxy = MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::Relay).await?;
+            stream_proxies
+                .push(MasqueStreamProxy::spawn(&proxy_identity, leg, StreamMode::Relay).await?);
+            let proxy = stream_proxies
+                .last_mut()
+                .ok_or("MASQUE proxy owner was not acquired")?;
             let route = match leg {
                 StreamLeg::Http1 => ConnectUdpProxy::new(&proxy.template())?.with_http1_transport(),
                 StreamLeg::Http2 => ConnectUdpProxy::new(&proxy.template())?.with_http2_transport(),
@@ -781,7 +786,11 @@ async fn http3_websocket_travels_through_connect_udp_over_http1_and_http2_legs()
         Ok(())
     })
     .await;
-    finish_origins(&mut origins, caller).await
+    let mut result = caller;
+    for proxy in &mut stream_proxies {
+        result = finish_with_cleanup(result, proxy.shutdown().await);
+    }
+    finish_origins(&mut origins, result).await
 }
 
 #[cfg(feature = "websocket-deflate")]

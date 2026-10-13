@@ -2480,6 +2480,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Retain HTTP/3 WebSocket fixture connections, responders and UDP relays
+  through caller failure. Preserve unexpected reset and deadline causes.
+- Collect streamed MASQUE fixture TLS, pump and UDP failures during bounded
+  shutdown, including caller cleanup after interrupted operation deadlines.
+
 - Reject malformed retained WebSocket capture fields and record counts
   without panicking or trusting declared allocation sizes.
 - Keep fixture peers owned across interrupted joins. Observe each completion
