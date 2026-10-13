@@ -909,7 +909,7 @@ where
         stopped = stream_outcomes::stopped(&mut stopped) => return stopped,
     };
     match first_read {
-        Ok(bytes) if bytes.is_empty() => return Ok(()),
+        Ok([]) => return Ok(()),
         Ok(_) => {}
         Err(error) if stream_outcomes::peer_gone(&error) => return Ok(()),
         Err(error) => return Err(error.into()),
