@@ -322,11 +322,10 @@ class ScenarioTests(unittest.TestCase):
 
     def test_paired_ports_share_one_number(self) -> None:
         udp, tcp = reserve_ports("127.0.0.1")
-        try:
-            self.assertEqual(udp.getsockname()[1], tcp.getsockname()[1])
-        finally:
-            udp.close()
-            tcp.close()
+        self.addCleanup(tcp.close)
+        self.addCleanup(udp.close)
+
+        self.assertEqual(udp.getsockname()[1], tcp.getsockname()[1])
 
     def test_fixture_aggregates_raced_controllers_by_path(self) -> None:
         netlog = NetLog.parse(blackholed_race().truncated())
@@ -373,12 +372,15 @@ class OriginServerTests(unittest.IsolatedAsyncioTestCase):
         self,
     ) -> None:
         udp, tcp = reserve_ports("127.0.0.1")
+        self.addCleanup(tcp.close)
+        self.addCleanup(udp.close)
         udp.close()
         port = tcp.getsockname()[1]
         origin = Origin(SCENARIOS["race-after-learning"], port)
         run = new_run()
         origin.begin(run)
         server = Http2Origin(origin, generate_certificate(HOST))
+        self.addAsyncCleanup(server.close)
         await server.start(tcp)
         context = ssl.create_default_context()
         context.check_hostname = False
@@ -387,6 +389,8 @@ class OriginServerTests(unittest.IsolatedAsyncioTestCase):
         reader, writer = await asyncio.open_connection(
             "127.0.0.1", port, ssl=context, server_hostname=HOST
         )
+        self.addCleanup(writer.close)
+
         client = h2.connection.H2Connection(
             h2.config.H2Configuration(client_side=True, header_encoding=None)
         )
@@ -403,30 +407,24 @@ class OriginServerTests(unittest.IsolatedAsyncioTestCase):
         writer.write(client.data_to_send())
         responses: dict[int, dict[bytes, bytes]] = {}
         goaway = None
-        try:
-            while goaway is None or 3 not in responses:
-                data = await asyncio.wait_for(reader.read(65536), 5)
-                self.assertTrue(data)
-                for event in client.receive_data(data):
-                    if isinstance(event, h2.events.ResponseReceived):
-                        responses[event.stream_id] = dict(event.headers)
-                    if isinstance(event, h2.events.ConnectionTerminated):
-                        goaway = event.last_stream_id
-                writer.write(client.data_to_send())
-            self.assertEqual(goaway, 3)
-            self.assertEqual(
-                responses[3][b"alt-svc"], f'h3=":{port}"; ma=86400'.encode()
-            )
-            self.assertNotIn(1, responses)
-            # Finishing the page releases the held stream on the retired connection.
-            origin.request(
-                "h2", 0, "/done?results=%5B%5D", lambda response: None, lambda: None
-            )
-            self.assertEqual(run.page_results, [])
-            self.assertTrue(run.done.is_set())
-        finally:
-            writer.close()
-            await server.close()
+        while goaway is None or 3 not in responses:
+            data = await asyncio.wait_for(reader.read(65536), 5)
+            self.assertTrue(data)
+            for event in client.receive_data(data):
+                if isinstance(event, h2.events.ResponseReceived):
+                    responses[event.stream_id] = dict(event.headers)
+                if isinstance(event, h2.events.ConnectionTerminated):
+                    goaway = event.last_stream_id
+            writer.write(client.data_to_send())
+        self.assertEqual(goaway, 3)
+        self.assertEqual(responses[3][b"alt-svc"], f'h3=":{port}"; ma=86400'.encode())
+        self.assertNotIn(1, responses)
+        # Finishing the page releases the held stream on the retired connection.
+        origin.request(
+            "h2", 0, "/done?results=%5B%5D", lambda response: None, lambda: None
+        )
+        self.assertEqual(run.page_results, [])
+        self.assertTrue(run.done.is_set())
         self.assertEqual(
             [request.path for request in run.requests],
             ["/hold", "/learn-retire", "/done"],
