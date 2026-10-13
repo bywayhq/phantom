@@ -1,6 +1,7 @@
 import io
 import subprocess
 import sys
+import tempfile
 import time
 import unittest
 from dataclasses import replace
@@ -8,6 +9,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scripts.capture import chrome_ech
+from scripts.capture.browser_failures import BrowserLaunchFailures
+from scripts.capture.browser_launch import LaunchedBrowser as BrowserOwner
 from scripts.capture.process_container import ProcessCleanupError, ProcessContainer
 
 RUN = chrome_ech.CaptureRun(
@@ -82,6 +85,18 @@ class EchProcessTests(unittest.TestCase):
             )
         self.assert_stopped()
 
+    def test_mixed_newlines_keep_the_original_text_reader_contract(self) -> None:
+        reported = []
+        fixture = self.capture(
+            f"import sys; print({READY!r}, file=sys.stderr, flush=True); "
+            "sys.stdout.buffer.write(b'a\\r\\nb\\rc\\n'); "
+            "sys.stderr.buffer.write(b'first\\r\\nsecond\\rthird\\n')",
+            report=reported.append,
+        )
+        self.assertEqual(fixture, "a\nb\nc\n")
+        self.assertEqual(reported, ["first", "second", "third"])
+        self.assert_stopped()
+
     def test_fixture_at_limit_is_preserved(self) -> None:
         with patch.object(chrome_ech, "MAX_CAPTURE_OUTPUT", 8):
             fixture = self.capture(
@@ -137,6 +152,40 @@ class EchProcessTests(unittest.TestCase):
             )
         self.assert_stopped()
 
+    def test_failed_server_and_browser_cleanup_keep_both_original_failures(
+        self,
+    ) -> None:
+        cleanup = OSError("browser cleanup failed")
+        browser = BrowserOwner(chrome_ech.launch_plan(RUN), chrome_ech.URL)
+        self.browser.return_value.__exit__.side_effect = lambda *details: (
+            browser.__exit__(*details)
+        )
+        with (
+            patch.object(browser, "_cleanup", return_value=(cleanup,)),
+            self.assertRaises(BrowserLaunchFailures) as raised,
+        ):
+            self.capture(
+                f"import sys; print({READY!r}, file=sys.stderr, flush=True); "
+                "raise SystemExit(3)"
+            )
+        self.assertIsInstance(raised.exception.primary, RuntimeError)
+        self.assertEqual(
+            str(raised.exception.primary), "capture server failed with exit code 3"
+        )
+        self.assertIs(raised.exception.cleanup[0], cleanup)
+        self.assert_stopped()
+
+    def test_observer_setup_failure_stops_the_already_acquired_container(self) -> None:
+        failure = OSError("observer setup failed")
+        with (
+            patch.object(chrome_ech, "_CaptureOutput", side_effect=failure),
+            self.assertRaises(OSError) as raised,
+        ):
+            self.capture("import time; time.sleep(60)")
+        self.assertIs(raised.exception, failure)
+        self.browser.assert_not_called()
+        self.assert_stopped()
+
     def test_silent_server_has_an_absolute_readiness_deadline(self) -> None:
         with patch.object(chrome_ech, "CAPTURE_TIMEOUT_SECONDS", 0.5):
             started = time.monotonic()
@@ -167,6 +216,19 @@ class EchProcessTests(unittest.TestCase):
                 "time.sleep(60)"
             )
         self.assertIs(raised.exception, failure)
+        self.assert_stopped()
+
+    def test_bare_cr_readiness_is_observed_while_the_server_is_alive(self) -> None:
+        with (
+            patch.object(chrome_ech, "CAPTURE_TIMEOUT_SECONDS", 1),
+            self.assertRaises(subprocess.TimeoutExpired),
+        ):
+            self.capture(
+                f"import sys, time; sys.stderr.buffer.write({READY.encode()!r} "
+                "+ b'\\rstarted\\r\\n'); sys.stderr.flush(); time.sleep(60)",
+                report=lambda _: None,
+            )
+        self.browser.assert_called_once()
         self.assert_stopped()
 
     def test_mismatched_server_template_fails_before_browser_launch(self) -> None:
@@ -202,6 +264,48 @@ class EchProcessTests(unittest.TestCase):
         self.assertIs(retained.primary, primary)
         self.assertIs(retained.container, self.containers[0])
         self.assertIs(retained.failures[0][1], cleanup)
+        self.assert_stopped()
+
+    def test_directory_failure_keeps_the_primary_and_previous_process_owner(
+        self,
+    ) -> None:
+        primary = OSError("browser launch failed")
+        process_cleanup = OSError("injected process close failure")
+        directory_cleanup = PermissionError("injected output removal failure")
+        self.browser.return_value.__enter__.side_effect = primary
+
+        def close_with_failure(_owner):
+            raise process_cleanup
+
+        with (
+            patch.object(ProcessContainer, "close", close_with_failure),
+            patch.object(
+                tempfile.TemporaryDirectory, "cleanup", side_effect=directory_cleanup
+            ),
+            self.assertRaises(OSError) as raised,
+        ):
+            self.capture(
+                f"import sys, time; print({READY!r}, file=sys.stderr, flush=True); "
+                "time.sleep(60)"
+            )
+        self.assertIs(raised.exception, primary)
+        directory_failure = primary.__cause__
+        self.assertIsInstance(directory_failure, ProcessCleanupError)
+        directory = directory_failure.output_directory
+        try:
+            self.assertIs(directory_failure.primary, primary)
+            self.assertIs(directory_failure.failures[0][1], directory_cleanup)
+            previous = directory_failure.previous_cause
+            self.assertIsInstance(previous, ProcessCleanupError)
+            self.assertIs(previous.container, self.containers[0])
+            self.assertIs(previous.primary, primary)
+            self.assertIs(previous.failures[0][1], process_cleanup)
+            self.assertTrue(Path(directory.name).is_dir())
+            self.assertFalse(previous.container._cleanup_complete)
+            self.assertIsNone(previous.container.poll())
+        finally:
+            self.containers[0].close()
+            directory.cleanup()
         self.assert_stopped()
 
 

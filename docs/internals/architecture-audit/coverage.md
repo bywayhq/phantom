@@ -34,7 +34,14 @@ and cleanup causes. Policy queries also receive a finite timeout.
 
 Root reads the whole command, original tests, actual container methods and
 relevant browser boundaries. New controls use real contained Python servers
-with mocked browser launch. Independent review and native checks remain open.
+with mocked browser launch. At `4cb6a6cf`, Linux passes all 36 methods;
+Windows passes 35 and fails the healthy fixture's CRLF-to-LF assertion.
+Both hosts pass Ruff check/format and docs. Root and an independent reader
+inspect all logs and bind both clean sources to that exact revision.
+The independently reviewed correction restores universal newlines for fixtures
+and diagnostics. It also keeps server errors through browser cleanup and retains
+both retry owners when process and directory cleanup fail. Five added controls
+bring the focused suite to 41 methods; their native checks remain open.
 The file thresholds can be exceeded between polls; they bound accepted output,
 rather than temporary disk consumption. Blocking callbacks and native calls
 cannot be preempted by the cooperative deadline. No browser capture is claimed.

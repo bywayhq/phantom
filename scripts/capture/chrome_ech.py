@@ -31,13 +31,16 @@ the certificate's public key is trusted through
 from __future__ import annotations
 
 import argparse
+import codecs
+import io
 import json
 import re
 import subprocess
 import sys
 import tempfile
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import BinaryIO
@@ -239,9 +242,9 @@ def capture(
     plan = launch_plan(run)
     command = capture_arguments(run, plan)
     deadline = time.monotonic() + CAPTURE_TIMEOUT_SECONDS
-    with tempfile.TemporaryDirectory(prefix="phantom-ech-output-") as directory:
-        output_path = Path(directory) / "fixture"
-        diagnostics_path = Path(directory) / "diagnostics"
+    with _output_directory() as directory:
+        output_path = directory / "fixture"
+        diagnostics_path = directory / "diagnostics"
         # Readers need separate open descriptions: seeking a descriptor shared
         # with the child would change the child's next write position.
         with (
@@ -251,8 +254,8 @@ def capture(
             diagnostics_path.open("rb") as diagnostics_reader,
         ):
             process = ProcessContainer(command, stdout=output, stderr=diagnostics)
-            observer = _CaptureOutput(output_reader, diagnostics_reader, report)
             try:
+                observer = _CaptureOutput(output_reader, diagnostics_reader, report)
                 if not process.start():
                     raise RuntimeError("the capture server stopped before launch")
                 while observer.ready is None:
@@ -294,10 +297,12 @@ def capture(
                         code = process.poll()
                         observer.poll()
                         if code is not None:
+                            if code != 0:
+                                raise RuntimeError(
+                                    f"capture server failed with exit code {code}"
+                                )
                             break
                         _wait_for_capture(deadline, command)
-                if code != 0:
-                    raise RuntimeError(f"capture server failed with exit code {code}")
             except BaseException as primary:
                 try:
                     process.close()
@@ -316,7 +321,32 @@ def capture(
                 fixture = output_reader.read(MAX_CAPTURE_OUTPUT + 1)
                 if len(fixture) > MAX_CAPTURE_OUTPUT:
                     raise ValueError("ECH fixture exceeds the capture output limit")
-                return fixture.decode("ascii")
+                with io.TextIOWrapper(io.BytesIO(fixture), encoding="ascii") as text:
+                    return text.read()
+
+
+@contextmanager
+def _output_directory() -> Iterator[Path]:
+    directory = tempfile.TemporaryDirectory(prefix="phantom-ech-output-")
+    primary = None
+    try:
+        yield Path(directory.name)
+    except BaseException as error:
+        primary = error
+        raise
+    finally:
+        try:
+            directory.cleanup()
+        except BaseException as cleanup:
+            failure = ProcessCleanupError(
+                (("remove ECH output directory", cleanup),), primary=primary
+            )
+            # Failed process cleanup may retain inherited Windows file handles.
+            # Keep the directory owner and previous cause for explicit retry.
+            failure.output_directory = directory
+            if primary is not None:
+                raise primary from failure
+            raise failure from cleanup
 
 
 def _check_capture_deadline(deadline: float, command: Sequence[str]) -> None:
@@ -342,7 +372,10 @@ class _CaptureOutput:
         self.diagnostics = diagnostics
         self.report = report
         self.ready: tuple[str, str, str | None] | None = None
-        self.pending = bytearray()
+        self.pending = ""
+        self.decoder = io.IncrementalNewlineDecoder(
+            codecs.getincrementaldecoder("ascii")(), translate=True
+        )
         self.diagnostic_bytes = 0
 
     def poll(self, *, final: bool = False) -> None:
@@ -357,21 +390,25 @@ class _CaptureOutput:
             self.diagnostic_bytes += len(chunk)
             if self.diagnostic_bytes > MAX_CAPTURE_DIAGNOSTICS:
                 raise ValueError("ECH diagnostics exceed the capture output limit")
-            self.pending.extend(chunk)
-            while b"\n" in self.pending:
-                line, _, remainder = self.pending.partition(b"\n")
-                self.pending = bytearray(remainder)
+            self.pending += self.decoder.decode(chunk)
+            while "\n" in self.pending:
+                line, _, self.pending = self.pending.partition("\n")
                 self._line(line)
             if len(self.pending) > MAX_DIAGNOSTIC_LINE:
                 raise ValueError("ECH diagnostic line exceeds the capture limit")
-        if final and self.pending:
-            self._line(bytes(self.pending))
-            self.pending.clear()
+        if final:
+            self.pending += self.decoder.decode(b"", final=True)
+            while "\n" in self.pending:
+                line, _, self.pending = self.pending.partition("\n")
+                self._line(line)
+            if self.pending:
+                self._line(self.pending)
+                self.pending = ""
 
-    def _line(self, line: bytes) -> None:
+    def _line(self, line: str) -> None:
         if len(line) > MAX_DIAGNOSTIC_LINE:
             raise ValueError("ECH diagnostic line exceeds the capture limit")
-        text = line.decode("ascii").rstrip()
+        text = line.rstrip()
         ready = parse_ready_line(text) if self.ready is None else None
         if ready is not None:
             self.ready = ready
