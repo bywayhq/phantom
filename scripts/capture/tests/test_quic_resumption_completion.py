@@ -177,30 +177,49 @@ class CaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
         run, port = await manager.__aenter__()
         arrived = asyncio.Event()
         receive = quic_resumption.ResumptionProtocol.receive
+        release = quic_resumption.ResumptionProtocol.release
+        allow_release = False
+
+        def held_release(protocol):
+            if allow_release:
+                release(protocol)
 
         def held(protocol, data, addr):
             receive(protocol, data, addr)
             if protocol.held:
                 arrived.set()
 
-        async with connect_loopback(
-            port, configuration, Client, wait_connected=False
-        ) as client:
-            with mock.patch.object(quic_resumption.ResumptionProtocol, "receive", held):
-                client.transmit()
-                await asyncio.wait_for(arrived.wait(), 5)
-                protocol = run.owner.protocols[0]
-                timer = protocol.release_timer
-                self.assertFalse(protocol.started)
-                await manager.__aexit__(None, None, None)
+        try:
+            async with connect_loopback(
+                port, configuration, Client, wait_connected=False
+            ) as client:
+                with (
+                    mock.patch.object(
+                        quic_resumption.ResumptionProtocol, "receive", held
+                    ),
+                    mock.patch.object(
+                        quic_resumption.ResumptionProtocol, "release", held_release
+                    ),
+                ):
+                    client.transmit()
+                    await asyncio.wait_for(arrived.wait(), 5)
+                    protocol = run.owner.protocols[0]
+                    timer = protocol.release_timer
+                    self.assertFalse(protocol.started)
+                    await manager.__aexit__(None, None, None)
+                    allow_release = True
+                    held_release(protocol)
 
-            self.assertTrue(timer.cancelled())
-            self.assertFalse(protocol.started)
-            self.assertEqual(protocol.held, [])
-            self.assertTrue(run.owner.finished)
-            self.assertTrue(run.owner.retired.done())
-            self.assertIsNone(run.owner._transport._sock)
-            self.assertEqual(run.failures, [])
+                self.assertTrue(timer.cancelled())
+                self.assertFalse(protocol.started)
+                self.assertEqual(protocol.held, [])
+                self.assertTrue(run.owner.finished)
+                self.assertTrue(run.owner.retired.done())
+                self.assertIsNone(run.owner._transport._sock)
+                self.assertEqual(run.failures, [])
+        finally:
+            if not run.owner.finished:
+                await run.owner.shutdown()
 
     async def test_actual_protected_header_and_body_limit_failures_prevent_publication(
         self,
