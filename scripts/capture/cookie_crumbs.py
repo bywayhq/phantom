@@ -762,19 +762,26 @@ async def serving_http3(
                     except BaseException as cleanup:
                         self.failed(cleanup)
 
-            if self._transport is not None:
-                try:
-                    self._transport.close()
-                except BaseException as error:
-                    self.failed(error)
-                    try:
-                        self._transport.abort()
-                    except BaseException as cleanup:
-                        self.failed(cleanup)
-
+            retiring = False
             while True:
                 tasks = set(self.waits.values())
-                if self._transport is not None:
+                pending = {task for task in tasks if not task.done()}
+                remaining = deadline - asyncio.get_running_loop().time()
+                if not retiring and (not pending or remaining <= 1.0):
+                    retiring = True
+                    if self._transport is not None:
+                        try:
+                            # Windows Python 3.10 UDP close can miss retirement
+                            # after a pending write. Let QUIC finish first, then
+                            # abort the transport and observe connection_lost.
+                            self._transport.abort()
+                        except BaseException as error:
+                            self.failed(error)
+                            try:
+                                self._transport.close()
+                            except BaseException as cleanup:
+                                self.failed(cleanup)
+                if retiring and self._transport is not None:
                     tasks.add(self.retired)
                 pending = {task for task in tasks if not task.done()}
                 if not pending:
@@ -790,7 +797,6 @@ async def serving_http3(
                             )
                         )
                     break
-                remaining = deadline - asyncio.get_running_loop().time()
                 if remaining <= 0:
                     self.failed(
                         TimeoutError("cookie QUIC cleanup exceeded its deadline")
@@ -798,7 +804,9 @@ async def serving_http3(
                     break
                 try:
                     await asyncio.wait(
-                        pending, timeout=remaining, return_when=asyncio.FIRST_COMPLETED
+                        pending,
+                        timeout=remaining if retiring else max(0, remaining - 1.0),
+                        return_when=asyncio.FIRST_COMPLETED,
                     )
                 except BaseException as error:
                     self.failed(error)

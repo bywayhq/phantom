@@ -1,20 +1,22 @@
 import argparse
 import asyncio
 import errno
+import socket
 import ssl
+import traceback
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 from urllib.parse import urlsplit
 
+import pylsqpack
 from aioquic.asyncio import QuicConnectionProtocol
 from aioquic.h3.connection import H3Connection
 from aioquic.quic.configuration import QuicConfiguration
 from h2.config import H2Configuration
 from h2.connection import H2Connection
 from h2.events import StreamEnded
-import pylsqpack
 
 from scripts.capture import cookie_crumbs
 from scripts.capture.cookie_crumbs import (
@@ -203,13 +205,19 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
         create_server = loop.create_server
         acquired = []
         client = None
+        admitted = asyncio.Event()
+        connected = cookie_crumbs.CookieProtocol.connected
+
+        def observe(protocol, reader, writer):
+            connected(protocol, reader, writer)
+            if protocol.owner is server:
+                admitted.set()
 
         async def acquire(*args, **kwargs):
             nonlocal client
             if acquired:
                 client = await asyncio.open_connection(*server.tls_address)
-                while not server.protocols or server.protocols[0].task is None:
-                    await asyncio.sleep(0)
+                await asyncio.wait_for(admitted.wait(), TIMEOUT)
                 raise primary
             listener = await create_server(*args, **kwargs)
             acquired.append(listener)
@@ -218,6 +226,7 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
         try:
             with (
                 mock.patch.object(loop, "create_server", side_effect=acquire),
+                mock.patch.object(cookie_crumbs.CookieProtocol, "connected", observe),
                 self.assertRaises(OSError) as raised,
             ):
                 await asyncio.wait_for(server.start("127.0.0.1"), TIMEOUT)
@@ -253,10 +262,18 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
         loop = asyncio.get_running_loop()
         previous_handler = loop.get_exception_handler()
         unexpected = []
+        accepted_sockets = []
         client = None
 
         def observe_backend_failure(loop, context):
             if context.get("exception") is primary:
+                # This fault precedes the backend's transport acquisition.
+                # Retain its original accepted socket for test-only cleanup.
+                for frame, _line in traceback.walk_tb(primary.__traceback__):
+                    if frame.f_code.co_name in {"_accept_connection2", "loop"}:
+                        accepted = frame.f_locals.get("conn")
+                        if isinstance(accepted, socket.socket):
+                            accepted_sockets.append(accepted)
                 return
             unexpected.append(context)
             if previous_handler is None:
@@ -281,6 +298,7 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(server.finished)
             self.assertTrue(all(not listener.sockets for listener in server.servers))
             self.assertEqual(unexpected, [])
+            self.assertTrue(accepted_sockets)
             with self.assertRaises(ValueError) as unpublished:
                 fixture(SCENARIOS["h1"], [run], METADATA, 4096)
             self.assertIs(unpublished.exception, primary)
@@ -291,6 +309,8 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
             await rebound.wait_closed()
         finally:
             loop.set_exception_handler(previous_handler)
+            for accepted in accepted_sockets:
+                accepted.close()
             if client is not None:
                 client[1].close()
                 await client[1].wait_closed()
@@ -466,21 +486,23 @@ class CookieOwnershipTests(unittest.IsolatedAsyncioTestCase):
             mock.patch.object(run, "record", side_effect=primary),
             self.assertRaises(OSError) as raised,
         ):
-            async with serving_http3(run, "127.0.0.1", CERTIFICATE) as port:
-                async with connect_loopback(port, configuration, Client) as client:
-                    stream = client._quic.get_next_available_stream_id()
-                    client.http.send_headers(
-                        stream,
-                        [
-                            (b":method", b"GET"),
-                            (b":scheme", b"https"),
-                            (b":authority", HOSTNAME.encode()),
-                            (b":path", b"/done?run=quic"),
-                        ],
-                        end_stream=True,
-                    )
-                    client.transmit()
-                    await asyncio.wait_for(run.done.wait(), TIMEOUT)
+            async with (
+                serving_http3(run, "127.0.0.1", CERTIFICATE) as port,
+                connect_loopback(port, configuration, Client) as client,
+            ):
+                stream = client._quic.get_next_available_stream_id()
+                client.http.send_headers(
+                    stream,
+                    [
+                        (b":method", b"GET"),
+                        (b":scheme", b"https"),
+                        (b":authority", HOSTNAME.encode()),
+                        (b":path", b"/done?run=quic"),
+                    ],
+                    end_stream=True,
+                )
+                client.transmit()
+                await asyncio.wait_for(run.done.wait(), TIMEOUT)
 
         self.assertIs(raised.exception, primary)
         self.assertIs(run.failures[0], primary)
