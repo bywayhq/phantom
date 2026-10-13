@@ -2056,8 +2056,9 @@ It limits request heads and WebSocket frames to 64 KiB, hook messages to
 16 KiB after Frida parses them, and parent MOZ_LOG input to 64 MiB across
 64 files.
 
-Cleanup attempts collect local peers within five seconds and the native
-worker within 200 seconds. Blocking native calls can outlive that wait.
+Cleanup waits up to 200 seconds for the native worker and normal teardown.
+After timeout or interruption, it separately attempts to collect local peers
+within five seconds. Blocking native calls can outlive those waits.
 Failed or interrupted runs retire local peers separately and retain unfinished
 cleanup for collection through the reported owner. Healthy runs detach hooks
 and close the browser before retiring origins. Serving, hook, lookup and
