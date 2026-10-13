@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextlib
+import json
 import os
 import shlex
 import shutil
@@ -32,6 +33,7 @@ from .android_device import (
 from .android_device import (
     ENTRIES as ANDROID_ENTRIES,
 )
+from .browser_failures import raise_browser_failures
 
 DESKTOP_CHROMIUM_BROWSERS = ("chrome", "edge", "brave", "opera")
 # Android Chromium browsers take the same switches through a command-line file.
@@ -263,6 +265,8 @@ class LaunchPlan:
     # Host TCP ports the device reaches on its own 127.0.0.1 through
     # `adb reverse`, besides those the URL and switches name.
     android_reverse_ports: tuple[int, ...] = ()
+    # Allow this launch on an emulator without a marked snapshot.
+    android_allow_cold_boot: bool = False
 
     @property
     def launch_mode(self) -> str:
@@ -301,6 +305,15 @@ class LaunchPlan:
         )
 
 
+def _remove_launch_profile(profile: Path) -> None:
+    try:
+        shutil.rmtree(profile)
+    except FileNotFoundError as error:
+        # Only the absent root is already clean; a failed descendant is reported.
+        if error.filename != os.fspath(profile):
+            raise
+
+
 class LaunchedBrowser:
     """One browser process on a fresh profile, removed with its process tree.
 
@@ -318,6 +331,8 @@ class LaunchedBrowser:
         self.profile: Path | None = None
         self.process: subprocess.Popen[bytes] | None = None
         self.session: AndroidSession | None = None
+        self._exit_future: asyncio.Future[None] | None = None
+        self._exit_observed = False
 
     def android_launch(self) -> AndroidLaunch:
         if self.plan.profile_files:
@@ -339,17 +354,19 @@ class LaunchedBrowser:
             preferences,
             entry=self.plan.android_entry,
             allow_physical_device=self.plan.android_allow_physical_device,
+            allow_cold_boot=self.plan.android_allow_cold_boot,
             reverse=self.plan.android_reverse_ports,
         )
 
     def __enter__(self) -> LaunchedBrowser:
         if self.plan.android:
             assert self.plan.executable is not None
-            session = AndroidSession(
+            self.session = AndroidSession(
                 AdbDevice(self.plan.executable), self.android_launch()
             )
-            self.session = session.__enter__()
+            self.session.__enter__()
             return self
+
         self.profile = Path(tempfile.mkdtemp(prefix="phantom-capture-profile-"))
         try:
             if self.plan.browser == "firefox":
@@ -359,13 +376,14 @@ class LaunchedBrowser:
                         wait_for_firefox_start(self.profile, self.process)
             else:
                 self.process = self._start(self.profile)
-        except BaseException:
-            if self.process is not None:
-                terminate_process_tree(self.process)
+        except BaseException as primary:
+            cleanup = self._cleanup()
+            if not cleanup:
                 self.process = None
-            shutil.rmtree(self.profile, ignore_errors=True)
-            self.profile = None
-            raise
+                self.profile = None
+
+            raise_browser_failures(primary, cleanup)
+
         return self
 
     def _start(self, profile: Path) -> subprocess.Popen[bytes]:
@@ -395,19 +413,47 @@ class LaunchedBrowser:
             **options,
         )
 
-    def __exit__(self, *_: object) -> None:
+    def __exit__(self, *details: object) -> None:
+        primary = details[1] if len(details) > 1 else None
         if self.session is not None:
-            self.session.__exit__()
+            self.session.__exit__(*details)
             self.session = None
             return
-        try:
-            if self.process is not None:
+
+        cleanup = self._cleanup()
+        if cleanup:
+            raise_browser_failures(primary, cleanup)
+
+    def _cleanup(self) -> tuple[BaseException, ...]:
+        failures = []
+        if self.process is not None:
+            try:
                 terminate_process_tree(self.process)
-            if self.profile is not None:
+            except BaseException as error:
+                failures.append(error)
+
+        if self.profile is not None:
+            try:
                 terminate_profile_processes(self.profile)
-        finally:
-            if self.profile is not None:
-                shutil.rmtree(self.profile, ignore_errors=True)
+            except BaseException as error:
+                failures.append(error)
+
+            try:
+                _remove_launch_profile(self.profile)
+            except BaseException as error:
+                failures.append(error)
+
+        return tuple(failures)
+
+
+class BrowserExitSubmissionFailure(Exception):
+    """Retain an acquired browser when its cleanup worker cannot start."""
+
+    def __init__(self, browser: LaunchedBrowser, error: BaseException) -> None:
+        self.browser = browser
+        self.submission_error = error
+        self.__cause__ = error
+        super().__init__("browser cleanup worker could not start")
 
 
 class BrowserDriver:
@@ -427,19 +473,76 @@ class BrowserDriver:
 
     async def __aexit__(self, *details: object) -> None:
         if self.browser is not None:
-            self.browser.__exit__(*details)
+            await exit_browser(self.browser, *details)
+
+
+def _browser_exit_future(
+    browser: LaunchedBrowser, *details: object
+) -> asyncio.Future[None]:
+    future = browser._exit_future
+    if future is None or (
+        future.done() and not future.cancelled() and future.exception() is not None
+    ):
+        loop = asyncio.get_running_loop()
+        future = loop.run_in_executor(None, browser.__exit__, *details)
+        browser._exit_future = future
+        browser._exit_observed = False
+
+    return future
+
+
+def _observe_abandoned_browser(
+    future: asyncio.Future, cancellation: asyncio.CancelledError, message: str
+) -> None:
+    def observe(completed: asyncio.Future) -> None:
+        try:
+            failure = completed.exception()
+        except asyncio.CancelledError as error:
+            failure = error
+
+        if failure is not None:
+            completed.get_loop().call_exception_handler(
+                {
+                    "message": message,
+                    "exception": failure,
+                    "future": completed,
+                    "cancellation": cancellation,
+                }
+            )
+
+    future.add_done_callback(observe)
+
+
+def _observe_browser_exit(
+    browser: LaunchedBrowser,
+    future: asyncio.Future[None],
+    cancellation: asyncio.CancelledError,
+) -> None:
+    if not browser._exit_observed:
+        browser._exit_observed = True
+        _observe_abandoned_browser(
+            future, cancellation, "abandoned browser exit failed"
+        )
+
+
+async def exit_browser(browser: LaunchedBrowser, *details: object) -> None:
+    """Finish blocking cleanup in one owned worker, even after cancellation."""
+    future = _browser_exit_future(browser, *details)
+    try:
+        await asyncio.shield(future)
+    except asyncio.CancelledError as cancellation:
+        _observe_browser_exit(browser, future, cancellation)
+        raise
 
 
 async def enter_browser(browser: LaunchedBrowser) -> LaunchedBrowser:
     """Launch `browser` from a coroutine without stalling its event loop.
 
-    A launch that takes turns can wait many seconds for the launch lock and
-    for Firefox to start. That wait runs in a worker thread, so the tool's
-    loopback server keeps answering, including the page Firefox requests
-    before its start checkpoint is written. Other launches only spawn a
-    process and stay on the loop, as before.
+    Android commands and Firefox's launch-lock wait run in a worker thread.
+    The loopback server keeps answering while either launch waits. Other
+    desktop launches only spawn a process and stay on the loop.
     """
-    if not browser.plan.takes_turns:
+    if not (browser.plan.android or browser.plan.takes_turns):
         return browser.__enter__()
     guard = threading.Lock()
     state = {"entered": False, "abandoned": False}
@@ -453,17 +556,28 @@ async def enter_browser(browser: LaunchedBrowser) -> LaunchedBrowser:
             browser.__exit__(None, None, None)
         return browser
 
-    future = asyncio.get_running_loop().run_in_executor(None, enter)
+    loop = asyncio.get_running_loop()
+    future = loop.run_in_executor(None, enter)
     try:
         return await asyncio.shield(future)
-    except asyncio.CancelledError:
+    except asyncio.CancelledError as primary:
         # The launch finishes in its thread; whichever side sees it last
         # removes the browser.
         with guard:
             state["abandoned"] = True
             entered = state["entered"]
         if entered:
-            browser.__exit__(None, None, None)
+            try:
+                cleanup = _browser_exit_future(browser, None, None, None)
+            except BaseException as error:
+                failure = BrowserExitSubmissionFailure(browser, error)
+                raise_browser_failures(primary, (failure,))
+
+            _observe_browser_exit(browser, cleanup, primary)
+        else:
+            _observe_abandoned_browser(
+                future, primary, "abandoned browser launch failed"
+            )
         raise
 
 
@@ -576,27 +690,58 @@ def terminate_profile_processes(profile: Path) -> None:
     if sys.platform != "win32":
         listing = subprocess.run(
             ["ps", "-axww", "-o", "pid=,command="],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            check=False,
+            capture_output=True,
+            check=True,
             timeout=60,
         ).stdout.decode(errors="replace")
         for pid in profile_process_ids(listing, profile, own_pid=os.getpid()):
             with contextlib.suppress(ProcessLookupError):
                 os.kill(pid, signal.SIGKILL)
         return
-    # The profile path is a mkdtemp name without quotes, so it is safe to embed.
+    # Keep the path out of PowerShell source and its own command line. Matching
+    # the discovered data also avoids quoting a temp ancestor's apostrophe.
+    listing = subprocess.run(
+        [
+            "powershell",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "$ErrorActionPreference = 'Stop'; "
+            "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); "
+            "[pscustomobject]@{ Supervisor = $PID; Processes = @("
+            "Get-CimInstance Win32_Process | Select-Object ProcessId, CommandLine"
+            ") } | ConvertTo-Json -Depth 3 -Compress",
+        ],
+        capture_output=True,
+        check=True,
+        timeout=60,
+    )
+    document = json.loads(listing.stdout)
+    excluded = {os.getpid(), document["Supervisor"]}
+    ids = [
+        process["ProcessId"]
+        for process in document["Processes"]
+        if type(process["ProcessId"]) is int
+        and process["ProcessId"] > 0
+        and process["ProcessId"] not in excluded
+        and isinstance(process["CommandLine"], str)
+        and command_names_profile(process["CommandLine"], profile, windows=True)
+    ]
+    if not ids:
+        return
+    # Only OS-provided positive integer PIDs enter this fixed command.
     script = (
-        "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and "
-        f"$_.CommandLine.Contains('{profile}') }} | "
-        "ForEach-Object { Stop-Process -Id $_.ProcessId -Force "
-        "-ErrorAction SilentlyContinue }"
+        "$ErrorActionPreference = 'Stop'; foreach ($capturePid in @("
+        + ",".join(str(pid) for pid in ids)
+        + ")) { try { Stop-Process -Id $capturePid -Force -ErrorAction Stop } "
+        "catch { if (Get-Process -Id $capturePid -ErrorAction SilentlyContinue) "
+        "{ throw } } }; exit 0"
     )
     subprocess.run(
         ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
-        check=False,
+        check=True,
         timeout=60,
     )
 
@@ -608,19 +753,62 @@ def profile_process_ids(listing: str, profile: Path, *, own_pid: int) -> list[in
     browser the person started. The profile is matched as a whole path
     component, so `.../profile-x` does not match `.../profile-xy`.
     """
-    text = str(profile).rstrip("/")
     ids = []
     for line in listing.splitlines():
         pid_text, _, command = line.strip().partition(" ")
         if not pid_text.isdigit() or int(pid_text) == own_pid:
             continue
-        start = command.find(text)
-        while start != -1:
-            end = start + len(text)
-            if end == len(command) or not (
-                command[end].isalnum() or command[end] in "-_."
-            ):
-                ids.append(int(pid_text))
-                break
-            start = command.find(text, end)
+        if command_names_profile(command, profile):
+            ids.append(int(pid_text))
     return ids
+
+
+def command_names_profile(
+    command: str, profile: Path, *, windows: bool = False
+) -> bool:
+    """Match an exact path or descendant, at a command argument boundary."""
+    text = str(profile).rstrip("/\\" if windows else "/")
+    if not text or not command:
+        return False
+    if windows:
+        text = text.replace("/", "\\").lower()
+        for argument in _windows_arguments(command):
+            if argument.startswith(("-", "/")) and "=" in argument:
+                argument = argument.split("=", 1)[1]
+            path = argument.replace("/", "\\").lower().rstrip("\\")
+            if path == text or path.startswith(text + "\\"):
+                return True
+        return False
+    start = command.find(text)
+    while start != -1:
+        end = start + len(text)
+        before = start == 0 or command[start - 1] in "=\"' \t\r\n"
+        after = end == len(command) or command[end] in "/\"' \t\r\n"
+        if before and after:
+            return True
+        start = command.find(text, start + 1)
+    return False
+
+
+def _windows_arguments(command: str) -> list[str]:
+    """Decode Windows argument quotes before comparing filesystem paths."""
+    import ctypes
+    from ctypes import wintypes
+
+    shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+    shell32.CommandLineToArgvW.argtypes = (
+        wintypes.LPCWSTR,
+        ctypes.POINTER(ctypes.c_int),
+    )
+    shell32.CommandLineToArgvW.restype = ctypes.POINTER(wintypes.LPWSTR)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.LocalFree.argtypes = (wintypes.HANDLE,)
+    kernel32.LocalFree.restype = wintypes.HANDLE
+    count = ctypes.c_int()
+    arguments = shell32.CommandLineToArgvW(command, ctypes.byref(count))
+    if not arguments:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        return [arguments[index] for index in range(count.value)]
+    finally:
+        kernel32.LocalFree(ctypes.cast(arguments, ctypes.c_void_p))

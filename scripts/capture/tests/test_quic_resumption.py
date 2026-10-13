@@ -2,12 +2,14 @@ import asyncio
 import ssl
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from aioquic.asyncio import QuicConnectionProtocol
 from aioquic.h3.connection import H3_ALPN, H3Connection
 from aioquic.h3.events import DataReceived, HeadersReceived
 from aioquic.quic.configuration import QuicConfiguration
 
+from scripts.capture import quic_resumption
 from scripts.capture.http2_session import HOSTNAME, generate_certificate
 from scripts.capture.quic_resumption import (
     EARLY_DATA,
@@ -16,6 +18,7 @@ from scripts.capture.quic_resumption import (
     SCENARIOS,
     ClientHelloShape,
     RunResult,
+    capture_run,
     chromium_extra_arguments,
     compare_shapes,
     count_packets,
@@ -150,6 +153,10 @@ class LaunchTests(unittest.TestCase):
         self.assertIn(f"--origin-to-force-quic-on={HOSTNAME}:4433", arguments)
         self.assertIn("--ignore-certificate-errors-spki-list=spki", arguments)
         self.assertIn("--disable-field-trial-config", arguments)
+        self.assertIn(
+            f"--host-resolver-rules=MAP {HOSTNAME} 127.0.0.1, MAP * ~NOTFOUND",
+            arguments,
+        )
         self.assertNotIn(
             "--disable-field-trial-config",
             chromium_extra_arguments(
@@ -157,28 +164,81 @@ class LaunchTests(unittest.TestCase):
             ),
         )
 
+        for host in ("::1", "0:0:0:0:0:0:0:1"):
+            with self.subTest(host=host):
+                self.assertIn(
+                    f"--host-resolver-rules=MAP {HOSTNAME} [::1], MAP * ~NOTFOUND",
+                    chromium_extra_arguments(
+                        host, 4433, "spki", field_trial_config=False
+                    ),
+                )
+
     def test_firefox_maps_the_origin_to_h3_and_trusts_the_test_root(self) -> None:
-        plan = launch_plan(
-            "firefox",
-            Path("firefox.exe"),
-            headless=True,
-            listen_host="127.0.0.1",
-            port=4433,
-            certificate=generate_certificate(),
-            field_trial_config=False,
-        )
-        preferences = dict(plan.firefox_preferences)
-        self.assertEqual(
-            preferences["network.http.http3.alt-svc-mapping-for-testing"],
-            f"{HOSTNAME};h3=:4433",
-        )
-        self.assertIs(
-            preferences["network.http.http3.disable_when_third_party_roots_found"],
-            False,
-        )
-        self.assertEqual(
-            [name for name, _ in plan.profile_files], ["cert_override.txt"]
-        )
+        certificate = generate_certificate()
+        for host, ipv6 in (("127.0.0.1", False), ("::1", True)):
+            with self.subTest(host=host):
+                plan = launch_plan(
+                    "firefox",
+                    Path("firefox.exe"),
+                    headless=True,
+                    listen_host=host,
+                    port=4433,
+                    certificate=certificate,
+                    field_trial_config=False,
+                )
+                preferences = dict(plan.firefox_preferences)
+                self.assertEqual(preferences["network.dns.localDomains"], HOSTNAME)
+                self.assertIs(preferences["network.dns.disableIPv6"], not ipv6)
+                self.assertIs(preferences["network.dns.preferIPv6"], ipv6)
+                self.assertIs(preferences["network.http.http3.enable"], True)
+                self.assertEqual(
+                    preferences["network.http.http3.alt-svc-mapping-for-testing"],
+                    f"{HOSTNAME};h3=:4433",
+                )
+                self.assertIs(
+                    preferences[
+                        "network.http.http3.disable_when_third_party_roots_found"
+                    ],
+                    False,
+                )
+                self.assertEqual(
+                    [name for name, _ in plan.profile_files], ["cert_override.txt"]
+                )
+
+    def test_firefox_unmapped_bind_fails_before_capture_acquisition(self) -> None:
+        certificate = generate_certificate()
+        for host in ("127.0.0.2", "0:0:0:0:0:0:0:1"):
+            with self.subTest(host=host):
+                with self.assertRaisesRegex(ValueError, "hostname mapping"):
+                    launch_plan(
+                        "firefox",
+                        None,
+                        headless=True,
+                        listen_host=host,
+                        port=4433,
+                        certificate=certificate,
+                        field_trial_config=False,
+                    )
+                with (
+                    mock.patch.object(
+                        quic_resumption, "generate_certificate"
+                    ) as acquire,
+                    mock.patch.object(quic_resumption, "serving") as listen,
+                    self.assertRaisesRegex(ValueError, "hostname mapping"),
+                ):
+                    asyncio.run(
+                        capture_run(
+                            SCENARIOS["accept"],
+                            browser="firefox",
+                            executable=None,
+                            headless=True,
+                            listen_host=host,
+                            timeout=1,
+                            field_trial_config=False,
+                        )
+                    )
+                acquire.assert_not_called()
+                listen.assert_not_called()
 
 
 class Client(QuicConnectionProtocol):

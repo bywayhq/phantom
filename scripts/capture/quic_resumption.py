@@ -739,12 +739,14 @@ def chromium_extra_arguments(
     field_trial_config: bool,
     netlog: Path | None = None,
 ) -> tuple[str, ...]:
+    address = ipaddress.ip_address(listen_host)
+    mapped_host = f"[{address}]" if address.version == 6 else str(address)
     arguments = (
         "--enable-quic",
         f"--origin-to-force-quic-on={HOSTNAME}:{port}",
         # Every other name fails to resolve, so background traffic never
         # leaves the machine or opens another QUIC session.
-        f"--host-resolver-rules=MAP {HOSTNAME} {listen_host}, MAP * ~NOTFOUND",
+        f"--host-resolver-rules=MAP {HOSTNAME} {mapped_host}, MAP * ~NOTFOUND",
         f"--ignore-certificate-errors-spki-list={spki}",
     )
     if not field_trial_config:
@@ -790,13 +792,18 @@ def launch_plan(
             ),
         )
     if browser == "firefox":
+        if listen_host not in ("127.0.0.1", "::1"):
+            raise ValueError("Firefox hostname mapping requires 127.0.0.1 or ::1")
+
+        ipv6 = listen_host == "::1"
         return LaunchPlan(
             "firefox",
             executable,
             headless,
             firefox_preferences=(
                 ("network.dns.localDomains", HOSTNAME),
-                ("network.dns.disableIPv6", True),
+                ("network.dns.disableIPv6", not ipv6),
+                ("network.dns.preferIPv6", ipv6),
                 ("network.http.http3.enable", True),
                 # The overridden test certificate counts as a third-party
                 # root, which otherwise makes Firefox close HTTP/3 after
@@ -872,6 +879,9 @@ async def capture_run(
     netlog: Path | None = None,
     android_entry: str = "typed",
 ) -> RunResult:
+    if browser == "firefox" and listen_host not in ("127.0.0.1", "::1"):
+        raise ValueError("Firefox hostname mapping requires 127.0.0.1 or ::1")
+
     certificate = generate_certificate(HOSTNAME)
     async with serving(scenario, listen_host, certificate) as (run, port):
         plan = with_android_entry(

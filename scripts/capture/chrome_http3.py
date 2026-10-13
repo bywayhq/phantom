@@ -50,6 +50,8 @@ from .reserved_ports import open_past_reserved_ports
 
 SUPPORTED_AIOQUIC = "1.3.0"
 MAX_STREAM_CAPTURE = 256 * 1024
+MAX_CAPTURE_STREAMS = 128
+MAX_CAPTURE_STREAM_BYTES = 1024 * 1024
 # `--launch-arguments` may write the listening port as this placeholder; the
 # fixture records the port the server bound.
 PORT_PLACEHOLDER = "<port>"
@@ -90,10 +92,28 @@ class Capture:
             raise RuntimeError("HTTP/3 capture failed") from self.failure
 
     def stream_data(self, event: StreamDataReceived) -> None:
-        data = self.streams.setdefault(event.stream_id, bytearray())
-        if len(data) + len(event.data) > MAX_STREAM_CAPTURE:
+        if self.failure is not None or self.complete.is_set():
+            return
+
+        data = self.streams.get(event.stream_id)
+        if data is None and len(self.streams) >= MAX_CAPTURE_STREAMS:
+            raise ValueError("stream count exceeds the capture limit")
+
+        retained_bytes = len(data) if data is not None else 0
+        if retained_bytes + len(event.data) > MAX_STREAM_CAPTURE:
             raise ValueError(f"stream {event.stream_id} exceeds the capture limit")
+
+        if (
+            sum(map(len, self.streams.values())) + len(event.data)
+            > MAX_CAPTURE_STREAM_BYTES
+        ):
+            raise ValueError("stream bytes exceed the capture limit")
+
+        if data is None:
+            data = bytearray()
+            self.streams[event.stream_id] = data
         data.extend(event.data)
+
         raw = bytes(data)
         if event.stream_id % 4 == 2 and self.settings_frame is None:
             frame = first_frame(raw, has_stream_type=True)
@@ -425,7 +445,31 @@ def patch_transport_parameter_capture() -> None:
     QuicConnection._parse_transport_parameters = capture
 
 
+class _CaptureCleanupError(RuntimeError):
+    def __init__(
+        self,
+        server_error: BaseException | None,
+        capture_error: BaseException | None,
+        primary: BaseException | None,
+    ) -> None:
+        self.server_error = server_error
+        self.capture_error = capture_error
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        failures = []
+        if server_error is not None:
+            failures.append(f"server close: {server_error}")
+        if capture_error is not None:
+            failures.append(f"packet capture clear: {capture_error}")
+        super().__init__("could not clean up HTTP/3 capture; " + "; ".join(failures))
+
+
 async def run(args: argparse.Namespace) -> CaptureResult:
+    """Capture one startup and close acquired resources on every exit.
+
+    An operation error or interruption stays primary if cleanup also fails. Its
+    cause retains the separate server-close and packet-clear failures.
+    """
     complete = asyncio.Event()
     packet_capture = (
         QuicPacketCapture()
@@ -441,23 +485,25 @@ async def run(args: argparse.Namespace) -> CaptureResult:
     configuration.load_cert_chain(args.certificate, args.private_key)
     if packet_capture is not None:
         configuration.secrets_log_file = packet_capture
-    server = await open_past_reserved_ports(
-        lambda host, port: serve(
-            host,
-            port,
-            configuration=configuration,
-            create_protocol=lambda *values, **kwargs: CaptureProtocol(
-                *values, capture=capture, **kwargs
-            ),
-        ),
-        str(ipaddress.ip_address(args.listen.rsplit(":", 1)[0])),
-        int(args.listen.rsplit(":", 1)[1]),
-    )
-    record_bound_port(args, server._transport.get_extra_info("sockname")[1])
-    # startup_capture.py launches the browser once it reads this line and
-    # takes the port from it.
-    print(f"listening on {args.listen}", file=sys.stderr, flush=True)
+    server = None
+    primary: BaseException | None = None
     try:
+        server = await open_past_reserved_ports(
+            lambda host, port: serve(
+                host,
+                port,
+                configuration=configuration,
+                create_protocol=lambda *values, **kwargs: CaptureProtocol(
+                    *values, capture=capture, **kwargs
+                ),
+            ),
+            str(ipaddress.ip_address(args.listen.rsplit(":", 1)[0])),
+            int(args.listen.rsplit(":", 1)[1]),
+        )
+        record_bound_port(args, server._transport.get_extra_info("sockname")[1])
+        # startup_capture.py launches the browser once it reads this line and
+        # takes the port from it.
+        print(f"listening on {args.listen}", file=sys.stderr, flush=True)
         await asyncio.wait_for(complete.wait(), timeout=args.timeout)
         capture.raise_if_failed()
         await asyncio.sleep(0.2)
@@ -470,10 +516,29 @@ async def run(args: argparse.Namespace) -> CaptureResult:
         capture.client_hello = analysis.client_hello
         packet_summary = analysis.summary if args.packet_summary is not None else None
         return CaptureResult(fixture, packet_summary, capture.client_hello_fixture())
+    except BaseException as error:
+        primary = error
+        raise
     finally:
-        server.close()
+        server_error = None
+        capture_error = None
+        if server is not None:
+            try:
+                server.close()
+            except BaseException as error:
+                server_error = error
+
         if packet_capture is not None:
-            packet_capture.clear()
+            try:
+                packet_capture.clear()
+            except BaseException as error:
+                capture_error = error
+
+        if server_error is not None or capture_error is not None:
+            failure = _CaptureCleanupError(server_error, capture_error, primary)
+            if primary is not None:
+                raise primary from failure
+            raise failure
 
 
 def write_packet_summary(path: Path, summary: PacketSummary) -> None:

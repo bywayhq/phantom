@@ -61,10 +61,11 @@ while IFS= read -r entry; do
 done <<<"$attributes"
 
 # Manifests may deny unsafe_code but never allow or warn on it.
+manifests=$(search -n -E '^[[:space:]]*unsafe_code[[:space:]]*=.*"(allow|warn)"' -- '*Cargo.toml' ':!vendor')
 while IFS= read -r match; do
   [[ -z $match ]] && continue
   fail "a manifest relaxes unsafe_code: $match"
-done < <(search -n -E '^[[:space:]]*unsafe_code[[:space:]]*=.*"(allow|warn)"' -- '*Cargo.toml' ':!vendor')
+done <<<"$manifests"
 
 if [[ $failures -gt 0 ]]; then
   echo "$failures unsafe code boundary check(s) failed" >&2

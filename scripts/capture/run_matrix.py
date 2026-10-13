@@ -15,10 +15,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -30,7 +32,11 @@ from pathlib import Path
 
 from .browser_launch import FIREFOX_START_LIMIT_SECONDS, LAUNCH_LOCK_DIRECTORY
 from .fixture_file import write_atomically
-from .process_container import ProcessContainer, popen_options, stop_processes_naming
+from .process_container import (
+    ProcessContainer,
+    ProcessContainerStopped,
+    stop_processes_naming,
+)
 
 # Shared by every runner on the host, so launches take turns across runners
 # too. Each job's TEMP points elsewhere, so the path is fixed here.
@@ -450,8 +456,12 @@ def expand_capture(
         isinstance(timeout, bool)
         or not isinstance(timeout, (int, float))
         or timeout <= 0
+        or timeout > sys.float_info.max
+        or not math.isfinite(timeout)
     ):
-        raise ManifestError(f"{where}.timeout must be a positive number of seconds")
+        raise ManifestError(
+            f"{where}.timeout must be a finite positive number of seconds"
+        )
     arguments = ("--operating-system", operating_system, *extra)
     jobs = []
     for name in names:
@@ -620,6 +630,7 @@ class Attempt:
     seconds: float
     detail: str = ""
     log: str = ""
+    failure: BaseException | None = field(default=None, repr=False, compare=False)
 
 
 @dataclass
@@ -685,10 +696,52 @@ def profile_path_problem(
     )
 
 
-def end_attempt(container: ProcessContainer, temporary: Path) -> None:
-    container.close()
+class CleanupError(RuntimeError):
+    """Keep every failed cleanup operation and its original exception."""
+
+    def __init__(
+        self,
+        failures: Sequence[tuple[str, BaseException]],
+        *,
+        primary: BaseException | None = None,
+    ) -> None:
+        self.failures = tuple(failures)
+        self.primary = primary
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        super().__init__(
+            "capture cleanup failed: "
+            + "; ".join(f"{operation}: {error}" for operation, error in failures)
+        )
+
+
+def _raise_cleanup_failures(failures: Sequence[tuple[str, BaseException]]) -> None:
+    if not failures:
+        return
+    interruption = next(
+        (error for _operation, error in failures if not isinstance(error, Exception)),
+        None,
+    )
+    failure = CleanupError(failures, primary=interruption)
+    if interruption is not None:
+        raise interruption from failure
+    raise failure from failures[0][1]
+
+
+def end_attempt(container: ProcessContainer | None, temporary: Path) -> None:
+    failures = []
+    if container is not None:
+        try:
+            container.close()
+        except BaseException as error:
+            failures.append(("close process container", error))
+
     # A browser outside the container still names the attempt's directory.
-    stop_processes_naming(temporary)
+    try:
+        stop_processes_naming(temporary)
+    except BaseException as error:
+        failures.append(("sweep profile processes", error))
+    _raise_cleanup_failures(failures)
 
 
 class Attempts:
@@ -696,7 +749,7 @@ class Attempts:
 
     def __init__(self) -> None:
         self.lock = threading.Lock()
-        self.running: dict[str, tuple[ProcessContainer, Path]] = {}
+        self.running: dict[str, tuple[ProcessContainer | None, Path]] = {}
         self.stopped = threading.Event()
 
     def add(self, name: str, container: ProcessContainer, temporary: Path) -> bool:
@@ -711,13 +764,27 @@ class Attempts:
         with self.lock:
             self.running.pop(name, None)
 
+    def retain(
+        self, name: str, container: ProcessContainer | None, temporary: Path
+    ) -> None:
+        """Keep failed cleanup owned even when batch cancellation has begun."""
+        with self.lock:
+            self.running[name] = (container, temporary)
+
     def stop(self) -> None:
         """Start no more attempts and end every running attempt's processes."""
         with self.lock:
             self.stopped.set()
-            running = list(self.running.values())
-        for container, temporary in running:
-            end_attempt(container, temporary)
+            running = list(self.running.items())
+        failures = []
+        for name, (container, temporary) in running:
+            try:
+                end_attempt(container, temporary)
+            except BaseException as error:
+                failures.append((name, error))
+            else:
+                self.remove(name)
+        _raise_cleanup_failures(failures)
 
 
 def attempt_timeout(job: Job, *, shared_host: bool, limit: int) -> float:
@@ -767,37 +834,63 @@ def run_attempt(
     begin = time.perf_counter()
     detail = ""
     with log.open("wb") as output:
-        process = subprocess.Popen(
-            job.command(sys.executable, netlog),
-            stdin=subprocess.DEVNULL,
-            stdout=output,
-            stderr=subprocess.STDOUT,
-            env=environment,
-            **popen_options(),
-        )
-        container = ProcessContainer(process)
-        if not attempts.add(name, container, temporary):
-            end_attempt(container, temporary)
+        container = None
+        failure = None
         try:
-            code = process.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
+            try:
+                container = ProcessContainer(
+                    job.command(sys.executable, netlog),
+                    stdout=output,
+                    stderr=subprocess.STDOUT,
+                    env=environment,
+                )
+            except BaseException as error:
+                # Construction can fail after acquiring the native owner.
+                container = getattr(error, "container", None)
+                raise
+            if attempts.add(name, container, temporary):
+                container.start()
+            else:
+                end_attempt(container, temporary)
+            code = container.wait(timeout=timeout)
+        except subprocess.TimeoutExpired as error:
+            failure = error
             code = None
             detail = f"timed out after {timeout:g}s"
+        except ProcessContainerStopped as error:
+            failure = error
+            code = None
+            detail = "stopped"
+        except BaseException as error:
+            failure = error
+            raise
         finally:
-            attempts.remove(name)
-            end_attempt(container, temporary)
+            try:
+                end_attempt(container, temporary)
+            except BaseException as cleanup:
+                attempts.retain(name, container, temporary)
+                if failure is not None:
+                    _raise_cleanup_failures(
+                        (("run attempt", failure), ("end attempt", cleanup))
+                    )
+                raise
+            else:
+                attempts.remove(name)
     seconds = time.perf_counter() - begin
     shutil.rmtree(temporary, ignore_errors=True)
-    if not container.contained:
-        with log.open("ab") as output:
-            output.write(b"run_matrix: Windows refused the job object\n")
     if code != 0 and attempts.stopped.is_set():
         detail = "stopped"
     elif code is not None and code != 0:
         detail = f"exit status {code}"
     if not detail:
         detail = output_problem(job, since=started) or ""
-    return Attempt(ok=not detail, seconds=seconds, detail=detail, log=str(log))
+    return Attempt(
+        ok=not detail,
+        seconds=seconds,
+        detail=detail,
+        log=str(log),
+        failure=failure,
+    )
 
 
 def run_with_retry(
@@ -845,9 +938,10 @@ def schedule(
 
     Jobs start in the given order: a job waits for a free slot, and an
     exclusive job also waits until nothing else runs and holds every slot.
-    Once `stopped` is set no job starts; Ctrl+C calls `on_interrupt`, which
-    should set it and end the running attempts. Jobs that never started are
-    reported as "not-run".
+    Once `stopped` is set no job starts; Ctrl+C or dispatch failure calls
+    `on_interrupt`, which should end the running attempts. A failed thread
+    start or progress report marks its job "failed". Other unstarted jobs
+    are "not-run".
     """
     if limit < 1:
         raise ValueError("the concurrency limit must be positive")
@@ -857,23 +951,56 @@ def schedule(
     exclusive_running = False
     results: dict[int, JobResult] = {}
     threads: list[threading.Thread] = []
+    start_failure: tuple[int, BaseException] | None = None
 
     def worker(index: int, job: Job) -> None:
         nonlocal running, exclusive_running
+        with condition:
+            # A start interrupted before identity publication can arrive late.
+            if index in results:
+                return
+            if stopped.is_set():
+                results[index] = JobResult(job, "not-run")
+                running -= 1
+                if job.exclusive:
+                    exclusive_running = False
+                condition.notify_all()
+                return
         try:
             result = run(job)
-        except Exception as error:  # noqa: BLE001 - reported as a failed job
-            result = JobResult(job, "failed", [Attempt(False, 0.0, repr(error))])
+        except BaseException as error:
+            result = JobResult(
+                job, "failed", [Attempt(False, 0.0, repr(error), failure=error)]
+            )
         with condition:
             results[index] = result
             running -= 1
             if job.exclusive:
                 exclusive_running = False
-            report(result)
             condition.notify_all()
+            try:
+                report(result)
+            except BaseException as error:
+                result.status = "failed"
+                detail = f"report failed: {error}"
+                if result.attempts:
+                    outcome = result.attempts[-1]
+                    outcome.ok = False
+                    outcome.failure = (
+                        CleanupError(
+                            (("run attempt", outcome.failure), ("report result", error))
+                        )
+                        if outcome.failure is not None
+                        else error
+                    )
+                    outcome.detail = (
+                        f"{outcome.detail}; {detail}" if outcome.detail else detail
+                    )
+                else:
+                    result.attempts.append(Attempt(False, 0.0, detail, failure=error))
 
     def dispatch() -> None:
-        nonlocal running, exclusive_running
+        nonlocal running, exclusive_running, start_failure
         for index, job in enumerate(jobs):
             with condition:
                 # Short waits keep Ctrl+C deliverable on Windows.
@@ -890,21 +1017,106 @@ def schedule(
             thread = threading.Thread(target=worker, args=(index, job), daemon=True)
             # Listed first, so a Ctrl+C right after the start still joins it.
             threads.append(thread)
-            thread.start()
+            try:
+                thread.start()
+            except BaseException as error:
+                if thread.ident is None and not isinstance(error, KeyboardInterrupt):
+                    start_failure = (index, error)
+                    with condition:
+                        results[index] = JobResult(
+                            job,
+                            "failed",
+                            [Attempt(False, 0.0, repr(error), failure=error)],
+                        )
+                        running -= 1
+                        exclusive_running = False
+                        condition.notify_all()
+                raise
 
     def join() -> None:
-        # Dispatch has ended, so a thread not started yet never will be; its
-        # job is reported as not run.
+        # Join only observed started threads. An interrupted start can still
+        # enter worker later, where stopped admission prevents a new attempt.
         for thread in threads:
             while thread.ident is not None and thread.is_alive():
                 thread.join(0.2)
 
+    cleanup_error = None
+    interrupted_indices = []
     try:
         dispatch()
         join()
-    except KeyboardInterrupt:
-        on_interrupt()
-        join()
+    except BaseException as dispatch_error:
+        # Cancellation is established. Another Ctrl+C must not interrupt the
+        # bounded owner cleanup or leave workers running outside its result.
+        previous_handler = None
+        if threading.current_thread() is threading.main_thread():
+            previous_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+        try:
+            stopped.set()
+            with condition:
+                interrupted_indices = [
+                    index
+                    for index, thread in enumerate(threads)
+                    if thread.ident is not None and index not in results
+                ]
+            try:
+                on_interrupt()
+            except BaseException as error:
+                cleanup_error = error
+            finally:
+                join()
+        finally:
+            if previous_handler is not None:
+                signal.signal(signal.SIGINT, previous_handler)
+        if not isinstance(dispatch_error, KeyboardInterrupt) and (
+            start_failure is None or dispatch_error is not start_failure[1]
+        ):
+            if cleanup_error is not None:
+                _raise_cleanup_failures(
+                    (
+                        ("dispatch capture jobs", dispatch_error),
+                        ("stop capture jobs", cleanup_error),
+                    )
+                )
+            raise
+
+    if cleanup_error is not None:
+        failures = dict.fromkeys(interrupted_indices, cleanup_error)
+        if start_failure is not None:
+            # An unattributed callback failure still needs an outcome when
+            # no worker was running at the failed start.
+            failures[start_failure[0]] = cleanup_error
+        if isinstance(cleanup_error, CleanupError):
+            named_failures = {}
+            matched_names = set()
+            for index in interrupted_indices:
+                owner = slug(jobs[index].id)
+                for name, error in cleanup_error.failures:
+                    if name.rpartition(".")[0] == owner:
+                        named_failures[index] = error
+                        matched_names.add(name)
+            # Unknown callback failures cannot be attributed to one owner.
+            if matched_names == {name for name, _error in cleanup_error.failures}:
+                failures = named_failures
+        for index, error in failures.items():
+            result = results[index]
+            result.status = "failed"
+            detail = f"cleanup failed: {error}"
+            if result.attempts:
+                outcome = result.attempts[-1]
+                outcome.ok = False
+                outcome.failure = (
+                    CleanupError(
+                        (("run attempt", outcome.failure), ("interrupt cleanup", error))
+                    )
+                    if outcome.failure is not None
+                    else error
+                )
+                outcome.detail = (
+                    f"{outcome.detail}; {detail}" if outcome.detail else detail
+                )
+            else:
+                result.attempts.append(Attempt(False, 0.0, detail, failure=error))
     return [
         results.get(index, JobResult(job, "not-run")) for index, job in enumerate(jobs)
     ]
@@ -1052,6 +1264,11 @@ def run_manifest(
         stopped=attempts.stopped,
         on_interrupt=attempts.stop,
     )
+    # A worker can publish success before interrupt cleanup marks it failed.
+    # An uncertain shutdown must not leave a resumable completion record.
+    for result in ran:
+        if result.status == "failed":
+            records.forget(result.job)
     wall = time.perf_counter() - begin
     by_id = {result.job.id: result for result in [*skipped, *ran]}
     return [by_id[job.id] for job in jobs], wall
@@ -1101,9 +1318,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         "phantom-run-matrix-" + args.manifest.stem
     )
     work_dir = work_dir.resolve()
-    if "'" in str(work_dir):
-        # Stopping a hung attempt names this path in a PowerShell string.
-        parser.error("the work directory path cannot contain a single quote")
     problem = profile_path_problem(jobs, work_dir, args.retries + 1, sys.platform)
     if problem is not None:
         parser.error(problem)

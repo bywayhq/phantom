@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import math
 import os
 import platform
 import re
@@ -26,20 +27,22 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import threading
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import BinaryIO
 
+from .browser_failures import raise_browser_failures
 from .browser_launch import (
     CLIENT_NAMES,
     DESKTOP_CHROMIUM_BROWSERS,
     host_chromium_flags,
-    terminate_process_tree,
     terminate_profile_processes,
 )
 from .browser_remote import navigate_page
 from .fixture_file import write_atomically
+from .process_container import ProcessCleanupError, ProcessContainer
 
 HOSTNAME = "server.phantom.test"
 LAYERS = ("tls", "http2", "http3")
@@ -62,6 +65,11 @@ SPKI_PLACEHOLDER = "<certificate-spki>"
 EXAMPLES = {"tls": "capture_client_hello", "http2": "capture_http2_tls"}
 # The line a capture listener writes to standard error once it has bound.
 LISTENING_LINE = re.compile(rb"^listening on [^\n]*\n", re.MULTILINE)
+# These are command guardrails, not measured browser maxima. The TCP examples
+# already bound their raw input; leave room for its hexadecimal fixture text.
+MAX_CAPTURE_OUTPUT = 1024 * 1024
+MAX_CAPTURE_DIAGNOSTICS = 64 * 1024
+POLL_SECONDS = 0.02
 
 
 def launch_arguments(
@@ -133,7 +141,7 @@ class Browser:
         self.executable = executable
         self.arguments = list(arguments)
         self.profile = Path(tempfile.mkdtemp(prefix="phantom-capture-profile-"))
-        self.process: subprocess.Popen[bytes] | None = None
+        self.process: ProcessContainer | None = None
 
     def start(self, url: str | None) -> None:
         arguments = [
@@ -142,22 +150,34 @@ class Browser:
         ]
         if url is not None:
             arguments.append(url)
-        # A new session gives terminate_process_tree a process group to end.
-        self.process = subprocess.Popen(
-            [str(self.executable), *arguments],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            **({} if sys.platform == "win32" else {"start_new_session": True}),
-        )
+        try:
+            self.process = ProcessContainer(
+                [str(self.executable), *arguments],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            if not self.process.start():
+                raise RuntimeError("startup browser stopped before launch")
+        except BaseException as error:
+            self.process = getattr(error, "container", self.process)
+            raise
 
     def stop(self) -> None:
+        failures = []
+        if self.process is not None:
+            try:
+                self.process.close()
+            except BaseException as error:
+                failures.append(error)
         try:
-            if self.process is not None:
-                terminate_process_tree(self.process)
             terminate_profile_processes(self.profile)
-        finally:
-            shutil.rmtree(self.profile, ignore_errors=True)
+        except BaseException as error:
+            failures.append(error)
+        try:
+            _remove_directory(self.profile)
+        except BaseException as error:
+            failures.append(error)
+        raise_browser_failures(None, tuple(failures))
 
 
 def open_page(browser: Browser, url: str, devtools: bool, settle: float) -> None:
@@ -169,13 +189,14 @@ def open_page(browser: Browser, url: str, devtools: bool, settle: float) -> None
 
 
 def tcp_run(args: argparse.Namespace, output: Path, timeout: float) -> bool:
+    _validate_bounds(args, timeout)
     devtools = args.navigate == "devtools"
     binary = args.capture_binary or Path(
         f"target/debug/examples/{EXAMPLES[args.layer]}.exe"
         if sys.platform == "win32"
         else f"target/debug/examples/{EXAMPLES[args.layer]}"
     )
-    listener = subprocess.Popen(
+    listener = CaptureListener(
         [
             str(binary),
             "127.0.0.1:0",
@@ -184,172 +205,373 @@ def tcp_run(args: argparse.Namespace, output: Path, timeout: float) -> bool:
             args.operating_system,
             launch_mode(devtools),
             recorded_arguments(args.layer, devtools=devtools),
-        ],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        ]
     )
-    listening = wait_until_listening(listener, args.server_start)
-    line = listening.line.decode(errors="replace")
-    match = re.search(r"listening on 127\.0\.0\.1:(\d+)", line)
-    if match is None:
-        listener.kill()
-        _, stderr = listener.communicate()
-        stderr = listening.stderr + stderr
-        print(f"listener did not start: {line.strip()}", file=sys.stderr)
-        print(stderr.decode(errors="replace").strip()[-2000:], file=sys.stderr)
-        return False
-    url = f"https://{HOSTNAME}:{match.group(1)}/"
-    browser = Browser(
-        args.browser_path,
-        launch_arguments(args.layer, "<profile>", devtools=devtools),
-    )
+    browser = None
+    primary = None
+    code = None
+    failed_run = False
     try:
-        open_page(browser, url, devtools, args.settle)
-        stdout, stderr = listener.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        listener.kill()
-        stdout, stderr = listener.communicate()
-    finally:
-        browser.stop()
-    if listener.returncode != 0:
-        stderr = listening.stderr + stderr
-        print(stderr.decode(errors="replace").strip(), file=sys.stderr)
+        listener.start()
+        listening = wait_until_listening(listener, args.server_start)
+        match = re.search(rb"listening on 127\.0\.0\.1:(\d+)", listening.line)
+        if match is not None:
+            browser = Browser(
+                args.browser_path,
+                launch_arguments(args.layer, "<profile>", devtools=devtools),
+            )
+            open_page(
+                browser,
+                f"https://{HOSTNAME}:{int(match.group(1))}/",
+                devtools,
+                args.settle,
+            )
+            try:
+                code = listener.wait(timeout)
+            except subprocess.TimeoutExpired:
+                failed_run = True
+                raise
+        if code != 0:
+            primary = _capture_failure(listener)
+            failed_run = True
+    except BaseException as error:
+        primary = error
+
+    cleanup = _cleanup_run(browser, listener)
+    if failed_run and not cleanup:
+        print(str(primary), file=sys.stderr)
+        print(listener.stderr.decode(errors="replace").strip(), file=sys.stderr)
         return False
-    write_atomically(output, stdout.decode("ascii"), encoding="ascii")
+    raise_browser_failures(primary, cleanup)
+    write_atomically(output, listener.stdout.decode("ascii"), encoding="ascii")
     return True
 
 
 @dataclass(frozen=True)
 class Listening:
-    """What `wait_until_listening` saw on the server's standard error."""
+    """The listening line and diagnostics after it, or all diagnostics on failure."""
 
     reported: bool
-    # The listening line itself, or empty when there was none.
     line: bytes
-    # Bytes read past the listening line, or everything read when there was
-    # none. communicate() with a timeout reads the pipe's descriptor on POSIX,
-    # so it never returns these; put them in front of what it returns.
     stderr: bytes
 
 
-def wait_until_listening(server: subprocess.Popen[bytes], limit: float) -> Listening:
-    """Wait up to `limit` seconds for a capture listener to report its bind.
+class CaptureListener:
+    """One contained listener with bounded, file-backed output observation.
 
-    chrome_http3.py and the TLS and HTTP/2 capture examples each write a line
-    that starts with `listening on` to standard error once bound.
-
-    Returns early when the server exits without the line. A server that has
-    not reported by `limit` is killed. The reader reads the pipe's descriptor
-    without a buffer and has stopped before this returns, so every byte it
-    read is in the result and the rest is left for communicate().
+    Readers have separate open descriptions from the child writers. Polling a
+    regular file never waits for inherited pipe handles to close. close() stops
+    the process tree before the final snapshot and retains failed cleanup owners.
     """
-    assert server.stderr is not None
-    descriptor = server.stderr.fileno()
-    finished = threading.Event()
-    seen = bytearray()
-    reported: list[int] = []
 
-    def read() -> None:
+    def __init__(self, command: Sequence[str]) -> None:
+        self.command = list(command)
+        self.process: ProcessContainer | None = None
+        self.directory: Path | None = None
+        self.files: list[BinaryIO] = []
+        self.output_reader: BinaryIO | None = None
+        self.diagnostics_reader: BinaryIO | None = None
+        self.stdout = b""
+        self.stderr = b""
+        self.code: int | None = None
+        self.exit_failure: subprocess.CalledProcessError | None = None
+        self.output_error: BaseException | None = None
+        self.final_snapshot = False
+
+    def start(self) -> None:
+        self.directory = Path(tempfile.mkdtemp(prefix="phantom-startup-output-"))
+        output_path = self.directory / "fixture"
+        diagnostics_path = self.directory / "diagnostics"
+        output = output_path.open("wb", buffering=0)
+        self.files.append(output)
+        diagnostics = diagnostics_path.open("wb", buffering=0)
+        self.files.append(diagnostics)
+        self.output_reader = output_path.open("rb")
+        self.files.append(self.output_reader)
+        self.diagnostics_reader = diagnostics_path.open("rb")
+        self.files.append(self.diagnostics_reader)
         try:
-            while True:
-                chunk = os.read(descriptor, 4096)
-                if not chunk:
-                    return
-                seen.extend(chunk)
-                line = LISTENING_LINE.search(seen)
-                if line is not None:
-                    reported.extend(line.span())
-                    return
-        finally:
-            finished.set()
+            self.process = ProcessContainer(
+                self.command, stdout=output, stderr=diagnostics
+            )
+            if not self.process.start():
+                raise RuntimeError("startup listener stopped before launch")
+        except BaseException as error:
+            self.process = getattr(error, "container", self.process)
+            raise
 
-    reader = threading.Thread(target=read, daemon=True)
-    reader.start()
-    finished.wait(limit)
-    if not reported and server.poll() is None:
-        server.kill()
-    reader.join()
-    if reported:
-        start, end = reported
-        return Listening(True, bytes(seen[start:end]), bytes(seen[end:]))
-    return Listening(False, b"", bytes(seen))
+    def observe(self) -> None:
+        if self.output_error is not None:
+            raise self.output_error
+        try:
+            for reader, limit, field in (
+                (self.output_reader, MAX_CAPTURE_OUTPUT, "stdout"),
+                (self.diagnostics_reader, MAX_CAPTURE_DIAGNOSTICS, "stderr"),
+            ):
+                if reader is None:
+                    continue
+                reader.seek(0)
+                data = reader.read(limit + 1)
+                if len(data) > limit:
+                    raise ValueError(
+                        f"startup listener {field} exceeds the capture limit"
+                    )
+                setattr(self, field, data)
+        except BaseException as error:
+            if self.exit_failure is not None:
+                self.exit_failure.output = self.stdout
+                self.exit_failure.stderr = self.stderr
+            try:
+                raise_browser_failures(
+                    error, (self.exit_failure,) if self.exit_failure is not None else ()
+                )
+            except BaseException as outcome:
+                self.output_error = outcome
+                raise
+
+    def poll(self) -> int | None:
+        if self.process is None:
+            raise RuntimeError("startup listener has not started")
+
+        code = self.process.poll()
+        self.code = code
+        if code is not None and code != 0 and self.exit_failure is None:
+            self.exit_failure = subprocess.CalledProcessError(
+                code, self.command, output=self.stdout, stderr=self.stderr
+            )
+
+        self.observe()
+        if self.exit_failure is not None:
+            self.exit_failure.output = self.stdout
+            self.exit_failure.stderr = self.stderr
+        return code
+
+    def wait(self, timeout: float) -> int:
+        _positive_duration(timeout, "capture timeout")
+        deadline = time.monotonic() + timeout
+        if self.process is None:
+            raise RuntimeError("startup listener has not started")
+        while True:
+            code = self.poll()
+            if code is not None:
+                return code
+            if time.monotonic() >= deadline:
+                raise subprocess.TimeoutExpired(self.command, timeout)
+            time.sleep(min(POLL_SECONDS, max(0.0, deadline - time.monotonic())))
+
+    def close(self) -> None:
+        failures = []
+        stopped = True
+        if self.process is not None:
+            try:
+                self.process.close()
+            except BaseException as error:
+                failures.append(("close startup listener", error))
+                stopped = False
+        if (
+            stopped
+            and self.files
+            and self.output_error is None
+            and not self.final_snapshot
+        ):
+            try:
+                self.observe()
+            except BaseException as error:
+                failures.append(("read final startup output", error))
+            else:
+                self.final_snapshot = True
+        # A failed stop retains the files with the original process owner.
+        streams = self.files[:] if stopped else ()
+        for stream in streams:
+            try:
+                stream.close()
+            except BaseException as error:
+                failures.append(("close startup output file", error))
+            else:
+                self.files.remove(stream)
+            if stream.closed:
+                if self.output_reader is stream:
+                    self.output_reader = None
+                if self.diagnostics_reader is stream:
+                    self.diagnostics_reader = None
+        if stopped and not self.files and self.directory is not None:
+            try:
+                _remove_directory(self.directory)
+            except BaseException as error:
+                failures.append(("remove startup output directory", error))
+            else:
+                self.directory = None
+        if failures:
+            interruption = next(
+                (error for _, error in failures if not isinstance(error, Exception)),
+                None,
+            )
+            failure = ProcessCleanupError(
+                failures, container=self.process, primary=interruption
+            )
+            failure.listener = self
+            if interruption is not None:
+                raise interruption from failure
+            raise failure from failures[0][1]
+
+
+def wait_until_listening(server: CaptureListener, limit: float) -> Listening:
+    """Poll bounded diagnostics for the bind line, exit, or readiness deadline.
+
+    The caller retains the listener and must close it on every outcome, including
+    readiness failure. No background reader or pipe EOF is needed for shutdown.
+    """
+    _positive_duration(limit, "server start timeout")
+    if server.process is None:
+        raise RuntimeError("startup listener has not started")
+    deadline = time.monotonic() + limit
+    while True:
+        code = server.poll()
+        line = LISTENING_LINE.search(server.stderr)
+        if line is not None:
+            start, end = line.span()
+            return Listening(True, server.stderr[start:end], server.stderr[end:])
+        if code is not None or time.monotonic() >= deadline:
+            return Listening(False, b"", server.stderr)
+        time.sleep(min(POLL_SECONDS, max(0.0, deadline - time.monotonic())))
+
+
+def _remove_directory(directory: Path) -> None:
+    try:
+        shutil.rmtree(directory)
+    except FileNotFoundError as error:
+        if error.filename != os.fspath(directory):
+            raise
+
+
+def _capture_failure(listener: CaptureListener) -> BaseException:
+    if listener.exit_failure is not None:
+        return listener.exit_failure
+    return RuntimeError("startup listener did not report a valid bind")
+
+
+def _cleanup_run(
+    browser: Browser | None,
+    listener: CaptureListener | None,
+    material: Path | None = None,
+) -> tuple[BaseException, ...]:
+    failures = []
+    if browser is not None:
+        try:
+            browser.stop()
+        except BaseException as error:
+            failures.append(error)
+    if listener is not None:
+        try:
+            listener.close()
+        except BaseException as error:
+            failures.append(error)
+    if material is not None:
+        try:
+            _remove_directory(material)
+        except BaseException as error:
+            failures.append(error)
+    return tuple(failures)
+
+
+def _positive_duration(value: float, name: str) -> None:
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError(f"{name} must be finite and positive")
+
+
+def _validate_bounds(args: argparse.Namespace, timeout: float) -> None:
+    _positive_duration(timeout, "capture timeout")
+    _positive_duration(args.server_start, "server start timeout")
+    if not math.isfinite(args.settle) or args.settle < 0:
+        raise ValueError("settle time must be finite and nonnegative")
+    if args.repeat < 1:
+        raise ValueError("repeat count must be positive")
 
 
 def quic_run(
     args: argparse.Namespace, startup: Path, client_hello: Path, timeout: float
 ) -> bool:
+    _validate_bounds(args, timeout)
     from .chrome_http3 import PORT_PLACEHOLDER
     from .http2_session import generate_certificate
 
     devtools = args.navigate == "devtools"
-    certificate = generate_certificate(HOSTNAME)
-    material = Path(tempfile.mkdtemp(prefix="phantom-h3-certificate-"))
-    (material / "certificate.pem").write_bytes(certificate.certificate_pem)
-    (material / "key.pem").write_bytes(certificate.private_key_pem)
-    server = subprocess.Popen(
-        [
-            sys.executable,
-            "-m",
-            "scripts.capture.chrome_http3",
-            "--certificate",
-            str(material / "certificate.pem"),
-            "--private-key",
-            str(material / "key.pem"),
-            "--listen",
-            "127.0.0.1:0",
-            "--client",
-            args.client,
-            "--client-version",
-            args.client_version,
-            "--operating-system",
-            args.operating_system,
-            "--launch-mode",
-            launch_mode(devtools),
-            "--launch-arguments",
-            recorded_arguments("http3", port=PORT_PLACEHOLDER, devtools=devtools),
-            "--client-hello",
-            str(client_hello),
-            "--output",
-            str(startup),
-            "--timeout",
-            str(timeout),
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-    )
-    listening = wait_until_listening(server, args.server_start)
-    match = re.search(rb"listening on 127\.0\.0\.1:(\d+)", listening.line)
-    if match is None:
-        server.kill()
-        _, stderr = server.communicate()
-        shutil.rmtree(material, ignore_errors=True)
-        stderr = listening.stderr + stderr
-        print(stderr.decode(errors="replace").strip()[-2000:], file=sys.stderr)
-        return False
-    port = int(match.group(1))
-    browser = Browser(
-        args.browser_path,
-        launch_arguments(
-            "http3",
-            "<profile>",
-            port=port,
-            spki=certificate.spki_sha256_base64,
-            devtools=devtools,
-        ),
-    )
+    material = None
+    server = None
+    browser = None
+    primary = None
+    code = None
+    failed_run = False
     try:
-        open_page(browser, f"https://{HOSTNAME}:{port}/", devtools, args.settle)
-        _, stderr = server.communicate(timeout=timeout + 10)
-    except subprocess.TimeoutExpired:
-        server.kill()
-        _, stderr = server.communicate()
-    finally:
-        browser.stop()
-        shutil.rmtree(material, ignore_errors=True)
-    if server.returncode != 0:
-        stderr = listening.stderr + stderr
-        print(stderr.decode(errors="replace").strip()[-2000:], file=sys.stderr)
+        certificate = generate_certificate(HOSTNAME)
+        material = Path(tempfile.mkdtemp(prefix="phantom-h3-certificate-"))
+        (material / "certificate.pem").write_bytes(certificate.certificate_pem)
+        (material / "key.pem").write_bytes(certificate.private_key_pem)
+        server = CaptureListener(
+            [
+                sys.executable,
+                "-m",
+                "scripts.capture.chrome_http3",
+                "--certificate",
+                str(material / "certificate.pem"),
+                "--private-key",
+                str(material / "key.pem"),
+                "--listen",
+                "127.0.0.1:0",
+                "--client",
+                args.client,
+                "--client-version",
+                args.client_version,
+                "--operating-system",
+                args.operating_system,
+                "--launch-mode",
+                launch_mode(devtools),
+                "--launch-arguments",
+                recorded_arguments("http3", port=PORT_PLACEHOLDER, devtools=devtools),
+                "--client-hello",
+                str(client_hello),
+                "--output",
+                str(startup),
+                "--timeout",
+                str(timeout),
+            ]
+        )
+        server.start()
+        listening = wait_until_listening(server, args.server_start)
+        match = re.search(rb"listening on 127\.0\.0\.1:(\d+)", listening.line)
+        if match is not None:
+            port = int(match.group(1))
+            browser = Browser(
+                args.browser_path,
+                launch_arguments(
+                    "http3",
+                    "<profile>",
+                    port=port,
+                    spki=certificate.spki_sha256_base64,
+                    devtools=devtools,
+                ),
+            )
+            open_page(browser, f"https://{HOSTNAME}:{port}/", devtools, args.settle)
+            try:
+                code = server.wait(timeout + 10)
+            except subprocess.TimeoutExpired:
+                failed_run = True
+                raise
+        if code != 0:
+            primary = _capture_failure(server)
+            failed_run = True
+    except BaseException as error:
+        primary = error
+
+    cleanup = _cleanup_run(browser, server, material)
+    if failed_run and not cleanup:
+        print(str(primary), file=sys.stderr)
+        if server is not None:
+            print(
+                server.stderr.decode(errors="replace").strip()[-2000:], file=sys.stderr
+            )
         return False
+    raise_browser_failures(primary, cleanup)
     return True
 
 
@@ -373,6 +595,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--timeout", type=float, default=60.0)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args(argv)
+    try:
+        _validate_bounds(args, args.timeout)
+    except ValueError as error:
+        parser.error(str(error))
     args.client = args.client or CLIENT_NAMES[args.browser]
     args.output_dir.mkdir(parents=True, exist_ok=True)
     succeeded = 0

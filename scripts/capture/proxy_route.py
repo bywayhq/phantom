@@ -7,6 +7,7 @@ import asyncio
 import base64
 import hashlib
 import ipaddress
+import math
 import platform
 import secrets
 import shlex
@@ -29,19 +30,18 @@ from .browser_launch import (
     browser_arguments,
     check_android_entry,
     enter_browser,
+    exit_browser,
     render_preferences,
     with_android_entry,
 )
 from .browser_remote import ChromiumAuthDriver, Credentials, FirefoxAuthDriver
 from .fixture_file import write_text_fixture
+from .http2_analysis import HeaderField, analyze_http2, frame_details
 from .http2_session import (
     Certificate,
     ConnectionRecord,
-    HeaderField,
     PlainChannel,
     TlsChannel,
-    analyze_http2,
-    frame_details,
     generate_certificate,
     server_context,
 )
@@ -52,6 +52,14 @@ PROXY_HOST = "proxy.phantom.test"
 SUPPORTED_H2 = "4.4.1"
 SUPPORTED_HPACK = "4.2.0"
 MAX_REQUEST_HEAD = 64 * 1024
+# Leave room for capture requests and browser background work without retaining
+# an unlimited run. Connection taps separately allow at most 16 MiB each.
+MAX_RUN_CONNECTIONS = 32
+MAX_RUN_REQUESTS = 512
+MAX_RUN_RESULTS = 512
+MAX_RUN_REMOTE_EVENTS = 512
+CONNECTION_CLEANUP_SECONDS = 5.0
+PEER_DISCONNECTS = (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)
 # Fields the tool refuses to retain at all.
 SENSITIVE_HEADERS = {b"authorization", b"cookie"}
 # Retained with its name and position; the value becomes a marker.
@@ -105,7 +113,7 @@ class Scenario:
     purpose: str
     # none | http | https
     proxy: str
-    # loopback pages use 127.0.0.1; hostname pages use ORIGIN_HOST.
+    # Loopback pages use the listener address; hostname pages use ORIGIN_HOST.
     origin: str
     # Both proxy listeners answer capture requests without the expected
     # Proxy-Authorization with 407, and the page opens two ws:// in turn.
@@ -303,6 +311,10 @@ class RequestRecord:
         return "authority"
 
 
+class CaptureLimitError(ValueError):
+    """A capture run reached a fixed resource limit."""
+
+
 @dataclass
 class CaptureRun:
     token: str
@@ -322,8 +334,13 @@ class CaptureRun:
     done: asyncio.Event = field(default_factory=asyncio.Event)
     # Set when a `remembered` page is ready for its second navigation.
     ready: asyncio.Event = field(default_factory=asyncio.Event)
+    admitted_connections: int = field(default=0, init=False)
+    limit_failure: CaptureLimitError | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
+        if not math.isfinite(self.observation_seconds):
+            raise ValueError("observation duration must be finite")
+
         self.started = self.clock()
 
     @property
@@ -333,7 +350,24 @@ class CaptureRun:
     def now(self) -> float:
         return self.clock() - self.started
 
+    def fail_limit(self, resource: str) -> CaptureLimitError:
+        if self.limit_failure is None:
+            self.limit_failure = CaptureLimitError(
+                f"capture run {resource} limit reached"
+            )
+        self.ready.set()
+        self.done.set()
+        return self.limit_failure
+
+    def check_request_limit(self) -> None:
+        if self.limit_failure is not None:
+            raise self.limit_failure
+        if len(self.requests) >= MAX_RUN_REQUESTS:
+            raise self.fail_limit("request")
+
     def finish(self, query: dict[str, str]) -> None:
+        if len(self.results) >= MAX_RUN_RESULTS:
+            raise self.fail_limit("result")
         self.results.append(query)
         if self.finished is None:
             self.finished = self.now()
@@ -342,6 +376,8 @@ class CaptureRun:
             )
 
     def note(self, text: str) -> None:
+        if len(self.remote_events) >= MAX_RUN_REMOTE_EVENTS:
+            raise self.fail_limit("remote event")
         self.remote_events.append((self.now(), text))
 
     def page(self, step: str = "") -> bytes:
@@ -464,8 +500,13 @@ def connect_kind(authority: bytes) -> str:
 
 def is_capture_authority(authority: bytes) -> bool:
     """Whether a request names the capture origin rather than browser traffic."""
-    host = authority.rsplit(b":", 1)[0]
-    return host in {ORIGIN_HOST.encode(), b"127.0.0.1"}
+    try:
+        host = urlsplit("http://" + authority.decode("ascii")).hostname
+        if host == ORIGIN_HOST:
+            return True
+        return host is not None and ipaddress.ip_address(host).is_loopback
+    except (UnicodeDecodeError, ValueError):
+        return False
 
 
 def websocket_accept(key: bytes) -> bytes:
@@ -596,12 +637,16 @@ class Http1Exchange:
                 if len(self.buffer) > MAX_REQUEST_HEAD:
                     raise ValueError("request head exceeds the capture limit")
                 break
+            if end + 4 > MAX_REQUEST_HEAD:
+                raise ValueError("request head exceeds the capture limit")
+
             head = bytes(self.buffer[:end])
             del self.buffer[: end + 4]
             output.extend(self.handle(head))
         return bytes(output)
 
     def handle(self, head: bytes) -> bytes:
+        self.run.check_request_limit()
         lines = head.split(b"\r\n")
         request = RequestRecord(
             connection=self.connection,
@@ -686,27 +731,52 @@ class Http2Proxy:
             data = await self.channel.read()
             if not data:
                 return
-            for event in self.h2.receive_data(data):
-                if isinstance(event, h2.events.RequestReceived):
-                    self.request(event.stream_id, event.headers)
-                elif isinstance(event, h2.events.DataReceived):
-                    self.h2.acknowledge_received_data(
-                        event.flow_controlled_length, event.stream_id
-                    )
-                    tunnel = self.tunnels.get(event.stream_id)
-                    if tunnel is not None:
-                        output = tunnel.feed(event.data)
-                        if output:
-                            self.h2.send_data(event.stream_id, output)
-                elif isinstance(event, h2.events.StreamEnded):
-                    if event.stream_id in self.tunnels:
-                        self.h2.end_stream(event.stream_id)
-                elif isinstance(event, h2.events.ConnectionTerminated):
-                    await self.flush()
-                    return
+
+            try:
+                events = self.h2.receive_data(data)
+            except h2.exceptions.ProtocolError as error:
+                self.channel.record.failure = type(error).__name__
+                return
+
+            reset_streams = {
+                event.stream_id
+                for event in events
+                if isinstance(event, h2.events.StreamReset)
+            }
+            try:
+                for event in events:
+                    if isinstance(event, h2.events.RequestReceived):
+                        self.request(event.stream_id, event.headers)
+                    elif isinstance(event, h2.events.DataReceived):
+                        self.h2.acknowledge_received_data(
+                            event.flow_controlled_length, event.stream_id
+                        )
+                        tunnel = self.tunnels.get(event.stream_id)
+                        if tunnel is not None:
+                            output = tunnel.feed(event.data)
+                            if output:
+                                self.h2.send_data(event.stream_id, output)
+                    elif isinstance(event, h2.events.StreamEnded):
+                        if event.stream_id in self.tunnels:
+                            self.tunnels.pop(event.stream_id)
+                            self.h2.end_stream(event.stream_id)
+                    elif isinstance(event, h2.events.StreamReset):
+                        self.tunnels.pop(event.stream_id, None)
+                    elif isinstance(event, h2.events.ConnectionTerminated):
+                        await self.flush()
+                        return
+            except h2.exceptions.StreamClosedError as error:
+                # receive_data processes the whole batch before dispatch. A
+                # browser can reset its request in that same batch.
+                if error.stream_id not in reset_streams:
+                    raise
+                self.channel.record.failure = type(error).__name__
+                return
+
             await self.flush()
 
     def request(self, stream_id: int, headers: Sequence[tuple[bytes, bytes]]) -> None:
+        self.run.check_request_limit()
         pseudo = {name: value for name, value in headers if name.startswith(b":")}
         method = pseudo.get(b":method", b"")
         record = RequestRecord(
@@ -781,6 +851,43 @@ class Http2Proxy:
 # -- Listeners -------------------------------------------------------------
 
 
+class CaptureFailures(Exception):
+    """Retain the capture operation and every observed cleanup failure."""
+
+    def __init__(
+        self, primary: BaseException | None, cleanup: tuple[BaseException, ...]
+    ) -> None:
+        self.primary = primary
+        self.cleanup = cleanup
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        self.interruption_cause: BaseException | None = None
+        self.interruption_context: BaseException | None = None
+        super().__init__("proxy capture cleanup failed")
+
+
+def raise_capture_failures(
+    primary: BaseException | None, cleanup: tuple[BaseException, ...]
+) -> None:
+    if not cleanup:
+        if primary is not None:
+            raise primary
+        return
+    if primary is None and len(cleanup) == 1:
+        raise cleanup[0]
+
+    failure = CaptureFailures(primary, cleanup)
+    interruption = next(
+        (error for error in (primary, *cleanup) if not isinstance(error, Exception)),
+        None,
+    )
+    if interruption is not None:
+        failure.interruption_cause = interruption.__cause__
+        failure.interruption_context = interruption.__context__
+        raise interruption from failure
+    raise failure from primary
+
+
 class CaptureServer:
     """A plaintext origin, a plaintext proxy, and a TLS proxy on loopback."""
 
@@ -790,56 +897,283 @@ class CaptureServer:
         self.servers: list[asyncio.Server] = []
         self.addresses: dict[str, tuple[str, int]] = {}
         self.writers: set[asyncio.StreamWriter] = set()
+        self.handlers: dict[asyncio.Task[None], bool] = {}
+        self.writer_waits: dict[asyncio.Task[None], asyncio.StreamWriter] = {}
+        self.listener_waits: dict[asyncio.Task[None], asyncio.Server] = {}
+        self.cancelled_waits: set[asyncio.Task[None]] = set()
+        self.accept_failures: list[BaseException] = []
+        self.admission_failure: BaseException | None = None
+        self.rejection_failure: BaseException | None = None
+        self.rejection_close_failure: BaseException | None = None
+        self.admission_closed = False
+        self.closing = False
 
     async def start(self, host: str) -> None:
         if not ipaddress.ip_address(host).is_loopback:
             raise ValueError("the capture listener must be a loopback address")
-        for listener in ("origin", "http-proxy", "https-proxy"):
-            server = await asyncio.start_server(
-                lambda reader, writer, name=listener: self.handle(name, reader, writer),
-                host,
-                0,
-            )
-            self.servers.append(server)
-            self.addresses[listener] = server.sockets[0].getsockname()[:2]
+        try:
+            for listener in ("origin", "http-proxy", "https-proxy"):
+                server = await asyncio.start_server(
+                    lambda reader, writer, name=listener: self.accept(
+                        name, reader, writer
+                    ),
+                    host,
+                    0,
+                )
+                self.servers.append(server)
+                self.addresses[listener] = server.sockets[0].getsockname()[:2]
+        except BaseException as primary:
+            cleanup = []
+            try:
+                await self.close()
+            except BaseException as error:
+                cleanup.append(error)
+            raise_capture_failures(primary, tuple(cleanup))
 
     def note(self, text: str) -> None:
         if self.run is not None:
             self.run.note(text)
 
     def address(self, listener: str) -> str:
-        return "{}:{}".format(*self.addresses[listener])
+        host, port = self.addresses[listener]
+        return f"{authority_host(host)}:{port}"
 
     async def close(self) -> None:
-        self.drop_connections()
-        for server in self.servers:
-            server.close()
-            await server.wait_closed()
+        self.closing = True
+        failures = []
+        for server in list(self.servers):
+            closed = False
+            try:
+                server.close()
+            except BaseException as error:
+                failures.append(error)
+            else:
+                closed = True
 
-    def drop_connections(self) -> None:
-        for writer in list(self.writers):
-            writer.transport.abort()
-        self.writers.clear()
+            if server in self.listener_waits.values():
+                if closed:
+                    self.servers.remove(server)
+                continue
 
-    async def handle(
+            try:
+                operation = server.wait_closed()
+                try:
+                    task = asyncio.create_task(operation)
+                except BaseException:
+                    operation.close()
+                    raise
+                self.listener_waits[task] = server
+                if closed:
+                    self.servers.remove(server)
+            except BaseException as error:
+                failures.append(error)
+
+        failures.extend(await self._stop_connections())
+        raise_capture_failures(None, tuple(failures))
+
+    async def stop_connections(self) -> None:
+        if self.admission_closed or (
+            self.run is not None and self.run.limit_failure is not None
+        ):
+            await self.close()
+            return
+
+        failures = await self._stop_connections()
+        raise_capture_failures(None, tuple(failures))
+
+    async def _stop_connections(self) -> list[BaseException]:
+        failures = self.accept_failures
+        self.accept_failures = []
+        deadline = asyncio.get_running_loop().time() + CONNECTION_CLEANUP_SECONDS
+        while True:
+            for writer in list(self.writers):
+                if writer in self.writer_waits.values():
+                    continue
+                try:
+                    writer.transport.abort()
+                except BaseException as error:
+                    failures.append(error)
+
+                operation = writer.wait_closed()
+                try:
+                    task = asyncio.create_task(operation)
+                except BaseException as error:
+                    operation.close()
+                    failures.append(error)
+                else:
+                    self.writer_waits[task] = writer
+
+            for task in self.handlers:
+                if not task.done() and not self.handlers[task]:
+                    self.handlers[task] = task.cancel()
+
+            tasks = {*self.handlers, *self.writer_waits, *self.listener_waits}
+            pending = {task for task in tasks if not task.done()}
+            if not pending:
+                break
+
+            try:
+                await asyncio.wait(
+                    pending,
+                    timeout=max(0.0, deadline - asyncio.get_running_loop().time()),
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+            except BaseException as error:
+                failures.append(error)
+                break
+
+            if asyncio.get_running_loop().time() >= deadline:
+                pending = {task for task in tasks if not task.done()}
+                if not pending:
+                    continue
+                failures.append(
+                    asyncio.TimeoutError("proxy connection cleanup timed out")
+                )
+                for task in pending:
+                    # Keep these owners for a later cleanup attempt; do not consume
+                    # their results through a cancelling timeout wrapper.
+                    if task.cancel() and task not in self.handlers:
+                        self.cancelled_waits.add(task)
+                break
+
+        for task in list(self.handlers):
+            if task.done():
+                locally_cancelled = self.handlers.pop(task)
+
+                try:
+                    task.result()
+                except asyncio.CancelledError as error:
+                    if not locally_cancelled:
+                        failures.append(error)
+                    else:
+                        # Python 3.10 places the coroutine's cancellation in
+                        # the task-result cancellation's context.
+                        seen = set()
+                        while id(error) not in seen:
+                            seen.add(id(error))
+                            if isinstance(error.__cause__, CaptureFailures):
+                                failures.extend(error.__cause__.cleanup)
+                                break
+                            if not isinstance(
+                                error.__context__, asyncio.CancelledError
+                            ):
+                                break
+                            error = error.__context__
+                except BaseException as error:
+                    failures.append(error)
+
+        for task in list(self.writer_waits):
+            if task.done():
+                writer = self.writer_waits.pop(task)
+                if writer.is_closing():
+                    self.writers.discard(writer)
+
+                try:
+                    task.result()
+                except PEER_DISCONNECTS:
+                    pass
+                except asyncio.CancelledError as error:
+                    if task not in self.cancelled_waits:
+                        failures.append(error)
+                except BaseException as error:
+                    failures.append(error)
+                self.cancelled_waits.discard(task)
+
+        for task in list(self.listener_waits):
+            if task.done():
+                self.listener_waits.pop(task)
+
+                try:
+                    task.result()
+                except asyncio.CancelledError as error:
+                    if task not in self.cancelled_waits:
+                        failures.append(error)
+                except BaseException as error:
+                    failures.append(error)
+                self.cancelled_waits.discard(task)
+
+        failures.extend(self.accept_failures)
+        self.accept_failures = []
+        if self.admission_failure is not None:
+            failures.append(self.admission_failure)
+            self.admission_failure = None
+        if self.rejection_failure is not None:
+            failures.append(self.rejection_failure)
+            self.rejection_failure = None
+        if self.rejection_close_failure is not None:
+            failures.append(self.rejection_close_failure)
+            self.rejection_close_failure = None
+        return failures
+
+    def accept(
         self,
         listener: str,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
     ) -> None:
         run = self.run
-        if run is None:
-            writer.transport.abort()
+        saturated = run is not None and (
+            run.limit_failure is not None
+            or run.admitted_connections >= MAX_RUN_CONNECTIONS
+        )
+        if saturated:
+            run.fail_limit("connection")
+            if not self.admission_closed:
+                self.admission_closed = True
+                for server in self.servers:
+                    try:
+                        server.close()
+                    except BaseException as error:
+                        if self.admission_failure is None:
+                            self.admission_failure = error
+
+        if self.closing or run is None or saturated:
+            try:
+                writer.transport.abort()
+            except BaseException as error:
+                if self.rejection_failure is None:
+                    self.rejection_failure = error
+                try:
+                    writer.close()
+                except BaseException as error:
+                    if self.rejection_close_failure is None:
+                        self.rejection_close_failure = error
+                    # Admission is closed. Keep a writer that could not be
+                    # closed for the existing finite cleanup owner.
+                    self.writers.add(writer)
             return
+
+        run.admitted_connections += 1
         self.writers.add(writer)
+        operation = self.handle(listener, reader, writer, run)
+        try:
+            task = asyncio.create_task(operation)
+        except BaseException as error:
+            operation.close()
+            self.accept_failures.append(error)
+            try:
+                writer.transport.abort()
+            except BaseException as error:
+                self.accept_failures.append(error)
+        else:
+            self.handlers[task] = False
+
+    async def handle(
+        self,
+        listener: str,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        run: CaptureRun,
+    ) -> None:
         record = ConnectionRecord(listener=listener, accepted=run.now())
         run.connections.append(record)
         index = len(run.connections) - 1
+        primary: BaseException | None = None
+        peer_failure: BaseException | None = None
+        channel: PlainChannel | None = None
         try:
             if listener == "https-proxy":
-                channel: PlainChannel = TlsChannel(
-                    self.context, reader, writer, record, run.now
-                )
+                channel = TlsChannel(self.context, reader, writer, record, run.now)
                 await channel.handshake()
             else:
                 channel = PlainChannel(reader, writer, record, run.now)
@@ -850,12 +1184,28 @@ class CaptureServer:
                 record.protocol = "http/1.1"
                 exchange = Http1Exchange(run, index, proxy=listener != "origin")
                 await serve_http1(exchange, channel)
-        except Exception as error:  # noqa: BLE001 - recorded as evidence
-            record.failure = type(error).__name__
-        finally:
-            self.writers.discard(writer)
+        except BaseException as error:
+            if isinstance(error, Exception):
+                record.failure = type(error).__name__
+            peer_handshake = (
+                isinstance(channel, TlsChannel)
+                and error is channel.peer_handshake_failure
+            )
+            if not peer_handshake and not isinstance(error, PEER_DISCONNECTS):
+                primary = error
+            else:
+                peer_failure = error
+
+        cleanup = []
+        try:
             if not writer.transport.is_closing():
                 writer.close()
+        except BaseException as error:
+            cleanup.append(error)
+        if cleanup and primary is None:
+            primary = peer_failure
+
+        raise_capture_failures(primary, tuple(cleanup))
 
 
 async def serve_http1(exchange: Http1Exchange, channel: PlainChannel) -> None:
@@ -1097,9 +1447,18 @@ def fixture(
 
 
 def page_url(server: CaptureServer, scenario: Scenario, token: str) -> str:
-    port = server.addresses["origin"][1]
-    host = ORIGIN_HOST if scenario.origin == "hostname" else "127.0.0.1"
-    return f"http://{host}:{port}/page?run={token}"
+    listen, port = server.addresses["origin"]
+    host = ORIGIN_HOST if scenario.origin == "hostname" else listen
+    return f"http://{authority_host(host)}:{port}/page?run={token}"
+
+
+def authority_host(host: str) -> str:
+    return f"[{host}]" if ":" in host else host
+
+
+def validate_browser_listener(browser: str, listen: str) -> None:
+    if browser in ANDROID_BROWSERS and ipaddress.ip_address(listen).version == 6:
+        raise ValueError("Android proxy captures require an IPv4 loopback listener")
 
 
 def firefox_cert_override(host: str, port: int, certificate: Certificate) -> str:
@@ -1120,21 +1479,22 @@ def launch_plan(
     server: CaptureServer,
     certificate: Certificate,
 ) -> LaunchPlan:
+    listen = server.addresses["origin"][0]
+    validate_browser_listener(browser, listen)
     if browser in ANDROID_BROWSERS and scenario.auth:
         # The credential goes in over the remote protocol, whose port the tool
         # reads from a desktop profile directory.
         raise ValueError(f"{browser} cannot run the proxy authentication scenarios")
-    listen = server.addresses["origin"][0]
     http_proxy = server.addresses["http-proxy"]
     https_port = server.addresses["https-proxy"][1]
     if browser in CHROMIUM_BROWSERS:
         extra = [
             *CHROMIUM_EXTRA_FLAGS,
-            f"--host-resolver-rules=MAP {ORIGIN_HOST} {listen}, "
-            f"MAP {PROXY_HOST} {listen}, EXCLUDE localhost",
+            f"--host-resolver-rules=MAP {ORIGIN_HOST} {authority_host(listen)}, "
+            f"MAP {PROXY_HOST} {authority_host(listen)}, EXCLUDE localhost",
         ]
         if scenario.proxy == "http":
-            extra.append("--proxy-server=http://{}:{}".format(*http_proxy))
+            extra.append(f"--proxy-server=http://{server.address('http-proxy')}")
         elif scenario.proxy == "https":
             extra.append(f"--proxy-server=https://{PROXY_HOST}:{https_port}")
             extra.append(
@@ -1155,7 +1515,7 @@ def launch_plan(
     if browser == "firefox":
         preferences: list[tuple[str, bool | int | str]] = [
             ("network.dns.localDomains", f"{ORIGIN_HOST},{PROXY_HOST}"),
-            ("network.dns.disableIPv6", True),
+            ("network.dns.disableIPv6", ipaddress.ip_address(listen).version == 4),
             ("network.http.http3.enable", False),
         ]
         files: tuple[tuple[str, str], ...] = ()
@@ -1258,6 +1618,48 @@ class ProxyLaunchedBrowser(LaunchedBrowser):
         )
 
 
+class ProxyBrowserFailures(Exception):
+    """Retain a context operation and its ordered cleanup failures."""
+
+    def __init__(
+        self,
+        primary: BaseException | None,
+        cleanup: tuple[BaseException, ...],
+    ) -> None:
+        self.primary = primary
+        self.cleanup = cleanup
+        self.previous_cause = primary.__cause__ if primary is not None else None
+        self.previous_context = primary.__context__ if primary is not None else None
+        super().__init__("proxy browser context failed")
+
+
+def _raise_proxy_browser_failures(
+    primary: BaseException | None, cleanup: tuple[BaseException, ...]
+) -> None:
+    if not cleanup:
+        if primary is not None:
+            raise primary
+        return
+
+    failure = ProxyBrowserFailures(primary, cleanup)
+    interruption = next(
+        (
+            error
+            for error in (primary, *cleanup)
+            if isinstance(
+                error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+            )
+        ),
+        None,
+    )
+    if interruption is not None:
+        failure.previous_cause = interruption.__cause__
+        failure.previous_context = interruption.__context__
+        raise interruption from failure
+
+    raise failure from primary
+
+
 class ProxyBrowserDriver:
     """One browser run; an auth run answers proxy challenges remotely."""
 
@@ -1280,42 +1682,76 @@ class ProxyBrowserDriver:
         if self.plan.browser == "manual":
             print(f"open {self.url}", file=sys.stderr, flush=True)
             return self
-        if not self.auth:
-            self.browser = await enter_browser(
-                ProxyLaunchedBrowser(self.plan, self.url)
-            )
-            return self
-        self.browser = await enter_browser(
-            ProxyLaunchedBrowser(self.plan, REMOTE_START_URL)
-        )
-        credentials = Credentials(PROXY_USERNAME, PROXY_PASSWORD)
-        if self.plan.browser in CHROMIUM_BROWSERS:
-            self.remote = ChromiumAuthDriver(credentials, self.note)
-        else:
-            self.remote = FirefoxAuthDriver(credentials, self.note)
-        assert self.browser.profile is not None
+
         try:
-            await self.remote.start(self.browser.profile, self.url)
-        except Exception as error:  # noqa: BLE001 - recorded as evidence
-            self.note(f"event:driver-failure,error:{type(error).__name__}")
-            print(f"remote driver failed: {error!r}", file=sys.stderr, flush=True)
-        return self
+            if not self.auth:
+                self.browser = await enter_browser(
+                    ProxyLaunchedBrowser(self.plan, self.url)
+                )
+                return self
+
+            self.browser = await enter_browser(
+                ProxyLaunchedBrowser(self.plan, REMOTE_START_URL)
+            )
+            credentials = Credentials(PROXY_USERNAME, PROXY_PASSWORD)
+            if self.plan.browser in CHROMIUM_BROWSERS:
+                self.remote = ChromiumAuthDriver(credentials, self.note)
+            else:
+                self.remote = FirefoxAuthDriver(credentials, self.note)
+
+            assert self.browser.profile is not None
+
+            try:
+                await self.remote.start(self.browser.profile, self.url)
+            except Exception as error:  # noqa: BLE001 - recorded as evidence
+                try:
+                    self.note(f"event:driver-failure,error:{type(error).__name__}")
+                    print(
+                        f"remote driver failed: {error!r}", file=sys.stderr, flush=True
+                    )
+                except BaseException as observer:
+                    _raise_proxy_browser_failures(error, (observer,))
+
+            return self
+        except BaseException as primary:
+            cleanup = await self._close(None, None, None)
+            _raise_proxy_browser_failures(primary, cleanup)
 
     async def navigate(self, url: str) -> None:
         """Navigate the page again over the remote protocol."""
         if self.remote is None:
             print(f"open {url}", file=sys.stderr, flush=True)
             return
+
         try:
             await self.remote.navigate(url)
         except Exception as error:  # noqa: BLE001 - recorded as evidence
-            self.note(f"event:driver-failure,error:{type(error).__name__}")
+            try:
+                self.note(f"event:driver-failure,error:{type(error).__name__}")
+            except BaseException as observer:
+                _raise_proxy_browser_failures(error, (observer,))
 
     async def __aexit__(self, *details: object) -> None:
+        primary = details[1] if len(details) > 1 else None
+        cleanup = await self._close(*details)
+        if cleanup:
+            _raise_proxy_browser_failures(primary, cleanup)
+
+    async def _close(self, *details: object) -> tuple[BaseException, ...]:
+        failures = []
         if self.remote is not None:
-            await self.remote.close()
+            try:
+                await self.remote.close()
+            except BaseException as error:
+                failures.append(error)
+
         if self.browser is not None:
-            self.browser.__exit__(*details)
+            try:
+                await exit_browser(self.browser, *details)
+            except BaseException as error:
+                failures.append(error)
+
+        return tuple(failures)
 
 
 async def capture_scenario(
@@ -1328,6 +1764,8 @@ async def capture_scenario(
     drive: Callable[[str], object],
 ) -> list[CaptureRun]:
     """Run `repeat` fresh clients; `drive(url)` returns an async context."""
+    validate_capture_durations(run_timeout, observation_seconds)
+
     runs = []
     auth = SCENARIOS[name].auth
     for _ in range(repeat):
@@ -1338,28 +1776,49 @@ async def capture_scenario(
             proxy_credential=PROXY_CREDENTIAL if auth else None,
         )
         server.run = run
+        primary: BaseException | None = None
         try:
             url = page_url(server, SCENARIOS[name], run.token)
             async with drive(url) as driver:
                 try:
                     if SCENARIOS[name].page == "remembered":
                         await asyncio.wait_for(run.ready.wait(), timeout=run_timeout)
+                        if run.limit_failure is not None:
+                            raise run.limit_failure
                         await driver.navigate(url + "&step=2")
                     await asyncio.wait_for(run.done.wait(), timeout=run_timeout)
+                    if run.limit_failure is not None:
+                        raise run.limit_failure
                 except asyncio.TimeoutError:
                     run.timed_out = True
-        finally:
-            server.run = None
-            server.drop_connections()
+        except BaseException as error:
+            primary = error
+
+        server.run = None
+        cleanup = []
+        if run.limit_failure is not None:
+            server.admission_closed = True
+        if run.limit_failure is not None and run.limit_failure is not primary:
+            cleanup.append(run.limit_failure)
+        try:
+            await server.stop_connections()
+        except BaseException as error:
+            cleanup.append(error)
+        raise_capture_failures(primary, tuple(cleanup))
+
         runs.append(run)
     return runs
 
 
 async def run(args: argparse.Namespace) -> None:
+    validate_capture_durations(args.run_timeout, args.observation)
+    validate_browser_listener(args.browser, args.listen)
+
     certificate = generate_certificate(PROXY_HOST)
     server = CaptureServer(certificate)
-    await server.start(args.listen)
+    primary: BaseException | None = None
     try:
+        await server.start(args.listen)
         listen = ",".join(f"{name}={server.address(name)}" for name in server.addresses)
         names = list(SCENARIOS) if args.scenario == ["all"] else args.scenario
         args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -1408,8 +1867,22 @@ async def run(args: argparse.Namespace) -> None:
             )
             timed_out = sum(item.timed_out for item in runs)
             print(f"captured {name} ({timed_out} timed out)", file=sys.stderr)
-    finally:
+    except BaseException as error:
+        primary = error
+
+    cleanup = []
+    try:
         await server.close()
+    except BaseException as error:
+        cleanup.append(error)
+    raise_capture_failures(primary, tuple(cleanup))
+
+
+def validate_capture_durations(run_timeout: float, observation_seconds: float) -> None:
+    if not math.isfinite(run_timeout):
+        raise ValueError("run timeout must be finite")
+    if not math.isfinite(observation_seconds):
+        raise ValueError("observation duration must be finite")
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -1437,11 +1910,19 @@ def main(argv: Sequence[str] | None = None) -> None:
     if args.repeat < 1:
         parser.error("--repeat must be positive")
     try:
+        validate_capture_durations(args.run_timeout, args.observation)
+    except ValueError as error:
+        parser.error(str(error))
+    try:
         loopback = ipaddress.ip_address(args.listen).is_loopback
     except ValueError:
         loopback = False
     if not loopback:
         parser.error("the capture listener must be a loopback address")
+    try:
+        validate_browser_listener(args.browser, args.listen)
+    except ValueError as error:
+        parser.error(str(error))
     for package, version in (("h2", SUPPORTED_H2), ("hpack", SUPPORTED_HPACK)):
         if metadata.version(package) != version:
             parser.error(f"{package} {version} is required")

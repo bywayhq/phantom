@@ -15,6 +15,11 @@ PING = 0x9
 PONG = 0xA
 DATA_OPCODES = (TEXT, BINARY)
 MAX_FRAME_PAYLOAD = 16 * 1024 * 1024
+MAX_STREAM_BYTES = 32 * 1024 * 1024
+MAX_FRAMES = 16384
+MAX_MESSAGES = 1024
+MAX_MESSAGE_PAYLOAD = 16 * 1024 * 1024
+MAX_DECODED_BYTES = 32 * 1024 * 1024
 # RFC 7692 section 7.2.2: the sender removes this empty stored block's tail.
 DEFLATE_TAIL = b"\x00\x00\xff\xff"
 
@@ -35,14 +40,22 @@ class FrameReader:
 
     def __init__(self) -> None:
         self.buffer = bytearray()
+        self.received = 0
+        self.frame_count = 0
 
     def feed(self, data: bytes) -> list[WebSocketFrame]:
+        if self.received + len(data) > MAX_STREAM_BYTES:
+            raise ValueError("WebSocket stream exceeds the capture limit")
+        self.received += len(data)
         self.buffer.extend(data)
         frames = []
         while True:
             frame = self._next()
             if frame is None:
                 return frames
+            if self.frame_count >= MAX_FRAMES:
+                raise ValueError("WebSocket frame count exceeds the capture limit")
+            self.frame_count += 1
             frames.append(frame)
 
     def _next(self) -> WebSocketFrame | None:
@@ -168,6 +181,7 @@ def summarize_send_policy(stream: bytes, *, inflate: bool) -> SendPolicy:
     controls: list[ControlSummary] = []
     anomalies: list[str] = []
     current: list[WebSocketFrame] = []
+    decoded_bytes = 0
     for frame in frames:
         if frame.opcode >= CLOSE:
             code = (
@@ -186,8 +200,16 @@ def summarize_send_policy(stream: bytes, *, inflate: bool) -> SendPolicy:
             anomalies.append(f"interrupted-message:{len(messages)}")
             current = []
         current.append(frame)
+        if sum(len(item.payload) for item in current) > MAX_MESSAGE_PAYLOAD:
+            raise ValueError("WebSocket message exceeds the capture limit")
         if frame.fin:
-            messages.append(message_summary(current, inflate, decompressor))
+            if len(messages) >= MAX_MESSAGES:
+                raise ValueError("WebSocket message count exceeds the capture limit")
+            message = message_summary(
+                current, inflate, decompressor, MAX_DECODED_BYTES - decoded_bytes
+            )
+            decoded_bytes += len(message.payload or b"")
+            messages.append(message)
             current = []
     return SendPolicy(
         messages=tuple(messages),
@@ -198,18 +220,25 @@ def summarize_send_policy(stream: bytes, *, inflate: bool) -> SendPolicy:
 
 
 def message_summary(
-    frames: Sequence[WebSocketFrame], inflate: bool, decompressor
+    frames: Sequence[WebSocketFrame],
+    inflate: bool,
+    decompressor,
+    remaining: int = MAX_DECODED_BYTES,
 ) -> MessageSummary:
     first = frames[0]
     wire = b"".join(frame.payload for frame in frames)
+    if len(wire) > MAX_MESSAGE_PAYLOAD:
+        raise ValueError("WebSocket message exceeds the capture limit")
     payload: bytes | None = wire
     if first.rsv1:
         payload = None
         if inflate:
             try:
-                payload = decompressor.decompress(wire + DEFLATE_TAIL)
+                payload = inflate_payload(decompressor, wire, remaining)
             except zlib.error:
                 payload = None
+    if payload is not None and len(payload) > remaining:
+        raise ValueError("decoded WebSocket bytes exceed the capture limit")
     return MessageSummary(
         opcode=first.opcode,
         rsv1=first.rsv1,
@@ -217,6 +246,16 @@ def message_summary(
         wire_payload=wire,
         payload=payload,
     )
+
+
+def inflate_payload(decompressor, wire: bytes, remaining: int) -> bytes:
+    limit = min(MAX_MESSAGE_PAYLOAD, remaining)
+    if limit < 0:
+        raise ValueError("decoded WebSocket bytes exceed the capture limit")
+    payload = decompressor.decompress(wire + DEFLATE_TAIL, limit + 1)
+    if len(payload) > limit or decompressor.unconsumed_tail:
+        raise ValueError("decoded WebSocket bytes exceed the capture limit")
+    return payload
 
 
 @dataclass
@@ -231,6 +270,9 @@ class EchoPeer:
     reader: FrameReader = field(default_factory=FrameReader)
     fragments: list[WebSocketFrame] = field(default_factory=list)
     closed: bool = False
+    message_count: int = 0
+    decoded_bytes: int = 0
+    fragment_bytes: int = 0
     decompressor: object = field(
         default_factory=lambda: zlib.decompressobj(-zlib.MAX_WBITS)
     )
@@ -247,16 +289,34 @@ class EchoPeer:
             elif frame.opcode == PING:
                 output.extend(encode_frame(PONG, frame.payload))
             elif frame.opcode in (*DATA_OPCODES, CONTINUATION):
+                if frame.opcode == CONTINUATION and not self.fragments:
+                    raise ValueError("WebSocket continuation has no message")
+                if frame.opcode != CONTINUATION and self.fragments:
+                    raise ValueError(
+                        "WebSocket message interrupts a fragmented message"
+                    )
+                if self.fragment_bytes + len(frame.payload) > MAX_MESSAGE_PAYLOAD:
+                    raise ValueError("WebSocket message exceeds the capture limit")
+                self.fragment_bytes += len(frame.payload)
                 self.fragments.append(frame)
                 if frame.fin:
                     output.extend(self._echo())
         return bytes(output)
 
     def _echo(self) -> bytes:
+        if self.message_count >= MAX_MESSAGES:
+            raise ValueError("WebSocket message count exceeds the capture limit")
+        self.message_count += 1
         frames, self.fragments = self.fragments, []
+        self.fragment_bytes = 0
         payload = b"".join(frame.payload for frame in frames)
         if frames[0].rsv1:
             if not self.inflate:
                 raise ValueError("compressed message without a negotiated extension")
-            payload = self.decompressor.decompress(payload + DEFLATE_TAIL)
+            payload = inflate_payload(
+                self.decompressor, payload, MAX_DECODED_BYTES - self.decoded_bytes
+            )
+        if self.decoded_bytes + len(payload) > MAX_DECODED_BYTES:
+            raise ValueError("decoded WebSocket bytes exceed the capture limit")
+        self.decoded_bytes += len(payload)
         return encode_frame(frames[0].opcode, payload)

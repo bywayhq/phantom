@@ -22,6 +22,7 @@ from aioquic.quic.packet import (
 )
 from aioquic.tls import CipherSuite
 
+from .quic_crypto import validate_protected_packet
 from .quic_flight import PacketSummary
 from .quic_summary import (
     FrameKind,
@@ -272,6 +273,7 @@ class QuicPacketCapture:
                     packet_end = packet_start + header.packet_length
                     packet = bytes(datagram[packet_start:packet_end])
                     buf.seek(packet_end)
+                    validate_protected_packet(packet, encrypted_offset)
 
                     space = _packet_space(header.packet_type)
                     if header.version is not None:
@@ -328,7 +330,10 @@ class QuicPacketCapture:
                             frames=_parse_frames(
                                 payload,
                                 spans,
-                                initial_handshake if space == "initial" else None,
+                                space=space,
+                                initial_crypto=(
+                                    initial_handshake if space == "initial" else None
+                                ),
                             ),
                         )
                     )
@@ -413,6 +418,8 @@ def _packet_space(packet_type: QuicPacketType) -> str:
 def _parse_frames(
     payload: bytes,
     spans: tuple[SymbolicSpan, ...],
+    *,
+    space: str,
     initial_crypto: _InitialCrypto | None = None,
 ) -> tuple[FrameKind | StreamFrame, ...]:
     buf = Buffer(data=payload)
@@ -445,6 +452,9 @@ def _parse_frames(
             _pull_length_prefixed(buf)
             frames.append(FrameKind("new_token"))
         elif 0x08 <= frame_type <= 0x0F:
+            if space != "1rtt":
+                raise ValueError("STREAM frames must be carried in 1-RTT")
+
             frames.append(_pull_stream(buf, frame_type, spans))
         elif frame_type == QuicFrameType.MAX_DATA:
             _pull_varints(buf, 1)

@@ -25,6 +25,12 @@ from scripts.capture.socket_hooks import (
 
 FIXTURES = Path(__file__).resolve().parents[3] / "fixtures" / "socket-hooks"
 
+# LF source digests at 15b1603e198f6a5e8ac2bac61d341d93330cfe46.
+RETAINED_SOURCE_DIGESTS = (
+    "0c399cf92b4409a89457b6bb668d645e66fb842a5f0feff3c21e782ba3f1db4e",
+    "2c5e7785ff464f6f1d5987e359f7c9517c3142f53fbdb8dd2c88822aef272f9a",
+)
+
 
 def sockaddr_in(address: bytes, port: int) -> str:
     return (b"\x02\x00" + port.to_bytes(2, "big") + address + bytes(8)).hex()
@@ -271,7 +277,7 @@ class LaunchTests(unittest.TestCase):
             "'--field-trial-handle=<handle>' '--pseudonymization-salt-handle=<handle>'",
         )
 
-    def test_fixture_header_names_the_agent_digest(self) -> None:
+    def test_fresh_fixture_header_names_the_current_source_digests(self) -> None:
         text = render_fixture(
             browser="chrome",
             client_version="1",
@@ -282,10 +288,17 @@ class LaunchTests(unittest.TestCase):
             runs=[["run_0_event_count=0"]],
         )
         lines = text.splitlines()
+        fields = dict(line.split("=", 1) for line in lines)
+
         self.assertEqual(lines[0], f"format={FORMAT}")
         self.assertIn("evidence=hook", lines)
         self.assertIn("browser=Google Chrome", lines)
-        self.assertTrue(any(line.startswith("hook_agent_sha256=") for line in lines))
+
+        self.assertEqual(fields["hook_agent_sha256"], file_digest(AGENT))
+        self.assertEqual(
+            fields["capture_tool_sha256"], file_digest(Path(socket_hooks.__file__))
+        )
+
         self.assertEqual(lines[-1], "run_0_event_count=0")
         self.assertTrue(text.endswith("\n"))
 
@@ -338,7 +351,7 @@ class RetainedFixtureTests(unittest.TestCase):
             if path.relative_to(FIXTURES).parts[0] != "firefox"
         )
         self.assertTrue(paths)
-        digests = set()
+
         for path in paths:
             with self.subTest(path=path.relative_to(FIXTURES)):
                 fields = dict(
@@ -350,13 +363,11 @@ class RetainedFixtureTests(unittest.TestCase):
                 self.assertEqual(fields["hook_agent"], f"scripts/capture/{AGENT.name}")
                 self.assertEqual(fields["run_0_timed_out"], "false")
                 self.assertEqual(fields["run_0_hook_error_count"], "0")
-                digests.add(
-                    (fields["hook_agent_sha256"], fields["capture_tool_sha256"])
+
+                self.assertEqual(
+                    (fields["hook_agent_sha256"], fields["capture_tool_sha256"]),
+                    RETAINED_SOURCE_DIGESTS,
                 )
-        # A retained log is evidence for the agent and tool in the repository
-        # only: the tool writes the summary lines the recipe tests read.
-        tool = Path(socket_hooks.__file__)
-        self.assertEqual(digests, {(file_digest(AGENT), file_digest(tool))})
 
 
 if __name__ == "__main__":

@@ -25,6 +25,15 @@ from scripts.capture.socket_hooks import file_digest
 
 FIXTURES = Path(__file__).resolve().parents[3] / "fixtures" / "socket-hooks" / "firefox"
 
+# Shared LF sources: 15b1603e198f6a5e8ac2bac61d341d93330cfe46.
+# Firefox LF sources: 71885a75fa222134e29696f99746d1141ef910b9.
+RETAINED_SOURCE_DIGESTS = (
+    "0c399cf92b4409a89457b6bb668d645e66fb842a5f0feff3c21e782ba3f1db4e",
+    "3e8e1165b0c69360477f40c4e393454e00c7db54593fa3ccbb3ea6bf335bd386",
+    "67e8511be8cbe6649d0c2aa047fd86e67c33714be77b75cc573908a559924bc1",
+    "2c5e7785ff464f6f1d5987e359f7c9517c3142f53fbdb8dd2c88822aef272f9a",
+)
+
 
 def sockaddr_in(port: int) -> str:
     return (
@@ -203,7 +212,7 @@ class LaunchTests(unittest.TestCase):
             "--headless http://127.0.0.1:<port>/",
         )
 
-    def test_fixture_header_names_every_digest(self) -> None:
+    def test_fresh_fixture_header_names_every_current_source_digest(self) -> None:
         text = render_fixture(
             client_version="157.0",
             build_id="1",
@@ -214,11 +223,18 @@ class LaunchTests(unittest.TestCase):
             runs=[["run_0_event_count=0"]],
         )
         fields = dict(line.split("=", 1) for line in text.splitlines())
+
         self.assertEqual(fields["format"], FORMAT)
         self.assertEqual(fields["browser"], "Mozilla Firefox")
+
         self.assertEqual(fields["hook_agent_sha256"], file_digest(AGENT))
         self.assertEqual(fields["hook_agent_extension_sha256"], file_digest(EXTENSION))
+        self.assertEqual(
+            fields["capture_tool_sha256"],
+            file_digest(Path(firefox_socket_hooks.__file__)),
+        )
         self.assertEqual(fields["decoder_sha256"], file_digest(DECODER))
+
         self.assertIn("[::1] then 127.0.0.1", fields["hook_intervention"])
         self.assertTrue(text.endswith("run_0_event_count=0\n"))
 
@@ -282,7 +298,7 @@ class RetainedFixtureTests(unittest.TestCase):
     def test_retained_logs_name_the_agents_and_tools_they_were_taken_with(self) -> None:
         paths = sorted(FIXTURES.glob("*/*/hooks-*.txt"))
         self.assertTrue(paths)
-        tool = Path(firefox_socket_hooks.__file__)
+
         for path in paths:
             with self.subTest(path=path.relative_to(FIXTURES)):
                 fields = dict(
@@ -292,12 +308,17 @@ class RetainedFixtureTests(unittest.TestCase):
                 self.assertEqual(fields["format"], FORMAT)
                 self.assertEqual(fields["evidence"], "hook")
                 self.assertEqual(fields["browser"], "Mozilla Firefox")
-                self.assertEqual(fields["hook_agent_sha256"], file_digest(AGENT))
+
                 self.assertEqual(
-                    fields["hook_agent_extension_sha256"], file_digest(EXTENSION)
+                    (
+                        fields["hook_agent_sha256"],
+                        fields["hook_agent_extension_sha256"],
+                        fields["capture_tool_sha256"],
+                        fields["decoder_sha256"],
+                    ),
+                    RETAINED_SOURCE_DIGESTS,
                 )
-                self.assertEqual(fields["capture_tool_sha256"], file_digest(tool))
-                self.assertEqual(fields["decoder_sha256"], file_digest(DECODER))
+
                 for run in range(int(fields["run_count"])):
                     self.assertEqual(fields[f"run_{run}_timed_out"], "false")
                     self.assertEqual(fields[f"run_{run}_hook_error_count"], "0")

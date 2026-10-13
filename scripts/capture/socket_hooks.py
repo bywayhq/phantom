@@ -14,12 +14,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import contextlib
+import errno
 import hashlib
 import ipaddress
 import json
 import platform
 import queue
+import re
 import shlex
 import shutil
 import socket
@@ -27,12 +28,13 @@ import sys
 import tempfile
 import threading
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from .browser_failures import raise_browser_failures
 from .browser_launch import (
     CLIENT_NAMES,
     DESKTOP_CHROMIUM_BROWSERS,
@@ -47,6 +49,21 @@ FORMAT = "phantom-socket-hooks-v1"
 AGENT = Path(__file__).with_name("socket_hooks.js")
 NETWORK_SERVICE_SWITCH = "--utility-sub-type=network.mojom.NetworkService"
 MAX_REQUEST_HEAD = 64 * 1024
+_ORIGIN_MAX_ACTIVE = 32
+_ORIGIN_MAX_CONNECTIONS = 128
+_ORIGIN_MAX_REQUESTS = 512
+_ORIGIN_CLEANUP_SECONDS = 5.0
+_HTTP_TOKEN = frozenset(
+    b"!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+)
+_ORIGIN_PEER_ERRNOS = frozenset((errno.ECONNRESET, errno.ECONNABORTED, errno.EPIPE))
+# Existing profile cleanup permits two 60-second commands and a 5-second join.
+_RUN_CLEANUP_SECONDS = 150.0
+_HOOK_CHILD_LIMIT = 64
+_HOOK_REPORT_LIMIT = 100_000
+_HOOK_READY_SECONDS = 10.0
+_HOOK_NATIVE_CLEANUP_SECONDS = 15.0
+_PROCESS_TERMINATE = 0x0001
 # A name that public DNS resolves to 127.0.0.1, so a lookup leaves the
 # browser's resolver while the connection stays on loopback.
 LOOKUP_HOST = "127.0.0.1.nip.io"
@@ -520,6 +537,15 @@ class Origin:
     open_count: int = 0
     max_open: int = 0
     done: asyncio.Event = field(default_factory=asyncio.Event)
+    _listeners: list[_SocketHookOriginListener] = field(
+        default_factory=list, repr=False
+    )
+    _peers: list[_SocketHookOriginPeer] = field(default_factory=list, repr=False)
+    _requests: int = 0
+    _stopping: bool = False
+    _failure: BaseException | None = field(default=None, repr=False)
+    _late_primary: BaseException | None = field(default=None, repr=False)
+    _returned: bool = False
 
     @property
     def measured_port(self) -> int:
@@ -569,41 +595,361 @@ class Origin:
             f"<script>{script}</script>\n"
         ).encode()
 
-    async def handle(
+    async def listen(self, listener: asyncio.Server) -> None:
+        owner = self._own_listener(listener)
+        await owner.register(self)
+        if self._failure is not None or self._stopping:
+            self._close_admission()
+
+    def _own_listener(self, listener: asyncio.Server) -> _SocketHookOriginListener:
+        for owner in self._listeners:
+            if owner.listener is listener:
+                return owner
+
+        owner = _SocketHookOriginListener(listener)
+        self._listeners.append(owner)
+        return owner
+
+    def handle(
         self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
-        peer = writer.get_extra_info("peername")
-        connection = OriginConnection(f"{peer[0]}:{peer[1]}", now_ms())
-        self.connections.append(connection)
+        owner = _SocketHookOriginPeer(reader, writer)
+        self._peers.append(owner)
+        if self._returned:
+            owner.serving_error = RuntimeError(
+                "socket hook origin accepted a connection after cleanup"
+            )
+            self._failed(owner.serving_error)
+
+        if self._stopping or self._failure is not None:
+            owner.close(self)
+            return
+
+        if (
+            len(self.connections) >= _ORIGIN_MAX_CONNECTIONS
+            or sum(not peer.finished for peer in self._peers) > _ORIGIN_MAX_ACTIVE
+        ):
+            error = ValueError("socket hook origin connection limit exceeded")
+            self._failed(error)
+            owner.close(self)
+            return
+
         self.open_count += 1
         self.max_open = max(self.max_open, self.open_count)
+        owner.active = True
+        operation = None
         try:
-            while True:
+            address = writer.get_extra_info("peername")
+            owner.connection = OriginConnection(f"{address[0]}:{address[1]}", now_ms())
+            self.connections.append(owner.connection)
+            operation = self._serve(owner, reader)
+            owner.serving = asyncio.create_task(operation)
+            owner.serving.add_done_callback(lambda completed: owner.observe(self))
+        except BaseException as error:
+            owner.serving_error = error
+            self._failed(error)
+            if operation is not None and owner.serving is None:
                 try:
-                    head = await reader.readuntil(b"\r\n\r\n")
-                except (asyncio.IncompleteReadError, asyncio.LimitOverrunError):
+                    operation.close()
+                except BaseException as close_error:
+                    owner.operation_close_error = close_error
+                    self._failed(close_error)
+            owner.observe(self)
+            owner.close(self)
+
+    async def _serve(
+        self, owner: _SocketHookOriginPeer, reader: asyncio.StreamReader
+    ) -> None:
+        while True:
+            try:
+                head = await reader.readuntil(b"\r\n\r\n")
+            except asyncio.IncompleteReadError as error:
+                if not error.partial:
+                    return
+
+                raise
+
+            host, target, parsed = self._request(head)
+            if self._requests >= _ORIGIN_MAX_REQUESTS:
+                raise ValueError("socket hook origin request limit exceeded")
+
+            self._requests += 1
+            owner.connection.requests.append((now_ms(), host, target))
+            close = await self.respond(owner.writer, parsed)
+            owner.connection.last_response_ms = now_ms()
+            if close:
+                return
+
+    def _request(self, head: bytes) -> tuple[str, str, Any]:
+        if len(head) > MAX_REQUEST_HEAD:
+            raise ValueError("socket hook origin request head exceeds 64 KiB")
+
+        lines = head[:-4].split(b"\r\n")
+        parts = lines[0].split(b" ")
+        if (
+            len(parts) != 3
+            or not parts[0]
+            or any(byte not in _HTTP_TOKEN for byte in parts[0])
+        ):
+            raise ValueError("socket hook origin request line is invalid")
+
+        if parts[2] not in (b"HTTP/1.0", b"HTTP/1.1"):
+            raise ValueError("socket hook origin HTTP version is unsupported")
+
+        target = parts[1].decode("ascii")
+        if not target or any(ord(value) <= 32 or ord(value) == 127 for value in target):
+            raise ValueError("socket hook origin request target is invalid")
+
+        parsed = urlsplit(target)
+        if "#" in target or not target.startswith("/") or parsed.netloc:
+            raise ValueError(
+                "socket hook origin requires an origin-form request target"
+            )
+
+        hosts = []
+        for line in lines[1:]:
+            name, separator, value = line.partition(b":")
+            if (
+                not separator
+                or not name
+                or any(byte not in _HTTP_TOKEN for byte in name)
+            ):
+                raise ValueError("socket hook origin header name is invalid")
+
+            if any((byte < 32 and byte != 9) or byte == 127 for byte in value):
+                raise ValueError("socket hook origin header value is invalid")
+
+            name = name.lower()
+            value = value.strip()
+            if name == b"host":
+                hosts.append(value.decode("ascii"))
+            elif name == b"transfer-encoding" or (
+                name == b"content-length" and value != b"0"
+            ):
+                raise ValueError("socket hook origin request bodies are unsupported")
+
+        if len(hosts) > 1 or (parts[2] == b"HTTP/1.1" and len(hosts) != 1):
+            raise ValueError("socket hook origin requires one Host header")
+
+        host = hosts[0] if hosts else ""
+        if hosts:
+            if "?" in host or "#" in host:
+                raise ValueError("socket hook origin Host header is invalid")
+
+            if "[" in host or "]" in host:
+                _, separator, suffix = host.partition("]")
+                if (
+                    not host.startswith("[")
+                    or not separator
+                    or (
+                        suffix
+                        and (not suffix.startswith(":") or not suffix[1:].isdigit())
+                    )
+                ):
+                    raise ValueError("socket hook origin Host header is invalid")
+
+            authority = urlsplit("//" + host)
+            if (
+                not authority.hostname
+                or authority.username is not None
+                or authority.path
+                or authority.query
+                or authority.fragment
+                or any(ord(value) <= 32 or ord(value) == 127 for value in host)
+                or host.endswith(":")
+            ):
+                raise ValueError("socket hook origin Host header is invalid")
+
+            # Accessing port also validates its syntax and numeric range.
+            _ = authority.port
+
+        return host, target, parsed
+
+    def _close_admission(self) -> None:
+        for owner in self._listeners:
+            owner.close(self)
+
+    def _failed(self, error: BaseException) -> None:
+        if self._failure is None:
+            self._failure = error
+            self.done.set()
+            if not self._stopping:
+                self._close_admission()
+
+        if self._returned:
+            asyncio.get_running_loop().call_exception_handler(
+                {
+                    "message": "socket hook origin failed after cleanup returned",
+                    "exception": error,
+                    "primary": self._late_primary,
+                    "owner": self,
+                }
+            )
+
+    async def finish(
+        self, deadline: float, primary: BaseException | None
+    ) -> tuple[BaseException, ...]:
+        self._stopping = True
+        self._late_primary = primary
+        for owner in tuple(self._peers):
+            if owner.serving is not None and not owner.serving.done():
+                try:
+                    owner.cancel_requested = owner.serving.cancel()
+                except BaseException as error:
+                    owner.cancel_error = error
+                    self._failed(error)
+
+            owner.close(self)
+
+        errors = []
+        deadline = min(
+            deadline, asyncio.get_running_loop().time() + _ORIGIN_CLEANUP_SECONDS
+        )
+        # Protocol admission has stopped. Close each native listener in reverse
+        # acquisition order and observe its original waiter before advancing.
+        # This keeps independent caller interruptions with their waiter result.
+        for owner in reversed(self._listeners):
+            if owner.waiter is None:
+                try:
+                    await asyncio.wait_for(
+                        owner.register(self),
+                        max(0.0, deadline - asyncio.get_running_loop().time()),
+                    )
+                except BaseException as error:
+                    errors.append(error)
+
+            owner.close(self)
+            while owner.waiter is not None and not owner.waiter.done():
+                remaining = max(0.0, deadline - asyncio.get_running_loop().time())
+                try:
+                    _, pending = await asyncio.wait((owner.waiter,), timeout=remaining)
+                except BaseException as error:
+                    errors.append(error)
+                    if (
+                        isinstance(
+                            error,
+                            (asyncio.CancelledError, KeyboardInterrupt, SystemExit),
+                        )
+                        and asyncio.get_running_loop().time() < deadline
+                    ):
+                        continue
+
                     break
-                line = head.split(b"\r\n", 1)[0].decode("latin-1")
-                parts = line.split(" ")
-                target = parts[1] if len(parts) > 1 else "/"
-                host = ""
-                for field_line in head.split(b"\r\n")[1:]:
-                    key, _, value = field_line.partition(b":")
-                    if key.strip().lower() == b"host":
-                        host = value.strip().decode("latin-1")
-                connection.requests.append((now_ms(), host, target))
-                close = await self.respond(writer, urlsplit(target))
-                connection.last_response_ms = now_ms()
-                if close:
+
+                if pending:
+                    errors.append(
+                        asyncio.TimeoutError(
+                            "socket hook listener cleanup deadline elapsed"
+                        )
+                    )
                     break
-        except (ConnectionError, OSError):
-            pass
-        finally:
-            connection.closed_ms = now_ms()
-            self.open_count -= 1
-            writer.close()
-            with contextlib.suppress(ConnectionError, OSError):
-                await writer.wait_closed()
+
+            owner.observe(self)
+            errors.extend(owner.errors)
+
+        while True:
+            for owner in self._listeners:
+                owner.observe(self)
+
+            for owner in tuple(self._peers):
+                owner.observe(self)
+
+            pending = {
+                task
+                for owner in self._peers
+                for task in (owner.serving, owner.closing)
+                if task is not None and not task.done()
+            }
+            pending.update(
+                owner.waiter
+                for owner in self._listeners
+                if owner.waiter is not None and not owner.waiter.done()
+            )
+            if not pending:
+                break
+
+            remaining = max(0.0, deadline - asyncio.get_running_loop().time())
+            try:
+                _, pending = await asyncio.wait(pending, timeout=remaining)
+            except BaseException as error:
+                errors.append(error)
+                if (
+                    isinstance(
+                        error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+                    )
+                    and asyncio.get_running_loop().time() < deadline
+                ):
+                    continue
+
+                break
+
+            if pending:
+                errors.append(
+                    asyncio.TimeoutError("socket hook origin cleanup deadline elapsed")
+                )
+                break
+
+        for owner in tuple(self._peers):
+            owner.observe(self)
+            if not owner.finished:
+                owner.abort(self)
+
+        for owner in self._listeners:
+            owner.observe(self)
+
+        pending = tuple(owner for owner in self._peers if not owner.finished)
+        if pending or any(not owner.finished for owner in self._listeners):
+            errors.append(_SocketHookOriginPending(self, pending))
+
+        errors.extend(self.failures(primary))
+        retained = []
+        for error in errors:
+            if error is not primary and all(
+                error is not previous for previous in retained
+            ):
+                retained.append(error)
+
+        if self._late_primary is None:
+            self._late_primary = next(
+                (
+                    error
+                    for error in retained
+                    if isinstance(
+                        error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+                    )
+                ),
+                None,
+            )
+        self._returned = True
+        return tuple(retained)
+
+    def failures(self, primary: BaseException | None) -> tuple[BaseException, ...]:
+        errors = [self._failure]
+        for owner in self._listeners:
+            errors.extend(owner.errors)
+        for owner in self._peers:
+            errors.extend(
+                (
+                    owner.serving_error,
+                    owner.reader_error,
+                    owner.close_error,
+                    owner.wait_error,
+                    owner.abort_error,
+                    owner.cancel_error,
+                    owner.operation_close_error,
+                )
+            )
+
+        retained = []
+        for error in errors:
+            if (
+                error is not None
+                and error is not primary
+                and all(error is not previous for previous in retained)
+            ):
+                retained.append(error)
+
+        return tuple(retained)
 
     async def respond(self, writer: asyncio.StreamWriter, target: Any) -> bool:
         path = target.path
@@ -627,6 +973,246 @@ class Origin:
         if path == "/done":
             self.done.set()
         return close
+
+
+class _SocketHookOriginListener:
+    def __init__(self, listener: asyncio.Server) -> None:
+        self.listener = listener
+        self.ready = asyncio.Event()
+        self.waiter: asyncio.Task[None] | None = None
+        self.observed = False
+        self.errors: list[BaseException] = []
+
+    @property
+    def finished(self) -> bool:
+        return self.observed
+
+    async def register(self, origin: Origin) -> None:
+        operation = self._wait_closed(origin)
+        try:
+            self.waiter = asyncio.create_task(operation)
+            self.waiter.add_done_callback(lambda completed: self.observe(origin))
+        except BaseException as error:
+            self.errors.append(error)
+            origin._failed(error)
+            if self.waiter is None:
+                try:
+                    operation.close()
+                except BaseException as close_error:
+                    self.errors.append(close_error)
+                    origin._failed(close_error)
+
+            raise
+
+        await self.ready.wait()
+        if self.errors:
+            raise self.errors[0]
+
+    async def _wait_closed(self, origin: Origin) -> None:
+        try:
+            if not self.listener.sockets:
+                error = RuntimeError(
+                    "socket hook origin listener closed before registration"
+                )
+                self.errors.append(error)
+                origin._failed(error)
+
+            # On pinned CPython, this queued signal runs only after the open
+            # server's wait_closed has registered its native closure waiter.
+            asyncio.get_running_loop().call_soon(self.ready.set)
+            await self.listener.wait_closed()
+        except BaseException as error:
+            self.errors.append(error)
+            origin._failed(error)
+        finally:
+            self.ready.set()
+
+    def close(self, origin: Origin) -> None:
+        try:
+            self.listener.close()
+        except BaseException as error:
+            if all(error is not previous for previous in self.errors):
+                self.errors.append(error)
+                if origin._returned:
+                    origin._failed(error)
+
+    def observe(self, origin: Origin) -> None:
+        if self.waiter is None or not self.waiter.done() or self.observed:
+            return
+
+        self.observed = True
+        try:
+            self.waiter.result()
+        except BaseException as error:
+            self.errors.append(error)
+            origin._failed(error)
+
+
+class _SocketHookOriginPeer:
+    def __init__(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        self.reader = reader
+        self.writer = writer
+        self.connection: OriginConnection | None = None
+        self.serving: asyncio.Task[None] | None = None
+        self.closing: asyncio.Task[None] | None = None
+        self.serving_error: BaseException | None = None
+        self.reader_error: BaseException | None = None
+        self.close_error: BaseException | None = None
+        self.wait_error: BaseException | None = None
+        self.abort_error: BaseException | None = None
+        self.cancel_error: BaseException | None = None
+        self.operation_close_error: BaseException | None = None
+        self.peer_error: BaseException | None = None
+        self.wait_peer_error: BaseException | None = None
+        self.cancel_requested = False
+        self.active = False
+        self.serving_observed = False
+        self.closing_observed = False
+        self.close_started = False
+        self.abort_started = False
+
+    @property
+    def finished(self) -> bool:
+        return (self.serving is None or self.serving_observed) and self.closing_observed
+
+    def close(self, origin: Origin) -> None:
+        if self.close_started:
+            return
+
+        self.close_started = True
+        try:
+            self.writer.close()
+        except BaseException as error:
+            self.close_error = error
+            origin._failed(error)
+            self.abort(origin)
+
+        operation = None
+        try:
+            operation = self.writer.wait_closed()
+            self.closing = asyncio.create_task(operation)
+            self.closing.add_done_callback(lambda completed: self.observe(origin))
+        except BaseException as error:
+            self.wait_error = error
+            origin._failed(error)
+            if operation is not None and self.closing is None:
+                try:
+                    operation.close()
+                except BaseException as close_error:
+                    self.operation_close_error = close_error
+                    origin._failed(close_error)
+
+    def peer_disconnected(self, error: BaseException) -> bool:
+        return isinstance(
+            error, (ConnectionResetError, ConnectionAbortedError, BrokenPipeError)
+        ) and (
+            error.errno in _ORIGIN_PEER_ERRNOS
+            or getattr(error, "winerror", None) in (10053, 10054, 232)
+            or error is self.peer_error
+            or (
+                self.writer.is_closing()
+                and self.reader.exception() is None
+                and error.errno is None
+            )
+        )
+
+    def abort(self, origin: Origin) -> None:
+        if self.abort_started:
+            return
+
+        self.abort_started = True
+        try:
+            self.writer.transport.abort()
+        except BaseException as error:
+            self.abort_error = error
+            origin._failed(error)
+
+    def observe(self, origin: Origin) -> None:
+        error = self.reader.exception()
+        if error is not None and self.reader_error is None:
+            if self.peer_disconnected(error):
+                self.peer_error = error
+            else:
+                self.reader_error = error
+                origin._failed(error)
+
+        if (
+            self.serving is not None
+            and self.serving.done()
+            and not self.serving_observed
+        ):
+            self.serving_observed = True
+            try:
+                self.serving.result()
+            except asyncio.CancelledError as error:
+                if self.cancel_requested:
+                    pass  # This owner requested cancellation of this serving task.
+                else:
+                    self.serving_error = error
+                    origin._failed(error)
+            except BaseException as error:
+                if self.peer_disconnected(error):
+                    self.peer_error = error
+                else:
+                    self.serving_error = error
+                    origin._failed(error)
+
+        if self.active and (self.serving is None or self.serving_observed):
+            self.active = False
+            origin.open_count -= 1
+            if self.connection is not None:
+                self.connection.closed_ms = now_ms()
+
+            self.close(origin)
+
+        if (
+            self.closing is not None
+            and self.closing.done()
+            and not self.closing_observed
+        ):
+            self.closing_observed = True
+            try:
+                self.closing.result()
+            except BaseException as error:
+                if self.peer_disconnected(error):
+                    self.wait_peer_error = error
+                else:
+                    self.wait_error = error
+                    origin._failed(error)
+                    self.abort(origin)
+
+        if (
+            self.connection is None
+            and self.finished
+            and self in origin._peers
+            and all(
+                error is None
+                for error in (
+                    self.serving_error,
+                    self.reader_error,
+                    self.close_error,
+                    self.wait_error,
+                    self.abort_error,
+                    self.cancel_error,
+                    self.operation_close_error,
+                )
+            )
+        ):
+            origin._peers.remove(self)
+
+
+class _SocketHookOriginPending(RuntimeError):
+    def __init__(
+        self, origin: Origin, pending: tuple[_SocketHookOriginPeer, ...]
+    ) -> None:
+        self.owner = origin
+        self.pending = pending
+        self.listeners = tuple(
+            owner for owner in origin._listeners if not owner.finished
+        )
+        super().__init__("socket hook origin owners have not finished cleanup")
 
 
 def now_ms() -> int:
@@ -664,14 +1250,33 @@ def is_network_service(argv: Sequence[str] | None) -> bool:
     return bool(argv) and NETWORK_SERVICE_SWITCH in argv
 
 
+def _socket_hook_switches(extra: Sequence[str]) -> tuple[str, ...]:
+    """Keep the disposable profile and page URL under the run's ownership."""
+    switches = tuple(extra)
+    for switch in switches:
+        if not isinstance(switch, str) or any(char in switch for char in "\x00\r\n"):
+            raise ValueError("browser-switch must use --name or --name=value")
+
+        name = switch.partition("=")[0]
+        if re.fullmatch(r"--[a-zA-Z][a-zA-Z0-9-]*", name) is None:
+            raise ValueError("browser-switch must use --name or --name=value")
+
+        # Chromium's Windows command-line parser lowercases switch names.
+        if name.lower() in ("--user-data-dir", "--single-argument"):
+            raise ValueError(
+                "browser-switch cannot replace the managed profile or page"
+            )
+
+    return switches
+
+
 class HookedBrowser:
     """A browser spawned under Frida with child gating, on a fresh profile.
 
-    The browser process and every child it starts are held until resumed.
-    The network service child gets the agent before it resumes, so the hooks
-    see its first socket. Only the processes this object spawned are ended:
-    the spawned browser by its process ID, then any process whose command
-    line names this run's temporary profile.
+    The spawned browser's direct children are held until resumed. The network
+    service must acknowledge configuration and installed hooks before resume.
+    The agent requires Windows x64 and already loaded Winsock and DNS modules.
+    Shutdown retains native sessions, pending children and unfinished workers.
     """
 
     def __init__(
@@ -691,73 +1296,555 @@ class HookedBrowser:
         self.frida_version = ""
         self._children: queue.Queue[Any] = queue.Queue()
         self._lock = threading.Lock()
-        self._sessions: list[Any] = []
+        self._sessions: dict[int, Any] = {}
         self._pid: int | None = None
+        self._processes: dict[int, _SocketHookProcess] = {}
+        self._retired_pids: set[int] = set()
+        self._network_pid: int | None = None
         self._device: Any = None
         self._worker: threading.Thread | None = None
         self._stopping = threading.Event()
+        self._ready = threading.Event()
+        self._frida: Any = None
+        self._cancellable: Any = None
+        self._accepting = False
+        self._subscribed = False
+        self._child_count = 0
+        self._children_by_pid: dict[int, Any] = {}
+        self._scripts: dict[int, Any] = {}
+        self._pending_children: tuple[Any, ...] = ()
+        self._failure: BaseException | None = None
+        self._failure_notifier: Callable[[BaseException], None] | None = None
+        self._cleanup_failures: list[BaseException] = []
+        self._stopped = False
+        self._profile_retired = False
 
     def start(self) -> None:
         import frida  # noqa: PLC0415 - only a capture needs Frida
 
+        self._frida = frida
         self.frida_version = frida.__version__
-        self._device = frida.get_local_device()
-        self._device.on("child-added", self._on_child_added)
-        self._worker = threading.Thread(target=self._gate_children, daemon=True)
-        self._worker.start()
-        self._pid = self._device.spawn([str(self.executable), *self.arguments])
-        session = self._device.attach(self._pid)
-        self._sessions.append(session)
-        session.enable_child_gating()
-        self._device.resume(self._pid)
+        with self._lock:
+            self._cancellable = frida.Cancellable()
+            if self._stopping.is_set():
+                self._cancellable.cancel()
+
+        with self._cancellable:
+            self._device = frida.get_local_device()
+            self._subscribed = True
+            self._device.on("child-added", self._on_child_added)
+            with self._lock:
+                self._accepting = not self._stopping.is_set()
+
+            self._worker = threading.Thread(target=self._gate_children, daemon=False)
+            self._worker.start()
+            self._pid = self._device.spawn([str(self.executable), *self.arguments])
+            self._processes[self._pid] = _SocketHookProcess(self._pid)
+            session = self._device.attach(self._pid)
+            with self._lock:
+                self._sessions[self._pid] = session
+
+            session.enable_child_gating()
+            self._device.resume(self._pid)
+
+        deadline = time.monotonic() + _HOOK_READY_SECONDS
+        while not self._ready.wait(0.1):
+            if self._stopping.is_set():
+                with self._lock:
+                    failure = self._failure
+
+                if failure is not None:
+                    raise failure
+
+                raise RuntimeError("socket hook startup was stopped before readiness")
+
+            if time.monotonic() >= deadline:
+                raise TimeoutError(
+                    "socket hook configuration readiness deadline elapsed"
+                )
 
     def _on_child_added(self, child: Any) -> None:
-        self._children.put(child)
+        try:
+            with self._lock:
+                if child.parent_pid != self._pid:
+                    return
+
+                if not self._accepting:
+                    return
+
+                if child.pid in self._children_by_pid:
+                    raise _SocketHookIdentityUnknown(self, (child,))
+
+                if self._child_count >= _HOOK_CHILD_LIMIT:
+                    raise _SocketHookChildLimit(self, child)
+
+                self._child_count += 1
+                self._children_by_pid[child.pid] = child
+                self._children.put_nowait(child)
+        except BaseException as error:
+            self._retain_failure(error)
+
+    def request_stop(self) -> None:
+        with self._lock:
+            self._accepting = False
+            self._stopping.set()
+            cancellable = self._cancellable
+
+        if cancellable is not None:
+            cancellable.cancel()
+
+    def _retain_failure(self, error: BaseException) -> None:
+        with self._lock:
+            notifier = None
+            if self._failure is None:
+                self._failure = error
+                notifier = self._failure_notifier
+
+        if notifier is not None:
+            try:
+                notifier(error)
+            except BaseException as notify_error:
+                with self._lock:
+                    self._cleanup_failures.append(notify_error)
+
+        try:
+            self.request_stop()
+        except BaseException as stop_error:
+            with self._lock:
+                if not self._cleanup_failures:
+                    self._cleanup_failures.append(stop_error)
 
     def _gate_children(self) -> None:
-        source = AGENT.read_text(encoding="utf-8")
-        while not self._stopping.is_set():
-            try:
-                child = self._children.get(timeout=0.2)
-            except queue.Empty:
-                continue
-            try:
-                if is_network_service(child.argv) and self.network_service_argv is None:
-                    self.network_service_argv = list(child.argv)
-                    session = self._device.attach(child.pid)
-                    self._sessions.append(session)
-                    script = session.create_script(source)
+        try:
+            source = AGENT.read_text(encoding="utf-8")
+            while not self._stopping.is_set():
+                try:
+                    child = self._children.get(timeout=0.2)
+                except queue.Empty:
+                    continue
+
+                with self._cancellable:
+                    self._instrument_child(child, source)
+        except BaseException as error:
+            locally_cancelled = (
+                self._stopping.is_set()
+                and isinstance(error, self._frida.OperationCancelledError)
+                and self._cancellable.is_cancelled
+            )
+            if not locally_cancelled:
+                self._retain_failure(error)
+
+    def _instrument_child(self, child: Any, source: str) -> None:
+        if self._stopping.is_set():
+            return
+
+        process = _SocketHookProcess(child.pid)
+        with self._lock:
+            self._processes[child.pid] = process
+
+        if is_network_service(child.argv):
+            if self.network_service_argv is not None:
+                raise RuntimeError(
+                    "socket hook network service restarted during capture"
+                )
+
+            self.network_service_argv = list(child.argv)
+            self._network_pid = child.pid
+            session = self._device.attach(child.pid)
+            with self._lock:
+                self._sessions[child.pid] = session
+
+            if self._stopping.is_set():
+                return
+
+            script = session.create_script(source)
+            with self._lock:
+                stopped = self._stopping.is_set()
+                if not stopped:
+                    self._scripts[child.pid] = script
                     script.on("message", self._on_message)
-                    script.load()
-                    script.post({"type": "config", **self.config})
-                self._device.resume(child.pid)
-            except Exception as error:  # noqa: BLE001 - recorded; the fixture shows it
-                self.errors.append(f"child {child.pid}: {error}")
-                with contextlib.suppress(Exception):
-                    self._device.resume(child.pid)
+
+            if stopped:
+                return
+
+            script.load()
+            script.post({"type": "config", **self.config})
+            deadline = time.monotonic() + _HOOK_READY_SECONDS
+            while not self._ready.wait(0.1):
+                if self._stopping.is_set():
+                    return
+
+                if time.monotonic() >= deadline:
+                    raise TimeoutError("socket hook child readiness deadline elapsed")
+
+        if not self._stopping.is_set():
+            self._device.resume(child.pid)
 
     def _on_message(self, message: dict[str, Any], _data: object) -> None:
-        with self._lock:
-            if message.get("type") == "send":
-                self.reports.append(message["payload"])
-            else:
-                self.errors.append(json.dumps(message, sort_keys=True))
+        try:
+            with self._lock:
+                if self._failure is not None:
+                    return
+
+                if message.get("type") != "send":
+                    raise _SocketHookAgentFailure(message)
+
+                payload = message["payload"]
+                if payload["kind"] in ("hook-missing", "hook-failure"):
+                    raise _SocketHookAgentFailure(message)
+
+                if self._stopped:
+                    return
+
+                if len(self.reports) >= _HOOK_REPORT_LIMIT:
+                    raise RuntimeError("socket hook report limit exceeded")
+
+                self.reports.append(payload)
+                if payload["kind"] == "ready":
+                    if (
+                        payload.get("arch") != "x64"
+                        or payload.get("pid") != self._network_pid
+                        or payload.get("platform") != "windows"
+                        or payload.get("modules") != ["ws2_32.dll", "dnsapi.dll"]
+                        or payload.get("slow_ipv6_refusal")
+                        is not self.config.get("slow_ipv6_refusal", False)
+                    ):
+                        raise _SocketHookAgentFailure(message)
+
+                    self._ready.set()
+        except BaseException as error:
+            self._retain_failure(error)
 
     def snapshot(self) -> list[dict[str, Any]]:
         with self._lock:
-            return list(self.reports)
+            failures = (self._failure, *self._cleanup_failures)
+            stopped = self._stopped
+            reports = list(self.reports)
+
+        raise_browser_failures(
+            None, tuple(error for error in failures if error is not None)
+        )
+        if not stopped or (self._worker is not None and self._worker.is_alive()):
+            raise _SocketHookChildrenPending(self)
+
+        if not self._ready.is_set():
+            raise RuntimeError(
+                "socket hook capture has no acknowledged network service"
+            )
+
+        return reports
 
     def stop(self) -> None:
-        self._stopping.set()
-        for session in self._sessions:
-            with contextlib.suppress(Exception):
-                session.detach()
-        if self._pid is not None and self._device is not None:
-            with contextlib.suppress(Exception):
-                self._device.kill(self._pid)
-        terminate_profile_processes(self.profile)
+        failures = []
+        try:
+            self.request_stop()
+        except BaseException as error:
+            failures.append(error)
+
+        if self._subscribed:
+            try:
+                self._device.off("child-added", self._on_child_added)
+                self._subscribed = False
+            except BaseException as error:
+                failures.append(error)
+
+        deadline = time.monotonic() + _HOOK_NATIVE_CLEANUP_SECONDS
+        if self._pid in self._processes:
+            failures.extend(self._retire_process(self._pid, deadline))
+
+        roster_known = self._device is None
+        if self._device is not None:
+            pending, error = self._cleanup_native(
+                self._device.enumerate_pending_children, deadline
+            )
+            if error is not None:
+                failures.append(error)
+            else:
+                roster_known = True
+                with self._lock:
+                    self._pending_children = tuple(
+                        child
+                        for child in pending
+                        if child.parent_pid == self._pid
+                        or child.parent_pid in self._children_by_pid
+                    )
+
         if self._worker is not None:
-            self._worker.join(timeout=5)
+            try:
+                self._worker.join(timeout=5)
+            except BaseException as error:
+                failures.append(error)
+
+            if self._worker.is_alive():
+                failures.append(_SocketHookChildrenPending(self))
+
+        worker_finished = self._worker is None or not self._worker.is_alive()
+        with self._lock:
+            processes = dict(self._processes)
+            sessions = tuple(self._sessions.items())
+            scripts = tuple(self._scripts.items())
+            children = dict(self._children_by_pid)
+            children.update((child.pid, child) for child in self._pending_children)
+            failure = self._failure
+            if isinstance(failure, _SocketHookChildLimit):
+                children[failure.child.pid] = failure.child
+
+        for pid in processes:
+            if pid != self._pid:
+                failures.extend(self._retire_process(pid, deadline))
+
+        unknown = tuple(
+            child for pid, child in children.items() if pid not in processes
+        )
+        if isinstance(failure, _SocketHookIdentityUnknown):
+            unknown += failure.children
+
+        if unknown or (self._pid is not None and self._pid not in processes):
+            failures.append(_SocketHookIdentityUnknown(self, unknown))
+
+        retired = (
+            roster_known
+            and worker_finished
+            and not unknown
+            and (self._pid is None or self._pid in self._retired_pids)
+            and all(pid in self._retired_pids for pid in processes)
+        )
+        detached = set()
+        for pid, session in sessions:
+            if pid not in self._retired_pids or (pid == self._pid and not retired):
+                continue
+
+            _, error = self._cleanup_native(session.detach, deadline)
+            if error is not None:
+                failures.append(error)
+            else:
+                detached.add(pid)
+
+        # Local Frida message dispatch and synchronous detach use one native
+        # main context. Successful detach removes scripts before completing;
+        # removing a Python callback alone does not fence selected callbacks.
+        for pid, script in scripts:
+            if pid not in detached:
+                continue
+
+            try:
+                script.off("message", self._on_message)
+            except BaseException as error:
+                failures.append(error)
+
+        for pid in processes:
+            if pid not in self._retired_pids:
+                continue
+
+            try:
+                self._processes[pid].close()
+            except BaseException as error:
+                failures.append(error)
+
+        try:
+            terminate_profile_processes(self.profile)
+        except BaseException as error:
+            failures.append(error)
+
+        with self._lock:
+            self._stopped = retired
+            self._cleanup_failures.extend(failures)
+            self._profile_retired = self._stopped and not self._cleanup_failures
+            failures = [self._failure, *self._cleanup_failures]
+
+        if self._cleanup_failures:
+            failures.append(_SocketHookCleanupIncomplete(self))
+
+        raise_browser_failures(
+            None, tuple(error for error in failures if error is not None)
+        )
+
+    def _retire_process(self, pid: int, deadline: float) -> tuple[BaseException, ...]:
+        if pid in self._retired_pids:
+            return ()
+
+        process = self._processes[pid]
+        failures = []
+        retired = False
+        try:
+            retired = process.wait(time.monotonic())
+        except BaseException as error:
+            failures.append(error)
+
+        if not retired:
+            try:
+                process.terminate()
+            except BaseException as error:
+                failures.append(error)
+
+            try:
+                retired = process.wait(deadline)
+            except BaseException as error:
+                failures.append(error)
+
+        if retired:
+            self._retired_pids.add(pid)
+        else:
+            failures.append(_SocketHookProcessPending(self, pid, process))
+
+        return tuple(failures)
+
+    def _cleanup_native(
+        self, operation: Any, deadline: float, *arguments: Any
+    ) -> tuple[Any, BaseException | None]:
+        try:
+            cancellable = self._frida.Cancellable()
+        except BaseException as error:
+            return None, error
+
+        cancellation_failures = []
+        expired = threading.Event()
+
+        def cancel() -> None:
+            expired.set()
+            try:
+                cancellable.cancel()
+            except BaseException as error:
+                cancellation_failures.append(error)
+
+        remaining = min(1.0, max(0.0, deadline - time.monotonic()))
+        timer = threading.Timer(remaining, cancel)
+        timer.daemon = False
+        error = None
+        result = None
+        try:
+            if remaining == 0:
+                cancel()
+            else:
+                timer.start()
+
+            result = operation(*arguments, cancellable=cancellable)
+        except BaseException as failure:
+            error = failure
+        finally:
+            try:
+                timer.cancel()
+            except BaseException as failure:
+                cancellation_failures.append(failure)
+
+            if timer.ident is not None:
+                try:
+                    timer.join(timeout=1)
+                except BaseException as failure:
+                    cancellation_failures.append(failure)
+
+        if timer.is_alive():
+            pending = _SocketHookCleanupPending(
+                self, timer, cancellable, operation, arguments
+            )
+            cancellation_failures.append(pending)
+
+        if expired.is_set():
+            cancellation_failures.append(
+                TimeoutError("socket hook native cleanup deadline elapsed")
+            )
+
+        try:
+            raise_browser_failures(error, tuple(cancellation_failures))
+        except BaseException as failure:
+            return result, failure
+
+        return result, None
+
+
+class _SocketHookProcess:
+    """Own a suspended process's kernel handle until its exit is observed."""
+
+    def __init__(self, pid: int) -> None:
+        import _winapi  # noqa: PLC0415 - the socket hooks require Windows
+
+        self._api = _winapi
+        access = _winapi.SYNCHRONIZE | _PROCESS_TERMINATE
+        self.handle: int | None = _winapi.OpenProcess(access, False, pid)
+
+    def wait(self, deadline: float) -> bool:
+        remaining = min(
+            _HOOK_NATIVE_CLEANUP_SECONDS, max(0.0, deadline - time.monotonic())
+        )
+        result = self._api.WaitForSingleObject(self.handle, int(remaining * 1000))
+        if result == self._api.WAIT_OBJECT_0:
+            return True
+
+        if result == self._api.WAIT_TIMEOUT:
+            return False
+
+        raise RuntimeError("socket hook process wait returned an unsupported status")
+
+    def terminate(self) -> None:
+        self._api.TerminateProcess(self.handle, 0xDEADBEEF)
+
+    def close(self) -> None:
+        if self.handle is not None:
+            self._api.CloseHandle(self.handle)
+            self.handle = None
+
+
+class _SocketHookAgentFailure(RuntimeError):
+    def __init__(self, message: dict[str, Any]) -> None:
+        self.message = message
+        super().__init__("socket hook agent failed readiness or execution")
+
+
+class _SocketHookChildLimit(RuntimeError):
+    def __init__(self, owner: HookedBrowser, child: Any) -> None:
+        self.owner = owner
+        self.child = child
+        super().__init__("socket hook child limit exceeded")
+
+
+class _SocketHookChildrenPending(RuntimeError):
+    def __init__(self, owner: HookedBrowser) -> None:
+        self.owner = owner
+        super().__init__("socket hook child worker has not finished cleanup")
+
+
+class _SocketHookCleanupIncomplete(RuntimeError):
+    def __init__(self, owner: HookedBrowser) -> None:
+        self.owner = owner
+        super().__init__("socket hook browser retains failed cleanup owners")
+
+
+class _SocketHookProcessPending(RuntimeError):
+    def __init__(
+        self, owner: HookedBrowser, pid: int, process: _SocketHookProcess
+    ) -> None:
+        self.owner = owner
+        self.pid = pid
+        self.process = process
+        super().__init__(
+            "socket hook process exit is unconfirmed and its owners are retained"
+        )
+
+
+class _SocketHookIdentityUnknown(RuntimeError):
+    def __init__(self, owner: HookedBrowser, children: tuple[Any, ...]) -> None:
+        self.owner = owner
+        self.children = children
+        super().__init__(
+            "socket hook process identity is unconfirmed and its owners are retained"
+        )
+
+
+class _SocketHookCleanupPending(RuntimeError):
+    def __init__(
+        self,
+        owner: HookedBrowser,
+        timer: threading.Timer,
+        cancellable: Any,
+        operation: Any,
+        arguments: tuple[Any, ...],
+    ) -> None:
+        self.owner = owner
+        self.timer = timer
+        self.cancellable = cancellable
+        self.operation = operation
+        self.arguments = arguments
+        super().__init__("socket hook native cleanup cancellation has not finished")
 
 
 @dataclass
@@ -785,42 +1872,121 @@ def localhost_ipv6_free(port: int) -> bool:
 async def run_once(
     scenario: Scenario, executable: Path, extra: Sequence[str]
 ) -> tuple[RunResult, list[str]]:
+    extra = _socket_hook_switches(extra)
     origin = Origin(scenario)
-    server = await asyncio.start_server(
-        origin.handle, "127.0.0.1", 0, limit=MAX_REQUEST_HEAD
-    )
-    origin.port = server.sockets[0].getsockname()[1]
+    server = None
     target = None
-    if scenario.target_host is not None:
-        target = await asyncio.start_server(
-            origin.handle, "127.0.0.1", 0, limit=MAX_REQUEST_HEAD
-        )
-        origin.target_port = target.sockets[0].getsockname()[1]
-        if not localhost_ipv6_free(origin.target_port):
-            server.close()
-            target.close()
-            raise RuntimeError(f"[::1]:{origin.target_port} is in use")
-    url = f"http://127.0.0.1:{origin.port}/"
-    profile = Path(tempfile.mkdtemp(prefix="phantom-capture-profile-"))
-    arguments = chromium_arguments(profile, url, headless=True, extra=extra)
-    arguments = merged_disabled_features(arguments, scenario.disabled_features)
-    config = {"slow_ipv6_refusal": scenario.slow_ipv6_refusal}
-    browser = HookedBrowser(executable, arguments, profile, config)
+    profile = None
+    worker = None
+    done_waiter = None
+    primary = None
+    cleanup = []
     timed_out = False
+
     try:
-        async with server:
-            await asyncio.to_thread(browser.start)
+        server = await asyncio.start_server(
+            origin.handle, "127.0.0.1", 0, limit=MAX_REQUEST_HEAD, start_serving=False
+        )
+        await origin.listen(server)
+        origin.port = server.sockets[0].getsockname()[1]
+        await server.start_serving()
+
+        if scenario.target_host is not None:
+            target = await asyncio.start_server(
+                origin.handle,
+                "127.0.0.1",
+                0,
+                limit=MAX_REQUEST_HEAD,
+                start_serving=False,
+            )
+            await origin.listen(target)
+            origin.target_port = target.sockets[0].getsockname()[1]
+            await target.start_serving()
+
+            if not localhost_ipv6_free(origin.target_port):
+                raise RuntimeError(f"[::1]:{origin.target_port} is in use")
+
+        url = f"http://127.0.0.1:{origin.port}/"
+        profile = Path(tempfile.mkdtemp(prefix="phantom-capture-profile-"))
+        arguments = chromium_arguments(profile, url, headless=True, extra=extra)
+        arguments = merged_disabled_features(arguments, scenario.disabled_features)
+        config = {"slow_ipv6_refusal": scenario.slow_ipv6_refusal}
+        browser = HookedBrowser(executable, arguments, profile, config)
+        worker = _SocketHookBrowserOwner(browser, profile)
+        await worker.start()
+
+        done_waiter = asyncio.create_task(origin.done.wait())
+        completed, _ = await asyncio.wait(
+            (done_waiter, worker.failed),
+            timeout=scenario.limit_seconds,
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        if worker.failed.done():
+            raise worker.failed.result()
+
+        if done_waiter in completed:
+            done_waiter.result()
+        else:
+            timed_out = True
+
+        await asyncio.sleep(1.0)
+        if worker.failed.done():
+            raise worker.failed.result()
+    except BaseException as error:
+        primary = error
+
+    deadline = asyncio.get_running_loop().time() + _RUN_CLEANUP_SECONDS
+    if done_waiter is not None:
+        requested = not done_waiter.done() and done_waiter.cancel()
+        try:
+            await asyncio.wait((done_waiter,), timeout=0)
+        except BaseException as error:
+            cleanup.append(error)
+
+        if done_waiter.done():
             try:
-                await asyncio.wait_for(origin.done.wait(), scenario.limit_seconds)
-            except asyncio.TimeoutError:
-                timed_out = True
-            await asyncio.sleep(1.0)
-    finally:
-        await asyncio.to_thread(browser.stop)
-        shutil.rmtree(profile, ignore_errors=True)
-        if target is not None:
-            target.close()
-            await target.wait_closed()
+                done_waiter.result()
+            except asyncio.CancelledError as error:
+                if not requested:
+                    cleanup.append(error)
+            except BaseException as error:
+                cleanup.append(error)
+        else:
+            cleanup.append(_SocketHookDonePending(done_waiter, requested))
+
+    if worker is not None:
+        worker.stop_requested.set()
+        try:
+            worker.browser.request_stop()
+        except BaseException as error:
+            cleanup.append(error)
+
+    try:
+        for listener in (server, target):
+            if listener is not None:
+                origin._own_listener(listener)
+
+        for error in await origin.finish(deadline, primary):
+            if all(error is not previous for previous in cleanup):
+                cleanup.append(error)
+    except BaseException as error:
+        cleanup.append(error)
+        origin._stopping = True
+        origin._close_admission()
+        origin._late_primary = primary
+        origin._returned = True
+        cleanup.append(_SocketHookOriginPending(origin, tuple(origin._peers)))
+
+    if worker is not None and worker.future is not None:
+        cleanup.extend(await worker.finish(deadline, primary))
+    elif profile is not None:
+        try:
+            shutil.rmtree(profile)
+        except BaseException as error:
+            cleanup.append(error)
+
+    raise_browser_failures(primary, tuple(cleanup))
+
     result = RunResult(
         browser.snapshot(),
         origin,
@@ -830,6 +1996,185 @@ async def run_once(
         browser.frida_version,
     )
     return result, arguments
+
+
+class _SocketHookDonePending(RuntimeError):
+    def __init__(self, waiter: asyncio.Task[bool], requested: bool) -> None:
+        self.waiter = waiter
+        self.requested = requested
+        waiter.add_done_callback(self._finished)
+        super().__init__("socket hook scenario waiter has not finished cleanup")
+
+    def _finished(self, completed: asyncio.Task[bool]) -> None:
+        try:
+            completed.result()
+        except asyncio.CancelledError as error:
+            if self.requested:
+                return
+
+            failure = error
+        except BaseException as error:
+            failure = error
+        else:
+            return
+
+        completed.get_loop().call_exception_handler(
+            {
+                "message": "socket hook scenario waiter failed after caller exit",
+                "exception": failure,
+                "future": completed,
+                "owner": self,
+            }
+        )
+
+
+class _SocketHookBrowserOwner:
+    """Keep blocking start, stop and profile removal in one owned worker."""
+
+    def __init__(self, browser: HookedBrowser, profile: Path) -> None:
+        self.browser = browser
+        self.profile = profile
+        self.loop = asyncio.get_running_loop()
+        self.started = self.loop.create_future()
+        self.failed = self.loop.create_future()
+        self.stop_requested = threading.Event()
+        self.future: asyncio.Future[None] | None = None
+        self.start_error: BaseException | None = None
+        self.notification_error: BaseException | None = None
+        self.stop_error: BaseException | None = None
+        self.profile_error: BaseException | None = None
+        browser._failure_notifier = self._notify_failure
+
+    def _notify_failure(self, error: BaseException) -> None:
+        self.stop_requested.set()
+        self.loop.call_soon_threadsafe(self._publish_failure, error)
+
+    def _publish_failure(self, error: BaseException) -> None:
+        if not self.failed.done():
+            self.failed.set_result(error)
+
+    async def start(self) -> None:
+        self.future = self.loop.run_in_executor(None, self._run)
+        await asyncio.wait(
+            (self.started, self.future), return_when=asyncio.FIRST_COMPLETED
+        )
+        if self.start_error is not None:
+            raise self.start_error
+
+        if self.notification_error is not None:
+            raise self.notification_error
+
+        if self.future.done():
+            self.future.result()
+
+    def _run(self) -> None:
+        try:
+            try:
+                self.browser.start()
+            except BaseException as error:
+                self.start_error = error
+
+            try:
+                self.loop.call_soon_threadsafe(self.started.set_result, None)
+            except BaseException as error:
+                self.notification_error = error
+
+            if self.start_error is None and self.notification_error is None:
+                self.stop_requested.wait()
+        finally:
+            try:
+                self.browser.stop()
+            except BaseException as error:
+                self.stop_error = error
+
+            if self.browser._profile_retired:
+                try:
+                    shutil.rmtree(self.profile)
+                except BaseException as error:
+                    self.profile_error = error
+
+    def failures(self, primary: BaseException | None) -> tuple[BaseException, ...]:
+        errors = [
+            self.start_error,
+            self.notification_error,
+            self.stop_error,
+            self.profile_error,
+        ]
+
+        try:
+            self.future.result()
+        except BaseException as error:
+            errors.append(error)
+
+        return tuple(
+            error for error in errors if error is not None and error is not primary
+        )
+
+    async def finish(
+        self, deadline: float, primary: BaseException | None
+    ) -> tuple[BaseException, ...]:
+        try:
+            remaining = max(0.0, deadline - self.loop.time())
+            _, pending = await asyncio.wait((self.future,), timeout=remaining)
+        except BaseException as error:
+            if self.future.done():
+                failures = self.failures(primary)
+                if error is not primary and all(
+                    error is not failure for failure in failures
+                ):
+                    return (*failures, error)
+
+                return failures
+
+            return self._retain_pending(error, primary)
+
+        if pending:
+            error = asyncio.TimeoutError("socket hook browser cleanup deadline elapsed")
+            return self._retain_pending(error, primary)
+
+        return self.failures(primary)
+
+    def _retain_pending(
+        self, error: BaseException, primary: BaseException | None
+    ) -> tuple[BaseException, ...]:
+        pending = _SocketHookWorkerPending(self, error)
+        interrupted = isinstance(
+            error, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)
+        )
+        initiating = primary
+        if initiating is None and interrupted:
+            initiating = error
+
+        self.future.add_done_callback(
+            lambda completed: self._report_late_failure(completed, initiating)
+        )
+        if interrupted and error is not primary:
+            return (error, pending)
+
+        return (pending,)
+
+    def _report_late_failure(
+        self, completed: asyncio.Future[None], primary: BaseException | None
+    ) -> None:
+        failures = self.failures(primary)
+        if failures:
+            self.loop.call_exception_handler(
+                {
+                    "message": "socket hook browser cleanup failed after caller exit",
+                    "exception": failures[0],
+                    "failures": failures,
+                    "primary": primary,
+                    "future": completed,
+                    "owner": self,
+                }
+            )
+
+
+class _SocketHookWorkerPending(RuntimeError):
+    def __init__(self, owner: _SocketHookBrowserOwner, error: BaseException) -> None:
+        self.owner = owner
+        self.__cause__ = error
+        super().__init__("socket hook browser worker has not finished cleanup")
 
 
 def portable_argv(argv: Sequence[str] | None, profile_text: str) -> str:
@@ -936,14 +2281,13 @@ def render_fixture(
 
 
 async def capture(args: argparse.Namespace, scenario: Scenario) -> tuple[str, bool]:
+    extra = _socket_hook_switches(args.browser_switch)
     runs = []
     recorded = ""
     frida_version = ""
     failed = False
     for index in range(args.repeat):
-        result, arguments = await run_once(
-            scenario, args.browser_path, args.browser_switch
-        )
+        result, arguments = await run_once(scenario, args.browser_path, extra)
         profile = next(
             argument.split("=", 1)[1]
             for argument in arguments
@@ -990,7 +2334,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         action="append",
         default=[],
         metavar="SWITCH",
-        help="append a Chromium switch to the launch; the fixture records it",
+        help="append --name or --name=value; the managed profile and page stay fixed",
     )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument(
@@ -1003,6 +2347,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         parser.error("the agent hooks Winsock, so this tool runs on Windows only")
     if args.repeat < 1:
         parser.error("--repeat must be at least 1")
+
+    try:
+        _socket_hook_switches(args.browser_switch)
+    except ValueError as error:
+        parser.error(str(error))
+
     names = list(SCENARIOS) if "all" in args.scenario else args.scenario
     args.output_dir.mkdir(parents=True, exist_ok=True)
     failed = False

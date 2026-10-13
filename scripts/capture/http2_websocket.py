@@ -18,6 +18,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 
 from .browser_launch import (
+    ANDROID_BROWSERS,
     BROWSERS,
     CHROMIUM_BROWSERS,
     BrowserDriver,
@@ -30,18 +31,20 @@ from .browser_launch import (
     with_android_entry,
 )
 from .fixture_file import write_text_fixture
+from .http2_analysis import analyze_http2, frame_details, priority_text
 from .http2_session import (
     HOSTNAME,
+    MAX_RUNS,
     CaptureRun,
     CaptureServer,
     Certificate,
     ConnectionRecord,
     ServerPolicy,
     WebSocketRecord,
-    analyze_http2,
-    frame_details,
+    authority,
     generate_certificate,
-    priority_text,
+    raise_capture_failures,
+    validate_duration,
 )
 from .websocket_frames import BINARY, TEXT, summarize_send_policy
 
@@ -241,11 +244,11 @@ def urls(server: CaptureServer, scenario: Scenario, token: str) -> tuple[str, st
     if scenario.page == "tls":
         page_url = f"https://{HOSTNAME}:{tls_port}/ws.html?run={token}"
     else:
-        page_url = f"http://{plain_host}:{plain_port}/ws.html?run={token}"
+        page_url = f"http://{authority(plain_host, plain_port)}/ws.html?run={token}"
     if scenario.socket == "wss":
         socket_url = f"wss://{HOSTNAME}:{tls_port}/echo?run={token}"
     else:
-        socket_url = f"ws://{plain_host}:{plain_port}/echo?run={token}"
+        socket_url = f"ws://{authority(plain_host, plain_port)}/echo?run={token}"
     return page_url, socket_url
 
 
@@ -259,6 +262,7 @@ async def capture_scenario(
     drive: Callable[[str], object],
 ) -> list[CaptureRun]:
     """Run `scenario` `repeat` times; `drive(url)` owns one client per run."""
+    validate_capture_arguments(repeat, run_timeout, observation_seconds)
     runs = []
     for _ in range(repeat):
         token = secrets.token_hex(8)
@@ -270,7 +274,8 @@ async def capture_scenario(
             {scenario.page: body},
             observation_seconds=observation_seconds,
         )
-        server.run = run
+        server.begin_run(run)
+        primary: BaseException | None = None
         try:
             async with drive(page_url):
                 try:
@@ -279,9 +284,18 @@ async def capture_scenario(
                     )
                 except asyncio.TimeoutError:
                     run.timed_out = True
-        finally:
-            server.run = None
-            server.drop_connections()
+        except BaseException as error:
+            primary = error
+
+        server.run = None
+        server.primary = primary
+        cleanup = []
+        try:
+            await server.stop_connections()
+        except BaseException as error:
+            cleanup.append(error)
+        raise_capture_failures(primary, tuple(cleanup))
+
         runs.append(run)
     return runs
 
@@ -553,12 +567,13 @@ def launch_plan(
     args: argparse.Namespace, certificate: Certificate, listen_host: str, tls_port: int
 ) -> LaunchPlan:
     if args.browser in CHROMIUM_BROWSERS:
+        destination = f"[{listen_host}]" if ":" in listen_host else listen_host
         return LaunchPlan(
             browser=args.browser,
             executable=args.browser_path,
             headless=not args.headful,
             extra_arguments=(
-                f"--host-resolver-rules=MAP {HOSTNAME} {listen_host}, EXCLUDE localhost",
+                f"--host-resolver-rules=MAP {HOSTNAME} {destination}, EXCLUDE localhost",
                 "--ignore-certificate-errors-spki-list="
                 + certificate.spki_sha256_base64,
                 "--disable-quic",
@@ -580,7 +595,10 @@ def launch_plan(
             headless=not args.headful,
             firefox_preferences=(
                 ("network.dns.localDomains", HOSTNAME),
-                ("network.dns.disableIPv6", True),
+                (
+                    "network.dns.disableIPv6",
+                    ipaddress.ip_address(listen_host).version == 4,
+                ),
                 ("network.http.http3.enable", False),
             ),
             profile_files=files,
@@ -588,18 +606,39 @@ def launch_plan(
     return LaunchPlan(browser="manual", executable=None, headless=False)
 
 
+def validate_capture_arguments(repeat: int, timeout: float, observation: float) -> None:
+    if not 1 <= repeat <= MAX_RUNS:
+        raise ValueError(f"repeat must be between 1 and {MAX_RUNS}")
+    validate_duration(timeout, "run timeout", positive=True)
+    validate_duration(observation, "observation")
+    validate_duration(
+        timeout + observation, "run timeout plus observation", positive=True
+    )
+
+
+def validate_browser_listener(browser: str, listen: str) -> None:
+    if browser in ANDROID_BROWSERS and ipaddress.ip_address(listen).version == 6:
+        raise ValueError("Android WebSocket captures require an IPv4 loopback listener")
+
+
 async def run(args: argparse.Namespace) -> None:
+    validate_capture_arguments(args.repeat, args.run_timeout, args.observation)
+    validate_browser_listener(args.browser, args.listen)
+    names = list(SCENARIOS) if args.scenario == ["all"] else args.scenario
+    if len(names) * args.repeat > MAX_RUNS:
+        raise ValueError(f"capture must contain at most {MAX_RUNS} runs")
     certificate = generate_certificate()
     server = CaptureServer(certificate)
-    await server.start(args.listen, args.tls_port, args.plain_port)
+    primary: BaseException | None = None
+    captures = []
     try:
-        tls = "{}:{}".format(*server.tls_address)
-        plain = "{}:{}".format(*server.plain_address)
+        await server.start(args.listen, args.tls_port, args.plain_port)
+        tls = authority(*server.tls_address)
+        plain = authority(*server.plain_address)
         plan = with_android_entry(
             launch_plan(args, certificate, args.listen, server.tls_address[1]),
             args.android_entry,
         )
-        names = list(SCENARIOS) if args.scenario == ["all"] else args.scenario
         args.output_dir.mkdir(parents=True, exist_ok=True)
         for name in names:
             scenario = SCENARIOS[name]
@@ -625,13 +664,29 @@ async def run(args: argparse.Namespace) -> None:
                 profile_files=",".join(name for name, _ in plan.profile_files)
                 or "none",
             )
-            write_text_fixture(
-                args.output_dir / f"{name}.txt", fixture(scenario, runs, capture)
-            )
             timed_out = sum(run.timed_out for run in runs)
-            print(f"captured {name} ({timed_out} timed out)", file=sys.stderr)
-    finally:
+            captures.append(
+                (
+                    args.output_dir / f"{name}.txt",
+                    fixture(scenario, runs, capture),
+                    name,
+                    timed_out,
+                )
+            )
+    except BaseException as error:
+        primary = error
+
+    cleanup = []
+    server.primary = primary
+    try:
         await server.close()
+    except BaseException as error:
+        cleanup.append(error)
+    raise_capture_failures(primary, tuple(cleanup))
+
+    for path, text, name, timed_out in captures:
+        write_text_fixture(path, text)
+        print(f"captured {name} ({timed_out} timed out)", file=sys.stderr)
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -665,8 +720,11 @@ def main(argv: Sequence[str] | None = None) -> None:
     unknown = sorted(set(args.scenario) - set(SCENARIOS) - {"all"})
     if unknown or ("all" in args.scenario and len(args.scenario) > 1):
         parser.error(f"unknown or mixed scenarios: {', '.join(unknown) or 'all'}")
-    if args.repeat < 1:
-        parser.error("--repeat must be positive")
+    try:
+        validate_capture_arguments(args.repeat, args.run_timeout, args.observation)
+        validate_browser_listener(args.browser, args.listen)
+    except ValueError as error:
+        parser.error(str(error))
     try:
         loopback = ipaddress.ip_address(args.listen).is_loopback
     except ValueError:

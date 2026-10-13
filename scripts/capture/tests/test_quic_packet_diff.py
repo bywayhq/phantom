@@ -1,5 +1,8 @@
 import json
+import tempfile
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 from aioquic.quic.crypto import CryptoContext, CryptoPair
 from aioquic.quic.packet import (
@@ -9,6 +12,8 @@ from aioquic.quic.packet import (
 )
 from aioquic.tls import CipherSuite
 
+from scripts.capture.chrome_http3 import write_packet_summary
+from scripts.capture.compare_quic_flights import load_logical_flight
 from scripts.capture.http3_wire import push_varint
 from scripts.capture.quic_packet_diff import (
     DEFAULT_MAX_CLIENT_HELLO_BYTES,
@@ -96,6 +101,89 @@ def client_traffic_crypto(secret: bytes) -> CryptoContext:
 
 
 class QuicPacketDiffTests(unittest.TestCase):
+    def test_rejects_short_samples_before_native_decryption(self) -> None:
+        prefix = (
+            bytes([encode_long_header_first_byte(VERSION, QuicPacketType.INITIAL, 0)])
+            + int(VERSION).to_bytes(4, "big")
+            + b"\x08"
+            + DESTINATION_CID
+            + b"\x00\x00"
+        )
+        for protected_length in (0, 1, 16, 19):
+            with self.subTest(protected_length=protected_length):
+                capture = QuicPacketCapture()
+                capture.add_datagram(
+                    prefix + bytes([protected_length]) + bytes(protected_length)
+                )
+                with (
+                    patch.object(
+                        CryptoContext,
+                        "decrypt_packet",
+                        side_effect=AssertionError("unguarded native decryption"),
+                    ) as decrypt,
+                    self.assertRaisesRegex(ValueError, "header-protection sample"),
+                ):
+                    capture.summarize(
+                        cipher_suite=CIPHER_SUITE,
+                        short_header_cid_length=len(DESTINATION_CID),
+                    )
+                decrypt.assert_not_called()
+                self.assertEqual(capture.buffered_datagram_count, 0)
+
+    def test_rejects_large_initial_tokens_before_native_decryption(self) -> None:
+        prefix = (
+            bytes([encode_long_header_first_byte(VERSION, QuicPacketType.INITIAL, 0)])
+            + int(VERSION).to_bytes(4, "big")
+            + b"\x08"
+            + DESTINATION_CID
+            + b"\x00"
+        )
+        token = bytes(1500)
+        packet = prefix + push_varint(len(token), 2) + token + b"\x14" + bytes(20)
+        capture = QuicPacketCapture()
+        capture.add_datagram(packet)
+        with (
+            patch.object(
+                CryptoContext,
+                "decrypt_packet",
+                side_effect=AssertionError("unguarded native decryption"),
+            ) as decrypt,
+            self.assertRaisesRegex(ValueError, "native buffer"),
+        ):
+            capture.summarize(
+                cipher_suite=CIPHER_SUITE,
+                short_header_cid_length=len(DESTINATION_CID),
+            )
+        decrypt.assert_not_called()
+        self.assertEqual(capture.buffered_datagram_count, 0)
+
+    def test_accepts_the_native_header_limit_without_capping_the_whole_packet(
+        self,
+    ) -> None:
+        prefix = (
+            bytes([encode_long_header_first_byte(VERSION, QuicPacketType.INITIAL, 0)])
+            + int(VERSION).to_bytes(4, "big")
+            + b"\x08"
+            + DESTINATION_CID
+            + b"\x00"
+        )
+        token = bytes(1478)
+        packet = prefix + push_varint(len(token), 2) + token + b"\x14" + bytes(20)
+        capture = QuicPacketCapture()
+        capture.add_datagram(packet)
+        with patch.object(
+            CryptoContext, "decrypt_packet", return_value=(b"", b"\x01", 0, False)
+        ) as decrypt:
+            summary = capture.summarize(
+                cipher_suite=CIPHER_SUITE,
+                short_header_cid_length=len(DESTINATION_CID),
+            )
+        decrypt.assert_called_once_with(packet, 1496, 0)
+        self.assertEqual(
+            summary.packets, (NormalizedPacket("initial", (FrameKind("ping"),)),)
+        )
+        self.assertEqual(capture.buffered_datagram_count, 0)
+
     def test_reassembles_fragmented_reordered_and_retransmitted_client_hello(
         self,
     ) -> None:
@@ -488,6 +576,187 @@ class QuicPacketDiffTests(unittest.TestCase):
                 short_header_cid_length=len(DESTINATION_CID),
             )
         self.assertEqual(capture.buffered_datagram_count, 0)
+
+    def test_rejects_initial_stream_before_publishing_an_unreadable_summary(
+        self,
+    ) -> None:
+        self.check_stream_space_rejection(QuicPacketType.INITIAL, "initial")
+
+    def test_rejects_handshake_stream_before_publishing_an_unreadable_summary(
+        self,
+    ) -> None:
+        self.check_stream_space_rejection(QuicPacketType.HANDSHAKE, "handshake")
+
+    def test_encrypted_one_rtt_stream_summary_is_published_and_loaded(self) -> None:
+        initial = client_initial_crypto()
+        handshake = client_traffic_crypto(HANDSHAKE_SECRET)
+        application = client_traffic_crypto(APPLICATION_SECRET)
+        try:
+            initial_packet = long_packet(
+                QuicPacketType.INITIAL, b"\x06\x00\x04init", 0, initial.send
+            )
+            handshake_packet = long_packet(
+                QuicPacketType.HANDSHAKE, b"\x06\x00\x04hs!!", 0, handshake
+            )
+            request_packet = short_packet(
+                b"\x0a\x02\x04ctrl\x0b\x00\x04head", 0, application
+            )
+        finally:
+            initial.teardown()
+            handshake.teardown()
+            application.teardown()
+
+        capture = QuicPacketCapture()
+        capture.write(key_log_line("CLIENT_HANDSHAKE_TRAFFIC_SECRET", HANDSHAKE_SECRET))
+        capture.write(key_log_line("CLIENT_TRAFFIC_SECRET_0", APPLICATION_SECRET))
+        capture.add_datagram(initial_packet + handshake_packet)
+        capture.add_datagram(request_packet)
+        summary = capture.summarize(
+            cipher_suite=CIPHER_SUITE,
+            short_header_cid_length=len(DESTINATION_CID),
+            spans=(
+                SymbolicSpan("control_settings_prefix", 2, 0, 4),
+                SymbolicSpan("request_headers", 0, 0, 4),
+            ),
+        )
+
+        self.assertEqual(
+            summary.packets,
+            (
+                NormalizedPacket("initial", (FrameKind("crypto"),)),
+                NormalizedPacket("handshake", (FrameKind("crypto"),)),
+                NormalizedPacket(
+                    "1rtt",
+                    (
+                        StreamFrame(
+                            "stream", 2, 0, 4, False, ("control_settings_prefix",)
+                        ),
+                        StreamFrame("stream", 0, 0, 4, True, ("request_headers",)),
+                    ),
+                ),
+            ),
+        )
+        self.check_cleared_capture(capture)
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "one-rtt.json")
+            write_packet_summary(path, summary)
+            flight = load_logical_flight(path)
+
+            self.assertEqual(flight, summary.logical_flight)
+            self.assertEqual(flight.packet_spaces, ("initial", "handshake", "1rtt"))
+            self.assertEqual(
+                [
+                    (marker.label, marker.coverage, marker.complete, marker.fin_at_end)
+                    for marker in flight.markers
+                ],
+                [
+                    ("control_settings_prefix", ((0, 4),), True, False),
+                    ("request_headers", ((0, 4),), True, True),
+                ],
+            )
+            self.assertEqual(flight.terminal_frames, ())
+
+    def test_encrypted_zero_rtt_is_rejected_before_stream_summary(self) -> None:
+        initial = client_initial_crypto()
+        early = client_traffic_crypto(APPLICATION_SECRET)
+        try:
+            initial_packet = long_packet(
+                QuicPacketType.INITIAL, b"\x06\x00\x04init", 0, initial.send
+            )
+            early_packet = long_packet(
+                QuicPacketType.ZERO_RTT, b"\x0b\x00\x04head", 0, early
+            )
+        finally:
+            initial.teardown()
+            early.teardown()
+
+        capture = QuicPacketCapture()
+        capture.add_datagram(initial_packet + early_packet)
+
+        with self.assertRaisesRegex(
+            ValueError, "unsupported QUIC packet type: zero_rtt"
+        ):
+            capture.summarize(
+                cipher_suite=CIPHER_SUITE,
+                short_header_cid_length=len(DESTINATION_CID),
+            )
+        self.check_cleared_capture(capture)
+
+    def check_stream_space_rejection(self, packet_type, space) -> None:
+        initial = client_initial_crypto()
+        handshake = client_traffic_crypto(HANDSHAKE_SECRET)
+        try:
+            initial_payload = (
+                b"\x0b\x00\x04head"
+                if packet_type == QuicPacketType.INITIAL
+                else b"\x06\x00\x04init"
+            )
+            datagram = long_packet(
+                QuicPacketType.INITIAL, initial_payload, 0, initial.send
+            )
+            if packet_type == QuicPacketType.HANDSHAKE:
+                datagram += long_packet(
+                    QuicPacketType.HANDSHAKE, b"\x0b\x00\x04head", 0, handshake
+                )
+        finally:
+            initial.teardown()
+            handshake.teardown()
+
+        capture = QuicPacketCapture()
+        capture.write(key_log_line("CLIENT_HANDSHAKE_TRAFFIC_SECRET", HANDSHAKE_SECRET))
+        capture.add_datagram(datagram)
+
+        try:
+            summary = capture.summarize(
+                cipher_suite=CIPHER_SUITE,
+                short_header_cid_length=len(DESTINATION_CID),
+                spans=(SymbolicSpan("request_headers", 0, 0, 4),),
+            )
+        except ValueError as error:
+            self.assertEqual(str(error), "STREAM frames must be carried in 1-RTT")
+            self.check_cleared_capture(capture)
+            return
+
+        self.assertEqual(summary.packets[-1].space, space)
+        self.assertEqual(
+            summary.packets[-1].frames,
+            (StreamFrame("stream", 0, 0, 4, True, ("request_headers",)),),
+        )
+        self.check_cleared_capture(capture)
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, f"{space}-stream.json")
+            write_packet_summary(path, summary)
+            published = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                published["packets"][-1],
+                {
+                    "space": space,
+                    "frames": [
+                        {
+                            "kind": "stream",
+                            "stream_id": 0,
+                            "offset": 0,
+                            "length": 4,
+                            "fin": True,
+                            "overlaps": ["request_headers"],
+                        }
+                    ],
+                },
+            )
+            with self.assertRaisesRegex(
+                ValueError, "STREAM frames must be carried in 1-RTT"
+            ):
+                load_logical_flight(path)
+
+        self.fail(f"analyzer accepted and published a STREAM frame in {space}")
+
+    def check_cleared_capture(self, capture: QuicPacketCapture) -> None:
+        self.assertEqual(capture.buffered_datagram_count, 0)
+        self.assertEqual(capture.buffered_secret_count, 0)
+        with self.assertRaisesRegex(RuntimeError, "capture has already been cleared"):
+            capture.add_datagram(b"later")
 
 
 if __name__ == "__main__":

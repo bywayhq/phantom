@@ -34,12 +34,74 @@ async def connect_loopback(
         "127.0.0.1",
         0,
     )
+
+    primary = None
     try:
         protocol.connect(("127.0.0.1", port), transmit=wait_connected)
         if wait_connected:
             await protocol.wait_connected()
         yield protocol
+    except BaseException as error:
+        primary = error
+        raise
     finally:
-        protocol.close()
-        await protocol.wait_closed()
-        transport.close()
+        cleanup_errors = []
+        queued_transmit = protocol._transmit_task
+        try:
+            protocol.close()
+            await protocol.wait_closed()
+        except BaseException as error:
+            cleanup_errors.append(error)
+
+        if cleanup_errors:
+            handles = (queued_transmit, protocol._timer, protocol._transmit_task)
+            protocol._timer = None
+            protocol._timer_at = None
+            protocol._transmit_task = None
+
+            for handle in handles:
+                if handle is not None:
+                    try:
+                        handle.cancel()
+                    except BaseException as error:
+                        cleanup_errors.append(error)
+
+        try:
+            if cleanup_errors:
+                transport.abort()
+            else:
+                transport.close()
+        except BaseException as error:
+            cleanup_errors.append(error)
+
+        cleanup = None
+        for error in cleanup_errors:
+            if cleanup is None:
+                cleanup = error
+            elif isinstance(cleanup, Exception) and not isinstance(error, Exception):
+                _retain_cleanup_failure(error, cleanup)
+                cleanup = error
+            else:
+                _retain_cleanup_failure(cleanup, error)
+
+        if cleanup is not None:
+            if primary is None:
+                raise cleanup
+
+            _retain_cleanup_failure(primary, cleanup)
+
+
+def _retain_cleanup_failure(primary: BaseException, cleanup: BaseException) -> None:
+    current = primary
+    visited = set()
+    while id(current) not in visited:
+        if current is cleanup:
+            return
+
+        visited.add(id(current))
+        previous = getattr(current, "capture_cleanup_failure", None)
+        if previous is None:
+            current.capture_cleanup_failure = cleanup
+            return
+
+        current = previous

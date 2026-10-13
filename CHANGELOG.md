@@ -14,6 +14,29 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Bound capture inputs, connection records and operation waits. Migrate:
+  split experiments exceeding the limits in `scripts/capture/README.md`.
+  Use finite positive run timeouts and canonical loopback listener addresses.
+  Capture and cleanup failures now fail the run before fixture publication.
+- Keep capture-process ownership private. Migrate: replace
+  `ProcessContainer.process` with `wait(timeout=...)`, `poll()` and `pid`.
+  Do not reap the owned child independently.
+- Move offline HTTP/2 analysis into `scripts.capture.http2_analysis`.
+  Migrate: import its frame, header and analysis types there rather than
+  from the live `http2_session` capture module.
+- Separate WPT observations from runner failures. Migrate: use
+  `run_failed` and `infrastructure_failures` for the overall runner result.
+  Scenario counts and failures now describe observed scenarios only.
+- Require Linux and exclusive Docker/checkout access for full QUIC interop
+  runs. Migrate: run `scripts/conformance/quic_interop.py` on Linux and
+  collect owned resources before reusing the daemon or runner checkout.
+- Preserve abandoned Cargo lock slots for recovery. Migrate: after exit
+  status 75, verify that the recorded command and children have stopped
+  before removing the slot. Treat `LEAK` and `LEAK-FAIL` as gate failures.
+- Retain socket ownership in capture helpers. Migrate: replace `bind()` and
+  `bind_shared_port()` with `capture_tcp()` and `capture_quic()`; iterate
+  `crypto_frames()` as `(offset, bytes)` pairs.
+
 - Give shared support types one public path. Migrate: import settings and
   TCP bounds from `phantom_profile`, request types from
   `phantom_net::request`, and source-binding and TLS errors from
@@ -2459,6 +2482,19 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Retain test fixture workers and their original errors through caller
   failure and cleanup. Preserve the integration module roster when rerunning
   consolidation, including the session peer-completion controls.
+- Collect capture processes, connections, callbacks and partial acquisitions
+  before publication. Retain original operation and cleanup failures together.
+- Validate capture timeouts, repetitions, listener addresses, request input,
+  browser arguments and completion tokens before acquiring resources.
+- Keep failed capture cleanup owned for retry and preserve completed output.
+  Bound accepted diagnostics and protocol input and restore event-loop handlers.
+- Preserve Android launch policy and stop navigation after failed observations.
+  Keep capture servers responsive during browser commands and cleanup.
+- Verify conformance container ownership and observe process shutdown before
+  removing temporary files. Preserve independent suite and cleanup failures.
+- Fail unsafe-boundary and tool-pin checks when their source scans fail.
+  Preserve output files and report publication failures in interoperability tools.
+- Keep sensitive cookie and URL values out of example diagnostics.
 
 - Enforce total request deadlines on buffered response frames and yield
   during bounded decompression work. Reject admission bounds above the

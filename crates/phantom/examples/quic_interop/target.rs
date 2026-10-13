@@ -12,18 +12,23 @@ pub(super) struct DownloadTarget {
 impl DownloadTarget {
     pub(super) fn parse(value: &str) -> Result<Self, InvalidTarget> {
         let url = Url::parse(value).map_err(|_| InvalidTarget::new("invalid URL"))?;
+
         if url.scheme() != "https" {
             return Err(InvalidTarget::new("URL scheme must be https"));
         }
+
         if !url.username().is_empty() || url.password().is_some() {
             return Err(InvalidTarget::new("URL credentials are not allowed"));
         }
+
         if !matches!(url.host_str(), Some(host) if ALLOWED_HOSTS.contains(&host)) {
             return Err(InvalidTarget::new("URL host is not a runner server"));
         }
+
         if !matches!(url.port(), None | Some(443)) {
             return Err(InvalidTarget::new("URL port must be 443"));
         }
+
         if url.query().is_some() || url.fragment().is_some() {
             return Err(InvalidTarget::new("URL query and fragment are not allowed"));
         }
@@ -39,6 +44,21 @@ impl DownloadTarget {
         Ok(Self {
             file_name: segments[0].to_owned(),
             url,
+        })
+    }
+
+    #[cfg(test)]
+    pub(super) fn loopback(address: std::net::SocketAddr) -> Result<Self, InvalidTarget> {
+        if !address.ip().is_loopback() || address.port() == 0 {
+            return Err(InvalidTarget::new(
+                "test target must name a bound loopback peer",
+            ));
+        }
+        let url = Url::parse(&format!("https://{address}/first"))
+            .map_err(|_| InvalidTarget::new("invalid loopback test URL"))?;
+        Ok(Self {
+            url,
+            file_name: "first".to_owned(),
         })
     }
 

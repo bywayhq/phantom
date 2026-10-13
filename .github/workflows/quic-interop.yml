@@ -18,7 +18,10 @@ on:
       - crates/phantom-quic-btls/**
       - scripts/conformance/quic-interop/**
       - scripts/conformance/quic_interop.py
-      - scripts/conformance/tests/test_quic_interop.py
+      - scripts/conformance/docker_owner.py
+      - scripts/conformance/tests/test_docker_owner.py
+      - scripts/conformance/tests/test_quic_interop*.py
+      - scripts/conformance/tests/fixtures/quic-runner/**
       - vendor/btls/**
       - vendor/h3/**
       - vendor/quinn-proto/**

@@ -16,16 +16,13 @@ use phantom::{
     Client, HttpProtocol, ResponseInfo,
     profile::{ClientProfile, Http3ClientSettings, browser::chrome},
 };
-use tokio::{
-    fs::{self, OpenOptions},
-    io::AsyncWriteExt,
-    task::JoinSet,
-    time::timeout,
-};
+use tokio::{fs, io::AsyncWriteExt, task::JoinSet, time::timeout};
 
-mod target;
-
+use partial_download::{CleanupFailures, PartialDownload};
 use target::DownloadTarget;
+
+mod partial_download;
+mod target;
 
 const SUPPORTED_CASE: &str = "http3";
 const UNSUPPORTED_EXIT_CODE: u8 = 127;
@@ -159,21 +156,21 @@ async fn build_client(ca_pem: &Path) -> Result<Client, BoxError> {
 }
 
 async fn download_all(client: Client, config: Config) -> Result<(), BoxError> {
-    let partials = config
-        .targets
-        .iter()
-        .map(|target| {
-            config
-                .download_directory
-                .join(format!(".{}.part", target.file_name()))
-        })
-        .collect::<Vec<_>>();
+    download_all_with_cleanup(client, config, CleanupFailures::default()).await
+}
+
+async fn download_all_with_cleanup(
+    client: Client,
+    config: Config,
+    cleanup: CleanupFailures,
+) -> Result<(), BoxError> {
     let mut downloads = JoinSet::new();
     for target in config.targets {
-        downloads.spawn(download_one(
+        downloads.spawn(download_one_owned(
             client.clone(),
             config.download_directory.clone(),
             target,
+            cleanup.clone(),
         ));
     }
 
@@ -195,17 +192,26 @@ async fn download_all(client: Client, config: Config) -> Result<(), BoxError> {
     if result.is_err() {
         downloads.abort_all();
         while downloads.join_next().await.is_some() {}
-        for partial in partials {
-            let _ = fs::remove_file(partial).await;
-        }
     }
-    result
+    cleanup.finish(result)
 }
 
+#[cfg(test)]
 async fn download_one(
     client: Client,
     directory: PathBuf,
     target: DownloadTarget,
+) -> Result<(), BoxError> {
+    let cleanup = CleanupFailures::default();
+    let result = download_one_owned(client, directory, target, cleanup.clone()).await;
+    cleanup.finish(result)
+}
+
+async fn download_one_owned(
+    client: Client,
+    directory: PathBuf,
+    target: DownloadTarget,
+    cleanup: CleanupFailures,
 ) -> Result<(), BoxError> {
     let output = directory.join(target.file_name());
     if fs::try_exists(&output).await? {
@@ -216,29 +222,22 @@ async fn download_one(
         .into());
     }
 
-    let partial = directory.join(format!(".{}.part", target.file_name()));
-    let result = download_to_partial(&client, &target, &partial).await;
-    if let Err(error) = result {
-        let _ = fs::remove_file(&partial).await;
-        return Err(error);
-    }
-
-    fs::rename(partial, output).await?;
+    let mut partial = PartialDownload::create(
+        directory.join(format!(".{}.part", target.file_name())),
+        cleanup,
+    )?;
+    download_to_partial(&client, &target, partial.file()?).await?;
+    partial.publish(&output)?;
     Ok(())
 }
 
 async fn download_to_partial(
     client: &Client,
     target: &DownloadTarget,
-    partial: &Path,
+    file: &mut tokio::fs::File,
 ) -> Result<(), BoxError> {
     use http_body_util::BodyExt as _;
 
-    let mut file = OpenOptions::new()
-        .create_new(true)
-        .write(true)
-        .open(partial)
-        .await?;
     let response = client
         .get(HttpProtocol::Http3, target.url().as_str())?
         .send()
@@ -316,53 +315,4 @@ fn invalid_data(message: impl Into<String>) -> io::Error {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::path::PathBuf;
-
-    use super::{Config, MAX_REQUESTS};
-
-    #[test]
-    fn config_accepts_distinct_runner_urls() -> Result<(), Box<dyn std::error::Error + Send + Sync>>
-    {
-        let config = Config::parse(
-            "https://server:443/first https://server:443/second",
-            PathBuf::from("ca.pem"),
-            PathBuf::from("downloads"),
-        )?;
-
-        assert_eq!(config.targets.len(), 2);
-        assert_eq!(config.targets[0].file_name(), "first");
-        assert_eq!(config.targets[1].file_name(), "second");
-        Ok(())
-    }
-
-    #[test]
-    fn config_rejects_empty_duplicate_and_unbounded_requests() {
-        let parse = |requests: &str| {
-            Config::parse(
-                requests,
-                PathBuf::from("ca.pem"),
-                PathBuf::from("downloads"),
-            )
-        };
-
-        assert!(parse("").is_err());
-        assert!(parse("https://server/same https://server/same").is_err());
-        let too_many = std::iter::repeat_n("https://server/file", MAX_REQUESTS + 1)
-            .collect::<Vec<_>>()
-            .join(" ");
-        assert!(parse(&too_many).is_err());
-    }
-
-    #[test]
-    fn config_requires_one_origin() {
-        assert!(
-            Config::parse(
-                "https://server/first https://server4/second",
-                PathBuf::from("ca.pem"),
-                PathBuf::from("downloads"),
-            )
-            .is_err()
-        );
-    }
-}
+mod tests;

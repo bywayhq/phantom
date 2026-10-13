@@ -34,6 +34,7 @@ def load_logical_flight(path: Path) -> LogicalFlight:
         )
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
         raise ValueError(f"could not read {path}: {error}") from error
+
     try:
         return parse_logical_flight_summary(value)
     except ValueError as error:
@@ -53,6 +54,7 @@ def main() -> None:
         right = load_logical_flight(args.right)
     except ValueError as error:
         parser.error(str(error))
+
     differences = compare_logical_flights(left, right)
     if differences:
         for difference in differences:

@@ -33,6 +33,21 @@ uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
   <scratch-directory>/chrome/snapshot-1.txt
 ```
 
+Snapshot capture restores your event-loop error handler when it finishes,
+including failures and cancellation. Unrelated callback errors reach your
+handler while capture is running.
+Use a finite positive `--run-timeout` and a finite nonnegative `--observation`.
+
+Before writing, the tool collects registered connections and their callback
+outcomes within a ten-second cooperative cleanup deadline. Callback failures
+and incomplete cleanup prevent writing, including with `--allow-partial`.
+Completion requires one exact run token in an origin-form request target.
+
+Split captures exceeding 128 runs or 8 MiB of recorded data per run. Each
+transport permits 128 lifetime connections and 32 active connections. Each
+QUIC connection permits 128 streams. HTTP/1 request headers, including their
+terminator, have a 64 KiB limit.
+
 `--browser` takes `chrome`, `edge`, `brave`, `opera`, or `firefox`, or an
 [Android browser](#snapshots-on-android);
 [`run_matrix.py`](#run-captures-from-a-manifest) runs it as the `snapshot`
@@ -104,9 +119,12 @@ shuffles its QUIC ClientHello extensions per connection but keeps
 may change order; its TCP extensions and transport parameters must match in
 order. Firefox also draws its ECH GREASE AEAD per connection, so that AEAD is
 not compared. A layer missing from the snapshot, or with no retained
-fixture, is a difference. It
-does not compare HTTP/3 request fields, HTTP/2 fields other than the first
-navigation's, or HTTP/1.1.
+fixture, is a difference. Malformed normalized extension lengths, duplicate
+extensions and missing declared entries fail comparison. Counts are limited
+to 16,384 TLS records, 16,384 HTTP/2 frames and 1,024 hints. These limits do
+not bound the file size or validate every TLS field.
+The tool does not compare HTTP/3 request fields, HTTP/2 fields other than
+the first navigation's, or HTTP/1.1.
 
 Take a snapshot first for every new browser version. The other tools record
 a changed layer for a recipe, and they are the only way to record behavior
@@ -343,18 +361,39 @@ seconds; at 209 characters Firefox has already exited, leaving two, so
 `taskkill` reports that it found no such process. Delete the two `pfl`
 directories afterwards.
 
-On Windows each attempt's processes, the browsers included, belong to a Job
-Object that ends them when it closes. On other systems the tool leads a new
-process group. When an attempt ends, passes, fails, or reaches its timeout,
-the runner closes its job, ends every process whose command line names the
-attempt's temporary directory as a whole path component, and removes that
-directory. The match is the launcher's profile sweep, so a browser whose
-profile path only starts with the same text keeps running. If the runner
-itself exits, Windows closes the jobs and ends their processes.
+On Windows a trusted CPython bootstrap waits until it belongs to a kill-on-close
+Job Object before starting the tool. It uses the actual interpreter rather than
+a virtual environment's redirector; the tool keeps its original interpreter and
+environment. Assignment failure stops the attempt before
+the tool runs. The tool and its ordinary descendants belong to that job;
+external brokers and device processes have separate cleanup. On other systems
+a private custodian leads the process group and reports the tool's exit status.
+It stays alive until group cleanup, so the group identifier cannot be reused
+after the tool exits. This requires normal child reaping and no competing
+process reaper. If the parent goes away, the custodian kills its group.
+
+When an attempt ends or reaches its timeout, cleanup ends the owned group
+or job and sweeps processes whose command lines contain its temporary
+directory as a whole path component. It then removes that directory.
+Cleanup failures retain the original causes and owners that can be retried.
+Invalid Windows handles are retired with their diagnostic. Before Windows
+assignment, parent EOF stops the bootstrap without starting the tool.
+
+Windows cleanup collects up to 4,096 original member handles before termination
+and waits for them under one twenty-second budget. Failed waits keep their
+handles for another cleanup attempt. Processes already exiting and absent
+before collection are outside this completion guarantee. Native calls can
+exceed the wait budget.
+
+Direct `ProcessContainer` callers use `wait(timeout=...)`, `poll()` and `pid`
+instead of `.process`. Wait timeouts must be finite and nonnegative. Closing
+before collecting the tool's exit status reports `ProcessContainerStopped`.
+The container owns process reaping.
 
 Ctrl+C starts no more jobs or retries, ends every running attempt the same
 way, prints the summary, and writes the results file. A job that was running
-is reported as `stopped`, and one that had not started as `not-run`.
+is reported as `stopped`, and one that had not started as `not-run`. Failed
+launches, cleanup and progress reporting produce failed job results.
 
 At the end the runner prints one line per job (status, attempts, seconds, and
 the last failure) and a total, then writes the results file: the concurrency,
@@ -559,6 +598,7 @@ the `onboarded` snapshot. It tells them apart by the `debug.phantom.snapshot`
 property, which is set in guest memory before the snapshot is saved; see
 [The `onboarded` snapshot](android/README.md#the-onboarded-snapshot).
 `PHANTOM_ANDROID_ALLOW_COLD_BOOT=1` or `--allow-cold-boot` overrides it.
+The flag applies only to that launch and leaves the environment unchanged.
 
 `startup_capture.py` and `chrome_ech.py` take desktop browsers only, and
 `proxy_route.py` refuses the authentication scenarios for an Android
@@ -599,6 +639,24 @@ Each run, through `android_device.py`:
    did not arrive and presses Enter only when the field holds the exact URL;
 5. afterwards stops the browser, removes the reverse ports and the debug
    configuration, and clears the debug app.
+
+Failed setup also cleans up the actions the session started. Cleanup tries
+the remaining actions after an error and reports failures with the original
+error. A refused launch leaves the device alone. Calling cleanup again
+retries only actions that failed. A rejected cleanup command is reported as
+an error and remains available for retry. Direct `AndroidLaunch` callers
+must set `typing_attempts` to a positive count.
+
+A failed emulator or snapshot query stops setup before changing the device.
+An absent property from a successful query still follows the refusal rules.
+
+A failed focus query, screen dump or screen read stops navigation. Its output
+cannot authorize an onboarding tap or Enter in the address bar.
+
+Async capture drivers run Android commands and browser cleanup in workers.
+The capture server keeps responding during those waits. Cancelling the caller
+leaves cleanup running and reports a later failure through the loop's error
+handler. Another cleanup call waits for that worker while it is running.
 
 The page load is therefore a typed address-bar navigation, and fixtures
 record `launch_mode=android-typed`. A page that another app opens through a
@@ -656,6 +714,9 @@ preferences; a tool that needs files in the Firefox profile, such as
 The TLS and HTTP/2 startup examples only listen. Start one on a free
 loopback port, then open its URL on the device with `android_run.py`, which
 runs one launch as above and stops the browser after `--hold` seconds:
+
+The hold defaults to eight seconds. It must be finite and nonnegative;
+zero stops the browser immediately after opening the page.
 
 ```sh
 ANDROID_SERIAL=emulator-5556 uv run --no-project --python 3.10 \
@@ -785,6 +846,23 @@ The tool refuses `h2` and `hpack` versions other than the ones pinned above.
   certificate generated for the capture;
 - plaintext HTTP/1.1.
 
+Split larger experiments into separate runs. The shared server allows 32
+runs, 32 active connections, 128 connections per run, 1,024 requests, 256
+WebSockets and 128 page results per run. It records at most 64 MiB per run
+and 16 MiB per direction on one connection. Request heads, ClientHellos and
+decoded HTTP/2 header blocks are limited to 64 KiB. A WebSocket message may
+contain at most 16 MiB of decoded data, with 32 MiB across one stream.
+Exceeding a limit fails the capture before its fixture is written.
+
+Run timeouts must be finite and positive. Observation times must be finite
+and nonnegative. Android requires IPv4 loopback. Desktop captures support
+either loopback family. Shutdown attempts every owned connection and
+listener, and reports serving or cleanup failures. A cleanup deadline
+reports failure without proving that every owner has finished.
+
+Offline frame and header analysis lives in `http2_analysis.py`. Import its
+analysis types and helpers there; `http2_session.py` owns the live recorder.
+
 The HTTP/2 server advertises `SETTINGS_ENABLE_CONNECT_PROTOCOL=1` unless a
 scenario omits it. The tool records client bytes before any parser sees them:
 first the ClientHello, for the ALPN offer and SNI, then the decrypted HTTP/2 or
@@ -839,7 +917,8 @@ names.
 - Chromium browsers receive `--host-resolver-rules`, the certificate's
   `--ignore-certificate-errors-spki-list` value, and `--disable-quic`.
 - Firefox receives the `network.dns.localDomains`,
-  `network.dns.disableIPv6`, and `network.http.http3.enable=false`
+  `network.dns.disableIPv6` matching the selected listener family, and
+  `network.http.http3.enable=false`
   preferences, plus a `cert_override.txt` in its temporary profile.
   `--firefox-skip-tls-trust` omits the override.
 
@@ -850,6 +929,10 @@ default and which it adds after a server asks for them with `Accept-CH`. It
 serves two plaintext HTTP/1.1 navigations on a loopback origin per run and
 writes one `format=phantom-client-hints-v2` fixture. Chromium treats loopback
 HTTP origins as potentially trustworthy, so it sends hints to them.
+
+`--accept-ch` takes lowercase HTTP field names without `|`, the fixture
+separator. `--run-timeout` must be finite and positive. For IPv6 loopback,
+use `--listen '[::1]:0'`.
 
 Capture Chrome on Windows:
 
@@ -881,6 +964,11 @@ The tool writes nothing unless the runs agree exactly and every default hint
 keeps its value and relative order. It refuses to retain `cookie`,
 `authorization`, or `proxy-authorization`.
 
+Before another run or fixture publication, the tool collects registered
+connections and their callback outcomes. A callback failure stops the capture.
+A run fails above 64 retained connections. Cleanup has a five-second
+cooperative deadline; incomplete cleanup prevents fixture publication.
+
 ## HTTP/2 preface PING
 
 `http2_preface_ping.py` records the client frames of one HTTP/2 connection
@@ -905,6 +993,16 @@ since the listener started, type, flags, stream, and length, the request path
 of a HEADERS frame without its query, and the payload of a PING. No other
 payload is written.
 
+Only `/done` with the run's exact token on the page's connection completes
+the capture. Before writing, the tool collects registered connections and
+their callback outcomes within a five-second cooperative cleanup deadline.
+A callback error or incomplete cleanup prevents fixture publication.
+
+Use finite positive waits within the page timer limit (2,147,483.647 seconds).
+The tool limits a run to 32 retained connections and 64 MiB of recorded
+decrypted input and output. Each connection permits 200 frames, with an
+inbound frame payload limit of 16 KiB.
+
 ## Connection lifecycle
 
 `http_lifecycle.py` serves a scripted page over TLS on loopback to Chrome,
@@ -915,6 +1013,25 @@ opens it records whether a `close_notify` arrived before the TCP end, or a
 reset. It also keeps each connection's HTTP/2 client frames other than DATA,
 with PING payloads and `GOAWAY` fields, and each request's field names in
 wire order, with the values of the validator, `Expect`, and body fields.
+
+Each run collects its registered listeners and connections before writing.
+Capture and cleanup failures retain their original causes and prevent writes.
+Cleanup has a five-second cooperative deadline. Local cleanup does not count
+as a browser close event.
+
+A run allows 32 connections, 256 requests and 64 MiB of encrypted input and
+output. Each connection allows 64 active HTTP/2 streams, 65,536 input frames
+including DATA, and 2,000 recorded frames. HTTP/2 frame payloads are limited
+to the advertised 16 KiB. Completed HTTP/1 heads have a 64 KiB limit and
+request bodies have an 8 MiB limit. Methods and header names must be ASCII
+HTTP tokens. Targets must contain visible ASCII. Paths containing commas
+and header names containing pipes fail before recording.
+
+`--idle` must be finite and positive, up to 2,147,483.647 seconds.
+Completion requires one exact run token on the page's selected connection.
+Firefox accepts only `--listen 127.0.0.1` or `--listen ::1`, checked before
+acquiring a certificate or listener. IPv4 disables IPv6. IPv6 prefers IPv6
+without excluding IPv4. Chromium brackets IPv6 resolver addresses.
 
 | Scenario | ALPN | What the page does |
 | --- | --- | --- |
@@ -1047,6 +1164,19 @@ Each listener prints a line starting with `listening on <address>` on
 standard error once it has bound, and the tool launches the browser when it
 reads that line. It gives up after `--server-start` seconds (default 30).
 
+`--timeout` and `--server-start` must be finite and positive. `--repeat`
+must be positive, and `--settle` must be finite and nonnegative. The capture
+wait starts after the page is opened. TCP waits for `--timeout` seconds;
+HTTP/3 allows ten more seconds for its listener to finish.
+
+Remote browser TCP connection and WebSocket upgrade share a five-second
+setup deadline. Cleanup can take additional time after setup fails.
+
+The tool accepts at most 1 MiB of listener output and 64 KiB of diagnostics.
+These limits apply to file snapshots, rather than temporary disk use between
+polls. Cleanup stops owned processes and removes their temporary files.
+Failures retain the initiating error and independent cleanup errors.
+
 ## QUIC resumption and 0-RTT
 
 `quic_resumption.py` records what a browser sends when it resumes a QUIC
@@ -1054,6 +1184,10 @@ session: the resumed ClientHello, whether it offers early data, and which
 requests travel in 0-RTT packets. It writes one
 `format=phantom-quic-resumption-v1` fixture per scenario, named
 `resumption-<scenario>.txt`.
+
+Chromium brackets IPv6 resolver addresses. Firefox accepts only
+`--listen 127.0.0.1` or `--listen ::1`, checked before acquiring a certificate
+or listener. IPv4 disables IPv6. IPv6 prefers IPv6 without excluding IPv4.
 
 Capture Chrome on Windows:
 
@@ -1245,6 +1379,28 @@ first connection's ClientHello is read from its Initial packets with the
 Initial keys. Nothing answers a handshake. On Windows, Firefox 157.0 sent no
 QUIC datagram to `[::1]`.
 
+`--timeout` must be finite and positive. It limits recording after the browser
+starts. The version probe has a five-second deadline. TCP reads have an
+absolute five-second deadline, including partial input. A run keeps at most
+128 connections, 64 TCP ClientHellos or 256 UDP datagrams, and 1 MiB of
+recorded bytes. TLS input allows 128 records and 128 KiB per connection.
+Each ClientHello or reconstructed CRYPTO stream is limited to 64 KiB.
+QUIC analysis allows 1,024 packets per run, 4,096 frames per packet and
+128 ACK ranges per ACK. Oversized input and malformed packet or frame
+encodings fail the run. An incomplete ClientHello can remain absent when
+the recording deadline ends.
+
+QUIC reconstruction selects the first authenticated Initial connection.
+Matching CRYPTO overlaps preserve all bytes; conflicting overlaps fail.
+The tool stops parsing a packet at an unsupported frame. Initial keys are
+public, so authentication does not establish which browser sent the packet.
+
+Worker and socket failures remain errors even after a ClientHello arrives.
+Cleanup waits up to five seconds for cooperative worker completion.
+An unfinished worker stays attached to the reported failure. These deadlines
+do not preempt a blocking native operation or bound shared browser startup.
+The version probe buffers process output during its finite wait.
+
 The fixture keeps `client_version`, `url`, a `prefs=` line naming every
 preference the run set, `datagrams=` for QUIC, and `client_hello_<n>_hex`
 lines. The `tcp-*-sweep-<label>.txt` fixtures come from an earlier version of
@@ -1257,6 +1413,18 @@ the script that recorded neither the preference nor its value; see
 (advertised in an `Alt-Svc` response field) against a new TCP connection to
 the origin. It writes one `format=phantom-alt-svc-race-v1` fixture per
 scenario.
+
+Each run allows 32 lifetime connections, 32 UDP peers, 512 requests and
+512 page results. Request targets are limited to 64 KiB. A limit failure
+stops the run before it writes a fixture. Split larger experiments into
+separate runs.
+
+Use a positive `--repeat` count. Zero and negative counts fail before creating
+output directories or replacing fixtures.
+
+`--timeout` adds seconds to the scripted page waits; its default is 60.
+Use a finite value. Zero and finite negative margins are accepted. This budget
+covers the wait for the page to finish, rather than browser startup or cleanup.
 
 Capture Chrome on Windows:
 
@@ -1281,7 +1449,8 @@ with ALPN `h2`, and over QUIC/UDP. UDP is bound first. The run loads a
 scripted page in a fresh profile and writes a Chrome NetLog to
 `--netlog-dir`. NetLogs are not retained; the fixture keeps only the decisions
 derived from them. `chrome_netlog.py` reads a NetLog, including one truncated
-by a killed browser.
+by a killed browser. It keeps complete events before an unfinished final event
+or document suffix. Malformed records fail the capture instead of being skipped.
 
 The page drives these server paths:
 
@@ -1340,6 +1509,11 @@ For each run the fixture keeps:
 Brokenness lifetimes are measured from the failed controller's end to the
 polled expiry. Aggregates summarize each request path.
 
+An HTTP/2 retirement write error stays on the connection being retired.
+Expected disconnects retain their record tag. Other ordinary errors fail the
+capture after cleanup. These errors do not stop retirement of the remaining
+connections.
+
 Loopback adds no latency, so delays that depend on round-trip time appear
 only as the values Chrome logged.
 
@@ -1348,6 +1522,10 @@ only as the values Chrome logged.
 `proxy_route.py` records what a browser sends for a plaintext `http://` page
 and its `ws://` opening, directly and through an HTTP proxy. It writes one
 `format=phantom-proxy-route-v1` fixture per scenario.
+
+Each run accepts at most 32 connections and records at most 512 requests,
+page results, and remote events each. Exceeding a limit fails the run without
+writing its fixture. Split larger experiments into separate runs.
 
 Capture Chrome on Windows:
 
@@ -1373,6 +1551,11 @@ The tool binds three loopback listeners on port 0:
 - a plaintext HTTP proxy;
 - a TLS proxy for `proxy.phantom.test`, offering ALPN `h2` and `http/1.1`,
   with a certificate generated for the capture.
+
+The default listener is `127.0.0.1`, as shown in the table below. Desktop
+captures can select IPv6 loopback with `--listen ::1`; URLs and proxy
+addresses use brackets around that address. Android captures require IPv4
+loopback.
 
 Neither proxy forwards anything. Each answers as the origin, so an
 absolute-form request, a CONNECT tunnel, and an HTTP/2 stream all reach the
@@ -1525,6 +1708,13 @@ DNS-over-HTTPS server that answers the origin's `A` query and its `HTTPS`
 query with one record whose `ech` names `public.phantom.test`. Every other
 name gets NXDOMAIN.
 
+The capture has a 180-second deadline from server launch, including readiness.
+It rejects fixtures over 16 MiB, diagnostics over 1 MiB and lines over 16 KiB.
+Process-tree cleanup runs on success and failure. Reporting and decoding
+failures reach the caller. Output files can exceed the limit between polls;
+the limits bound accepted recordings, rather than temporary disk use.
+Blocking callbacks and native operations remain outside deadline preemption.
+
 The browser learns the DNS-over-HTTPS server from the
 `dns_over_https.mode` and `dns_over_https.templates` preferences, which the
 tool writes into the disposable profile's `Local State` file. Nothing outside
@@ -1623,6 +1813,23 @@ those fields, and how each is encoded. It writes one
 `format=phantom-cookie-crumbs-v1` fixture per scenario, named
 `crumbs-<scenario>.txt`.
 
+Each run collects its registered TCP or QUIC owners before fixture publication.
+Capture and cleanup failures preserve their original causes and prevent writes.
+Cleanup attempts have a ten-second cooperative deadline.
+
+Run timeouts must be finite and positive. Observation delays may be zero.
+Their sum must be finite. The command allows 128 scenario runs in total.
+Each run allows 32 active and 128 lifetime connections, 128 QUIC streams
+per connection, and 8 MiB of recorded channel data.
+
+Completed HTTP/1 heads have a 64 KiB limit. Completion requires one exact
+run token in the original origin-form target: a path beginning with one
+slash, without raw spaces, controls or a fragment.
+
+Chromium brackets IPv6 resolver addresses. Firefox accepts only
+`--listen 127.0.0.1` or `--listen ::1`, checked before acquiring a certificate
+or listener. IPv4 disables IPv6. IPv6 prefers IPv6 without excluding IPv4.
+
 Capture Chrome on Windows:
 
 ```sh
@@ -1671,6 +1878,19 @@ field or inserted into the QPACK table, and any `authorization` or
 `h1` and `h2`, and as for the QUIC resumption tool for `h3`.
 
 ## Socket hooks
+
+Pass extra browser switches as `--browser-switch=--name` or
+`--browser-switch=--name=value`. The tool owns the temporary profile and
+page URL. It rejects `--user-data-dir`, `--single-argument`, positional
+URLs and argument terminators before creating resources or output.
+
+The hooks require Windows x64, with `ws2_32.dll` and `dnsapi.dll` already
+loaded in the network service. The network-service child resumes after
+it acknowledges configuration and hook installation. A hook failure stops
+the run.
+Each run admits at most 64 children and retains 100,000 hook reports.
+The origin permits 32 unfinished connections, 128 connection records and
+512 requests. Split larger experiments into separate runs.
 
 `socket_hooks.py` records what no wire capture shows: the socket options a
 Chromium browser sets, the order and timing of its connection attempts, and
@@ -1749,8 +1969,9 @@ server or remote host by address. Host names the browser looked up for its
 own background requests stay in the DNS query events.
 
 `test_socket_hooks.py` checks the decoding, the summaries, and the origin,
-and that every retained log names the agent in the repository by its
-digest: change `socket_hooks.js` and the logs must be taken again.
+and the retained logs' source hashes from revision `15b1603e`. Archived logs
+keep those historical identities when the tool changes. Fresh header tests
+check the current agent and tool hashes separately.
 
 ## Firefox socket hooks
 
@@ -1833,8 +2054,9 @@ then has these lines besides the events:
 | `moz_log_<i>` | A retained MOZ_LOG line: milliseconds from the first hook report, the module, and the message, with object addresses renamed `p<n>` |
 
 `test_firefox_socket_hooks.py` checks the decoding, the summaries, the MOZ_LOG
-filter, and the origin, and that every retained log names the agent, the
-extension, the tool, and the decoder in the repository by their digests.
+filter, and the origin. Retained hashes identify the shared sources at
+`15b1603e` and the Firefox extension and tool at `71885a75`. Archived logs
+keep all four hashes. Fresh header tests check the current sources separately.
 
 ## Next
 

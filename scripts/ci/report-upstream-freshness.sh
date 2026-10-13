@@ -308,6 +308,8 @@ chrome_revision=$(jq -r .channels.Stable.revision <<<"$chrome_record")
 
 chrome_recipe=$(built_in_chrome_recipe)
 IFS=$'\t' read -r chrome_recipe_version chrome_platform <<<"$chrome_recipe"
+tls_fixture="fixtures/tls/chrome/$chrome_recipe_version/$chrome_platform/client-hello.txt"
+http2_fixture="fixtures/http2/chrome/$chrome_recipe_version/$chrome_platform/client-startup.txt"
 
 if [[ "$wreq_tracked" == true && "$wreq_current" != "$wreq_latest" ]]; then
   wreq_drift=true

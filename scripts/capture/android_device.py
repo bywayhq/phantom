@@ -35,6 +35,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from xml.etree import ElementTree
 
+from .browser_failures import raise_browser_failures
+
 EMULATOR_HOST_LOOPBACK = "10.0.2.2"
 # Properties an Android emulator sets to 1; a phone sets neither.
 EMULATOR_PROPERTIES = ("ro.kernel.qemu", "ro.boot.qemu")
@@ -280,13 +282,6 @@ class AdbDevice:
     def shell(self, *arguments: str, check: bool = True) -> str:
         return self.run("shell", *arguments, check=check)
 
-    def push_text(self, text: str, device_path: str) -> None:
-        with tempfile.TemporaryDirectory(prefix="phantom-adb-") as directory:
-            local = Path(directory) / "file"
-            local.write_bytes(text.encode("utf-8"))
-            self.run("push", str(local), device_path)
-        self.shell("chmod", "644", device_path)
-
     def package_version(self, package: str) -> str:
         for line in self.shell("dumpsys", "package", package).splitlines():
             line = line.strip()
@@ -328,8 +323,12 @@ class AndroidLaunch:
     def __post_init__(self) -> None:
         if self.entry not in ENTRIES:
             raise ValueError(f"unknown entry: {self.entry}")
+
         if self.entry == "typed" and not _TYPEABLE_URL.fullmatch(self.url):
             raise ValueError(f"cannot type this URL with adb input: {self.url}")
+
+        if self.typing_attempts <= 0:
+            raise ValueError("typing_attempts must be positive")
 
     def configuration(self) -> str | None:
         if self.browser.command_line_file is not None:
@@ -376,15 +375,18 @@ class AndroidSession:
     def __init__(self, device: AdbDevice, launch: AndroidLaunch) -> None:
         self.device = device
         self.launch = launch
-        self.reversed: list[int] = []
-        self.configured = False
+        self._reversed: list[int] = []
+        self._stop_required = False
+        self._configuration_directory: tempfile.TemporaryDirectory[str] | None = None
+        self._configuration_path: str | None = None
+        self._debug_app_owned = False
 
     def __enter__(self) -> AndroidSession:
         try:
             self._start()
-        except BaseException:
-            self.__exit__()
-            raise
+        except BaseException as primary:
+            raise_browser_failures(primary, self._cleanup())
+
         return self
 
     def _start(self) -> None:
@@ -392,6 +394,8 @@ class AndroidSession:
         package = launch.browser.package
         configuration = launch.configuration()
         self.require_emulator()
+
+        self._stop_required = True
         for other in ANDROID_BROWSERS.values():
             self.device.shell("am", "force-stop", other.package)
         # Ends cached background processes, so the browser has the memory.
@@ -401,15 +405,18 @@ class AndroidSession:
         self.device.shell(
             "pm", "grant", package, "android.permission.POST_NOTIFICATIONS", check=False
         )
+
         path = launch.browser.configuration_path
         if configuration is not None and path is not None:
-            self.device.push_text(configuration, path)
-            self.configured = True
+            self._configure(configuration, path)
+            self._debug_app_owned = True
             self.device.shell("am", "set-debug-app", "--persistent", package)
+
         ports = [*reverse_ports(launch.url, launch.arguments), *launch.reverse]
         for port in dict.fromkeys(ports):
+            self._reversed.append(port)
             self.device.run("reverse", f"tcp:{port}", f"tcp:{port}")
-            self.reversed.append(port)
+
         for attempt in range(launch.typing_attempts):
             try:
                 self._open(package)
@@ -427,6 +434,20 @@ class AndroidSession:
                     "android.permission.POST_NOTIFICATIONS",
                     check=False,
                 )
+
+    def _configure(self, text: str, device_path: str) -> None:
+        directory = tempfile.TemporaryDirectory(prefix="phantom-adb-")
+        self._configuration_directory = directory
+        local = Path(directory.name) / "file"
+        local.write_bytes(text.encode("utf-8"))
+
+        self._configuration_path = device_path
+        self.device.run("push", str(local), device_path)
+
+        directory.cleanup()
+        self._configuration_directory = None
+
+        self.device.shell("chmod", "644", device_path)
 
     def _open(self, package: str) -> None:
         launch = self.launch
@@ -475,14 +496,14 @@ class AndroidSession:
             if time.monotonic() >= deadline:
                 raise TypingFailed("the first-run screens did not finish")
             time.sleep(self.launch.onboarding_delay)
-            focus = self.device.shell("dumpsys", "window", check=False)
+            focus = self.device.shell("dumpsys", "window")
             focused = [line for line in focus.splitlines() if "mCurrentFocus" in line]
             if activity is not None and not any(activity in line for line in focused):
                 away += 1
                 continue
             away = 0
-            self.device.shell("uiautomator", "dump", WINDOW_DUMP, check=False)
-            dump = self.device.shell("cat", WINDOW_DUMP, check=False)
+            self.device.shell("uiautomator", "dump", WINDOW_DUMP)
+            dump = self.device.shell("cat", WINDOW_DUMP)
             step = onboarding_taps(dump)
             if step is None:
                 continue
@@ -501,7 +522,7 @@ class AndroidSession:
         `require_snapshot`.
         """
         for name in EMULATOR_PROPERTIES:
-            if self.device.shell("getprop", name, check=False).strip() == "1":
+            if self.device.shell("getprop", name).strip() == "1":
                 self.require_snapshot()
                 return
         if self.launch.allow_physical_device or allowed_on_physical_device():
@@ -516,7 +537,7 @@ class AndroidSession:
         """Refuse an emulator without the snapshot marker, unless allowed."""
         if self.launch.allow_cold_boot or allowed_after_cold_boot():
             return
-        if self.device.shell("getprop", SNAPSHOT_PROPERTY, check=False).strip():
+        if self.device.shell("getprop", SNAPSHOT_PROPERTY).strip():
             return
         raise ColdBootRefused(
             f"the emulator has no {SNAPSHOT_PROPERTY} property, so it cold-booted "
@@ -533,8 +554,8 @@ class AndroidSession:
         takes the focus. Wait is tapped, which only dismisses the dialog, and
         None is returned so the caller refocuses the address bar.
         """
-        self.device.shell("uiautomator", "dump", WINDOW_DUMP, check=False)
-        dumped = self.device.shell("cat", WINDOW_DUMP, check=False)
+        self.device.shell("uiautomator", "dump", WINDOW_DUMP)
+        dumped = self.device.shell("cat", WINDOW_DUMP)
         wait = wait_button_center(dumped)
         if wait is not None:
             self.device.shell("input", "tap", str(wait[0]), str(wait[1]))
@@ -589,14 +610,53 @@ class AndroidSession:
                 self.device.shell("input", "keyevent", KEYCODE_DEL)
                 typed = ""
 
-    def __exit__(self, *_: object) -> None:
+    def __exit__(self, *details: object) -> None:
+        primary = details[1] if len(details) > 1 else None
+        cleanup = self._cleanup()
+        if cleanup:
+            raise_browser_failures(primary, cleanup)
+
+    def _cleanup(self) -> tuple[BaseException, ...]:
+        failures = []
+        if self._configuration_directory is not None:
+            try:
+                self._configuration_directory.cleanup()
+            except BaseException as error:
+                failures.append(error)
+            else:
+                self._configuration_directory = None
+
         package = self.launch.browser.package
-        self.device.shell("am", "force-stop", package, check=False)
-        for port in self.reversed:
-            self.device.run("reverse", "--remove", f"tcp:{port}", check=False)
-        self.reversed.clear()
-        path = self.launch.browser.configuration_path
-        if self.configured and path is not None:
-            self.device.shell("rm", "-f", path, check=False)
-            self.device.shell("am", "clear-debug-app", check=False)
-            self.configured = False
+        if self._stop_required:
+            try:
+                self.device.shell("am", "force-stop", package)
+            except BaseException as error:
+                failures.append(error)
+            else:
+                self._stop_required = False
+
+        for port in tuple(self._reversed):
+            try:
+                self.device.run("reverse", "--remove", f"tcp:{port}")
+            except BaseException as error:
+                failures.append(error)
+            else:
+                self._reversed.remove(port)
+
+        if self._configuration_path is not None:
+            try:
+                self.device.shell("rm", "-f", self._configuration_path)
+            except BaseException as error:
+                failures.append(error)
+            else:
+                self._configuration_path = None
+
+        if self._debug_app_owned:
+            try:
+                self.device.shell("am", "clear-debug-app")
+            except BaseException as error:
+                failures.append(error)
+            else:
+                self._debug_app_owned = False
+
+        return tuple(failures)

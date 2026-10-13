@@ -37,23 +37,19 @@ slot_dir() {
 }
 lock_dir=""
 
-# A holder that died without running its trap (kill -9, crash) leaves the
-# directory behind. Reclaim it only when its recorded PID is gone; renaming it
-# first makes the reclaim atomic, so two waiters cannot both take it.
-reclaim_stale_lock() {
-  local pid
+# A dead wrapper can leave a live child behind. Preserve its lock until an
+# operator has checked that work, rather than racing another holder's rename.
+check_stale_lock() {
+  local pid diagnostic
   pid=$(cat "$lock_dir/pid" 2>/dev/null) || return 0
-  [[ $pid =~ ^[0-9]+$ ]] || return 0
-  kill -0 "$pid" 2>/dev/null && return 0
-  local stale="$lock_dir.stale.$$"
-  mv -- "$lock_dir" "$stale" 2>/dev/null || return 0
-  if [[ $(cat "$stale/pid" 2>/dev/null) == "$pid" ]]; then
-    echo "with-cargo-lock: removed stale lock held by dead pid $pid" >&2
-    rm -rf -- "$stale"
-  else
-    # A new holder took the lock between the check and the rename.
-    mv -- "$stale" "$lock_dir" 2>/dev/null || rm -rf -- "$stale"
+  [[ $pid =~ ^[1-9][0-9]*$ ]] || return 0
+  if diagnostic=$(LC_ALL=C kill -0 "$pid" 2>&1); then
+    return 0
   fi
+  [[ $diagnostic == *"No such process"* ]] || return 0
+  echo "with-cargo-lock: holder pid $pid is gone; lock preserved at $lock_dir" >&2
+  echo "verify that its command and surviving child processes have stopped before manually removing the lock directory" >&2
+  exit 75
 }
 
 try_acquire() {
@@ -76,7 +72,7 @@ until try_acquire; do
   fi
   for ((slot = 0; slot < slots; slot++)); do
     lock_dir=$(slot_dir "$slot")
-    reclaim_stale_lock
+    check_stale_lock
   done
   sleep 5
 done

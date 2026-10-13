@@ -11,17 +11,18 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import contextlib
 import hashlib
 import json
 import os
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
 
 WEBSOCKET_GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 MAX_MESSAGE = 16 * 1024 * 1024
+REMOTE_SETUP_TIMEOUT = 5.0
+REMOTE_CLOSE_TIMEOUT = 2.0
 OPCODE_CONTINUATION = 0x0
 OPCODE_TEXT = 0x1
 OPCODE_BINARY = 0x2
@@ -36,8 +37,33 @@ FIREFOX_PORT_FILE = "WebDriverBiDiServer.json"
 
 @dataclass(frozen=True)
 class Credentials:
-    username: str
-    password: str
+    username: str = field(repr=False)
+    password: str = field(repr=False)
+
+
+class RemoteFailures(Exception):
+    """An operation failure together with errors from closing its connection."""
+
+    def __init__(
+        self, primary: BaseException | None, cleanup: tuple[BaseException, ...]
+    ) -> None:
+        self.primary = primary
+        self.cleanup = cleanup
+        super().__init__("remote connection cleanup failed")
+
+
+def _raise_remote_failures(
+    primary: BaseException | None, cleanup: tuple[BaseException, ...]
+) -> None:
+    if cleanup:
+        combined = RemoteFailures(primary, cleanup)
+        if isinstance(primary, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)):
+            raise primary from combined
+
+        raise combined from primary
+
+    if primary is not None:
+        raise primary
 
 
 # -- WebSocket client -------------------------------------------------------
@@ -89,37 +115,72 @@ class RemoteSocket:
 
     @classmethod
     async def connect(cls, url: str) -> RemoteSocket:
+        """Connect and upgrade within one five-second setup deadline."""
         parts = urlsplit(url)
         if parts.scheme != "ws" or parts.hostname not in {"127.0.0.1", "localhost"}:
             raise ValueError("the remote protocol endpoint must be loopback ws://")
-        reader, writer = await asyncio.open_connection(parts.hostname, parts.port)
-        key = base64.b64encode(os.urandom(16))
-        path = parts.path or "/"
-        writer.write(
-            f"GET {path} HTTP/1.1\r\nHost: {parts.netloc}\r\n".encode()
-            + b"Upgrade: websocket\r\nConnection: Upgrade\r\n"
-            + b"Sec-WebSocket-Version: 13\r\nSec-WebSocket-Key: "
-            + key
-            + b"\r\n\r\n"
+
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + REMOTE_SETUP_TIMEOUT
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_connection(parts.hostname, parts.port), deadline - loop.time()
         )
-        head = await reader.readuntil(b"\r\n\r\n")
-        lines = head.split(b"\r\n")
-        if not lines[0].startswith(b"HTTP/1.1 101"):
-            writer.close()
-            raise ConnectionError(f"remote protocol upgrade refused: {lines[0]!r}")
-        expected = base64.b64encode(hashlib.sha1(key + WEBSOCKET_GUID).digest())
-        accept = next(
-            (
-                line.partition(b":")[2].strip()
-                for line in lines[1:]
-                if line.partition(b":")[0].strip().lower() == b"sec-websocket-accept"
-            ),
-            None,
-        )
-        if accept != expected:
-            writer.close()
-            raise ConnectionError("remote protocol upgrade has a wrong accept key")
-        return cls(reader, writer)
+        try:
+            key = base64.b64encode(os.urandom(16))
+            path = parts.path or "/"
+            writer.write(
+                f"GET {path} HTTP/1.1\r\nHost: {parts.netloc}\r\n".encode()
+                + b"Upgrade: websocket\r\nConnection: Upgrade\r\n"
+                + b"Sec-WebSocket-Version: 13\r\nSec-WebSocket-Key: "
+                + key
+                + b"\r\n\r\n"
+            )
+            await asyncio.wait_for(writer.drain(), deadline - loop.time())
+            head = await asyncio.wait_for(
+                reader.readuntil(b"\r\n\r\n"), deadline - loop.time()
+            )
+            lines = head.split(b"\r\n")
+            if not lines[0].startswith(b"HTTP/1.1 101"):
+                raise ConnectionError(f"remote protocol upgrade refused: {lines[0]!r}")
+
+            expected = base64.b64encode(hashlib.sha1(key + WEBSOCKET_GUID).digest())
+            accept = next(
+                (
+                    line.partition(b":")[2].strip()
+                    for line in lines[1:]
+                    if line.partition(b":")[0].strip().lower()
+                    == b"sec-websocket-accept"
+                ),
+                None,
+            )
+            if accept != expected:
+                raise ConnectionError("remote protocol upgrade has a wrong accept key")
+
+            if loop.time() >= deadline:
+                raise asyncio.TimeoutError(
+                    "remote protocol setup exceeded its deadline"
+                )
+
+            return cls(reader, writer)
+        except BaseException as primary:
+            cleanup = []
+            try:
+                writer.close()
+            except BaseException as error:
+                cleanup.append(error)
+
+            try:
+                await asyncio.wait_for(writer.wait_closed(), REMOTE_CLOSE_TIMEOUT)
+            except BaseException as error:
+                cleanup.append(error)
+
+            if cleanup:
+                try:
+                    writer.transport.abort()
+                except BaseException as error:
+                    cleanup.append(error)
+
+            _raise_remote_failures(primary, tuple(cleanup))
 
     async def send(self, text: str) -> None:
         self.writer.write(encode_frame(OPCODE_TEXT, text.encode(), os.urandom(4)))
@@ -172,6 +233,7 @@ class RemoteConnection:
         self.handler: EventHandler | None = None
         self.reader: asyncio.Task[None] | None = None
         self.failure: BaseException | None = None
+        self._reader_cancel_requested = False
 
     def start(self, handler: EventHandler) -> None:
         self.handler = handler
@@ -180,13 +242,27 @@ class RemoteConnection:
     async def read_loop(self) -> None:
         try:
             while True:
-                message = json.loads(await self.socket.receive())
+                try:
+                    text = await self.socket.receive()
+                except (ConnectionError, asyncio.IncompleteReadError) as error:
+                    self._fail_pending(error)
+                    return
+
+                message = json.loads(text)
                 await self.dispatch(message)
-        except (ConnectionError, asyncio.IncompleteReadError, ValueError) as error:
-            self.failure = error
-            for future in self.pending.values():
-                if not future.done():
-                    future.set_exception(ConnectionError(str(error)))
+        except BaseException as error:
+            self._fail_pending(error)
+            raise
+
+    def _fail_pending(self, error: BaseException) -> None:
+        self.failure = error
+        pending, self.pending = self.pending, {}
+        for future in pending.values():
+            if not future.done():
+                if isinstance(error, asyncio.CancelledError):
+                    future.cancel()
+                else:
+                    future.set_exception(error)
 
     async def dispatch(self, message: dict) -> None:
         identifier = message.get("id")
@@ -204,22 +280,46 @@ class RemoteConnection:
     async def send(
         self, method: str, params: dict, session_id: str | None = None
     ) -> asyncio.Future[dict]:
+        if self.failure is not None:
+            raise self.failure
+
         identifier = self.next_id
         self.next_id += 1
         command: dict = {"id": identifier, "method": method, "params": params}
         if session_id is not None:
             command["sessionId"] = session_id
+
         future = asyncio.get_running_loop().create_future()
         self.pending[identifier] = future
-        await self.socket.send(json.dumps(command))
+        try:
+            await self.socket.send(json.dumps(command))
+        except BaseException as primary:
+            self.pending.pop(identifier, None)
+            secondary = None
+            if future.done() and not future.cancelled():
+                secondary = future.exception()
+            else:
+                future.cancel()
+
+            cleanup = (
+                (secondary,)
+                if secondary is not None and secondary is not primary
+                else ()
+            )
+            _raise_remote_failures(primary, cleanup)
+
         return future
 
     async def call(
         self, method: str, params: dict, session_id: str | None = None
     ) -> dict:
-        return await asyncio.wait_for(
-            await self.send(method, params, session_id), timeout=15
-        )
+        future = await self.send(method, params, session_id)
+        try:
+            return await asyncio.wait_for(future, timeout=15)
+        finally:
+            for identifier, pending in tuple(self.pending.items()):
+                if pending is future:
+                    del self.pending[identifier]
 
     async def reply(self, command: tuple[str, dict], event: dict, note: Note) -> None:
         """Send an answer to `event` without waiting; note a refused answer."""
@@ -233,11 +333,43 @@ class RemoteConnection:
         future.add_done_callback(settled)
 
     async def close(self) -> None:
+        primary = None
+        cleanup = []
+        if self.reader is not None and not self.reader.done():
+            self._reader_cancel_requested = self.reader.cancel()
+
+        try:
+            self.socket.close()
+        except BaseException as error:
+            cleanup.append(error)
+
         if self.reader is not None:
-            self.reader.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self.reader
-        self.socket.close()
+            try:
+                done, _ = await asyncio.wait(
+                    [self.reader], timeout=REMOTE_CLOSE_TIMEOUT
+                )
+                if self.reader not in done:
+                    primary = TimeoutError("remote protocol reader did not stop")
+                elif self.reader.cancelled():
+                    if not self._reader_cancel_requested:
+                        self.reader.result()
+                else:
+                    primary = self.reader.exception()
+            except BaseException as error:
+                primary = error
+                if self.reader.done() and not self.reader.cancelled():
+                    completed = self.reader.exception()
+                    if completed is not None and completed is not primary:
+                        cleanup.append(completed)
+
+        try:
+            await asyncio.wait_for(
+                self.socket.writer.wait_closed(), REMOTE_CLOSE_TIMEOUT
+            )
+        except BaseException as error:
+            cleanup.append(error)
+
+        _raise_remote_failures(primary, tuple(cleanup))
 
 
 class RemoteError(Exception):
@@ -400,14 +532,23 @@ async def navigate_page(profile: Path, url: str, settle: float) -> None:
         return None
 
     connection.start(ignore)
+    primary = None
     try:
         target = await first_page_target(connection)
         attached = await connection.call(
             "Target.attachToTarget", {"targetId": target, "flatten": True}
         )
         await connection.call("Page.navigate", {"url": url}, attached["sessionId"])
-    finally:
+    except BaseException as error:
+        primary = error
+
+    cleanup = ()
+    try:
         await connection.close()
+    except BaseException as error:
+        cleanup = (error,)
+
+    _raise_remote_failures(primary, cleanup)
 
 
 class ChromiumAuthDriver:

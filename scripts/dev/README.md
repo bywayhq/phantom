@@ -19,15 +19,33 @@ git worktree add -b lane/<name> ../phantom-worktrees/<name> main
 When the lane has handed off, finish it from the integration checkout:
 
 ```sh
+git status --short                              # both checkouts must be clean
+git -C ../phantom-worktrees/<name> status --short
 git -C ../phantom-worktrees/<name> rebase main    # the lane must be clean
 git log --oneline main..lane/<name>               # review every commit
 git diff main...lane/<name>
-# Run the full gate on the rebased branch and read its output before merging.
+candidate=$(git rev-parse lane/<name>)
+git switch --detach "$candidate"
+# Run the full gate on this exact commit and read every step's output.
 scripts/dev/gate.sh
-git merge --ff-only lane/<name>
+```
+
+Require every applicable PR check for `candidate` to pass, including Windows
+and macOS.
+After the gate and review pass, return to `main` and integrate the checked
+commit:
+
+```sh
+git switch main
+git merge --ff-only "$candidate"
 git worktree remove ../phantom-worktrees/<name>
 git branch -d lane/<name>
 ```
+
+Keep `candidate` in the same shell between these steps. The detached checkout
+lets the integration owner check the lane's commit while the lane retains
+its branch. If `main` advances, rebase the lane again and repeat the checks.
+After pushing `main`, require its CI to pass before integrating another lane.
 
 Run the full gate after the rebase, not before. Two lanes can each pass alone
 and still break together: for example, one adds an enum variant and the other
@@ -108,8 +126,9 @@ holding slots. Stop them with the group IDs the gate recorded:
 while read -r group; do kill -TERM -- "-$group"; done < target/gate/logs/chains.pids
 ```
 
-A lock whose holder died without releasing it is reclaimed by the next
-waiting command, as [below](#cargo-lock) describes.
+When all slots are occupied and a recorded holder PID is gone, the helper
+preserves that slot and exits with status 75. Verify surviving work before
+removing it, as [Cargo lock](#cargo-lock) describes.
 
 ### Nightly recursion check
 
@@ -234,8 +253,9 @@ The script:
   command in `owner`;
 - while another command holds the lock, prints the `owner` line once and
   retries every five seconds;
-- removes the lock when the command exits or the script receives `HUP`,
-  `INT`, or `TERM`, and exits with the command's status;
+- removes the lock after the command exits and returns its status. A handled
+  `HUP`, `INT`, or `TERM` waits for the foreground command before cleanup and
+  returns the signal's exit status;
 - exports `CARGO_INCREMENTAL=0`, as CI does. With several lanes active,
   incremental caches grew by tens of gigabytes per worktree and filled the
   disk.
@@ -244,9 +264,14 @@ Each worktree keeps its own `target/`. Never point divergent worktrees at one
 `CARGO_TARGET_DIR`.
 
 A holder killed without cleanup (for example by `kill -9`) leaves the lock
-directory behind. A waiting script reclaims it once the PID in `pid` no longer
-runs. If a lock still blocks you, confirm that its holder is gone, then delete
-the directory:
+directory behind. When all slots are occupied and a recorded PID is gone,
+the helper exits with status 75 and leaves the directory untouched. A dead
+wrapper can leave Cargo or another child process running. Check the recorded
+command and its surviving processes before removing that slot's directory.
+Missing or malformed PID files keep waiters blocked until you inspect them.
+
+After you have stopped or verified the absence of all work from that holder,
+remove only its slot. For slot 0:
 
 ```sh
 cat "$(git rev-parse --path-format=absolute --git-common-dir)/phantom-cargo-lock/owner"

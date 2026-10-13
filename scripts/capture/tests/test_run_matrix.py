@@ -3,6 +3,7 @@ import contextlib
 import io
 import json
 import os
+import signal
 import sys
 import tempfile
 import threading
@@ -11,6 +12,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from scripts.capture import run_matrix
 from scripts.capture.browser_launch import FIREFOX_START_LIMIT_SECONDS
 from scripts.capture.process_container import ProcessContainer
 from scripts.capture.run_matrix import (
@@ -38,6 +40,7 @@ from scripts.capture.run_matrix import (
     run_with_retry,
     scenario_file,
     schedule,
+    slug,
     summary_table,
 )
 
@@ -83,6 +86,18 @@ def fake_capture(**fields):
 
 
 class ManifestTests(unittest.TestCase):
+    def test_nonfinite_timeouts_are_refused_before_jobs_are_created(self) -> None:
+        for timeout in (float("nan"), float("inf"), float("-inf"), 10**400):
+            with (
+                self.subTest(timeout=timeout),
+                self.assertRaisesRegex(ManifestError, "timeout must be a finite"),
+            ):
+                expand_manifest(
+                    manifest(fake_capture(timeout=timeout)),
+                    base=Path("/repo"),
+                    tools=FAKE_TOOLS,
+                )
+
     def test_each_browser_and_scenario_becomes_one_job(self) -> None:
         jobs = expand_manifest(
             manifest(
@@ -460,13 +475,123 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(probe.overlaps["a"], {"b"})
 
     def test_a_raising_job_is_reported_as_failed(self) -> None:
+        failure = RuntimeError("boom")
+
         def run(item: Job) -> JobResult:
-            raise RuntimeError("boom")
+            raise failure
 
         (result,) = schedule([job("x")], run, limit=2)
 
         self.assertEqual(result.status, "failed")
         self.assertIn("boom", result.attempts[0].detail)
+        self.assertIs(result.attempts[0].failure, failure)
+
+    def test_an_interrupted_worker_releases_the_slot_for_the_waiting_job(self) -> None:
+        def observe(failure: BaseException) -> None:
+            stopped = threading.Event()
+            entered = threading.Event()
+            release = threading.Event()
+            second_started = threading.Event()
+            results = []
+
+            def run(item: Job) -> JobResult:
+                if item.id == "first":
+                    entered.set()
+                    release.wait(10)
+                    raise failure
+                second_started.set()
+                return JobResult(item, "ok", [Attempt(True, 0.1)])
+
+            runner = threading.Thread(
+                target=lambda: results.extend(
+                    schedule(
+                        [job("first", exclusive=True), job("waiting")],
+                        run,
+                        limit=1,
+                        stopped=stopped,
+                    ),
+                ),
+                daemon=True,
+            )
+            runner.start()
+            try:
+                self.assertTrue(entered.wait(10))
+                self.assertFalse(second_started.is_set())
+                release.set()
+                runner.join(10)
+
+                self.assertFalse(runner.is_alive())
+                self.assertTrue(second_started.is_set())
+                self.assertEqual(
+                    [result.status for result in results], ["failed", "ok"]
+                )
+                self.assertIs(results[0].attempts[0].failure, failure)
+            finally:
+                release.set()
+                stopped.set()
+                runner.join(10)
+            self.assertFalse(runner.is_alive())
+
+        for failure in (KeyboardInterrupt("worker interrupted"), SystemExit(125)):
+            with self.subTest(failure=type(failure).__name__):
+                observe(failure)
+
+    def test_a_failed_report_keeps_both_causes_and_releases_the_waiting_job(
+        self,
+    ) -> None:
+        def observe(primary: BaseException | None, failure: BaseException) -> None:
+            reported = []
+
+            def run(item: Job) -> JobResult:
+                if item.id == "first":
+                    return JobResult(
+                        item,
+                        "failed" if primary is not None else "ok",
+                        [
+                            Attempt(
+                                primary is None,
+                                0.25,
+                                "original detail",
+                                "log",
+                                primary,
+                            )
+                        ],
+                    )
+                return JobResult(item, "ok", [Attempt(True, 0.1)])
+
+            def report(result: JobResult) -> None:
+                reported.append(result.job.id)
+                if result.job.id == "first":
+                    raise failure
+
+            results = schedule(
+                [job("first", exclusive=True), job("waiting")],
+                run,
+                limit=1,
+                report=report,
+            )
+
+            self.assertEqual([result.status for result in results], ["failed", "ok"])
+            self.assertEqual(reported, ["first", "waiting"])
+            outcome = results[0].attempts[-1]
+            self.assertFalse(outcome.ok)
+            self.assertEqual(outcome.seconds, 0.25)
+            self.assertEqual(outcome.log, "log")
+            self.assertIn("original detail; report failed:", outcome.detail)
+            if primary is None:
+                self.assertIs(outcome.failure, failure)
+            else:
+                self.assertIsInstance(outcome.failure, run_matrix.CleanupError)
+                self.assertIs(outcome.failure.failures[0][1], primary)
+                self.assertIs(outcome.failure.failures[1][1], failure)
+
+        cases = (
+            (None, BrokenPipeError("progress output closed")),
+            (OSError("original attempt failed"), SystemExit("report interrupted")),
+        )
+        for primary, failure in cases:
+            with self.subTest(failure=type(failure).__name__):
+                observe(primary, failure)
 
     def test_ctrl_c_stops_the_batch_and_reports_unstarted_jobs(self) -> None:
         stopped = threading.Event()
@@ -498,6 +623,121 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual(interrupted, [True])
         self.assertEqual([r.status for r in results], ["stopped", "not-run"])
 
+    def test_a_failed_thread_start_stops_and_joins_the_running_worker(self) -> None:
+        entered = threading.Event()
+        release = threading.Event()
+        finished = threading.Event()
+        stopped = threading.Event()
+        start = threading.Thread.start
+        started_threads = []
+        start_error = RuntimeError("worker thread refused")
+        cleanup_error = OSError("independent profile sweep failed")
+
+        def run(item: Job) -> JobResult:
+            entered.set()
+            release.wait(10)
+            finished.set()
+            return JobResult(item, "stopped", [Attempt(False, 0.1, "stopped")])
+
+        def start_worker(thread):
+            if started_threads:
+                self.assertTrue(entered.wait(10))
+                raise start_error
+            started_threads.append(thread)
+            return start(thread)
+
+        def stop_workers() -> None:
+            release.set()
+            raise cleanup_error
+
+        try:
+            with mock.patch.object(threading.Thread, "start", start_worker):
+                results = schedule(
+                    [job("running"), job("refused"), job("waiting")],
+                    run,
+                    limit=2,
+                    stopped=stopped,
+                    on_interrupt=stop_workers,
+                )
+            self.assertTrue(stopped.is_set())
+            self.assertTrue(finished.is_set())
+            self.assertFalse(started_threads[0].is_alive())
+            self.assertEqual(
+                [result.status for result in results], ["failed", "failed", "not-run"]
+            )
+            self.assertIs(results[0].attempts[-1].failure, cleanup_error)
+            combined = results[1].attempts[-1].failure
+            self.assertIs(combined.failures[0][1], start_error)
+            self.assertIs(combined.failures[1][1], cleanup_error)
+        finally:
+            release.set()
+            stopped.set()
+            for thread in started_threads:
+                thread.join(10)
+        self.assertTrue(all(not thread.is_alive() for thread in started_threads))
+
+    def test_a_worker_delayed_before_identity_cannot_acquire_after_shutdown(
+        self,
+    ) -> None:
+        parked = threading.Event()
+        release = threading.Event()
+        finished = threading.Event()
+        stopped = threading.Event()
+        entered = mock.Mock(return_value=JobResult(job("delayed"), "ok"))
+        threads = []
+        failures = []
+        interruption = KeyboardInterrupt("start interrupted before identity")
+
+        class DelayedWorker(threading.Thread):
+            def _bootstrap(self):
+                parked.set()
+                try:
+                    if not release.wait(10):
+                        failures.append("bootstrap release timed out")
+                        return
+                    super()._bootstrap()
+                finally:
+                    finished.set()
+
+            def start(self):
+                threads.append(self)
+
+                def interrupt_wait(*_args, **_kwargs):
+                    self_test.assertTrue(parked.wait(10))
+                    raise interruption
+
+                with mock.patch.object(self._started, "wait", interrupt_wait):
+                    super().start()
+
+        self_test = self
+        try:
+            with mock.patch.object(threading, "Thread", DelayedWorker):
+                results = schedule(
+                    [job("delayed", exclusive=True), job("waiting")],
+                    entered,
+                    limit=1,
+                    stopped=stopped,
+                )
+            self.assertTrue(stopped.is_set())
+            self.assertIsNone(threads[0].ident)
+            self.assertEqual(
+                [result.status for result in results], ["not-run", "not-run"]
+            )
+            entered.assert_not_called()
+
+            release.set()
+            self.assertTrue(finished.wait(10))
+            self.assertFalse(failures)
+            entered.assert_not_called()
+        finally:
+            stopped.set()
+            release.set()
+            if threads:
+                self.assertTrue(finished.wait(10))
+                if threads[0].ident is not None:
+                    threads[0].join(10)
+        self.assertFalse(threads[0].is_alive())
+
     def test_long_shared_jobs_start_first_and_exclusive_jobs_last(self) -> None:
         jobs = [
             job("short", estimate=1),
@@ -506,6 +746,650 @@ class ScheduleTests(unittest.TestCase):
         ]
 
         self.assertEqual([j.id for j in order_jobs(jobs)], ["long", "short", "alone"])
+
+
+class CleanupFailureTests(unittest.TestCase):
+    def test_launch_and_cleanup_failures_remain_reported_and_owned(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (item,) = expand_manifest(
+                manifest(fake_capture()), base=root, tools=FAKE_TOOLS
+            )
+            attempts = Attempts()
+            container = mock.Mock()
+            launch_error = OSError("gate write failed")
+            close_error = OSError("job close failed")
+            container.start.side_effect = launch_error
+            container.close.side_effect = close_error
+            with (
+                mock.patch.object(
+                    run_matrix, "ProcessContainer", return_value=container
+                ),
+                mock.patch.object(run_matrix, "stop_processes_naming") as sweep,
+                self.assertRaises(run_matrix.CleanupError) as raised,
+            ):
+                run_matrix.run_attempt(
+                    item,
+                    1,
+                    root / "work",
+                    shared_host=False,
+                    limit=1,
+                    attempts=attempts,
+                )
+
+            self.assertIs(raised.exception.failures[0][1], launch_error)
+            cleanup = raised.exception.failures[1][1]
+            self.assertIs(cleanup.failures[0][1], close_error)
+            self.assertIn("gate write failed", str(raised.exception))
+            self.assertIn("job close failed", str(raised.exception))
+            self.assertEqual(
+                [owned for owned, _temporary in attempts.running.values()],
+                [container],
+            )
+            sweep.assert_called_once()
+
+            container.close.side_effect = None
+            with mock.patch.object(run_matrix, "stop_processes_naming"):
+                attempts.stop()
+            self.assertEqual(container.close.call_count, 2)
+
+    def test_stop_cleans_every_attempt_after_one_cleanup_failure(self) -> None:
+        for operation in ["close", "sweep", "interrupt"]:
+            with self.subTest(operation=operation):
+                attempts = Attempts()
+                first, second = mock.Mock(), mock.Mock()
+                attempts.add("first", first, Path("owned-first"))
+                attempts.add("second", second, Path("owned-second"))
+                interruption = KeyboardInterrupt("stop interrupted")
+                if operation == "interrupt":
+                    first.close.side_effect = interruption
+                elif operation == "close":
+                    first.close.side_effect = OSError("job close failed")
+                sweep_error = OSError("profile discovery failed")
+                with (
+                    mock.patch.object(
+                        run_matrix,
+                        "stop_processes_naming",
+                        side_effect=[sweep_error, None]
+                        if operation == "sweep"
+                        else None,
+                    ) as sweep,
+                    self.assertRaises(
+                        KeyboardInterrupt
+                        if operation == "interrupt"
+                        else run_matrix.CleanupError
+                    ) as raised,
+                ):
+                    attempts.stop()
+
+                self.assertTrue(attempts.stopped.is_set())
+                self.assertEqual(first.close.call_count, 1)
+                self.assertEqual(second.close.call_count, 1)
+                self.assertEqual(
+                    [call.args[0] for call in sweep.call_args_list],
+                    [Path("owned-first"), Path("owned-second")],
+                )
+                if operation == "interrupt":
+                    self.assertIs(raised.exception, interruption)
+                    self.assertIn("first", str(interruption.__cause__))
+                else:
+                    self.assertIn("first", str(raised.exception))
+                    self.assertIn(
+                        "job close failed"
+                        if operation == "close"
+                        else "profile discovery failed",
+                        str(raised.exception),
+                    )
+
+    def test_close_and_sweep_failures_both_keep_their_original_causes(self) -> None:
+        container = mock.Mock()
+        close_error = OSError("job close failed")
+        sweep_error = OSError("profile discovery failed")
+        container.close.side_effect = close_error
+        with (
+            mock.patch.object(
+                run_matrix, "stop_processes_naming", side_effect=sweep_error
+            ) as sweep,
+            self.assertRaises(run_matrix.CleanupError) as raised,
+        ):
+            run_matrix.end_attempt(container, Path("owned"))
+
+        sweep.assert_called_once_with(Path("owned"))
+        self.assertIs(raised.exception.__cause__, close_error)
+        self.assertEqual(
+            [error for _operation, error in raised.exception.failures],
+            [close_error, sweep_error],
+        )
+        self.assertIn(
+            "close process container: job close failed", str(raised.exception)
+        )
+        self.assertIn(
+            "sweep profile processes: profile discovery failed", str(raised.exception)
+        )
+
+    def test_normal_attempt_cleanup_failure_is_reported_and_invalidates_resume(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (item,) = expand_manifest(
+                manifest(fake_capture()), base=root, tools=FAKE_TOOLS
+            )
+            container = mock.Mock()
+            container.wait.return_value = 0
+            item.outputs[0].parent.mkdir(parents=True, exist_ok=True)
+            item.outputs[0].write_bytes(b"format=fake\n")
+            records = CompletionRecords(root / "work" / "completed")
+            records.remember(item, shared_host=False, concurrency=1)
+
+            with (
+                mock.patch.object(
+                    run_matrix, "ProcessContainer", return_value=container
+                ),
+                mock.patch.object(
+                    run_matrix,
+                    "stop_processes_naming",
+                    side_effect=OSError("profile discovery failed"),
+                ),
+            ):
+                (result,), _wall = run_manifest(
+                    [item],
+                    work_dir=root / "work",
+                    limit=1,
+                    retries=0,
+                    force=True,
+                    log=lambda _line: None,
+                )
+
+            container.close.assert_called_once()
+            self.assertEqual(result.status, "failed")
+            self.assertIn("cleanup", result.attempts[0].detail)
+            self.assertIn("profile discovery failed", result.attempts[0].detail)
+            self.assertEqual(records.mismatch(item), "no completion record")
+
+    def test_interrupt_cleanup_failure_still_joins_workers_and_returns_results(
+        self,
+    ) -> None:
+        def observe(failure: BaseException) -> None:
+            release = threading.Event()
+            finished = threading.Event()
+            stopped = threading.Event()
+            join = threading.Thread.join
+            interrupted = False
+            joins = []
+            owned_threads = []
+
+            def run(item: Job) -> JobResult:
+                release.wait(10)
+                finished.set()
+                return JobResult(item, "stopped", [Attempt(False, 0.1, "stopped")])
+
+            def interrupt_join(thread, *args, **kwargs):
+                nonlocal interrupted
+                owned_threads.append(thread)
+                if not interrupted:
+                    interrupted = True
+                    raise KeyboardInterrupt
+                joins.append(thread)
+                return join(thread, *args, **kwargs)
+
+            def cleanup() -> None:
+                stopped.set()
+                release.set()
+                raise failure
+
+            try:
+                with mock.patch.object(threading.Thread, "join", interrupt_join):
+                    results = schedule(
+                        [job("running")],
+                        run,
+                        limit=1,
+                        stopped=stopped,
+                        on_interrupt=cleanup,
+                    )
+            finally:
+                release.set()
+                for thread in owned_threads:
+                    join(thread, 10)
+
+            self.assertTrue(finished.is_set())
+            self.assertTrue(joins)
+            self.assertEqual(results[0].status, "failed")
+            self.assertIn("cleanup", results[0].attempts[-1].detail)
+            self.assertIn(str(failure), results[0].attempts[-1].detail)
+            self.assertIs(results[0].attempts[-1].failure, failure)
+
+        for failure in (
+            OSError("profile discovery failed"),
+            KeyboardInterrupt("cleanup interrupted"),
+            SystemExit(125),
+        ):
+            with self.subTest(failure=type(failure).__name__):
+                observe(failure)
+
+    def test_main_writes_summary_and_results_after_interrupt_cleanup_failure(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest_path = root / "manifest.json"
+            manifest_path.write_text("{}")
+            output_path = root / "results.json"
+            release = threading.Event()
+            join = threading.Thread.join
+            interrupted = False
+            joins = []
+            owned_threads = []
+            attempts = Attempts()
+            finished = threading.Event()
+            registered = threading.Event()
+            container = mock.Mock()
+            container.close.side_effect = release.set
+            (item,) = expand_manifest(
+                manifest(fake_capture()), base=root, tools=FAKE_TOOLS
+            )
+
+            def attempt(_job, _number, _work, **kwargs):
+                attempts.add(slug(item.id) + ".1", container, root / "owned")
+                registered.set()
+                release.wait(10)
+                finished.set()
+                return Attempt(False, 0.1, "stopped")
+
+            def interrupt_join(thread, *args, **kwargs):
+                nonlocal interrupted
+                owned_threads.append(thread)
+                if not interrupted:
+                    # The worker registers ownership before this checkpoint.
+                    self.assertTrue(registered.wait(10))
+                    interrupted = True
+                    raise KeyboardInterrupt
+                joins.append(thread)
+                return join(thread, *args, **kwargs)
+
+            output = io.StringIO()
+            try:
+                with (
+                    mock.patch.object(
+                        run_matrix, "expand_manifest", return_value=[item]
+                    ),
+                    mock.patch.object(run_matrix, "Attempts", return_value=attempts),
+                    mock.patch.object(run_matrix, "run_attempt", side_effect=attempt),
+                    mock.patch.object(
+                        run_matrix,
+                        "stop_processes_naming",
+                        side_effect=OSError("profile discovery failed"),
+                    ),
+                    mock.patch.object(threading.Thread, "join", interrupt_join),
+                    contextlib.redirect_stdout(output),
+                    contextlib.redirect_stderr(io.StringIO()),
+                ):
+                    status = main(
+                        [
+                            str(manifest_path),
+                            "--work-dir",
+                            str(root / "work"),
+                            "--results",
+                            str(output_path),
+                        ]
+                    )
+            finally:
+                release.set()
+                for thread in owned_threads:
+                    join(thread, 10)
+
+            self.assertEqual(status, 130)
+            self.assertTrue(finished.is_set())
+            self.assertTrue(joins)
+            self.assertIn("failed", output.getvalue())
+            document = json.loads(output_path.read_text())
+            self.assertTrue(document["interrupted"])
+            self.assertEqual(document["jobs"][0]["status"], "failed")
+            detail = document["jobs"][0]["attempts"][-1]["detail"]
+            self.assertIn("cleanup", detail)
+            self.assertIn("profile discovery failed", detail)
+
+    def test_named_cleanup_failure_does_not_fail_another_interrupted_owner(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            items = expand_manifest(
+                manifest(
+                    fake_capture(
+                        args=["--fixture-prefix", "foo"], output_dir="out/short"
+                    ),
+                    fake_capture(
+                        args=["--fixture-prefix", "foo.1"], output_dir="out/long"
+                    ),
+                ),
+                base=root,
+                tools=FAKE_TOOLS,
+            )
+            releases = {item.id: threading.Event() for item in items}
+            registered = {item.id: threading.Event() for item in items}
+            attempts = Attempts()
+            join = threading.Thread.join
+            interrupted = False
+            owned_threads = []
+
+            def attempt(item, _number):
+                container = mock.Mock()
+                container.close.side_effect = releases[item.id].set
+                attempts.add(slug(item.id) + ".1", container, root / slug(item.id))
+                registered[item.id].set()
+                releases[item.id].wait(10)
+                return Attempt(False, 0.2, "stopped")
+
+            def sweep(directory):
+                if directory == root / slug(items[1].id):
+                    raise OSError("long owner's discovery failed")
+
+            def interrupt_join(thread, *args, **kwargs):
+                nonlocal interrupted
+                owned_threads.append(thread)
+                if not interrupted:
+                    for event in registered.values():
+                        self.assertTrue(event.wait(10))
+                    interrupted = True
+                    raise KeyboardInterrupt
+                return join(thread, *args, **kwargs)
+
+            try:
+                with (
+                    mock.patch.object(threading.Thread, "join", interrupt_join),
+                    mock.patch.object(
+                        run_matrix, "stop_processes_naming", side_effect=sweep
+                    ),
+                ):
+                    results, _wall = run_manifest(
+                        items,
+                        work_dir=root / "work",
+                        limit=2,
+                        retries=0,
+                        force=False,
+                        attempt=attempt,
+                        attempts=attempts,
+                        log=lambda _line: None,
+                    )
+            finally:
+                for release in releases.values():
+                    release.set()
+                for thread in owned_threads:
+                    join(thread, 10)
+
+            self.assertEqual(
+                [result.status for result in results], ["stopped", "failed"]
+            )
+            self.assertIn(
+                "long owner's discovery failed", results[1].attempts[0].detail
+            )
+            self.assertEqual(results[0].attempts[0].detail, "stopped")
+            self.assertEqual([len(result.attempts) for result in results], [1, 1])
+
+    def test_completed_owner_keeps_success_when_active_owner_cleanup_fails(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            items = expand_manifest(
+                manifest(
+                    fake_capture(
+                        args=["--fixture-prefix", "done"], output_dir="out/done"
+                    ),
+                    fake_capture(
+                        args=["--fixture-prefix", "running"], output_dir="out/running"
+                    ),
+                ),
+                base=root,
+                tools=FAKE_TOOLS,
+            )
+            completed, registered, release = (
+                threading.Event(),
+                threading.Event(),
+                threading.Event(),
+            )
+            attempts = Attempts()
+            container = mock.Mock()
+            container.close.side_effect = release.set
+            join = threading.Thread.join
+            interrupted = False
+            owned_threads = []
+
+            def attempt(item, _number):
+                if item is items[0]:
+                    item.outputs[0].parent.mkdir(parents=True, exist_ok=True)
+                    item.outputs[0].write_bytes(b"format=fake\n")
+                    return Attempt(True, 1.0)
+                attempts.add(slug(item.id) + ".1", container, root / "owned")
+                registered.set()
+                release.wait(10)
+                return Attempt(False, 2.0, "stopped")
+
+            def report(line):
+                if f"ok {items[0].id}" in line:
+                    completed.set()
+
+            def interrupt_join(thread, *args, **kwargs):
+                nonlocal interrupted
+                owned_threads.append(thread)
+                if not interrupted:
+                    self.assertTrue(completed.wait(10))
+                    self.assertTrue(registered.wait(10))
+                    interrupted = True
+                    raise KeyboardInterrupt
+                return join(thread, *args, **kwargs)
+
+            try:
+                with (
+                    mock.patch.object(threading.Thread, "join", interrupt_join),
+                    mock.patch.object(
+                        run_matrix,
+                        "stop_processes_naming",
+                        side_effect=OSError("active owner's discovery failed"),
+                    ),
+                ):
+                    results, _wall = run_manifest(
+                        items,
+                        work_dir=root / "work",
+                        limit=2,
+                        retries=0,
+                        force=False,
+                        attempt=attempt,
+                        attempts=attempts,
+                        log=report,
+                    )
+            finally:
+                release.set()
+                for thread in owned_threads:
+                    join(thread, 10)
+
+            self.assertEqual([result.status for result in results], ["ok", "failed"])
+            self.assertEqual(results[0].attempts[0].detail, "")
+            self.assertTrue(results[0].attempts[0].ok)
+            records = CompletionRecords(root / "work" / "completed")
+            self.assertIsNone(records.mismatch(items[0]))
+            self.assertEqual(records.mismatch(items[1]), "no completion record")
+
+    def test_second_interrupt_during_cleanup_still_ends_every_owner(self) -> None:
+        releases = [threading.Event(), threading.Event()]
+        registered = [threading.Event(), threading.Event()]
+        attempts = Attempts()
+        items = [job("first"), job("second")]
+        containers = [mock.Mock(), mock.Mock()]
+        join = threading.Thread.join
+        owned_threads = []
+        interrupted = False
+        repeated = []
+        old_handler = signal.signal(signal.SIGINT, signal.default_int_handler)
+
+        def close_first() -> None:
+            releases[0].set()
+            signal.raise_signal(signal.SIGINT)
+            repeated.append(True)
+
+        containers[0].close.side_effect = close_first
+        containers[1].close.side_effect = releases[1].set
+
+        def run(item: Job) -> JobResult:
+            index = items.index(item)
+            attempts.add(slug(item.id) + ".1", containers[index], Path(item.id))
+            registered[index].set()
+            releases[index].wait(10)
+            return JobResult(item, "stopped", [Attempt(False, 0.1, "stopped")])
+
+        def interrupt_join(thread, *args, **kwargs):
+            nonlocal interrupted
+            owned_threads.append(thread)
+            if not interrupted:
+                for event in registered:
+                    self.assertTrue(event.wait(10))
+                interrupted = True
+                raise KeyboardInterrupt
+            return join(thread, *args, **kwargs)
+
+        try:
+            with (
+                mock.patch.object(threading.Thread, "join", interrupt_join),
+                mock.patch.object(run_matrix, "stop_processes_naming") as sweep,
+            ):
+                results = schedule(
+                    items,
+                    run,
+                    limit=2,
+                    stopped=attempts.stopped,
+                    on_interrupt=attempts.stop,
+                )
+        finally:
+            for release in releases:
+                release.set()
+            for thread in owned_threads:
+                join(thread, 10)
+            signal.signal(signal.SIGINT, old_handler)
+
+        self.assertEqual(repeated, [True])
+        self.assertEqual(
+            [container.close.call_count for container in containers], [1, 1]
+        )
+        self.assertEqual(sweep.call_count, 2)
+        self.assertEqual([result.status for result in results], ["stopped", "stopped"])
+
+    def test_second_interrupt_during_join_still_returns_results(self) -> None:
+        release, finish, registered = (
+            threading.Event(),
+            threading.Event(),
+            threading.Event(),
+        )
+        stopped = threading.Event()
+        join = threading.Thread.join
+        owned_threads = []
+        join_count = 0
+        repeated = []
+        old_handler = signal.signal(signal.SIGINT, signal.default_int_handler)
+
+        def run(item: Job) -> JobResult:
+            registered.set()
+            release.wait(10)
+            finish.wait(10)
+            return JobResult(item, "stopped", [Attempt(False, 0.1, "stopped")])
+
+        def interrupt_join(thread, *args, **kwargs):
+            nonlocal join_count
+            owned_threads.append(thread)
+            join_count += 1
+            if join_count == 1:
+                self.assertTrue(registered.wait(10))
+                raise KeyboardInterrupt
+            if join_count == 2:
+                signal.raise_signal(signal.SIGINT)
+                repeated.append(True)
+                finish.set()
+            return join(thread, *args, **kwargs)
+
+        try:
+            with mock.patch.object(threading.Thread, "join", interrupt_join):
+                results = schedule(
+                    [job("running")],
+                    run,
+                    limit=1,
+                    stopped=stopped,
+                    on_interrupt=release.set,
+                )
+                handler_after_schedule = signal.getsignal(signal.SIGINT)
+        finally:
+            release.set()
+            finish.set()
+            for thread in owned_threads:
+                join(thread, 10)
+            signal.signal(signal.SIGINT, old_handler)
+
+        self.assertEqual(repeated, [True])
+        self.assertEqual(results[0].status, "stopped")
+        self.assertTrue(stopped.is_set())
+        self.assertIs(handler_after_schedule, signal.default_int_handler)
+
+    def test_interrupt_cleanup_failure_removes_a_racing_completion_record(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (item,) = expand_manifest(
+                manifest(fake_capture()), base=root, tools=FAKE_TOOLS
+            )
+            release, registered = threading.Event(), threading.Event()
+            attempts = Attempts()
+            container = mock.Mock()
+            container.close.side_effect = release.set
+            join = threading.Thread.join
+            interrupted = False
+            owned_threads = []
+
+            def attempt(_job, _number):
+                attempts.add(slug(item.id) + ".1", container, root / "owned")
+                registered.set()
+                release.wait(10)
+                item.outputs[0].parent.mkdir(parents=True, exist_ok=True)
+                item.outputs[0].write_bytes(b"format=fake\n")
+                return Attempt(True, 2.0)
+
+            def interrupt_join(thread, *args, **kwargs):
+                nonlocal interrupted
+                owned_threads.append(thread)
+                if not interrupted:
+                    self.assertTrue(registered.wait(10))
+                    interrupted = True
+                    raise KeyboardInterrupt
+                return join(thread, *args, **kwargs)
+
+            try:
+                with (
+                    mock.patch.object(threading.Thread, "join", interrupt_join),
+                    mock.patch.object(
+                        run_matrix,
+                        "stop_processes_naming",
+                        side_effect=OSError("profile discovery failed"),
+                    ),
+                ):
+                    (result,), _wall = run_manifest(
+                        [item],
+                        work_dir=root / "work",
+                        limit=1,
+                        retries=0,
+                        force=False,
+                        attempt=attempt,
+                        attempts=attempts,
+                        log=lambda _line: None,
+                    )
+            finally:
+                release.set()
+                for thread in owned_threads:
+                    join(thread, 10)
+
+            self.assertEqual(result.status, "failed")
+            self.assertEqual(len(result.attempts), 1)
+            self.assertEqual(result.seconds, 2.0)
+            self.assertFalse(result.attempts[0].ok)
+            self.assertIn("profile discovery failed", result.attempts[0].detail)
+            records = CompletionRecords(root / "work" / "completed")
+            self.assertEqual(records.mismatch(item), "no completion record")
 
 
 class RetryTests(unittest.TestCase):
@@ -725,20 +1609,25 @@ def container_awaiting(path: Path, seconds: float = 60) -> type[ProcessContainer
     The tool joins the container first, as in a real attempt. A busy host can
     take longer than a short job timeout to start the fake tool's interpreter
     and its child, and a timeout before then would prove nothing about the
-    child. The wait ends early if the tool exits, and never raises, so the
-    runner still ends the attempt.
+    child. A stop ends this wait. Setup and cleanup failures stay visible.
     """
 
     class Awaiting(ProcessContainer):
-        def __init__(self, process) -> None:
-            super().__init__(process)
+        def start(self) -> bool:
+            started = super().start()
+            if not started:
+                return False
             deadline = time.monotonic() + seconds
-            while (
-                not path.exists()
-                and process.poll() is None
-                and time.monotonic() < deadline
-            ):
-                time.sleep(0.05)
+            try:
+                while (
+                    not path.exists()
+                    and self.poll() is None
+                    and time.monotonic() < deadline
+                ):
+                    time.sleep(0.05)
+            except run_matrix.ProcessContainerStopped:
+                return False
+            return True
 
     return Awaiting
 
@@ -786,6 +1675,62 @@ class SubprocessTests(unittest.TestCase):
         log = Path(result.attempts[0].log).read_text()
         self.assertNotIn("refused the job object", log)
 
+    @unittest.skipIf(sys.platform == "win32", "POSIX post-spawn completion pipe")
+    def test_post_spawn_constructor_failure_still_sweeps_and_retains_the_owner(
+        self,
+    ) -> None:
+        (item,) = expand_manifest(
+            manifest(fake_capture(scenarios=["hang"])),
+            base=self.root,
+            tools=FAKE_TOOLS,
+        )
+        pid_file = item.output_dir / "grandchild.pid"
+        attempts = Attempts()
+        construction_error = OSError("completion pipe close interrupted")
+        sweep_error = OSError("independent profile sweep failed")
+        owners = []
+
+        class FailingAfterSpawn(ProcessContainer):
+            def _close_status_pipe(self, attribute) -> None:
+                super()._close_status_pipe(attribute)
+                if attribute == "_status_writer" and not owners:
+                    owners.append(self)
+                    wait_for_file(pid_file)
+                    raise construction_error
+
+        try:
+            with (
+                mock.patch.object(run_matrix, "ProcessContainer", FailingAfterSpawn),
+                mock.patch.object(
+                    run_matrix, "stop_processes_naming", side_effect=sweep_error
+                ) as sweep,
+                self.assertRaises(run_matrix.CleanupError) as raised,
+            ):
+                run_matrix.run_attempt(
+                    item,
+                    1,
+                    self.root / "work",
+                    shared_host=False,
+                    limit=1,
+                    attempts=attempts,
+                )
+            owner = owners[0]
+            temporary = self.root / "work" / "tmp" / attempt_directory(item.id, 1)
+            sweep.assert_called_once_with(temporary)
+            self.assertIs(raised.exception.failures[0][1], construction_error)
+            self.assertIs(raised.exception.failures[1][1].failures[0][1], sweep_error)
+            self.assertIs(construction_error.container, owner)
+            self.assertEqual(list(attempts.running.values()), [(owner, temporary)])
+            self.assertTrue(ended_within(int(pid_file.read_text())))
+
+            with mock.patch.object(run_matrix, "stop_processes_naming") as retry:
+                attempts.stop()
+            retry.assert_called_once_with(temporary)
+            self.assertFalse(attempts.running)
+        finally:
+            for owner in owners:
+                owner.close()
+
     def test_launches_take_turns_only_beside_other_jobs(self) -> None:
         def lock_dir(*captures, limit):
             results, _wall = self.run_jobs(*captures, limit=limit)
@@ -825,6 +1770,9 @@ class SubprocessTests(unittest.TestCase):
 
         self.assertEqual(result.status, "failed")
         self.assertEqual(result.attempts[0].detail, "timed out after 1s")
+        self.assertIsInstance(
+            result.attempts[0].failure, run_matrix.subprocess.TimeoutExpired
+        )
         self.assertLess(time.perf_counter() - begin, 120)
         pid = int(pid_file.read_text())
         self.assertTrue(ended_within(pid), f"grandchild {pid} outlived the timeout")
@@ -936,6 +1884,31 @@ class DryRunTests(unittest.TestCase):
 
 class WorkDirectoryTests(unittest.TestCase):
     LONGEST_ID = "proxy_route/firefox/https-proxy-auth-remembered-hostname"
+
+    def test_a_quoted_work_directory_is_passed_as_data(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "m.json"
+            path.write_text(
+                json.dumps(
+                    manifest(
+                        {
+                            "tool": "snapshot",
+                            "browsers": ["chrome"],
+                            "output_dir": "out",
+                        }
+                    )
+                )
+            )
+            work = Path(directory) / "O'Brien work"
+            with (
+                mock.patch(
+                    "scripts.capture.run_matrix.run_manifest", return_value=([], 0.0)
+                ) as run,
+                contextlib.redirect_stdout(io.StringIO()),
+                contextlib.redirect_stderr(io.StringIO()),
+            ):
+                self.assertEqual(main([str(path), "--work-dir", str(work)]), 0)
+            self.assertEqual(run.call_args.kwargs["work_dir"], work.resolve())
 
     def test_attempt_directories_are_short_and_distinct(self) -> None:
         names = {

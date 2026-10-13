@@ -18,7 +18,9 @@ on:
       - crates/phantom-quic-btls/**
       - crates/phantom-testkit/**
       - scripts/conformance/tls-anvil/**
+      - scripts/conformance/docker_owner.py
       - scripts/conformance/tls_anvil.py
+      - scripts/conformance/tests/test_docker_owner.py
       - scripts/conformance/tests/test_tls_anvil.py
       - vendor/btls/**
       - vendor/h3/**

@@ -9,12 +9,12 @@ The recorded launch arguments go to standard output for the fixture's
 from __future__ import annotations
 
 import argparse
-import os
+import math
 import time
 from collections.abc import Sequence
 from pathlib import Path
 
-from .android_device import ALLOW_COLD_BOOT_VARIABLE, ANDROID_BROWSERS
+from .android_device import ANDROID_BROWSERS
 from .browser_launch import BROWSERS, LaunchedBrowser, LaunchPlan
 
 
@@ -45,6 +45,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         help="run on an emulator that did not load its marked snapshot",
     )
     args = parser.parse_args(argv)
+    if not math.isfinite(args.hold) or args.hold < 0:
+        parser.error("--hold must be finite and nonnegative")
     if args.browser is None:
         parser.error("--browser is required")
     plan = LaunchPlan(
@@ -54,9 +56,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         tuple(args.switch),
         android_entry=args.entry,
         android_allow_physical_device=args.allow_physical_device,
+        android_allow_cold_boot=args.allow_cold_boot,
     )
-    if args.allow_cold_boot:
-        os.environ[ALLOW_COLD_BOOT_VARIABLE] = "1"
     if args.print_arguments:
         print(plan.recorded_arguments(args.url), flush=True)
         return

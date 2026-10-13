@@ -61,21 +61,28 @@ class MarkerCoverage:
         fin_at_end = mapping["fin_at_end"]
         if not isinstance(label, str) or not is_safe_label(label):
             raise ValueError("logical marker label is invalid")
+
         if not isinstance(length, int) or isinstance(length, bool) or length <= 0:
             raise ValueError("logical marker length must be a positive integer")
+
         if not isinstance(complete, bool) or not isinstance(fin_at_end, bool):
             raise ValueError("logical marker flags must be booleans")
+
         coverage_value = mapping["coverage"]
         if not isinstance(coverage_value, list):
             raise ValueError("logical marker coverage must be a list")
+
         coverage = tuple(_coverage_range(item, length) for item in coverage_value)
         if coverage != _merge_ranges(coverage):
             raise ValueError("logical marker coverage must be sorted and disjoint")
+
         if complete != (coverage == ((0, length),)):
             raise ValueError("logical marker completeness disagrees with its coverage")
+
         spaces = _packet_spaces(mapping["spaces"], "logical marker spaces")
         if complete and spaces != ("1rtt",):
             raise ValueError("a complete logical marker must be carried in 1-RTT")
+
         return cls(label, length, coverage, complete, fin_at_end, spaces)
 
 
@@ -141,21 +148,26 @@ class LogicalFlight:
         packet_spaces = _packet_spaces(
             mapping["packet_spaces"], "logical flight packet spaces"
         )
+
         markers_value = mapping["markers"]
         if not isinstance(markers_value, list):
             raise ValueError("logical flight markers must be a list")
+
         markers = tuple(MarkerCoverage.from_dict(item) for item in markers_value)
         labels = [marker.label for marker in markers]
         if labels != sorted(labels) or len(labels) != len(set(labels)):
             raise ValueError("logical flight markers must have unique sorted labels")
+
         retransmission = mapping["stream_retransmission_observed"]
         if not isinstance(retransmission, bool):
             raise ValueError(
                 "logical flight stream retransmission flag must be boolean"
             )
+
         terminal_value = mapping["terminal_frames"]
         if not isinstance(terminal_value, list):
             raise ValueError("logical flight terminal frames must be a list")
+
         terminal_frames = tuple(
             TerminalFrame.from_dict(frame) for frame in terminal_value
         )
@@ -169,6 +181,7 @@ class LogicalFlight:
             )
         ):
             raise ValueError("logical flight terminal frames must be unique and sorted")
+
         return cls(packet_spaces, markers, retransmission, terminal_frames)
 
 
@@ -211,18 +224,23 @@ def parse_logical_flight_summary(value: object) -> LogicalFlight:
     )
     if mapping["format"] != PACKET_SUMMARY_FORMAT:
         raise ValueError("packet summary format is unsupported")
+
     spans_value = mapping["spans"]
     packets_value = mapping["packets"]
     if not isinstance(spans_value, list):
         raise ValueError("packet summary spans must be a list")
+
     if not isinstance(packets_value, list):
         raise ValueError("packet summary packets must be a list")
+
     spans = tuple(SymbolicSpan.from_dict(span) for span in spans_value)
     packets = tuple(NormalizedPacket.from_dict(packet) for packet in packets_value)
+
     projected = PacketSummary.build(packets, spans).logical_flight
     serialized = LogicalFlight.from_dict(mapping["logical_flight"])
     if projected != serialized:
         raise ValueError("logical flight disagrees with packet and span data")
+
     return projected
 
 

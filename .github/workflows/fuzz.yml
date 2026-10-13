@@ -93,9 +93,9 @@ jobs:
           # response-head observer and the protocol engine each reparse their
           # buffered head on every read, bounded by MAX_RESPONSE_HEAD_BYTES
           # (32 KiB), so a longer head read one byte at a time costs quadratic
-          # time and reports a timeout rather than a defect. The two head
-          # limits that this puts out of reach are covered by the regressions
-          # in fuzz/src/http1_response/tests.rs.
+          # time and reports a timeout rather than a defect. The head-byte
+          # limit is covered by fuzz/src/http1_response/tests.rs. Short fields
+          # can still reach the field-count limit within this input bound.
           - target: http1_response
             max_len: 16384
           - target: http_connect_response

@@ -56,12 +56,20 @@ class RecordingDevice:
         self.commands.append(arguments)
         if arguments[:3] == ("shell", "getprop", "ro.kernel.qemu"):
             return "1" if self.emulator else ""
+
         if arguments[:3] == ("shell", "getprop", SNAPSHOT_PROPERTY):
             return f"{self.snapshot}\r\n"
+
         if arguments[:2] == ("shell", "uiautomator"):
             return "dumped"
+
         if arguments[:2] == ("shell", "cat"):
             return self.next_screen()
+
+        if arguments[:1] == ("push",):
+            text = Path(arguments[1]).read_bytes().decode("utf-8")
+            self.pushed.append((arguments[2], text))
+
         return ""
 
     def next_screen(self) -> str:
@@ -69,9 +77,6 @@ class RecordingDevice:
 
     def shell(self, *arguments: str, check: bool = True) -> str:
         return self.run("shell", *arguments, check=check)
-
-    def push_text(self, text: str, device_path: str) -> None:
-        self.pushed.append((device_path, text))
 
 
 class AndroidArgumentTests(unittest.TestCase):

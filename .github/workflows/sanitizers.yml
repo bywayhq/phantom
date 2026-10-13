@@ -1,7 +1,7 @@
 name: Sanitizers
 
-# `phantom-quic-btls` is the only crate allowed to contain `unsafe` code: its
-# private `backend` module wraps BoringSSL through FFI. Parser fuzzing already
+# The private `phantom-quic-btls` backend wraps BoringSSL through FFI.
+# This workflow covers that boundary. Parser fuzzing already
 # runs under AddressSanitizer, but it only reaches the byte parsers, never the
 # key schedule, the QUIC secret callbacks, or a live handshake. This workflow
 # runs the crate's own tests and the HTTP/3 loopback tests under
