@@ -3,14 +3,14 @@
 //! You can compare the exact bytes with a retained request using
 //! [`crate::http1::expectation::RequestExpectation`]. These helpers do not parse bodies.
 
-pub mod expectation;
-
 use std::{error::Error, fmt, io};
 
 use tokio::{
     io::{AsyncRead, AsyncReadExt},
     time::{Instant, timeout_at},
 };
+
+pub mod expectation;
 
 /// Explicit bounds for a request head, its lines, and its header count.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
