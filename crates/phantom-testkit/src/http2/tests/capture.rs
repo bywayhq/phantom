@@ -232,7 +232,7 @@ async fn enforces_frame_header_total_limit_before_reading_header() {
     assert_eq!(reader.consumed(), CLIENT_CONNECTION_PREFACE.len());
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn deadline_does_not_restart_when_reads_make_progress() {
     let (mut reader, mut writer) = tokio::io::duplex(64);
     let wire = client_bytes([frame(0x04, 0, 0, &setting(1, 1))]);

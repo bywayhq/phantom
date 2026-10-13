@@ -265,7 +265,7 @@ async fn applies_one_deadline_to_the_whole_capture() {
     assert!(matches!(result, Err(CaptureError::DeadlineExceeded)));
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn deadline_does_not_restart_when_reads_keep_making_progress() {
     let (mut reader, mut writer) = tokio::io::duplex(16);
     let wire = record(22, 0x0303, &handshake(&[1, 2, 3, 4]));
