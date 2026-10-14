@@ -61,6 +61,20 @@ TCP_COMPONENT_RECORDS = REPO / "crates/phantom-profile/catalog/tcp-components.js
 TCP_COMPONENT_OUTPUT = REPO / "crates/phantom-profile/src/catalog/tcp_components.rs"
 
 
+COOKIE_COMPONENT_RECORDS = (
+    REPO / "crates/phantom-profile/catalog/cookie-components.json"
+)
+COOKIE_COMPONENT_OUTPUT = (
+    REPO / "crates/phantom-profile/src/catalog/cookie_components.rs"
+)
+PROXY_CONNECT_COMPONENT_RECORDS = (
+    REPO / "crates/phantom-profile/catalog/proxy-connect-components.json"
+)
+PROXY_CONNECT_COMPONENT_OUTPUT = (
+    REPO / "crates/phantom-profile/src/catalog/proxy_connect_components.rs"
+)
+
+
 def load(path=RECORDS, repo=REPO):
     return validate(read_document(path), repo)
 
@@ -97,6 +111,14 @@ def load_udp_components(path=UDP_COMPONENT_RECORDS):
 
 def load_tcp_components(path=TCP_COMPONENT_RECORDS):
     return validate_components(read_document(path), ("TcpSettings",))
+
+
+def load_cookie_components(path=COOKIE_COMPONENT_RECORDS):
+    return validate_components(read_document(path), ("CookiePlacement",))
+
+
+def load_proxy_connect_components(path=PROXY_CONNECT_COMPONENT_RECORDS):
+    return validate_components(read_document(path), ("ProxyConnectTemplate",))
 
 
 def main():
@@ -136,6 +158,16 @@ def main():
             (
                 TCP_COMPONENT_OUTPUT,
                 generate_components(load_tcp_components(), "tcp-components.json"),
+            ),
+            (
+                COOKIE_COMPONENT_OUTPUT,
+                generate_components(load_cookie_components(), "cookie-components.json"),
+            ),
+            (
+                PROXY_CONNECT_COMPONENT_OUTPUT,
+                generate_components(
+                    load_proxy_connect_components(), "proxy-connect-components.json"
+                ),
             ),
         )
         for output, generated in outputs:

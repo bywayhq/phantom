@@ -6,6 +6,7 @@ from .connection_policies import (
     validate_dns_values,
     validate_http1_values,
 )
+from .cookie import rust_cookie_values, validate_cookie_values
 from .declarations import (
     MAX_COMPONENT_CHAIN,
     MAX_COMPONENTS,
@@ -25,6 +26,7 @@ from .http3 import (
     validate_initial_settings,
     validate_pseudo_headers,
 )
+from .proxy_connect import rust_proxy_connect_value, validate_proxy_connect_values
 from .quic import (
     rust_quic_value,
     validate_quic_values,
@@ -47,6 +49,13 @@ from .tls import (
 )
 
 COMPONENT_FIELDS = {
+    "CookiePlacement": ("before",),
+    "ProxyConnectTemplate": (
+        "http1_fields",
+        "http2_fields",
+        "http2_rejected",
+        "http2_connections",
+    ),
     "TcpSettings": (
         "nodelay",
         "send_buffer_size",
@@ -139,6 +148,12 @@ COMPONENT_FIELDS = {
 
 def validate_component_values(kind, values):
     keys(values, COMPONENT_FIELDS[kind], kind)
+    if kind == "CookiePlacement":
+        validate_cookie_values(values)
+        return
+    if kind == "ProxyConnectTemplate":
+        validate_proxy_connect_values(values)
+        return
     if kind == "TcpSettings":
         validate_tcp_values(values)
         return
@@ -238,6 +253,8 @@ def validate_components(document, allowed_kinds=None):
 
 
 def rust_component_value(field, value, kind="Http3Settings"):
+    if kind == "ProxyConnectTemplate":
+        return rust_proxy_connect_value(field, value)
     if kind == "TcpSettings":
         return rust_tcp_value(field, value)
     if kind == "Http1Settings":
@@ -296,6 +313,17 @@ def generate_components(components, declaration="http3-components.json"):
         lines.extend(["#[rustfmt::skip]", TLS_TRUST_CANDIDATE_VALIDATOR.rstrip(), ""])
     for component in components:
         kind = component["kind"]
+        if kind == "CookiePlacement":
+            lines.extend(
+                [
+                    "#[rustfmt::skip]",
+                    f"pub(crate) fn {component['id']}() -> crate::{kind} {{",
+                    f"    {rust_cookie_values(component['values'])}",
+                    "}",
+                    "",
+                ]
+            )
+            continue
         if kind == "TlsSettings":
             tickets = component["values"]["session_tickets"]
             if tickets["enabled"]:

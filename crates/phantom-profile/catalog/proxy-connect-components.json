@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "components": [
+    {
+      "id": "chromium_154_proxy_connect",
+      "kind": "ProxyConnectTemplate",
+      "base": null,
+      "values": {
+        "http1_fields": [
+          {
+            "kind": "Authority",
+            "name": "Host"
+          },
+          {
+            "kind": "Literal",
+            "name": "Proxy-Connection",
+            "value": "keep-alive"
+          },
+          {
+            "kind": "FromRequest",
+            "name": "User-Agent"
+          },
+          {
+            "kind": "ProxyAuthorization",
+            "name": "Proxy-Authorization"
+          }
+        ],
+        "http2_fields": [
+          {
+            "kind": "FromRequest",
+            "name": "user-agent"
+          },
+          {
+            "kind": "ProxyAuthorization",
+            "name": "proxy-authorization"
+          }
+        ],
+        "http2_rejected": "EndStream",
+        "http2_connections": "Shared"
+      }
+    },
+    {
+      "id": "firefox_157_proxy_connect",
+      "kind": "ProxyConnectTemplate",
+      "base": "chromium_154_proxy_connect",
+      "values": {
+        "http1_fields": [
+          {
+            "kind": "FromRequest",
+            "name": "User-Agent"
+          },
+          {
+            "kind": "Literal",
+            "name": "Proxy-Connection",
+            "value": "keep-alive"
+          },
+          {
+            "kind": "Literal",
+            "name": "Connection",
+            "value": "keep-alive"
+          },
+          {
+            "kind": "Authority",
+            "name": "Host"
+          },
+          {
+            "kind": "ProxyAuthorization",
+            "name": "Proxy-Authorization"
+          }
+        ],
+        "http2_rejected": "LeaveOpen",
+        "http2_connections": "ByPurpose"
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "components": [
+    {
+      "id": "chromium_154_cookie",
+      "kind": "CookiePlacement",
+      "base": null,
+      "values": {
+        "before": [
+          "if-none-match",
+          "if-modified-since",
+          "priority"
+        ]
+      }
+    },
+    {
+      "id": "firefox_157_cookie",
+      "kind": "CookiePlacement",
+      "base": null,
+      "values": {
+        "before": [
+          "upgrade-insecure-requests",
+          "sec-fetch-dest",
+          "sec-fetch-mode",
+          "sec-fetch-site",
+          "sec-fetch-user",
+          "if-modified-since",
+          "if-none-match",
+          "priority",
+          "pragma",
+          "cache-control",
+          "te"
+        ]
+      }
+    }
+  ]
+}

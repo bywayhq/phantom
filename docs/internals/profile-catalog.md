@@ -14,6 +14,8 @@ Keep browser observations separate from recipe implementations.
 | `crates/phantom-profile/catalog/dns-components.json` | Typed DNS-cache capacity and lifetimes |
 | `crates/phantom-profile/catalog/udp-components.json` | Typed UDP socket policy |
 | `crates/phantom-profile/catalog/tcp-components.json` | Typed TCP socket and address policies |
+| `crates/phantom-profile/catalog/cookie-components.json` | Ordered automatic Cookie placement names |
+| `crates/phantom-profile/catalog/proxy-connect-components.json` | Ordered CONNECT fields and proxy connection policies |
 | `crates/phantom-profile/catalog/http2-components.json` | Typed HTTP/2 settings and field overrides |
 | `crates/phantom-profile/catalog/http3-components.json` | Typed HTTP/3 settings and field overrides |
 | `crates/phantom-profile/src/catalog.rs` | Selection, required layers, and typed recipe bindings |
@@ -24,6 +26,8 @@ Keep browser observations separate from recipe implementations.
 | `crates/phantom-profile/src/catalog/dns_components.rs` | Committed generated DNS-cache values |
 | `crates/phantom-profile/src/catalog/udp_components.rs` | Committed generated UDP values |
 | `crates/phantom-profile/src/catalog/tcp_components.rs` | Committed generated TCP values |
+| `crates/phantom-profile/src/catalog/cookie_components.rs` | Committed generated Cookie placement |
+| `crates/phantom-profile/src/catalog/proxy_connect_components.rs` | Committed generated CONNECT values |
 | `crates/phantom-profile/src/catalog/http2_components.rs` | Committed generated HTTP/2 values |
 | `crates/phantom-profile/src/catalog/http3_components.rs` | Committed generated HTTP/3 values |
 | `scripts/dev/generate_profiles.py` | Offline generator command |
@@ -48,7 +52,8 @@ runtime. Discovery and exact lookup borrow static records. Instantiation
 calls the selected recipe factory and returns fresh owned settings.
 
 All existing TLS factories, core QUIC transport, HTTP/1.1, HTTP/2, HTTP/3,
-DNS-cache, TCP, and UDP settings use structured components. Other layers use
+DNS-cache, TCP, UDP, Cookie placement, and CONNECT settings use structured
+components. Other layers use
 handwritten factories. Their migration and historical-version growth remain
 in the [roadmap](../roadmap.md). Request templates use explicit typed bindings; they
 have no separate evidence records.
@@ -115,10 +120,12 @@ python -m unittest discover -s scripts/dev/tests -p test_generate_tls_components
 python -m unittest discover -s scripts/dev/tests -p test_generate_quic_components.py
 python -m unittest discover -s scripts/dev/tests -p test_generate_connection_components.py
 python -m unittest discover -s scripts/dev/tests -p test_generate_tcp_components.py
+python -m unittest scripts.dev.tests.test_generate_cookie_profiles
+python -m unittest scripts.dev.tests.test_generate_proxy_connect_profiles
 ```
 
 Generation sorts identifiers and emits fields and layers in fixed orders.
-All nine generated files use `rustfmt::skip` to preserve their output.
+All eleven generated files use `rustfmt::skip` to preserve their output.
 The generator rejects duplicate JSON keys and identifiers, unknown values,
 inconsistent metadata, missing or escaping files, unsupported absence claims,
 and observed fields without capture references.
@@ -230,6 +237,30 @@ Generation does not open sockets, choose addresses, change timers, or draw
 random values. The transport still applies these policies on each connection.
 Frozen controls compare every original field and composed profile. Backend
 socket and timer checks remain separate from declaration validation.
+
+## Declare Cookie and CONNECT components
+
+Cookie placement stores the ordered names before which the automatic field
+may appear. An empty list places it last. Generation uses the existing
+constructor and returns fresh owned settings.
+Matching still follows request order and ignores ASCII case.
+
+CONNECT records store both ordered field lists, the rejected-stream policy,
+and proxy connection sharing. Each field names an authority placeholder,
+literal, request-copied value, or credentials placeholder. Firefox inherits
+Chromium's unchanged HTTP/2 field list and replaces the other three fields.
+Credentials remain caller-owned; declarations describe their position only.
+
+The generator mirrors native CONNECT validation, including token spelling,
+case-insensitive duplicates, placeholder counts, and HTTP/2 restrictions.
+It refuses copied origin credentials. Literal values may be empty or contain
+tabs, but must otherwise contain visible ASCII or spaces. Cookie names retain
+their spelling and order. Declaration lists allow at most 64 entries and
+strings at most 4,096 characters; custom typed APIs retain their native range.
+
+Frozen factory controls compare all values and composed recipes. Cookie
+insertion and CONNECT wire checks remain integration checks. These records
+add no browser observations or authentication behavior.
 
 ## Declare HTTP/2 components
 

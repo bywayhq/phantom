@@ -31,9 +31,7 @@ use crate::{
     http1::Http1Settings,
     http2::{Http2Priority, Http2Settings},
     http3::{Http3RequestSettings, Http3Settings},
-    proxy_connect::{
-        Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate,
-    },
+    proxy_connect::ProxyConnectTemplate,
     quic::QuicTransportSettings,
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tcp::TcpSettings,
@@ -57,19 +55,7 @@ use crate::{
 /// Firefox source, not from a capture.
 #[must_use]
 pub fn v157_cookie_placement() -> CookiePlacement {
-    CookiePlacement::before_fields([
-        "upgrade-insecure-requests",
-        "sec-fetch-dest",
-        "sec-fetch-mode",
-        "sec-fetch-site",
-        "sec-fetch-user",
-        "if-modified-since",
-        "if-none-match",
-        "priority",
-        "pragma",
-        "cache-control",
-        "te",
-    ])
+    crate::catalog::cookie_components::firefox_157_cookie()
 }
 
 /// Returns TLS settings captured from Firefox 157.0 on Windows 11.
@@ -507,24 +493,10 @@ pub fn v157_websocket() -> WebSocketSettings {
 /// In every `https-proxy-*` capture, Firefox opens three HTTP/2 connections
 /// to the proxy for one page: one for the navigation and `fetch()`, one for
 /// the `https://` CONNECTs, and one for the `ws://` and `wss://` CONNECTs,
-/// so the recipe keeps the three apart ([`Http2ProxyConnections::ByPurpose`]).
+/// so the recipe keeps the three apart ([`crate::Http2ProxyConnections::ByPurpose`]).
 #[must_use]
 pub fn v157_proxy_connect() -> ProxyConnectTemplate {
-    ProxyConnectTemplate {
-        http1_fields: vec![
-            ProxyConnectField::from_request("User-Agent"),
-            ProxyConnectField::literal("Proxy-Connection", "keep-alive"),
-            ProxyConnectField::literal("Connection", "keep-alive"),
-            ProxyConnectField::authority("Host"),
-            ProxyConnectField::proxy_authorization("Proxy-Authorization"),
-        ],
-        http2_fields: vec![
-            ProxyConnectField::from_request("user-agent"),
-            ProxyConnectField::proxy_authorization("proxy-authorization"),
-        ],
-        http2_rejected: Http2RejectedConnect::LeaveOpen,
-        http2_connections: Http2ProxyConnections::ByPurpose,
-    }
+    crate::catalog::proxy_connect_components::firefox_157_proxy_connect()
 }
 
 /// Returns TLS settings for the Firefox 157 HTTP/3 offer on Windows 11.

@@ -3,10 +3,12 @@
 //! Covers exact catalog definitions and original component values.
 
 mod catalog;
+mod cookie_components;
 mod dns_components;
 mod http1_components;
 mod http2_components;
 mod http3_components;
+mod proxy_connect_components;
 mod quic_components;
 mod tcp_components;
 mod udp_components;

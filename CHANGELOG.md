@@ -1106,6 +1106,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Forwarding checks proofs in the head and trailers, and accepts nonce
   state only after the complete body is consumed.
 
+- Generate cookie placement and proxy CONNECT recipes from typed catalog
+  declarations, preserving their existing field order and connection policies.
+
 - Discover and select compiled profile revisions by exact catalog identity.
   Inspect per-layer support and evidence, and require layers explicitly.
 

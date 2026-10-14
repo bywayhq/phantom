@@ -52,9 +52,7 @@ use crate::{
     http1::Http1Settings,
     http2::{Http2Priority, Http2Settings},
     http3::{Http3RequestSettings, Http3Settings},
-    proxy_connect::{
-        Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate,
-    },
+    proxy_connect::ProxyConnectTemplate,
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tls::TlsSettings,
     websocket::{
@@ -174,7 +172,7 @@ pub fn v154_macos_client_hints() -> ClientHintSettings {
 /// use this recipe.
 #[must_use]
 pub fn v154_cookie_placement() -> CookiePlacement {
-    CookiePlacement::before_fields(["if-none-match", "if-modified-since", "priority"])
+    crate::catalog::cookie_components::chromium_154_cookie()
 }
 
 /// Returns TLS settings captured from Chrome 154.0.8037.58 on Windows 11.
@@ -584,23 +582,10 @@ pub fn v154_websocket() -> WebSocketSettings {
 /// `https://`, `ws://`, and `wss://` origins, are streams of one HTTP/2
 /// connection to the proxy in every `https-proxy-*` capture of Chrome, Edge,
 /// Brave, and Opera, so the recipe shares one connection among them
-/// ([`Http2ProxyConnections::Shared`]).
+/// ([`crate::Http2ProxyConnections::Shared`]).
 #[must_use]
 pub fn v154_proxy_connect() -> ProxyConnectTemplate {
-    ProxyConnectTemplate {
-        http1_fields: vec![
-            ProxyConnectField::authority("Host"),
-            ProxyConnectField::literal("Proxy-Connection", "keep-alive"),
-            ProxyConnectField::from_request("User-Agent"),
-            ProxyConnectField::proxy_authorization("Proxy-Authorization"),
-        ],
-        http2_fields: vec![
-            ProxyConnectField::from_request("user-agent"),
-            ProxyConnectField::proxy_authorization("proxy-authorization"),
-        ],
-        http2_rejected: Http2RejectedConnect::EndStream,
-        http2_connections: Http2ProxyConnections::Shared,
-    }
+    crate::catalog::proxy_connect_components::chromium_154_proxy_connect()
 }
 
 const V154_NAVIGATION_ACCEPT: &str = "text/html,application/xhtml+xml,application/xml;q=0.9,\
