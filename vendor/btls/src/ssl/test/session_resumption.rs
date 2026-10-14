@@ -137,6 +137,39 @@ fn client_session_cache_apis() {
 }
 
 #[test]
+fn strict_session_bytes_round_trip_metadata_and_reject_partial_input() {
+    let server = tls13_server(1).build();
+    let scope = SslSessionScope::default();
+    let sessions = Arc::new(Mutex::new(Vec::new()));
+    let client = scoped_tls13_client();
+    let first = connect_and_read_scoped(&server, &client, "foobar.com", &scope, &sessions, None);
+    assert!(!first.ssl().session_reused());
+    let session = sessions.lock().unwrap().pop().unwrap();
+    let bytes = session.to_bytes().unwrap();
+    let destination = scoped_tls13_client();
+    let decoded = SslSession::from_bytes(&bytes, destination.context()).unwrap();
+    assert_eq!(decoded.protocol_version(), session.protocol_version());
+    assert_eq!(decoded.time(), session.time());
+    assert_eq!(decoded.timeout(), session.timeout());
+    assert_eq!(
+        decoded.should_be_single_use(),
+        session.should_be_single_use()
+    );
+    // Boolean comparisons prevent assertion output from printing ticket secrets.
+    assert!(decoded.to_bytes().unwrap() == bytes);
+    for end in 0..bytes.len() {
+        assert!(SslSession::from_bytes(&bytes[..end], destination.context()).is_err());
+    }
+    let mut trailing = bytes.clone();
+    trailing.push(0);
+    assert!(SslSession::from_bytes(&trailing, destination.context()).is_err());
+    trailing.extend_from_slice(&bytes);
+    assert!(SslSession::from_bytes(&trailing, destination.context()).is_err());
+    assert!(SslSession::from_bytes(b"not a native session", destination.context()).is_err());
+    assert_eq!(format!("{session:?}"), "ScopedSslSession { .. }");
+}
+
+#[test]
 fn scoped_client_session_resumes_with_matching_scope_and_context() {
     let server = tls13_server(2);
     let server = server.build();

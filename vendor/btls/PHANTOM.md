@@ -37,7 +37,7 @@ size limit, and delegated-credential patches.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.6`), keeps
+renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.7`), keeps
 the upstream library name so source, tests, and examples are unchanged, and
 points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -169,6 +169,13 @@ uses the delegated key for CertificateVerify, and clamps session lifetime to
 the credential expiry. A fixed-byte oracle independently proves the RFC signing
 order.
 
+The strict-session-transfer patch adds whole-input native decoding with the
+destination context's certificate implementation. Parsing rejects trailing
+bytes, but it does not authenticate the session's origin or authorize a new
+peer or policy. Native serialization contains resumption secrets and omits the
+scoped wrapper's hostname, context and application scope. Scoped construction
+remains private to the real new-session callback; no import constructor is added.
+
 The patches are additive:
 
 - `SslRef::add_application_settings_with_payload` passes both byte strings to
@@ -223,6 +230,12 @@ The patches are additive:
   original context retained by `Ssl::new`. Changing the active context during
   SNI does not change the native callback. `SslMessage` Debug keeps metadata
   and byte length while omitting the message bytes.
+- `SslSession::from_bytes` wraps `SSL_SESSION_from_bytes` with full-input
+  consumption. `SslSessionRef::to_bytes` and `ScopedSslSession::to_bytes`
+  serialize native state using the existing matching serializer.
+- `src/ssl/test/session_resumption.rs` checks a local TLS 1.3 round trip,
+  protocol/lifetime/single-use metadata, all truncated prefixes, trailing
+  bytes and malformed input without printing session secrets.
 - `SslSessionScope`, `ScopedSslSession`,
   `SslConnectorBuilder::enable_scoped_client_sessions`, and
   `ConnectConfiguration::into_ssl_with_scoped_session` keep session
@@ -356,6 +369,7 @@ cargo clippy --manifest-path vendor/btls/Cargo.toml --all-targets --features pre
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::alps
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::key_update
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked scoped_client_session
+cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked strict_session_bytes
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked record_size_limit
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked delegated_credentials
@@ -379,6 +393,7 @@ cargo clippy --manifest-path vendor/btls/Cargo.toml --all-targets --locked -- -D
 cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::alps
 cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::key_update
 cargo test --manifest-path vendor/btls/Cargo.toml --locked scoped_client_session
+cargo test --manifest-path vendor/btls/Cargo.toml --locked strict_session_bytes
 cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --locked record_size_limit
 cargo test --manifest-path vendor/btls/Cargo.toml --locked delegated_credentials

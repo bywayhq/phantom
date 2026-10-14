@@ -3034,6 +3034,27 @@ impl Clone for SslSession {
 }
 
 impl SslSession {
+    /// Parses a complete native session with the destination context's certificate implementation.
+    ///
+    /// Trailing bytes are rejected. Parsing does not authenticate the session's origin or authorize
+    /// its use with a different peer or TLS policy. Callers must authenticate that provenance before
+    /// attaching a session. Serialized sessions contain resumption secrets.
+    #[corresponds(SSL_SESSION_from_bytes)]
+    pub fn from_bytes(bytes: &[u8], context: &SslContextRef) -> Result<Self, ErrorStack> {
+        init();
+        // SAFETY: the borrowed input and context stay live for the call. The native parser copies
+        // its input, consumes the complete buffer, and returns either NULL or a newly owned session.
+        // cvt_p rejects NULL before the returned allocation becomes an owned Rust wrapper.
+        unsafe {
+            let session = cvt_p(ffi::SSL_SESSION_from_bytes(
+                bytes.as_ptr(),
+                bytes.len(),
+                context.as_ptr(),
+            ))?;
+            Ok(Self::from_ptr(session))
+        }
+    }
+
     from_der! {
         /// Deserializes a DER-encoded session structure.
         #[corresponds(d2i_SSL_SESSION)]
@@ -3081,6 +3102,15 @@ impl fmt::Debug for ScopedSslSession {
 }
 
 impl ScopedSslSession {
+    /// Serializes this session's native state, including resumption secrets.
+    ///
+    /// Protect these bytes as credentials. The output does not encode this wrapper's verified
+    /// hostname, context identity, or application scope; portable storage must authenticate those
+    /// bindings separately before import.
+    pub fn to_bytes(&self) -> Result<Vec<u8>, ErrorStack> {
+        self.session.to_bytes()
+    }
+
     fn from_new_session(
         scope: &SslSessionScope,
         hostname: &str,
@@ -3246,6 +3276,15 @@ impl SslSessionRef {
             let version = ffi::SSL_SESSION_get_protocol_version(self.as_ptr());
             SslVersion(version)
         }
+    }
+
+    /// Serializes the native session state, including resumption secrets.
+    ///
+    /// Protect these bytes as credentials. Decode them with [`SslSession::from_bytes`] using the
+    /// same native backend version. This format carries no application-level peer or policy binding.
+    pub fn to_bytes(&self) -> Result<Vec<u8>, ErrorStack> {
+        // The pinned native i2d_SSL_SESSION and SSL_SESSION_to_bytes use the same serializer.
+        self.to_der()
     }
 
     to_der! {
