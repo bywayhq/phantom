@@ -1,5 +1,7 @@
 //! Backend-neutral TLS profile settings.
 
+pub(crate) mod components;
+
 use std::{error::Error, fmt, net::IpAddr, num::NonZeroU8};
 
 const ECH_GREASE_EXTENSION_OVERHEAD: u16 = 42;
@@ -654,16 +656,6 @@ impl EchGreaseSettings {
     #[must_use]
     pub fn aeads(&self) -> &[EchGreaseAead] {
         &self.aeads
-    }
-}
-
-// The built-in recipe has a valid payload policy and two distinct AEADs.
-pub(crate) fn firefox_ech_grease() -> EchGreaseSettings {
-    EchGreaseSettings {
-        payload_length: EchGreasePayloadLength::FromClientHello {
-            maximum_name_length: 100,
-        },
-        aeads: vec![EchGreaseAead::Aes128Gcm, EchGreaseAead::ChaCha20Poly1305],
     }
 }
 

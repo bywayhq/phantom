@@ -8,10 +8,12 @@ Keep browser observations separate from recipe implementations.
 | File | Responsibility |
 | --- | --- |
 | `crates/phantom-profile/catalog/profiles.json` | Recipe identities and layer evidence |
+| `crates/phantom-profile/catalog/tls-components.json` | Typed TCP and QUIC TLS values |
 | `crates/phantom-profile/catalog/http2-components.json` | Typed HTTP/2 settings and field overrides |
 | `crates/phantom-profile/catalog/http3-components.json` | Typed HTTP/3 settings and field overrides |
 | `crates/phantom-profile/src/catalog.rs` | Selection, required layers, and typed recipe bindings |
 | `crates/phantom-profile/src/catalog/generated.rs` | Committed generated records |
+| `crates/phantom-profile/src/tls/components.rs` | Committed generated TLS values |
 | `crates/phantom-profile/src/catalog/http2_components.rs` | Committed generated HTTP/2 values |
 | `crates/phantom-profile/src/catalog/http3_components.rs` | Committed generated HTTP/3 values |
 | `scripts/dev/generate_profiles.py` | Closed-schema validation and offline generation |
@@ -20,10 +22,11 @@ Cargo uses the committed registry. It does not run Python or read JSON at
 runtime. Discovery and exact lookup borrow static records. Instantiation
 calls the selected recipe factory and returns fresh owned settings.
 
-HTTP/2 settings and HTTP/3 connection and request settings use structured
-components. Other layers still use handwritten factories. Their migration
-and historical-version growth remain in the [roadmap](../roadmap.md). Request templates use explicit
-typed bindings; they have no separate catalog evidence records.
+Core Chrome and Firefox TLS settings, HTTP/2 settings, and HTTP/3 connection
+and request settings use structured components. Other layers and branded or
+Android TLS overrides still use handwritten factories. Their migration and
+historical-version growth remain in the [roadmap](../roadmap.md). Request
+templates use explicit typed bindings; they have no separate evidence records.
 
 ## Identity and composition
 
@@ -83,10 +86,11 @@ python scripts/dev/generate_profiles.py --check
 python -m unittest discover -s scripts/dev/tests -p test_generate_profiles.py
 python -m unittest discover -s scripts/dev/tests -p test_generate_profile_components.py
 python -m unittest discover -s scripts/dev/tests -p test_generate_http2_components.py
+python -m unittest discover -s scripts/dev/tests -p test_generate_tls_components.py
 ```
 
 Generation sorts identifiers and emits fields and layers in fixed orders.
-All three generated files use `rustfmt::skip` to preserve their output.
+All four generated files use `rustfmt::skip` to preserve their output.
 The generator rejects duplicate JSON keys and identifiers, unknown values,
 inconsistent metadata, missing or escaping files, unsupported absence claims,
 and observed fields without capture references.
@@ -101,6 +105,34 @@ The full gate and CI run the generator's tests, which reject any stale
 generated file. Run profile tests through the Cargo lock helper. Compare
 all stored settings and ordering against existing factories, then run the
 affected backend replays before integrating a settings migration.
+
+## Declare TLS components
+
+Chrome 154 and Firefox 157 each have a TCP TLS definition. Their QUIC TLS
+definitions inherit only unchanged fields and explicitly replace the others.
+Each override replaces a whole typed field, including ordered byte vectors.
+The generated module lives under `tls` to preserve private checked types.
+It does not introduce public unchecked constructors or runtime panic paths.
+
+Declarations store literal trust-anchor and ALPS bytes, closed algorithm
+names, and explicit ECH, extension-order, and ticket policies. Generation
+retains candidate positions and duplicate draw slots. It never selects an
+order or consumes randomness. Metadata does not authorize ticket rebinding.
+
+Chrome's definition retains 28 trust-anchor identifiers in ascending byte
+order. Chrome 154 sorts them when constructing its SSL configuration
+(`net/cert/x509_util.cc:708-717` at `154.0.8037.58`, Chromium commit
+`942bda4298c1`). All 60 fresh processes in the retained
+`trust-anchor-orders.txt` capture and all 132 retained desktop ClientHellos
+carry that order. Frozen original controls retain those exact bytes.
+Generated assertions check the actual emitted IDs with native recipe bounds.
+
+The generator checks version dependencies, key-share membership, ALPN and
+ALPS bounds, trust-anchor vectors and candidate multisets, compression and
+extension duplicates, and ECH payload and AEAD choices. Lists have resource
+ceilings: 64 algorithms or extension entries, 64 trust-anchor candidates,
+4,096 IDs per order, and 256 ALPN protocols. Native encoded-vector limits
+still apply. These declarations add no browser observation coverage.
 
 ## Declare HTTP/2 components
 

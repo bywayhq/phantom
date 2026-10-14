@@ -14,6 +14,8 @@ COMPONENT_RECORDS = REPO / "crates/phantom-profile/catalog/http3-components.json
 COMPONENT_OUTPUT = REPO / "crates/phantom-profile/src/catalog/http3_components.rs"
 HTTP2_COMPONENT_RECORDS = REPO / "crates/phantom-profile/catalog/http2-components.json"
 HTTP2_COMPONENT_OUTPUT = REPO / "crates/phantom-profile/src/catalog/http2_components.rs"
+TLS_COMPONENT_RECORDS = REPO / "crates/phantom-profile/catalog/tls-components.json"
+TLS_COMPONENT_OUTPUT = REPO / "crates/phantom-profile/src/tls/components.rs"
 
 # Resource ceilings for local declarations, not corpus performance claims.
 MAX_BYTES = 16 * 1024 * 1024
@@ -26,6 +28,32 @@ MAX_COMPONENT_CHAIN = 32
 MAX_VARINT = (1 << 62) - 1
 MAX_QPACK_TABLE_CAPACITY = (1 << 30) - 1
 COMPONENT_FIELDS = {
+    "TlsSettings": (
+        "versions",
+        "cipher_suites",
+        "groups",
+        "key_shares",
+        "signature_schemes",
+        "delegated_credential_schemes",
+        "alpn_protocols",
+        "alps",
+        "certificate_compression",
+        "session_tickets",
+        "session_ticket_order",
+        "session_ticket_extension_when_resuming",
+        "tcp_early_data",
+        "record_size_limit",
+        "tls12_extensions_in_tls13_client_hello",
+        "requested_trust_anchor_ids",
+        "grease",
+        "grease_signature_algorithms",
+        "extension_order",
+        "ech",
+        "request_ocsp_staple",
+        "request_signed_certificate_timestamps",
+        "aes_hardware",
+        "close_notify",
+    ),
     "Http2Settings": (
         "initial_settings",
         "initial_connection_window_size",
@@ -126,6 +154,110 @@ HTTP2_NUMERIC_SETTINGS = {
 MAX_U32 = (1 << 32) - 1
 MAX_U64 = (1 << 64) - 1
 MAX_HTTP2_WINDOW = (1 << 31) - 1
+TLS_VERSIONS = ("Tls10", "Tls11", "Tls12", "Tls13")
+TLS_ENUM_LISTS = {
+    "cipher_suites": (
+        "CipherSuite",
+        (
+            "Aes128GcmSha256",
+            "Aes256GcmSha384",
+            "Chacha20Poly1305Sha256",
+            "EcdheEcdsaAes128GcmSha256",
+            "EcdheRsaAes128GcmSha256",
+            "EcdheEcdsaAes256GcmSha384",
+            "EcdheRsaAes256GcmSha384",
+            "EcdheEcdsaChacha20Poly1305Sha256",
+            "EcdheRsaChacha20Poly1305Sha256",
+            "EcdheRsaAes128CbcSha",
+            "EcdheRsaAes256CbcSha",
+            "EcdheEcdsaAes128CbcSha",
+            "EcdheEcdsaAes256CbcSha",
+            "EcdheEcdsa3DesEdeCbcSha",
+            "EcdheRsa3DesEdeCbcSha",
+            "RsaAes128GcmSha256",
+            "RsaAes256GcmSha384",
+            "RsaAes128CbcSha",
+            "RsaAes256CbcSha",
+            "Rsa3DesEdeCbcSha",
+        ),
+    ),
+    "groups": (
+        "NamedGroup",
+        (
+            "X25519MlKem768",
+            "X25519",
+            "Secp256r1",
+            "Secp384r1",
+            "Secp521r1",
+            "Ffdhe2048",
+            "Ffdhe3072",
+        ),
+    ),
+    "signature_schemes": (
+        "SignatureScheme",
+        (
+            "MlDsa44",
+            "MlDsa65",
+            "MlDsa87",
+            "EcdsaSecp256r1Sha256",
+            "RsaPssRsaeSha256",
+            "RsaPkcs1Sha256",
+            "EcdsaSecp384r1Sha384",
+            "EcdsaSecp521r1Sha512",
+            "RsaPssRsaeSha384",
+            "RsaPkcs1Sha384",
+            "RsaPssRsaeSha512",
+            "RsaPkcs1Sha512",
+            "EcdsaSha1",
+            "RsaPkcs1Sha1",
+        ),
+    ),
+    "certificate_compression": ("CertificateCompression", ("Zlib", "Brotli", "Zstd")),
+}
+TLS_ENUM_LISTS["key_shares"] = TLS_ENUM_LISTS["groups"]
+TLS_ENUM_LISTS["delegated_credential_schemes"] = TLS_ENUM_LISTS["signature_schemes"]
+TLS_DELEGATED_SCHEMES = (
+    "EcdsaSecp256r1Sha256",
+    "EcdsaSecp384r1Sha384",
+    "EcdsaSecp521r1Sha512",
+    "EcdsaSha1",
+)
+TLS_EXTENSIONS = (
+    "ServerName",
+    "ExtendedMasterSecret",
+    "RenegotiationInfo",
+    "SupportedGroups",
+    "EcPointFormats",
+    "SessionTicket",
+    "RecordSizeLimit",
+    "Alpn",
+    "StatusRequest",
+    "SignedCertificateTimestamp",
+    "KeyShare",
+    "EarlyData",
+    "SupportedVersions",
+    "SignatureAlgorithms",
+    "DelegatedCredential",
+    "PskKeyExchangeModes",
+    "CertificateCompression",
+    "TrustAnchors",
+    "ApplicationSettings",
+    "ApplicationSettingsLegacy",
+    "EncryptedClientHello",
+    "QuicTransportParameters",
+)
+TLS_AEADS = ("Aes128Gcm", "Aes256Gcm", "ChaCha20Poly1305")
+TLS_BOOLEAN_FIELDS = (
+    "session_ticket_extension_when_resuming",
+    "tcp_early_data",
+    "tls12_extensions_in_tls13_client_hello",
+    "grease",
+    "grease_signature_algorithms",
+    "request_ocsp_staple",
+    "request_signed_certificate_timestamps",
+    "aes_hardware",
+    "close_notify",
+)
 RUST_KEYWORDS = {
     "as",
     "async",
@@ -540,6 +672,9 @@ def validate_pseudo_headers(order, extended):
 
 def validate_component_values(kind, values):
     keys(values, COMPONENT_FIELDS[kind], kind)
+    if kind == "TlsSettings":
+        validate_tls_values(values)
+        return
     if kind == "Http2Settings":
         validate_http2_values(values)
         return
@@ -569,6 +704,173 @@ def validate_duration(value, context):
 
 def duration_is_zero(value):
     return value["seconds"] == 0 and value["nanoseconds"] == 0
+
+
+def bounded_list(value, minimum, maximum, context):
+    if not isinstance(value, list) or not minimum <= len(value) <= maximum:
+        raise DeclarationError(f"{context}: list length out of range")
+
+
+def validate_bytes(value, minimum, maximum, context):
+    bounded_list(value, minimum, maximum, context)
+    for byte in value:
+        bounded_integer(byte, 0, 255, context)
+
+
+def validate_tls_trust_anchors(value):
+    if value is None:
+        return
+    keys(value, ("kind", "orders"), "TLS trust anchors")
+    kind = choice(
+        value["kind"],
+        ("Fixed", "PerClient", "PerConnection"),
+        "TLS trust anchor policy",
+    )
+    orders = value["orders"]
+    bounded_list(orders, 1, 1 if kind == "Fixed" else 64, "TLS trust anchor candidates")
+    expected = None
+    for order in orders:
+        bounded_list(order, 0, 4096, "TLS trust anchor IDs")
+        for identifier in order:
+            validate_bytes(identifier, 1, 255, "TLS trust anchor ID")
+        if sum(1 + len(identifier) for identifier in order) > 65_533:
+            raise DeclarationError("TLS trust anchor encoded list exceeds 65533 bytes")
+        multiset = sorted(tuple(identifier) for identifier in order)
+        if expected is not None and multiset != expected:
+            raise DeclarationError(
+                "TLS trust anchor candidates must preserve the same ID multiset"
+            )
+        expected = multiset
+
+
+def validate_tls_ech(value):
+    keys(value, ("kind", "settings"), "TLS ECH")
+    kind = choice(
+        value["kind"], ("Disabled", "Grease", "HttpsRecords"), "TLS ECH policy"
+    )
+    settings = value["settings"]
+    if kind == "Disabled":
+        if settings is not None:
+            raise DeclarationError("Disabled ECH has no GREASE settings")
+        return
+    keys(settings, ("payload_length", "aeads"), "TLS ECH GREASE settings")
+    payload = settings["payload_length"]
+    keys(payload, ("kind", "value"), "TLS ECH GREASE payload")
+    policy = choice(
+        payload["kind"],
+        ("BackendDefault", "Exact", "FromClientHello"),
+        "TLS ECH payload policy",
+    )
+    if policy == "BackendDefault":
+        if payload["value"] is not None:
+            raise DeclarationError("BackendDefault ECH payload has no value")
+    else:
+        minimum, maximum = (1, 65_493) if policy == "Exact" else (0, 255)
+        bounded_integer(payload["value"], minimum, maximum, "TLS ECH payload")
+    aeads = settings["aeads"]
+    bounded_list(aeads, 0, len(TLS_AEADS), "TLS ECH AEADs")
+    for aead in aeads:
+        choice(aead, TLS_AEADS, "TLS ECH AEAD")
+    if len(set(aeads)) != len(aeads):
+        raise DeclarationError("duplicate TLS ECH AEAD")
+
+
+def validate_tls_values(values):
+    versions = values["versions"]
+    keys(versions, ("min", "max"), "TLS versions")
+    for endpoint in versions.values():
+        choice(endpoint, TLS_VERSIONS, "TLS version")
+    if TLS_VERSIONS.index(versions["min"]) > TLS_VERSIONS.index(versions["max"]):
+        raise DeclarationError("TLS version range is reversed")
+    tls13 = versions["max"] == "Tls13"
+    for field, (_, variants) in TLS_ENUM_LISTS.items():
+        items = values[field]
+        bounded_list(
+            items,
+            1 if field in ("cipher_suites", "groups", "signature_schemes") else 0,
+            64,
+            field,
+        )
+        for item in items:
+            choice(item, variants, field)
+    for scheme in values["delegated_credential_schemes"]:
+        choice(scheme, TLS_DELEGATED_SCHEMES, "TLS delegated credential scheme")
+    compression = values["certificate_compression"]
+    if len(set(compression)) != len(compression):
+        raise DeclarationError("duplicate TLS certificate compression algorithm")
+    for field in TLS_BOOLEAN_FIELDS:
+        boolean(values[field], field)
+    tickets = values["session_tickets"]
+    keys(tickets, ("enabled", "tcp_per_origin"), "TLS session tickets")
+    boolean(tickets["enabled"], "TLS session tickets enabled")
+    if tickets["enabled"]:
+        bounded_integer(tickets["tcp_per_origin"], 1, 10, "TLS ticket limit")
+    elif tickets["tcp_per_origin"] is not None:
+        raise DeclarationError("disabled TLS tickets have no limit")
+    choice(
+        values["session_ticket_order"],
+        ("NewestFirst", "OldestConnectionFirst", "OldestFirst"),
+        "TLS ticket order",
+    )
+    if values["tcp_early_data"] and not tickets["enabled"]:
+        raise DeclarationError("TCP early data requires TLS session tickets")
+    if values["record_size_limit"] is not None:
+        bounded_integer(
+            values["record_size_limit"], 64, 16_385, "TLS record size limit"
+        )
+    validate_tls_trust_anchors(values["requested_trust_anchor_ids"])
+    validate_tls_ech(values["ech"])
+    if not tls13:
+        if (
+            values["tcp_early_data"]
+            or values["key_shares"]
+            or values["ech"]["kind"] != "Disabled"
+            or values["requested_trust_anchor_ids"] is not None
+            or values["certificate_compression"]
+            or values["delegated_credential_schemes"]
+            or values["alps"] is not None
+        ):
+            raise DeclarationError("TLS 1.3-only settings require TLS 1.3")
+    elif not values["key_shares"] or any(
+        group not in values["groups"] for group in values["key_shares"]
+    ):
+        raise DeclarationError(
+            "TLS 1.3 requires key shares present in supported groups"
+        )
+    protocols = values["alpn_protocols"]
+    bounded_list(protocols, 1, 256, "TLS ALPN protocols")
+    for protocol in protocols:
+        validate_bytes(protocol, 1, 255, "TLS ALPN protocol")
+    if sum(1 + len(protocol) for protocol in protocols) > 65_535:
+        raise DeclarationError("TLS ALPN encoded list exceeds 65535 bytes")
+    alps = values["alps"]
+    if alps is not None:
+        keys(alps, ("protocol", "settings", "use_new_codepoint"), "TLS ALPS")
+        validate_bytes(alps["protocol"], 1, 255, "TLS ALPS protocol")
+        validate_bytes(alps["settings"], 0, 65_535, "TLS ALPS settings")
+        boolean(alps["use_new_codepoint"], "TLS ALPS codepoint")
+        if alps["protocol"] not in protocols:
+            raise DeclarationError("TLS ALPS protocol is absent from ALPN")
+    extension = values["extension_order"]
+    keys(extension, ("kind", "extensions"), "TLS extension order")
+    kind = choice(
+        extension["kind"],
+        ("BackendDefault", "Permuted", "Fixed", "PermutedWithTail"),
+        "TLS extension policy",
+    )
+    extensions = extension["extensions"]
+    bounded_list(
+        extensions,
+        1 if kind in ("Fixed", "PermutedWithTail") else 0,
+        64,
+        "TLS extension list",
+    )
+    for name in extensions:
+        choice(name, TLS_EXTENSIONS, "TLS extension")
+    if len(set(extensions)) != len(extensions):
+        raise DeclarationError("duplicate TLS extension")
+    if kind in ("BackendDefault", "Permuted") and extensions:
+        raise DeclarationError("TLS extension policy has no fixed list")
 
 
 def validate_http2_initial_settings(settings):
@@ -757,6 +1059,104 @@ def load_http2_components(path=HTTP2_COMPONENT_RECORDS):
     return validate_components(read_document(path), ("Http2Settings",))
 
 
+def load_tls_components(path=TLS_COMPONENT_RECORDS):
+    return validate_components(read_document(path), ("TlsSettings",))
+
+
+def rust_byte_slice(value):
+    return "&[" + ", ".join(str(byte) for byte in value) + "]"
+
+
+def rust_bytes(value):
+    return f"Box::<[u8]>::from({rust_byte_slice(value)}[..])"
+
+
+def rust_trust_order(order):
+    return (
+        "crate::TrustAnchorOrder::from_recipe(vec!["
+        + ", ".join(rust_bytes(identifier) for identifier in order)
+        + "])"
+    )
+
+
+def rust_tls_ech(value):
+    if value["kind"] == "Disabled":
+        return "crate::EchSettings::Disabled"
+    settings = value["settings"]
+    payload = settings["payload_length"]
+    length = f"crate::EchGreasePayloadLength::{payload['kind']}"
+    if payload["kind"] == "Exact":
+        length += f"({payload['value']})"
+    elif payload["kind"] == "FromClientHello":
+        length += f" {{ maximum_name_length: {payload['value']} }}"
+    aeads = (
+        "vec!["
+        + ", ".join(f"crate::EchGreaseAead::{name}" for name in settings["aeads"])
+        + "]"
+    )
+    grease = f"crate::EchGreaseSettings {{ payload_length: {length}, aeads: {aeads} }}"
+    return f"crate::EchSettings::{value['kind']}({grease})"
+
+
+def rust_tls_value(field, value):
+    if field in TLS_ENUM_LISTS:
+        enum = TLS_ENUM_LISTS[field][0]
+        return "vec![" + ", ".join(f"crate::{enum}::{item}" for item in value) + "]"
+    if field in TLS_BOOLEAN_FIELDS:
+        return str(value).lower()
+    if field == "versions":
+        return f"crate::TlsVersionRange {{ min: crate::TlsVersion::{value['min']}, max: crate::TlsVersion::{value['max']} }}"
+    if field == "alpn_protocols":
+        return "vec![" + ", ".join(rust_bytes(protocol) for protocol in value) + "]"
+    if field == "alps":
+        return rust_option(
+            value,
+            lambda alps: (
+                "crate::AlpsSettings { "
+                + f"protocol: {rust_bytes(alps['protocol'])}, settings: {rust_bytes(alps['settings'])}, use_new_codepoint: {str(alps['use_new_codepoint']).lower()} "
+                + "}"
+            ),
+        )
+    if field == "session_tickets":
+        if not value["enabled"]:
+            return "crate::SessionTickets::disabled()"
+        if value["tcp_per_origin"] == 2:
+            return "crate::tls::TWO_SESSION_TICKETS"
+        if value["tcp_per_origin"] == 10:
+            return "crate::tls::TEN_SESSION_TICKETS"
+        return f"crate::SessionTickets {{ tcp_per_origin: std::num::NonZeroU8::new({value['tcp_per_origin']}) }}"
+    if field == "session_ticket_order":
+        return f"crate::SessionTicketOrder::{value}"
+    if field == "record_size_limit":
+        return rust_option(value, str)
+    if field == "requested_trust_anchor_ids":
+        if value is None:
+            return "None"
+        orders = value["orders"]
+        if value["kind"] == "Fixed":
+            inner = rust_trust_order(orders[0])
+        else:
+            inner = (
+                "crate::TrustAnchorOrders::from_recipe(vec!["
+                + ", ".join(rust_trust_order(order) for order in orders)
+                + "])"
+            )
+        return f"Some(crate::TrustAnchorIds::{value['kind']}({inner}))"
+    if field == "extension_order":
+        expression = f"crate::ClientHelloExtensionOrder::{value['kind']}"
+        if value["kind"] in ("Fixed", "PermutedWithTail"):
+            expression += (
+                "(vec!["
+                + ", ".join(
+                    f"crate::ClientHelloExtension::{name}"
+                    for name in value["extensions"]
+                )
+                + "])"
+            )
+        return expression
+    return rust_tls_ech(value)
+
+
 def rust_header_order(headers, protocol="Http3"):
     return (
         "vec!["
@@ -825,6 +1225,8 @@ def rust_http2_value(field, value):
 
 
 def rust_component_value(field, value, kind="Http3Settings"):
+    if kind == "TlsSettings":
+        return rust_tls_value(field, value)
     if kind == "Http2Settings":
         return rust_http2_value(field, value)
     if field in COMPONENT_ENUMS:
@@ -853,6 +1255,25 @@ def generate_components(components, declaration="http3-components.json"):
     ]
     for component in components:
         kind = component["kind"]
+        if kind == "TlsSettings":
+            tickets = component["values"]["session_tickets"]
+            if tickets["enabled"]:
+                lines.append("#[rustfmt::skip]")
+                lines.append(
+                    f"const _: () = assert!(matches!({tickets['tcp_per_origin']}, 1..=10));"
+                )
+            anchors = component["values"]["requested_trust_anchor_ids"]
+            if anchors is not None:
+                for order in anchors["orders"]:
+                    static_ids = (
+                        "&["
+                        + ", ".join(rust_byte_slice(identifier) for identifier in order)
+                        + "]"
+                    )
+                    lines.append("#[rustfmt::skip]")
+                    lines.append(
+                        f"const _: () = assert!(crate::TrustAnchorOrder::valid_recipe_ids({static_ids}));"
+                    )
         lines.extend(
             [
                 "#[rustfmt::skip]",
@@ -964,6 +1385,10 @@ def main():
             (
                 HTTP2_COMPONENT_OUTPUT,
                 generate_components(load_http2_components(), "http2-components.json"),
+            ),
+            (
+                TLS_COMPONENT_OUTPUT,
+                generate_components(load_tls_components(), "tls-components.json"),
             ),
         )
         for output, generated in outputs:

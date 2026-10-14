@@ -47,10 +47,7 @@ use crate::{
         TcpAddressSelection, TcpBackupConnection, TcpKeepalivePolicy, TcpKeepaliveSchedule,
         TcpSettings,
     },
-    tls::{
-        CertificateCompression, CipherSuite, ClientHelloExtension, ClientHelloExtensionOrder,
-        NamedGroup, SessionTicketOrder, SignatureScheme, TlsSettings, TlsVersion,
-    },
+    tls::TlsSettings,
     websocket::{
         WebSocketConnectionPolicy, WebSocketEmptyMessageCompression, WebSocketField,
         WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
@@ -116,7 +113,7 @@ pub fn v157_cookie_placement() -> CookiePlacement {
 /// extension and adds `pre_shared_key` last. Firefox used each of the eight
 /// tickets one connection issued, once. The recipe keeps up to ten per
 /// origin, as Firefox's default ticket-cache preference allows. It offers them
-/// [`SessionTicketOrder::OldestConnectionFirst`], as Firefox on Windows
+/// [`crate::SessionTicketOrder::OldestConnectionFirst`], as Firefox on Windows
 /// does: in every `resumption-websocket-http1` run, the request after the
 /// WebSocket resumed a ticket of the page's connection. When a ticket
 /// permits early data, a direct connection also offers `early_data`,
@@ -131,98 +128,7 @@ pub fn v157_cookie_placement() -> CookiePlacement {
 /// customize it before constructing a transport.
 #[must_use]
 pub fn v157_tcp_tls() -> TlsSettings {
-    TlsSettings {
-        versions: crate::TlsVersionRange::TLS12_TO_TLS13,
-        cipher_suites: vec![
-            CipherSuite::Aes128GcmSha256,
-            CipherSuite::Chacha20Poly1305Sha256,
-            CipherSuite::Aes256GcmSha384,
-            CipherSuite::EcdheEcdsaAes128GcmSha256,
-            CipherSuite::EcdheRsaAes128GcmSha256,
-            CipherSuite::EcdheEcdsaChacha20Poly1305Sha256,
-            CipherSuite::EcdheRsaChacha20Poly1305Sha256,
-            CipherSuite::EcdheEcdsaAes256GcmSha384,
-            CipherSuite::EcdheRsaAes256GcmSha384,
-            CipherSuite::EcdheRsaAes128CbcSha,
-            CipherSuite::EcdheRsaAes256CbcSha,
-            CipherSuite::RsaAes128GcmSha256,
-            CipherSuite::RsaAes256GcmSha384,
-            CipherSuite::RsaAes128CbcSha,
-            CipherSuite::RsaAes256CbcSha,
-        ],
-        groups: vec![
-            NamedGroup::X25519MlKem768,
-            NamedGroup::X25519,
-            NamedGroup::Secp256r1,
-            NamedGroup::Secp384r1,
-            NamedGroup::Secp521r1,
-        ],
-        key_shares: vec![
-            NamedGroup::X25519MlKem768,
-            NamedGroup::X25519,
-            NamedGroup::Secp256r1,
-        ],
-        signature_schemes: vec![
-            SignatureScheme::EcdsaSecp256r1Sha256,
-            SignatureScheme::EcdsaSecp384r1Sha384,
-            SignatureScheme::EcdsaSecp521r1Sha512,
-            SignatureScheme::RsaPssRsaeSha256,
-            SignatureScheme::RsaPssRsaeSha384,
-            SignatureScheme::RsaPssRsaeSha512,
-            SignatureScheme::RsaPkcs1Sha256,
-            SignatureScheme::RsaPkcs1Sha384,
-            SignatureScheme::RsaPkcs1Sha512,
-            SignatureScheme::EcdsaSha1,
-            SignatureScheme::RsaPkcs1Sha1,
-        ],
-        delegated_credential_schemes: vec![
-            SignatureScheme::EcdsaSecp256r1Sha256,
-            SignatureScheme::EcdsaSecp384r1Sha384,
-            SignatureScheme::EcdsaSecp521r1Sha512,
-            SignatureScheme::EcdsaSha1,
-        ],
-        alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
-        alps: None,
-        certificate_compression: vec![
-            CertificateCompression::Zlib,
-            CertificateCompression::Brotli,
-            CertificateCompression::Zstd,
-        ],
-        session_tickets: crate::tls::TEN_SESSION_TICKETS,
-        session_ticket_order: SessionTicketOrder::OldestConnectionFirst,
-        session_ticket_extension_when_resuming: false,
-        tcp_early_data: true,
-        record_size_limit: Some(16_385),
-        tls12_extensions_in_tls13_client_hello: true,
-        requested_trust_anchor_ids: None,
-        grease: false,
-        grease_signature_algorithms: false,
-        extension_order: ClientHelloExtensionOrder::Fixed(vec![
-            ClientHelloExtension::ServerName,
-            ClientHelloExtension::ExtendedMasterSecret,
-            ClientHelloExtension::RenegotiationInfo,
-            ClientHelloExtension::SupportedGroups,
-            ClientHelloExtension::EcPointFormats,
-            ClientHelloExtension::SessionTicket,
-            ClientHelloExtension::Alpn,
-            ClientHelloExtension::StatusRequest,
-            ClientHelloExtension::DelegatedCredential,
-            ClientHelloExtension::SignedCertificateTimestamp,
-            ClientHelloExtension::KeyShare,
-            ClientHelloExtension::EarlyData,
-            ClientHelloExtension::SupportedVersions,
-            ClientHelloExtension::SignatureAlgorithms,
-            ClientHelloExtension::PskKeyExchangeModes,
-            ClientHelloExtension::RecordSizeLimit,
-            ClientHelloExtension::CertificateCompression,
-            ClientHelloExtension::EncryptedClientHello,
-        ]),
-        ech: crate::EchSettings::Grease(crate::tls::firefox_ech_grease()),
-        request_ocsp_staple: true,
-        request_signed_certificate_timestamps: true,
-        aes_hardware: true,
-        close_notify: true,
-    }
+    crate::tls::components::firefox_157_tcp_tls()
 }
 
 /// Returns the TCP socket options and keepalive of Firefox 157.0 on Windows.
@@ -681,7 +587,7 @@ pub fn v157_proxy_connect() -> ProxyConnectTemplate {
 /// - the extension order changes on every connection, except that
 ///   `quic_transport_parameters` and then `encrypted_client_hello` always
 ///   come last, before `pre_shared_key`
-///   ([`ClientHelloExtensionOrder::PermutedWithTail`]).
+///   ([`crate::ClientHelloExtensionOrder::PermutedWithTail`]).
 ///
 /// QUIC carries no TLS records, so `record_size_limit` limits nothing on
 /// these connections; Firefox sends it anyway, and so does the recipe.
@@ -691,40 +597,7 @@ pub fn v157_proxy_connect() -> ProxyConnectTemplate {
 /// last, `pre_shared_key`, as [`v157_quic`] allows.
 #[must_use]
 pub fn v157_quic_tls() -> TlsSettings {
-    let mut settings = v157_tcp_tls();
-    settings.versions = crate::TlsVersionRange::only(TlsVersion::Tls13);
-    settings.cipher_suites = vec![
-        CipherSuite::Aes128GcmSha256,
-        CipherSuite::Chacha20Poly1305Sha256,
-        CipherSuite::Aes256GcmSha384,
-    ];
-    settings.signature_schemes = vec![
-        SignatureScheme::EcdsaSecp256r1Sha256,
-        SignatureScheme::EcdsaSecp384r1Sha384,
-        SignatureScheme::EcdsaSecp521r1Sha512,
-        SignatureScheme::EcdsaSha1,
-        SignatureScheme::RsaPssRsaeSha256,
-        SignatureScheme::RsaPssRsaeSha384,
-        SignatureScheme::RsaPssRsaeSha512,
-        SignatureScheme::RsaPkcs1Sha256,
-        SignatureScheme::RsaPkcs1Sha384,
-        SignatureScheme::RsaPkcs1Sha512,
-        SignatureScheme::RsaPkcs1Sha1,
-    ];
-    settings.certificate_compression = vec![
-        CertificateCompression::Zlib,
-        CertificateCompression::Zstd,
-        CertificateCompression::Brotli,
-    ];
-    settings.alpn_protocols = vec![Box::from(&b"h3"[..])];
-    settings.request_signed_certificate_timestamps = false;
-    settings.extension_order = ClientHelloExtensionOrder::PermutedWithTail(vec![
-        ClientHelloExtension::QuicTransportParameters,
-        ClientHelloExtension::EncryptedClientHello,
-    ]);
-    // QUIC early data follows `v157_quic`; this field covers TCP only.
-    settings.tcp_early_data = false;
-    settings
+    crate::tls::components::firefox_157_quic_tls()
 }
 
 /// Returns QUIC transport settings observed from Firefox 157.0 on Windows 11.

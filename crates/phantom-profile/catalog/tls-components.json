@@ -1,0 +1,559 @@
+{
+  "schema": 1,
+  "components": [
+    {
+      "id": "chromium_154_tcp_tls",
+      "kind": "TlsSettings",
+      "base": null,
+      "values": {
+        "versions": {
+          "min": "Tls12",
+          "max": "Tls13"
+        },
+        "cipher_suites": [
+          "Aes128GcmSha256",
+          "Aes256GcmSha384",
+          "Chacha20Poly1305Sha256",
+          "EcdheEcdsaAes128GcmSha256",
+          "EcdheRsaAes128GcmSha256",
+          "EcdheEcdsaAes256GcmSha384",
+          "EcdheRsaAes256GcmSha384",
+          "EcdheEcdsaChacha20Poly1305Sha256",
+          "EcdheRsaChacha20Poly1305Sha256",
+          "EcdheRsaAes128CbcSha",
+          "EcdheRsaAes256CbcSha",
+          "RsaAes128GcmSha256",
+          "RsaAes256GcmSha384",
+          "RsaAes128CbcSha",
+          "RsaAes256CbcSha"
+        ],
+        "groups": [
+          "X25519MlKem768",
+          "X25519",
+          "Secp256r1",
+          "Secp384r1"
+        ],
+        "key_shares": [
+          "X25519MlKem768",
+          "X25519"
+        ],
+        "signature_schemes": [
+          "MlDsa44",
+          "MlDsa65",
+          "MlDsa87",
+          "EcdsaSecp256r1Sha256",
+          "RsaPssRsaeSha256",
+          "RsaPkcs1Sha256",
+          "EcdsaSecp384r1Sha384",
+          "RsaPssRsaeSha384",
+          "RsaPkcs1Sha384",
+          "RsaPssRsaeSha512",
+          "RsaPkcs1Sha512"
+        ],
+        "delegated_credential_schemes": [],
+        "alpn_protocols": [
+          [
+            104,
+            50
+          ],
+          [
+            104,
+            116,
+            116,
+            112,
+            47,
+            49,
+            46,
+            49
+          ]
+        ],
+        "alps": {
+          "protocol": [
+            104,
+            50
+          ],
+          "settings": [],
+          "use_new_codepoint": true
+        },
+        "certificate_compression": [
+          "Brotli"
+        ],
+        "session_tickets": {
+          "enabled": true,
+          "tcp_per_origin": 2
+        },
+        "session_ticket_order": "NewestFirst",
+        "session_ticket_extension_when_resuming": true,
+        "tcp_early_data": false,
+        "record_size_limit": null,
+        "tls12_extensions_in_tls13_client_hello": false,
+        "requested_trust_anchor_ids": {
+          "kind": "Fixed",
+          "orders": [
+            [
+              [
+                130,
+                223,
+                19,
+                2,
+                1
+              ],
+              [
+                130,
+                223,
+                19,
+                2,
+                6
+              ],
+              [
+                130,
+                223,
+                19,
+                2,
+                13
+              ],
+              [
+                130,
+                223,
+                19,
+                2,
+                14
+              ],
+              [
+                130,
+                223,
+                19,
+                2,
+                15
+              ],
+              [
+                130,
+                223,
+                19,
+                2,
+                18
+              ],
+              [
+                130,
+                223,
+                19,
+                2,
+                19
+              ],
+              [
+                130,
+                223,
+                19,
+                2,
+                20
+              ],
+              [
+                131,
+                154,
+                100,
+                140,
+                155,
+                45,
+                1,
+                7
+              ],
+              [
+                131,
+                154,
+                100,
+                140,
+                155,
+                45,
+                1,
+                8
+              ],
+              [
+                131,
+                154,
+                100,
+                140,
+                155,
+                45,
+                1,
+                9
+              ],
+              [
+                131,
+                154,
+                100,
+                140,
+                155,
+                45,
+                1,
+                10
+              ],
+              [
+                131,
+                154,
+                100,
+                140,
+                155,
+                45,
+                1,
+                11
+              ],
+              [
+                131,
+                154,
+                100,
+                140,
+                155,
+                45,
+                1,
+                12
+              ],
+              [
+                131,
+                154,
+                100,
+                140,
+                155,
+                45,
+                1,
+                13
+              ],
+              [
+                131,
+                154,
+                100,
+                140,
+                155,
+                45,
+                1,
+                18
+              ],
+              [
+                131,
+                154,
+                100,
+                140,
+                155,
+                45,
+                1,
+                19
+              ],
+              [
+                214,
+                121,
+                9,
+                1
+              ],
+              [
+                214,
+                121,
+                9,
+                4
+              ],
+              [
+                214,
+                121,
+                9,
+                5
+              ],
+              [
+                214,
+                121,
+                9,
+                6
+              ],
+              [
+                214,
+                121,
+                9,
+                7
+              ],
+              [
+                214,
+                121,
+                9,
+                8
+              ],
+              [
+                214,
+                121,
+                9,
+                10
+              ],
+              [
+                214,
+                121,
+                9,
+                11
+              ],
+              [
+                214,
+                121,
+                9,
+                12
+              ],
+              [
+                214,
+                121,
+                9,
+                13
+              ],
+              [
+                214,
+                121,
+                9,
+                15
+              ]
+            ]
+          ]
+        },
+        "grease": true,
+        "grease_signature_algorithms": true,
+        "extension_order": {
+          "kind": "Permuted",
+          "extensions": []
+        },
+        "ech": {
+          "kind": "HttpsRecords",
+          "settings": {
+            "payload_length": {
+              "kind": "BackendDefault",
+              "value": null
+            },
+            "aeads": []
+          }
+        },
+        "request_ocsp_staple": true,
+        "request_signed_certificate_timestamps": true,
+        "aes_hardware": true,
+        "close_notify": false
+      }
+    },
+    {
+      "id": "chromium_154_quic_tls",
+      "kind": "TlsSettings",
+      "base": "chromium_154_tcp_tls",
+      "values": {
+        "versions": {
+          "min": "Tls13",
+          "max": "Tls13"
+        },
+        "cipher_suites": [
+          "Aes128GcmSha256",
+          "Aes256GcmSha384",
+          "Chacha20Poly1305Sha256"
+        ],
+        "signature_schemes": [
+          "EcdsaSecp256r1Sha256",
+          "RsaPssRsaeSha256",
+          "RsaPkcs1Sha256",
+          "EcdsaSecp384r1Sha384",
+          "RsaPssRsaeSha384",
+          "RsaPkcs1Sha384",
+          "RsaPssRsaeSha512",
+          "RsaPkcs1Sha512",
+          "RsaPkcs1Sha1"
+        ],
+        "alpn_protocols": [
+          [
+            104,
+            51
+          ]
+        ],
+        "request_signed_certificate_timestamps": false,
+        "alps": {
+          "protocol": [
+            104,
+            51
+          ],
+          "settings": [],
+          "use_new_codepoint": true
+        },
+        "grease": false,
+        "grease_signature_algorithms": false,
+        "request_ocsp_staple": false
+      }
+    },
+    {
+      "id": "firefox_157_tcp_tls",
+      "kind": "TlsSettings",
+      "base": null,
+      "values": {
+        "versions": {
+          "min": "Tls12",
+          "max": "Tls13"
+        },
+        "cipher_suites": [
+          "Aes128GcmSha256",
+          "Chacha20Poly1305Sha256",
+          "Aes256GcmSha384",
+          "EcdheEcdsaAes128GcmSha256",
+          "EcdheRsaAes128GcmSha256",
+          "EcdheEcdsaChacha20Poly1305Sha256",
+          "EcdheRsaChacha20Poly1305Sha256",
+          "EcdheEcdsaAes256GcmSha384",
+          "EcdheRsaAes256GcmSha384",
+          "EcdheRsaAes128CbcSha",
+          "EcdheRsaAes256CbcSha",
+          "RsaAes128GcmSha256",
+          "RsaAes256GcmSha384",
+          "RsaAes128CbcSha",
+          "RsaAes256CbcSha"
+        ],
+        "groups": [
+          "X25519MlKem768",
+          "X25519",
+          "Secp256r1",
+          "Secp384r1",
+          "Secp521r1"
+        ],
+        "key_shares": [
+          "X25519MlKem768",
+          "X25519",
+          "Secp256r1"
+        ],
+        "signature_schemes": [
+          "EcdsaSecp256r1Sha256",
+          "EcdsaSecp384r1Sha384",
+          "EcdsaSecp521r1Sha512",
+          "RsaPssRsaeSha256",
+          "RsaPssRsaeSha384",
+          "RsaPssRsaeSha512",
+          "RsaPkcs1Sha256",
+          "RsaPkcs1Sha384",
+          "RsaPkcs1Sha512",
+          "EcdsaSha1",
+          "RsaPkcs1Sha1"
+        ],
+        "delegated_credential_schemes": [
+          "EcdsaSecp256r1Sha256",
+          "EcdsaSecp384r1Sha384",
+          "EcdsaSecp521r1Sha512",
+          "EcdsaSha1"
+        ],
+        "alpn_protocols": [
+          [
+            104,
+            50
+          ],
+          [
+            104,
+            116,
+            116,
+            112,
+            47,
+            49,
+            46,
+            49
+          ]
+        ],
+        "alps": null,
+        "certificate_compression": [
+          "Zlib",
+          "Brotli",
+          "Zstd"
+        ],
+        "session_tickets": {
+          "enabled": true,
+          "tcp_per_origin": 10
+        },
+        "session_ticket_order": "OldestConnectionFirst",
+        "session_ticket_extension_when_resuming": false,
+        "tcp_early_data": true,
+        "record_size_limit": 16385,
+        "tls12_extensions_in_tls13_client_hello": true,
+        "requested_trust_anchor_ids": null,
+        "grease": false,
+        "grease_signature_algorithms": false,
+        "extension_order": {
+          "kind": "Fixed",
+          "extensions": [
+            "ServerName",
+            "ExtendedMasterSecret",
+            "RenegotiationInfo",
+            "SupportedGroups",
+            "EcPointFormats",
+            "SessionTicket",
+            "Alpn",
+            "StatusRequest",
+            "DelegatedCredential",
+            "SignedCertificateTimestamp",
+            "KeyShare",
+            "EarlyData",
+            "SupportedVersions",
+            "SignatureAlgorithms",
+            "PskKeyExchangeModes",
+            "RecordSizeLimit",
+            "CertificateCompression",
+            "EncryptedClientHello"
+          ]
+        },
+        "ech": {
+          "kind": "Grease",
+          "settings": {
+            "payload_length": {
+              "kind": "FromClientHello",
+              "value": 100
+            },
+            "aeads": [
+              "Aes128Gcm",
+              "ChaCha20Poly1305"
+            ]
+          }
+        },
+        "request_ocsp_staple": true,
+        "request_signed_certificate_timestamps": true,
+        "aes_hardware": true,
+        "close_notify": true
+      }
+    },
+    {
+      "id": "firefox_157_quic_tls",
+      "kind": "TlsSettings",
+      "base": "firefox_157_tcp_tls",
+      "values": {
+        "versions": {
+          "min": "Tls13",
+          "max": "Tls13"
+        },
+        "cipher_suites": [
+          "Aes128GcmSha256",
+          "Chacha20Poly1305Sha256",
+          "Aes256GcmSha384"
+        ],
+        "signature_schemes": [
+          "EcdsaSecp256r1Sha256",
+          "EcdsaSecp384r1Sha384",
+          "EcdsaSecp521r1Sha512",
+          "EcdsaSha1",
+          "RsaPssRsaeSha256",
+          "RsaPssRsaeSha384",
+          "RsaPssRsaeSha512",
+          "RsaPkcs1Sha256",
+          "RsaPkcs1Sha384",
+          "RsaPkcs1Sha512",
+          "RsaPkcs1Sha1"
+        ],
+        "alpn_protocols": [
+          [
+            104,
+            51
+          ]
+        ],
+        "request_signed_certificate_timestamps": false,
+        "certificate_compression": [
+          "Zlib",
+          "Zstd",
+          "Brotli"
+        ],
+        "extension_order": {
+          "kind": "PermutedWithTail",
+          "extensions": [
+            "QuicTransportParameters",
+            "EncryptedClientHello"
+          ]
+        },
+        "tcp_early_data": false
+      }
+    }
+  ]
+}

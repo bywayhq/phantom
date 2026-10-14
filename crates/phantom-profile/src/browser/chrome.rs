@@ -56,11 +56,7 @@ use crate::{
         Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate,
     },
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
-    tls::{
-        AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtensionOrder, NamedGroup,
-        SessionTicketOrder, SignatureScheme, TlsSettings, TlsVersion, TrustAnchorIds,
-        TrustAnchorOrder,
-    },
+    tls::TlsSettings,
     websocket::{
         WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
         WebSocketField, WebSocketNewConnection, WebSocketProxiedSession,
@@ -80,44 +76,6 @@ use crate::quic::{
     QuicTransportParameterKind, QuicTransportParameterOrder, QuicTransportSettings,
     QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
 };
-
-// Chrome 154 sorts the trust-anchor ID list once, when it builds the SSL
-// configuration (`net/cert/x509_util.cc:708-717` at 154.0.8037.58, from
-// Chromium commit `942bda4298c1`), so with the compiled-in PKI metadata every
-// connection of every process emits these 28 identifiers in ascending byte
-// order. All 60 fresh processes of the
-// retained `trust-anchor-orders.txt` capture and all 132 retained desktop
-// ClientHellos, up to 13 from one process, carry exactly this order.
-const V154_TRUST_ANCHOR_IDS: &[&[u8]] = &[
-    &[0x82, 0xdf, 0x13, 0x02, 0x01],
-    &[0x82, 0xdf, 0x13, 0x02, 0x06],
-    &[0x82, 0xdf, 0x13, 0x02, 0x0d],
-    &[0x82, 0xdf, 0x13, 0x02, 0x0e],
-    &[0x82, 0xdf, 0x13, 0x02, 0x0f],
-    &[0x82, 0xdf, 0x13, 0x02, 0x12],
-    &[0x82, 0xdf, 0x13, 0x02, 0x13],
-    &[0x82, 0xdf, 0x13, 0x02, 0x14],
-    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x07],
-    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x08],
-    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x09],
-    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x0a],
-    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x0b],
-    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x0c],
-    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x0d],
-    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x12],
-    &[0x83, 0x9a, 0x64, 0x8c, 0x9b, 0x2d, 0x01, 0x13],
-    &[0xd6, 0x79, 0x09, 0x01],
-    &[0xd6, 0x79, 0x09, 0x04],
-    &[0xd6, 0x79, 0x09, 0x05],
-    &[0xd6, 0x79, 0x09, 0x06],
-    &[0xd6, 0x79, 0x09, 0x07],
-    &[0xd6, 0x79, 0x09, 0x08],
-    &[0xd6, 0x79, 0x09, 0x0a],
-    &[0xd6, 0x79, 0x09, 0x0b],
-    &[0xd6, 0x79, 0x09, 0x0c],
-    &[0xd6, 0x79, 0x09, 0x0d],
-    &[0xd6, 0x79, 0x09, 0x0f],
-];
 
 /// Returns client-hint fields observed from Chrome 154 on Windows 11 x64.
 ///
@@ -250,7 +208,7 @@ pub fn v154_cookie_placement() -> CookiePlacement {
 ///
 /// Ticket resumption over TCP follows the retained `resumption-*.txt`
 /// captures. Chrome kept the two newest tickets for an origin, presented the
-/// newest first ([`SessionTicketOrder::NewestFirst`]), and used each once; a
+/// newest first ([`crate::SessionTicketOrder::NewestFirst`]), and used each once; a
 /// resumed ClientHello adds only
 /// `pre_shared_key`, last, and never offers early data over TCP.
 ///
@@ -258,69 +216,7 @@ pub fn v154_cookie_placement() -> CookiePlacement {
 /// customize it before constructing a transport.
 #[must_use]
 pub fn v154_tcp_tls() -> TlsSettings {
-    TlsSettings {
-        versions: crate::TlsVersionRange::TLS12_TO_TLS13,
-        cipher_suites: vec![
-            CipherSuite::Aes128GcmSha256,
-            CipherSuite::Aes256GcmSha384,
-            CipherSuite::Chacha20Poly1305Sha256,
-            CipherSuite::EcdheEcdsaAes128GcmSha256,
-            CipherSuite::EcdheRsaAes128GcmSha256,
-            CipherSuite::EcdheEcdsaAes256GcmSha384,
-            CipherSuite::EcdheRsaAes256GcmSha384,
-            CipherSuite::EcdheEcdsaChacha20Poly1305Sha256,
-            CipherSuite::EcdheRsaChacha20Poly1305Sha256,
-            CipherSuite::EcdheRsaAes128CbcSha,
-            CipherSuite::EcdheRsaAes256CbcSha,
-            CipherSuite::RsaAes128GcmSha256,
-            CipherSuite::RsaAes256GcmSha384,
-            CipherSuite::RsaAes128CbcSha,
-            CipherSuite::RsaAes256CbcSha,
-        ],
-        groups: vec![
-            NamedGroup::X25519MlKem768,
-            NamedGroup::X25519,
-            NamedGroup::Secp256r1,
-            NamedGroup::Secp384r1,
-        ],
-        key_shares: vec![NamedGroup::X25519MlKem768, NamedGroup::X25519],
-        signature_schemes: vec![
-            SignatureScheme::MlDsa44,
-            SignatureScheme::MlDsa65,
-            SignatureScheme::MlDsa87,
-            SignatureScheme::EcdsaSecp256r1Sha256,
-            SignatureScheme::RsaPssRsaeSha256,
-            SignatureScheme::RsaPkcs1Sha256,
-            SignatureScheme::EcdsaSecp384r1Sha384,
-            SignatureScheme::RsaPssRsaeSha384,
-            SignatureScheme::RsaPkcs1Sha384,
-            SignatureScheme::RsaPssRsaeSha512,
-            SignatureScheme::RsaPkcs1Sha512,
-        ],
-        delegated_credential_schemes: Vec::new(),
-        alpn_protocols: vec![Box::from(&b"h2"[..]), Box::from(&b"http/1.1"[..])],
-        alps: Some(AlpsSettings {
-            protocol: Box::from(&b"h2"[..]),
-            settings: Box::default(),
-            use_new_codepoint: true,
-        }),
-        certificate_compression: vec![CertificateCompression::Brotli],
-        session_tickets: crate::tls::TWO_SESSION_TICKETS,
-        session_ticket_order: SessionTicketOrder::NewestFirst,
-        session_ticket_extension_when_resuming: true,
-        tcp_early_data: false,
-        record_size_limit: None,
-        tls12_extensions_in_tls13_client_hello: false,
-        requested_trust_anchor_ids: Some(trust_anchor_ids(V154_TRUST_ANCHOR_IDS)),
-        grease: true,
-        grease_signature_algorithms: true,
-        extension_order: ClientHelloExtensionOrder::Permuted,
-        ech: crate::EchSettings::HttpsRecords(crate::EchGreaseSettings::backend_default()),
-        request_ocsp_staple: true,
-        request_signed_certificate_timestamps: true,
-        aes_hardware: true,
-        close_notify: false,
-    }
+    crate::tls::components::chromium_154_tcp_tls()
 }
 
 /// Returns the TCP socket options Chromium 154.0.8037.58 sets on Windows and Linux.
@@ -1222,35 +1118,7 @@ pub fn v154_http3() -> Http3Settings {
 /// value's `ech` to `EchSettings::Grease` to send ECH GREASE instead.
 #[must_use]
 pub fn v154_quic_tls() -> TlsSettings {
-    let mut settings = v154_tcp_tls();
-    settings.versions = crate::TlsVersionRange::only(TlsVersion::Tls13);
-    settings.cipher_suites = vec![
-        CipherSuite::Aes128GcmSha256,
-        CipherSuite::Aes256GcmSha384,
-        CipherSuite::Chacha20Poly1305Sha256,
-    ];
-    settings.signature_schemes = vec![
-        SignatureScheme::EcdsaSecp256r1Sha256,
-        SignatureScheme::RsaPssRsaeSha256,
-        SignatureScheme::RsaPkcs1Sha256,
-        SignatureScheme::EcdsaSecp384r1Sha384,
-        SignatureScheme::RsaPssRsaeSha384,
-        SignatureScheme::RsaPkcs1Sha384,
-        SignatureScheme::RsaPssRsaeSha512,
-        SignatureScheme::RsaPkcs1Sha512,
-        SignatureScheme::RsaPkcs1Sha1,
-    ];
-    settings.alpn_protocols = vec![Box::from(&b"h3"[..])];
-    settings.alps = Some(AlpsSettings {
-        protocol: Box::from(&b"h3"[..]),
-        settings: Box::default(),
-        use_new_codepoint: true,
-    });
-    settings.grease = false;
-    settings.grease_signature_algorithms = false;
-    settings.request_ocsp_staple = false;
-    settings.request_signed_certificate_timestamps = false;
-    settings
+    crate::tls::components::chromium_154_quic_tls()
 }
 
 /// Returns HTTP/3 request ordering observed from Chrome 154.0.8037.58 on Windows 11.
@@ -1382,14 +1250,6 @@ pub fn v154_quic() -> QuicTransportSettings {
         parameter_order: QuicTransportParameterOrder::Permuted,
         early_data: true,
     }
-}
-
-const _: () = assert!(TrustAnchorOrder::valid_recipe_ids(V154_TRUST_ANCHOR_IDS));
-
-fn trust_anchor_ids(ids: &[&[u8]]) -> TrustAnchorIds {
-    TrustAnchorIds::Fixed(TrustAnchorOrder::from_recipe(
-        ids.iter().map(|id| Box::from(*id)).collect(),
-    ))
 }
 
 /// Returns the Windows connection profile for Chrome 154.
