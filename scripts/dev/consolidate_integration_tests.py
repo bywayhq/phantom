@@ -98,6 +98,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "alt_svc_persistence",
                 "alt_svc_pinned",
                 "alt_svc_race",
+                "authentication",
                 "connect_udp",
                 "http2_fallback",
                 "http3",
