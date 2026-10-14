@@ -629,7 +629,10 @@ impl fmt::Debug for HandshakeData {
     }
 }
 
-/// Verified peer certificate chain, encoded as leaf-first DER certificates.
+/// Peer-provided certificate chain, encoded as leaf-first DER certificates.
+///
+/// Trust requires a configuration that verifies server authentication.
+/// With authentication disabled, these certificates provide no trust proof.
 #[derive(Clone, Eq, PartialEq)]
 pub struct PeerIdentity {
     certificates: Vec<Vec<u8>>,
@@ -637,6 +640,9 @@ pub struct PeerIdentity {
 
 impl PeerIdentity {
     /// Returns the leaf-first DER certificate chain.
+    ///
+    /// This is the chain supplied by the peer. The accessor performs no
+    /// verification.
     #[must_use]
     pub fn certificates(&self) -> &[Vec<u8>] {
         &self.certificates
