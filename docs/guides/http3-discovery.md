@@ -41,6 +41,38 @@ fn racing_client(profile: ClientProfile) -> Result<Client, BuildError> {
 To send an HTTP/3 request to an alternative you already know, see
 [Reach a known alternative service](socks-and-connect-udp.md#reach-a-known-alternative-service).
 
+## Choose the delay from connection timing
+
+Use measured round-trip times to choose when the origin connection starts:
+
+```rust
+use std::num::NonZeroUsize;
+use std::time::Duration;
+
+use phantom::profile::ClientProfile;
+use phantom::{AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcRttDelay, BuildError, Client};
+
+fn timed_racing_client(profile: ClientProfile) -> Result<Client, BuildError> {
+    let capacity = NonZeroUsize::new(64).expect("64 is nonzero");
+    let timing = AltSvcRttDelay::new(capacity, Duration::from_secs(600));
+    let race = AltSvcRace::new(Duration::ZERO, AltSvcBrokenBackoff::CHROMIUM_153)
+        .with_rtt_delay(timing);
+    Client::builder(profile)
+        .alt_svc(capacity)
+        .alt_svc_policy(AltSvcPolicy::race(race))
+        .build()
+}
+```
+
+Verified direct HTTP/3 connections supply timing samples. The origin starts
+immediately until the client has a recent successful connection. Later races
+use 1.5 times the target's round-trip time, or 300 ms without a target sample.
+The delay is capped at 3 seconds.
+
+Client clones share this history. `clear_alt_svc_racing_history` clears it.
+`clear_alt_svc` clears both learned addresses and timing history. History stays
+in memory and expires at the age you choose, even if the network changes.
+
 ## Find HTTP/3 through HTTPS DNS records
 
 A server can announce HTTP/3 in an HTTPS DNS record. Phantom looks up the

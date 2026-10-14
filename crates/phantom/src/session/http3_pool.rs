@@ -28,7 +28,10 @@ use tracing::debug;
 
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
-    alt_svc::DEFAULT_ALTERNATIVE_SETUP_LIMIT,
+    alt_svc::{
+        DEFAULT_ALTERNATIVE_SETUP_LIMIT,
+        rtt_history::{Publication, RttHistory},
+    },
     client_hints::{AcceptChRestart, ClientHintContext, Dispatched},
     http3_connections::{Candidate, Choice, Http3Spread},
     stream_count::{OpenStream, StreamCount},
@@ -107,6 +110,7 @@ pub(crate) struct Http3Pool {
     max_pending: NonZeroUsize,
     max_connections: NonZeroUsize,
     state: Mutex<PoolState>,
+    rtt_history: Option<Arc<RttHistory>>,
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
     #[cfg(feature = "https-records")]
@@ -125,6 +129,7 @@ impl Http3Pool {
             max_pending,
             max_connections: NonZeroUsize::MIN,
             state: Mutex::new(PoolState::default()),
+            rtt_history: None,
             #[cfg(feature = "https-records")]
             https_records: None,
             #[cfg(feature = "https-records")]
@@ -156,6 +161,10 @@ impl Http3Pool {
     #[cfg(feature = "https-records")]
     pub(super) const fn set_alt_svc_https_policy(&mut self, policy: crate::AltSvcHttpsPolicy) {
         self.alt_svc_https_policy = policy;
+    }
+
+    pub(super) fn set_rtt_history(&mut self, history: Option<Arc<RttHistory>>) {
+        self.rtt_history = history;
     }
 
     pub(super) const fn capacity(&self) -> NonZeroUsize {
@@ -392,6 +401,7 @@ impl Http3Pool {
         let entry = Arc::new(PoolEntry::new(
             admission,
             Http3Spread::new(self.max_connections, self.max_active),
+            self.rtt_history.clone(),
             #[cfg(feature = "https-records")]
             self.https_records.clone(),
             #[cfg(feature = "https-records")]
@@ -500,6 +510,7 @@ struct PoolEntry {
     http3_proxy: OnceLock<Http3Connector>,
     /// Proxy TLS connector for a TCP CONNECT-UDP leg, with its own session cache.
     tcp_proxy: OnceLock<HttpsProxyConnector>,
+    rtt_history: Option<Arc<RttHistory>>,
     /// The client's HTTPS-record lookups, when it makes them.
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
@@ -511,6 +522,7 @@ impl PoolEntry {
     fn new(
         admission: Arc<Admission>,
         spread: Http3Spread,
+        rtt_history: Option<Arc<RttHistory>>,
         #[cfg(feature = "https-records")] https_records: Option<
             super::alt_svc::HttpsRecordDiscovery,
         >,
@@ -528,6 +540,7 @@ impl PoolEntry {
             origin_early: OnceLock::new(),
             http3_proxy: OnceLock::new(),
             tcp_proxy: OnceLock::new(),
+            rtt_history,
             #[cfg(feature = "https-records")]
             https_records,
             #[cfg(feature = "https-records")]
@@ -615,6 +628,17 @@ impl PoolEntry {
             return Ok(leased);
         }
 
+        // Captured before I/O. Clears or target invalidation cannot admit a
+        // delayed handshake into a newer history generation.
+        let publication = self.rtt_history.as_ref().and_then(|history| {
+            history.publication(
+                endpoint,
+                route,
+                transport.host,
+                transport.port,
+                connector.server_authentication().verifies(),
+            )
+        });
         // Boxed: opening a connection awaits the largest connector futures,
         // which would otherwise enlarge the future of every request, including
         // one that reuses a pooled connection.
@@ -627,7 +651,13 @@ impl PoolEntry {
             control,
         ))
         .await?;
+        if !connection.sent_early_data()
+            && let Some(publication) = &publication
+        {
+            publication.record(connection.completed_handshake_rtt());
+        }
         let slot = ConnectionSlot {
+            publication,
             connection,
             token: Arc::new(()),
             location,
@@ -1261,6 +1291,9 @@ impl Http3Lease {
                 response,
                 stream: mut tunnel,
             })) => {
+                if let Some(publication) = &lease.publication {
+                    publication.record(lease.connection.completed_handshake_rtt());
+                }
                 // The stream count drops first, so the request the permit
                 // admits next sees this stream ended.
                 tunnel.retain_until_stream_complete((stream, permit));
@@ -1270,6 +1303,9 @@ impl Http3Lease {
                 })
             }
             Ok(Ok(Http3ExtendedConnectOutcome::Rejected(response))) => {
+                if let Some(publication) = &lease.publication {
+                    publication.record(lease.connection.completed_handshake_rtt());
+                }
                 let (parts, body) = response.into_parts();
                 Ok(Http3ExtendedConnect::Rejected(Box::new(
                     http::Response::from_parts(
@@ -1462,6 +1498,11 @@ async fn dispatch(
         .await;
     match result {
         Ok(Ok(response)) => {
+            // Early setup publishes conservatively at its first successful
+            // response, after its handshake and metadata checks have settled.
+            if let Some(publication) = &lease.publication {
+                publication.record(lease.connection.completed_handshake_rtt());
+            }
             let (parts, body) = response.into_parts();
             Ok(Dispatched::Sent((
                 // The stream count drops first, so the request the permit
@@ -1545,6 +1586,7 @@ struct Slots {
 
 struct ConnectionSlot {
     connection: Http3Connection,
+    publication: Option<Arc<Publication>>,
     token: Arc<()>,
     location: TransportLocation,
     streams: StreamCount,
@@ -1559,6 +1601,7 @@ impl ConnectionSlot {
         (
             ConnectionLease {
                 connection: self.connection.clone(),
+                publication: self.publication.clone(),
                 token: Arc::clone(&self.token),
                 streams: self.streams.clone(),
             },
@@ -1584,6 +1627,7 @@ impl ConnectionSlot {
 #[derive(Clone)]
 struct ConnectionLease {
     connection: Http3Connection,
+    publication: Option<Arc<Publication>>,
     token: Arc<()>,
     streams: StreamCount,
 }

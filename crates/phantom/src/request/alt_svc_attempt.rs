@@ -226,8 +226,18 @@ pub(super) async fn send_once_raced(
     {
         Duration::ZERO
     } else {
-        race.origin_delay()
+        match race.origin_delay_policy() {
+            crate::session::AltSvcOriginDelay::Fixed(delay) => delay,
+            crate::session::AltSvcOriginDelay::Rtt(_) => client
+                .state
+                .rtt_history
+                .as_ref()
+                .map_or(Duration::ZERO, |history| {
+                    history.delay(&request.endpoint, route, &alternatives)
+                }),
+        }
     };
+    tracing::debug!(alt_svc_origin_delay = ?origin_delay, "Alt-Svc origin delay selected");
     let outcome = race_setup(
         setups,
         || {

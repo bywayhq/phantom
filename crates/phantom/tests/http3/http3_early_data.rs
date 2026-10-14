@@ -1332,6 +1332,7 @@ async fn stop_relay(mut task: RelayPeer) -> TestResult<()> {
 mod absence_controls;
 mod relay_completion;
 mod relay_controls;
+mod rtt;
 
 pub(super) mod relay_observation;
 pub(super) mod relay_outcomes;

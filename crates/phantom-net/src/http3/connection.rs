@@ -5,6 +5,7 @@ use std::{
         Arc, OnceLock,
         atomic::{AtomicU8, Ordering},
     },
+    time::Duration,
 };
 
 use bytes::Bytes;
@@ -134,6 +135,28 @@ impl Http3Connection {
                 remembered_settings,
             }),
         }
+    }
+
+    /// Returns current QUIC RTT after completed and checked H3 setup.
+    ///
+    /// Returns `None` while early data or its handshake metadata is pending,
+    /// after a failed handshake, or once the connection has closed. A result
+    /// describes completion, not peer authentication: check the connector's
+    /// `server_authentication` policy before using it as a trusted sample.
+    #[must_use]
+    pub fn completed_handshake_rtt(&self) -> Option<Duration> {
+        if self.inner.quinn.close_reason().is_some() {
+            return None;
+        }
+        if let Some(early) = &self.inner.early_data {
+            match early.settled() {
+                Some(EarlyDataOutcome::Accepted | EarlyDataOutcome::Rejected) => {}
+                Some(EarlyDataOutcome::Invalid(_) | EarlyDataOutcome::Failed) | None => {
+                    return None;
+                }
+            }
+        }
+        Some(self.inner.quinn.rtt())
     }
 
     /// Returns this connection's ALPS-delivered `Accept-CH` value for `origin`.

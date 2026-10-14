@@ -7,8 +7,8 @@ use crate::{
 use crate::{HttpProtocol, RequestError, SseRequestBuilder};
 
 pub use alt_svc::{
-    AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry,
-    AltSvcSnapshotError, AltSvcSnapshotErrorKind,
+    AltSvcBrokenBackoff, AltSvcOriginDelay, AltSvcPolicy, AltSvcRace, AltSvcRttDelay,
+    AltSvcSnapshot, AltSvcSnapshotEntry, AltSvcSnapshotError, AltSvcSnapshotErrorKind,
 };
 #[cfg(feature = "cookies")]
 pub use cookies::{
@@ -187,6 +187,7 @@ pub(crate) struct ClientState {
     pub(crate) http3: http3_pool::Http3Pool,
     alt_svc: Option<alt_svc::AltSvcStore>,
     alt_svc_policy: AltSvcPolicy,
+    pub(crate) rtt_history: Option<Arc<alt_svc::rtt_history::RttHistory>>,
     #[cfg(feature = "https-records")]
     https_records: Option<alt_svc::HttpsRecordDiscovery>,
     client_hints: Option<client_hints::ClientHintStore>,
@@ -489,7 +490,15 @@ impl ClientOptions {
         .with_prune_timer(prune_timer);
         #[cfg(feature = "https-records")]
         http2.set_https_records(https_records.clone());
-        #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
+        let rtt_history =
+            self.alt_svc_policy
+                .race_settings()
+                .and_then(|race| match race.origin_delay_policy() {
+                    AltSvcOriginDelay::Fixed(_) => None,
+                    AltSvcOriginDelay::Rtt(settings) => {
+                        Some(alt_svc::rtt_history::RttHistory::new(settings))
+                    }
+                });
         let mut http3 = http3_pool::Http3Pool::new(
             self.max_retained_http3_connections,
             self.max_concurrent_http3_requests_per_origin,
@@ -500,6 +509,7 @@ impl ClientOptions {
         http3.set_https_records(https_records.clone());
         #[cfg(feature = "https-records")]
         http3.set_alt_svc_https_policy(self.alt_svc_https_policy);
+        http3.set_rtt_history(rtt_history.clone());
         Arc::new(ClientState {
             redirect_policy: self.redirect_policy,
             retry_policy: self.retry_policy,
@@ -510,6 +520,7 @@ impl ClientOptions {
             http3,
             alt_svc: self.max_alt_svc_origins.map(alt_svc::AltSvcStore::new),
             alt_svc_policy: self.alt_svc_policy,
+            rtt_history,
             #[cfg(feature = "https-records")]
             https_records,
             client_hints: inner
@@ -643,6 +654,9 @@ impl Client {
     ) {
         if let Some(store) = &self.state.alt_svc {
             store.mark_broken(endpoint, route, alternative.location(), backoff);
+            if let Some(history) = &self.state.rtt_history {
+                history.invalidate(endpoint, route, alternative.host(), alternative.port());
+            }
         }
     }
 
@@ -751,6 +765,9 @@ impl Client {
         route: &crate::Route,
         alternative: &alt_svc::AlternativeTarget,
     ) {
+        if let Some(history) = &self.state.rtt_history {
+            history.invalidate(endpoint, route, alternative.host(), alternative.port());
+        }
         match alternative.generation() {
             Some(generation) => {
                 if let Some(store) = &self.state.alt_svc {
@@ -940,8 +957,20 @@ impl Client {
         }
     }
 
-    /// Clears all alternative services learned by this client.
+    /// Clears RTT samples and client-local QUIC success used by racing.
+    ///
+    /// A connection started before clearing cannot restore this history.
+    /// Existing connections remain usable. Create a fresh client when its
+    /// local network identity changes; this client has no network notifier.
+    pub fn clear_alt_svc_racing_history(&self) {
+        if let Some(history) = &self.state.rtt_history {
+            history.clear();
+        }
+    }
+
+    /// Clears learned alternatives and the client's RTT racing history.
     pub fn clear_alt_svc(&self) {
+        self.clear_alt_svc_racing_history();
         if let Some(alt_svc) = &self.state.alt_svc {
             alt_svc.clear();
         }

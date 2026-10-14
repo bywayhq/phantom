@@ -51,6 +51,7 @@ type BoxError = Box<dyn StdError + Send + Sync>;
 #[derive(Debug)]
 pub struct Http3Connector {
     crypto: Arc<QuicClientConfig>,
+    server_authentication: ServerAuthentication,
     ech_from_https_records: bool,
     settings: Http3Settings,
     request_settings: Http3RequestSettings,
@@ -79,6 +80,12 @@ pub struct Http3Connector {
 }
 
 impl Http3Connector {
+    /// Returns the immutable server-authentication policy of this connector.
+    #[must_use]
+    pub const fn server_authentication(&self) -> ServerAuthentication {
+        self.server_authentication
+    }
+
     /// Builds a connector using Phantom's bundled public trust roots.
     ///
     /// # Errors
@@ -212,6 +219,7 @@ impl Http3Connector {
 
         Ok(Self {
             crypto,
+            server_authentication,
             ech_from_https_records: tls.ech.uses_https_records(),
             settings: settings.clone(),
             request_settings: request_settings.clone(),
@@ -382,6 +390,7 @@ impl Http3Connector {
     fn with_shared_crypto(&self, crypto: Arc<QuicClientConfig>) -> Self {
         Self {
             crypto,
+            server_authentication: self.server_authentication,
             ech_from_https_records: self.ech_from_https_records,
             settings: self.settings.clone(),
             request_settings: self.request_settings.clone(),

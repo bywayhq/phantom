@@ -46,6 +46,7 @@ use zero_rtt_relay::ZeroRttRelay;
 
 mod masque_diagnostics;
 mod origin;
+mod rtt;
 mod zero_rtt_relay;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(20);

@@ -48,6 +48,8 @@ const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 const ORIGIN_NAME: &str = "localhost";
 const ALTERNATIVE_HOST: &str = "127.0.0.1";
 
+mod rtt;
+
 #[tokio::test]
 async fn race_is_disabled_by_default_and_sequential_failure_stays_terminal() -> TestResult<()> {
     bounded(async {

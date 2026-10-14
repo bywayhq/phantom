@@ -19,6 +19,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `DnsHttpsRecords::into_lookup()` to obtain the lookup. Use
   `with_cache_deadline` to preserve an earlier absolute expiry.
 
+- Choose fixed or client-local RTT timing for Alt-Svc racing. Migrate: replace
+  `AltSvcRace::origin_delay()` with `origin_delay_policy()` and match
+  `AltSvcOriginDelay::Fixed` or `AltSvcOriginDelay::Rtt`.
+
 - Select HTTP proxy credentials explicitly. Migrate: wrap borrowed Basic
   credentials in `HttpProxyAuthentication::Basic` for `HttpConnectRoute`
   and `Http2Route::Forward`. Use `HttpProxy::with_digest_auth` for Digest.

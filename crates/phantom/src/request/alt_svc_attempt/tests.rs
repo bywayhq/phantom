@@ -24,6 +24,180 @@ type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
 const ORIGIN_DELAY: Duration = Duration::from_millis(300);
 
+/// A synthetic store measurement for timer controls, without native I/O.
+/// The separate integration peers prove authentication and publication.
+fn computed_model_delay() -> TestResult<Duration> {
+    use crate::{
+        AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcRttDelay, AltSvcSnapshot,
+        AltSvcSnapshotEntry, Client, Route, authority::Endpoint,
+    };
+    use std::{num::NonZeroUsize, time::SystemTime};
+    let settings = AltSvcRttDelay::new(NonZeroUsize::MIN, Duration::from_secs(60))
+        .with_additional_delay(Duration::from_millis(100));
+    let client = Client::builder(phantom_profile::browser::chrome::v154_windows())
+        .alt_svc(NonZeroUsize::MIN)
+        .alt_svc_policy(AltSvcPolicy::race(
+            AltSvcRace::new(Duration::ZERO, AltSvcBrokenBackoff::CHROMIUM_153)
+                .with_rtt_delay(settings),
+        ))
+        .build()?;
+    let origin = Endpoint::new("origin.test:443".parse()?, 443)?;
+    client.import_alt_svc(&AltSvcSnapshot::new(vec![AltSvcSnapshotEntry::new(
+        "https://origin.test",
+        "alt.test",
+        8443,
+        SystemTime::now() + Duration::from_secs(60),
+    )]))?;
+    let history = client
+        .state
+        .rtt_history
+        .as_ref()
+        .ok_or("RTT history absent")?;
+    let publication = history
+        .publication(&origin, &Route::Direct, "alt.test", 8443, true)
+        .ok_or("publication absent")?;
+    publication.record(Some(Duration::from_millis(40)));
+    let delay = history.delay(
+        &origin,
+        &Route::Direct,
+        &client.alt_svc_locations(&origin, &Route::Direct, 1),
+    );
+    assert_eq!(delay, Duration::from_millis(160));
+    Ok(delay)
+}
+
+#[tokio::test(start_paused = true)]
+async fn computed_rtt_delay_starts_origin_at_its_exact_timer_and_retains_the_loser() -> TestResult {
+    let delay = computed_model_delay()?;
+    let alternative = Probe::new();
+    let admission = Arc::new(Semaphore::new(1));
+    let origin_start = Arc::new(std::sync::Mutex::new(None));
+    let start = Instant::now();
+    let outcome = race_setup(
+        vec![Box::pin(blackholed(
+            alternative.guard(),
+            Arc::clone(&admission),
+        ))],
+        recording_origin(&origin_start),
+        delay,
+        budget(RequestTimeouts::new())?,
+    )
+    .await?;
+    assert_eq!(started_at(&origin_start)? - start, delay);
+    assert_eq!(admission.available_permits(), 0);
+    assert!(!alternative.was_dropped());
+    assert!(matches!(
+        &outcome,
+        RaceOutcome::Origin {
+            leased: "origin",
+            ..
+        }
+    ));
+    drop(outcome);
+    assert!(alternative.was_dropped());
+    assert_eq!(admission.available_permits(), 1);
+    Ok(())
+}
+
+#[tokio::test(start_paused = true)]
+async fn all_alternative_failures_bypass_computed_rtt_delay() -> TestResult {
+    let delay = computed_model_delay()?;
+    let origin_start = Arc::new(std::sync::Mutex::new(None));
+    let start = Instant::now();
+    let outcome = race_setup(
+        vec![
+            setup(fails_after::<&str>(Duration::from_millis(20))),
+            setup(fails_after(Duration::from_millis(40))),
+        ],
+        recording_origin(&origin_start),
+        delay,
+        budget(RequestTimeouts::new())?,
+    )
+    .await?;
+    assert_eq!(
+        started_at(&origin_start)? - start,
+        Duration::from_millis(40)
+    );
+    let RaceOutcome::Origin { leased, losers } = outcome else {
+        return Err("origin must win".into());
+    };
+    assert_eq!(leased, "origin");
+    assert_eq!(losers.len(), 2);
+    assert!(
+        losers
+            .iter()
+            .all(|candidate| matches!(candidate, Candidate::Failed(_)))
+    );
+    Ok(())
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_total_deadline_cancels_admission_before_computed_rtt_delay() -> TestResult {
+    let delay = computed_model_delay()?;
+    let alternative = Probe::new();
+    let origin = Probe::new();
+    let admission = Arc::new(Semaphore::new(1));
+    let start = Instant::now();
+    let result = race_setup(
+        vec![Box::pin(blackholed(
+            alternative.guard(),
+            Arc::clone(&admission),
+        ))],
+        || {
+            let guard = origin.guard();
+            async move {
+                let _guard = guard;
+                Ok::<_, RequestError>(())
+            }
+        },
+        delay,
+        budget(RequestTimeouts::new().total(Duration::from_millis(50)))?,
+    )
+    .await;
+    assert!(matches!(result, Err(error) if error.timeout_phase() == Some(TimeoutPhase::Total)));
+    assert_eq!(Instant::now() - start, Duration::from_millis(50));
+    assert_eq!(origin.starts(), 0);
+    assert!(alternative.was_dropped());
+    assert_eq!(admission.available_permits(), 1);
+    Ok(())
+}
+
+#[tokio::test(start_paused = true)]
+async fn cancellation_before_computed_rtt_delay_returns_all_admissions() -> TestResult {
+    let delay = computed_model_delay()?;
+    let alternatives = [Probe::new(), Probe::new()];
+    let admission = Arc::new(Semaphore::new(2));
+    let origin = Probe::new();
+    let mut race = Box::pin(race_setup(
+        alternatives
+            .iter()
+            .map(|alternative| Box::pin(blackholed(alternative.guard(), Arc::clone(&admission))))
+            .collect(),
+        || {
+            let guard = origin.guard();
+            async move {
+                let _guard = guard;
+                pending::<Result<OwnedSemaphorePermit, RequestError>>().await
+            }
+        },
+        delay,
+        budget(RequestTimeouts::new())?,
+    ));
+    assert!(poll_once(&mut race).is_pending());
+    tokio::time::advance(delay / 2).await;
+    assert!(poll_once(&mut race).is_pending());
+    assert_eq!(origin.starts(), 0);
+    assert_eq!(admission.available_permits(), 0);
+    drop(race);
+    assert!(
+        alternatives
+            .iter()
+            .all(|alternative| alternative.starts() == 1 && alternative.was_dropped())
+    );
+    assert_eq!(admission.available_permits(), 2);
+    Ok(())
+}
+
 /// Records when a candidate starts, and sets `dropped` when it is cancelled.
 struct Probe {
     started: Arc<AtomicUsize>,

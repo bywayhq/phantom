@@ -223,6 +223,11 @@ async fn replay_safe_request_is_sent_as_early_data_only_when_offered() -> TestRe
     let early = stateless_connector(&identity)?.with_isolated_session_cache();
     assert!(!early.requests_wait_for_peer_settings());
     let isolated = early.without_early_data();
+    assert!(early.server_authentication().verifies());
+    assert_eq!(
+        early.server_authentication(),
+        isolated.server_authentication()
+    );
     assert!(early.sends_early_data());
     assert!(!isolated.sends_early_data());
     let (address, _endpoint, server) = learn_ticket(&identity, &isolated, &served).await?;
@@ -233,13 +238,19 @@ async fn replay_safe_request_is_sent_as_early_data_only_when_offered() -> TestRe
     assert!(plain.session_resumed());
     assert!(!plain.sent_early_data());
     assert_eq!(plain.early_data_accepted().await, None);
+    assert!(plain.completed_handshake_rtt().is_some());
     wait_for_ticket(&isolated).await?;
 
     let (relay, early_relay) = delaying_relay(address).await?;
     let subscriber = OutcomeSubscriber::default();
+    let metadata_hold = Arc::new(tokio::sync::Semaphore::new(0));
+    let held = early.with_test_answer_hold(Arc::clone(&metadata_hold));
     let (connection, response) = async {
-        let connection = connect(&early, relay).await?;
-        let response = send(&early, &connection, Method::GET, "/early", None).await?;
+        let connection = connect(&held, relay).await?;
+        assert!(connection.early_data_pending());
+        assert_eq!(connection.completed_handshake_rtt(), None);
+        metadata_hold.add_permits(1);
+        let response = send(&held, &connection, Method::GET, "/early", None).await?;
         Ok::<_, Box<dyn std::error::Error + Send + Sync>>((connection, response))
     }
     .with_subscriber(subscriber.dispatch())
@@ -247,6 +258,7 @@ async fn replay_safe_request_is_sent_as_early_data_only_when_offered() -> TestRe
     assert!(connection.sent_early_data());
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(connection.early_data_accepted().await, Some(true));
+    assert!(connection.completed_handshake_rtt().is_some());
     assert_eq!(
         subscriber.field_values_for("http3.response_head", "early_data"),
         ["sent"]
@@ -716,6 +728,7 @@ async fn rejected_early_data_restarts_http3_on_the_same_connection() -> TestResu
     assert_eq!(connection.early_data_accepted().await, Some(false));
     assert!(!connection.early_data_pending());
     connection.early_data_settled().await?;
+    assert!(connection.completed_handshake_rtt().is_some());
     assert!(early.can_reuse(&connection).await);
 
     let again = send(&early, &connection, Method::GET, "/early", None).await?;
@@ -924,6 +937,7 @@ async fn invalid_peer_alps_on_accepted_early_data_fails_the_request_and_closes()
             "{path}"
         );
         assert!(!early.can_reuse(&connection).await, "{path}");
+        assert_eq!(connection.completed_handshake_rtt(), None, "{path}");
         assert_eq!(
             connection.accept_ch_for_origin("https://server.phantom.test"),
             None

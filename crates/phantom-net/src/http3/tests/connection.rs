@@ -52,6 +52,8 @@ async fn sequential_requests_share_one_connection() -> TestResult<()> {
     .await
     .map_err(|_| "HTTP/3 connection timed out")??;
 
+    assert!(connection.completed_handshake_rtt().is_some());
+
     for (path, expected) in [("/first", "first"), ("/second", "second")] {
         let response = timeout(
             TEST_TIMEOUT,

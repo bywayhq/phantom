@@ -1175,8 +1175,12 @@ impl PendingLookup {
     }
 }
 
+pub(crate) mod rtt_history;
+
 mod policy;
-pub use policy::{AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace};
+pub use policy::{
+    AltSvcBrokenBackoff, AltSvcOriginDelay, AltSvcPolicy, AltSvcRace, AltSvcRttDelay,
+};
 pub(crate) use policy::{DEFAULT_ALTERNATIVE_SETUP_LIMIT, MAX_RACED_ALTERNATIVES};
 
 mod snapshot;

@@ -154,8 +154,8 @@ pub use route::{
     Socks5ProxyConfigError, Socks5ProxyConfigErrorKind,
 };
 pub use session::{
-    AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, AltSvcSnapshot, AltSvcSnapshotEntry,
-    AltSvcSnapshotError, AltSvcSnapshotErrorKind,
+    AltSvcBrokenBackoff, AltSvcOriginDelay, AltSvcPolicy, AltSvcRace, AltSvcRttDelay,
+    AltSvcSnapshot, AltSvcSnapshotEntry, AltSvcSnapshotError, AltSvcSnapshotErrorKind,
 };
 #[cfg(feature = "cookies")]
 pub use session::{

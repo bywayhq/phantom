@@ -69,13 +69,22 @@ impl AltSvcPolicy {
         match self.race {
             Some(race)
                 if std::time::Instant::now()
-                    .checked_add(race.origin_delay)
+                    .checked_add(match race.origin_delay {
+                        AltSvcOriginDelay::Fixed(delay) => delay,
+                        AltSvcOriginDelay::Rtt(settings) => settings.max_age,
+                    })
                     .is_none() =>
             {
                 Err(BuildError::invalid_policy(
-                    "Alt-Svc origin delay is not representable",
+                    "Alt-Svc origin delay or RTT history age is not representable",
                 ))
             }
+            Some(AltSvcRace {
+                origin_delay: AltSvcOriginDelay::Rtt(settings),
+                ..
+            }) if settings.max_age.is_zero() => Err(BuildError::invalid_policy(
+                "Alt-Svc RTT history age must be positive",
+            )),
             Some(race)
                 if std::time::Instant::now()
                     .checked_add(race.alternative_setup_limit)
@@ -134,7 +143,7 @@ impl AltSvcPolicy {
 /// Phantom's choice for the caller policy, not browser behavior.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AltSvcRace {
-    origin_delay: Duration,
+    origin_delay: AltSvcOriginDelay,
     broken_backoff: AltSvcBrokenBackoff,
     alternative_setup_limit: Duration,
     max_alternatives: NonZeroUsize,
@@ -164,14 +173,14 @@ impl AltSvcRace {
     /// Creates racing parameters.
     ///
     /// Chromium computes its origin delay per request from QUIC history and
-    /// measured round-trip time, so Phantom takes a fixed caller value; zero
+    /// measured round-trip time. This constructor takes a fixed value; zero
     /// starts both candidates together. An `origin_delay` too large to add to
     /// the runtime clock makes [`ClientBuilder::build`](crate::ClientBuilder::build)
     /// fail with [`BuildErrorKind::InvalidPolicy`](crate::BuildErrorKind::InvalidPolicy).
     #[must_use]
     pub const fn new(origin_delay: Duration, broken_backoff: AltSvcBrokenBackoff) -> Self {
         Self {
-            origin_delay,
+            origin_delay: AltSvcOriginDelay::Fixed(origin_delay),
             broken_backoff,
             alternative_setup_limit: DEFAULT_ALTERNATIVE_SETUP_LIMIT,
             max_alternatives: NonZeroUsize::MIN,
@@ -249,9 +258,19 @@ impl AltSvcRace {
         self.alternative_setup_limit
     }
 
-    /// Returns how long origin setup waits after alternative setup starts.
+    /// Chooses the origin delay from bounded client-local RTT history.
+    ///
+    /// Only verified direct HTTP/3 connections contribute. Client clones share
+    /// history, which is never exported with session tickets.
     #[must_use]
-    pub const fn origin_delay(self) -> Duration {
+    pub const fn with_rtt_delay(mut self, settings: AltSvcRttDelay) -> Self {
+        self.origin_delay = AltSvcOriginDelay::Rtt(settings);
+        self
+    }
+
+    /// Returns the policy that chooses when origin setup starts.
+    #[must_use]
+    pub const fn origin_delay_policy(self) -> AltSvcOriginDelay {
         self.origin_delay
     }
 
@@ -259,6 +278,76 @@ impl AltSvcRace {
     #[must_use]
     pub const fn broken_backoff(self) -> AltSvcBrokenBackoff {
         self.broken_backoff
+    }
+}
+
+/// How one race chooses its origin setup delay.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AltSvcOriginDelay {
+    /// Waits for the caller's fixed duration.
+    Fixed(Duration),
+    /// Uses bounded, client-local history from verified direct HTTP/3.
+    Rtt(AltSvcRttDelay),
+}
+
+/// Bounds and additional delay for RTT-based alternative racing.
+///
+/// A fresh target sample delays the origin by 1.5 times its whole-microsecond
+/// RTT. A missing or zero sample after a fresh client-local success uses
+/// 300 ms. The additional delay is then added, capped with the base at 3 s.
+/// Before any fresh success the origin starts immediately.
+///
+/// Origin and alternate host/port pairs have separate samples. With several
+/// alternatives, the first eligible one in advertisement order chooses the
+/// single origin timer. Pending discovery and a ready HTTP/2 session still
+/// start the origin immediately. Proxy routes never consume this history.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AltSvcRttDelay {
+    capacity: NonZeroUsize,
+    max_age: Duration,
+    additional: Duration,
+}
+
+impl AltSvcRttDelay {
+    /// Sets the maximum entries and age of samples and client-local success.
+    ///
+    /// An age of zero or one the runtime clock cannot represent makes
+    /// `ClientBuilder::build` return `BuildErrorKind::InvalidPolicy`.
+    #[must_use]
+    pub const fn new(capacity: NonZeroUsize, max_age: Duration) -> Self {
+        Self {
+            capacity,
+            max_age,
+            additional: Duration::ZERO,
+        }
+    }
+
+    /// Adds a delay after the RTT calculation, within its 3-second cap.
+    ///
+    /// The default is zero. You can select 100 ms explicitly, the additional
+    /// delay enabled by default in Chromium 154's Android build.
+    #[must_use]
+    pub const fn with_additional_delay(mut self, delay: Duration) -> Self {
+        self.additional = delay;
+        self
+    }
+
+    /// Returns the maximum number of origin-and-target history entries.
+    #[must_use]
+    pub const fn capacity(self) -> NonZeroUsize {
+        self.capacity
+    }
+
+    /// Returns the age limit of measurements and client-local QUIC success.
+    #[must_use]
+    pub const fn max_age(self) -> Duration {
+        self.max_age
+    }
+
+    /// Returns the delay added after scaling RTT.
+    #[must_use]
+    pub const fn additional_delay(self) -> Duration {
+        self.additional
     }
 }
 
@@ -328,7 +417,10 @@ impl AltSvcBrokenBackoff {
 mod tests {
     use std::{num::NonZeroUsize, time::Duration};
 
-    use super::{AltSvcBrokenBackoff, AltSvcPolicy, AltSvcRace, MAX_RACED_ALTERNATIVES};
+    use super::{
+        AltSvcBrokenBackoff, AltSvcOriginDelay, AltSvcPolicy, AltSvcRace, AltSvcRttDelay,
+        MAX_RACED_ALTERNATIVES,
+    };
     use crate::BuildErrorKind;
 
     fn race() -> AltSvcRace {
@@ -341,6 +433,31 @@ mod tests {
     #[test]
     fn a_race_sets_up_one_alternative_by_default() {
         assert_eq!(race().max_alternatives(), NonZeroUsize::MIN);
+    }
+
+    #[test]
+    fn fixed_delay_keeps_the_supplied_value() {
+        for delay in [Duration::ZERO, Duration::from_secs(5)] {
+            let race = AltSvcRace::new(delay, AltSvcBrokenBackoff::CHROMIUM_153);
+            assert_eq!(race.origin_delay_policy(), AltSvcOriginDelay::Fixed(delay));
+            assert!(AltSvcPolicy::race(race).validate().is_ok());
+        }
+    }
+
+    #[test]
+    fn rtt_history_requires_a_positive_representable_age() {
+        for age in [Duration::ZERO, Duration::MAX] {
+            let settings = AltSvcRttDelay::new(NonZeroUsize::MIN, age);
+            assert!(
+                matches!(AltSvcPolicy::race(race().with_rtt_delay(settings)).validate(), Err(error) if error.kind() == BuildErrorKind::InvalidPolicy)
+            );
+        }
+        let settings = AltSvcRttDelay::new(NonZeroUsize::MIN, Duration::from_secs(10))
+            .with_additional_delay(Duration::MAX);
+        let race = race().with_rtt_delay(settings);
+        assert_eq!(race.origin_delay_policy(), AltSvcOriginDelay::Rtt(settings));
+        // The additional duration is bounded by calculation, not a timer input.
+        assert!(AltSvcPolicy::race(race).validate().is_ok());
     }
 
     #[test]
