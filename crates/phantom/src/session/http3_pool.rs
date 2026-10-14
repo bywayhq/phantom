@@ -506,9 +506,7 @@ struct PoolEntry {
     /// The origin connector's early-data twin, sharing its ticket cache, when
     /// the client enables HTTP/3 early data.
     origin_early: OnceLock<Option<Http3Connector>>,
-    /// Outer HTTP/3 CONNECT-UDP proxy connector, with its own ticket cache.
-    http3_proxy: OnceLock<Http3Connector>,
-    /// Proxy TLS connector for a TCP CONNECT-UDP leg, with its own session cache.
+    /// Dedicated HTTP/1.1 CONNECT-UDP outer cache, scoped to this origin and route.
     tcp_proxy: OnceLock<HttpsProxyConnector>,
     rtt_history: Option<Arc<RttHistory>>,
     /// The client's HTTPS-record lookups, when it makes them.
@@ -538,7 +536,6 @@ impl PoolEntry {
             admission,
             origin: OnceLock::new(),
             origin_early: OnceLock::new(),
-            http3_proxy: OnceLock::new(),
             tcp_proxy: OnceLock::new(),
             rtt_history,
             #[cfg(feature = "https-records")]
@@ -774,8 +771,9 @@ impl PoolEntry {
 
     /// Opens one connection to `transport` on `route`.
     ///
-    /// Connections use this entry's isolated connectors, so QUIC tickets stay
-    /// within one origin and route. When an attempt that presented a ticket
+    /// Inner connections use this entry's isolated connector. A shared
+    /// CONNECT-UDP route owns a separate outer session and ticket scope.
+    /// When an attempt that presented a ticket
     /// fails its TLS handshake, the attempt is repeated once with a full
     /// handshake over the same route; nothing else about it changes.
     async fn connect(
@@ -807,22 +805,17 @@ impl PoolEntry {
         let http3_proxy = match route {
             Route::ConnectUdp(proxy) if proxy.tcp_protocol().is_none() => {
                 let base = connect_udp_http3(connect_udp_proxy)?;
-                Some((
-                    self.http3_proxy
-                        .get_or_init(|| base.with_isolated_session_cache()),
-                    proxy.host(),
-                ))
+                Some(base)
             }
             _ => None,
         };
-        let presented_ticket = origin.has_ticket_for(endpoint.host())
-            || http3_proxy.is_some_and(|(proxy, host)| proxy.has_ticket_for(host));
+        let presented_ticket = origin.has_ticket_for(endpoint.host());
         // Boxed apart from `open`, which nests this future in its attempt
         // limit: together the two carry the compiler's `Send` proof past the
         // default recursion limit; see `box_send`.
         let first = super::box_send(self.connect_with(
             early_origin.unwrap_or(origin),
-            http3_proxy.map(|(proxy, _)| proxy),
+            http3_proxy,
             endpoint,
             route,
             transport,
@@ -838,10 +831,9 @@ impl PoolEntry {
                     "HTTP/3 handshake that presented a session ticket failed"
                 );
                 let origin = origin.without_ticket_offers();
-                let http3_proxy = http3_proxy.map(|(proxy, _)| proxy.without_ticket_offers());
                 super::box_send(self.connect_with(
                     &origin,
-                    http3_proxy.as_ref(),
+                    http3_proxy,
                     endpoint,
                     route,
                     transport,
@@ -968,7 +960,7 @@ impl PoolEntry {
                 },
                 auth: proxy.auth(),
             },
-            // Each tunnel owns a fresh outer connection, including its retry.
+            // Route clones share outer sessions through their isolated pool.
             Route::ConnectUdp(proxy) => {
                 let outer = match proxy.tcp_protocol() {
                     None => ConnectUdpTransport::Http3(http3_proxy.ok_or_else(|| {
@@ -977,10 +969,15 @@ impl PoolEntry {
                     Some(protocol) => {
                         let base =
                             connect_udp_tcp(connect_udp_proxy).map_err(SetupFailure::Other)?;
-                        // Proxy TLS sessions remain isolated by this origin and route.
-                        let connector = self
-                            .tcp_proxy
-                            .get_or_init(|| base.with_isolated_session_cache());
+                        // H2 shares the route-owned cache. H1 Upgrade keeps its
+                        // dedicated origin-and-route-scoped cache.
+                        let connector = if protocol == phantom_net::proxy::HttpsProxyProtocol::Http1
+                        {
+                            self.tcp_proxy
+                                .get_or_init(|| base.with_isolated_session_cache())
+                        } else {
+                            base
+                        };
                         ConnectUdpTransport::Tls {
                             connector,
                             protocol,
@@ -997,6 +994,7 @@ impl PoolEntry {
                     path: connect_udp_path(proxy, transport).map_err(SetupFailure::Other)?,
                     headers: proxy.headers().to_vec(),
                     credentials: proxy.credentials(),
+                    pool: Some(proxy.pool()),
                 })
             }
             Route::HttpProxy(_) | Route::Socks4(_) => {

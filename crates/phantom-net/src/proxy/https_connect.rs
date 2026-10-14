@@ -86,6 +86,10 @@ impl HttpsProxyConnector {
     pub(super) fn digest_settings(&self) -> &ConnectionSettingsId {
         &self.connection_settings
     }
+    pub(super) fn connect_udp_settings(&self) -> &ConnectionSettingsId {
+        &self.connection_settings
+    }
+
     /// Builds a connector from TLS settings and bundled public roots.
     ///
     /// # Errors

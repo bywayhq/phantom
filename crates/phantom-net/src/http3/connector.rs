@@ -34,9 +34,10 @@ use crate::{
     direct::{Dialer, RuntimeUnavailable, poll_tokio_io},
     host_resolver::{HostResolver, resolve},
     proxy::{
-        HttpBasicCredentials, HttpsProxyConnector, HttpsProxyProtocol, PreparedConnectUdp,
-        Socks5Auth, Socks5Error, associate_socks5_udp_local_with_auth,
-        associate_socks5_udp_remote_with_auth, prepare_socks5_udp_remote_target,
+        ConnectUdpProxyPool, HttpBasicCredentials, HttpsProxyConnector, HttpsProxyProtocol,
+        PoolKey, PreparedConnectUdp, ProxySettingsId, Socks5Auth, Socks5Error,
+        associate_socks5_udp_local_with_auth, associate_socks5_udp_remote_with_auth,
+        prepare_socks5_udp_remote_target,
     },
     request::{RequestBody, RequestBodyMetadata},
     route::{ConnectUdpTransport, DatagramRoute, Socks5Target},
@@ -58,6 +59,8 @@ pub struct Http3Connector {
     max_datagram_frame_size: Option<u64>,
     max_udp_payload_size: u64,
     identity: Arc<()>,
+    proxy_settings: ProxySettingsId,
+    proxy_dial_settings: ProxySettingsId,
     tcp: Option<TcpSettings>,
     udp: Option<UdpSettings>,
     source: Option<SourceBinding>,
@@ -226,6 +229,8 @@ impl Http3Connector {
             max_datagram_frame_size: quic.max_datagram_frame_size,
             max_udp_payload_size: quic.max_udp_payload_size,
             identity: Arc::new(()),
+            proxy_settings: ProxySettingsId::default(),
+            proxy_dial_settings: ProxySettingsId::default(),
             tcp: None,
             udp: None,
             source: None,
@@ -384,7 +389,9 @@ impl Http3Connector {
     }
 
     fn with_crypto(&self, crypto: QuicClientConfig) -> Self {
-        self.with_shared_crypto(Arc::new(crypto))
+        let mut connector = self.with_shared_crypto(Arc::new(crypto));
+        connector.proxy_settings = ProxySettingsId::default();
+        connector
     }
 
     fn with_shared_crypto(&self, crypto: Arc<QuicClientConfig>) -> Self {
@@ -397,6 +404,8 @@ impl Http3Connector {
             max_datagram_frame_size: self.max_datagram_frame_size,
             max_udp_payload_size: self.max_udp_payload_size,
             identity: Arc::clone(&self.identity),
+            proxy_settings: self.proxy_settings.clone(),
+            proxy_dial_settings: self.proxy_dial_settings.clone(),
             tcp: self.tcp,
             udp: self.udp,
             source: self.source.clone(),
@@ -443,6 +452,8 @@ impl Http3Connector {
     #[must_use]
     pub fn with_tcp_settings(mut self, settings: &TcpSettings) -> Self {
         self.tcp = Some(*settings);
+        self.proxy_dial_settings = ProxySettingsId::default();
+        self.proxy_settings = ProxySettingsId::default();
         self
     }
 
@@ -463,6 +474,8 @@ impl Http3Connector {
     #[must_use]
     pub fn with_udp_settings(mut self, settings: &UdpSettings) -> Self {
         self.udp = Some(*settings);
+        self.proxy_dial_settings = ProxySettingsId::default();
+        self.proxy_settings = ProxySettingsId::default();
         self
     }
 
@@ -489,6 +502,8 @@ impl Http3Connector {
     pub fn with_host_resolver(&self, resolver: HostResolver) -> Self {
         let mut connector = self.with_shared_crypto(Arc::clone(&self.crypto));
         connector.host_resolver = Some(resolver);
+        connector.proxy_dial_settings = ProxySettingsId::default();
+        connector.proxy_settings = ProxySettingsId::default();
         connector
     }
 
@@ -514,6 +529,8 @@ impl Http3Connector {
     pub fn with_source_binding(&self, binding: SourceBinding) -> Self {
         let mut connector = self.with_shared_crypto(Arc::clone(&self.crypto));
         connector.source = Some(binding);
+        connector.proxy_dial_settings = ProxySettingsId::default();
+        connector.proxy_settings = ProxySettingsId::default();
         connector.identity = Arc::new(());
         connector
     }
@@ -567,6 +584,7 @@ impl Http3Connector {
     #[must_use]
     pub fn with_qlog_dir(mut self, dir: impl Into<std::path::PathBuf>) -> Self {
         self.qlog_dir = Some(Arc::from(dir.into()));
+        self.proxy_settings = ProxySettingsId::default();
         self
     }
 
@@ -707,6 +725,7 @@ impl Http3Connector {
                         route.path,
                         route.headers,
                         route.credentials,
+                        route.pool,
                         server_name,
                     )
                     .await
@@ -724,6 +743,7 @@ impl Http3Connector {
                         route.path,
                         route.headers,
                         route.credentials,
+                        route.pool,
                         server_name,
                     )
                     .await
@@ -1158,18 +1178,61 @@ impl Http3Connector {
         path: OriginForm,
         headers: Vec<RequestHeader>,
         credentials: Option<&HttpBasicCredentials>,
+        pool: Option<&ConnectUdpProxyPool>,
         server_name: &str,
     ) -> Result<Http3Connection, Http3ConnectorError> {
         QuicClientConfig::validate_server_name(server_name)
             .map_err(Http3ConnectorError::invalid_server_name)?;
         let (anonymous, authenticated) = proxy
-            .prepare_connect_udp_requests(proxy_host, proxy_authority, path, headers, credentials)
+            .prepare_connect_udp_requests(
+                proxy_host,
+                proxy_authority,
+                path,
+                headers.clone(),
+                credentials,
+            )
+            .map_err(Http3ConnectorError::connect_udp)?;
+        if pool.is_some() {
+            connect_udp::validate_shared_outer_profile(&connect_udp::OuterProfile {
+                receives_http_datagrams: proxy.settings.receives_datagrams(),
+                max_datagram_frame_size: proxy.max_datagram_frame_size,
+                max_udp_payload_size: proxy.max_udp_payload_size,
+            })
+            .map_err(Http3ConnectorError::connect_udp)?;
+        }
+        let key = pool
+            .map(|_| {
+                PoolKey::http3(
+                    &proxy.proxy_settings,
+                    &self.proxy_dial_settings,
+                    proxy_host,
+                    proxy_port,
+                    proxy_authority,
+                    &headers,
+                    credentials,
+                )
+            })
+            .transpose()
             .map_err(Http3ConnectorError::connect_udp)?;
         tokio::runtime::Handle::try_current()
             .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
         poll_tokio_io(|| async {
             let span = connect_udp::span("h3");
             let tunnel = async {
+                if let (Some(pool), Some(key)) = (pool, key) {
+                    return pool
+                        .open_http3(
+                            key,
+                            self,
+                            proxy,
+                            proxy_host,
+                            proxy_port,
+                            anonymous,
+                            authenticated,
+                            span.clone(),
+                        )
+                        .await;
+                }
                 let addresses = resolve(self.host_resolver.as_ref(), proxy_host, proxy_port)
                     .await
                     .map_err(|error| {
@@ -1290,6 +1353,7 @@ impl Http3Connector {
         path: OriginForm,
         headers: Vec<RequestHeader>,
         credentials: Option<&HttpBasicCredentials>,
+        pool: Option<&ConnectUdpProxyPool>,
         server_name: &str,
     ) -> Result<Http3Connection, Http3ConnectorError> {
         QuicClientConfig::validate_server_name(server_name)
@@ -1303,6 +1367,22 @@ impl Http3Connector {
             credentials,
         )
         .map_err(Http3ConnectorError::connect_udp)?;
+        let key = if protocol == HttpsProxyProtocol::Http2 {
+            pool.map(|_| {
+                PoolKey::http2(
+                    proxy,
+                    proxy_host,
+                    proxy_port,
+                    proxy_authority,
+                    &headers,
+                    credentials,
+                )
+            })
+            .transpose()
+            .map_err(Http3ConnectorError::connect_udp)?
+        } else {
+            None
+        };
         tokio::runtime::Handle::try_current()
             .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
         poll_tokio_io(|| async {
@@ -1311,10 +1391,18 @@ impl Http3Connector {
                 _ => "http/1.1",
             });
             let tunnel = async {
-                let stream = proxy
-                    .connect_udp_tunnel(proxy_host, proxy_port, proxy_host, request, &span)
-                    .await
-                    .map_err(ConnectUdpError::proxy_leg)?;
+                let stream = if let (Some(pool), Some(key)) = (pool, key) {
+                    proxy
+                        .connect_udp_pooled_tunnel(
+                            pool, key, proxy_host, proxy_port, request, &span,
+                        )
+                        .await?
+                } else {
+                    proxy
+                        .connect_udp_tunnel(proxy_host, proxy_port, proxy_host, request, &span)
+                        .await
+                        .map_err(ConnectUdpError::proxy_leg)?
+                };
                 connect_udp::open_stream(stream, span.clone())
             }
             .instrument(span.clone())
@@ -1335,6 +1423,37 @@ impl Http3Connector {
         })
         .await
         .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
+    }
+
+    pub(crate) async fn connect_udp_outer(
+        &self,
+        proxy: &Http3Connector,
+        host: &str,
+        port: u16,
+    ) -> Result<Http3Connection, ConnectUdpError> {
+        let addresses = resolve(self.host_resolver.as_ref(), host, port)
+            .await
+            .map_err(|error| {
+                ConnectUdpError::with_source(
+                    ConnectUdpErrorKind::Resolve,
+                    "failed to resolve CONNECT-UDP proxy",
+                    error,
+                )
+            })?;
+        if addresses.is_empty() {
+            return Err(ConnectUdpError::new(
+                ConnectUdpErrorKind::Resolve,
+                "CONNECT-UDP proxy resolved to no addresses",
+            ));
+        }
+        proxy
+            .connect_to_addresses_with_mtu(
+                addresses,
+                host,
+                Some(connect_udp::SHARED_OUTER_PATH_MTU),
+            )
+            .await
+            .map_err(ConnectUdpError::outer)
     }
 
     /// Validates a CONNECT-UDP request and this connector as its outer

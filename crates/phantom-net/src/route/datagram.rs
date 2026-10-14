@@ -3,7 +3,10 @@
 use super::{Endpoint, Socks5Target};
 use crate::{
     http3::Http3Connector,
-    proxy::{HttpBasicCredentials, HttpsProxyConnector, HttpsProxyProtocol, Socks5Auth},
+    proxy::{
+        ConnectUdpProxyPool, HttpBasicCredentials, HttpsProxyConnector, HttpsProxyProtocol,
+        Socks5Auth,
+    },
     request::{OriginForm, RequestHeader},
 };
 
@@ -40,6 +43,9 @@ pub struct ConnectUdpRoute<'a> {
     pub headers: Vec<RequestHeader>,
     /// Optional challenge-driven Basic credentials.
     pub credentials: Option<&'a HttpBasicCredentials>,
+    /// Optional bounded pool for sharing authenticated H2/H3 outer sessions.
+    /// Without a pool, each tunnel owns its outer connection.
+    pub pool: Option<&'a ConnectUdpProxyPool>,
 }
 
 impl std::fmt::Debug for ConnectUdpRoute<'_> {
@@ -134,6 +140,7 @@ mod tests {
             path: OriginForm::parse("/private-path-token/")?,
             headers: vec![RequestHeader::new("authorization", "private-header-token")],
             credentials: Some(&credentials),
+            pool: None,
         });
         let debug = format!("{route:?}");
         for secret in [

@@ -580,7 +580,6 @@ Not supported:
   Chrome does. Phantom's address lookups go through the operating system,
   or through `AddressResolver::system_nameservers`, whose queries are
   separate from the HTTPS record lookup.
-- Multiplexing several CONNECT-UDP tunnels on one outer connection.
 - MASQUE recipes captured from browsers.
 
 Not measured:
@@ -955,13 +954,21 @@ Supported CONNECT-UDP:
   set separately from the origin's.
 - On the default HTTP/3 proxy leg: SETTINGS and QUIC DATAGRAM gating before
   any stream opens, Context ID 0 HTTP Datagrams with bounded queues per
-  stream, and a 1,252-byte outer path MTU with capacity checks before I/O.
+  stream, and a 1,259-byte shared outer path MTU with capacity checks before
+  I/O. Native dedicated connections retain their 1,252-byte bound.
 - An explicitly selected HTTP/2 extended CONNECT or HTTP/1.1 Upgrade leg that
   carries DATAGRAM capsules.
 - Basic proxy authentication after a challenge on every leg, with one replay
   on a fresh proxy connection.
-- One outer connection per inner connection. Resolve and connect retries
-  apply to the outer connection only.
+- Shared HTTP/2 and HTTP/3 outer connections across route clones, with
+  bounded admission and independent inner connections. Independent routes
+  and configuration changes keep separate pools. HTTP/1.1 Upgrade remains
+  dedicated. Resolve and connect retries apply to the outer connection only.
+- Authenticated shared reuse begins after an accepted challenge response.
+  Stream resets, cancellation and flow pressure leave healthy siblings
+  usable. GOAWAY retires reuse while accepted streams finish.
+- Independent aioquic 1.3.0 and python-h2 4.4.1 loopback peers share one
+  authenticated outer across two origins. Browser MASQUE use is unverified.
 
 Digest authentication on HTTP forward and CONNECT routes:
 

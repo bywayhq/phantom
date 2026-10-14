@@ -23,7 +23,7 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader},
     net::TcpListener,
-    sync::{mpsc, watch},
+    sync::{mpsc, oneshot, watch},
     task::{JoinHandle, JoinSet},
     time::timeout,
 };
@@ -35,6 +35,10 @@ use crate::support::tls::{
 };
 use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 
+#[path = "masque/python_peer.rs"]
+pub(crate) mod python_peer;
+#[path = "masque/sharing.rs"]
+mod sharing;
 #[path = "masque/stream_outcomes.rs"]
 mod stream_outcomes;
 
@@ -59,6 +63,14 @@ const CHALLENGE: &str = "Basic realm=\"masque\"";
 /// How the test proxy answers.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum ProxyMode {
+    /// Accept many independently owned streams per outer connection.
+    Sharing,
+    /// Reset the first stream while retaining the outer connection.
+    SharingResetFirst,
+    /// Validate Basic credentials and relay many authenticated streams.
+    SharingChallenge,
+    /// Reset only the first valid authenticated retry, then require a new challenge.
+    SharingChallengeResetOnce,
     /// Accept CONNECT-UDP and relay datagrams.
     Relay,
     /// Answer every CONNECT-UDP request with this final status.
@@ -95,6 +107,16 @@ impl ObservedConnectUdp {
     }
 }
 
+pub(crate) struct HeldSetupControl {
+    pub(crate) observed: oneshot::Receiver<(usize, u64)>,
+    pub(crate) release: oneshot::Sender<()>,
+}
+
+struct HeldSetup {
+    observed: oneshot::Sender<(usize, u64)>,
+    release: oneshot::Receiver<()>,
+}
+
 #[derive(Default)]
 struct ProxyLog {
     connections: usize,
@@ -102,13 +124,17 @@ struct ProxyLog {
     origin_datagrams: usize,
     /// Outer connections on which the client presented a certificate.
     client_certificates: usize,
+    stream_ids: Vec<(usize, u64)>,
     failures: Vec<Box<dyn std::error::Error + Send + Sync>>,
+    held_setup: Option<HeldSetup>,
+    authenticated_reset_sent: bool,
 }
 
 #[derive(Clone, Copy, Default)]
 struct CloseState {
     generation: u64,
     closed: bool,
+    shutdown: bool,
 }
 
 /// Closing the endpoint is distinct from dropping its last user handle:
@@ -136,11 +162,41 @@ pub(crate) struct MasqueProxy {
     log: Arc<Mutex<ProxyLog>>,
     close: watch::Sender<CloseState>,
     task: JoinHandle<()>,
+    finished: bool,
 }
 
 impl MasqueProxy {
+    /// Parks the next sharing CONNECT after parsing, before accepting it.
+    pub(crate) fn hold_next_setup(&self) -> TestResult<HeldSetupControl> {
+        let mut log = lock(&self.log);
+        if log.held_setup.is_some() {
+            return Err("MASQUE held setup already installed".into());
+        }
+        let (observed, received) = oneshot::channel();
+        let (release, released) = oneshot::channel();
+        log.held_setup = Some(HeldSetup {
+            observed,
+            release: released,
+        });
+        Ok(HeldSetupControl {
+            observed: received,
+            release,
+        })
+    }
+
+    pub(crate) fn stream_ids(&self) -> Vec<(usize, u64)> {
+        lock(&self.log).stream_ids.clone()
+    }
     pub(crate) fn spawn(identity: &TestIdentity, mode: ProxyMode) -> TestResult<Self> {
         Self::spawn_with_session_storage(identity, mode, None)
+    }
+
+    /// Advertise one actual QUIC bidirectional request stream at a time.
+    pub(crate) fn spawn_with_single_bidi_stream(identity: &TestIdentity) -> TestResult<Self> {
+        Self::spawn_on(
+            relay_endpoint_with_stream_limit(identity, None, Some(1_u8.into()))?,
+            ProxyMode::Sharing,
+        )
     }
 
     /// A proxy whose TLS server asks for an optional client certificate
@@ -177,7 +233,7 @@ impl MasqueProxy {
                 tokio::select! {
                     biased;
                     changed = close_rx.changed() => {
-                        if changed.is_err() {
+                        if changed.is_err() || close_rx.borrow().shutdown {
                             break;
                         }
                     }
@@ -199,12 +255,21 @@ impl MasqueProxy {
                     }
                 }
             }
+            endpoint.0.close(0_u32.into(), b"test proxy finishing");
+            while let Some(completed) = connections.join_next().await {
+                match completed {
+                    Ok(Ok(())) => {}
+                    Ok(Err(error)) => lock(&task_log).failures.push(error),
+                    Err(error) => lock(&task_log).failures.push(error.into()),
+                }
+            }
         });
         Ok(Self {
             address,
             log,
             close,
             task,
+            finished: false,
         })
     }
 
@@ -232,6 +297,25 @@ impl MasqueProxy {
     /// Takes completed background failures without turning them into a quiet result.
     pub(crate) fn take_failures(&self) -> Vec<Box<dyn std::error::Error + Send + Sync>> {
         std::mem::take(&mut lock(&self.log).failures)
+    }
+
+    /// Stops accepting, joins every connection child and retains typed failures.
+    pub(crate) async fn finish(&mut self) -> TestResult<()> {
+        let mut result = Ok(());
+        if !self.finished {
+            self.close.send_modify(|state| state.shutdown = true);
+            match timeout(STREAM_SHUTDOWN, &mut self.task).await {
+                Ok(joined) => {
+                    self.finished = true;
+                    result = joined.map_err(Into::into);
+                }
+                Err(error) => result = Err(error.into()),
+            }
+        }
+        for error in self.take_failures() {
+            result = finish_with_cleanup(result, Err(error));
+        }
+        result
     }
 
     /// Closes every open outer QUIC connection.
@@ -270,6 +354,17 @@ async fn serve_connection(
         lock(&log).client_certificates += 1;
     }
 
+    if matches!(
+        mode,
+        ProxyMode::Sharing
+            | ProxyMode::SharingChallenge
+            | ProxyMode::SharingChallengeResetOnce
+            | ProxyMode::SharingResetFirst
+    ) {
+        let _connection = ProxyConnection(&quinn);
+        return sharing::serve_h3(&quinn, mode, log, close, initial).await;
+    }
+
     let serving = serve_connected(&quinn, mode, log);
     tokio::pin!(serving);
     // This guard drops before the pinned serving future: H3's own Drop sends
@@ -291,7 +386,11 @@ async fn serve_connection(
 async fn connection_closed(close: &mut watch::Receiver<CloseState>, initial: CloseState) {
     loop {
         let state = *close.borrow_and_update();
-        if initial.closed || state.closed || state.generation != initial.generation {
+        if initial.closed
+            || state.closed
+            || state.shutdown
+            || state.generation != initial.generation
+        {
             return;
         }
         if close.changed().await.is_err() {
@@ -453,7 +552,10 @@ fn encode_varint(value: u64, output: &mut Vec<u8>) {
     match value {
         0..=63 => output.push(value as u8),
         64..=16_383 => output.extend_from_slice(&((value as u16) | 0x4000).to_be_bytes()),
-        _ => output.extend_from_slice(&((value as u32) | 0x8000_0000).to_be_bytes()),
+        16_384..=1_073_741_823 => {
+            output.extend_from_slice(&((value as u32) | 0x8000_0000).to_be_bytes())
+        }
+        _ => output.extend_from_slice(&(value | 0xc000_0000_0000_0000).to_be_bytes()),
     }
 }
 
@@ -461,6 +563,14 @@ fn encode_varint(value: u64, output: &mut Vec<u8>) {
 fn relay_endpoint(
     identity: &TestIdentity,
     storage: Option<Arc<dyn rustls::server::StoresServerSessions>>,
+) -> TestResult<(SocketAddr, quinn::Endpoint)> {
+    relay_endpoint_with_stream_limit(identity, storage, None)
+}
+
+fn relay_endpoint_with_stream_limit(
+    identity: &TestIdentity,
+    storage: Option<Arc<dyn rustls::server::StoresServerSessions>>,
+    bidi_stream_limit: Option<quinn::VarInt>,
 ) -> TestResult<(SocketAddr, quinn::Endpoint)> {
     let certificate = CertificateDer::from(identity.leaf_der().to_vec());
     let private_key = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
@@ -473,15 +583,25 @@ fn relay_endpoint(
     if let Some(storage) = storage {
         tls.session_storage = storage;
     }
-    relay_endpoint_with(tls)
+    relay_endpoint_with_settings(tls, bidi_stream_limit)
 }
 
 /// A QUIC server endpoint for `tls` whose path MTU carries a full relayed
 /// Initial.
 fn relay_endpoint_with(tls: rustls::ServerConfig) -> TestResult<(SocketAddr, quinn::Endpoint)> {
+    relay_endpoint_with_settings(tls, None)
+}
+
+fn relay_endpoint_with_settings(
+    tls: rustls::ServerConfig,
+    bidi_stream_limit: Option<quinn::VarInt>,
+) -> TestResult<(SocketAddr, quinn::Endpoint)> {
     let crypto = quinn::crypto::rustls::QuicServerConfig::try_from(tls)?;
     let mut transport = quinn::TransportConfig::default();
     transport.initial_mtu(1_400).min_mtu(1_400);
+    if let Some(limit) = bidi_stream_limit {
+        transport.max_concurrent_bidi_streams(limit);
+    }
     let mut config = quinn::ServerConfig::with_crypto(Arc::new(crypto));
     config.transport_config(Arc::new(transport));
     let endpoint = quic_server(config, "127.0.0.1:0".parse()?)?;
@@ -529,6 +649,14 @@ pub(crate) enum StreamLeg {
 /// How [`MasqueStreamProxy`] answers each request.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum StreamMode {
+    /// Accept many independently owned H2 streams per outer connection.
+    Sharing,
+    /// Reset the first stream while retaining the outer connection.
+    SharingResetFirst,
+    /// Validate Basic credentials and relay many authenticated H2 streams.
+    SharingChallenge,
+    /// Reset only the first valid authenticated retry, then require a new challenge.
+    SharingChallengeResetOnce,
     /// Accept CONNECT-UDP and relay DATAGRAM capsules.
     Relay,
     /// Answer every request with this final status.
@@ -561,9 +689,12 @@ pub(crate) struct ObservedStreamRequest {
 struct StreamLog {
     connections: usize,
     completed_connections: usize,
+    sharing_connections: usize,
+    stream_ids: Vec<(usize, u64)>,
     requests: Vec<ObservedStreamRequest>,
     /// Type, Context ID, and value length of each client capsule.
     client_capsules: Vec<(u64, Option<u64>, usize)>,
+    authenticated_reset_sent: bool,
 }
 
 /// A running HTTP/1.1 or HTTP/2 CONNECT-UDP proxy; aborted on drop.
@@ -575,6 +706,9 @@ pub(crate) struct MasqueStreamProxy {
 }
 
 impl MasqueStreamProxy {
+    pub(crate) fn stream_ids(&self) -> Vec<(usize, u64)> {
+        lock(&self.log).stream_ids.clone()
+    }
     pub(crate) async fn spawn(
         identity: &TestIdentity,
         leg: StreamLeg,
@@ -915,6 +1049,15 @@ where
         Err(error) => return Err(error.into()),
     }
 
+    if matches!(
+        mode,
+        StreamMode::Sharing
+            | StreamMode::SharingChallenge
+            | StreamMode::SharingChallengeResetOnce
+            | StreamMode::SharingResetFirst
+    ) {
+        return sharing::serve_h2(stream, mode, log, stopped).await;
+    }
     // A peer may retire after ALPN selection, before any H2 preface. Once
     // its first byte arrives, the H2 parser owns all truncation failures.
     let mut builder = ::http2::server::Builder::new();

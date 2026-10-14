@@ -1355,7 +1355,7 @@ impl Drop for PendingRequest {
 
 mod body;
 mod capsule;
-mod connect_udp;
+pub(crate) mod connect_udp;
 mod connection;
 mod connector;
 mod datagram;

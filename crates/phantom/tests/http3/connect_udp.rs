@@ -47,6 +47,7 @@ use tls_support::{TestIdentity, TestResult, tls_settings};
 use tracing_support::OutcomeSubscriber;
 
 mod origin_tasks;
+mod sharing;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(10);
 const POLL_INTERVAL: Duration = Duration::from_millis(10);

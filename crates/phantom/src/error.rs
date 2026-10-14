@@ -1469,6 +1469,7 @@ impl Http3ProxyFailure {
                 RequestErrorKind::RuntimeUnavailable
             }
             Self::ConnectUdp(ConnectUdpErrorKind::Resolve) => RequestErrorKind::Resolve,
+            Self::ConnectUdp(ConnectUdpErrorKind::Capacity) => RequestErrorKind::Capacity,
             Self::ConnectUdp(
                 ConnectUdpErrorKind::InvalidRequest
                 | ConnectUdpErrorKind::Configuration

@@ -733,6 +733,23 @@ impl Http2Connection {
         matches!(sender.poll_ready(&mut context), Poll::Ready(Ok(())))
     }
 
+    /// A retained CONNECT-UDP connection may wait for peer stream capacity.
+    /// A GOAWAY or connection error still prevents another request.
+    pub(crate) fn can_wait_for_connect_udp(&self) -> bool {
+        if self.is_closed()
+            || self.early_data_alpn_changed()
+            || self.idle_time_left().is_some_and(|left| left.is_zero())
+        {
+            return false;
+        }
+        let Some(sender) = self.inner.sender() else {
+            return false;
+        };
+        let mut sender = sender.clone();
+        let mut context = Context::from_waker(Waker::noop());
+        !matches!(sender.poll_ready(&mut context), Poll::Ready(Err(_)))
+    }
+
     /// Returns how long this connection may go on reading nothing before
     /// [`Http2Settings::idle_timeout`] ends its reuse, or `None` when the
     /// profile sets no limit.

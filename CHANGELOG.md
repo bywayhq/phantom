@@ -13,6 +13,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Share CONNECT-UDP proxy connections across route clones for HTTP/2 and
+  HTTP/3. Migrate: clone one `ConnectUdpProxy` to share its pool; construct
+  another to keep connections separate. Independently constructed routes
+  now compare unequal. Use `with_tunnel_limits` to bound live and waiting
+  tunnels. For native `ConnectUdpRoute` literals, add `pool: None` for
+  dedicated connections or `pool: Some(&pool)` to share H2/H3 connections.
+  HTTP/1.1 Upgrade keeps a dedicated proxy connection.
+
 - Keep HTTPS record expiry anchored when passing answers to discovery.
   Migrate: compare `HttpsRecordLookup::answers()` and `negative_ttl()`
   instead of comparing lookups. For `DnsWireResult::Https`, call

@@ -1,4 +1,4 @@
-use std::{error::Error as StdError, fmt};
+use std::{error::Error as StdError, fmt, num::NonZeroUsize};
 
 use phantom_net::{
     proxy::{HttpBasicCredentials, HttpsProxyProtocol},
@@ -22,19 +22,23 @@ const TARGET_PORT: &str = "target_port";
 /// literal is expanded with its colons percent-encoded, as in
 /// `2001%3Adb8%3A%3A42`.
 ///
-/// Only exact HTTP/3 requests accept this route. Each connection opens its
-/// own outer connection to the proxy, authenticated with the client's proxy
-/// trust roots. The proxy leg is HTTP/3 by default; [`Self::with_http2_transport`]
+/// Only exact HTTP/3 requests accept this route. Clones share outer HTTP/2 or
+/// HTTP/3 connections authenticated with the client's proxy trust roots.
+/// Clones compare equal. Independent routes compare unequal. Changes to
+/// fields, credentials or transport start
+/// an independent pool and outer ticket cache. Inner origin tickets stay
+/// isolated. HTTP/1.1 Upgrade opens a dedicated outer connection. The proxy leg is HTTP/3 by default; [`Self::with_http2_transport`]
 /// and [`Self::with_http1_transport`] select HTTP/2 extended CONNECT or
 /// HTTP/1.1 Upgrade instead. The leg and any credentials are part of route
 /// and pool identity, and a leg never falls back to another.
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct ConnectUdpProxy {
     endpoint: Endpoint,
     template: Vec<TemplatePart>,
     headers: Vec<RequestHeader>,
     transport: ConnectUdpTransport,
     credentials: Option<HttpBasicCredentials>,
+    pool: phantom_net::proxy::ConnectUdpProxyPool,
 }
 
 #[derive(Debug)]
@@ -193,6 +197,7 @@ impl ConnectUdpProxy {
             headers: Vec::new(),
             transport: ConnectUdpTransport::Http3,
             credentials: None,
+            pool: phantom_net::proxy::ConnectUdpProxyPool::new(),
         };
         // A representative expansion proves the literal text forms a valid
         // origin-form target before any request uses it.
@@ -217,6 +222,7 @@ impl ConnectUdpProxy {
     /// credentials are configured are rejected.
     #[must_use]
     pub fn header(mut self, header: RequestHeader) -> Self {
+        self.reset_pool();
         self.headers.push(header);
         self
     }
@@ -225,15 +231,15 @@ impl ConnectUdpProxy {
     /// with `:protocol connect-udp`, UDP payloads in DATAGRAM capsules on the
     /// request stream (RFC 9297 section 3.5).
     ///
-    /// Each inner connection opens one dedicated TLS connection to the proxy
-    /// that must select `h2`, using the client profile's TLS offer and HTTP/2
-    /// settings. The HTTP/2 settings must carry an extended CONNECT
+    /// Route clones share TLS connections to the proxy that must select `h2`,
+    /// using the client profile's TLS offer and HTTP/2 settings. The HTTP/2 settings must carry an extended CONNECT
     /// pseudo-header order, and the proxy must send
     /// `SETTINGS_ENABLE_CONNECT_PROTOCOL = 1` (RFC 8441 section 3) before the
     /// request is sent. Any other ALPN selection or missing capability is a
     /// typed proxy error; nothing falls back to another leg.
     #[must_use]
     pub fn with_http2_transport(mut self) -> Self {
+        self.reset_pool();
         self.transport = ConnectUdpTransport::Http2;
         self
     }
@@ -247,6 +253,7 @@ impl ConnectUdpProxy {
     /// that must select `http/1.1` or omit ALPN; `h2` is a typed proxy error.
     #[must_use]
     pub fn with_http1_transport(mut self) -> Self {
+        self.reset_pool();
         self.transport = ConnectUdpTransport::Http1;
         self
     }
@@ -281,8 +288,43 @@ impl ConnectUdpProxy {
                 "HTTP Basic proxy credentials must fit the credential-field bound, use ASCII without control characters, and have a nonempty username without a colon",
             ).with_source(ProxyConfigSource::Credentials(Box::new(source)))
         })?;
+        self.reset_pool();
         self.credentials = Some(credentials);
         Ok(self)
+    }
+
+    /// Limits live tunnel setups and queued opens shared by route clones.
+    ///
+    /// H2 and H3 tunnels share outer sessions within these bounds. HTTP/1.1
+    /// Upgrade remains dedicated. Changing limits creates a fresh isolated pool.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConnectUdpProxyConfigErrorKind::InvalidLimits`] when a limit
+    /// exceeds Tokio's semaphore bound.
+    pub fn with_tunnel_limits(
+        mut self,
+        active: NonZeroUsize,
+        pending: NonZeroUsize,
+    ) -> Result<Self, ConnectUdpProxyConfigError> {
+        self.pool = phantom_net::proxy::ConnectUdpProxyPool::with_limits(active, pending).map_err(
+            |_| {
+                ConnectUdpProxyConfigError::new(
+                    ConnectUdpProxyConfigErrorKind::InvalidLimits,
+                    "CONNECT-UDP tunnel limits exceed the semaphore bound",
+                )
+            },
+        )?;
+        Ok(self)
+    }
+
+    fn reset_pool(&mut self) {
+        // Existing validated limits cannot exceed the pool's constructor bound.
+        self.pool = self.pool.fresh();
+    }
+
+    pub(crate) fn pool(&self) -> &phantom_net::proxy::ConnectUdpProxyPool {
+        &self.pool
     }
 
     /// Returns the TCP proxy-leg protocol, or `None` for an HTTP/3 leg.
@@ -536,6 +578,8 @@ pub enum ConnectUdpProxyConfigErrorKind {
     MissingVariable,
     /// The HTTP Basic username or password is invalid.
     InvalidCredentials,
+    /// An active or queued tunnel limit exceeds the semaphore bound.
+    InvalidLimits,
 }
 
 /// Error returned while constructing a CONNECT-UDP proxy route.
@@ -587,6 +631,19 @@ impl StdError for ConnectUdpProxyConfigError {
         self.source.as_ref().map(ProxyConfigSource::as_error)
     }
 }
+
+impl PartialEq for ConnectUdpProxy {
+    fn eq(&self, other: &Self) -> bool {
+        self.endpoint == other.endpoint
+            && self.template == other.template
+            && self.headers == other.headers
+            && self.transport == other.transport
+            && self.credentials == other.credentials
+            && self.pool.shares_scope(&other.pool)
+    }
+}
+
+impl Eq for ConnectUdpProxy {}
 
 #[cfg(test)]
 mod tests;

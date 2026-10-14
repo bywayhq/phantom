@@ -86,11 +86,30 @@ proxy itself, the proxy leg, uses HTTP/3 by default:
   `extended_connect_pseudo_header_order`, as `chrome::v154_http2` does.
 - The proxy's certificate is checked against the proxy roots. The server's
   certificate is checked against the server roots.
-- `with_basic_auth` sends credentials only after the proxy answers `407`.
-  Every tunnel starts without them.
+- `with_basic_auth` sends credentials after the proxy answers `407`.
+  Later tunnels on an authenticated shared connection use those credentials.
 
 This route carries only HTTP/3 requests that use `HttpProtocol::Http3`.
 HTTP/1.1, HTTP/2, and requests that let the server pick fail on it.
+
+Clones of one route share HTTP/2 or HTTP/3 proxy connections. Construct a
+separate `ConnectUdpProxy` when you want a separate pool. Changing headers,
+credentials or the proxy leg starts a fresh pool.
+
+Limit live tunnels and waiting opens with `with_tunnel_limits`:
+
+```rust
+use std::num::NonZeroUsize;
+use phantom::ConnectUdpProxy;
+
+fn bounded_proxy() -> Result<ConnectUdpProxy, Box<dyn std::error::Error>> {
+    let active = NonZeroUsize::new(16).expect("16 is nonzero");
+    let waiting = NonZeroUsize::new(32).expect("32 is nonzero");
+    Ok(ConnectUdpProxy::new(
+        "https://proxy.example/.well-known/masque/udp/{target_host}/{target_port}/",
+    )?.with_tunnel_limits(active, waiting)?)
+}
+```
 
 ## Reach a known alternative service
 
@@ -126,8 +145,8 @@ the original server.
 
 - A CONNECT-UDP route retries only failures to reach the proxy.
 - Its target port must be between 1 and 65535.
-- Each connection to a server opens its own connection to a CONNECT-UDP
-  proxy.
+- HTTP/1.1 Upgrade opens a dedicated proxy connection for each server
+  connection.
 
 ## Next
 

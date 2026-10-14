@@ -245,6 +245,10 @@ fn route_identity_includes_template_and_ordered_fields_without_debugging_values(
 
     assert_eq!(
         Route::connect_udp(base.clone()),
+        Route::connect_udp(base.clone())
+    );
+    assert_ne!(
+        Route::connect_udp(base.clone()),
         Route::connect_udp(ConnectUdpProxy::new(DEFAULT_TEMPLATE)?)
     );
     assert_ne!(
@@ -302,13 +306,23 @@ fn proxy_leg_is_part_of_route_identity_debug_and_tracing() -> Result<(), Box<dyn
 fn basic_credentials_are_validated_redacted_and_part_of_route_identity()
 -> Result<(), Box<dyn std::error::Error>> {
     let first = ConnectUdpProxy::new(DEFAULT_TEMPLATE)?.with_basic_auth("alice", "first secret")?;
-    let matching =
+    let matching = first.clone();
+    let independent =
         ConnectUdpProxy::new(DEFAULT_TEMPLATE)?.with_basic_auth("alice", "first secret")?;
     let other = ConnectUdpProxy::new(DEFAULT_TEMPLATE)?.with_basic_auth("alice", "other secret")?;
+    let unauthenticated = ConnectUdpProxy::new(DEFAULT_TEMPLATE)?;
+    let reconfigured = first.clone().with_basic_auth("alice", "first secret")?;
 
     assert_eq!(first, matching);
+    assert_ne!(first, independent);
+    assert_ne!(first, reconfigured);
     assert_ne!(first, other);
-    assert_ne!(first, ConnectUdpProxy::new(DEFAULT_TEMPLATE)?);
+    assert_ne!(first, unauthenticated);
+    assert!(first.credentials().is_some());
+    assert_eq!(first.credentials(), independent.credentials());
+    assert_eq!(first.credentials(), reconfigured.credentials());
+    assert_ne!(first.credentials(), other.credentials());
+    assert!(unauthenticated.credentials().is_none());
     let debug = format!("{first:?}");
     assert!(debug.contains("credentials_configured: true"));
     assert!(!debug.contains("alice"));

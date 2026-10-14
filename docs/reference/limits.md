@@ -358,7 +358,11 @@ The cap of 8 informational responses is Phantom's bound for every profile.
 | --- | --- |
 | Received datagram queue per stream | 256 payloads |
 | Queued outbound capsules (H2 and H1 legs) | 256 |
-| Outer path MTU (H3 leg) | 1,252 bytes |
+| Outer path MTU (shared H3 leg) | 1,259 bytes |
+| Outer path MTU (dedicated H3 leg) | 1,252 bytes |
+| Retained shared pool keys | 32 |
+| Active shared tunnels and setup waits | 100 by default; `with_tunnel_limits` |
+| Queued shared tunnel opens | 100 by default; `with_tunnel_limits` |
 | Context ID 0 payload | 65,527 bytes |
 | DATAGRAM capsule | 65,535 bytes |
 

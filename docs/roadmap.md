@@ -127,7 +127,8 @@ features or blockers for the Phase 2 API work.
   with no implementation or successful peer exchange.
 - SOCKS4/4a TCP tunnels with explicit local or proxy DNS, SOCKS5 tunnels and
   UDP ASSOCIATE, and exact HTTP/3 through CONNECT-UDP over
-  HTTP/3, HTTP/2, or HTTP/1.1 proxy legs
+  HTTP/3, HTTP/2, or HTTP/1.1 proxy legs. Route clones share bounded H2/H3
+  outer connections with independent inner tunnels
   ([SOCKS5 and CONNECT-UDP proxies](guides/socks-and-connect-udp.md)).
 - Parallel HTTP/1.1 connections per origin and bounded pools
   ([Connections and client state](guides/connections-and-state.md)).

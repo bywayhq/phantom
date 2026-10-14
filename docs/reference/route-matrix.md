@@ -162,12 +162,18 @@ Notes:
 - A caller field named `Host`, `Connection`, `Upgrade`, `Capsule-Protocol`,
   `Content-Length`, or `Transfer-Encoding` fails before I/O.
 - A second `407`, or a malformed or non-Basic challenge, fails. Without
-  credentials, a `407` is an ordinary rejection. Every tunnel starts without
-  credentials; the client does not remember a CONNECT-UDP proxy's challenge.
+  credentials, a `407` is an ordinary rejection. A new outer starts without
+  credentials. A validated challenge permits one retry on a fresh outer.
+  Later streams on an accepted authenticated outer use its configured
+  credentials. An anonymous 2xx or stream reset does not accept credentials.
 - Only failures to resolve or connect to the proxy are retried, each on a
   fresh proxy connection with the same route and leg. Every other failure is
   final.
-- Each origin connection opens its own connection to the proxy.
+- Route clones share bounded HTTP/2 and HTTP/3 outer connections. Separate
+  routes and changes to credentials, fields, transport or limits keep
+  separate pools. HTTP/1.1 Upgrade keeps dedicated outer connections.
+- Each CONNECT-UDP stream owns one inner QUIC connection. Stream cancellation
+  and failure leave healthy siblings usable. GOAWAY prevents new reuse.
 - The route never learns or evicts Alt-Svc state.
 
 ## Next

@@ -14,7 +14,8 @@ use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tracing::Span;
 
 use super::{
-    HttpBasicCredentials, HttpConnectError, HttpsProxyConnector, HttpsProxyProtocol, TunnelStream,
+    Acquisition, ConnectUdpProxyPool, HttpBasicCredentials, HttpConnectError, HttpsProxyConnector,
+    HttpsProxyProtocol, OuterSession, PoolKey, TunnelStream,
     authentication::{has_valid_basic_challenge, validate_basic_proxy_challenge},
     http_connect::{
         MAX_CONNECT_HEADERS, MAX_INFORMATIONAL_RESPONSES, append_field, extend_bounded,
@@ -23,7 +24,11 @@ use super::{
     https_connect::HttpsProxyTunnel,
 };
 use crate::{
-    http2::{Http2ExtendedConnectOutcome, Http2TlsError, prepare_connect_udp},
+    http2::{
+        Http2ConnectStream, Http2Connection, Http2ExtendedConnectOutcome, Http2TlsError,
+        prepare_connect_udp,
+    },
+    http3::{ConnectUdpError, ConnectUdpErrorKind},
     request::{OriginForm, RequestHeader},
 };
 
@@ -260,6 +265,169 @@ impl HttpsProxyConnector {
         }
     }
 
+    pub(crate) async fn connect_udp_pooled_tunnel(
+        &self,
+        pool: &ConnectUdpProxyPool,
+        key: PoolKey,
+        host: &str,
+        port: u16,
+        request: PreparedConnectUdp,
+        span: &Span,
+    ) -> Result<HttpsProxyTunnel, ConnectUdpError> {
+        let PreparedLeg::Http2(anonymous) = request.anonymous else {
+            return Err(ConnectUdpError::new(
+                ConnectUdpErrorKind::Configuration,
+                "CONNECT-UDP pooling requires an HTTP/2 or HTTP/3 leg",
+            ));
+        };
+        let authenticated = match request.authenticated {
+            Some(PreparedLeg::Http2(request)) => Some(request),
+            None => None,
+            Some(_) => {
+                return Err(ConnectUdpError::new(
+                    ConnectUdpErrorKind::Configuration,
+                    "CONNECT-UDP authenticated leg differs from its anonymous leg",
+                ));
+            }
+        };
+        let mut acquisition = pool.acquire(key).await?;
+        let mut challenged = false;
+        loop {
+            match acquisition {
+                Acquisition::Reuse {
+                    session: OuterSession::Http2(connection),
+                    authenticated: uses_credentials,
+                    lease,
+                } => {
+                    // A validated challenge permits one fresh authenticated
+                    // setup, never another anonymous request on a raced session.
+                    if challenged && !uses_credentials {
+                        acquisition = lease.retry().await?;
+                        continue;
+                    }
+                    let request = if uses_credentials {
+                        authenticated
+                            .clone()
+                            .ok_or_else(missing_pooled_credentials)?
+                    } else {
+                        anonymous.clone()
+                    };
+                    record_attempts(span, challenged);
+                    match http2_exchange(
+                        &connection,
+                        request,
+                        !uses_credentials && authenticated.is_some(),
+                        span,
+                    )
+                    .await
+                    .map_err(|error| match error {
+                        HttpConnectError::Rejected { status: 407 } if uses_credentials => {
+                            ConnectUdpError::authentication_rejected()
+                        }
+                        error => ConnectUdpError::proxy_leg(error),
+                    })? {
+                        Http2Outcome::Tunnel(mut stream) => {
+                            stream.retain_until_stream_complete(lease);
+                            return Ok(HttpsProxyTunnel::http2(stream));
+                        }
+                        Http2Outcome::Retry => {
+                            challenged = true;
+                            acquisition = lease.retry().await?;
+                        }
+                    }
+                }
+                Acquisition::Setup(setup) => {
+                    let connector = setup.http2_connector(self)?;
+                    let mut established = None;
+                    let result = async {
+                        let mut connection = connector
+                            .connect_http2_extended_proxy(host, port, host)
+                            .await
+                            .map_err(ConnectUdpError::proxy_leg)?;
+                        established = Some(connection.clone());
+                        let request = if challenged {
+                            authenticated
+                                .clone()
+                                .ok_or_else(missing_pooled_credentials)?
+                        } else {
+                            anonymous.clone()
+                        };
+                        record_attempts(span, challenged);
+                        let first = http2_exchange(
+                            &connection,
+                            request,
+                            !challenged && authenticated.is_some(),
+                            span,
+                        )
+                        .await
+                        .map_err(ConnectUdpError::proxy_leg)?;
+                        let (stream, uses_credentials) = match first {
+                            Http2Outcome::Tunnel(stream) => (stream, challenged),
+                            Http2Outcome::Retry => {
+                                let request = authenticated
+                                    .clone()
+                                    .ok_or_else(missing_pooled_credentials)?;
+                                drop(connection);
+                                established = None;
+                                connection = connector
+                                    .connect_http2_extended_proxy(host, port, host)
+                                    .await
+                                    .map_err(ConnectUdpError::proxy_leg)?;
+                                established = Some(connection.clone());
+                                record_attempts(span, true);
+                                match http2_exchange(&connection, request, false, span).await {
+                                    Ok(Http2Outcome::Tunnel(stream)) => (stream, true),
+                                    Ok(Http2Outcome::Retry) => {
+                                        return Err(missing_pooled_credentials());
+                                    }
+                                    Err(HttpConnectError::Rejected { status: 407 }) => {
+                                        return Err(ConnectUdpError::authentication_rejected());
+                                    }
+                                    Err(error) => return Err(ConnectUdpError::proxy_leg(error)),
+                                }
+                            }
+                        };
+                        Ok((stream, connection, uses_credentials))
+                    }
+                    .await;
+                    match result {
+                        Ok((mut stream, connection, uses_credentials)) => {
+                            stream.retain_until_stream_complete(
+                                setup.publish(OuterSession::Http2(connection), uses_credentials)?,
+                            );
+                            return Ok(HttpsProxyTunnel::http2(stream));
+                        }
+                        Err(error) => {
+                            let error = if challenged
+                                && error.status() == Some(StatusCode::PROXY_AUTHENTICATION_REQUIRED)
+                            {
+                                ConnectUdpError::authentication_rejected()
+                            } else {
+                                error
+                            };
+                            if let Some(connection) = established.filter(|connection| {
+                                error.is_tunnel_reset() && connection.can_wait_for_connect_udp()
+                            }) {
+                                // A reset ends this tunnel, not its healthy outer session.
+                                // No successful response has established credential reuse.
+                                drop(setup.publish(OuterSession::Http2(connection), false)?);
+                            } else {
+                                setup.fail(error.kind());
+                            }
+                            return Err(error);
+                        }
+                    }
+                }
+                Acquisition::Reuse { .. } => {
+                    return Err(ConnectUdpError::new(
+                        ConnectUdpErrorKind::Protocol,
+                        "CONNECT-UDP pool protocol mismatch",
+                    ));
+                }
+            }
+        }
+    }
+
     async fn connect_udp_leg(
         &self,
         proxy_host: &str,
@@ -289,35 +457,57 @@ impl HttpsProxyConnector {
                 let connection = self
                     .connect_http2_extended_proxy(proxy_host, proxy_port, proxy_server_name)
                     .await?;
-                let outcome = connection
-                    .send_connect_udp(request)
-                    .await
-                    .map_err(|error| {
-                        HttpConnectError::ProxyHttp2(Box::new(Http2TlsError::Http2(error)))
-                    })?;
-                match outcome {
-                    Http2ExtendedConnectOutcome::Accepted { response, stream } => {
-                        span.record("status", response.status().as_u16());
-                        if !starts_capsule_protocol(response.status(), response.headers()) {
-                            return Err(HttpConnectError::InvalidResponse);
-                        }
-                        Ok(LegOutcome::Tunnel(HttpsProxyTunnel::http2(
-                            stream.into_connect_stream(),
-                        )))
+                match http2_exchange(&connection, request, inspect_challenge, span).await? {
+                    Http2Outcome::Tunnel(stream) => {
+                        Ok(LegOutcome::Tunnel(HttpsProxyTunnel::http2(stream)))
                     }
-                    Http2ExtendedConnectOutcome::Rejected(response) => {
-                        let status = response.status().as_u16();
-                        span.record("status", status);
-                        if inspect_challenge && status == 407 {
-                            validate_basic_proxy_challenge(response.headers())?;
-                            return Ok(LegOutcome::Retry);
-                        }
-                        Err(HttpConnectError::Rejected { status })
-                    }
+                    Http2Outcome::Retry => Ok(LegOutcome::Retry),
                 }
             }
         }
     }
+}
+
+enum Http2Outcome {
+    Tunnel(Http2ConnectStream),
+    Retry,
+}
+
+async fn http2_exchange(
+    connection: &Http2Connection,
+    request: http::Request<()>,
+    inspect_challenge: bool,
+    span: &Span,
+) -> Result<Http2Outcome, HttpConnectError> {
+    let outcome = connection
+        .send_connect_udp(request)
+        .await
+        .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(Http2TlsError::Http2(error))))?;
+    match outcome {
+        Http2ExtendedConnectOutcome::Accepted { response, stream } => {
+            span.record("status", response.status().as_u16());
+            if !starts_capsule_protocol(response.status(), response.headers()) {
+                return Err(HttpConnectError::InvalidResponse);
+            }
+            Ok(Http2Outcome::Tunnel(stream.into_connect_stream()))
+        }
+        Http2ExtendedConnectOutcome::Rejected(response) => {
+            let status = response.status().as_u16();
+            span.record("status", status);
+            if inspect_challenge && status == 407 {
+                validate_basic_proxy_challenge(response.headers())?;
+                return Ok(Http2Outcome::Retry);
+            }
+            Err(HttpConnectError::Rejected { status })
+        }
+    }
+}
+
+fn missing_pooled_credentials() -> ConnectUdpError {
+    ConnectUdpError::new(
+        ConnectUdpErrorKind::Authentication,
+        "CONNECT-UDP shared authentication requires validated credentials",
+    )
 }
 
 /// Records whether the one challenge-driven authenticated retry happened.

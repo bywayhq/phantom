@@ -1,6 +1,7 @@
 //! RFC 9298 CONNECT-UDP tunnels through an HTTP/3, HTTP/2, or HTTP/1.1 proxy.
 //!
-//! One outer proxy connection carries exactly one CONNECT-UDP request. Over
+//! Each CONNECT-UDP stream owns one logical UDP peer. An optional route pool
+//! shares an outer connection across these independently owned streams. Over
 //! HTTP/3, UDP payloads travel in HTTP Datagrams (QUIC DATAGRAM frames,
 //! RFC 9297 section 2.1). Over HTTP/2 and HTTP/1.1 they travel in DATAGRAM
 //! capsules on the request's byte stream (RFC 9297 sections 3.2 and 3.5).
@@ -40,7 +41,8 @@ use super::{
     varint,
 };
 use crate::{
-    http2::{Http2Error, Http2TlsError},
+    http2::{Http2Error, Http2ProtocolErrorKind, Http2TlsError},
+    proxy::TunnelLease,
     proxy::{HttpConnectError, HttpConnectErrorKind, validate_basic_proxy_challenge},
 };
 
@@ -51,18 +53,24 @@ const INNER_INITIAL_LEN: usize = 1200;
 /// 17.3.1), the longest packet number (4), the AEAD tag (16), and the DATAGRAM
 /// frame type plus length bound (9).
 const OUTER_DATAGRAM_OVERHEAD: usize = 1 + 20 + 4 + 16 + 9;
-/// HTTP/3 Datagram prefix on the outer connection's first request stream:
-/// Quarter Stream ID zero (1) and Context ID zero (1).
-const FIRST_STREAM_DATAGRAM_PREFIX: usize = 1 + 1;
+/// Dedicated connections open stream zero; both IDs occupy one byte.
+const FIRST_STREAM_DATAGRAM_PREFIX: usize = 2;
+/// Shared connections may open any client bidirectional stream ID.
+const MAX_STREAM_DATAGRAM_PREFIX: usize = 8 + 1;
 /// UDP payload size the outer connection assumes from its first packet and
 /// never probes below, so a full inner Initial always fits one HTTP Datagram.
 pub(super) const OUTER_PATH_MTU: u16 =
     (INNER_INITIAL_LEN + FIRST_STREAM_DATAGRAM_PREFIX + OUTER_DATAGRAM_OVERHEAD) as u16;
+/// Shared-session MTU includes the longest Quarter Stream ID.
+pub(crate) const SHARED_OUTER_PATH_MTU: u16 =
+    (INNER_INITIAL_LEN + MAX_STREAM_DATAGRAM_PREFIX + OUTER_DATAGRAM_OVERHEAD) as u16;
 /// Smallest local `max_datagram_frame_size` that accepts a full inner Initial
 /// from the proxy: frame type (1), a two-byte length, and the datagram data
 /// (RFC 9221 section 3 counts the whole frame).
 pub(super) const MIN_OUTER_DATAGRAM_FRAME_SIZE: u64 =
     (1 + 2 + FIRST_STREAM_DATAGRAM_PREFIX + INNER_INITIAL_LEN) as u64;
+const MIN_SHARED_OUTER_DATAGRAM_FRAME_SIZE: u64 =
+    (1 + 2 + MAX_STREAM_DATAGRAM_PREFIX + INNER_INITIAL_LEN) as u64;
 /// Documentation-range address presented to the inner QUIC connection.
 const LOGICAL_PEER_IP: Ipv4Addr = Ipv4Addr::new(192, 0, 2, 1);
 const MAX_PACKETS_PER_POLL: usize = 32;
@@ -86,6 +94,8 @@ pub enum ConnectUdpErrorKind {
     Configuration,
     /// No current Tokio runtime with network I/O enabled was available.
     RuntimeUnavailable,
+    /// The outer-session key, active tunnel, or pending-open limit was reached.
+    Capacity,
     /// Resolving the proxy host failed.
     Resolve,
     /// The outer QUIC connection, or the TCP connection of an HTTP/1.1 or
@@ -119,6 +129,7 @@ impl ConnectUdpErrorKind {
             Self::InvalidRequest => "invalid_request",
             Self::Configuration => "configuration",
             Self::RuntimeUnavailable => "runtime_unavailable",
+            Self::Capacity => "capacity",
             Self::Resolve => "resolve",
             Self::Connect => "connect",
             Self::Handshake => "handshake",
@@ -146,7 +157,24 @@ pub struct ConnectUdpError {
 }
 
 impl ConnectUdpError {
-    pub(super) const fn new(kind: ConnectUdpErrorKind, message: &'static str) -> Self {
+    pub(crate) fn is_tunnel_reset(&self) -> bool {
+        let Some(source) = self.source.as_deref() else {
+            return false;
+        };
+        if let Some(HttpConnectError::ProxyHttp2(error)) = source.downcast_ref::<HttpConnectError>()
+        {
+            return matches!(error.as_ref(),
+                Http2TlsError::Http2(Http2Error::Protocol(protocol))
+                    if protocol.kind() == Http2ProtocolErrorKind::StreamReset && protocol.is_remote());
+        }
+        source
+            .downcast_ref::<Http3Error>()
+            .and_then(StdError::source)
+            .and_then(|source| source.downcast_ref::<h3::error::StreamError>())
+            .is_some_and(|error| matches!(error, h3::error::StreamError::RemoteTerminate { .. }))
+    }
+
+    pub(crate) const fn new(kind: ConnectUdpErrorKind, message: &'static str) -> Self {
         Self {
             kind,
             status: None,
@@ -178,7 +206,7 @@ impl ConnectUdpError {
     }
 
     /// The authenticated retry was answered with 407.
-    pub(super) const fn authentication_rejected() -> Self {
+    pub(crate) const fn authentication_rejected() -> Self {
         Self {
             kind: ConnectUdpErrorKind::Authentication,
             status: Some(StatusCode::PROXY_AUTHENTICATION_REQUIRED),
@@ -197,7 +225,7 @@ impl ConnectUdpError {
     }
 
     /// Maps a failure while opening an HTTP/1.1 or HTTP/2 proxy leg.
-    pub(super) fn proxy_leg(error: HttpConnectError) -> Self {
+    pub(crate) fn proxy_leg(error: HttpConnectError) -> Self {
         let (kind, message) = match &error {
             HttpConnectError::Rejected { status } => match StatusCode::from_u16(*status) {
                 Ok(status) => return Self::rejected(status),
@@ -276,7 +304,7 @@ impl ConnectUdpError {
     }
 
     /// Maps a failure to establish or use the outer HTTP/3 connection.
-    pub(super) fn outer(error: Http3Error) -> Self {
+    pub(crate) fn outer(error: Http3Error) -> Self {
         let (kind, message) = match error.kind() {
             Http3ErrorKind::Endpoint | Http3ErrorKind::Connect | Http3ErrorKind::Connection => (
                 ConnectUdpErrorKind::Connect,
@@ -351,6 +379,24 @@ pub(super) struct OuterProfile {
 /// Rejects an outer profile that cannot carry a full inner Initial in one
 /// HTTP Datagram in either direction. Capsule fallback is never used.
 pub(super) fn validate_outer_profile(profile: &OuterProfile) -> Result<(), ConnectUdpError> {
+    validate_profile_bounds(profile, false)
+}
+
+pub(super) fn validate_shared_outer_profile(profile: &OuterProfile) -> Result<(), ConnectUdpError> {
+    validate_profile_bounds(profile, true)
+}
+
+fn validate_profile_bounds(profile: &OuterProfile, shared: bool) -> Result<(), ConnectUdpError> {
+    let frame_size = if shared {
+        MIN_SHARED_OUTER_DATAGRAM_FRAME_SIZE
+    } else {
+        MIN_OUTER_DATAGRAM_FRAME_SIZE
+    };
+    let path_mtu = if shared {
+        SHARED_OUTER_PATH_MTU
+    } else {
+        OUTER_PATH_MTU
+    };
     if !profile.receives_http_datagrams {
         return Err(ConnectUdpError::new(
             ConnectUdpErrorKind::Configuration,
@@ -359,17 +405,25 @@ pub(super) fn validate_outer_profile(profile: &OuterProfile) -> Result<(), Conne
     }
     if profile
         .max_datagram_frame_size
-        .is_none_or(|size| size < MIN_OUTER_DATAGRAM_FRAME_SIZE)
+        .is_none_or(|size| size < frame_size)
     {
         return Err(ConnectUdpError::new(
             ConnectUdpErrorKind::Configuration,
-            "CONNECT-UDP requires an outer max_datagram_frame_size of at least 1205 bytes",
+            if shared {
+                "shared CONNECT-UDP requires an outer max_datagram_frame_size of at least 1212 bytes"
+            } else {
+                "CONNECT-UDP requires an outer max_datagram_frame_size of at least 1205 bytes"
+            },
         ));
     }
-    if profile.max_udp_payload_size < u64::from(OUTER_PATH_MTU) {
+    if profile.max_udp_payload_size < u64::from(path_mtu) {
         return Err(ConnectUdpError::new(
             ConnectUdpErrorKind::Configuration,
-            "CONNECT-UDP requires an outer max_udp_payload_size of at least 1252 bytes",
+            if shared {
+                "shared CONNECT-UDP requires an outer max_udp_payload_size of at least 1259 bytes"
+            } else {
+                "CONNECT-UDP requires an outer max_udp_payload_size of at least 1252 bytes"
+            },
         ));
     }
     Ok(())
@@ -419,15 +473,15 @@ pub(super) fn record_setup_outcome(span: &Span, result: &Result<(), &ConnectUdpE
 }
 
 /// Records whether the one challenge-driven authenticated retry happened.
-pub(super) fn record_attempts(span: &Span, retried: bool) {
+pub(crate) fn record_attempts(span: &Span, retried: bool) {
     span.record("authentication_retry", retried);
     span.record("proxy_attempts", if retried { 2_u64 } else { 1_u64 });
 }
 
-/// Result of one CONNECT-UDP request on a fresh proxy connection.
-pub(super) enum OpenOutcome {
+/// Result of one CONNECT-UDP request stream.
+pub(crate) enum OpenOutcome {
     /// The tunnel is open; the socket presents one fixed logical peer.
-    Tunnel(Arc<dyn AsyncUdpSocket>, SocketAddr),
+    Tunnel(Arc<ConnectUdpSocket>, SocketAddr),
     /// The proxy sent 407 with a valid Basic challenge; retry once with
     /// credentials on another fresh proxy connection.
     Retry,
@@ -440,7 +494,7 @@ pub(super) enum OpenOutcome {
 /// datagram is sent before the 2xx response (optimistic sending, permitted by
 /// RFC 9298 section 5, is not used). With `inspect_challenge`, a 407 carrying
 /// a valid Basic challenge yields [`OpenOutcome::Retry`].
-pub(super) async fn open(
+pub(crate) async fn open(
     outer: Http3Connection,
     request: Request<()>,
     span: Span,
@@ -708,13 +762,14 @@ impl Drop for TunnelStream {
 /// HTTP/3 leg or as a DATAGRAM capsule on an HTTP/2 or HTTP/1.1 leg. Like
 /// `quinn-udp`, only `WouldBlock` would reach Quinn from a send; undeliverable
 /// or oversized datagrams are dropped and counted, and QUIC recovers the loss.
-pub(super) struct ConnectUdpSocket {
+pub(crate) struct ConnectUdpSocket {
     transport: Transport,
     logical_peer: SocketAddr,
     logical_local: SocketAddr,
     dropped_oversized: AtomicU64,
     dropped_send: AtomicU64,
     span: Span,
+    lease: Mutex<Option<TunnelLease>>,
 }
 
 enum Transport {
@@ -769,7 +824,12 @@ impl ConnectUdpSocket {
             dropped_oversized: AtomicU64::new(0),
             dropped_send: AtomicU64::new(0),
             span,
+            lease: Mutex::new(None),
         }
+    }
+
+    pub(crate) fn retain_lease(&self, lease: TunnelLease) {
+        *lock(&self.lease) = Some(lease);
     }
 
     fn send_datagram(&self, transport: &DatagramTransport, payload: &[u8]) {
@@ -1055,6 +1115,29 @@ mod tests {
         validate_outer_profile,
     };
 
+    #[test]
+    fn only_remote_stream_resets_can_preserve_an_established_outer() {
+        use h3::error::{Code, StreamError};
+
+        for code in [Code::H3_REQUEST_CANCELLED, Code::H3_REQUEST_REJECTED] {
+            let error = super::ConnectUdpError::outer(super::Http3Error::stream(
+                StreamError::RemoteTerminate { code },
+            ));
+            assert!(error.is_tunnel_reset());
+        }
+        let closing =
+            super::ConnectUdpError::outer(super::Http3Error::stream(StreamError::RemoteClosing));
+        assert!(!closing.is_tunnel_reset());
+        for error in [
+            super::ConnectUdpError::authentication_rejected(),
+            super::ConnectUdpError::rejected(http::StatusCode::BAD_GATEWAY),
+            super::ConnectUdpError::new(ConnectUdpErrorKind::Connect, "connection failed"),
+            super::ConnectUdpError::new(ConnectUdpErrorKind::Protocol, "malformed response"),
+        ] {
+            assert!(!error.is_tunnel_reset());
+        }
+    }
+
     fn chrome_like_outer() -> OuterProfile {
         OuterProfile {
             receives_http_datagrams: true,
@@ -1101,4 +1184,54 @@ mod tests {
         smallest.max_udp_payload_size = u64::from(OUTER_PATH_MTU);
         assert!(validate_outer_profile(&smallest).is_ok());
     }
+
+    #[test]
+    fn shared_profile_bounds_reserve_the_longest_stream_id_without_changing_dedicated_bounds()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut profile = chrome_like_outer();
+        profile.max_datagram_frame_size = Some(MIN_OUTER_DATAGRAM_FRAME_SIZE);
+        profile.max_udp_payload_size = u64::from(OUTER_PATH_MTU);
+        assert!(validate_outer_profile(&profile).is_ok());
+        assert_eq!(
+            super::validate_shared_outer_profile(&profile)
+                .err()
+                .map(|e| e.kind()),
+            Some(ConnectUdpErrorKind::Configuration)
+        );
+        profile.max_datagram_frame_size = Some(super::MIN_SHARED_OUTER_DATAGRAM_FRAME_SIZE);
+        profile.max_udp_payload_size = u64::from(super::SHARED_OUTER_PATH_MTU);
+        assert!(super::validate_shared_outer_profile(&profile).is_ok());
+        assert_eq!(super::SHARED_OUTER_PATH_MTU, 1259);
+        assert_eq!(super::MIN_SHARED_OUTER_DATAGRAM_FRAME_SIZE, 1212);
+        for id in [
+            0,
+            63,
+            64,
+            16383,
+            16384,
+            (1 << 30) - 1,
+            1 << 30,
+            (1 << 60) - 1,
+        ] {
+            let mut prefix = Vec::new();
+            assert!(super::varint::encode(id, &mut prefix));
+            prefix.push(0);
+            assert!(prefix.len() <= super::MAX_STREAM_DATAGRAM_PREFIX);
+            let (decoded, width) = super::varint::decode(&prefix).ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "encoded Quarter Stream ID could not be decoded",
+                )
+            })?;
+            assert_eq!(decoded, id);
+            assert_eq!(super::varint::decode(&prefix[width..]), Some((0, 1)));
+        }
+        Ok(())
+    }
 }
+
+#[cfg(test)]
+mod shared_peer_tests;
+
+#[cfg(test)]
+mod h2_window_peer_tests;
