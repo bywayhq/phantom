@@ -1,10 +1,16 @@
 pub mod phantom
+pub use phantom::AddressAnswer
+pub use phantom::AddressNegative
+pub use phantom::AddressNegativeKind
 pub use phantom::AddressResolver
 pub use phantom::Bytes
 pub use phantom::ClientCertificate
 pub use phantom::ClientCertificateError
 pub use phantom::ClientCertificateErrorKind
+pub use phantom::DigestAuthError
+pub use phantom::DigestPolicy
 pub use phantom::HttpConnectHeader
+pub use phantom::HttpDigestCredentials
 pub use phantom::InvalidAuthorization
 pub use phantom::InvalidAuthorizationKind
 pub use phantom::Method
@@ -36,6 +42,68 @@ pub use phantom::dns::HttpsRecordResolver
 pub use phantom::dns::ServiceRecord
 pub use phantom::dns::SvcParam
 pub use phantom::dns::TargetName
+pub enum phantom::dns::DohAddressFamilies
+pub phantom::dns::DohAddressFamilies::DualIpv6First
+pub phantom::dns::DohAddressFamilies::Ipv4Only
+pub enum phantom::dns::DohBuildErrorKind
+pub phantom::dns::DohBuildErrorKind::Client
+pub phantom::dns::DohBuildErrorKind::InvalidBootstrap
+pub phantom::dns::DohBuildErrorKind::InvalidEndpoint
+pub phantom::dns::DohBuildErrorKind::InvalidLimits
+pub phantom::dns::DohBuildErrorKind::MissingHttp2
+pub enum phantom::dns::DohMethod
+pub phantom::dns::DohMethod::Get
+pub phantom::dns::DohMethod::Post
+pub struct phantom::dns::DnsOverHttps
+impl phantom::dns::DnsOverHttps
+pub fn phantom::dns::DnsOverHttps::address_resolver(&self) -> phantom_net::host_resolver::AddressResolver
+pub fn phantom::dns::DnsOverHttps::builder(phantom_profile::client::ClientProfile, phantom::dns::DohConfiguration) -> core::result::Result<phantom::dns::DnsOverHttpsBuilder, phantom::dns::DohBuildError>
+pub fn phantom::dns::DnsOverHttps::https_record_resolver(&self) -> phantom_net::dns::HttpsRecordResolver
+impl core::fmt::Debug for phantom::dns::DnsOverHttps
+pub fn phantom::dns::DnsOverHttps::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::dns::DnsOverHttpsBuilder
+impl phantom::dns::DnsOverHttpsBuilder
+pub fn phantom::dns::DnsOverHttpsBuilder::add_root_certificate_der(self, impl core::convert::Into<alloc::boxed::Box<[u8]>>) -> Self
+pub fn phantom::dns::DnsOverHttpsBuilder::build(self) -> core::result::Result<phantom::dns::DnsOverHttps, phantom::dns::DohBuildError>
+impl core::fmt::Debug for phantom::dns::DnsOverHttpsBuilder
+pub fn phantom::dns::DnsOverHttpsBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::dns::DohBuildError
+impl phantom::dns::DohBuildError
+pub const fn phantom::dns::DohBuildError::kind(&self) -> phantom::dns::DohBuildErrorKind
+impl core::error::Error for phantom::dns::DohBuildError
+pub fn phantom::dns::DohBuildError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom::dns::DohBuildError
+pub fn phantom::dns::DohBuildError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::dns::DohConfiguration
+impl phantom::dns::DohConfiguration
+pub const fn phantom::dns::DohConfiguration::chromium154_wire(self) -> Self
+pub fn phantom::dns::DohConfiguration::new(impl core::convert::Into<alloc::string::String>, impl core::iter::traits::collect::IntoIterator<Item = core::net::ip_addr::IpAddr>, phantom::dns::DohMethod, phantom::dns::DohAddressFamilies, core::time::Duration, core::num::nonzero::NonZeroUsize) -> Self
+pub const fn phantom::dns::DohConfiguration::padding_block(self, core::option::Option<core::num::nonzero::NonZeroU16>) -> Self
+pub const fn phantom::dns::DohConfiguration::query_id(self, u16) -> Self
+impl core::fmt::Debug for phantom::dns::DohConfiguration
+pub fn phantom::dns::DohConfiguration::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub mod phantom::fingerprint
+#[non_exhaustive] pub enum phantom::fingerprint::FingerprintImportErrorKind
+pub phantom::fingerprint::FingerprintImportErrorKind::DuplicateField
+pub phantom::fingerprint::FingerprintImportErrorKind::InvalidSettings
+pub phantom::fingerprint::FingerprintImportErrorKind::InvalidValue
+pub phantom::fingerprint::FingerprintImportErrorKind::LossyDescription
+pub phantom::fingerprint::FingerprintImportErrorKind::MalformedJson
+pub phantom::fingerprint::FingerprintImportErrorKind::MissingField
+pub phantom::fingerprint::FingerprintImportErrorKind::TooLarge
+pub phantom::fingerprint::FingerprintImportErrorKind::UnsupportedFormat
+pub phantom::fingerprint::FingerprintImportErrorKind::UnsupportedSetting
+pub struct phantom::fingerprint::FingerprintImportError
+impl phantom::fingerprint::FingerprintImportError
+pub fn phantom::fingerprint::FingerprintImportError::field(&self) -> &str
+pub const fn phantom::fingerprint::FingerprintImportError::kind(&self) -> phantom::fingerprint::FingerprintImportErrorKind
+impl core::error::Error for phantom::fingerprint::FingerprintImportError
+pub fn phantom::fingerprint::FingerprintImportError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for phantom::fingerprint::FingerprintImportError
+pub fn phantom::fingerprint::FingerprintImportError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for phantom::fingerprint::FingerprintImportError
+pub fn phantom::fingerprint::FingerprintImportError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn phantom::fingerprint::import_profile_json(&[u8]) -> core::result::Result<phantom_profile::client::ClientProfile, phantom::fingerprint::FingerprintImportError>
 pub mod phantom::profile
 pub use phantom::profile::AlpsSettings
 pub use phantom::profile::CertificateCompression
@@ -274,12 +342,23 @@ pub phantom::ResponseReadErrorKind::Utf8
 pub phantom::Route::ConnectUdp(phantom::ConnectUdpProxy)
 pub phantom::Route::Direct
 pub phantom::Route::HttpProxy(phantom::HttpProxy)
+pub phantom::Route::Socks4(phantom::Socks4Proxy)
 pub phantom::Route::Socks5(phantom::Socks5Proxy)
 impl phantom::Route
 pub fn phantom::Route::connect_udp(phantom::ConnectUdpProxy) -> Self
 pub const fn phantom::Route::direct() -> Self
 pub fn phantom::Route::http_proxy(phantom::HttpProxy) -> Self
+pub fn phantom::Route::socks4(phantom::Socks4Proxy) -> Self
 pub fn phantom::Route::socks5(phantom::Socks5Proxy) -> Self
+#[non_exhaustive] pub enum phantom::Socks4DnsMode
+pub phantom::Socks4DnsMode::Local
+pub phantom::Socks4DnsMode::Remote
+#[non_exhaustive] pub enum phantom::Socks4ProxyConfigErrorKind
+pub phantom::Socks4ProxyConfigErrorKind::InvalidAuthority
+pub phantom::Socks4ProxyConfigErrorKind::InvalidUri
+pub phantom::Socks4ProxyConfigErrorKind::InvalidUserId
+pub phantom::Socks4ProxyConfigErrorKind::UnexpectedPath
+pub phantom::Socks4ProxyConfigErrorKind::UnsupportedScheme
 #[non_exhaustive] pub enum phantom::Socks5DnsMode
 pub phantom::Socks5DnsMode::Local
 pub phantom::Socks5DnsMode::Remote
@@ -634,6 +713,8 @@ pub fn phantom::HttpProxy::header(self, phantom_net::request::RequestHeader) -> 
 pub fn phantom::HttpProxy::headers(self, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> Self
 pub fn phantom::HttpProxy::new(&str) -> core::result::Result<Self, phantom::ProxyConfigError>
 pub fn phantom::HttpProxy::with_basic_auth(self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> core::result::Result<Self, phantom::ProxyConfigError>
+pub fn phantom::HttpProxy::with_digest_auth(self, &str, &str) -> core::result::Result<Self, phantom::ProxyConfigError>
+pub fn phantom::HttpProxy::with_digest_credentials(self, phantom_net::proxy::digest::HttpDigestCredentials) -> Self
 pub fn phantom::HttpProxy::with_http2_transport(self) -> core::result::Result<Self, phantom::ProxyConfigError>
 impl core::cmp::Eq for phantom::HttpProxy
 impl core::cmp::PartialEq for phantom::HttpProxy
@@ -872,6 +953,20 @@ pub const fn phantom::RetryPolicy::with_max_retries(self, core::option::Option<u
 pub const fn phantom::RetryPolicy::with_reused_connection_replay(self, bool) -> Self
 pub const fn phantom::RetryPolicy::with_status_retry(self, phantom::StatusRetry) -> Self
 pub const fn phantom::RetryPolicy::with_unprocessed_replay(self, core::option::Option<core::num::nonzero::NonZeroUsize>) -> Self
+pub struct phantom::Socks4Proxy
+impl phantom::Socks4Proxy
+pub const fn phantom::Socks4Proxy::dns_mode(&self) -> phantom::Socks4DnsMode
+pub fn phantom::Socks4Proxy::new(&str) -> core::result::Result<Self, phantom::Socks4ProxyConfigError>
+pub fn phantom::Socks4Proxy::with_user_id(self, impl core::convert::AsRef<str>) -> core::result::Result<Self, phantom::Socks4ProxyConfigError>
+impl core::fmt::Debug for phantom::Socks4Proxy
+pub fn phantom::Socks4Proxy::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::Socks4ProxyConfigError
+impl phantom::Socks4ProxyConfigError
+pub const fn phantom::Socks4ProxyConfigError::kind(&self) -> phantom::Socks4ProxyConfigErrorKind
+impl core::error::Error for phantom::Socks4ProxyConfigError
+pub fn phantom::Socks4ProxyConfigError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom::Socks4ProxyConfigError
+pub fn phantom::Socks4ProxyConfigError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::Socks5Proxy
 impl phantom::Socks5Proxy
 pub const fn phantom::Socks5Proxy::dns_mode(&self) -> phantom::Socks5DnsMode

@@ -50,13 +50,13 @@ copying execution journals into this page.
 | --- | --- | --- |
 | T1 | `h3-drain-diagnosis` | Readiness repair merged in PR #213 after the exact signed-head gate and platform CI. Main push CI passed; the historical trigger remains open. |
 | T2 | `tls-done-diagnosis` | Framed-response repair and EOF controls merged in PR #212 after the full gate and platform CI. Main push CI passed; historical attribution remains open. |
-| P1–P4 | `profile-catalog` | Catalog composition merged in PR #223 at `8754e971` after independent review, all 22 gate steps, 4,708 Rust tests and 43 green PR checks. All eight applicable main push workflows passed. Provenance reconciliation, corpus growth and measurements stay open. |
-| P5 | `profile-catalog` | Edge 153 Windows registration passed 386 profile tests and six native controls. Measured generation, builds, selection, construction and memory at 11 through 1,035 records. The previous integration head passed all 22 gate steps and 4,828 Rust tests. The rebased branch needs a fresh gate and platform CI. |
+| P1–P4 | `profile-catalog` | Catalog composition merged in PR #223 at `8754e971` after independent review, all 22 gate steps, 4,708 Rust tests and 43 green PR checks. Provenance and coverage are recorded per component, with explicit reuse and absent layers. |
+| P5 | `profile-catalog` | Edge 153 Windows and corpus measurements merged in PR #225 at `b0a40765` after independent review, all 22 gate steps, 4,828 Rust tests and 43 green PR checks. All eight applicable main push workflows passed. Synthetic growth measurements cover 11 through 1,035 records without changing existing definitions. |
 | F1 | `ticket-transfer` | Scoped QUIC publication is committed at `8566d49e` after independent review, native session controls, strict Clippy and four wire fixtures. Clearing, frozen stores, strict decoding and TCP publication also pass focused checks. Transfer encoding, full policy bindings and integration remain. |
-| F2 | `fingerprint-import` | Bounded JSON import and feature wiring passed source review and strict Clippy. Initial documentation extraction failed with CRLF. The repaired extraction and explicit CRLF control now pass all 23 controls. Remaining checks and integration continue. |
+| F2 | `fingerprint-import` | Bounded JSON import is rebased onto `b0a40765` and independently reviewed. Both feature configurations pass strict Clippy; 23 import controls cover all 11 profiles and 22 templates. Rust 1.88, 127 doctests and strict rustdoc pass; five existing doctests remain ignored. Full integration gate and platform CI remain. |
 | F3 | `socks4-integration` | SOCKS4/4a merged in PR #215 after the exact-head full gate and macOS/Windows CI. Main push CI passed. |
 | F4 | `digest-integration` | Digest merged in PR #218 after the full gate and platform CI. Enterprise contracts are recorded. PR #220 repaired the cookie and shared-port fixtures; main push CI passed. |
-| F5 | `doh-wire` | DoH address and HTTPS discovery merged in PR #224 at `c7201173` after independent review, all 22 gate steps, 4,816 Rust tests and 43 green PR checks. Main push CI is running. Alternate-host Alt-Svc/ECH discovery and resumed early-data controls remain. |
+| F5 | `doh-wire` | DoH address and HTTPS discovery merged in PR #224 at `c7201173` after independent review, all 22 gate steps, 4,816 Rust tests and 43 green PR checks. All nine applicable main push workflows passed. Alternate-host Alt-Svc/ECH discovery and resumed early-data controls remain. |
 | F6 | `connect-udp-sharing` | The H2/H3 sharing contract is reviewed. Implementation is underway with bounded admission, isolated outer ticket stores and independent pinned peers. Runtime verification remains. |
 | F7 | `rtt-racing` | Pinned Chromium source and a bounded client-local policy are reviewed. Implementation is underway. Sample expiry, verified completion, isolation and timing controls remain to be run. |
 | F8 | `http3-debug-auth` | Origin opt-in merged in PR #219 after independent review, all 22 gate steps, 4,643 Rust tests, and 43 green PR checks at `6f6426f4`. |
@@ -105,26 +105,26 @@ needs a demonstrated cause and an independent review.
 
 ## Profile corpus
 
-- [ ] P1: Add a catalog with stable identifiers and immutable versioned
+- [x] P1: Add a catalog with stable identifiers and immutable versioned
   definitions. Describe browser/build, OS, architecture, and device where
   known. Store provenance and coverage per layer, including different builds
   within one composed profile. Distinguish captured, source-derived, reused,
   unverified, unavailable, and intentionally absent behavior.
-- [ ] P2: Migrate the current recipes into reusable components with explicit
+- [x] P2: Migrate the current recipes into reusable components with explicit
   overrides. Share a component only when its equivalence is established.
   Preserve ordered lists, GREASE policies, session behavior, and draws made
   per client or connection. Keep those draws separate from catalog records.
-- [ ] P3: Add validated structured declarations and deterministic generation
+- [x] P3: Add validated structured declarations and deterministic generation
   for repetitive recipes and fixture registration. Reject unknown values,
   invalid references, cycles, incompatible components, and excessive input.
   Keep typed Rust policies and transport validation. Retain captures as
   evidence linked to definitions, rather than treating them as executable
   profiles.
-- [ ] P4: Provide explicit discovery and selection by catalog identity and
+- [x] P4: Provide explicit discovery and selection by catalog identity and
   supported layers. Distinguish metadata identity from wire compatibility.
   Do not silently select another version, platform, or generic default when
   a requested layer is absent. Preserve deliberate custom composition.
-- [ ] P5: Prove corpus growth with current recipes and a second independently
+- [x] P5: Prove corpus growth with current recipes and a second independently
   validated version for at least one browser. Use retained historical
   captures where suitable. Adding it must leave existing definitions and
   transport code unchanged. Measure generation/build cost, selection and
