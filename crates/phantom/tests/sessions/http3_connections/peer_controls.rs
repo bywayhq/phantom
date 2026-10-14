@@ -1,5 +1,15 @@
 use super::*;
 
+#[tokio::test]
+async fn a_delayed_goaway_keeps_default_limit_replacement_ordered() -> TestResult {
+    draining_default_limit(true).await
+}
+
+#[tokio::test]
+async fn a_delayed_goaway_keeps_configured_limit_replacement_ordered() -> TestResult {
+    draining_configured_limit(true).await
+}
+
 #[derive(Debug)]
 struct RequestFailure;
 

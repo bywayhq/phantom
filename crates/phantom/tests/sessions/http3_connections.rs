@@ -31,6 +31,7 @@ use tokio::{
     task::JoinSet,
     time::{sleep, timeout},
 };
+use tracing::instrument::WithSubscriber;
 
 use crate::support::{
     deadline::FixtureDeadline,
@@ -38,10 +39,12 @@ use crate::support::{
     tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
 
+use goaway_observation::GoawayObservation;
 use h3_support::client_settings;
 use request_workers::Requests;
 use tls_support::{H1_ALPN, TestIdentity, accept_tls_stream, read_head, tls_settings};
 
+mod goaway_observation;
 mod request_workers;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -101,6 +104,7 @@ struct Origin {
     events: mpsc::UnboundedReceiver<Event>,
     release: watch::Sender<bool>,
     goaway: watch::Sender<Option<usize>>,
+    goaway_release: watch::Sender<bool>,
     handshakes: watch::Sender<bool>,
     tickets: Arc<CountingStore>,
     stopping: watch::Sender<bool>,
@@ -128,6 +132,7 @@ impl Origin {
         let (sender, events) = mpsc::unbounded_channel();
         let (release, released) = watch::channel(false);
         let (goaway, goaway_requested) = watch::channel(None);
+        let (goaway_release, goaway_released) = watch::channel(true);
         let (handshakes, handshakes_released) = watch::channel(false);
         let (stopping, mut stopped) = watch::channel(false);
         let shutdown = stopping.clone();
@@ -153,10 +158,11 @@ impl Origin {
                             let index = accepted;
                             accepted += 1;
                             sender.send(Event::Accepted(index))?;
-                            let (sender, released, goaway, mut handshakes, mut stopping) = (
+                            let (sender, released, goaway, goaway_release, mut handshakes, mut stopping) = (
                                 sender.clone(),
                                 released.clone(),
                                 goaway_requested.clone(),
+                                goaway_released.clone(),
                                 handshakes_released.clone(),
                                 stopped.clone(),
                             );
@@ -172,7 +178,7 @@ impl Origin {
                                         }
                                     }
                                 }
-                                serve(incoming, index, sender, released, goaway, stopping).await
+                                serve(incoming, index, sender, released, goaway, goaway_release, stopping).await
                             });
                         }
                     }
@@ -207,6 +213,7 @@ impl Origin {
             events,
             release,
             goaway,
+            goaway_release,
             handshakes,
             tickets,
             stopping,
@@ -243,6 +250,33 @@ impl Origin {
     fn goaway(&self, connection: usize) {
         eprintln!("HTTP/3 fixture: connection={connection} phase=goaway-requested");
         self.goaway.send_replace(Some(connection));
+    }
+
+    /// Waits for client processing, rather than treating elapsed time as readiness.
+    async fn observe_goaway(
+        &self,
+        connection: usize,
+        observed: &mut GoawayObservation,
+        delayed: bool,
+    ) -> TestResult {
+        if delayed {
+            self.goaway_release.send_replace(false);
+        }
+        self.goaway(connection);
+        let mut waiting = std::pin::pin!(observed.wait());
+        if delayed {
+            // The original tests proceeded after this interval. Keep the
+            // server gated throughout it to exercise that scheduling gap.
+            tokio::select! {
+                result = waiting.as_mut() => {
+                    result?;
+                    return Err("client observed GOAWAY before its server gate opened".into());
+                }
+                () = sleep(QUIET_WINDOW) => {}
+            }
+            self.goaway_release.send_replace(true);
+        }
+        waiting.await
     }
 
     fn uri(&self, path: &str) -> String {
@@ -369,6 +403,7 @@ async fn serve(
     events: mpsc::UnboundedSender<Event>,
     released: watch::Receiver<bool>,
     mut goaway: watch::Receiver<Option<usize>>,
+    mut goaway_released: watch::Receiver<bool>,
     mut stopping: watch::Receiver<bool>,
 ) -> TestResult {
     let quic = tokio::select! {
@@ -412,6 +447,15 @@ async fn serve(
                     goaway.wait_for(|target| *target == Some(connection)).await.map(drop)
                 }, if !shutting_down => {
                     changed?;
+                    tokio::select! {
+                        released = async { goaway_released.wait_for(|released| *released).await.map(drop) } => {
+                            released?;
+                        }
+                        stopped = async { stopping.wait_for(|stopped| *stopped).await.map(drop) } => {
+                            stopped?;
+                            break;
+                        }
+                    }
                     server.shutdown(0).await?;
                     eprintln!("HTTP/3 fixture: connection={connection} phase=goaway-write-completed");
                     shutting_down = true;
@@ -517,7 +561,9 @@ fn spawn_held(
     let start = requests.len();
     for path in paths {
         let (client, uri) = (client.clone(), origin.uri(path));
-        requests.spawn(async move { finish(send(&client, &uri).await?).await });
+        requests.spawn(
+            async move { finish(send(&client, &uri).await?).await }.with_current_subscriber(),
+        );
     }
     start..requests.len()
 }
@@ -654,8 +700,14 @@ async fn concurrent_requests_to_a_cold_origin_do_not_stampede() -> TestResult {
 
 #[tokio::test]
 async fn a_draining_connection_takes_no_new_requests() -> TestResult {
+    draining_configured_limit(false).await
+}
+
+async fn draining_configured_limit(delayed_goaway: bool) -> TestResult {
     let mut origins = Vec::new();
     let mut requests = Requests::default();
+    let mut observed = GoawayObservation::new();
+    let dispatch = observed.dispatch();
     let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         origins.push(Origin::start(&identity)?);
@@ -676,8 +728,9 @@ async fn a_draining_connection_takes_no_new_requests() -> TestResult {
 
         // After GOAWAY on connection 0, it no longer counts: the next request
         // opens connection 2 instead of queueing on a full one.
-        origin.goaway(0);
-        sleep(QUIET_WINDOW).await;
+        origin
+            .observe_goaway(0, &mut observed, delayed_goaway)
+            .await?;
         let next = spawn_held(&mut requests, &client, origin, &["held-5"]);
         assert_eq!(origin.next_accepted().await?, 2);
         assert_eq!(origin.next_request().await?, 2);
@@ -685,6 +738,7 @@ async fn a_draining_connection_takes_no_new_requests() -> TestResult {
         requests.join(held).await?;
         requests.join(next).await
     })
+    .with_subscriber(dispatch)
     .await;
     let mut result = primary;
     for origin in &mut origins {
@@ -695,8 +749,14 @@ async fn a_draining_connection_takes_no_new_requests() -> TestResult {
 
 #[tokio::test]
 async fn a_draining_connection_is_replaced_at_the_default_limit() -> TestResult {
+    draining_default_limit(false).await
+}
+
+async fn draining_default_limit(delayed_goaway: bool) -> TestResult {
     let mut origins = Vec::new();
     let mut requests = Requests::default();
+    let mut observed = GoawayObservation::new();
+    let dispatch = observed.dispatch();
     let primary = bounded(async {
         let identity = TestIdentity::generate()?;
         origins.push(Origin::start(&identity)?);
@@ -707,8 +767,9 @@ async fn a_draining_connection_is_replaced_at_the_default_limit() -> TestResult 
         assert_eq!(origin.settle(2).await?, (1, 2));
 
         // The one connection drains, so the next request reconnects.
-        origin.goaway(0);
-        sleep(QUIET_WINDOW).await;
+        origin
+            .observe_goaway(0, &mut observed, delayed_goaway)
+            .await?;
         let next = spawn_held(&mut requests, &client, origin, &["held-2"]);
         assert_eq!(origin.next_accepted().await?, 1);
         assert_eq!(origin.next_request().await?, 1);
@@ -716,6 +777,7 @@ async fn a_draining_connection_is_replaced_at_the_default_limit() -> TestResult 
         requests.join(held).await?;
         requests.join(next).await
     })
+    .with_subscriber(dispatch)
     .await;
     let mut result = primary;
     for origin in &mut origins {
