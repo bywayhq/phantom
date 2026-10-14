@@ -2619,6 +2619,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   early data; meaningful settings still reject it when they change.
 - Preserve TLS handshake failures after an HTTP/3 early-data request. An ECH
   rejection reports the handshake error instead of a discarded-stream error.
+- Bind QUIC resumption tickets to their TLS context, server name and cache.
+  Only default certificate verification establishes authenticated publication
+  proof. Custom or disabled verification can retain tickets locally.
 
 - Disperse snapshot capture's shared TCP/UDP listener ports below the usual
   ephemeral ranges, so reserved Windows port blocks do not exhaust retries.

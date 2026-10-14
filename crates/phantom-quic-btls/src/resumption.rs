@@ -4,8 +4,9 @@
 //! therefore to one BoringSSL context. Callers isolate tickets by giving each
 //! pool key its own configuration clone with a fresh cache, as Phantom's TCP
 //! connectors do with their TLS session caches. A ticket is stored only after
-//! the connection that received it authenticated the peer, and is presented
-//! only for the same verified server name.
+//! the connection completed its configured authentication policy, and is
+//! presented only for the same server name. Debugging or custom verification
+//! can retain local tickets without providing authenticated publication proof.
 //!
 //! The cache also keeps the round-trip time last measured to each server
 //! name, which a resumed connection advertises as `initial_rtt_us` when its
@@ -24,7 +25,7 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError, Weak};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use btls::ssl::SslSession;
+use btls::ssl::{ScopedSslSession, SslSessionScope};
 
 use crate::QuicVersion;
 
@@ -52,6 +53,7 @@ pub(crate) struct SessionCache {
 
 #[derive(Default)]
 struct CacheState {
+    scope: SslSessionScope,
     sessions: VecDeque<CachedSession>,
     /// The latest round-trip time per server name, least recently recorded
     /// first, bounded like the tickets.
@@ -144,7 +146,7 @@ impl QuicSessionTicketCacheOwner {
 }
 
 impl FrozenQuicSessionTicketCache<'_> {
-    /// Count authenticated sessions retained by this locked store.
+    /// Count locally retained sessions in this locked store.
     #[must_use]
     pub fn retained_count(&self) -> usize {
         self.state.sessions.len()
@@ -290,10 +292,10 @@ impl SessionCacheCapture {
     }
 }
 
-/// A resumable session and the verified name of the peer that issued it.
+/// A resumable session and the server name configured when it was issued.
 ///
 /// BoringSSL does not bind a client session to a hostname, so lookup selects
-/// by the name that authenticated the original handshake.
+/// by the name configured for the original handshake.
 struct CachedSession {
     server_name: Box<str>,
     ticket: ResumptionTicket,
@@ -309,7 +311,7 @@ struct CachedSession {
 /// [`ApplicationState`], if it had one.
 #[derive(Clone)]
 pub(crate) struct ResumptionTicket {
-    pub(crate) session: SslSession,
+    pub(crate) session: Arc<ScopedSslSession>,
     /// The QUIC version of the connection that received the ticket.
     pub(crate) version: QuicVersion,
     pub(crate) peer_transport_parameters: Option<Box<[u8]>>,
@@ -653,6 +655,10 @@ impl SessionCache {
     fn state(&self) -> MutexGuard<'_, CacheState> {
         self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
+
+    pub(crate) fn scope(&self) -> SslSessionScope {
+        self.state().scope.clone()
+    }
 }
 
 /// IP literals compare as addresses and DNS names ASCII case-insensitively,
@@ -670,7 +676,7 @@ fn server_names_match(established: &str, requested: &str) -> bool {
 
 /// A session expires at its establishment time plus its lifetime, which
 /// BoringSSL has already capped by the server's `ticket_lifetime`.
-fn is_expired(session: &SslSession, now: u64) -> bool {
+fn is_expired(session: &ScopedSslSession, now: u64) -> bool {
     session
         .time()
         .checked_add(u64::from(session.timeout()))

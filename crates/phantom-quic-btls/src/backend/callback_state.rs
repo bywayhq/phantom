@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::fmt;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use btls::ssl::SslSession;
+use btls::ssl::ScopedSslSession;
 
 use crate::key_schedule::{CipherSuite, TrafficSecret};
 
@@ -286,7 +286,7 @@ struct CallbackStateInner {
     buffered_by_level: [usize; 3],
     alerts: Vec<Alert>,
     completed_flushes: usize,
-    new_sessions: VecDeque<SslSession>,
+    new_sessions: VecDeque<ScopedSslSession>,
     early_secret: Option<StoredSecret>,
     early_secret_seen: bool,
 }
@@ -507,7 +507,7 @@ impl CallbackState {
     }
 
     /// Retains one session issued through a NewSessionTicket message.
-    pub(super) fn push_session(&self, session: SslSession) {
+    pub(super) fn push_session(&self, session: ScopedSslSession) {
         let mut inner = self.lock();
         if inner.new_sessions.len() == MAX_PENDING_SESSIONS {
             inner.new_sessions.pop_front();
@@ -519,7 +519,7 @@ impl CallbackState {
     }
 
     /// Removes every session issued since the previous call, oldest first.
-    pub(super) fn take_sessions(&self) -> VecDeque<SslSession> {
+    pub(super) fn take_sessions(&self) -> VecDeque<ScopedSslSession> {
         std::mem::take(&mut self.lock().new_sessions)
     }
 

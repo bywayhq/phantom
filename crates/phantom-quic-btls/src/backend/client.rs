@@ -21,7 +21,9 @@ use quinn_proto::{
 use rustls_pki_types::DnsName;
 
 use super::callback_state::{CallbackError, EncryptionLevel, HandshakeChunk, SecretPair};
-use super::client_session::{ClientSession, ClientSessionError, ClientSessionOptions};
+use super::client_session::{
+    ClientSession, ClientSessionError, ClientSessionOptions, ScopedSessionOffer,
+};
 use super::quic_callbacks::{
     CallbackInstallError, SessionDelivery, enable_session_delivery, session_delivery,
 };
@@ -726,7 +728,10 @@ impl crypto::ClientConfig for QuicClientConfig {
             &encoded_parameters,
             &self.tls_profile,
             ClientSessionOptions {
-                session: session.as_deref(),
+                session: self.sessions.as_ref().map(|cache| ScopedSessionOffer {
+                    scope: cache.scope(),
+                    session: session.as_deref(),
+                }),
                 early_data,
                 ech_config_list: self.ech.as_ref().map(EchOffer::config_list),
                 verify_peer: self.verify_peer,
@@ -1280,7 +1285,7 @@ impl SessionState {
         if let Some(sink) = &self.ticket_sink {
             for session in issued {
                 let ticket = ResumptionTicket {
-                    session,
+                    session: Arc::new(session),
                     version: self.version,
                     peer_transport_parameters: self
                         .peer_transport_parameters
@@ -1706,6 +1711,7 @@ fn map_start_error(server_name: &str, error: ClientSessionError) -> ConnectError
         | ClientSessionError::TlsFailure { operation, .. } => operation,
         ClientSessionError::X509ContextRequired => "X.509 context required",
         ClientSessionError::PeerVerificationDisabled => "peer verification disabled",
+        ClientSessionError::SessionScopeMismatch => "session context, name or cache scope mismatch",
         ClientSessionError::CallbackInstall(error) => match error {
             CallbackInstallError::ExDataIndexAllocation => "QUIC callback index allocation",
             CallbackInstallError::StateAllocation => "QUIC callback state allocation",

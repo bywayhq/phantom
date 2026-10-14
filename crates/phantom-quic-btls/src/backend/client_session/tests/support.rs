@@ -4,14 +4,18 @@ use std::fmt::Debug;
 use std::num::NonZeroUsize;
 use std::ptr::{self, NonNull};
 use std::slice;
+use std::sync::Arc;
 
-use btls::ssl::{SslContext, SslMethod, SslRef, SslSession, SslVerifyMode};
+use btls::ssl::{
+    ScopedClientSessionMode, ScopedSslSession, SslContext, SslMethod, SslRef, SslSessionScope,
+    SslVerifyMode,
+};
 use btls_sys as ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 
 use super::super::{
-    ClientSession, ClientSessionError, H3_PROTOCOL, HandshakeProgress, OwnedSsl, encryption_level,
-    raw_level,
+    ClientSession, ClientSessionError, ClientSessionOptions, H3_PROTOCOL, HandshakeProgress,
+    OwnedSsl, ScopedSessionOffer, encryption_level, raw_level,
 };
 use crate::backend::callback_state::{
     CallbackState, EncryptionLevel, FlightLimits, HandshakeChunk,
@@ -40,14 +44,18 @@ pub(super) fn test_some<T>(value: Option<T>, operation: &str) -> T {
     }
 }
 
-pub(super) struct OwnedContext(pub(super) SslContext);
+pub(super) struct OwnedContext(pub(super) SslContext, pub(super) SslSessionScope);
 
 impl OwnedContext {
     pub(super) fn new() -> Self {
         let context = SslContext::builder(SslMethod::tls())
             .unwrap_or_else(|error| panic!("test context allocation failed: {error}"))
             .build();
-        Self(context)
+        Self::from_context(context)
+    }
+
+    pub(super) fn from_context(context: SslContext) -> Self {
+        Self(context, SslSessionScope::default())
     }
 
     pub(super) fn as_context(&self) -> &SslContext {
@@ -352,7 +360,7 @@ pub(super) fn client_context_with_key_log(
     let mut builder = SslContext::builder(SslMethod::tls())
         .unwrap_or_else(|error| panic!("test context allocation failed: {error}"));
     let receiver = configure_nss_key_log(&mut builder, capacity);
-    let context = OwnedContext(builder.build());
+    let context = OwnedContext::from_context(builder.build());
     configure_client_verification(&context);
     (context, receiver)
 }
@@ -365,7 +373,7 @@ pub(super) fn resumption_client_context() -> OwnedContext {
         crate::QuicClientConfig::enable_session_resumption(&mut builder),
         "session resumption preparation",
     );
-    let context = OwnedContext(builder.build());
+    let context = OwnedContext::from_context(builder.build());
     configure_client_verification(&context);
     context
 }
@@ -395,7 +403,7 @@ pub(super) fn permissive_untrusted_client_context() -> OwnedContext {
     let mut context = SslContext::builder(SslMethod::tls())
         .unwrap_or_else(|error| panic!("test context allocation failed: {error}"));
     context.set_verify_callback(SslVerifyMode::PEER, |_, _| true);
-    OwnedContext(context.build())
+    OwnedContext::from_context(context.build())
 }
 
 pub(super) fn server_context() -> OwnedContext {
@@ -429,7 +437,23 @@ pub(super) fn server_context_with_wrong_alpn() -> OwnedContext {
 }
 
 pub(super) fn session(context: &OwnedContext) -> ClientSession {
-    let client = ClientSession::new(context.as_context(), SERVER_NAME, CLIENT_PARAMETERS);
+    let client = ClientSession::new_with_profile(
+        context.as_context(),
+        SERVER_NAME,
+        CLIENT_PARAMETERS,
+        &crate::backend::client::ClientTlsProfile::default(),
+        ClientSessionOptions {
+            session: matches!(
+                context.0.scoped_client_session_mode(),
+                ScopedClientSessionMode::ScopedWithEarlyData
+            )
+            .then(|| ScopedSessionOffer {
+                scope: context.1.clone(),
+                session: None,
+            }),
+            ..ClientSessionOptions::default()
+        },
+    );
     test_ok(client, "client session")
 }
 
@@ -466,7 +490,7 @@ pub(super) fn issued_session(
     client_context: &OwnedContext,
     server_context: &OwnedContext,
     early_data: bool,
-) -> SslSession {
+) -> Arc<ScopedSslSession> {
     let mut client = session(client_context);
     let mut server = if early_data {
         test_ok(
@@ -479,7 +503,10 @@ pub(super) fn issued_session(
     for chunk in complete_without_tickets(&mut client, &mut server) {
         test_ok(client.provide_handshake_data(&chunk.bytes), "ticket input");
     }
-    test_some(client.take_new_sessions().pop_front(), "issued session")
+    Arc::new(test_some(
+        client.take_new_sessions().pop_front(),
+        "issued session",
+    ))
 }
 
 /// Appends `bytes` behind a big-endian length of `width` bytes.

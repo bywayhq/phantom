@@ -1,12 +1,11 @@
 use std::collections::VecDeque;
 use std::ffi::{c_int, c_long};
 use std::fmt;
-use std::net::IpAddr;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::ptr::{self, NonNull};
 use std::slice;
 
-use btls::ssl::{SslContext, SslRef, SslSession, SslSessionRef, SslVerifyMode};
-use btls::x509::verify::X509CheckFlags;
+use btls::ssl::{ScopedSslSession, Ssl, SslContext, SslRef, SslSessionScope, SslVerifyMode};
 use btls_sys as ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use phantom_profile::{EchGreasePayloadLength, TrustAnchorIds};
@@ -39,6 +38,7 @@ pub(super) enum ClientSessionError {
         len: usize,
     },
     PeerVerificationDisabled,
+    SessionScopeMismatch,
     CallbackInstall(CallbackInstallError),
     Callback(CallbackError),
     BackendFailure(&'static str),
@@ -81,9 +81,16 @@ pub(super) struct OwnedSsl(NonNull<ffi::SSL>);
 unsafe impl Send for OwnedSsl {}
 
 impl OwnedSsl {
+    fn from_safe(ssl: Ssl) -> Result<Self, ClientSessionError> {
+        NonNull::new(ssl.into_ptr())
+            .map(Self)
+            .ok_or(ClientSessionError::BackendFailure("SSL ownership transfer"))
+    }
+
     /// # Safety
     ///
     /// `context` must point to a live `SSL_CTX`.
+    #[cfg(any(test, feature = "server"))]
     pub(super) unsafe fn new(context: NonNull<ffi::SSL_CTX>) -> Result<Self, ClientSessionError> {
         // SAFETY: the caller supplies a live context; SSL_new retains its own context reference.
         let ssl = unsafe { ffi::SSL_new(context.as_ptr()) };
@@ -131,8 +138,13 @@ pub(super) struct ClientSession {
     verify_peer: bool,
 }
 
+pub(super) struct ScopedSessionOffer<'a> {
+    pub(super) scope: SslSessionScope,
+    pub(super) session: Option<&'a ScopedSslSession>,
+}
+
 pub(super) struct ClientSessionOptions<'a> {
-    pub(super) session: Option<&'a SslSessionRef>,
+    pub(super) session: Option<ScopedSessionOffer<'a>>,
     pub(super) early_data: bool,
     pub(super) ech_config_list: Option<&'a [u8]>,
     pub(super) verify_peer: bool,
@@ -179,10 +191,8 @@ impl ClientSession {
 
     /// Creates a client that offers `session` for resumption when present.
     ///
-    /// The caller must supply only a session received from `context` for the
-    /// same `server_name` and authentication policy: BoringSSL does not bind
-    /// a client session to a hostname, and a resumed handshake does not repeat
-    /// certificate verification. With `early_data`, BoringSSL also offers
+    /// A scoped session must match the exact context, server name and cache
+    /// identity. With `early_data`, BoringSSL also offers
     /// 0-RTT when the session permits it; without a session it has no effect.
     ///
     /// With `ech_config_list`, the ClientHello offers Encrypted Client Hello
@@ -218,15 +228,13 @@ impl ClientSession {
         }
 
         ffi::init();
-        let context =
-            NonNull::new(context.as_ptr()).ok_or(ClientSessionError::X509ContextRequired)?;
-        // SAFETY: the safe context owner is live and SSL_new retains its own reference.
-        let mut ssl = unsafe { OwnedSsl::new(context) }?;
+        let mut ssl = context
+            .configure_client()
+            .map_err(|_| backend_failure("client SSL configuration"))?;
         apply_tls_profile(&mut ssl, tls_profile, server_name)?;
         if let Some(list) = ech_config_list {
             apply_ech_config_list(&mut ssl, list)?;
         }
-        apply_server_name(&mut ssl, server_name)?;
         let pointer = ssl.as_ptr();
 
         // SAFETY: `pointer` is uniquely owned throughout construction.
@@ -234,8 +242,7 @@ impl ClientSession {
             return Err(ClientSessionError::PeerVerificationDisabled);
         }
         if !verify_peer {
-            // SAFETY: the SSL is live and exclusively owned during construction.
-            unsafe { SslRef::from_ptr_mut(pointer) }.set_verify(SslVerifyMode::NONE);
+            ssl.set_verify(SslVerifyMode::NONE);
         }
         // SAFETY: `pointer` is live and uniquely owned.
         if unsafe { ffi::SSL_set_min_proto_version(pointer, ffi::TLS1_3_VERSION as u16) } != 1 {
@@ -250,7 +257,10 @@ impl ClientSession {
         if options & ffi::SSL_OP_NO_TICKET as u32 == 0 {
             return Err(backend_failure("session ticket disable"));
         }
-        let early_data = early_data && session.is_some();
+        let offered_session = session
+            .as_ref()
+            .is_some_and(|offer| offer.session.is_some());
+        let early_data = early_data && offered_session;
         // SAFETY: the SSL is live and has not started a handshake.
         unsafe {
             ffi::SSL_set_early_data_enabled(pointer, c_int::from(early_data));
@@ -270,15 +280,6 @@ impl ClientSession {
         {
             return Err(backend_failure("local QUIC transport parameters"));
         }
-        if let Some(session) = session {
-            // SAFETY: the SSL is live, unique, and has not started a handshake;
-            // the session is live for the call and SSL_set_session takes its own
-            // reference. BoringSSL drops an expired or non-QUIC session at
-            // ClientHello time and performs a full handshake instead.
-            if unsafe { ffi::SSL_set_session(pointer, session.as_ptr()) } != 1 {
-                return Err(backend_failure("session resumption"));
-            }
-        }
         // SAFETY: this uniquely owned SSL has not started a handshake.
         unsafe {
             ffi::SSL_set_connect_state(pointer);
@@ -290,13 +291,38 @@ impl ClientSession {
         }
 
         // SAFETY: the SSL is live, unique, and has not started its handshake.
-        let callbacks = unsafe { install_on_ssl(ssl.0, FlightLimits::default()) }
-            .map_err(ClientSessionError::CallbackInstall)?;
+        let callbacks = unsafe {
+            install_on_ssl(
+                NonNull::new(pointer).ok_or(ClientSessionError::BackendFailure("SSL pointer"))?,
+                FlightLimits::default(),
+            )
+        }
+        .map_err(ClientSessionError::CallbackInstall)?;
+        let ssl = if let Some(offer) = session {
+            let sink = callbacks.clone();
+            ssl.into_ssl_with_scoped_session(
+                server_name,
+                &offer.scope,
+                offer.session,
+                move |session| {
+                    if let Ok(session) = session {
+                        // The queue owns no SSL; this cannot form an owner cycle.
+                        let _ = catch_unwind(AssertUnwindSafe(|| sink.push_session(session)));
+                    }
+                },
+            )
+            .map_err(|_| backend_failure("scoped session configuration"))?
+            .ok_or(ClientSessionError::SessionScopeMismatch)?
+        } else {
+            ssl.into_ssl(server_name)
+                .map_err(|_| backend_failure("verification server name"))?
+        };
+        let ssl = OwnedSsl::from_safe(ssl)?;
         Ok(Self {
             ssl,
             callbacks,
             handshake_complete: false,
-            offered_session: session.is_some(),
+            offered_session,
             offered_early_data: early_data,
             early_data_rejected: false,
             ech_offered: ech_config_list.is_some(),
@@ -502,7 +528,7 @@ impl ClientSession {
     ///
     /// Tickets are returned only after the handshake completed under this
     /// session's authentication policy. A disabled policy provides no trust proof.
-    pub(super) fn take_new_sessions(&self) -> VecDeque<SslSession> {
+    pub(super) fn take_new_sessions(&self) -> VecDeque<ScopedSslSession> {
         if self.handshake_complete {
             self.callbacks.take_sessions()
         } else {
@@ -550,6 +576,10 @@ impl ClientSession {
                     return Ok(HandshakeProgress::NeedsData);
                 }
                 self.validate_completed_handshake()?;
+                // SAFETY: SSL_do_handshake completed and this owner still holds SSL.
+                // The backend proof excludes custom or disabled verification.
+                let _ = unsafe { SslRef::from_ptr(self.ssl.as_ptr()) }
+                    .authenticate_scoped_session_publication();
                 self.handshake_complete = true;
                 return Ok(HandshakeProgress::Complete);
             }
@@ -695,12 +725,10 @@ const fn resets_early_data_reject(
 }
 
 fn apply_tls_profile(
-    ssl: &mut OwnedSsl,
+    ssl: &mut SslRef,
     profile: &ClientTlsProfile,
     server_name: &str,
 ) -> Result<(), ClientSessionError> {
-    // SAFETY: `ssl` uniquely owns a live allocation for this entire borrow.
-    let ssl = unsafe { SslRef::from_ptr_mut(ssl.as_ptr()) };
     if let Some(key_shares) = profile.key_shares() {
         ssl.set_client_key_shares(key_shares)
             .map_err(|_| backend_failure("client key shares"))?;
@@ -770,9 +798,7 @@ fn draw_trust_anchor_order(ids: &TrustAnchorIds) -> Result<Vec<u8>, ClientSessio
     Ok(encoded)
 }
 
-fn apply_ech_config_list(ssl: &mut OwnedSsl, list: &[u8]) -> Result<(), ClientSessionError> {
-    // SAFETY: `ssl` uniquely owns a live allocation for this entire borrow.
-    let ssl = unsafe { SslRef::from_ptr_mut(ssl.as_ptr()) };
+fn apply_ech_config_list(ssl: &mut SslRef, list: &[u8]) -> Result<(), ClientSessionError> {
     ssl.set_ech_config_list(list).map_err(|_| {
         drain_error_queue();
         ClientSessionError::InvalidEchConfigList
@@ -791,24 +817,6 @@ fn take_ech_rejection() -> bool {
     btls::error::ErrorStack::get().errors().iter().any(|entry| {
         entry.library_code() == ERR_LIB_SSL && entry.reason_code() == SSL_R_ECH_REJECTED
     })
-}
-
-fn apply_server_name(ssl: &mut OwnedSsl, server_name: &str) -> Result<(), ClientSessionError> {
-    // SAFETY: `ssl` uniquely owns a live allocation for this entire borrow.
-    let ssl = unsafe { SslRef::from_ptr_mut(ssl.as_ptr()) };
-    let ip = server_name.parse::<IpAddr>().ok();
-    if ip.is_none() {
-        ssl.set_hostname(server_name)
-            .map_err(|_| backend_failure("server name indication"))?;
-    }
-
-    let verification = ssl.param_mut();
-    verification.set_hostflags(X509CheckFlags::NO_PARTIAL_WILDCARDS);
-    match ip {
-        Some(ip) => verification.set_ip(ip),
-        None => verification.set_host(server_name),
-    }
-    .map_err(|_| backend_failure("verification server name"))
 }
 
 pub(super) fn raw_level(level: EncryptionLevel) -> ffi::ssl_encryption_level_t {

@@ -5,7 +5,6 @@ use std::time::Instant;
 
 use btls::ssl::{SslContext, SslContextBuilder, SslMethod};
 use btls_sys as ffi;
-use foreign_types::ForeignType;
 use phantom_profile::browser::chrome;
 use quinn_proto::{ConnectError, Endpoint, EndpointConfig, TransportConfig, crypto};
 use quinn_proto::{Side, TransportErrorCode, transport_parameters::TransportParameters};
@@ -273,17 +272,46 @@ fn a_ticket_is_presented_only_for_the_name_that_authenticated_it() {
 #[test]
 fn expired_ticket_falls_back_to_a_full_handshake_without_error() {
     let server_context = server_context();
-    let config = Arc::new(resuming_config().with_isolated_session_cache());
+    let client_context = resumption_client_context();
+    let config = Arc::new(
+        test_ok(
+            QuicClientConfig::new(client_context.0.clone())
+                .with_tls_profile(&resuming_tls_settings()),
+            "resuming TLS profile",
+        )
+        .with_isolated_session_cache(),
+    );
     handshake(&config, &server_context);
     let cache = test_some(config.session_cache(), "isolated session cache");
     let ticket = test_some(cache.take(SERVER_NAME), "issued ticket");
     assert!(ticket.peer_transport_parameters.is_some());
     let session = ticket.session.clone();
 
-    // SAFETY: the session is live, and no other thread reads it while its
-    // establishment time moves to the epoch.
+    // Attach the real scoped ticket before accessing the backend's configured
+    // session. No session accessor or fabricated scoped provenance is needed.
+    let mut client = test_ok(
+        ClientSession::new_with_profile(
+            client_context.as_context(),
+            SERVER_NAME,
+            CLIENT_PARAMETERS,
+            &ClientTlsProfile::default(),
+            super::super::ClientSessionOptions {
+                session: Some(super::super::ScopedSessionOffer {
+                    scope: cache.scope(),
+                    session: Some(&session),
+                }),
+                ..super::super::ClientSessionOptions::default()
+            },
+        ),
+        "client with scoped session",
+    );
+    // SAFETY: before the handshake SSL_get_session returns the attached live
+    // session. This test has exclusive execution access to its shared native
+    // state while changing the establishment time.
     unsafe {
-        ffi::SSL_SESSION_set_time(session.as_ptr(), 1);
+        let attached = ffi::SSL_get_session(client.ssl.as_ptr());
+        assert!(!attached.is_null());
+        ffi::SSL_SESSION_set_time(attached, 1);
     }
     // The cache discards the expired ticket instead of presenting it.
     cache.insert(SERVER_NAME, ticket);
@@ -292,20 +320,6 @@ fn expired_ticket_falls_back_to_a_full_handshake_without_error() {
     assert!(!resumed(fallback.as_ref()));
 
     // Offered directly, BoringSSL drops the expired ticket at ClientHello time.
-    let client_context = resumption_client_context();
-    let mut client = test_ok(
-        ClientSession::new_with_profile(
-            client_context.as_context(),
-            SERVER_NAME,
-            CLIENT_PARAMETERS,
-            &ClientTlsProfile::default(),
-            super::super::ClientSessionOptions {
-                session: Some(&session),
-                ..super::super::ClientSessionOptions::default()
-            },
-        ),
-        "client with expired session",
-    );
     let mut server = test_ok(RawServer::new(&server_context), "server session");
     test_ok(client.start_handshake(), "client start");
     for chunk in test_ok(client.drain_output(), "client hello") {
@@ -875,7 +889,7 @@ fn preparing_a_context_twice_still_resumes() {
             "session resumption preparation",
         );
     }
-    let context = OwnedContext(builder.build());
+    let context = OwnedContext::from_context(builder.build());
     configure_client_verification(&context);
     let config = Arc::new(
         test_ok(
