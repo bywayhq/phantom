@@ -12,6 +12,8 @@ RECORDS = REPO / "crates/phantom-profile/catalog/profiles.json"
 OUTPUT = REPO / "crates/phantom-profile/src/catalog/generated.rs"
 COMPONENT_RECORDS = REPO / "crates/phantom-profile/catalog/http3-components.json"
 COMPONENT_OUTPUT = REPO / "crates/phantom-profile/src/catalog/http3_components.rs"
+HTTP2_COMPONENT_RECORDS = REPO / "crates/phantom-profile/catalog/http2-components.json"
+HTTP2_COMPONENT_OUTPUT = REPO / "crates/phantom-profile/src/catalog/http2_components.rs"
 
 # Resource ceilings for local declarations, not corpus performance claims.
 MAX_BYTES = 16 * 1024 * 1024
@@ -24,6 +26,22 @@ MAX_COMPONENT_CHAIN = 32
 MAX_VARINT = (1 << 62) - 1
 MAX_QPACK_TABLE_CAPACITY = (1 << 30) - 1
 COMPONENT_FIELDS = {
+    "Http2Settings": (
+        "initial_settings",
+        "initial_connection_window_size",
+        "pseudo_header_order",
+        "extended_connect_pseudo_header_order",
+        "headers_priority",
+        "extended_connect_priority",
+        "hpack",
+        "streams",
+        "preface_ping_after",
+        "ping_timeout",
+        "ping_failure_retries",
+        "idle_ping_after",
+        "idle_ping_timeout",
+        "idle_timeout",
+    ),
     "Http3Settings": (
         "initial_settings",
         "setting_order",
@@ -67,6 +85,47 @@ BOOL_SETTINGS = {
     "H3DatagramDraft04",
 }
 PSEUDO_HEADERS = ("Method", "Authority", "Scheme", "Path", "Protocol")
+HTTP2_HPACK_ENUMS = {
+    "static_name_index": ("Http2StaticNameIndex", ("Lowest", "Highest")),
+    "huffman_coding": (
+        "Http2HuffmanCoding",
+        ("Always", "WhenShorter", "WhenNotLonger", "AlwaysIncludingEmpty"),
+    ),
+    "cookie_crumbs": ("Http2CookieCrumbs", ("Whole", "IndexAll", "NeverIndexShort")),
+    "field_indexing": (
+        "Http2FieldIndexing",
+        ("Nghttp2", "All", "NeverIndexAuthorization"),
+    ),
+    "name_reference": (
+        "Http2NameReference",
+        ("StaticUnlessSensitive", "StaticThenNewest", "OldestDynamic"),
+    ),
+    "unindexed_match": ("Http2UnindexedMatch", ("Index", "Literal")),
+    "indexing_limit": ("Http2IndexingLimit", ("ThreeQuarters", "Half", "Unlimited")),
+    "table_size_updates": ("Http2TableSizeUpdates", ("WhenChanged", "EverySetting")),
+    "sensitive_proxy_authorization": (
+        "Http2SensitiveProxyAuthorization",
+        ("NeverIndexed", "FieldIndexing"),
+    ),
+}
+HTTP2_HPACK_FIELDS = ("literal_pseudo_headers", *HTTP2_HPACK_ENUMS)
+HTTP2_STREAM_FIELDS = (
+    "first_stream_id",
+    "assumed_max_concurrent_streams",
+    "max_concurrent_streams_cap",
+)
+HTTP2_PRIORITY_FIELDS = ("dependency_stream_id", "weight", "exclusive")
+HTTP2_BOOL_SETTINGS = {"EnablePush", "EnableConnectProtocol", "NoRfc7540Priorities"}
+HTTP2_NUMERIC_SETTINGS = {
+    "HeaderTableSize",
+    "MaxConcurrentStreams",
+    "InitialWindowSize",
+    "MaxFrameSize",
+    "MaxHeaderListSize",
+}
+MAX_U32 = (1 << 32) - 1
+MAX_U64 = (1 << 64) - 1
+MAX_HTTP2_WINDOW = (1 << 31) - 1
 RUST_KEYWORDS = {
     "as",
     "async",
@@ -474,13 +533,16 @@ def validate_pseudo_headers(order, extended):
     if not isinstance(order, list) or len(order) != len(required):
         raise DeclarationError("pseudo-header order has an invalid length")
     for header in order:
-        choice(header, required, "HTTP/3 pseudo-header")
+        choice(header, required, "HTTP pseudo-header")
     if set(order) != required:
         raise DeclarationError("pseudo-header order must contain each header once")
 
 
 def validate_component_values(kind, values):
     keys(values, COMPONENT_FIELDS[kind], kind)
+    if kind == "Http2Settings":
+        validate_http2_values(values)
+        return
     for field, value in values.items():
         if field in COMPONENT_ENUMS:
             choice(value, COMPONENT_ENUMS[field][1], field)
@@ -494,7 +556,134 @@ def validate_component_values(kind, values):
             validate_pseudo_headers(value, True)
 
 
-def validate_components(document):
+def bounded_integer(value, minimum, maximum, context):
+    if type(value) is not int or not minimum <= value <= maximum:
+        raise DeclarationError(f"{context}: integer out of range")
+
+
+def validate_duration(value, context):
+    keys(value, ("seconds", "nanoseconds"), context)
+    bounded_integer(value["seconds"], 0, MAX_U64, context)
+    bounded_integer(value["nanoseconds"], 0, 999_999_999, context)
+
+
+def duration_is_zero(value):
+    return value["seconds"] == 0 and value["nanoseconds"] == 0
+
+
+def validate_http2_initial_settings(settings):
+    if not isinstance(settings, list) or len(settings) > 64:
+        raise DeclarationError("HTTP/2 initial_settings: expected at most 64 settings")
+    seen = set()
+    for setting in settings:
+        keys(setting, ("kind", "value"), "HTTP/2 setting")
+        kind = choice(
+            setting["kind"],
+            (*HTTP2_NUMERIC_SETTINGS, *HTTP2_BOOL_SETTINGS),
+            "HTTP/2 setting kind",
+        )
+        if kind in seen:
+            raise DeclarationError(f"duplicate HTTP/2 setting: {kind}")
+        seen.add(kind)
+        value = setting["value"]
+        if kind in HTTP2_BOOL_SETTINGS:
+            boolean(value, kind)
+        elif kind == "InitialWindowSize":
+            bounded_integer(value, 0, MAX_HTTP2_WINDOW, kind)
+        elif kind == "MaxFrameSize":
+            bounded_integer(value, 1 << 14, (1 << 24) - 1, kind)
+        else:
+            bounded_integer(value, 0, MAX_U32, kind)
+    if "InitialWindowSize" not in seen:
+        raise DeclarationError("HTTP/2 requires exactly one InitialWindowSize setting")
+
+
+def validate_http2_priority(value, context):
+    keys(value, HTTP2_PRIORITY_FIELDS, context)
+    bounded_integer(value["dependency_stream_id"], 0, MAX_HTTP2_WINDOW, context)
+    bounded_integer(value["weight"], 1, 256, context)
+    boolean(value["exclusive"], context)
+
+
+def validate_http2_hpack(value):
+    keys(value, HTTP2_HPACK_FIELDS, "HTTP/2 HPACK")
+    headers = value["literal_pseudo_headers"]
+    if not isinstance(headers, list) or len(headers) > len(PSEUDO_HEADERS):
+        raise DeclarationError("HPACK literal headers must be a bounded list")
+    for header in headers:
+        choice(header, PSEUDO_HEADERS, "HPACK literal pseudo-header")
+    if len(set(headers)) != len(headers):
+        raise DeclarationError("duplicate HPACK literal pseudo-header")
+    for field, (_, variants) in HTTP2_HPACK_ENUMS.items():
+        choice(value[field], variants, field)
+
+
+def validate_http2_streams(value):
+    keys(value, HTTP2_STREAM_FIELDS, "HTTP/2 streams")
+    first = value["first_stream_id"]
+    bounded_integer(first, 1, MAX_HTTP2_WINDOW, "first_stream_id")
+    if first % 2 == 0:
+        raise DeclarationError("first_stream_id must be odd")
+    for field in HTTP2_STREAM_FIELDS[1:]:
+        if value[field] is not None:
+            bounded_integer(value[field], 1, MAX_U32, field)
+
+
+def validate_http2_values(values):
+    validate_http2_initial_settings(values["initial_settings"])
+    bounded_integer(
+        values["initial_connection_window_size"],
+        65_535,
+        MAX_HTTP2_WINDOW,
+        "initial_connection_window_size",
+    )
+    validate_pseudo_headers(values["pseudo_header_order"], False)
+    if values["extended_connect_pseudo_header_order"] is not None:
+        validate_pseudo_headers(values["extended_connect_pseudo_header_order"], True)
+    for field in ("headers_priority", "extended_connect_priority"):
+        if values[field] is not None:
+            validate_http2_priority(values[field], field)
+    validate_http2_hpack(values["hpack"])
+    validate_http2_streams(values["streams"])
+    for field in (
+        "preface_ping_after",
+        "ping_timeout",
+        "idle_ping_after",
+        "idle_ping_timeout",
+    ):
+        if values[field] is not None:
+            validate_duration(values[field], field)
+            if field != "preface_ping_after" and duration_is_zero(values[field]):
+                raise DeclarationError(f"{field}: duration must be positive")
+    for after, timeout in (
+        ("preface_ping_after", "ping_timeout"),
+        ("idle_ping_after", "idle_ping_timeout"),
+    ):
+        if values[timeout] is not None and values[after] is None:
+            raise DeclarationError(f"{timeout} requires {after}")
+    bounded_integer(values["ping_failure_retries"], 0, 255, "ping_failure_retries")
+    if values["ping_failure_retries"] and (
+        values["ping_timeout"] is None and values["idle_ping_timeout"] is None
+    ):
+        raise DeclarationError("PING retries require a PING timeout")
+    idle = values["idle_timeout"]
+    keys(idle, ("kind", "duration"), "HTTP/2 idle timeout")
+    kind = choice(idle["kind"], ("Unlimited", "ClosedOnTimer"), "HTTP/2 idle timeout")
+    if kind == "Unlimited":
+        if idle["duration"] is not None:
+            raise DeclarationError("Unlimited idle timeout has no duration")
+    else:
+        limit = idle["duration"]
+        validate_duration(limit, "closed idle timeout")
+        if not 1 <= limit["seconds"] <= 65_535 or (
+            limit["seconds"] == 65_535 and limit["nanoseconds"] != 0
+        ):
+            raise DeclarationError("closed idle timeout must be in 1..=65535 seconds")
+    # Instant::checked_add is host-specific. Native profile validation checks
+    # clock representability; declarations bound Duration's stored fields only.
+
+
+def validate_components(document, allowed_kinds=None):
     check_depth(document)
     keys(document, ("schema", "components"), "components")
     if type(document["schema"]) is not int or document["schema"] != 1:
@@ -509,6 +698,8 @@ def validate_components(document):
         if identifier in by_id:
             raise DeclarationError(f"duplicate component identifier: {identifier}")
         kind = choice(component["kind"], COMPONENT_FIELDS, "component kind")
+        if allowed_kinds is not None:
+            choice(kind, allowed_kinds, "declaration layer kind")
         if component["base"] is not None:
             component_identifier(component["base"])
         values = component["values"]
@@ -557,18 +748,85 @@ def validate_components(document):
 
 
 def load_components(path=COMPONENT_RECORDS):
-    return validate_components(read_document(path))
+    return validate_components(
+        read_document(path), ("Http3Settings", "Http3RequestSettings")
+    )
 
 
-def rust_header_order(headers):
+def load_http2_components(path=HTTP2_COMPONENT_RECORDS):
+    return validate_components(read_document(path), ("Http2Settings",))
+
+
+def rust_header_order(headers, protocol="Http3"):
     return (
         "vec!["
-        + ", ".join(f"crate::Http3PseudoHeader::{item}" for item in headers)
+        + ", ".join(f"crate::{protocol}PseudoHeader::{item}" for item in headers)
         + "]"
     )
 
 
-def rust_component_value(field, value):
+def rust_duration(value):
+    return f"std::time::Duration::new({value['seconds']}, {value['nanoseconds']})"
+
+
+def rust_option(value, expression):
+    return "None" if value is None else f"Some({expression(value)})"
+
+
+def rust_http2_priority(value):
+    return (
+        "crate::Http2Priority { "
+        f"dependency_stream_id: {value['dependency_stream_id']}, "
+        f"weight: {value['weight']}, exclusive: {str(value['exclusive']).lower()} "
+        "}"
+    )
+
+
+def rust_http2_value(field, value):
+    if field == "initial_settings":
+        return (
+            "vec!["
+            + ", ".join(
+                f"crate::Http2Setting::{item['kind']}({str(item['value']).lower()})"
+                for item in value
+            )
+            + "]"
+        )
+    if field in ("initial_connection_window_size", "ping_failure_retries"):
+        return str(value)
+    if field == "pseudo_header_order":
+        return rust_header_order(value, "Http2")
+    if field == "extended_connect_pseudo_header_order":
+        return rust_option(value, lambda headers: rust_header_order(headers, "Http2"))
+    if field in ("headers_priority", "extended_connect_priority"):
+        return rust_option(value, rust_http2_priority)
+    if field == "hpack":
+        fields = [
+            "literal_pseudo_headers: "
+            + rust_header_order(value["literal_pseudo_headers"], "Http2")
+        ]
+        fields.extend(
+            f"{name}: crate::{enum}::{value[name]}"
+            for name, (enum, _) in HTTP2_HPACK_ENUMS.items()
+        )
+        return "crate::Http2HpackSettings { " + ", ".join(fields) + " }"
+    if field == "streams":
+        fields = [f"first_stream_id: {value['first_stream_id']}"]
+        fields.extend(
+            f"{name}: {rust_option(value[name], str)}"
+            for name in HTTP2_STREAM_FIELDS[1:]
+        )
+        return "crate::Http2StreamSettings { " + ", ".join(fields) + " }"
+    if field == "idle_timeout":
+        if value["kind"] == "Unlimited":
+            return "crate::Http2IdleTimeout::Unlimited"
+        return f"crate::Http2IdleTimeout::ClosedOnTimer({rust_duration(value['duration'])})"
+    return rust_option(value, rust_duration)
+
+
+def rust_component_value(field, value, kind="Http3Settings"):
+    if kind == "Http2Settings":
+        return rust_http2_value(field, value)
     if field in COMPONENT_ENUMS:
         return f"crate::{COMPONENT_ENUMS[field][0]}::{value}"
     if field == "reserved_frame_after_settings":
@@ -587,9 +845,9 @@ def rust_component_value(field, value):
     return "vec![" + ", ".join(settings) + "]"
 
 
-def generate_components(components):
+def generate_components(components, declaration="http3-components.json"):
     lines = [
-        "// Generated by scripts/dev/generate_profiles.py; edit catalog/http3-components.json.",
+        f"// Generated by scripts/dev/generate_profiles.py; edit catalog/{declaration}.",
         "// Runtime draw policies remain enum variants; construction performs no draws.",
         "",
     ]
@@ -603,7 +861,7 @@ def generate_components(components):
             ]
         )
         for field in COMPONENT_FIELDS[kind]:
-            expression = rust_component_value(field, component["values"][field])
+            expression = rust_component_value(field, component["values"][field], kind)
             lines.append(f"        {field}: {expression},")
         lines.extend(["    }", "}", ""])
     return "\n".join(lines)
@@ -703,6 +961,10 @@ def main():
         outputs = (
             (OUTPUT, generate(load())),
             (COMPONENT_OUTPUT, generate_components(load_components())),
+            (
+                HTTP2_COMPONENT_OUTPUT,
+                generate_components(load_http2_components(), "http2-components.json"),
+            ),
         )
         for output, generated in outputs:
             if arguments.check:

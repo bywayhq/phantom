@@ -50,12 +50,7 @@ use crate::{
     cookie::CookiePlacement,
     dns_cache::DnsCacheSettings,
     http1::{Http1IdleTimeout, Http1Settings},
-    http2::{
-        Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
-        Http2IdleTimeout, Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader,
-        Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings, Http2StaticNameIndex,
-        Http2StreamSettings, Http2TableSizeUpdates, Http2UnindexedMatch,
-    },
+    http2::{Http2Priority, Http2Settings},
     http3::{Http3RequestSettings, Http3Settings},
     proxy_connect::{
         Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate,
@@ -535,17 +530,17 @@ pub fn v154_http1() -> Http1Settings {
 ///
 /// Each `cookie` field is split into one field per cookie, and each crumb is
 /// inserted into the dynamic table and sent as an index on later requests
-/// ([`Http2CookieCrumbs::IndexAll`]). The retained two-request cookie
+/// ([`crate::Http2CookieCrumbs::IndexAll`]). The retained two-request cookie
 /// captures (`fixtures/cookies/`) show this for five cookies on every run;
 /// quiche's `HpackEncoder::CookieToCrumbs` is the split rule.
 ///
 /// The rest of the indexing policy is quiche's `HpackEncoder` at the revision
 /// Chromium 154 pins. Every ordinary field may enter the dynamic table,
-/// `authorization` and `content-length` included ([`Http2FieldIndexing::All`]).
+/// `authorization` and `content-length` included ([`crate::Http2FieldIndexing::All`]).
 /// A literal names the static entry when one has its name, otherwise the
-/// newest dynamic entry ([`Http2NameReference::StaticThenNewest`]). A field of
+/// newest dynamic entry ([`crate::Http2NameReference::StaticThenNewest`]). A field of
 /// any size is inserted, evicting older entries, and one larger than the whole
-/// table empties it ([`Http2IndexingLimit::Unlimited`]). A table size setting
+/// table empties it ([`crate::Http2IndexingLimit::Unlimited`]). A table size setting
 /// equal to the current size is not announced. Every HEADERS block of the
 /// retained Chrome and Edge WebSocket and cookie sessions equals Phantom's
 /// byte for byte.
@@ -598,61 +593,7 @@ pub fn v154_http1() -> Http1Settings {
 /// customize it before constructing a transport.
 #[must_use]
 pub fn v154_http2() -> Http2Settings {
-    Http2Settings {
-        initial_settings: vec![
-            Http2Setting::HeaderTableSize(65_536),
-            Http2Setting::EnablePush(false),
-            Http2Setting::InitialWindowSize(6_291_456),
-            Http2Setting::MaxHeaderListSize(262_144),
-        ],
-        initial_connection_window_size: 15_728_640,
-        pseudo_header_order: vec![
-            Http2PseudoHeader::Method,
-            Http2PseudoHeader::Authority,
-            Http2PseudoHeader::Scheme,
-            Http2PseudoHeader::Path,
-        ],
-        extended_connect_pseudo_header_order: Some(vec![
-            Http2PseudoHeader::Method,
-            Http2PseudoHeader::Authority,
-            Http2PseudoHeader::Scheme,
-            Http2PseudoHeader::Path,
-            Http2PseudoHeader::Protocol,
-        ]),
-        extended_connect_priority: Some(Http2Priority {
-            dependency_stream_id: 0,
-            weight: 147,
-            exclusive: true,
-        }),
-        headers_priority: Some(Http2Priority {
-            dependency_stream_id: 0,
-            weight: 256,
-            exclusive: true,
-        }),
-        hpack: Http2HpackSettings {
-            literal_pseudo_headers: vec![Http2PseudoHeader::Method, Http2PseudoHeader::Protocol],
-            static_name_index: Http2StaticNameIndex::Lowest,
-            huffman_coding: Http2HuffmanCoding::WhenShorter,
-            cookie_crumbs: Http2CookieCrumbs::IndexAll,
-            field_indexing: Http2FieldIndexing::All,
-            name_reference: Http2NameReference::StaticThenNewest,
-            unindexed_match: Http2UnindexedMatch::Index,
-            indexing_limit: Http2IndexingLimit::Unlimited,
-            table_size_updates: Http2TableSizeUpdates::WhenChanged,
-            sensitive_proxy_authorization: Http2SensitiveProxyAuthorization::FieldIndexing,
-        },
-        streams: Http2StreamSettings {
-            first_stream_id: 1,
-            assumed_max_concurrent_streams: Some(100),
-            max_concurrent_streams_cap: Some(256),
-        },
-        preface_ping_after: Some(Duration::from_secs(10)),
-        ping_timeout: Some(Duration::from_secs(10)),
-        ping_failure_retries: 2,
-        idle_ping_after: None,
-        idle_ping_timeout: None,
-        idle_timeout: Http2IdleTimeout::Unlimited,
-    }
+    crate::catalog::http2_components::chromium_154_http2()
 }
 
 /// Returns WebSocket settings observed from Chrome 154.0.8037.58 on Windows 11.

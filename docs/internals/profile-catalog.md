@@ -8,9 +8,11 @@ Keep browser observations separate from recipe implementations.
 | File | Responsibility |
 | --- | --- |
 | `crates/phantom-profile/catalog/profiles.json` | Recipe identities and layer evidence |
+| `crates/phantom-profile/catalog/http2-components.json` | Typed HTTP/2 settings and field overrides |
 | `crates/phantom-profile/catalog/http3-components.json` | Typed HTTP/3 settings and field overrides |
 | `crates/phantom-profile/src/catalog.rs` | Selection, required layers, and typed recipe bindings |
 | `crates/phantom-profile/src/catalog/generated.rs` | Committed generated records |
+| `crates/phantom-profile/src/catalog/http2_components.rs` | Committed generated HTTP/2 values |
 | `crates/phantom-profile/src/catalog/http3_components.rs` | Committed generated HTTP/3 values |
 | `scripts/dev/generate_profiles.py` | Closed-schema validation and offline generation |
 
@@ -18,9 +20,9 @@ Cargo uses the committed registry. It does not run Python or read JSON at
 runtime. Discovery and exact lookup borrow static records. Instantiation
 calls the selected recipe factory and returns fresh owned settings.
 
-HTTP/3 settings and request settings use structured components. Other layers
-still use handwritten factories. Their migration and historical-version
-growth remain in the [roadmap](../roadmap.md). Request templates use explicit
+HTTP/2 settings and HTTP/3 connection and request settings use structured
+components. Other layers still use handwritten factories. Their migration
+and historical-version growth remain in the [roadmap](../roadmap.md). Request templates use explicit
 typed bindings; they have no separate catalog evidence records.
 
 ## Identity and composition
@@ -80,10 +82,11 @@ python scripts/dev/generate_profiles.py
 python scripts/dev/generate_profiles.py --check
 python -m unittest discover -s scripts/dev/tests -p test_generate_profiles.py
 python -m unittest discover -s scripts/dev/tests -p test_generate_profile_components.py
+python -m unittest discover -s scripts/dev/tests -p test_generate_http2_components.py
 ```
 
 Generation sorts identifiers and emits fields and layers in fixed orders.
-Both generated files use `rustfmt::skip` so formatting preserves their output.
+All three generated files use `rustfmt::skip` to preserve their output.
 The generator rejects duplicate JSON keys and identifiers, unknown values,
 inconsistent metadata, missing or escaping files, unsupported absence claims,
 and observed fields without capture references.
@@ -94,10 +97,30 @@ per field or limitation list. These are resource ceilings, not measured corpus
 performance targets. The current records still repeat metadata; further
 component migration and measurement will assess that cost.
 
-The full gate and CI run the generator's tests, which reject either stale
+The full gate and CI run the generator's tests, which reject any stale
 generated file. Run profile tests through the Cargo lock helper. Compare
 all stored settings and ordering against existing factories, then run the
 affected backend replays before integrating a settings migration.
+
+## Declare HTTP/2 components
+
+Each HTTP/2 component supplies a concrete `Http2Settings` value. Chromium 154
+and Firefox 157 have separate definitions. Their settings, header orders,
+priorities, compression rules, stream limits, and timers differ. Existing
+brand and Android factories reuse Chromium's compiled values.
+
+A derived component replaces each field it overrides. HPACK, stream, and
+priority records are closed typed fields. Replace the complete record when
+overriding one of them. Lists retain their declared order.
+
+Durations store seconds and nanoseconds. Nanoseconds must be below one billion.
+The generator checks protocol bounds and timer dependencies. Native profile
+validation also checks whether deadlines fit the host's monotonic clock.
+The declaration does not promise clock support across hosts.
+
+The migration retains each browser's timer policy and every stored field.
+Frozen pre-migration values provide independent comparison controls. They
+do not establish additional browser observation coverage.
 
 ## Declare HTTP/3 components
 

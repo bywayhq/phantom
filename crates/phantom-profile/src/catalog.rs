@@ -18,6 +18,7 @@ use std::fmt;
 use crate::{ClientProfile, RequestTemplate, browser};
 
 mod generated;
+pub(crate) mod http2_components;
 pub(crate) mod http3_components;
 
 /// An immutable identifier assigned to one compiled recipe revision.

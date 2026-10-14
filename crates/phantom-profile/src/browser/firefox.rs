@@ -32,12 +32,7 @@ use crate::{
     cookie::CookiePlacement,
     dns_cache::DnsCacheSettings,
     http1::{Http1IdleTimeout, Http1Settings},
-    http2::{
-        Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,
-        Http2IdleTimeout, Http2IndexingLimit, Http2NameReference, Http2Priority, Http2PseudoHeader,
-        Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings, Http2StaticNameIndex,
-        Http2StreamSettings, Http2TableSizeUpdates, Http2UnindexedMatch,
-    },
+    http2::{Http2Priority, Http2Settings},
     http3::{Http3RequestSettings, Http3Settings},
     proxy_connect::{
         Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate,
@@ -422,25 +417,25 @@ pub fn v157_http1() -> Http1Settings {
 /// pseudo-header but `:path` may enter the dynamic table, so `:method:
 /// CONNECT` and `:protocol` are indexed incrementally. `:path` is always a
 /// literal without indexing, even `/`, which names entry 4
-/// ([`Http2UnindexedMatch::Literal`]). A literal names the highest-numbered
+/// ([`crate::Http2UnindexedMatch::Literal`]). A literal names the highest-numbered
 /// entry with its name: the oldest dynamic entry once one exists, otherwise
 /// the higher static entry, so `:method` is named with 3 and `:path` with 5
-/// ([`Http2NameReference::OldestDynamic`]). Every literal string is
+/// ([`crate::Http2NameReference::OldestDynamic`]). Every literal string is
 /// Huffman-coded, an empty one included
-/// ([`Http2HuffmanCoding::AlwaysIncludingEmpty`]); none of the 831 strings
+/// ([`crate::Http2HuffmanCoding::AlwaysIncludingEmpty`]); none of the 831 strings
 /// in the retained Firefox captures is sent raw. `authorization` is a
 /// never-indexed literal and every other ordinary field may be indexed
-/// ([`Http2FieldIndexing::NeverIndexAuthorization`]). A field larger than
-/// half the table is not indexed ([`Http2IndexingLimit::Half`]). Every
+/// ([`crate::Http2FieldIndexing::NeverIndexAuthorization`]). A field larger than
+/// half the table is not indexed ([`crate::Http2IndexingLimit::Half`]). Every
 /// `SETTINGS_HEADER_TABLE_SIZE` from the peer is announced at the start of
 /// the next block, even an unchanged 4,096
-/// ([`Http2TableSizeUpdates::EverySetting`]). Every HEADERS block of the
+/// ([`crate::Http2TableSizeUpdates::EverySetting`]). Every HEADERS block of the
 /// retained Firefox WebSocket and cookie sessions equals Phantom's byte for
 /// byte.
 ///
 /// Each `cookie` field is split at `"; "` into one field per cookie. A crumb
 /// shorter than 20 bytes is a never-indexed literal and a longer one is
-/// inserted into the dynamic table ([`Http2CookieCrumbs::NeverIndexShort`]),
+/// inserted into the dynamic table ([`crate::Http2CookieCrumbs::NeverIndexShort`]),
 /// as the retained cookie captures (`fixtures/cookies/`) show for crumbs of
 /// 19 and 20 bytes and as `Http2Compressor::EncodeHeaderBlock` states.
 ///
@@ -485,7 +480,7 @@ pub fn v157_http1() -> Http1Settings {
 /// A connection that has read no response HEADERS or DATA for 170 seconds
 /// takes no new stream, and the connection manager's prune timer closes it
 /// with `GOAWAY(0, NO_ERROR)` within a second, or when its last stream ends
-/// ([`Http2IdleTimeout::ClosedOnTimer`]). The limit is
+/// ([`crate::Http2IdleTimeout::ClosedOnTimer`]). The limit is
 /// `network.http.http2.timeout` (`StaticPrefList.yaml:16477-16480`), which
 /// `nsHttpConnection::StartSpdy` applies
 /// (`netwerk/protocol/http/nsHttpConnection.cpp:414`, `:965-983`); the idle
@@ -501,61 +496,7 @@ pub fn v157_http1() -> Http1Settings {
 /// exit.
 #[must_use]
 pub fn v157_http2() -> Http2Settings {
-    Http2Settings {
-        initial_settings: vec![
-            Http2Setting::HeaderTableSize(65_536),
-            Http2Setting::EnablePush(false),
-            Http2Setting::InitialWindowSize(131_072),
-            Http2Setting::MaxFrameSize(16_384),
-        ],
-        initial_connection_window_size: 12_582_912,
-        pseudo_header_order: vec![
-            Http2PseudoHeader::Method,
-            Http2PseudoHeader::Path,
-            Http2PseudoHeader::Authority,
-            Http2PseudoHeader::Scheme,
-        ],
-        extended_connect_pseudo_header_order: Some(vec![
-            Http2PseudoHeader::Method,
-            Http2PseudoHeader::Path,
-            Http2PseudoHeader::Authority,
-            Http2PseudoHeader::Scheme,
-            Http2PseudoHeader::Protocol,
-        ]),
-        extended_connect_priority: Some(Http2Priority {
-            dependency_stream_id: 0,
-            weight: 22,
-            exclusive: false,
-        }),
-        headers_priority: Some(Http2Priority {
-            dependency_stream_id: 0,
-            weight: 42,
-            exclusive: false,
-        }),
-        hpack: Http2HpackSettings {
-            literal_pseudo_headers: Vec::new(),
-            static_name_index: Http2StaticNameIndex::Highest,
-            huffman_coding: Http2HuffmanCoding::AlwaysIncludingEmpty,
-            cookie_crumbs: Http2CookieCrumbs::NeverIndexShort,
-            field_indexing: Http2FieldIndexing::NeverIndexAuthorization,
-            name_reference: Http2NameReference::OldestDynamic,
-            unindexed_match: Http2UnindexedMatch::Literal,
-            indexing_limit: Http2IndexingLimit::Half,
-            table_size_updates: Http2TableSizeUpdates::EverySetting,
-            sensitive_proxy_authorization: Http2SensitiveProxyAuthorization::FieldIndexing,
-        },
-        streams: Http2StreamSettings {
-            first_stream_id: 3,
-            assumed_max_concurrent_streams: Some(100),
-            max_concurrent_streams_cap: None,
-        },
-        preface_ping_after: None,
-        ping_timeout: None,
-        ping_failure_retries: 0,
-        idle_ping_after: Some(Duration::from_secs(58)),
-        idle_ping_timeout: Some(Duration::from_secs(8)),
-        idle_timeout: Http2IdleTimeout::ClosedOnTimer(Duration::from_secs(170)),
-    }
+    crate::catalog::http2_components::firefox_157_http2()
 }
 
 /// Returns WebSocket settings observed from Firefox 157.0 on Windows 11.
