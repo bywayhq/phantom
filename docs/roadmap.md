@@ -117,6 +117,11 @@ features or blockers for the Phase 2 API work.
   Firefox CONNECT recipes decide whether forwarded requests and WebSocket
   tunnels join them. `ClientBuilder::max_http2_proxy_connections_per_route`
   opts into more than one connection per proxy route, off by default.
+- Explicit Digest authentication for CONNECT and forwarding over HTTP/1.1
+  and HTTP/2, including session algorithms, stale nonces and response proofs
+  ([Routes and proxies](guides/routes-and-proxies.md)). NTLM and
+  Negotiate/Kerberos have [proposed contracts](internals/transport-profile-evidence/proxy-authentication.md),
+  with no implementation or successful peer exchange.
 - SOCKS4/4a TCP tunnels with explicit local or proxy DNS, SOCKS5 tunnels and
   UDP ASSOCIATE, and exact HTTP/3 through CONNECT-UDP over
   HTTP/3, HTTP/2, or HTTP/1.1 proxy legs
@@ -421,7 +426,6 @@ the wire, capture evidence.
   `ServerAuthentication::DangerDisabled` already skips chain and name
   verification over HTTP/1.1 and HTTP/2, for example to debug through an
   intercepting proxy, and changes no wire field.
-- Digest proxy authentication.
 - Import of externally described fingerprints, limited to fields Phantom
   reproduces byte for byte.
 

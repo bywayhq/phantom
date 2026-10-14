@@ -50,11 +50,11 @@ copying execution journals into this page.
 | --- | --- | --- |
 | T1 | `h3-drain-diagnosis` | Readiness repair merged in PR #213 after the exact signed-head gate and platform CI. Main push CI passed; the historical trigger remains open. |
 | T2 | `tls-done-diagnosis` | Framed-response repair and EOF controls merged in PR #212 after the full gate and platform CI. Main push CI passed; historical attribution remains open. |
-| P1–P4 | `profile-catalog` | Catalog foundation and generated H3, H2, and core TLS components pass focused checks and review. Branded and Android TLS overrides, remaining layers, immutable definitions, and root wire checks remain. |
+| P1–P4 | `profile-catalog` | Catalog foundation and TLS, QUIC, H1, H2, H3, DNS-cache, and UDP components pass focused checks and review. TCP and remaining layers, immutable definitions, and root wire checks remain. |
 | P5 | `profile-history` | Edge 153 Windows profile passes four profile and six native replay controls. Catalog registration, corpus measurements, and integration remain. |
-| F1 | `ticket-transfer` | Snapshot contract reviewed. Client-owned clearing and late-ticket generation isolation are implemented; focused checks are running. Transfer encoding and full bindings remain. |
-| F3 | `socks4-integration` | SOCKS4/4a source, loopback controls, and documentation reviewed. Rebased root gate and PR delivery remain. |
-| F4 | `digest-auth` | Parser, engine, and nonce cache reviewed. All 147 proxy controls pass, including H1 and H2 CONNECT. Public forwarding checks and final implementation review remain. |
+| F1 | `ticket-transfer` | Client-owned clearing and late-ticket isolation pass focused checks and review. Frozen stores and strict native decoding are under verification. Authenticated transfer encoding and full bindings remain. |
+| F3 | `socks4-integration` | SOCKS4/4a merged in PR #215 after the exact-head full gate and macOS/Windows CI. Main push CI is being watched. |
+| F4 | `digest-integration` | Digest CONNECT and forwarding pass focused checks and independent review. SOCKS4 composition is reviewed. Enterprise mechanism contracts and local capability limits are recorded. Root gate and PR delivery remain. |
 | F8 | `http3-debug-auth` | Origin opt-in passes 86 focused controls and review. Human-signed integration prepared; rebased root gate and PR delivery remain. |
 
 Neither controlled timing reproduction proves the exact historical host
@@ -66,6 +66,9 @@ The [TLS timing record](transport-profile-evidence/tls-retirement.md) binds
 the T2 repair and retained evidence. Its historical attribution remains open.
 The [HTTP/3 draining record](transport-profile-evidence/http3-draining.md)
 binds T1's fixture repair. Its original scheduling trigger remains unresolved.
+The [proxy authentication investigation](transport-profile-evidence/proxy-authentication.md)
+records separate NTLM, Negotiate, and Kerberos contracts. No enterprise
+authentication implementation or successful peer exchange is claimed.
 
 ## Historical timing failures
 
