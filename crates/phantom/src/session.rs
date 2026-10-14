@@ -126,6 +126,8 @@ pub(crate) struct ClientOptions {
     pub(crate) max_client_hint_origins: NonZeroUsize,
     pub(crate) max_alt_svc_origins: Option<NonZeroUsize>,
     pub(crate) alt_svc_policy: AltSvcPolicy,
+    #[cfg(feature = "https-records")]
+    pub(crate) alt_svc_https_policy: crate::AltSvcHttpsPolicy,
     /// The caller's HTTP/3 early-data choice; `None` keeps the profile's.
     pub(crate) http3_early_data: Option<bool>,
     #[cfg(feature = "https-records")]
@@ -157,6 +159,8 @@ impl Default for ClientOptions {
             max_client_hint_origins: DEFAULT_MAX_CLIENT_HINT_ORIGINS,
             max_alt_svc_origins: None,
             alt_svc_policy: AltSvcPolicy::sequential(),
+            #[cfg(feature = "https-records")]
+            alt_svc_https_policy: crate::AltSvcHttpsPolicy::OriginOnly,
             http3_early_data: None,
             #[cfg(feature = "https-records")]
             https_record_resolver: None,
@@ -286,6 +290,23 @@ impl ClientOptions {
         self.alt_svc_policy.validate()
     }
 
+    #[cfg(feature = "https-records")]
+    pub(crate) fn validate_alt_svc_https(&self, consumes_ech: bool) -> Result<(), BuildError> {
+        self.alt_svc_https_policy.validate()?;
+        if matches!(
+            self.alt_svc_https_policy,
+            crate::AltSvcHttpsPolicy::Destination { .. }
+        ) && (self.max_alt_svc_origins.is_none()
+            || self.https_record_resolver.is_none()
+            || !consumes_ech)
+        {
+            return Err(BuildError::invalid_policy(
+                "Alt-Svc destination lookup requires an Alt-Svc store, HTTPS discovery and HTTP/3 HTTPS-record ECH",
+            ));
+        }
+        Ok(())
+    }
+
     /// Applies an HTTP/3 early-data choice to `inner`'s HTTP/3 connector,
     /// once [`Self::validate_transport`] has accepted it.
     ///
@@ -336,12 +357,16 @@ impl ClientOptions {
             max_client_hint_origins,
             max_alt_svc_origins,
             alt_svc_policy,
+            #[cfg(feature = "https-records")]
+            alt_svc_https_policy,
             http3_early_data,
             #[cfg(feature = "https-records")]
             https_record_resolver,
             #[cfg(feature = "cookies")]
             cookie_jar,
         } = self;
+        #[cfg(feature = "https-records")]
+        formatter.field("alt_svc_https_policy", alt_svc_https_policy);
         formatter
             .field("redirect_policy", redirect_policy)
             .field("retry_policy", retry_policy)
@@ -473,6 +498,8 @@ impl ClientOptions {
         .with_max_connections(self.max_http3_connections_per_origin);
         #[cfg(feature = "https-records")]
         http3.set_https_records(https_records.clone());
+        #[cfg(feature = "https-records")]
+        http3.set_alt_svc_https_policy(self.alt_svc_https_policy);
         Arc::new(ClientState {
             redirect_policy: self.redirect_policy,
             retry_policy: self.retry_policy,

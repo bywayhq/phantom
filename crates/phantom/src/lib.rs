@@ -120,6 +120,8 @@ pub use phantom_net::{InvalidAuthorization, InvalidAuthorizationKind};
 /// Lossless ordinary response-field order attached to each response.
 pub use phantom_net::{OrderedResponseHeaders, ResponseHeader};
 
+#[cfg(feature = "https-records")]
+pub use alt_svc_https_policy::AltSvcHttpsPolicy;
 pub use authority::RequestOrigin;
 pub use body::ResponseBody;
 pub use client::{Client, ClientBuilder, HttpProtocol};
@@ -276,6 +278,8 @@ struct WebSocketGuideDoctests;
 #[doc = include_str!("../../../docs/guides/websocket-fields.md")]
 struct WebSocketFieldsGuideDoctests;
 
+#[cfg(feature = "https-records")]
+mod alt_svc_https_policy;
 mod authority;
 mod base_url;
 mod body;

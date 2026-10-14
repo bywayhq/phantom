@@ -69,6 +69,11 @@ enum AlternativeSource {
 }
 
 impl AlternativeTarget {
+    #[cfg(feature = "https-records")]
+    pub(crate) const fn is_alt_svc(&self) -> bool {
+        matches!(self.source, AlternativeSource::AltSvc { .. })
+    }
+
     pub(super) fn new(selection: &AltSvcSelection) -> Self {
         Self {
             location: selection.location.clone(),
@@ -1152,6 +1157,8 @@ pub(crate) fn invalidates_alternative(error: &RequestError) -> bool {
     }
 }
 
+#[cfg(feature = "https-records")]
+pub(super) mod https_policy;
 #[cfg(feature = "https-records")]
 mod https_records;
 #[cfg(feature = "https-records")]

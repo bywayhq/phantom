@@ -1023,3 +1023,5 @@ mod quic_owner_contract;
 mod tcp_completed_outcome_contract;
 #[cfg(test)]
 mod tcp_owner_contract;
+
+mod alt_destination;

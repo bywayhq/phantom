@@ -367,8 +367,8 @@ pub enum RequestErrorKind {
     InvalidTarget,
     /// Redirect policy rejected a response or target.
     Redirect,
-    /// A separately reported address lookup failed, such as HTTP/3 origin
-    /// resolution or a local SOCKS5 lookup. Direct TCP setup reports its
+    /// A separately reported address or HTTPS-record lookup failed, such as
+    /// HTTP/3 origin resolution or a local SOCKS5 lookup. Direct TCP reports its
     /// combined lookup and dial failures as [`Connect`](Self::Connect).
     Resolve,
     /// Direct TCP lookup or connection setup failed, or an HTTP/3 endpoint
@@ -494,6 +494,16 @@ impl RequestError {
 
     pub(crate) fn prepared_body_content_type(message: &'static str) -> Self {
         Self::without_source(RequestErrorKind::InvalidHeader, message)
+    }
+
+    #[cfg(feature = "https-records")]
+    pub(crate) fn alt_svc_https(source: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self::with_source(
+            RequestErrorKind::Resolve,
+            Some(HttpProtocol::Http3),
+            "Alt-Svc destination HTTPS discovery failed",
+            source,
+        )
     }
 
     pub(crate) fn invalid_uri(source: http::uri::InvalidUri) -> Self {

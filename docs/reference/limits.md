@@ -231,8 +231,10 @@ from Chromium.
 | --- | --- |
 | Undelivered HTTP/2 ALTSVC frames per connection | 16 |
 | Raced Alt-Svc alternative setup, including name resolution | 4 seconds, or `AltSvcRace::with_alternative_setup_limit` |
-| Origins with a cached HTTPS DNS record result, per client | The `maximum_origins` given to `ClientBuilder::alt_svc`, least recently used evicted |
-| Lifetime of an HTTPS DNS record result | Lowest answer TTL, at most 1 day; a negative answer's SOA TTL; 60 seconds with no TTL or after a failed lookup |
+| Cached HTTPS queries by host and port, per client | The `maximum_origins` given to `ClientBuilder::alt_svc`, least recently used evicted |
+| Lifetime of an HTTPS DNS record result | Earliest record or negative SOA expiry, at most 1 day from lookup construction; missing or expired lifetimes are not cached |
+| HTTPS lookup failure backoff | 60 seconds |
+| Learned alternative HTTPS lookup | Off by default; `AltSvcHttpsPolicy::Destination` uses a nonzero caller timeout within the connection setup budget |
 | TLS session tickets per H1/H2 pool entry | `TlsSettings::session_tickets`: 2 in Chromium-family recipes, 10 in Firefox recipes; enabled limits are 1 through 10; when full, the ticket the recipe's [ticket order](profiles.md#tls-session-ticket-order) names is dropped |
 | QUIC session tickets per H3 pool entry, and per CONNECT-UDP outer connection | 4, least recently stored evicted |
 | HTTP proxy and credential pairs remembered for Basic authentication, per client | 128, least recently used evicted |

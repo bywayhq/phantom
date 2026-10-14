@@ -57,10 +57,13 @@ fn client_builder_sets_every_client_option() {
         )))
         .http3_early_data(false);
     #[cfg(feature = "https-records")]
-    let builder =
-        builder.https_record_discovery(crate::dns::HttpsRecordResolver::from_fn(|_, _| async {
+    let builder = builder
+        .https_record_discovery(crate::dns::HttpsRecordResolver::from_fn(|_, _| async {
             Ok(crate::dns::HttpsRecordLookup::new(Vec::new(), None))
-        }));
+        }))
+        .alt_svc_https_policy(crate::AltSvcHttpsPolicy::Destination {
+            lookup_timeout: Duration::from_millis(250),
+        });
     #[cfg(feature = "cookies")]
     let builder = builder.cookies();
     let debug = format!("{builder:?}");
@@ -89,6 +92,8 @@ fn client_builder_sets_every_client_option() {
         http3_early_data,
         #[cfg(feature = "https-records")]
         https_record_resolver,
+        #[cfg(feature = "https-records")]
+        alt_svc_https_policy,
         #[cfg(feature = "cookies")]
         cookie_jar,
     } = builder.options;
@@ -149,6 +154,46 @@ fn client_builder_sets_every_client_option() {
     assert_ne!(http3_early_data, defaults.http3_early_data);
     #[cfg(feature = "https-records")]
     assert!(https_record_resolver.is_some() && defaults.https_record_resolver.is_none());
+    #[cfg(feature = "https-records")]
+    assert_ne!(alt_svc_https_policy, defaults.alt_svc_https_policy);
     #[cfg(feature = "cookies")]
     assert!(cookie_jar.is_some() && defaults.cookie_jar.is_none());
+}
+
+#[cfg(feature = "https-records")]
+#[test]
+fn destination_lookup_requires_store_resolver_and_http3_ech() {
+    use crate::{AltSvcHttpsPolicy, BuildErrorKind, dns::HttpsRecordResolver};
+
+    let policy = AltSvcHttpsPolicy::Destination {
+        lookup_timeout: Duration::from_millis(250),
+    };
+    let mut options = ClientOptions {
+        alt_svc_https_policy: policy,
+        ..ClientOptions::default()
+    };
+    assert!(matches!(
+        options.validate_alt_svc_https(true),
+        Err(error) if error.kind() == BuildErrorKind::InvalidPolicy
+    ));
+    options.max_alt_svc_origins = Some(nonzero(2));
+    assert!(options.validate_alt_svc_https(true).is_err());
+    options.https_record_resolver = Some(HttpsRecordResolver::from_fn(|_, _| async {
+        Ok(crate::dns::HttpsRecordLookup::new(Vec::new(), None))
+    }));
+    assert!(options.validate_alt_svc_https(false).is_err());
+    assert!(options.validate_alt_svc_https(true).is_ok());
+    options.alt_svc_https_policy = AltSvcHttpsPolicy::Destination {
+        lookup_timeout: Duration::ZERO,
+    };
+    assert!(options.validate_alt_svc_https(true).is_err());
+    options.alt_svc_https_policy = AltSvcHttpsPolicy::Destination {
+        lookup_timeout: Duration::MAX,
+    };
+    assert!(options.validate_alt_svc_https(true).is_err());
+    assert!(
+        ClientOptions::default()
+            .validate_alt_svc_https(false)
+            .is_ok()
+    );
 }

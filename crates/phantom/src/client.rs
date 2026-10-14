@@ -1712,6 +1712,18 @@ impl ClientBuilder {
         self
     }
 
+    /// Choose HTTPS discovery for learned direct HTTP/3 alternatives.
+    ///
+    /// [`crate::AltSvcHttpsPolicy::Destination`] waits for the alternative's
+    /// records before QUIC starts. It requires an Alt-Svc store, HTTPS
+    /// discovery, and HTTP/3 TLS settings that use HTTPS-record ECH.
+    /// The default keeps origin-only discovery.
+    #[cfg(feature = "https-records")]
+    pub fn alt_svc_https_policy(mut self, policy: crate::AltSvcHttpsPolicy) -> Self {
+        self.options.alt_svc_https_policy = policy;
+        self
+    }
+
     /// Sets whether a resumed HTTP/3 connection offers early (0-RTT) data,
     /// overriding the profile.
     ///
@@ -2060,6 +2072,12 @@ impl ClientBuilder {
             http1_or_2.is_some(),
             http3.is_some(),
             http3_session_tickets,
+        )?;
+        #[cfg(feature = "https-records")]
+        self.options.validate_alt_svc_https(
+            http3
+                .as_ref()
+                .is_some_and(Http3Connector::ech_from_https_records),
         )?;
         let secure_proxy_requested = self
             .route

@@ -742,7 +742,7 @@ async fn alternative_setup(
             client.inner.connect_udp_proxy.as_deref(),
             &endpoint,
             &route,
-            Http3TransportTarget::new(alternative.host(), alternative.port()),
+            Http3TransportTarget::for_alternative(&alternative),
             timeout_budget,
             &mut retries,
             Http3SetupControl {
@@ -850,7 +850,7 @@ async fn send_on_alternative(
         body,
     } = attempt;
     let endpoint = &request.endpoint;
-    let transport = Http3TransportTarget::new(alternative.host(), alternative.port());
+    let transport = Http3TransportTarget::for_alternative(alternative);
     let client_hint_origin = client_hint_origin(client, request);
     let mut restart_hints = RestartHints::default();
     let keeps_fields = may_replay_unanswered(request_retries, body);

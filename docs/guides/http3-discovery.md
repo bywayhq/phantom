@@ -71,6 +71,22 @@ fn discovering_client(profile: ClientProfile) -> Result<Client, Box<dyn std::err
 - `HttpsRecordResolver::system` asks the host's configured DNS servers.
   `HttpsRecordResolver::with_nameservers` takes servers you choose.
 
+## Look up a learned alternative
+
+With `https-records`, pass `AltSvcHttpsPolicy::Destination { lookup_timeout }`
+to `ClientBuilder::alt_svc_https_policy`. Set a nonzero lookup timeout. This
+needs an Alt-Svc store, HTTPS discovery, and HTTP/3 TLS settings that use ECH
+from HTTPS records.
+
+Phantom queries the learned host and port before starting QUIC. A compatible
+record can supply ECH. The original origin keeps its TLS name and HTTP
+authority. The record cannot move the connection to another host or port.
+
+A failed lookup or incompatible answer fails that alternative. An
+authoritative empty answer allows it without ECH. The lookup shares the
+connection setup budget. Your Alt-Svc racing policy still decides whether
+to try the origin too. The default `OriginOnly` keeps origin discovery.
+
 ## Keep Alt-Svc state across restarts
 
 Phantom keeps the servers it learned in memory. Export them, store them in

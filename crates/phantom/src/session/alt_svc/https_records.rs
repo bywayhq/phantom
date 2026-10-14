@@ -21,10 +21,14 @@ use std::{
     time::{Duration, Instant},
 };
 
-use phantom_net::dns::{EchConfigList, HttpsRecord, HttpsRecordResolver, TargetName};
+use phantom_net::dns::{
+    EchConfigList, HttpsLookupError, HttpsRecord, HttpsRecordLookup, HttpsRecordResolver,
+    TargetName,
+};
 use tokio::sync::watch;
 use tracing::{Instrument, debug, instrument::WithSubscriber};
 
+use super::https_policy::{self, DestinationError, DestinationPlan};
 use crate::authority::Endpoint;
 
 /// Retry backoff for an operational lookup failure, separate from DNS freshness.
@@ -102,6 +106,15 @@ struct RecordSummary {
     /// The usable ServiceMode records in priority order, each one the
     /// connection metadata of one Chromium service endpoint.
     endpoints: Box<[ServiceEndpoint]>,
+    /// Unfiltered records or the original operational failure. The default
+    /// origin projection remains independent of the destination policy.
+    destination: Option<DestinationRecords>,
+}
+
+#[derive(Debug)]
+enum DestinationRecords {
+    Answer(HttpsRecordLookup),
+    Failed(Arc<HttpsLookupError>),
 }
 
 #[derive(Debug)]
@@ -183,7 +196,7 @@ impl PendingLookup {
 enum State {
     Ready(Arc<RecordSummary>),
     Pending(PendingLookup),
-    Unavailable,
+    Unavailable(DestinationError),
 }
 
 impl HttpsRecordDiscovery {
@@ -211,7 +224,7 @@ impl HttpsRecordDiscovery {
     pub(crate) fn discover(&self, origin: &Endpoint) -> Discovery {
         match self.state(origin) {
             State::Ready(summary) if summary.advertises_h3 => Discovery::Advertised,
-            State::Ready(_) | State::Unavailable => Discovery::NotAdvertised,
+            State::Ready(_) | State::Unavailable(_) => Discovery::NotAdvertised,
             State::Pending(pending) => Discovery::Pending(pending),
         }
     }
@@ -232,7 +245,7 @@ impl HttpsRecordDiscovery {
             let summary = match state {
                 State::Ready(summary) => summary,
                 State::Pending(pending) => pending.summary().await?,
-                State::Unavailable => return None,
+                State::Unavailable(_) => return None,
             };
             summary.tcp_ech(&alpn)
         }
@@ -250,21 +263,53 @@ impl HttpsRecordDiscovery {
             let summary = match state {
                 State::Ready(summary) => summary,
                 State::Pending(pending) => pending.summary().await?,
-                State::Unavailable => return None,
+                State::Unavailable(_) => return None,
             };
             summary.quic_ech()
         }
     }
 
+    /// Waits for typed metadata for the alternative's own DNS name and port.
+    /// The caller supplies one deadline before either connection attempt.
+    pub(crate) fn destination_plan(
+        &self,
+        host: &str,
+        port: u16,
+    ) -> impl Future<Output = Result<DestinationPlan, DestinationError>> + Send + 'static {
+        let state = self.state_at(host, port);
+        let host = host.to_owned();
+        async move {
+            let summary = match state {
+                State::Ready(summary) => summary,
+                State::Pending(pending) => {
+                    pending.summary().await.ok_or(DestinationError::Cancelled)?
+                }
+                State::Unavailable(error) => return Err(error),
+            };
+            match &summary.destination {
+                Some(DestinationRecords::Answer(records)) => {
+                    https_policy::select(records, &host, port)
+                }
+                Some(DestinationRecords::Failed(error)) => {
+                    Err(DestinationError::Lookup(Arc::clone(error)))
+                }
+                None => Err(DestinationError::DiscoveryUnavailable),
+            }
+        }
+    }
+
     fn state(&self, origin: &Endpoint) -> State {
-        if origin.host().parse::<IpAddr>().is_ok() {
-            return State::Unavailable;
+        self.state_at(origin.host(), origin.port())
+    }
+
+    fn state_at(&self, host: &str, port: u16) -> State {
+        if host.parse::<IpAddr>().is_ok() {
+            return State::Unavailable(DestinationError::IpLiteral);
         }
         let Ok(runtime) = tokio::runtime::Handle::try_current() else {
-            return State::Unavailable;
+            return State::Unavailable(DestinationError::RuntimeUnavailable);
         };
-        let host = origin.host().to_ascii_lowercase();
-        let port = origin.port();
+        let host = host.to_ascii_lowercase();
         let now = Instant::now();
         let mut state = self.cache.lock_state();
         state.ready.retain(|entry| entry.expires_at > now);
@@ -296,7 +341,7 @@ impl HttpsRecordDiscovery {
             .count()
             >= self.cache.capacity.get()
         {
-            return State::Unavailable;
+            return State::Unavailable(DestinationError::Capacity);
         }
 
         let lookup = self.cache.next_lookup_id();
@@ -320,18 +365,25 @@ impl HttpsRecordDiscovery {
             runtime.spawn(
                 async move {
                     let result = resolver.lookup(&host, port).await;
-                    let (summary, deadline) = match &result {
+                    let (summary, deadline) = match result {
                         Ok(records) => {
                             let answers = records
                                 .answers()
                                 .iter()
                                 .map(|answer| (answer.owner(), answer.record()))
                                 .collect::<Vec<_>>();
-                            (summarize(&answers, &host, port), records.cache_deadline(MAX_RESULT_TTL))
+                            let mut summary = summarize(&answers, &host, port);
+                            let deadline = records.cache_deadline(MAX_RESULT_TTL);
+                            summary.destination = Some(DestinationRecords::Answer(records));
+                            (summary, deadline)
                         }
                         Err(error) => {
                             debug!(outcome = "failed", kind = ?error.kind(), "HTTPS record lookup failed");
-                            (RecordSummary::default(), Instant::now().checked_add(FAILED_LOOKUP_BACKOFF))
+                            let summary = RecordSummary {
+                                destination: Some(DestinationRecords::Failed(Arc::new(error))),
+                                ..RecordSummary::default()
+                            };
+                            (summary, Instant::now().checked_add(FAILED_LOOKUP_BACKOFF))
                         }
                     };
                     debug!(
@@ -501,6 +553,7 @@ fn summarize(answers: &[(&str, &HttpsRecord)], host: &str, port: u16) -> RecordS
             .iter()
             .any(|endpoint| endpoint.protocols.iter().any(|id| **id == *H3_ALPN)),
         endpoints,
+        destination: None,
     }
 }
 

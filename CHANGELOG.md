@@ -1107,6 +1107,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Validate catalog capture build labels against retained fixture metadata.
   Brave Android's HTTP/2 evidence now names its older Android 15 capture.
 
+- Look up HTTPS records for learned direct HTTP/3 alternatives with
+  `ClientBuilder::alt_svc_https_policy` and
+  `AltSvcHttpsPolicy::Destination`. A compatible answer can supply ECH while
+  the original origin keeps its TLS name and HTTP authority. Lookup failures
+  and incompatible answers fail that alternative. The default remains
+  `OriginOnly`.
+
 - Resolve addresses through an explicit DNS-over-HTTPS endpoint with verified
   TLS, pinned bootstrap addresses, bounded lookups and DNS answer lifetimes.
   Choose GET or POST with `DnsOverHttps` in `phantom::dns`. Its address and

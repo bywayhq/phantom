@@ -48,15 +48,47 @@ use crate::{
 pub(crate) struct Http3TransportTarget<'a> {
     host: &'a str,
     port: u16,
+    #[cfg(feature = "https-records")]
+    alt_svc: bool,
 }
 
 impl<'a> Http3TransportTarget<'a> {
     pub(crate) const fn new(host: &'a str, port: u16) -> Self {
-        Self { host, port }
+        Self {
+            host,
+            port,
+            #[cfg(feature = "https-records")]
+            alt_svc: false,
+        }
     }
 
     pub(crate) fn for_origin(endpoint: &'a Endpoint) -> Self {
         Self::new(endpoint.host(), endpoint.port())
+    }
+
+    pub(crate) fn for_alternative(alternative: &'a super::alt_svc::AlternativeTarget) -> Self {
+        Self {
+            host: alternative.host(),
+            port: alternative.port(),
+            #[cfg(feature = "https-records")]
+            alt_svc: alternative.is_alt_svc(),
+        }
+    }
+
+    #[cfg(feature = "https-records")]
+    fn destination_lookup_timeout(
+        self,
+        route: &Route,
+        policy: crate::AltSvcHttpsPolicy,
+    ) -> Option<Duration> {
+        match policy {
+            crate::AltSvcHttpsPolicy::Destination { lookup_timeout }
+                if self.alt_svc && matches!(route, Route::Direct) =>
+            {
+                Some(lookup_timeout)
+            }
+            _ => None,
+        }
     }
 }
 
@@ -77,6 +109,8 @@ pub(crate) struct Http3Pool {
     state: Mutex<PoolState>,
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
+    #[cfg(feature = "https-records")]
+    alt_svc_https_policy: crate::AltSvcHttpsPolicy,
 }
 
 impl Http3Pool {
@@ -93,6 +127,8 @@ impl Http3Pool {
             state: Mutex::new(PoolState::default()),
             #[cfg(feature = "https-records")]
             https_records: None,
+            #[cfg(feature = "https-records")]
+            alt_svc_https_policy: crate::AltSvcHttpsPolicy::OriginOnly,
         }
     }
 
@@ -115,6 +151,11 @@ impl Http3Pool {
         discovery: Option<super::alt_svc::HttpsRecordDiscovery>,
     ) {
         self.https_records = discovery;
+    }
+
+    #[cfg(feature = "https-records")]
+    pub(super) const fn set_alt_svc_https_policy(&mut self, policy: crate::AltSvcHttpsPolicy) {
+        self.alt_svc_https_policy = policy;
     }
 
     pub(super) const fn capacity(&self) -> NonZeroUsize {
@@ -353,6 +394,8 @@ impl Http3Pool {
             Http3Spread::new(self.max_connections, self.max_active),
             #[cfg(feature = "https-records")]
             self.https_records.clone(),
+            #[cfg(feature = "https-records")]
+            self.alt_svc_https_policy,
         ));
         state.entries.push_back((key, Arc::clone(&entry)));
         entry
@@ -460,6 +503,8 @@ struct PoolEntry {
     /// The client's HTTPS-record lookups, when it makes them.
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
+    #[cfg(feature = "https-records")]
+    alt_svc_https_policy: crate::AltSvcHttpsPolicy,
 }
 
 impl PoolEntry {
@@ -469,6 +514,7 @@ impl PoolEntry {
         #[cfg(feature = "https-records")] https_records: Option<
             super::alt_svc::HttpsRecordDiscovery,
         >,
+        #[cfg(feature = "https-records")] alt_svc_https_policy: crate::AltSvcHttpsPolicy,
     ) -> Self {
         Self {
             slots: std::sync::Mutex::new(Slots {
@@ -484,6 +530,8 @@ impl PoolEntry {
             tcp_proxy: OnceLock::new(),
             #[cfg(feature = "https-records")]
             https_records,
+            #[cfg(feature = "https-records")]
+            alt_svc_https_policy,
         }
     }
 
@@ -710,6 +758,10 @@ impl PoolEntry {
         early_data: bool,
     ) -> Result<Http3Connection, RequestError> {
         debug!(outcome = "connect", "HTTP/3 client pool opening connection");
+        // Fix destination metadata once, before any ClientHello or ticket
+        // retry. `open` also bounds this wait with the whole setup budget.
+        #[cfg(feature = "https-records")]
+        let destination = self.destination_plan(connector, route, transport).await?;
         let origin = self
             .origin
             .get_or_init(|| connector.without_early_data().with_isolated_session_cache());
@@ -745,6 +797,8 @@ impl PoolEntry {
             route,
             transport,
             connect_udp_proxy,
+            #[cfg(feature = "https-records")]
+            destination.as_ref(),
         ))
         .await;
         match first {
@@ -762,6 +816,8 @@ impl PoolEntry {
                     route,
                     transport,
                     connect_udp_proxy,
+                    #[cfg(feature = "https-records")]
+                    destination.as_ref(),
                 ))
                 .await
                 .map_err(SetupFailure::into_request_error)
@@ -770,7 +826,44 @@ impl PoolEntry {
         }
     }
 
+    #[cfg(feature = "https-records")]
+    async fn destination_plan(
+        &self,
+        connector: &Http3Connector,
+        route: &Route,
+        transport: Http3TransportTarget<'_>,
+    ) -> Result<Option<super::alt_svc::https_policy::DestinationPlan>, RequestError> {
+        use super::alt_svc::https_policy::DestinationError;
+        let Some(limit) = transport.destination_lookup_timeout(route, self.alt_svc_https_policy)
+        else {
+            return Ok(None);
+        };
+        let discovery = self
+            .https_records
+            .as_ref()
+            .filter(|_| connector.ech_from_https_records())
+            .ok_or_else(|| RequestError::alt_svc_https(DestinationError::DiscoveryUnavailable))?;
+        // Starting the shared lookup on the first poll keeps timer setup
+        // failure from starting work that cannot be awaited within its limit.
+        let plan = within(limit, async {
+            discovery
+                .destination_plan(transport.host, transport.port)
+                .await
+        })
+        .await
+        .map_err(RequestError::alt_svc_https)?
+        .ok_or_else(|| {
+            RequestError::alt_svc_https(RequestError::timeout(
+                TimeoutPhase::Connect,
+                Some(HttpProtocol::Http3),
+            ))
+        })?
+        .map_err(RequestError::alt_svc_https)?;
+        Ok(Some(plan))
+    }
+
     /// Builds one datagram route, retaining logical-origin authentication.
+    #[allow(clippy::too_many_arguments)]
     async fn connect_with(
         &self,
         connector: &Http3Connector,
@@ -779,6 +872,9 @@ impl PoolEntry {
         route: &Route,
         transport: Http3TransportTarget<'_>,
         connect_udp_proxy: Option<&ConnectUdpConnectors>,
+        #[cfg(feature = "https-records")] destination: Option<
+            &super::alt_svc::https_policy::DestinationPlan,
+        >,
     ) -> Result<Http3Connection, SetupFailure> {
         use phantom_net::route::{
             ConnectUdpRoute, ConnectUdpTransport, DatagramRoute, Endpoint as DialEndpoint,
@@ -789,7 +885,8 @@ impl PoolEntry {
             port: transport.port,
         };
         #[cfg(feature = "https-records")]
-        let mut ech = pin!(if matches!(route, Route::Direct)
+        let lookup = if destination.is_none()
+            && matches!(route, Route::Direct)
             && connector.ech_from_https_records()
             && transport.port == endpoint.port()
             && transport.host.eq_ignore_ascii_case(endpoint.host())
@@ -797,6 +894,22 @@ impl PoolEntry {
             self.https_records
                 .as_ref()
                 .map(|discovery| discovery.quic_ech(endpoint))
+        } else {
+            None
+        };
+        #[cfg(feature = "https-records")]
+        let prepared = destination.map(|plan| plan.ech.clone());
+        #[cfg(feature = "https-records")]
+        let mut ech = pin!(if prepared.is_some() || lookup.is_some() {
+            Some(async move {
+                match prepared {
+                    Some(ech) => ech,
+                    None => match lookup {
+                        Some(lookup) => lookup.await,
+                        None => None,
+                    },
+                }
+            })
         } else {
             None
         });
@@ -1670,6 +1783,56 @@ mod tests {
         assert_eq!(key, PoolKey::new(&endpoint, &Route::Direct));
         assert_eq!(alternative, matching);
         assert_ne!(alternative, origin);
+        Ok(())
+    }
+
+    #[cfg(feature = "https-records")]
+    #[test]
+    fn destination_policy_applies_only_to_learned_direct_alt_svc()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use crate::session::alt_svc::{AltSvcStore, AlternativeTarget};
+        use crate::{AltSvcHttpsPolicy, AltSvcSnapshot, AltSvcSnapshotEntry};
+        use std::time::{Duration, SystemTime};
+
+        let endpoint = Endpoint::new("origin.test:443".parse()?, 443)?;
+        let store = AltSvcStore::new(NonZeroUsize::MIN);
+        store.import(&AltSvcSnapshot::new(vec![AltSvcSnapshotEntry::new(
+            "https://origin.test",
+            "alt.test",
+            8443,
+            SystemTime::now()
+                .checked_add(Duration::from_secs(30))
+                .ok_or("expiry overflow")?,
+        )]))?;
+        let selected = store.get_up_to(&endpoint, &Route::Direct, 1);
+        let alternative = AlternativeTarget::new(selected.first().ok_or("alternative absent")?);
+        let learned = Http3TransportTarget::for_alternative(&alternative);
+        let origin_https = AlternativeTarget::https_record(&endpoint, false, false);
+        let timeout = Duration::from_secs(1);
+        let policy = AltSvcHttpsPolicy::Destination {
+            lookup_timeout: timeout,
+        };
+
+        assert_eq!(
+            learned.destination_lookup_timeout(&Route::Direct, policy),
+            Some(timeout)
+        );
+        assert_eq!(
+            learned.destination_lookup_timeout(&Route::Direct, AltSvcHttpsPolicy::default()),
+            None
+        );
+        let proxy = Route::socks5(Socks5Proxy::new("socks5h://proxy.test:1080")?);
+        assert_eq!(learned.destination_lookup_timeout(&proxy, policy), None);
+        for target in [
+            Http3TransportTarget::for_origin(&endpoint),
+            Http3TransportTarget::for_alternative(&origin_https),
+            Http3TransportTarget::new("alt.test", 8443),
+        ] {
+            assert_eq!(
+                target.destination_lookup_timeout(&Route::Direct, policy),
+                None
+            );
+        }
         Ok(())
     }
 

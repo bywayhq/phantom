@@ -163,7 +163,7 @@ fn checked_alternative_fields(
         connector,
         client.inner.connect_udp_proxy.as_deref(),
         route,
-        Http3TransportTarget::new(alternative.host(), alternative.port()),
+        Http3TransportTarget::for_alternative(alternative),
         attempt.method,
         request.endpoint.authority().as_str(),
         &request.target,
