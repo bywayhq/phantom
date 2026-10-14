@@ -26,7 +26,8 @@ usage() {
 # test-changed-paths.sh enforces that.
 classify_path() {
   case $1 in
-    README.md | docs/getting-started.md | docs/guides/*)
+    README.md | docs/getting-started.md | docs/guides/* | \
+      docs/reference/fingerprint-import.md)
       path_class=doctest
       ;;
     # Markdown in these trees is package content, fixture provenance, or

@@ -39,6 +39,8 @@ expect "$doctest" README.md
 expect "$doctest" docs/getting-started.md
 expect "$doctest" docs/guides/client.md
 expect "$doctest" docs/guides/new-guide.md
+expect "$doctest" docs/reference/fingerprint-import.md
+expect "$doctest" docs/reference/limits.md docs/reference/fingerprint-import.md
 expect "$doctest" CONTRIBUTING.md README.md docs/reference/limits.md
 
 # Code, including Markdown inside package, fixture, fuzz, and vendored trees.
