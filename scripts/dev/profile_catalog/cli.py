@@ -4,6 +4,7 @@ import argparse
 import sys
 
 from .components import generate_components, validate_components
+from .composition import generate_compositions, validate_composition_bindings
 from .declarations import REPO, DeclarationError, read_document
 from .registry import generate, validate
 from .request_template import (
@@ -102,6 +103,10 @@ REQUEST_TEMPLATE_OUTPUT = (
     REPO / "crates/phantom-profile/src/catalog/request_template_definitions.rs"
 )
 
+COMPOSITION_OUTPUT = (
+    REPO / "crates/phantom-profile/src/catalog/connection_profile_definitions.rs"
+)
+
 
 def load(path=RECORDS, repo=REPO):
     return validate(read_document(path), repo)
@@ -171,60 +176,76 @@ def main():
         profiles = load()
         templates = load_request_templates()
         validate_template_bindings(profiles, templates)
-        outputs = (
-            (OUTPUT, generate(profiles)),
-            (COMPONENT_OUTPUT, generate_components(load_components())),
+        component_groups = (
+            (COMPONENT_OUTPUT, "http3-components.json", load_components()),
             (
                 HTTP2_COMPONENT_OUTPUT,
-                generate_components(load_http2_components(), "http2-components.json"),
+                "http2-components.json",
+                load_http2_components(),
             ),
             (
                 TLS_COMPONENT_OUTPUT,
-                generate_components(load_tls_components(), "tls-components.json"),
+                "tls-components.json",
+                load_tls_components(),
             ),
             (
                 QUIC_COMPONENT_OUTPUT,
-                generate_components(load_quic_components(), "quic-components.json"),
+                "quic-components.json",
+                load_quic_components(),
             ),
             (
                 HTTP1_COMPONENT_OUTPUT,
-                generate_components(load_http1_components(), "http1-components.json"),
+                "http1-components.json",
+                load_http1_components(),
             ),
             (
                 DNS_COMPONENT_OUTPUT,
-                generate_components(load_dns_components(), "dns-components.json"),
+                "dns-components.json",
+                load_dns_components(),
             ),
             (
                 UDP_COMPONENT_OUTPUT,
-                generate_components(load_udp_components(), "udp-components.json"),
+                "udp-components.json",
+                load_udp_components(),
             ),
             (
                 TCP_COMPONENT_OUTPUT,
-                generate_components(load_tcp_components(), "tcp-components.json"),
+                "tcp-components.json",
+                load_tcp_components(),
             ),
             (
                 COOKIE_COMPONENT_OUTPUT,
-                generate_components(load_cookie_components(), "cookie-components.json"),
+                "cookie-components.json",
+                load_cookie_components(),
             ),
             (
                 PROXY_CONNECT_COMPONENT_OUTPUT,
-                generate_components(
-                    load_proxy_connect_components(), "proxy-connect-components.json"
-                ),
+                "proxy-connect-components.json",
+                load_proxy_connect_components(),
             ),
             (
                 CLIENT_HINTS_COMPONENT_OUTPUT,
-                generate_components(
-                    load_client_hints_components(), "client-hints-components.json"
-                ),
+                "client-hints-components.json",
+                load_client_hints_components(),
             ),
             (
                 WEBSOCKET_COMPONENT_OUTPUT,
-                generate_components(
-                    load_websocket_components(), "websocket-components.json"
-                ),
+                "websocket-components.json",
+                load_websocket_components(),
+            ),
+        )
+        validate_composition_bindings(
+            profiles,
+            [component for _, _, group in component_groups for component in group],
+        )
+        outputs = (
+            (OUTPUT, generate(profiles)),
+            *(
+                (path, generate_components(group, filename))
+                for path, filename, group in component_groups
             ),
             (REQUEST_TEMPLATE_OUTPUT, generate_templates(templates)),
+            (COMPOSITION_OUTPUT, generate_compositions(profiles)),
         )
         for output, generated in outputs:
             if arguments.check:

@@ -1106,6 +1106,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Forwarding checks proofs in the head and trailers, and accepts nonce
   state only after the complete body is consumed.
 
+- Assemble catalog connection profiles from immutable typed component references.
+  Each selection returns fresh owned settings with the existing layer choices,
+  defaults and per-client draw policies.
+
 - Declare request templates as immutable catalog data. Each supported selection
   constructs a fresh owned template while keeping its existing field order.
 

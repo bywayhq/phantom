@@ -15,9 +15,11 @@
 
 use std::fmt;
 
-use crate::{ClientProfile, RequestTemplate, browser};
+use crate::{ClientProfile, RequestTemplate};
 
 pub(crate) mod client_hints_components;
+mod connection_profile_definitions;
+mod connection_profile_values;
 pub(crate) mod cookie_components;
 pub(crate) mod dns_components;
 mod generated;
@@ -309,7 +311,7 @@ pub struct ProfileDefinition {
     id: ProfileId,
     metadata: ProfileMetadata,
     layers: &'static [LayerEvidence],
-    binding: RecipeBinding,
+    composition: &'static connection_profile_values::ConnectionProfileDefinition,
     templates: &'static [RequestTemplateBinding],
 }
 
@@ -361,7 +363,7 @@ impl ProfileDefinition {
             }
         }
 
-        Ok(self.binding.instantiate())
+        Ok(self.composition.instantiate())
     }
 
     /// Returns a fresh request template for the explicitly selected kind.
@@ -448,35 +450,4 @@ pub fn profile(id: &str) -> Result<&'static ProfileDefinition, CatalogError> {
 struct RequestTemplateBinding {
     kind: RequestTemplateKind,
     definition: &'static request_template_values::RequestTemplateDefinition,
-}
-
-#[derive(Clone, Copy, Debug)]
-enum RecipeBinding {
-    ChromeWindows154,
-    ChromeAndroid154,
-    EdgeWindows154,
-    EdgeAndroid153,
-    BraveWindows154,
-    BraveAndroid153,
-    FirefoxWindows157,
-    FirefoxAndroid156,
-    OperaWindows136,
-    OperaAndroid102,
-}
-
-impl RecipeBinding {
-    fn instantiate(self) -> ClientProfile {
-        match self {
-            Self::ChromeWindows154 => browser::chrome::v154_windows(),
-            Self::ChromeAndroid154 => browser::chrome::v154_android(),
-            Self::EdgeWindows154 => browser::edge::v154_windows(),
-            Self::EdgeAndroid153 => browser::edge::v153_android(),
-            Self::BraveWindows154 => browser::brave::v154_windows(),
-            Self::BraveAndroid153 => browser::brave::v153_android(),
-            Self::FirefoxWindows157 => browser::firefox::v157_windows(),
-            Self::FirefoxAndroid156 => browser::firefox::v156_android(),
-            Self::OperaWindows136 => browser::opera::v136_windows(),
-            Self::OperaAndroid102 => browser::opera::v102_android(),
-        }
-    }
 }

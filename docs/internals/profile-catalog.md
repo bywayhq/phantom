@@ -7,7 +7,7 @@ Keep browser observations separate from recipe implementations.
 
 | File | Responsibility |
 | --- | --- |
-| `crates/phantom-profile/catalog/profiles.json` | Recipe identities, layer evidence and template bindings |
+| `crates/phantom-profile/catalog/profiles.json` | Recipe identities, layer references, evidence and template bindings |
 | `crates/phantom-profile/catalog/tls-components.json` | Typed TCP and QUIC TLS values |
 | `crates/phantom-profile/catalog/quic-components.json` | Typed QUIC transport values and wire policies |
 | `crates/phantom-profile/catalog/http1-components.json` | Typed HTTP/1.1 connection limits and timers |
@@ -21,8 +21,10 @@ Keep browser observations separate from recipe implementations.
 | `crates/phantom-profile/catalog/http2-components.json` | Typed HTTP/2 settings and field overrides |
 | `crates/phantom-profile/catalog/http3-components.json` | Typed HTTP/3 settings and field overrides |
 | `crates/phantom-profile/catalog/request-templates.json` | Complete ordered request-template values |
-| `crates/phantom-profile/src/catalog.rs` | Selection, required layers, and typed recipe bindings |
+| `crates/phantom-profile/src/catalog.rs` | Selection and required layers |
 | `crates/phantom-profile/src/catalog/generated.rs` | Committed generated records |
+| `crates/phantom-profile/src/catalog/connection_profile_definitions.rs` | Immutable typed component references |
+| `crates/phantom-profile/src/catalog/connection_profile_values.rs` | Fresh owned connection-profile construction |
 | `crates/phantom-profile/src/catalog/request_template_definitions.rs` | Immutable compiled request templates |
 | `crates/phantom-profile/src/catalog/request_template_values.rs` | Borrowed values and owned template construction |
 | `crates/phantom-profile/src/tls/components.rs` | Committed generated TLS values |
@@ -56,14 +58,13 @@ python -m unittest scripts.dev.tests.test_generate_profile_cli
 
 Cargo uses the committed registry. It does not run Python or read JSON at
 runtime. Discovery and exact lookup borrow static records. Connection-profile
-instantiation calls the selected recipe factory and returns fresh owned settings.
+instantiation constructs fresh owned settings from immutable component references.
 Request-template selection copies immutable values into a fresh owned template.
 
 All existing TLS factories, core QUIC transport, HTTP/1.1, HTTP/2, HTTP/3,
 DNS-cache, TCP, UDP, client hints, Cookie placement, CONNECT, and WebSocket
-settings use
-structured components. Complete connection profiles still use handwritten
-composition. Its migration and historical-version growth remain in the
+settings use structured components. Complete connection profiles select these
+components through typed references. Historical-version growth remains in the
 [roadmap](../roadmap.md). Request templates have immutable definitions and exact
 kind bindings. Their evidence remains in browser docs and retained fixtures;
 they have no separate evidence records.
@@ -90,7 +91,7 @@ scope, and connection/session ownership remain transport responsibilities.
 Customizing returned settings does not amend or retain a validated identity
 on the custom profile. Instantiation does not perform random draws.
 
-Changing settings requires a new revision and a new explicit recipe binding.
+Changing settings requires a new revision and a new explicit composition.
 Preserve earlier definitions. Changes confined to evidence may retain the
 settings identity when the generated settings and draw policies are unchanged.
 
@@ -144,10 +145,22 @@ controls. The migration adds no browser observations or per-template evidence.
 
 ## Update the registry
 
-Edit the JSON records and the closed recipe binding when adding a supported
+Edit the JSON records and the closed target contract when adding a supported
 target. Records cannot contain Rust expressions or arbitrary callable paths.
-The binding contract pins the build, target, environment, known architecture,
+The target contract pins the build, target, environment, known architecture,
 revision, and configured layers.
+
+Each composition names all fourteen layers. A component identifier selects
+one declaration of the required type. `null` preserves an absent layer and its
+ordinary custom-profile default. TCP TLS is required. HTTP/3 is either absent
+or contains all four TLS, QUIC, connection, and request components. References
+must agree with the evidence states. Request templates remain separate choices.
+
+Generation resolves and checks every component before writing any output.
+Compiled definitions hold closed typed references, with no complete browser
+factory dispatch. Construction keeps ordered values and runtime draw policies.
+It does not sample them. Original browser factories and a separately frozen
+ten-profile composition oracle provide comparison controls.
 
 ```sh
 python scripts/dev/generate_profiles.py
@@ -164,10 +177,11 @@ python -m unittest scripts.dev.tests.test_generate_cookie_profiles
 python -m unittest scripts.dev.tests.test_generate_proxy_connect_profiles
 python -m unittest scripts.dev.tests.test_generate_websocket_profiles
 python -m unittest scripts.dev.tests.test_generate_request_templates
+python -m unittest scripts.dev.tests.test_generate_compositions
 ```
 
 Generation sorts identifiers and emits fields and layers in fixed orders.
-All fourteen generated files use `rustfmt::skip` to preserve their output.
+All fifteen generated files use `rustfmt::skip` to preserve their output.
 The generator rejects duplicate JSON keys and identifiers, unknown values,
 inconsistent metadata, missing or escaping files, unsupported absence claims,
 and observed fields without capture references.

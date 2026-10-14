@@ -153,6 +153,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
             [
                 "catalog",
                 "client_hints_components",
+                "compositions",
                 "cookie_components",
                 "dns_components",
                 "http1_components",

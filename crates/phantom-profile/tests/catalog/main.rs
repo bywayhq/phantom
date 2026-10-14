@@ -4,6 +4,7 @@
 
 mod catalog;
 mod client_hints_components;
+mod compositions;
 mod cookie_components;
 mod dns_components;
 mod http1_components;

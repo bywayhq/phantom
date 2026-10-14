@@ -29,8 +29,8 @@ class CatalogDeclarationTests(unittest.TestCase):
         )
         self.assertEqual(generator.OUTPUT.read_text(encoding="utf-8"), expected)
 
-    def test_unknown_fields_bindings_layers_and_enums_are_rejected(self):
-        for key, value in (("binding", "std::process::exit"), ("unexpected", True)):
+    def test_unknown_fields_targets_layers_and_enums_are_rejected(self):
+        for key, value in (("target", "std::process::exit"), ("unexpected", True)):
             with self.subTest(key=key):
                 document = copy.deepcopy(self.document)
                 document["profiles"][0][key] = value
@@ -70,7 +70,7 @@ class CatalogDeclarationTests(unittest.TestCase):
         document["profiles"][0]["metadata"]["revision"] = True
         self.reject(document)
 
-    def test_a_known_factory_cannot_be_relabelled_as_another_build_or_target(self):
+    def test_a_known_target_cannot_be_relabelled_as_another_build_or_target(self):
         for field, value in (
             ("build", "999.0"),
             ("platform_release", "android-99"),
@@ -82,7 +82,7 @@ class CatalogDeclarationTests(unittest.TestCase):
                 entry = next(
                     profile
                     for profile in document["profiles"]
-                    if profile["binding"] == "BraveAndroid153"
+                    if profile["target"] == "BraveAndroid153"
                 )
                 entry["metadata"][field] = value
                 metadata = entry["metadata"]
@@ -155,7 +155,7 @@ class CatalogDeclarationTests(unittest.TestCase):
         document["profiles"][0]["id"] = "x" * (declarations.MAX_STRING + 1)
         self.reject(document)
 
-    def test_template_bindings_require_explicit_known_kinds_and_identifiers(self):
+    def test_template_targets_require_explicit_known_kinds_and_identifiers(self):
         for value in (
             None,
             [],
@@ -172,7 +172,7 @@ class CatalogDeclarationTests(unittest.TestCase):
         document["profiles"][0]["templates"] = {}
         generator.validate(document)
 
-    def test_template_binding_object_order_does_not_change_generated_records(self):
+    def test_template_target_object_order_does_not_change_generated_records(self):
         expected = generator.generate(generator.validate(self.document))
         for entry in self.document["profiles"]:
             entry["templates"] = dict(reversed(list(entry["templates"].items())))

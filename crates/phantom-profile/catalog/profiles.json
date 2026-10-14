@@ -3,7 +3,6 @@
   "profiles": [
     {
       "id": "brave/153.1.95.104/android-17-pixel7-emulator/r1",
-      "binding": "BraveAndroid153",
       "metadata": {
         "browser": "Brave",
         "build": "153.1.95.104",
@@ -271,11 +270,27 @@
       "templates": {
         "FetchNoStore": "brave_android153_fetch_no_store",
         "Navigation": "brave_android153_navigation"
+      },
+      "target": "BraveAndroid153",
+      "composition": {
+        "TcpTls": "brave_153_android_tcp_tls",
+        "Tcp": null,
+        "Udp": null,
+        "Dns": null,
+        "Http1": null,
+        "Http2": "chromium_154_http2",
+        "QuicTls": "brave_153_android_quic_tls",
+        "QuicTransport": "chromium_154_quic",
+        "Http3": "chromium_154_http3",
+        "Http3Request": "chromium_154_http3_request",
+        "ClientHints": "brave_android_153_client_hints",
+        "WebSocket": "chromium_154_websocket",
+        "ProxyConnect": null,
+        "CookiePlacement": null
       }
     },
     {
       "id": "brave/154.1.96.59/windows-11-26200/r1",
-      "binding": "BraveWindows154",
       "metadata": {
         "browser": "Brave",
         "build": "154.1.96.59",
@@ -629,11 +644,27 @@
       "templates": {
         "FetchNoStore": "brave_windows154_fetch_no_store",
         "Navigation": "brave_windows154_navigation"
+      },
+      "target": "BraveWindows154",
+      "composition": {
+        "TcpTls": "brave_154_tcp_tls",
+        "Tcp": "chromium_154_tcp",
+        "Udp": "chromium_154_udp",
+        "Dns": "chromium_154_dns_cache",
+        "Http1": "chromium_154_http1",
+        "Http2": "chromium_154_http2",
+        "QuicTls": "brave_154_quic_tls",
+        "QuicTransport": "chromium_154_quic",
+        "Http3": "chromium_154_http3",
+        "Http3Request": "chromium_154_http3_request",
+        "ClientHints": "brave_windows_154_client_hints",
+        "WebSocket": "chromium_154_websocket",
+        "ProxyConnect": "chromium_154_proxy_connect",
+        "CookiePlacement": "chromium_154_cookie"
       }
     },
     {
       "id": "chrome/154.0.8037.57/android-17-pixel7-emulator/r1",
-      "binding": "ChromeAndroid154",
       "metadata": {
         "browser": "Chrome",
         "build": "154.0.8037.57",
@@ -882,11 +913,27 @@
       "templates": {
         "FetchNoStore": "chrome_android154_fetch_no_store",
         "Navigation": "chrome_android154_navigation"
+      },
+      "target": "ChromeAndroid154",
+      "composition": {
+        "TcpTls": "chromium_154_android_tcp_tls",
+        "Tcp": null,
+        "Udp": null,
+        "Dns": null,
+        "Http1": null,
+        "Http2": "chromium_154_http2",
+        "QuicTls": "chromium_154_android_quic_tls",
+        "QuicTransport": "chromium_154_quic",
+        "Http3": "chromium_154_http3",
+        "Http3Request": "chromium_154_http3_request",
+        "ClientHints": "chrome_android_154_client_hints",
+        "WebSocket": "chromium_154_websocket",
+        "ProxyConnect": null,
+        "CookiePlacement": null
       }
     },
     {
       "id": "chrome/154.0.8037.97/windows-11-26200/r1",
-      "binding": "ChromeWindows154",
       "metadata": {
         "browser": "Chrome",
         "build": "154.0.8037.97",
@@ -1215,11 +1262,27 @@
         "FetchNoStore": "chrome_windows154_fetch_no_store",
         "FetchUpload": "chrome_windows154_fetch_upload",
         "Navigation": "chrome_windows154_navigation"
+      },
+      "target": "ChromeWindows154",
+      "composition": {
+        "TcpTls": "chromium_154_tcp_tls",
+        "Tcp": "chromium_154_tcp",
+        "Udp": "chromium_154_udp",
+        "Dns": "chromium_154_dns_cache",
+        "Http1": "chromium_154_http1",
+        "Http2": "chromium_154_http2",
+        "QuicTls": "chromium_154_quic_tls",
+        "QuicTransport": "chromium_154_quic",
+        "Http3": "chromium_154_http3",
+        "Http3Request": "chromium_154_http3_request",
+        "ClientHints": "chrome_windows_154_client_hints",
+        "WebSocket": "chromium_154_websocket",
+        "ProxyConnect": "chromium_154_proxy_connect",
+        "CookiePlacement": "chromium_154_cookie"
       }
     },
     {
       "id": "edge/153.0.4234.49/android-17-pixel7-emulator/r1",
-      "binding": "EdgeAndroid153",
       "metadata": {
         "browser": "Edge",
         "build": "153.0.4234.49",
@@ -1475,11 +1538,27 @@
       "templates": {
         "FetchNoStore": "edge_android153_fetch_no_store",
         "Navigation": "edge_android153_navigation"
+      },
+      "target": "EdgeAndroid153",
+      "composition": {
+        "TcpTls": "edge_153_android_tcp_tls",
+        "Tcp": null,
+        "Udp": null,
+        "Dns": null,
+        "Http1": null,
+        "Http2": "chromium_154_http2",
+        "QuicTls": "edge_153_android_quic_tls",
+        "QuicTransport": "chromium_154_quic",
+        "Http3": "chromium_154_http3",
+        "Http3Request": "chromium_154_http3_request",
+        "ClientHints": "edge_android_153_client_hints",
+        "WebSocket": null,
+        "ProxyConnect": null,
+        "CookiePlacement": null
       }
     },
     {
       "id": "edge/154.0.4258.48/windows-11-26200/r1",
-      "binding": "EdgeWindows154",
       "metadata": {
         "browser": "Edge",
         "build": "154.0.4258.48",
@@ -1855,11 +1934,27 @@
       "templates": {
         "FetchNoStore": "chromium_fetch_no_store_caller_ua",
         "Navigation": "chromium_navigation_caller_ua"
+      },
+      "target": "EdgeWindows154",
+      "composition": {
+        "TcpTls": "edge_154_tcp_tls",
+        "Tcp": "chromium_154_tcp",
+        "Udp": "chromium_154_udp",
+        "Dns": "chromium_154_dns_cache",
+        "Http1": "chromium_154_http1",
+        "Http2": "chromium_154_http2",
+        "QuicTls": "edge_154_quic_tls",
+        "QuicTransport": "chromium_154_quic",
+        "Http3": "chromium_154_http3",
+        "Http3Request": "chromium_154_http3_request",
+        "ClientHints": "edge_windows_154_client_hints",
+        "WebSocket": "chromium_154_websocket",
+        "ProxyConnect": "chromium_154_proxy_connect",
+        "CookiePlacement": "chromium_154_cookie"
       }
     },
     {
       "id": "firefox/156.0.1/android-35-emulator/r1",
-      "binding": "FirefoxAndroid156",
       "metadata": {
         "browser": "Firefox",
         "build": "156.0.1",
@@ -2019,11 +2114,27 @@
           ]
         }
       ],
-      "templates": {}
+      "templates": {},
+      "target": "FirefoxAndroid156",
+      "composition": {
+        "TcpTls": "firefox_156_android_tcp_tls",
+        "Tcp": null,
+        "Udp": null,
+        "Dns": null,
+        "Http1": null,
+        "Http2": null,
+        "QuicTls": null,
+        "QuicTransport": null,
+        "Http3": null,
+        "Http3Request": null,
+        "ClientHints": null,
+        "WebSocket": null,
+        "ProxyConnect": null,
+        "CookiePlacement": null
+      }
     },
     {
       "id": "firefox/157.0/windows-11-26200/r1",
-      "binding": "FirefoxWindows157",
       "metadata": {
         "browser": "Firefox",
         "build": "157.0",
@@ -2315,11 +2426,27 @@
         "FetchNoStore": "firefox_windows157_fetch_no_store",
         "FetchUpload": "firefox_windows157_fetch_upload",
         "Navigation": "firefox_windows157_navigation"
+      },
+      "target": "FirefoxWindows157",
+      "composition": {
+        "TcpTls": "firefox_157_tcp_tls",
+        "Tcp": "firefox_157_tcp",
+        "Udp": null,
+        "Dns": "firefox_157_dns_cache",
+        "Http1": "firefox_157_http1",
+        "Http2": "firefox_157_http2",
+        "QuicTls": "firefox_157_quic_tls",
+        "QuicTransport": "firefox_157_quic",
+        "Http3": "firefox_157_http3",
+        "Http3Request": "firefox_157_http3_request",
+        "ClientHints": null,
+        "WebSocket": "firefox_157_websocket",
+        "ProxyConnect": "firefox_157_proxy_connect",
+        "CookiePlacement": "firefox_157_cookie"
       }
     },
     {
       "id": "opera/102.1.5206.90382/android-17-pixel7-emulator/r1",
-      "binding": "OperaAndroid102",
       "metadata": {
         "browser": "Opera",
         "build": "102.1.5206.90382",
@@ -2487,11 +2614,27 @@
           ]
         }
       ],
-      "templates": {}
+      "templates": {},
+      "target": "OperaAndroid102",
+      "composition": {
+        "TcpTls": "opera_102_android_tcp_tls",
+        "Tcp": null,
+        "Udp": null,
+        "Dns": null,
+        "Http1": null,
+        "Http2": null,
+        "QuicTls": null,
+        "QuicTransport": null,
+        "Http3": null,
+        "Http3Request": null,
+        "ClientHints": "opera_android_102_client_hints",
+        "WebSocket": null,
+        "ProxyConnect": null,
+        "CookiePlacement": null
+      }
     },
     {
       "id": "opera/136.0.6008.52/windows-11-26200/r1",
-      "binding": "OperaWindows136",
       "metadata": {
         "browser": "Opera",
         "build": "136.0.6008.52",
@@ -2873,6 +3016,23 @@
       "templates": {
         "FetchNoStore": "chromium_fetch_no_store_caller_ua",
         "Navigation": "chromium_navigation_caller_ua"
+      },
+      "target": "OperaWindows136",
+      "composition": {
+        "TcpTls": "opera_136_tcp_tls",
+        "Tcp": "chromium_154_tcp",
+        "Udp": "chromium_154_udp",
+        "Dns": "chromium_154_dns_cache",
+        "Http1": "chromium_154_http1",
+        "Http2": "chromium_154_http2",
+        "QuicTls": "opera_136_quic_tls",
+        "QuicTransport": "chromium_154_quic",
+        "Http3": "chromium_154_http3",
+        "Http3Request": "chromium_154_http3_request",
+        "ClientHints": "opera_windows_136_client_hints",
+        "WebSocket": "chromium_154_websocket",
+        "ProxyConnect": "chromium_154_proxy_connect",
+        "CookiePlacement": "chromium_154_cookie"
       }
     }
   ]
