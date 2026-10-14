@@ -109,7 +109,7 @@ combinations and limits listed here.
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse, browser per-host connection bounds | Broader retry classes |
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity and stream numbering | Firefox stream `WINDOW_UPDATE` |
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
-| HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP, to the origin, or to a caller-pinned alternative directly or through CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5; opt-in H2 fallback for exact H3 | RTT-derived racing delay |
+| HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP, to the origin, or to a caller-pinned alternative directly or through CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5; client-local RTT racing on direct routes; opt-in H2 fallback for exact H3 | Browser timing evidence for RTT racing |
 | Routes | Direct, HTTP forward and CONNECT, SOCKS4/4a, SOCKS5, CONNECT-UDP | NTLM and Negotiate authentication |
 | SSE and WebSocket | Finite reconnects, message limits, Chrome/Firefox WebSocket recipes | H2/H3 SSE captures, tunnelled `wss://` opening captures |
 
@@ -527,8 +527,14 @@ Supported lifecycle:
   behind the `diagnostics` feature.
 - Opt-in Alt-Svc racing (`AltSvcPolicy::race`):
   - QUIC setup to the alternative starts first. H1/H2 setup to the origin
-    starts after a delay the caller sets, or at once if every raced
+    starts after a fixed or RTT-based delay, or at once if every raced
     alternative fails or a reusable pooled H2 connection exists.
+  - Opt-in client-local RTT history (`AltSvcRace::with_rtt_delay`), shared
+    by client clones. Only completed, verified direct HTTP/3 connections
+    publish samples. Capacity and age are caller bounds. Origin and dial
+    host/port pairs have separate samples. See
+    [RTT delays](limits.md#delays-and-timers) and the
+    [local verification record](../internals/transport-profile-evidence/rtt-racing.md).
   - One alternative is raced, as in Chromium 154. A caller can race up to
     three at once (`AltSvcRace::with_max_alternatives`), which no browser
     does; under a profile that sends `Alt-Used`, the field names the
@@ -570,7 +576,6 @@ Not supported:
 
 - Nonempty local H3 application settings.
 - Datagram APIs for specific extensions.
-- A racing delay derived from RTT.
 - HTTPS-record queries sent with the address queries from one DNS client, as
   Chrome does. Phantom's address lookups go through the operating system,
   or through `AddressResolver::system_nameservers`, whose queries are

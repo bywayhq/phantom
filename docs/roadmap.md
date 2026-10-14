@@ -195,6 +195,11 @@ features or blockers for the Phase 2 API work.
 - Opt-in ECH discovery for a learned direct Alt-Svc destination, with the
   origin's TLS name and HTTP authority
   ([Look up a learned alternative](guides/http3-discovery.md#look-up-a-learned-alternative)).
+- Opt-in client-local RTT racing from completed, verified direct HTTP/3
+  connections, with bounded sample capacity and age
+  ([Choose the delay from connection timing](guides/http3-discovery.md#choose-the-delay-from-connection-timing)).
+  Focused checks pass; integration and platform CI remain in
+  [campaign F7](internals/transport-and-profile-campaign.md#current-work).
 - WebSocket over HTTP/3 (RFC 9220) to a server the caller controls, as a
   stream on the client's pooled HTTP/3 connection, directly, over SOCKS5
   UDP, or through CONNECT-UDP, for a custom profile with an extended CONNECT

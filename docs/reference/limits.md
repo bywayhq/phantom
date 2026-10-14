@@ -185,7 +185,8 @@ The last column shows which changes a server can observe.
 | WebSocket handshake timeout | The recipe's: 240 seconds for Chromium, 20 seconds for Firefox; none without a recipe | Chromium 154 and Firefox 157 source | `WebSocketRequestBuilder::handshake_timeout` | Yes: closed connection, or a stream reset on a pooled H2 session or H3 connection |
 | WebSocket setup retry delay | No retries | Phantom | `WebSocketRetryPolicy::connection_failures` | Yes: timing of the new connection |
 | Wait for another handshake to a known-H2 negotiated key | None (waits until it ends) | Firefox 157; Chromium 154 uses 300 ms | `negotiated_setup_wait_limit` | Yes: a second handshake |
-| Alt-Svc race origin delay | None (sequential) | Chromium computes it per request | `AltSvcRace::new` | Yes: when TCP setup starts |
+| Alt-Svc fixed race origin delay | None (sequential) | Caller policy | `AltSvcRace::new` | Yes: when TCP setup starts |
+| Alt-Svc RTT race origin delay | Opt-in, additional delay zero | Client-local verified direct QUIC history | `AltSvcRace::with_rtt_delay`, `AltSvcRttDelay` | Yes: when TCP setup starts |
 | QUIC attempt limit of an exact HTTP/3 request that may fall back to HTTP/2 | 4 seconds, the raced alternative's limit | Phantom, from Chrome 153's QUIC idle timeout before a handshake; Chromium lets a responsive handshake run longer | Not configurable | Yes: when TCP setup starts |
 | Raced alternative setup limit | 4 seconds | Chrome 153 source and capture | `AltSvcRace::with_alternative_setup_limit` | Yes: when QUIC setup stops |
 | Broken alternative period | 300 seconds, doubling to 2 days | Chrome 153 NetLog and source | `AltSvcBrokenBackoff` | Yes: when QUIC is tried again |
@@ -212,6 +213,35 @@ is setting up, or the timers above. The one pool timer, which a profile
 with `Http1IdleTimeout::ClosedOnTimer` such as `firefox::v157_http1`
 starts, closes idle HTTP/1.1 connections and ends a remembered address
 family once its origin has no connection; no request waits for it.
+
+### RTT-based racing
+
+`AltSvcRace::with_rtt_delay` opts into client-local connection timing.
+`AltSvcRttDelay::new` sets a nonzero entry capacity and positive maximum age.
+The age bounds both samples and the client's recent verified QUIC success.
+`with_additional_delay` adds whole microseconds, zero by default.
+
+| Available history | Origin setup delay |
+| --- | --- |
+| No fresh verified direct success | Zero |
+| Fresh success, missing or zero target sample | 300 ms plus additional delay, capped at 3 s |
+| Fresh success and target sample | 1.5 times whole-microsecond RTT plus additional delay, capped at 3 s |
+
+Client clones share history. Samples distinguish origin and dial host/port
+pairs. Reading a sample never extends its age. Proxy, verification-disabled,
+failed and pending handshakes supply no samples. Ordinary connections publish
+after verified completion. Early connections publish after a response confirms
+settled handshake metadata.
+
+The first eligible alternative selects one origin timer. Pending discovery,
+ready HTTP/2, recent QUIC breakage and failure of every alternative keep their
+immediate origin behavior. Fixed racing remains unchanged.
+
+`Client::clear_alt_svc_racing_history` retires the history generation. Older
+connections cannot reseed it. `Client::clear_alt_svc` also clears this history.
+Neither closes existing connections. This history is separate from session
+tickets and browser network partitions or persisted network-success state.
+See [Choose the delay from connection timing](../guides/http3-discovery.md#choose-the-delay-from-connection-timing).
 
 ## Cookies
 
