@@ -127,6 +127,23 @@ pub(crate) fn edge_macos_154_client_hints() -> crate::ClientHintSettings {
 }
 
 #[rustfmt::skip]
+pub(crate) fn edge_windows_153_client_hints() -> crate::ClientHintSettings {
+    crate::ClientHintSettings::new(vec![
+        crate::ClientHint::new("sec-ch-ua", "\"Microsoft Edge\";v=\"153\", \"Not_A Brand\";v=\"8\", \"Chromium\";v=\"153\"", crate::ClientHintDelivery::Default),
+        crate::ClientHint::new("sec-ch-ua-mobile", "?0", crate::ClientHintDelivery::Default),
+        crate::ClientHint::new("sec-ch-ua-full-version", "\"153.0.4234.48\"", crate::ClientHintDelivery::AcceptCh),
+        crate::ClientHint::new("sec-ch-ua-arch", "\"x86\"", crate::ClientHintDelivery::AcceptCh),
+        crate::ClientHint::new("sec-ch-ua-platform", "\"Windows\"", crate::ClientHintDelivery::Default),
+        crate::ClientHint::new("sec-ch-ua-platform-version", "\"19.0.0\"", crate::ClientHintDelivery::AcceptCh),
+        crate::ClientHint::new("sec-ch-ua-model", "\"\"", crate::ClientHintDelivery::AcceptCh),
+        crate::ClientHint::new("sec-ch-ua-bitness", "\"64\"", crate::ClientHintDelivery::AcceptCh),
+        crate::ClientHint::new("sec-ch-ua-wow64", "?0", crate::ClientHintDelivery::AcceptCh),
+        crate::ClientHint::new("sec-ch-ua-full-version-list", "\"Microsoft Edge\";v=\"153.0.4234.48\", \"Not_A Brand\";v=\"8.0.0.0\", \"Chromium\";v=\"153.0.8010.53\"", crate::ClientHintDelivery::AcceptCh),
+        crate::ClientHint::new("sec-ch-ua-form-factors", "\"Desktop\"", crate::ClientHintDelivery::AcceptCh),
+    ])
+}
+
+#[rustfmt::skip]
 pub(crate) fn edge_windows_154_client_hints() -> crate::ClientHintSettings {
     crate::ClientHintSettings::new(vec![
         crate::ClientHint::new("sec-ch-ua", "\"Chromium\";v=\"154\", \"Microsoft Edge\";v=\"154\", \"Not A(Brand\";v=\"99\"", crate::ClientHintDelivery::Default),

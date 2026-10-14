@@ -68,8 +68,9 @@ class CompositionDeclarationTests(unittest.TestCase):
     ):
         profiles = cli.validate(self.document)
         composition.validate_composition_bindings(profiles, self.components)
-        self.assertEqual(len(profiles), 10)
-        pairs = [value for entry in profiles for value in entry["composition"].values()]
+        original = [entry for entry in profiles if entry["target"] != "EdgeWindows153"]
+        self.assertEqual(len(original), 10)
+        pairs = [value for entry in original for value in entry["composition"].values()]
         self.assertEqual(len(pairs), 140)
         self.assertEqual(sum(value is not None for value in pairs), 94)
         self.assertEqual(sum(value is None for value in pairs), 46)
@@ -189,7 +190,59 @@ class CompositionDeclarationTests(unittest.TestCase):
         self.assertNotIn("RecipeBinding", generated)
         self.assertNotIn("fn()", generated)
         self.assertNotIn("random", generated)
-        self.assertEqual(generated.count("static "), 10)
+        self.assertEqual(generated.count("static "), 11)
+
+    def test_earlier_component_growth_preserves_existing_semantic_variants_and_references(
+        self,
+    ):
+        profiles = cli.validate(self.document)
+        before = composition.component_variants(profiles)
+        grown = copy.deepcopy(profiles)
+        extra = copy.deepcopy(profiles[0])
+        extra.update(target="EarlierGrowth", id="aaa/earlier/growth/r1")
+        extra["composition"]["ClientHints"] = "aaa_earlier_client_hints"
+        grown.append(extra)
+        after = composition.component_variants(grown)
+        for kind, variants in before.items():
+            for identifier, variant in variants.items():
+                self.assertEqual(after[kind][identifier], variant)
+        self.assertEqual(
+            after["ClientHintSettings"]["aaa_earlier_client_hints"],
+            "AaaEarlier",
+        )
+        generated = composition.generate_compositions(grown)
+        for entry in profiles:
+            target = entry["target"].upper()
+            old = composition.generate_compositions([entry])
+            block = old[old.index(f"pub(super) static {target}:") :]
+            self.assertIn(block.strip(), generated)
+
+    def test_semantic_variant_collisions_and_reserved_names_are_rejected(self):
+        for first, second in (
+            ("abc1", "abc_1"),
+            ("abc_def", "abc__def"),
+            ("abc", "abc_tls"),
+        ):
+            profiles = cli.validate(self.document)
+            profiles[0]["composition"]["TcpTls"] = first
+            profiles[1]["composition"]["TcpTls"] = second
+            with self.subTest(first=first, second=second):
+                with self.assertRaisesRegex(declarations.DeclarationError, "colliding"):
+                    composition.generate_compositions(profiles)
+                values = self.components + [
+                    {"id": first, "kind": "TlsSettings"},
+                    {"id": second, "kind": "TlsSettings"},
+                ]
+                with self.assertRaisesRegex(declarations.DeclarationError, "colliding"):
+                    composition.validate_composition_bindings(profiles, values)
+        for identifier in ("self_", "self_tls"):
+            profiles = cli.validate(self.document)
+            profiles[0]["composition"]["TcpTls"] = identifier
+            with (
+                self.subTest(identifier=identifier),
+                self.assertRaisesRegex(declarations.DeclarationError, "reserved"),
+            ):
+                composition.generate_compositions(profiles)
 
 
 class CompositionCliBoundaryTests(unittest.TestCase):

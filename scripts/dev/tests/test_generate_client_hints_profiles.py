@@ -44,8 +44,11 @@ class ClientHintComponentTests(unittest.TestCase):
 
     def test_all_factories_order_flags_and_model_slots_are_explicit(self):
         components = self.resolve()
-        self.assertEqual(len(components), 11)
-        self.assertEqual(sum(len(c["values"]["hints"]) for c in components), 117)
+        original = [c for c in components if c["id"] != "edge_windows_153_client_hints"]
+        self.assertEqual(len(original), 11)
+        self.assertEqual(sum(len(c["values"]["hints"]) for c in original), 117)
+        self.assertEqual(len(components), 12)
+        self.assertEqual(sum(len(c["values"]["hints"]) for c in components), 128)
         models = []
         for component in components:
             hints = component["values"]["hints"]
@@ -70,6 +73,42 @@ class ClientHintComponentTests(unittest.TestCase):
                 "edge_android_153_client_hints",
                 "opera_android_102_client_hints",
             ],
+        )
+
+    def test_historical_edge_hints_preserve_all_ordered_literal_values(self):
+        component = next(
+            c for c in self.resolve() if c["id"] == "edge_windows_153_client_hints"
+        )
+        expected = [
+            (
+                "sec-ch-ua",
+                '"Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153"',
+                "Default",
+            ),
+            ("sec-ch-ua-mobile", "?0", "Default"),
+            ("sec-ch-ua-full-version", '"153.0.4234.48"', "AcceptCh"),
+            ("sec-ch-ua-arch", '"x86"', "AcceptCh"),
+            ("sec-ch-ua-platform", '"Windows"', "Default"),
+            ("sec-ch-ua-platform-version", '"19.0.0"', "AcceptCh"),
+            ("sec-ch-ua-model", '""', "AcceptCh"),
+            ("sec-ch-ua-bitness", '"64"', "AcceptCh"),
+            ("sec-ch-ua-wow64", "?0", "AcceptCh"),
+            (
+                "sec-ch-ua-full-version-list",
+                '"Microsoft Edge";v="153.0.4234.48", "Not_A Brand";v="8.0.0.0", "Chromium";v="153.0.8010.53"',
+                "AcceptCh",
+            ),
+            ("sec-ch-ua-form-factors", '"Desktop"', "AcceptCh"),
+        ]
+        self.assertEqual(
+            [
+                (h["name"], h["value"]["value"], h["delivery"])
+                for h in component["values"]["hints"]
+            ],
+            expected,
+        )
+        self.assertTrue(
+            all(h["value"]["kind"] == "Literal" for h in component["values"]["hints"])
         )
 
     def test_committed_output_and_object_order_are_deterministic(self):

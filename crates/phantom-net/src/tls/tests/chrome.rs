@@ -482,3 +482,5 @@ fn record_length_without_ech(
         .checked_sub(ech_payload_length)
         .ok_or_else(|| "ECH payload is larger than its TLS record".into())
 }
+
+mod historical;

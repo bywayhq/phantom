@@ -158,3 +158,6 @@ fn replace_fixture_value(input: &str, field: &str, replacement: &str) -> String 
         .collect::<Vec<_>>()
         .join("\n")
 }
+
+#[path = "browser_http2_fixtures/historical.rs"]
+mod historical;

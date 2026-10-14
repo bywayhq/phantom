@@ -854,5 +854,4 @@ const fn is_token_byte(byte: u8) -> bool {
 #[cfg(test)]
 pub(crate) mod capture;
 #[cfg(test)]
-#[path = "request_template/tests.rs"]
 mod tests;

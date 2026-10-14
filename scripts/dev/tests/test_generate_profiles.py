@@ -133,6 +133,87 @@ class CatalogDeclarationTests(unittest.TestCase):
         with self.assertRaisesRegex(generator.DeclarationError, "retained metadata"):
             generator.validate(self.document)
 
+    def test_retained_edge_versions_keep_exact_identity_and_partial_layer_contracts(
+        self,
+    ):
+        profiles = generator.validate(self.document)
+        old = next(entry for entry in profiles if entry["target"] == "EdgeWindows153")
+        new = next(entry for entry in profiles if entry["target"] == "EdgeWindows154")
+        self.assertEqual(old["id"], "edge/153.0.4234.48/windows-11-26200/r1")
+        self.assertEqual(new["id"], "edge/154.0.4258.48/windows-11-26200/r1")
+        self.assertIsNone(old["metadata"]["architecture"])
+        supplied = {
+            layer["layer"]
+            for layer in old["layers"]
+            if layer["support"] == "Configured"
+        }
+        self.assertEqual(
+            supplied,
+            {
+                "TcpTls",
+                "Http2",
+                "QuicTls",
+                "QuicTransport",
+                "Http3",
+                "Http3Request",
+                "ClientHints",
+            },
+        )
+        absent = {
+            layer["layer"]
+            for layer in old["layers"]
+            if layer["support"] == "Unavailable"
+        }
+        self.assertEqual(
+            absent,
+            {
+                "Tcp",
+                "Udp",
+                "Dns",
+                "Http1",
+                "WebSocket",
+                "ProxyConnect",
+                "CookiePlacement",
+            },
+        )
+        for layer in old["layers"]:
+            if layer["layer"] in supplied:
+                captures = [
+                    ref for ref in layer["references"] if ref["kind"] == "Capture"
+                ]
+                self.assertTrue(captures)
+                self.assertTrue(
+                    all(ref["build"] == "153.0.4234.48" for ref in captures)
+                )
+                if layer["layer"] != "ClientHints":
+                    self.assertTrue(
+                        any(ref["kind"] == "Reused" for ref in layer["references"])
+                    )
+            else:
+                self.assertEqual(layer["references"], [])
+                self.assertEqual(layer["verified_fields"], [])
+                self.assertIsNone(old["composition"][layer["layer"]])
+        for field, value in (
+            ("build", "153.0.4234.49"),
+            ("architecture", "x86_64"),
+            ("revision", 2),
+        ):
+            document = copy.deepcopy(self.document)
+            entry = next(
+                row for row in document["profiles"] if row["target"] == "EdgeWindows153"
+            )
+            entry["metadata"][field] = value
+            with self.subTest(field=field):
+                self.reject(document)
+        document = copy.deepcopy(self.document)
+        entry = next(
+            row for row in document["profiles"] if row["target"] == "EdgeWindows153"
+        )
+        next(layer for layer in entry["layers"] if layer["layer"] == "WebSocket")[
+            "support"
+        ] = "Configured"
+        self.reject(document)
+
     def test_brave_android_http2_names_the_older_session_control_without_new_coverage(
         self,
     ):

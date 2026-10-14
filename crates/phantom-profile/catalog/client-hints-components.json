@@ -649,6 +649,103 @@
       }
     },
     {
+      "id": "edge_windows_153_client_hints",
+      "kind": "ClientHintSettings",
+      "base": null,
+      "values": {
+        "hints": [
+          {
+            "name": "sec-ch-ua",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Microsoft Edge\";v=\"153\", \"Not_A Brand\";v=\"8\", \"Chromium\";v=\"153\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-mobile",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"153.0.4234.48\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-arch",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"x86\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Windows\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"19.0.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-model",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-bitness",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"64\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-wow64",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version-list",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Microsoft Edge\";v=\"153.0.4234.48\", \"Not_A Brand\";v=\"8.0.0.0\", \"Chromium\";v=\"153.0.8010.53\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-form-factors",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Desktop\""
+            }
+          }
+        ]
+      }
+    },
+    {
       "id": "edge_windows_154_client_hints",
       "kind": "ClientHintSettings",
       "base": null,

@@ -44,6 +44,12 @@ fn original_factory(id: &str, kind: RequestTemplateKind) -> Option<RequestTempla
         ("edge/154.0.4258.48/windows-11-26200/r1", FetchNoStore) => {
             browser::edge::v154_windows_fetch_no_store_template()
         }
+        ("edge/153.0.4234.48/windows-11-26200/r1", Navigation) => {
+            browser::edge::v153_windows_navigation_template()
+        }
+        ("edge/153.0.4234.48/windows-11-26200/r1", FetchNoStore) => {
+            browser::edge::v153_windows_fetch_no_store_template()
+        }
         ("edge/153.0.4234.49/android-17-pixel7-emulator/r1", Navigation) => {
             browser::edge::v153_android_navigation_template()
         }
@@ -85,6 +91,24 @@ fn original_factory(id: &str, kind: RequestTemplateKind) -> Option<RequestTempla
     Some(value)
 }
 
+fn all_expected_templates() -> Vec<(&'static str, RequestTemplateKind, RequestTemplate)> {
+    let mut expected = originals::expected_templates();
+    let historical = expected
+        .iter()
+        .filter(|(id, _, _)| *id == "edge/154.0.4258.48/windows-11-26200/r1")
+        .map(|(_, kind, value)| {
+            (
+                "edge/153.0.4234.48/windows-11-26200/r1",
+                *kind,
+                value.clone(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(historical.len(), 2);
+    expected.extend(historical);
+    expected
+}
+
 #[test]
 fn every_catalog_template_preserves_its_frozen_values_and_original_factory() -> TestResult {
     let expected = originals::expected_templates();
@@ -105,7 +129,7 @@ fn every_catalog_template_preserves_its_frozen_values_and_original_factory() -> 
 
 #[test]
 fn every_unsupported_kind_keeps_the_exact_selection_error() -> TestResult {
-    let expected = originals::expected_templates();
+    let expected = all_expected_templates();
     let mut supported = 0;
     let mut unsupported = 0;
     for definition in profiles() {
@@ -131,7 +155,7 @@ fn every_unsupported_kind_keeps_the_exact_selection_error() -> TestResult {
             }
         }
     }
-    assert_eq!((supported, unsupported), (20, 20));
+    assert_eq!((supported, unsupported), (22, 22));
     Ok(())
 }
 

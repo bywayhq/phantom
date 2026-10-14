@@ -1094,6 +1094,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Add Edge 153 Windows catalog layers and navigation and fetch templates.
+  TCP and QUIC offers, HTTP/2 and HTTP/3 startup, and client hints use
+  retained captures. Socket, DNS-cache and connection-lifecycle gaps
+  remain explicit; the templates require your User-Agent.
+
 - Validate catalog capture build labels against retained fixture metadata.
   Brave Android's HTTP/2 evidence now names its older Android 15 capture.
 

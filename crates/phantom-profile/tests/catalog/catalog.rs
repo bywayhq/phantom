@@ -85,7 +85,7 @@ fn catalog_preserves_the_composed_factories_stored_settings() -> TestResult {
             browser::opera::v102_android,
         ),
     ];
-    assert_eq!(profiles().len(), factories.len());
+    assert_eq!(profiles().len(), factories.len() + 1);
 
     for &(id, factory) in factories {
         let definition = profile(id)?;

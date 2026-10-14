@@ -936,3 +936,5 @@ const EDGE_ANDROID_153_H3_CLIENT_HELLO: &str = include_str!(concat!(
     "../../../../../fixtures/http3/edge-android/153.0.4234.49/",
     "android-17-pixel7-emulator/quic-client-hello-1.txt"
 ));
+
+mod historical;

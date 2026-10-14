@@ -7,6 +7,7 @@ mod client_hints_components;
 mod compositions;
 mod cookie_components;
 mod dns_components;
+mod historical;
 mod http1_components;
 mod http2_components;
 mod http3_components;

@@ -1287,6 +1287,301 @@
       }
     },
     {
+      "id": "edge/153.0.4234.48/windows-11-26200/r1",
+      "metadata": {
+        "browser": "Edge",
+        "build": "153.0.4234.48",
+        "platform": "Windows",
+        "platform_release": "windows-11-26200",
+        "architecture": null,
+        "environment": "Desktop",
+        "revision": 1
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/tls/edge/153.0.4234.48/windows-11-26200/client-hello.txt",
+              "build": "153.0.4234.48"
+            },
+            {
+              "kind": "Capture",
+              "location": "fixtures/tls/edge/153.0.4234.48/windows-11-26200/resumption-sequential.txt",
+              "build": "153.0.4234.48"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge/historical.rs",
+              "build": "153.0.4234.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/edge.rs",
+              "build": "154.0.4258.37"
+            }
+          ],
+          "verified_fields": [
+            "initial ClientHello fields",
+            "resumed ClientHello fields"
+          ],
+          "limitations": [
+            "ECH and ticket cache bounds/expiry reuse Chromium policies; the retained offers do not establish their complete lifecycles."
+          ]
+        },
+        {
+          "layer": "Tcp",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Udp",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Dns",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Http1",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http2/edge/153.0.4234.48/windows-11-26200/client-startup.txt",
+              "build": "153.0.4234.48"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge/historical.rs",
+              "build": "153.0.4234.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "startup settings"
+          ],
+          "limitations": [
+            "Stream limits, PING timers and idle policy reuse Chromium; the retained startup does not verify them."
+          ]
+        },
+        {
+          "layer": "QuicTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/edge/153.0.4234.48/windows-11-26200/quic-client-hello-1.txt",
+              "build": "153.0.4234.48"
+            },
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/edge/153.0.4234.48/windows-11-26200/quic-client-hello-2.txt",
+              "build": "153.0.4234.48"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge/historical.rs",
+              "build": "153.0.4234.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/edge.rs",
+              "build": "154.0.4258.37"
+            }
+          ],
+          "verified_fields": [
+            "initial ClientHello fields"
+          ],
+          "limitations": [
+            "QUIC ticket resumption and ECH policies remain reused; initial offers do not verify their complete lifecycles."
+          ]
+        },
+        {
+          "layer": "QuicTransport",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt",
+              "build": "153.0.4234.48"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge/historical.rs",
+              "build": "153.0.4234.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "transport parameter values",
+            "transport parameter encoded widths"
+          ],
+          "limitations": [
+            "Per-connection shuffle remains Chromium policy; the retained samples do not establish the Edge 153 order distribution."
+          ]
+        },
+        {
+          "layer": "Http3",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt",
+              "build": "153.0.4234.48"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge/historical.rs",
+              "build": "153.0.4234.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "startup settings"
+          ],
+          "limitations": [
+            "Uncaptured connection policies remain inherited."
+          ]
+        },
+        {
+          "layer": "Http3Request",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt",
+              "build": "153.0.4234.48"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge/historical.rs",
+              "build": "153.0.4234.48"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "navigation pseudo-header order"
+          ],
+          "limitations": [
+            "Cookie splitting, extended CONNECT and alternative-service field policies remain inherited."
+          ]
+        },
+        {
+          "layer": "ClientHints",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/edge/153.0.4234.48/windows-11-26200/navigation.txt",
+              "build": "153.0.4234.48"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge/historical.rs",
+              "build": "153.0.4234.48"
+            }
+          ],
+          "verified_fields": [
+            "header values",
+            "header order"
+          ],
+          "limitations": [
+            "Retained headless Windows runs establish these hints; caller User-Agent remains separate."
+          ]
+        },
+        {
+          "layer": "WebSocket",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "ProxyConnect",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "CookiePlacement",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        }
+      ],
+      "templates": {
+        "FetchNoStore": "chromium_fetch_no_store_caller_ua",
+        "Navigation": "chromium_navigation_caller_ua"
+      },
+      "target": "EdgeWindows153",
+      "composition": {
+        "TcpTls": "edge_154_tcp_tls",
+        "Tcp": null,
+        "Udp": null,
+        "Dns": null,
+        "Http1": null,
+        "Http2": "chromium_154_http2",
+        "QuicTls": "edge_154_quic_tls",
+        "QuicTransport": "chromium_154_quic",
+        "Http3": "chromium_154_http3",
+        "Http3Request": "chromium_154_http3_request",
+        "ClientHints": "edge_windows_153_client_hints",
+        "WebSocket": null,
+        "ProxyConnect": null,
+        "CookiePlacement": null
+      }
+    },
+    {
       "id": "edge/153.0.4234.49/android-17-pixel7-emulator/r1",
       "metadata": {
         "browser": "Edge",

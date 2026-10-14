@@ -1,5 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
+mod historical;
+
 use super::{
     RequestField, RequestTemplate,
     capture::{Capture, CaptureResult, Fields, decode_hex},

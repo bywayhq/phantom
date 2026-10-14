@@ -1035,6 +1035,247 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
         ],
     },
     ProfileDefinition {
+        id: ProfileId("edge/153.0.4234.48/windows-11-26200/r1"),
+        metadata: ProfileMetadata {
+            browser: Browser::Edge,
+            build: "153.0.4234.48",
+            platform: ProfilePlatform::Windows,
+            platform_release: "windows-11-26200",
+            architecture: None,
+            environment: CaptureEnvironment::Desktop,
+            revision: 1,
+        },
+        layers: &[
+            LayerEvidence {
+                layer: ProfileLayer::TcpTls,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/tls/edge/153.0.4234.48/windows-11-26200/client-hello.txt",
+                        build: "153.0.4234.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/tls/edge/153.0.4234.48/windows-11-26200/resumption-sequential.txt",
+                        build: "153.0.4234.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/edge/historical.rs",
+                        build: "153.0.4234.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/edge.rs",
+                        build: "154.0.4258.37",
+                    },
+                ],
+                verified_fields: &["initial ClientHello fields", "resumed ClientHello fields"],
+                limitations: &["ECH and ticket cache bounds/expiry reuse Chromium policies; the retained offers do not establish their complete lifecycles."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Tcp,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &["No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Udp,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &["No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Dns,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &["No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http1,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &["No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http2,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/http2/edge/153.0.4234.48/windows-11-26200/client-startup.txt",
+                        build: "153.0.4234.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/edge/historical.rs",
+                        build: "153.0.4234.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                verified_fields: &["startup settings"],
+                limitations: &["Stream limits, PING timers and idle policy reuse Chromium; the retained startup does not verify them."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTls,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/http3/edge/153.0.4234.48/windows-11-26200/quic-client-hello-1.txt",
+                        build: "153.0.4234.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/http3/edge/153.0.4234.48/windows-11-26200/quic-client-hello-2.txt",
+                        build: "153.0.4234.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/edge/historical.rs",
+                        build: "153.0.4234.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/edge.rs",
+                        build: "154.0.4258.37",
+                    },
+                ],
+                verified_fields: &["initial ClientHello fields"],
+                limitations: &["QUIC ticket resumption and ECH policies remain reused; initial offers do not verify their complete lifecycles."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::QuicTransport,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt",
+                        build: "153.0.4234.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/edge/historical.rs",
+                        build: "153.0.4234.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                verified_fields: &["transport parameter values", "transport parameter encoded widths"],
+                limitations: &["Per-connection shuffle remains Chromium policy; the retained samples do not establish the Edge 153 order distribution."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt",
+                        build: "153.0.4234.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/edge/historical.rs",
+                        build: "153.0.4234.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                verified_fields: &["startup settings"],
+                limitations: &["Uncaptured connection policies remain inherited."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::Http3Request,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/http3/edge/153.0.4234.48/windows-11-26200/client-startup.txt",
+                        build: "153.0.4234.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/edge/historical.rs",
+                        build: "153.0.4234.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Reused,
+                        location: "crates/phantom-profile/src/browser/chrome.rs",
+                        build: "154.0.8037.58",
+                    },
+                ],
+                verified_fields: &["navigation pseudo-header order"],
+                limitations: &["Cookie splitting, extended CONNECT and alternative-service field policies remain inherited."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ClientHints,
+                support: LayerSupport::Configured,
+                references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/client-hints/edge/153.0.4234.48/windows-11-26200/navigation.txt",
+                        build: "153.0.4234.48",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/edge/historical.rs",
+                        build: "153.0.4234.48",
+                    },
+                ],
+                verified_fields: &["header values", "header order"],
+                limitations: &["Retained headless Windows runs establish these hints; caller User-Agent remains separate."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::WebSocket,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &["No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::ProxyConnect,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &["No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."],
+            },
+            LayerEvidence {
+                layer: ProfileLayer::CookiePlacement,
+                support: LayerSupport::Unavailable,
+                references: &[
+                ],
+                verified_fields: &[],
+                limitations: &["No Edge 153 recipe is supplied for this layer; ordinary ClientProfile defaults may still apply."],
+            },
+        ],
+        composition: &connection_profile_definitions::EDGEWINDOWS153,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROMIUM_NAVIGATION_CALLER_UA },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::CHROMIUM_FETCH_NO_STORE_CALLER_UA },
+        ],
+    },
+    ProfileDefinition {
         id: ProfileId("edge/153.0.4234.49/android-17-pixel7-emulator/r1"),
         metadata: ProfileMetadata {
             browser: Browser::Edge,

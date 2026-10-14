@@ -4,48 +4,48 @@ use super::connection_profile_values::{ConnectionProfileDefinition, Http3Definit
 #[derive(Clone, Copy, Debug)]
 #[rustfmt::skip]
 pub(super) enum TlsComponent {
-    C0,
-    C1,
-    C2,
-    C3,
-    C4,
-    C5,
-    C6,
-    C7,
-    C8,
-    C9,
-    C10,
-    C11,
-    C12,
-    C13,
-    C14,
-    C15,
-    C16,
-    C17,
+    Brave153AndroidQuic,
+    Brave153AndroidTcp,
+    Brave154Quic,
+    Brave154Tcp,
+    Chromium154AndroidQuic,
+    Chromium154AndroidTcp,
+    Chromium154Quic,
+    Chromium154Tcp,
+    Edge153AndroidQuic,
+    Edge153AndroidTcp,
+    Edge154Quic,
+    Edge154Tcp,
+    Firefox156AndroidTcp,
+    Firefox157Quic,
+    Firefox157Tcp,
+    Opera102AndroidTcp,
+    Opera136Quic,
+    Opera136Tcp,
 }
 
 #[rustfmt::skip]
 impl TlsComponent {
     pub(super) fn create(self) -> crate::TlsSettings {
         match self {
-            Self::C0 => crate::tls::components::brave_153_android_quic_tls(),
-            Self::C1 => crate::tls::components::brave_153_android_tcp_tls(),
-            Self::C2 => crate::tls::components::brave_154_quic_tls(),
-            Self::C3 => crate::tls::components::brave_154_tcp_tls(),
-            Self::C4 => crate::tls::components::chromium_154_android_quic_tls(),
-            Self::C5 => crate::tls::components::chromium_154_android_tcp_tls(),
-            Self::C6 => crate::tls::components::chromium_154_quic_tls(),
-            Self::C7 => crate::tls::components::chromium_154_tcp_tls(),
-            Self::C8 => crate::tls::components::edge_153_android_quic_tls(),
-            Self::C9 => crate::tls::components::edge_153_android_tcp_tls(),
-            Self::C10 => crate::tls::components::edge_154_quic_tls(),
-            Self::C11 => crate::tls::components::edge_154_tcp_tls(),
-            Self::C12 => crate::tls::components::firefox_156_android_tcp_tls(),
-            Self::C13 => crate::tls::components::firefox_157_quic_tls(),
-            Self::C14 => crate::tls::components::firefox_157_tcp_tls(),
-            Self::C15 => crate::tls::components::opera_102_android_tcp_tls(),
-            Self::C16 => crate::tls::components::opera_136_quic_tls(),
-            Self::C17 => crate::tls::components::opera_136_tcp_tls(),
+            Self::Brave153AndroidQuic => crate::tls::components::brave_153_android_quic_tls(),
+            Self::Brave153AndroidTcp => crate::tls::components::brave_153_android_tcp_tls(),
+            Self::Brave154Quic => crate::tls::components::brave_154_quic_tls(),
+            Self::Brave154Tcp => crate::tls::components::brave_154_tcp_tls(),
+            Self::Chromium154AndroidQuic => crate::tls::components::chromium_154_android_quic_tls(),
+            Self::Chromium154AndroidTcp => crate::tls::components::chromium_154_android_tcp_tls(),
+            Self::Chromium154Quic => crate::tls::components::chromium_154_quic_tls(),
+            Self::Chromium154Tcp => crate::tls::components::chromium_154_tcp_tls(),
+            Self::Edge153AndroidQuic => crate::tls::components::edge_153_android_quic_tls(),
+            Self::Edge153AndroidTcp => crate::tls::components::edge_153_android_tcp_tls(),
+            Self::Edge154Quic => crate::tls::components::edge_154_quic_tls(),
+            Self::Edge154Tcp => crate::tls::components::edge_154_tcp_tls(),
+            Self::Firefox156AndroidTcp => crate::tls::components::firefox_156_android_tcp_tls(),
+            Self::Firefox157Quic => crate::tls::components::firefox_157_quic_tls(),
+            Self::Firefox157Tcp => crate::tls::components::firefox_157_tcp_tls(),
+            Self::Opera102AndroidTcp => crate::tls::components::opera_102_android_tcp_tls(),
+            Self::Opera136Quic => crate::tls::components::opera_136_quic_tls(),
+            Self::Opera136Tcp => crate::tls::components::opera_136_tcp_tls(),
         }
     }
 }
@@ -53,16 +53,16 @@ impl TlsComponent {
 #[derive(Clone, Copy, Debug)]
 #[rustfmt::skip]
 pub(super) enum TcpComponent {
-    C0,
-    C1,
+    Chromium154,
+    Firefox157,
 }
 
 #[rustfmt::skip]
 impl TcpComponent {
     pub(super) fn create(self) -> crate::TcpSettings {
         match self {
-            Self::C0 => super::tcp_components::chromium_154_tcp(),
-            Self::C1 => super::tcp_components::firefox_157_tcp(),
+            Self::Chromium154 => super::tcp_components::chromium_154_tcp(),
+            Self::Firefox157 => super::tcp_components::firefox_157_tcp(),
         }
     }
 }
@@ -70,14 +70,14 @@ impl TcpComponent {
 #[derive(Clone, Copy, Debug)]
 #[rustfmt::skip]
 pub(super) enum UdpComponent {
-    C0,
+    Chromium154,
 }
 
 #[rustfmt::skip]
 impl UdpComponent {
     pub(super) fn create(self) -> crate::UdpSettings {
         match self {
-            Self::C0 => super::udp_components::chromium_154_udp(),
+            Self::Chromium154 => super::udp_components::chromium_154_udp(),
         }
     }
 }
@@ -85,16 +85,16 @@ impl UdpComponent {
 #[derive(Clone, Copy, Debug)]
 #[rustfmt::skip]
 pub(super) enum DnsComponent {
-    C0,
-    C1,
+    Chromium154,
+    Firefox157,
 }
 
 #[rustfmt::skip]
 impl DnsComponent {
     pub(super) fn create(self) -> crate::DnsCacheSettings {
         match self {
-            Self::C0 => super::dns_components::chromium_154_dns_cache(),
-            Self::C1 => super::dns_components::firefox_157_dns_cache(),
+            Self::Chromium154 => super::dns_components::chromium_154_dns_cache(),
+            Self::Firefox157 => super::dns_components::firefox_157_dns_cache(),
         }
     }
 }
@@ -102,16 +102,16 @@ impl DnsComponent {
 #[derive(Clone, Copy, Debug)]
 #[rustfmt::skip]
 pub(super) enum Http1Component {
-    C0,
-    C1,
+    Chromium154,
+    Firefox157,
 }
 
 #[rustfmt::skip]
 impl Http1Component {
     pub(super) fn create(self) -> crate::Http1Settings {
         match self {
-            Self::C0 => super::http1_components::chromium_154_http1(),
-            Self::C1 => super::http1_components::firefox_157_http1(),
+            Self::Chromium154 => super::http1_components::chromium_154_http1(),
+            Self::Firefox157 => super::http1_components::firefox_157_http1(),
         }
     }
 }
@@ -119,16 +119,16 @@ impl Http1Component {
 #[derive(Clone, Copy, Debug)]
 #[rustfmt::skip]
 pub(super) enum Http2Component {
-    C0,
-    C1,
+    Chromium154,
+    Firefox157,
 }
 
 #[rustfmt::skip]
 impl Http2Component {
     pub(super) fn create(self) -> crate::Http2Settings {
         match self {
-            Self::C0 => super::http2_components::chromium_154_http2(),
-            Self::C1 => super::http2_components::firefox_157_http2(),
+            Self::Chromium154 => super::http2_components::chromium_154_http2(),
+            Self::Firefox157 => super::http2_components::firefox_157_http2(),
         }
     }
 }
@@ -136,16 +136,16 @@ impl Http2Component {
 #[derive(Clone, Copy, Debug)]
 #[rustfmt::skip]
 pub(super) enum QuicComponent {
-    C0,
-    C1,
+    Chromium154,
+    Firefox157,
 }
 
 #[rustfmt::skip]
 impl QuicComponent {
     pub(super) fn create(self) -> crate::QuicTransportSettings {
         match self {
-            Self::C0 => super::quic_components::chromium_154_quic(),
-            Self::C1 => super::quic_components::firefox_157_quic(),
+            Self::Chromium154 => super::quic_components::chromium_154_quic(),
+            Self::Firefox157 => super::quic_components::firefox_157_quic(),
         }
     }
 }
@@ -153,16 +153,16 @@ impl QuicComponent {
 #[derive(Clone, Copy, Debug)]
 #[rustfmt::skip]
 pub(super) enum Http3Component {
-    C0,
-    C1,
+    Chromium154,
+    Firefox157,
 }
 
 #[rustfmt::skip]
 impl Http3Component {
     pub(super) fn create(self) -> crate::Http3Settings {
         match self {
-            Self::C0 => super::http3_components::chromium_154_http3(),
-            Self::C1 => super::http3_components::firefox_157_http3(),
+            Self::Chromium154 => super::http3_components::chromium_154_http3(),
+            Self::Firefox157 => super::http3_components::firefox_157_http3(),
         }
     }
 }
@@ -170,16 +170,16 @@ impl Http3Component {
 #[derive(Clone, Copy, Debug)]
 #[rustfmt::skip]
 pub(super) enum Http3RequestComponent {
-    C0,
-    C1,
+    Chromium154,
+    Firefox157,
 }
 
 #[rustfmt::skip]
 impl Http3RequestComponent {
     pub(super) fn create(self) -> crate::Http3RequestSettings {
         match self {
-            Self::C0 => super::http3_components::chromium_154_http3_request(),
-            Self::C1 => super::http3_components::firefox_157_http3_request(),
+            Self::Chromium154 => super::http3_components::chromium_154_http3_request(),
+            Self::Firefox157 => super::http3_components::firefox_157_http3_request(),
         }
     }
 }
@@ -187,28 +187,30 @@ impl Http3RequestComponent {
 #[derive(Clone, Copy, Debug)]
 #[rustfmt::skip]
 pub(super) enum ClientHintsComponent {
-    C0,
-    C1,
-    C2,
-    C3,
-    C4,
-    C5,
-    C6,
-    C7,
+    BraveAndroid153,
+    BraveWindows154,
+    ChromeAndroid154,
+    ChromeWindows154,
+    EdgeAndroid153,
+    EdgeWindows153,
+    EdgeWindows154,
+    OperaAndroid102,
+    OperaWindows136,
 }
 
 #[rustfmt::skip]
 impl ClientHintsComponent {
     pub(super) fn create(self) -> crate::ClientHintSettings {
         match self {
-            Self::C0 => super::client_hints_components::brave_android_153_client_hints(),
-            Self::C1 => super::client_hints_components::brave_windows_154_client_hints(),
-            Self::C2 => super::client_hints_components::chrome_android_154_client_hints(),
-            Self::C3 => super::client_hints_components::chrome_windows_154_client_hints(),
-            Self::C4 => super::client_hints_components::edge_android_153_client_hints(),
-            Self::C5 => super::client_hints_components::edge_windows_154_client_hints(),
-            Self::C6 => super::client_hints_components::opera_android_102_client_hints(),
-            Self::C7 => super::client_hints_components::opera_windows_136_client_hints(),
+            Self::BraveAndroid153 => super::client_hints_components::brave_android_153_client_hints(),
+            Self::BraveWindows154 => super::client_hints_components::brave_windows_154_client_hints(),
+            Self::ChromeAndroid154 => super::client_hints_components::chrome_android_154_client_hints(),
+            Self::ChromeWindows154 => super::client_hints_components::chrome_windows_154_client_hints(),
+            Self::EdgeAndroid153 => super::client_hints_components::edge_android_153_client_hints(),
+            Self::EdgeWindows153 => super::client_hints_components::edge_windows_153_client_hints(),
+            Self::EdgeWindows154 => super::client_hints_components::edge_windows_154_client_hints(),
+            Self::OperaAndroid102 => super::client_hints_components::opera_android_102_client_hints(),
+            Self::OperaWindows136 => super::client_hints_components::opera_windows_136_client_hints(),
         }
     }
 }
@@ -216,16 +218,16 @@ impl ClientHintsComponent {
 #[derive(Clone, Copy, Debug)]
 #[rustfmt::skip]
 pub(super) enum WebSocketComponent {
-    C0,
-    C1,
+    Chromium154,
+    Firefox157,
 }
 
 #[rustfmt::skip]
 impl WebSocketComponent {
     pub(super) fn create(self) -> crate::WebSocketSettings {
         match self {
-            Self::C0 => super::websocket_components::chromium_154_websocket(),
-            Self::C1 => super::websocket_components::firefox_157_websocket(),
+            Self::Chromium154 => super::websocket_components::chromium_154_websocket(),
+            Self::Firefox157 => super::websocket_components::firefox_157_websocket(),
         }
     }
 }
@@ -233,16 +235,16 @@ impl WebSocketComponent {
 #[derive(Clone, Copy, Debug)]
 #[rustfmt::skip]
 pub(super) enum ProxyConnectComponent {
-    C0,
-    C1,
+    Chromium154,
+    Firefox157,
 }
 
 #[rustfmt::skip]
 impl ProxyConnectComponent {
     pub(super) fn create(self) -> crate::ProxyConnectTemplate {
         match self {
-            Self::C0 => super::proxy_connect_components::chromium_154_proxy_connect(),
-            Self::C1 => super::proxy_connect_components::firefox_157_proxy_connect(),
+            Self::Chromium154 => super::proxy_connect_components::chromium_154_proxy_connect(),
+            Self::Firefox157 => super::proxy_connect_components::firefox_157_proxy_connect(),
         }
     }
 }
@@ -250,115 +252,135 @@ impl ProxyConnectComponent {
 #[derive(Clone, Copy, Debug)]
 #[rustfmt::skip]
 pub(super) enum CookieComponent {
-    C0,
-    C1,
+    Chromium154,
+    Firefox157,
 }
 
 #[rustfmt::skip]
 impl CookieComponent {
     pub(super) fn create(self) -> crate::CookiePlacement {
         match self {
-            Self::C0 => super::cookie_components::chromium_154_cookie(),
-            Self::C1 => super::cookie_components::firefox_157_cookie(),
+            Self::Chromium154 => super::cookie_components::chromium_154_cookie(),
+            Self::Firefox157 => super::cookie_components::firefox_157_cookie(),
         }
     }
 }
 
 #[rustfmt::skip]
 pub(super) static BRAVEANDROID153: ConnectionProfileDefinition = ConnectionProfileDefinition {
-    tls: TlsComponent::C1,
+    tls: TlsComponent::Brave153AndroidTcp,
     tcp: None,
     udp: None,
     dns_cache: None,
     http1: None,
-    http2: Some(Http2Component::C0),
+    http2: Some(Http2Component::Chromium154),
     http3: Some(Http3Definition {
-        tls: TlsComponent::C0,
-        quic_transport: QuicComponent::C0,
-        http3: Http3Component::C0,
-        request: Http3RequestComponent::C0,
+        tls: TlsComponent::Brave153AndroidQuic,
+        quic_transport: QuicComponent::Chromium154,
+        http3: Http3Component::Chromium154,
+        request: Http3RequestComponent::Chromium154,
     }),
-    client_hints: Some(ClientHintsComponent::C0),
-    websocket: Some(WebSocketComponent::C0),
+    client_hints: Some(ClientHintsComponent::BraveAndroid153),
+    websocket: Some(WebSocketComponent::Chromium154),
     proxy_connect: None,
     cookie_placement: None,
 };
 
 #[rustfmt::skip]
 pub(super) static BRAVEWINDOWS154: ConnectionProfileDefinition = ConnectionProfileDefinition {
-    tls: TlsComponent::C3,
-    tcp: Some(TcpComponent::C0),
-    udp: Some(UdpComponent::C0),
-    dns_cache: Some(DnsComponent::C0),
-    http1: Some(Http1Component::C0),
-    http2: Some(Http2Component::C0),
+    tls: TlsComponent::Brave154Tcp,
+    tcp: Some(TcpComponent::Chromium154),
+    udp: Some(UdpComponent::Chromium154),
+    dns_cache: Some(DnsComponent::Chromium154),
+    http1: Some(Http1Component::Chromium154),
+    http2: Some(Http2Component::Chromium154),
     http3: Some(Http3Definition {
-        tls: TlsComponent::C2,
-        quic_transport: QuicComponent::C0,
-        http3: Http3Component::C0,
-        request: Http3RequestComponent::C0,
+        tls: TlsComponent::Brave154Quic,
+        quic_transport: QuicComponent::Chromium154,
+        http3: Http3Component::Chromium154,
+        request: Http3RequestComponent::Chromium154,
     }),
-    client_hints: Some(ClientHintsComponent::C1),
-    websocket: Some(WebSocketComponent::C0),
-    proxy_connect: Some(ProxyConnectComponent::C0),
-    cookie_placement: Some(CookieComponent::C0),
+    client_hints: Some(ClientHintsComponent::BraveWindows154),
+    websocket: Some(WebSocketComponent::Chromium154),
+    proxy_connect: Some(ProxyConnectComponent::Chromium154),
+    cookie_placement: Some(CookieComponent::Chromium154),
 };
 
 #[rustfmt::skip]
 pub(super) static CHROMEANDROID154: ConnectionProfileDefinition = ConnectionProfileDefinition {
-    tls: TlsComponent::C5,
+    tls: TlsComponent::Chromium154AndroidTcp,
     tcp: None,
     udp: None,
     dns_cache: None,
     http1: None,
-    http2: Some(Http2Component::C0),
+    http2: Some(Http2Component::Chromium154),
     http3: Some(Http3Definition {
-        tls: TlsComponent::C4,
-        quic_transport: QuicComponent::C0,
-        http3: Http3Component::C0,
-        request: Http3RequestComponent::C0,
+        tls: TlsComponent::Chromium154AndroidQuic,
+        quic_transport: QuicComponent::Chromium154,
+        http3: Http3Component::Chromium154,
+        request: Http3RequestComponent::Chromium154,
     }),
-    client_hints: Some(ClientHintsComponent::C2),
-    websocket: Some(WebSocketComponent::C0),
+    client_hints: Some(ClientHintsComponent::ChromeAndroid154),
+    websocket: Some(WebSocketComponent::Chromium154),
     proxy_connect: None,
     cookie_placement: None,
 };
 
 #[rustfmt::skip]
 pub(super) static CHROMEWINDOWS154: ConnectionProfileDefinition = ConnectionProfileDefinition {
-    tls: TlsComponent::C7,
-    tcp: Some(TcpComponent::C0),
-    udp: Some(UdpComponent::C0),
-    dns_cache: Some(DnsComponent::C0),
-    http1: Some(Http1Component::C0),
-    http2: Some(Http2Component::C0),
+    tls: TlsComponent::Chromium154Tcp,
+    tcp: Some(TcpComponent::Chromium154),
+    udp: Some(UdpComponent::Chromium154),
+    dns_cache: Some(DnsComponent::Chromium154),
+    http1: Some(Http1Component::Chromium154),
+    http2: Some(Http2Component::Chromium154),
     http3: Some(Http3Definition {
-        tls: TlsComponent::C6,
-        quic_transport: QuicComponent::C0,
-        http3: Http3Component::C0,
-        request: Http3RequestComponent::C0,
+        tls: TlsComponent::Chromium154Quic,
+        quic_transport: QuicComponent::Chromium154,
+        http3: Http3Component::Chromium154,
+        request: Http3RequestComponent::Chromium154,
     }),
-    client_hints: Some(ClientHintsComponent::C3),
-    websocket: Some(WebSocketComponent::C0),
-    proxy_connect: Some(ProxyConnectComponent::C0),
-    cookie_placement: Some(CookieComponent::C0),
+    client_hints: Some(ClientHintsComponent::ChromeWindows154),
+    websocket: Some(WebSocketComponent::Chromium154),
+    proxy_connect: Some(ProxyConnectComponent::Chromium154),
+    cookie_placement: Some(CookieComponent::Chromium154),
 };
 
 #[rustfmt::skip]
-pub(super) static EDGEANDROID153: ConnectionProfileDefinition = ConnectionProfileDefinition {
-    tls: TlsComponent::C9,
+pub(super) static EDGEWINDOWS153: ConnectionProfileDefinition = ConnectionProfileDefinition {
+    tls: TlsComponent::Edge154Tcp,
     tcp: None,
     udp: None,
     dns_cache: None,
     http1: None,
-    http2: Some(Http2Component::C0),
+    http2: Some(Http2Component::Chromium154),
     http3: Some(Http3Definition {
-        tls: TlsComponent::C8,
-        quic_transport: QuicComponent::C0,
-        http3: Http3Component::C0,
-        request: Http3RequestComponent::C0,
+        tls: TlsComponent::Edge154Quic,
+        quic_transport: QuicComponent::Chromium154,
+        http3: Http3Component::Chromium154,
+        request: Http3RequestComponent::Chromium154,
     }),
-    client_hints: Some(ClientHintsComponent::C4),
+    client_hints: Some(ClientHintsComponent::EdgeWindows153),
+    websocket: None,
+    proxy_connect: None,
+    cookie_placement: None,
+};
+
+#[rustfmt::skip]
+pub(super) static EDGEANDROID153: ConnectionProfileDefinition = ConnectionProfileDefinition {
+    tls: TlsComponent::Edge153AndroidTcp,
+    tcp: None,
+    udp: None,
+    dns_cache: None,
+    http1: None,
+    http2: Some(Http2Component::Chromium154),
+    http3: Some(Http3Definition {
+        tls: TlsComponent::Edge153AndroidQuic,
+        quic_transport: QuicComponent::Chromium154,
+        http3: Http3Component::Chromium154,
+        request: Http3RequestComponent::Chromium154,
+    }),
+    client_hints: Some(ClientHintsComponent::EdgeAndroid153),
     websocket: None,
     proxy_connect: None,
     cookie_placement: None,
@@ -366,27 +388,27 @@ pub(super) static EDGEANDROID153: ConnectionProfileDefinition = ConnectionProfil
 
 #[rustfmt::skip]
 pub(super) static EDGEWINDOWS154: ConnectionProfileDefinition = ConnectionProfileDefinition {
-    tls: TlsComponent::C11,
-    tcp: Some(TcpComponent::C0),
-    udp: Some(UdpComponent::C0),
-    dns_cache: Some(DnsComponent::C0),
-    http1: Some(Http1Component::C0),
-    http2: Some(Http2Component::C0),
+    tls: TlsComponent::Edge154Tcp,
+    tcp: Some(TcpComponent::Chromium154),
+    udp: Some(UdpComponent::Chromium154),
+    dns_cache: Some(DnsComponent::Chromium154),
+    http1: Some(Http1Component::Chromium154),
+    http2: Some(Http2Component::Chromium154),
     http3: Some(Http3Definition {
-        tls: TlsComponent::C10,
-        quic_transport: QuicComponent::C0,
-        http3: Http3Component::C0,
-        request: Http3RequestComponent::C0,
+        tls: TlsComponent::Edge154Quic,
+        quic_transport: QuicComponent::Chromium154,
+        http3: Http3Component::Chromium154,
+        request: Http3RequestComponent::Chromium154,
     }),
-    client_hints: Some(ClientHintsComponent::C5),
-    websocket: Some(WebSocketComponent::C0),
-    proxy_connect: Some(ProxyConnectComponent::C0),
-    cookie_placement: Some(CookieComponent::C0),
+    client_hints: Some(ClientHintsComponent::EdgeWindows154),
+    websocket: Some(WebSocketComponent::Chromium154),
+    proxy_connect: Some(ProxyConnectComponent::Chromium154),
+    cookie_placement: Some(CookieComponent::Chromium154),
 };
 
 #[rustfmt::skip]
 pub(super) static FIREFOXANDROID156: ConnectionProfileDefinition = ConnectionProfileDefinition {
-    tls: TlsComponent::C12,
+    tls: TlsComponent::Firefox156AndroidTcp,
     tcp: None,
     udp: None,
     dns_cache: None,
@@ -401,34 +423,34 @@ pub(super) static FIREFOXANDROID156: ConnectionProfileDefinition = ConnectionPro
 
 #[rustfmt::skip]
 pub(super) static FIREFOXWINDOWS157: ConnectionProfileDefinition = ConnectionProfileDefinition {
-    tls: TlsComponent::C14,
-    tcp: Some(TcpComponent::C1),
+    tls: TlsComponent::Firefox157Tcp,
+    tcp: Some(TcpComponent::Firefox157),
     udp: None,
-    dns_cache: Some(DnsComponent::C1),
-    http1: Some(Http1Component::C1),
-    http2: Some(Http2Component::C1),
+    dns_cache: Some(DnsComponent::Firefox157),
+    http1: Some(Http1Component::Firefox157),
+    http2: Some(Http2Component::Firefox157),
     http3: Some(Http3Definition {
-        tls: TlsComponent::C13,
-        quic_transport: QuicComponent::C1,
-        http3: Http3Component::C1,
-        request: Http3RequestComponent::C1,
+        tls: TlsComponent::Firefox157Quic,
+        quic_transport: QuicComponent::Firefox157,
+        http3: Http3Component::Firefox157,
+        request: Http3RequestComponent::Firefox157,
     }),
     client_hints: None,
-    websocket: Some(WebSocketComponent::C1),
-    proxy_connect: Some(ProxyConnectComponent::C1),
-    cookie_placement: Some(CookieComponent::C1),
+    websocket: Some(WebSocketComponent::Firefox157),
+    proxy_connect: Some(ProxyConnectComponent::Firefox157),
+    cookie_placement: Some(CookieComponent::Firefox157),
 };
 
 #[rustfmt::skip]
 pub(super) static OPERAANDROID102: ConnectionProfileDefinition = ConnectionProfileDefinition {
-    tls: TlsComponent::C15,
+    tls: TlsComponent::Opera102AndroidTcp,
     tcp: None,
     udp: None,
     dns_cache: None,
     http1: None,
     http2: None,
     http3: None,
-    client_hints: Some(ClientHintsComponent::C6),
+    client_hints: Some(ClientHintsComponent::OperaAndroid102),
     websocket: None,
     proxy_connect: None,
     cookie_placement: None,
@@ -436,20 +458,20 @@ pub(super) static OPERAANDROID102: ConnectionProfileDefinition = ConnectionProfi
 
 #[rustfmt::skip]
 pub(super) static OPERAWINDOWS136: ConnectionProfileDefinition = ConnectionProfileDefinition {
-    tls: TlsComponent::C17,
-    tcp: Some(TcpComponent::C0),
-    udp: Some(UdpComponent::C0),
-    dns_cache: Some(DnsComponent::C0),
-    http1: Some(Http1Component::C0),
-    http2: Some(Http2Component::C0),
+    tls: TlsComponent::Opera136Tcp,
+    tcp: Some(TcpComponent::Chromium154),
+    udp: Some(UdpComponent::Chromium154),
+    dns_cache: Some(DnsComponent::Chromium154),
+    http1: Some(Http1Component::Chromium154),
+    http2: Some(Http2Component::Chromium154),
     http3: Some(Http3Definition {
-        tls: TlsComponent::C16,
-        quic_transport: QuicComponent::C0,
-        http3: Http3Component::C0,
-        request: Http3RequestComponent::C0,
+        tls: TlsComponent::Opera136Quic,
+        quic_transport: QuicComponent::Chromium154,
+        http3: Http3Component::Chromium154,
+        request: Http3RequestComponent::Chromium154,
     }),
-    client_hints: Some(ClientHintsComponent::C7),
-    websocket: Some(WebSocketComponent::C0),
-    proxy_connect: Some(ProxyConnectComponent::C0),
-    cookie_placement: Some(CookieComponent::C0),
+    client_hints: Some(ClientHintsComponent::OperaWindows136),
+    websocket: Some(WebSocketComponent::Chromium154),
+    proxy_connect: Some(ProxyConnectComponent::Chromium154),
+    cookie_placement: Some(CookieComponent::Chromium154),
 };

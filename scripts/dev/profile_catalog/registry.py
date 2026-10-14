@@ -60,6 +60,19 @@ TARGET_CONTRACTS = {
     "ChromeWindows154": ("Chrome", "Windows", WINDOWS),
     "ChromeAndroid154": ("Chrome", "Android", ANDROID),
     "EdgeWindows154": ("Edge", "Windows", WINDOWS),
+    "EdgeWindows153": (
+        "Edge",
+        "Windows",
+        {
+            "TcpTls",
+            "Http2",
+            "QuicTls",
+            "QuicTransport",
+            "Http3",
+            "Http3Request",
+            "ClientHints",
+        },
+    ),
     "EdgeAndroid153": ("Edge", "Android", ANDROID - {"WebSocket"}),
     "BraveWindows154": ("Brave", "Windows", WINDOWS),
     "BraveAndroid153": ("Brave", "Android", ANDROID),
@@ -80,6 +93,7 @@ TARGET_METADATA = {
         1,
     ),
     "EdgeWindows154": ("154.0.4258.48", "windows-11-26200", None, "Desktop", 1),
+    "EdgeWindows153": ("153.0.4234.48", "windows-11-26200", None, "Desktop", 1),
     "EdgeAndroid153": (
         "153.0.4234.49",
         "android-17-pixel7-emulator",

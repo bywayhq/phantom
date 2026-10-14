@@ -58,6 +58,13 @@
 use crate::{ClientProfile, Http3ClientSettings};
 
 mod android;
+mod historical;
+
+pub use historical::{
+    v153_http2, v153_http3, v153_http3_request, v153_quic, v153_quic_tls, v153_tcp_tls,
+    v153_windows, v153_windows_client_hints, v153_windows_fetch_no_store_template,
+    v153_windows_navigation_template,
+};
 
 pub use android::{
     v153_android_client_hints, v153_android_client_hints_for_model,

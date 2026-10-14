@@ -61,10 +61,11 @@ class TemplateDeclarationTests(unittest.TestCase):
         profiles = cli.load()
         domain.validate_template_bindings(profiles, templates)
         self.assertEqual(len(templates), 18)
-        self.assertEqual(sum(len(row["templates"]) for row in profiles), 20)
+        self.assertEqual(sum(len(row["templates"]) for row in profiles), 22)
+        original = [row for row in profiles if row["target"] != "EdgeWindows153"]
         count = sum(
             len(templates[identifier][name] or [])
-            for profile in profiles
+            for profile in original
             for identifier in profile["templates"].values()
             for name in ("http1_fields", "http2_fields", "http3_fields")
         )

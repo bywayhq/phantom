@@ -140,7 +140,7 @@ kinds return `UnavailableTemplate`. Template construction copies owned values
 without calling browser factories or drawing random values. You can customize
 the returned `RequestTemplate` without changing the definition or another copy.
 
-The current catalog has 20 bindings backed by 18 definitions. Edge and Opera
+The current catalog has 22 bindings backed by 18 definitions. Edge and Opera
 reuse identical Chromium caller-User-Agent templates. Desktop Brave requires
 caller `User-Agent` and `Accept-Language`. Android Brave retains its literal
 User-Agent and requires caller `Accept-Language`. Field order includes GPC,
@@ -172,6 +172,28 @@ Compiled definitions hold closed typed references, with no complete browser
 factory dispatch. Construction keeps ordered values and runtime draw policies.
 It does not sample them. Original browser factories and a separately frozen
 ten-profile composition oracle provide comparison controls.
+
+## Retain another browser version
+
+The catalog retains Edge 153.0.4234.48 and Edge 154.0.4258.48 as separate
+Windows recipes. Exact lookup never substitutes one for the other. Edge 153
+supplies TCP TLS, HTTP/2, QUIC TLS and transport, HTTP/3 settings and request
+order, and client hints. Requiring any other connection layer returns an error.
+Generic defaults on the returned custom profile do not establish browser support.
+
+Its retained captures cover initial and resumed TCP offers, initial QUIC offers,
+transport values and encoded widths, startup settings, hints, and request fields.
+Uncaptured ticket lifecycles, PING and idle timers, and QUIC shuffle distribution
+remain reused policies. Architecture remains unspecified. Navigation and no-store
+fetch reuse the independently checked caller-User-Agent template definitions;
+HTTP/3 fetch fields remain unavailable.
+
+The older recipe adds eleven ordered client-hint values. Other components reuse
+existing typed definitions. Private component variants are named from their
+identifiers without repeated domain suffixes, so adding an earlier-sorting
+declaration does not rename existing references. Generation rejects colliding
+or reserved variant names. This changes private generated names, not settings,
+draws, or wire behavior.
 
 ```sh
 python scripts/dev/generate_profiles.py
