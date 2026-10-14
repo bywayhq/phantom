@@ -1,8 +1,8 @@
 # Routes and proxies
 
 Send requests directly or through an HTTP proxy, and choose which
-certificates each connection trusts. SOCKS5 and CONNECT-UDP proxies, which
-can also carry HTTP/3, have their own guide:
+certificates each connection trusts. SOCKS and CONNECT-UDP proxies have
+their own guide:
 [SOCKS5 and CONNECT-UDP proxies](socks-and-connect-udp.md).
 
 A **route** is how a connection reaches the server: directly, or through a
@@ -41,6 +41,7 @@ async fn routes() -> Result<(), Box<dyn std::error::Error>> {
 | --- | --- | --- |
 | Direct | `Route::direct()`, the default | HTTP/1.1, HTTP/2, HTTP/3 |
 | HTTP proxy | `Route::http_proxy(HttpProxy)` | HTTP/1.1, HTTP/2 |
+| SOCKS4/4a | `Route::socks4(Socks4Proxy)` | HTTP/1.1, HTTP/2 |
 | SOCKS5 | `Route::socks5(Socks5Proxy)` | HTTP/1.1, HTTP/2, HTTP/3 |
 | CONNECT-UDP | `Route::connect_udp(ConnectUdpProxy)` | HTTP/3 |
 

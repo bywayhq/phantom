@@ -117,7 +117,8 @@ features or blockers for the Phase 2 API work.
   Firefox CONNECT recipes decide whether forwarded requests and WebSocket
   tunnels join them. `ClientBuilder::max_http2_proxy_connections_per_route`
   opts into more than one connection per proxy route, off by default.
-- SOCKS5 tunnels and UDP ASSOCIATE, and exact HTTP/3 through CONNECT-UDP over
+- SOCKS4/4a TCP tunnels with explicit local or proxy DNS, SOCKS5 tunnels and
+  UDP ASSOCIATE, and exact HTTP/3 through CONNECT-UDP over
   HTTP/3, HTTP/2, or HTTP/1.1 proxy legs
   ([SOCKS5 and CONNECT-UDP proxies](guides/socks-and-connect-udp.md)).
 - Parallel HTTP/1.1 connections per origin and bounded pools
@@ -421,8 +422,6 @@ the wire, capture evidence.
   verification over HTTP/1.1 and HTTP/2, for example to debug through an
   intercepting proxy, and changes no wire field.
 - Digest proxy authentication.
-- SOCKS4 and SOCKS4a routes, which refuse HTTP/3 and the Alt-Svc upgrade
-  before I/O.
 - Import of externally described fingerprints, limited to fields Phantom
   reproduces byte for byte.
 

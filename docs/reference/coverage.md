@@ -105,7 +105,7 @@ combinations and limits listed here.
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity and stream numbering | Firefox stream `WINDOW_UPDATE` |
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
 | HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP, to the origin, or to a caller-pinned alternative directly or through CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5; opt-in H2 fallback for exact H3 | RTT-derived racing delay |
-| Routes | Direct, HTTP forward and CONNECT, SOCKS5, CONNECT-UDP | Other proxy authentication schemes |
+| Routes | Direct, HTTP forward and CONNECT, SOCKS4/4a, SOCKS5, CONNECT-UDP | Other proxy authentication schemes |
 | SSE and WebSocket | Finite reconnects, message limits, Chrome/Firefox WebSocket recipes | H2/H3 SSE captures, tunnelled `wss://` opening captures |
 
 The [route matrix](route-matrix.md) lists every combination of scheme,
@@ -257,7 +257,7 @@ Supported:
 - Absolute-form forwarding of `http://` origins over plaintext or TLS proxies,
   including one replay after a strict, valid Basic challenge, on the
   challenged connection when the `407` leaves it open.
-- HTTP and HTTPS CONNECT routes, and SOCKS5 routes with local or remote DNS.
+- HTTP and HTTPS CONNECT routes, and SOCKS4/4a and SOCKS5 TCP tunnels.
 - Upgrade handoff that preserves every byte.
 - At most 8 informational (1xx) responses before the final response head.
 
@@ -285,8 +285,7 @@ Not modeled:
 Not supported:
 
 - Retry classes beyond those above.
-- Proxy modes beyond those above; SOCKS4 is planned under
-  [Routes](#routes).
+- Proxy modes beyond those above.
 
 ## HTTP/2
 
@@ -909,6 +908,16 @@ Supported HTTP proxies:
   another offer. The route learns no Alt-Svc alternative, because the tunnel
   cannot carry QUIC.
 
+Supported SOCKS4/4a:
+
+- Explicit `socks4://` local DNS or `socks4a://` proxy DNS, with an optional
+  user ID. Local DNS selects the first IPv4 answer. IPv6 proxy endpoints
+  are supported, but IPv6 targets and HTTP/3 are rejected before proxy I/O.
+- Exact and negotiated H1/H2 TLS, plaintext H1, H1 WS/WSS, and exact H2 WSS
+  in TCP tunnels. Negotiated requests store no Alt-Svc alternative.
+- Bounded negotiation, cancellation, deadlines, and route isolation verified
+  with owned loopback proxies. No browser capture establishes SOCKS4 parity.
+
 Supported [SOCKS5](glossary.md#socks5):
 
 - SOCKS5 with local or remote DNS and optional RFC 1929 credentials, for exact
@@ -962,7 +971,7 @@ Deliberately excluded:
 
 Planned:
 
-- Digest proxy authentication, and SOCKS4 and SOCKS4a routes
+- Digest proxy authentication
   ([Proposed after Phase 1](../roadmap.md#proposed-after-phase-1)).
 
 Not supported:

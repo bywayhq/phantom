@@ -15,6 +15,8 @@ Columns:
   mode.
 - **H2 proxy**: an `https://` proxy with `with_http2_transport`.
 - **SOCKS5**: both local-DNS `socks5://` and remote-DNS `socks5h://`.
+- **SOCKS4/4a**: local-DNS `socks4://` and proxy-DNS `socks4a://`; IPv4
+  targets only.
 - **CONNECT-UDP**: an `https://` template over its default H3 leg or an
   explicit H2 or H1 leg.
 
@@ -22,21 +24,21 @@ Rows use [H1, H2, and H3](glossary.md#h1-h2-h3) for HTTP/1.1, HTTP/2, and
 HTTP/3. [Exact](glossary.md#exact-protocol) forces one protocol;
 [negotiated](glossary.md#negotiated-protocol) lets TLS ALPN choose H1 or H2.
 
-| Request | Direct | H1 proxy | H2 proxy | SOCKS5 | CONNECT-UDP |
-| --- | --- | --- | --- | --- | --- |
-| `http://`, exact H1 | Plaintext TCP | Absolute-form forwarding | Rejected | Plaintext H1 in a TCP tunnel | Rejected |
-| `http://`, negotiated | Plaintext TCP, H1 | Absolute-form forwarding, H1 | H2 forwarding | Plaintext H1 in a TCP tunnel | Rejected |
-| `http://`, exact H2 | Rejected | Rejected | H2 forwarding | Rejected | Rejected |
-| `http://`, exact H3 | Rejected | Rejected | Rejected | Rejected | Rejected |
-| `https://`, exact H1 or H2 | TLS | CONNECT tunnel | CONNECT stream on a shared proxy connection | TCP tunnel | Rejected |
-| `https://`, negotiated | TLS, then H1 or H2; optional H3 through Alt-Svc or HTTPS DNS records | One TLS handshake in a CONNECT tunnel, then H1 or H2; no Alt-Svc | One TLS handshake in a CONNECT stream, then H1 or H2; no Alt-Svc | One TLS handshake in a TCP tunnel, then H1 or H2; optional Alt-Svc H3 over UDP ASSOCIATE | Rejected |
-| `https://`, exact H3 | QUIC | Rejected | Rejected | UDP ASSOCIATE | QUIC in HTTP Datagrams (H3 leg) or DATAGRAM capsules (H2 extended CONNECT or H1 Upgrade leg) |
-| `ws://`, H1 | Plaintext Upgrade | Plaintext Upgrade in a CONNECT tunnel | Plaintext Upgrade in a CONNECT stream | Plaintext Upgrade in a TCP tunnel | Rejected |
-| `wss://`, H1 | TLS Upgrade | CONNECT tunnel | CONNECT stream | TLS Upgrade in a TCP tunnel | Rejected |
-| `ws://`, H2 | Rejected | Rejected | Rejected | Rejected | Rejected |
-| `wss://`, H2 | Extended CONNECT on a dedicated connection | Extended CONNECT inside a CONNECT tunnel | Extended CONNECT inside a CONNECT stream | Extended CONNECT in a TCP tunnel | Rejected |
-| `ws://`, H3 | Rejected | Rejected | Rejected | Rejected | Rejected |
-| `wss://`, H3 | Extended CONNECT on a pooled QUIC connection | Rejected | Rejected | Extended CONNECT on a pooled QUIC connection over UDP ASSOCIATE | Extended CONNECT on a pooled QUIC connection in HTTP Datagrams (H3 leg) or DATAGRAM capsules (H2 extended CONNECT or H1 Upgrade leg) |
+| Request | Direct | H1 proxy | H2 proxy | SOCKS4/4a | SOCKS5 | CONNECT-UDP |
+| --- | --- | --- | --- | --- | --- | --- |
+| `http://`, exact H1 | Plaintext TCP | Absolute-form forwarding | Rejected | Plaintext H1 in a TCP tunnel | Plaintext H1 in a TCP tunnel | Rejected |
+| `http://`, negotiated | Plaintext TCP, H1 | Absolute-form forwarding, H1 | H2 forwarding | Plaintext H1 in a TCP tunnel | Plaintext H1 in a TCP tunnel | Rejected |
+| `http://`, exact H2 | Rejected | Rejected | H2 forwarding | Rejected | Rejected | Rejected |
+| `http://`, exact H3 | Rejected | Rejected | Rejected | Rejected | Rejected | Rejected |
+| `https://`, exact H1 or H2 | TLS | CONNECT tunnel | CONNECT stream on a shared proxy connection | TCP tunnel | TCP tunnel | Rejected |
+| `https://`, negotiated | TLS, then H1 or H2; optional H3 through Alt-Svc or HTTPS DNS records | One TLS handshake in a CONNECT tunnel, then H1 or H2; no Alt-Svc | One TLS handshake in a CONNECT stream, then H1 or H2; no Alt-Svc | One TLS handshake in a TCP tunnel, then H1 or H2; no Alt-Svc | One TLS handshake in a TCP tunnel, then H1 or H2; optional Alt-Svc H3 over UDP ASSOCIATE | Rejected |
+| `https://`, exact H3 | QUIC | Rejected | Rejected | Rejected | UDP ASSOCIATE | QUIC in HTTP Datagrams (H3 leg) or DATAGRAM capsules (H2 extended CONNECT or H1 Upgrade leg) |
+| `ws://`, H1 | Plaintext Upgrade | Plaintext Upgrade in a CONNECT tunnel | Plaintext Upgrade in a CONNECT stream | Plaintext Upgrade in a TCP tunnel | Plaintext Upgrade in a TCP tunnel | Rejected |
+| `wss://`, H1 | TLS Upgrade | CONNECT tunnel | CONNECT stream | TLS Upgrade in a TCP tunnel | TLS Upgrade in a TCP tunnel | Rejected |
+| `ws://`, H2 | Rejected | Rejected | Rejected | Rejected | Rejected | Rejected |
+| `wss://`, H2 | Extended CONNECT on a dedicated connection | Extended CONNECT inside a CONNECT tunnel | Extended CONNECT inside a CONNECT stream | Extended CONNECT in a TCP tunnel | Extended CONNECT in a TCP tunnel | Rejected |
+| `ws://`, H3 | Rejected | Rejected | Rejected | Rejected | Rejected | Rejected |
+| `wss://`, H3 | Extended CONNECT on a pooled QUIC connection | Rejected | Rejected | Rejected | Extended CONNECT on a pooled QUIC connection over UDP ASSOCIATE | Extended CONNECT on a pooled QUIC connection in HTTP Datagrams (H3 leg) or DATAGRAM capsules (H2 extended CONNECT or H1 Upgrade leg) |
 
 Notes:
 

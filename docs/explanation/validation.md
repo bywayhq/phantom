@@ -6900,6 +6900,20 @@ A handoff records what ran and any remaining uncertainty.
 See [HTTP/3 internals](../internals/http3.md) for H3 capture and packet
 evidence.
 
+### SOCKS4 and SOCKS4a controls
+
+`crates/phantom/tests/proxies/socks4.rs` uses owned loopback proxies for
+HTTP/1.1, HTTP/2, negotiated TLS, plaintext HTTP, and H1/H2 WebSocket
+tunnels. It checks local IPv4 selection, proxy DNS, canonical domain names,
+user identification, IPv6 proxy endpoints, and unchanged origin requests.
+
+Failure controls cover rejected replies, refused connections, cancellation,
+stalled negotiation, and early rejection of IPv6 targets and HTTP/3.
+`crates/phantom-net/src/proxy/socks4.rs` checks bounded request encoding and
+reply parsing. Facade controls check configuration, redaction, route keys,
+and environment proxy selection. These controls establish local behavior;
+there is no browser SOCKS4 capture or live proxy acceptance evidence.
+
 ## Next
 
 - [Design](design.md): why Phantom returns an error when it cannot

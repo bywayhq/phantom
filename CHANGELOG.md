@@ -1084,6 +1084,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Add explicit SOCKS4 and SOCKS4a routes with local or proxy DNS, optional
+  user identification, and HTTP/1.1, HTTP/2, and WebSocket TCP tunnels.
+  IPv6 targets and HTTP/3 fail before proxy I/O.
+
 - Add a transport and profile campaign plan for timing investigations,
   corpus growth, and the named client and browser-coverage gaps.
 

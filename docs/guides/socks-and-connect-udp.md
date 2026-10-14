@@ -1,12 +1,31 @@
 # SOCKS5 and CONNECT-UDP proxies
 
-Send requests through a SOCKS5 proxy, send HTTP/3 through a CONNECT-UDP
+Send requests through a SOCKS proxy, send HTTP/3 through a CONNECT-UDP
 proxy, and reach a server at another address it announced.
 
 Both proxies are routes. A route is how a connection reaches the server:
 directly, or through a proxy. You pass one to `ClientBuilder::route` or to a
 single request, as [Routes and proxies](routes-and-proxies.md) shows. The
 [route matrix](../reference/route-matrix.md) lists what each route carries.
+
+## Send a request through a SOCKS4 proxy
+
+Use SOCKS4 for locally resolved IPv4 targets, or SOCKS4a for proxy DNS.
+
+```rust
+use phantom::{Route, Socks4Proxy};
+
+fn socks4_route() -> Result<Route, Box<dyn std::error::Error>> {
+    let proxy = Socks4Proxy::new("socks4a://127.0.0.1:1080")?
+        .with_user_id("user")?;
+    Ok(Route::socks4(proxy))
+}
+```
+
+`socks4://` selects the first IPv4 answer from your resolver. `socks4a://`
+sends domain names to the proxy. Both carry HTTP/1.1, HTTP/2, and WebSocket
+TCP tunnels. The optional user ID identifies you to the proxy. There is no
+password exchange. IPv6 targets and HTTP/3 are unsupported.
 
 ## Send a request through a SOCKS5 proxy
 

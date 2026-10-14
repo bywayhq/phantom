@@ -316,6 +316,20 @@ The cap of 8 informational responses is Phantom's bound for every profile.
 
 Details are in [HTTP/3 internals](../internals/http3.md#connect-udp-masque).
 
+## SOCKS4 and SOCKS4a
+
+| Setting | Limit |
+| --- | --- |
+| User ID | 255 UTF-8 bytes, no NUL; empty allowed |
+| SOCKS4a domain | 253 ASCII bytes after name normalization |
+| Target address | IPv4; local DNS selects the first IPv4 answer |
+| SOCKS4a marker addresses | `0.0.0.1` through `0.0.0.255` rejected as targets |
+| Proxy address | IPv4 or IPv6 |
+| Protocols | H1/H2 TCP tunnels; H3 and learned Alt-Svc upgrades unsupported |
+
+The user-ID bound limits resource use. SOCKS4 itself has no user-ID length
+field and no password negotiation.
+
 ## Next
 
 - [Coverage](coverage.md): what each layer supports.
