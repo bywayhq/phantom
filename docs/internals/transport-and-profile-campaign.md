@@ -53,9 +53,9 @@ copying execution journals into this page.
 | P1–P4 | `profile-catalog` | Catalog foundation and TLS, QUIC, H1, H2, H3, DNS-cache, and UDP components pass focused checks and review. TCP and remaining layers, immutable definitions, and root wire checks remain. |
 | P5 | `profile-history` | Edge 153 Windows profile passes four profile and six native replay controls. Catalog registration, corpus measurements, and integration remain. |
 | F1 | `ticket-transfer` | Client-owned clearing and late-ticket isolation pass focused checks and review. Frozen stores and strict native decoding are under verification. Authenticated transfer encoding and full bindings remain. |
-| F3 | `socks4-integration` | SOCKS4/4a merged in PR #215 after the exact-head full gate and macOS/Windows CI. Main push CI is being watched. |
-| F4 | `digest-integration` | Digest CONNECT and forwarding pass focused checks and independent review. SOCKS4 composition is reviewed. Enterprise mechanism contracts and local capability limits are recorded. Root gate and PR delivery remain. |
-| F8 | `http3-debug-auth` | Origin opt-in passes 86 focused controls and review. Human-signed integration prepared; rebased root gate and PR delivery remain. |
+| F3 | `socks4-integration` | SOCKS4/4a merged in PR #215 after the exact-head full gate and macOS/Windows CI. Main push CI passed. |
+| F4 | `digest-integration` | Digest merged in PR #218 after the full gate and platform CI. Enterprise contracts are recorded. Main's cookie fixture failure is being repaired before the next merge. |
+| F8 | `http3-debug-auth` | Origin opt-in is in draft PR #219. All 4,643 Rust controls passed. Its full gate needs the reviewed test-roster and shared-port repairs before integration. |
 
 Neither controlled timing reproduction proves the exact historical host
 delay. The unchanged historical TLS suite also passed all 1,041 tests with
@@ -69,6 +69,10 @@ binds T1's fixture repair. Its original scheduling trigger remains unresolved.
 The [proxy authentication investigation](transport-profile-evidence/proxy-authentication.md)
 records separate NTLM, Negotiate, and Kerberos contracts. No enterprise
 authentication implementation or successful peer exchange is claimed.
+
+The [connection fixture record](transport-profile-evidence/connection-fixtures.md)
+binds the cookie closure and shared-port repairs that blocked integration.
+Their controlled mechanisms do not establish the original host sequence.
 
 ## Historical timing failures
 
