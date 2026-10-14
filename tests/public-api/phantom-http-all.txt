@@ -215,6 +215,9 @@ pub enum phantom::AltSvcHttpsPolicy
 pub phantom::AltSvcHttpsPolicy::Destination
 pub phantom::AltSvcHttpsPolicy::Destination::lookup_timeout: core::time::Duration
 pub phantom::AltSvcHttpsPolicy::OriginOnly
+pub enum phantom::AltSvcOriginDelay
+pub phantom::AltSvcOriginDelay::Fixed(core::time::Duration)
+pub phantom::AltSvcOriginDelay::Rtt(phantom::AltSvcRttDelay)
 #[non_exhaustive] pub enum phantom::AltSvcSnapshotErrorKind
 pub phantom::AltSvcSnapshotErrorKind::Disabled
 pub phantom::AltSvcSnapshotErrorKind::InvalidAlternative
@@ -484,9 +487,17 @@ pub const fn phantom::AltSvcRace::alternative_setup_limit(self) -> core::time::D
 pub const fn phantom::AltSvcRace::broken_backoff(self) -> phantom::AltSvcBrokenBackoff
 pub const fn phantom::AltSvcRace::max_alternatives(self) -> core::num::nonzero::NonZeroUsize
 pub const fn phantom::AltSvcRace::new(core::time::Duration, phantom::AltSvcBrokenBackoff) -> Self
-pub const fn phantom::AltSvcRace::origin_delay(self) -> core::time::Duration
+pub const fn phantom::AltSvcRace::origin_delay_policy(self) -> phantom::AltSvcOriginDelay
 pub const fn phantom::AltSvcRace::with_alternative_setup_limit(self, core::time::Duration) -> Self
 pub const fn phantom::AltSvcRace::with_max_alternatives(self, core::num::nonzero::NonZeroUsize) -> Self
+pub const fn phantom::AltSvcRace::with_rtt_delay(self, phantom::AltSvcRttDelay) -> Self
+pub struct phantom::AltSvcRttDelay
+impl phantom::AltSvcRttDelay
+pub const fn phantom::AltSvcRttDelay::additional_delay(self) -> core::time::Duration
+pub const fn phantom::AltSvcRttDelay::capacity(self) -> core::num::nonzero::NonZeroUsize
+pub const fn phantom::AltSvcRttDelay::max_age(self) -> core::time::Duration
+pub const fn phantom::AltSvcRttDelay::new(core::num::nonzero::NonZeroUsize, core::time::Duration) -> Self
+pub const fn phantom::AltSvcRttDelay::with_additional_delay(self, core::time::Duration) -> Self
 pub struct phantom::AltSvcSnapshot
 impl phantom::AltSvcSnapshot
 pub fn phantom::AltSvcSnapshot::entries(&self) -> &[phantom::AltSvcSnapshotEntry]
@@ -533,6 +544,7 @@ pub fn phantom::Client::websocket_with_profile_policy(&self, &str) -> core::resu
 pub fn phantom::Client::websocket_with_protocol(&self, phantom::HttpProtocol, &str) -> core::result::Result<phantom::WebSocketRequestBuilder, phantom::WebSocketError>
 impl phantom::Client
 pub fn phantom::Client::clear_alt_svc(&self)
+pub fn phantom::Client::clear_alt_svc_racing_history(&self)
 pub fn phantom::Client::clear_client_hints(&self)
 pub fn phantom::Client::clear_dns_cache(&self)
 pub fn phantom::Client::cookie_jar(&self) -> core::option::Option<&phantom::CookieJar>

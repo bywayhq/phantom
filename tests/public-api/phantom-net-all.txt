@@ -13,6 +13,70 @@ pub fn phantom_net::address_cache::AddressCache::settings(&self) -> &phantom_pro
 impl core::fmt::Debug for phantom_net::address_cache::AddressCache
 pub fn phantom_net::address_cache::AddressCache::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub mod phantom_net::dns
+pub mod phantom_net::dns::wire
+pub enum phantom_net::dns::wire::DnsNegativeKind
+pub phantom_net::dns::wire::DnsNegativeKind::NoData
+pub phantom_net::dns::wire::DnsNegativeKind::NxDomain
+pub enum phantom_net::dns::wire::DnsWireErrorKind
+pub phantom_net::dns::wire::DnsWireErrorKind::AliasLimit
+pub phantom_net::dns::wire::DnsWireErrorKind::AliasLoop
+pub phantom_net::dns::wire::DnsWireErrorKind::ConflictingAlias
+pub phantom_net::dns::wire::DnsWireErrorKind::InvalidQuery
+pub phantom_net::dns::wire::DnsWireErrorKind::Malformed
+pub phantom_net::dns::wire::DnsWireErrorKind::Mismatched
+pub phantom_net::dns::wire::DnsWireErrorKind::Referral
+pub phantom_net::dns::wire::DnsWireErrorKind::Server
+pub phantom_net::dns::wire::DnsWireErrorKind::TooLarge
+pub phantom_net::dns::wire::DnsWireErrorKind::Truncated
+pub phantom_net::dns::wire::DnsWireErrorKind::UnexpectedOwner
+pub enum phantom_net::dns::wire::DnsWireQueryKind
+pub phantom_net::dns::wire::DnsWireQueryKind::A
+pub phantom_net::dns::wire::DnsWireQueryKind::Aaaa
+pub phantom_net::dns::wire::DnsWireQueryKind::Https
+pub enum phantom_net::dns::wire::DnsWireResult
+pub phantom_net::dns::wire::DnsWireResult::Addresses(phantom_net::dns::wire::DnsAddressRecords)
+pub phantom_net::dns::wire::DnsWireResult::Cname(phantom_net::dns::wire::DnsWireFollowUp)
+pub phantom_net::dns::wire::DnsWireResult::Https(phantom_net::dns::wire::DnsHttpsRecords)
+pub phantom_net::dns::wire::DnsWireResult::Negative(phantom_net::dns::wire::DnsNegativeAnswer)
+pub struct phantom_net::dns::wire::DnsAddressRecords
+impl phantom_net::dns::wire::DnsAddressRecords
+pub fn phantom_net::dns::wire::DnsAddressRecords::addresses(&self) -> &[core::net::ip_addr::IpAddr]
+pub const fn phantom_net::dns::wire::DnsAddressRecords::response_ttl(&self) -> u32
+pub const fn phantom_net::dns::wire::DnsAddressRecords::ttl(&self) -> u32
+pub struct phantom_net::dns::wire::DnsHttpsRecords
+impl phantom_net::dns::wire::DnsHttpsRecords
+pub fn phantom_net::dns::wire::DnsHttpsRecords::into_lookup(self) -> phantom_net::dns::HttpsRecordLookup
+pub const fn phantom_net::dns::wire::DnsHttpsRecords::response_ttl(&self) -> u32
+pub struct phantom_net::dns::wire::DnsNegativeAnswer
+impl phantom_net::dns::wire::DnsNegativeAnswer
+pub const fn phantom_net::dns::wire::DnsNegativeAnswer::kind(&self) -> phantom_net::dns::wire::DnsNegativeKind
+pub const fn phantom_net::dns::wire::DnsNegativeAnswer::response_ttl(&self) -> core::option::Option<u32>
+pub const fn phantom_net::dns::wire::DnsNegativeAnswer::ttl(&self) -> core::option::Option<u32>
+pub struct phantom_net::dns::wire::DnsWireError
+impl phantom_net::dns::wire::DnsWireError
+pub const fn phantom_net::dns::wire::DnsWireError::kind(&self) -> phantom_net::dns::wire::DnsWireErrorKind
+pub const fn phantom_net::dns::wire::DnsWireError::response_code(&self) -> core::option::Option<u16>
+impl core::error::Error for phantom_net::dns::wire::DnsWireError
+pub fn phantom_net::dns::wire::DnsWireError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom_net::dns::wire::DnsWireError
+pub fn phantom_net::dns::wire::DnsWireError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::dns::wire::DnsWireFollowUp
+impl phantom_net::dns::wire::DnsWireFollowUp
+pub fn phantom_net::dns::wire::DnsWireFollowUp::chain_ttl(&self) -> core::option::Option<u32>
+pub fn phantom_net::dns::wire::DnsWireFollowUp::into_query(self) -> phantom_net::dns::wire::DnsWireQuery
+pub const fn phantom_net::dns::wire::DnsWireFollowUp::response_chain_ttl(&self) -> core::option::Option<u32>
+pub struct phantom_net::dns::wire::DnsWireQuery
+impl phantom_net::dns::wire::DnsWireQuery
+pub fn phantom_net::dns::wire::DnsWireQuery::as_bytes(&self) -> &[u8]
+pub fn phantom_net::dns::wire::DnsWireQuery::cname_hops(&self) -> usize
+pub const fn phantom_net::dns::wire::DnsWireQuery::kind(&self) -> phantom_net::dns::wire::DnsWireQueryKind
+pub fn phantom_net::dns::wire::DnsWireQuery::name(&self) -> alloc::string::String
+pub fn phantom_net::dns::wire::DnsWireQuery::new(&str, phantom_net::dns::wire::DnsWireQueryKind, u16, core::option::Option<core::num::nonzero::NonZeroU16>) -> core::result::Result<Self, phantom_net::dns::wire::DnsWireError>
+pub fn phantom_net::dns::wire::DnsWireQuery::parse_response(&self, &[u8]) -> core::result::Result<phantom_net::dns::wire::DnsWireResult, phantom_net::dns::wire::DnsWireError>
+impl core::fmt::Debug for phantom_net::dns::wire::DnsWireQuery
+pub fn phantom_net::dns::wire::DnsWireQuery::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub const phantom_net::dns::wire::MAX_CNAME_HOPS: usize
+pub const phantom_net::dns::wire::MAX_MESSAGE_BYTES: usize
 #[non_exhaustive] pub enum phantom_net::dns::EchConfigListErrorKind
 pub phantom_net::dns::EchConfigListErrorKind::Empty
 pub phantom_net::dns::EchConfigListErrorKind::ListLength
@@ -98,8 +162,11 @@ pub fn phantom_net::dns::HttpsRecordError::fmt(&self, &mut core::fmt::Formatter<
 pub struct phantom_net::dns::HttpsRecordLookup
 impl phantom_net::dns::HttpsRecordLookup
 pub fn phantom_net::dns::HttpsRecordLookup::answers(&self) -> &[phantom_net::dns::HttpsRecordAnswer]
+pub fn phantom_net::dns::HttpsRecordLookup::cache_deadline(&self, core::time::Duration) -> core::option::Option<std::time::Instant>
 pub const fn phantom_net::dns::HttpsRecordLookup::negative_ttl(&self) -> core::option::Option<u32>
 pub fn phantom_net::dns::HttpsRecordLookup::new(alloc::vec::Vec<phantom_net::dns::HttpsRecordAnswer>, core::option::Option<u32>) -> Self
+pub fn phantom_net::dns::HttpsRecordLookup::with_cache_deadline(self, std::time::Instant) -> Self
+pub fn phantom_net::dns::HttpsRecordLookup::with_cache_lifetime(self, core::time::Duration) -> Self
 pub struct phantom_net::dns::HttpsRecordResolver
 impl phantom_net::dns::HttpsRecordResolver
 pub fn phantom_net::dns::HttpsRecordResolver::from_fn<F, Fut>(F) -> Self where F: core::ops::function::Fn(alloc::string::String, u16) -> Fut + core::marker::Send + core::marker::Sync + 'static, Fut: core::future::future::Future<Output = core::result::Result<phantom_net::dns::HttpsRecordLookup, phantom_net::dns::HttpsLookupError>> + core::marker::Send + 'static
@@ -127,8 +194,23 @@ impl phantom_net::dns::SvcParam
 pub const fn phantom_net::dns::SvcParam::key(&self) -> u16
 pub fn phantom_net::dns::SvcParam::value(&self) -> &[u8]
 pub mod phantom_net::host_resolver
+pub enum phantom_net::host_resolver::AddressNegativeKind
+pub phantom_net::host_resolver::AddressNegativeKind::NoData
+pub phantom_net::host_resolver::AddressNegativeKind::NxDomain
+pub struct phantom_net::host_resolver::AddressAnswer
+impl phantom_net::host_resolver::AddressAnswer
+pub fn phantom_net::host_resolver::AddressAnswer::negative(phantom_net::host_resolver::AddressNegativeKind, core::option::Option<core::time::Duration>) -> Self
+pub fn phantom_net::host_resolver::AddressAnswer::positive(alloc::vec::Vec<core::net::ip_addr::IpAddr>, core::time::Duration) -> core::io::error::Result<Self>
+pub fn phantom_net::host_resolver::AddressAnswer::with_cache_deadline(self, std::time::Instant) -> Self
+pub struct phantom_net::host_resolver::AddressNegative
+impl phantom_net::host_resolver::AddressNegative
+pub const fn phantom_net::host_resolver::AddressNegative::kind(&self) -> phantom_net::host_resolver::AddressNegativeKind
+impl core::error::Error for phantom_net::host_resolver::AddressNegative
+impl core::fmt::Display for phantom_net::host_resolver::AddressNegative
+pub fn phantom_net::host_resolver::AddressNegative::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::host_resolver::AddressResolver
 impl phantom_net::host_resolver::AddressResolver
+pub fn phantom_net::host_resolver::AddressResolver::from_answer_fn<F, Fut>(F) -> Self where F: core::ops::function::Fn(alloc::string::String) -> Fut + core::marker::Send + core::marker::Sync + 'static, Fut: core::future::future::Future<Output = core::io::error::Result<phantom_net::host_resolver::AddressAnswer>> + core::marker::Send + 'static
 pub fn phantom_net::host_resolver::AddressResolver::from_fn<F, Fut>(F) -> Self where F: core::ops::function::Fn(alloc::string::String) -> Fut + core::marker::Send + core::marker::Sync + 'static, Fut: core::future::future::Future<Output = core::io::error::Result<alloc::vec::Vec<core::net::ip_addr::IpAddr>>> + core::marker::Send + 'static
 pub fn phantom_net::host_resolver::AddressResolver::system_nameservers() -> core::io::error::Result<Self>
 pub fn phantom_net::host_resolver::AddressResolver::with_nameservers(impl core::iter::traits::collect::IntoIterator<Item = core::net::socket_addr::SocketAddr>) -> core::io::error::Result<Self>
@@ -229,6 +311,7 @@ pub phantom_net::http1::Http1TlsError::Http1(phantom_net::http1::Http1Error)
 pub phantom_net::http1::Http1TlsError::MissingHttp1Alpn
 pub phantom_net::http1::Http1TlsError::Proxy(phantom_net::proxy::HttpConnectError)
 pub phantom_net::http1::Http1TlsError::RuntimeUnavailable
+pub phantom_net::http1::Http1TlsError::Socks4Proxy(phantom_net::proxy::Socks4Error)
 pub phantom_net::http1::Http1TlsError::Socks5Proxy(phantom_net::proxy::Socks5Error)
 pub phantom_net::http1::Http1TlsError::Tls(phantom_net::TlsError)
 pub phantom_net::http1::Http1TlsError::UnsupportedAlpn
@@ -242,6 +325,8 @@ impl core::convert::From<phantom_net::http1::Http1Error> for phantom_net::http1:
 pub fn phantom_net::http1::Http1TlsError::from(phantom_net::http1::Http1Error) -> Self
 impl core::convert::From<phantom_net::proxy::HttpConnectError> for phantom_net::http1::Http1TlsError
 pub fn phantom_net::http1::Http1TlsError::from(phantom_net::proxy::HttpConnectError) -> Self
+impl core::convert::From<phantom_net::proxy::Socks4Error> for phantom_net::http1::Http1TlsError
+pub fn phantom_net::http1::Http1TlsError::from(phantom_net::proxy::Socks4Error) -> Self
 impl core::convert::From<phantom_net::proxy::Socks5Error> for phantom_net::http1::Http1TlsError
 pub fn phantom_net::http1::Http1TlsError::from(phantom_net::proxy::Socks5Error) -> Self
 impl core::error::Error for phantom_net::http1::Http1TlsError
@@ -254,6 +339,7 @@ pub phantom_net::http1::Http1TlsErrorKind::Http1
 pub phantom_net::http1::Http1TlsErrorKind::HttpProxy
 pub phantom_net::http1::Http1TlsErrorKind::InvalidConfiguration
 pub phantom_net::http1::Http1TlsErrorKind::RuntimeUnavailable
+pub phantom_net::http1::Http1TlsErrorKind::Socks4Proxy
 pub phantom_net::http1::Http1TlsErrorKind::Socks5Proxy
 pub phantom_net::http1::Http1TlsErrorKind::Tls
 pub phantom_net::http1::Http1TlsErrorKind::UnsupportedAlpn
@@ -345,6 +431,7 @@ pub phantom_net::http1_or_2::Http1Or2TlsError::MissingHttp1Alpn
 pub phantom_net::http1_or_2::Http1Or2TlsError::MissingHttp2Alpn
 pub phantom_net::http1_or_2::Http1Or2TlsError::Proxy(phantom_net::proxy::HttpConnectError)
 pub phantom_net::http1_or_2::Http1Or2TlsError::RuntimeUnavailable
+pub phantom_net::http1_or_2::Http1Or2TlsError::Socks4Proxy(phantom_net::proxy::Socks4Error)
 pub phantom_net::http1_or_2::Http1Or2TlsError::Socks5Proxy(phantom_net::proxy::Socks5Error)
 pub phantom_net::http1_or_2::Http1Or2TlsError::Tls(phantom_net::TlsError)
 pub phantom_net::http1_or_2::Http1Or2TlsError::UnsupportedAlpn
@@ -360,6 +447,8 @@ impl core::convert::From<phantom_net::http2::Http2TlsError> for phantom_net::htt
 pub fn phantom_net::http1_or_2::Http1Or2TlsError::from(phantom_net::http2::Http2TlsError) -> Self
 impl core::convert::From<phantom_net::proxy::HttpConnectError> for phantom_net::http1_or_2::Http1Or2TlsError
 pub fn phantom_net::http1_or_2::Http1Or2TlsError::from(phantom_net::proxy::HttpConnectError) -> Self
+impl core::convert::From<phantom_net::proxy::Socks4Error> for phantom_net::http1_or_2::Http1Or2TlsError
+pub fn phantom_net::http1_or_2::Http1Or2TlsError::from(phantom_net::proxy::Socks4Error) -> Self
 impl core::convert::From<phantom_net::proxy::Socks5Error> for phantom_net::http1_or_2::Http1Or2TlsError
 pub fn phantom_net::http1_or_2::Http1Or2TlsError::from(phantom_net::proxy::Socks5Error) -> Self
 impl core::error::Error for phantom_net::http1_or_2::Http1Or2TlsError
@@ -373,6 +462,7 @@ pub phantom_net::http1_or_2::Http1Or2TlsErrorKind::Http2
 pub phantom_net::http1_or_2::Http1Or2TlsErrorKind::HttpProxy
 pub phantom_net::http1_or_2::Http1Or2TlsErrorKind::InvalidConfiguration
 pub phantom_net::http1_or_2::Http1Or2TlsErrorKind::RuntimeUnavailable
+pub phantom_net::http1_or_2::Http1Or2TlsErrorKind::Socks4Proxy
 pub phantom_net::http1_or_2::Http1Or2TlsErrorKind::Socks5Proxy
 pub phantom_net::http1_or_2::Http1Or2TlsErrorKind::Tls
 pub phantom_net::http1_or_2::Http1Or2TlsErrorKind::UnsupportedAlpn
@@ -507,6 +597,7 @@ pub phantom_net::http2::Http2TlsError::MissingHttp2Alpn
 pub phantom_net::http2::Http2TlsError::MissingNegotiatedAlpn
 pub phantom_net::http2::Http2TlsError::Proxy(phantom_net::proxy::HttpConnectError)
 pub phantom_net::http2::Http2TlsError::RuntimeUnavailable
+pub phantom_net::http2::Http2TlsError::Socks4Proxy(phantom_net::proxy::Socks4Error)
 pub phantom_net::http2::Http2TlsError::Socks5Proxy(phantom_net::proxy::Socks5Error)
 pub phantom_net::http2::Http2TlsError::Tls(phantom_net::TlsError)
 pub phantom_net::http2::Http2TlsError::UnsupportedAlpn
@@ -522,6 +613,8 @@ impl core::convert::From<phantom_net::http2::Http2TlsError> for phantom_net::htt
 pub fn phantom_net::http1_or_2::Http1Or2TlsError::from(phantom_net::http2::Http2TlsError) -> Self
 impl core::convert::From<phantom_net::proxy::HttpConnectError> for phantom_net::http2::Http2TlsError
 pub fn phantom_net::http2::Http2TlsError::from(phantom_net::proxy::HttpConnectError) -> Self
+impl core::convert::From<phantom_net::proxy::Socks4Error> for phantom_net::http2::Http2TlsError
+pub fn phantom_net::http2::Http2TlsError::from(phantom_net::proxy::Socks4Error) -> Self
 impl core::convert::From<phantom_net::proxy::Socks5Error> for phantom_net::http2::Http2TlsError
 pub fn phantom_net::http2::Http2TlsError::from(phantom_net::proxy::Socks5Error) -> Self
 impl core::error::Error for phantom_net::http2::Http2TlsError
@@ -535,6 +628,7 @@ pub phantom_net::http2::Http2TlsErrorKind::HttpProxy
 pub phantom_net::http2::Http2TlsErrorKind::InvalidConfiguration
 pub phantom_net::http2::Http2TlsErrorKind::PeerApplicationSettings
 pub phantom_net::http2::Http2TlsErrorKind::RuntimeUnavailable
+pub phantom_net::http2::Http2TlsErrorKind::Socks4Proxy
 pub phantom_net::http2::Http2TlsErrorKind::Socks5Proxy
 pub phantom_net::http2::Http2TlsErrorKind::Tls
 pub phantom_net::http2::Http2TlsErrorKind::UnsupportedAlpn
@@ -707,6 +801,7 @@ pub fn phantom_net::http3::Http3Body::size_hint(&self) -> http_body::size_hint::
 pub struct phantom_net::http3::Http3Connection
 impl phantom_net::http3::Http3Connection
 pub fn phantom_net::http3::Http3Connection::accept_ch_for_origin(&self, &str) -> core::option::Option<&[u8]>
+pub fn phantom_net::http3::Http3Connection::completed_handshake_rtt(&self) -> core::option::Option<core::time::Duration>
 pub async fn phantom_net::http3::Http3Connection::early_data_accepted(&self) -> core::option::Option<bool>
 pub async fn phantom_net::http3::Http3Connection::early_data_handshake_failed(&self) -> bool
 pub fn phantom_net::http3::Http3Connection::early_data_pending(&self) -> bool
@@ -729,6 +824,7 @@ pub fn phantom_net::http3::Http3Connector::has_ticket_for(&self, &str) -> bool
 pub fn phantom_net::http3::Http3Connector::host_resolver(&self) -> core::option::Option<&phantom_net::host_resolver::HostResolver>
 pub fn phantom_net::http3::Http3Connector::new(&phantom_profile::tls::TlsSettings, &phantom_profile::quic::QuicTransportSettings, &phantom_profile::http3::Http3Settings, &phantom_profile::http3::Http3RequestSettings) -> core::result::Result<Self, phantom_net::http3::Http3ConnectorError>
 pub fn phantom_net::http3::Http3Connector::new_with_additional_roots<'a>(&phantom_profile::tls::TlsSettings, &phantom_profile::quic::QuicTransportSettings, &phantom_profile::http3::Http3Settings, &phantom_profile::http3::Http3RequestSettings, impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>) -> core::result::Result<Self, phantom_net::http3::Http3ConnectorError>
+pub fn phantom_net::http3::Http3Connector::new_with_server_authentication(&phantom_profile::tls::TlsSettings, &phantom_profile::quic::QuicTransportSettings, &phantom_profile::http3::Http3Settings, &phantom_profile::http3::Http3RequestSettings, phantom_net::ServerAuthentication) -> core::result::Result<Self, phantom_net::http3::Http3ConnectorError>
 pub fn phantom_net::http3::Http3Connector::requests_wait_for_peer_settings(&self) -> bool
 pub fn phantom_net::http3::Http3Connector::resumes_sessions(&self) -> bool
 pub async fn phantom_net::http3::Http3Connector::send(&self, phantom_net::route::DatagramRoute<'_>, &str, http::method::Method, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<bytes::bytes::Bytes>) -> core::result::Result<http::response::Response<phantom_net::http3::Http3Body>, phantom_net::http3::Http3ConnectorError>
@@ -739,6 +835,7 @@ pub async fn phantom_net::http3::Http3Connector::send_request_body_with_trailers
 pub async fn phantom_net::http3::Http3Connector::send_request_on(&self, &phantom_net::http3::Http3Connection, http::method::Method, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<bytes::bytes::Bytes>) -> core::result::Result<http::response::Response<phantom_net::http3::Http3Body>, phantom_net::http3::Http3ConnectorError>
 pub fn phantom_net::http3::Http3Connector::sends_alt_used(&self) -> bool
 pub fn phantom_net::http3::Http3Connector::sends_early_data(&self) -> bool
+pub const fn phantom_net::http3::Http3Connector::server_authentication(&self) -> phantom_net::ServerAuthentication
 pub fn phantom_net::http3::Http3Connector::source_binding(&self) -> core::option::Option<&phantom_net::SourceBinding>
 pub fn phantom_net::http3::Http3Connector::tcp_settings(&self) -> core::option::Option<&phantom_profile::tcp::TcpSettings>
 pub fn phantom_net::http3::Http3Connector::udp_settings(&self) -> core::option::Option<&phantom_profile::udp::UdpSettings>
@@ -806,6 +903,24 @@ impl core::fmt::Debug for phantom_net::http3::QlogCapture
 pub fn phantom_net::http3::QlogCapture::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub async fn phantom_net::http3::send_with_config(core::net::socket_addr::SocketAddr, &str, alloc::sync::Arc<phantom_quic_btls::backend::client::QuicClientConfig>, &phantom_profile::http3::Http3Settings, &phantom_profile::http3::Http3RequestSettings, http::method::Method, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, phantom_net::http3::Http3SendOptions) -> core::result::Result<http::response::Response<phantom_net::http3::Http3Body>, phantom_net::http3::Http3Error>
 pub mod phantom_net::proxy
+#[non_exhaustive] pub enum phantom_net::proxy::DigestAuthError
+pub phantom_net::proxy::DigestAuthError::AuthenticationRejected
+pub phantom_net::proxy::DigestAuthError::Backend(btls::error::ErrorStack)
+pub phantom_net::proxy::DigestAuthError::InvalidCredentials
+pub phantom_net::proxy::DigestAuthError::InvalidRequest
+pub phantom_net::proxy::DigestAuthError::InvalidResponseAuthentication
+pub phantom_net::proxy::DigestAuthError::MalformedChallenge
+pub phantom_net::proxy::DigestAuthError::NonceExhausted
+pub phantom_net::proxy::DigestAuthError::UnsupportedChallenge
+impl core::convert::From<btls::error::ErrorStack> for phantom_net::proxy::DigestAuthError
+pub fn phantom_net::proxy::DigestAuthError::from(btls::error::ErrorStack) -> Self
+impl core::error::Error for phantom_net::proxy::DigestAuthError
+pub fn phantom_net::proxy::DigestAuthError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom_net::proxy::DigestAuthError
+pub fn phantom_net::proxy::DigestAuthError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum phantom_net::proxy::DigestPolicy
+pub phantom_net::proxy::DigestPolicy::AllowLegacyMd5
+pub phantom_net::proxy::DigestPolicy::Sha2Only
 #[non_exhaustive] pub enum phantom_net::proxy::HttpConnectError
 pub phantom_net::proxy::HttpConnectError::AuthenticationRejected
 pub phantom_net::proxy::HttpConnectError::AuthorityHeader
@@ -813,6 +928,7 @@ pub phantom_net::proxy::HttpConnectError::BasicCredentialsTooLarge
 pub phantom_net::proxy::HttpConnectError::Connect(core::io::error::Error)
 pub phantom_net::proxy::HttpConnectError::ConnectUdpGeneratedHeader
 pub phantom_net::proxy::HttpConnectError::ConnectUdpGeneratedHeader::index: usize
+pub phantom_net::proxy::HttpConnectError::Digest(phantom_net::proxy::DigestAuthError)
 pub phantom_net::proxy::HttpConnectError::ForwardingRequiresHttp1
 pub phantom_net::proxy::HttpConnectError::ForwardingRequiresHttp2
 pub phantom_net::proxy::HttpConnectError::Http2ConnectionHeader
@@ -896,12 +1012,30 @@ pub fn phantom_net::proxy::HttpConnectHeader::is_proxy_authorization(&self) -> b
 pub fn phantom_net::proxy::HttpConnectHeader::proxy_authorization(impl core::convert::Into<alloc::boxed::Box<str>>) -> Self
 impl core::fmt::Debug for phantom_net::proxy::HttpConnectHeader
 pub fn phantom_net::proxy::HttpConnectHeader::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub enum phantom_net::proxy::HttpProxyAuthentication<'a>
+pub phantom_net::proxy::HttpProxyAuthentication::Basic(&'a phantom_net::proxy::HttpBasicCredentials)
+pub phantom_net::proxy::HttpProxyAuthentication::Digest(&'a phantom_net::proxy::HttpDigestCredentials)
+pub enum phantom_net::proxy::HttpProxyCredentials
+pub phantom_net::proxy::HttpProxyCredentials::Basic(phantom_net::proxy::HttpBasicCredentials)
+pub phantom_net::proxy::HttpProxyCredentials::Digest(phantom_net::proxy::HttpDigestCredentials)
+impl phantom_net::proxy::HttpProxyCredentials
+pub fn phantom_net::proxy::HttpProxyCredentials::as_ref(&self) -> phantom_net::proxy::HttpProxyAuthentication<'_>
 #[non_exhaustive] pub enum phantom_net::proxy::HttpsProxyProtocol
 pub phantom_net::proxy::HttpsProxyProtocol::Http1
 pub phantom_net::proxy::HttpsProxyProtocol::Http2
 #[non_exhaustive] pub enum phantom_net::proxy::ProxyScheme
 pub phantom_net::proxy::ProxyScheme::Http
 pub phantom_net::proxy::ProxyScheme::Https
+#[non_exhaustive] pub enum phantom_net::proxy::Socks4ErrorKind
+pub phantom_net::proxy::Socks4ErrorKind::Authentication
+pub phantom_net::proxy::Socks4ErrorKind::Connect
+pub phantom_net::proxy::Socks4ErrorKind::InvalidTarget
+pub phantom_net::proxy::Socks4ErrorKind::InvalidUserId
+pub phantom_net::proxy::Socks4ErrorKind::Negotiation
+pub phantom_net::proxy::Socks4ErrorKind::Rejected
+pub phantom_net::proxy::Socks4ErrorKind::Resolve
+pub phantom_net::proxy::Socks4ErrorKind::RuntimeUnavailable
+pub phantom_net::proxy::Socks4ErrorKind::UnsupportedTarget
 #[non_exhaustive] pub enum phantom_net::proxy::Socks5Auth<'a>
 pub phantom_net::proxy::Socks5Auth::None
 pub phantom_net::proxy::Socks5Auth::UsernamePassword
@@ -918,6 +1052,23 @@ pub phantom_net::proxy::Socks5ErrorKind::Negotiation
 pub phantom_net::proxy::Socks5ErrorKind::Rejected
 pub phantom_net::proxy::Socks5ErrorKind::Resolve
 pub phantom_net::proxy::Socks5ErrorKind::RuntimeUnavailable
+pub struct phantom_net::proxy::DigestForwardAuthentication<'a>
+impl<'a> phantom_net::proxy::DigestForwardAuthentication<'a>
+pub fn phantom_net::proxy::DigestForwardAuthentication<'a>::accept(&mut self, &http::header::map::HeaderMap) -> core::result::Result<core::option::Option<phantom_net::proxy::DigestResponseAuthentication>, phantom_net::proxy::DigestAuthError>
+pub fn phantom_net::proxy::DigestForwardAuthentication<'a>::authorization(&mut self, &http::method::Method, &str) -> core::result::Result<core::option::Option<phantom_net::request::RequestHeader>, phantom_net::proxy::DigestAuthError>
+pub fn phantom_net::proxy::DigestForwardAuthentication<'a>::challenge(&mut self, &http::header::map::HeaderMap) -> core::result::Result<(), phantom_net::proxy::DigestAuthError>
+pub fn phantom_net::proxy::DigestForwardAuthentication<'a>::is_authenticated(&self) -> bool
+pub fn phantom_net::proxy::DigestForwardAuthentication<'a>::new(&'a phantom_net::proxy::HttpDigestCredentials, phantom_net::route::ProxyTransport<'_>, bool) -> Self
+impl core::fmt::Debug for phantom_net::proxy::DigestForwardAuthentication<'_>
+pub fn phantom_net::proxy::DigestForwardAuthentication<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::proxy::DigestResponseAuthentication
+impl phantom_net::proxy::DigestResponseAuthentication
+pub fn phantom_net::proxy::DigestResponseAuthentication::finish(self) -> core::result::Result<(), phantom_net::proxy::DigestAuthError>
+pub fn phantom_net::proxy::DigestResponseAuthentication::trailers(&mut self, &http::header::map::HeaderMap) -> core::result::Result<(), phantom_net::proxy::DigestAuthError>
+impl core::fmt::Debug for phantom_net::proxy::DigestResponseAuthentication
+pub fn phantom_net::proxy::DigestResponseAuthentication::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::ops::drop::Drop for phantom_net::proxy::DigestResponseAuthentication
+pub fn phantom_net::proxy::DigestResponseAuthentication::drop(&mut self)
 pub struct phantom_net::proxy::Http2ProxyPool
 impl phantom_net::proxy::Http2ProxyPool
 pub fn phantom_net::proxy::Http2ProxyPool::max_connections_per_route(&self) -> core::num::nonzero::NonZeroUsize
@@ -933,6 +1084,16 @@ pub fn phantom_net::proxy::HttpBasicCredentials::new(impl core::convert::AsRef<s
 pub fn phantom_net::proxy::HttpBasicCredentials::proxy_authorization_header(&self) -> phantom_net::request::RequestHeader
 impl core::fmt::Debug for phantom_net::proxy::HttpBasicCredentials
 pub fn phantom_net::proxy::HttpBasicCredentials::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::proxy::HttpDigestCredentials
+impl phantom_net::proxy::HttpDigestCredentials
+pub fn phantom_net::proxy::HttpDigestCredentials::new(&str, &str) -> core::result::Result<Self, phantom_net::proxy::DigestAuthError>
+pub const fn phantom_net::proxy::HttpDigestCredentials::policy(&self) -> phantom_net::proxy::DigestPolicy
+pub fn phantom_net::proxy::HttpDigestCredentials::with_policy(self, phantom_net::proxy::DigestPolicy) -> Self
+impl core::cmp::Eq for phantom_net::proxy::HttpDigestCredentials
+impl core::cmp::PartialEq for phantom_net::proxy::HttpDigestCredentials
+pub fn phantom_net::proxy::HttpDigestCredentials::eq(&self, &Self) -> bool
+impl core::fmt::Debug for phantom_net::proxy::HttpDigestCredentials
+pub fn phantom_net::proxy::HttpDigestCredentials::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::proxy::HttpsProxyConnector
 impl phantom_net::proxy::HttpsProxyConnector
 pub fn phantom_net::proxy::HttpsProxyConnector::attach_key_log(&self, &phantom_quic_btls::key_log::NssKeyLogSender)
@@ -959,6 +1120,26 @@ pub fn phantom_net::proxy::ProxyCredentialCache::len(&self) -> usize
 pub fn phantom_net::proxy::ProxyCredentialCache::new() -> Self
 impl core::fmt::Debug for phantom_net::proxy::ProxyCredentialCache
 pub fn phantom_net::proxy::ProxyCredentialCache::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::proxy::Socks4Error
+impl phantom_net::proxy::Socks4Error
+pub const fn phantom_net::proxy::Socks4Error::kind(&self) -> phantom_net::proxy::Socks4ErrorKind
+pub const fn phantom_net::proxy::Socks4Error::reply_status(&self) -> core::option::Option<u8>
+pub const fn phantom_net::proxy::Socks4Error::reply_version(&self) -> core::option::Option<u8>
+impl core::convert::From<phantom_net::proxy::Socks4Error> for phantom_net::http1::Http1TlsError
+pub fn phantom_net::http1::Http1TlsError::from(phantom_net::proxy::Socks4Error) -> Self
+impl core::convert::From<phantom_net::proxy::Socks4Error> for phantom_net::http1_or_2::Http1Or2TlsError
+pub fn phantom_net::http1_or_2::Http1Or2TlsError::from(phantom_net::proxy::Socks4Error) -> Self
+impl core::convert::From<phantom_net::proxy::Socks4Error> for phantom_net::http2::Http2TlsError
+pub fn phantom_net::http2::Http2TlsError::from(phantom_net::proxy::Socks4Error) -> Self
+impl core::error::Error for phantom_net::proxy::Socks4Error
+pub fn phantom_net::proxy::Socks4Error::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Display for phantom_net::proxy::Socks4Error
+pub fn phantom_net::proxy::Socks4Error::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::proxy::Socks4UserId<'a>(_)
+impl<'a> phantom_net::proxy::Socks4UserId<'a>
+pub fn phantom_net::proxy::Socks4UserId<'a>::new(&'a str) -> core::result::Result<Self, phantom_net::proxy::Socks4Error>
+impl core::fmt::Debug for phantom_net::proxy::Socks4UserId<'_>
+pub fn phantom_net::proxy::Socks4UserId<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::proxy::Socks5Error
 impl phantom_net::proxy::Socks5Error
 pub fn phantom_net::proxy::Socks5Error::kind(&self) -> phantom_net::proxy::Socks5ErrorKind
@@ -1000,6 +1181,7 @@ pub phantom_net::request::RequestBodyErrorKind::TrailersTooLarge
 pub phantom_net::request::RequestBodyErrorKind::TrailersUnsupported
 pub struct phantom_net::request::AbsoluteForm
 impl phantom_net::request::AbsoluteForm
+pub fn phantom_net::request::AbsoluteForm::encoded(&self) -> alloc::string::String
 pub fn phantom_net::request::AbsoluteForm::from_uri(http::uri::Uri) -> core::result::Result<Self, phantom_net::request::InvalidAbsoluteForm>
 pub fn phantom_net::request::AbsoluteForm::parse(&str) -> core::result::Result<Self, phantom_net::request::InvalidAbsoluteForm>
 pub struct phantom_net::request::InvalidAbsoluteForm
@@ -1012,6 +1194,7 @@ impl core::fmt::Display for phantom_net::request::InvalidOriginForm
 pub fn phantom_net::request::InvalidOriginForm::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::request::OriginForm(_)
 impl phantom_net::request::OriginForm
+pub fn phantom_net::request::OriginForm::as_str(&self) -> &str
 pub fn phantom_net::request::OriginForm::parse(&str) -> core::result::Result<Self, phantom_net::request::InvalidOriginForm>
 pub struct phantom_net::request::RequestBody
 impl phantom_net::request::RequestBody
@@ -1094,7 +1277,7 @@ pub phantom_net::route::Http1Target::Absolute(phantom_net::request::AbsoluteForm
 pub phantom_net::route::Http1Target::Origin(phantom_net::request::OriginForm)
 #[non_exhaustive] pub enum phantom_net::route::Http2Route<'a>
 pub phantom_net::route::Http2Route::Forward
-pub phantom_net::route::Http2Route::Forward::credentials: core::option::Option<&'a phantom_net::proxy::HttpBasicCredentials>
+pub phantom_net::route::Http2Route::Forward::credentials: core::option::Option<phantom_net::proxy::HttpProxyAuthentication<'a>>
 pub phantom_net::route::Http2Route::Forward::proxy: phantom_net::route::ProxyTransport<'a>
 pub phantom_net::route::Http2Route::Origin(phantom_net::route::OriginRoute<'a>)
 #[non_exhaustive] pub enum phantom_net::route::OriginRoute<'a>
@@ -1111,6 +1294,9 @@ pub phantom_net::route::ProxyTransport::Tls
 pub phantom_net::route::ProxyTransport::Tls::connector: &'a phantom_net::proxy::HttpsProxyConnector
 pub phantom_net::route::ProxyTransport::Tls::endpoint: phantom_net::route::Endpoint<'a>
 pub phantom_net::route::ProxyTransport::Tls::server_name: &'a str
+#[non_exhaustive] pub enum phantom_net::route::Socks4Target<'a>
+pub phantom_net::route::Socks4Target::LocalDns(phantom_net::route::Endpoint<'a>)
+pub phantom_net::route::Socks4Target::RemoteDns(phantom_net::route::Endpoint<'a>)
 #[non_exhaustive] pub enum phantom_net::route::Socks5Target<'a>
 pub phantom_net::route::Socks5Target::LocalDns(phantom_net::route::Endpoint<'a>)
 pub phantom_net::route::Socks5Target::RemoteDns(phantom_net::route::Endpoint<'a>)
@@ -1118,6 +1304,10 @@ pub phantom_net::route::Socks5Target::RemoteDns(phantom_net::route::Endpoint<'a>
 pub phantom_net::route::TcpRoute::Connected(phantom_net::route::ConnectedStream)
 pub phantom_net::route::TcpRoute::Direct(phantom_net::route::Endpoint<'a>)
 pub phantom_net::route::TcpRoute::HttpConnect(phantom_net::route::HttpConnectRoute<'a>)
+pub phantom_net::route::TcpRoute::Socks4
+pub phantom_net::route::TcpRoute::Socks4::proxy: phantom_net::route::Endpoint<'a>
+pub phantom_net::route::TcpRoute::Socks4::target: phantom_net::route::Socks4Target<'a>
+pub phantom_net::route::TcpRoute::Socks4::user_id: phantom_net::proxy::Socks4UserId<'a>
 pub phantom_net::route::TcpRoute::Socks5
 pub phantom_net::route::TcpRoute::Socks5::auth: phantom_net::proxy::Socks5Auth<'a>
 pub phantom_net::route::TcpRoute::Socks5::proxy: phantom_net::route::Endpoint<'a>
@@ -1149,7 +1339,7 @@ pub phantom_net::route::Endpoint::host: &'a str
 pub phantom_net::route::Endpoint::port: u16
 pub struct phantom_net::route::HttpConnectRoute<'a>
 pub phantom_net::route::HttpConnectRoute::authority: &'a str
-pub phantom_net::route::HttpConnectRoute::credentials: core::option::Option<&'a phantom_net::proxy::HttpBasicCredentials>
+pub phantom_net::route::HttpConnectRoute::credentials: core::option::Option<phantom_net::proxy::HttpProxyAuthentication<'a>>
 pub phantom_net::route::HttpConnectRoute::headers: &'a [phantom_net::proxy::HttpConnectHeader]
 pub phantom_net::route::HttpConnectRoute::proxy: phantom_net::route::ProxyTransport<'a>
 pub type phantom_net::route::EchLookup<'a> = core::pin::Pin<&'a mut (dyn core::future::future::Future<Output = core::option::Option<phantom_net::dns::EchConfigList>> + core::marker::Send + 'a)>

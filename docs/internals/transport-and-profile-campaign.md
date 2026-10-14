@@ -56,9 +56,9 @@ copying execution journals into this page.
 | F2 | `fingerprint-import` | Bounded JSON import merged in PR #226 at `8b13da48` after independent review, all 22 gate steps, 4,851 Rust tests and 41 green PR checks. All six applicable main push workflows passed. Import controls cover all 11 profiles and 22 templates. |
 | F3 | `socks4-integration` | SOCKS4/4a merged in PR #215 after the exact-head full gate and macOS/Windows CI. Main push CI passed. |
 | F4 | `digest-integration` | Digest merged in PR #218 after the full gate and platform CI. Enterprise contracts are recorded. PR #220 repaired the cookie and shared-port fixtures; main push CI passed. |
-| F5 | `alt-svc-ech-delivery` | DoH merged in PR #224 at `c7201173`; all nine applicable main workflows passed. Alternate-host discovery and opt-in native server early data are rebased onto `8b13da48` and independently reviewed. Focused checks passed 202 native controls and 13 Alt-Svc/ECH peer controls before rebase. Public inventories are regenerated. Full gate and platform CI remain. |
+| F5 | `alt-svc-ech-delivery` | DoH merged in PR #224 at `c7201173`; all nine applicable main workflows passed. Alternate-host ECH discovery and opt-in native server early data merged in PR #227 at `b9fdc60a` after independent review, all 22 gate steps, 4,903 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. Browser captures remain separate. |
 | F6 | `connect-udp-sharing` | The H2/H3 sharing contract is reviewed. Implementation is underway with bounded admission, isolated outer ticket stores and independent pinned peers. Runtime verification remains. |
-| F7 | `rtt-racing` | Opt-in client-local verified direct RTT racing is committed at `d31742f1` after independent review, 73 focused controls, 131 doctests and five existing ignores. Strict Clippy, Rust 1.88 and rustdoc passed. Public API reconciliation, rebase, full gate, PR checks and platform CI remain. No browser timing parity or performance benefit is claimed. |
+| F7 | `rtt-racing` | Opt-in client-local verified direct RTT racing passed independent review, 73 focused controls, 131 doctests and five existing ignores at `d31742f1`. Strict Clippy, Rust 1.88 and rustdoc passed. Rebased composition onto `b9fdc60a` is independently reviewed and public inventories are regenerated. Full gate, PR checks and platform CI remain. No browser timing parity or performance benefit is claimed. |
 | F8 | `http3-debug-auth` | Origin opt-in merged in PR #219 after independent review, all 22 gate steps, 4,643 Rust tests, and 43 green PR checks at `6f6426f4`. |
 | B2 | `proxy-h2-idle-integration` | Proxy timer closure and the idle-PING guard merged in PR #222 at `98fe3750` after all 22 gate steps, 4,659 Rust tests and 43 green PR checks. All nine main push workflows passed. Alt-Used and WINDOW_UPDATE remain separate open changes. |
 
@@ -159,7 +159,7 @@ demonstrated requirement. Do not assert a runtime bottleneck without data.
   authentication using primary sources and peer APIs. Define the mechanism
   and platform contract before implementation. Record the result separately
   for NTLM and Negotiate/Kerberos; the word "enterprise" is not an API.
-- [ ] F5: Add explicit browser-backed DNS-over-HTTPS and alternate-host
+- [x] F5: Add explicit browser-backed DNS-over-HTTPS and alternate-host
   Alt-Svc/ECH discovery policies. Cover resolver bootstrap, cancellation,
   bounds, HTTPS records, and target-host identity. Keep route and protocol
   choices explicit. Verify resumed ECH early-data acceptance and rejection
