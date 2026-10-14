@@ -48,7 +48,7 @@ copying execution journals into this page.
 
 | Task | Owner lane | State and next check |
 | --- | --- | --- |
-| T1 | `h3-drain-diagnosis` | Both draining failures reproduced by delaying peer GOAWAY beyond the fixture's sleep. Verify an observed-readiness barrier under the same delay. |
+| T1 | `h3-drain-diagnosis` | Observed-readiness repair passes the same delayed GOAWAY control and all 400 session tests. Independently reviewed; root integration gate and PR remain. |
 | T2 | `tls-done-diagnosis` | Framed-response repair and EOF controls pass; independently reviewed and integrated locally. Full root gate and PR delivery remain. |
 | P1–P5 | `profile-catalog` | Contract review complete. Implement exact lookup and per-layer records before migrating recipe values. |
 | F8 | `http3-debug-auth` | Explicit origin opt-in implemented. Run native and facade certificate, hostname, clone, and session-isolation controls. |
@@ -60,6 +60,8 @@ synchronization weaknesses. Detailed run logs are retained under each
 lane's `target/transport-profile-campaign/` pending a reviewed evidence index.
 The [TLS timing record](transport-profile-evidence/tls-retirement.md) binds
 the T2 repair and retained evidence. Its historical attribution remains open.
+The [HTTP/3 draining record](transport-profile-evidence/http3-draining.md)
+binds T1's fixture repair. Its original scheduling trigger remains unresolved.
 
 ## Historical timing failures
 

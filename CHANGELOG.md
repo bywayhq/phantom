@@ -2495,6 +2495,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Wait for the client to process HTTP/3 GOAWAY before checking replacement
+  connections in draining fixtures. Preserve request deadlines and assertions.
+
 - Read complete HTTP/1.1 responses in native TLS capture checks without
   waiting for connection retirement. Keep independent server EOF controls.
 
