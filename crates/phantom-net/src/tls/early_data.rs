@@ -367,6 +367,8 @@ where
         let accepted = self.inner.ssl().early_data_accepted();
         self.refresh_negotiated();
         if let Some(capture) = &early.session_capture {
+            // Portable proof requires native completion; local caching is independent.
+            let _ = self.inner.ssl().authenticate_scoped_session_publication();
             capture.commit_authenticated();
         }
         debug!(

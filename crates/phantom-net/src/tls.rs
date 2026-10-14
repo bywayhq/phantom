@@ -750,6 +750,10 @@ impl TlsConnector {
             span.record("early_data_offered", in_early_data);
             let early_data = in_early_data
                 .then(|| EarlyData::new(negotiated_alpn.clone(), session_capture.take()));
+            if session_capture.is_some() && !in_early_data {
+                // Custom verification may retain local sessions without portable proof.
+                let _ = stream.ssl().authenticate_scoped_session_publication();
+            }
             let captured_session_count = session_capture
                 .as_ref()
                 .map_or(0, session_cache::TlsSessionCapture::commit_authenticated);

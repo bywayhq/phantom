@@ -24,6 +24,65 @@ use crate::tls::{
 /// answers its ClientHello.
 const SERVER_DELAY: Duration = Duration::from_millis(200);
 
+#[tokio::test]
+async fn scoped_session_proof_waits_for_accepted_or_rejected_early_data() -> TestResult<()> {
+    for accepted in [true, false] {
+        let identity = TestIdentity::generate()?;
+        let connector = firefox_connector(&identity)?;
+        let cache = connector
+            .session_cache
+            .as_ref()
+            .ok_or("ticket cache missing")?;
+        let h2 = identity.acceptor(TestServerAlpn::H2)?;
+        let (address, listener) = loopback_listener().await?;
+        let mut peer = serve_ticket_then_resumption(listener, h2.clone(), h2, accepted);
+        let received = async {
+            let mut first = connect_offering(&connector, address).await?;
+            if first.early_data_wait().is_some() {
+                return Err("full handshake unexpectedly offered early data".into());
+            }
+            let mut reply = [0_u8; 1];
+            tokio::time::timeout(TEST_TIMEOUT, first.read_exact(&mut reply)).await??;
+            drop(first);
+            let source = cache
+                .take(TEST_SERVER_NAME)
+                .ok_or("source ticket missing")?;
+            if !source.is_authenticated() {
+                return Err("full handshake did not authenticate the source ticket".into());
+            }
+            while cache.take(TEST_SERVER_NAME).is_some() {}
+            cache.restore(TEST_SERVER_NAME, source);
+            let mut stream = connect_offering(&connector, address).await?;
+            if !stream.inner.ssl().in_early_data()
+                || stream.inner.ssl().authenticate_scoped_session_publication()
+                || cache.len() != 0
+            {
+                return Err("early data published proof or retained an offered ticket".into());
+            }
+            stream.write_all(b"early").await?;
+            stream.flush().await?;
+            let mut reply = [0_u8; 1];
+            tokio::time::timeout(TEST_TIMEOUT, stream.read_exact(&mut reply)).await??;
+            if stream.early_data_wait().is_some()
+                || !stream.inner.ssl().is_init_finished()
+                || stream.inner.ssl().early_data_accepted() != accepted
+            {
+                return Err("early data did not settle with the expected outcome".into());
+            }
+            let ticket = cache
+                .take(TEST_SERVER_NAME)
+                .ok_or("resumed ticket missing")?;
+            if !ticket.is_authenticated() {
+                return Err("completed early-data handshake retained an unproven ticket".into());
+            }
+            Ok(())
+        }
+        .await;
+        super::session_cache::finish_ticket_control_peer(received, &mut peer, TEST_TIMEOUT).await?;
+    }
+    Ok(())
+}
+
 /// What the server saw on the resumed connection.
 struct Observed {
     request: Vec<u8>,

@@ -413,6 +413,7 @@ async fn session_capture_requires_authenticated_commit() -> TestResult<()> {
     let first_session = cache
         .take(TEST_SERVER_NAME)
         .ok_or("first handshake omitted its session")?;
+    assert!(first_session.is_authenticated());
     let pending = cache.begin_handshake(TEST_SERVER_NAME);
     pending.capture(Ok(first_session));
     assert_eq!(cache.len(), 0);
@@ -424,6 +425,7 @@ async fn session_capture_requires_authenticated_commit() -> TestResult<()> {
     let second_session = cache
         .take(TEST_SERVER_NAME)
         .ok_or("second handshake omitted its session")?;
+    assert!(second_session.is_authenticated());
     let pending = cache.begin_handshake(TEST_SERVER_NAME);
     pending.capture(Ok(second_session));
     assert_eq!(cache.len(), 0);
@@ -439,6 +441,94 @@ async fn session_capture_requires_authenticated_commit() -> TestResult<()> {
     assert_eq!(cache.len(), 1);
     tokio::time::timeout(TEST_TIMEOUT, server).await???;
     Ok(())
+}
+
+#[tokio::test]
+async fn tls12_restored_sessions_retain_authenticated_publication() -> TestResult<()> {
+    check_tls12_publication(false).await
+}
+
+#[tokio::test]
+async fn custom_verification_keeps_local_sessions_without_portable_proof() -> TestResult<()> {
+    check_tls12_publication(true).await
+}
+
+async fn check_tls12_publication(custom_verifier: bool) -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let settings = tls12_settings();
+    let (mut connector, cache) = isolated_connector(&identity, &settings)?;
+    if custom_verifier {
+        let mut roots = btls::x509::store::X509StoreBuilder::new()?;
+        roots.add_cert(btls::x509::X509::from_der(identity.root_der())?)?;
+        let mut builder = btls::ssl::SslConnector::bare_builder(btls::ssl::SslMethod::tls())?;
+        builder.set_cert_store_builder(roots);
+        builder.set_verify_callback(btls::ssl::SslVerifyMode::PEER, |verified, _| verified);
+        super::super::configuration::apply(&mut builder, &settings)?;
+        builder.enable_scoped_client_sessions();
+        connector.backend = builder.build();
+    }
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    let acceptor = tls12_acceptor(&identity)?;
+    let mut peer = tokio::spawn(async move {
+        for resumed in [false, true] {
+            let stream = accept_tls_from(&listener, &acceptor).await?;
+            if stream.ssl().session_reused() != resumed {
+                return Err("server saw an unexpected TLS 1.2 resumption".into());
+            }
+        }
+        Ok(())
+    });
+    let received = async {
+        for resumed in [false, true] {
+            let stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
+            if stream.session_reused() != resumed || stream.inner.ssl().verify_result().is_err() {
+                return Err("TLS 1.2 resumption or native verification failed".into());
+            }
+            drop(stream);
+            let session = cache
+                .take(TEST_SERVER_NAME)
+                .ok_or("TLS 1.2 retained no session")?;
+            if session.is_authenticated() == custom_verifier || session.should_be_single_use() {
+                return Err(
+                    "TLS 1.2 session has incorrect publication or consumption state".into(),
+                );
+            }
+            cache.restore(TEST_SERVER_NAME, session);
+        }
+        Ok(())
+    }
+    .await;
+    finish_ticket_control_peer(received, &mut peer, TEST_TIMEOUT).await
+}
+
+#[tokio::test]
+async fn late_tls13_tickets_have_completed_default_verification_proof() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let (connector, cache) = isolated_connector(&identity, &v157_tcp_tls())?;
+    let (address, mut peer) = ticket_server(&identity, 2).await?;
+    let received = async {
+        for resumed in [false, true] {
+            let mut stream = connect_local(&connector, address, TEST_SERVER_NAME).await??;
+            if stream.session_reused() != resumed {
+                return Err("TLS 1.3 unexpectedly changed resumption state".into());
+            }
+            let mut reply = [0_u8; 1];
+            tokio::time::timeout(TEST_TIMEOUT, stream.read_exact(&mut reply)).await??;
+            drop(stream);
+            let session = cache
+                .take(TEST_SERVER_NAME)
+                .ok_or("TLS 1.3 retained no issued ticket")?;
+            if !session.is_authenticated() || !session.should_be_single_use() {
+                return Err("late TLS 1.3 ticket lacks authenticated single-use state".into());
+            }
+            while cache.take(TEST_SERVER_NAME).is_some() {}
+            cache.restore(TEST_SERVER_NAME, session);
+        }
+        Ok(())
+    }
+    .await;
+    finish_ticket_control_peer(received, &mut peer, TEST_TIMEOUT).await
 }
 
 #[tokio::test]
@@ -651,9 +741,9 @@ async fn clear_drops_pending_tickets_and_refuses_late_tls12_restore() -> TestRes
     Ok(())
 }
 
-async fn finish_ticket_control_peer<T>(
+pub(super) async fn finish_ticket_control_peer<T, U>(
     primary: TestResult<T>,
-    peer: &mut JoinHandle<TestResult<()>>,
+    peer: &mut JoinHandle<TestResult<U>>,
     deadline: std::time::Duration,
 ) -> TestResult<T> {
     let abort_requested = primary.is_err();
@@ -674,12 +764,12 @@ async fn finish_ticket_control_peer<T>(
     combine_ticket_control(primary, cleanup)
 }
 
-fn ticket_control_join(
-    joined: Result<TestResult<()>, tokio::task::JoinError>,
+fn ticket_control_join<U>(
+    joined: Result<TestResult<U>, tokio::task::JoinError>,
     abort_requested: bool,
 ) -> TestResult<()> {
     match joined {
-        Ok(result) => result,
+        Ok(result) => result.map(|_| ()),
         Err(error) if abort_requested && error.is_cancelled() => Ok(()),
         Err(error) => Err(error.into()),
     }
@@ -741,7 +831,7 @@ async fn ticket_control_cleanup_retains_body_errors_and_peer_panics() -> TestRes
 async fn ticket_control_cleanup_retains_timeout_and_completed_peer_failure() -> TestResult<()> {
     let (release_tx, release_rx) = std::sync::mpsc::channel();
     let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
-    let mut peer = tokio::task::spawn_blocking(move || {
+    let mut peer = tokio::task::spawn_blocking(move || -> TestResult<()> {
         let _ = ready_tx.send(());
         let _ = release_rx.recv();
         Err(std::io::Error::other("completed ticket peer failure").into())
