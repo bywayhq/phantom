@@ -168,12 +168,14 @@ impl AddressLookup {
     /// loopback address (`net/dns/host_resolver_system_task.cc:539-549`,
     /// `:628-645`). Phantom asks for both and keeps the same addresses.
     async fn resolve_by_system(&self, host: &str, ipv6: bool) -> io::Result<Resolved> {
-        let mut resolved = self.system.resolve(host).await?;
+        let mut addresses = self.system.resolve(host).await?;
         if ipv6 {
-            return Ok(resolved);
+            return Ok(Resolved::Legacy {
+                addresses,
+                ttl: None,
+            });
         }
-        let ipv4: Vec<_> = resolved
-            .addresses
+        let ipv4: Vec<_> = addresses
             .iter()
             .copied()
             .filter(SocketAddr::is_ipv4)
@@ -185,9 +187,12 @@ impl AddressLookup {
             ));
         }
         if !ipv4.iter().all(|address| address.ip().is_loopback()) {
-            resolved.addresses = ipv4;
+            addresses = ipv4;
         }
-        Ok(resolved)
+        Ok(Resolved::Legacy {
+            addresses,
+            ttl: None,
+        })
     }
 
     /// Returns the hosts file's addresses for `name`, IPv6 first.
@@ -240,9 +245,10 @@ impl AddressLookup {
         if found.is_empty() {
             return None;
         }
-        let mut resolved = Resolved::without_ttl(found);
-        resolved.ttl = ttl.map(|seconds| Duration::from_secs(u64::from(seconds)));
-        Some(resolved)
+        Some(Resolved::with_ttl(
+            found,
+            ttl.map(|seconds| Duration::from_secs(u64::from(seconds))),
+        ))
     }
 }
 
@@ -413,14 +419,14 @@ enum SystemResolver {
 }
 
 impl SystemResolver {
-    async fn resolve(&self, host: &str) -> io::Result<Resolved> {
+    async fn resolve(&self, host: &str) -> io::Result<Vec<SocketAddr>> {
         match self {
-            Self::Os => Ok(Resolved {
-                addresses: tokio::net::lookup_host((host, 0)).await?.collect(),
-                ttl: None,
-            }),
+            Self::Os => Ok(tokio::net::lookup_host((host, 0)).await?.collect()),
             #[cfg(test)]
-            Self::Fixed(addresses) => Ok(Resolved::without_ttl(addresses.iter().copied())),
+            Self::Fixed(addresses) => Ok(addresses
+                .iter()
+                .map(|address| SocketAddr::new(*address, 0))
+                .collect()),
         }
     }
 }

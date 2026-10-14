@@ -101,7 +101,9 @@ pub use http::Uri;
 /// Policy for authenticating a TLS server certificate.
 pub use phantom_net::ServerAuthentication;
 /// Caller-supplied host name resolution for [`ClientBuilder::dns_resolver`].
-pub use phantom_net::host_resolver::AddressResolver;
+pub use phantom_net::host_resolver::{
+    AddressAnswer, AddressNegative, AddressNegativeKind, AddressResolver,
+};
 /// An ordered HTTP CONNECT field or destination-authority placeholder.
 pub use phantom_net::proxy::{
     DigestAuthError, DigestPolicy, HttpConnectHeader, HttpDigestCredentials,

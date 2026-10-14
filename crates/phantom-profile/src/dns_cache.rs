@@ -15,8 +15,10 @@ use std::{num::NonZeroUsize, time::Duration};
 /// An answer from the operating system's resolver, or from a caller's
 /// resolver built with `AddressResolver::from_fn`, carries no record TTL and
 /// is kept for [`Self::ttl`]. An answer from a resolver that sends its own
-/// DNS queries carries the smallest TTL of its records and is kept for that
-/// TTL or [`Self::min_record_ttl`], whichever is longer.
+/// DNS queries through `AddressResolver::system_nameservers` carries the
+/// smallest record TTL and is kept for that TTL or [`Self::min_record_ttl`],
+/// whichever is longer. A caller using `AddressResolver::from_answer_fn`
+/// supplies a remaining DNS lifetime, which the cache never extends.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DnsCacheSettings {
     /// Most host names kept at once.
@@ -34,9 +36,13 @@ pub struct DnsCacheSettings {
     /// Such an answer is kept for its record TTL or this, whichever is
     /// longer, and [`Self::ttl`] does not apply to it. A zero duration keeps
     /// the record TTL as it is, and a record TTL of zero then keeps nothing.
+    /// This floor does not apply to `AddressResolver::from_answer_fn`.
     pub min_record_ttl: Duration,
     /// How long a failed lookup is remembered, or `None` to resolve again on
     /// the next connection.
+    ///
+    /// For `AddressResolver::from_answer_fn`, this caps a negative DNS answer's
+    /// remaining lifetime. Callback errors are never stored.
     pub negative_ttl: Option<Duration>,
 }
 

@@ -11,7 +11,9 @@ use std::{
 
 use phantom_profile::DnsCacheSettings;
 
-use super::{AddressResolver, HostResolver, resolve};
+use super::{
+    AddressAnswer, AddressNegative, AddressNegativeKind, AddressResolver, HostResolver, resolve,
+};
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
@@ -191,5 +193,113 @@ async fn a_resolver_set_after_the_cache_answers_through_it() -> TestResult {
     assert_eq!(addresses, [SocketAddr::new(RESOLVED, 443)]);
     assert_eq!(counting.calls(), 1);
     assert_eq!(resolver.cache().map(super::AddressCache::len), Some(1));
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn typed_positive_answers_reject_empty_lists_while_legacy_answers_keep_them() -> TestResult {
+    let error = AddressAnswer::positive(Vec::new(), Duration::from_secs(60))
+        .err()
+        .ok_or("an empty positive answer was accepted")?;
+    assert_eq!(error.kind(), io::ErrorKind::InvalidInput);
+    let legacy =
+        HostResolver::new().with_resolver(AddressResolver::from_fn(|_| async { Ok(Vec::new()) }));
+    assert!(
+        resolve(Some(&legacy), "empty.phantom.test", 443)
+            .await?
+            .is_empty()
+    );
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn an_uncached_typed_answer_keeps_names_order_duplicates_and_connector_ports() -> TestResult {
+    let names = Arc::new(Mutex::new(Vec::new()));
+    let observed = Arc::clone(&names);
+    let callback = AddressResolver::from_answer_fn(move |host| {
+        let recorded = observed
+            .lock()
+            .map_err(|_| io::Error::other("name recorder lock was poisoned"))
+            .map(|mut names| names.push(host));
+        async move {
+            recorded?;
+            AddressAnswer::positive(vec![OVERRIDE_V6, RESOLVED, OVERRIDE_V6], Duration::ZERO)
+        }
+    })
+    .with_udp_settings(phantom_profile::browser::chrome::v154_udp());
+    assert!(callback.udp_settings().is_none());
+    let resolver = HostResolver::new().with_resolver(callback);
+    for port in [443, 8443] {
+        assert_eq!(
+            resolve(Some(&resolver), "OrIGIN.Phantom.Test", port).await?,
+            [
+                SocketAddr::new(OVERRIDE_V6, port),
+                SocketAddr::new(RESOLVED, port),
+                SocketAddr::new(OVERRIDE_V6, port)
+            ]
+        );
+    }
+    assert_eq!(
+        *names
+            .lock()
+            .map_err(|_| "name recorder lock was poisoned")?,
+        ["origin.phantom.test", "origin.phantom.test"]
+    );
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn uncached_typed_negatives_preserve_each_kind_as_a_not_found_cause() -> TestResult {
+    for kind in [AddressNegativeKind::NxDomain, AddressNegativeKind::NoData] {
+        let resolver = HostResolver::new().with_resolver(AddressResolver::from_answer_fn(
+            move |_| async move { Ok(AddressAnswer::negative(kind, None)) },
+        ));
+        let error = resolve(Some(&resolver), "missing.phantom.test", 443)
+            .await
+            .err()
+            .ok_or("negative resolved")?;
+        assert_eq!(error.kind(), io::ErrorKind::NotFound);
+        let negative = error
+            .get_ref()
+            .and_then(|cause| cause.downcast_ref::<AddressNegative>())
+            .ok_or("negative cause was lost")?;
+        assert_eq!(negative.kind(), kind);
+    }
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn literals_and_overrides_bypass_typed_callbacks_with_either_builder_order() -> TestResult {
+    for cache_first in [false, true] {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let counter = Arc::clone(&calls);
+        let callback = AddressResolver::from_answer_fn(move |_| {
+            counter.fetch_add(1, Ordering::SeqCst);
+            async { Err(io::Error::other("the bypassed resolver was called")) }
+        });
+        let resolver = if cache_first {
+            HostResolver::new()
+                .with_cache(settings(Duration::from_secs(60)))
+                .with_resolver(callback)
+        } else {
+            HostResolver::new()
+                .with_resolver(callback)
+                .with_cache(settings(Duration::from_secs(60)))
+        }
+        .with_override("origin.phantom.test", [OVERRIDE_V6, OVERRIDE_V4]);
+        assert_eq!(
+            resolve(Some(&resolver), "ORIGIN.phantom.test", 8443).await?,
+            [
+                SocketAddr::new(OVERRIDE_V6, 8443),
+                SocketAddr::new(OVERRIDE_V4, 8443)
+            ]
+        );
+        assert_eq!(
+            resolve(Some(&resolver), "127.0.0.1", 443).await?,
+            [SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 443)]
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        assert_eq!(resolver.cache().map(super::AddressCache::len), Some(0));
+    }
     Ok(())
 }

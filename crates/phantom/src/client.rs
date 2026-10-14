@@ -1103,6 +1103,11 @@ impl ClientBuilder {
     /// [`UdpSettings`](crate::profile::UdpSettings), so the Chromium-family
     /// recipes set `SO_RANDOMIZE_PORT` on them on Windows.
     ///
+    /// With [`AddressResolver::from_answer_fn`], return [`crate::AddressAnswer`]
+    /// to report a remaining DNS lifetime. The cache never extends that lifetime.
+    /// Return a negative answer only after the complete address lookup finishes.
+    /// Errors from this callback fail the request and are never cached.
+    ///
     /// # Examples
     ///
     /// ```

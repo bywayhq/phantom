@@ -20,6 +20,7 @@ use tokio::sync::watch;
 use super::{AddressCache, Answer};
 use crate::host_resolver::{AddressResolver, Resolved};
 
+mod dns_answers;
 mod routes;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
@@ -252,11 +253,7 @@ fn with_record_ttl(calls: &Arc<AtomicUsize>, record_ttl: Duration) -> AddressRes
     let calls = Arc::clone(calls);
     AddressResolver::from_resolved_fn(move |_| {
         calls.fetch_add(1, Ordering::SeqCst);
-        async move {
-            let mut resolved = Resolved::without_ttl([V4]);
-            resolved.ttl = Some(record_ttl);
-            Ok(resolved)
-        }
+        async move { Ok(Resolved::with_ttl([V4], Some(record_ttl))) }
     })
 }
 

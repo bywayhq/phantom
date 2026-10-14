@@ -16,6 +16,10 @@ use phantom_profile::{DnsCacheSettings, UdpSettings};
 
 use crate::address_cache::AddressCache;
 
+mod answer;
+use answer::AnswerLifetime;
+pub use answer::{AddressAnswer, AddressNegative, AddressNegativeKind};
+
 pub(crate) type ResolveFuture =
     Pin<Box<dyn Future<Output = io::Result<Resolved>> + Send + 'static>>;
 
@@ -37,19 +41,51 @@ pub(crate) trait DnsLookup: fmt::Debug + Send + Sync {
     fn socket_settings(&self) -> Option<UdpSettings>;
 }
 
-/// One lookup's answer: the addresses, each with port 0, in the order to try
-/// them, and the record TTL when the resolver reports one.
-pub(crate) struct Resolved {
-    pub(crate) addresses: Vec<SocketAddr>,
-    pub(crate) ttl: Option<Duration>,
+/// A legacy resolution or a DNS answer with a bounded cache lifetime.
+pub(crate) enum Resolved {
+    Legacy {
+        addresses: Vec<SocketAddr>,
+        ttl: Option<Duration>,
+    },
+    Answer(AddressAnswer),
+}
+
+pub(crate) enum CacheLifetime {
+    Legacy(Option<Duration>),
+    Dns(AnswerLifetime),
+    Never,
 }
 
 impl Resolved {
     /// An answer without a record TTL, as the operating system reports.
     pub(crate) fn without_ttl(addresses: impl IntoIterator<Item = IpAddr>) -> Self {
-        Self {
+        Self::Legacy {
             addresses: with_port(addresses, 0),
             ttl: None,
+        }
+    }
+
+    #[cfg(any(feature = "https-records", test))]
+    pub(crate) fn with_ttl(
+        addresses: impl IntoIterator<Item = IpAddr>,
+        ttl: Option<Duration>,
+    ) -> Self {
+        Self::Legacy {
+            addresses: with_port(addresses, 0),
+            ttl,
+        }
+    }
+
+    pub(crate) fn into_parts(self) -> (io::Result<Vec<SocketAddr>>, CacheLifetime) {
+        match self {
+            Self::Legacy { addresses, ttl } => (Ok(addresses), CacheLifetime::Legacy(ttl)),
+            Self::Answer(answer) => {
+                let (addresses, lifetime) = answer.into_parts();
+                (
+                    addresses.map(|addresses| with_port(addresses, 0)),
+                    CacheLifetime::Dns(lifetime),
+                )
+            }
         }
     }
 }
@@ -77,6 +113,7 @@ pub struct AddressResolver {
 #[derive(Clone)]
 enum Backend {
     Function(Arc<dyn Fn(String) -> ResolveFuture + Send + Sync>),
+    AnswerFunction(Arc<dyn Fn(String) -> ResolveFuture + Send + Sync>),
     #[cfg(feature = "https-records")]
     Dns(Arc<dyn DnsLookup>),
 }
@@ -101,6 +138,31 @@ impl AddressResolver {
             let lookup = lookup(host);
             async move { lookup.await.map(Resolved::without_ttl) }
         })
+    }
+
+    /// Answers lookups with validated DNS results and their remaining lifetimes.
+    ///
+    /// Return [`AddressAnswer::positive`] or [`AddressAnswer::negative`] after
+    /// validating and aging the DNS answer. Positive lifetimes are never raised
+    /// to the profile's minimum record lifetime. Negative lifetimes are also
+    /// capped by [`DnsCacheSettings::negative_ttl`]. An `Err` is delivered to
+    /// current waiters but never stored, even when negative caching is enabled.
+    ///
+    /// The lookup receives the same names and has the same task ownership as
+    /// [`Self::from_fn`]. It must cover the complete configured address lookup,
+    /// including both families when enabled. No operating-system fallback or
+    /// DNS transport is added by this constructor.
+    pub fn from_answer_fn<F, Fut>(lookup: F) -> Self
+    where
+        F: Fn(String) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = io::Result<AddressAnswer>> + Send + 'static,
+    {
+        Self {
+            backend: Backend::AnswerFunction(Arc::new(move |host| {
+                let lookup = lookup(host);
+                Box::pin(async move { lookup.await.map(Resolved::Answer) }) as ResolveFuture
+            })),
+        }
     }
 
     /// Answers lookups with `lookup`, whose answers may carry a record TTL.
@@ -184,7 +246,8 @@ impl AddressResolver {
     /// With `port_randomization` on Windows, each query socket sets
     /// `SO_RANDOMIZE_PORT` and binds port 0, so Windows picks a random port;
     /// otherwise the resolver binds a random port itself. A resolver built
-    /// with [`Self::from_fn`] opens no sockets and is returned unchanged.
+    /// with [`Self::from_fn`] or [`Self::from_answer_fn`] opens no sockets
+    /// and is returned unchanged.
     #[doc(hidden)]
     #[must_use]
     pub fn with_udp_settings(self, settings: UdpSettings) -> Self {
@@ -193,7 +256,7 @@ impl AddressResolver {
             Backend::Dns(lookup) => Self {
                 backend: Backend::Dns(lookup.opened_with(settings)),
             },
-            backend @ Backend::Function(_) => {
+            backend @ (Backend::Function(_) | Backend::AnswerFunction(_)) => {
                 let _ = settings;
                 Self { backend }
             }
@@ -208,17 +271,22 @@ impl AddressResolver {
         match &self.backend {
             #[cfg(feature = "https-records")]
             Backend::Dns(lookup) => lookup.socket_settings(),
-            Backend::Function(_) => None,
+            Backend::Function(_) | Backend::AnswerFunction(_) => None,
         }
     }
 
     /// Starts a lookup of `host`, already lowercased.
     pub(crate) fn lookup(&self, host: &str) -> ResolveFuture {
         match &self.backend {
-            Backend::Function(lookup) => lookup(host.to_owned()),
+            Backend::Function(lookup) | Backend::AnswerFunction(lookup) => lookup(host.to_owned()),
             #[cfg(feature = "https-records")]
             Backend::Dns(lookup) => Arc::clone(lookup).start(host.to_owned()),
         }
+    }
+
+    /// Only legacy callbacks may retain operational failures as negatives.
+    pub(crate) fn cache_errors(&self) -> bool {
+        !matches!(&self.backend, Backend::AnswerFunction(_))
     }
 }
 
@@ -227,6 +295,7 @@ impl fmt::Debug for AddressResolver {
         let mut debug = formatter.debug_struct("AddressResolver");
         match &self.backend {
             Backend::Function(_) => debug.field("backend", &"function"),
+            Backend::AnswerFunction(_) => debug.field("backend", &"answer function"),
             #[cfg(feature = "https-records")]
             Backend::Dns(lookup) => debug.field("backend", lookup),
         };
@@ -369,7 +438,8 @@ impl HostResolver {
             Some(resolver) => resolver
                 .lookup(&host.to_ascii_lowercase())
                 .await?
-                .addresses
+                .into_parts()
+                .0?
                 .into_iter()
                 .map(|mut address| {
                     address.set_port(port);

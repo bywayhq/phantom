@@ -95,6 +95,15 @@ fn ips(addresses: &[SocketAddr]) -> Vec<IpAddr> {
     addresses.iter().map(SocketAddr::ip).collect()
 }
 
+fn legacy_parts(resolved: &crate::host_resolver::Resolved) -> (&[SocketAddr], Option<Duration>) {
+    match resolved {
+        crate::host_resolver::Resolved::Legacy { addresses, ttl } => (addresses, *ttl),
+        crate::host_resolver::Resolved::Answer(_) => {
+            panic!("legacy lookup returned a caller DNS answer")
+        }
+    }
+}
+
 fn types(server: &DnsServer) -> Vec<u16> {
     server.queries().iter().map(DnsQuery::record_type).collect()
 }
@@ -108,10 +117,10 @@ async fn an_answer_lists_ipv6_first_and_carries_the_smallest_record_ttl() -> Tes
         .await?;
 
     assert_eq!(
-        ips(&resolved.addresses),
+        ips(legacy_parts(&resolved).0),
         [IpAddr::V6(V6), IpAddr::V4(V4), IpAddr::V4(V4_OTHER)]
     );
-    assert_eq!(resolved.ttl, Some(Duration::from_secs(120)));
+    assert_eq!(legacy_parts(&resolved).1, Some(Duration::from_secs(120)));
     // AAAA starts first, as in Chromium's transaction queue.
     assert_eq!(types(&server), [TYPE_AAAA, TYPE_A]);
     for query in server.queries() {
@@ -133,10 +142,10 @@ async fn without_a_global_ipv6_route_only_a_is_queried() -> TestResult {
         .await?;
 
     assert_eq!(
-        ips(&resolved.addresses),
+        ips(legacy_parts(&resolved).0),
         [IpAddr::V4(V4), IpAddr::V4(V4_OTHER)]
     );
-    assert_eq!(resolved.ttl, Some(Duration::from_secs(300)));
+    assert_eq!(legacy_parts(&resolved).1, Some(Duration::from_secs(300)));
     assert_eq!(types(&server), [TYPE_A]);
     server.finish().await?;
     Ok(())
@@ -202,7 +211,7 @@ async fn a_leaves_once_the_aaaa_query_is_sent_before_it_is_answered() -> TestRes
     assert_eq!(types(&server).first(), Some(&TYPE_AAAA));
     let resolved = resolving.await??;
     assert_eq!(
-        ips(&resolved.addresses),
+        ips(legacy_parts(&resolved).0),
         [IpAddr::V6(V6), IpAddr::V4(V4), IpAddr::V4(V4_OTHER)]
     );
     server.finish().await?;
@@ -228,8 +237,8 @@ async fn an_empty_family_counts_its_soa_ttl() -> TestResult {
         .resolve("origin.example.test")
         .await?;
 
-    assert_eq!(ips(&resolved.addresses), [IpAddr::V4(V4)]);
-    assert_eq!(resolved.ttl, Some(Duration::from_secs(90)));
+    assert_eq!(ips(legacy_parts(&resolved).0), [IpAddr::V4(V4)]);
+    assert_eq!(legacy_parts(&resolved).1, Some(Duration::from_secs(90)));
     server.finish().await?;
     Ok(())
 }
@@ -242,14 +251,14 @@ async fn localhost_names_resolve_to_loopback_without_a_query() -> TestResult {
     for host in ["localhost", "localhost.", "app.localhost"] {
         let resolved = lookup.resolve(host).await?;
         assert_eq!(
-            ips(&resolved.addresses),
+            ips(legacy_parts(&resolved).0),
             [
                 IpAddr::V6(Ipv6Addr::LOCALHOST),
                 IpAddr::V4(Ipv4Addr::LOCALHOST)
             ],
             "{host}"
         );
-        assert_eq!(resolved.ttl, None);
+        assert_eq!(legacy_parts(&resolved).1, None);
     }
     assert!(server.queries().is_empty());
     server.finish().await?;
@@ -263,8 +272,8 @@ async fn single_label_and_local_names_go_to_the_system_resolver() -> TestResult 
 
     for host in ["intranet", "printer.local", "printer.local."] {
         let resolved = lookup.resolve(host).await?;
-        assert_eq!(ips(&resolved.addresses), [SYSTEM], "{host}");
-        assert_eq!(resolved.ttl, None);
+        assert_eq!(ips(legacy_parts(&resolved).0), [SYSTEM], "{host}");
+        assert_eq!(legacy_parts(&resolved).1, None);
     }
     assert!(server.queries().is_empty());
     server.finish().await?;
@@ -289,12 +298,15 @@ async fn without_an_ipv6_route_the_system_resolver_answers_ipv4() -> TestResult 
     };
 
     assert_eq!(
-        ips(&resolve(both.clone(), false).await?.addresses),
+        ips(legacy_parts(&resolve(both.clone(), false).await?).0),
         [IpAddr::V4(V4)]
     );
-    assert_eq!(ips(&resolve(both.clone(), true).await?.addresses), both);
     assert_eq!(
-        ips(&resolve(loopback.clone(), false).await?.addresses),
+        ips(legacy_parts(&resolve(both.clone(), true).await?).0),
+        both
+    );
+    assert_eq!(
+        ips(legacy_parts(&resolve(loopback.clone(), false).await?).0),
         loopback
     );
     assert!(resolve(ipv6_only, false).await.is_err());
@@ -316,13 +328,13 @@ async fn the_hosts_file_answers_without_a_query() -> TestResult {
     let resolved = lookup.resolve("pinned.example.test").await?;
 
     assert_eq!(
-        ips(&resolved.addresses),
+        ips(legacy_parts(&resolved).0),
         [
             "2001:db8::50".parse::<IpAddr>()?,
             "192.0.2.50".parse::<IpAddr>()?
         ]
     );
-    assert_eq!(resolved.ttl, None);
+    assert_eq!(legacy_parts(&resolved).1, None);
     assert!(server.queries().is_empty());
     server.finish().await?;
     Ok(())
@@ -341,8 +353,8 @@ async fn a_failed_or_empty_lookup_falls_back_to_the_system_resolver() -> TestRes
 
     for host in ["failing.example.test", "empty.example.test"] {
         let resolved = lookup.resolve(host).await?;
-        assert_eq!(ips(&resolved.addresses), [SYSTEM], "{host}");
-        assert_eq!(resolved.ttl, None, "{host}");
+        assert_eq!(ips(legacy_parts(&resolved).0), [SYSTEM], "{host}");
+        assert_eq!(legacy_parts(&resolved).1, None, "{host}");
     }
     server.finish().await?;
     Ok(())
@@ -360,7 +372,7 @@ async fn sixteen_fallbacks_in_a_row_stop_the_dns_queries() -> TestResult {
     let sent = server.queries().len();
     let resolved = lookup.resolve("other.example.test").await?;
 
-    assert_eq!(ips(&resolved.addresses), [SYSTEM]);
+    assert_eq!(ips(legacy_parts(&resolved).0), [SYSTEM]);
     assert_eq!(server.queries().len(), sent);
     server.finish().await?;
     Ok(())
@@ -381,7 +393,7 @@ async fn copies_for_other_udp_settings_share_the_fallback_count() -> TestResult 
     let sent = server.queries().len();
     let resolved = chromium.resolve("other.example.test").await?;
 
-    assert_eq!(ips(&resolved.addresses), [SYSTEM]);
+    assert_eq!(ips(legacy_parts(&resolved).0), [SYSTEM]);
     assert_eq!(server.queries().len(), sent);
     server.finish().await?;
     Ok(())

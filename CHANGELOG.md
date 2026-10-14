@@ -1088,6 +1088,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Accept caller-reported DNS lifetimes with `AddressResolver::from_answer_fn`
+  and `AddressAnswer`. Preserve answer order, cap negative answers by their
+  DNS lifetime, and keep operational errors out of this resolver's cache.
 - Encode and validate bounded DNS-over-HTTPS messages with `DnsWireQuery`,
   preserving answer order, alias limits, and DNS lifetimes.
 

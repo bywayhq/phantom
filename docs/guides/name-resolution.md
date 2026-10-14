@@ -100,6 +100,11 @@ The function gets the host name in lowercase ASCII. Return addresses in the
 order to try them. With an address cache, as here, the function runs once
 per name until the answer expires.
 
+If your resolver reports DNS lifetimes, use `AddressResolver::from_answer_fn`
+and return an `AddressAnswer`. Its cache never extends that lifetime. Return
+`AddressAnswer::negative` for a validated, complete negative lookup. Errors
+from the callback fail the request and are never cached.
+
 ## Resolve names with Phantom's own DNS queries
 
 Have Phantom send DNS queries itself, as Chromium's built-in DNS client does,

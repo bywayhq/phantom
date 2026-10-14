@@ -372,3 +372,130 @@ fn profile_udp_settings_reach_the_dns_query_sockets() -> TestResult {
     }
     Ok(())
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn caller_dns_lifetimes_reach_requests_without_the_profile_floor() -> TestResult {
+    let origin = ClosingOrigin::bind().await?;
+    let calls = Arc::new(AtomicUsize::new(0));
+    let observed = Arc::clone(&calls);
+    let resolver = crate::AddressResolver::from_answer_fn(move |_| {
+        observed.fetch_add(1, Ordering::SeqCst);
+        async {
+            crate::AddressAnswer::positive(vec![IpAddr::V4(Ipv4Addr::LOCALHOST)], Duration::ZERO)
+        }
+    });
+    let mut cache = settings();
+    cache.min_record_ttl = Duration::from_secs(600);
+    let client = Client::builder(profile())
+        .dns_cache(cache)
+        .dns_resolver(resolver)
+        .build()?;
+    tokio::time::timeout(Duration::from_secs(5), async {
+        get(&client, &origin.url()).await?;
+        get(&client, &origin.url()).await
+    })
+    .await??;
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    Ok(())
+}
+
+fn caller_negative_kind(
+    error: &(dyn std::error::Error + 'static),
+) -> Option<crate::AddressNegativeKind> {
+    let mut source = Some(error);
+    while let Some(error) = source {
+        if let Some(error) = error.downcast_ref::<std::io::Error>()
+            && let Some(negative) = error
+                .get_ref()
+                .and_then(|cause| cause.downcast_ref::<crate::AddressNegative>())
+        {
+            return Some(negative.kind());
+        }
+        source = error.source();
+    }
+    None
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn caller_negative_answers_keep_their_kind_through_request_errors() -> TestResult {
+    for kind in [
+        crate::AddressNegativeKind::NxDomain,
+        crate::AddressNegativeKind::NoData,
+    ] {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::clone(&calls);
+        let resolver = crate::AddressResolver::from_answer_fn(move |_| {
+            observed.fetch_add(1, Ordering::SeqCst);
+            async move {
+                Ok(crate::AddressAnswer::negative(
+                    kind,
+                    Some(Duration::from_secs(600)),
+                ))
+            }
+        });
+        let mut cache = settings();
+        cache.negative_ttl = Some(Duration::from_secs(600));
+        let client = Client::builder(profile())
+            .dns_cache(cache)
+            .dns_resolver(resolver)
+            .build()?;
+        for _ in 0..2 {
+            let error = tokio::time::timeout(
+                Duration::from_secs(5),
+                client
+                    .get(HttpProtocol::Http1, "http://missing.phantom.test/")?
+                    .send(),
+            )
+            .await?
+            .err()
+            .ok_or("a negative lookup opened an origin connection")?;
+            assert_eq!(error.kind(), crate::RequestErrorKind::Connect);
+            assert_eq!(caller_negative_kind(&error), Some(kind));
+        }
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+    }
+    Ok(())
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn caller_dns_errors_are_retried_despite_the_negative_cache_setting() -> TestResult {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let observed = Arc::clone(&calls);
+    let resolver = crate::AddressResolver::from_answer_fn(move |_| {
+        observed.fetch_add(1, Ordering::SeqCst);
+        async {
+            Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "invalid DNS answer",
+            ))
+        }
+    });
+    let mut cache = settings();
+    cache.negative_ttl = Some(Duration::from_secs(600));
+    let client = Client::builder(profile())
+        .dns_cache(cache)
+        .dns_resolver(resolver)
+        .build()?;
+    for _ in 0..2 {
+        let error = tokio::time::timeout(
+            Duration::from_secs(5),
+            client
+                .get(HttpProtocol::Http1, "http://invalid.phantom.test/")?
+                .send(),
+        )
+        .await?
+        .err()
+        .ok_or("an invalid lookup opened an origin connection")?;
+        assert_eq!(error.kind(), crate::RequestErrorKind::Connect);
+        let mut source: &(dyn std::error::Error + 'static) = &error;
+        loop {
+            if let Some(original) = source.downcast_ref::<std::io::Error>() {
+                assert_eq!(original.kind(), std::io::ErrorKind::InvalidData);
+                break;
+            }
+            source = source.source().ok_or("the resolver cause was lost")?;
+        }
+    }
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    Ok(())
+}

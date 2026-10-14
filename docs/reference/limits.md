@@ -247,6 +247,8 @@ from Chromium.
 | Host names with cached addresses, per client | `DnsCacheSettings::max_entries`: 1,000 in `chrome::v154_dns_cache`, 1,600 in `firefox::v157_dns_cache`; an expired name, then the one that expires soonest, evicted |
 | Lifetime of cached addresses | Without a record TTL, `DnsCacheSettings::ttl`: 60 seconds in both recipes. With one, from `AddressResolver::system_nameservers`, the TTL or `DnsCacheSettings::min_record_ttl`, whichever is longer: at least 60 seconds in `chrome::v154_dns_cache`, no minimum in `firefox::v157_dns_cache` |
 | Lifetime of a cached failed lookup or empty answer | `DnsCacheSettings::negative_ttl`: not kept in `chrome::v154_dns_cache`, 60 seconds in `firefox::v157_dns_cache` |
+| Caller-reported DNS lifetime | `AddressResolver::from_answer_fn`: remaining lifetime from answer construction, without a profile floor; zero, expired or unrepresentable lifetimes are not stored |
+| Caller-reported negative DNS answer | Lesser of its remaining lifetime and `negative_ttl`, both aged from construction; callback errors are never stored |
 | Empty non-final HTTP/2 DATA frames per connection | 100 |
 | Unread small HTTP/2 DATA frame overhead per connection | Half the initial connection window, at least 25,600 bytes |
 | Distinct ALPS `ACCEPT_CH` origins per connection | 1,024 |

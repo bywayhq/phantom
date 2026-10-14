@@ -9,13 +9,13 @@ use std::{
     net::{IpAddr, SocketAddr, ToSocketAddrs},
     pin::Pin,
     sync::{Arc, Mutex, MutexGuard, PoisonError},
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use phantom_profile::DnsCacheSettings;
 use tokio::sync::watch;
 
-use crate::host_resolver::{AddressResolver, Resolved};
+use crate::host_resolver::{AddressResolver, CacheLifetime, Resolved};
 
 type LookupFuture = Pin<Box<dyn Future<Output = io::Result<Vec<SocketAddr>>> + Send>>;
 type ResolverFuture = Pin<Box<dyn Future<Output = io::Result<Resolved>> + Send>>;
@@ -47,10 +47,13 @@ enum Lookup {
 /// A lookup's answer keeps the resolver's address order, on which address
 /// racing depends. An answer without a record TTL, as from the operating
 /// system, is kept for [`DnsCacheSettings::ttl`]; one with a record TTL,
-/// from a resolver that reports record TTLs, for that TTL or
+/// from the built-in DNS resolver, for that TTL or
 /// [`DnsCacheSettings::min_record_ttl`], whichever is longer. A failure or an
 /// empty answer is kept for [`DnsCacheSettings::negative_ttl`], or not at
-/// all. A lifetime too long for the clock never expires.
+/// all. A lifetime too long for the clock never expires on these legacy
+/// paths. Answers from [`AddressResolver::from_answer_fn`] keep their DNS
+/// lifetime from construction without a minimum floor. Negative answers also
+/// obey the configured negative cap; operational errors are never stored.
 /// Addresses keep everything the resolver returned except the port, which
 /// each lookup supplies, so an IPv6 scope ID and flow label survive.
 ///
@@ -150,11 +153,21 @@ impl Error for SharedResolverError {
 }
 
 impl Outcome {
-    /// Splits a resolution into its outcome and its record TTL, if any.
-    fn from_resolution(result: io::Result<Resolved>) -> (Self, Option<Duration>) {
+    /// Keeps answer lifetime metadata separate from an operational error.
+    fn from_resolution(result: io::Result<Resolved>, cache_errors: bool) -> (Self, CacheLifetime) {
         match result {
-            Ok(Resolved { addresses, ttl }) => (Self::from_result(Ok(addresses)), ttl),
-            Err(error) => (Self::from_result(Err(error)), None),
+            Ok(resolved) => {
+                let (result, lifetime) = resolved.into_parts();
+                (Self::from_result(result), lifetime)
+            }
+            Err(error) => (
+                Self::from_result(Err(error)),
+                if cache_errors {
+                    CacheLifetime::Legacy(None)
+                } else {
+                    CacheLifetime::Never
+                },
+            ),
         }
     }
 
@@ -307,8 +320,9 @@ impl AddressCache {
                 generation,
                 resolution,
             } => {
-                let (outcome, record_ttl) = Outcome::from_resolution(resolution.await);
-                self.complete(&host, None, generation, &outcome, record_ttl);
+                let (outcome, lifetime) =
+                    Outcome::from_resolution(resolution.await, self.cache_errors());
+                self.complete(&host, None, generation, &outcome, lifetime);
                 return outcome.addresses(port).map(|addresses| (addresses, false));
             }
         };
@@ -395,7 +409,7 @@ impl AddressCache {
                         .build()
                         .map_err(io::Error::other)
                         .and_then(|runtime| runtime.block_on(resolution));
-                    publisher.publish(result.map(|addresses| Resolved {
+                    publisher.publish(result.map(|addresses| Resolved::Legacy {
                         addresses,
                         ttl: None,
                     }));
@@ -415,15 +429,14 @@ impl AddressCache {
     /// Stores a finished resolution, unless the cache was cleared after it
     /// started, and releases its shared entry in `pending`, if it has one.
     ///
-    /// `record_ttl` is the answer's record TTL, when the resolver reported
-    /// one.
+    /// `lifetime` distinguishes legacy retention from bounded DNS answers.
     fn complete(
         &self,
         host: &str,
         pending: Option<&PendingKey>,
         generation: u64,
         outcome: &Outcome,
-        record_ttl: Option<Duration>,
+        lifetime: CacheLifetime,
     ) {
         let mut state = self.lock();
         if state.generation != generation {
@@ -437,19 +450,33 @@ impl AddressCache {
             .pending
             .retain(|_, receiver| receiver.has_changed().is_ok());
         let settings = &self.inner.settings;
-        let ttl = if outcome.is_negative() {
-            settings.negative_ttl
-        } else {
-            Some(record_ttl.map_or(settings.ttl, |ttl| ttl.max(settings.min_record_ttl)))
-        };
         let now = Instant::now();
-        // A lifetime too long for `Instant` never expires rather than
-        // expiring at once.
-        let Some(expires_at) = ttl
-            .filter(|ttl| !ttl.is_zero())
-            .map(|ttl| now.checked_add(ttl))
-        else {
-            return;
+        let expires_at = match lifetime {
+            CacheLifetime::Legacy(record_ttl) => {
+                let ttl = if outcome.is_negative() {
+                    settings.negative_ttl
+                } else {
+                    Some(record_ttl.map_or(settings.ttl, |ttl| ttl.max(settings.min_record_ttl)))
+                };
+                // Preserve legacy answers' never-expiring overflow behavior.
+                let Some(expires_at) = ttl
+                    .filter(|ttl| !ttl.is_zero())
+                    .map(|ttl| now.checked_add(ttl))
+                else {
+                    return;
+                };
+                expires_at
+            }
+            CacheLifetime::Dns(lifetime) => {
+                let Some(expires_at) = lifetime.expires_at(settings.negative_ttl) else {
+                    return;
+                };
+                if expires_at <= now {
+                    return;
+                }
+                Some(expires_at)
+            }
+            CacheLifetime::Never => return,
         };
         if !state.entries.contains_key(host)
             && state.entries.len() >= self.inner.settings.max_entries.get()
@@ -485,6 +512,13 @@ impl AddressCache {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
     }
+
+    fn cache_errors(&self) -> bool {
+        match &self.inner.lookup {
+            Lookup::Blocking(_) => true,
+            Lookup::Task(resolver) => resolver.cache_errors(),
+        }
+    }
 }
 
 /// The sending side of one resolution.
@@ -504,10 +538,10 @@ struct Publisher {
 impl Publisher {
     /// Stores the resolution's result and answers its waiters.
     fn publish(mut self, result: io::Result<Resolved>) {
-        let (outcome, record_ttl) = Outcome::from_resolution(result);
+        let (outcome, lifetime) = Outcome::from_resolution(result, self.cache.cache_errors());
         let pending = self.shared.then_some(&self.key);
         self.cache
-            .complete(&self.key.0, pending, self.generation, &outcome, record_ttl);
+            .complete(&self.key.0, pending, self.generation, &outcome, lifetime);
         if let Some(sender) = self.sender.take() {
             let _ = sender.send(Some(outcome));
         }
