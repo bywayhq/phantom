@@ -37,11 +37,7 @@ use crate::{
     proxy_connect::{
         Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate,
     },
-    quic::{
-        QuicAckFrequencyDraft, QuicConnectionIdLength, QuicTransportParameter,
-        QuicTransportParameterKind, QuicTransportParameterOrder, QuicTransportSettings,
-        QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
-    },
+    quic::QuicTransportSettings,
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tcp::{
         TcpAddressSelection, TcpBackupConnection, TcpKeepalivePolicy, TcpKeepaliveSchedule,
@@ -639,71 +635,7 @@ pub fn v157_quic_tls() -> TlsSettings {
 /// [`v157_quic_tls`]. No resumed connection sent `initial_rtt_us`.
 #[must_use]
 pub fn v157_quic() -> QuicTransportSettings {
-    use QuicTransportParameterKind as Kind;
-    use QuicVarIntWidth::{Eight, Four, One, Two};
-
-    let parameter = |kind, id_width| QuicTransportParameter {
-        kind,
-        id_width,
-        length_width: One,
-    };
-
-    QuicTransportSettings {
-        max_idle_timeout_ms: 30_000,
-        max_udp_payload_size: 65_527,
-        initial_max_data: 25_165_824,
-        initial_max_stream_data_bidi_local: 12_582_912,
-        initial_max_stream_data_bidi_remote: 1_048_576,
-        initial_max_stream_data_uni: 1_048_576,
-        initial_max_streams_bidi: 100,
-        initial_max_streams_uni: 100,
-        max_datagram_frame_size: Some(65_535),
-        max_ack_delay_ms: 20,
-        active_connection_id_limit: 8,
-        min_ack_delay_us: Some(1_000),
-        reset_stream_at: true,
-        initial_path_mtu: Some(1_280),
-        initial_destination_connection_id: Some(QuicConnectionIdLength::MaskedRandom {
-            minimum: 8,
-            base: 5,
-        }),
-        wire_parameters: vec![
-            parameter(Kind::MaxIdleTimeout { value_width: Four }, One),
-            parameter(Kind::InitialMaxData { value_width: Four }, One),
-            parameter(
-                Kind::InitialMaxStreamDataBidiLocal { value_width: Four },
-                One,
-            ),
-            parameter(
-                Kind::InitialMaxStreamDataBidiRemote { value_width: Four },
-                One,
-            ),
-            parameter(Kind::InitialMaxStreamDataUni { value_width: Four }, One),
-            parameter(Kind::InitialMaxStreamsBidi { value_width: Two }, One),
-            parameter(Kind::InitialMaxStreamsUni { value_width: Two }, One),
-            parameter(Kind::MaxAckDelay { value_width: One }, One),
-            parameter(Kind::ActiveConnectionIdLimit { value_width: One }, One),
-            parameter(Kind::InitialSourceConnectionId { length: 3 }, One),
-            parameter(
-                Kind::VersionInformation(QuicVersionInformation {
-                    available_version_count: 2,
-                    grease: QuicVersionGrease::First,
-                }),
-                One,
-            ),
-            parameter(Kind::ResetStreamAt, One),
-            parameter(
-                Kind::MinAckDelay {
-                    draft: QuicAckFrequencyDraft::Draft02,
-                    value_width: Two,
-                },
-                Eight,
-            ),
-            parameter(Kind::MaxDatagramFrameSize { value_width: Four }, One),
-        ],
-        parameter_order: QuicTransportParameterOrder::Fixed,
-        early_data: true,
-    }
+    crate::catalog::quic_components::firefox_157_quic()
 }
 
 /// Returns HTTP/3 settings observed from Firefox 157.0 on Windows 11.

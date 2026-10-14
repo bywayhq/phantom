@@ -1,0 +1,289 @@
+{
+  "schema": 1,
+  "components": [
+    {
+      "id": "chromium_154_quic",
+      "kind": "QuicTransportSettings",
+      "base": null,
+      "values": {
+        "max_idle_timeout_ms": 30000,
+        "max_udp_payload_size": 1472,
+        "initial_max_data": 15728640,
+        "initial_max_stream_data_bidi_local": 6291456,
+        "initial_max_stream_data_bidi_remote": 6291456,
+        "initial_max_stream_data_uni": 6291456,
+        "initial_max_streams_bidi": 100,
+        "initial_max_streams_uni": 103,
+        "max_ack_delay_ms": 25,
+        "active_connection_id_limit": 2,
+        "max_datagram_frame_size": 65536,
+        "min_ack_delay_us": null,
+        "initial_path_mtu": null,
+        "reset_stream_at": false,
+        "initial_destination_connection_id": null,
+        "wire_parameters": [
+          {
+            "kind": {
+              "kind": "InitialMaxStreamsBidi",
+              "value_width": "Two"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "InitialMaxStreamDataUni",
+              "value_width": "Four"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "VersionInformation",
+              "available_version_count": 1,
+              "grease": "Permuted"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "InitialMaxData",
+              "value_width": "Four"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "InitialMaxStreamsUni",
+              "value_width": "Two"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "InitialMaxStreamDataBidiRemote",
+              "value_width": "Four"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "MaxIdleTimeout",
+              "value_width": "Four"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "GoogleConnectionOptions",
+              "options": [
+                "RequestOriginFrame"
+              ]
+            },
+            "id_width": "Two",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "MaxDatagramFrameSize",
+              "value_width": "Four"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "Grease",
+              "minimum_payload_length": 0,
+              "maximum_payload_length": 15
+            },
+            "id_width": "Eight",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "MaxUdpPayloadSize",
+              "value_width": "Two"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "InitialMaxStreamDataBidiLocal",
+              "value_width": "Four"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "InitialSourceConnectionId",
+              "length": 0
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "InitialRtt"
+            },
+            "id_width": "Two",
+            "length_width": "One"
+          }
+        ],
+        "parameter_order": "Permuted",
+        "early_data": true
+      }
+    },
+    {
+      "id": "firefox_157_quic",
+      "kind": "QuicTransportSettings",
+      "base": null,
+      "values": {
+        "max_idle_timeout_ms": 30000,
+        "max_udp_payload_size": 65527,
+        "initial_max_data": 25165824,
+        "initial_max_stream_data_bidi_local": 12582912,
+        "initial_max_stream_data_bidi_remote": 1048576,
+        "initial_max_stream_data_uni": 1048576,
+        "initial_max_streams_bidi": 100,
+        "initial_max_streams_uni": 100,
+        "max_ack_delay_ms": 20,
+        "active_connection_id_limit": 8,
+        "max_datagram_frame_size": 65535,
+        "min_ack_delay_us": 1000,
+        "initial_path_mtu": 1280,
+        "reset_stream_at": true,
+        "initial_destination_connection_id": {
+          "kind": "MaskedRandom",
+          "minimum": 8,
+          "base": 5
+        },
+        "wire_parameters": [
+          {
+            "kind": {
+              "kind": "MaxIdleTimeout",
+              "value_width": "Four"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "InitialMaxData",
+              "value_width": "Four"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "InitialMaxStreamDataBidiLocal",
+              "value_width": "Four"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "InitialMaxStreamDataBidiRemote",
+              "value_width": "Four"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "InitialMaxStreamDataUni",
+              "value_width": "Four"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "InitialMaxStreamsBidi",
+              "value_width": "Two"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "InitialMaxStreamsUni",
+              "value_width": "Two"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "MaxAckDelay",
+              "value_width": "One"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "ActiveConnectionIdLimit",
+              "value_width": "One"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "InitialSourceConnectionId",
+              "length": 3
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "VersionInformation",
+              "available_version_count": 2,
+              "grease": "First"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "ResetStreamAt"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "MinAckDelay",
+              "draft": "Draft02",
+              "value_width": "Two"
+            },
+            "id_width": "Eight",
+            "length_width": "One"
+          },
+          {
+            "kind": {
+              "kind": "MaxDatagramFrameSize",
+              "value_width": "Four"
+            },
+            "id_width": "One",
+            "length_width": "One"
+          }
+        ],
+        "parameter_order": "Fixed",
+        "early_data": true
+      }
+    }
+  ]
+}

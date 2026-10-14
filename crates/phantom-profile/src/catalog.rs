@@ -20,6 +20,7 @@ use crate::{ClientProfile, RequestTemplate, browser};
 mod generated;
 pub(crate) mod http2_components;
 pub(crate) mod http3_components;
+pub(crate) mod quic_components;
 
 /// An immutable identifier assigned to one compiled recipe revision.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

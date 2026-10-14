@@ -71,11 +71,7 @@ use crate::tcp::{
     TcpSettings,
 };
 
-use crate::quic::{
-    GoogleConnectionOption, QuicTransportGrease, QuicTransportParameter,
-    QuicTransportParameterKind, QuicTransportParameterOrder, QuicTransportSettings,
-    QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation,
-};
+use crate::quic::QuicTransportSettings;
 
 /// Returns client-hint fields observed from Chrome 154 on Windows 11 x64.
 ///
@@ -1176,80 +1172,7 @@ pub fn v154_http3_request() -> Http3RequestSettings {
 /// connection sends neither.
 #[must_use]
 pub fn v154_quic() -> QuicTransportSettings {
-    use QuicTransportParameterKind as Kind;
-    use QuicVarIntWidth::{Eight, Four, One, Two};
-
-    let parameter = |kind, id_width, length_width| QuicTransportParameter {
-        kind,
-        id_width,
-        length_width,
-    };
-
-    QuicTransportSettings {
-        max_idle_timeout_ms: 30_000,
-        max_udp_payload_size: 1_472,
-        initial_max_data: 15_728_640,
-        initial_max_stream_data_bidi_local: 6_291_456,
-        initial_max_stream_data_bidi_remote: 6_291_456,
-        initial_max_stream_data_uni: 6_291_456,
-        initial_max_streams_bidi: 100,
-        initial_max_streams_uni: 103,
-        max_datagram_frame_size: Some(65_536),
-        max_ack_delay_ms: 25,
-        active_connection_id_limit: 2,
-        min_ack_delay_us: None,
-        reset_stream_at: false,
-        initial_path_mtu: None,
-        initial_destination_connection_id: None,
-        wire_parameters: vec![
-            parameter(Kind::InitialMaxStreamsBidi { value_width: Two }, One, One),
-            parameter(
-                Kind::InitialMaxStreamDataUni { value_width: Four },
-                One,
-                One,
-            ),
-            parameter(
-                Kind::VersionInformation(QuicVersionInformation {
-                    available_version_count: 1,
-                    grease: QuicVersionGrease::Permuted,
-                }),
-                One,
-                One,
-            ),
-            parameter(Kind::InitialMaxData { value_width: Four }, One, One),
-            parameter(Kind::InitialMaxStreamsUni { value_width: Two }, One, One),
-            parameter(
-                Kind::InitialMaxStreamDataBidiRemote { value_width: Four },
-                One,
-                One,
-            ),
-            parameter(Kind::MaxIdleTimeout { value_width: Four }, One, One),
-            parameter(
-                Kind::GoogleConnectionOptions(vec![GoogleConnectionOption::RequestOriginFrame]),
-                Two,
-                One,
-            ),
-            parameter(Kind::MaxDatagramFrameSize { value_width: Four }, One, One),
-            parameter(
-                Kind::Grease(QuicTransportGrease {
-                    minimum_payload_length: 0,
-                    maximum_payload_length: 15,
-                }),
-                Eight,
-                One,
-            ),
-            parameter(Kind::MaxUdpPayloadSize { value_width: Two }, One, One),
-            parameter(
-                Kind::InitialMaxStreamDataBidiLocal { value_width: Four },
-                One,
-                One,
-            ),
-            parameter(Kind::InitialSourceConnectionId { length: 0 }, One, One),
-            parameter(Kind::InitialRtt, Two, One),
-        ],
-        parameter_order: QuicTransportParameterOrder::Permuted,
-        early_data: true,
-    }
+    crate::catalog::quic_components::chromium_154_quic()
 }
 
 /// Returns the Windows connection profile for Chrome 154.
