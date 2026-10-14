@@ -51,11 +51,11 @@ copying execution journals into this page.
 | T1 | `h3-drain-diagnosis` | Readiness repair merged in PR #213 after the exact signed-head gate and platform CI. Main push CI passed; the historical trigger remains open. |
 | T2 | `tls-done-diagnosis` | Framed-response repair and EOF controls merged in PR #212 after the full gate and platform CI. Main push CI passed; historical attribution remains open. |
 | P1–P4 | `profile-catalog` | Catalog composition merged in PR #223 at `8754e971` after independent review, all 22 gate steps, 4,708 Rust tests and 43 green PR checks. All eight applicable main push workflows passed. Provenance reconciliation, corpus growth and measurements stay open. |
-| P5 | `profile-catalog` | Edge 153 Windows registration and six retained native controls passed source review. Current compilation and corpus measurements remain. Earlier profile and native replays belong to the historical lane, not the new registration. |
+| P5 | `profile-catalog` | Edge 153 Windows registration passed 386 profile tests and six native controls. Measured generation, builds, selection, construction and memory at 11 through 1,035 records. The provenance dependency and growth slice need the combined full gate and platform CI. |
 | F1 | `ticket-transfer` | Scoped QUIC publication is committed at `8566d49e` after independent review, native session controls, strict Clippy and four wire fixtures. Clearing, frozen stores, strict decoding and TCP publication also pass focused checks. Transfer encoding, full policy bindings and integration remain. |
 | F3 | `socks4-integration` | SOCKS4/4a merged in PR #215 after the exact-head full gate and macOS/Windows CI. Main push CI passed. |
 | F4 | `digest-integration` | Digest merged in PR #218 after the full gate and platform CI. Enterprise contracts are recorded. PR #220 repaired the cookie and shared-port fixtures; main push CI passed. |
-| F5 | `doh-wire` | DoH address and HTTPS discovery are committed at `67254ed9` after independent review. Focused checks passed 128 library tests, 23 real-peer controls and 132 doctests, with five existing doctest skips. The combined branch needs its full gate and platform CI. Alternate-host Alt-Svc/ECH discovery and resumed early-data controls remain. |
+| F5 | `doh-wire` | DoH address and HTTPS discovery passed independent review and all 22 full-gate steps at `8262bae6`, including 4,816 Rust tests. PR #224 awaits platform and conformance CI. Alternate-host Alt-Svc/ECH discovery and resumed early-data controls remain. |
 | F8 | `http3-debug-auth` | Origin opt-in merged in PR #219 after independent review, all 22 gate steps, 4,643 Rust tests, and 43 green PR checks at `6f6426f4`. |
 | B2 | `proxy-h2-idle-integration` | Proxy timer closure and the idle-PING guard merged in PR #222 at `98fe3750` after all 22 gate steps, 4,659 Rust tests and 43 green PR checks. All nine main push workflows passed. Alt-Used and WINDOW_UPDATE remain separate open changes. |
 
@@ -75,6 +75,10 @@ authentication implementation or successful peer exchange is claimed.
 The [connection fixture record](transport-profile-evidence/connection-fixtures.md)
 binds the cookie closure and shared-port repairs that blocked integration.
 Their controlled mechanisms do not establish the original host sequence.
+
+The [catalog cost record](transport-profile-evidence/catalog-costs.md) records
+offline corpus measurements and their limits. Synthetic clones add scale,
+not browser coverage.
 
 ## Historical timing failures
 
