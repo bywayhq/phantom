@@ -1,0 +1,79 @@
+diff --git a/src/ssl/session_transfer.rs b/src/ssl/session_transfer.rs
+--- a/src/ssl/session_transfer.rs
++++ b/src/ssl/session_transfer.rs
+@@ -765,6 +765,19 @@
+     expires_at: u64,
+ }
+ 
++impl AuthenticatedSessionRecord {
++    /// Returns this record's encoded length inside a native envelope.
++    ///
++    /// Includes the body-length prefix and record authentication code. Excludes
++    /// the envelope header, record count and encryption tag. This length grants
++    /// no transfer authority and exposes no session or credential bytes.
++    #[must_use]
++    pub fn encoded_len(&self) -> usize {
++        // The private body was created or decoded within the native field bounds.
++        4 + self.body.len() + self.mac.len()
++    }
++}
++
+ /// Ciphertext suitable for external storage. Key holders can copy or replay it.
+ pub struct SessionTransferEnvelope(Zeroizing<Vec<u8>>);
+ impl SessionTransferEnvelope {
+@@ -884,9 +897,7 @@
+         }
+         check_expiry(record.expires_at)?;
+         size = size
+-            .checked_add(4)
+-            .and_then(|n| n.checked_add(record.body.len()))
+-            .and_then(|n| n.checked_add(32))
++            .checked_add(record.encoded_len())
+             .ok_or(SessionTransferError::TooLarge)?;
+     }
+     let total = size
+diff --git a/src/ssl/test/session_resumption.rs b/src/ssl/test/session_resumption.rs
+--- a/src/ssl/test/session_resumption.rs
++++ b/src/ssl/test/session_resumption.rs
+@@ -115,6 +115,41 @@
+     assert!(session.is_authenticated());
+     drop(stream);
+     (session, binding, client, scope, server)
++}
++
++#[test]
++fn authenticated_transfer_encoded_lengths_match_real_tls12_and_tls13_envelopes() {
++    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
++        let (session, source, _, _) =
++            transfer_test_fixture(version, b"actual credential frame", &[1; 32]);
++        let records = [
++            source
++                .seal_session(&session, b"first metadata", &[7; 32])
++                .unwrap(),
++            source
++                .seal_session(&session, b"longer second metadata", &[7; 32])
++                .unwrap(),
++        ];
++        // Native framing is header 56 + tag 16 + record-count field 4.
++        let base = 56 + 16 + 4;
++        let empty = crate::ssl::seal_envelope(&[], &[7; 32]).unwrap();
++        assert_eq!(empty.as_bytes().len(), base);
++        let first = crate::ssl::seal_envelope(&records[..1], &[7; 32]).unwrap();
++        assert_eq!(first.as_bytes().len(), base + records[0].encoded_len());
++        let both = crate::ssl::seal_envelope(&records, &[7; 32]).unwrap();
++        assert_eq!(
++            both.as_bytes().len(),
++            base + records
++                .iter()
++                .map(|record| record.encoded_len())
++                .sum::<usize>()
++        );
++        assert_eq!(
++            records[1].encoded_len() - records[0].encoded_len(),
++            b"longer second metadata".len() - b"first metadata".len()
++        );
++        assert!(session.is_authenticated());
++    }
+ }
+ 
+ #[test]

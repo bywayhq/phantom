@@ -37,7 +37,7 @@ size limit, and delegated-credential patches.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.11`), keeps
+renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.12`), keeps
 the upstream library name so source, tests, and examples are unchanged, and
 points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -54,6 +54,11 @@ content changes without an upstream version change, and update the exact pins
 in the root `Cargo.toml` and in every renamed dependent.
 
 ## Why this patch exists
+
+`session-transfer-record-size.patch` exposes only an authenticated record's
+encoded length. Store exporters use it to enforce the complete snapshot
+byte budget before retaining each record. It changes no native format or
+authorization rule.
 
 `session-transfer-store-freeze.patch` adds opaque pending export, exact
 recipient validation and preallocated nonblocking context/scope guards.

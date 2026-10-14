@@ -118,6 +118,41 @@ fn transfer_test_live_fixture(
 }
 
 #[test]
+fn authenticated_transfer_encoded_lengths_match_real_tls12_and_tls13_envelopes() {
+    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
+        let (session, source, _, _) =
+            transfer_test_fixture(version, b"actual credential frame", &[1; 32]);
+        let records = [
+            source
+                .seal_session(&session, b"first metadata", &[7; 32])
+                .unwrap(),
+            source
+                .seal_session(&session, b"longer second metadata", &[7; 32])
+                .unwrap(),
+        ];
+        // Native framing is header 56 + tag 16 + record-count field 4.
+        let base = 56 + 16 + 4;
+        let empty = crate::ssl::seal_envelope(&[], &[7; 32]).unwrap();
+        assert_eq!(empty.as_bytes().len(), base);
+        let first = crate::ssl::seal_envelope(&records[..1], &[7; 32]).unwrap();
+        assert_eq!(first.as_bytes().len(), base + records[0].encoded_len());
+        let both = crate::ssl::seal_envelope(&records, &[7; 32]).unwrap();
+        assert_eq!(
+            both.as_bytes().len(),
+            base + records
+                .iter()
+                .map(|record| record.encoded_len())
+                .sum::<usize>()
+        );
+        assert_eq!(
+            records[1].encoded_len() - records[0].encoded_len(),
+            b"longer second metadata".len() - b"first metadata".len()
+        );
+        assert!(session.is_authenticated());
+    }
+}
+
+#[test]
 fn authenticated_transfer_real_tls12_and_tls13_cross_key_import_and_reexport() {
     for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
         let (session, source, _, _) =

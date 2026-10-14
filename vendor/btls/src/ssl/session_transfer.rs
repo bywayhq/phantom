@@ -765,6 +765,19 @@ pub struct AuthenticatedSessionRecord {
     expires_at: u64,
 }
 
+impl AuthenticatedSessionRecord {
+    /// Returns this record's encoded length inside a native envelope.
+    ///
+    /// Includes the body-length prefix and record authentication code. Excludes
+    /// the envelope header, record count and encryption tag. This length grants
+    /// no transfer authority and exposes no session or credential bytes.
+    #[must_use]
+    pub fn encoded_len(&self) -> usize {
+        // The private body was created or decoded within the native field bounds.
+        4 + self.body.len() + self.mac.len()
+    }
+}
+
 /// Ciphertext suitable for external storage. Key holders can copy or replay it.
 pub struct SessionTransferEnvelope(Zeroizing<Vec<u8>>);
 impl SessionTransferEnvelope {
@@ -884,9 +897,7 @@ pub fn seal_envelope(
         }
         check_expiry(record.expires_at)?;
         size = size
-            .checked_add(4)
-            .and_then(|n| n.checked_add(record.body.len()))
-            .and_then(|n| n.checked_add(32))
+            .checked_add(record.encoded_len())
             .ok_or(SessionTransferError::TooLarge)?;
     }
     let total = size

@@ -1151,7 +1151,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Encode and validate bounded DNS-over-HTTPS messages with `DnsWireQuery`,
   preserving answer order, alias limits, and DNS lifetimes.
 - Add native session-store transfer preparation with bounded exports and
-  nonblocking policy guards.
+  nonblocking policy guards. Expose encoded record lengths for snapshot byte
+  budgets.
 
 - Add explicit SOCKS4 and SOCKS4a routes with local or proxy DNS, optional
   user identification, and HTTP/1.1, HTTP/2, and WebSocket TCP tunnels.
