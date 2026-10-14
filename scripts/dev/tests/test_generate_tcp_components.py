@@ -1,7 +1,6 @@
 """TCP socket-policy records and native validation boundary controls."""
 
 import copy
-import importlib.util
 import json
 import sys
 import tempfile
@@ -9,12 +8,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from scripts.dev.profile_catalog import cli as generator
+
 REPO = Path(__file__).resolve().parents[3]
-SPEC = importlib.util.spec_from_file_location(
-    "generate_profiles_tcp", REPO / "scripts/dev/generate_profiles.py"
-)
-generator = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(generator)
 
 
 def duration(seconds, nanoseconds=0):

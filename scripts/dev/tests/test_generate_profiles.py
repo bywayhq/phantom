@@ -1,17 +1,14 @@
 import copy
-import importlib.util
 import json
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
+from scripts.dev.profile_catalog import cli as generator
+from scripts.dev.profile_catalog import declarations, registry
+
 REPO = Path(__file__).resolve().parents[3]
-SPEC = importlib.util.spec_from_file_location(
-    "generate_profiles", REPO / "scripts/dev/generate_profiles.py"
-)
-generator = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(generator)
 
 
 class CatalogDeclarationTests(unittest.TestCase):
@@ -57,7 +54,7 @@ class CatalogDeclarationTests(unittest.TestCase):
         with self.assertRaises(generator.DeclarationError):
             json.loads(
                 '{"schema":1,"schema":1,"profiles":[]}',
-                object_pairs_hook=generator.object_pairs,
+                object_pairs_hook=declarations.object_pairs,
             )
 
     def test_metadata_and_availability_cannot_disagree_with_the_recipe(self):
@@ -142,20 +139,20 @@ class CatalogDeclarationTests(unittest.TestCase):
             path = Path(directory) / "oversize.json"
             path.write_bytes(b" " * 65)
             with (
-                mock.patch.object(generator, "MAX_BYTES", 64),
+                mock.patch.object(declarations, "MAX_BYTES", 64),
                 self.assertRaises(generator.DeclarationError),
             ):
                 generator.load(path)
         nested = []
-        for _ in range(generator.MAX_DEPTH + 1):
+        for _ in range(declarations.MAX_DEPTH + 1):
             nested = [nested]
         with self.assertRaises(generator.DeclarationError):
-            generator.check_depth(nested)
+            declarations.check_depth(nested)
 
         document = copy.deepcopy(self.document)
-        with mock.patch.object(generator, "MAX_PROFILES", 1):
+        with mock.patch.object(registry, "MAX_PROFILES", 1):
             self.reject(document)
-        document["profiles"][0]["id"] = "x" * (generator.MAX_STRING + 1)
+        document["profiles"][0]["id"] = "x" * (declarations.MAX_STRING + 1)
         self.reject(document)
 
 

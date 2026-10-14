@@ -1,7 +1,6 @@
 """Typed HTTP/3 component declarations, inheritance, and committed output."""
 
 import copy
-import importlib.util
 import json
 import sys
 import tempfile
@@ -9,12 +8,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from scripts.dev.profile_catalog import cli as generator
+from scripts.dev.profile_catalog import components, declarations
+
 REPO = Path(__file__).resolve().parents[3]
-SPEC = importlib.util.spec_from_file_location(
-    "generate_profiles_components", REPO / "scripts/dev/generate_profiles.py"
-)
-generator = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(generator)
 
 
 class Http3ComponentTests(unittest.TestCase):
@@ -175,7 +172,7 @@ class Http3ComponentTests(unittest.TestCase):
         root = copy.deepcopy(self.document["components"][0])
         root["id"] = "chain_00"
         chain = [root]
-        for index in range(1, generator.MAX_COMPONENT_CHAIN + 1):
+        for index in range(1, declarations.MAX_COMPONENT_CHAIN + 1):
             chain.append(
                 {
                     "id": f"chain_{index:02}",
@@ -190,9 +187,10 @@ class Http3ComponentTests(unittest.TestCase):
         self.reject(document)
         document["components"] = sorted(chain, key=lambda item: item["id"])[:-1]
         self.assertEqual(
-            len(generator.validate_components(document)), generator.MAX_COMPONENT_CHAIN
+            len(generator.validate_components(document)),
+            declarations.MAX_COMPONENT_CHAIN,
         )
-        with mock.patch.object(generator, "MAX_COMPONENTS", 1):
+        with mock.patch.object(components, "MAX_COMPONENTS", 1):
             self.reject(self.document)
         document = copy.deepcopy(self.document)
         document["components"][0]["values"]["initial_settings"] = [{}] * 65
@@ -203,7 +201,7 @@ class Http3ComponentTests(unittest.TestCase):
             b'{"schema":1,"schema":1,"components":[]}',
             b"{" + b'"integer":' + b"9" * 5000 + b"}",
             b'"\xff"',
-            b"[" * (generator.MAX_DEPTH + 2) + b"]" * (generator.MAX_DEPTH + 2),
+            b"[" * (declarations.MAX_DEPTH + 2) + b"]" * (declarations.MAX_DEPTH + 2),
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "components.json"
@@ -214,7 +212,7 @@ class Http3ComponentTests(unittest.TestCase):
                         generator.load_components(path)
             path.write_bytes(b" " * 65)
             with (
-                mock.patch.object(generator, "MAX_BYTES", 64),
+                mock.patch.object(declarations, "MAX_BYTES", 64),
                 self.assertRaises(generator.DeclarationError),
             ):
                 generator.load_components(path)

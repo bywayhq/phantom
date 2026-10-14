@@ -1,7 +1,6 @@
 """QUIC policy, wire encoding, typed overrides, and generation controls."""
 
 import copy
-import importlib.util
 import json
 import sys
 import tempfile
@@ -9,12 +8,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from scripts.dev.profile_catalog import cli as generator
+from scripts.dev.profile_catalog import quic
+
 REPO = Path(__file__).resolve().parents[3]
-SPEC = importlib.util.spec_from_file_location(
-    "generate_profiles_quic", REPO / "scripts/dev/generate_profiles.py"
-)
-generator = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(generator)
 
 
 class QuicComponentTests(unittest.TestCase):
@@ -219,7 +216,7 @@ class QuicComponentTests(unittest.TestCase):
             self.reject_field("wire_parameters", wire)
 
     def test_largest_scalar_and_width_boundaries_are_accepted(self):
-        for kind, (field, _, _) in generator.QUIC_SCALARS.items():
+        for kind, (field, _, _) in quic.QUIC_SCALARS.items():
             if kind in ("MaxUdpPayloadSize", "MaxAckDelay", "ActiveConnectionIdLimit"):
                 continue
             self.values[field] = 1 << 60 if "Streams" in kind else (1 << 62) - 1
@@ -229,21 +226,21 @@ class QuicComponentTests(unittest.TestCase):
         self.resolve()
 
     def test_varint_width_boundaries_reject_overflow_and_nonintegers(self):
-        for width, size in generator.QUIC_WIDTHS.items():
+        for width, size in quic.QUIC_WIDTHS.items():
             maximum = (1 << (size * 8 - 2)) - 1
-            self.assertEqual(generator.quic_width(width, maximum), size)
-            self.assertEqual(generator.quic_width(width, 0), size)
+            self.assertEqual(quic.quic_width(width, maximum), size)
+            self.assertEqual(quic.quic_width(width, 0), size)
             for invalid in (-1, maximum + 1, True, False, 1.0, "1", None):
                 with (
                     self.subTest(width=width, value=invalid),
                     self.assertRaises(generator.DeclarationError),
                 ):
-                    generator.quic_width(width, invalid)
+                    quic.quic_width(width, invalid)
         with self.assertRaises(generator.DeclarationError):
-            generator.quic_width("Minimal", 1)
+            quic.quic_width("Minimal", 1)
 
     def test_default_scalars_can_be_omitted_and_zero_datagrams_still_advertise(self):
-        for field, _, default in generator.QUIC_SCALARS.values():
+        for field, _, default in quic.QUIC_SCALARS.values():
             self.values[field] = default
         self.values["wire_parameters"] = [self.parameter("InitialSourceConnectionId")]
         self.resolve()

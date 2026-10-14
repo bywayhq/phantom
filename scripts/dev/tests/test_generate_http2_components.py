@@ -1,7 +1,6 @@
 """HTTP/2 component bounds, complete overrides, and committed generation."""
 
 import copy
-import importlib.util
 import json
 import sys
 import tempfile
@@ -9,12 +8,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from scripts.dev.profile_catalog import cli as generator
+from scripts.dev.profile_catalog import http2
+
 REPO = Path(__file__).resolve().parents[3]
-SPEC = importlib.util.spec_from_file_location(
-    "generate_profiles_http2", REPO / "scripts/dev/generate_profiles.py"
-)
-generator = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(generator)
 
 
 class Http2ComponentTests(unittest.TestCase):
@@ -210,7 +207,7 @@ class Http2ComponentTests(unittest.TestCase):
         self.resolve()
 
     def test_hpack_enums_and_header_orders_are_closed(self):
-        for field in generator.HTTP2_HPACK_ENUMS:
+        for field in http2.HTTP2_HPACK_ENUMS:
             document = copy.deepcopy(self.document)
             document["components"][0]["values"]["hpack"][field] = "Default"
             self.reject(document)

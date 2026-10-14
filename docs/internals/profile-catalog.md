@@ -26,7 +26,22 @@ Keep browser observations separate from recipe implementations.
 | `crates/phantom-profile/src/catalog/tcp_components.rs` | Committed generated TCP values |
 | `crates/phantom-profile/src/catalog/http2_components.rs` | Committed generated HTTP/2 values |
 | `crates/phantom-profile/src/catalog/http3_components.rs` | Committed generated HTTP/3 values |
-| `scripts/dev/generate_profiles.py` | Closed-schema validation and offline generation |
+| `scripts/dev/generate_profiles.py` | Offline generator command |
+| `scripts/dev/profile_catalog/` | Closed declarations and protocol generation |
+
+The command loads an offline Python package. `declarations.py` bounds JSON
+input and shared values. `registry.py` checks identities and evidence.
+`components.py` resolves same-kind inheritance and selects closed protocol
+validators. Protocol modules validate their typed values. The closed component
+emitter calls their Rust encoders where needed.
+`rust_literals.py` encodes shared literals, and `cli.py` checks every output
+before writing any file. The command also works outside the repository.
+
+Run a focused test module from the repository root:
+
+```sh
+python -m unittest scripts.dev.tests.test_generate_profile_cli
+```
 
 Cargo uses the committed registry. It does not run Python or read JSON at
 runtime. Discovery and exact lookup borrow static records. Instantiation

@@ -1,7 +1,6 @@
 """Closed TLS policy declarations, byte bounds, and deterministic output."""
 
 import copy
-import importlib.util
 import itertools
 import json
 import sys
@@ -10,12 +9,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from scripts.dev.profile_catalog import cli as generator
+from scripts.dev.profile_catalog import declarations
+
 REPO = Path(__file__).resolve().parents[3]
-SPEC = importlib.util.spec_from_file_location(
-    "generate_profiles_tls", REPO / "scripts/dev/generate_profiles.py"
-)
-generator = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(generator)
 
 
 class TlsComponentTests(unittest.TestCase):
@@ -75,7 +72,7 @@ class TlsComponentTests(unittest.TestCase):
             "_trust_candidate_assertion_accepts_declared_count_ceilings",
         ):
             with self.assertRaises(generator.DeclarationError):
-                generator.component_identifier(identifier)
+                declarations.component_identifier(identifier)
 
     def test_quic_overrides_replace_complete_typed_fields(self):
         resolved = {item["id"]: item["values"] for item in self.resolve()}
