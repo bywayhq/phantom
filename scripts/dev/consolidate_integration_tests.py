@@ -152,6 +152,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
             "exact catalog definitions and original component values",
             [
                 "catalog",
+                "client_hints_components",
                 "cookie_components",
                 "dns_components",
                 "http1_components",

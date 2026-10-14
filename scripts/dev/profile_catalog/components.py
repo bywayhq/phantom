@@ -2,6 +2,11 @@
 
 from collections import Counter
 
+from .client_hints import (
+    generate_client_hints_component,
+    validate_client_hints_values,
+    validate_hint_function_names,
+)
 from .connection_policies import (
     validate_dns_values,
     validate_http1_values,
@@ -49,6 +54,7 @@ from .tls import (
 )
 
 COMPONENT_FIELDS = {
+    "ClientHintSettings": ("hints",),
     "CookiePlacement": ("before",),
     "ProxyConnectTemplate": (
         "http1_fields",
@@ -148,6 +154,9 @@ COMPONENT_FIELDS = {
 
 def validate_component_values(kind, values):
     keys(values, COMPONENT_FIELDS[kind], kind)
+    if kind == "ClientHintSettings":
+        validate_client_hints_values(values)
+        return
     if kind == "CookiePlacement":
         validate_cookie_values(values)
         return
@@ -249,7 +258,9 @@ def validate_components(document, allowed_kinds=None):
         chain_lengths[identifier] = chain_length
         return resolved[identifier]
 
-    return [resolve(identifier) for identifier in sorted(by_id)]
+    components = [resolve(identifier) for identifier in sorted(by_id)]
+    validate_hint_function_names(components)
+    return components
 
 
 def rust_component_value(field, value, kind="Http3Settings"):
@@ -313,6 +324,9 @@ def generate_components(components, declaration="http3-components.json"):
         lines.extend(["#[rustfmt::skip]", TLS_TRUST_CANDIDATE_VALIDATOR.rstrip(), ""])
     for component in components:
         kind = component["kind"]
+        if kind == "ClientHintSettings":
+            lines.extend(generate_client_hints_component(component))
+            continue
         if kind == "CookiePlacement":
             lines.extend(
                 [

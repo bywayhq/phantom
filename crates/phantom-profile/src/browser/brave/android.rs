@@ -16,7 +16,7 @@
 use crate::{
     browser::brave,
     browser::chrome,
-    client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
+    client_hints::ClientHintSettings,
     http2::Http2Settings,
     http3::{Http3RequestSettings, Http3Settings},
     quic::QuicTransportSettings,
@@ -64,27 +64,7 @@ pub fn v153_android_quic_tls() -> TlsSettings {
 /// names no device.
 #[must_use]
 pub fn v153_android_client_hints() -> ClientHintSettings {
-    use ClientHintDelivery::{AcceptCh, Default};
-
-    ClientHintSettings::new(vec![
-        ClientHint::new(
-            "sec-ch-ua",
-            r#""Brave";v="153", "Not_A Brand";v="8", "Chromium";v="153""#,
-            Default,
-        ),
-        ClientHint::new("sec-ch-ua-mobile", "?1", Default),
-        ClientHint::new("sec-ch-ua-arch", r#""""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-platform", r#""Android""#, Default),
-        ClientHint::new("sec-ch-ua-platform-version", r#""17.0.0""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-model", r#""""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-bitness", r#""""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
-        ClientHint::new(
-            "sec-ch-ua-full-version-list",
-            r#""Brave";v="153.0.0.0", "Not_A Brand";v="8.0.0.0", "Chromium";v="153.0.0.0""#,
-            AcceptCh,
-        ),
-    ])
+    crate::catalog::client_hints_components::brave_android_153_client_hints()
 }
 
 /// Returns HTTP/2 settings observed from Brave 1.95.104 for Android.

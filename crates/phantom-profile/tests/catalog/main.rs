@@ -3,6 +3,7 @@
 //! Covers exact catalog definitions and original component values.
 
 mod catalog;
+mod client_hints_components;
 mod cookie_components;
 mod dns_components;
 mod http1_components;

@@ -18,10 +18,7 @@
 //! cookie-placement recipe, for the reasons given in [`crate::browser::opera`] and
 //! [`crate::browser::chrome`].
 
-use crate::{
-    client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
-    tls::TlsSettings,
-};
+use crate::{client_hints::ClientHintSettings, tls::TlsSettings};
 
 /// Returns TLS settings captured from Opera 102.1.5206.90382 for Android.
 ///
@@ -53,7 +50,7 @@ pub fn v102_android_tcp_tls() -> TlsSettings {
 /// For another phone, use [`v102_android_client_hints_for_model`].
 #[must_use]
 pub fn v102_android_client_hints() -> ClientHintSettings {
-    client_hints_for_model(crate::browser::chrome::CAPTURED_MODEL)
+    crate::catalog::client_hints_components::opera_android_102_client_hints()
 }
 
 /// Returns the client hints of [`v102_android_client_hints`] with another
@@ -68,37 +65,7 @@ pub fn v102_android_client_hints_for_model(
     model: &str,
 ) -> Result<ClientHintSettings, crate::InvalidClientHintSettings> {
     crate::browser::chrome::validate_model(model)?;
-    Ok(client_hints_for_model(model))
-}
-
-fn client_hints_for_model(model: &str) -> ClientHintSettings {
-    use ClientHintDelivery::{AcceptCh, Default};
-
-    ClientHintSettings::new(vec![
-        ClientHint::new(
-            "sec-ch-ua",
-            r#""OperaMobile";v="102", "Opera";v="137", "Chromium";v="152", " Not A;Brand";v="99""#,
-            Default,
-        ),
-        ClientHint::new("sec-ch-ua-mobile", "?1", Default),
-        ClientHint::new("sec-ch-ua-full-version", r#""102.1.5206.90382""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-arch", r#""""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-platform", r#""Android""#, Default),
-        ClientHint::new("sec-ch-ua-platform-version", r#""17""#, AcceptCh),
-        ClientHint::new(
-            "sec-ch-ua-model",
-            crate::browser::chrome::model_value(model),
-            AcceptCh,
-        ),
-        ClientHint::new("sec-ch-ua-bitness", r#""""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
-        ClientHint::new(
-            "sec-ch-ua-full-version-list",
-            r#""OperaMobile";v="102.1.5206.90382", "Opera";v="137.0.6010.1", "Chromium";v="152.0.7977.82", " Not A;Brand";v="99.0.0.0""#,
-            AcceptCh,
-        ),
-        ClientHint::new("sec-ch-ua-form-factors", "", AcceptCh),
-    ])
+    Ok(crate::catalog::client_hints_components::opera_android_102_client_hints_for_model(model))
 }
 
 #[cfg(test)]

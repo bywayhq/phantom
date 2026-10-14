@@ -14,6 +14,7 @@ Keep browser observations separate from recipe implementations.
 | `crates/phantom-profile/catalog/dns-components.json` | Typed DNS-cache capacity and lifetimes |
 | `crates/phantom-profile/catalog/udp-components.json` | Typed UDP socket policy |
 | `crates/phantom-profile/catalog/tcp-components.json` | Typed TCP socket and address policies |
+| `crates/phantom-profile/catalog/client-hints-components.json` | Ordered hint names, values, delivery, and model parameters |
 | `crates/phantom-profile/catalog/cookie-components.json` | Ordered automatic Cookie placement names |
 | `crates/phantom-profile/catalog/proxy-connect-components.json` | Ordered CONNECT fields and proxy connection policies |
 | `crates/phantom-profile/catalog/http2-components.json` | Typed HTTP/2 settings and field overrides |
@@ -26,6 +27,7 @@ Keep browser observations separate from recipe implementations.
 | `crates/phantom-profile/src/catalog/dns_components.rs` | Committed generated DNS-cache values |
 | `crates/phantom-profile/src/catalog/udp_components.rs` | Committed generated UDP values |
 | `crates/phantom-profile/src/catalog/tcp_components.rs` | Committed generated TCP values |
+| `crates/phantom-profile/src/catalog/client_hints_components.rs` | Committed generated client hints |
 | `crates/phantom-profile/src/catalog/cookie_components.rs` | Committed generated Cookie placement |
 | `crates/phantom-profile/src/catalog/proxy_connect_components.rs` | Committed generated CONNECT values |
 | `crates/phantom-profile/src/catalog/http2_components.rs` | Committed generated HTTP/2 values |
@@ -52,9 +54,9 @@ runtime. Discovery and exact lookup borrow static records. Instantiation
 calls the selected recipe factory and returns fresh owned settings.
 
 All existing TLS factories, core QUIC transport, HTTP/1.1, HTTP/2, HTTP/3,
-DNS-cache, TCP, UDP, Cookie placement, and CONNECT settings use structured
-components. Other layers use
-handwritten factories. Their migration and historical-version growth remain
+DNS-cache, TCP, UDP, client hints, Cookie placement, and CONNECT settings use
+structured components. Other layers use handwritten factories. Their migration
+and historical-version growth remain
 in the [roadmap](../roadmap.md). Request templates use explicit typed bindings; they
 have no separate evidence records.
 
@@ -120,12 +122,13 @@ python -m unittest discover -s scripts/dev/tests -p test_generate_tls_components
 python -m unittest discover -s scripts/dev/tests -p test_generate_quic_components.py
 python -m unittest discover -s scripts/dev/tests -p test_generate_connection_components.py
 python -m unittest discover -s scripts/dev/tests -p test_generate_tcp_components.py
+python -m unittest scripts.dev.tests.test_generate_client_hints_profiles
 python -m unittest scripts.dev.tests.test_generate_cookie_profiles
 python -m unittest scripts.dev.tests.test_generate_proxy_connect_profiles
 ```
 
 Generation sorts identifiers and emits fields and layers in fixed orders.
-All eleven generated files use `rustfmt::skip` to preserve their output.
+All twelve generated files use `rustfmt::skip` to preserve their output.
 The generator rejects duplicate JSON keys and identifiers, unknown values,
 inconsistent metadata, missing or escaping files, unsupported absence claims,
 and observed fields without capture references.
@@ -237,6 +240,32 @@ Generation does not open sockets, choose addresses, change timers, or draw
 random values. The transport still applies these policies on each connection.
 Frozen controls compare every original field and composed profile. Backend
 socket and timer checks remain separate from declaration validation.
+
+## Declare client hints
+
+Each component stores an ordered list of hint names, values, and delivery.
+Names are unique lowercase ASCII tokens that start with a letter. Delivery
+is either `Default` or `AcceptCh`. A `Literal` value keeps exact bytes,
+including empty values and tabs. Lists allow at most 64 entries, and strings
+at most 4,096 characters. These limits apply to offline declarations.
+
+The eleven definitions retain seven desktop and four Android hint sets.
+Brave omits the full-version and form-factor hints. Opera for Android keeps
+its zero-byte form-factor value, distinct from a quoted empty string.
+Every definition supplies its complete list, preserving its brand strings,
+order, and delivery. The declaration adds no target or observation coverage.
+
+Chrome, Edge, and Opera for Android each have one `Model` value, restricted
+to the requested `sec-ch-ua-model` hint. Its default is `Pixel 7`. Generated
+constructors use the existing model encoder. Public model adapters keep the
+native printable-ASCII check and quote/backslash escaping. Caller models
+retain their native range, including empty strings and lengths above the
+offline ceiling. Only the captured default has browser observation coverage.
+Brave's model remains a literal quoted empty string, with no model adapter.
+
+Generated functions return fresh owned hint lists. Frozen original factories
+and an independent original model encoder provide comparison controls.
+Request placement and origin hint state remain runtime responsibilities.
 
 ## Declare Cookie and CONNECT components
 

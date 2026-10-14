@@ -19,7 +19,7 @@
 
 use crate::{
     browser::chrome,
-    client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
+    client_hints::ClientHintSettings,
     http2::Http2Settings,
     http3::{Http3RequestSettings, Http3Settings},
     quic::QuicTransportSettings,
@@ -34,10 +34,6 @@ use crate::{
 /// and the version is `154.0.0.0`, whatever the device and build.
 pub(crate) const V154_ANDROID_USER_AGENT: &str = "Mozilla/5.0 (Linux; Android 10; K) \
 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Mobile Safari/537.36";
-
-/// The device model the Android captures report, as Android's `Build.MODEL`
-/// gives it.
-pub(crate) const CAPTURED_MODEL: &str = "Pixel 7";
 
 /// Returns client-hint fields observed from Chrome 154 for Android on a
 /// Pixel 7.
@@ -59,7 +55,7 @@ pub(crate) const CAPTURED_MODEL: &str = "Pixel 7";
 /// For another phone, use [`v154_android_client_hints_for_model`].
 #[must_use]
 pub fn v154_android_client_hints() -> ClientHintSettings {
-    client_hints_for_model(CAPTURED_MODEL)
+    crate::catalog::client_hints_components::chrome_android_154_client_hints()
 }
 
 /// Returns the client hints of [`v154_android_client_hints`] with another
@@ -77,33 +73,7 @@ pub fn v154_android_client_hints_for_model(
     model: &str,
 ) -> Result<ClientHintSettings, crate::InvalidClientHintSettings> {
     validate_model(model)?;
-    Ok(client_hints_for_model(model))
-}
-
-fn client_hints_for_model(model: &str) -> ClientHintSettings {
-    use ClientHintDelivery::{AcceptCh, Default};
-
-    ClientHintSettings::new(vec![
-        ClientHint::new(
-            "sec-ch-ua",
-            r#""Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99""#,
-            Default,
-        ),
-        ClientHint::new("sec-ch-ua-mobile", "?1", Default),
-        ClientHint::new("sec-ch-ua-full-version", r#""154.0.8037.57""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-arch", r#""""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-platform", r#""Android""#, Default),
-        ClientHint::new("sec-ch-ua-platform-version", r#""17.0.0""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-model", model_value(model), AcceptCh),
-        ClientHint::new("sec-ch-ua-bitness", r#""""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
-        ClientHint::new(
-            "sec-ch-ua-full-version-list",
-            r#""Chromium";v="154.0.8037.57", "Google Chrome";v="154.0.8037.57", "Not A(Brand";v="99.0.0.0""#,
-            AcceptCh,
-        ),
-        ClientHint::new("sec-ch-ua-form-factors", r#""Mobile""#, AcceptCh),
-    ])
+    Ok(crate::catalog::client_hints_components::chrome_android_154_client_hints_for_model(model))
 }
 
 /// Returns TLS settings captured from Chrome 154.0.8037.57 for Android.

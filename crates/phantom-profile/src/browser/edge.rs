@@ -67,9 +67,7 @@ pub use android::{
 };
 
 use crate::{
-    browser::chrome,
-    client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
-    request_template::RequestTemplate,
+    browser::chrome, client_hints::ClientHintSettings, request_template::RequestTemplate,
     tls::TlsSettings,
 };
 
@@ -119,29 +117,7 @@ pub fn v154_quic_tls() -> TlsSettings {
 /// is owned and may be customized before client creation.
 #[must_use]
 pub fn v154_windows_client_hints() -> ClientHintSettings {
-    use ClientHintDelivery::{AcceptCh, Default};
-
-    ClientHintSettings::new(vec![
-        ClientHint::new(
-            "sec-ch-ua",
-            r#""Chromium";v="154", "Microsoft Edge";v="154", "Not A(Brand";v="99""#,
-            Default,
-        ),
-        ClientHint::new("sec-ch-ua-mobile", "?0", Default),
-        ClientHint::new("sec-ch-ua-full-version", r#""154.0.4258.48""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-arch", r#""x86""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-platform", r#""Windows""#, Default),
-        ClientHint::new("sec-ch-ua-platform-version", r#""19.0.0""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-model", r#""""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-bitness", r#""64""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
-        ClientHint::new(
-            "sec-ch-ua-full-version-list",
-            r#""Chromium";v="154.0.8037.58", "Microsoft Edge";v="154.0.4258.48", "Not A(Brand";v="99.0.0.0""#,
-            AcceptCh,
-        ),
-        ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
-    ])
+    crate::catalog::client_hints_components::edge_windows_154_client_hints()
 }
 
 /// Returns client-hint fields observed from Edge 154 on macOS 15.5 arm64.
@@ -157,29 +133,7 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
 /// version.
 #[must_use]
 pub fn v154_macos_client_hints() -> ClientHintSettings {
-    use ClientHintDelivery::{AcceptCh, Default};
-
-    ClientHintSettings::new(vec![
-        ClientHint::new(
-            "sec-ch-ua",
-            r#""Chromium";v="154", "Microsoft Edge";v="154", "Not A(Brand";v="99""#,
-            Default,
-        ),
-        ClientHint::new("sec-ch-ua-mobile", "?0", Default),
-        ClientHint::new("sec-ch-ua-full-version", r#""154.0.4258.48""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-arch", r#""arm""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-platform", r#""macOS""#, Default),
-        ClientHint::new("sec-ch-ua-platform-version", r#""15.5.0""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-model", r#""""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-bitness", r#""64""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
-        ClientHint::new(
-            "sec-ch-ua-full-version-list",
-            r#""Chromium";v="154.0.8037.58", "Microsoft Edge";v="154.0.4258.48", "Not A(Brand";v="99.0.0.0""#,
-            AcceptCh,
-        ),
-        ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
-    ])
+    crate::catalog::client_hints_components::edge_macos_154_client_hints()
 }
 
 /// Returns navigation request fields observed from Edge 154.0.4258.37 on Windows 11.

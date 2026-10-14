@@ -1,0 +1,1040 @@
+{
+  "schema": 1,
+  "components": [
+    {
+      "id": "brave_android_153_client_hints",
+      "kind": "ClientHintSettings",
+      "base": null,
+      "values": {
+        "hints": [
+          {
+            "name": "sec-ch-ua",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Brave\";v=\"153\", \"Not_A Brand\";v=\"8\", \"Chromium\";v=\"153\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-mobile",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "?1"
+            }
+          },
+          {
+            "name": "sec-ch-ua-arch",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Android\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"17.0.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-model",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-bitness",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-wow64",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version-list",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Brave\";v=\"153.0.0.0\", \"Not_A Brand\";v=\"8.0.0.0\", \"Chromium\";v=\"153.0.0.0\""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "brave_windows_154_client_hints",
+      "kind": "ClientHintSettings",
+      "base": null,
+      "values": {
+        "hints": [
+          {
+            "name": "sec-ch-ua",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Chromium\";v=\"154\", \"Brave\";v=\"154\", \"Not A(Brand\";v=\"99\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-mobile",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-arch",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"x86\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Windows\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"19.0.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-model",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-bitness",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"64\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-wow64",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version-list",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Chromium\";v=\"154.0.0.0\", \"Brave\";v=\"154.0.0.0\", \"Not A(Brand\";v=\"99.0.0.0\""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "chrome_android_154_client_hints",
+      "kind": "ClientHintSettings",
+      "base": null,
+      "values": {
+        "hints": [
+          {
+            "name": "sec-ch-ua",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Chromium\";v=\"154\", \"Google Chrome\";v=\"154\", \"Not A(Brand\";v=\"99\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-mobile",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "?1"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"154.0.8037.57\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-arch",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Android\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"17.0.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-model",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Model",
+              "default": "Pixel 7"
+            }
+          },
+          {
+            "name": "sec-ch-ua-bitness",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-wow64",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version-list",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Chromium\";v=\"154.0.8037.57\", \"Google Chrome\";v=\"154.0.8037.57\", \"Not A(Brand\";v=\"99.0.0.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-form-factors",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Mobile\""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "chrome_macos_154_client_hints",
+      "kind": "ClientHintSettings",
+      "base": null,
+      "values": {
+        "hints": [
+          {
+            "name": "sec-ch-ua",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Chromium\";v=\"154\", \"Google Chrome\";v=\"154\", \"Not A(Brand\";v=\"99\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-mobile",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"154.0.8037.95\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-arch",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"arm\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"macOS\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"15.5.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-model",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-bitness",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"64\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-wow64",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version-list",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Chromium\";v=\"154.0.8037.95\", \"Google Chrome\";v=\"154.0.8037.95\", \"Not A(Brand\";v=\"99.0.0.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-form-factors",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Desktop\""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "chrome_windows_154_client_hints",
+      "kind": "ClientHintSettings",
+      "base": null,
+      "values": {
+        "hints": [
+          {
+            "name": "sec-ch-ua",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Chromium\";v=\"154\", \"Google Chrome\";v=\"154\", \"Not A(Brand\";v=\"99\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-mobile",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"154.0.8037.97\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-arch",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"x86\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Windows\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"19.0.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-model",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-bitness",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"64\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-wow64",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version-list",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Chromium\";v=\"154.0.8037.97\", \"Google Chrome\";v=\"154.0.8037.97\", \"Not A(Brand\";v=\"99.0.0.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-form-factors",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Desktop\""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "edge_android_153_client_hints",
+      "kind": "ClientHintSettings",
+      "base": null,
+      "values": {
+        "hints": [
+          {
+            "name": "sec-ch-ua",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Microsoft Edge\";v=\"153\", \"Not_A Brand\";v=\"8\", \"Chromium\";v=\"153\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-mobile",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "?1"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"153.0.4234.49\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-arch",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Android\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"17.0.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-model",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Model",
+              "default": "Pixel 7"
+            }
+          },
+          {
+            "name": "sec-ch-ua-bitness",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-wow64",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version-list",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Microsoft Edge\";v=\"153.0.4234.49\", \"Not_A Brand\";v=\"8.0.0.0\", \"Chromium\";v=\"153.0.8010.53\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-form-factors",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Mobile\""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "edge_macos_154_client_hints",
+      "kind": "ClientHintSettings",
+      "base": null,
+      "values": {
+        "hints": [
+          {
+            "name": "sec-ch-ua",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Chromium\";v=\"154\", \"Microsoft Edge\";v=\"154\", \"Not A(Brand\";v=\"99\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-mobile",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"154.0.4258.48\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-arch",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"arm\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"macOS\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"15.5.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-model",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-bitness",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"64\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-wow64",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version-list",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Chromium\";v=\"154.0.8037.58\", \"Microsoft Edge\";v=\"154.0.4258.48\", \"Not A(Brand\";v=\"99.0.0.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-form-factors",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Desktop\""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "edge_windows_154_client_hints",
+      "kind": "ClientHintSettings",
+      "base": null,
+      "values": {
+        "hints": [
+          {
+            "name": "sec-ch-ua",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Chromium\";v=\"154\", \"Microsoft Edge\";v=\"154\", \"Not A(Brand\";v=\"99\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-mobile",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"154.0.4258.48\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-arch",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"x86\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Windows\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"19.0.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-model",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-bitness",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"64\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-wow64",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version-list",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Chromium\";v=\"154.0.8037.58\", \"Microsoft Edge\";v=\"154.0.4258.48\", \"Not A(Brand\";v=\"99.0.0.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-form-factors",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Desktop\""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "opera_android_102_client_hints",
+      "kind": "ClientHintSettings",
+      "base": null,
+      "values": {
+        "hints": [
+          {
+            "name": "sec-ch-ua",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"OperaMobile\";v=\"102\", \"Opera\";v=\"137\", \"Chromium\";v=\"152\", \" Not A;Brand\";v=\"99\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-mobile",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "?1"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"102.1.5206.90382\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-arch",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Android\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"17\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-model",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Model",
+              "default": "Pixel 7"
+            }
+          },
+          {
+            "name": "sec-ch-ua-bitness",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-wow64",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version-list",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"OperaMobile\";v=\"102.1.5206.90382\", \"Opera\";v=\"137.0.6010.1\", \"Chromium\";v=\"152.0.7977.82\", \" Not A;Brand\";v=\"99.0.0.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-form-factors",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": ""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "opera_macos_136_client_hints",
+      "kind": "ClientHintSettings",
+      "base": null,
+      "values": {
+        "hints": [
+          {
+            "name": "sec-ch-ua",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Chromium\";v=\"152\", \"Not?A_Brand\";v=\"24\", \"Opera\";v=\"136\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-mobile",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"136.0.6008.52\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-arch",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"arm\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"macOS\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"15.5.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-model",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-bitness",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"64\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-wow64",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version-list",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Chromium\";v=\"152.0.7977.130\", \"Not?A_Brand\";v=\"24.0.0.0\", \"Opera\";v=\"136.0.6008.52\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-form-factors",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Desktop\""
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "opera_windows_136_client_hints",
+      "kind": "ClientHintSettings",
+      "base": null,
+      "values": {
+        "hints": [
+          {
+            "name": "sec-ch-ua",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Chromium\";v=\"152\", \"Not?A_Brand\";v=\"24\", \"Opera\";v=\"136\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-mobile",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"136.0.6008.52\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-arch",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"x86\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform",
+            "delivery": "Default",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Windows\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-platform-version",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"19.0.0\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-model",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-bitness",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"64\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-wow64",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "?0"
+            }
+          },
+          {
+            "name": "sec-ch-ua-full-version-list",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Chromium\";v=\"152.0.7977.130\", \"Not?A_Brand\";v=\"24.0.0.0\", \"Opera\";v=\"136.0.6008.52\""
+            }
+          },
+          {
+            "name": "sec-ch-ua-form-factors",
+            "delivery": "AcceptCh",
+            "value": {
+              "kind": "Literal",
+              "value": "\"Desktop\""
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

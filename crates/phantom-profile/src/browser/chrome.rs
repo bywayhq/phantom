@@ -41,12 +41,12 @@ pub use android::{
     v154_android_quic_tls, v154_android_tcp_tls, v154_android_websocket,
 };
 
-pub(crate) use android::{CAPTURED_MODEL, model_value, validate_model};
+pub(crate) use android::{model_value, validate_model};
 
 use std::time::Duration;
 
 use crate::{
-    client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
+    client_hints::ClientHintSettings,
     cookie::CookiePlacement,
     dns_cache::DnsCacheSettings,
     http1::Http1Settings,
@@ -88,29 +88,7 @@ use crate::quic::QuicTransportSettings;
 /// creation.
 #[must_use]
 pub fn v154_windows_client_hints() -> ClientHintSettings {
-    use ClientHintDelivery::{AcceptCh, Default};
-
-    ClientHintSettings::new(vec![
-        ClientHint::new(
-            "sec-ch-ua",
-            r#""Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99""#,
-            Default,
-        ),
-        ClientHint::new("sec-ch-ua-mobile", "?0", Default),
-        ClientHint::new("sec-ch-ua-full-version", r#""154.0.8037.97""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-arch", r#""x86""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-platform", r#""Windows""#, Default),
-        ClientHint::new("sec-ch-ua-platform-version", r#""19.0.0""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-model", r#""""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-bitness", r#""64""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
-        ClientHint::new(
-            "sec-ch-ua-full-version-list",
-            r#""Chromium";v="154.0.8037.97", "Google Chrome";v="154.0.8037.97", "Not A(Brand";v="99.0.0.0""#,
-            AcceptCh,
-        ),
-        ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
-    ])
+    crate::catalog::client_hints_components::chrome_windows_154_client_hints()
 }
 
 /// Returns client-hint fields observed from Chrome 154 on macOS 15.5 arm64.
@@ -127,29 +105,7 @@ pub fn v154_windows_client_hints() -> ClientHintSettings {
 /// before client creation, for example to carry another macOS version.
 #[must_use]
 pub fn v154_macos_client_hints() -> ClientHintSettings {
-    use ClientHintDelivery::{AcceptCh, Default};
-
-    ClientHintSettings::new(vec![
-        ClientHint::new(
-            "sec-ch-ua",
-            r#""Chromium";v="154", "Google Chrome";v="154", "Not A(Brand";v="99""#,
-            Default,
-        ),
-        ClientHint::new("sec-ch-ua-mobile", "?0", Default),
-        ClientHint::new("sec-ch-ua-full-version", r#""154.0.8037.95""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-arch", r#""arm""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-platform", r#""macOS""#, Default),
-        ClientHint::new("sec-ch-ua-platform-version", r#""15.5.0""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-model", r#""""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-bitness", r#""64""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
-        ClientHint::new(
-            "sec-ch-ua-full-version-list",
-            r#""Chromium";v="154.0.8037.95", "Google Chrome";v="154.0.8037.95", "Not A(Brand";v="99.0.0.0""#,
-            AcceptCh,
-        ),
-        ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
-    ])
+    crate::catalog::client_hints_components::chrome_macos_154_client_hints()
 }
 
 /// Returns the automatic `Cookie` field position for Chrome 154.

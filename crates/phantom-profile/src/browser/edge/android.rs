@@ -19,8 +19,7 @@
 
 use crate::{
     browser::chrome,
-    browser::chrome::{CAPTURED_MODEL, model_value},
-    client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
+    client_hints::ClientHintSettings,
     http2::Http2Settings,
     http3::{Http3RequestSettings, Http3Settings},
     quic::QuicTransportSettings,
@@ -106,7 +105,7 @@ pub fn v153_android_http3_request() -> Http3RequestSettings {
 /// For another phone, use [`v153_android_client_hints_for_model`].
 #[must_use]
 pub fn v153_android_client_hints() -> ClientHintSettings {
-    client_hints_for_model(CAPTURED_MODEL)
+    crate::catalog::client_hints_components::edge_android_153_client_hints()
 }
 
 /// Returns the client hints of [`v153_android_client_hints`] with another
@@ -121,33 +120,7 @@ pub fn v153_android_client_hints_for_model(
     model: &str,
 ) -> Result<ClientHintSettings, crate::InvalidClientHintSettings> {
     crate::browser::chrome::validate_model(model)?;
-    Ok(client_hints_for_model(model))
-}
-
-fn client_hints_for_model(model: &str) -> ClientHintSettings {
-    use ClientHintDelivery::{AcceptCh, Default};
-
-    ClientHintSettings::new(vec![
-        ClientHint::new(
-            "sec-ch-ua",
-            r#""Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153""#,
-            Default,
-        ),
-        ClientHint::new("sec-ch-ua-mobile", "?1", Default),
-        ClientHint::new("sec-ch-ua-full-version", r#""153.0.4234.49""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-arch", r#""""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-platform", r#""Android""#, Default),
-        ClientHint::new("sec-ch-ua-platform-version", r#""17.0.0""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-model", model_value(model), AcceptCh),
-        ClientHint::new("sec-ch-ua-bitness", r#""""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
-        ClientHint::new(
-            "sec-ch-ua-full-version-list",
-            r#""Microsoft Edge";v="153.0.4234.49", "Not_A Brand";v="8.0.0.0", "Chromium";v="153.0.8010.53""#,
-            AcceptCh,
-        ),
-        ClientHint::new("sec-ch-ua-form-factors", r#""Mobile""#, AcceptCh),
-    ])
+    Ok(crate::catalog::client_hints_components::edge_android_153_client_hints_for_model(model))
 }
 
 /// Returns navigation request fields observed from Edge 153.0.4234.49 for

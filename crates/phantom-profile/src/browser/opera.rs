@@ -65,9 +65,7 @@ pub use android::{
 };
 
 use crate::{
-    browser::chrome,
-    client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
-    request_template::RequestTemplate,
+    browser::chrome, client_hints::ClientHintSettings, request_template::RequestTemplate,
     tls::TlsSettings,
 };
 
@@ -118,29 +116,7 @@ pub fn v136_quic_tls() -> TlsSettings {
 /// customized before client creation.
 #[must_use]
 pub fn v136_windows_client_hints() -> ClientHintSettings {
-    use ClientHintDelivery::{AcceptCh, Default};
-
-    ClientHintSettings::new(vec![
-        ClientHint::new(
-            "sec-ch-ua",
-            r#""Chromium";v="152", "Not?A_Brand";v="24", "Opera";v="136""#,
-            Default,
-        ),
-        ClientHint::new("sec-ch-ua-mobile", "?0", Default),
-        ClientHint::new("sec-ch-ua-full-version", r#""136.0.6008.52""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-arch", r#""x86""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-platform", r#""Windows""#, Default),
-        ClientHint::new("sec-ch-ua-platform-version", r#""19.0.0""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-model", r#""""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-bitness", r#""64""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
-        ClientHint::new(
-            "sec-ch-ua-full-version-list",
-            r#""Chromium";v="152.0.7977.130", "Not?A_Brand";v="24.0.0.0", "Opera";v="136.0.6008.52""#,
-            AcceptCh,
-        ),
-        ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
-    ])
+    crate::catalog::client_hints_components::opera_windows_136_client_hints()
 }
 
 /// Returns client-hint fields observed from Opera 136 on macOS 15.5 arm64.
@@ -156,29 +132,7 @@ pub fn v136_windows_client_hints() -> ClientHintSettings {
 /// version.
 #[must_use]
 pub fn v136_macos_client_hints() -> ClientHintSettings {
-    use ClientHintDelivery::{AcceptCh, Default};
-
-    ClientHintSettings::new(vec![
-        ClientHint::new(
-            "sec-ch-ua",
-            r#""Chromium";v="152", "Not?A_Brand";v="24", "Opera";v="136""#,
-            Default,
-        ),
-        ClientHint::new("sec-ch-ua-mobile", "?0", Default),
-        ClientHint::new("sec-ch-ua-full-version", r#""136.0.6008.52""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-arch", r#""arm""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-platform", r#""macOS""#, Default),
-        ClientHint::new("sec-ch-ua-platform-version", r#""15.5.0""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-model", r#""""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-bitness", r#""64""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
-        ClientHint::new(
-            "sec-ch-ua-full-version-list",
-            r#""Chromium";v="152.0.7977.130", "Not?A_Brand";v="24.0.0.0", "Opera";v="136.0.6008.52""#,
-            AcceptCh,
-        ),
-        ClientHint::new("sec-ch-ua-form-factors", r#""Desktop""#, AcceptCh),
-    ])
+    crate::catalog::client_hints_components::opera_macos_136_client_hints()
 }
 
 /// Returns navigation request fields observed from Opera 136.0.6008.52 on Windows 11.

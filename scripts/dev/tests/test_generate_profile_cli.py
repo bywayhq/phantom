@@ -20,6 +20,7 @@ OUTPUT_NAMES = (
     "TCP_COMPONENT_OUTPUT",
     "COOKIE_COMPONENT_OUTPUT",
     "PROXY_CONNECT_COMPONENT_OUTPUT",
+    "CLIENT_HINTS_COMPONENT_OUTPUT",
 )
 
 
@@ -79,21 +80,21 @@ class CatalogCliTests(unittest.TestCase):
             for path in paths.values():
                 path.write_bytes(b"retained original\r\n")
             missing = root / "not-created"
-            paths["PROXY_CONNECT_COMPONENT_OUTPUT"] = missing / "proxy_connect.rs"
+            paths["CLIENT_HINTS_COMPONENT_OUTPUT"] = missing / "client_hints.rs"
             with (
                 mock.patch.multiple(cli, **paths),
                 mock.patch.object(sys, "argv", ["generate_profiles.py"]),
                 mock.patch.object(cli.sys, "stderr"),
                 mock.patch.object(
                     cli,
-                    "load_proxy_connect_components",
-                    side_effect=cli.DeclarationError("invalid CONNECT"),
+                    "load_client_hints_components",
+                    side_effect=cli.DeclarationError("invalid client hints"),
                 ),
             ):
                 self.assertEqual(cli.main(), 1)
             self.assertFalse(missing.exists())
             for name, path in paths.items():
-                if name != "PROXY_CONNECT_COMPONENT_OUTPUT":
+                if name != "CLIENT_HINTS_COMPONENT_OUTPUT":
                     self.assertEqual(path.read_bytes(), b"retained original\r\n")
 
 

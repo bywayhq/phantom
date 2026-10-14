@@ -17,6 +17,7 @@ use std::fmt;
 
 use crate::{ClientProfile, RequestTemplate, browser};
 
+pub(crate) mod client_hints_components;
 pub(crate) mod cookie_components;
 pub(crate) mod dns_components;
 mod generated;

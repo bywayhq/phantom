@@ -60,7 +60,7 @@ pub use android::{
 
 use crate::{
     browser::chrome,
-    client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
+    client_hints::ClientHintSettings,
     request_template::{RequestField, RequestTemplate},
     tls::TlsSettings,
 };
@@ -118,27 +118,7 @@ pub fn v154_quic_tls() -> TlsSettings {
 /// creation.
 #[must_use]
 pub fn v154_windows_client_hints() -> ClientHintSettings {
-    use ClientHintDelivery::{AcceptCh, Default};
-
-    ClientHintSettings::new(vec![
-        ClientHint::new(
-            "sec-ch-ua",
-            r#""Chromium";v="154", "Brave";v="154", "Not A(Brand";v="99""#,
-            Default,
-        ),
-        ClientHint::new("sec-ch-ua-mobile", "?0", Default),
-        ClientHint::new("sec-ch-ua-arch", r#""x86""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-platform", r#""Windows""#, Default),
-        ClientHint::new("sec-ch-ua-platform-version", r#""19.0.0""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-model", r#""""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-bitness", r#""64""#, AcceptCh),
-        ClientHint::new("sec-ch-ua-wow64", "?0", AcceptCh),
-        ClientHint::new(
-            "sec-ch-ua-full-version-list",
-            r#""Chromium";v="154.0.0.0", "Brave";v="154.0.0.0", "Not A(Brand";v="99.0.0.0""#,
-            AcceptCh,
-        ),
-    ])
+    crate::catalog::client_hints_components::brave_windows_154_client_hints()
 }
 
 /// Returns navigation request fields observed from Brave 154.1.96.59 on Windows 11.
