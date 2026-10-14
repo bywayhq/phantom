@@ -105,6 +105,11 @@ fn ech_with_tls_12_fails_before_stream_io() -> TestResult<()> {
 fn quic_connector_accepts_ech_from_https_records() -> TestResult<()> {
     let mut settings = v154_quic_tls();
     settings.ech = EchSettings::HttpsRecords(EchGreaseSettings::backend_default());
-    TlsConnector::new_quic_with_additional_roots(&settings, [], |_| {})?;
+    TlsConnector::new_quic_with_additional_roots(
+        &settings,
+        crate::tls::ServerAuthentication::WebPki,
+        [],
+        |_| {},
+    )?;
     Ok(())
 }
