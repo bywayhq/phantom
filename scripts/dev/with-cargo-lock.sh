@@ -40,13 +40,17 @@ lock_dir=""
 # A dead wrapper can leave a live child behind. Preserve its lock until an
 # operator has checked that work, rather than racing another holder's rename.
 check_stale_lock() {
-  local pid diagnostic
+  local pid diagnostic current_pid
   pid=$(cat "$lock_dir/pid" 2>/dev/null) || return 0
   [[ $pid =~ ^[1-9][0-9]*$ ]] || return 0
   if diagnostic=$(LC_ALL=C kill -0 "$pid" 2>&1); then
     return 0
   fi
   [[ $diagnostic == *"No such process"* ]] || return 0
+  # The holder can finish and another command can acquire this slot between
+  # reading its PID and probing it. Only diagnose the same recorded owner.
+  current_pid=$(cat "$lock_dir/pid" 2>/dev/null) || return 0
+  [[ $current_pid == "$pid" ]] || return 0
   echo "with-cargo-lock: holder pid $pid is gone; lock preserved at $lock_dir" >&2
   echo "verify that its command and surviving child processes have stopped before manually removing the lock directory" >&2
   exit 75

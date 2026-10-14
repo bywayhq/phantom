@@ -30,6 +30,21 @@ printf '%s\\n' "$$" > "$WRAPPER_PID"
 if [[ ${DENIED_PROBE:-false} == true ]]; then
   kill() { echo 'kill: Operation not permitted' >&2; return 1; }
   export -f kill
+elif [[ -n ${PROBE_TRANSITION:-} ]]; then
+  kill() {
+    if [[ $2 == 2147483647 ]]; then
+      if [[ $PROBE_TRANSITION == replaced ]]; then
+        printf '%s\\n' "$$" > "$PROBE_LOCK/pid"
+      else
+        rm -- "$PROBE_LOCK/pid"
+      fi
+      touch "$WAITING"
+      echo 'kill: No such process' >&2
+      return 1
+    fi
+    builtin kill "$@"
+  }
+  export -f kill
 fi
 exec bash "$1" bash -c "$2"
 """
@@ -129,6 +144,32 @@ class CargoLockTests(unittest.TestCase):
         self.assertTrue(first_paths["FINISHED"].exists())
         self.assertTrue(second_paths["STARTED"].exists())
         self.assertFalse(self.lock.exists())
+
+    def test_a_replaced_holder_is_rechecked_before_reporting_a_stale_lock(self) -> None:
+        self.check_holder_transition("replaced")
+
+    def test_removed_holder_metadata_does_not_report_a_stale_lock(self) -> None:
+        self.check_holder_transition("removed")
+
+    def check_holder_transition(self, transition: str) -> None:
+        self.lock.mkdir()
+        (self.lock / "pid").write_text("2147483647\n")
+        self.environment["PROBE_TRANSITION"] = transition
+        self.environment["PROBE_LOCK"] = str(self.lock)
+        process, paths = self.start(transition, 'touch "$STARTED"')
+        self.wait_for(paths["WAITING"])
+        with self.assertRaises(subprocess.TimeoutExpired):
+            process.wait(timeout=0.2)
+        self.assertFalse(paths["STARTED"].exists())
+        self.assertTrue(self.lock.exists())
+        if transition == "replaced":
+            self.assertNotEqual((self.lock / "pid").read_text().strip(), "2147483647")
+        else:
+            self.assertFalse((self.lock / "pid").exists())
+        self.assertTrue(self.lock.resolve().is_relative_to(self.root.resolve()))
+        shutil.rmtree(self.lock)
+        self.finish(process)
+        self.assertTrue(paths["STARTED"].exists())
 
     def test_two_slots_admit_two_holders_and_keep_a_third_waiting(self) -> None:
         first, first_paths = self.start("first", WAIT_COMMAND, slots=2)

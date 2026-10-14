@@ -2495,6 +2495,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Keep Cargo lock waiters running when a finished holder is replaced during
+  its process check. A stable dead holder still requires manual inspection.
+
 - Wait for the client to process HTTP/3 GOAWAY before checking replacement
   connections in draining fixtures. Preserve request deadlines and assertions.
 
