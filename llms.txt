@@ -33,6 +33,7 @@ When you use Phantom as a dependency, Cargo checks out the pinned revision under
   - `https-records`: HTTP/3 discovery from HTTPS DNS records. For the desktop Chrome, Edge, Brave, and Opera recipes it also enables Encrypted Client Hello from those records, which can delay a direct TLS handshake by up to 50 ms.
   - `sse`, `websocket`, `websocket-deflate`.
   - `json`: JSON request bodies and bounded, typed JSON response reads.
+  - `fingerprint-import`: complete custom profiles from bounded JSON descriptions.
   - `serde`: cookie-jar snapshots, with `cookies`.
   - `full`: all of the above.
   - `diagnostics`: TLS key log and QUIC qlog files. Not in `full`, because a key log decrypts the client's traffic.
@@ -79,6 +80,7 @@ When you use Phantom as a dependency, Cargo checks out the pinned revision under
 
 - [Coverage](docs/reference/coverage.md): what each browser recipe covers, layer by layer; anything not listed is unsupported
 - [Profile reference](docs/reference/profiles.md): recipe functions, platforms, and templates
+- [Custom profile import](docs/reference/fingerprint-import.md): complete JSON format, errors, and resource bounds
 - [Route matrix](docs/reference/route-matrix.md): every scheme, protocol, and route combination
 - [Environment proxies](docs/reference/environment-proxies.md): opt-in snapshots, explicit route precedence, and NO_PROXY grammar
 - [Tracing](docs/reference/tracing.md): facade spans and fields, outcome boundaries, and source privacy

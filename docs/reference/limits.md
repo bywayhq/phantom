@@ -342,6 +342,13 @@ Details are in [HTTP/3 internals](../internals/http3.md#connect-udp-masque).
 The user-ID bound limits resource use. SOCKS4 itself has no user-ID length
 field and no password negotiation.
 
+## Custom profile import
+
+The `fingerprint-import` feature loads complete custom settings from JSON.
+Import validates settings without building a client or assigning a browser
+identity. See [Custom profile import](fingerprint-import.md#errors-and-limits)
+for the format and resource bounds.
+
 ## Next
 
 - [Coverage](coverage.md): what each layer supports.
