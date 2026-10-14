@@ -372,8 +372,12 @@ where
                             // writing is blocked, because poll2 then reads
                             // nothing either; they resume once the codec
                             // drains.
+                            // Stop probing when the final reference is gone, after
+                            // flushing resets and before the client starts its idle close.
+                            let check_idle_ping = complete.is_ready()
+                                && self.inner.streams.has_streams_or_other_references();
                             if let Some(idle_ping) =
-                                self.idle_ping.as_mut().filter(|_| complete.is_ready())
+                                self.idle_ping.as_mut().filter(|_| check_idle_ping)
                             {
                                 match idle_ping.poll(cx) {
                                     Poll::Ready(super::idle_ping::IdlePingState::Send) => continue,

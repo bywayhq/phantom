@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.16`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.17`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -843,6 +843,19 @@ between 1 s and 4 s after the peer reads it, and the open request, a later
 request, and the connection report the error; and a peer that reads nothing
 for 3 s while a 60,000-byte body fills the pipe sees no GOAWAY under a 1 s
 timeout.
+
+## Idle PING during client retirement
+
+`idle-ping-retirement.patch` stops polling the idle PING timer after the final
+stream and sender references are gone. The open connection still flushes
+queued resets before the client starts its one-shot idle close. A retained
+sender with no open streams continues to send idle PINGs.
+
+The patch changes `src/proto/connection.rs` and adds two manual-clock controls
+in `src/client/tests.rs`. They check that a due PING cannot precede the final
+`NO_ERROR` GOAWAY after the last sender is dropped, and that an idle connection
+with a retained sender still probes its peer. Existing reset, blocked-write,
+PING timeout and connection-close controls keep their assertions.
 
 ## Reset after connection closure
 

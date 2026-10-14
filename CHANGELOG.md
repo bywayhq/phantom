@@ -2520,6 +2520,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   dropping the peer, so the second request cannot race pooled reuse.
 - Close idle HTTP/2 HTTPS-proxy connections when their profile timer expires,
   without waiting for another request. Existing CONNECT streams can finish.
+  Stop new idle PINGs after the final connection handle is released, while
+  still flushing queued stream resets before GOAWAY.
 
 - Pin nextest 0.9.145 to prevent concurrent tests from inheriting sibling
   capture pipes on macOS. Keep leaked-output failures and retries unchanged.

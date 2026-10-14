@@ -50,14 +50,14 @@ copying execution journals into this page.
 | --- | --- | --- |
 | T1 | `h3-drain-diagnosis` | Readiness repair merged in PR #213 after the exact signed-head gate and platform CI. Main push CI passed; the historical trigger remains open. |
 | T2 | `tls-done-diagnosis` | Framed-response repair and EOF controls merged in PR #212 after the full gate and platform CI. Main push CI passed; historical attribution remains open. |
-| P1–P4 | `profile-catalog` | Catalog foundation, TLS, QUIC, H1, H2, H3, DNS-cache, TCP, UDP, Cookie, CONNECT, and client-hint components pass focused checks and review. Remaining layers, immutable definitions, and integration wire checks remain. |
+| P1–P4 | `profile-catalog` | Ordered WebSocket components join the reviewed catalog layers at `efd6db4c`, with 372 profile tests and seven doctests passing. Immutable definitions, remaining layers, and integration wire checks remain. |
 | P5 | `profile-history` | Edge 153 Windows profile passes four profile and six native replay controls. Catalog registration, corpus measurements, and integration remain. |
-| F1 | `ticket-transfer` | Clearing, frozen stores, strict native decoding, and authenticated TCP ticket publication pass focused checks and review. Scoped QUIC publication, transfer encoding, and full policy bindings remain. |
+| F1 | `ticket-transfer` | Clearing, frozen stores, strict native decoding, and authenticated TCP publication pass focused checks. The reviewed lane is rebased on `6f6426f4`; scoped QUIC publication awaits native verification. Transfer encoding and full policy bindings remain. |
 | F3 | `socks4-integration` | SOCKS4/4a merged in PR #215 after the exact-head full gate and macOS/Windows CI. Main push CI passed. |
 | F4 | `digest-integration` | Digest merged in PR #218 after the full gate and platform CI. Enterprise contracts are recorded. PR #220 repaired the cookie and shared-port fixtures; main push CI passed. |
-| F5 | `doh-wire` | The bounded DNS wire codec is in implementation. DoH transport, exact TTL handling, and alternate-host discovery follow its reviewed contract. |
+| F5 | `doh-wire` | The bounded wire codec is committed at `edecd611`, with 78 DNS tests passing. Caller-reported DNS lifetimes await compilation and review. DoH transport and alternate-host discovery remain. |
 | F8 | `http3-debug-auth` | Origin opt-in merged in PR #219 after independent review, all 22 gate steps, 4,643 Rust tests, and 43 green PR checks at `6f6426f4`. |
-| B2 | `proxy-h2-idle-integration` | Proxy idle retirement passes focused native and facade controls and independent source review. Its rebased integration gate and CI remain. Alt-Used and WINDOW_UPDATE changes remain separate. |
+| B2 | `proxy-h2-idle-integration` | The integration gate passed 21 steps but exposed a PING acknowledgment write during retirement. A native retirement guard is under causal verification. Integration and CI remain; Alt-Used and WINDOW_UPDATE stay separate. |
 
 Neither controlled timing reproduction proves the exact historical host
 delay. The unchanged historical TLS suite also passed all 1,041 tests with
@@ -166,7 +166,7 @@ demonstrated requirement. Do not assert a runtime bottleneck without data.
   supports it. Define which measurements feed it, their lifetime and
   bounds, and behavior before a sample exists. Verify timing decisions and
   cancellation with controlled peers. Keep existing fixed policies explicit.
-- [ ] F8: Extend the explicit, feature-gated verification-disabled debugging
+- [x] F8: Extend the explicit, feature-gated verification-disabled debugging
   mode to HTTP/3. Verify its opt-in behavior and certificate/hostname failure
   controls. Preserve verification in normal configurations.
 

@@ -31,6 +31,18 @@ The integration owner's local archive is
 failed control, unchanged repaired control, full logs, source identities and
 commit receipt. Integration gate and platform CI are still pending.
 
+The integration gate at `ecadb639` passed 21 steps. Of 4,659 Rust tests,
+4,658 passed. The acknowledged-PING control failed during retirement. An
+isolated trace observed the second PING's acknowledgment write fail before
+the peer could read GOAWAY. The original failure and a separate trace are
+retained in `proxy-h2-idle-ecadb639-failed-gate/` and
+`proxy-idle-diagnostic-ecad/` under the same archive parent.
+
+A native guard is being checked against identical manual-clock controls on
+old and repaired source. It stops new idle probes after the final reference
+is dropped while retaining the existing reset flush. Its outcome and the
+unchanged proxy control must be verified before integration.
+
 Firefox's idle policy follows source. A browser idle-closure capture is still
 absent. These loopback controls establish Phantom's behavior. Buffered DATA
 may arrive before the caller consumes it; consumption advances the clock.

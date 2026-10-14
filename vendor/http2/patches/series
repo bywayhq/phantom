@@ -25,4 +25,5 @@ hpack-size-arithmetic.patch
 late-reset-expiration.patch
 default-feature-compilation.patch
 io-error-causes.patch
+idle-ping-retirement.patch
 publish-identity.patch

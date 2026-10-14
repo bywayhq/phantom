@@ -1572,6 +1572,126 @@ async fn preface_ping_timeout_waits_while_writing_is_blocked() {
     .expect("write-blocked preface PING timeout test timed out");
 }
 
+/// Keeps the connection's idle clock independent from elapsed test time.
+#[derive(Clone)]
+struct IdlePingClock {
+    now: Arc<std::sync::Mutex<Instant>>,
+}
+
+impl IdlePingClock {
+    fn new() -> Self {
+        Self {
+            now: Arc::new(std::sync::Mutex::new(Instant::now())),
+        }
+    }
+
+    fn advance_to_ping(&self) {
+        *self.now.lock().expect("idle clock lock poisoned") += IDLE_PING_AFTER;
+    }
+
+    fn timer(&self) -> super::PingTimer {
+        let clock = self.clone();
+        super::PingTimer::new(
+            move || *clock.now.lock().expect("idle clock lock poisoned"),
+            |_| Box::pin(std::future::pending()),
+        )
+    }
+}
+
+/// Polls the connection only while observing the given peer checkpoint.
+async fn drive_idle_ping_checkpoint<F: Future>(
+    connection: &mut super::Connection<DuplexStream, Bytes>,
+    checkpoint: F,
+) -> F::Output {
+    tokio::pin!(checkpoint);
+    poll_fn(|cx| {
+        let result = Pin::new(&mut *connection).poll(cx);
+        assert!(
+            result.is_pending(),
+            "client ended before checkpoint: {result:?}"
+        );
+        checkpoint.as_mut().poll(cx)
+    })
+    .await
+}
+
+async fn manual_idle_ping_client() -> (
+    DuplexStream,
+    super::SendRequest<Bytes>,
+    super::Connection<DuplexStream, Bytes>,
+    IdlePingClock,
+) {
+    let (client_io, mut peer) = duplex(64 * 1024);
+    let clock = IdlePingClock::new();
+    let mut builder = super::Builder::new();
+    builder.idle_ping(IDLE_PING_AFTER, None, clock.timer());
+    let (sender, mut connection) = builder
+        .handshake::<_, Bytes>(client_io)
+        .await
+        .expect("client handshake failed");
+    drive_idle_ping_checkpoint(&mut connection, async {
+        accept_client_handshake(&mut peer).await;
+        loop {
+            let frame = read_raw_frame(&mut peer).await;
+            if frame.kind == 4 && frame.flags == 1 {
+                break;
+            }
+            assert_eq!(frame.kind, 8, "unexpected frame during SETTINGS handshake");
+        }
+    })
+    .await;
+    (peer, sender, connection, clock)
+}
+
+async fn require_idle_goaway_and_eof(peer: &mut DuplexStream) {
+    let frame = read_connection_frame(peer).await;
+    assert_eq!(
+        (frame.kind, frame.flags, frame.stream_id),
+        (7, 0, 0),
+        "retiring connection emitted a new frame before GOAWAY"
+    );
+    assert_eq!(frame.payload, [0; 8], "idle GOAWAY must have NO_ERROR");
+    let mut rest = Vec::new();
+    peer.read_to_end(&mut rest)
+        .await
+        .expect("client connection did not reach EOF");
+    assert!(rest.is_empty(), "client wrote after GOAWAY: {rest:?}");
+}
+
+#[tokio::test]
+async fn a_due_idle_ping_is_not_sent_after_the_final_sender_is_dropped() {
+    timeout(Duration::from_secs(5), async {
+        let (mut peer, sender, connection, clock) = manual_idle_ping_client().await;
+        // The driver is not polled between the handshake barrier and this drop.
+        // Its first subsequent poll therefore sees both the due timer and no sender.
+        clock.advance_to_ping();
+        drop(sender);
+        let (result, ()) = tokio::join!(connection, require_idle_goaway_and_eof(&mut peer));
+        result.expect("retiring client driver failed");
+    })
+    .await
+    .expect("final-sender idle PING control timed out");
+}
+
+#[tokio::test]
+async fn a_retained_sender_still_sends_a_due_idle_ping_without_streams() {
+    timeout(Duration::from_secs(5), async {
+        let (mut peer, sender, mut connection, clock) = manual_idle_ping_client().await;
+        clock.advance_to_ping();
+        let ping =
+            drive_idle_ping_checkpoint(&mut connection, read_connection_frame(&mut peer)).await;
+        assert_eq!((ping.kind, ping.flags, ping.stream_id), (6, 0, 0));
+        assert_eq!(ping.payload, [0; 8]);
+        write_raw_frame(&mut peer, 6, 1, 0, &ping.payload).await;
+        drive_idle_ping_checkpoint(&mut connection, assert_connection_open(&mut peer)).await;
+        drop(sender);
+        let (result, ()) = tokio::join!(connection, require_idle_goaway_and_eof(&mut peer));
+        result.expect("retiring client driver failed");
+    })
+    .await
+    .expect("retained-sender idle PING control timed out");
+}
+
 const IDLE_PING_AFTER: Duration = Duration::from_secs(1);
 
 #[tokio::test]
