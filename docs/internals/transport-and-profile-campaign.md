@@ -50,7 +50,7 @@ copying execution journals into this page.
 | --- | --- | --- |
 | T1 | `h3-drain-diagnosis` | Readiness repair merged in PR #213 after the exact signed-head gate and platform CI. Main push CI passed; the historical trigger remains open. |
 | T2 | `tls-done-diagnosis` | Framed-response repair and EOF controls merged in PR #212 after the full gate and platform CI. Main push CI passed; historical attribution remains open. |
-| P1–P4 | `profile-catalog` | Catalog composition merged in PR #223 at `8754e971` after independent review, all 22 gate steps, 4,708 Rust tests and 43 green PR checks. Main push CI is running. Provenance reconciliation, corpus growth and measurements stay open. |
+| P1–P4 | `profile-catalog` | Catalog composition merged in PR #223 at `8754e971` after independent review, all 22 gate steps, 4,708 Rust tests and 43 green PR checks. All eight applicable main push workflows passed. Provenance reconciliation, corpus growth and measurements stay open. |
 | P5 | `profile-catalog` | Edge 153 Windows registration and six retained native controls passed source review. Current compilation and corpus measurements remain. Earlier profile and native replays belong to the historical lane, not the new registration. |
 | F1 | `ticket-transfer` | Scoped QUIC publication is committed at `8566d49e` after independent review, native session controls, strict Clippy and four wire fixtures. Clearing, frozen stores, strict decoding and TCP publication also pass focused checks. Transfer encoding, full policy bindings and integration remain. |
 | F3 | `socks4-integration` | SOCKS4/4a merged in PR #215 after the exact-head full gate and macOS/Windows CI. Main push CI passed. |
