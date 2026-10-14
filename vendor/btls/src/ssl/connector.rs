@@ -1,5 +1,7 @@
+use foreign_types::{ForeignType, ForeignTypeRef};
 use std::io::{Read, Write};
 use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 
 use crate::dh::Dh;
 use crate::error::ErrorStack;
@@ -10,7 +12,9 @@ use crate::ssl::{
 use crate::version;
 use std::net::IpAddr;
 
-use super::MidHandshakeSslStream;
+use super::{
+    CustomSessionVerifier, MidHandshakeSslStream, SessionPublication, SessionVerifierProvenance,
+};
 
 const FFDHE_2048: &str = "
 -----BEGIN DH PARAMETERS-----
@@ -174,6 +178,7 @@ impl SslConnectorBuilder {
                 ssl,
                 session,
                 keep_early_data,
+                &binding.publication,
             );
             (binding.callback)(session);
         });
@@ -234,12 +239,16 @@ impl ConnectConfiguration {
             return Ok(None);
         }
 
+        let context = self.ssl.ssl_context().to_owned();
         self.ssl.set_ex_data(
             Ssl::cached_ex_index::<ScopedSessionBinding>(),
             ScopedSessionBinding {
                 scope: scope.clone(),
                 hostname: domain.into(),
                 callback: Box::new(callback),
+                context,
+                publication: Arc::new(SessionPublication::new()),
+                offered_publication: session.map(|session| Arc::clone(&session.publication)),
             },
         );
         if let Some(session) = session {
@@ -342,6 +351,66 @@ struct ScopedSessionBinding {
     scope: SslSessionScope,
     hostname: Box<str>,
     callback: Box<dyn Fn(Result<ScopedSslSession, ErrorStack>) + Send + Sync>,
+    context: SslContext,
+    publication: Arc<SessionPublication>,
+    offered_publication: Option<Arc<SessionPublication>>,
+}
+
+impl SslRef {
+    /// Authenticates sessions published by this connection's scoped callback.
+    ///
+    /// Returns `false` before a completed client handshake, during early data, after a verification
+    /// policy mutation, or for custom verification. A resumed connection also requires authenticated
+    /// provenance from the session it offered. No hostname or success claim is supplied by the caller.
+    /// This proof covers default native peer verification; portable storage must separately bind
+    /// the complete origin and effective policy. Ordinary local session attachment is unchanged.
+    #[must_use]
+    pub fn authenticate_scoped_session_publication(&self) -> bool {
+        let Some(binding) = self.ex_data(Ssl::cached_ex_index::<ScopedSessionBinding>()) else {
+            return false;
+        };
+        let default_verifier = matches!(
+            self.ssl_context()
+                .ex_data(SslContext::cached_ex_index::<SessionVerifierProvenance>()),
+            Some(SessionVerifierProvenance::Default)
+        );
+        if !default_verifier
+            || self
+                .ex_data(Ssl::cached_ex_index::<CustomSessionVerifier>())
+                .is_some()
+            || self.ssl_context().as_ptr() != binding.context.as_ptr()
+        {
+            binding.publication.invalidate();
+            return false;
+        }
+        if self.is_server() || !self.is_init_finished() || self.in_early_data() {
+            return false;
+        }
+        if !self.verify_mode().contains(SslVerifyMode::PEER) || self.verify_result().is_err() {
+            binding.publication.invalidate();
+            return false;
+        }
+        if self.session_reused() {
+            if !binding
+                .offered_publication
+                .as_ref()
+                .is_some_and(|source| source.is_authenticated())
+            {
+                binding.publication.invalidate();
+                return false;
+            }
+        } else if self.peer_certificate().is_none() {
+            binding.publication.invalidate();
+            return false;
+        }
+        binding.publication.authenticate()
+    }
+
+    pub(super) fn invalidate_scoped_session_publication(&self) {
+        if let Some(binding) = self.ex_data(Ssl::cached_ex_index::<ScopedSessionBinding>()) {
+            binding.publication.invalidate();
+        }
+    }
 }
 
 impl Deref for ConnectConfiguration {

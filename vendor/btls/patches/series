@@ -15,4 +15,5 @@ ech-grease-payload-from-client-hello.patch
 message-callback-tests.patch
 message-callback-context.patch
 strict-session-transfer.patch
+authenticated-session-publication.patch
 publish-identity.patch

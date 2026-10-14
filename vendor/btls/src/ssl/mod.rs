@@ -75,6 +75,7 @@ use std::path::Path;
 use std::ptr::{self, NonNull};
 use std::slice;
 use std::str;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
 
 use crate::dh::DhRef;
@@ -1108,6 +1109,10 @@ impl SslContextBuilder {
 
             if method.is_x509_method {
                 builder.ctx.assume_x509();
+                builder.set_ex_data(
+                    SslContext::cached_ex_index::<SessionVerifierProvenance>(),
+                    SessionVerifierProvenance::Default,
+                );
             }
 
             Ok(builder)
@@ -1175,6 +1180,11 @@ impl SslContextBuilder {
     where
         F: Fn(&mut X509StoreContextRef) -> bool + 'static + Sync + Send,
     {
+        self.replace_ex_data(
+            SslContext::cached_ex_index::<SessionVerifierProvenance>(),
+            SessionVerifierProvenance::Custom,
+        );
+
         self.ctx.check_x509();
 
         // NOTE(jlarisch): Q: Why don't we wrap the callback in an Arc, since
@@ -1224,6 +1234,11 @@ impl SslContextBuilder {
     where
         F: Fn(bool, &mut X509StoreContextRef) -> bool + 'static + Sync + Send,
     {
+        self.replace_ex_data(
+            SslContext::cached_ex_index::<SessionVerifierProvenance>(),
+            SessionVerifierProvenance::Custom,
+        );
+
         self.ctx.check_x509();
 
         unsafe {
@@ -1255,6 +1270,11 @@ impl SslContextBuilder {
     where
         F: Fn(&mut SslRef) -> Result<(), SslVerifyError> + 'static + Sync + Send,
     {
+        self.replace_ex_data(
+            SslContext::cached_ex_index::<SessionVerifierProvenance>(),
+            SessionVerifierProvenance::Custom,
+        );
+
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_custom_verify(
@@ -3072,6 +3092,48 @@ impl SslSession {
 #[derive(Clone, Default)]
 pub struct SslSessionScope(Arc<()>);
 
+#[derive(Clone, Copy)]
+enum SessionVerifierProvenance {
+    Default,
+    Custom,
+}
+
+struct CustomSessionVerifier;
+
+/// Shared by the connection and every session its real callback publishes.
+/// Invalidated tokens cannot be rehabilitated by resetting verification options.
+struct SessionPublication(AtomicU8);
+
+impl SessionPublication {
+    const PENDING: u8 = 0;
+    const AUTHENTICATED: u8 = 1;
+    const INVALIDATED: u8 = 2;
+
+    fn new() -> Self {
+        Self(AtomicU8::new(Self::PENDING))
+    }
+
+    fn is_authenticated(&self) -> bool {
+        self.0.load(Ordering::Acquire) == Self::AUTHENTICATED
+    }
+
+    fn authenticate(&self) -> bool {
+        match self.0.compare_exchange(
+            Self::PENDING,
+            Self::AUTHENTICATED,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        ) {
+            Ok(_) => true,
+            Err(state) => state == Self::AUTHENTICATED,
+        }
+    }
+
+    fn invalidate(&self) {
+        self.0.store(Self::INVALIDATED, Ordering::Release);
+    }
+}
+
 impl fmt::Debug for SslSessionScope {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
@@ -3091,6 +3153,7 @@ pub struct ScopedSslSession {
     context: SslContext,
     scope: SslSessionScope,
     hostname: Box<str>,
+    publication: Arc<SessionPublication>,
 }
 
 impl fmt::Debug for ScopedSslSession {
@@ -3117,6 +3180,7 @@ impl ScopedSslSession {
         ssl: &SslRef,
         session: SslSession,
         keep_early_data: bool,
+        publication: &Arc<SessionPublication>,
     ) -> Result<Self, ErrorStack> {
         let session = if keep_early_data {
             session
@@ -3128,7 +3192,19 @@ impl ScopedSslSession {
             context: ssl.ssl_context().to_owned(),
             scope: scope.clone(),
             hostname: hostname.into(),
+            publication: Arc::clone(publication),
         })
+    }
+
+    /// Returns whether the originating connection completed default peer verification.
+    ///
+    /// A real new-session callback may run before the handshake completes. Its session remains
+    /// pending until [`SslRef::authenticate_scoped_session_publication`] verifies native completion.
+    /// Custom verification and later verification-policy mutations exclude publication. This
+    /// authenticates the connection only; it does not establish a complete portable policy binding.
+    #[must_use]
+    pub fn is_authenticated(&self) -> bool {
+        self.publication.is_authenticated()
     }
 
     /// Returns the time at which the session was established, in seconds since the Unix epoch.
@@ -3480,6 +3556,8 @@ impl SslRef {
         &mut self,
         prefs: &[SslSignatureAlgorithm],
     ) -> Result<(), ErrorStack> {
+        self.invalidate_scoped_session_publication();
+
         unsafe {
             cvt_0i(ffi::SSL_set_verify_algorithm_prefs(
                 self.as_ptr(),
@@ -3545,6 +3623,8 @@ impl SslRef {
     pub fn set_verify(&mut self, mode: SslVerifyMode) {
         self.ssl_context().check_x509();
 
+        self.invalidate_scoped_session_publication();
+
         unsafe { ffi::SSL_set_verify(self.as_ptr(), c_int::from(mode.bits()), None) }
     }
 
@@ -3553,6 +3633,8 @@ impl SslRef {
     /// If the peer's certificate chain is longer than this value, verification will fail.
     #[corresponds(SSL_set_verify_depth)]
     pub fn set_verify_depth(&mut self, depth: u32) {
+        self.invalidate_scoped_session_publication();
+
         self.ssl_context().check_x509();
 
         unsafe {
@@ -3591,6 +3673,13 @@ impl SslRef {
     where
         F: Fn(bool, &mut X509StoreContextRef) -> bool + 'static + Sync + Send,
     {
+        self.set_ex_data(
+            Ssl::cached_ex_index::<CustomSessionVerifier>(),
+            CustomSessionVerifier,
+        );
+
+        self.invalidate_scoped_session_publication();
+
         self.ssl_context().check_x509();
 
         unsafe {
@@ -3607,6 +3696,8 @@ impl SslRef {
     /// Sets a custom certificate store for verifying peer certificates.
     #[corresponds(SSL_set0_verify_cert_store)]
     pub fn set_verify_cert_store(&mut self, cert_store: X509Store) -> Result<(), ErrorStack> {
+        self.invalidate_scoped_session_publication();
+
         self.ssl_context().check_x509();
 
         unsafe {
@@ -3627,6 +3718,13 @@ impl SslRef {
     where
         F: Fn(&mut SslRef) -> Result<(), SslVerifyError> + 'static + Sync + Send,
     {
+        self.set_ex_data(
+            Ssl::cached_ex_index::<CustomSessionVerifier>(),
+            CustomSessionVerifier,
+        );
+
+        self.invalidate_scoped_session_publication();
+
         self.ssl_context().check_x509();
 
         unsafe {
@@ -3786,6 +3884,8 @@ impl SslRef {
     /// It has no effect for a server-side connection.
     #[corresponds(SSL_set_tlsext_host_name)]
     pub fn set_hostname(&mut self, hostname: &str) -> Result<(), ErrorStack> {
+        self.invalidate_scoped_session_publication();
+
         let cstr = CString::new(hostname).map_err(ErrorStack::internal_error)?;
         unsafe { cvt(ffi::SSL_set_tlsext_host_name(self.as_ptr(), cstr.as_ptr())) }
     }
@@ -4093,6 +4193,8 @@ impl SslRef {
     /// It is most commonly used in the Server Name Indication (SNI) callback.
     #[corresponds(SSL_set_SSL_CTX)]
     pub fn set_ssl_context(&mut self, ctx: &SslContextRef) -> Result<(), ErrorStack> {
+        self.invalidate_scoped_session_publication();
+
         assert_eq!(
             self.ssl_context().has_x509_support(),
             ctx.has_x509_support(),
@@ -4115,6 +4217,8 @@ impl SslRef {
     /// Returns a mutable reference to the X509 verification configuration.
     #[corresponds(SSL_get0_param)]
     pub fn verify_param_mut(&mut self) -> &mut X509VerifyParamRef {
+        self.invalidate_scoped_session_publication();
+
         self.ssl_context().check_x509();
 
         unsafe { X509VerifyParamRef::from_ptr_mut(ffi::SSL_get0_param(self.as_ptr())) }
@@ -4665,6 +4769,8 @@ impl SslRef {
         &mut self,
         types: &[CertificateType],
     ) -> Result<(), ErrorStack> {
+        self.invalidate_scoped_session_publication();
+
         if self.is_server() {
             return Err(ErrorStack::internal_error_str(
                 "called set_server_certificate_types as server",

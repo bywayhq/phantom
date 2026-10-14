@@ -170,6 +170,360 @@ fn strict_session_bytes_round_trip_metadata_and_reject_partial_input() {
 }
 
 #[test]
+fn scoped_publication_requires_completed_default_verification() {
+    let server = tls13_server(1).build();
+    let scope = SslSessionScope::default();
+    let sessions = Arc::new(Mutex::new(Vec::new()));
+    let client = publication_client();
+    let ssl = configured_scoped_ssl(&client, "foobar.com", &scope, &sessions, None).unwrap();
+    assert!(!ssl.authenticate_scoped_session_publication());
+    let mut stream = ssl.connect(server.connect_tcp()).unwrap();
+    stream.read_exact(&mut [0]).unwrap();
+    assert!(!sessions.lock().unwrap().is_empty());
+    assert!(sessions
+        .lock()
+        .unwrap()
+        .iter()
+        .all(|s| !s.is_authenticated()));
+    assert!(stream.ssl().authenticate_scoped_session_publication());
+    assert!(stream.ssl().authenticate_scoped_session_publication());
+    assert!(sessions
+        .lock()
+        .unwrap()
+        .iter()
+        .all(ScopedSslSession::is_authenticated));
+    assert_eq!(
+        format!("{:?}", sessions.lock().unwrap()[0]),
+        "ScopedSslSession { .. }"
+    );
+}
+
+#[test]
+fn scoped_publication_late_tickets_inherit_completed_proof() {
+    let server = tls13_server(1).build();
+    let scope = SslSessionScope::default();
+    let sessions = Arc::new(Mutex::new(Vec::new()));
+    let client = publication_client();
+    let ssl = configured_scoped_ssl(&client, "foobar.com", &scope, &sessions, None).unwrap();
+    let mut stream = ssl.connect(server.connect_tcp()).unwrap();
+    assert!(sessions.lock().unwrap().is_empty());
+    assert!(stream.ssl().authenticate_scoped_session_publication());
+    stream.read_exact(&mut [0]).unwrap();
+    assert!(!sessions.lock().unwrap().is_empty());
+    assert!(sessions
+        .lock()
+        .unwrap()
+        .iter()
+        .all(ScopedSslSession::is_authenticated));
+}
+
+#[test]
+fn scoped_publication_custom_context_verifiers_stay_excluded_after_reset() {
+    for verifier in 0..3 {
+        for reset in [false, true] {
+            let server = tls13_server(1).build();
+            let scope = SslSessionScope::default();
+            let sessions = Arc::new(Mutex::new(Vec::new()));
+            let mut client = publication_client_builder();
+            match verifier {
+                0 => client.set_cert_verify_callback(|_| true),
+                1 => client.set_verify_callback(SslVerifyMode::PEER, |_, _| true),
+                _ => client.set_custom_verify_callback(SslVerifyMode::PEER, |_| Ok(())),
+            }
+            if reset {
+                client.set_verify(SslVerifyMode::PEER);
+            }
+            client.enable_scoped_client_sessions();
+            let client = client.build();
+            let stream =
+                connect_and_read_scoped(&server, &client, "foobar.com", &scope, &sessions, None);
+            assert!(!stream.ssl().authenticate_scoped_session_publication());
+            assert!(!sessions.lock().unwrap().is_empty());
+            assert!(sessions
+                .lock()
+                .unwrap()
+                .iter()
+                .all(|s| !s.is_authenticated()));
+        }
+    }
+}
+
+#[test]
+fn scoped_publication_custom_ssl_verifiers_before_binding_stay_excluded() {
+    for custom in [false, true] {
+        for reset in [false, true] {
+            let server = tls13_server(1).build();
+            let scope = SslSessionScope::default();
+            let sessions = Arc::new(Mutex::new(Vec::new()));
+            let client = publication_client();
+            let mut configured = client.configure().unwrap();
+            if custom {
+                configured.set_custom_verify_callback(SslVerifyMode::PEER, |_| Ok(()));
+            } else {
+                configured.set_verify_callback(SslVerifyMode::PEER, |_, _| true);
+            }
+            if reset {
+                configured.set_verify(SslVerifyMode::PEER);
+            }
+            let collected = Arc::clone(&sessions);
+            let ssl = configured
+                .into_ssl_with_scoped_session("foobar.com", &scope, None, move |session| {
+                    collected.lock().unwrap().push(session.unwrap())
+                })
+                .unwrap()
+                .unwrap();
+            let mut stream = ssl.connect(server.connect_tcp()).unwrap();
+            stream.read_exact(&mut [0]).unwrap();
+            assert!(!stream.ssl().authenticate_scoped_session_publication());
+            assert!(!sessions.lock().unwrap().is_empty());
+            assert!(sessions
+                .lock()
+                .unwrap()
+                .iter()
+                .all(|s| !s.is_authenticated()));
+        }
+    }
+}
+
+#[test]
+fn scoped_publication_custom_ssl_verifiers_after_binding_stay_excluded() {
+    for custom in [false, true] {
+        let server = tls13_server(1).build();
+        let scope = SslSessionScope::default();
+        let sessions = Arc::new(Mutex::new(Vec::new()));
+        let client = publication_client();
+        let mut ssl =
+            configured_scoped_ssl(&client, "foobar.com", &scope, &sessions, None).unwrap();
+        if custom {
+            ssl.set_custom_verify_callback(SslVerifyMode::PEER, |_| Ok(()));
+        } else {
+            ssl.set_verify_callback(SslVerifyMode::PEER, |_, _| true);
+        }
+        ssl.set_verify(SslVerifyMode::PEER);
+        let mut stream = ssl.connect(server.connect_tcp()).unwrap();
+        stream.read_exact(&mut [0]).unwrap();
+        assert!(!stream.ssl().authenticate_scoped_session_publication());
+        assert!(!sessions.lock().unwrap().is_empty());
+        assert!(sessions
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|s| !s.is_authenticated()));
+    }
+}
+
+#[test]
+fn scoped_publication_verification_mutations_permanently_retire_proof() {
+    let mutations: &[fn(&mut SslRef)] = &[
+        |ssl| ssl.set_verify(SslVerifyMode::PEER),
+        |ssl| ssl.set_verify_depth(100),
+        |ssl| ssl.set_verify_callback(SslVerifyMode::PEER, |valid, _| valid),
+        |ssl| ssl.set_custom_verify_callback(SslVerifyMode::PEER, |_| Ok(())),
+        |ssl| {
+            let _ = ssl.verify_param_mut();
+        },
+        |ssl| {
+            let _ = ssl.param_mut();
+        },
+        |ssl| {
+            ssl.set_hostname("foobar.com").unwrap();
+        },
+        |ssl| {
+            let context = ssl.ssl_context().to_owned();
+            ssl.set_ssl_context(&context).unwrap();
+        },
+        |ssl| {
+            let original = ssl.ssl_context().to_owned();
+            let other = scoped_tls13_client();
+            ssl.set_ssl_context(other.context()).unwrap();
+            ssl.set_ssl_context(&original).unwrap();
+        },
+        |ssl| {
+            let store = crate::x509::store::X509StoreBuilder::new().unwrap().build();
+            ssl.set_verify_cert_store(store).unwrap();
+        },
+        |ssl| {
+            ssl.set_verify_algorithm_prefs(&[
+                crate::ssl::SslSignatureAlgorithm::RSA_PSS_RSAE_SHA256,
+            ])
+            .unwrap();
+        },
+    ];
+    for mutate in mutations {
+        let server = tls13_server(1).build();
+        let scope = SslSessionScope::default();
+        let sessions = Arc::new(Mutex::new(Vec::new()));
+        let client = publication_client();
+        let mut stream =
+            connect_and_read_scoped(&server, &client, "foobar.com", &scope, &sessions, None);
+        assert!(stream.ssl().authenticate_scoped_session_publication());
+        assert!(sessions
+            .lock()
+            .unwrap()
+            .iter()
+            .all(ScopedSslSession::is_authenticated));
+        mutate(stream.ssl_mut());
+        assert!(!stream.ssl().authenticate_scoped_session_publication());
+        assert!(sessions
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|s| !s.is_authenticated()));
+        stream.ssl_mut().set_verify(SslVerifyMode::PEER);
+        assert!(!stream.ssl().authenticate_scoped_session_publication());
+    }
+}
+
+#[cfg(feature = "rpk")]
+#[test]
+fn scoped_publication_certificate_type_mutation_retires_proof() {
+    let server = tls13_server(1).build();
+    let scope = SslSessionScope::default();
+    let sessions = Arc::new(Mutex::new(Vec::new()));
+    let client = publication_client();
+    let mut stream =
+        connect_and_read_scoped(&server, &client, "foobar.com", &scope, &sessions, None);
+    assert!(stream.ssl().authenticate_scoped_session_publication());
+    // A mutation attempt retires provenance even if native configuration rejects it.
+    let _result = stream
+        .ssl_mut()
+        .set_server_certificate_types(&[crate::ssl::CertificateType::X509]);
+    assert!(!stream.ssl().authenticate_scoped_session_publication());
+    assert!(sessions
+        .lock()
+        .unwrap()
+        .iter()
+        .all(|s| !s.is_authenticated()));
+}
+
+#[test]
+fn scoped_publication_resumption_requires_authenticated_original_source() {
+    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
+        let mut server = Server::builder();
+        server.expected_connections_count(3);
+        server.ctx().set_min_proto_version(Some(version)).unwrap();
+        server.ctx().set_max_proto_version(Some(version)).unwrap();
+        let server = server.build();
+        let mut client = publication_client_builder();
+        client.set_min_proto_version(Some(version)).unwrap();
+        client.set_max_proto_version(Some(version)).unwrap();
+        client.enable_scoped_client_sessions();
+        let client = client.build();
+        let scope = SslSessionScope::default();
+        let sessions = Arc::new(Mutex::new(Vec::new()));
+        let first =
+            connect_and_read_scoped(&server, &client, "foobar.com", &scope, &sessions, None);
+        let source = sessions.lock().unwrap().pop().unwrap();
+        assert!(!source.is_authenticated());
+        let pending = connect_and_read_scoped(
+            &server,
+            &client,
+            "foobar.com",
+            &scope,
+            &sessions,
+            Some(&source),
+        );
+        assert!(pending.ssl().session_reused());
+        assert!(!pending.ssl().authenticate_scoped_session_publication());
+        assert!(first.ssl().authenticate_scoped_session_publication());
+        assert!(source.is_authenticated());
+        let authenticated = connect_and_read_scoped(
+            &server,
+            &client,
+            "foobar.com",
+            &scope,
+            &sessions,
+            Some(&source),
+        );
+        assert!(authenticated.ssl().session_reused());
+        assert!(authenticated
+            .ssl()
+            .authenticate_scoped_session_publication());
+    }
+}
+
+#[test]
+fn scoped_publication_disabled_verification_cannot_authenticate() {
+    let server = tls13_server(1).build();
+    let mut client = publication_client_builder();
+    client.set_verify(SslVerifyMode::NONE);
+    client.enable_scoped_client_sessions();
+    let client = client.build();
+    let scope = SslSessionScope::default();
+    let sessions = Arc::new(Mutex::new(Vec::new()));
+    let stream =
+        connect_and_read_scoped(&server, &client, "other.example", &scope, &sessions, None);
+    assert!(!stream.ssl().authenticate_scoped_session_publication());
+    assert!(!sessions.lock().unwrap().is_empty());
+    assert!(sessions
+        .lock()
+        .unwrap()
+        .iter()
+        .all(|s| !s.is_authenticated()));
+}
+
+#[test]
+fn scoped_publication_failed_handshake_remains_pending() {
+    let mut server = tls13_server(1);
+    server.should_error();
+    let server = server.build();
+    let client = publication_client();
+    let scope = SslSessionScope::default();
+    let sessions = Arc::new(Mutex::new(Vec::new()));
+    let ssl = configured_scoped_ssl(&client, "other.example", &scope, &sessions, None).unwrap();
+    let failure = ssl.connect(server.connect_tcp()).unwrap_err();
+    let crate::ssl::HandshakeError::Failure(failed) = failure else {
+        panic!("expected failed verification")
+    };
+    assert!(!failed.ssl().authenticate_scoped_session_publication());
+    assert!(sessions
+        .lock()
+        .unwrap()
+        .iter()
+        .all(|s| !s.is_authenticated()));
+}
+
+#[test]
+fn scoped_publication_early_data_waits_for_authenticated_completion() {
+    let received = Arc::new(Mutex::new(Vec::new()));
+    let server = early_data_server(Arc::clone(&received), |_| true);
+    let mut client = publication_client_builder();
+    client.enable_scoped_client_sessions_with_early_data();
+    let client = client.build();
+    let scope = SslSessionScope::default();
+    let sessions = Arc::new(Mutex::new(Vec::new()));
+    let first = connect_and_read_scoped(&server, &client, "foobar.com", &scope, &sessions, None);
+    assert!(first.ssl().authenticate_scoped_session_publication());
+    let source = sessions.lock().unwrap().pop().unwrap();
+    drop(first);
+    let mut ssl =
+        configured_scoped_ssl(&client, "foobar.com", &scope, &sessions, Some(&source)).unwrap();
+    ssl.set_early_data_enabled(true);
+    let mut stream = ssl.connect(server.connect_tcp()).unwrap();
+    assert!(stream.ssl().in_early_data());
+    assert!(!stream.ssl().authenticate_scoped_session_publication());
+    stream.write_all(b"early").unwrap();
+    stream.read_exact(&mut [0]).unwrap();
+    assert!(!stream.ssl().in_early_data());
+    assert!(stream.ssl().authenticate_scoped_session_publication());
+    drop(stream);
+    drop(server);
+    assert_eq!(*received.lock().unwrap(), [b"early".to_vec()]);
+}
+
+fn publication_client_builder() -> crate::ssl::SslConnectorBuilder {
+    let mut client = tls13_client_builder();
+    client.set_verify(SslVerifyMode::PEER);
+    client
+}
+
+fn publication_client() -> SslConnector {
+    let mut client = publication_client_builder();
+    client.enable_scoped_client_sessions();
+    client.build()
+}
+
+#[test]
 fn scoped_client_session_resumes_with_matching_scope_and_context() {
     let server = tls13_server(2);
     let server = server.build();

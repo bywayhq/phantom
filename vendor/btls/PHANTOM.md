@@ -37,7 +37,7 @@ size limit, and delegated-credential patches.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.7`), keeps
+renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.8`), keeps
 the upstream library name so source, tests, and examples are unchanged, and
 points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -176,6 +176,17 @@ peer or policy. Native serialization contains resumption secrets and omits the
 scoped wrapper's hostname, context and application scope. Scoped construction
 remains private to the real new-session callback; no import constructor is added.
 
+The authenticated-session-publication patch separates receiving a session from
+authenticating its connection. Each scoped callback shares a private pending
+token with its connection. `SslRef::authenticate_scoped_session_publication`
+checks completed native client verification before authenticating that token.
+Custom verification, unknown context provenance and later verification-policy
+mutations permanently exclude it. Resumption also requires the offered session's
+authenticated original token. `ScopedSslSession::is_authenticated` reports this
+native verification proof; it does not establish a complete portable policy
+binding. Local cache attachment, consumption and early-data choices are unchanged.
+No import permit or bytes-to-scope constructor is added.
+
 The patches are additive:
 
 - `SslRef::add_application_settings_with_payload` passes both byte strings to
@@ -236,6 +247,11 @@ The patches are additive:
 - `src/ssl/test/session_resumption.rs` checks a local TLS 1.3 round trip,
   protocol/lifetime/single-use metadata, all truncated prefixes, trailing
   bytes and malformed input without printing session secrets.
+- `src/ssl/test/session_resumption.rs` contains `scoped_publication` controls
+  for pending and late tickets, default verification, custom-verifier reset,
+  verification mutations, failed handshakes, TLS 1.2 and TLS 1.3 source
+  provenance, disabled verification and unfinished early data. The certificate
+  type mutation control additionally requires the `rpk` feature.
 - `SslSessionScope`, `ScopedSslSession`,
   `SslConnectorBuilder::enable_scoped_client_sessions`, and
   `ConnectConfiguration::into_ssl_with_scoped_session` keep session
@@ -370,6 +386,7 @@ cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --lo
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::key_update
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked scoped_client_session
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked strict_session_bytes
+cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked scoped_publication
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked record_size_limit
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked delegated_credentials
@@ -394,6 +411,7 @@ cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::alps
 cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::key_update
 cargo test --manifest-path vendor/btls/Cargo.toml --locked scoped_client_session
 cargo test --manifest-path vendor/btls/Cargo.toml --locked strict_session_bytes
+cargo test --manifest-path vendor/btls/Cargo.toml --locked scoped_publication
 cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --locked record_size_limit
 cargo test --manifest-path vendor/btls/Cargo.toml --locked delegated_credentials

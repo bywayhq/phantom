@@ -1179,6 +1179,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Discover and select compiled profile revisions by exact catalog identity.
   Inspect per-layer support and evidence, and require layers explicitly.
+- Expose authenticated publication status for scoped TLS sessions. It requires
+  a completed default peer-verification handshake and excludes custom verification.
 
 - Reject trailing, truncated and malformed native TLS session records when
   decoding them with `SslSession::from_bytes`.

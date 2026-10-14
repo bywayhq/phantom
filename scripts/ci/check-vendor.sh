@@ -294,6 +294,8 @@ case "${1:-}" in
     cargo test --manifest-path vendor/btls/Cargo.toml \
       "${btls_features[@]}" --locked strict_session_bytes
     cargo test --manifest-path vendor/btls/Cargo.toml \
+      "${btls_features[@]}" --locked scoped_publication
+    cargo test --manifest-path vendor/btls/Cargo.toml \
       "${btls_features[@]}" --locked record_size_limit
     cargo test --manifest-path vendor/btls/Cargo.toml \
       "${btls_features[@]}" --locked delegated_credentials
