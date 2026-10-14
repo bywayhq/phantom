@@ -4090,9 +4090,10 @@ Limits:
 - A request that finds the connection past its limit closes it at once,
   where Firefox leaves it to the next prune, at most a second later.
 - An HTTP/2 connection to an HTTPS proxy stops taking new tunnels past the
-  limit, but closes only when the next tunnel to that proxy replaces it,
-  not on the timer. The proxy pool lives in `phantom-net`, outside the
-  client's timer.
+  limit. Its own timer retires it without another checkout. Existing tunnels
+  and caller-owned handles keep it alive until released. The
+  [proxy idle controls](../internals/transport-profile-evidence/proxy-h2-idle.md)
+  verify that behavior locally; a browser idle-closure capture is absent.
 
 ### TLS close evidence
 
