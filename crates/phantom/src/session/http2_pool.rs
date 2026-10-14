@@ -78,6 +78,7 @@ pub(crate) enum Http2ConnectionMode {
 }
 
 pub(crate) struct Http2Pool {
+    tickets: Arc<super::tickets::TicketOwner>,
     capacity: NonZeroUsize,
     max_active: NonZeroUsize,
     max_pending: NonZeroUsize,
@@ -97,6 +98,7 @@ impl Http2Pool {
         max_pending: NonZeroUsize,
     ) -> Self {
         Self {
+            tickets: Arc::default(),
             capacity,
             max_active,
             max_pending,
@@ -106,6 +108,11 @@ impl Http2Pool {
             #[cfg(feature = "https-records")]
             https_records: None,
         }
+    }
+
+    pub(super) fn with_ticket_owner(mut self, tickets: Arc<super::tickets::TicketOwner>) -> Self {
+        self.tickets = tickets;
+        self
     }
 
     /// Gives direct connections the client's HTTPS record lookups, for
@@ -366,15 +373,21 @@ impl Http2Pool {
         endpoint: &Endpoint,
         route: &Route,
     ) -> Http2TlsConnector {
-        self.entry(PoolKey::new(
-            endpoint,
-            route,
-            Http2ConnectionMode::TlsOrigin,
-        ))
-        .await
-        .connector
-        .get_or_init(|| base.with_isolated_session_cache())
-        .clone()
+        let entry = self
+            .entry(PoolKey::new(
+                endpoint,
+                route,
+                Http2ConnectionMode::TlsOrigin,
+            ))
+            .await;
+        entry
+            .connector
+            .get_or_init(|| {
+                let connector = base.with_isolated_session_cache();
+                entry.tickets.register(connector.session_ticket_cache());
+                connector
+            })
+            .clone()
     }
 
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
@@ -408,6 +421,7 @@ impl Http2Pool {
         if key.route == Route::Direct {
             entry.https_records = self.https_records.clone();
         }
+        entry.tickets = Arc::clone(&self.tickets);
         let entry = Arc::new(entry);
         if let Some(timer) = &self.prune_timer {
             let pruned: Arc<dyn PrunedEntry> = entry.clone();
@@ -476,6 +490,7 @@ impl PoolKey {
 }
 
 struct PoolEntry {
+    tickets: Arc<super::tickets::TicketOwner>,
     /// The key's connections, oldest first. The lock is never held across an
     /// await; a setup in flight is counted in it instead.
     connections: std::sync::Mutex<Connections>,
@@ -495,6 +510,7 @@ struct PoolEntry {
 impl PoolEntry {
     fn new(admission: Arc<Admission>, spread: Http2Spread) -> Self {
         Self {
+            tickets: Arc::default(),
             connections: std::sync::Mutex::new(Connections {
                 slots: Vec::new(),
                 connecting: false,
@@ -655,9 +671,11 @@ impl PoolEntry {
         route: &Route,
         mode: Http2ConnectionMode,
     ) -> Result<Http2Connection, RequestError> {
-        let connector = self
-            .connector
-            .get_or_init(|| connector.with_isolated_session_cache());
+        let connector = self.connector.get_or_init(|| {
+            let connector = connector.with_isolated_session_cache();
+            self.tickets.register(connector.session_ticket_cache());
+            connector
+        });
         let connection = match route {
             // The forwarding connector's pool decides whether this proxy
             // connection also carries other origins' forwarded requests and
@@ -665,9 +683,11 @@ impl PoolEntry {
             Route::HttpProxy(proxy) if mode == Http2ConnectionMode::Forward => {
                 let base = https_proxy
                     .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
-                let proxy_connector = self
-                    .https_proxy
-                    .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
+                let proxy_connector = self.https_proxy.get_or_init(|| {
+                    let connector = proxy.https_connector(&base.with_isolated_session_cache());
+                    self.tickets.register(connector.session_ticket_cache());
+                    connector
+                });
                 super::box_send(connector.connect(phantom_net::route::Http2Route::Forward {
                     proxy: phantom_net::route::ProxyTransport::Tls {
                         endpoint: phantom_net::route::Endpoint {
@@ -703,9 +723,11 @@ impl PoolEntry {
                 let transport = if proxy.uses_tls() {
                     let base = https_proxy
                         .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
-                    let proxy_connector = self
-                        .https_proxy
-                        .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
+                    let proxy_connector = self.https_proxy.get_or_init(|| {
+                        let connector = proxy.https_connector(&base.with_isolated_session_cache());
+                        self.tickets.register(connector.session_ticket_cache());
+                        connector
+                    });
                     phantom_net::route::ProxyTransport::Tls {
                         endpoint: proxy_endpoint,
                         server_name: proxy.host(),

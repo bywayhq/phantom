@@ -62,6 +62,7 @@ pub(crate) enum Http1ConnectionMode {
 /// and the client's prune timer, when it has one, closes it between
 /// requests.
 pub(crate) struct Http1Pool {
+    tickets: Arc<super::tickets::TicketOwner>,
     capacity: NonZeroUsize,
     max_active: NonZeroUsize,
     max_pending: NonZeroUsize,
@@ -79,6 +80,7 @@ impl Http1Pool {
         max_pending: NonZeroUsize,
     ) -> Self {
         Self {
+            tickets: Arc::default(),
             capacity,
             max_active,
             max_pending,
@@ -88,6 +90,11 @@ impl Http1Pool {
             #[cfg(feature = "https-records")]
             https_records: None,
         }
+    }
+
+    pub(super) fn with_ticket_owner(mut self, tickets: Arc<super::tickets::TicketOwner>) -> Self {
+        self.tickets = tickets;
+        self
     }
 
     /// Closes an idle connection instead of reusing it once it has been idle
@@ -377,15 +384,21 @@ impl Http1Pool {
         endpoint: &Endpoint,
         route: &Route,
     ) -> Http1TlsConnector {
-        self.entry(PoolKey::new(
-            endpoint,
-            route,
-            Http1ConnectionMode::TlsOrigin,
-        ))
-        .await
-        .connector
-        .get_or_init(|| base.with_isolated_session_cache())
-        .clone()
+        let entry = self
+            .entry(PoolKey::new(
+                endpoint,
+                route,
+                Http1ConnectionMode::TlsOrigin,
+            ))
+            .await;
+        entry
+            .connector
+            .get_or_init(|| {
+                let connector = base.with_isolated_session_cache();
+                entry.tickets.register(connector.session_ticket_cache());
+                connector
+            })
+            .clone()
     }
 
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
@@ -424,6 +437,7 @@ impl Http1Pool {
         if key.route == Route::Direct {
             entry.https_records = self.https_records.clone();
         }
+        entry.tickets = Arc::clone(&self.tickets);
         let entry = Arc::new(entry);
         state.entries.push_back((key, Arc::clone(&entry)));
         entry
@@ -567,6 +581,7 @@ impl PoolKey {
 }
 
 struct PoolEntry {
+    tickets: Arc<super::tickets::TicketOwner>,
     connections: Arc<EntryConnections>,
     admission: Arc<Admission>,
     connector: OnceLock<Http1TlsConnector>,
@@ -578,6 +593,7 @@ struct PoolEntry {
 impl PoolEntry {
     fn new(admission: Arc<Admission>, connections: Arc<EntryConnections>) -> Self {
         Self {
+            tickets: Arc::default(),
             connections,
             admission,
             connector: OnceLock::new(),
@@ -685,8 +701,11 @@ impl PoolEntry {
         mode: Http1ConnectionMode,
     ) -> Result<Opened, RequestError> {
         let connector = if mode == Http1ConnectionMode::TlsOrigin {
-            self.connector
-                .get_or_init(|| connector.with_isolated_session_cache())
+            self.connector.get_or_init(|| {
+                let connector = connector.with_isolated_session_cache();
+                self.tickets.register(connector.session_ticket_cache());
+                connector
+            })
         } else {
             connector
         };
@@ -728,9 +747,11 @@ impl PoolEntry {
                 let transport = if proxy.uses_tls() {
                     let base = https_proxy
                         .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http1))?;
-                    let proxy_connector = self
-                        .https_proxy
-                        .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
+                    let proxy_connector = self.https_proxy.get_or_init(|| {
+                        let connector = proxy.https_connector(&base.with_isolated_session_cache());
+                        self.tickets.register(connector.session_ticket_cache());
+                        connector
+                    });
                     ProxyTransport::Tls {
                         endpoint,
                         server_name: proxy.host(),

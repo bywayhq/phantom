@@ -102,6 +102,7 @@ pub(crate) struct ConnectUdpConnectors {
 }
 
 pub(crate) struct Http3Pool {
+    tickets: Arc<super::tickets::TicketOwner>,
     capacity: NonZeroUsize,
     max_active: NonZeroUsize,
     max_pending: NonZeroUsize,
@@ -121,6 +122,7 @@ impl Http3Pool {
         max_pending: NonZeroUsize,
     ) -> Self {
         Self {
+            tickets: Arc::default(),
             capacity,
             max_active,
             max_pending,
@@ -132,6 +134,11 @@ impl Http3Pool {
             #[cfg(feature = "https-records")]
             alt_svc_https_policy: crate::AltSvcHttpsPolicy::OriginOnly,
         }
+    }
+
+    pub(super) fn with_ticket_owner(mut self, tickets: Arc<super::tickets::TicketOwner>) -> Self {
+        self.tickets = tickets;
+        self
     }
 
     /// Lets each transport location of a pool entry keep up to `maximum`
@@ -395,7 +402,7 @@ impl Http3Pool {
             debug!(outcome = "evicted", "HTTP/3 pool entry evicted");
         }
         let admission = state.admission(&key, self.max_active, self.max_pending);
-        let entry = Arc::new(PoolEntry::new(
+        let mut entry = PoolEntry::new(
             admission,
             Http3Spread::new(self.max_connections, self.max_active),
             self.rtt_history.clone(),
@@ -403,7 +410,9 @@ impl Http3Pool {
             self.https_records.clone(),
             #[cfg(feature = "https-records")]
             self.alt_svc_https_policy,
-        ));
+        );
+        entry.tickets = Arc::clone(&self.tickets);
+        let entry = Arc::new(entry);
         state.entries.push_back((key, Arc::clone(&entry)));
         entry
     }
@@ -486,6 +495,7 @@ const _: () =
     assert!(super::alt_svc::MAX_RACED_ALTERNATIVES == MAX_TRANSPORT_LOCATIONS_PER_ENTRY - 1);
 
 struct PoolEntry {
+    tickets: Arc<super::tickets::TicketOwner>,
     /// The entry's connections and how streams spread across them. The lock
     /// is held for lookup and insertion only, never across an await.
     slots: std::sync::Mutex<Slots>,
@@ -524,6 +534,7 @@ impl PoolEntry {
         #[cfg(feature = "https-records")] alt_svc_https_policy: crate::AltSvcHttpsPolicy,
     ) -> Self {
         Self {
+            tickets: Arc::default(),
             slots: std::sync::Mutex::new(Slots {
                 connections: VecDeque::new(),
                 spread,
@@ -787,9 +798,11 @@ impl PoolEntry {
         // retry. `open` also bounds this wait with the whole setup budget.
         #[cfg(feature = "https-records")]
         let destination = self.destination_plan(connector, route, transport).await?;
-        let origin = self
-            .origin
-            .get_or_init(|| connector.without_early_data().with_isolated_session_cache());
+        let origin = self.origin.get_or_init(|| {
+            let connector = connector.without_early_data().with_isolated_session_cache();
+            self.tickets.register(connector.session_ticket_cache());
+            connector
+        });
         let early_origin = self
             .origin_early
             .get_or_init(|| {
@@ -970,8 +983,11 @@ impl PoolEntry {
                         // dedicated origin-and-route-scoped cache.
                         let connector = if protocol == phantom_net::proxy::HttpsProxyProtocol::Http1
                         {
-                            self.tcp_proxy
-                                .get_or_init(|| base.with_isolated_session_cache())
+                            self.tcp_proxy.get_or_init(|| {
+                                let connector = base.with_isolated_session_cache();
+                                self.tickets.register(connector.session_ticket_cache());
+                                connector
+                            })
                         } else {
                             base
                         };

@@ -32,7 +32,9 @@ use crate::key_schedule::{
     CipherSuite as QuicCipherSuite, PacketKeyPair, TrafficKeySchedule, TrafficKeys, TrafficSecret,
     derive_version_keys,
 };
-use crate::resumption::{ApplicationState, ResumptionTicket, SessionCache};
+use crate::resumption::{
+    ApplicationState, QuicSessionTicketCache, ResumptionTicket, SessionCache, SessionCacheCapture,
+};
 use crate::transport_parameters::{QuicTransportProfileError, TransportParameterProfile};
 use crate::{EndpointSide, QuicVersion, derive_initial_keys, verify_retry_integrity};
 
@@ -435,6 +437,14 @@ impl QuicClientConfig {
         self.sessions.is_some()
     }
 
+    /// Returns a weak control for this configuration's isolated ticket cache.
+    ///
+    /// No handle is returned when session retention is disabled.
+    #[must_use]
+    pub fn session_ticket_cache(&self) -> Option<QuicSessionTicketCache> {
+        self.sessions.as_ref().map(SessionCache::control)
+    }
+
     #[cfg(test)]
     pub(crate) const fn session_cache(&self) -> Option<&SessionCache> {
         self.sessions.as_ref()
@@ -669,8 +679,8 @@ impl crypto::ClientConfig for QuicClientConfig {
         validate_server_name_inner(server_name)
             .map_err(|_| ConnectError::InvalidServerName(server_name.into()))?;
 
-        let offered = self
-            .sessions
+        let capture = self.sessions.as_ref().map(SessionCache::capture);
+        let offered = capture
             .as_ref()
             .filter(|_| self.offer_tickets)
             .and_then(|sessions| {
@@ -737,13 +747,13 @@ impl crypto::ClientConfig for QuicClientConfig {
         let mut state = SessionState::new(version, backend);
         state.ech = self.ech.clone();
         state.remembered_transport_parameters = remembered.filter(|_| early_data);
-        state.ticket_sink = self.sessions.clone().map(|sessions| TicketSink {
+        state.ticket_sink = capture.clone().map(|sessions| TicketSink {
             sessions,
             server_name: server_name.into(),
         });
         if let Some(application_state) = &self.application_state {
-            let generation = application_state.start(
-                self.sessions
+            let generation = application_state.start_capture(
+                capture
                     .clone()
                     .map(|sessions| (sessions, Box::from(server_name))),
                 remembered_state.filter(|_| early_data),
@@ -1160,7 +1170,7 @@ struct SessionState {
     ticket_sink: Option<TicketSink>,
     /// Holds received tickets until their application state is known, with
     /// this connection's generation on the handle.
-    application_state: Option<(ApplicationState, u64)>,
+    application_state: Option<(ApplicationState, Arc<()>)>,
     /// The client's 0-RTT write secret, present only while offering early data.
     early_secret: Option<(u16, TrafficSecret)>,
     /// Set once a server moved the connection to another version, which withdraws early
@@ -1177,7 +1187,7 @@ struct SessionState {
 
 /// Where a completed connection stores the tickets its peer issues.
 struct TicketSink {
-    sessions: SessionCache,
+    sessions: SessionCacheCapture,
     server_name: Box<str>,
 }
 
@@ -1280,7 +1290,7 @@ impl SessionState {
                 };
                 match &self.application_state {
                     Some((application_state, generation)) => {
-                        application_state.receive(*generation, ticket);
+                        application_state.receive(generation, ticket);
                     }
                     None => sink.sessions.insert(&sink.server_name, ticket),
                 }

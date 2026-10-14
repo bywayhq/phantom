@@ -670,7 +670,7 @@ fn held_tickets_are_bounded_and_dropped_with_oversized_state() {
     let state = ApplicationState::new();
     let generation = state.start(Some((cache.clone(), Box::from(SERVER_NAME))), None);
     for ticket in tickets.iter().cloned() {
-        state.receive(generation, ticket);
+        state.receive(&generation, ticket);
     }
     assert_eq!(state.held_len(), MAX_HELD_TICKETS);
     assert!(state.store(b"settings"));
@@ -680,10 +680,10 @@ fn held_tickets_are_bounded_and_dropped_with_oversized_state() {
 
     let refused = ApplicationState::new();
     let generation = refused.start(Some((cache.clone(), Box::from(SERVER_NAME))), None);
-    refused.receive(generation, tickets[0].clone());
+    refused.receive(&generation, tickets[0].clone());
     assert!(!refused.store(&[0; MAX_APPLICATION_STATE_LEN + 1]));
     assert_eq!(refused.held_len(), 0);
-    refused.receive(generation, tickets[1].clone());
+    refused.receive(&generation, tickets[1].clone());
     assert_eq!(refused.held_len(), 0);
     assert_eq!(cache.len(), MAX_HELD_TICKETS - 1);
 }
@@ -727,11 +727,11 @@ fn a_reused_application_state_handle_starts_empty_for_each_connection() {
     let cache = test_some(early.session_cache(), "isolated session cache");
     let ticket = test_some(cache.take(SERVER_NAME), "second connection's ticket");
     assert_eq!(ticket.application_state.as_deref(), Some(&b"second"[..]));
+    let stale_generation = state.generation();
     let third = start(&config);
     assert!(third.early_crypto().is_none());
     assert_eq!(state.remembered(), None);
-    let stale_generation = 2;
-    state.receive(stale_generation, ticket);
+    state.receive(&stale_generation, ticket);
     assert_eq!(state.held_len(), 0);
     assert!(state.store(b"third"));
     assert_eq!(cache_len(&early), 0);
@@ -752,6 +752,60 @@ fn a_malformed_ticket_fails_the_connection_with_its_alert_and_stores_nothing() {
     // decode_error (50), carried as a QUIC CRYPTO_ERROR (RFC 9001, section 4.8).
     assert_eq!(error.code, TransportErrorCode::crypto(50));
     assert_eq!(cache_len(&config), 0);
+}
+
+#[test]
+fn clearing_a_cache_retires_late_handshake_callbacks_and_allows_new_tickets() {
+    let context = server_context();
+    let config = Arc::new(resuming_config().with_isolated_session_cache());
+    let control = test_some(config.session_ticket_cache(), "ticket cache control");
+    let server = test_ok(RawServer::new(&context), "server session");
+    let (mut old, _withheld) = handshake_without_tickets(start(&config), server);
+    assert_eq!(control.clear(), 0);
+    test_ok(
+        old.read_handshake(&new_session_ticket(7200, &[])),
+        "late ticket",
+    );
+    assert_eq!(cache_len(&config), 0);
+
+    let first = handshake(&config, &context);
+    assert!(!resumed(first.as_ref()));
+    assert_eq!(cache_len(&config), 1);
+    assert_eq!(control.clear(), 1);
+    assert_eq!(cache_len(&config), 0);
+    let second = handshake(&config, &context);
+    assert!(!resumed(second.as_ref()));
+    let third = handshake(&config, &context);
+    assert!(resumed(third.as_ref()));
+}
+
+#[test]
+fn clearing_a_cache_removes_held_tickets_and_refuses_the_old_state() {
+    let context = server_context();
+    let config = Arc::new(resuming_config().with_isolated_session_cache());
+    handshake(&config, &context);
+    let cache = test_some(config.session_cache(), "ticket cache");
+    let ticket = test_some(cache.take(SERVER_NAME), "retained ticket");
+    let state = ApplicationState::new();
+    let generation = state.start(Some((cache.clone(), Box::from(SERVER_NAME))), None);
+    state.receive(&generation, ticket.clone());
+    assert_eq!(state.held_len(), 1);
+    assert_eq!(
+        test_some(config.session_ticket_cache(), "ticket control").clear(),
+        1
+    );
+    assert_eq!(state.held_len(), 0);
+    assert!(!state.store(b"late settings"));
+    state.receive(&generation, ticket.clone());
+    assert_eq!(state.held_len(), 0);
+    assert_eq!(cache.len(), 0);
+
+    let fresh = state.start(Some((cache.clone(), Box::from(SERVER_NAME))), None);
+    state.receive(&generation, ticket.clone());
+    assert_eq!(state.held_len(), 0);
+    state.receive(&fresh, ticket);
+    assert!(state.store(b"fresh settings"));
+    assert_eq!(cache.len(), 1);
 }
 
 #[test]

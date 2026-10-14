@@ -274,6 +274,14 @@ impl Http3Connector {
         self.with_crypto(self.crypto.with_isolated_session_cache())
     }
 
+    /// Returns a weak control for this connector's isolated QUIC ticket cache.
+    #[must_use]
+    pub fn session_ticket_cache(&self) -> Option<crate::SessionTicketCache> {
+        self.crypto
+            .session_ticket_cache()
+            .map(crate::SessionTicketCache::quic)
+    }
+
     /// Returns whether connections from this connector resume sessions.
     #[must_use]
     pub fn resumes_sessions(&self) -> bool {

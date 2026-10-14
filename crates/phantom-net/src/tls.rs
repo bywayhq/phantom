@@ -35,6 +35,7 @@ use self::configuration::extension_order_trace_name;
 #[cfg(test)]
 use self::configuration::require_supported;
 pub(crate) use self::early_data::{EarlyDataFailure, EarlyDataWait};
+pub(crate) use self::session_cache::TlsSessionControl;
 use self::{
     early_data::EarlyData,
     session_cache::{TicketOrder, TlsSessionCache},
@@ -265,6 +266,12 @@ impl TlsConnector {
             .filter(|_| self.scoped_sessions_enabled)
             .map(|limit| TlsSessionCache::new(limit.get(), self.session_ticket_order));
         connector
+    }
+
+    pub(crate) fn session_ticket_cache(&self) -> Option<crate::SessionTicketCache> {
+        self.session_cache
+            .as_ref()
+            .map(|cache| crate::SessionTicketCache::tcp(cache.control()))
     }
 
     /// Returns a clone that presents `certificate` when a server requests
@@ -649,7 +656,8 @@ impl TlsConnector {
             }
 
             let ssl = if let Some(cache) = &self.session_cache {
-                let session = cache.take(server_name);
+                let capture = cache.begin_handshake(server_name);
+                let session = capture.take_session();
                 // BoringSSL keeps the empty TLS 1.2 `session_ticket`
                 // extension beside a TLS 1.3 PSK. `SSL_OP_NO_TICKET` on this
                 // connection alone omits it, as NSS does; the connection
@@ -668,7 +676,6 @@ impl TlsConnector {
                     && session
                         .as_ref()
                         .is_some_and(btls::ssl::ScopedSslSession::early_data_capable);
-                let capture = cache.begin_handshake(server_name);
                 let callback_capture = capture.clone();
                 let mut ssl = configuration
                     .into_ssl_with_scoped_session(
@@ -747,10 +754,10 @@ impl TlsConnector {
             if session_reused
                 && !in_early_data
                 && captured_session_count == 0
-                && let (Some(cache), Some(session)) =
-                    (&self.session_cache, attempted_reusable_session)
+                && let (Some(capture), Some(session)) =
+                    (&session_capture, attempted_reusable_session)
             {
-                cache.restore(server_name, session);
+                capture.restore(session);
             }
             span.record("negotiated_alpn", trace_alpn(negotiated_alpn.as_deref()));
             record_alps_negotiation(&span, peer_application_settings.as_deref());

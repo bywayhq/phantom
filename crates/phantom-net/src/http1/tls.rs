@@ -176,6 +176,12 @@ impl Http1TlsConnector {
         }
     }
 
+    /// Returns a weak control for this connector's isolated TLS ticket cache.
+    #[must_use]
+    pub fn session_ticket_cache(&self) -> Option<crate::SessionTicketCache> {
+        self.tls.session_ticket_cache()
+    }
+
     /// Returns a clone, sharing this connector's TLS context and session
     /// cache, that offers `protocols` by ALPN.
     ///

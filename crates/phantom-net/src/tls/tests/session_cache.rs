@@ -601,6 +601,166 @@ async fn resume_alone(
     Ok(())
 }
 
+#[tokio::test]
+async fn clear_drops_pending_tickets_and_refuses_late_tls12_restore() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let connector = TlsConnector::new_with_roots(&tls12_settings(), [identity.root_der()])?
+        .with_isolated_session_cache();
+    let cache = connector
+        .session_cache
+        .as_ref()
+        .ok_or("ticket cache missing")?;
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    let acceptor = tls12_acceptor(&identity)?;
+    let mut peer = tokio::spawn(async move {
+        for _ in 0..4 {
+            let stream = accept_tls_from(&listener, &acceptor).await?;
+            assert!(!stream.ssl().session_reused());
+        }
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+    });
+    let received = async {
+        let mut tickets = Vec::new();
+        for _ in 0..4 {
+            drop(connect_local(&connector, address, TEST_SERVER_NAME).await??);
+            tickets.push(
+                cache
+                    .take(TEST_SERVER_NAME)
+                    .ok_or("TLS 1.2 ticket missing")?,
+            );
+        }
+        Ok::<_, Box<dyn std::error::Error + Send + Sync>>(tickets)
+    }
+    .await;
+    let mut tickets = finish_ticket_control_peer(received, &mut peer, TEST_TIMEOUT).await?;
+    let pending = cache.begin_handshake(TEST_SERVER_NAME);
+    pending.capture(Ok(tickets.pop().ok_or("pending ticket missing")?));
+    let restore = cache.begin_handshake(TEST_SERVER_NAME);
+    assert_eq!(cache.control().clear(), 1);
+    assert_eq!(pending.commit_authenticated(), 0);
+    pending.capture(Ok(tickets.pop().ok_or("late ticket missing")?));
+    restore.restore(tickets.pop().ok_or("restored ticket missing")?);
+    assert_eq!(cache.len(), 0);
+
+    let fresh = cache.begin_handshake(TEST_SERVER_NAME);
+    fresh.restore(tickets.pop().ok_or("fresh ticket missing")?);
+    assert_eq!(cache.len(), 1);
+    assert!(pending.take_session().is_none());
+    assert!(fresh.take_session().is_some());
+    Ok(())
+}
+
+async fn finish_ticket_control_peer<T>(
+    primary: TestResult<T>,
+    peer: &mut JoinHandle<TestResult<()>>,
+    deadline: std::time::Duration,
+) -> TestResult<T> {
+    let abort_requested = primary.is_err();
+    if abort_requested {
+        peer.abort();
+    }
+    let cleanup = match tokio::time::timeout(deadline, &mut *peer).await {
+        Ok(joined) => ticket_control_join(joined, abort_requested),
+        Err(error) => {
+            peer.abort();
+            let joined = match tokio::time::timeout(TEST_TIMEOUT, &mut *peer).await {
+                Ok(joined) => ticket_control_join(joined, true),
+                Err(error) => Err(error.into()),
+            };
+            combine_ticket_control(Err(error.into()), joined)
+        }
+    };
+    combine_ticket_control(primary, cleanup)
+}
+
+fn ticket_control_join(
+    joined: Result<TestResult<()>, tokio::task::JoinError>,
+    abort_requested: bool,
+) -> TestResult<()> {
+    match joined {
+        Ok(result) => result,
+        Err(error) if abort_requested && error.is_cancelled() => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn combine_ticket_control<T>(primary: TestResult<T>, cleanup: TestResult<()>) -> TestResult<T> {
+    match (primary, cleanup) {
+        (Ok(value), Ok(())) => Ok(value),
+        (Err(error), Ok(())) | (Ok(_), Err(error)) => Err(error),
+        (Err(primary), Err(cleanup)) => Err(TicketControlFailures { primary, cleanup }.into()),
+    }
+}
+
+#[derive(Debug)]
+struct TicketControlFailures {
+    primary: Box<dyn std::error::Error + Send + Sync>,
+    cleanup: Box<dyn std::error::Error + Send + Sync>,
+}
+
+impl std::fmt::Display for TicketControlFailures {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            formatter,
+            "{}; ticket peer cleanup failed: {}",
+            self.primary, self.cleanup
+        )
+    }
+}
+
+impl std::error::Error for TicketControlFailures {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(self.primary.as_ref())
+    }
+}
+
+#[tokio::test]
+async fn ticket_control_cleanup_retains_body_errors_and_peer_panics() -> TestResult<()> {
+    let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
+    let mut peer = tokio::spawn(async move {
+        let _ = ready_tx.send(());
+        panic!("ticket control peer panic");
+        #[allow(unreachable_code)]
+        Ok(())
+    });
+    ready_rx.await?;
+    let result: TestResult<()> = finish_ticket_control_peer(
+        Err(std::io::Error::other("initiating control error").into()),
+        &mut peer,
+        TEST_TIMEOUT,
+    )
+    .await;
+    let error = result.err().ok_or("peer panic was lost")?;
+    assert!(error.to_string().contains("initiating control error"));
+    assert!(error.to_string().contains("ticket control peer panic"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn ticket_control_cleanup_retains_timeout_and_completed_peer_failure() -> TestResult<()> {
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
+    let mut peer = tokio::task::spawn_blocking(move || {
+        let _ = ready_tx.send(());
+        let _ = release_rx.recv();
+        Err(std::io::Error::other("completed ticket peer failure").into())
+    });
+    ready_rx.await?;
+    let (result, released) = tokio::join!(
+        finish_ticket_control_peer(Ok(()), &mut peer, std::time::Duration::from_millis(10)),
+        async {
+            tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+            release_tx.send(())
+        }
+    );
+    released?;
+    let error = result.err().ok_or("peer timeout was lost")?;
+    assert!(error.to_string().contains("deadline has elapsed"));
+    assert!(error.to_string().contains("completed ticket peer failure"));
+    Ok(())
+}
+
 /// A self-signed P-256 client certificate and its key.
 fn client_certificate() -> TestResult<ClientCertificate> {
     let key = rcgen::KeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256)?;

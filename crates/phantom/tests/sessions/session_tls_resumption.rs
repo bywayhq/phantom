@@ -136,6 +136,63 @@ async fn tls12_resumption_survives_http1_connection_close() -> TestResult<()> {
     finish(result, server).await
 }
 
+#[tokio::test]
+async fn clearing_shared_client_tickets_forces_full_tcp_handshakes() -> TestResult<()> {
+    for protocol in [HttpProtocol::Http1, HttpProtocol::Http2] {
+        let mut server = None;
+        let result = bounded(async {
+            let identity = TestIdentity::generate()?;
+            let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+            let address = listener.local_addr()?;
+            let (version, alpn, acceptor, client) = if protocol == HttpProtocol::Http1 {
+                (
+                    SslVersion::TLS1_2,
+                    b"http/1.1".as_slice(),
+                    tls12_acceptor(&identity)?,
+                    tls_support::test_client(&identity, false)?,
+                )
+            } else {
+                (
+                    SslVersion::TLS1_3,
+                    b"h2".as_slice(),
+                    tls13_acceptor(&identity, Arc::new(AtomicUsize::new(0)))?,
+                    tls13_client(&identity)?,
+                )
+            };
+            let (closed_tx, mut closed) = tokio::sync::mpsc::unbounded_channel();
+            server = Some(ConnectionPeer::spawn(async move {
+                for (path, resumed) in [("/first", false), ("/cleared", false), ("/fresh", true)] {
+                    let stream = accept_tls(&listener, &acceptor).await?;
+                    assert_tls(stream.ssl(), version, alpn, resumed);
+                    if protocol == HttpProtocol::Http1 {
+                        serve_http1(stream, path).await?;
+                    } else {
+                        serve_one(stream, path).await?;
+                    }
+                    closed_tx
+                        .send(())
+                        .map_err(|_| "client stopped before peer completion")?;
+                }
+                Ok(())
+            }));
+            send(&client, protocol, format!("https://{address}/first")).await?;
+            closed.recv().await.ok_or("peer stopped")?;
+            let clone = client.clone();
+            assert!(clone.clear_session_tickets() > 0);
+            assert_eq!(client.clear_session_tickets(), 0);
+            send(&client, protocol, format!("https://{address}/cleared")).await?;
+            closed.recv().await.ok_or("peer stopped")?;
+            send(&client, protocol, format!("https://{address}/fresh")).await?;
+            closed.recv().await.ok_or("peer stopped")?;
+            join(&mut server).await?;
+            Ok(())
+        })
+        .await;
+        finish(result, server).await?;
+    }
+    Ok(())
+}
+
 fn tls13_acceptor(
     identity: &TestIdentity,
     early_data_hellos: Arc<AtomicUsize>,

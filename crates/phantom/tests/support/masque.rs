@@ -304,10 +304,14 @@ impl MasqueProxy {
 
     /// Stops accepting, joins every connection child and retains typed failures.
     pub(crate) async fn finish(&mut self) -> TestResult<()> {
+        self.finish_before(STREAM_SHUTDOWN).await
+    }
+
+    async fn finish_before(&mut self, deadline: Duration) -> TestResult<()> {
         let mut result = Ok(());
         if !self.finished {
             self.close.send_modify(|state| state.shutdown = true);
-            match timeout(STREAM_SHUTDOWN, &mut self.task).await {
+            match timeout(deadline, &mut self.task).await {
                 Ok(joined) => {
                     self.finished = true;
                     result = joined.map_err(Into::into);
@@ -1583,6 +1587,49 @@ mod tests {
             .ok_or("missing client driver")?;
         // A transport error or EOF is expected; a driver panic is not.
         let _transport_result = closed?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod ticket_clear_shutdown_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn shutdown_timeout_keeps_the_owner_and_recorded_failure() -> TestResult<()> {
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let (started_tx, started_rx) = tokio::sync::oneshot::channel();
+        let task = tokio::task::spawn_blocking(move || {
+            let _ = started_tx.send(());
+            let _ = release_rx.recv();
+        });
+        let (close, _) = watch::channel(CloseState::default());
+        let log = Arc::new(Mutex::new(ProxyLog::default()));
+        lock(&log)
+            .failures
+            .push(io::Error::other("retained peer failure").into());
+        let mut proxy = MasqueProxy {
+            address: "127.0.0.1:0".parse()?,
+            log,
+            close,
+            task,
+            finished: false,
+            endpoint: relay_endpoint(&TestIdentity::generate()?, None)?.1,
+        };
+        let started = started_rx.await;
+        let result = proxy.finish_before(Duration::from_millis(10)).await;
+        let retained = !proxy.finished;
+        // Release the unabortable blocking control before checking assertions.
+        let released = release_tx.send(());
+        let retry = proxy.finish().await;
+        started?;
+        released?;
+        retry?;
+        assert!(retained);
+        assert!(proxy.finished);
+        let error = result.err().ok_or("shutdown unexpectedly completed")?;
+        assert!(error.to_string().contains("deadline has elapsed"));
+        assert!(error.to_string().contains("retained peer failure"));
         Ok(())
     }
 }

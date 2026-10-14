@@ -320,6 +320,12 @@ impl HttpsProxyConnector {
         }
     }
 
+    /// Returns a weak control for this connector's isolated proxy TLS cache.
+    #[must_use]
+    pub fn session_ticket_cache(&self) -> Option<crate::SessionTicketCache> {
+        self.tls.session_ticket_cache()
+    }
+
     pub(crate) async fn connect_forward(
         &self,
         proxy_host: &str,

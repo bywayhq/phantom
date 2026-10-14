@@ -307,6 +307,14 @@ replay for `Alt-Used` on H1, H2 or H3. Other custom hint names retain their
 configured behavior. See [Alt-Used](profiles.md#alt-used-on-http3) for emission
 and template placement.
 
+`Client::clear_session_tickets` removes library-owned TCP TLS and QUIC
+session tickets. It covers live origin and proxy caches after pool eviction,
+including pending tickets and tickets held while waiting for HTTP/3 settings.
+Client clones share these caches. The removed count excludes sessions already
+offered to native handshakes. Clearing also forgets saved QUIC RTTs and prevents
+older handshakes from restoring or publishing tickets. Existing connections
+and already offered sessions continue.
+
 H3 field-section size is measured as RFC 9114 Section 4.2.2 defines it: each
 field line counts its name and value lengths plus 32 bytes. The 256 KiB
 ceiling applies even when a profile omits `SETTINGS_MAX_FIELD_SECTION_SIZE`,

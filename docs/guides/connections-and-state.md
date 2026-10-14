@@ -135,6 +135,24 @@ fn forget(client: &Client) {
 Browsers forget cached addresses when the network changes. Phantom doesn't
 watch the network, so call `clear_dns_cache` after a change.
 
+## Clear TLS session tickets
+
+Forget tickets used to resume future TLS connections to servers and proxies.
+
+```rust
+use phantom::Client;
+
+fn forget_tickets(client: &Client) -> usize {
+    client.clear_session_tickets()
+}
+```
+
+Clones share the same ticket stores. The return value counts retained and
+pending tickets removed.
+
+Open connections keep working. A ticket already offered to a handshake
+stays with that handshake.
+
 ## Limits
 
 - Browsers keep separate TLS session tickets for each site a page runs

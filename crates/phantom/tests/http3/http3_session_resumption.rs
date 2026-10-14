@@ -15,6 +15,7 @@ use std::{
 };
 
 use bytes::Bytes;
+use futures_util::FutureExt as _;
 use http::{Response, StatusCode};
 use http_body_util::BodyExt;
 use phantom::{
@@ -596,6 +597,105 @@ async fn connect_udp_proxy_and_origin_tickets_stay_in_their_own_caches() -> Test
     })
     .await
 }
+
+#[tokio::test]
+async fn clear_removes_origin_and_outer_connect_udp_tickets() -> TestResult<()> {
+    let origin_identity = TestIdentity::generate()?;
+    let proxy_identity = TestIdentity::generate()?;
+    let origin_store = CountingStore::new();
+    let proxy_store = CountingStore::new();
+    let (origin, endpoint) = server_endpoint(&origin_identity, Arc::clone(&origin_store))?;
+    let mut proxy = MasqueProxy::spawn_with_session_storage(
+        &proxy_identity,
+        ProxyMode::Relay,
+        Some(proxy_store.clone()),
+    )?;
+    let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
+    let (served_tx, mut served) = mpsc::unbounded_channel();
+    let mut server = ConnectionPeer::spawn(async move {
+        for _ in 0..3 {
+            let incoming = endpoint.accept().await.ok_or("HTTP/3 endpoint closed")?;
+            let (quic, connection) = serve_one(incoming).await?;
+            read.recv().await.ok_or("client stopped")?;
+            quic.close(0u32.into(), b"served");
+            drop(connection);
+            endpoint.wait_idle().await;
+            served_tx
+                .send(())
+                .map_err(|_| "client stopped before peer completion")?;
+        }
+        Ok(())
+    });
+    let result = std::panic::AssertUnwindSafe(bounded(async {
+        let client = Client::builder(resuming_profile(extended_request_settings()))
+            .add_root_certificate_der(origin_identity.root_der.clone())
+            .add_proxy_root_certificate_der(proxy_identity.root_der.clone())
+            .build()?;
+        let uri = format!("https://{origin}/");
+        let route = Route::connect_udp(ConnectUdpProxy::new(&proxy.template())?);
+        let mut request = async || -> TestResult<()> {
+            send(client.get(HttpProtocol::Http3, &uri)?.route(route.clone())).await?;
+            // Close the outer peer deliberately before the origin's close
+            // propagates to the client. Unexpected proxy failures stay errors.
+            proxy.close_connections();
+            read_tx.send(())?;
+            served.recv().await.ok_or("origin stopped")?;
+            proxy.reopen();
+            Ok(())
+        };
+        let none = Presented {
+            presented: 0,
+            accepted: 0,
+        };
+        request().await?;
+        assert_eq!(origin_store.counts(), none);
+        assert_eq!(proxy_store.counts(), none);
+        assert!(client.clone().clear_session_tickets() >= 2);
+        assert_eq!(client.clear_session_tickets(), 0);
+        request().await?;
+        assert_eq!(origin_store.counts(), none);
+        assert_eq!(proxy_store.counts(), none);
+        request().await?;
+        let one = Presented {
+            presented: 1,
+            accepted: 1,
+        };
+        assert_eq!(origin_store.counts(), one);
+        assert_eq!(proxy_store.counts(), one);
+        assert_eq!(proxy.connections(), 3);
+        server.join().await??;
+        Ok(())
+    }))
+    .catch_unwind()
+    .await;
+    let cleanup = finish_with_cleanup(server.shutdown().await, proxy.finish().await);
+    match result {
+        Ok(result) => finish_with_cleanup(result, cleanup),
+        Err(panic) => finish_with_cleanup(Err(TicketClearPanic(Mutex::new(panic)).into()), cleanup),
+    }
+}
+
+struct TicketClearPanic(Mutex<Box<dyn std::any::Any + Send>>);
+
+impl std::fmt::Debug for TicketClearPanic {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(self, formatter)
+    }
+}
+
+impl std::fmt::Display for TicketClearPanic {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let payload = lock(&self.0);
+        let message = payload
+            .downcast_ref::<String>()
+            .map(String::as_str)
+            .or_else(|| payload.downcast_ref::<&str>().copied())
+            .unwrap_or("non-string panic payload");
+        write!(formatter, "ticket clear control panicked: {message}")
+    }
+}
+
+impl std::error::Error for TicketClearPanic {}
 
 fn sorted(extensions: &[u16]) -> Vec<u16> {
     let mut extensions = extensions.to_vec();

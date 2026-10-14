@@ -46,6 +46,7 @@ pub mod proxy;
 pub mod request;
 mod response;
 pub mod route;
+mod session_tickets;
 mod shutdown_timer;
 // Raw libc, Winsock, IP Helper, and ntdll access is isolated here so safe code
 // cannot grow new unsafe operations without crossing an explicit, reviewable
@@ -67,6 +68,7 @@ pub use authorization::{InvalidAuthorization, InvalidAuthorizationKind};
 #[cfg(feature = "keylog")]
 pub use phantom_quic_btls::{NssKeyLogReceiver, NssKeyLogSender, nss_key_log_channel};
 pub use response::{OrderedResponseHeaders, ResponseHeader};
+pub use session_tickets::SessionTicketCache;
 #[doc(hidden)]
 pub use shutdown_timer::run_after;
 pub use source_binding::{InvalidSourceBinding, SourceBinding};

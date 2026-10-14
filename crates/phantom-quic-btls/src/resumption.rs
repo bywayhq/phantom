@@ -21,7 +21,7 @@
 //! Locks are held only for in-memory lookup and insertion, never across I/O.
 
 use std::collections::VecDeque;
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError, Weak};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use btls::ssl::SslSession;
@@ -56,6 +56,128 @@ struct CacheState {
     /// The latest round-trip time per server name, least recently recorded
     /// first, bounded like the tickets.
     round_trip_times: VecDeque<(Box<str>, Duration)>,
+    generation: Arc<()>,
+    application_states: Vec<Weak<Mutex<ApplicationStateInner>>>,
+}
+
+/// A weak handle for clearing one configuration's retained QUIC tickets.
+///
+/// The handle does not retain the configuration. Clearing also removes its
+/// remembered RTTs and prevents older handshakes from publishing tickets.
+#[derive(Clone)]
+pub struct QuicSessionTicketCache {
+    state: Weak<Mutex<CacheState>>,
+}
+
+impl QuicSessionTicketCache {
+    /// Returns whether the configuration or a handshake still owns the cache.
+    #[must_use]
+    pub fn is_live(&self) -> bool {
+        self.state.strong_count() != 0
+    }
+
+    /// Clears retained tickets and retires pending ticket publication.
+    ///
+    /// Existing connections keep working. Returns the number of retained
+    /// tickets removed, excluding native handshake buffers.
+    pub fn clear(&self) -> usize {
+        let Some(state) = self.state.upgrade() else {
+            return 0;
+        };
+        let mut state = state.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut count = state.sessions.len();
+        state.sessions.clear();
+        state.round_trip_times.clear();
+        let retired = std::mem::replace(&mut state.generation, Arc::new(()));
+        let application_states = std::mem::take(&mut state.application_states);
+        // Application-state callbacks lock their state before the cache.
+        // Release the cache before clearing held tickets in those states.
+        drop(state);
+        for inner in application_states
+            .into_iter()
+            .filter_map(|inner| inner.upgrade())
+        {
+            let mut inner = inner.lock().unwrap_or_else(PoisonError::into_inner);
+            if inner
+                .cache
+                .as_ref()
+                .is_some_and(|(cache, _)| Arc::ptr_eq(&cache.generation, &retired))
+            {
+                count += inner.held.len();
+                inner.held.clear();
+                inner.cache = None;
+                inner.refused = true;
+            }
+        }
+        count
+    }
+}
+
+impl std::fmt::Debug for QuicSessionTicketCache {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("QuicSessionTicketCache")
+            .field("live", &self.is_live())
+            .finish()
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct SessionCacheCapture {
+    cache: SessionCache,
+    generation: Arc<()>,
+}
+
+impl SessionCacheCapture {
+    fn register_application_state(&self, inner: &Arc<Mutex<ApplicationStateInner>>) -> bool {
+        let mut state = self.cache.state();
+        if !Arc::ptr_eq(&state.generation, &self.generation) {
+            return false;
+        }
+        state
+            .application_states
+            .retain(|inner| inner.strong_count() != 0);
+        let control = Arc::downgrade(inner);
+        if !state
+            .application_states
+            .iter()
+            .any(|existing| existing.ptr_eq(&control))
+        {
+            state.application_states.push(control);
+        }
+        true
+    }
+
+    fn is_current(&self) -> bool {
+        Arc::ptr_eq(&self.cache.state().generation, &self.generation)
+    }
+
+    pub(crate) fn insert(&self, server_name: &str, ticket: ResumptionTicket) {
+        self.cache
+            .insert_in_generation(server_name, ticket, &self.generation);
+    }
+
+    pub(crate) fn take_for_version(
+        &self,
+        server_name: &str,
+        version: QuicVersion,
+    ) -> Option<ResumptionTicket> {
+        self.cache
+            .take_in_generation(server_name, version, &self.generation)
+    }
+
+    pub(crate) fn round_trip_time(&self, server_name: &str) -> Option<Duration> {
+        let state = self.cache.state();
+        if !Arc::ptr_eq(&state.generation, &self.generation) {
+            return None;
+        }
+        state
+            .round_trip_times
+            .iter()
+            .rev()
+            .find(|(name, _)| server_names_match(name, server_name))
+            .map(|(_, rtt)| *rtt)
+    }
 }
 
 /// A resumable session and the verified name of the peer that issued it.
@@ -117,10 +239,9 @@ struct ApplicationStateInner {
     /// Set when the state was too large to keep; later tickets are dropped.
     refused: bool,
     held: VecDeque<ResumptionTicket>,
-    cache: Option<(SessionCache, Box<str>)>,
-    /// Counts connections started with this handle; only the latest one's
-    /// tickets are kept.
-    generation: u64,
+    cache: Option<(SessionCacheCapture, Box<str>)>,
+    /// Only callbacks from the latest connection may publish tickets.
+    generation: Arc<()>,
 }
 
 impl ApplicationState {
@@ -173,28 +294,53 @@ impl ApplicationState {
     /// connection's.
     /// Returns the generation that the connection passes to
     /// [`Self::receive`].
-    pub(crate) fn start(
+    pub(crate) fn start_capture(
         &self,
-        cache: Option<(SessionCache, Box<str>)>,
+        cache: Option<(SessionCacheCapture, Box<str>)>,
         remembered: Option<Arc<[u8]>>,
-    ) -> u64 {
+    ) -> Arc<()> {
         let mut inner = self.lock();
-        let generation = inner.generation.wrapping_add(1);
+        let generation = Arc::new(());
+        let refused = cache
+            .as_ref()
+            .is_some_and(|(cache, _)| !cache.register_application_state(&self.inner));
         *inner = ApplicationStateInner {
             remembered,
             cache,
-            generation,
+            refused,
+            generation: Arc::clone(&generation),
             ..ApplicationStateInner::default()
         };
         generation
     }
 
+    #[cfg(test)]
+    pub(crate) fn start(
+        &self,
+        cache: Option<(SessionCache, Box<str>)>,
+        remembered: Option<Arc<[u8]>>,
+    ) -> Arc<()> {
+        self.start_capture(
+            cache.map(|(cache, name)| (cache.capture(), name)),
+            remembered,
+        )
+    }
+
     /// Stores `ticket` with the recorded state, or holds it until the state
     /// is recorded. A ticket from a connection other than the latest one
     /// started with this handle is dropped.
-    pub(crate) fn receive(&self, generation: u64, mut ticket: ResumptionTicket) {
+    pub(crate) fn receive(&self, generation: &Arc<()>, mut ticket: ResumptionTicket) {
         let mut inner = self.lock();
-        if inner.refused || inner.generation != generation {
+        if inner.refused || !Arc::ptr_eq(&inner.generation, generation) {
+            return;
+        }
+        if inner
+            .cache
+            .as_ref()
+            .is_some_and(|(cache, _)| !cache.is_current())
+        {
+            inner.held.clear();
+            inner.refused = true;
             return;
         }
         if let Some(state) = inner.stored.clone() {
@@ -213,6 +359,11 @@ impl ApplicationState {
     #[cfg(test)]
     pub(crate) fn held_len(&self) -> usize {
         self.lock().held.len()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn generation(&self) -> Arc<()> {
+        Arc::clone(&self.lock().generation)
     }
 
     fn lock(&self) -> MutexGuard<'_, ApplicationStateInner> {
@@ -239,13 +390,39 @@ impl std::fmt::Debug for ApplicationState {
 }
 
 impl SessionCache {
+    pub(crate) fn capture(&self) -> SessionCacheCapture {
+        SessionCacheCapture {
+            cache: self.clone(),
+            generation: Arc::clone(&self.state().generation),
+        }
+    }
+
+    pub(crate) fn control(&self) -> QuicSessionTicketCache {
+        QuicSessionTicketCache {
+            state: Arc::downgrade(&self.state),
+        }
+    }
+
     /// Stores a ticket issued by an authenticated peer for `server_name`.
+    #[cfg(test)]
     pub(crate) fn insert(&self, server_name: &str, ticket: ResumptionTicket) {
+        self.capture().insert(server_name, ticket);
+    }
+
+    fn insert_in_generation(
+        &self,
+        server_name: &str,
+        ticket: ResumptionTicket,
+        generation: &Arc<()>,
+    ) {
         let now = unix_time();
         if is_expired(&ticket.session, now) {
             return;
         }
         let mut state = self.state();
+        if !Arc::ptr_eq(&state.generation, generation) {
+            return;
+        }
         let sessions = &mut state.sessions;
         sessions.retain(|cached| !is_expired(&cached.ticket.session, now));
         if sessions.len() == MAX_SESSIONS {
@@ -271,13 +448,26 @@ impl SessionCache {
     /// removed. Every TLS 1.3 session is single-use, to prevent correlation
     /// (RFC 8446, Appendix C.4), so for QUIC a lookup always consumes the
     /// ticket it returns.
+    #[cfg(test)]
     pub(crate) fn take_for_version(
         &self,
         server_name: &str,
         version: QuicVersion,
     ) -> Option<ResumptionTicket> {
+        self.capture().take_for_version(server_name, version)
+    }
+
+    fn take_in_generation(
+        &self,
+        server_name: &str,
+        version: QuicVersion,
+        generation: &Arc<()>,
+    ) -> Option<ResumptionTicket> {
         let now = unix_time();
         let mut state = self.state();
+        if !Arc::ptr_eq(&state.generation, generation) {
+            return None;
+        }
         let sessions = &mut state.sessions;
         sessions.retain(|cached| !is_expired(&cached.ticket.session, now));
         let position = sessions.iter().rposition(|cached| {
@@ -330,6 +520,7 @@ impl SessionCache {
     }
 
     /// Returns the round-trip time last recorded for `server_name`.
+    #[cfg(test)]
     pub(crate) fn round_trip_time(&self, server_name: &str) -> Option<Duration> {
         self.state()
             .round_trip_times
@@ -408,6 +599,46 @@ mod tests {
             cache.clone().round_trip_time("0.test"),
             Some(Duration::from_millis(1))
         );
+    }
+
+    #[test]
+    fn weak_cache_controls_do_not_retain_the_cache_and_clear_rtts() {
+        let cache = SessionCache::default();
+        let control = cache.control();
+        let old = cache.capture();
+        cache.record_round_trip_time("example.test", Duration::from_millis(5));
+        assert_eq!(
+            old.round_trip_time("example.test"),
+            Some(Duration::from_millis(5))
+        );
+        assert_eq!(control.clear(), 0);
+        assert_eq!(cache.round_trip_time("example.test"), None);
+        cache.record_round_trip_time("example.test", Duration::from_millis(9));
+        assert_eq!(old.round_trip_time("example.test"), None);
+        assert_eq!(
+            cache.capture().round_trip_time("example.test"),
+            Some(Duration::from_millis(9))
+        );
+        drop(old);
+        drop(cache);
+        assert!(!control.is_live());
+        assert_eq!(control.clear(), 0);
+    }
+
+    #[test]
+    fn reusing_application_state_keeps_one_weak_registration() {
+        let cache = SessionCache::default();
+        let state = super::ApplicationState::new();
+        for _ in 0..100 {
+            state.start(Some((cache.clone(), Box::from("example.test"))), None);
+        }
+        assert_eq!(cache.state().application_states.len(), 1);
+        drop(state);
+        let state = super::ApplicationState::new();
+        state.start(Some((cache.clone(), Box::from("example.test"))), None);
+        assert_eq!(cache.state().application_states.len(), 1);
+        assert_eq!(cache.control().clear(), 0);
+        assert!(cache.state().application_states.is_empty());
     }
 
     #[test]

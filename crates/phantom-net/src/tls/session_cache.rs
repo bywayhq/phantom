@@ -1,7 +1,7 @@
 use std::{
     cmp::Reverse,
     collections::VecDeque,
-    sync::{Arc, Mutex, MutexGuard},
+    sync::{Arc, Mutex, MutexGuard, Weak},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -27,11 +27,13 @@ pub(super) struct TlsSessionCapture {
     cache: TlsSessionCache,
     hostname: Arc<str>,
     state: Arc<Mutex<CaptureState>>,
+    generation: Arc<()>,
 }
 
 #[derive(Default)]
 struct CaptureState {
     authenticated: bool,
+    retired: bool,
     pending: Vec<ScopedSslSession>,
     /// The connection's batch, assigned when its first session is stored.
     batch: Option<u64>,
@@ -53,6 +55,48 @@ struct Store {
     /// Sessions in the order they were stored.
     sessions: VecDeque<CachedSession>,
     next_batch: u64,
+    /// A clear retires this token while outstanding handshakes retain it.
+    generation: Arc<()>,
+    captures: Vec<Weak<Mutex<CaptureState>>>,
+}
+
+/// A weak handle that clears a cache without keeping its connector alive.
+#[derive(Clone)]
+pub(crate) struct TlsSessionControl {
+    inner: Weak<CacheInner>,
+}
+
+impl TlsSessionControl {
+    pub(crate) fn is_live(&self) -> bool {
+        self.inner.strong_count() != 0
+    }
+
+    pub(crate) fn clear(&self) -> usize {
+        let Some(inner) = self.inner.upgrade() else {
+            return 0;
+        };
+        let mut store = inner
+            .store
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut count = store.sessions.len();
+        store.sessions.clear();
+        store.generation = Arc::new(());
+        store.next_batch = 0;
+        let captures = std::mem::take(&mut store.captures);
+        // Capture callbacks lock their state before the store. Release the
+        // store before retiring them to preserve that order.
+        drop(store);
+        for capture in captures.into_iter().filter_map(|capture| capture.upgrade()) {
+            let mut capture = capture
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            count += capture.pending.len();
+            capture.pending.clear();
+            capture.retired = true;
+        }
+        count
+    }
 }
 
 /// A session with the verified hostname that authenticated it.
@@ -107,10 +151,21 @@ impl TlsSessionCache {
     }
 
     pub(super) fn begin_handshake(&self, hostname: &str) -> TlsSessionCapture {
+        let state = Arc::default();
+        let mut store = self.store();
+        store.captures.retain(|capture| capture.strong_count() != 0);
+        store.captures.push(Arc::downgrade(&state));
         TlsSessionCapture {
             cache: self.clone(),
             hostname: hostname.into(),
-            state: Arc::default(),
+            state,
+            generation: Arc::clone(&store.generation),
+        }
+    }
+
+    pub(super) fn control(&self) -> TlsSessionControl {
+        TlsSessionControl {
+            inner: Arc::downgrade(&self.inner),
         }
     }
 
@@ -122,14 +177,22 @@ impl TlsSessionCache {
         session: ScopedSslSession,
         batch: Option<u64>,
         sequence: u32,
-    ) -> u64 {
+        generation: &Arc<()>,
+    ) -> Option<u64> {
         let now = unix_time();
         let mut store = self.store();
-        let batch = batch.unwrap_or_else(|| {
-            let batch = store.next_batch;
-            store.next_batch += 1;
+        if !Arc::ptr_eq(&store.generation, generation) {
+            return None;
+        }
+        let batch = if let Some(batch) = batch {
             batch
-        });
+        } else {
+            let batch = store.next_batch;
+            // Do not wrap connection order or panic if this cache outlives
+            // the counter. Clearing the cache starts a fresh generation.
+            store.next_batch = batch.checked_add(1)?;
+            batch
+        };
         let sessions = &mut store.sessions;
         prune_expired(sessions, now);
         let stored = sessions
@@ -149,14 +212,23 @@ impl TlsSessionCache {
             session,
             arrival: Arrival { batch, sequence },
         });
-        batch
+        Some(batch)
     }
 
     /// Removes the unexpired session for `hostname` that the cache's order
     /// presents next.
+    #[cfg(test)]
     pub(super) fn take(&self, hostname: &str) -> Option<ScopedSslSession> {
+        let generation = Arc::clone(&self.store().generation);
+        self.take_in_generation(hostname, &generation)
+    }
+
+    fn take_in_generation(&self, hostname: &str, generation: &Arc<()>) -> Option<ScopedSslSession> {
         let now = unix_time();
         let mut store = self.store();
+        if !Arc::ptr_eq(&store.generation, generation) {
+            return None;
+        }
         let sessions = &mut store.sessions;
         prune_expired(sessions, now);
         let position = next_position(self.inner.order, arrivals_for(sessions, hostname))?;
@@ -172,8 +244,9 @@ impl TlsSessionCache {
 
     /// Stores again a reusable session that a connection resumed without
     /// receiving a new one, as the only session of a new batch.
+    #[cfg(test)]
     pub(super) fn restore(&self, hostname: &str, session: ScopedSslSession) {
-        self.insert(hostname.into(), session, None, 0);
+        self.begin_handshake(hostname).restore(session);
     }
 
     pub(super) fn scope(&self) -> &SslSessionScope {
@@ -194,6 +267,21 @@ impl TlsSessionCache {
 }
 
 impl TlsSessionCapture {
+    pub(super) fn take_session(&self) -> Option<ScopedSslSession> {
+        self.cache
+            .take_in_generation(&self.hostname, &self.generation)
+    }
+
+    pub(super) fn restore(&self, session: ScopedSslSession) {
+        self.cache.insert(
+            Arc::clone(&self.hostname),
+            session,
+            None,
+            0,
+            &self.generation,
+        );
+    }
+
     pub(super) fn capture(&self, session: Result<ScopedSslSession, ErrorStack>) {
         let session = match session {
             Ok(session) => session,
@@ -204,20 +292,29 @@ impl TlsSessionCapture {
         };
 
         let mut state = self.state();
+        if state.retired {
+            return;
+        }
         if state.authenticated {
             self.store(&mut state, session);
         } else {
+            if state.pending.len() == MAX_SESSIONS {
+                state.pending.remove(0);
+            }
             state.pending.push(session);
         }
     }
 
     pub(super) fn commit_authenticated(&self) -> usize {
         let mut state = self.state();
+        if state.retired {
+            return 0;
+        }
         state.authenticated = true;
         let pending = std::mem::take(&mut state.pending);
-        let count = pending.len();
+        let mut count = 0;
         for session in pending {
-            self.store(&mut state, session);
+            count += usize::from(self.store(&mut state, session));
         }
         count
     }
@@ -225,15 +322,19 @@ impl TlsSessionCapture {
     /// Stores `session` as this connection's next session. The capture's
     /// lock is held across the cache's, never the reverse, so a connection's
     /// sessions keep their order.
-    fn store(&self, state: &mut CaptureState, session: ScopedSslSession) {
-        let batch = self.cache.insert(
+    fn store(&self, state: &mut CaptureState, session: ScopedSslSession) -> bool {
+        let Some(batch) = self.cache.insert(
             Arc::clone(&self.hostname),
             session,
             state.batch,
             state.next_sequence,
-        );
+            &self.generation,
+        ) else {
+            return false;
+        };
         state.batch = Some(batch);
         state.next_sequence = state.next_sequence.saturating_add(1);
+        true
     }
 
     fn state(&self) -> MutexGuard<'_, CaptureState> {
@@ -316,4 +417,40 @@ fn unix_time() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{TicketOrder, TlsSessionCache};
+
+    #[test]
+    fn weak_control_does_not_retain_an_evicted_cache() {
+        let cache = TlsSessionCache::new(2, TicketOrder::Newest);
+        let control = cache.control();
+        let capture = cache.begin_handshake("example.test");
+        drop(cache);
+        assert!(control.is_live());
+        assert_eq!(control.clear(), 0);
+        assert!(capture.state().retired);
+        drop(capture);
+        assert!(!control.is_live());
+        assert_eq!(control.clear(), 0);
+    }
+
+    #[test]
+    fn clear_retires_old_captures_and_prunes_cancelled_handshakes() {
+        let cache = TlsSessionCache::new(2, TicketOrder::OldestConnection);
+        for _ in 0..100 {
+            drop(cache.begin_handshake("example.test"));
+        }
+        let old = cache.begin_handshake("example.test");
+        assert_eq!(cache.store().captures.len(), 1);
+        assert_eq!(cache.control().clear(), 0);
+        assert!(old.state().retired);
+        assert!(cache.store().captures.is_empty());
+        let fresh = cache.begin_handshake("example.test");
+        assert!(!fresh.state().retired);
+        assert!(!std::sync::Arc::ptr_eq(&old.generation, &fresh.generation));
+        assert_eq!(cache.store().captures.len(), 1);
+    }
 }

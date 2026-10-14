@@ -30,6 +30,7 @@ mod http3_connections;
 pub(crate) mod http3_pool;
 mod prune_timer;
 mod stream_count;
+mod tickets;
 
 const DEFAULT_MAX_RETAINED_HTTP1_CONNECTIONS: NonZeroUsize = match NonZeroUsize::new(32) {
     Some(value) => value,
@@ -178,6 +179,7 @@ pub(crate) type PooledHttp2Session = (
 );
 
 pub(crate) struct ClientState {
+    tickets: Arc<tickets::TicketOwner>,
     pub(crate) redirect_policy: RedirectPolicy,
     pub(crate) retry_policy: RetryPolicy,
     pub(crate) request_timeouts: RequestTimeouts,
@@ -449,6 +451,7 @@ impl ClientOptions {
             .https_record_resolver
             .zip(self.max_alt_svc_origins)
             .map(|(resolver, capacity)| alt_svc::HttpsRecordDiscovery::new(resolver, capacity));
+        let tickets = Arc::new(tickets::TicketOwner::default());
         // One timer prunes the H1 and H2 connections of every pool, as
         // Firefox's connection manager prunes all of its connections on one.
         let prune_timer = (inner.http1_idle_timer.is_some() || inner.http2_idle_timer.is_some())
@@ -466,7 +469,8 @@ impl ClientOptions {
         .with_max_http2_connections(self.max_http2_connections_per_origin)
         .with_setup_wait_limit(self.negotiated_setup_wait_limit)
         .with_http1_used_idle_timeout(inner.http1_used_idle_timeout)
-        .with_prune_timer(prune_timer.clone());
+        .with_prune_timer(prune_timer.clone())
+        .with_ticket_owner(Arc::clone(&tickets));
         #[cfg(feature = "https-records")]
         http1_or_2.set_https_records(https_records.clone());
         #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
@@ -477,7 +481,8 @@ impl ClientOptions {
             self.max_pending_http1_requests_per_origin,
         )
         .with_used_idle_timeout(inner.http1_used_idle_timeout)
-        .with_prune_timer(prune_timer.clone());
+        .with_prune_timer(prune_timer.clone())
+        .with_ticket_owner(Arc::clone(&tickets));
         #[cfg(feature = "https-records")]
         http1.set_https_records(https_records.clone());
         #[cfg_attr(not(feature = "https-records"), allow(unused_mut))]
@@ -487,7 +492,8 @@ impl ClientOptions {
             self.max_pending_http2_requests_per_origin,
         )
         .with_max_connections(self.max_http2_connections_per_origin)
-        .with_prune_timer(prune_timer);
+        .with_prune_timer(prune_timer)
+        .with_ticket_owner(Arc::clone(&tickets));
         #[cfg(feature = "https-records")]
         http2.set_https_records(https_records.clone());
         let rtt_history =
@@ -504,13 +510,15 @@ impl ClientOptions {
             self.max_concurrent_http3_requests_per_origin,
             self.max_pending_http3_requests_per_origin,
         )
-        .with_max_connections(self.max_http3_connections_per_origin);
+        .with_max_connections(self.max_http3_connections_per_origin)
+        .with_ticket_owner(Arc::clone(&tickets));
         #[cfg(feature = "https-records")]
         http3.set_https_records(https_records.clone());
         #[cfg(feature = "https-records")]
         http3.set_alt_svc_https_policy(self.alt_svc_https_policy);
         http3.set_rtt_history(rtt_history.clone());
         Arc::new(ClientState {
+            tickets,
             redirect_policy: self.redirect_policy,
             retry_policy: self.retry_policy,
             request_timeouts: self.request_timeouts,
@@ -534,6 +542,19 @@ impl ClientOptions {
 }
 
 impl Client {
+    /// Clears this client's retained TCP TLS and QUIC session tickets.
+    ///
+    /// This includes origin and TLS proxy caches, including caches whose pool
+    /// entry was evicted while a connection or setup still uses it. Older
+    /// handshakes cannot put their tickets back. Existing connections keep
+    /// working, and native buffers belonging to those connections are retained
+    /// until their connection ends. Returns the tickets removed from caches
+    /// and pending library callbacks. Clones share the same ticket owner.
+    #[must_use]
+    pub fn clear_session_tickets(&self) -> usize {
+        self.state.tickets.clear()
+    }
+
     /// Admits one stream on a pooled, reusable HTTP/2 session to the origin.
     ///
     /// Both pools are keyed by origin and route, proxy credentials included,

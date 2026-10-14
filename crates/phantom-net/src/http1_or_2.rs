@@ -423,6 +423,12 @@ impl Http1Or2TlsConnector {
         }
     }
 
+    /// Returns a weak control for this connector's isolated TLS ticket cache.
+    #[must_use]
+    pub fn session_ticket_cache(&self) -> Option<crate::SessionTicketCache> {
+        self.tls.session_ticket_cache()
+    }
+
     /// Applies TCP socket options to every direct TCP connection this
     /// connector opens.
     ///

@@ -66,6 +66,7 @@ use crate::{
 /// a request that finds another connection to the key in setup waits for
 /// that setup to finish instead of opening one of its own.
 pub(crate) struct Http1Or2Pool {
+    tickets: Arc<super::tickets::TicketOwner>,
     capacity: NonZeroUsize,
     max_http1_active: NonZeroUsize,
     max_http1_pending: NonZeroUsize,
@@ -95,6 +96,7 @@ impl Http1Or2Pool {
         max_http2_pending: NonZeroUsize,
     ) -> Self {
         Self {
+            tickets: Arc::default(),
             capacity: http1_capacity.min(http2_capacity),
             max_http1_active,
             max_http1_pending,
@@ -109,6 +111,11 @@ impl Http1Or2Pool {
             #[cfg(feature = "https-records")]
             https_records: None,
         }
+    }
+
+    pub(super) fn with_ticket_owner(mut self, tickets: Arc<super::tickets::TicketOwner>) -> Self {
+        self.tickets = tickets;
+        self
     }
 
     /// Lets each pool key keep up to `maximum` H2 connections.
@@ -512,10 +519,14 @@ impl Http1Or2Pool {
         endpoint: &Endpoint,
         route: &Route,
     ) -> Http1Or2TlsConnector {
-        self.entry(PoolKey::new(endpoint, route))
-            .await
+        let entry = self.entry(PoolKey::new(endpoint, route)).await;
+        entry
             .connector
-            .get_or_init(|| base.with_isolated_session_cache())
+            .get_or_init(|| {
+                let connector = base.with_isolated_session_cache();
+                entry.tickets.register(connector.session_ticket_cache());
+                connector
+            })
             .clone()
     }
 
@@ -575,6 +586,7 @@ impl Http1Or2Pool {
         if key.route == Route::Direct {
             entry.https_records = self.https_records.clone();
         }
+        entry.tickets = Arc::clone(&self.tickets);
         let entry = Arc::new(entry);
         state.entries.push_back((key, Arc::clone(&entry)));
         entry
@@ -671,6 +683,7 @@ impl Http2Keys {
 }
 
 struct PoolEntry {
+    tickets: Arc<super::tickets::TicketOwner>,
     connections: Arc<EntryConnections>,
     selection_admission: Arc<Admission>,
     http1_admission: Arc<Admission>,
@@ -695,6 +708,7 @@ impl PoolEntry {
             timer.register(Arc::downgrade(&entry));
         }
         Self {
+            tickets: Arc::default(),
             connections,
             selection_admission,
             http1_admission,
@@ -1214,9 +1228,11 @@ impl PoolEntry {
         endpoint: &Endpoint,
         route: &Route,
     ) -> Result<Opened, RequestError> {
-        let cached = self
-            .connector
-            .get_or_init(|| connector.with_isolated_session_cache());
+        let cached = self.connector.get_or_init(|| {
+            let connector = connector.with_isolated_session_cache();
+            self.tickets.register(connector.session_ticket_cache());
+            connector
+        });
         // Keep this entry's tickets when an early-data ALPN change restarts setup.
         let restarted;
         let connector = if connector.offers_early_data() == cached.offers_early_data() {
@@ -1260,9 +1276,11 @@ impl PoolEntry {
                 let transport = if proxy.uses_tls() {
                     let base =
                         https_proxy.ok_or_else(RequestError::unsupported_negotiated_route)?;
-                    let proxy_connector = self
-                        .https_proxy
-                        .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
+                    let proxy_connector = self.https_proxy.get_or_init(|| {
+                        let connector = proxy.https_connector(&base.with_isolated_session_cache());
+                        self.tickets.register(connector.session_ticket_cache());
+                        connector
+                    });
                     ProxyTransport::Tls {
                         endpoint,
                         server_name: proxy.host(),
