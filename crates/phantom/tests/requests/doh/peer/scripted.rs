@@ -21,6 +21,7 @@ use super::wire::Question;
 
 const MAX_EXCHANGES: usize = 64;
 // BoringSSL ssl.h reason codes for the peer's certificate rejection alerts.
+const BAD_CERTIFICATE: i32 = 1042;
 const CERTIFICATE_UNKNOWN: i32 = 1046;
 const UNKNOWN_CA: i32 = 1048;
 
@@ -113,7 +114,9 @@ impl Peer {
                                             error.library() == Some("SSL routines")
                                                 && matches!(
                                                     error.reason_code(),
-                                                    CERTIFICATE_UNKNOWN | UNKNOWN_CA
+                                                    BAD_CERTIFICATE
+                                                        | CERTIFICATE_UNKNOWN
+                                                        | UNKNOWN_CA
                                                 )
                                         })
                                 })
