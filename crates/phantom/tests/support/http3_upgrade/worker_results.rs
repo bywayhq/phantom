@@ -38,6 +38,167 @@ use crate::support::{
 
 const CONTROL_TIMEOUT: Duration = Duration::from_secs(5);
 
+#[tokio::test]
+async fn completed_h3_request_accepts_clean_client_close_and_joins_its_peer() -> TestResult<()> {
+    timeout(CONTROL_TIMEOUT, assert_completed_h3_close(None)).await?
+}
+
+#[tokio::test]
+async fn completed_h3_request_retains_remote_protocol_error_after_join() -> TestResult<()> {
+    timeout(
+        CONTROL_TIMEOUT,
+        assert_completed_h3_close(Some(h3::error::Code::H3_GENERAL_PROTOCOL_ERROR)),
+    )
+    .await?
+}
+
+async fn assert_completed_h3_close(close: Option<h3::error::Code>) -> TestResult<()> {
+    use crate::support::tunnel_proxy::connection_peer::{ConnectionPeer, finish_with_cleanup};
+
+    let identity = TestIdentity::generate()?;
+    let endpoint = h3_endpoint(&identity, SocketAddr::from((Ipv4Addr::LOCALHOST, 0)))?;
+    let address = endpoint.local_addr()?;
+    let mut roots = rustls::RootCertStore::empty();
+    roots.add(rustls::pki_types::CertificateDer::from(
+        identity.root_der.clone(),
+    ))?;
+    let mut tls = rustls::ClientConfig::builder()
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    tls.alpn_protocols = vec![b"h3".to_vec()];
+    let crypto = quinn::crypto::rustls::QuicClientConfig::try_from(tls)?;
+    let mut client = quinn::Endpoint::new(
+        quinn::EndpointConfig::default(),
+        None,
+        phantom_testkit::udp::bind("127.0.0.1:0".parse()?)?,
+        Arc::new(quinn::TokioRuntime),
+    )?;
+    client.set_default_client_config(quinn::ClientConfig::new(Arc::new(crypto)));
+    let observations = Arc::new(SharedObservations::default());
+    let observed = Arc::clone(&observations);
+    let owner = endpoint.clone();
+    let (_shutdown, shutdown) = watch::channel(false);
+    let mut peer = ConnectionPeer::spawn(async move {
+        let incoming = owner
+            .accept()
+            .await
+            .ok_or("H3 close peer ended before handshake")?;
+        super::serve_alternative_connection(
+            incoming,
+            AlternativeBehavior::responses([]),
+            Some(Arc::new(Mutex::new(VecDeque::from([
+                PlannedResponse::new(StatusCode::OK).body("close-worker"),
+            ])))),
+            observed,
+            shutdown,
+        )
+        .await
+    });
+    let mut driver = None;
+    let mut protocol_sender = None;
+    let operation: TestResult<()> = async {
+        let connection = client.connect(address, "127.0.0.1")?.await?;
+        let (mut h3, mut send) = h3::client::builder()
+            .build::<_, _, bytes::Bytes>(h3_quinn::Connection::new(connection.clone()))
+            .await?;
+        driver = Some(ConnectionPeer::spawn(async move {
+            Ok::<_, Box<dyn Error + Send + Sync>>(h3.wait_idle().await)
+        }));
+        let mut stream = send
+            .send_request(
+                http::Request::builder()
+                    .uri(format!("https://{address}/completed-close"))
+                    .body(())?,
+            )
+            .await?;
+        stream.finish().await?;
+        let response = stream.recv_response().await?;
+        assert_eq!(response.status(), StatusCode::OK);
+        let mut body = Vec::new();
+        while let Some(mut chunk) = stream.recv_data().await? {
+            use bytes::Buf;
+            while chunk.has_remaining() {
+                let bytes = chunk.chunk();
+                body.extend_from_slice(bytes);
+                let consumed = bytes.len();
+                chunk.advance(consumed);
+            }
+        }
+        assert_eq!(body, b"close-worker");
+        drop(stream);
+        if let Some(code) = close {
+            connection.close(
+                quinn::VarInt::from_u64(code.value())?,
+                b"protocol-error control",
+            );
+            // Keep the sender until the explicit protocol close is collected.
+            protocol_sender = Some(send);
+        } else {
+            // Use the actual last-sender drop, not raw code zero.
+            drop(send);
+        }
+        Ok(())
+    }
+    .await;
+    let collected: TestResult<()> = async {
+        let result = timeout(CONTROL_TIMEOUT, &mut peer).await??;
+        let driver = driver.as_mut().ok_or("H3 close driver was not constructed")?;
+        let driver_close = timeout(CONTROL_TIMEOUT, driver).await???;
+        match close {
+            None => {
+                result?;
+                assert!(driver_close.is_h3_no_error());
+            }
+            Some(code) => {
+                let error = result.err().ok_or("remote protocol error was accepted")?;
+                assert!(matches!(
+                    find_source::<h3::error::ConnectionError>(error.as_ref()),
+                    Some(h3::error::ConnectionError::Remote(
+                        h3::quic::ConnectionErrorIncoming::ApplicationClose { error_code },
+                        ..,
+                    )) if *error_code == code.value()
+                ));
+                assert!(matches!(driver_close,
+                    h3::error::ConnectionError::Remote(
+                        h3::quic::ConnectionErrorIncoming::Undefined(ref error), ..
+                    ) if matches!(error.downcast_ref::<quinn::ConnectionError>(), Some(quinn::ConnectionError::LocallyClosed))
+                ));
+            }
+        }
+        assert_eq!(observations.alternative_connections.load(Ordering::SeqCst), 1);
+        let requests = observations.alternative_requests.lock().map_err(|_| "close observation poisoned")?;
+        assert_eq!(requests.len(), 1);
+        assert_eq!(requests[0].method, Method::GET);
+        assert_eq!(requests[0].path_and_query.as_deref(), Some("/completed-close"));
+        Ok(())
+    }
+    .await;
+    drop(protocol_sender);
+    endpoint.close(0_u32.into(), b"close control complete");
+    client.close(0_u32.into(), b"close control complete");
+    let peer_cleanup = peer.shutdown().await;
+    let driver_cleanup = match &mut driver {
+        Some(driver) => driver.shutdown().await,
+        None => Ok(()),
+    };
+    let endpoints_cleanup: TestResult<()> = async {
+        timeout(CONTROL_TIMEOUT, endpoint.wait_idle()).await?;
+        timeout(CONTROL_TIMEOUT, client.wait_idle()).await?;
+        Ok(())
+    }
+    .await;
+    finish_with_cleanup(
+        operation,
+        finish_with_cleanup(
+            collected,
+            finish_with_cleanup(
+                peer_cleanup,
+                finish_with_cleanup(driver_cleanup, endpoints_cleanup),
+            ),
+        ),
+    )
+}
+
 #[derive(Debug)]
 struct FirstChildFailure(Arc<()>);
 

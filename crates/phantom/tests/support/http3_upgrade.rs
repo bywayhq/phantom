@@ -804,7 +804,14 @@ async fn serve_alternative_connection(
             _ = shutdown.changed() => {
                 return Ok(());
             }
-            accepted = h3.accept() => accepted?,
+            accepted = h3.accept() => match accepted {
+                // The last client sender closes a completed HTTP/3 session.
+                Err(h3::error::ConnectionError::Remote(
+                    h3::quic::ConnectionErrorIncoming::ApplicationClose { error_code },
+                    ..,
+                )) if error_code == h3::error::Code::H3_NO_ERROR.value() => return Ok(()),
+                accepted => accepted?,
+            },
         };
         let Some(resolver) = accepted else {
             return Ok(());
