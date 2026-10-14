@@ -8,6 +8,7 @@ import ssl
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest import mock
 
 from aioquic import tls
@@ -273,9 +274,29 @@ FIREFOX_ONLY = {"websocket", "websocket-http1"}
 class RetainedFixtureTests(unittest.TestCase):
     def test_every_retained_fixture_matches_its_scenario(self) -> None:
         paths = sorted(ROOT.glob("fixtures/tls/*/*/windows-11-26200/resumption-*.txt"))
-        self.assertEqual(
-            len(paths), 5 * len(SCENARIOS.keys() - FIREFOX_ONLY) + len(FIREFOX_ONLY)
+        self.assert_retained_fixtures(paths)
+
+    def assert_retained_fixtures(self, paths: list[Path]) -> None:
+        # Keep the original complete captures required as partial versions grow.
+        versions = (
+            ("brave", "154.1.96.59"),
+            ("chrome", "154.0.8037.58"),
+            ("edge", "154.0.4258.37"),
+            ("firefox", "157.0"),
+            ("opera", "136.0.6008.52"),
         )
+        required = {
+            ROOT
+            / "fixtures/tls"
+            / browser
+            / version
+            / "windows-11-26200"
+            / f"resumption-{scenario}.txt"
+            for browser, version in versions
+            for scenario in SCENARIOS
+            if browser == "firefox" or scenario not in FIREFOX_ONLY
+        }
+        self.assertFalse(required - set(paths), "Missing original retained fixtures")
         for path in paths:
             fields = dict(
                 line.split("=", 1)
@@ -308,6 +329,40 @@ class RetainedFixtureTests(unittest.TestCase):
             for index in range(3):
                 self.assertEqual(fields[f"run_{index}_timed_out"], "false")
                 self.assertEqual(fields[f"run_{index}_page_error"], "none")
+
+    def test_partial_additional_version_keeps_all_fixture_checks(self) -> None:
+        paths = sorted(ROOT.glob("fixtures/tls/*/*/windows-11-26200/resumption-*.txt"))
+        original = ROOT / (
+            "fixtures/tls/chrome/154.0.8037.58/windows-11-26200/"
+            "resumption-sequential-http1.txt"
+        )
+        with TemporaryDirectory() as directory:
+            additional = Path(directory) / original.name
+            additional.write_bytes(original.read_bytes())
+            self.assert_retained_fixtures([*paths, additional])
+
+    def test_additional_version_cannot_replace_a_missing_original_fixture(self) -> None:
+        paths = sorted(ROOT.glob("fixtures/tls/*/*/windows-11-26200/resumption-*.txt"))
+        original = ROOT / (
+            "fixtures/tls/chrome/154.0.8037.58/windows-11-26200/"
+            "resumption-sequential-http1.txt"
+        )
+        with self.assertRaisesRegex(AssertionError, "Missing original retained"):
+            self.assert_retained_fixtures([path for path in paths if path != original])
+
+    def test_additional_fixture_with_invalid_fields_is_rejected(self) -> None:
+        paths = sorted(ROOT.glob("fixtures/tls/*/*/windows-11-26200/resumption-*.txt"))
+        original = ROOT / (
+            "fixtures/tls/chrome/154.0.8037.58/windows-11-26200/"
+            "resumption-sequential-http1.txt"
+        )
+        with TemporaryDirectory() as directory:
+            additional = Path(directory) / original.name
+            text = original.read_text(encoding="ascii")
+            self.assertIn("run_count=3\n", text)
+            additional.write_text(text.replace("run_count=3\n", "run_count=4\n"))
+            with self.assertRaises(AssertionError):
+                self.assert_retained_fixtures([*paths, additional])
 
     def test_retained_client_hellos_parse_and_resumed_ones_offer_one_psk(self) -> None:
         for path in ROOT.glob("fixtures/tls/*/*/windows-11-26200/resumption-*.txt"):
