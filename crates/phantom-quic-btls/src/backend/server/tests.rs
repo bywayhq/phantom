@@ -92,10 +92,17 @@ struct Handshake {
 /// Moves handshake bytes between a Quinn client and server session until
 /// neither has more to send or one of them fails.
 fn run(client: QuicClientConfig, server: QuicServerConfig) -> Handshake {
-    let mut client = Arc::new(client)
+    let client = Arc::new(client)
         .start_session(1, SERVER_NAME, &parameters(Side::Client))
         .unwrap_or_else(|error| panic!("client session: {error}"));
-    let mut server = Arc::new(server).start_session(1, &parameters(Side::Server));
+    let server = Arc::new(server).start_session(1, &parameters(Side::Server));
+    exchange(client, server)
+}
+
+fn exchange(
+    mut client: Box<dyn crypto::Session>,
+    mut server: Box<dyn crypto::Session>,
+) -> Handshake {
     let mut client_result = Ok(());
     'exchange: loop {
         let mut moved = false;
@@ -286,7 +293,7 @@ fn a_session_that_fails_to_start_closes_on_its_first_input() {
         .unwrap_or_else(|error| panic!("server context: {error}"))
         .build();
     let oversized = vec![0; usize::from(u16::MAX) + 1];
-    let error = ServerSession::new(&context, &oversized)
+    let error = ServerSession::new(&context, &oversized, None)
         .err()
         .unwrap_or_else(|| panic!("oversized transport parameters were accepted"));
     assert_eq!(error, "server transport parameters too long");
@@ -327,4 +334,266 @@ fn a_server_without_a_certificate_fails_with_a_crypto_error() {
     let code = u64::from(error.code);
     assert!((0x100..0x200).contains(&code), "{error:?}");
     assert!(session.is_handshaking());
+}
+
+fn resuming_client() -> QuicClientConfig {
+    let mut builder = SslContext::builder(SslMethod::tls())
+        .unwrap_or_else(|error| panic!("client context: {error}"));
+    builder.set_verify(SslVerifyMode::PEER);
+    builder
+        .set_ca_file(test_file("root-ca.pem"))
+        .unwrap_or_else(|error| panic!("client roots: {error}"));
+    QuicClientConfig::enable_session_resumption(&mut builder)
+        .unwrap_or_else(|error| panic!("client resumption: {error}"));
+    QuicClientConfig::new(builder.build())
+        .with_tls_profile(&phantom_profile::browser::chrome::v154_quic_tls())
+        .unwrap_or_else(|error| panic!("client TLS profile: {error}"))
+        .with_isolated_session_cache()
+}
+
+fn accepting(server: QuicServerConfig, context: &[u8]) -> QuicServerConfig {
+    server
+        .with_early_data(context)
+        .unwrap_or_else(|error| panic!("server early-data context: {error}"))
+}
+
+fn learn_ticket(client: &QuicClientConfig, server: &QuicServerConfig) {
+    let first = run(client.without_early_data(), server.clone());
+    assert_eq!(first.client_result, Ok(()));
+    assert!(!first.client.is_handshaking());
+    assert!(!first.server.is_handshaking());
+    assert!(!client_data(&*first.client).session_resumed());
+    assert!(!server_data(&*first.server).session_resumed());
+    assert_eq!(
+        server_data(&*first.server).early_data_accepted(),
+        Some(false)
+    );
+    assert!(client.has_ticket_for(SERVER_NAME));
+}
+
+fn offer_early(
+    client: QuicClientConfig,
+    server: QuicServerConfig,
+    server_parameters: &TransportParameters,
+) -> (Box<dyn crypto::Session>, Box<dyn crypto::Session>) {
+    let mut client = Arc::new(client)
+        .start_session(1, SERVER_NAME, &parameters(Side::Client))
+        .unwrap_or_else(|error| panic!("client resumed session: {error}"));
+    assert!(
+        client.early_crypto().is_some(),
+        "ticket did not permit early data"
+    );
+    let mut server = Arc::new(server).start_session(1, server_parameters);
+    let mut hello = Vec::new();
+    let _ = client.write_handshake(&mut hello);
+    assert!(!hello.is_empty());
+    server
+        .read_handshake(&hello)
+        .unwrap_or_else(|error| panic!("server resumed hello: {error}"));
+    assert!(
+        server.is_handshaking(),
+        "server completed before client Finished"
+    );
+    assert_eq!(server_data(&*server).early_data_accepted(), None);
+    (client, server)
+}
+
+#[test]
+fn early_data_context_rejects_empty_and_oversized_input() {
+    for length in [0, usize::from(u16::MAX) + 1] {
+        let error = server_config(None)
+            .with_early_data(&vec![0; length])
+            .err()
+            .unwrap_or_else(|| panic!("invalid context length {length} was accepted"));
+        assert_eq!(
+            error,
+            crate::CryptoError::InvalidEarlyDataContextLength {
+                actual: length,
+                minimum: 1,
+                maximum: usize::from(u16::MAX),
+            }
+        );
+        assert_eq!(
+            error.to_string(),
+            format!("early-data application context length {length} is outside 1..=65535")
+        );
+    }
+    for length in [1, usize::from(u16::MAX)] {
+        assert!(
+            server_config(None)
+                .with_early_data(&vec![0; length])
+                .is_ok()
+        );
+    }
+}
+
+#[test]
+fn accepted_ech_installs_real_early_read_keys_while_handshake_is_pending() {
+    let offer = EchOffer::new(&published_list(1, 0, OTHER_PUBLIC_NAME));
+    let client = resuming_client().with_ech(&offer);
+    let server = accepting(
+        server_config(Some((1, 0, OTHER_PUBLIC_NAME))),
+        b"settings-v1",
+    );
+    learn_ticket(&client, &server);
+    let (client, server) = offer_early(client.with_early_data(), server, &parameters(Side::Server));
+    let pending = server_data(&*server);
+    assert!(pending.ech_accepted());
+    assert_eq!(pending.server_name(), Some(SERVER_NAME));
+    assert!(
+        !pending.session_resumed(),
+        "pending metadata claimed completion"
+    );
+    let mut exporter = [0; 16];
+    assert!(
+        server
+            .export_keying_material(&mut exporter, b"pending", b"")
+            .is_err()
+    );
+    let (write_header, write_packet) = client
+        .early_crypto()
+        .unwrap_or_else(|| panic!("client early keys disappeared"));
+    let (read_header, read_packet) = server
+        .early_crypto()
+        .unwrap_or_else(|| panic!("server never installed early read keys"));
+    let header = [0xd0, 0, 0, 0, 7];
+    let payload = b"native early-data packet payload";
+    let mut packet = header.to_vec();
+    packet.extend_from_slice(payload);
+    packet.resize(packet.len() + write_packet.tag_len(), 0);
+    write_packet.encrypt(7, &mut packet, header.len());
+    write_header.encrypt(4, &mut packet);
+    read_header.decrypt(4, &mut packet);
+    assert_eq!(&packet[..header.len()], &header);
+    let mut encrypted = bytes::BytesMut::from(&packet[header.len()..]);
+    let mut corrupted = encrypted.clone();
+    corrupted[0] ^= 1;
+    assert!(read_packet.decrypt(7, &header, &mut corrupted).is_err());
+    assert!(read_packet.decrypt(7, &header, &mut encrypted).is_ok());
+    assert_eq!(&encrypted[..], payload);
+
+    let complete = exchange(client, server);
+    assert_eq!(complete.client_result, Ok(()));
+    assert!(!complete.server.is_handshaking());
+    assert!(!complete.client.is_handshaking());
+    let established = server_data(&*complete.server);
+    assert!(established.session_resumed());
+    assert!(established.ech_accepted());
+    assert_eq!(established.early_data_accepted(), Some(true));
+    assert_eq!(complete.client.early_data_accepted(), Some(true));
+    assert!(client_data(&*complete.client).session_resumed());
+    assert_eq!(
+        pending.early_data_accepted(),
+        None,
+        "pending snapshot changed"
+    );
+    assert!(
+        complete
+            .server
+            .export_keying_material(&mut exporter, b"complete", b"")
+            .is_ok()
+    );
+}
+
+#[test]
+fn disabling_early_data_keeps_ticket_resumption_and_ech() {
+    let client =
+        resuming_client().with_ech(&EchOffer::new(&published_list(1, 0, OTHER_PUBLIC_NAME)));
+    let server = server_config(Some((1, 0, OTHER_PUBLIC_NAME)));
+    learn_ticket(&client, &accepting(server.clone(), b"settings-v1"));
+    let (client, server) = offer_early(client.with_early_data(), server, &parameters(Side::Server));
+    assert!(server.early_crypto().is_none());
+    let complete = exchange(client, server);
+    assert_eq!(complete.client_result, Ok(()));
+    let data = server_data(&*complete.server);
+    assert!(data.session_resumed());
+    assert!(data.ech_accepted());
+    assert_eq!(data.early_data_accepted(), Some(false));
+    assert_eq!(complete.client.early_data_accepted(), Some(false));
+    assert!(!complete.server.is_handshaking());
+}
+
+#[test]
+fn changed_application_context_rejects_early_data_without_losing_resumption() {
+    let client = resuming_client();
+    let base = server_config(None);
+    learn_ticket(&client, &accepting(base.clone(), b"settings-v1"));
+    let (client, server) = offer_early(
+        client.with_early_data(),
+        accepting(base, b"settings-v2"),
+        &parameters(Side::Server),
+    );
+    assert!(server.early_crypto().is_none());
+    let complete = exchange(client, server);
+    assert_eq!(complete.client_result, Ok(()));
+    assert!(server_data(&*complete.server).session_resumed());
+    assert_eq!(
+        server_data(&*complete.server).early_data_accepted(),
+        Some(false)
+    );
+    assert_eq!(complete.client.early_data_accepted(), Some(false));
+}
+
+#[test]
+fn changed_transport_limit_rejects_early_data_without_losing_resumption() {
+    let client = resuming_client();
+    let server = accepting(server_config(None), b"settings-v1");
+    learn_ticket(&client, &server);
+    let changed = TransportParameters::read(Side::Server, &mut &[0x04, 0x01, 0x01][..])
+        .unwrap_or_else(|error| panic!("changed parameters: {error}"));
+    let (client, server) = offer_early(client.with_early_data(), server, &changed);
+    assert!(server.early_crypto().is_none());
+    let complete = exchange(client, server);
+    assert_eq!(complete.client_result, Ok(()));
+    assert!(server_data(&*complete.server).session_resumed());
+    assert_eq!(
+        server_data(&*complete.server).early_data_accepted(),
+        Some(false)
+    );
+    assert_eq!(complete.client.early_data_accepted(), Some(false));
+}
+
+#[test]
+fn changed_connection_id_keeps_early_data_acceptance() {
+    let client = resuming_client();
+    let server = accepting(server_config(None), b"settings-v1");
+    learn_ticket(&client, &server);
+    let changed = TransportParameters::read(Side::Server, &mut &[0x0f, 0x01, 0x02][..])
+        .unwrap_or_else(|error| panic!("changed connection ID: {error}"));
+    let (client, server) = offer_early(client.with_early_data(), server, &changed);
+    assert!(server.early_crypto().is_some());
+    let complete = exchange(client, server);
+    assert_eq!(complete.client_result, Ok(()));
+    assert!(!complete.server.is_handshaking());
+    assert!(!complete.client.is_handshaking());
+    assert!(server_data(&*complete.server).session_resumed());
+    assert_eq!(
+        server_data(&*complete.server).early_data_accepted(),
+        Some(true)
+    );
+    assert_eq!(complete.client.early_data_accepted(), Some(true));
+}
+
+#[test]
+fn a_default_server_ticket_resumes_without_any_early_keys() {
+    let client = resuming_client();
+    let server = server_config(None);
+    learn_ticket(&client, &server);
+    let mut resumed = Arc::new(client.with_early_data())
+        .start_session(1, SERVER_NAME, &parameters(Side::Client))
+        .unwrap_or_else(|error| panic!("resumed session: {error}"));
+    assert!(resumed.early_crypto().is_none());
+    let mut peer = Arc::new(server).start_session(1, &parameters(Side::Server));
+    let mut hello = Vec::new();
+    let _ = resumed.write_handshake(&mut hello);
+    peer.read_handshake(&hello)
+        .unwrap_or_else(|error| panic!("server hello: {error}"));
+    assert!(peer.early_crypto().is_none());
+    let complete = exchange(resumed, peer);
+    assert_eq!(complete.client_result, Ok(()));
+    assert!(server_data(&*complete.server).session_resumed());
+    assert_eq!(
+        server_data(&*complete.server).early_data_accepted(),
+        Some(false)
+    );
 }

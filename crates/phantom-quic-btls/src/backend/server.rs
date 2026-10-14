@@ -2,8 +2,8 @@
 //!
 //! It exists so a test or a capture can terminate QUIC with the same TLS
 //! library the client uses, including Encrypted Client Hello keys, which
-//! Quinn's rustls provider cannot hold. It offers no 0-RTT, no client
-//! authentication, and no Retry validation of its own.
+//! Quinn's rustls provider cannot hold. Early data is opt-in. It offers no
+//! client authentication and no Retry validation of its own.
 
 use std::any::Any;
 use std::fmt;
@@ -26,13 +26,15 @@ use super::client::{
 };
 use super::client_session::{OwnedSsl, encryption_level, raw_level};
 use super::drain_error_queue;
-use super::quic_callbacks::install_on_ssl;
-use crate::key_schedule::TrafficKeySchedule;
-use crate::{EndpointSide, QuicVersion, derive_initial_keys, retry_integrity_tag};
+use super::quic_callbacks::install_server_on_ssl;
+use crate::key_schedule::{CipherSuite, TrafficKeySchedule, TrafficSecret, derive_version_keys};
+use crate::transport_parameters::server_early_data_context;
+use crate::{CryptoError, EndpointSide, QuicVersion, derive_initial_keys, retry_integrity_tag};
 
 /// Largest ClientHello the server keeps for [`ServerHandshakeData`].
 const MAX_CLIENT_HELLO: usize = 64 * 1024;
 const MAX_TRANSPORT_PARAMETERS: usize = u16::MAX as usize;
+const MAX_APPLICATION_CONTEXT: usize = u16::MAX as usize;
 
 /// Quinn server crypto backed by a BoringSSL context.
 ///
@@ -40,15 +42,48 @@ const MAX_TRANSPORT_PARAMETERS: usize = u16::MAX as usize;
 /// through `SslContextBuilder::set_ech_keys`, any Encrypted Client Hello
 /// keys. Each connection is TLS 1.3 only and sends Quinn's transport
 /// parameters. Requires the `server` feature.
+#[derive(Clone)]
 pub struct QuicServerConfig {
     context: SslContext,
+    application_state: Option<Arc<[u8]>>,
 }
 
 impl QuicServerConfig {
     /// Wraps a configured BoringSSL server context.
     #[must_use]
     pub const fn new(context: SslContext) -> Self {
-        Self { context }
+        Self {
+            context,
+            application_state: None,
+        }
+    }
+
+    /// Enables early data for this server's loopback tests or capture tools.
+    ///
+    /// `application_state` must contain 1..=65535 bytes that identify the
+    /// application settings used for early requests, such as the server's
+    /// HTTP/3 SETTINGS. This is combined with the connection's QUIC version
+    /// and rememberable transport parameters. A different context rejects
+    /// early data while still allowing ordinary ticket resumption.
+    ///
+    /// Early data is replayable. The server application must only process
+    /// operations it can safely receive more than once (RFC 9001 section 9.2).
+    /// Clones share the BoringSSL context and its ticket keys.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CryptoError::InvalidEarlyDataContextLength`] for an empty or
+    /// oversized application context.
+    pub fn with_early_data(mut self, application_state: &[u8]) -> Result<Self, CryptoError> {
+        if application_state.is_empty() || application_state.len() > MAX_APPLICATION_CONTEXT {
+            return Err(CryptoError::InvalidEarlyDataContextLength {
+                actual: application_state.len(),
+                minimum: 1,
+                maximum: MAX_APPLICATION_CONTEXT,
+            });
+        }
+        self.application_state = Some(Arc::from(application_state));
+        Ok(self)
     }
 }
 
@@ -85,7 +120,15 @@ impl crypto::ServerConfig for QuicServerConfig {
         let version = supported_version(version).unwrap_or_default();
         let mut encoded = Vec::new();
         params.write(&mut encoded);
-        let session = ServerSession::new(&self.context, &encoded);
+        let early_context = self
+            .application_state
+            .as_deref()
+            .map(|state| server_early_data_context(&encoded, state, version))
+            .transpose();
+        let session = match early_context {
+            Ok(context) => ServerSession::new(&self.context, &encoded, context.as_deref()),
+            Err(_) => Err("server early-data context"),
+        };
         Box::new(QuicServerSession {
             state: Mutex::new(ServerState::new(version, session)),
         })
@@ -108,6 +151,7 @@ pub struct ServerHandshakeData {
     ech_accepted: bool,
     client_hello: Vec<u8>,
     session_resumed: bool,
+    early_data_accepted: Option<bool>,
 }
 
 impl ServerHandshakeData {
@@ -139,6 +183,15 @@ impl ServerHandshakeData {
         self.session_resumed
     }
 
+    /// Returns whether the completed handshake accepted early data.
+    ///
+    /// Returns `None` until the client's Finished completes the handshake.
+    /// Read it from the established connection, not an earlier data snapshot.
+    #[must_use]
+    pub const fn early_data_accepted(&self) -> Option<bool> {
+        self.early_data_accepted
+    }
+
     /// Returns the ClientHello message as the client sent it in its Initial
     /// packets: the outer ClientHello when it offered ECH.
     #[must_use]
@@ -156,6 +209,7 @@ impl fmt::Debug for ServerHandshakeData {
             .field("ech_accepted", &self.ech_accepted)
             .field("client_hello_len", &self.client_hello.len())
             .field("session_resumed", &self.session_resumed)
+            .field("early_data_accepted", &self.early_data_accepted)
             .finish()
     }
 }
@@ -183,6 +237,7 @@ struct ServerState {
     handshake_data: Option<ServerHandshakeData>,
     handshake_data_announced: bool,
     peer_transport_parameters: Option<Vec<u8>>,
+    early_secret: Option<(u16, TrafficSecret)>,
 }
 
 impl ServerState {
@@ -198,6 +253,7 @@ impl ServerState {
             handshake_data: None,
             handshake_data_announced: false,
             peer_transport_parameters: None,
+            early_secret: None,
         }
     }
 
@@ -221,6 +277,9 @@ impl ServerState {
         };
         for chunk in session.callbacks.drain_handshake().map_err(internal)? {
             self.outbound.stage(chunk);
+        }
+        if self.early_secret.is_none() {
+            self.early_secret = session.callbacks.take_early_secret();
         }
         if self.handshake_keys.is_none()
             && let Some(pair) = session
@@ -251,12 +310,14 @@ impl ServerState {
                 ech_accepted: session.ech_accepted(),
                 client_hello: self.client_hello.clone(),
                 session_resumed: false,
+                early_data_accepted: None,
             });
         }
         if session.handshake_complete
             && let Some(data) = &mut self.handshake_data
         {
             data.session_resumed = session.session_reused();
+            data.early_data_accepted = Some(session.early_data_accepted());
         }
         if self.peer_transport_parameters.is_none() {
             self.peer_transport_parameters = session.peer_transport_parameters()?;
@@ -298,7 +359,13 @@ impl crypto::Session for QuicServerSession {
     }
 
     fn early_crypto(&self) -> Option<(Box<dyn crypto::HeaderKey>, Box<dyn crypto::PacketKey>)> {
-        None
+        let state = self.lock();
+        let (suite, secret) = state.early_secret.as_ref()?;
+        let suite = CipherSuite::from_id(*suite).ok()?;
+        let (header, packet) = derive_version_keys(suite, secret.as_slice(), state.version)
+            .ok()?
+            .into_parts();
+        Some((Box::new(header), Box::new(packet)))
     }
 
     fn early_data_accepted(&self) -> Option<bool> {
@@ -384,7 +451,11 @@ struct ServerSession {
 }
 
 impl ServerSession {
-    fn new(context: &SslContext, transport_parameters: &[u8]) -> Result<Self, &'static str> {
+    fn new(
+        context: &SslContext,
+        transport_parameters: &[u8],
+        early_context: Option<&[u8]>,
+    ) -> Result<Self, &'static str> {
         if transport_parameters.len() > MAX_TRANSPORT_PARAMETERS {
             return Err("server transport parameters too long");
         }
@@ -401,11 +472,18 @@ impl ServerSession {
         if unsafe { ffi::SSL_set_max_proto_version(pointer, ffi::TLS1_3_VERSION as u16) } != 1 {
             return Err(failure("server maximum TLS version"));
         }
-        // SAFETY: the SSL is live, uniquely owned, and has not started a
-        // handshake. Early data stays off: the callbacks reject a 0-RTT read
-        // secret, and this server never accepts 0-RTT.
+        // SAFETY: the SSL is live, uniquely owned, and has not started a handshake.
         unsafe {
-            ffi::SSL_set_early_data_enabled(pointer, 0);
+            ffi::SSL_set_early_data_enabled(pointer, i32::from(early_context.is_some()));
+        }
+        if let Some(context) = early_context {
+            // SAFETY: the unstarted SSL is live and the setter copies these bytes.
+            if unsafe {
+                ffi::SSL_set_quic_early_data_context(pointer, context.as_ptr(), context.len())
+            } != 1
+            {
+                return Err(failure("server early-data context"));
+            }
         }
         // SAFETY: the parameters remain live for the copying setter call.
         if unsafe {
@@ -423,8 +501,9 @@ impl ServerSession {
             ffi::SSL_set_accept_state(pointer);
         }
         // SAFETY: the SSL is live, unique, and has not started its handshake.
-        let callbacks = unsafe { install_on_ssl(ssl.as_non_null(), FlightLimits::default()) }
-            .map_err(|_| "server QUIC callbacks")?;
+        let callbacks =
+            unsafe { install_server_on_ssl(ssl.as_non_null(), FlightLimits::default()) }
+                .map_err(|_| "server QUIC callbacks")?;
         Ok(Self {
             ssl,
             callbacks,
@@ -462,7 +541,11 @@ impl ServerSession {
         // SAFETY: the SSL is live, unique, and configured for a QUIC server handshake.
         let result = unsafe { ffi::SSL_do_handshake(self.ssl.as_ptr()) };
         if result == 1 {
-            self.handshake_complete = true;
+            // SAFETY: this live SSL's early-data state is read without mutation.
+            let in_early_data = unsafe { ffi::SSL_in_early_data(self.ssl.as_ptr()) } != 0;
+            // An accepting server returns 1 before the client's Finished.
+            self.handshake_complete = !in_early_data;
+            drain_error_queue();
             return Ok(());
         }
         // SAFETY: `result` is the immediately preceding SSL operation result.
@@ -519,6 +602,11 @@ impl ServerSession {
     fn session_reused(&self) -> bool {
         // SAFETY: the SSL is live; the query reads handshake state only.
         unsafe { ffi::SSL_session_reused(self.ssl.as_ptr()) != 0 }
+    }
+
+    fn early_data_accepted(&self) -> bool {
+        // SAFETY: the SSL is live; this query reads handshake state only.
+        self.handshake_complete && unsafe { ffi::SSL_early_data_accepted(self.ssl.as_ptr()) } != 0
     }
 
     fn peer_transport_parameters(&self) -> Result<Option<Vec<u8>>, TransportError> {

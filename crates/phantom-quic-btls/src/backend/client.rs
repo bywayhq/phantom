@@ -60,7 +60,7 @@ const H3_PROTOCOL: &[u8] = b"h3";
 /// use std::sync::Arc;
 /// use btls::ssl::{SslContextBuilder, SslMethod, SslVerifyMode, SslVersion};
 /// use phantom_profile::browser::chrome;
-/// use phantom_quic_btls::QuicClientConfig;
+/// use phantom_quic_btls::{QuicClientConfig, StatelessResetKey};
 /// use quinn_proto::{ClientConfig, EndpointConfig, TransportConfig};
 ///
 /// let mut context = SslContextBuilder::new(SslMethod::tls())?;
@@ -74,7 +74,7 @@ const H3_PROTOCOL: &[u8] = b"h3";
 ///     context.build(), chrome::v154_quic(),
 /// )?.with_tls_profile(&chrome::v154_quic_tls())?
 ///     .with_isolated_session_cache();
-/// let mut endpoint = EndpointConfig::default();
+/// let mut endpoint = EndpointConfig::new(Arc::new(StatelessResetKey::generate()?));
 /// let mut transport = TransportConfig::default();
 /// crypto.configure_transport(&mut endpoint, &mut transport)?;
 /// crypto.configure_path(&mut transport, "127.0.0.1".parse()?)?;

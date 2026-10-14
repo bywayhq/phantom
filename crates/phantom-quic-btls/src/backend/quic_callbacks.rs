@@ -91,6 +91,77 @@ pub(super) unsafe fn install_on_ssl(
     unsafe { install_method_on_ssl(ssl, limits, &QUIC_METHOD) }
 }
 
+/// Installs the server method, which reads rather than writes 0-RTT.
+///
+/// # Safety
+///
+/// As for [`install_on_ssl`]. The caller must configure a server SSL.
+#[cfg(any(test, feature = "server"))]
+pub(super) unsafe fn install_server_on_ssl(
+    ssl: NonNull<ffi::SSL>,
+    limits: FlightLimits,
+) -> Result<CallbackState, CallbackInstallError> {
+    // SAFETY: the caller upholds this function's contract.
+    unsafe { install_method_on_ssl(ssl, limits, &SERVER_METHOD) }
+}
+
+#[cfg(any(test, feature = "server"))]
+static SERVER_METHOD: ffi::SSL_QUIC_METHOD = ffi::SSL_QUIC_METHOD {
+    set_read_secret: Some(server_read_secret),
+    set_write_secret: Some(server_write_secret),
+    add_handshake_data: Some(add_handshake_data),
+    flush_flight: Some(flush_flight),
+    send_alert: Some(send_alert),
+};
+
+#[cfg(any(test, feature = "server"))]
+unsafe extern "C" fn server_read_secret(
+    ssl: *mut ffi::SSL,
+    raw_level: ffi::ssl_encryption_level_t,
+    cipher: *const ffi::SSL_CIPHER,
+    secret: *const u8,
+    secret_len: usize,
+) -> c_int {
+    if raw_level != ffi::ssl_encryption_level_t::ssl_encryption_early_data {
+        // SAFETY: BoringSSL supplies the callback arguments unchanged.
+        return unsafe { set_read_secret(ssl, raw_level, cipher, secret, secret_len) };
+    }
+    // SAFETY: callback state is installed before the method is activated.
+    let Some(state) = (unsafe { callback_state(ssl) }) else {
+        return 0;
+    };
+    // SAFETY: SSL owns this state for the duration of its callback.
+    let state = unsafe { state.as_ref() };
+    callback_outcome(state, || {
+        let cipher = NonNull::new(cipher.cast_mut()).ok_or(CallbackError::NullCipher)?;
+        // SAFETY: BoringSSL lends a valid cipher descriptor for this callback.
+        let cipher_suite = unsafe { ffi::SSL_CIPHER_get_protocol_id(cipher.as_ptr()) };
+        validate_secret_len(cipher_suite, secret_len)?;
+        // SAFETY: BoringSSL lends the secret bytes until this callback returns.
+        unsafe {
+            with_callback_bytes(secret, secret_len, "secret", false, |secret| {
+                state.set_early_secret(cipher_suite, secret)
+            })
+        }
+    })
+}
+
+#[cfg(any(test, feature = "server"))]
+unsafe extern "C" fn server_write_secret(
+    ssl: *mut ffi::SSL,
+    raw_level: ffi::ssl_encryption_level_t,
+    cipher: *const ffi::SSL_CIPHER,
+    secret: *const u8,
+    secret_len: usize,
+) -> c_int {
+    if raw_level == ffi::ssl_encryption_level_t::ssl_encryption_early_data {
+        // SAFETY: the client read callback rejects this level before pointer access.
+        return unsafe { set_read_secret(ssl, raw_level, cipher, secret, secret_len) };
+    }
+    // SAFETY: BoringSSL supplies the callback arguments unchanged.
+    unsafe { set_write_secret(ssl, raw_level, cipher, secret, secret_len) }
+}
+
 /// Installs the loopback test server's callbacks; see [`TEST_SERVER_METHOD`].
 ///
 /// # Safety

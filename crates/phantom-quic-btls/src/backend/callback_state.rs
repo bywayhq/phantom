@@ -288,6 +288,7 @@ struct CallbackStateInner {
     completed_flushes: usize,
     new_sessions: VecDeque<SslSession>,
     early_secret: Option<StoredSecret>,
+    early_secret_seen: bool,
 }
 
 pub(super) struct CallbackState {
@@ -481,7 +482,7 @@ impl CallbackState {
         Ok(std::mem::take(&mut inner.alerts))
     }
 
-    /// Stores the client's 0-RTT write secret; there is no 0-RTT read secret.
+    /// Stores the client's 0-RTT write secret or the server's 0-RTT read secret.
     pub(super) fn set_early_secret(
         &self,
         cipher_suite: u16,
@@ -489,14 +490,15 @@ impl CallbackState {
     ) -> Result<(), CallbackError> {
         let secret = StoredSecret::copy(cipher_suite, value)?;
         let mut inner = self.lock();
-        if inner.early_secret.is_some() {
+        if inner.early_secret_seen {
             return Err(CallbackError::DuplicateEarlySecret);
         }
         inner.early_secret = Some(secret);
+        inner.early_secret_seen = true;
         Ok(())
     }
 
-    /// Removes the 0-RTT write secret and its cipher suite, if installed.
+    /// Removes the 0-RTT secret and its cipher suite, if installed.
     pub(super) fn take_early_secret(&self) -> Option<(u16, TrafficSecret)> {
         self.lock()
             .early_secret

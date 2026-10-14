@@ -214,6 +214,262 @@ fn early_data_write_secret_is_stored_once() {
     assert!(state.take_early_secret().is_none());
 }
 
+fn install_server(test_ssl: &TestSsl) -> CallbackState {
+    // SAFETY: the helper uniquely owns this live SSL before handshake start.
+    unsafe { ffi::SSL_set_accept_state(test_ssl.ssl().as_ptr()) };
+    // SAFETY: the unstarted SSL is configured as a server and remains live.
+    match unsafe { install_server_on_ssl(test_ssl.ssl(), FlightLimits::default()) } {
+        Ok(state) => state,
+        Err(error) => panic!("server callback installation failed: {error:?}"),
+    }
+}
+
+#[test]
+fn server_method_defines_every_callback_and_rejects_null_ssl() {
+    assert!(SERVER_METHOD.set_read_secret.is_some());
+    assert!(SERVER_METHOD.set_write_secret.is_some());
+    assert!(SERVER_METHOD.add_handshake_data.is_some());
+    assert!(SERVER_METHOD.flush_flight.is_some());
+    assert!(SERVER_METHOD.send_alert.is_some());
+    let early = ffi::ssl_encryption_level_t::ssl_encryption_early_data;
+    // SAFETY: null inputs exercise validation and are never dereferenced.
+    unsafe {
+        assert_eq!(
+            server_read_secret(ptr::null_mut(), early, ptr::null(), ptr::null(), 0),
+            0
+        );
+        assert_eq!(
+            server_write_secret(ptr::null_mut(), early, ptr::null(), ptr::null(), 0),
+            0
+        );
+    }
+}
+
+#[test]
+fn server_early_read_secret_rejects_duplicates_before_and_after_take() {
+    let early = ffi::ssl_encryption_level_t::ssl_encryption_early_data;
+    // SAFETY: the descriptor has process lifetime.
+    let cipher = unsafe { ffi::SSL_get_cipher_by_value(0x1301) };
+    assert!(!cipher.is_null());
+    let secret = [9; 32];
+    for consume in [false, true] {
+        let test_ssl = TestSsl::client();
+        let state = install_server(&test_ssl);
+        assert_eq!(
+            // SAFETY: the server SSL, cipher and secret remain live for the callback.
+            unsafe {
+                server_read_secret(
+                    test_ssl.ssl().as_ptr(),
+                    early,
+                    cipher,
+                    secret.as_ptr(),
+                    secret.len(),
+                )
+            },
+            1
+        );
+        if consume {
+            let (suite, stored) = state
+                .take_early_secret()
+                .unwrap_or_else(|| panic!("missing read secret"));
+            assert_eq!(suite, 0x1301);
+            assert_eq!(stored.as_slice(), &secret);
+        }
+        assert_eq!(
+            // SAFETY: the duplicate still references live data and exercises rejection.
+            unsafe {
+                server_read_secret(
+                    test_ssl.ssl().as_ptr(),
+                    early,
+                    cipher,
+                    secret.as_ptr(),
+                    secret.len(),
+                )
+            },
+            0
+        );
+        assert_eq!(
+            state.terminal_error(),
+            Some(CallbackError::DuplicateEarlySecret)
+        );
+        assert_eq!(state.take_early_secret().is_some(), !consume);
+    }
+}
+
+#[test]
+fn client_early_write_secret_rejects_a_duplicate_after_take() {
+    let test_ssl = TestSsl::client();
+    let state = install(&test_ssl);
+    let early = ffi::ssl_encryption_level_t::ssl_encryption_early_data;
+    // SAFETY: the descriptor has process lifetime.
+    let cipher = unsafe { ffi::SSL_get_cipher_by_value(0x1301) };
+    assert!(!cipher.is_null());
+    let secret = [4; 32];
+    assert_eq!(
+        // SAFETY: the client SSL and callback inputs remain live.
+        unsafe {
+            set_write_secret(
+                test_ssl.ssl().as_ptr(),
+                early,
+                cipher,
+                secret.as_ptr(),
+                secret.len(),
+            )
+        },
+        1
+    );
+    assert!(state.take_early_secret().is_some());
+    assert_eq!(
+        // SAFETY: all inputs are still live and exercise duplicate rejection.
+        unsafe {
+            set_write_secret(
+                test_ssl.ssl().as_ptr(),
+                early,
+                cipher,
+                secret.as_ptr(),
+                secret.len(),
+            )
+        },
+        0
+    );
+    assert_eq!(
+        state.terminal_error(),
+        Some(CallbackError::DuplicateEarlySecret)
+    );
+    assert!(state.take_early_secret().is_none());
+}
+
+#[test]
+fn server_never_writes_early_data() {
+    let test_ssl = TestSsl::client();
+    let state = install_server(&test_ssl);
+    let early = ffi::ssl_encryption_level_t::ssl_encryption_early_data;
+    assert_eq!(
+        // SAFETY: invalid pointers are rejected by level before access.
+        unsafe {
+            server_write_secret(
+                test_ssl.ssl().as_ptr(),
+                early,
+                ptr::null(),
+                NonNull::<u8>::dangling().as_ptr(),
+                32,
+            )
+        },
+        0
+    );
+    assert_eq!(
+        state.terminal_error(),
+        Some(CallbackError::EarlyDataUnsupported)
+    );
+    assert!(state.take_early_secret().is_none());
+}
+
+#[test]
+fn server_early_read_secret_checks_cipher_length_and_pointer_before_copy() {
+    let early = ffi::ssl_encryption_level_t::ssl_encryption_early_data;
+    // SAFETY: descriptors have process lifetime; TLS 1.2's suite has no QUIC schedule.
+    let cipher = unsafe { ffi::SSL_get_cipher_by_value(0x1301) };
+    // SAFETY: the descriptor has process lifetime.
+    let unsupported = unsafe { ffi::SSL_get_cipher_by_value(0xc02f) };
+    // SAFETY: the descriptor has process lifetime.
+    let sha384 = unsafe { ffi::SSL_get_cipher_by_value(0x1302) };
+    assert!(!cipher.is_null());
+    assert!(!unsupported.is_null());
+    assert!(!sha384.is_null());
+    let cases = [
+        (ptr::null(), ptr::null(), 32, CallbackError::NullCipher),
+        (
+            cipher,
+            NonNull::<u8>::dangling().as_ptr().cast_const(),
+            31,
+            CallbackError::InvalidSecretLength {
+                actual: 31,
+                expected: 32,
+            },
+        ),
+        (
+            cipher,
+            ptr::null(),
+            32,
+            CallbackError::NullInput {
+                input: "secret",
+                len: 32,
+            },
+        ),
+        (
+            sha384,
+            NonNull::<u8>::dangling().as_ptr().cast_const(),
+            32,
+            CallbackError::InvalidSecretLength {
+                actual: 32,
+                expected: 48,
+            },
+        ),
+        (
+            unsupported,
+            NonNull::<u8>::dangling().as_ptr().cast_const(),
+            32,
+            CallbackError::UnsupportedCipherSuite { id: 0xc02f },
+        ),
+    ];
+    for (cipher, secret, length, expected) in cases {
+        let test_ssl = TestSsl::client();
+        let state = install_server(&test_ssl);
+        assert_eq!(
+            // SAFETY: each invalid input is rejected before its secret pointer is read.
+            unsafe { server_read_secret(test_ssl.ssl().as_ptr(), early, cipher, secret, length) },
+            0
+        );
+        assert_eq!(state.terminal_error(), Some(expected));
+        assert!(state.take_early_secret().is_none());
+    }
+}
+
+#[test]
+fn server_non_early_callbacks_preserve_secret_directions() {
+    let test_ssl = TestSsl::client();
+    let state = install_server(&test_ssl);
+    let application = ffi::ssl_encryption_level_t::ssl_encryption_application;
+    // SAFETY: the descriptor has process lifetime.
+    let cipher = unsafe { ffi::SSL_get_cipher_by_value(0x1301) };
+    assert!(!cipher.is_null());
+    let local = [3; 32];
+    let remote = [7; 32];
+    assert_eq!(
+        // SAFETY: all callback inputs remain live.
+        unsafe {
+            server_write_secret(
+                test_ssl.ssl().as_ptr(),
+                application,
+                cipher,
+                local.as_ptr(),
+                local.len(),
+            )
+        },
+        1
+    );
+    assert_eq!(
+        // SAFETY: all callback inputs remain live.
+        unsafe {
+            server_read_secret(
+                test_ssl.ssl().as_ptr(),
+                application,
+                cipher,
+                remote.as_ptr(),
+                remote.len(),
+            )
+        },
+        1
+    );
+    assert!(state.secret_matches(EncryptionLevel::Application, SecretDirection::Local, &local));
+    assert!(state.secret_matches(
+        EncryptionLevel::Application,
+        SecretDirection::Remote,
+        &remote
+    ));
+    assert!(state.take_early_secret().is_none());
+}
+
 #[test]
 fn invalid_secret_pointer_shapes_are_rejected_before_copy() {
     // SAFETY: the cipher descriptor has process lifetime.

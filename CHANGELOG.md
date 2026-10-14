@@ -1107,6 +1107,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Validate catalog capture build labels against retained fixture metadata.
   Brave Android's HTTP/2 evidence now names its older Android 15 capture.
 
+- Enable early data in the optional native QUIC test server with
+  `QuicServerConfig::with_early_data`. Tickets bind the application context
+  and remembered transport settings. Changed settings reject early data
+  while allowing ordinary resumption. `ServerHandshakeData::early_data_accepted`
+  reports the result after the handshake completes. Early data remains off
+  by default.
+
 - Look up HTTPS records for learned direct HTTP/3 alternatives with
   `ClientBuilder::alt_svc_https_policy` and
   `AltSvcHttpsPolicy::Destination`. A compatible answer can supply ECH while

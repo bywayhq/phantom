@@ -10,7 +10,7 @@ use quinn_proto::{Side, transport_parameters::TransportParameters};
 use super::wire::encode_varint;
 use super::{
     ENTROPY_LEN, ParsedTransportParameters, QuicTransportProfileError, TransportParameterProfile,
-    WireEntropy, decode_varint, initial_max_streams_bidi,
+    WireEntropy, decode_varint, initial_max_streams_bidi, server_early_data_context,
 };
 use crate::QuicVersion;
 
@@ -18,6 +18,100 @@ use crate::QuicVersion;
 /// `transport_parameters_hex`, whose order the recipe carries as its
 /// permutation template.
 const CAPTURED_PARAMETERS: &str = "08024064070480600000110c000000019a7aaa7a00000001040480f00000090240670604806000000104800075307128044f524947200480010000c8200e4187dfa4b60190030245c00504806000000f00";
+
+#[test]
+fn early_data_context_ignores_only_forbidden_remembered_parameters() -> Result<(), Box<dyn Error>> {
+    let baseline = server_early_data_context(&[0x04, 0x01, 0x05], b"settings", QuicVersion::V1)?;
+    for identifier in [0x00, 0x02, 0x0a, 0x0b, 0x0d, 0x0f, 0x10] {
+        let encoded = [0x04, 0x01, 0x05, identifier, 0x01, 0x07];
+        assert_eq!(
+            server_early_data_context(&encoded, b"settings", QuicVersion::V1)?,
+            baseline,
+            "identifier {identifier}"
+        );
+    }
+    for identifier in [
+        0x01, 0x03, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0c, 0x0e, 0x11, 0x20,
+    ] {
+        let encoded = [0x04, 0x01, 0x05, identifier, 0x01, 0x07];
+        assert_ne!(
+            server_early_data_context(&encoded, b"settings", QuicVersion::V1)?,
+            baseline,
+            "identifier {identifier}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn early_data_context_preserves_application_version_limits_and_extension_values()
+-> Result<(), Box<dyn Error>> {
+    let first = [0x04, 0x01, 0x05, 0x20, 0x01, 0x09];
+    let reordered = [0x20, 0x01, 0x09, 0x04, 0x01, 0x05];
+    let baseline = server_early_data_context(&first, b"settings", QuicVersion::V1)?;
+    assert_eq!(
+        server_early_data_context(&reordered, b"settings", QuicVersion::V1)?,
+        baseline
+    );
+    assert_ne!(
+        server_early_data_context(&first, b"settings2", QuicVersion::V1)?,
+        baseline
+    );
+    assert_ne!(
+        server_early_data_context(&first, b"settings", QuicVersion::V2)?,
+        baseline
+    );
+    assert_ne!(
+        server_early_data_context(
+            &[0x04, 0x01, 0x06, 0x20, 0x01, 0x09],
+            b"settings",
+            QuicVersion::V1
+        )?,
+        baseline
+    );
+    assert_ne!(
+        server_early_data_context(
+            &[0x04, 0x01, 0x05, 0x20, 0x01, 0x0a],
+            b"settings",
+            QuicVersion::V1
+        )?,
+        baseline
+    );
+    // Length-delimited application state cannot swallow a transport entry.
+    let mut state = b"settings".to_vec();
+    state.extend_from_slice(&[0x20, 0x01, 0x09]);
+    assert_ne!(
+        server_early_data_context(&[0x04, 0x01, 0x05], &state, QuicVersion::V1)?,
+        baseline
+    );
+    Ok(())
+}
+
+#[test]
+fn early_data_context_rejects_malformed_or_unbounded_input() -> Result<(), Box<dyn Error>> {
+    for encoded in [
+        &[0x04, 0x02, 0x01][..],
+        &[0x04, 0x01, 0x01, 0x04, 0x01, 0x02][..],
+        &[0x40][..],
+    ] {
+        assert!(server_early_data_context(encoded, b"settings", QuicVersion::V1).is_err());
+    }
+    assert!(
+        server_early_data_context(
+            &vec![0; usize::from(u16::MAX) + 1],
+            b"settings",
+            QuicVersion::V1
+        )
+        .is_err()
+    );
+    for length in [0, usize::from(u16::MAX) + 1] {
+        assert!(server_early_data_context(&[], &vec![0; length], QuicVersion::V1).is_err());
+    }
+    assert!(
+        server_early_data_context(&[], &vec![0; usize::from(u16::MAX)], QuicVersion::V1).is_ok()
+    );
+    Ok(())
+}
 
 #[test]
 fn deterministic_entropy_reproduces_captured_parameters() -> Result<(), Box<dyn Error>> {

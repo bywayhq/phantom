@@ -13,7 +13,8 @@
 //!
 //! The optional `server` feature adds `QuicServerConfig`, a Quinn server
 //! provider on a BoringSSL context, for Phantom's loopback tests and capture
-//! tools; it can hold ECH keys and offers no 0-RTT.
+//! tools. It can hold ECH keys. Early data is disabled by default; enable it
+//! with `QuicServerConfig::with_early_data` and the application's settings.
 //!
 //! All `unsafe` code is confined to the private `backend` module, the
 //! BoringSSL FFI boundary. The rest of the crate denies `unsafe_code`, and

@@ -5,6 +5,9 @@ packet protection. You can configure it with Phantom's typed TLS profiles.
 
 This internal crate supplies Quinn's cryptography provider for Phantom. Its
 `server` feature adds a provider for loopback tests and capture tools.
+Early data is disabled by default. `QuicServerConfig::with_early_data`
+enables it with an application context, combined with the remembered QUIC
+transport settings. The application must handle replayable requests safely.
 
 ## API boundary
 

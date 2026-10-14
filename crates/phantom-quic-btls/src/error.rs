@@ -1,12 +1,21 @@
 use std::fmt;
 
-/// A failure while deriving or applying QUIC packet protection.
+/// A failure while configuring or applying QUIC cryptography.
 ///
 /// Error values report dimensions and operations only. They never contain key
 /// material, nonces, packet contents, or backend error-stack data.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum CryptoError {
+    /// The server's application context for early data is empty or too long.
+    InvalidEarlyDataContextLength {
+        /// Length supplied by the caller.
+        actual: usize,
+        /// Minimum accepted length.
+        minimum: usize,
+        /// Maximum accepted length.
+        maximum: usize,
+    },
     /// A negotiated TLS cipher suite has no QUIC key schedule in this adapter.
     UnsupportedCipherSuite {
         /// TLS cipher-suite identifier supplied by the TLS backend.
@@ -99,6 +108,14 @@ pub enum CryptoError {
 impl fmt::Display for CryptoError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidEarlyDataContextLength {
+                actual,
+                minimum,
+                maximum,
+            } => write!(
+                formatter,
+                "early-data application context length {actual} is outside {minimum}..={maximum}"
+            ),
             Self::UnsupportedCipherSuite { id } => {
                 write!(formatter, "TLS cipher suite 0x{id:04x} is not supported")
             }

@@ -771,6 +771,48 @@ pub(crate) fn initial_max_streams_bidi(encoded: &[u8]) -> Option<u64> {
     parsed.scalar(INITIAL_MAX_STREAMS_BIDI).ok()
 }
 
+/// Binds server early data to its version, remembered transport limits and
+/// application state. Strict equality can reject otherwise compatible state.
+#[cfg(any(test, feature = "server"))]
+pub(crate) fn server_early_data_context(
+    encoded: &[u8],
+    application_state: &[u8],
+    version: QuicVersion,
+) -> Result<Vec<u8>, QuicTransportProfileError> {
+    if encoded.len() > MAX_TRANSPORT_PARAMETERS_LEN {
+        return Err(profile_error(
+            "wire_parameters",
+            "server parameters are too long",
+        ));
+    }
+    let application_len = u16::try_from(application_state.len())
+        .ok()
+        .filter(|length| *length != 0)
+        .ok_or_else(|| {
+            profile_error(
+                "early_data",
+                "application context must contain 1..=65535 bytes",
+            )
+        })?;
+    let parsed = ParsedTransportParameters::from_encoded(encoded)?;
+    let mut context = b"phantom-quic-server-early-data\0\x01".to_vec();
+    context.extend_from_slice(&version.wire().to_be_bytes());
+    context.extend_from_slice(&application_len.to_be_bytes());
+    context.extend_from_slice(application_state);
+    for (identifier, value) in parsed.values {
+        // RFC 9000 section 7.4.1: these values are never remembered for 0-RTT.
+        if matches!(identifier, 0x00 | 0x02 | 0x0a | 0x0b | 0x0d | 0x0f | 0x10) {
+            continue;
+        }
+        encode_varint(identifier, minimal_width(identifier), &mut context)?;
+        let len = u64::try_from(value.len())
+            .map_err(|_| profile_error("wire_parameters", "server parameter is too long"))?;
+        encode_varint(len, minimal_width(len), &mut context)?;
+        context.extend_from_slice(&value);
+    }
+    Ok(context)
+}
+
 fn varint(field: &'static str, value: u64) -> Result<VarInt, QuicTransportProfileError> {
     VarInt::from_u64(value)
         .map_err(|_| profile_error(field, "value cannot be represented by Quinn"))
