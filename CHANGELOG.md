@@ -1106,6 +1106,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Forwarding checks proofs in the head and trailers, and accepts nonce
   state only after the complete body is consumed.
 
+- Discover and select compiled profile revisions by exact catalog identity.
+  Inspect per-layer support and evidence, and require layers explicitly.
+
 - Observe DNS fixture failures with `phantom_testkit::dns::DnsServer::finish`.
   Interrupted completion waits retain the original task for another call.
 

@@ -77,6 +77,7 @@ pub use websocket::{
 };
 
 pub mod browser;
+pub mod catalog;
 
 mod client;
 mod client_hints;

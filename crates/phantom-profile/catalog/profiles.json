@@ -1,0 +1,2841 @@
+{
+  "schema": 1,
+  "profiles": [
+    {
+      "id": "brave/153.1.95.104/android-17-pixel7-emulator/r1",
+      "binding": "BraveAndroid153",
+      "metadata": {
+        "browser": "Brave",
+        "build": "153.1.95.104",
+        "platform": "Android",
+        "platform_release": "android-17-pixel7-emulator",
+        "architecture": null,
+        "environment": "Emulator",
+        "revision": 1
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/tls/brave-android/153.1.95.104/android-17-pixel7-emulator/client-hello.txt",
+              "build": "153.1.95.104"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave/android.rs",
+              "build": "153.1.95.104"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "signature schemes",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Tcp",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Udp",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Dns",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Http1",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave/android.rs",
+              "build": "153.1.95.104"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.",
+            "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."
+          ]
+        },
+        {
+          "layer": "QuicTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/brave-android/153.1.95.104/android-17-pixel7-emulator/quic-client-hello-1.txt",
+              "build": "153.1.95.104"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave/android.rs",
+              "build": "153.1.95.104"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "QuicTransport",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/brave-android/153.1.95.104/android-17-pixel7-emulator/quic-client-hello-1.txt",
+              "build": "153.1.95.104"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave/android.rs",
+              "build": "153.1.95.104"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "transport parameters"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http3",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/brave-android/153.1.95.104/android-17-pixel7-emulator/client-startup.txt",
+              "build": "153.1.95.104"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave/android.rs",
+              "build": "153.1.95.104"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "startup settings"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http3Request",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/brave-android/153.1.95.104/android-17-pixel7-emulator/client-startup.txt",
+              "build": "153.1.95.104"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave/android.rs",
+              "build": "153.1.95.104"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "ClientHints",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/brave-android/153.1.95.104/android-17-pixel7-emulator/navigation.txt",
+              "build": "153.1.95.104"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave/android.rs",
+              "build": "153.1.95.104"
+            }
+          ],
+          "verified_fields": [
+            "header values",
+            "header order"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "WebSocket",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/websocket/brave-android/153.1.95.104/android-17-pixel7-emulator/accept.txt",
+              "build": "153.1.95.104"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave/android.rs",
+              "build": "153.1.95.104"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "opening headers"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "ProxyConnect",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "CookiePlacement",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "brave/154.1.96.59/windows-11-26200/r1",
+      "binding": "BraveWindows154",
+      "metadata": {
+        "browser": "Brave",
+        "build": "154.1.96.59",
+        "platform": "Windows",
+        "platform_release": "windows-11-26200",
+        "architecture": null,
+        "environment": "Desktop",
+        "revision": 1
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/tls/brave/154.1.96.59/windows-11-26200/client-hello.txt",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave.rs",
+              "build": "154.1.96.59"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "signature schemes",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Tcp",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave.rs",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Udp",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave.rs",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Dns",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave.rs",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http1",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave.rs",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http2/brave/154.1.96.59/windows-11-26200/client-startup.txt",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave.rs",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "startup settings"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "QuicTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/brave/154.1.96.59/windows-11-26200/quic-client-hello-1.txt",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave.rs",
+              "build": "154.1.96.59"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "QuicTransport",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/brave/154.1.96.59/windows-11-26200/quic-client-hello-1.txt",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave.rs",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "transport parameters"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http3",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/brave/154.1.96.59/windows-11-26200/client-startup.txt",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave.rs",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "startup settings"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http3Request",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/brave/154.1.96.59/windows-11-26200/client-startup.txt",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave.rs",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "ClientHints",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/brave/154.1.96.59/windows-11-26200/navigation.txt",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave.rs",
+              "build": "154.1.96.59"
+            }
+          ],
+          "verified_fields": [
+            "header values",
+            "header order"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "WebSocket",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/websocket/brave/154.1.96.59/windows-11-26200/accept.txt",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave.rs",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "opening headers"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "ProxyConnect",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/proxy/brave/154.1.96.59/windows-11-26200/https-proxy-hostname.txt",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave.rs",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "CONNECT request headers"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "CookiePlacement",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/cookies/brave/154.1.96.59/windows-11-26200/crumbs-h2.txt",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/brave.rs",
+              "build": "154.1.96.59"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "HTTP/2 cookie placement"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chrome/154.0.8037.57/android-17-pixel7-emulator/r1",
+      "binding": "ChromeAndroid154",
+      "metadata": {
+        "browser": "Chrome",
+        "build": "154.0.8037.57",
+        "platform": "Android",
+        "platform_release": "android-17-pixel7-emulator",
+        "architecture": "x86_64",
+        "environment": "Emulator",
+        "revision": 1
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/tls/chrome-android/154.0.8037.57/android-17-pixel7-emulator/client-hello.txt",
+              "build": "154.0.8037.57"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome/android.rs",
+              "build": "154.0.8037.57"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "signature schemes",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Tcp",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Udp",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Dns",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Http1",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http2/chrome-android/154.0.8037.57/android-17-pixel7-emulator/client-startup.txt",
+              "build": "154.0.8037.57"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome/android.rs",
+              "build": "154.0.8037.57"
+            }
+          ],
+          "verified_fields": [
+            "startup settings"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "QuicTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/chrome-android/154.0.8037.57/android-17-pixel7-emulator/quic-client-hello-1.txt",
+              "build": "154.0.8037.57"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome/android.rs",
+              "build": "154.0.8037.57"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "QuicTransport",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/chrome-android/154.0.8037.57/android-17-pixel7-emulator/quic-client-hello-1.txt",
+              "build": "154.0.8037.57"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome/android.rs",
+              "build": "154.0.8037.57"
+            }
+          ],
+          "verified_fields": [
+            "transport parameters"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http3",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/chrome-android/154.0.8037.57/android-17-pixel7-emulator/client-startup.txt",
+              "build": "154.0.8037.57"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome/android.rs",
+              "build": "154.0.8037.57"
+            }
+          ],
+          "verified_fields": [
+            "startup settings"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http3Request",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/chrome-android/154.0.8037.57/android-17-pixel7-emulator/client-startup.txt",
+              "build": "154.0.8037.57"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome/android.rs",
+              "build": "154.0.8037.57"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "ClientHints",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome-android/154.0.8037.57/android-17-pixel7-emulator/navigation.txt",
+              "build": "154.0.8037.57"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome/android.rs",
+              "build": "154.0.8037.57"
+            }
+          ],
+          "verified_fields": [
+            "header values",
+            "header order"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "WebSocket",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/websocket/chrome-android/154.0.8037.57/android-17-pixel7-emulator/accept.txt",
+              "build": "154.0.8037.57"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome/android.rs",
+              "build": "154.0.8037.57"
+            }
+          ],
+          "verified_fields": [
+            "opening headers"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "ProxyConnect",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "CookiePlacement",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chrome/154.0.8037.97/windows-11-26200/r1",
+      "binding": "ChromeWindows154",
+      "metadata": {
+        "browser": "Chrome",
+        "build": "154.0.8037.97",
+        "platform": "Windows",
+        "platform_release": "windows-11-26200",
+        "architecture": null,
+        "environment": "Desktop",
+        "revision": 1
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/tls/chrome/154.0.8037.58/windows-11-26200/client-hello.txt",
+              "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "signature schemes",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Tcp",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/chrome/154.0.8037.58/windows-11-26200/hooks-single.txt",
+              "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "observed socket calls"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Udp",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/chrome/154.0.8037.58/windows-11-26200/hooks-single.txt",
+              "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "observed socket calls"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Dns",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/chrome/154.0.8037.58/windows-11-26200/hooks-lookups-system.txt",
+              "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "observed cache reuse"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http1",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/chrome/154.0.8037.58/windows-11-26200/hooks-parallel.txt",
+              "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "observed connection admission"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http2/chrome/154.0.8037.58/windows-11-26200/client-startup.txt",
+              "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "startup settings"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "QuicTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/chrome/154.0.8037.58/windows-11-26200/quic-client-hello-1.txt",
+              "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "QuicTransport",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/chrome/154.0.8037.58/windows-11-26200/quic-client-hello-1.txt",
+              "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "transport parameters"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http3",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt",
+              "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "startup settings"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http3Request",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/chrome/154.0.8037.58/windows-11-26200/client-startup.txt",
+              "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "ClientHints",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/chrome/154.0.8037.97/windows-11-26200/navigation.txt",
+              "build": "154.0.8037.97"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "header values",
+            "header order"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "WebSocket",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/websocket/chrome/154.0.8037.58/windows-11-26200/accept.txt",
+              "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "opening headers"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "ProxyConnect",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/proxy/chrome/154.0.8037.58/windows-11-26200/https-proxy-hostname.txt",
+              "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "CONNECT request headers"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "CookiePlacement",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/cookies/chrome/154.0.8037.58/windows-11-26200/crumbs-h2.txt",
+              "build": "154.0.8037.58"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "HTTP/2 cookie placement"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "edge/153.0.4234.49/android-17-pixel7-emulator/r1",
+      "binding": "EdgeAndroid153",
+      "metadata": {
+        "browser": "Edge",
+        "build": "153.0.4234.49",
+        "platform": "Android",
+        "platform_release": "android-17-pixel7-emulator",
+        "architecture": "arm64",
+        "environment": "Emulator",
+        "revision": 1
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/tls/edge-android/153.0.4234.49/android-17-pixel7-emulator/client-hello.txt",
+              "build": "153.0.4234.49"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge/android.rs",
+              "build": "153.0.4234.49"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "signature schemes",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Tcp",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Udp",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Dns",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Http1",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http2/edge-android/153.0.4234.49/android-17-pixel7-emulator/client-startup.txt",
+              "build": "153.0.4234.49"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge/android.rs",
+              "build": "153.0.4234.49"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "startup settings"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "QuicTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/edge-android/153.0.4234.49/android-17-pixel7-emulator/quic-client-hello-1.txt",
+              "build": "153.0.4234.49"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge/android.rs",
+              "build": "153.0.4234.49"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "QuicTransport",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/edge-android/153.0.4234.49/android-17-pixel7-emulator/quic-client-hello-1.txt",
+              "build": "153.0.4234.49"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge/android.rs",
+              "build": "153.0.4234.49"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "transport parameters"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http3",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/edge-android/153.0.4234.49/android-17-pixel7-emulator/client-startup.txt",
+              "build": "153.0.4234.49"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge/android.rs",
+              "build": "153.0.4234.49"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "startup settings"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http3Request",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/edge-android/153.0.4234.49/android-17-pixel7-emulator/client-startup.txt",
+              "build": "153.0.4234.49"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge/android.rs",
+              "build": "153.0.4234.49"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "ClientHints",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/edge-android/153.0.4234.49/android-17-pixel7-emulator/navigation.txt",
+              "build": "153.0.4234.49"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge/android.rs",
+              "build": "153.0.4234.49"
+            }
+          ],
+          "verified_fields": [
+            "header values",
+            "header order"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "WebSocket",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "ProxyConnect",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "CookiePlacement",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "edge/154.0.4258.48/windows-11-26200/r1",
+      "binding": "EdgeWindows154",
+      "metadata": {
+        "browser": "Edge",
+        "build": "154.0.4258.48",
+        "platform": "Windows",
+        "platform_release": "windows-11-26200",
+        "architecture": null,
+        "environment": "Desktop",
+        "revision": 1
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/tls/edge/154.0.4258.37/windows-11-26200/client-hello.txt",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge.rs",
+              "build": "154.0.4258.37"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "signature schemes",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Tcp",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/edge/154.0.4258.48/windows-11-26200/hooks-single.txt",
+              "build": "154.0.4258.48"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge.rs",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "observed socket calls"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Udp",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/edge/154.0.4258.48/windows-11-26200/hooks-single.txt",
+              "build": "154.0.4258.48"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge.rs",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "observed socket calls"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Dns",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/edge/154.0.4258.48/windows-11-26200/hooks-lookups-system.txt",
+              "build": "154.0.4258.48"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge.rs",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "observed cache reuse"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http1",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/edge/154.0.4258.48/windows-11-26200/hooks-parallel.txt",
+              "build": "154.0.4258.48"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge.rs",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "observed connection admission"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge.rs",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.",
+            "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."
+          ]
+        },
+        {
+          "layer": "QuicTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/edge/154.0.4258.37/windows-11-26200/quic-client-hello-1.txt",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge.rs",
+              "build": "154.0.4258.37"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "QuicTransport",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/edge/154.0.4258.37/windows-11-26200/quic-client-hello-1.txt",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge.rs",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "transport parameters"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http3",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/edge/154.0.4258.37/windows-11-26200/client-startup.txt",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge.rs",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "startup settings"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http3Request",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/edge/154.0.4258.37/windows-11-26200/client-startup.txt",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge.rs",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "ClientHints",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/edge/154.0.4258.48/windows-11-26200/navigation.txt",
+              "build": "154.0.4258.48"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge.rs",
+              "build": "154.0.4258.37"
+            }
+          ],
+          "verified_fields": [
+            "header values",
+            "header order"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "WebSocket",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/websocket/edge/154.0.4258.37/windows-11-26200/accept.txt",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge.rs",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "opening headers"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "ProxyConnect",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/proxy/edge/154.0.4258.37/windows-11-26200/https-proxy-hostname.txt",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge.rs",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "CONNECT request headers"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "CookiePlacement",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/cookies/edge/154.0.4258.37/windows-11-26200/crumbs-h2.txt",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge.rs",
+              "build": "154.0.4258.37"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "HTTP/2 cookie placement"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "firefox/156.0.1/android-35-emulator/r1",
+      "binding": "FirefoxAndroid156",
+      "metadata": {
+        "browser": "Firefox",
+        "build": "156.0.1",
+        "platform": "Android",
+        "platform_release": "android-35-emulator",
+        "architecture": null,
+        "environment": "Emulator",
+        "revision": 1
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/tls/firefox-android/156.0.1/android-35-emulator/client-hello.txt",
+              "build": "156.0.1"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox/android.rs",
+              "build": "156.0.1"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "signature schemes",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Tcp",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Udp",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Dns",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Http1",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "QuicTls",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "QuicTransport",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Http3",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Http3Request",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "ClientHints",
+          "support": "IntentionallyAbsent",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox/android.rs",
+              "build": "156.0.1"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "No client hints are configured; this is intentional browser behavior, not missing hint values."
+          ]
+        },
+        {
+          "layer": "WebSocket",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "ProxyConnect",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "CookiePlacement",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "firefox/157.0/windows-11-26200/r1",
+      "binding": "FirefoxWindows157",
+      "metadata": {
+        "browser": "Firefox",
+        "build": "157.0",
+        "platform": "Windows",
+        "platform_release": "windows-11-26200",
+        "architecture": null,
+        "environment": "Desktop",
+        "revision": 1
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/tls/firefox/157.0/windows-11-26200/client-hello.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "signature schemes",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Tcp",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/firefox/157.0/windows-11-26200/hooks-backup.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ],
+          "verified_fields": [
+            "observed socket calls"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Udp",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Dns",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/firefox/157.0/windows-11-26200/hooks-dns-cache.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ],
+          "verified_fields": [
+            "observed cache reuse"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http1",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/firefox/157.0/windows-11-26200/hooks-http1-long.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ],
+          "verified_fields": [
+            "observed connection admission"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.",
+            "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."
+          ]
+        },
+        {
+          "layer": "QuicTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/firefox/157.0/windows-11-26200/quic-client-hello-1.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "QuicTransport",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/firefox/157.0/windows-11-26200/quic-client-hello-1.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ],
+          "verified_fields": [
+            "transport parameters"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http3",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.",
+            "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."
+          ]
+        },
+        {
+          "layer": "Http3Request",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.",
+            "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."
+          ]
+        },
+        {
+          "layer": "ClientHints",
+          "support": "IntentionallyAbsent",
+          "references": [
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "No client hints are configured; this is intentional browser behavior, not missing hint values."
+          ]
+        },
+        {
+          "layer": "WebSocket",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/websocket/firefox/157.0/windows-11-26200/accept.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ],
+          "verified_fields": [
+            "opening headers"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "ProxyConnect",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/proxy/firefox/157.0/windows-11-26200/https-proxy-hostname.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ],
+          "verified_fields": [
+            "CONNECT request headers"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "CookiePlacement",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/cookies/firefox/157.0/windows-11-26200/crumbs-h2.txt",
+              "build": "157.0"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/firefox.rs",
+              "build": "157.0"
+            }
+          ],
+          "verified_fields": [
+            "HTTP/2 cookie placement"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "opera/102.1.5206.90382/android-17-pixel7-emulator/r1",
+      "binding": "OperaAndroid102",
+      "metadata": {
+        "browser": "Opera",
+        "build": "102.1.5206.90382",
+        "platform": "Android",
+        "platform_release": "android-17-pixel7-emulator",
+        "architecture": null,
+        "environment": "Emulator",
+        "revision": 1
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/tls/opera-android/102.1.5206.90382/android-17-pixel7-emulator/client-hello.txt",
+              "build": "102.1.5206.90382"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/opera/android.rs",
+              "build": "102.1.5206.90382"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "signature schemes",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Tcp",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Udp",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Dns",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Http1",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "QuicTls",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "QuicTransport",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Http3",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "Http3Request",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "ClientHints",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/opera-android/102.1.5206.90382/android-17-pixel7-emulator/navigation.txt",
+              "build": "102.1.5206.90382"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/opera/android.rs",
+              "build": "102.1.5206.90382"
+            }
+          ],
+          "verified_fields": [
+            "header values",
+            "header order"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "WebSocket",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "ProxyConnect",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        },
+        {
+          "layer": "CookiePlacement",
+          "support": "Unavailable",
+          "references": [],
+          "verified_fields": [],
+          "limitations": [
+            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+          ]
+        }
+      ]
+    },
+    {
+      "id": "opera/136.0.6008.52/windows-11-26200/r1",
+      "binding": "OperaWindows136",
+      "metadata": {
+        "browser": "Opera",
+        "build": "136.0.6008.52",
+        "platform": "Windows",
+        "platform_release": "windows-11-26200",
+        "architecture": null,
+        "environment": "Desktop",
+        "revision": 1
+      },
+      "layers": [
+        {
+          "layer": "TcpTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/tls/opera/136.0.6008.52/windows-11-26200/client-hello.txt",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/opera.rs",
+              "build": "136.0.6008.52"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "signature schemes",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Tcp",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/opera/136.0.6008.52/windows-11-26200/hooks-single.txt",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/opera.rs",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "observed socket calls"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Udp",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/opera/136.0.6008.52/windows-11-26200/hooks-single.txt",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/opera.rs",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "observed socket calls"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Dns",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/opera/136.0.6008.52/windows-11-26200/hooks-lookups-system.txt",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/opera.rs",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "observed cache reuse"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http1",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/socket-hooks/opera/136.0.6008.52/windows-11-26200/hooks-parallel.txt",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/opera.rs",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "observed connection admission"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http2",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http2/opera/136.0.6008.52/windows-11-26200/client-startup.txt",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/opera.rs",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "startup settings"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "QuicTls",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/opera/136.0.6008.52/windows-11-26200/quic-client-hello-1.txt",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/opera.rs",
+              "build": "136.0.6008.52"
+            }
+          ],
+          "verified_fields": [
+            "cipher suites",
+            "supported groups",
+            "extension presence"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "QuicTransport",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/opera/136.0.6008.52/windows-11-26200/quic-client-hello-1.txt",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/opera.rs",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "transport parameters"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http3",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/opera/136.0.6008.52/windows-11-26200/client-startup.txt",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/opera.rs",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "startup settings"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "Http3Request",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/http3/opera/136.0.6008.52/windows-11-26200/client-startup.txt",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/opera.rs",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "ClientHints",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/client-hints/opera/136.0.6008.52/windows-11-26200/navigation.txt",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/opera.rs",
+              "build": "136.0.6008.52"
+            }
+          ],
+          "verified_fields": [
+            "header values",
+            "header order"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "WebSocket",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/websocket/opera/136.0.6008.52/windows-11-26200/accept.txt",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/opera.rs",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "opening headers"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "ProxyConnect",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/proxy/opera/136.0.6008.52/windows-11-26200/https-proxy-hostname.txt",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/opera.rs",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "CONNECT request headers"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        },
+        {
+          "layer": "CookiePlacement",
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/cookies/opera/136.0.6008.52/windows-11-26200/crumbs-h2.txt",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/opera.rs",
+              "build": "136.0.6008.52"
+            },
+            {
+              "kind": "Reused",
+              "location": "crates/phantom-profile/src/browser/chrome.rs",
+              "build": "154.0.8037.58"
+            }
+          ],
+          "verified_fields": [
+            "HTTP/2 cookie placement"
+          ],
+          "limitations": [
+            "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
+          ]
+        }
+      ]
+    }
+  ]
+}

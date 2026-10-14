@@ -48,6 +48,28 @@ HTTP/1.1 connection policy uses the client's generic HTTP/1.1 defaults; it
 does not disable HTTP/1.1. Missing HTTP/2 or HTTP/3 recipes disable those
 protocols. Constructors leave the default request template unset.
 
+## Exact catalog selection
+
+`phantom_profile::catalog::profiles()` lists the compiled definitions.
+`catalog::profile(id)` selects an exact build, capture target, and recipe
+revision. Unknown identifiers fail. Use `definition.instantiate(&layers)`
+to require named connection layers, or pass `&[]` to accept a partial recipe.
+
+For example, `chrome/154.0.8037.97/windows-11-26200/r1` selects Chrome's
+Windows recipe. The catalog does not choose a nearest version or platform.
+Layer records distinguish configured settings, intentional absence, and
+missing support. Each reference names its own build and evidence kind.
+
+Instantiation returns owned settings and leaves the request template unset.
+Select a template with `definition.request_template(kind)` when needed.
+Changing those settings creates a custom composition. Catalog IDs do not
+replace transport compatibility or authentication boundaries.
+
+The current registry covers the ten composed factories below. Standalone
+layer and macOS template factories remain under `browser`. See
+[Catalog maintenance](../internals/profile-catalog.md) for the declaration
+format and its current scope.
+
 ## Built-in recipes
 
 The recipe modules live under `phantom::profile::browser` or
