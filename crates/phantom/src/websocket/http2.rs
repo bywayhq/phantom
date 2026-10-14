@@ -268,7 +268,7 @@ impl WebSocketRequestBuilder {
                             ))
                         })?,
                     );
-                    if let Some(credentials) = proxy.basic_credentials() {
+                    if let Some(credentials) = proxy.authentication() {
                         // Keep the challenge/retry state machine out of the
                         // ordinary WebSocket connection future's stack frame.
                         crate::session::box_send(connector.extended_connect(
@@ -327,7 +327,7 @@ impl WebSocketRequestBuilder {
                         ))
                         .await
                     }
-                } else if let Some(credentials) = proxy.basic_credentials() {
+                } else if let Some(credentials) = proxy.authentication() {
                     crate::session::box_send(connector.extended_connect(
                         phantom_net::route::Http2Route::Origin(
                             phantom_net::route::OriginRoute::Tls {

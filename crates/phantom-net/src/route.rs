@@ -1,7 +1,7 @@
 //! Borrowed routes used to connect to an origin.
 
 use crate::proxy::{
-    HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, Socks4UserId, Socks5Auth,
+    HttpConnectHeader, HttpProxyAuthentication, HttpsProxyConnector, Socks4UserId, Socks5Auth,
 };
 use crate::{
     request::{AbsoluteForm, OriginForm},
@@ -46,7 +46,7 @@ pub enum ProxyTransport<'a> {
     },
 }
 
-/// An HTTP CONNECT tunnel, with ordered headers and optional Basic credentials.
+/// An HTTP CONNECT tunnel, with ordered headers and explicit authentication.
 ///
 /// The authority and headers are validated before proxy I/O. Credentials use
 /// the proxy's challenge and credential-cache policy. Debug output redacts
@@ -59,8 +59,8 @@ pub struct HttpConnectRoute<'a> {
     pub authority: &'a str,
     /// CONNECT headers in their wire order.
     pub headers: &'a [HttpConnectHeader],
-    /// Credentials for challenge-driven Basic authentication.
-    pub credentials: Option<&'a HttpBasicCredentials>,
+    /// Credentials for the selected challenge-driven authentication scheme.
+    pub credentials: Option<HttpProxyAuthentication<'a>>,
 }
 
 /// A SOCKS5 CONNECT target with explicit DNS ownership.
@@ -222,7 +222,7 @@ pub enum Http2Route<'a> {
         /// Requires TLS to a proxy configured for exact HTTP/2.
         proxy: ProxyTransport<'a>,
         /// Credential partition for the proxy connection pool.
-        credentials: Option<&'a HttpBasicCredentials>,
+        credentials: Option<HttpProxyAuthentication<'a>>,
     },
 }
 
@@ -243,7 +243,7 @@ mod tests {
     #[test]
     fn http_route_debug_redacts_basic_credentials() -> Result<(), Box<dyn std::error::Error>> {
         let password = format!("{:?}", std::time::Instant::now());
-        let credentials = HttpBasicCredentials::new("private-user", &password)?;
+        let credentials = crate::proxy::HttpBasicCredentials::new("private-user", &password)?;
         let route = TcpRoute::HttpConnect(HttpConnectRoute {
             proxy: ProxyTransport::Tcp(Endpoint {
                 host: "proxy.example",
@@ -251,7 +251,7 @@ mod tests {
             }),
             authority: "origin.example:443",
             headers: &[],
-            credentials: Some(&credentials),
+            credentials: Some(HttpProxyAuthentication::Basic(&credentials)),
         });
         let debug = format!("{route:?}");
         assert!(!debug.contains("private-user"));

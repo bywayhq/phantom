@@ -253,7 +253,7 @@ impl WebSocketRequestBuilder {
                             proxy: transport,
                             authority: &authority,
                             headers: proxy.ordered_connect_headers(),
-                            credentials: proxy.basic_credentials(),
+                            credentials: proxy.authentication(),
                         })
                     }
                     Route::Socks4(proxy) => proxy.tcp_route(endpoint).map_err(|source| {

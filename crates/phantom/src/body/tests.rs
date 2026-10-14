@@ -65,6 +65,7 @@ async fn stacked_header_work_yields_then_observes_the_total_deadline()
         content: None,
         held_trailers: None,
         origin: None,
+        proxy_authentication: None,
     };
     body.decode_content(decoder);
     body.apply_timeouts(
@@ -251,6 +252,7 @@ fn gzip_body_at_work_quota(
         content: None,
         held_trailers: None,
         origin: None,
+        proxy_authentication: None,
     };
     body.decode_content(decoder);
     Ok(body)

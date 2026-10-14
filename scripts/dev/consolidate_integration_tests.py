@@ -116,6 +116,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
             "HTTP CONNECT, forwarding, and SOCKS proxy routes",
             [
                 "configuration_errors",
+                "digest_proxy",
                 "environment",
                 "forward_proxy",
                 "negotiated_proxy",

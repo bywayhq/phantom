@@ -5,7 +5,8 @@ use phantom_net::{
     http1::Http1TlsError,
     http2::Http2TlsError,
     proxy::{
-        HttpBasicCredentials, HttpConnectError, ProxyCredentialCache, ProxyScheme,
+        DigestForwardAuthentication, DigestResponseAuthentication, HttpBasicCredentials,
+        HttpConnectError, HttpProxyCredentials, ProxyCredentialCache, ProxyScheme,
         validate_basic_proxy_challenge,
     },
     request::{RequestBody, RequestHeader},
@@ -124,7 +125,7 @@ async fn send_once_exact(
         trailers: request_trailers,
         body,
     } = attempt;
-    let forward_authentication = ForwardAuthentication::new(client, request, protocol, route);
+    let mut forward_authentication = ForwardAuthentication::new(client, request, protocol, route);
     if let Some(authentication) = &forward_authentication {
         request_span.record(
             "proxy_authentication_preemptive",
@@ -140,17 +141,21 @@ async fn send_once_exact(
     // connection here for the credentialed replay.
     let mut challenged_connection = ChallengedConnection::default();
     let forwarded = route.forwards(&request.uri);
-    let credentials_field = forward_authentication
-        .as_ref()
-        .map(|authentication| authentication.field(protocol));
-
+    let mut authentication_redialed = false;
+    let mut proxy_attempts = 0_u64;
     loop {
         let challenged = replays.performed(ReplayClass::ProxyAuthentication);
-        // The retry after a challenge carries the credentials, and so does
-        // every request to a proxy that accepted them before.
-        let sends_forward_credentials = forward_authentication
-            .as_ref()
-            .is_some_and(|authentication| challenged || authentication.remembered());
+        let target = match protocol {
+            HttpProtocol::Http1 => request.absolute_target.encoded(),
+            HttpProtocol::Http2 | HttpProtocol::Http3 => request.target.as_str().to_owned(),
+        };
+        let credentials_field = forward_authentication
+            .as_mut()
+            .map(|authentication| authentication.field(protocol, &method, &target, challenged))
+            .transpose()
+            .map_err(|error| proxy_authentication_error(protocol, error))?
+            .flatten();
+        let sends_forward_credentials = credentials_field.is_some();
         let forwarding = Forwarding {
             forwarded,
             credentials: credentials_field
@@ -183,9 +188,14 @@ async fn send_once_exact(
             &restart_hints,
             body,
         )?;
+        if forward_authentication.is_some() {
+            proxy_attempts = proxy_attempts.saturating_add(1);
+            if proxy_attempts > 1 {
+                request_span.record("proxy_attempts", proxy_attempts);
+            }
+        }
         if challenged {
             request_span.record("proxy_authentication_retry", true);
-            request_span.record("proxy_attempts", 2_u64);
         }
         let replays_on_challenged =
             challenged && challenged_connection.is_held() && !fresh_connection;
@@ -204,7 +214,7 @@ async fn send_once_exact(
             route,
             Http1Connect {
                 forward_authorization: sends_forward_credentials,
-                // The single retry after an H1 forwarding challenge uses the
+                // A retry after an H1 forwarding challenge uses the
                 // challenged proxy connection when the `407` left it open,
                 // and a new one otherwise; a request that sends remembered
                 // credentials first reuses a pooled one.
@@ -231,7 +241,8 @@ async fn send_once_exact(
                 // close before the response does not show that the proxy did
                 // not forward a POST, so its error is returned instead.
                 if replays_on_challenged && error.is_reused_connection_close() {
-                    if method.is_idempotent() && body.can_replay() {
+                    if !authentication_redialed && method.is_idempotent() && body.can_replay() {
+                        authentication_redialed = true;
                         fresh_connection = true;
                         continue;
                     }
@@ -260,33 +271,41 @@ async fn send_once_exact(
                 return Err(error);
             }
         };
-        let response = dispatched.response;
+        let mut response = dispatched.response;
         let sent_headers = dispatched.sent_headers;
 
-        if let Some(authentication) = &forward_authentication {
+        if let Some(authentication) = &mut forward_authentication {
             if response.status() == http::StatusCode::PROXY_AUTHENTICATION_REQUIRED {
-                if sends_forward_credentials {
-                    authentication.forget();
-                }
-                if !replays.try_begin(ReplayClass::ProxyAuthentication, &method) {
+                authentication
+                    .challenge(response.headers(), challenged)
+                    .map_err(|error| proxy_authentication_error(protocol, error))?;
+                let class = if challenged {
+                    ReplayClass::ProxyStale
+                } else {
+                    ReplayClass::ProxyAuthentication
+                };
+                if !replays.try_begin(class, &method) {
                     drop(response);
                     return Err(proxy_authentication_error(
                         protocol,
                         HttpConnectError::AuthenticationRejected,
                     ));
                 }
-                validate_basic_proxy_challenge(response.headers())
-                    .map_err(|error| proxy_authentication_error(protocol, error))?;
                 tracing::debug!(
-                    retry = 1,
                     reason = "proxy_authentication",
                     "retrying forward request with proxy credentials"
                 );
                 drop(response);
                 continue;
             }
-            if sends_forward_credentials {
-                authentication.accepted();
+            if sends_forward_credentials
+                && let Some(authentication) = authentication
+                    .accepted(response.headers())
+                    .map_err(|error| proxy_authentication_error(protocol, error))?
+            {
+                response
+                    .body_mut()
+                    .authenticate_proxy(authentication, protocol)?;
             }
         }
 
@@ -1116,15 +1135,9 @@ fn proxy_authentication_error(protocol: HttpProtocol, error: HttpConnectError) -
     }
 }
 
-/// Basic credentials for an `http://` request that an HTTP proxy forwards.
-///
-/// The client's credential record decides whether the first attempt carries
-/// them. Only the route's own credentials are ever sent, and only to its
-/// proxy.
-struct ForwardAuthentication<'a> {
-    proxy: &'a crate::HttpProxy,
-    credentials: &'a HttpBasicCredentials,
-    cache: Option<&'a ProxyCredentialCache>,
+enum ForwardAuthentication<'a> {
+    Basic(BasicForwardAuthentication<'a>),
+    Digest(DigestForwardAuthentication<'a>),
 }
 
 impl<'a> ForwardAuthentication<'a> {
@@ -1143,13 +1156,114 @@ impl<'a> ForwardAuthentication<'a> {
             HttpProtocol::Http3 => false,
         };
         let proxy = route.as_http_proxy().filter(|_| forwards)?;
-        Some(Self {
-            proxy,
-            credentials: proxy.basic_credentials()?,
-            cache: client.inner.proxy_credentials.as_ref(),
-        })
+        match proxy.credentials()? {
+            HttpProxyCredentials::Basic(credentials) => {
+                Some(Self::Basic(BasicForwardAuthentication {
+                    proxy,
+                    credentials,
+                    cache: client.inner.proxy_credentials.as_ref(),
+                }))
+            }
+            HttpProxyCredentials::Digest(credentials) => {
+                let endpoint = phantom_net::route::Endpoint {
+                    host: proxy.host(),
+                    port: proxy.port(),
+                };
+                let transport = if proxy.uses_tls() {
+                    let connector = if protocol == HttpProtocol::Http2 {
+                        client.inner.forward_https_proxy.as_ref()?
+                    } else {
+                        client.inner.https_proxy.as_ref()?
+                    };
+                    phantom_net::route::ProxyTransport::Tls {
+                        endpoint,
+                        server_name: proxy.host(),
+                        connector,
+                    }
+                } else {
+                    phantom_net::route::ProxyTransport::Tcp(endpoint)
+                };
+                Some(Self::Digest(DigestForwardAuthentication::new(
+                    credentials,
+                    transport,
+                    client.inner.proxy_credentials.is_some(),
+                )))
+            }
+        }
     }
 
+    fn remembered(&self) -> bool {
+        match self {
+            Self::Basic(state) => state.remembered(),
+            Self::Digest(state) => state.is_authenticated(),
+        }
+    }
+
+    fn field(
+        &mut self,
+        protocol: HttpProtocol,
+        method: &Method,
+        target: &str,
+        challenged: bool,
+    ) -> Result<Option<RequestHeader>, HttpConnectError> {
+        let field = match self {
+            Self::Basic(state) => (challenged || state.remembered()).then(|| state.field(protocol)),
+            Self::Digest(state) => state
+                .authorization(method, target)
+                .map_err(HttpConnectError::Digest)?,
+        };
+        Ok(field.map(|field| {
+            if protocol == HttpProtocol::Http2 {
+                RequestHeader::new("proxy-authorization", field.value()).sensitive()
+            } else {
+                field
+            }
+        }))
+    }
+
+    fn challenge(
+        &mut self,
+        headers: &http::HeaderMap,
+        challenged: bool,
+    ) -> Result<(), HttpConnectError> {
+        match self {
+            Self::Basic(state) => {
+                state.forget();
+                if challenged {
+                    return Err(HttpConnectError::AuthenticationRejected);
+                }
+                validate_basic_proxy_challenge(headers)
+            }
+            Self::Digest(state) => state.challenge(headers).map_err(HttpConnectError::Digest),
+        }
+    }
+
+    fn accepted(
+        &mut self,
+        headers: &http::HeaderMap,
+    ) -> Result<Option<DigestResponseAuthentication>, HttpConnectError> {
+        match self {
+            Self::Basic(state) => {
+                state.accepted();
+                Ok(None)
+            }
+            Self::Digest(state) => state.accept(headers).map_err(HttpConnectError::Digest),
+        }
+    }
+}
+
+/// Basic credentials for an `http://` request that an HTTP proxy forwards.
+///
+/// The client's credential record decides whether the first attempt carries
+/// them. Only the route's own credentials are ever sent, and only to its
+/// proxy.
+struct BasicForwardAuthentication<'a> {
+    proxy: &'a crate::HttpProxy,
+    credentials: &'a HttpBasicCredentials,
+    cache: Option<&'a ProxyCredentialCache>,
+}
+
+impl<'a> BasicForwardAuthentication<'a> {
     /// Returns the generated field under the name `protocol` sends.
     fn field(&self, protocol: HttpProtocol) -> RequestHeader {
         let generated = self.credentials.proxy_authorization_header();

@@ -114,7 +114,12 @@ fn route() -> Result<Route, Box<dyn std::error::Error>> {
   `HttpProxy::header`, `headers`, and `connect_headers` replace them with
   your own.
 
-Basic credentials sent to an `http://` proxy travel unencrypted.
+Use `with_digest_auth("proxy-user", "proxy-password")` when your proxy
+requires Digest. For MD5, pass credentials configured with
+`DigestPolicy::AllowLegacyMd5` to `with_digest_credentials`. For forwarded
+requests, read the response body to finish verification and remember its nonce.
+
+An `http://` proxy leaves proxy traffic unencrypted.
 
 ## Speak HTTP/2 to the proxy
 
@@ -173,7 +178,8 @@ profile, and disabled proxy verification rules out a CONNECT-UDP route.
 
 ## Limits
 
-- A second `407` from the proxy fails the request.
+- Basic authentication permits one challenge replay. Digest also permits one
+  stale nonce replay.
 - A request with a one-shot streaming body can't be replayed after a `407`,
   so it fails.
 

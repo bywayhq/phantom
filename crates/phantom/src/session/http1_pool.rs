@@ -179,9 +179,9 @@ impl Http1Pool {
             // before any proxy I/O. The field's position does not change
             // the outcome.
             if !forward_authorization
-                && let Some(credentials) = route
+                && let Some(phantom_net::proxy::HttpProxyCredentials::Basic(credentials)) = route
                     .as_http_proxy()
-                    .and_then(crate::HttpProxy::basic_credentials)
+                    .and_then(crate::HttpProxy::credentials)
             {
                 let mut candidate = headers.clone();
                 candidate.push(credentials.proxy_authorization_header());
@@ -269,12 +269,20 @@ impl Http1Pool {
                 if mode == Http1ConnectionMode::Forward
                     && route
                         .as_http_proxy()
-                        .and_then(crate::HttpProxy::basic_credentials)
+                        .and_then(crate::HttpProxy::credentials)
                         .is_some()
                     && response.status() == http::StatusCode::PROXY_AUTHENTICATION_REQUIRED
                 {
                     let (parts, mut body) = response.into_parts();
-                    if let Some(slot) = challenged.filter(|slot| !slot.replayed) {
+                    if let Some(slot) = challenged.filter(|slot| {
+                        !slot.replayed
+                            || matches!(
+                                route
+                                    .as_http_proxy()
+                                    .and_then(crate::HttpProxy::credentials),
+                                Some(phantom_net::proxy::HttpProxyCredentials::Digest(_))
+                            )
+                    }) {
                         // The drain belongs to the response-head phase, and
                         // each body frame to the read-idle timeout. Without
                         // configured timeouts only the size bounds it.
@@ -440,8 +448,8 @@ impl ChallengedConnection {
         self.held.is_some()
     }
 
-    /// Marks the next attempt as the proxy-authentication replay, whose `407`
-    /// is final, so the pool keeps no connection for it.
+    /// Marks the next attempt as authenticated. Basic has one replay; Digest
+    /// may retain this connection for its separately bounded stale retry.
     pub(crate) fn begin_replay(&mut self) {
         self.replayed = true;
     }
@@ -740,7 +748,7 @@ impl PoolEntry {
                     proxy: transport,
                     authority: &authority,
                     headers: proxy.ordered_connect_headers(),
-                    credentials: proxy.basic_credentials(),
+                    credentials: proxy.authentication(),
                 })
             }
             Route::ConnectUdp(_) => {

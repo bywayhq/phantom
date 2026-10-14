@@ -13,6 +13,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Select HTTP proxy credentials explicitly. Migrate: wrap borrowed Basic
+  credentials in `HttpProxyAuthentication::Basic` for `HttpConnectRoute`
+  and `Http2Route::Forward`. Use `HttpProxy::with_digest_auth` for Digest.
+
 - Require single-line printable ASCII client-hint capture metadata. Migrate:
   remove line breaks, control characters and non-ASCII metadata values.
 - Bound Firefox socket-hook capture records, frames and log input. Migrate:
@@ -1090,6 +1094,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Add a transport and profile campaign plan for timing investigations,
   corpus growth, and the named client and browser-coverage gaps.
+
+- Add explicit Digest authentication for HTTP/1.1 and HTTP/2 CONNECT and
+  forwarding. SHA-256 and SHA-512-256 support session variants. MD5 and
+  MD5-sess require `DigestPolicy::AllowLegacyMd5`. Requests use unique nonce
+  counts, one stale retry, optional proxy response proofs and `nextnonce`.
+  Forwarding checks proofs in the head and trailers, and accepts nonce
+  state only after the complete body is consumed.
 
 - Observe DNS fixture failures with `phantom_testkit::dns::DnsServer::finish`.
   Interrupted completion waits retain the original task for another call.

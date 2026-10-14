@@ -103,7 +103,9 @@ pub use phantom_net::ServerAuthentication;
 /// Caller-supplied host name resolution for [`ClientBuilder::dns_resolver`].
 pub use phantom_net::host_resolver::AddressResolver;
 /// An ordered HTTP CONNECT field or destination-authority placeholder.
-pub use phantom_net::proxy::HttpConnectHeader;
+pub use phantom_net::proxy::{
+    DigestAuthError, DigestPolicy, HttpConnectHeader, HttpDigestCredentials,
+};
 /// An ordered request field preserving spelling, value bytes, and position.
 pub use phantom_net::request::RequestHeader;
 /// One declared request-trailer name retaining exact spelling and position.

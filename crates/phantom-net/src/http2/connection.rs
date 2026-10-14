@@ -545,6 +545,7 @@ impl Http2Connection {
             if status.is_success() {
                 Ok(Http2ClassicConnectOutcome::Accepted {
                     status: status.as_u16(),
+                    headers: parts.headers,
                     stream: Http2ConnectStream::new(incoming, send.disarm()?, self.lease()),
                 })
             } else {

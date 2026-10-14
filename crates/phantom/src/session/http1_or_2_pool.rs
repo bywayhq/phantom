@@ -1276,7 +1276,7 @@ impl PoolEntry {
                     proxy: transport,
                     authority: &authority,
                     headers: proxy.ordered_connect_headers(),
-                    credentials: proxy.basic_credentials(),
+                    credentials: proxy.authentication(),
                 })
             }
             Route::ConnectUdp(_) => return Err(RequestError::unsupported_negotiated_route()),

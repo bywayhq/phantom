@@ -105,7 +105,7 @@ combinations and limits listed here.
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity and stream numbering | Firefox stream `WINDOW_UPDATE` |
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
 | HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP, to the origin, or to a caller-pinned alternative directly or through CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5; opt-in H2 fallback for exact H3 | RTT-derived racing delay |
-| Routes | Direct, HTTP forward and CONNECT, SOCKS4/4a, SOCKS5, CONNECT-UDP | Other proxy authentication schemes |
+| Routes | Direct, HTTP forward and CONNECT, SOCKS4/4a, SOCKS5, CONNECT-UDP | NTLM and Negotiate authentication |
 | SSE and WebSocket | Finite reconnects, message limits, Chrome/Firefox WebSocket recipes | H2/H3 SSE captures, tunnelled `wss://` opening captures |
 
 The [route matrix](route-matrix.md) lists every combination of scheme,
@@ -951,6 +951,25 @@ Supported CONNECT-UDP:
 - One outer connection per inner connection. Resolve and connect retries
   apply to the outer connection only.
 
+Digest authentication on HTTP forward and CONNECT routes:
+
+- Explicit Digest credentials over HTTP/1.1 or HTTP/2, with `qop=auth`.
+- SHA-256 and SHA-512-256, including session variants. Legacy MD5 requires
+  an explicit credential policy.
+- The exact absolute-form target for HTTP/1.1 forwarding, encoded path for
+  HTTP/2 forwarding, and authority for CONNECT.
+- One stale challenge retry and fresh nonce counts across cancelled attempts
+  and transport replays. Optional `rspauth` in the head or trailers is checked
+  before acceptance.
+- Forwarded responses accept nonce state only when the body completes. A
+  failed, cancelled or partially read body does not accept its nonce.
+- Accepted nonce state is isolated by credential, algorithm policy, proxy
+  endpoint, TLS settings and server identity. `nextnonce` replaces it.
+- Independent loopback proxy calculations cover all six algorithms over
+  HTTP/1.1 forwarding and HTTP/1.1 and HTTP/2 CONNECT. HTTP/2 forwarding
+  checks its encoded path and proxy proof. Enterprise deployment acceptance
+  remains unverified.
+
 Across all routes:
 
 - No route fallback, and no protocol fallback except the opt-in HTTP/2
@@ -969,16 +988,11 @@ Deliberately excluded:
   negotiated requests stay on H1 or H2. See
   [Upgrade to HTTP/3](../guides/http3.md#upgrade-to-http3-when-the-server-advertises-it).
 
-Planned:
-
-- Digest proxy authentication
-  ([Proposed after Phase 1](../roadmap.md#proposed-after-phase-1)).
-
 Not supported:
 
-- HTTP and CONNECT-UDP proxy authentication schemes other than Basic and
-  the planned Digest, and SOCKS5 methods other than RFC 1929 username and
-  password.
+- NTLM and Negotiate proxy authentication. CONNECT-UDP authentication
+  schemes other than Basic, and SOCKS5 methods other than RFC 1929 username
+  and password.
 
 ## Validation
 

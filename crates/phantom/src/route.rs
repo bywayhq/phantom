@@ -2,8 +2,8 @@ use std::{error::Error as StdError, fmt, sync::Arc};
 
 use phantom_net::{
     proxy::{
-        HttpBasicCredentials, HttpConnectError, HttpConnectHeader, HttpsProxyConnector,
-        HttpsProxyProtocol,
+        HttpBasicCredentials, HttpConnectError, HttpConnectHeader, HttpDigestCredentials,
+        HttpProxyAuthentication, HttpProxyCredentials, HttpsProxyConnector, HttpsProxyProtocol,
     },
     request::RequestHeader,
 };
@@ -276,7 +276,7 @@ pub struct HttpProxy {
     /// The profile's CONNECT fields for one request, which replace
     /// `connect_headers` on the wire and are not part of route identity.
     profile_connect_headers: Option<Arc<[HttpConnectHeader]>>,
-    credentials: Option<HttpBasicCredentials>,
+    credentials: Option<HttpProxyCredentials>,
 }
 
 impl PartialEq for HttpProxy {
@@ -372,8 +372,41 @@ impl HttpProxy {
                     "Proxy-Authorization",
                 ));
         }
-        self.credentials = Some(credentials);
+        self.credentials = Some(HttpProxyCredentials::Basic(credentials));
         Ok(self)
+    }
+
+    /// Uses challenge-driven Digest authentication with SHA-2 algorithms.
+    ///
+    /// # Errors
+    /// Returns an error when the printable ASCII credentials exceed their
+    /// bounds or the username is empty or contains a colon.
+    pub fn with_digest_auth(
+        self,
+        username: &str,
+        password: &str,
+    ) -> Result<Self, ProxyConfigError> {
+        let credentials = HttpDigestCredentials::new(username, password).map_err(|error| {
+            ProxyConfigError::invalid_credentials(HttpConnectError::Digest(error))
+        })?;
+        Ok(self.with_digest_credentials(credentials))
+    }
+
+    /// Uses Digest credentials with their explicit algorithm policy.
+    #[must_use]
+    pub fn with_digest_credentials(mut self, credentials: HttpDigestCredentials) -> Self {
+        if !self
+            .connect_headers
+            .iter()
+            .any(HttpConnectHeader::is_proxy_authorization)
+        {
+            self.connect_headers
+                .push(HttpConnectHeader::proxy_authorization(
+                    "Proxy-Authorization",
+                ));
+        }
+        self.credentials = Some(HttpProxyCredentials::Digest(credentials));
+        self
     }
 
     /// Speaks HTTP/2 to this HTTPS proxy instead of HTTP/1.1.
@@ -436,7 +469,7 @@ impl HttpProxy {
 
     /// Replaces the literal CONNECT fields after the default leading `Host`.
     ///
-    /// When Basic credentials are configured, the `Proxy-Authorization`
+    /// When credentials are configured, the `Proxy-Authorization`
     /// placeholder stays last. As with [`Self::header`], a literal `Host` or
     /// request-framing field is rejected before proxy I/O, and the route's
     /// CONNECT fields replace the profile's.
@@ -457,7 +490,7 @@ impl HttpProxy {
     /// Replaces the complete CONNECT field sequence.
     ///
     /// The sequence must contain exactly one
-    /// [`HttpConnectHeader::Authority`] placeholder. When Basic credentials are
+    /// [`HttpConnectHeader::Authority`] placeholder. When credentials are
     /// configured, it must also contain exactly one
     /// [`HttpConnectHeader::proxy_authorization`] placeholder. Validation
     /// happens before proxy I/O when a request is sent. The sequence
@@ -564,8 +597,12 @@ impl HttpProxy {
         Some(proxy)
     }
 
-    pub(crate) fn basic_credentials(&self) -> Option<&HttpBasicCredentials> {
+    pub(crate) fn credentials(&self) -> Option<&HttpProxyCredentials> {
         self.credentials.as_ref()
+    }
+
+    pub(crate) fn authentication(&self) -> Option<HttpProxyAuthentication<'_>> {
+        self.credentials.as_ref().map(HttpProxyCredentials::as_ref)
     }
 }
 
@@ -635,7 +672,7 @@ pub enum ProxyConfigErrorKind {
     InvalidAuthority,
     /// The proxy URI contains a path or query.
     UnexpectedPath,
-    /// The HTTP Basic username or password is invalid.
+    /// The proxy username or password is invalid.
     InvalidCredentials,
     /// The requested proxy protocol cannot be used with the proxy scheme.
     UnsupportedTransport,
@@ -643,7 +680,7 @@ pub enum ProxyConfigErrorKind {
 
 /// Error returned while constructing an HTTP proxy route.
 ///
-/// Its source retains the URI, authority or Basic credential validation error.
+/// Its source retains the URI, authority or credential validation error.
 #[derive(Debug)]
 pub struct ProxyConfigError {
     kind: ProxyConfigErrorKind,
@@ -711,7 +748,7 @@ impl ProxyConfigError {
     fn invalid_credentials(source: HttpConnectError) -> Self {
         Self {
             kind: ProxyConfigErrorKind::InvalidCredentials,
-            message: "HTTP Basic proxy credentials must fit the credential-field bound, use ASCII without control characters, and have a nonempty username without a colon",
+            message: "invalid HTTP proxy credentials",
             source: Some(ProxyConfigSource::Credentials(Box::new(source))),
         }
     }

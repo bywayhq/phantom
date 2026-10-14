@@ -12,7 +12,8 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use super::{
     AuthStep, BasicAuthPlan, HttpBasicCredentials, HttpConnectError, HttpConnectHeader,
-    ProxyCredentialCache, ProxyScheme, TunnelStream,
+    HttpDigestCredentials, HttpProxyAuthentication, ProxyCredentialCache, ProxyScheme,
+    TunnelStream,
     http_connect::{
         PreparedBasicConnect, PreparedConnect, basic_auth_exchange, establish,
         record_authentication_attempts, trace_connect,
@@ -82,6 +83,9 @@ pub struct HttpsProxyConnector {
 }
 
 impl HttpsProxyConnector {
+    pub(super) fn digest_settings(&self) -> &ConnectionSettingsId {
+        &self.connection_settings
+    }
     /// Builds a connector from TLS settings and bundled public roots.
     ///
     /// # Errors
@@ -354,7 +358,7 @@ impl HttpsProxyConnector {
         proxy_host: &str,
         proxy_port: u16,
         proxy_server_name: &str,
-        credentials: Option<&HttpBasicCredentials>,
+        credentials: Option<HttpProxyAuthentication<'_>>,
     ) -> Result<Http2Connection, HttpConnectError> {
         if self.protocol != HttpsProxyProtocol::Http2 {
             return Err(HttpConnectError::ForwardingRequiresHttp2);
@@ -477,6 +481,156 @@ impl HttpsProxyConnector {
         exchange.await
     }
 
+    pub(crate) async fn connect_tunnel_with_digest_auth(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        authority: &str,
+        headers: &[HttpConnectHeader],
+        credentials: &HttpDigestCredentials,
+    ) -> Result<HttpsProxyTunnel, HttpConnectError> {
+        let exchange: Pin<
+            Box<dyn Future<Output = Result<HttpsProxyTunnel, HttpConnectError>> + Send + '_>,
+        > = Box::pin(async move {
+            let scope = super::digest::cache::DigestCacheKey::new(
+                ProxyScheme::Https,
+                proxy_host,
+                proxy_port,
+                Some(&self.connection_settings),
+                credentials.policy(),
+            )
+            .with_server_name(proxy_server_name);
+            match self.protocol {
+                HttpsProxyProtocol::Http1 => trace_connect(
+                    "https",
+                    pin!(super::digest::http1::connect(
+                        &scope,
+                        credentials,
+                        self.proxy_credentials.is_some(),
+                        authority,
+                        headers,
+                        || self.connect_http1_proxy(proxy_host, proxy_port, proxy_server_name),
+                    )),
+                )
+                .await
+                .map(HttpsProxyTunnel::http1),
+                HttpsProxyProtocol::Http2 => trace_connect(
+                    "https_h2",
+                    pin!(self.http2_digest_auth_exchange(
+                        &scope,
+                        &ProxyTarget {
+                            host: proxy_host,
+                            port: proxy_port,
+                            server_name: proxy_server_name,
+                            credentials: Some(HttpProxyAuthentication::Digest(credentials))
+                        },
+                        authority,
+                        headers,
+                        credentials,
+                    )),
+                )
+                .await
+                .map(HttpsProxyTunnel::http2),
+            }
+        });
+        exchange.await
+    }
+
+    async fn http2_digest_auth_exchange(
+        &self,
+        scope: &super::digest::cache::DigestCacheKey,
+        target: &ProxyTarget<'_>,
+        authority: &str,
+        headers: &[HttpConnectHeader],
+        credentials: &HttpDigestCredentials,
+    ) -> Result<Http2ConnectStream, HttpConnectError> {
+        super::digest::http1::validate_slot(headers)?;
+        PreparedConnect::prepare(authority, headers, super::http_connect::Authorization::Omit)?;
+        self.http2_builder()?;
+        let mut session = self
+            .proxy_credentials
+            .as_ref()
+            .and_then(|_| credentials.remembered(scope));
+        let mut kept = None;
+        let mut held_streams = Vec::new();
+        let mut challenged = false;
+        let mut stale_retried = false;
+        let mut redialed = false;
+        loop {
+            let connection = match kept.take() {
+                Some(connection) => connection,
+                None => self.http2_connection(target).await?,
+            };
+            let authorization = session
+                .as_ref()
+                .map(|session| session.request(&http::Method::CONNECT, authority))
+                .transpose()
+                .map_err(HttpConnectError::Digest)?;
+            let result = http2_connect::establish_digest(
+                connection.connection(),
+                authority,
+                headers,
+                credentials,
+                authorization.as_ref(),
+                self.http2_rejected,
+            )
+            .await;
+            match result {
+                Ok(http2_connect::Http2DigestOutcome::Tunnel(mut stream, nextnonce)) => {
+                    if let Some(session) = &session {
+                        credentials
+                            .accept(scope, session, nextnonce)
+                            .map_err(HttpConnectError::Digest)?;
+                    }
+                    for held in held_streams {
+                        stream.hold_rejected_stream(held);
+                    }
+                    connection.attach(&mut stream);
+                    return Ok(stream);
+                }
+                Ok(http2_connect::Http2DigestOutcome::Challenge(challenge, held)) => {
+                    if let Some(previous) = session.take() {
+                        credentials.forget(scope, &previous);
+                        if !challenge.stale || stale_retried {
+                            return Err(HttpConnectError::AuthenticationRejected);
+                        }
+                        stale_retried = true;
+                    } else if challenged {
+                        return Err(HttpConnectError::AuthenticationRejected);
+                    }
+                    challenged = true;
+                    session = Some(
+                        credentials
+                            .challenged(scope, challenge)
+                            .map_err(HttpConnectError::Digest)?,
+                    );
+                    if let Some(held) = held {
+                        held_streams.push(held);
+                    }
+                    kept = Some(connection);
+                }
+                Err(HttpConnectError::ProxyHttp2(error))
+                    if (connection.is_reused() || challenged)
+                        && !redialed
+                        && http2_connect::is_unprocessed(&error) =>
+                {
+                    connection.retire();
+                    held_streams.clear();
+                    redialed = true;
+                }
+                Err(error) => {
+                    if matches!(error, HttpConnectError::Digest(_))
+                        && let Some(session) = &session
+                    {
+                        credentials.forget(scope, session);
+                    }
+                    return Err(error);
+                }
+            }
+        }
+    }
+
     /// The exchange [`Self::connect_tunnel_with_basic_auth`] boxes.
     async fn basic_auth_tunnel(
         &self,
@@ -516,7 +670,7 @@ impl HttpsProxyConnector {
                         host: proxy_host,
                         port: proxy_port,
                         server_name: proxy_server_name,
-                        credentials: Some(credentials),
+                        credentials: Some(HttpProxyAuthentication::Basic(credentials)),
                     };
                     self.http2_basic_auth_exchange(&plan, &requests, &target)
                         .await
@@ -803,7 +957,7 @@ struct ProxyTarget<'a> {
     host: &'a str,
     port: u16,
     server_name: &'a str,
-    credentials: Option<&'a HttpBasicCredentials>,
+    credentials: Option<HttpProxyAuthentication<'a>>,
 }
 
 /// The HTTP/2 proxy connection one tunnel uses.

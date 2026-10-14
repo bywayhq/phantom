@@ -50,6 +50,8 @@ pub(crate) enum Http2ClassicConnectOutcome {
     Accepted {
         /// Final successful response status.
         status: u16,
+        /// Semantic response fields, including optional proxy authentication.
+        headers: http::HeaderMap,
         /// Flow-controlled tunnel byte stream.
         stream: Http2ConnectStream,
     },

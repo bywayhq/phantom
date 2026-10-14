@@ -37,6 +37,8 @@ pub enum HttpConnectErrorKind {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum HttpConnectError {
+    /// Digest challenge, calculation, nonce, or response proof failed.
+    Digest(super::DigestAuthError),
     /// TLS settings do not offer HTTP/1.1 to the proxy.
     MissingHttp1Alpn,
     /// HTTP/2 proxy transport was selected, but TLS settings do not offer `h2`.
@@ -169,6 +171,10 @@ impl HttpConnectError {
     #[must_use]
     pub fn kind(&self) -> HttpConnectErrorKind {
         match self {
+            Self::Digest(
+                super::DigestAuthError::InvalidCredentials | super::DigestAuthError::InvalidRequest,
+            ) => HttpConnectErrorKind::InvalidRequest,
+            Self::Digest(_) => HttpConnectErrorKind::Authentication,
             Self::MissingHttp1Alpn
             | Self::MissingH2Alpn
             | Self::MissingHttp2Settings
@@ -224,6 +230,7 @@ impl HttpConnectError {
 impl fmt::Display for HttpConnectError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Digest(error) => error.fmt(formatter),
             Self::MissingHttp1Alpn => {
                 formatter.write_str("HTTPS proxy TLS settings must offer http/1.1 through ALPN")
             }
@@ -325,7 +332,7 @@ impl fmt::Display for HttpConnectError {
                 formatter.write_str("proxy did not offer supported authentication")
             }
             Self::AuthenticationRejected => {
-                formatter.write_str("proxy rejected HTTP Basic authentication")
+                formatter.write_str("proxy rejected HTTP authentication")
             }
             Self::Rejected { status } => {
                 write!(
@@ -345,6 +352,7 @@ impl fmt::Display for HttpConnectError {
 impl StdError for HttpConnectError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
+            Self::Digest(error) => Some(error),
             Self::Connect(error) | Self::Write(error) | Self::Read(error) => Some(error),
             Self::ProxyTls(error) => Some(error),
             Self::ProxyHttp2(error) => Some(error.as_ref()),

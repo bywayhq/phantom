@@ -1,9 +1,12 @@
 //! Proxy negotiation and tunneled byte streams.
 
 mod authentication;
+mod challenge;
 mod challenged_connection;
 mod connect_udp;
 mod credential_cache;
+mod credentials;
+mod digest;
 mod error;
 mod http2_connect;
 mod http2_pool;
@@ -19,9 +22,16 @@ pub use challenged_connection::MAX_CHALLENGE_BODY_BYTES;
 pub(crate) use connect_udp::PreparedConnectUdp;
 pub(crate) use credential_cache::{AuthAttempt, AuthStep, BasicAuthPlan};
 pub use credential_cache::{MAX_PROXY_CREDENTIAL_ENTRIES, ProxyCredentialCache, ProxyScheme};
+pub use credentials::{HttpProxyAuthentication, HttpProxyCredentials};
+pub use digest::{
+    DigestAuthError, DigestForwardAuthentication, DigestPolicy, DigestResponseAuthentication,
+    HttpDigestCredentials,
+};
 pub use error::{HttpConnectError, HttpConnectErrorKind};
 pub use http_connect::{HttpConnectHeader, connect_http_tunnel};
-pub(crate) use http_connect::{http_connect_tunnel, http_connect_tunnel_with_basic_auth};
+pub(crate) use http_connect::{
+    http_connect_tunnel, http_connect_tunnel_with_basic_auth, http_connect_tunnel_with_digest_auth,
+};
 pub use http2_pool::{
     HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING, Http2ProxyPool, MAX_HTTP2_PROXY_POOL_ROUTES,
     MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION,

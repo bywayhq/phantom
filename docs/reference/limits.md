@@ -231,6 +231,15 @@ from Chromium.
 | TLS session tickets per H1/H2 pool entry | `TlsSettings::session_tickets`: 2 in Chromium-family recipes, 10 in Firefox recipes; enabled limits are 1 through 10; when full, the ticket the recipe's [ticket order](profiles.md#tls-session-ticket-order) names is dropped |
 | QUIC session tickets per H3 pool entry, and per CONNECT-UDP outer connection | 4, least recently stored evicted |
 | HTTP proxy and credential pairs remembered for Basic authentication, per client | 128, least recently used evicted |
+| Digest nonce sessions, per credential owner | 128, least recently used evicted |
+| Digest username and password | 1,024 and 4,096 printable ASCII bytes |
+| Digest challenges and parameters per challenge | 32 and 64 |
+| Digest challenge bytes and empty list entries per field | 32 KiB and 64 |
+| Digest stale challenge retries per request or CONNECT | 1 |
+| Digest algorithms by default | SHA-256, SHA-512-256 and their session variants |
+| Digest quality of protection | `auth` |
+| Digest response authentication fields, head and trailers combined | 32 |
+| Digest forwarding nonce acceptance | Complete body and verified head/trailers |
 | `407` body read so the replay can use the challenged HTTP/1.1 proxy connection | 64 KiB, `phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES`, chunk framing included on CONNECT; a longer body gets a new connection |
 | Host names with cached addresses, per client | `DnsCacheSettings::max_entries`: 1,000 in `chrome::v154_dns_cache`, 1,600 in `firefox::v157_dns_cache`; an expired name, then the one that expires soonest, evicted |
 | Lifetime of cached addresses | Without a record TTL, `DnsCacheSettings::ttl`: 60 seconds in both recipes. With one, from `AddressResolver::system_nameservers`, the TTL or `DnsCacheSettings::min_record_ttl`, whichever is longer: at least 60 seconds in `chrome::v154_dns_cache`, no minimum in `firefox::v157_dns_cache` |

@@ -8,7 +8,12 @@ use std::{
 use bytes::{Bytes, BytesMut};
 use http::HeaderMap;
 use http_body::{Body, Frame, SizeHint};
-use phantom_net::{http1::Http1Body, http2::Http2Body, http3::Http3Body};
+use phantom_net::{
+    http1::Http1Body,
+    http2::Http2Body,
+    http3::Http3Body,
+    proxy::{DigestAuthError, DigestResponseAuthentication, HttpConnectError},
+};
 
 use crate::{
     HttpProtocol, RequestError,
@@ -43,6 +48,8 @@ const MAXIMUM_DECODING_PUMPS: usize = 8;
 ///   [`Http3`](crate::RequestErrorKind::Http3) when the transport fails;
 /// - [`RequestBody`](crate::RequestErrorKind::RequestBody) when a request
 ///   body still uploading after an early response head fails; or
+/// - [`Proxy`](crate::RequestErrorKind::Proxy) when Digest response
+///   authentication in the head or trailers fails;
 /// - [`RuntimeUnavailable`](crate::RequestErrorKind::RuntimeUnavailable) or
 ///   [`InvalidTimeout`](crate::RequestErrorKind::InvalidTimeout) when a
 ///   configured timeout cannot be armed.
@@ -72,6 +79,7 @@ pub struct ResponseBody {
     content: Option<ContentState>,
     held_trailers: Option<HeaderMap>,
     origin: Option<RequestOrigin>,
+    proxy_authentication: Option<(DigestResponseAuthentication, HttpProtocol)>,
 }
 
 /// Opt-in content decoding applied above the wire body.
@@ -123,6 +131,32 @@ impl ResponseBody {
         Ok(collected.freeze())
     }
 
+    pub(crate) fn authenticate_proxy(
+        &mut self,
+        authentication: DigestResponseAuthentication,
+        protocol: HttpProtocol,
+    ) -> Result<(), RequestError> {
+        if self.is_end_stream() {
+            return authentication
+                .finish()
+                .map_err(|error| Self::proxy_authentication_error(protocol, error));
+        }
+        self.proxy_authentication = Some((authentication, protocol));
+        Ok(())
+    }
+
+    fn proxy_authentication_error(protocol: HttpProtocol, error: DigestAuthError) -> RequestError {
+        let error = HttpConnectError::Digest(error);
+        match protocol {
+            HttpProtocol::Http2 => {
+                RequestError::http2(phantom_net::http2::Http2TlsError::Proxy(error))
+            }
+            HttpProtocol::Http1 | HttpProtocol::Http3 => {
+                RequestError::http1(phantom_net::http1::Http1TlsError::Proxy(error))
+            }
+        }
+    }
+
     pub(crate) fn http1(body: Http1Body) -> Self {
         Self {
             inner: Some(ResponseBodyInner::Http1(body)),
@@ -130,6 +164,7 @@ impl ResponseBody {
             content: None,
             held_trailers: None,
             origin: None,
+            proxy_authentication: None,
         }
     }
 
@@ -148,6 +183,7 @@ impl ResponseBody {
             content: None,
             held_trailers: None,
             origin: None,
+            proxy_authentication: None,
         }
     }
 
@@ -166,6 +202,7 @@ impl ResponseBody {
             content: None,
             held_trailers: None,
             origin: None,
+            proxy_authentication: None,
         }
     }
 
@@ -204,6 +241,7 @@ impl ResponseBody {
         self.timeouts.take();
         self.content.take();
         self.held_trailers.take();
+        self.proxy_authentication.take();
     }
 
     fn poll_decoded_frame(
@@ -323,7 +361,9 @@ impl ResponseBody {
         }
 
         let trailers = self.held_trailers.take();
+        let proxy_authentication = self.proxy_authentication.take();
         self.close();
+        self.proxy_authentication = proxy_authentication;
         Poll::Ready(trailers.map(|trailers| Ok(Frame::trailers(trailers))))
     }
 
@@ -458,11 +498,40 @@ impl Body for ResponseBody {
                 this.poll_decoded_frame(context)
             }
         };
+        let frame = match frame {
+            Poll::Ready(Some(Ok(frame))) => {
+                if let Some(trailers) = frame.trailers_ref()
+                    && let Some((authentication, protocol)) = this.proxy_authentication.as_mut()
+                    && let Err(error) = authentication.trailers(trailers)
+                {
+                    let error = Self::proxy_authentication_error(*protocol, error);
+                    this.close();
+                    return Poll::Ready(Some(Err(this.error_with_origin(error))));
+                }
+                Poll::Ready(Some(Ok(frame)))
+            }
+            Poll::Ready(None) => {
+                if let Some((authentication, protocol)) = this.proxy_authentication.take()
+                    && let Err(error) = authentication.finish()
+                {
+                    this.close();
+                    return Poll::Ready(Some(Err(
+                        this.error_with_origin(Self::proxy_authentication_error(protocol, error))
+                    )));
+                }
+                Poll::Ready(None)
+            }
+            Poll::Ready(Some(Err(error))) => {
+                this.close();
+                Poll::Ready(Some(Err(error)))
+            }
+            Poll::Pending => Poll::Pending,
+        };
         frame.map(|frame| frame.map(|result| result.map_err(|error| this.error_with_origin(error))))
     }
 
     fn is_end_stream(&self) -> bool {
-        if self.content.is_some() {
+        if self.content.is_some() || self.proxy_authentication.is_some() {
             return false;
         }
         match &self.inner {

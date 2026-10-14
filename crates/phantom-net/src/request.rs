@@ -566,6 +566,12 @@ impl AbsoluteForm {
         self.authority.as_str()
     }
 
+    /// Returns the encoded request target used on the HTTP/1.1 request line.
+    #[must_use]
+    pub fn encoded(&self) -> String {
+        self.uri.to_string()
+    }
+
     pub(crate) fn into_uri(self) -> Uri {
         self.uri
     }
@@ -590,6 +596,11 @@ impl StdError for InvalidAbsoluteForm {}
 pub struct OriginForm(PathAndQuery);
 
 impl OriginForm {
+    /// Returns the encoded path and query used on the wire.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
     /// Parses an origin-form request target.
     ///
     /// # Errors

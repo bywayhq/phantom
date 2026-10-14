@@ -13,10 +13,11 @@ use http::{
 };
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tracing::{Instrument, Span, debug_span, field};
+use zeroize::Zeroizing;
 
 use super::{
     AuthAttempt, AuthStep, BasicAuthPlan, HttpBasicCredentials, HttpConnectError,
-    ProxyCredentialCache, ProxyScheme, TunnelStream,
+    HttpDigestCredentials, ProxyCredentialCache, ProxyScheme, TunnelStream,
     authentication::has_valid_basic_challenge,
     challenged_connection::{self, ChallengeBody},
 };
@@ -188,6 +189,47 @@ pub(crate) async fn http_connect_tunnel_with_basic_auth(
     exchange.await
 }
 
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn http_connect_tunnel_with_digest_auth(
+    dialer: Dialer<'_>,
+    preemptive: bool,
+    proxy_host: &str,
+    proxy_port: u16,
+    authority: &str,
+    headers: &[HttpConnectHeader],
+    credentials: &HttpDigestCredentials,
+) -> Result<TunnelStream<crate::tcp::ProfileTcpStream>, HttpConnectError> {
+    let scope = super::digest::cache::DigestCacheKey::new(
+        ProxyScheme::Http,
+        proxy_host,
+        proxy_port,
+        None,
+        credentials.policy(),
+    );
+    let exchange: Pin<
+        Box<
+            dyn Future<
+                    Output = Result<TunnelStream<crate::tcp::ProfileTcpStream>, HttpConnectError>,
+                > + Send
+                + '_,
+        >,
+    > = Box::pin(async move {
+        trace_connect(
+            "http",
+            pin!(super::digest::http1::connect(
+                &scope,
+                credentials,
+                preemptive,
+                authority,
+                headers,
+                || connect_proxy_tcp(dialer, proxy_host, proxy_port),
+            )),
+        )
+        .await
+    });
+    exchange.await
+}
+
 /// Runs one challenge-driven CONNECT exchange on connections from `connect`.
 ///
 /// The retry after a `407` reuses the challenged connection when the
@@ -253,7 +295,7 @@ where
     .await
 }
 
-async fn connect_proxy_tcp(
+pub(super) async fn connect_proxy_tcp(
     dialer: Dialer<'_>,
     proxy_host: &str,
     proxy_port: u16,
@@ -560,10 +602,14 @@ impl Drop for ConnectOutcome {
 }
 
 pub(super) struct PreparedConnect {
-    bytes: Vec<u8>,
+    bytes: Zeroizing<Vec<u8>>,
 }
 
 impl PreparedConnect {
+    pub(super) fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+
     pub(super) fn new(
         authority: &str,
         headers: &[HttpConnectHeader],
@@ -592,7 +638,7 @@ impl PreparedConnect {
             });
         }
 
-        let mut bytes = Vec::with_capacity(256);
+        let mut bytes = Zeroizing::new(Vec::with_capacity(256));
         extend_bounded(&mut bytes, b"CONNECT ")?;
         extend_bounded(&mut bytes, authority.as_bytes())?;
         extend_bounded(&mut bytes, b" HTTP/1.1\r\n")?;

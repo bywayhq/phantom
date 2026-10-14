@@ -266,7 +266,7 @@ async fn forwarding_uses_proxy_profile_http_scheme_and_no_automatic_credentials(
                         server_name: TEST_SERVER_NAME,
                         connector: &proxy_connector,
                     },
-                    credentials: Some(&credentials),
+                    credentials: Some(crate::proxy::HttpProxyAuthentication::Basic(&credentials)),
                 },
                 http::Method::GET,
                 "forward.example:8080",

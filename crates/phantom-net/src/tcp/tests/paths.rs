@@ -193,7 +193,7 @@ async fn http1_connect_paths_apply_tcp_settings() -> TestResult {
                     }),
                     authority: AUTHORITY,
                     headers: &basic_headers,
-                    credentials: Some(&credentials),
+                    credentials: Some(crate::proxy::HttpProxyAuthentication::Basic(&credentials)),
                 }),
                 server_name: SERVER_NAME,
                 setup: crate::route::DirectTlsSetup::Default,

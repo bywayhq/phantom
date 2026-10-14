@@ -677,7 +677,7 @@ impl PoolEntry {
                         server_name: proxy.host(),
                         connector: proxy_connector,
                     },
-                    credentials: proxy.basic_credentials(),
+                    credentials: proxy.authentication(),
                 }))
                 .await
                 .map_err(RequestError::http2_connection_setup)?
@@ -721,7 +721,7 @@ impl PoolEntry {
                                 proxy: transport,
                                 authority: &connect_authority,
                                 headers: proxy.ordered_connect_headers(),
-                                credentials: proxy.basic_credentials(),
+                                credentials: proxy.authentication(),
                             },
                         ),
                         server_name: endpoint.host(),

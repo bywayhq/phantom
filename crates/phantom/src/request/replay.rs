@@ -5,6 +5,7 @@ use http::Method;
 pub(super) enum ReplayClass {
     CriticalClientHints,
     ProxyAuthentication,
+    ProxyStale,
     /// A reused HTTP/1.1 connection closed before any response byte.
     ReusedConnection,
     /// The HTTP/2 or HTTP/3 peer reported that it did not process the
@@ -29,7 +30,7 @@ impl ReplayClass {
             Self::CriticalClientHints => method.is_safe(),
             // RFC 9113, section 8.7, and RFC 9114, section 4.1.1: the server
             // did not process the request, so any method may be repeated.
-            Self::ProxyAuthentication | Self::Unprocessed => true,
+            Self::ProxyAuthentication | Self::ProxyStale | Self::Unprocessed => true,
             // No QUIC connection carried the request, so the server
             // processed none of it.
             Self::Http2Fallback => true,
@@ -50,6 +51,7 @@ impl ReplayClass {
 pub(super) struct ReplayState {
     critical_client_hints: bool,
     proxy_authentication: bool,
+    proxy_stale: bool,
     reused_connection: bool,
     http2_fallback: bool,
     unprocessed: usize,
@@ -65,6 +67,7 @@ impl ReplayState {
         Self {
             critical_client_hints: false,
             proxy_authentication: false,
+            proxy_stale: false,
             reused_connection: false,
             http2_fallback: false,
             unprocessed: 0,
@@ -92,6 +95,7 @@ impl ReplayState {
         let performed = match class {
             ReplayClass::CriticalClientHints => &mut self.critical_client_hints,
             ReplayClass::ProxyAuthentication => &mut self.proxy_authentication,
+            ReplayClass::ProxyStale => &mut self.proxy_stale,
             ReplayClass::ReusedConnection => &mut self.reused_connection,
             ReplayClass::Http2Fallback => &mut self.http2_fallback,
             ReplayClass::Unprocessed => {
@@ -122,6 +126,7 @@ impl ReplayState {
         match class {
             ReplayClass::CriticalClientHints => self.critical_client_hints,
             ReplayClass::ProxyAuthentication => self.proxy_authentication,
+            ReplayClass::ProxyStale => self.proxy_stale,
             ReplayClass::ReusedConnection => self.reused_connection,
             ReplayClass::Http2Fallback => self.http2_fallback,
             ReplayClass::Unprocessed => self.unprocessed > 0,

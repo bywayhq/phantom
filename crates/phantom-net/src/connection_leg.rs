@@ -13,8 +13,9 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use crate::{
     direct::{Dialer, DirectConnectError, connect_tcp},
     proxy::{
-        HttpConnectError, HttpsProxyTunnel, ProxyCredentialCache, Socks4Error, Socks5Error,
-        TunnelStream, http_connect_tunnel, http_connect_tunnel_with_basic_auth, socks4_tunnel,
+        HttpConnectError, HttpProxyAuthentication, HttpsProxyTunnel, ProxyCredentialCache,
+        Socks4Error, Socks5Error, TunnelStream, http_connect_tunnel,
+        http_connect_tunnel_with_basic_auth, http_connect_tunnel_with_digest_auth, socks4_tunnel,
         socks5_tunnel_local_dns, socks5_tunnel_remote_dns,
     },
     route::{ConnectedStream, ProxyTransport, Socks5Target, TcpRoute},
@@ -96,10 +97,22 @@ pub(crate) async fn connect(
         TcpRoute::HttpConnect(route) => match route.proxy {
             ProxyTransport::Tcp(endpoint) => {
                 let tunnel = match route.credentials {
-                    Some(credentials) => {
+                    Some(HttpProxyAuthentication::Basic(credentials)) => {
                         http_connect_tunnel_with_basic_auth(
                             dialer,
                             cache,
+                            endpoint.host,
+                            endpoint.port,
+                            route.authority,
+                            route.headers,
+                            credentials,
+                        )
+                        .await
+                    }
+                    Some(HttpProxyAuthentication::Digest(credentials)) => {
+                        http_connect_tunnel_with_digest_auth(
+                            dialer,
+                            cache.is_some(),
                             endpoint.host,
                             endpoint.port,
                             route.authority,
@@ -129,9 +142,21 @@ pub(crate) async fn connect(
                 connector,
             } => {
                 let tunnel = match route.credentials {
-                    Some(credentials) => {
+                    Some(HttpProxyAuthentication::Basic(credentials)) => {
                         connector
                             .connect_tunnel_with_basic_auth(
+                                endpoint.host,
+                                endpoint.port,
+                                server_name,
+                                route.authority,
+                                route.headers,
+                                credentials,
+                            )
+                            .await
+                    }
+                    Some(HttpProxyAuthentication::Digest(credentials)) => {
+                        connector
+                            .connect_tunnel_with_digest_auth(
                                 endpoint.host,
                                 endpoint.port,
                                 server_name,

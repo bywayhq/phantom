@@ -119,6 +119,11 @@ Notes:
   on either transport and later forwarded requests to it carry them first
   ([Proxy authentication](../explanation/design.md#proxy-authentication)).
 
+- Explicit Digest credentials work on HTTP/1.1 and HTTP/2 forwarding and
+  CONNECT. Each attempt hashes its exact target with a new nonce count.
+  One stale retry is allowed. Optional proxy response proofs are checked
+  before nonce acceptance. CONNECT-UDP supports Basic only.
+
 ## SOCKS5 rules
 
 - An authentication, negotiation, or rejection failure is typed, and no

@@ -26,7 +26,9 @@ use std::{
 use tokio::sync::{Notify, watch};
 use tracing::debug;
 
-use super::{HttpBasicCredentials, HttpConnectError, HttpConnectErrorKind};
+use super::{
+    HttpConnectError, HttpConnectErrorKind, HttpProxyAuthentication, HttpProxyCredentials,
+};
 use crate::http2::Http2Connection;
 
 /// Tunnels one HTTP/2 proxy connection carries before a pool that allows
@@ -57,8 +59,8 @@ pub const MAX_HTTP2_PROXY_POOL_ROUTES: usize = 32;
 /// tunnel then becomes the next stream of a pooled connection to the same
 /// proxy host, port, and TLS server name, opened by a connector with the
 /// same TLS, TCP, HTTP/2, and name-resolution settings, for a route with the
-/// same Basic credentials or none. Without a pool, every tunnel opens its
-/// own connection.
+/// same credential scheme, values and policy, or none. Without a pool, every
+/// tunnel opens its own connection.
 ///
 /// A route keeps one connection, as browsers do. Every tunnel goes on it;
 /// past the proxy's `SETTINGS_MAX_CONCURRENT_STREAMS`, the HTTP/2 layer
@@ -246,9 +248,9 @@ struct RouteEntry {
 ///
 /// `settings` identifies the connector settings a connection was opened
 /// with; see [`ConnectionSettingsId`]. `authorization` is the route's
-/// encoded Basic credential, so routes with other credentials, or none,
-/// never share a connection. `runtime` is the runtime the tunnel's task runs
-/// on: a connection's driver runs on the runtime that opened it and stops
+/// credential scheme, values and policy, so routes with other credentials,
+/// or none, never share a connection. `runtime` is the runtime the tunnel's
+/// task runs on: a connection's driver runs on the runtime that opened it and stops
 /// being polled once that runtime is dropped or no longer driven.
 #[derive(Clone, Eq, PartialEq)]
 pub(super) struct RouteKey {
@@ -256,7 +258,7 @@ pub(super) struct RouteKey {
     host: Box<str>,
     port: u16,
     server_name: Box<str>,
-    authorization: Option<Box<[u8]>>,
+    authorization: Option<HttpProxyCredentials>,
     runtime: Option<tokio::runtime::Id>,
 }
 
@@ -266,14 +268,14 @@ impl RouteKey {
         host: &str,
         port: u16,
         server_name: &str,
-        credentials: Option<&HttpBasicCredentials>,
+        credentials: Option<HttpProxyAuthentication<'_>>,
     ) -> Self {
         Self {
             settings: settings.clone(),
             host: host.to_ascii_lowercase().into(),
             port,
             server_name: server_name.to_ascii_lowercase().into(),
-            authorization: credentials.map(|credentials| credentials.authorization().into()),
+            authorization: credentials.map(HttpProxyAuthentication::to_owned),
             runtime: tokio::runtime::Handle::try_current()
                 .ok()
                 .map(|runtime| runtime.id()),

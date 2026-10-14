@@ -1047,7 +1047,7 @@ impl RequestBuilder {
         // configured credentials it would conflict with the generated field.
         let forwards_caller_proxy_authorization = route
             .as_http_proxy()
-            .is_some_and(|proxy| proxy.basic_credentials().is_none());
+            .is_some_and(|proxy| proxy.credentials().is_none());
         if request.uri.scheme_str() == Some("http")
             && !forwards_caller_proxy_authorization
             && request_headers

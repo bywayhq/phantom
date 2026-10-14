@@ -210,7 +210,7 @@ async fn exchange(
         .await
         .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(Http2TlsError::Http2(error))))?;
     match outcome {
-        Http2ClassicConnectOutcome::Accepted { status, stream } => {
+        Http2ClassicConnectOutcome::Accepted { status, stream, .. } => {
             Span::current().record("status", status);
             Ok(Http2ChallengeOutcome::Tunnel(stream))
         }
@@ -225,6 +225,71 @@ async fn exchange(
                 return Ok(Http2ChallengeOutcome::Retry(held));
             }
             Err(HttpConnectError::Rejected { status })
+        }
+    }
+}
+
+pub(super) enum Http2DigestOutcome {
+    Tunnel(Http2ConnectStream, Option<Box<[u8]>>),
+    Challenge(super::digest::DigestChallenge, Option<Http2RejectedStream>),
+}
+
+pub(super) async fn establish_digest(
+    connection: &Http2Connection,
+    authority: &str,
+    headers: &[HttpConnectHeader],
+    credentials: &super::HttpDigestCredentials,
+    authorization: Option<&super::digest::DigestRequest>,
+    rejected: Http2RejectedConnect,
+) -> Result<Http2DigestOutcome, HttpConnectError> {
+    let authorization_value = authorization.map_or(Authorization::Omit, |request| {
+        Authorization::Emit(request.header.value())
+    });
+    PreparedConnect::prepare(authority, headers, authorization_value)?;
+    let request = PreparedHttp2Connect::convert(authority, headers, authorization_value)?;
+    let outcome = connection
+        .send_classic_connect(request.request()?, rejected)
+        .await
+        .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(Http2TlsError::Http2(error))))?;
+    match outcome {
+        Http2ClassicConnectOutcome::Accepted {
+            status,
+            headers,
+            stream,
+        } => {
+            Span::current().record("status", status);
+            let nextnonce = authorization
+                .map(|request| {
+                    request.verify(
+                        headers
+                            .get_all("proxy-authentication-info")
+                            .iter()
+                            .map(HeaderValue::as_bytes),
+                    )
+                })
+                .transpose()
+                .map_err(HttpConnectError::Digest)?
+                .flatten();
+            Ok(Http2DigestOutcome::Tunnel(stream, nextnonce))
+        }
+        Http2ClassicConnectOutcome::Rejected {
+            status,
+            headers,
+            held,
+        } => {
+            Span::current().record("status", status);
+            if status != 407 {
+                return Err(HttpConnectError::Rejected { status });
+            }
+            let challenge = super::digest::DigestChallenge::select(
+                headers
+                    .get_all("proxy-authenticate")
+                    .iter()
+                    .map(HeaderValue::as_bytes),
+                credentials,
+            )
+            .map_err(HttpConnectError::Digest)?;
+            Ok(Http2DigestOutcome::Challenge(challenge, held))
         }
     }
 }

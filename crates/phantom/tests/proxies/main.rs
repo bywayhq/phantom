@@ -9,6 +9,7 @@
 mod support;
 
 mod configuration_errors;
+mod digest_proxy;
 mod environment;
 mod forward_proxy;
 mod negotiated_proxy;
