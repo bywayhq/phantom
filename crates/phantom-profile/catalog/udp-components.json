@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "components": [
+    {
+      "id": "chromium_154_udp",
+      "kind": "UdpSettings",
+      "base": null,
+      "values": {
+        "port_randomization": true
+      }
+    }
+  ]
+}

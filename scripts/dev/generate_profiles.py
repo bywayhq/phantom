@@ -19,6 +19,12 @@ TLS_COMPONENT_RECORDS = REPO / "crates/phantom-profile/catalog/tls-components.js
 TLS_COMPONENT_OUTPUT = REPO / "crates/phantom-profile/src/tls/components.rs"
 QUIC_COMPONENT_RECORDS = REPO / "crates/phantom-profile/catalog/quic-components.json"
 QUIC_COMPONENT_OUTPUT = REPO / "crates/phantom-profile/src/catalog/quic_components.rs"
+HTTP1_COMPONENT_RECORDS = REPO / "crates/phantom-profile/catalog/http1-components.json"
+HTTP1_COMPONENT_OUTPUT = REPO / "crates/phantom-profile/src/catalog/http1_components.rs"
+DNS_COMPONENT_RECORDS = REPO / "crates/phantom-profile/catalog/dns-components.json"
+DNS_COMPONENT_OUTPUT = REPO / "crates/phantom-profile/src/catalog/dns_components.rs"
+UDP_COMPONENT_RECORDS = REPO / "crates/phantom-profile/catalog/udp-components.json"
+UDP_COMPONENT_OUTPUT = REPO / "crates/phantom-profile/src/catalog/udp_components.rs"
 
 # Resource ceilings for local declarations, not corpus performance claims.
 MAX_BYTES = 16 * 1024 * 1024
@@ -31,6 +37,9 @@ MAX_COMPONENT_CHAIN = 32
 MAX_VARINT = (1 << 62) - 1
 MAX_QPACK_TABLE_CAPACITY = (1 << 30) - 1
 COMPONENT_FIELDS = {
+    "Http1Settings": ("max_connections_per_origin", "idle_timeout"),
+    "DnsCacheSettings": ("max_entries", "ttl", "min_record_ttl", "negative_ttl"),
+    "UdpSettings": ("port_randomization",),
     "QuicTransportSettings": (
         "max_idle_timeout_ms",
         "max_udp_payload_size",
@@ -695,6 +704,15 @@ def validate_pseudo_headers(order, extended):
 
 def validate_component_values(kind, values):
     keys(values, COMPONENT_FIELDS[kind], kind)
+    if kind == "Http1Settings":
+        validate_http1_values(values)
+        return
+    if kind == "DnsCacheSettings":
+        validate_dns_values(values)
+        return
+    if kind == "UdpSettings":
+        boolean(values["port_randomization"], "port_randomization")
+        return
     if kind == "QuicTransportSettings":
         validate_quic_values(values)
         return
@@ -1011,6 +1029,43 @@ def validate_http2_values(values):
     # clock representability; declarations bound Duration's stored fields only.
 
 
+def validate_http1_values(values):
+    # Compiled declarations fit both 32-bit and 64-bit usize. Custom typed
+    # settings retain their native host-sized range.
+    bounded_integer(
+        values["max_connections_per_origin"], 1, MAX_U32, "connection limit"
+    )
+    timeout = values["idle_timeout"]
+    if not isinstance(timeout, dict):
+        raise DeclarationError("HTTP/1.1 idle timeout must be a typed record")
+    kind = choice(
+        timeout.get("kind"),
+        ("Unlimited", "CheckedOnRequest", "ClosedOnTimer"),
+        "HTTP/1.1 idle timeout",
+    )
+    if kind == "Unlimited":
+        keys(timeout, ("kind",), "HTTP/1.1 idle timeout")
+        return
+    keys(timeout, ("kind", "duration"), "HTTP/1.1 idle timeout")
+    validate_duration(timeout["duration"], "HTTP/1.1 idle timeout")
+    duration = timeout["duration"]
+    if kind == "ClosedOnTimer" and (
+        duration["seconds"] > 65_535
+        or (duration["seconds"] == 65_535 and duration["nanoseconds"] != 0)
+    ):
+        raise DeclarationError(
+            "HTTP/1.1 timer idle limit must be at most 65535 seconds"
+        )
+
+
+def validate_dns_values(values):
+    bounded_integer(values["max_entries"], 1, MAX_U32, "DNS cache entry limit")
+    for field in ("ttl", "min_record_ttl"):
+        validate_duration(values[field], field)
+    if values["negative_ttl"] is not None:
+        validate_duration(values["negative_ttl"], "negative_ttl")
+
+
 QUIC_WIDTHS = {"One": 1, "Two": 2, "Four": 4, "Eight": 8}
 QUIC_SCALARS = {
     "MaxIdleTimeout": ("max_idle_timeout_ms", 0x01, 0),
@@ -1316,6 +1371,18 @@ def load_quic_components(path=QUIC_COMPONENT_RECORDS):
     return validate_components(read_document(path), ("QuicTransportSettings",))
 
 
+def load_http1_components(path=HTTP1_COMPONENT_RECORDS):
+    return validate_components(read_document(path), ("Http1Settings",))
+
+
+def load_dns_components(path=DNS_COMPONENT_RECORDS):
+    return validate_components(read_document(path), ("DnsCacheSettings",))
+
+
+def load_udp_components(path=UDP_COMPONENT_RECORDS):
+    return validate_components(read_document(path), ("UdpSettings",))
+
+
 def rust_byte_slice(value):
     return "&[" + ", ".join(str(byte) for byte in value) + "]"
 
@@ -1478,6 +1545,23 @@ def rust_http2_value(field, value):
 
 
 def rust_component_value(field, value, kind="Http3Settings"):
+    if kind == "Http1Settings":
+        if field == "max_connections_per_origin":
+            return rust_nonzero_usize(value)
+        expression = f"crate::Http1IdleTimeout::{value['kind']}"
+        if value["kind"] != "Unlimited":
+            expression += f"({rust_duration(value['duration'])})"
+        return expression
+    if kind == "DnsCacheSettings":
+        if field == "max_entries":
+            return rust_nonzero_usize(value)
+        return (
+            rust_option(value, rust_duration)
+            if field == "negative_ttl"
+            else rust_duration(value)
+        )
+    if kind == "UdpSettings":
+        return str(value).lower()
     if kind == "QuicTransportSettings":
         return rust_quic_value(field, value)
     if kind == "TlsSettings":
@@ -1500,6 +1584,15 @@ def rust_component_value(field, value, kind="Http3Settings"):
             expression += f"({str(argument).lower()})"
         settings.append(expression)
     return "vec![" + ", ".join(settings) + "]"
+
+
+def rust_nonzero_usize(value):
+    # The const block rejects invalid emitted literals at compile time; no
+    # runtime panic or substitution exists in a generated factory.
+    return (
+        f"const {{ match std::num::NonZeroUsize::new({value}) {{"
+        ' Some(value) => value, None => panic!("invalid nonzero component literal") } }'
+    )
 
 
 TLS_TRUST_CANDIDATE_VALIDATOR = """#[allow(dead_code, reason = "Rust 1.88 does not count anonymous const assertions as uses")]
@@ -1784,6 +1877,18 @@ def main():
             (
                 QUIC_COMPONENT_OUTPUT,
                 generate_components(load_quic_components(), "quic-components.json"),
+            ),
+            (
+                HTTP1_COMPONENT_OUTPUT,
+                generate_components(load_http1_components(), "http1-components.json"),
+            ),
+            (
+                DNS_COMPONENT_OUTPUT,
+                generate_components(load_dns_components(), "dns-components.json"),
+            ),
+            (
+                UDP_COMPONENT_OUTPUT,
+                generate_components(load_udp_components(), "udp-components.json"),
             ),
         )
         for output, generated in outputs:

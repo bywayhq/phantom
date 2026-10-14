@@ -23,15 +23,12 @@ mod android;
 
 pub use android::v156_android_tcp_tls;
 
-use std::{
-    num::{NonZeroU32, NonZeroUsize},
-    time::Duration,
-};
+use std::{num::NonZeroU32, time::Duration};
 
 use crate::{
     cookie::CookiePlacement,
     dns_cache::DnsCacheSettings,
-    http1::{Http1IdleTimeout, Http1Settings},
+    http1::Http1Settings,
     http2::{Http2Priority, Http2Settings},
     http3::{Http3RequestSettings, Http3Settings},
     proxy_connect::{
@@ -189,7 +186,7 @@ pub fn v157_tcp_tls() -> TlsSettings {
 /// - Firefox remembers an origin's address family until a prune finds its
 ///   connection entry empty
 ///   (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:2614-2618`). Phantom
-///   prunes on the timer of [`Http1IdleTimeout::ClosedOnTimer`], which notices
+///   prunes on the timer of [`crate::Http1IdleTimeout::ClosedOnTimer`], which notices
 ///   a server's close of an idle connection only when it fires; Firefox
 ///   notices at once and can stop its timer, so it may remember a family
 ///   longer.
@@ -255,12 +252,7 @@ pub fn v157_tcp() -> TcpSettings {
 /// name before it connects.
 #[must_use]
 pub fn v157_dns_cache() -> DnsCacheSettings {
-    DnsCacheSettings {
-        max_entries: NonZeroUsize::new(1600).unwrap_or(NonZeroUsize::MIN),
-        ttl: Duration::from_secs(60),
-        min_record_ttl: Duration::ZERO,
-        negative_ttl: Some(Duration::from_secs(60)),
-    }
+    crate::catalog::dns_components::firefox_157_dns_cache()
 }
 
 /// Returns the HTTP/1.1 connection policy of Firefox 157.0.
@@ -288,17 +280,14 @@ pub fn v157_dns_cache() -> DnsCacheSettings {
 /// timer once that time passes, with no request pending
 /// (`nsHttpConnection::TimeToLive`, `:1009-1025`;
 /// `netwerk/protocol/http/nsHttpConnectionMgr.cpp:258-271`, `:2572-2625`,
-/// `:4075-4084`), which [`Http1IdleTimeout::ClosedOnTimer`] models. In the
+/// `:4075-4084`), which [`crate::Http1IdleTimeout::ClosedOnTimer`] models. In the
 /// Firefox 157 socket hook logs it closed an idle connection 115.5 seconds
 /// after its last response, and the server read a FIN. Firefox also honors
 /// the `timeout` of a response's `Keep-Alive` field (`:1120-1129`), which
 /// Phantom ignores.
 #[must_use]
 pub fn v157_http1() -> Http1Settings {
-    Http1Settings {
-        max_connections_per_origin: NonZeroUsize::new(6).unwrap_or(NonZeroUsize::MIN),
-        idle_timeout: Http1IdleTimeout::ClosedOnTimer(Duration::from_secs(115)),
-    }
+    crate::catalog::http1_components::firefox_157_http1()
 }
 
 /// Returns HTTP/2 settings observed from Firefox 157.0 on Windows 11.

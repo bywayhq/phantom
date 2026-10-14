@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "components": [
+    {
+      "id": "chromium_154_http1",
+      "kind": "Http1Settings",
+      "base": null,
+      "values": {
+        "max_connections_per_origin": 6,
+        "idle_timeout": {
+          "kind": "CheckedOnRequest",
+          "duration": {
+            "seconds": 300,
+            "nanoseconds": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "firefox_157_http1",
+      "kind": "Http1Settings",
+      "base": null,
+      "values": {
+        "max_connections_per_origin": 6,
+        "idle_timeout": {
+          "kind": "ClosedOnTimer",
+          "duration": {
+            "seconds": 115,
+            "nanoseconds": 0
+          }
+        }
+      }
+    }
+  ]
+}

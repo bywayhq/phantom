@@ -43,13 +43,13 @@ pub use android::{
 
 pub(crate) use android::{CAPTURED_MODEL, model_value, validate_model};
 
-use std::{num::NonZeroUsize, time::Duration};
+use std::time::Duration;
 
 use crate::{
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
     cookie::CookiePlacement,
     dns_cache::DnsCacheSettings,
-    http1::{Http1IdleTimeout, Http1Settings},
+    http1::Http1Settings,
     http2::{Http2Priority, Http2Settings},
     http3::{Http3RequestSettings, Http3Settings},
     proxy_connect::{
@@ -302,9 +302,7 @@ pub fn v154_tcp() -> TcpSettings {
 /// Brave 154 (see [`crate::browser::brave`]).
 #[must_use]
 pub fn v154_udp() -> UdpSettings {
-    UdpSettings {
-        port_randomization: true,
-    }
+    crate::catalog::udp_components::chromium_154_udp()
 }
 
 /// Returns the address cache of Chromium 154.0.8037.58.
@@ -342,12 +340,7 @@ pub fn v154_udp() -> UdpSettings {
 /// top-level site as well (see [`crate::browser::brave`]).
 #[must_use]
 pub fn v154_dns_cache() -> DnsCacheSettings {
-    DnsCacheSettings {
-        max_entries: NonZeroUsize::new(1000).unwrap_or(NonZeroUsize::MIN),
-        ttl: Duration::from_secs(60),
-        min_record_ttl: Duration::from_secs(60),
-        negative_ttl: None,
-    }
+    crate::catalog::dns_components::chromium_154_dns_cache()
 }
 
 /// Returns the HTTP/1.1 connection policy of Chromium 154.0.8037.58.
@@ -392,10 +385,7 @@ pub fn v154_dns_cache() -> DnsCacheSettings {
 /// by top-level site as well (see [`crate::browser::brave`]).
 #[must_use]
 pub fn v154_http1() -> Http1Settings {
-    Http1Settings {
-        max_connections_per_origin: NonZeroUsize::new(6).unwrap_or(NonZeroUsize::MIN),
-        idle_timeout: Http1IdleTimeout::CheckedOnRequest(Duration::from_secs(300)),
-    }
+    crate::catalog::http1_components::chromium_154_http1()
 }
 
 /// Returns HTTP/2 settings observed from Chrome 154.0.8037.58 on Windows 11.

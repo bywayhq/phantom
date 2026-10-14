@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "components": [
+    {
+      "id": "chromium_154_dns_cache",
+      "kind": "DnsCacheSettings",
+      "base": null,
+      "values": {
+        "max_entries": 1000,
+        "ttl": {
+          "seconds": 60,
+          "nanoseconds": 0
+        },
+        "min_record_ttl": {
+          "seconds": 60,
+          "nanoseconds": 0
+        },
+        "negative_ttl": null
+      }
+    },
+    {
+      "id": "firefox_157_dns_cache",
+      "kind": "DnsCacheSettings",
+      "base": null,
+      "values": {
+        "max_entries": 1600,
+        "ttl": {
+          "seconds": 60,
+          "nanoseconds": 0
+        },
+        "min_record_ttl": {
+          "seconds": 0,
+          "nanoseconds": 0
+        },
+        "negative_ttl": {
+          "seconds": 60,
+          "nanoseconds": 0
+        }
+      }
+    }
+  ]
+}

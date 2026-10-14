@@ -10,12 +10,18 @@ Keep browser observations separate from recipe implementations.
 | `crates/phantom-profile/catalog/profiles.json` | Recipe identities and layer evidence |
 | `crates/phantom-profile/catalog/tls-components.json` | Typed TCP and QUIC TLS values |
 | `crates/phantom-profile/catalog/quic-components.json` | Typed QUIC transport values and wire policies |
+| `crates/phantom-profile/catalog/http1-components.json` | Typed HTTP/1.1 connection limits and timers |
+| `crates/phantom-profile/catalog/dns-components.json` | Typed DNS-cache capacity and lifetimes |
+| `crates/phantom-profile/catalog/udp-components.json` | Typed UDP socket policy |
 | `crates/phantom-profile/catalog/http2-components.json` | Typed HTTP/2 settings and field overrides |
 | `crates/phantom-profile/catalog/http3-components.json` | Typed HTTP/3 settings and field overrides |
 | `crates/phantom-profile/src/catalog.rs` | Selection, required layers, and typed recipe bindings |
 | `crates/phantom-profile/src/catalog/generated.rs` | Committed generated records |
 | `crates/phantom-profile/src/tls/components.rs` | Committed generated TLS values |
 | `crates/phantom-profile/src/catalog/quic_components.rs` | Committed generated QUIC transport values |
+| `crates/phantom-profile/src/catalog/http1_components.rs` | Committed generated HTTP/1.1 values |
+| `crates/phantom-profile/src/catalog/dns_components.rs` | Committed generated DNS-cache values |
+| `crates/phantom-profile/src/catalog/udp_components.rs` | Committed generated UDP values |
 | `crates/phantom-profile/src/catalog/http2_components.rs` | Committed generated HTTP/2 values |
 | `crates/phantom-profile/src/catalog/http3_components.rs` | Committed generated HTTP/3 values |
 | `scripts/dev/generate_profiles.py` | Closed-schema validation and offline generation |
@@ -24,10 +30,10 @@ Cargo uses the committed registry. It does not run Python or read JSON at
 runtime. Discovery and exact lookup borrow static records. Instantiation
 calls the selected recipe factory and returns fresh owned settings.
 
-All existing TLS factories, core QUIC transport, HTTP/2 settings, and HTTP/3
-connection and request settings use structured components. Other layers use
-handwritten factories. Their migration and historical-version growth remain in the
-[roadmap](../roadmap.md). Request templates use explicit typed bindings; they
+All existing TLS factories, core QUIC transport, HTTP/1.1, HTTP/2, HTTP/3,
+DNS-cache, and UDP settings use structured components. Other layers use
+handwritten factories. Their migration and historical-version growth remain
+in the [roadmap](../roadmap.md). Request templates use explicit typed bindings; they
 have no separate evidence records.
 
 ## Identity and composition
@@ -90,10 +96,11 @@ python -m unittest discover -s scripts/dev/tests -p test_generate_profile_compon
 python -m unittest discover -s scripts/dev/tests -p test_generate_http2_components.py
 python -m unittest discover -s scripts/dev/tests -p test_generate_tls_components.py
 python -m unittest discover -s scripts/dev/tests -p test_generate_quic_components.py
+python -m unittest discover -s scripts/dev/tests -p test_generate_connection_components.py
 ```
 
 Generation sorts identifiers and emits fields and layers in fixed orders.
-All five generated files use `rustfmt::skip` to preserve their output.
+All eight generated files use `rustfmt::skip` to preserve their output.
 The generator rejects duplicate JSON keys and identifiers, unknown values,
 inconsistent metadata, missing or escaping files, unsupported absence claims,
 and observed fields without capture references.
@@ -168,6 +175,25 @@ current provider's two-version limit and 1,000-microsecond minimum ACK delay.
 Those restrictions do not change custom profile APIs. Declarations allow at
 most one record for each supported kind. Frozen factory controls compare all
 values and policies; existing wire replays remain separate checks.
+
+## Declare HTTP/1.1, DNS, and UDP components
+
+These layers keep separate declarations and generated modules. HTTP/1.1
+defines a per-origin connection limit and idle policy. Chromium checks idle
+expiry when a request arrives. Firefox also closes connections on a timer.
+DNS records store capacity, positive lifetimes, the record-TTL floor, and optional
+negative lifetimes. UDP records store the port-randomization choice.
+Firefox has no UDP recipe; generation does not add one.
+
+Durations store seconds and nanoseconds, including zero. HTTP/1.1 timer
+limits retain the native 65,535-second bound. Other duration records retain
+the full Rust representation. An override replaces the entire typed field.
+
+Compiled connection and cache counts range from 1 through `u32::MAX`, so
+they fit both 32-bit and 64-bit hosts. Generated nonzero values are checked
+in Rust const blocks. Invalid literals fail compilation. There is no runtime
+panic or replacement value. Custom typed settings retain their host-sized
+range; this declaration bound does not change their APIs.
 
 ## Declare HTTP/2 components
 
