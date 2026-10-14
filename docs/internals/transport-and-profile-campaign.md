@@ -50,14 +50,14 @@ copying execution journals into this page.
 | --- | --- | --- |
 | T1 | `h3-drain-diagnosis` | Readiness repair merged in PR #213 after the exact signed-head gate and platform CI. Main push CI passed; the historical trigger remains open. |
 | T2 | `tls-done-diagnosis` | Framed-response repair and EOF controls merged in PR #212 after the full gate and platform CI. Main push CI passed; historical attribution remains open. |
-| P1–P4 | `profile-catalog` | Ordered WebSocket components join the reviewed catalog layers at `efd6db4c`, with 372 profile tests and seven doctests passing. Immutable definitions, remaining layers, and integration wire checks remain. |
+| P1–P4 | `profile-catalog` | All ten connection profiles and their request templates use declared components. The reviewed lane at `bce87337` passes 380 profile tests, seven doctests, strict Clippy, Rust 1.88 and rustdoc. The integration candidate is rebased onto `98fe3750`; its full gate and platform CI remain. Corpus growth, provenance reconciliation and measurements stay open. |
 | P5 | `profile-history` | Edge 153 Windows profile passes four profile and six native replay controls. Catalog registration, corpus measurements, and integration remain. |
-| F1 | `ticket-transfer` | Clearing, frozen stores, strict native decoding, and authenticated TCP publication pass focused checks. The reviewed lane is rebased on `6f6426f4`; scoped QUIC publication awaits native verification. Transfer encoding and full policy bindings remain. |
+| F1 | `ticket-transfer` | Scoped QUIC publication is committed at `8566d49e` after independent review, native session controls, strict Clippy and four wire fixtures. Clearing, frozen stores, strict decoding and TCP publication also pass focused checks. Transfer encoding, full policy bindings and integration remain. |
 | F3 | `socks4-integration` | SOCKS4/4a merged in PR #215 after the exact-head full gate and macOS/Windows CI. Main push CI passed. |
 | F4 | `digest-integration` | Digest merged in PR #218 after the full gate and platform CI. Enterprise contracts are recorded. PR #220 repaired the cookie and shared-port fixtures; main push CI passed. |
-| F5 | `doh-wire` | The bounded wire codec is committed at `edecd611`. Caller-reported DNS lifetimes passed independent review, 160 focused tests, strict Clippy, default and Rust 1.88 builds. Rustdoc and delivery remain, as do DoH transport and alternate-host discovery. |
+| F5 | `doh-wire` | The DoH address adapter is committed at `b112d6ca` with 11 unit controls, three real GET/POST/bootstrap peers and focused compiler and docs checks. HTTPS records and absolute deadline handoff are under review. Real cache-aging, cancellation and failure controls, alternate-host discovery and integration remain. |
 | F8 | `http3-debug-auth` | Origin opt-in merged in PR #219 after independent review, all 22 gate steps, 4,643 Rust tests, and 43 green PR checks at `6f6426f4`. |
-| B2 | `proxy-h2-idle-integration` | The gate exposed a PING acknowledgment write during retirement. The guard at `2bd1f082` passes old-versus-repaired native controls, the unchanged proxy shutdown test, and both required vendor checks. The final integration gate and CI remain; Alt-Used and WINDOW_UPDATE stay separate. |
+| B2 | `proxy-h2-idle-integration` | Proxy timer closure and the idle-PING guard merged in PR #222 at `98fe3750` after all 22 gate steps, 4,659 Rust tests and 43 green PR checks. All nine main push workflows passed. Alt-Used and WINDOW_UPDATE remain separate open changes. |
 
 Neither controlled timing reproduction proves the exact historical host
 delay. The unchanged historical TLS suite also passed all 1,041 tests with
@@ -184,9 +184,9 @@ uncertainty. Research must lead to a decision, bounded experiment, or repair.
 - [ ] B2: Correct Firefox `Alt-Used` position and first-request omission,
   ordinary H2 stream `WINDOW_UPDATE` shape, and HTTPS-proxy H2 idle closure.
   Record and verify these as separate changes with their own wire controls.
-  The proxy idle-timer repair passed its controlled baseline and focused
-  runtime checks. Its [evidence](transport-profile-evidence/proxy-h2-idle.md)
-  records the pending integration gate and platform delivery.
+  The proxy idle-timer repair merged in PR #222 after its full gate and
+  platform checks. Its [evidence](transport-profile-evidence/proxy-h2-idle.md)
+  records the controlled baseline, retirement guard and verified delivery.
 - [ ] B3: Add Chromium macOS idle-only keepalive and Android TCP recipes.
   Add verified source-backed Firefox macOS, Linux, and Android keepalive
   recipes. Source-backed support and observed socket behavior remain distinct.

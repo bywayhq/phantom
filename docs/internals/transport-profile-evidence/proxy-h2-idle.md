@@ -59,7 +59,15 @@ Firefox's idle policy follows source. A browser idle-closure capture is still
 absent. These loopback controls establish Phantom's behavior. Buffered DATA
 may arrive before the caller consumes it; consumption advances the clock.
 
+The final commit `98fe3750` passed all 22 integration gate steps, including
+4,659 Rust tests and strict workspace Clippy. PR #222 passed all 43 checks,
+including macOS and Windows. Main was fast-forwarded to that commit on
+2026-10-14; all nine push workflows passed. The full logs and CI snapshots
+are retained under `target/transport-profile-campaign/` in the integration
+checkout. The initial nextest version-warning gate remains alongside the
+clean rerun with the workspace-scoped 0.9.145 runner.
+
 ## Next
 
-Continue the [campaign](../transport-and-profile-campaign.md) after integration
-verification and platform CI.
+Continue the [campaign](../transport-and-profile-campaign.md) with the separate
+Firefox address-selection, `Alt-Used` and `WINDOW_UPDATE` work.
