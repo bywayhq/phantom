@@ -2001,6 +2001,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Update the rustls test-peer dependency to 0.23.46, which fixes four
+  published security advisories. Phantom clients continue to use BoringSSL.
+
 - Reconcile the architecture audit records with delivered PR checks and
   37 retained source reviews, keeping their original scope and review limits.
 
