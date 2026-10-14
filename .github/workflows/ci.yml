@@ -147,7 +147,7 @@ jobs:
       - name: Install cargo-nextest
         uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
-          tool: cargo-nextest@0.9.140
+          tool: cargo-nextest@0.9.145
 
       - name: Test
         run: cargo nextest run --profile ci --workspace --all-targets --all-features --locked
@@ -399,7 +399,7 @@ jobs:
       - name: Install cargo-nextest
         uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
         with:
-          tool: cargo-nextest@0.9.140
+          tool: cargo-nextest@0.9.145
 
       - name: Test workspace
         run: cargo nextest run --profile ci --workspace --all-targets --all-features --locked

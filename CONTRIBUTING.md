@@ -48,7 +48,7 @@ The gate runs the workspace tests with [cargo-nextest](https://nexte.st/),
 at the version CI installs:
 
 ```console
-cargo install --locked cargo-nextest@0.9.140
+cargo install --locked cargo-nextest@0.9.145
 ```
 
 ### Windows

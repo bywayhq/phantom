@@ -38,12 +38,12 @@ class CiCheckTests(unittest.TestCase):
         self.write("pyproject.toml", 'required-version = "==0.16.9"\n')
         self.write(".github/workflows/ci.yml", "  SHELLCHECK_VERSION: v0.11.0\n")
         self.write(
-            ".config/nextest.toml", 'nextest-version = { recommended = "0.9.140" }\n'
+            ".config/nextest.toml", 'nextest-version = { recommended = "0.9.145" }\n'
         )
         self.write(
             "tools.md",
             "ruff@0.16.9 --with ruff==0.16.9 nightly-2026-09-01\n"
-            "ShellCheck 0.11.0 cargo-nextest@0.9.140\n",
+            "ShellCheck 0.11.0 cargo-nextest@0.9.145\n",
         )
         for package in ("phantom-quic-btls", "phantom-net"):
             self.write(

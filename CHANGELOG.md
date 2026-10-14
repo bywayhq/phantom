@@ -2495,6 +2495,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Pin nextest 0.9.145 to prevent concurrent tests from inheriting sibling
+  capture pipes on macOS. Keep leaked-output failures and retries unchanged.
 - Keep Cargo lock waiters running when a finished holder is replaced during
   its process check. A stable dead holder still requires manual inspection.
 

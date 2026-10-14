@@ -4,7 +4,7 @@
 # nextest runs every test in its own process, so tests cannot share a tracing
 # dispatcher, callsite interest cache, or other process-wide state, and loopback
 # servers bind port 0 or hold a ReservedPort. No test needs a serial group.
-nextest-version = { recommended = "0.9.140" }
+nextest-version = { recommended = "0.9.145" }
 
 [profile.default]
 # A retried pass hides a flaky test; fix or report it instead.
