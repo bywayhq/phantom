@@ -785,10 +785,13 @@ holds a lease on its connection, so it stays open for the tunnels already on
 it, and closing or resetting one tunnel ends only its stream. When a CONNECT
 on a connection that had carried streams fails because the proxy did not
 process it, such as after a `GOAWAY` that crossed it, the connection is
-retired and the CONNECT is sent once more on another. An idle connection
-stays pooled until the proxy closes it, its route is forgotten (a pool keeps
-32 routes, least recently used first out), or the client and its clones
-are dropped.
+retired and the CONNECT is sent once more on another. If the profile sets an
+idle limit, a route timer retires the connection without another checkout.
+Consumed response heads, DATA and trailers restart that clock. PINGs and
+their ACKs do not. Existing tunnels and caller-owned handles keep a retired
+connection alive until released. Without a limit, it stays pooled until the
+proxy closes it, its route is forgotten (a pool keeps 32 routes, least
+recently used first out), or the client and its clones are dropped.
 
 The profile's `ProxyConnectTemplate::http2_connections` decides which
 requests share a pool. With `Shared`, the Chromium recipe, forwarded

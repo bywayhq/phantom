@@ -477,10 +477,11 @@ pub enum Http2IdleTimeout {
     /// Stop reusing a connection once it has been idle this long, and close
     /// it with `GOAWAY(NO_ERROR)` once no stream is open.
     ///
-    /// The `phantom` client checks on a timer, so an idle connection closes
-    /// within about a second after the limit even if no request comes. A
-    /// connection to an HTTPS proxy closes only when a new tunnel replaces
-    /// it. [`Http2Settings::validate`] accepts 1 to 65,535 seconds.
+    /// The client and HTTPS proxy pool check on timers, even without another
+    /// request. Retirement happens within about a second after the limit.
+    /// Open streams and caller-owned connection handles keep the connection
+    /// alive until released. [`Http2Settings::validate`] accepts 1 to 65,535
+    /// seconds.
     ClosedOnTimer(Duration),
 }
 

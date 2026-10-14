@@ -153,7 +153,8 @@ features or blockers for the Phase 2 API work.
 - Firefox's HTTP/2 idle limit: `firefox::v157_http2` stops reusing a
   connection with no response data for 170 s and closes it with `GOAWAY`
   about a second later, or when its last stream ends, as Firefox 157
-  source does
+  source does. The outer HTTPS-proxy pool also retires idle connections
+  without another tunnel opening; existing tunnels keep their connection alive
   ([HTTP/2 idle close evidence](explanation/validation.md#http2-idle-close-evidence)).
 - Firefox's address selection in `firefox::v157_tcp`: an IPv4 backup
   attempt 250 ms after a slow first attempt; the slower connection kept
@@ -391,13 +392,6 @@ completed phase scope.
   reach this; it waits on the DNS over HTTPS entry below. With early data,
   Phantom's retry after an ECH rejection would also have to move from the
   handshake to the request.
-- Firefox's idle HTTP/2 close on HTTPS proxy connections. Evidence:
-  `firefox::v157_http2` closes an idle HTTP/2 connection on the client's
-  timer, but an HTTP/2 connection to an HTTPS proxy past the limit closes
-  only when the next tunnel to that proxy replaces it
-  ([HTTP/2 idle close evidence](explanation/validation.md#http2-idle-close-evidence)).
-  Blocker: none recorded; the proxy pool lives in `phantom-net`, outside
-  the client's timer.
 - Validator slots in the Edge, Brave, Opera, and Android templates.
   Evidence: Chrome 154 and Firefox 157 place `If-None-Match` and
   `If-Modified-Since` as their default-mode `fetch` templates do

@@ -184,6 +184,9 @@ uncertainty. Research must lead to a decision, bounded experiment, or repair.
 - [ ] B2: Correct Firefox `Alt-Used` position and first-request omission,
   ordinary H2 stream `WINDOW_UPDATE` shape, and HTTPS-proxy H2 idle closure.
   Record and verify these as separate changes with their own wire controls.
+  The proxy idle-timer repair passed its controlled baseline and focused
+  runtime checks. Its [evidence](transport-profile-evidence/proxy-h2-idle.md)
+  records the pending integration gate and platform delivery.
 - [ ] B3: Add Chromium macOS idle-only keepalive and Android TCP recipes.
   Add verified source-backed Firefox macOS, Linux, and Android keepalive
   recipes. Source-backed support and observed socket behavior remain distinct.

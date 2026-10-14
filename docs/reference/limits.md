@@ -167,6 +167,8 @@ ceiling below. A
   `SETTINGS_MAX_CONCURRENT_STREAMS` when lower
   (`MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION`). See
   [Shared HTTP/2 proxy connections](../explanation/design.md#shared-http2-proxy-connections).
+  With an idle limit, the pool retires a connection without another checkout.
+  Open tunnels and caller-owned handles keep it alive until released.
 - [Tune throughput and latency](../guides/performance.md) says what a server
   can observe when you raise these bounds.
 

@@ -398,8 +398,9 @@ without response data before it stops taking new requests and closes.
 - Phantom checks on a timer, so an idle connection closes within about a
   second after the limit even if no request comes. This applies to
   `HttpProtocol::Http2` and `get_negotiated` requests on every
-  [route](glossary.md#route). A connection to an HTTPS proxy is the
-  exception: it closes only when the next tunnel replaces it.
+  [route](glossary.md#route), and to outer HTTPS-proxy connections. An expired
+  proxy connection takes no new tunnel. Existing tunnels and caller-owned
+  connection handles keep it alive until released.
 - A profile with an HTTP/2 limit runs this timer even without an HTTP/1.1
   limit. Each time it fires, it also drops idle HTTP/1.1 connections the
   server already closed. It forgets the address family of an origin with

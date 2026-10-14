@@ -347,8 +347,9 @@ Supported:
 - An idle limit: when the profile sets one (170 seconds for Firefox, none
   for Chromium), a connection with no response data for that long takes no
   new stream and closes with `GOAWAY(NO_ERROR)` within about a second, or
-  when its last stream ends. Idle PINGs do not delay it. A connection to an
-  HTTPS proxy closes only when the next tunnel replaces it. The timer
+  when its last stream ends. Idle PINGs do not delay it. The outer HTTPS-proxy
+  pool also retires expired connections without another checkout. Existing
+  tunnels and caller-owned handles keep them alive until released. The timer
   policy is source-defined; an idle close remains uncaptured.
 - Reuse owned by the client, keyed by exact origin and route, with bounded
   local active work and waiters, and enforcement of the peer's stream limit.
