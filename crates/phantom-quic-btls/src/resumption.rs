@@ -69,6 +69,31 @@ pub struct QuicSessionTicketCache {
     state: Weak<Mutex<CacheState>>,
 }
 
+/// A temporary strong owner used while a client freezes its ticket stores.
+pub struct QuicSessionTicketCacheOwner {
+    state: Arc<Mutex<CacheState>>,
+}
+
+/// A synchronous guard that blocks ticket consumption and publication.
+pub struct FrozenQuicSessionTicketCache<'a> {
+    state: MutexGuard<'a, CacheState>,
+}
+
+/// Deferred held-ticket retirement, completed after all store guards drop.
+pub struct RetiredQuicTicketPublications {
+    generation: Arc<()>,
+    application_states: Vec<Weak<Mutex<ApplicationStateInner>>>,
+}
+
+/// A fresh, single-use publication identity prepared before stores lock.
+pub struct QuicTicketGeneration(Arc<()>);
+
+impl Default for QuicTicketGeneration {
+    fn default() -> Self {
+        Self(Arc::new(()))
+    }
+}
+
 impl QuicSessionTicketCache {
     /// Returns whether the configuration or a handshake still owns the cache.
     #[must_use]
@@ -80,20 +105,73 @@ impl QuicSessionTicketCache {
     ///
     /// Existing connections keep working. Returns the number of retained
     /// tickets removed, excluding native handshake buffers.
+    #[must_use]
     pub fn clear(&self) -> usize {
-        let Some(state) = self.state.upgrade() else {
+        let Some(owner) = self.upgrade() else {
             return 0;
         };
-        let mut state = state.lock().unwrap_or_else(PoisonError::into_inner);
-        let mut count = state.sessions.len();
-        state.sessions.clear();
-        state.round_trip_times.clear();
-        let retired = std::mem::replace(&mut state.generation, Arc::new(()));
-        let application_states = std::mem::take(&mut state.application_states);
-        // Application-state callbacks lock their state before the cache.
-        // Release the cache before clearing held tickets in those states.
-        drop(state);
-        for inner in application_states
+        let generation = QuicTicketGeneration::default();
+        let mut frozen = owner.freeze();
+        let count = frozen.state.sessions.len();
+        let retired = frozen.drain(generation);
+        drop(frozen);
+        count + retired.finish()
+    }
+
+    /// Temporarily retain a live cache for a bounded synchronous transaction.
+    #[must_use]
+    pub fn upgrade(&self) -> Option<QuicSessionTicketCacheOwner> {
+        self.state
+            .upgrade()
+            .map(|state| QuicSessionTicketCacheOwner { state })
+    }
+}
+
+impl QuicSessionTicketCacheOwner {
+    /// Compare live cache identity solely to avoid locking it twice.
+    #[must_use]
+    pub fn same_cache(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.state, &other.state)
+    }
+
+    /// Block consumption and publication until the guard drops.
+    #[must_use]
+    pub fn freeze(&self) -> FrozenQuicSessionTicketCache<'_> {
+        FrozenQuicSessionTicketCache {
+            state: self.state.lock().unwrap_or_else(PoisonError::into_inner),
+        }
+    }
+}
+
+impl FrozenQuicSessionTicketCache<'_> {
+    /// Count authenticated sessions retained by this locked store.
+    #[must_use]
+    pub fn retained_count(&self) -> usize {
+        self.state.sessions.len()
+    }
+
+    /// Drain tickets and retire old publication with a preallocated token.
+    ///
+    /// Finish the returned retirement only after every transaction store
+    /// guard has dropped. Dropping this guard before draining changes nothing.
+    #[must_use]
+    pub fn drain(&mut self, generation: QuicTicketGeneration) -> RetiredQuicTicketPublications {
+        self.state.sessions.clear();
+        self.state.round_trip_times.clear();
+        RetiredQuicTicketPublications {
+            generation: std::mem::replace(&mut self.state.generation, generation.0),
+            application_states: std::mem::take(&mut self.state.application_states),
+        }
+    }
+}
+
+impl RetiredQuicTicketPublications {
+    /// Release held tickets without acquiring any ticket-store guard.
+    #[must_use]
+    pub fn finish(self) -> usize {
+        let mut count = 0;
+        for inner in self
+            .application_states
             .into_iter()
             .filter_map(|inner| inner.upgrade())
         {
@@ -101,7 +179,7 @@ impl QuicSessionTicketCache {
             if inner
                 .cache
                 .as_ref()
-                .is_some_and(|(cache, _)| Arc::ptr_eq(&cache.generation, &retired))
+                .is_some_and(|(cache, _)| Arc::ptr_eq(&cache.generation, &self.generation))
             {
                 count += inner.held.len();
                 inner.held.clear();
@@ -119,6 +197,38 @@ impl std::fmt::Debug for QuicSessionTicketCache {
             .debug_struct("QuicSessionTicketCache")
             .field("live", &self.is_live())
             .finish()
+    }
+}
+
+impl std::fmt::Debug for QuicSessionTicketCacheOwner {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("QuicSessionTicketCacheOwner")
+            .finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for FrozenQuicSessionTicketCache<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("FrozenQuicSessionTicketCache")
+            .finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for QuicTicketGeneration {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("QuicTicketGeneration")
+            .finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for RetiredQuicTicketPublications {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RetiredQuicTicketPublications")
+            .finish_non_exhaustive()
     }
 }
 
@@ -639,6 +749,40 @@ mod tests {
         assert_eq!(cache.state().application_states.len(), 1);
         assert_eq!(cache.control().clear(), 0);
         assert!(cache.state().application_states.is_empty());
+    }
+
+    #[test]
+    fn dropping_a_frozen_store_preserves_rtts_and_publication() {
+        let cache = SessionCache::default();
+        let control = cache.control();
+        let capture = cache.capture();
+        cache.record_round_trip_time("example.test", Duration::from_millis(5));
+        let owner = control
+            .upgrade()
+            .unwrap_or_else(|| panic!("live test cache missing"));
+        let same = control
+            .upgrade()
+            .unwrap_or_else(|| panic!("live test cache missing"));
+        let other = SessionCache::default();
+        let other = other
+            .control()
+            .upgrade()
+            .unwrap_or_else(|| panic!("live test cache missing"));
+        assert!(owner.same_cache(&same));
+        assert!(!owner.same_cache(&other));
+        let frozen = owner.freeze();
+        assert_eq!(frozen.retained_count(), 0);
+        drop(frozen);
+        assert_eq!(
+            capture.round_trip_time("example.test"),
+            Some(Duration::from_millis(5))
+        );
+        drop(cache);
+        drop(capture);
+        drop(same);
+        assert!(control.is_live());
+        drop(owner);
+        assert!(!control.is_live());
     }
 
     #[test]

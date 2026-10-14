@@ -66,28 +66,83 @@ pub(crate) struct TlsSessionControl {
     inner: Weak<CacheInner>,
 }
 
+pub(crate) struct TlsSessionOwner {
+    inner: Arc<CacheInner>,
+}
+
+pub(crate) struct FrozenTlsSessionCache<'a> {
+    store: MutexGuard<'a, Store>,
+}
+
+pub(crate) struct RetiredTlsTicketPublications {
+    captures: Vec<Weak<Mutex<CaptureState>>>,
+}
+
 impl TlsSessionControl {
     pub(crate) fn is_live(&self) -> bool {
         self.inner.strong_count() != 0
     }
 
     pub(crate) fn clear(&self) -> usize {
-        let Some(inner) = self.inner.upgrade() else {
+        let Some(owner) = self.upgrade() else {
             return 0;
         };
-        let mut store = inner
-            .store
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let mut count = store.sessions.len();
-        store.sessions.clear();
-        store.generation = Arc::new(());
-        store.next_batch = 0;
-        let captures = std::mem::take(&mut store.captures);
-        // Capture callbacks lock their state before the store. Release the
-        // store before retiring them to preserve that order.
-        drop(store);
-        for capture in captures.into_iter().filter_map(|capture| capture.upgrade()) {
+        let generation = Arc::new(());
+        let mut frozen = owner.freeze();
+        let count = frozen.store.sessions.len();
+        let retired = frozen.drain(generation);
+        drop(frozen);
+        count + retired.finish()
+    }
+
+    pub(crate) fn upgrade(&self) -> Option<TlsSessionOwner> {
+        self.inner.upgrade().map(|inner| TlsSessionOwner { inner })
+    }
+}
+
+impl TlsSessionOwner {
+    pub(crate) fn same_cache(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.inner, &other.inner)
+    }
+
+    pub(crate) fn freeze(&self) -> FrozenTlsSessionCache<'_> {
+        FrozenTlsSessionCache {
+            store: self
+                .inner
+                .store
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        }
+    }
+}
+
+impl FrozenTlsSessionCache<'_> {
+    pub(crate) fn retained_count(&self) -> usize {
+        self.store.sessions.len()
+    }
+
+    /// Retire publication under the store lock; finish only after every
+    /// transaction store guard has been released.
+    pub(crate) fn drain(&mut self, generation: Arc<()>) -> RetiredTlsTicketPublications {
+        self.store.sessions.clear();
+        self.store.generation = generation;
+        self.store.next_batch = 0;
+        RetiredTlsTicketPublications {
+            captures: std::mem::take(&mut self.store.captures),
+        }
+    }
+}
+
+impl RetiredTlsTicketPublications {
+    pub(crate) fn finish(self) -> usize {
+        let mut count = 0;
+        // Callbacks lock their capture before the store. Transaction store
+        // guards must all be released before taking any capture lock.
+        for capture in self
+            .captures
+            .into_iter()
+            .filter_map(|capture| capture.upgrade())
+        {
             let mut capture = capture
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -452,5 +507,39 @@ mod tests {
         assert!(!fresh.state().retired);
         assert!(!std::sync::Arc::ptr_eq(&old.generation, &fresh.generation));
         assert_eq!(cache.store().captures.len(), 1);
+    }
+
+    #[test]
+    fn dropping_a_frozen_store_preserves_publication_and_owned_identity() {
+        let cache = TlsSessionCache::new(2, TicketOrder::Newest);
+        let control = cache.control();
+        let capture = cache.begin_handshake("example.test");
+        let owner = control
+            .upgrade()
+            .unwrap_or_else(|| panic!("live test cache missing"));
+        let same = control
+            .upgrade()
+            .unwrap_or_else(|| panic!("live test cache missing"));
+        let other = TlsSessionCache::new(2, TicketOrder::Newest);
+        let other = other
+            .control()
+            .upgrade()
+            .unwrap_or_else(|| panic!("live test cache missing"));
+        assert!(owner.same_cache(&same));
+        assert!(!owner.same_cache(&other));
+        let frozen = owner.freeze();
+        assert_eq!(frozen.retained_count(), 0);
+        drop(frozen);
+        assert!(std::sync::Arc::ptr_eq(
+            &cache.store().generation,
+            &capture.generation
+        ));
+        assert!(!capture.state().retired);
+        drop(cache);
+        drop(capture);
+        drop(same);
+        assert!(control.is_live());
+        drop(owner);
+        assert!(!control.is_live());
     }
 }

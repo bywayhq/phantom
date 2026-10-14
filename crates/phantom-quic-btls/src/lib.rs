@@ -42,7 +42,10 @@ pub use key_log::{
 pub(crate) use key_schedule::{DirectionKeys, EndpointSide};
 pub(crate) use packet::PacketProtectionKey;
 pub use reset::StatelessResetKey;
-pub use resumption::{ApplicationState, QuicSessionTicketCache};
+pub use resumption::{
+    ApplicationState, FrozenQuicSessionTicketCache, QuicSessionTicketCache,
+    QuicSessionTicketCacheOwner, QuicTicketGeneration, RetiredQuicTicketPublications,
+};
 #[cfg(any(test, feature = "server"))]
 pub(crate) use retry::retry_integrity_tag;
 pub(crate) use retry::verify_retry_integrity;

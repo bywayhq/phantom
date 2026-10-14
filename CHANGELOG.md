@@ -1180,6 +1180,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Discover and select compiled profile revisions by exact catalog identity.
   Inspect per-layer support and evidence, and require layers explicitly.
 
+- Add `ClientCertificate::certificate_chain_sha256` to identify the ordered
+  certificate chain by its contents, without including the private key.
 - Add `Client::clear_session_tickets` to remove origin and proxy TLS/QUIC
   tickets across client clones, including pending tickets and saved QUIC RTTs.
   Clearing prevents older handshakes from restoring or publishing tickets.

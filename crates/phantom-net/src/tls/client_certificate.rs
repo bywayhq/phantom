@@ -6,6 +6,7 @@ use btls::{
     error::ErrorStack,
     nid::Nid,
     pkey::{Id, PKey, Private},
+    sha::Sha256,
     ssl::SslRef,
     x509::X509,
 };
@@ -45,6 +46,48 @@ struct Identity {
 }
 
 impl ClientCertificate {
+    /// Identify the ordered leaf and chain DER content with SHA-256.
+    ///
+    /// The encoding is domain-separated and versioned, with certificate
+    /// counts and byte lengths. The private key is never encoded. This
+    /// identifies certificate content only; it does not bind server trust,
+    /// a TLS profile, an origin, a route, or proxy authentication.
+    ///
+    /// # Errors
+    ///
+    /// Returns a certificate error if a parsed certificate cannot be encoded.
+    pub fn certificate_chain_sha256(&self) -> Result<[u8; 32], ClientCertificateError> {
+        let mut digest = Sha256::new();
+        digest.update(b"phantom-client-certificate-chain\0\x01");
+        let count = u64::try_from(self.identity.chain.len() + 1).map_err(|_| {
+            ClientCertificateError::new(
+                ClientCertificateErrorKind::Certificate,
+                "the certificate chain count cannot be encoded",
+            )
+        })?;
+        digest.update(&count.to_be_bytes());
+        for certificate in
+            std::iter::once(&self.identity.certificate).chain(self.identity.chain.iter())
+        {
+            let der = certificate.to_der().map_err(|error| {
+                ClientCertificateError::with_source(
+                    ClientCertificateErrorKind::Certificate,
+                    "the certificate chain cannot be encoded for content identity",
+                    error,
+                )
+            })?;
+            let len = u64::try_from(der.len()).map_err(|_| {
+                ClientCertificateError::new(
+                    ClientCertificateErrorKind::Certificate,
+                    "the certificate byte length cannot be encoded",
+                )
+            })?;
+            digest.update(&len.to_be_bytes());
+            digest.update(&der);
+        }
+        Ok(digest.finish())
+    }
+
     /// Parses a PEM certificate chain and an unencrypted PEM private key.
     ///
     /// `certificate_chain` holds one or more `CERTIFICATE` blocks, the client
@@ -330,5 +373,41 @@ impl StdError for ClientCertificateError {
         self.source
             .as_deref()
             .map(|source| source as &(dyn StdError + 'static))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ClientCertificate;
+    use crate::tls::test_support::{TestIdentity, TestResult};
+
+    #[test]
+    fn certificate_content_identity_includes_the_complete_ordered_chain() -> TestResult<()> {
+        let identity = TestIdentity::generate()?;
+        let other = TestIdentity::generate()?;
+        let leaf_only =
+            ClientCertificate::from_der([identity.leaf_der()], identity.private_key_der())?;
+        let chain = ClientCertificate::from_der(
+            [identity.leaf_der(), identity.root_der()],
+            identity.private_key_der(),
+        )?;
+        let same_content = ClientCertificate::from_der(
+            [identity.leaf_der(), identity.root_der()],
+            identity.private_key_der(),
+        )?;
+        let longer_chain = ClientCertificate::from_der(
+            [identity.leaf_der(), identity.root_der(), other.root_der()],
+            identity.private_key_der(),
+        )?;
+        let reordered = ClientCertificate::from_der(
+            [identity.leaf_der(), other.root_der(), identity.root_der()],
+            identity.private_key_der(),
+        )?;
+        assert!(chain.certificate_chain_sha256()? == same_content.certificate_chain_sha256()?);
+        assert!(chain.certificate_chain_sha256()? == chain.clone().certificate_chain_sha256()?);
+        assert!(leaf_only.certificate_chain_sha256()? != chain.certificate_chain_sha256()?);
+        assert!(chain.certificate_chain_sha256()? != longer_chain.certificate_chain_sha256()?);
+        assert!(longer_chain.certificate_chain_sha256()? != reordered.certificate_chain_sha256()?);
+        Ok(())
     }
 }

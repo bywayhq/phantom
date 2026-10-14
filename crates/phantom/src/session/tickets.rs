@@ -2,7 +2,7 @@
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-use phantom_net::SessionTicketCache;
+use phantom_net::{SessionTicketCache, SessionTicketCacheOwner, SessionTicketGeneration};
 
 /// Registered caches remain weak so evicted entries can release their tickets.
 /// Dead registrations are removed on every registration and clear. The live
@@ -30,7 +30,27 @@ impl TicketOwner {
         let mut caches = self.caches();
         caches.retain(SessionTicketCache::is_live);
         caches.shrink_to_fit();
-        caches.iter().map(SessionTicketCache::clear).sum()
+        let mut owners: Vec<SessionTicketCacheOwner> = Vec::with_capacity(caches.len());
+        for owner in caches.iter().filter_map(SessionTicketCache::upgrade) {
+            if !owners.iter().any(|existing| existing.same_cache(&owner)) {
+                owners.push(owner);
+            }
+        }
+        let generations: Vec<_> = (0..owners.len())
+            .map(|_| SessionTicketGeneration::default())
+            .collect();
+        let mut guards = Vec::with_capacity(owners.len());
+        let mut retired = Vec::with_capacity(owners.len());
+        for owner in &owners {
+            guards.push(owner.freeze());
+        }
+        for (guard, generation) in guards.iter_mut().zip(generations) {
+            retired.push(guard.drain(generation));
+        }
+        // Publication callbacks may hold a capture lock while waiting for
+        // its store. Release every store before retiring any capture.
+        drop(guards);
+        retired.into_iter().map(|retired| retired.finish()).sum()
     }
 
     fn caches(&self) -> MutexGuard<'_, Vec<SessionTicketCache>> {
@@ -63,5 +83,19 @@ mod tests {
         drop(connector);
         assert_eq!(owner.clear(), 0);
         assert!(owner.caches().is_empty());
+    }
+
+    #[test]
+    fn repeated_controls_clear_one_store_without_locking_it_twice() {
+        let connector = Http1TlsConnector::new(&chrome::v154_tcp_tls())
+            .unwrap_or_else(|error| panic!("test connector failed: {error}"))
+            .with_isolated_session_cache();
+        let owner = TicketOwner::default();
+        let control = connector.session_ticket_cache();
+        owner.register(control.clone());
+        owner.register(control);
+        assert_eq!(owner.caches().len(), 2);
+        assert_eq!(owner.clear(), 0);
+        assert_eq!(owner.caches().len(), 2);
     }
 }

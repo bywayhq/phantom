@@ -35,7 +35,9 @@ use self::configuration::extension_order_trace_name;
 #[cfg(test)]
 use self::configuration::require_supported;
 pub(crate) use self::early_data::{EarlyDataFailure, EarlyDataWait};
-pub(crate) use self::session_cache::TlsSessionControl;
+pub(crate) use self::session_cache::{
+    FrozenTlsSessionCache, RetiredTlsTicketPublications, TlsSessionControl, TlsSessionOwner,
+};
 use self::{
     early_data::EarlyData,
     session_cache::{TicketOrder, TlsSessionCache},

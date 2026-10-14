@@ -68,7 +68,10 @@ pub use authorization::{InvalidAuthorization, InvalidAuthorizationKind};
 #[cfg(feature = "keylog")]
 pub use phantom_quic_btls::{NssKeyLogReceiver, NssKeyLogSender, nss_key_log_channel};
 pub use response::{OrderedResponseHeaders, ResponseHeader};
-pub use session_tickets::SessionTicketCache;
+pub use session_tickets::{
+    FrozenSessionTicketCache, RetiredSessionTicketPublications, SessionTicketCache,
+    SessionTicketCacheOwner, SessionTicketGeneration,
+};
 #[doc(hidden)]
 pub use shutdown_timer::run_after;
 pub use source_binding::{InvalidSourceBinding, SourceBinding};
