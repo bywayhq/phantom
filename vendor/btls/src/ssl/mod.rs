@@ -108,7 +108,8 @@ pub use self::async_callbacks::{
     BoxPrivateKeyMethodFuture, BoxSelectCertFinish, BoxSelectCertFuture, ExDataFuture,
 };
 pub use self::connector::{
-    ConnectConfiguration, SslAcceptor, SslAcceptorBuilder, SslConnector, SslConnectorBuilder,
+    ClientSessionConfigurationError, ConnectConfiguration, ScopedClientSessionMode, SslAcceptor,
+    SslAcceptorBuilder, SslConnector, SslConnectorBuilder,
 };
 #[cfg(feature = "credential")]
 pub use self::credential::{SslCredential, SslCredentialBuilder, SslCredentialRef};
@@ -2044,6 +2045,7 @@ impl SslContextBuilder {
     where
         F: Fn(&mut SslRef, SslSession) + 'static + Sync + Send,
     {
+        self.clear_scoped_client_session_identity();
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_sess_set_new_cb(self.as_ptr(), Some(callbacks::raw_new_session::<F>));

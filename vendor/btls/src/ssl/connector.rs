@@ -1,10 +1,12 @@
 use foreign_types::{ForeignType, ForeignTypeRef};
+use std::fmt;
 use std::io::{Read, Write};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
 use crate::dh::Dh;
 use crate::error::ErrorStack;
+use crate::ffi;
 use crate::ssl::{
     HandshakeError, ScopedSslSession, Ssl, SslContext, SslContextBuilder, SslContextRef, SslMethod,
     SslMode, SslOptions, SslRef, SslSessionCacheMode, SslSessionScope, SslStream, SslVerifyMode,
@@ -15,6 +17,211 @@ use std::net::IpAddr;
 use super::{
     CustomSessionVerifier, MidHandshakeSslStream, SessionPublication, SessionVerifierProvenance,
 };
+
+/// The current owner of external client-session delivery.
+///
+/// This identifies the callback, not whether its sessions are authenticated.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ScopedClientSessionMode {
+    /// No callback, or scoped delivery with client caching disabled.
+    Off,
+    /// Scoped delivery that removes early-data capability from new sessions.
+    Scoped,
+    /// Scoped delivery that retains the server's early-data capability.
+    ScopedWithEarlyData,
+    /// A callback installed outside the scoped delivery owner.
+    Foreign,
+}
+
+/// A context cannot be used for the requested scoped client configuration.
+#[derive(Debug)]
+pub enum ClientSessionConfigurationError {
+    /// Hostname verification requires an X.509 context.
+    X509ContextRequired,
+    /// An unknown or replaced new-session callback owns delivery.
+    ForeignSessionCallback,
+    /// The installed scoped callback removes early-data capability.
+    ConflictingEarlyDataPolicy,
+    /// A prepared context was changed to permit internal session caching.
+    InternalSessionCacheEnabled,
+    /// Native connection allocation failed.
+    Backend(ErrorStack),
+}
+
+impl fmt::Display for ClientSessionConfigurationError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::X509ContextRequired => formatter.write_str("an X.509 context is required"),
+            Self::ForeignSessionCallback => {
+                formatter.write_str("a foreign session callback is installed")
+            }
+            Self::ConflictingEarlyDataPolicy => {
+                formatter.write_str("the scoped callback removes early-data capability")
+            }
+            Self::InternalSessionCacheEnabled => {
+                formatter.write_str("the prepared context permits internal session caching")
+            }
+            Self::Backend(error) => {
+                write!(formatter, "client connection allocation failed: {error}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ClientSessionConfigurationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Backend(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
+type NewSessionCallback =
+    unsafe extern "C" fn(*mut ffi::SSL, *mut ffi::SSL_SESSION) -> std::ffi::c_int;
+
+#[derive(Clone, Copy)]
+struct ScopedClientSessionIdentity {
+    callback: NewSessionCallback,
+    keep_early_data: bool,
+}
+
+impl SslContextRef {
+    /// Allocates a client configuration using this context's existing policy.
+    ///
+    /// No cipher, trust, option or profile defaults are applied. SNI and hostname
+    /// verification are enabled on the returned configuration.
+    pub fn configure_client(
+        &self,
+    ) -> Result<ConnectConfiguration, ClientSessionConfigurationError> {
+        if !self.has_x509_support() {
+            return Err(ClientSessionConfigurationError::X509ContextRequired);
+        }
+        Ssl::new(self)
+            .map(|ssl| ConnectConfiguration {
+                ssl,
+                sni: true,
+                verify_hostname: true,
+            })
+            .map_err(ClientSessionConfigurationError::Backend)
+    }
+
+    /// Reports the recognized callback and its active external cache policy.
+    ///
+    /// Removing either `NO_INTERNAL` bit disables recognized external delivery.
+    #[must_use]
+    pub fn scoped_client_session_mode(&self) -> ScopedClientSessionMode {
+        match self.scoped_client_session_identity() {
+            Ok(None) => ScopedClientSessionMode::Off,
+            Err(_) => ScopedClientSessionMode::Foreign,
+            Ok(Some(identity)) => {
+                let mode = self.client_session_cache_mode();
+                if !mode.contains(SslSessionCacheMode::CLIENT | SslSessionCacheMode::NO_INTERNAL) {
+                    ScopedClientSessionMode::Off
+                } else if identity.keep_early_data {
+                    ScopedClientSessionMode::ScopedWithEarlyData
+                } else {
+                    ScopedClientSessionMode::Scoped
+                }
+            }
+        }
+    }
+
+    fn client_session_cache_mode(&self) -> SslSessionCacheMode {
+        // SAFETY: the shared context is live; this query does not mutate it.
+        let bits = unsafe { ffi::SSL_CTX_get_session_cache_mode(self.as_ptr()) };
+        SslSessionCacheMode::from_bits_retain(bits)
+    }
+
+    fn scoped_client_session_identity(
+        &self,
+    ) -> Result<Option<ScopedClientSessionIdentity>, ClientSessionConfigurationError> {
+        let identity = self
+            .ex_data(SslContext::cached_ex_index::<
+                Option<ScopedClientSessionIdentity>,
+            >())
+            .copied()
+            .flatten();
+        // SAFETY: the shared context is live; only the callback address is read.
+        let callback = unsafe { ffi::SSL_CTX_sess_get_new_cb(self.as_ptr()) };
+        match (identity, callback) {
+            (None, None) => Ok(None),
+            (Some(identity), Some(callback))
+                if std::ptr::fn_addr_eq(identity.callback, callback) =>
+            {
+                Ok(Some(identity))
+            }
+            _ => Err(ClientSessionConfigurationError::ForeignSessionCallback),
+        }
+    }
+}
+
+impl SslContextBuilder {
+    /// Prepares scoped delivery that retains new sessions' early-data capability.
+    ///
+    /// Repeating this preparation preserves the installed owner. Foreign callbacks,
+    /// a conflicting early-data policy or changed internal caching are rejected
+    /// before mutation. An explicitly disabled cache (`OFF`) may be re-enabled.
+    /// This does not enable early data on any connection.
+    pub fn try_enable_scoped_client_sessions_with_early_data(
+        &mut self,
+    ) -> Result<(), ClientSessionConfigurationError> {
+        if !self.ctx.has_x509_support() {
+            return Err(ClientSessionConfigurationError::X509ContextRequired);
+        }
+        if let Some(identity) = self.ctx.scoped_client_session_identity()? {
+            if !identity.keep_early_data {
+                return Err(ClientSessionConfigurationError::ConflictingEarlyDataPolicy);
+            }
+            let mode = self.ctx.client_session_cache_mode();
+            if mode != SslSessionCacheMode::OFF && !mode.contains(SslSessionCacheMode::NO_INTERNAL)
+            {
+                return Err(ClientSessionConfigurationError::InternalSessionCacheEnabled);
+            }
+            self.set_session_cache_mode(
+                SslSessionCacheMode::CLIENT | SslSessionCacheMode::NO_INTERNAL,
+            );
+        } else {
+            self.install_scoped_client_sessions(true);
+        }
+        Ok(())
+    }
+
+    pub(super) fn clear_scoped_client_session_identity(&mut self) {
+        let index = SslContext::cached_ex_index::<Option<ScopedClientSessionIdentity>>();
+        if self.ctx.ex_data(index).is_some() {
+            self.replace_ex_data(index, None);
+        }
+    }
+
+    fn install_scoped_client_sessions(&mut self, keep_early_data: bool) {
+        self.set_session_cache_mode(SslSessionCacheMode::CLIENT | SslSessionCacheMode::NO_INTERNAL);
+        self.set_new_session_callback(move |ssl, session| {
+            let Some(binding) = ssl.ex_data(Ssl::cached_ex_index::<ScopedSessionBinding>()) else {
+                return;
+            };
+            let session = ScopedSslSession::from_new_session(
+                &binding.scope,
+                &binding.hostname,
+                ssl,
+                session,
+                keep_early_data,
+                &binding.publication,
+            );
+            (binding.callback)(session);
+        });
+        // SAFETY: the unique builder just installed the known scoped callback.
+        let callback = unsafe { ffi::SSL_CTX_sess_get_new_cb(self.as_ptr()) };
+        let identity = callback.map(|callback| ScopedClientSessionIdentity {
+            callback,
+            keep_early_data,
+        });
+        self.replace_ex_data(
+            SslContext::cached_ex_index::<Option<ScopedClientSessionIdentity>>(),
+            identity,
+        );
+    }
+}
 
 const FFDHE_2048: &str = "
 -----BEGIN DH PARAMETERS-----
@@ -153,7 +360,7 @@ impl SslConnectorBuilder {
     /// New sessions are delivered only to callbacks installed on individual
     /// connections with [`ConnectConfiguration::into_ssl_with_scoped_session`].
     pub fn enable_scoped_client_sessions(&mut self) {
-        self.install_scoped_client_sessions(false);
+        self.0.install_scoped_client_sessions(false);
     }
 
     /// Enables externally scoped client-session handling with early data.
@@ -163,25 +370,7 @@ impl SslConnectorBuilder {
     /// the connection also calls [`SslRef::set_early_data_enabled`]. Early data can be replayed by
     /// a network attacker, so send only data that is safe to process twice.
     pub fn enable_scoped_client_sessions_with_early_data(&mut self) {
-        self.install_scoped_client_sessions(true);
-    }
-
-    fn install_scoped_client_sessions(&mut self, keep_early_data: bool) {
-        self.set_session_cache_mode(SslSessionCacheMode::CLIENT | SslSessionCacheMode::NO_INTERNAL);
-        self.set_new_session_callback(move |ssl, session| {
-            let Some(binding) = ssl.ex_data(Ssl::cached_ex_index::<ScopedSessionBinding>()) else {
-                return;
-            };
-            let session = ScopedSslSession::from_new_session(
-                &binding.scope,
-                &binding.hostname,
-                ssl,
-                session,
-                keep_early_data,
-                &binding.publication,
-            );
-            (binding.callback)(session);
-        });
+        self.0.install_scoped_client_sessions(true);
     }
 
     /// Consumes the builder, returning an `SslConnector`.

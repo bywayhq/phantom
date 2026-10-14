@@ -1,5 +1,4 @@
 use super::server::Server;
-#[cfg(not(feature = "fips"))]
 use crate::ffi;
 use crate::ssl::test::MessageDigest;
 use crate::ssl::ErrorCode;
@@ -16,7 +15,6 @@ use crate::ssl::SslVersion;
 use crate::ssl::TicketKeyCallbackResult;
 use crate::symm::Cipher;
 use crate::symm::CipherCtxRef;
-#[cfg(not(feature = "fips"))]
 use foreign_types::ForeignTypeRef;
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
@@ -27,6 +25,335 @@ static SUCCESS_ENCRYPTION_CALLED_BACK: AtomicU8 = AtomicU8::new(0);
 static SUCCESS_DECRYPTION_CALLED_BACK: AtomicU8 = AtomicU8::new(0);
 static NOOP_ENCRYPTION_CALLED_BACK: AtomicU8 = AtomicU8::new(0);
 static NOOP_DECRYPTION_CALLED_BACK: AtomicU8 = AtomicU8::new(0);
+
+#[test]
+fn scoped_context_configuration_preserves_original_policy() {
+    let mut builder = publication_client_builder();
+    builder.set_options(crate::ssl::SslOptions::NO_TICKET);
+    builder
+        .set_cipher_list("ECDHE-RSA-AES128-GCM-SHA256")
+        .unwrap();
+    let context = builder.build().into_context();
+    let configuration = context.configure_client().unwrap();
+    let mut ssl = configuration.into_ssl("foobar.com").unwrap();
+    assert_eq!(ssl.ssl_context().as_ptr(), context.as_ptr());
+    assert_eq!(ssl.verify_mode(), SslVerifyMode::PEER);
+    assert_eq!(ssl.min_proto_version(), Some(SslVersion::TLS1_3));
+    assert_eq!(ssl.max_proto_version(), Some(SslVersion::TLS1_3));
+    assert_eq!(
+        ssl.ssl_context().cert_store().as_ptr(),
+        context.cert_store().as_ptr()
+    );
+    // SAFETY: both native owners remain live throughout these read-only queries.
+    unsafe {
+        assert_eq!(
+            ffi::SSL_get_options(ssl.as_ptr()),
+            ffi::SSL_CTX_get_options(context.as_ptr())
+        );
+    }
+    assert_eq!(
+        ssl.ciphers()[0].name(),
+        context.ciphers().unwrap()[0].name()
+    );
+    assert_eq!(
+        ssl.servername(crate::ssl::NameType::HOST_NAME),
+        Some("foobar.com")
+    );
+}
+
+#[test]
+fn scoped_context_non_x509_is_rejected_without_mutation() {
+    // SAFETY: this test never uses any X.509 operation on the buffer context.
+    let method = unsafe { crate::ssl::SslMethod::tls_with_buffer() };
+    let mut context = crate::ssl::SslContext::builder(method).unwrap();
+    let before = scoped_context_native_state(&context.ctx);
+    assert!(matches!(
+        context.ctx.configure_client(),
+        Err(crate::ssl::ClientSessionConfigurationError::X509ContextRequired)
+    ));
+    assert!(matches!(
+        context.try_enable_scoped_client_sessions_with_early_data(),
+        Err(crate::ssl::ClientSessionConfigurationError::X509ContextRequired)
+    ));
+    assert_eq!(scoped_context_native_state(&context.ctx), before);
+}
+
+#[test]
+fn scoped_context_preparation_is_idempotent_and_reenables_disabled_cache() {
+    let mut context = crate::ssl::SslContext::builder(crate::ssl::SslMethod::tls()).unwrap();
+    assert_eq!(
+        context.ctx.scoped_client_session_mode(),
+        crate::ssl::ScopedClientSessionMode::Off
+    );
+    context
+        .try_enable_scoped_client_sessions_with_early_data()
+        .unwrap();
+    let prepared = scoped_context_native_state(&context.ctx);
+    context
+        .try_enable_scoped_client_sessions_with_early_data()
+        .unwrap();
+    assert_eq!(scoped_context_native_state(&context.ctx), prepared);
+    assert_eq!(
+        context.ctx.scoped_client_session_mode(),
+        crate::ssl::ScopedClientSessionMode::ScopedWithEarlyData
+    );
+    context.set_session_cache_mode(SslSessionCacheMode::OFF);
+    assert_eq!(
+        context.ctx.scoped_client_session_mode(),
+        crate::ssl::ScopedClientSessionMode::Off
+    );
+    context
+        .try_enable_scoped_client_sessions_with_early_data()
+        .unwrap();
+    assert_eq!(scoped_context_native_state(&context.ctx), prepared);
+}
+
+#[test]
+fn scoped_context_foreign_callback_is_rejected_even_when_cache_is_off() {
+    let mut context = crate::ssl::SslContext::builder(crate::ssl::SslMethod::tls()).unwrap();
+    context.set_new_session_callback(|_, _| {});
+    for mode in [SslSessionCacheMode::CLIENT, SslSessionCacheMode::OFF] {
+        context.set_session_cache_mode(mode);
+        let before = scoped_context_native_state(&context.ctx);
+        assert_eq!(
+            context.ctx.scoped_client_session_mode(),
+            crate::ssl::ScopedClientSessionMode::Foreign
+        );
+        assert!(matches!(
+            context.try_enable_scoped_client_sessions_with_early_data(),
+            Err(crate::ssl::ClientSessionConfigurationError::ForeignSessionCallback)
+        ));
+        assert_eq!(scoped_context_native_state(&context.ctx), before);
+    }
+}
+
+#[test]
+fn scoped_context_safe_callback_replacement_retires_private_marker() {
+    let mut context = crate::ssl::SslContext::builder(crate::ssl::SslMethod::tls()).unwrap();
+    context
+        .try_enable_scoped_client_sessions_with_early_data()
+        .unwrap();
+    // SAFETY: this live builder owns the callback and its retained closure data.
+    let original = unsafe { ffi::SSL_CTX_sess_get_new_cb(context.as_ptr()) };
+    context.set_new_session_callback(|_, _| {});
+    assert_eq!(
+        context.ctx.scoped_client_session_mode(),
+        crate::ssl::ScopedClientSessionMode::Foreign
+    );
+    // SAFETY: original closure data is still retained in the same context. Restoring
+    // its native pointer cannot restore the marker retired by the public setter.
+    unsafe { ffi::SSL_CTX_sess_set_new_cb(context.as_ptr(), original) };
+    assert_eq!(
+        context.ctx.scoped_client_session_mode(),
+        crate::ssl::ScopedClientSessionMode::Foreign
+    );
+    let before = scoped_context_native_state(&context.ctx);
+    assert!(matches!(
+        context.try_enable_scoped_client_sessions_with_early_data(),
+        Err(crate::ssl::ClientSessionConfigurationError::ForeignSessionCallback)
+    ));
+    assert_eq!(scoped_context_native_state(&context.ctx), before);
+}
+
+#[test]
+fn scoped_context_same_generic_trampoline_does_not_prove_callback_ownership() {
+    fn first(_: &mut SslRef, _: SslSession) {}
+    fn second(_: &mut SslRef, _: SslSession) {}
+    let mut context = crate::ssl::SslContext::builder(crate::ssl::SslMethod::tls()).unwrap();
+    context.set_new_session_callback(first as fn(&mut SslRef, SslSession));
+    let before = scoped_context_native_state(&context.ctx);
+    context.set_new_session_callback(second as fn(&mut SslRef, SslSession));
+    assert_eq!(scoped_context_native_state(&context.ctx).0, before.0);
+    assert_eq!(
+        context.ctx.scoped_client_session_mode(),
+        crate::ssl::ScopedClientSessionMode::Foreign
+    );
+    assert!(matches!(
+        context.try_enable_scoped_client_sessions_with_early_data(),
+        Err(crate::ssl::ClientSessionConfigurationError::ForeignSessionCallback)
+    ));
+}
+
+#[test]
+fn scoped_context_native_callback_replacement_is_detected() {
+    unsafe extern "C" fn foreign(_: *mut ffi::SSL, _: *mut ffi::SSL_SESSION) -> std::ffi::c_int {
+        0
+    }
+    let mut context = crate::ssl::SslContext::builder(crate::ssl::SslMethod::tls()).unwrap();
+    context
+        .try_enable_scoped_client_sessions_with_early_data()
+        .unwrap();
+    for callback in [Some(foreign as unsafe extern "C" fn(_, _) -> _), None] {
+        // SAFETY: the unique builder owns this valid callback slot. No handshake
+        // invokes the test replacement, and no session reference is fabricated.
+        unsafe { ffi::SSL_CTX_sess_set_new_cb(context.as_ptr(), callback) };
+        let before = scoped_context_native_state(&context.ctx);
+        assert_eq!(
+            context.ctx.scoped_client_session_mode(),
+            crate::ssl::ScopedClientSessionMode::Foreign
+        );
+        assert!(matches!(
+            context.try_enable_scoped_client_sessions_with_early_data(),
+            Err(crate::ssl::ClientSessionConfigurationError::ForeignSessionCallback)
+        ));
+        assert_eq!(scoped_context_native_state(&context.ctx), before);
+    }
+}
+
+#[test]
+fn scoped_context_conflicting_early_data_policy_is_preserved() {
+    let mut context = tls13_client_builder();
+    context.enable_scoped_client_sessions();
+    assert_eq!(
+        context.ctx.scoped_client_session_mode(),
+        crate::ssl::ScopedClientSessionMode::Scoped
+    );
+    for mode in [
+        SslSessionCacheMode::CLIENT | SslSessionCacheMode::NO_INTERNAL,
+        SslSessionCacheMode::OFF,
+    ] {
+        context.set_session_cache_mode(mode);
+        let before = scoped_context_native_state(&context.ctx);
+        assert!(matches!(
+            context.try_enable_scoped_client_sessions_with_early_data(),
+            Err(crate::ssl::ClientSessionConfigurationError::ConflictingEarlyDataPolicy)
+        ));
+        assert_eq!(scoped_context_native_state(&context.ctx), before);
+    }
+}
+
+#[test]
+fn scoped_context_changed_internal_cache_policy_is_rejected() {
+    let mut context = crate::ssl::SslContext::builder(crate::ssl::SslMethod::tls()).unwrap();
+    context
+        .try_enable_scoped_client_sessions_with_early_data()
+        .unwrap();
+    for mode in [
+        SslSessionCacheMode::CLIENT,
+        SslSessionCacheMode::CLIENT | SslSessionCacheMode::NO_INTERNAL_LOOKUP,
+        SslSessionCacheMode::CLIENT | SslSessionCacheMode::NO_INTERNAL_STORE,
+    ] {
+        context.set_session_cache_mode(mode);
+        let before = scoped_context_native_state(&context.ctx);
+        assert_eq!(
+            context.ctx.scoped_client_session_mode(),
+            crate::ssl::ScopedClientSessionMode::Off
+        );
+        assert!(matches!(
+            context.try_enable_scoped_client_sessions_with_early_data(),
+            Err(crate::ssl::ClientSessionConfigurationError::InternalSessionCacheEnabled)
+        ));
+        assert_eq!(scoped_context_native_state(&context.ctx), before);
+    }
+}
+
+#[test]
+fn scoped_context_configuration_delivers_real_sessions_and_resumes_authenticated_source() {
+    let server = tls13_server(2).build();
+    let mut context = crate::ssl::SslContext::builder(crate::ssl::SslMethod::tls()).unwrap();
+    context.set_ca_file("test/root-ca.pem").unwrap();
+    context.set_verify(SslVerifyMode::PEER);
+    context
+        .set_min_proto_version(Some(SslVersion::TLS1_3))
+        .unwrap();
+    context
+        .set_max_proto_version(Some(SslVersion::TLS1_3))
+        .unwrap();
+    context
+        .try_enable_scoped_client_sessions_with_early_data()
+        .unwrap();
+    let context = context.build();
+    let scope = SslSessionScope::default();
+    let sessions = Arc::new(Mutex::new(Vec::new()));
+    let callback_sessions = Arc::clone(&sessions);
+    let ssl = context
+        .configure_client()
+        .unwrap()
+        .into_ssl_with_scoped_session("foobar.com", &scope, None, move |session| {
+            let session = session.unwrap();
+            assert!(!session.is_authenticated());
+            callback_sessions.lock().unwrap().push(session);
+        })
+        .unwrap()
+        .unwrap();
+    assert!(!ssl.authenticate_scoped_session_publication());
+    let mut first = ssl.connect(server.connect_tcp()).unwrap();
+    first.read_exact(&mut [0]).unwrap();
+    assert!(!first.ssl().session_reused());
+    assert!(first.ssl().authenticate_scoped_session_publication());
+    let ticket = sessions.lock().unwrap().pop().unwrap();
+    assert!(ticket.is_authenticated());
+    let second = context
+        .configure_client()
+        .unwrap()
+        .into_ssl_with_scoped_session("foobar.com", &scope, Some(&ticket), |_| {})
+        .unwrap()
+        .unwrap();
+    let mut second = second.connect(server.connect_tcp()).unwrap();
+    second.read_exact(&mut [0]).unwrap();
+    assert!(second.ssl().session_reused());
+    assert!(second.ssl().authenticate_scoped_session_publication());
+}
+
+#[test]
+fn scoped_context_configuration_errors_preserve_native_source() {
+    use std::error::Error;
+    let error =
+        crate::ssl::ClientSessionConfigurationError::Backend(crate::error::ErrorStack::get());
+    assert!(error.source().is_some());
+    assert!(error
+        .to_string()
+        .starts_with("client connection allocation failed:"));
+    assert!(
+        crate::ssl::ClientSessionConfigurationError::ForeignSessionCallback
+            .source()
+            .is_none()
+    );
+}
+
+#[cfg(not(feature = "fips"))]
+#[test]
+fn scoped_context_preparation_preserves_real_early_data_ticket_capability() {
+    let mut server = tls13_server(1);
+    // SAFETY: the live server builder exclusively owns its context.
+    unsafe { ffi::SSL_CTX_set_early_data_enabled(server.ctx().as_ptr(), 1) };
+    let server = server.build();
+    let mut context = publication_client_builder();
+    context
+        .try_enable_scoped_client_sessions_with_early_data()
+        .unwrap();
+    let context = context.build().into_context();
+    let scope = SslSessionScope::default();
+    let sessions = Arc::new(Mutex::new(Vec::new()));
+    let callback_sessions = Arc::clone(&sessions);
+    let mut configuration = context.configure_client().unwrap();
+    configuration.set_early_data_enabled(true);
+    let ssl = configuration
+        .into_ssl_with_scoped_session("foobar.com", &scope, None, move |session| {
+            callback_sessions.lock().unwrap().push(session.unwrap());
+        })
+        .unwrap()
+        .unwrap();
+    let mut stream = ssl.connect(server.connect_tcp()).unwrap();
+    stream.read_exact(&mut [0]).unwrap();
+    let sessions = sessions.lock().unwrap();
+    assert!(!sessions.is_empty());
+    assert!(sessions.iter().all(ScopedSslSession::early_data_capable));
+    assert!(sessions.iter().all(|session| !session.is_authenticated()));
+    assert!(stream.ssl().authenticate_scoped_session_publication());
+    assert!(sessions.iter().all(ScopedSslSession::is_authenticated));
+}
+
+fn scoped_context_native_state(context: &crate::ssl::SslContextRef) -> (Option<usize>, i32) {
+    // SAFETY: context is live. Addresses are used only for local ownership tests,
+    // never as portable session binding or authentication evidence.
+    unsafe {
+        (
+            ffi::SSL_CTX_sess_get_new_cb(context.as_ptr()).map(|callback| callback as usize),
+            ffi::SSL_CTX_get_session_cache_mode(context.as_ptr()),
+        )
+    }
+}
 
 #[test]
 fn resume_session() {

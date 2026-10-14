@@ -365,7 +365,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-btls"
-version = "0.5.6-phantom.8"
+version = "0.5.6-phantom.9"
 dependencies = [
  "bitflags",
  "btls-sys",
@@ -376,7 +376,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-tokio-btls"
-version = "0.5.6-phantom.8"
+version = "0.5.6-phantom.9"
 dependencies = [
  "anyhow",
  "futures",

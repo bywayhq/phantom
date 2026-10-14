@@ -37,7 +37,7 @@ size limit, and delegated-credential patches.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.8`), keeps
+renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.9`), keeps
 the upstream library name so source, tests, and examples are unchanged, and
 points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -186,6 +186,16 @@ authenticated original token. `ScopedSslSession::is_authenticated` reports this
 native verification proof; it does not establish a complete portable policy
 binding. Local cache attachment, consumption and early-data choices are unchanged.
 No import permit or bytes-to-scope constructor is added.
+
+The scoped-context-session-delivery patch adds client configuration directly
+from an existing X.509 context, without connector defaults. Scoped callback
+recognition requires a private installation marker and the actual native
+callback address. Public callback replacement retires that marker. Repeated
+early-data-preserving preparation retains its owner; foreign callbacks,
+conflicting early-data policy and changed internal caching are rejected before
+mutation. An explicitly disabled cache can be re-enabled. These controls
+preserve local session handling and the separate authenticated-publication
+proof. They add no raw-session proof constructor or QUIC consumer integration.
 
 The patches are additive:
 
@@ -387,6 +397,7 @@ cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --lo
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked scoped_client_session
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked strict_session_bytes
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked scoped_publication
+cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked scoped_context
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked record_size_limit
 cargo test --manifest-path vendor/btls/Cargo.toml --features prefix-symbols --locked delegated_credentials
@@ -412,6 +423,7 @@ cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::key_update
 cargo test --manifest-path vendor/btls/Cargo.toml --locked scoped_client_session
 cargo test --manifest-path vendor/btls/Cargo.toml --locked strict_session_bytes
 cargo test --manifest-path vendor/btls/Cargo.toml --locked scoped_publication
+cargo test --manifest-path vendor/btls/Cargo.toml --locked scoped_context
 cargo test --manifest-path vendor/btls/Cargo.toml --locked ssl::test::ech
 cargo test --manifest-path vendor/btls/Cargo.toml --locked record_size_limit
 cargo test --manifest-path vendor/btls/Cargo.toml --locked delegated_credentials
