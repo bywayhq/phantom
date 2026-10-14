@@ -705,3 +705,96 @@ fn exactly_65535_bytes_are_allowed_but_one_more_is_rejected() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn later_address_replies_can_be_aged_without_reaging_earlier_aliases() -> TestResult {
+    let query = query(DnsWireQueryKind::A)?;
+    let mut first = response(&query);
+    first
+        .answers
+        .push(alias(&query.name(), "target.example.test.", 10)?);
+    let next = follow_up(&query, &first)?.into_query();
+    let mut terminal = response(&next);
+    terminal
+        .answers
+        .push(record(&next.name(), 120, RData::A(A(Ipv4Addr::LOCALHOST)))?);
+    let answer = addresses(&next, &terminal)?;
+    assert_eq!(answer.ttl(), 10);
+    assert_eq!(answer.response_ttl(), 120);
+    // An Age of 50 belongs to the later 120-second response. Charging it
+    // against the cumulative 10-second TTL would discard a still-live alias.
+    assert_eq!(answer.response_ttl().saturating_sub(50), 70);
+
+    terminal.answers.clear();
+    terminal
+        .answers
+        .push(alias(&next.name(), "last.example.test.", 3)?);
+    terminal.answers.push(record(
+        "last.example.test.",
+        120,
+        RData::A(A(Ipv4Addr::LOCALHOST)),
+    )?);
+    let answer = addresses(&next, &terminal)?;
+    assert_eq!(answer.ttl(), 3);
+    assert_eq!(answer.response_ttl(), 3);
+    Ok(())
+}
+
+#[test]
+fn each_cname_response_has_its_own_lifetime_without_losing_prior_history() -> TestResult {
+    let query = query(DnsWireQueryKind::A)?;
+    let mut first = response(&query);
+    first
+        .answers
+        .push(alias(&query.name(), "target.example.test.", 7)?);
+    let next = follow_up(&query, &first)?;
+    assert_eq!(next.response_chain_ttl(), Some(7));
+    let next = next.into_query();
+    let mut second = response(&next);
+    second
+        .answers
+        .push(alias(&next.name(), "middle.example.test.", 20)?);
+    second
+        .answers
+        .push(alias("middle.example.test.", "last.example.test.", 15)?);
+    let last = follow_up(&next, &second)?;
+    assert_eq!(last.chain_ttl(), Some(7));
+    assert_eq!(last.response_chain_ttl(), Some(15));
+    let last = last.into_query();
+    assert_eq!(last.cname_hops(), 3);
+    let mut looped = response(&last);
+    looped.answers.push(alias(&last.name(), &query.name(), 60)?);
+    error(&last, &looped, DnsWireErrorKind::AliasLoop)
+}
+
+#[test]
+fn later_negative_replies_keep_their_own_soa_lifetime_and_absence() -> TestResult {
+    let query = query(DnsWireQueryKind::A)?;
+    let mut first = response(&query);
+    first
+        .answers
+        .push(alias(&query.name(), "target.example.test.", 7)?);
+    let next = follow_up(&query, &first)?.into_query();
+    for code in [ResponseCode::NoError, ResponseCode::NXDomain] {
+        let mut terminal = response(&next);
+        terminal.metadata.response_code = code;
+        terminal.authorities.push(soa("example.test.", 90, 60)?);
+        let answer = negative(&next, &terminal)?;
+        assert_eq!(answer.ttl(), Some(7));
+        assert_eq!(answer.response_ttl(), Some(60));
+
+        terminal
+            .answers
+            .push(alias(&next.name(), "last.example.test.", 20)?);
+        let answer = negative(&next, &terminal)?;
+        assert_eq!(answer.ttl(), Some(7));
+        assert_eq!(answer.response_ttl(), Some(20));
+
+        terminal.answers.clear();
+        terminal.authorities.clear();
+        let answer = negative(&next, &terminal)?;
+        assert_eq!(answer.ttl(), None);
+        assert_eq!(answer.response_ttl(), None);
+    }
+    Ok(())
+}

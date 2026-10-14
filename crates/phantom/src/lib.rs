@@ -282,6 +282,8 @@ mod client;
 mod content_coding;
 #[cfg(feature = "diagnostics")]
 mod diagnostics;
+#[cfg(feature = "https-records")]
+mod doh;
 mod environment_proxy;
 mod error;
 mod header_hook;
@@ -342,6 +344,10 @@ pub mod profile {
 /// `https-records` feature.
 #[cfg(feature = "https-records")]
 pub mod dns {
+    pub use crate::doh::{
+        DnsOverHttps, DnsOverHttpsBuilder, DohAddressFamilies, DohBuildError, DohBuildErrorKind,
+        DohConfiguration, DohMethod,
+    };
     pub use phantom_net::dns::{
         AliasRecord, EchCipherSuite, EchConfig, EchConfigExtension, EchConfigList,
         EchConfigListError, EchConfigListErrorKind, HttpsLookupError, HttpsLookupErrorKind,

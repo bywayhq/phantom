@@ -198,6 +198,7 @@ impl DnsWireQuery {
         let mut terminal = self.name.clone();
         let mut visited = self.visited.clone();
         let mut chain_ttl = self.chain_ttl;
+        let mut response_chain_ttl = None;
         let mut followed = false;
         while let Some((target, ttl)) = aliases.remove(&LowerName::new(&terminal)) {
             if visited.contains(&target) {
@@ -212,6 +213,7 @@ impl DnsWireQuery {
             visited.push(target.clone());
             terminal = target;
             chain_ttl = minimum_ttl(chain_ttl, ttl);
+            response_chain_ttl = minimum_ttl(response_chain_ttl, ttl);
             followed = true;
         }
         if !aliases.is_empty() {
@@ -221,6 +223,7 @@ impl DnsWireQuery {
         let mut addresses = Vec::new();
         let mut answers = Vec::new();
         let mut ttl = chain_ttl;
+        let mut response_ttl = response_chain_ttl;
         for (record, https) in message.answers.iter().zip(https_records) {
             if record.dns_class != DNSClass::IN
                 || record.data.record_type() != self.kind.record_type()
@@ -231,6 +234,7 @@ impl DnsWireQuery {
                 return Err(DnsWireError::new(DnsWireErrorKind::UnexpectedOwner));
             }
             ttl = minimum_ttl(ttl, record.ttl);
+            response_ttl = minimum_ttl(response_ttl, record.ttl);
             match &record.data {
                 RData::A(address) => addresses.push(IpAddr::V4(address.0)),
                 RData::AAAA(address) => addresses.push(IpAddr::V6(address.0)),
@@ -261,12 +265,13 @@ impl DnsWireQuery {
                         addresses: addresses.into_boxed_slice(),
                         // Every selected address has supplied a TTL.
                         ttl: ttl.unwrap_or(0),
+                        response_ttl: response_ttl.unwrap_or(0),
                     }))
                 }
             };
         }
 
-        let negative_ttl = message
+        let soa_ttl = message
             .authorities
             .iter()
             .filter(|record| record.dns_class == DNSClass::IN && record.name.zone_of(&terminal))
@@ -274,8 +279,10 @@ impl DnsWireQuery {
                 RData::SOA(soa) => Some(record.ttl.min(soa.minimum)),
                 _ => None,
             })
-            .min()
-            .map(|ttl| chain_ttl.map_or(ttl, |chain| chain.min(ttl)));
+            .min();
+        let negative_ttl = soa_ttl.map(|ttl| chain_ttl.map_or(ttl, |chain| chain.min(ttl)));
+        let response_negative_ttl =
+            soa_ttl.map(|ttl| response_chain_ttl.map_or(ttl, |chain| chain.min(ttl)));
         if code == ResponseCode::NXDomain || negative_ttl.is_some() || !followed {
             if code == ResponseCode::NoError
                 && negative_ttl.is_none()
@@ -294,10 +301,12 @@ impl DnsWireQuery {
                     DnsNegativeKind::NoData
                 },
                 ttl: negative_ttl,
+                response_ttl: response_negative_ttl,
             }));
         }
         let bytes = encode(&terminal, self.kind, self.id, self.padding_block)?;
         Ok(DnsWireResult::Cname(DnsWireFollowUp {
+            response_chain_ttl,
             query: Self {
                 name: terminal,
                 kind: self.kind,
@@ -459,6 +468,7 @@ pub enum DnsWireResult {
 pub struct DnsAddressRecords {
     addresses: Box<[IpAddr]>,
     ttl: u32,
+    response_ttl: u32,
 }
 
 impl DnsAddressRecords {
@@ -473,12 +483,22 @@ impl DnsAddressRecords {
     pub const fn ttl(&self) -> u32 {
         self.ttl
     }
+
+    /// Returns this message's minimum address/CNAME TTL, excluding earlier replies.
+    ///
+    /// Age this lifetime using this HTTP exchange's age and elapsed time.
+    /// Retain earlier replies' separately aged deadlines across follow-ups.
+    #[must_use]
+    pub const fn response_ttl(&self) -> u32 {
+        self.response_ttl
+    }
 }
 
 /// A follow-up with the CNAME budget and minimum TTL retained.
 #[derive(Clone, Debug)]
 pub struct DnsWireFollowUp {
     query: DnsWireQuery,
+    response_chain_ttl: Option<u32>,
 }
 
 impl DnsWireFollowUp {
@@ -486,6 +506,14 @@ impl DnsWireFollowUp {
     #[must_use]
     pub fn chain_ttl(&self) -> Option<u32> {
         self.query.chain_ttl
+    }
+
+    /// Returns the minimum TTL of aliases followed in this message only.
+    ///
+    /// Earlier replies must keep their separately aged deadlines.
+    #[must_use]
+    pub const fn response_chain_ttl(&self) -> Option<u32> {
+        self.response_chain_ttl
     }
 
     /// Returns the next query without resetting alias state.
@@ -513,6 +541,7 @@ pub enum DnsNegativeKind {
 pub struct DnsNegativeAnswer {
     kind: DnsNegativeKind,
     ttl: Option<u32>,
+    response_ttl: Option<u32>,
 }
 
 impl DnsNegativeAnswer {
@@ -526,6 +555,15 @@ impl DnsNegativeAnswer {
     #[must_use]
     pub const fn ttl(&self) -> Option<u32> {
         self.ttl
+    }
+
+    /// Returns this message's SOA/CNAME lifetime, excluding earlier replies.
+    ///
+    /// A missing SOA gives `None`, even when earlier aliases had a lifetime.
+    /// Age this value separately before combining it with earlier deadlines.
+    #[must_use]
+    pub const fn response_ttl(&self) -> Option<u32> {
+        self.response_ttl
     }
 }
 

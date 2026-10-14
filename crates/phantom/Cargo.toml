@@ -22,7 +22,7 @@ cookies = ["dep:cookie", "dep:cookie_store", "dep:parking_lot", "dep:psl"]
 danger-disable-verification = ["phantom-net/danger-disable-verification"]
 diagnostics = ["phantom-net/keylog", "phantom-net/qlog"]
 full = ["cookies", "https-records", "json", "serde", "sse", "websocket-deflate"]
-https-records = ["phantom-net/https-records"]
+https-records = ["phantom-net/https-records", "dep:base64"]
 json = ["dep:serde", "dep:serde_json"]
 serde = ["dep:serde"]
 sse = ["dep:futures-core", "tokio/time"]
@@ -30,6 +30,7 @@ websocket = ["dep:btls", "dep:futures-util", "dep:tokio-tungstenite"]
 websocket-deflate = ["websocket", "dep:tungstenite", "tungstenite/deflate"]
 
 [dependencies]
+base64 = { version = "=0.22.1", optional = true }
 btls = { workspace = true, optional = true }
 brotli.workspace = true
 bytes.workspace = true

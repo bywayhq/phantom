@@ -46,6 +46,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "cookies",
                 "diagnostics",
                 "direct_http",
+                "doh",
                 "error_context",
                 "expect_continue",
                 "h3_received_order",

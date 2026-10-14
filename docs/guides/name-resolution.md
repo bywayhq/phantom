@@ -134,6 +134,43 @@ fn own_queries() -> Result<Client, Box<dyn Error>> {
   query. Names without a dot go to the operating system, as do lookups
   that fail.
 
+## Resolve names over HTTPS
+
+Use an explicit DNS-over-HTTPS endpoint with the `https-records` feature.
+Supply its addresses so the resolver can connect without another DNS lookup.
+
+```rust
+use std::{error::Error, net::Ipv4Addr, num::NonZeroUsize, time::Duration};
+use phantom::{Client, dns::{DnsOverHttps, DohConfiguration,
+    DohMethod, DohAddressFamilies}, profile::browser::chrome};
+
+fn over_https() -> Result<Client, Box<dyn Error>> {
+    let profile = chrome::v154_windows();
+    let config = DohConfiguration::new(
+        "https://dns.example/dns-query",
+        [Ipv4Addr::new(192, 0, 2, 53).into()],
+        DohMethod::Post,
+        DohAddressFamilies::DualIpv6First,
+        Duration::from_secs(3),
+        NonZeroUsize::MIN,
+    );
+    let doh = DnsOverHttps::builder(profile.clone(), config)?.build()?;
+    Ok(Client::builder(profile)
+        .dns_resolver(doh.address_resolver())
+        .build()?)
+}
+```
+
+The endpoint uses a separate direct HTTP/2 client with certificate checks.
+It keeps the URL's TLS identity and shares no application cookies or headers.
+It refuses redirects and protocol fallback. GET is also available through
+`DohMethod::Get`.
+
+Answers keep their DNS lifetime after HTTP age and lookup time are deducted.
+With an address cache, expired answers and transport errors are not stored.
+The configured deadline and lookup limit bound work shared by resolver clones.
+HTTPS record discovery still uses its own resolver.
+
 ## Limits
 
 - Overrides and custom resolvers cover address lookups only. HTTPS DNS

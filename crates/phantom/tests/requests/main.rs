@@ -21,6 +21,8 @@ mod cookies;
 #[cfg(feature = "diagnostics")]
 mod diagnostics;
 mod direct_http;
+#[cfg(feature = "https-records")]
+mod doh;
 mod error_context;
 mod expect_continue;
 mod h3_received_order;
