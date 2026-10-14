@@ -160,6 +160,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "http3_components",
                 "proxy_connect_components",
                 "quic_components",
+                "request_templates",
                 "tcp_components",
                 "udp_components",
                 "websocket_components",

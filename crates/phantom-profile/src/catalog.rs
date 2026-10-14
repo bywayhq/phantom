@@ -26,6 +26,8 @@ pub(crate) mod http2_components;
 pub(crate) mod http3_components;
 pub(crate) mod proxy_connect_components;
 pub(crate) mod quic_components;
+mod request_template_definitions;
+mod request_template_values;
 pub(crate) mod tcp_components;
 pub(crate) mod udp_components;
 pub(crate) mod websocket_components;
@@ -308,6 +310,7 @@ pub struct ProfileDefinition {
     metadata: ProfileMetadata,
     layers: &'static [LayerEvidence],
     binding: RecipeBinding,
+    templates: &'static [RequestTemplateBinding],
 }
 
 impl ProfileDefinition {
@@ -371,8 +374,10 @@ impl ProfileDefinition {
         &self,
         kind: RequestTemplateKind,
     ) -> Result<RequestTemplate, CatalogError> {
-        self.binding
-            .template(kind)
+        self.templates
+            .iter()
+            .find(|entry| entry.kind == kind)
+            .map(|entry| entry.definition.instantiate())
             .ok_or(CatalogError::UnavailableTemplate {
                 profile: self.id,
                 kind,
@@ -439,6 +444,12 @@ pub fn profile(id: &str) -> Result<&'static ProfileDefinition, CatalogError> {
     profiles().get(index).ok_or(CatalogError::UnknownProfile)
 }
 
+#[derive(Debug)]
+struct RequestTemplateBinding {
+    kind: RequestTemplateKind,
+    definition: &'static request_template_values::RequestTemplateDefinition,
+}
+
 #[derive(Clone, Copy, Debug)]
 enum RecipeBinding {
     ChromeWindows154,
@@ -467,61 +478,5 @@ impl RecipeBinding {
             Self::OperaWindows136 => browser::opera::v136_windows(),
             Self::OperaAndroid102 => browser::opera::v102_android(),
         }
-    }
-
-    fn template(self, kind: RequestTemplateKind) -> Option<RequestTemplate> {
-        use RequestTemplateKind::{Fetch, FetchNoStore, FetchUpload, Navigation};
-
-        let factory: fn() -> RequestTemplate = match (self, kind) {
-            (Self::ChromeWindows154, Navigation) => {
-                browser::chrome::v154_windows_navigation_template
-            }
-            (Self::ChromeWindows154, FetchNoStore) => {
-                browser::chrome::v154_windows_fetch_no_store_template
-            }
-            (Self::ChromeWindows154, Fetch) => browser::chrome::v154_windows_fetch_template,
-            (Self::ChromeWindows154, FetchUpload) => {
-                browser::chrome::v154_windows_fetch_upload_template
-            }
-            (Self::ChromeAndroid154, Navigation) => {
-                browser::chrome::v154_android_navigation_template
-            }
-            (Self::ChromeAndroid154, FetchNoStore) => {
-                browser::chrome::v154_android_fetch_no_store_template
-            }
-            (Self::EdgeWindows154, Navigation) => browser::edge::v154_windows_navigation_template,
-            (Self::EdgeWindows154, FetchNoStore) => {
-                browser::edge::v154_windows_fetch_no_store_template
-            }
-            (Self::EdgeAndroid153, Navigation) => browser::edge::v153_android_navigation_template,
-            (Self::EdgeAndroid153, FetchNoStore) => {
-                browser::edge::v153_android_fetch_no_store_template
-            }
-            (Self::BraveWindows154, Navigation) => browser::brave::v154_windows_navigation_template,
-            (Self::BraveWindows154, FetchNoStore) => {
-                browser::brave::v154_windows_fetch_no_store_template
-            }
-            (Self::BraveAndroid153, Navigation) => browser::brave::v153_android_navigation_template,
-            (Self::BraveAndroid153, FetchNoStore) => {
-                browser::brave::v153_android_fetch_no_store_template
-            }
-            (Self::FirefoxWindows157, Navigation) => {
-                browser::firefox::v157_windows_navigation_template
-            }
-            (Self::FirefoxWindows157, FetchNoStore) => {
-                browser::firefox::v157_windows_fetch_no_store_template
-            }
-            (Self::FirefoxWindows157, Fetch) => browser::firefox::v157_windows_fetch_template,
-            (Self::FirefoxWindows157, FetchUpload) => {
-                browser::firefox::v157_windows_fetch_upload_template
-            }
-            (Self::OperaWindows136, Navigation) => browser::opera::v136_windows_navigation_template,
-            (Self::OperaWindows136, FetchNoStore) => {
-                browser::opera::v136_windows_fetch_no_store_template
-            }
-            _ => return None,
-        };
-
-        Some(factory())
     }
 }

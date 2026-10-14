@@ -267,7 +267,11 @@
             "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
           ]
         }
-      ]
+      ],
+      "templates": {
+        "FetchNoStore": "brave_android153_fetch_no_store",
+        "Navigation": "brave_android153_navigation"
+      }
     },
     {
       "id": "brave/154.1.96.59/windows-11-26200/r1",
@@ -621,7 +625,11 @@
             "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         }
-      ]
+      ],
+      "templates": {
+        "FetchNoStore": "brave_windows154_fetch_no_store",
+        "Navigation": "brave_windows154_navigation"
+      }
     },
     {
       "id": "chrome/154.0.8037.57/android-17-pixel7-emulator/r1",
@@ -870,7 +878,11 @@
             "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
           ]
         }
-      ]
+      ],
+      "templates": {
+        "FetchNoStore": "chrome_android154_fetch_no_store",
+        "Navigation": "chrome_android154_navigation"
+      }
     },
     {
       "id": "chrome/154.0.8037.97/windows-11-26200/r1",
@@ -1197,7 +1209,13 @@
             "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         }
-      ]
+      ],
+      "templates": {
+        "Fetch": "chrome_windows154_fetch",
+        "FetchNoStore": "chrome_windows154_fetch_no_store",
+        "FetchUpload": "chrome_windows154_fetch_upload",
+        "Navigation": "chrome_windows154_navigation"
+      }
     },
     {
       "id": "edge/153.0.4234.49/android-17-pixel7-emulator/r1",
@@ -1453,7 +1471,11 @@
             "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
           ]
         }
-      ]
+      ],
+      "templates": {
+        "FetchNoStore": "edge_android153_fetch_no_store",
+        "Navigation": "edge_android153_navigation"
+      }
     },
     {
       "id": "edge/154.0.4258.48/windows-11-26200/r1",
@@ -1829,7 +1851,11 @@
             "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         }
-      ]
+      ],
+      "templates": {
+        "FetchNoStore": "chromium_fetch_no_store_caller_ua",
+        "Navigation": "chromium_navigation_caller_ua"
+      }
     },
     {
       "id": "firefox/156.0.1/android-35-emulator/r1",
@@ -1992,7 +2018,8 @@
             "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
           ]
         }
-      ]
+      ],
+      "templates": {}
     },
     {
       "id": "firefox/157.0/windows-11-26200/r1",
@@ -2282,7 +2309,13 @@
             "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         }
-      ]
+      ],
+      "templates": {
+        "Fetch": "firefox_windows157_fetch",
+        "FetchNoStore": "firefox_windows157_fetch_no_store",
+        "FetchUpload": "firefox_windows157_fetch_upload",
+        "Navigation": "firefox_windows157_navigation"
+      }
     },
     {
       "id": "opera/102.1.5206.90382/android-17-pixel7-emulator/r1",
@@ -2453,7 +2486,8 @@
             "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
           ]
         }
-      ]
+      ],
+      "templates": {}
     },
     {
       "id": "opera/136.0.6008.52/windows-11-26200/r1",
@@ -2835,7 +2869,11 @@
             "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits."
           ]
         }
-      ]
+      ],
+      "templates": {
+        "FetchNoStore": "chromium_fetch_no_store_caller_ua",
+        "Navigation": "chromium_navigation_caller_ua"
+      }
     }
   ]
 }

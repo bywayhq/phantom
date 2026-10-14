@@ -7,7 +7,7 @@ Keep browser observations separate from recipe implementations.
 
 | File | Responsibility |
 | --- | --- |
-| `crates/phantom-profile/catalog/profiles.json` | Recipe identities and layer evidence |
+| `crates/phantom-profile/catalog/profiles.json` | Recipe identities, layer evidence and template bindings |
 | `crates/phantom-profile/catalog/tls-components.json` | Typed TCP and QUIC TLS values |
 | `crates/phantom-profile/catalog/quic-components.json` | Typed QUIC transport values and wire policies |
 | `crates/phantom-profile/catalog/http1-components.json` | Typed HTTP/1.1 connection limits and timers |
@@ -20,8 +20,11 @@ Keep browser observations separate from recipe implementations.
 | `crates/phantom-profile/catalog/proxy-connect-components.json` | Ordered CONNECT fields and proxy connection policies |
 | `crates/phantom-profile/catalog/http2-components.json` | Typed HTTP/2 settings and field overrides |
 | `crates/phantom-profile/catalog/http3-components.json` | Typed HTTP/3 settings and field overrides |
+| `crates/phantom-profile/catalog/request-templates.json` | Complete ordered request-template values |
 | `crates/phantom-profile/src/catalog.rs` | Selection, required layers, and typed recipe bindings |
 | `crates/phantom-profile/src/catalog/generated.rs` | Committed generated records |
+| `crates/phantom-profile/src/catalog/request_template_definitions.rs` | Immutable compiled request templates |
+| `crates/phantom-profile/src/catalog/request_template_values.rs` | Borrowed values and owned template construction |
 | `crates/phantom-profile/src/tls/components.rs` | Committed generated TLS values |
 | `crates/phantom-profile/src/catalog/quic_components.rs` | Committed generated QUIC transport values |
 | `crates/phantom-profile/src/catalog/http1_components.rs` | Committed generated HTTP/1.1 values |
@@ -52,16 +55,18 @@ python -m unittest scripts.dev.tests.test_generate_profile_cli
 ```
 
 Cargo uses the committed registry. It does not run Python or read JSON at
-runtime. Discovery and exact lookup borrow static records. Instantiation
-calls the selected recipe factory and returns fresh owned settings.
+runtime. Discovery and exact lookup borrow static records. Connection-profile
+instantiation calls the selected recipe factory and returns fresh owned settings.
+Request-template selection copies immutable values into a fresh owned template.
 
 All existing TLS factories, core QUIC transport, HTTP/1.1, HTTP/2, HTTP/3,
 DNS-cache, TCP, UDP, client hints, Cookie placement, CONNECT, and WebSocket
 settings use
-structured components. Other layers use handwritten factories. Their migration
-and historical-version growth remain in the [roadmap](../roadmap.md).
-Request templates use explicit typed bindings; they
-have no separate evidence records.
+structured components. Complete connection profiles still use handwritten
+composition. Its migration and historical-version growth remain in the
+[roadmap](../roadmap.md). Request templates have immutable definitions and exact
+kind bindings. Their evidence remains in browser docs and retained fixtures;
+they have no separate evidence records.
 
 ## Identity and composition
 
@@ -108,6 +113,35 @@ needs its own equivalence controls. Observation claims require a retained
 capture reference. File existence and schema validation do not prove parity;
 review the named replay tests and actual captured fields.
 
+## Declare request templates
+
+Each declaration contains the complete ordered fields for HTTP/1.1 and HTTP/2,
+an optional HTTP/3 list, HTTP/2 priority, and both client-hint flags. Field
+records use the variants of `RequestField`, including required caller slots,
+trust and forwarding values, proxy-authentication attempts, and hint positions.
+An absent HTTP/3 list differs from a present empty list.
+
+A declaration may inherit another template and replace complete fields.
+Generation resolves this offline and emits static slices and strings. The
+registry maps each supported request kind to one exact declaration. Missing
+kinds return `UnavailableTemplate`. Template construction copies owned values
+without calling browser factories or drawing random values. You can customize
+the returned `RequestTemplate` without changing the definition or another copy.
+
+The current catalog has 20 bindings backed by 18 definitions. Edge and Opera
+reuse identical Chromium caller-User-Agent templates. Desktop Brave requires
+caller `User-Agent` and `Accept-Language`. Android Brave retains its literal
+User-Agent and requires caller `Accept-Language`. Field order includes GPC,
+restart hints and disjoint proxy-authentication attempts.
+
+Validation follows the native template rules. It preserves the shorter matching
+restart-hint prefix and does not add dependencies between flags and slots.
+Declarations allow 256 fields per protocol and 4,096-character ASCII names and
+values. Values may contain tabs or be empty. These bounds apply to offline
+declarations; custom Rust templates keep their existing validation rules.
+Frozen full-field literals and unchanged browser factories provide independent
+controls. The migration adds no browser observations or per-template evidence.
+
 ## Update the registry
 
 Edit the JSON records and the closed recipe binding when adding a supported
@@ -129,10 +163,11 @@ python -m unittest scripts.dev.tests.test_generate_client_hints_profiles
 python -m unittest scripts.dev.tests.test_generate_cookie_profiles
 python -m unittest scripts.dev.tests.test_generate_proxy_connect_profiles
 python -m unittest scripts.dev.tests.test_generate_websocket_profiles
+python -m unittest scripts.dev.tests.test_generate_request_templates
 ```
 
 Generation sorts identifiers and emits fields and layers in fixed orders.
-All thirteen generated files use `rustfmt::skip` to preserve their output.
+All fourteen generated files use `rustfmt::skip` to preserve their output.
 The generator rejects duplicate JSON keys and identifiers, unknown values,
 inconsistent metadata, missing or escaping files, unsupported absence claims,
 and observed fields without capture references.

@@ -6,6 +6,11 @@ import sys
 from .components import generate_components, validate_components
 from .declarations import REPO, DeclarationError, read_document
 from .registry import generate, validate
+from .request_template import (
+    generate_templates,
+    validate_template_bindings,
+    validate_templates,
+)
 
 RECORDS = REPO / "crates/phantom-profile/catalog/profiles.json"
 
@@ -90,6 +95,13 @@ WEBSOCKET_COMPONENT_OUTPUT = (
     REPO / "crates/phantom-profile/src/catalog/websocket_components.rs"
 )
 
+REQUEST_TEMPLATE_RECORDS = (
+    REPO / "crates/phantom-profile/catalog/request-templates.json"
+)
+REQUEST_TEMPLATE_OUTPUT = (
+    REPO / "crates/phantom-profile/src/catalog/request_template_definitions.rs"
+)
+
 
 def load(path=RECORDS, repo=REPO):
     return validate(read_document(path), repo)
@@ -145,6 +157,10 @@ def load_websocket_components(path=WEBSOCKET_COMPONENT_RECORDS):
     return validate_components(read_document(path), ("WebSocketSettings",))
 
 
+def load_request_templates(path=REQUEST_TEMPLATE_RECORDS):
+    return validate_templates(read_document(path))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -152,8 +168,11 @@ def main():
     )
     arguments = parser.parse_args()
     try:
+        profiles = load()
+        templates = load_request_templates()
+        validate_template_bindings(profiles, templates)
         outputs = (
-            (OUTPUT, generate(load())),
+            (OUTPUT, generate(profiles)),
             (COMPONENT_OUTPUT, generate_components(load_components())),
             (
                 HTTP2_COMPONENT_OUTPUT,
@@ -205,6 +224,7 @@ def main():
                     load_websocket_components(), "websocket-components.json"
                 ),
             ),
+            (REQUEST_TEMPLATE_OUTPUT, generate_templates(templates)),
         )
         for output, generated in outputs:
             if arguments.check:

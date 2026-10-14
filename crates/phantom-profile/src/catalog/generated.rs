@@ -2,6 +2,7 @@
 use super::{
     Browser, CaptureEnvironment, EvidenceKind, EvidenceReference, LayerEvidence, LayerSupport,
     ProfileDefinition, ProfileId, ProfileLayer, ProfileMetadata, ProfilePlatform, RecipeBinding,
+    RequestTemplateBinding, RequestTemplateKind, request_template_definitions,
 };
 
 #[rustfmt::skip]
@@ -232,6 +233,10 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
             },
         ],
         binding: RecipeBinding::BraveAndroid153,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::BRAVE_ANDROID153_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::BRAVE_ANDROID153_FETCH_NO_STORE },
+        ],
     },
     ProfileDefinition {
         id: ProfileId("brave/154.1.96.59/windows-11-26200/r1"),
@@ -534,6 +539,10 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
             },
         ],
         binding: RecipeBinding::BraveWindows154,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::BRAVE_WINDOWS154_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::BRAVE_WINDOWS154_FETCH_NO_STORE },
+        ],
     },
     ProfileDefinition {
         id: ProfileId("chrome/154.0.8037.57/android-17-pixel7-emulator/r1"),
@@ -741,6 +750,10 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
             },
         ],
         binding: RecipeBinding::ChromeAndroid154,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROME_ANDROID154_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::CHROME_ANDROID154_FETCH_NO_STORE },
+        ],
     },
     ProfileDefinition {
         id: ProfileId("chrome/154.0.8037.97/windows-11-26200/r1"),
@@ -1008,6 +1021,12 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
             },
         ],
         binding: RecipeBinding::ChromeWindows154,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROME_WINDOWS154_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::CHROME_WINDOWS154_FETCH_NO_STORE },
+            RequestTemplateBinding { kind: RequestTemplateKind::Fetch, definition: &request_template_definitions::CHROME_WINDOWS154_FETCH },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchUpload, definition: &request_template_definitions::CHROME_WINDOWS154_FETCH_UPLOAD },
+        ],
     },
     ProfileDefinition {
         id: ProfileId("edge/153.0.4234.49/android-17-pixel7-emulator/r1"),
@@ -1225,6 +1244,10 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
             },
         ],
         binding: RecipeBinding::EdgeAndroid153,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::EDGE_ANDROID153_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::EDGE_ANDROID153_FETCH_NO_STORE },
+        ],
     },
     ProfileDefinition {
         id: ProfileId("edge/154.0.4258.48/windows-11-26200/r1"),
@@ -1542,6 +1565,10 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
             },
         ],
         binding: RecipeBinding::EdgeWindows154,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROMIUM_NAVIGATION_CALLER_UA },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::CHROMIUM_FETCH_NO_STORE_CALLER_UA },
+        ],
     },
     ProfileDefinition {
         id: ProfileId("firefox/156.0.1/android-35-emulator/r1"),
@@ -1684,6 +1711,8 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
             },
         ],
         binding: RecipeBinding::FirefoxAndroid156,
+        templates: &[
+        ],
     },
     ProfileDefinition {
         id: ProfileId("firefox/157.0/windows-11-26200/r1"),
@@ -1921,6 +1950,12 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
             },
         ],
         binding: RecipeBinding::FirefoxWindows157,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::FIREFOX_WINDOWS157_NAVIGATION },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::FIREFOX_WINDOWS157_FETCH_NO_STORE },
+            RequestTemplateBinding { kind: RequestTemplateKind::Fetch, definition: &request_template_definitions::FIREFOX_WINDOWS157_FETCH },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchUpload, definition: &request_template_definitions::FIREFOX_WINDOWS157_FETCH_UPLOAD },
+        ],
     },
     ProfileDefinition {
         id: ProfileId("opera/102.1.5206.90382/android-17-pixel7-emulator/r1"),
@@ -2068,6 +2103,8 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
             },
         ],
         binding: RecipeBinding::OperaAndroid102,
+        templates: &[
+        ],
     },
     ProfileDefinition {
         id: ProfileId("opera/136.0.6008.52/windows-11-26200/r1"),
@@ -2390,5 +2427,9 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
             },
         ],
         binding: RecipeBinding::OperaWindows136,
+        templates: &[
+            RequestTemplateBinding { kind: RequestTemplateKind::Navigation, definition: &request_template_definitions::CHROMIUM_NAVIGATION_CALLER_UA },
+            RequestTemplateBinding { kind: RequestTemplateKind::FetchNoStore, definition: &request_template_definitions::CHROMIUM_FETCH_NO_STORE_CALLER_UA },
+        ],
     },
 ];

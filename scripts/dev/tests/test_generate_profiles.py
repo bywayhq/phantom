@@ -155,6 +155,31 @@ class CatalogDeclarationTests(unittest.TestCase):
         document["profiles"][0]["id"] = "x" * (declarations.MAX_STRING + 1)
         self.reject(document)
 
+    def test_template_bindings_require_explicit_known_kinds_and_identifiers(self):
+        for value in (
+            None,
+            [],
+            {"Automatic": "test"},
+            {"Navigation": None},
+            {"Navigation": "std::process::exit"},
+        ):
+            document = copy.deepcopy(self.document)
+            document["profiles"][0]["templates"] = value
+            with self.subTest(value=value):
+                self.reject(document)
+
+        document = copy.deepcopy(self.document)
+        document["profiles"][0]["templates"] = {}
+        generator.validate(document)
+
+    def test_template_binding_object_order_does_not_change_generated_records(self):
+        expected = generator.generate(generator.validate(self.document))
+        for entry in self.document["profiles"]:
+            entry["templates"] = dict(reversed(list(entry["templates"].items())))
+        self.assertEqual(
+            generator.generate(generator.validate(self.document)), expected
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

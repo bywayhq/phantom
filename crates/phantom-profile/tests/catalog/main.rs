@@ -11,6 +11,7 @@ mod http2_components;
 mod http3_components;
 mod proxy_connect_components;
 mod quic_components;
+mod request_templates;
 mod tcp_components;
 mod udp_components;
 mod websocket_components;

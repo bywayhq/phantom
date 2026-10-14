@@ -11,10 +11,12 @@ from .declarations import (
     DeclarationError,
     check_depth,
     choice,
+    component_identifier,
     keys,
     string_list,
     text,
 )
+from .request_template import REQUEST_KINDS
 from .rust_literals import (
     rust_string,
     rust_strings,
@@ -116,7 +118,7 @@ def validate(document, repo=REPO):
 
     ids = set()
     for entry in profiles:
-        keys(entry, ("id", "binding", "metadata", "layers"), "profile")
+        keys(entry, ("id", "binding", "metadata", "layers", "templates"), "profile")
         identifier = text(entry["id"], "profile id")
         if not re.fullmatch(r"[a-z0-9][a-z0-9./-]{0,191}", identifier):
             raise DeclarationError("invalid profile identifier")
@@ -125,6 +127,13 @@ def validate(document, repo=REPO):
         ids.add(identifier)
         binding = choice(entry["binding"], BINDINGS, identifier)
         browser, platform, configured = BINDINGS[binding]
+        templates = entry["templates"]
+        if not isinstance(templates, dict) or not set(templates) <= set(REQUEST_KINDS):
+            raise DeclarationError(
+                "profile requires an explicit request-kind template map"
+            )
+        for template_id in templates.values():
+            component_identifier(template_id)
 
         metadata = entry["metadata"]
         keys(
@@ -270,6 +279,7 @@ def generate(profiles):
         "use super::{",
         "    Browser, CaptureEnvironment, EvidenceKind, EvidenceReference, LayerEvidence, LayerSupport,",
         "    ProfileDefinition, ProfileId, ProfileLayer, ProfileMetadata, ProfilePlatform, RecipeBinding,",
+        "    RequestTemplateBinding, RequestTemplateKind, request_template_definitions,",
         "};",
         "",
         "#[rustfmt::skip]",
@@ -331,6 +341,16 @@ def generate(profiles):
             [
                 "        ],",
                 f"        binding: RecipeBinding::{entry['binding']},",
+                "        templates: &[",
+                *[
+                    "            RequestTemplateBinding { "
+                    f"kind: RequestTemplateKind::{kind}, "
+                    f"definition: &request_template_definitions::{entry['templates'][kind].upper()} "
+                    "},"
+                    for kind in REQUEST_KINDS
+                    if kind in entry["templates"]
+                ],
+                "        ],",
                 "    },",
             ]
         )
