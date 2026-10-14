@@ -85,9 +85,7 @@ image/avif,image/webp,image/apng,*/*;q=0.8";
 /// with the server's retry configuration, which the origin accepts.
 #[must_use]
 pub fn v154_tcp_tls() -> TlsSettings {
-    let mut settings = chrome::v154_tcp_tls();
-    settings.requested_trust_anchor_ids = None;
-    settings
+    crate::tls::components::brave_154_tcp_tls()
 }
 
 /// Returns TLS settings for the Brave 154.1.96.59 HTTP/3 offer on Windows 11.
@@ -105,9 +103,7 @@ pub fn v154_tcp_tls() -> TlsSettings {
 /// each scenario.
 #[must_use]
 pub fn v154_quic_tls() -> TlsSettings {
-    let mut settings = chrome::v154_quic_tls();
-    settings.requested_trust_anchor_ids = None;
-    settings
+    crate::tls::components::brave_154_quic_tls()
 }
 
 /// Returns client-hint fields observed from Brave 154 on Windows 11 x64.

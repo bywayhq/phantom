@@ -2,6 +2,7 @@
 
 import copy
 import importlib.util
+import itertools
 import json
 import sys
 import tempfile
@@ -50,6 +51,32 @@ class TlsComponentTests(unittest.TestCase):
         self.assertNotIn("expect(", expected)
         self.assertNotIn("unwrap(", expected)
 
+    def test_private_generated_names_cannot_collide_with_component_identifiers(self):
+        for identifier in (
+            "valid_recipe_trust_candidates",
+            "trust_candidate_assertion_accepts_declared_count_ceilings",
+        ):
+            document = copy.deepcopy(self.document)
+            document["components"].append(
+                {
+                    "id": identifier,
+                    "kind": "TlsSettings",
+                    "base": "chromium_154_tcp_tls",
+                    "values": {},
+                }
+            )
+            output = generator.generate_components(
+                self.resolve(document), "tls-components.json"
+            )
+            self.assertEqual(output.count(f"fn {identifier}"), 1)
+            self.assertIn("const fn _valid_recipe_trust_candidates", output)
+        for identifier in (
+            "_valid_recipe_trust_candidates",
+            "_trust_candidate_assertion_accepts_declared_count_ceilings",
+        ):
+            with self.assertRaises(generator.DeclarationError):
+                generator.component_identifier(identifier)
+
     def test_quic_overrides_replace_complete_typed_fields(self):
         resolved = {item["id"]: item["values"] for item in self.resolve()}
         chrome_tcp = resolved["chromium_154_tcp_tls"]
@@ -69,6 +96,63 @@ class TlsComponentTests(unittest.TestCase):
         self.assertTrue(firefox_tcp["tcp_early_data"])
         self.assertFalse(firefox_quic["tcp_early_data"])
         del self.document["components"][1]["values"]["alps"]["use_new_codepoint"]
+        self.reject()
+
+    def test_branded_and_android_overrides_replace_only_original_fields(self):
+        resolved = {item["id"]: item["values"] for item in self.resolve()}
+        for brand in ("edge", "brave"):
+            for transport in ("tcp", "quic"):
+                expected = copy.deepcopy(resolved[f"chromium_154_{transport}_tls"])
+                expected["requested_trust_anchor_ids"] = None
+                self.assertEqual(resolved[f"{brand}_154_{transport}_tls"], expected)
+        grease = {
+            "kind": "Grease",
+            "settings": {
+                "payload_length": {"kind": "BackendDefault", "value": None},
+                "aeads": [],
+            },
+        }
+        for brand, version in (("chromium", 154), ("edge", 153), ("brave", 153)):
+            for transport in ("tcp", "quic"):
+                expected = copy.deepcopy(resolved[f"{brand}_154_{transport}_tls"])
+                expected["ech"] = grease
+                self.assertEqual(
+                    resolved[f"{brand}_{version}_android_{transport}_tls"], expected
+                )
+        expected = copy.deepcopy(resolved["firefox_157_tcp_tls"])
+        expected["session_ticket_order"] = "OldestFirst"
+        self.assertEqual(resolved["firefox_156_android_tcp_tls"], expected)
+        expected = copy.deepcopy(resolved["chromium_154_tcp_tls"])
+        expected.update(ech=grease, requested_trust_anchor_ids=None)
+        self.assertEqual(resolved["opera_102_android_tcp_tls"], expected)
+
+    def test_opera_retains_all_candidate_slots_with_native_multiset_assertions(self):
+        resolved = {item["id"]: item["values"] for item in self.resolve()}
+        for transport, kind, weights in (
+            ("tcp", "PerClient", [5, 4, 3, 2, 2, 2, 2] + [1] * 9),
+            ("quic", "PerConnection", [2] + [1] * 18),
+        ):
+            values = resolved[f"opera_136_{transport}_tls"]
+            anchors = values["requested_trust_anchor_ids"]
+            self.assertEqual(anchors["kind"], kind)
+            self.assertEqual(len(anchors["orders"]), sum(weights))
+            self.assertEqual(
+                [len(list(group)) for _, group in itertools.groupby(anchors["orders"])],
+                weights,
+            )
+            self.assertTrue(all(len(order) == 32 for order in anchors["orders"]))
+            expected = copy.deepcopy(resolved[f"chromium_154_{transport}_tls"])
+            expected["requested_trust_anchor_ids"] = anchors
+            self.assertEqual(values, expected)
+        generated = generator.generate_components(self.resolve(), "tls-components.json")
+        self.assertEqual(
+            generated.count("const _: () = assert!(_valid_recipe_trust_candidates("), 2
+        )
+        self.assertIn("trust_candidate_assertion_preserves_multisets", generated)
+        self.values["requested_trust_anchor_ids"] = {
+            "kind": "PerClient",
+            "orders": [[]] * 65,
+        }
         self.reject()
 
     def test_unknown_values_fields_and_wrong_layer_are_rejected(self):
@@ -226,6 +310,8 @@ class TlsComponentTests(unittest.TestCase):
         generated = generator.generate_components(self.resolve(), "tls-components.json")
         self.assertIn("TrustAnchorIds::PerClient", generated)
         self.assertIn("TrustAnchorOrders::from_recipe", generated)
+        self.assertIn("&[(&[1], 2), (&[2], 1)]", generated)
+        self.assertIn("_valid_recipe_trust_candidates", generated)
         self.values["requested_trust_anchor_ids"]["kind"] = "PerConnection"
         self.resolve()
         self.values["requested_trust_anchor_ids"]["orders"][-1] = [[2], [1]]

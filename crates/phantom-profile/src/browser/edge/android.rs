@@ -20,7 +20,6 @@
 use crate::{
     browser::chrome,
     browser::chrome::{CAPTURED_MODEL, model_value},
-    browser::edge,
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
     http2::Http2Settings,
     http3::{Http3RequestSettings, Http3Settings},
@@ -37,28 +36,24 @@ AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36 Edg
 /// Returns TLS settings captured from Edge 153.0.4234.49 for Android.
 ///
 /// Three fresh-process TCP ClientHellos of the retained capture equal the
-/// desktop Edge ClientHello of [`edge::v154_tcp_tls`]: the Chromium
+/// desktop Edge ClientHello of [`crate::browser::edge::v154_tcp_tls`]: the Chromium
 /// ClientHello without trust-anchor IDs. [`TlsSettings::ech`] uses GREASE
 /// without HTTPS records: no Android capture shows Edge using an HTTPS
 /// record's `ech`, because the device cannot be given a DNS-over-HTTPS
 /// resolver.
 #[must_use]
 pub fn v153_android_tcp_tls() -> TlsSettings {
-    let mut settings = edge::v154_tcp_tls();
-    settings.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
-    settings
+    crate::tls::components::edge_153_android_tcp_tls()
 }
 
 /// Returns TLS settings for the Edge 153.0.4234.49 for Android HTTP/3 offer.
 ///
-/// The retained QUIC ClientHello equals [`edge::v154_quic_tls`].
+/// The retained QUIC ClientHello equals [`crate::browser::edge::v154_quic_tls`].
 /// [`TlsSettings::ech`] uses GREASE without HTTPS records, as in
 /// [`v153_android_tcp_tls`].
 #[must_use]
 pub fn v153_android_quic_tls() -> TlsSettings {
-    let mut settings = edge::v154_quic_tls();
-    settings.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
-    settings
+    crate::tls::components::edge_153_android_quic_tls()
 }
 
 /// Returns HTTP/2 settings observed from Edge 153.0.4234.49 for Android.

@@ -8,22 +8,19 @@ use crate::http2::{
 use crate::{TrustAnchorIds, browser::chrome};
 
 #[test]
-fn static_recipe_checks_reject_missing_or_nonpermutation_candidates() {
-    use super::{V136_TCP_ORDERS, valid_recipe_orders};
-    assert!(valid_recipe_orders(&V136_TCP_ORDERS));
-    assert!(!valid_recipe_orders(&[]));
-    let mut order = V136_TCP_ORDERS[0];
-    order.0 = 0;
-    assert!(!valid_recipe_orders(&[order]));
-    order.0 = 1;
-    order.1[0] = order.1[1];
-    assert!(!valid_recipe_orders(&[order]));
-    order.1[0] = 32;
-    assert!(!valid_recipe_orders(&[order]));
-    assert!(!valid_recipe_orders(&[
-        (usize::MAX, V136_TCP_ORDERS[0].1),
-        (1, V136_TCP_ORDERS[0].1)
-    ]));
+fn checked_candidates_reject_missing_or_mismatched_id_multisets()
+-> Result<(), crate::InvalidTlsSettings> {
+    use crate::{TrustAnchorOrder, TrustAnchorOrders};
+
+    assert!(TrustAnchorOrders::new(vec![]).is_err());
+    let order =
+        |ids: &[u8]| TrustAnchorOrder::new(ids.iter().map(|id| Box::<[u8]>::from([*id])).collect());
+    let first = order(&[1, 2, 1])?;
+    assert!(TrustAnchorOrders::new(vec![first.clone(), order(&[2, 1, 1])?]).is_ok());
+    assert!(TrustAnchorOrders::new(vec![first.clone(), order(&[1, 2, 2])?]).is_err());
+    assert!(TrustAnchorOrders::new(vec![first.clone(), order(&[1, 2])?]).is_err());
+    assert!(TrustAnchorOrders::new(vec![first, order(&[1, 2, 3])?]).is_err());
+    Ok(())
 }
 
 const CLIENT_HINT_FIXTURE: &str = include_str!(concat!(

@@ -19,7 +19,6 @@
 //! [`crate::browser::chrome`].
 
 use crate::{
-    browser::chrome,
     client_hints::{ClientHint, ClientHintDelivery, ClientHintSettings},
     tls::TlsSettings,
 };
@@ -38,10 +37,7 @@ use crate::{
 /// 136 does.
 #[must_use]
 pub fn v102_android_tcp_tls() -> TlsSettings {
-    let mut settings = chrome::v154_tcp_tls();
-    settings.requested_trust_anchor_ids = None;
-    settings.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
-    settings
+    crate::tls::components::opera_102_android_tcp_tls()
 }
 
 /// Returns client-hint fields observed from Opera 102.1.5206.90382 for

@@ -118,9 +118,7 @@ fn client_hints_for_model(model: &str) -> ClientHintSettings {
 /// give the device a DNS-over-HTTPS resolver.
 #[must_use]
 pub fn v154_android_tcp_tls() -> TlsSettings {
-    let mut settings = chrome::v154_tcp_tls();
-    settings.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
-    settings
+    crate::tls::components::chromium_154_android_tcp_tls()
 }
 
 /// Returns HTTP/2 settings observed from Chrome 154.0.8037.57 for Android.
@@ -142,9 +140,7 @@ pub fn v154_android_http2() -> Http2Settings {
 /// uses GREASE without HTTPS records, as in [`v154_android_tcp_tls`].
 #[must_use]
 pub fn v154_android_quic_tls() -> TlsSettings {
-    let mut settings = chrome::v154_quic_tls();
-    settings.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
-    settings
+    crate::tls::components::chromium_154_android_quic_tls()
 }
 
 /// Returns QUIC transport settings observed from Chrome 154.0.8037.57 for

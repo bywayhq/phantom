@@ -89,9 +89,7 @@ use crate::{
 /// is unchanged from Edge 153's.
 #[must_use]
 pub fn v154_tcp_tls() -> TlsSettings {
-    let mut settings = chrome::v154_tcp_tls();
-    settings.requested_trust_anchor_ids = None;
-    settings
+    crate::tls::components::edge_154_tcp_tls()
 }
 
 /// Returns TLS settings for the Edge 154.0.4258.37 HTTP/3 offer on Windows 11.
@@ -107,9 +105,7 @@ pub fn v154_tcp_tls() -> TlsSettings {
 /// each scenario. No Edge 154 capture repeats those scenarios.
 #[must_use]
 pub fn v154_quic_tls() -> TlsSettings {
-    let mut settings = chrome::v154_quic_tls();
-    settings.requested_trust_anchor_ids = None;
-    settings
+    crate::tls::components::edge_154_quic_tls()
 }
 
 /// Returns client-hint fields observed from Edge 154 on Windows 11 x64.

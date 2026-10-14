@@ -39,9 +39,7 @@ AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36";
 /// given a DNS-over-HTTPS resolver.
 #[must_use]
 pub fn v153_android_tcp_tls() -> TlsSettings {
-    let mut settings = brave::v154_tcp_tls();
-    settings.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
-    settings
+    crate::tls::components::brave_153_android_tcp_tls()
 }
 
 /// Returns TLS settings for the Brave 1.95.104 for Android HTTP/3 offer.
@@ -51,9 +49,7 @@ pub fn v153_android_tcp_tls() -> TlsSettings {
 /// [`v153_android_tcp_tls`].
 #[must_use]
 pub fn v153_android_quic_tls() -> TlsSettings {
-    let mut settings = brave::v154_quic_tls();
-    settings.ech = crate::EchSettings::Grease(crate::EchGreaseSettings::backend_default());
-    settings
+    crate::tls::components::brave_153_android_quic_tls()
 }
 
 /// Returns client-hint fields observed from Brave 1.95.104 for Android.

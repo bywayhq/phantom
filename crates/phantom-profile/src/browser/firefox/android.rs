@@ -12,17 +12,14 @@
 //! HTTP/1.1 connection, address-cache, proxy CONNECT, or cookie-placement
 //! recipe: none of those layers was captured on Android.
 
-use crate::{
-    browser::firefox,
-    tls::{SessionTicketOrder, TlsSettings},
-};
+use crate::tls::TlsSettings;
 
 /// Returns TLS settings captured from Firefox 156.0.1 for Android.
 ///
 /// Twelve fresh-profile ClientHellos of the retained capture equal the
 /// desktop Firefox 156.0.1 ClientHello, which desktop Firefox 157.0 still
-/// sends and [`firefox::v157_tcp_tls`] reproduces: the same fixed extension order,
-/// cipher suites, groups, key shares, signature algorithms, record size
+/// sends and [`crate::browser::firefox::v157_tcp_tls`] reproduces: the same
+/// fixed extension order, cipher suites, groups, key shares, signature algorithms, record size
 /// limit, delegated-credential schemes, and a 240-byte ECH GREASE payload.
 /// Firefox for Android also draws its ECH GREASE AEAD per connection: 5 of
 /// the 12 used AES-128-GCM and 7 ChaCha20-Poly1305. This returns that recipe.
@@ -42,17 +39,14 @@ use crate::{
 /// and `:17033-17037`), and GeckoView's Android preferences
 /// (`mobile/android/app/geckoview-prefs.js`) override neither.
 ///
-/// It offers saved tickets [`SessionTicketOrder::OldestFirst`], where the
+/// It offers saved tickets [`crate::SessionTicketOrder::OldestFirst`], where the
 /// desktop recipe offers them
-/// [`SessionTicketOrder::OldestConnectionFirst`]. Firefox offers the ticket
-/// whose expiry, the time it received the ticket plus two days, is earliest.
+/// [`crate::SessionTicketOrder::OldestConnectionFirst`]. Firefox offers the
+/// ticket whose expiry, the time it received the ticket plus two days, is earliest.
 /// Android's clock counts microseconds, as macOS's does, so tickets almost
 /// never tie and the earliest goes first, as in the macOS capture. No
 /// Android capture shows the order.
 #[must_use]
 pub fn v156_android_tcp_tls() -> TlsSettings {
-    TlsSettings {
-        session_ticket_order: SessionTicketOrder::OldestFirst,
-        ..firefox::v157_tcp_tls()
-    }
+    crate::tls::components::firefox_156_android_tcp_tls()
 }

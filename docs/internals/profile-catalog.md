@@ -22,11 +22,11 @@ Cargo uses the committed registry. It does not run Python or read JSON at
 runtime. Discovery and exact lookup borrow static records. Instantiation
 calls the selected recipe factory and returns fresh owned settings.
 
-Core Chrome and Firefox TLS settings, HTTP/2 settings, and HTTP/3 connection
-and request settings use structured components. Other layers and branded or
-Android TLS overrides still use handwritten factories. Their migration and
-historical-version growth remain in the [roadmap](../roadmap.md). Request
-templates use explicit typed bindings; they have no separate evidence records.
+All existing TLS factories, core HTTP/2 settings, and HTTP/3 connection and
+request settings use structured components. Other layers still use handwritten
+factories. Their migration and historical-version growth remain in the
+[roadmap](../roadmap.md). Request templates use explicit typed bindings; they
+have no separate evidence records.
 
 ## Identity and composition
 
@@ -110,6 +110,9 @@ affected backend replays before integrating a settings migration.
 
 Chrome 154 and Firefox 157 each have a TCP TLS definition. Their QUIC TLS
 definitions inherit only unchanged fields and explicitly replace the others.
+Edge, Brave, Opera, and Android definitions preserve their existing base
+choices and whole-field overrides. Firefox for Android changes ticket order.
+The Chromium Android definitions keep ECH GREASE without HTTPS records.
 Each override replaces a whole typed field, including ordered byte vectors.
 The generated module lives under `tls` to preserve private checked types.
 It does not introduce public unchecked constructors or runtime panic paths.
@@ -126,6 +129,16 @@ order. Chrome 154 sorts them when constructing its SSL configuration
 `trust-anchor-orders.txt` capture and all 132 retained desktop ClientHellos
 carry that order. Frozen original controls retain those exact bytes.
 Generated assertions check the actual emitted IDs with native recipe bounds.
+
+Opera 136 retains 32 identifiers and all 29 TCP and 20 QUIC draw slots,
+including repeated orders. TCP draws once per client. QUIC draws once per
+connection. Chromium 152 copies an `absl::flat_hash_set` with a new table seed
+when preparing these configurations (`net/ssl/ssl_config_service.cc:101-123`,
+`net/socket/ssl_client_socket.cc:233`, and
+`net/quic/quic_chromium_client_session.cc:1750-1771`). The declaration keeps
+the original observed candidates and weights. Generated native assertions
+check every ID vector and candidate multiset. Frozen controls compare every
+expanded candidate byte and its position against the original index arrays.
 
 The generator checks version dependencies, key-share membership, ALPN and
 ALPS bounds, trust-anchor vectors and candidate multisets, compression and
