@@ -3,7 +3,7 @@
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError, TryLockError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use foreign_types::ForeignTypeRef;
@@ -53,7 +53,7 @@ pub enum SessionTransferError {
     Unauthenticated,
     /// Installed policy is absent, changed or belongs to another scope or peer.
     Policy,
-    /// A live context mutation borrow prevents freezing policy.
+    /// A context or scope policy lock is currently held.
     Busy,
     /// Configured credential contents differ.
     Credentials,
@@ -73,7 +73,7 @@ impl fmt::Display for SessionTransferError {
             Self::Expired => "session transfer record has expired",
             Self::Unauthenticated => "session has no authenticated publication proof",
             Self::Policy => "session transfer policy does not match",
-            Self::Busy => "session transfer context is being mutated",
+            Self::Busy => "session transfer policy lock is busy",
             Self::Credentials => "session transfer credentials do not match",
             Self::Consumed => "session transfer record was already consumed",
         })
@@ -197,7 +197,7 @@ impl ContextEpoch {
     pub(super) fn freeze(
         &self,
     ) -> Result<MutexGuard<'_, Option<Arc<AtomicBool>>>, SessionTransferError> {
-        self.0.try_lock().map_err(|_| SessionTransferError::Busy)
+        try_policy_lock(&self.0)
     }
 }
 
@@ -248,6 +248,179 @@ pub(super) struct InstalledPolicy {
 pub struct SessionPolicyBinding {
     scope: SslSessionScope,
     installed: Arc<InstalledPolicy>,
+}
+
+/// Preallocated native policy locks, borrowed from bindings retained by the owner.
+///
+/// Prepare this value before freezing any session stores. Acquiring its guards is
+/// nonblocking, including scope locks, and never grows the prepared vectors.
+pub struct PreparedSessionPolicyFreeze<'a> {
+    bindings: Vec<&'a SessionPolicyBinding>,
+    contexts: Vec<&'a ContextEpoch>,
+    scopes: Vec<&'a ScopeState>,
+    scope_guards: Vec<MutexGuard<'a, Option<Arc<InstalledPolicy>>>>,
+    context_guards: Vec<MutexGuard<'a, Option<Arc<AtomicBool>>>>,
+}
+
+/// Native context and scope guards for one owner-managed store transaction.
+///
+/// These guards exclude context and scope changes. They do not exclude per-SSL
+/// token revocation. A replacement owner must keep newly imported sessions private
+/// from preparation through commit. Validation of an exposed scoped session alone
+/// does not prove that its connection token cannot change before a store swap.
+pub struct FrozenSessionPolicies<'a>(PreparedSessionPolicyFreeze<'a>);
+
+fn reserved<T>(capacity: usize) -> Result<Vec<T>, SessionTransferError> {
+    let mut values = Vec::new();
+    values
+        .try_reserve_exact(capacity)
+        .map_err(|_| SessionTransferError::Allocation)?;
+    Ok(values)
+}
+
+fn try_policy_lock<T>(mutex: &Mutex<T>) -> Result<MutexGuard<'_, T>, SessionTransferError> {
+    match mutex.try_lock() {
+        Ok(guard) => Ok(guard),
+        Err(TryLockError::WouldBlock) => Err(SessionTransferError::Busy),
+        Err(TryLockError::Poisoned(_)) => Err(SessionTransferError::Policy),
+    }
+}
+
+impl<'a> PreparedSessionPolicyFreeze<'a> {
+    /// Reserves storage and deduplicates actual native owners before store locking.
+    pub fn new(bindings: &[&'a SessionPolicyBinding]) -> Result<Self, SessionTransferError> {
+        if bindings.len() > MAX_RECORDS {
+            return Err(SessionTransferError::TooLarge);
+        }
+        let mut prepared = Self {
+            bindings: reserved(bindings.len())?,
+            contexts: reserved(bindings.len())?,
+            scopes: reserved(bindings.len())?,
+            scope_guards: reserved(bindings.len())?,
+            context_guards: reserved(bindings.len())?,
+        };
+        for binding in bindings {
+            prepared.bindings.push(*binding);
+            prepared.contexts.push(&binding.installed.epoch_owner);
+            prepared.scopes.push(&binding.scope.0);
+        }
+        // Identities are process-local and remain private. Every transaction uses
+        // the same context-before-scope order, independent of cache input order.
+        prepared
+            .contexts
+            .sort_unstable_by_key(|owner| std::ptr::from_ref(*owner) as usize);
+        prepared
+            .contexts
+            .dedup_by(|left, right| std::ptr::eq(*left, *right));
+        prepared
+            .scopes
+            .sort_unstable_by_key(|owner| std::ptr::from_ref(*owner) as usize);
+        prepared
+            .scopes
+            .dedup_by(|left, right| std::ptr::eq(*left, *right));
+        Ok(prepared)
+    }
+
+    /// Tries every distinct context and scope without waiting or allocating.
+    ///
+    /// Contention returns `Busy`; a poisoned owner returns `Policy`. Either error
+    /// drops every guard acquired by this attempt without changing installed state.
+    pub fn try_freeze(mut self) -> Result<FrozenSessionPolicies<'a>, SessionTransferError> {
+        for owner in &self.contexts {
+            self.context_guards.push(owner.freeze()?);
+        }
+        for owner in &self.scopes {
+            self.scope_guards.push(try_policy_lock(&owner.installed)?);
+        }
+        Ok(FrozenSessionPolicies(self))
+    }
+}
+
+impl FrozenSessionPolicies<'_> {
+    /// Validates an actual prepared member, including an empty replacement's peer.
+    ///
+    /// This checks guarded installation identity and expiry-independent authority
+    /// without locking again or allocating. Equal policy bytes on another owner
+    /// never establish membership.
+    pub fn validate_binding(
+        &self,
+        binding: &SessionPolicyBinding,
+        server_name: &str,
+    ) -> Result<(), SessionTransferError> {
+        if !self.0.bindings.iter().any(|member| {
+            Arc::ptr_eq(&member.scope.0, &binding.scope.0)
+                && Arc::ptr_eq(&member.installed, &binding.installed)
+        }) {
+            return Err(SessionTransferError::Policy);
+        }
+        let context_index = self
+            .0
+            .contexts
+            .iter()
+            .position(|owner| std::ptr::eq(*owner, binding.installed.epoch_owner.as_ref()))
+            .ok_or(SessionTransferError::Policy)?;
+        let scope_index = self
+            .0
+            .scopes
+            .iter()
+            .position(|owner| std::ptr::eq(*owner, binding.scope.0.as_ref()))
+            .ok_or(SessionTransferError::Policy)?;
+        if !self.0.context_guards[context_index]
+            .as_ref()
+            .is_some_and(|current| Arc::ptr_eq(current, &binding.installed.context_epoch))
+            || !self.0.scope_guards[scope_index]
+                .as_ref()
+                .is_some_and(|current| Arc::ptr_eq(current, &binding.installed))
+        {
+            return Err(SessionTransferError::Policy);
+        }
+        binding.validate_peer(server_name)
+    }
+
+    /// Inspects a scoped session using already-held native policy guards.
+    ///
+    /// This does not freeze a per-SSL token. The store owner must accept only
+    /// privately prepared imports whose tokens have never been exposed to an SSL.
+    pub fn validate_scoped_session(
+        &self,
+        binding: &SessionPolicyBinding,
+        session: &ScopedSslSession,
+        server_name: &str,
+    ) -> Result<(), SessionTransferError> {
+        self.validate_binding(binding, server_name)?;
+        binding.validate_scoped_session(session, server_name)
+    }
+}
+
+/// A genuine callback session retained for sealing after session-store unlock.
+///
+/// This value retains live native proof references. It cannot be attached, cloned
+/// or converted to an attachable session, and later mutation still revokes it.
+pub struct PendingSessionExport {
+    session: SslSession,
+    binding: SessionPolicyBinding,
+    publication: Arc<SessionPublication>,
+    transfer: Arc<ConnectionPolicy>,
+}
+
+impl PendingSessionExport {
+    /// Rechecks proof and native expiry while sealing bounded owner metadata.
+    ///
+    /// Call after releasing every session-store guard. Expiry after capture fails
+    /// the export rather than silently omitting this record from its owner manifest.
+    pub fn seal(
+        self,
+        owner_metadata: &[u8],
+        snapshot_key: &[u8; 32],
+    ) -> Result<AuthenticatedSessionRecord, SessionTransferError> {
+        self.binding.seal_session_parts(
+            &self.session,
+            &self.publication,
+            &self.transfer,
+            owner_metadata,
+            snapshot_key,
+        )
+    }
 }
 
 impl fmt::Debug for SessionPolicyBinding {
@@ -416,6 +589,94 @@ impl SessionPolicyBinding {
         }))
     }
 
+    fn validate_peer(&self, server_name: &str) -> Result<(), SessionTransferError> {
+        if !self.valid()
+            || !super::session_hostnames_match(&self.installed.server_name, server_name)
+        {
+            return Err(SessionTransferError::Policy);
+        }
+        Ok(())
+    }
+
+    /// Checks an authorized permit's exact recipient and expiry without consuming it.
+    ///
+    /// No native locks or allocations are needed. This is preparation validation;
+    /// the owner must still freeze every destination policy before its atomic swap.
+    pub fn validate_import_permit(
+        &self,
+        permit: &SessionImportPermit,
+        server_name: &str,
+    ) -> Result<(), SessionTransferError> {
+        self.validate_peer(server_name)?;
+        if !Arc::ptr_eq(&self.scope.0, &permit.recipient.scope.0)
+            || !Arc::ptr_eq(&self.installed, &permit.recipient.installed)
+            || self.installed.context.as_ptr() != permit.recipient.installed.context.as_ptr()
+        {
+            return Err(SessionTransferError::Policy);
+        }
+        check_session(&permit.session)?;
+        Ok(())
+    }
+
+    /// Inspects exact scoped provenance and expiry without creating another record.
+    ///
+    /// This is not a commit proof for an exposed session: per-SSL token revocation
+    /// remains possible even while context and scope policy guards are held.
+    pub fn validate_scoped_session(
+        &self,
+        session: &ScopedSslSession,
+        server_name: &str,
+    ) -> Result<(), SessionTransferError> {
+        self.validate_peer(server_name)?;
+        if !session.matches(&self.scope, &self.installed.context, server_name) {
+            return Err(SessionTransferError::Policy);
+        }
+        let provenance = session
+            .transfer
+            .as_ref()
+            .ok_or(SessionTransferError::Policy)?;
+        self.validate_session_proof(&session.session, &session.publication, provenance)?;
+        Ok(())
+    }
+
+    /// Captures an authenticated native up-reference and its live proof without buffers.
+    pub fn prepare_session_export(
+        &self,
+        session: &ScopedSslSession,
+        server_name: &str,
+    ) -> Result<PendingSessionExport, SessionTransferError> {
+        self.validate_scoped_session(session, server_name)?;
+        let provenance = session
+            .transfer
+            .as_ref()
+            .ok_or(SessionTransferError::Policy)?;
+        Ok(PendingSessionExport {
+            session: session.session.to_owned(),
+            binding: self.clone(),
+            publication: Arc::clone(&session.publication),
+            transfer: Arc::clone(provenance),
+        })
+    }
+
+    fn validate_session_proof(
+        &self,
+        session: &super::SslSessionRef,
+        publication: &SessionPublication,
+        provenance: &ConnectionPolicy,
+    ) -> Result<u64, SessionTransferError> {
+        if !self.valid() {
+            return Err(SessionTransferError::Policy);
+        }
+        if !Arc::ptr_eq(&provenance.binding.installed, &self.installed)
+            || !Arc::ptr_eq(&provenance.binding.scope.0, &self.scope.0)
+            || !publication.is_authenticated()
+            || !provenance.valid()
+        {
+            return Err(SessionTransferError::Unauthenticated);
+        }
+        check_session(session)
+    }
+
     /// Seals a genuine authenticated callback session and bounded owner metadata.
     pub fn seal_session(
         &self,
@@ -423,26 +684,30 @@ impl SessionPolicyBinding {
         owner_metadata: &[u8],
         snapshot_key: &[u8; 32],
     ) -> Result<AuthenticatedSessionRecord, SessionTransferError> {
-        if !self.valid()
-            || !session.matches(
-                &self.scope,
-                &self.installed.context,
-                &self.installed.server_name,
-            )
-        {
-            return Err(SessionTransferError::Policy);
-        }
+        self.validate_scoped_session(session, &self.installed.server_name)?;
         let provenance = session
             .transfer
             .as_ref()
             .ok_or(SessionTransferError::Policy)?;
-        if !Arc::ptr_eq(&provenance.binding.installed, &self.installed)
-            || !session.is_authenticated()
-        {
-            return Err(SessionTransferError::Unauthenticated);
-        }
-        let expires_at = check_session(&session.session)?;
-        let native = session.session.bounded_transfer_bytes(MAX_SESSION)?;
+        self.seal_session_parts(
+            &session.session,
+            &session.publication,
+            provenance,
+            owner_metadata,
+            snapshot_key,
+        )
+    }
+
+    fn seal_session_parts(
+        &self,
+        session: &super::SslSessionRef,
+        publication: &SessionPublication,
+        provenance: &ConnectionPolicy,
+        owner_metadata: &[u8],
+        snapshot_key: &[u8; 32],
+    ) -> Result<AuthenticatedSessionRecord, SessionTransferError> {
+        let expires_at = self.validate_session_proof(session, publication, provenance)?;
+        let native = session.bounded_transfer_bytes(MAX_SESSION)?;
         if native.len() > MAX_SESSION || owner_metadata.len() > MAX_METADATA {
             return Err(SessionTransferError::TooLarge);
         }
@@ -476,7 +741,13 @@ impl SessionPolicyBinding {
             &*key(snapshot_key, b"phantom-ticket-record-v1")?,
             &output.bytes,
         )?;
-        if !session.is_authenticated() || !self.valid() {
+        if self
+            .validate_session_proof(session, publication, provenance)
+            .is_err()
+        {
+            // A late policy/authentication revocation must not publish a record.
+            // Preserve Expired when the native ticket aged out during sealing.
+            check_session(session)?;
             return Err(SessionTransferError::Policy);
         }
         Ok(AuthenticatedSessionRecord {
@@ -1010,5 +1281,8 @@ redacted_debug!(
     AuthenticatedSessionRecord,
     SessionTransferEnvelope,
     VerifiedSessionEnvelope,
-    SessionImportPermit
+    SessionImportPermit,
+    PreparedSessionPolicyFreeze<'_>,
+    FrozenSessionPolicies<'_>,
+    PendingSessionExport
 );

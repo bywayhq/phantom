@@ -127,9 +127,10 @@ mod error;
 mod mut_only;
 mod session_transfer;
 pub use session_transfer::{
-    open_envelope, seal_envelope, AuthenticatedSessionRecord, SessionImportPermit,
-    SessionPolicyBinding, SessionPolicyMutation, SessionTransferCredential,
-    SessionTransferEnvelope, SessionTransferError, SessionTransferPolicy, VerifiedSessionEnvelope,
+    open_envelope, seal_envelope, AuthenticatedSessionRecord, FrozenSessionPolicies,
+    PendingSessionExport, PreparedSessionPolicyFreeze, SessionImportPermit, SessionPolicyBinding,
+    SessionPolicyMutation, SessionTransferCredential, SessionTransferEnvelope,
+    SessionTransferError, SessionTransferPolicy, VerifiedSessionEnvelope,
 };
 #[cfg(test)]
 mod test;

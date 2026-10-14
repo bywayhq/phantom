@@ -157,3 +157,207 @@ fn transfer_source_witness_field_bound_rejects_before_native_decode() {
         Err(SessionTransferError::TooLarge)
     ));
 }
+
+fn freeze_client() -> super::super::SslConnector {
+    let mut builder =
+        super::super::SslConnector::bare_builder(super::super::SslMethod::tls()).unwrap();
+    builder.set_verify(super::super::SslVerifyMode::PEER);
+    builder.enable_scoped_client_sessions();
+    builder.build()
+}
+
+fn freeze_binding(
+    client: &super::super::SslConnector,
+    scope: &SslSessionScope,
+) -> SessionPolicyBinding {
+    scope
+        .bind_transfer_policy(
+            client.context(),
+            "example.test",
+            SessionTransferPolicy::new(b"policy", b"witness", None, &[1; 32]).unwrap(),
+        )
+        .unwrap()
+}
+
+#[test]
+fn transfer_freeze_deduplicates_shared_context_and_requires_exact_membership() {
+    let client = freeze_client();
+    let first = freeze_binding(&client, &SslSessionScope::default());
+    let second = freeze_binding(&client, &SslSessionScope::default());
+    let unlisted = freeze_binding(&client, &SslSessionScope::default());
+    let first_copy = first.clone();
+    let prepared = PreparedSessionPolicyFreeze::new(&[&second, &first, &first_copy]).unwrap();
+    assert_eq!(prepared.contexts.len(), 1);
+    assert_eq!(prepared.scopes.len(), 2);
+    let context_capacity = prepared.context_guards.capacity();
+    let scope_capacity = prepared.scope_guards.capacity();
+    let frozen = prepared.try_freeze().unwrap();
+    assert_eq!(frozen.0.context_guards.capacity(), context_capacity);
+    assert_eq!(frozen.0.scope_guards.capacity(), scope_capacity);
+    assert_eq!(frozen.0.context_guards.len(), 1);
+    assert_eq!(frozen.0.scope_guards.len(), 2);
+    frozen.validate_binding(&first, "example.test").unwrap();
+    frozen
+        .validate_binding(&first_copy, "EXAMPLE.TEST")
+        .unwrap();
+    frozen.validate_binding(&second, "example.test").unwrap();
+    assert!(matches!(
+        frozen.validate_binding(&unlisted, "example.test"),
+        Err(SessionTransferError::Policy)
+    ));
+    assert!(matches!(
+        frozen.validate_binding(&first, "other.test"),
+        Err(SessionTransferError::Policy)
+    ));
+    assert!(matches!(
+        first.installed.epoch_owner.freeze(),
+        Err(SessionTransferError::Busy)
+    ));
+    assert!(matches!(
+        try_policy_lock(&first.scope.0.installed),
+        Err(SessionTransferError::Busy)
+    ));
+    drop(frozen);
+    assert!(first.installed.epoch_owner.freeze().is_ok());
+    assert!(try_policy_lock(&first.scope.0.installed).is_ok());
+}
+
+#[test]
+fn transfer_freeze_context_contention_releases_earlier_guards() {
+    let left = freeze_client();
+    let right = freeze_client();
+    let first = freeze_binding(&left, &SslSessionScope::default());
+    let second = freeze_binding(&right, &SslSessionScope::default());
+    let prepared = PreparedSessionPolicyFreeze::new(&[&second, &first]).unwrap();
+    let earlier = prepared.contexts[0];
+    let later = prepared.contexts[1];
+    let held = later.freeze().unwrap();
+    assert!(matches!(
+        prepared.try_freeze(),
+        Err(SessionTransferError::Busy)
+    ));
+    assert!(earlier.freeze().is_ok());
+    assert!(try_policy_lock(&first.scope.0.installed).is_ok());
+    assert!(try_policy_lock(&second.scope.0.installed).is_ok());
+    drop(held);
+    assert!(PreparedSessionPolicyFreeze::new(&[&first, &second])
+        .unwrap()
+        .try_freeze()
+        .is_ok());
+}
+
+#[test]
+fn transfer_freeze_scope_contention_releases_context_and_earlier_scope_guards() {
+    let client = freeze_client();
+    let first = freeze_binding(&client, &SslSessionScope::default());
+    let second = freeze_binding(&client, &SslSessionScope::default());
+    let prepared = PreparedSessionPolicyFreeze::new(&[&first, &second]).unwrap();
+    let earlier = prepared.scopes[0];
+    let later = prepared.scopes[1];
+    let held = try_policy_lock(&later.installed).unwrap();
+    assert!(matches!(
+        prepared.try_freeze(),
+        Err(SessionTransferError::Busy)
+    ));
+    assert!(first.installed.epoch_owner.freeze().is_ok());
+    assert!(try_policy_lock(&earlier.installed).is_ok());
+    drop(held);
+    assert!(PreparedSessionPolicyFreeze::new(&[&second, &first])
+        .unwrap()
+        .try_freeze()
+        .is_ok());
+}
+
+#[test]
+fn transfer_freeze_poisoned_context_is_policy_failure_and_releases_prior_guard() {
+    let left = freeze_client();
+    let right = freeze_client();
+    let first = freeze_binding(&left, &SslSessionScope::default());
+    let second = freeze_binding(&right, &SslSessionScope::default());
+    let prepared = PreparedSessionPolicyFreeze::new(&[&first, &second]).unwrap();
+    let earlier = prepared.contexts[0];
+    let later = prepared.contexts[1];
+    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _guard = later.0.lock().unwrap();
+        panic!("synthetic Rust mutex poison");
+    }));
+    assert!(panic.is_err());
+    assert!(matches!(
+        prepared.try_freeze(),
+        Err(SessionTransferError::Policy)
+    ));
+    assert!(earlier.freeze().is_ok());
+    assert!(matches!(later.freeze(), Err(SessionTransferError::Policy)));
+    assert!(try_policy_lock(&first.scope.0.installed).is_ok());
+    assert!(try_policy_lock(&second.scope.0.installed).is_ok());
+}
+
+#[test]
+fn transfer_freeze_poisoned_scope_is_policy_failure_and_releases_prior_guards() {
+    let client = freeze_client();
+    let first = freeze_binding(&client, &SslSessionScope::default());
+    let second = freeze_binding(&client, &SslSessionScope::default());
+    let prepared = PreparedSessionPolicyFreeze::new(&[&first, &second]).unwrap();
+    let earlier = prepared.scopes[0];
+    let later = prepared.scopes[1];
+    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _guard = later.installed.lock().unwrap();
+        panic!("synthetic Rust mutex poison");
+    }));
+    assert!(panic.is_err());
+    assert!(matches!(
+        prepared.try_freeze(),
+        Err(SessionTransferError::Policy)
+    ));
+    assert!(first.installed.epoch_owner.freeze().is_ok());
+    assert!(try_policy_lock(&earlier.installed).is_ok());
+    assert!(matches!(
+        try_policy_lock(&later.installed),
+        Err(SessionTransferError::Policy)
+    ));
+}
+
+#[test]
+fn transfer_freeze_checks_guarded_epoch_and_installed_identity() {
+    let client = freeze_client();
+    let binding = freeze_binding(&client, &SslSessionScope::default());
+    let other = freeze_binding(&client, &SslSessionScope::default());
+    let mut frozen = PreparedSessionPolicyFreeze::new(&[&binding])
+        .unwrap()
+        .try_freeze()
+        .unwrap();
+    frozen.validate_binding(&binding, "example.test").unwrap();
+    *frozen.0.context_guards[0] = Some(Arc::new(AtomicBool::new(true)));
+    assert!(matches!(
+        frozen.validate_binding(&binding, "example.test"),
+        Err(SessionTransferError::Policy)
+    ));
+    *frozen.0.context_guards[0] = Some(Arc::clone(&binding.installed.context_epoch));
+    *frozen.0.scope_guards[0] = Some(Arc::clone(&other.installed));
+    assert!(matches!(
+        frozen.validate_binding(&binding, "example.test"),
+        Err(SessionTransferError::Policy)
+    ));
+    *frozen.0.scope_guards[0] = Some(Arc::clone(&binding.installed));
+    frozen.validate_binding(&binding, "example.test").unwrap();
+}
+
+#[test]
+fn transfer_freeze_empty_plan_and_input_bound_are_explicit() {
+    let frozen = PreparedSessionPolicyFreeze::new(&[])
+        .unwrap()
+        .try_freeze()
+        .unwrap();
+    assert!(frozen.0.context_guards.is_empty());
+    assert!(frozen.0.scope_guards.is_empty());
+    let client = freeze_client();
+    let binding = freeze_binding(&client, &SslSessionScope::default());
+    assert!(matches!(
+        frozen.validate_binding(&binding, "example.test"),
+        Err(SessionTransferError::Policy)
+    ));
+    assert!(matches!(
+        PreparedSessionPolicyFreeze::new(&vec![&binding; MAX_RECORDS + 1]),
+        Err(SessionTransferError::TooLarge)
+    ));
+}

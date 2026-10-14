@@ -1,0 +1,842 @@
+diff --git a/src/ssl/session_transfer.rs b/src/ssl/session_transfer.rs
+--- a/src/ssl/session_transfer.rs
++++ b/src/ssl/session_transfer.rs
+@@ -3,7 +3,7 @@
+ use std::fmt;
+ use std::ops::{Deref, DerefMut};
+ use std::sync::atomic::{AtomicBool, Ordering};
+-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
++use std::sync::{Arc, Mutex, MutexGuard, PoisonError, TryLockError};
+ use std::time::{SystemTime, UNIX_EPOCH};
+ 
+ use foreign_types::ForeignTypeRef;
+@@ -53,7 +53,7 @@
+     Unauthenticated,
+     /// Installed policy is absent, changed or belongs to another scope or peer.
+     Policy,
+-    /// A live context mutation borrow prevents freezing policy.
++    /// A context or scope policy lock is currently held.
+     Busy,
+     /// Configured credential contents differ.
+     Credentials,
+@@ -73,7 +73,7 @@
+             Self::Expired => "session transfer record has expired",
+             Self::Unauthenticated => "session has no authenticated publication proof",
+             Self::Policy => "session transfer policy does not match",
+-            Self::Busy => "session transfer context is being mutated",
++            Self::Busy => "session transfer policy lock is busy",
+             Self::Credentials => "session transfer credentials do not match",
+             Self::Consumed => "session transfer record was already consumed",
+         })
+@@ -197,7 +197,7 @@
+     pub(super) fn freeze(
+         &self,
+     ) -> Result<MutexGuard<'_, Option<Arc<AtomicBool>>>, SessionTransferError> {
+-        self.0.try_lock().map_err(|_| SessionTransferError::Busy)
++        try_policy_lock(&self.0)
+     }
+ }
+ 
+@@ -248,6 +248,179 @@
+ pub struct SessionPolicyBinding {
+     scope: SslSessionScope,
+     installed: Arc<InstalledPolicy>,
++}
++
++/// Preallocated native policy locks, borrowed from bindings retained by the owner.
++///
++/// Prepare this value before freezing any session stores. Acquiring its guards is
++/// nonblocking, including scope locks, and never grows the prepared vectors.
++pub struct PreparedSessionPolicyFreeze<'a> {
++    bindings: Vec<&'a SessionPolicyBinding>,
++    contexts: Vec<&'a ContextEpoch>,
++    scopes: Vec<&'a ScopeState>,
++    scope_guards: Vec<MutexGuard<'a, Option<Arc<InstalledPolicy>>>>,
++    context_guards: Vec<MutexGuard<'a, Option<Arc<AtomicBool>>>>,
++}
++
++/// Native context and scope guards for one owner-managed store transaction.
++///
++/// These guards exclude context and scope changes. They do not exclude per-SSL
++/// token revocation. A replacement owner must keep newly imported sessions private
++/// from preparation through commit. Validation of an exposed scoped session alone
++/// does not prove that its connection token cannot change before a store swap.
++pub struct FrozenSessionPolicies<'a>(PreparedSessionPolicyFreeze<'a>);
++
++fn reserved<T>(capacity: usize) -> Result<Vec<T>, SessionTransferError> {
++    let mut values = Vec::new();
++    values
++        .try_reserve_exact(capacity)
++        .map_err(|_| SessionTransferError::Allocation)?;
++    Ok(values)
++}
++
++fn try_policy_lock<T>(mutex: &Mutex<T>) -> Result<MutexGuard<'_, T>, SessionTransferError> {
++    match mutex.try_lock() {
++        Ok(guard) => Ok(guard),
++        Err(TryLockError::WouldBlock) => Err(SessionTransferError::Busy),
++        Err(TryLockError::Poisoned(_)) => Err(SessionTransferError::Policy),
++    }
++}
++
++impl<'a> PreparedSessionPolicyFreeze<'a> {
++    /// Reserves storage and deduplicates actual native owners before store locking.
++    pub fn new(bindings: &[&'a SessionPolicyBinding]) -> Result<Self, SessionTransferError> {
++        if bindings.len() > MAX_RECORDS {
++            return Err(SessionTransferError::TooLarge);
++        }
++        let mut prepared = Self {
++            bindings: reserved(bindings.len())?,
++            contexts: reserved(bindings.len())?,
++            scopes: reserved(bindings.len())?,
++            scope_guards: reserved(bindings.len())?,
++            context_guards: reserved(bindings.len())?,
++        };
++        for binding in bindings {
++            prepared.bindings.push(*binding);
++            prepared.contexts.push(&binding.installed.epoch_owner);
++            prepared.scopes.push(&binding.scope.0);
++        }
++        // Identities are process-local and remain private. Every transaction uses
++        // the same context-before-scope order, independent of cache input order.
++        prepared
++            .contexts
++            .sort_unstable_by_key(|owner| std::ptr::from_ref(*owner) as usize);
++        prepared
++            .contexts
++            .dedup_by(|left, right| std::ptr::eq(*left, *right));
++        prepared
++            .scopes
++            .sort_unstable_by_key(|owner| std::ptr::from_ref(*owner) as usize);
++        prepared
++            .scopes
++            .dedup_by(|left, right| std::ptr::eq(*left, *right));
++        Ok(prepared)
++    }
++
++    /// Tries every distinct context and scope without waiting or allocating.
++    ///
++    /// Contention returns `Busy`; a poisoned owner returns `Policy`. Either error
++    /// drops every guard acquired by this attempt without changing installed state.
++    pub fn try_freeze(mut self) -> Result<FrozenSessionPolicies<'a>, SessionTransferError> {
++        for owner in &self.contexts {
++            self.context_guards.push(owner.freeze()?);
++        }
++        for owner in &self.scopes {
++            self.scope_guards.push(try_policy_lock(&owner.installed)?);
++        }
++        Ok(FrozenSessionPolicies(self))
++    }
++}
++
++impl FrozenSessionPolicies<'_> {
++    /// Validates an actual prepared member, including an empty replacement's peer.
++    ///
++    /// This checks guarded installation identity and expiry-independent authority
++    /// without locking again or allocating. Equal policy bytes on another owner
++    /// never establish membership.
++    pub fn validate_binding(
++        &self,
++        binding: &SessionPolicyBinding,
++        server_name: &str,
++    ) -> Result<(), SessionTransferError> {
++        if !self.0.bindings.iter().any(|member| {
++            Arc::ptr_eq(&member.scope.0, &binding.scope.0)
++                && Arc::ptr_eq(&member.installed, &binding.installed)
++        }) {
++            return Err(SessionTransferError::Policy);
++        }
++        let context_index = self
++            .0
++            .contexts
++            .iter()
++            .position(|owner| std::ptr::eq(*owner, binding.installed.epoch_owner.as_ref()))
++            .ok_or(SessionTransferError::Policy)?;
++        let scope_index = self
++            .0
++            .scopes
++            .iter()
++            .position(|owner| std::ptr::eq(*owner, binding.scope.0.as_ref()))
++            .ok_or(SessionTransferError::Policy)?;
++        if !self.0.context_guards[context_index]
++            .as_ref()
++            .is_some_and(|current| Arc::ptr_eq(current, &binding.installed.context_epoch))
++            || !self.0.scope_guards[scope_index]
++                .as_ref()
++                .is_some_and(|current| Arc::ptr_eq(current, &binding.installed))
++        {
++            return Err(SessionTransferError::Policy);
++        }
++        binding.validate_peer(server_name)
++    }
++
++    /// Inspects a scoped session using already-held native policy guards.
++    ///
++    /// This does not freeze a per-SSL token. The store owner must accept only
++    /// privately prepared imports whose tokens have never been exposed to an SSL.
++    pub fn validate_scoped_session(
++        &self,
++        binding: &SessionPolicyBinding,
++        session: &ScopedSslSession,
++        server_name: &str,
++    ) -> Result<(), SessionTransferError> {
++        self.validate_binding(binding, server_name)?;
++        binding.validate_scoped_session(session, server_name)
++    }
++}
++
++/// A genuine callback session retained for sealing after session-store unlock.
++///
++/// This value retains live native proof references. It cannot be attached, cloned
++/// or converted to an attachable session, and later mutation still revokes it.
++pub struct PendingSessionExport {
++    session: SslSession,
++    binding: SessionPolicyBinding,
++    publication: Arc<SessionPublication>,
++    transfer: Arc<ConnectionPolicy>,
++}
++
++impl PendingSessionExport {
++    /// Rechecks proof and native expiry while sealing bounded owner metadata.
++    ///
++    /// Call after releasing every session-store guard. Expiry after capture fails
++    /// the export rather than silently omitting this record from its owner manifest.
++    pub fn seal(
++        self,
++        owner_metadata: &[u8],
++        snapshot_key: &[u8; 32],
++    ) -> Result<AuthenticatedSessionRecord, SessionTransferError> {
++        self.binding.seal_session_parts(
++            &self.session,
++            &self.publication,
++            &self.transfer,
++            owner_metadata,
++            snapshot_key,
++        )
++    }
+ }
+ 
+ impl fmt::Debug for SessionPolicyBinding {
+@@ -416,6 +589,94 @@
+         }))
+     }
+ 
++    fn validate_peer(&self, server_name: &str) -> Result<(), SessionTransferError> {
++        if !self.valid()
++            || !super::session_hostnames_match(&self.installed.server_name, server_name)
++        {
++            return Err(SessionTransferError::Policy);
++        }
++        Ok(())
++    }
++
++    /// Checks an authorized permit's exact recipient and expiry without consuming it.
++    ///
++    /// No native locks or allocations are needed. This is preparation validation;
++    /// the owner must still freeze every destination policy before its atomic swap.
++    pub fn validate_import_permit(
++        &self,
++        permit: &SessionImportPermit,
++        server_name: &str,
++    ) -> Result<(), SessionTransferError> {
++        self.validate_peer(server_name)?;
++        if !Arc::ptr_eq(&self.scope.0, &permit.recipient.scope.0)
++            || !Arc::ptr_eq(&self.installed, &permit.recipient.installed)
++            || self.installed.context.as_ptr() != permit.recipient.installed.context.as_ptr()
++        {
++            return Err(SessionTransferError::Policy);
++        }
++        check_session(&permit.session)?;
++        Ok(())
++    }
++
++    /// Inspects exact scoped provenance and expiry without creating another record.
++    ///
++    /// This is not a commit proof for an exposed session: per-SSL token revocation
++    /// remains possible even while context and scope policy guards are held.
++    pub fn validate_scoped_session(
++        &self,
++        session: &ScopedSslSession,
++        server_name: &str,
++    ) -> Result<(), SessionTransferError> {
++        self.validate_peer(server_name)?;
++        if !session.matches(&self.scope, &self.installed.context, server_name) {
++            return Err(SessionTransferError::Policy);
++        }
++        let provenance = session
++            .transfer
++            .as_ref()
++            .ok_or(SessionTransferError::Policy)?;
++        self.validate_session_proof(&session.session, &session.publication, provenance)?;
++        Ok(())
++    }
++
++    /// Captures an authenticated native up-reference and its live proof without buffers.
++    pub fn prepare_session_export(
++        &self,
++        session: &ScopedSslSession,
++        server_name: &str,
++    ) -> Result<PendingSessionExport, SessionTransferError> {
++        self.validate_scoped_session(session, server_name)?;
++        let provenance = session
++            .transfer
++            .as_ref()
++            .ok_or(SessionTransferError::Policy)?;
++        Ok(PendingSessionExport {
++            session: session.session.to_owned(),
++            binding: self.clone(),
++            publication: Arc::clone(&session.publication),
++            transfer: Arc::clone(provenance),
++        })
++    }
++
++    fn validate_session_proof(
++        &self,
++        session: &super::SslSessionRef,
++        publication: &SessionPublication,
++        provenance: &ConnectionPolicy,
++    ) -> Result<u64, SessionTransferError> {
++        if !self.valid() {
++            return Err(SessionTransferError::Policy);
++        }
++        if !Arc::ptr_eq(&provenance.binding.installed, &self.installed)
++            || !Arc::ptr_eq(&provenance.binding.scope.0, &self.scope.0)
++            || !publication.is_authenticated()
++            || !provenance.valid()
++        {
++            return Err(SessionTransferError::Unauthenticated);
++        }
++        check_session(session)
++    }
++
+     /// Seals a genuine authenticated callback session and bounded owner metadata.
+     pub fn seal_session(
+         &self,
+@@ -423,26 +684,30 @@
+         owner_metadata: &[u8],
+         snapshot_key: &[u8; 32],
+     ) -> Result<AuthenticatedSessionRecord, SessionTransferError> {
+-        if !self.valid()
+-            || !session.matches(
+-                &self.scope,
+-                &self.installed.context,
+-                &self.installed.server_name,
+-            )
+-        {
+-            return Err(SessionTransferError::Policy);
+-        }
++        self.validate_scoped_session(session, &self.installed.server_name)?;
+         let provenance = session
+             .transfer
+             .as_ref()
+             .ok_or(SessionTransferError::Policy)?;
+-        if !Arc::ptr_eq(&provenance.binding.installed, &self.installed)
+-            || !session.is_authenticated()
+-        {
+-            return Err(SessionTransferError::Unauthenticated);
+-        }
+-        let expires_at = check_session(&session.session)?;
+-        let native = session.session.bounded_transfer_bytes(MAX_SESSION)?;
++        self.seal_session_parts(
++            &session.session,
++            &session.publication,
++            provenance,
++            owner_metadata,
++            snapshot_key,
++        )
++    }
++
++    fn seal_session_parts(
++        &self,
++        session: &super::SslSessionRef,
++        publication: &SessionPublication,
++        provenance: &ConnectionPolicy,
++        owner_metadata: &[u8],
++        snapshot_key: &[u8; 32],
++    ) -> Result<AuthenticatedSessionRecord, SessionTransferError> {
++        let expires_at = self.validate_session_proof(session, publication, provenance)?;
++        let native = session.bounded_transfer_bytes(MAX_SESSION)?;
+         if native.len() > MAX_SESSION || owner_metadata.len() > MAX_METADATA {
+             return Err(SessionTransferError::TooLarge);
+         }
+@@ -476,7 +741,13 @@
+             &*key(snapshot_key, b"phantom-ticket-record-v1")?,
+             &output.bytes,
+         )?;
+-        if !session.is_authenticated() || !self.valid() {
++        if self
++            .validate_session_proof(session, publication, provenance)
++            .is_err()
++        {
++            // A late policy/authentication revocation must not publish a record.
++            // Preserve Expired when the native ticket aged out during sealing.
++            check_session(session)?;
+             return Err(SessionTransferError::Policy);
+         }
+         Ok(AuthenticatedSessionRecord {
+@@ -1010,5 +1281,8 @@
+     AuthenticatedSessionRecord,
+     SessionTransferEnvelope,
+     VerifiedSessionEnvelope,
+-    SessionImportPermit
++    SessionImportPermit,
++    PreparedSessionPolicyFreeze<'_>,
++    FrozenSessionPolicies<'_>,
++    PendingSessionExport
+ );
+diff --git a/src/ssl/mod.rs b/src/ssl/mod.rs
+--- a/src/ssl/mod.rs
++++ b/src/ssl/mod.rs
+@@ -127,9 +127,10 @@
+ mod mut_only;
+ mod session_transfer;
+ pub use session_transfer::{
+-    open_envelope, seal_envelope, AuthenticatedSessionRecord, SessionImportPermit,
+-    SessionPolicyBinding, SessionPolicyMutation, SessionTransferCredential,
+-    SessionTransferEnvelope, SessionTransferError, SessionTransferPolicy, VerifiedSessionEnvelope,
++    open_envelope, seal_envelope, AuthenticatedSessionRecord, FrozenSessionPolicies,
++    PendingSessionExport, PreparedSessionPolicyFreeze, SessionImportPermit, SessionPolicyBinding,
++    SessionPolicyMutation, SessionTransferCredential, SessionTransferEnvelope,
++    SessionTransferError, SessionTransferPolicy, VerifiedSessionEnvelope,
+ };
+ #[cfg(test)]
+ mod test;
+diff --git a/src/ssl/session_transfer/tests.rs b/src/ssl/session_transfer/tests.rs
+--- a/src/ssl/session_transfer/tests.rs
++++ b/src/ssl/session_transfer/tests.rs
+@@ -157,3 +157,207 @@
+         Err(SessionTransferError::TooLarge)
+     ));
+ }
++
++fn freeze_client() -> super::super::SslConnector {
++    let mut builder =
++        super::super::SslConnector::bare_builder(super::super::SslMethod::tls()).unwrap();
++    builder.set_verify(super::super::SslVerifyMode::PEER);
++    builder.enable_scoped_client_sessions();
++    builder.build()
++}
++
++fn freeze_binding(
++    client: &super::super::SslConnector,
++    scope: &SslSessionScope,
++) -> SessionPolicyBinding {
++    scope
++        .bind_transfer_policy(
++            client.context(),
++            "example.test",
++            SessionTransferPolicy::new(b"policy", b"witness", None, &[1; 32]).unwrap(),
++        )
++        .unwrap()
++}
++
++#[test]
++fn transfer_freeze_deduplicates_shared_context_and_requires_exact_membership() {
++    let client = freeze_client();
++    let first = freeze_binding(&client, &SslSessionScope::default());
++    let second = freeze_binding(&client, &SslSessionScope::default());
++    let unlisted = freeze_binding(&client, &SslSessionScope::default());
++    let first_copy = first.clone();
++    let prepared = PreparedSessionPolicyFreeze::new(&[&second, &first, &first_copy]).unwrap();
++    assert_eq!(prepared.contexts.len(), 1);
++    assert_eq!(prepared.scopes.len(), 2);
++    let context_capacity = prepared.context_guards.capacity();
++    let scope_capacity = prepared.scope_guards.capacity();
++    let frozen = prepared.try_freeze().unwrap();
++    assert_eq!(frozen.0.context_guards.capacity(), context_capacity);
++    assert_eq!(frozen.0.scope_guards.capacity(), scope_capacity);
++    assert_eq!(frozen.0.context_guards.len(), 1);
++    assert_eq!(frozen.0.scope_guards.len(), 2);
++    frozen.validate_binding(&first, "example.test").unwrap();
++    frozen
++        .validate_binding(&first_copy, "EXAMPLE.TEST")
++        .unwrap();
++    frozen.validate_binding(&second, "example.test").unwrap();
++    assert!(matches!(
++        frozen.validate_binding(&unlisted, "example.test"),
++        Err(SessionTransferError::Policy)
++    ));
++    assert!(matches!(
++        frozen.validate_binding(&first, "other.test"),
++        Err(SessionTransferError::Policy)
++    ));
++    assert!(matches!(
++        first.installed.epoch_owner.freeze(),
++        Err(SessionTransferError::Busy)
++    ));
++    assert!(matches!(
++        try_policy_lock(&first.scope.0.installed),
++        Err(SessionTransferError::Busy)
++    ));
++    drop(frozen);
++    assert!(first.installed.epoch_owner.freeze().is_ok());
++    assert!(try_policy_lock(&first.scope.0.installed).is_ok());
++}
++
++#[test]
++fn transfer_freeze_context_contention_releases_earlier_guards() {
++    let left = freeze_client();
++    let right = freeze_client();
++    let first = freeze_binding(&left, &SslSessionScope::default());
++    let second = freeze_binding(&right, &SslSessionScope::default());
++    let prepared = PreparedSessionPolicyFreeze::new(&[&second, &first]).unwrap();
++    let earlier = prepared.contexts[0];
++    let later = prepared.contexts[1];
++    let held = later.freeze().unwrap();
++    assert!(matches!(
++        prepared.try_freeze(),
++        Err(SessionTransferError::Busy)
++    ));
++    assert!(earlier.freeze().is_ok());
++    assert!(try_policy_lock(&first.scope.0.installed).is_ok());
++    assert!(try_policy_lock(&second.scope.0.installed).is_ok());
++    drop(held);
++    assert!(PreparedSessionPolicyFreeze::new(&[&first, &second])
++        .unwrap()
++        .try_freeze()
++        .is_ok());
++}
++
++#[test]
++fn transfer_freeze_scope_contention_releases_context_and_earlier_scope_guards() {
++    let client = freeze_client();
++    let first = freeze_binding(&client, &SslSessionScope::default());
++    let second = freeze_binding(&client, &SslSessionScope::default());
++    let prepared = PreparedSessionPolicyFreeze::new(&[&first, &second]).unwrap();
++    let earlier = prepared.scopes[0];
++    let later = prepared.scopes[1];
++    let held = try_policy_lock(&later.installed).unwrap();
++    assert!(matches!(
++        prepared.try_freeze(),
++        Err(SessionTransferError::Busy)
++    ));
++    assert!(first.installed.epoch_owner.freeze().is_ok());
++    assert!(try_policy_lock(&earlier.installed).is_ok());
++    drop(held);
++    assert!(PreparedSessionPolicyFreeze::new(&[&second, &first])
++        .unwrap()
++        .try_freeze()
++        .is_ok());
++}
++
++#[test]
++fn transfer_freeze_poisoned_context_is_policy_failure_and_releases_prior_guard() {
++    let left = freeze_client();
++    let right = freeze_client();
++    let first = freeze_binding(&left, &SslSessionScope::default());
++    let second = freeze_binding(&right, &SslSessionScope::default());
++    let prepared = PreparedSessionPolicyFreeze::new(&[&first, &second]).unwrap();
++    let earlier = prepared.contexts[0];
++    let later = prepared.contexts[1];
++    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
++        let _guard = later.0.lock().unwrap();
++        panic!("synthetic Rust mutex poison");
++    }));
++    assert!(panic.is_err());
++    assert!(matches!(
++        prepared.try_freeze(),
++        Err(SessionTransferError::Policy)
++    ));
++    assert!(earlier.freeze().is_ok());
++    assert!(matches!(later.freeze(), Err(SessionTransferError::Policy)));
++    assert!(try_policy_lock(&first.scope.0.installed).is_ok());
++    assert!(try_policy_lock(&second.scope.0.installed).is_ok());
++}
++
++#[test]
++fn transfer_freeze_poisoned_scope_is_policy_failure_and_releases_prior_guards() {
++    let client = freeze_client();
++    let first = freeze_binding(&client, &SslSessionScope::default());
++    let second = freeze_binding(&client, &SslSessionScope::default());
++    let prepared = PreparedSessionPolicyFreeze::new(&[&first, &second]).unwrap();
++    let earlier = prepared.scopes[0];
++    let later = prepared.scopes[1];
++    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
++        let _guard = later.installed.lock().unwrap();
++        panic!("synthetic Rust mutex poison");
++    }));
++    assert!(panic.is_err());
++    assert!(matches!(
++        prepared.try_freeze(),
++        Err(SessionTransferError::Policy)
++    ));
++    assert!(first.installed.epoch_owner.freeze().is_ok());
++    assert!(try_policy_lock(&earlier.installed).is_ok());
++    assert!(matches!(
++        try_policy_lock(&later.installed),
++        Err(SessionTransferError::Policy)
++    ));
++}
++
++#[test]
++fn transfer_freeze_checks_guarded_epoch_and_installed_identity() {
++    let client = freeze_client();
++    let binding = freeze_binding(&client, &SslSessionScope::default());
++    let other = freeze_binding(&client, &SslSessionScope::default());
++    let mut frozen = PreparedSessionPolicyFreeze::new(&[&binding])
++        .unwrap()
++        .try_freeze()
++        .unwrap();
++    frozen.validate_binding(&binding, "example.test").unwrap();
++    *frozen.0.context_guards[0] = Some(Arc::new(AtomicBool::new(true)));
++    assert!(matches!(
++        frozen.validate_binding(&binding, "example.test"),
++        Err(SessionTransferError::Policy)
++    ));
++    *frozen.0.context_guards[0] = Some(Arc::clone(&binding.installed.context_epoch));
++    *frozen.0.scope_guards[0] = Some(Arc::clone(&other.installed));
++    assert!(matches!(
++        frozen.validate_binding(&binding, "example.test"),
++        Err(SessionTransferError::Policy)
++    ));
++    *frozen.0.scope_guards[0] = Some(Arc::clone(&binding.installed));
++    frozen.validate_binding(&binding, "example.test").unwrap();
++}
++
++#[test]
++fn transfer_freeze_empty_plan_and_input_bound_are_explicit() {
++    let frozen = PreparedSessionPolicyFreeze::new(&[])
++        .unwrap()
++        .try_freeze()
++        .unwrap();
++    assert!(frozen.0.context_guards.is_empty());
++    assert!(frozen.0.scope_guards.is_empty());
++    let client = freeze_client();
++    let binding = freeze_binding(&client, &SslSessionScope::default());
++    assert!(matches!(
++        frozen.validate_binding(&binding, "example.test"),
++        Err(SessionTransferError::Policy)
++    ));
++    assert!(matches!(
++        PreparedSessionPolicyFreeze::new(&vec![&binding; MAX_RECORDS + 1]),
++        Err(SessionTransferError::TooLarge)
++    ));
++}
+diff --git a/src/ssl/test/session_resumption.rs b/src/ssl/test/session_resumption.rs
+--- a/src/ssl/test/session_resumption.rs
++++ b/src/ssl/test/session_resumption.rs
+@@ -1955,3 +1955,224 @@
+ 
+     TicketKeyCallbackResult::Success
+ }
++
++#[test]
++fn authenticated_transfer_pending_export_retains_real_tls12_and_tls13_proof() {
++    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
++        let (session, binding, client, _) = transfer_test_fixture(version, b"credential", &[1; 32]);
++        assert!(matches!(
++            binding.prepare_session_export(&session, "other.example"),
++            Err(crate::ssl::SessionTransferError::Policy)
++        ));
++        let pending = binding
++            .prepare_session_export(&session, "FOOBAR.COM")
++            .unwrap();
++        assert_eq!(format!("{pending:?}"), "PendingSessionExport { .. }");
++        let time = session.time();
++        let timeout = session.timeout();
++        let single_use = session.should_be_single_use();
++        drop(session);
++        let record = pending.seal(b"exact owner metadata", &[7; 32]).unwrap();
++        let envelope = crate::ssl::seal_envelope(&[record], &[7; 32]).unwrap();
++        let scope = SslSessionScope::default();
++        let recipient = transfer_test_binding(&client, &scope, b"credential", &[2; 32]);
++        let mut opened =
++            crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], client.context()).unwrap();
++        assert_eq!(opened.owner_metadata(0).unwrap(), b"exact owner metadata");
++        assert_eq!(
++            opened.source_witness(0).unwrap(),
++            b"fixed validated witness"
++        );
++        let imported = opened
++            .authorize_record(0, &recipient)
++            .unwrap()
++            .into_scoped_session()
++            .unwrap();
++        assert!(imported.is_authenticated());
++        assert_eq!(imported.time(), time);
++        assert_eq!(imported.timeout(), timeout);
++        assert_eq!(imported.protocol_version(), version);
++        assert_eq!(imported.should_be_single_use(), single_use);
++    }
++}
++
++#[test]
++fn authenticated_transfer_pending_export_rechecks_connection_mutation_after_capture() {
++    for shared_change in [true, false] {
++        let server = tls13_server(1).build();
++        let client = publication_client();
++        let scope = SslSessionScope::default();
++        let binding = transfer_test_binding(&client, &scope, b"credential", &[1; 32]);
++        let sessions = Arc::new(Mutex::new(Vec::new()));
++        let captured = Arc::clone(&sessions);
++        let mut configuration = client.configure().unwrap();
++        configuration.set_session_transfer_policy(&binding).unwrap();
++        let ssl = configuration
++            .into_ssl_with_session_transfer("foobar.com", &scope, None, move |session| {
++                captured.lock().unwrap().push(session.unwrap())
++            })
++            .unwrap()
++            .unwrap();
++        let mut stream = ssl.connect(server.connect_tcp()).unwrap();
++        stream.read_exact(&mut [0]).unwrap();
++        assert!(stream.ssl().authenticate_scoped_session_publication());
++        let session = sessions.lock().unwrap().pop().unwrap();
++        let pending = binding
++            .prepare_session_export(&session, "foobar.com")
++            .unwrap();
++        if shared_change {
++            stream.ssl().set_enable_ech_grease(true);
++        } else {
++            let _parameters = stream.ssl_mut().param_mut();
++        }
++        assert!(!session.is_authenticated());
++        assert!(matches!(
++            pending.seal(b"metadata", &[7; 32]),
++            Err(crate::ssl::SessionTransferError::Unauthenticated)
++        ));
++        assert!(!stream.ssl().authenticate_scoped_session_publication());
++        drop(stream);
++        drop(server);
++    }
++}
++
++#[test]
++fn authenticated_transfer_pending_export_rechecks_scope_revocation_and_expiry() {
++    let (session, binding, _, scope) =
++        transfer_test_fixture(SslVersion::TLS1_3, b"credential", &[1; 32]);
++    let pending = binding
++        .prepare_session_export(&session, "foobar.com")
++        .unwrap();
++    scope.invalidate_transfer_policy();
++    assert!(matches!(
++        pending.seal(b"metadata", &[7; 32]),
++        Err(crate::ssl::SessionTransferError::Policy)
++    ));
++
++    let (session, binding, _, _) =
++        transfer_test_fixture(SslVersion::TLS1_3, b"credential", &[1; 32]);
++    let pending = binding
++        .prepare_session_export(&session, "foobar.com")
++        .unwrap();
++    // SAFETY: the genuine callback session and its pending up-reference are owned
++    // by this test after the connection has dropped. The pinned native setter
++    // supports timeout controls; no concurrent reader or live SSL uses the session.
++    unsafe {
++        ffi::SSL_SESSION_set_timeout(session.session().as_ptr(), 0);
++    }
++    assert!(matches!(
++        pending.seal(b"metadata", &[7; 32]),
++        Err(crate::ssl::SessionTransferError::Expired)
++    ));
++    assert!(matches!(
++        binding.prepare_session_export(&session, "foobar.com"),
++        Err(crate::ssl::SessionTransferError::Expired)
++    ));
++}
++
++#[test]
++fn authenticated_transfer_preparation_validates_exact_permit_and_scoped_recipient() {
++    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
++        let (session, source, _, _) = transfer_test_fixture(version, b"credential", &[1; 32]);
++        let record = source
++            .seal_session(&session, b"metadata", &[7; 32])
++            .unwrap();
++        let envelope = crate::ssl::seal_envelope(&[record], &[7; 32]).unwrap();
++        let recipient = transfer_test_client(version);
++        let scope = SslSessionScope::default();
++        let binding = transfer_test_binding(&recipient, &scope, b"credential", &[2; 32]);
++        let other_scope = transfer_test_binding(
++            &recipient,
++            &SslSessionScope::default(),
++            b"credential",
++            &[2; 32],
++        );
++        let other_client = transfer_test_client(version);
++        let other_context = transfer_test_binding(
++            &other_client,
++            &SslSessionScope::default(),
++            b"credential",
++            &[2; 32],
++        );
++        let mut opened =
++            crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], recipient.context()).unwrap();
++        let permit = opened.authorize_record(0, &binding).unwrap();
++        binding
++            .validate_import_permit(&permit, "foobar.com")
++            .unwrap();
++        for wrong in [&other_scope, &other_context, &source] {
++            assert!(matches!(
++                wrong.validate_import_permit(&permit, "foobar.com"),
++                Err(crate::ssl::SessionTransferError::Policy)
++            ));
++        }
++        assert!(matches!(
++            binding.validate_import_permit(&permit, "other.example"),
++            Err(crate::ssl::SessionTransferError::Policy)
++        ));
++        let imported = permit.into_scoped_session().unwrap();
++        binding
++            .validate_scoped_session(&imported, "foobar.com")
++            .unwrap();
++        let frozen = crate::ssl::PreparedSessionPolicyFreeze::new(&[&binding])
++            .unwrap()
++            .try_freeze()
++            .unwrap();
++        frozen
++            .validate_scoped_session(&binding, &imported, "foobar.com")
++            .unwrap();
++        for wrong in [&other_scope, &other_context, &source] {
++            assert!(matches!(
++                wrong.validate_scoped_session(&imported, "foobar.com"),
++                Err(crate::ssl::SessionTransferError::Policy)
++            ));
++            assert!(matches!(
++                frozen.validate_binding(wrong, "foobar.com"),
++                Err(crate::ssl::SessionTransferError::Policy)
++            ));
++        }
++        assert!(imported.is_authenticated());
++    }
++}
++
++#[test]
++fn authenticated_transfer_frozen_policy_does_not_freeze_exposed_imported_ssl_token() {
++    let (session, source, _, _) =
++        transfer_test_fixture(SslVersion::TLS1_3, b"credential", &[1; 32]);
++    let record = source
++        .seal_session(&session, b"metadata", &[7; 32])
++        .unwrap();
++    let envelope = crate::ssl::seal_envelope(&[record], &[7; 32]).unwrap();
++    let recipient = publication_client();
++    let scope = SslSessionScope::default();
++    let binding = transfer_test_binding(&recipient, &scope, b"credential", &[2; 32]);
++    let mut opened =
++        crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], recipient.context()).unwrap();
++    let imported = opened
++        .authorize_record(0, &binding)
++        .unwrap()
++        .into_scoped_session()
++        .unwrap();
++    let ssl = recipient
++        .configure()
++        .unwrap()
++        .into_ssl_with_scoped_session("foobar.com", &scope, Some(&imported), |_| {})
++        .unwrap()
++        .unwrap();
++    let frozen = crate::ssl::PreparedSessionPolicyFreeze::new(&[&binding])
++        .unwrap()
++        .try_freeze()
++        .unwrap();
++    frozen
++        .validate_scoped_session(&binding, &imported, "foobar.com")
++        .unwrap();
++    ssl.set_enable_ech_grease(true);
++    assert!(!imported.is_authenticated());
++    assert!(matches!(
++        frozen.validate_scoped_session(&binding, &imported, "foobar.com"),
++        Err(crate::ssl::SessionTransferError::Policy)
++    ));
++    frozen.validate_binding(&binding, "foobar.com").unwrap();
++    // A supported store replacement must consume permits and keep its sessions
++    // private. Native policy guards alone cannot make this exposed wrapper safe.
++}

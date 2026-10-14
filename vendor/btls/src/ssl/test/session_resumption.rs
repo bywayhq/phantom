@@ -1955,3 +1955,224 @@ fn test_success_tickey_key_callback(
 
     TicketKeyCallbackResult::Success
 }
+
+#[test]
+fn authenticated_transfer_pending_export_retains_real_tls12_and_tls13_proof() {
+    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
+        let (session, binding, client, _) = transfer_test_fixture(version, b"credential", &[1; 32]);
+        assert!(matches!(
+            binding.prepare_session_export(&session, "other.example"),
+            Err(crate::ssl::SessionTransferError::Policy)
+        ));
+        let pending = binding
+            .prepare_session_export(&session, "FOOBAR.COM")
+            .unwrap();
+        assert_eq!(format!("{pending:?}"), "PendingSessionExport { .. }");
+        let time = session.time();
+        let timeout = session.timeout();
+        let single_use = session.should_be_single_use();
+        drop(session);
+        let record = pending.seal(b"exact owner metadata", &[7; 32]).unwrap();
+        let envelope = crate::ssl::seal_envelope(&[record], &[7; 32]).unwrap();
+        let scope = SslSessionScope::default();
+        let recipient = transfer_test_binding(&client, &scope, b"credential", &[2; 32]);
+        let mut opened =
+            crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], client.context()).unwrap();
+        assert_eq!(opened.owner_metadata(0).unwrap(), b"exact owner metadata");
+        assert_eq!(
+            opened.source_witness(0).unwrap(),
+            b"fixed validated witness"
+        );
+        let imported = opened
+            .authorize_record(0, &recipient)
+            .unwrap()
+            .into_scoped_session()
+            .unwrap();
+        assert!(imported.is_authenticated());
+        assert_eq!(imported.time(), time);
+        assert_eq!(imported.timeout(), timeout);
+        assert_eq!(imported.protocol_version(), version);
+        assert_eq!(imported.should_be_single_use(), single_use);
+    }
+}
+
+#[test]
+fn authenticated_transfer_pending_export_rechecks_connection_mutation_after_capture() {
+    for shared_change in [true, false] {
+        let server = tls13_server(1).build();
+        let client = publication_client();
+        let scope = SslSessionScope::default();
+        let binding = transfer_test_binding(&client, &scope, b"credential", &[1; 32]);
+        let sessions = Arc::new(Mutex::new(Vec::new()));
+        let captured = Arc::clone(&sessions);
+        let mut configuration = client.configure().unwrap();
+        configuration.set_session_transfer_policy(&binding).unwrap();
+        let ssl = configuration
+            .into_ssl_with_session_transfer("foobar.com", &scope, None, move |session| {
+                captured.lock().unwrap().push(session.unwrap())
+            })
+            .unwrap()
+            .unwrap();
+        let mut stream = ssl.connect(server.connect_tcp()).unwrap();
+        stream.read_exact(&mut [0]).unwrap();
+        assert!(stream.ssl().authenticate_scoped_session_publication());
+        let session = sessions.lock().unwrap().pop().unwrap();
+        let pending = binding
+            .prepare_session_export(&session, "foobar.com")
+            .unwrap();
+        if shared_change {
+            stream.ssl().set_enable_ech_grease(true);
+        } else {
+            let _parameters = stream.ssl_mut().param_mut();
+        }
+        assert!(!session.is_authenticated());
+        assert!(matches!(
+            pending.seal(b"metadata", &[7; 32]),
+            Err(crate::ssl::SessionTransferError::Unauthenticated)
+        ));
+        assert!(!stream.ssl().authenticate_scoped_session_publication());
+        drop(stream);
+        drop(server);
+    }
+}
+
+#[test]
+fn authenticated_transfer_pending_export_rechecks_scope_revocation_and_expiry() {
+    let (session, binding, _, scope) =
+        transfer_test_fixture(SslVersion::TLS1_3, b"credential", &[1; 32]);
+    let pending = binding
+        .prepare_session_export(&session, "foobar.com")
+        .unwrap();
+    scope.invalidate_transfer_policy();
+    assert!(matches!(
+        pending.seal(b"metadata", &[7; 32]),
+        Err(crate::ssl::SessionTransferError::Policy)
+    ));
+
+    let (session, binding, _, _) =
+        transfer_test_fixture(SslVersion::TLS1_3, b"credential", &[1; 32]);
+    let pending = binding
+        .prepare_session_export(&session, "foobar.com")
+        .unwrap();
+    // SAFETY: the genuine callback session and its pending up-reference are owned
+    // by this test after the connection has dropped. The pinned native setter
+    // supports timeout controls; no concurrent reader or live SSL uses the session.
+    unsafe {
+        ffi::SSL_SESSION_set_timeout(session.session().as_ptr(), 0);
+    }
+    assert!(matches!(
+        pending.seal(b"metadata", &[7; 32]),
+        Err(crate::ssl::SessionTransferError::Expired)
+    ));
+    assert!(matches!(
+        binding.prepare_session_export(&session, "foobar.com"),
+        Err(crate::ssl::SessionTransferError::Expired)
+    ));
+}
+
+#[test]
+fn authenticated_transfer_preparation_validates_exact_permit_and_scoped_recipient() {
+    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
+        let (session, source, _, _) = transfer_test_fixture(version, b"credential", &[1; 32]);
+        let record = source
+            .seal_session(&session, b"metadata", &[7; 32])
+            .unwrap();
+        let envelope = crate::ssl::seal_envelope(&[record], &[7; 32]).unwrap();
+        let recipient = transfer_test_client(version);
+        let scope = SslSessionScope::default();
+        let binding = transfer_test_binding(&recipient, &scope, b"credential", &[2; 32]);
+        let other_scope = transfer_test_binding(
+            &recipient,
+            &SslSessionScope::default(),
+            b"credential",
+            &[2; 32],
+        );
+        let other_client = transfer_test_client(version);
+        let other_context = transfer_test_binding(
+            &other_client,
+            &SslSessionScope::default(),
+            b"credential",
+            &[2; 32],
+        );
+        let mut opened =
+            crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], recipient.context()).unwrap();
+        let permit = opened.authorize_record(0, &binding).unwrap();
+        binding
+            .validate_import_permit(&permit, "foobar.com")
+            .unwrap();
+        for wrong in [&other_scope, &other_context, &source] {
+            assert!(matches!(
+                wrong.validate_import_permit(&permit, "foobar.com"),
+                Err(crate::ssl::SessionTransferError::Policy)
+            ));
+        }
+        assert!(matches!(
+            binding.validate_import_permit(&permit, "other.example"),
+            Err(crate::ssl::SessionTransferError::Policy)
+        ));
+        let imported = permit.into_scoped_session().unwrap();
+        binding
+            .validate_scoped_session(&imported, "foobar.com")
+            .unwrap();
+        let frozen = crate::ssl::PreparedSessionPolicyFreeze::new(&[&binding])
+            .unwrap()
+            .try_freeze()
+            .unwrap();
+        frozen
+            .validate_scoped_session(&binding, &imported, "foobar.com")
+            .unwrap();
+        for wrong in [&other_scope, &other_context, &source] {
+            assert!(matches!(
+                wrong.validate_scoped_session(&imported, "foobar.com"),
+                Err(crate::ssl::SessionTransferError::Policy)
+            ));
+            assert!(matches!(
+                frozen.validate_binding(wrong, "foobar.com"),
+                Err(crate::ssl::SessionTransferError::Policy)
+            ));
+        }
+        assert!(imported.is_authenticated());
+    }
+}
+
+#[test]
+fn authenticated_transfer_frozen_policy_does_not_freeze_exposed_imported_ssl_token() {
+    let (session, source, _, _) =
+        transfer_test_fixture(SslVersion::TLS1_3, b"credential", &[1; 32]);
+    let record = source
+        .seal_session(&session, b"metadata", &[7; 32])
+        .unwrap();
+    let envelope = crate::ssl::seal_envelope(&[record], &[7; 32]).unwrap();
+    let recipient = publication_client();
+    let scope = SslSessionScope::default();
+    let binding = transfer_test_binding(&recipient, &scope, b"credential", &[2; 32]);
+    let mut opened =
+        crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], recipient.context()).unwrap();
+    let imported = opened
+        .authorize_record(0, &binding)
+        .unwrap()
+        .into_scoped_session()
+        .unwrap();
+    let ssl = recipient
+        .configure()
+        .unwrap()
+        .into_ssl_with_scoped_session("foobar.com", &scope, Some(&imported), |_| {})
+        .unwrap()
+        .unwrap();
+    let frozen = crate::ssl::PreparedSessionPolicyFreeze::new(&[&binding])
+        .unwrap()
+        .try_freeze()
+        .unwrap();
+    frozen
+        .validate_scoped_session(&binding, &imported, "foobar.com")
+        .unwrap();
+    ssl.set_enable_ech_grease(true);
+    assert!(!imported.is_authenticated());
+    assert!(matches!(
+        frozen.validate_scoped_session(&binding, &imported, "foobar.com"),
+        Err(crate::ssl::SessionTransferError::Policy)
+    ));
+    frozen.validate_binding(&binding, "foobar.com").unwrap();
+    // A supported store replacement must consume permits and keep its sessions
+    // private. Native policy guards alone cannot make this exposed wrapper safe.
+}

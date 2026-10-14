@@ -1150,6 +1150,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   DNS lifetime, and keep operational errors out of this resolver's cache.
 - Encode and validate bounded DNS-over-HTTPS messages with `DnsWireQuery`,
   preserving answer order, alias limits, and DNS lifetimes.
+- Add native session-store transfer preparation with bounded exports and
+  nonblocking policy guards.
 
 - Add explicit SOCKS4 and SOCKS4a routes with local or proxy DNS, optional
   user identification, and HTTP/1.1, HTTP/2, and WebSocket TCP tunnels.
