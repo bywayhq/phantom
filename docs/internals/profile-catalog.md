@@ -78,8 +78,9 @@ absent one. An empty required-layer list accepts a partial recipe.
 
 The advertised build does not describe every component. Chrome's Windows
 entry names `154.0.8037.97`, while its retained TLS observations describe
-`154.0.8037.58`. Each evidence reference records its own build. Unknown host
-architecture remains absent; header values do not establish it.
+`154.0.8037.58`. Each evidence reference records its own build. A retained host
+architecture does not establish the architecture supported by a composed target.
+Leave target architecture absent when that coverage has not been established.
 
 Existing Android factories keep their partial composition. An unavailable
 socket or cookie policy may leave the ordinary `ClientProfile` default in
@@ -113,6 +114,16 @@ A recipe reference is not independent browser evidence. A reused component
 needs its own equivalence controls. Observation claims require a retained
 capture reference. File existence and schema validation do not prove parity;
 review the named replay tests and actual captured fields.
+
+Capture references must match the fixture's retained `browser_version` or
+`client_version` metadata. Generation reads a bounded metadata prefix and rejects
+missing, ambiguous, or mismatched versions. Source and recipe builds are separate
+citations and are not checked against capture headers.
+
+Brave's Android 17 target reuses an Android 15 (API 35) WebSocket session capture
+for its HTTP/2 settings comparison. Its HTTP/2 evidence names that older fixture
+and keeps the reuse limitation. This adds provenance, not observation coverage
+or a new target. The current QUIC and client-hint references remain Android 17.
 
 ## Declare request templates
 

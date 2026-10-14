@@ -79,6 +79,11 @@
           "support": "Configured",
           "references": [
             {
+              "kind": "Capture",
+              "location": "fixtures/websocket/brave-android/153.1.95.104/android-35-emulator/accept.txt",
+              "build": "153.1.95.104"
+            },
+            {
               "kind": "Recipe",
               "location": "crates/phantom-profile/src/browser/brave/android.rs",
               "build": "153.1.95.104"
@@ -92,7 +97,7 @@
           "verified_fields": [],
           "limitations": [
             "Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.",
-            "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."
+            "The HTTP/2 session comparison reuses the Android 15 (API 35) emulator capture, not an Android 17 observation; the Chromium settings are unchanged."
           ]
         },
         {

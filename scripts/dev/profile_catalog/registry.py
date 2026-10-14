@@ -108,6 +108,28 @@ TARGET_METADATA = {
 }
 
 
+def capture_build(path):
+    """Read one recorded build within a bounded fixture prefix."""
+    try:
+        with path.open("rb") as capture:
+            prefix = capture.read(8193)
+    except OSError as error:
+        raise DeclarationError("cannot read retained capture metadata") from error
+    if len(prefix) > 8192:
+        prefix = prefix[:8192].rpartition(b"\n")[0]
+    versions = []
+    for line in prefix.splitlines():
+        key, separator, value = line.partition(b"=")
+        if separator and key in (b"browser_version", b"client_version"):
+            try:
+                versions.append(text(value.decode("ascii"), "capture build"))
+            except UnicodeDecodeError as error:
+                raise DeclarationError("capture build must be ASCII") from error
+    if len(versions) != 1:
+        raise DeclarationError("capture needs one retained build metadata field")
+    return versions[0]
+
+
 def validate(document, repo=REPO):
     check_depth(document)
     keys(document, ("schema", "profiles"), "catalog")
@@ -264,6 +286,13 @@ def validate(document, repo=REPO):
                     if kind == "Capture" and not location.startswith("fixtures/"):
                         raise DeclarationError(
                             "capture reference must name a retained fixture"
+                        )
+                    if (
+                        kind == "Capture"
+                        and capture_build(repo / path) != reference["build"]
+                    ):
+                        raise DeclarationError(
+                            "capture reference build disagrees with retained metadata"
                         )
             string_list(layer["verified_fields"], "verified fields")
             string_list(layer["limitations"], "limitations")

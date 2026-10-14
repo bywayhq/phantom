@@ -75,6 +75,11 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                 support: LayerSupport::Configured,
                 references: &[
                     EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/websocket/brave-android/153.1.95.104/android-35-emulator/accept.txt",
+                        build: "153.1.95.104",
+                    },
+                    EvidenceReference {
                         kind: EvidenceKind::Recipe,
                         location: "crates/phantom-profile/src/browser/brave/android.rs",
                         build: "153.1.95.104",
@@ -86,7 +91,7 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
                     },
                 ],
                 verified_fields: &[],
-                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.", "This record has no direct capture reference for this layer yet; see recipe rustdoc for reused evidence."],
+                limitations: &["Only the listed fields have observation coverage; recipe rustdoc describes source policies and remaining limits.", "The HTTP/2 session comparison reuses the Android 15 (API 35) emulator capture, not an Android 17 observation; the Chromium settings are unchanged."],
             },
             LayerEvidence {
                 layer: ProfileLayer::QuicTls,

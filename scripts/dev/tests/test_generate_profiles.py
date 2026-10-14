@@ -118,6 +118,91 @@ class CatalogDeclarationTests(unittest.TestCase):
         layer["verified_fields"] = ["cipher suites"]
         self.reject(document)
 
+    def test_capture_reference_build_matches_the_fixture_not_the_target(self):
+        generator.validate(self.document)
+        chrome = next(
+            profile
+            for profile in self.document["profiles"]
+            if profile["target"] == "ChromeWindows154"
+        )
+        layer = next(layer for layer in chrome["layers"] if layer["layer"] == "TcpTls")
+        capture = next(ref for ref in layer["references"] if ref["kind"] == "Capture")
+        self.assertEqual(chrome["metadata"]["build"], "154.0.8037.97")
+        self.assertEqual(capture["build"], "154.0.8037.58")
+        capture["build"] = chrome["metadata"]["build"]
+        with self.assertRaisesRegex(generator.DeclarationError, "retained metadata"):
+            generator.validate(self.document)
+
+    def test_brave_android_http2_names_the_older_session_control_without_new_coverage(
+        self,
+    ):
+        brave = next(
+            profile
+            for profile in self.document["profiles"]
+            if profile["target"] == "BraveAndroid153"
+        )
+        layer = next(layer for layer in brave["layers"] if layer["layer"] == "Http2")
+        self.assertEqual(
+            brave["metadata"]["platform_release"], "android-17-pixel7-emulator"
+        )
+        self.assertIsNone(brave["metadata"]["architecture"])
+        self.assertEqual(layer["verified_fields"], [])
+        capture = next(ref for ref in layer["references"] if ref["kind"] == "Capture")
+        self.assertEqual(
+            capture["location"],
+            "fixtures/websocket/brave-android/153.1.95.104/android-35-emulator/accept.txt",
+        )
+        self.assertEqual(capture["build"], "153.1.95.104")
+        self.assertTrue(
+            any("Android 15 (API 35)" in item for item in layer["limitations"])
+        )
+        self.assertTrue(any(ref["kind"] == "Reused" for ref in layer["references"]))
+        generator.validate(self.document)
+
+    def test_capture_metadata_requires_one_complete_ascii_build_in_the_prefix(self):
+        invalid = (
+            b"format=test\noperating_system=unknown\n",
+            b"browser_version=\n",
+            b"browser_version=1\nclient_version=1\n",
+            b"client_version=1\nclient_version=2\n",
+            b"browser_version=\xff\n",
+            b"payload=" + b"x" * 8192 + b"\nclient_version=1\n",
+            b"payload=" + b"x" * 8180 + b"\nclient_version=1\n",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "capture.txt"
+            for value in invalid:
+                with self.subTest(prefix=value[:48]):
+                    path.write_bytes(value)
+                    with self.assertRaises(generator.DeclarationError):
+                        registry.capture_build(path)
+            for value in (b"browser_version=1\n", b"client_version=1\r\n"):
+                path.write_bytes(value + b"payload=" + b"x" * 16000)
+                self.assertEqual(registry.capture_build(path), "1")
+
+    def test_capture_metadata_read_failure_is_a_declaration_error(self):
+        with (
+            mock.patch.object(Path, "open", side_effect=OSError("unreadable")),
+            self.assertRaisesRegex(generator.DeclarationError, "cannot read"),
+        ):
+            registry.capture_build(Path("capture.txt"))
+
+    def test_capture_metadata_validation_does_not_parse_source_or_recipe_citations(
+        self,
+    ):
+        document = copy.deepcopy(self.document)
+        layer = document["profiles"][0]["layers"][0]
+        layer["references"] = [
+            {
+                "kind": "Source",
+                "location": "https://example.com/upstream",
+                "build": "unknown",
+            },
+            {"kind": "Recipe", "location": "Cargo.toml", "build": "unknown"},
+        ]
+        layer["verified_fields"] = []
+        generator.validate(document)
+
     def test_malformed_source_urls_and_recipe_as_source_are_rejected(self):
         for location in (
             "https://[invalid",
