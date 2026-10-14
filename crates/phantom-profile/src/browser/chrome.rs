@@ -66,10 +66,7 @@ use crate::{
 
 use crate::udp::UdpSettings;
 
-use crate::tcp::{
-    TcpAddressRacing, TcpAddressSelection, TcpKeepalive, TcpKeepalivePolicy, TcpPortRandomization,
-    TcpSettings,
-};
+use crate::tcp::TcpSettings;
 
 use crate::quic::QuicTransportSettings;
 
@@ -235,7 +232,7 @@ pub fn v154_tcp_tls() -> TlsSettings {
 /// `net/socket/tcp_connect_job.cc:573-610`). The field trials that change that
 /// delay, `kAdjustIPv6FallbackTime` and `kIPv6FallbackBasedOnRTT`, and Happy
 /// Eyeballs v3 are disabled by default (`net/base/features.cc:124`, `:128`,
-/// `:136`). [`TcpAddressRacing`] describes the rest of the algorithm; its own
+/// `:136`). [`crate::TcpAddressRacing`] describes the rest of the algorithm; its own
 /// line numbers were read at tag `153.0.8010.48` and have not been re-read at
 /// 154.
 ///
@@ -247,7 +244,7 @@ pub fn v154_tcp_tls() -> TlsSettings {
 /// [`TcpSettings::port_randomization`] sets it from the same build.
 ///
 /// On macOS Chromium sets only the idle time, through `TCP_KEEPALIVE`
-/// (`net/socket/tcp_socket_posix.cc:102-106`); set [`TcpKeepalive::interval`]
+/// (`net/socket/tcp_socket_posix.cc:102-106`); set [`crate::TcpKeepalive::interval`]
 /// to `None` for that platform. Android and iOS builds enable no keepalive.
 /// Chromium ignores a failure to set any of these options
 /// (`net/socket/tcp_socket_win.cc:70-71`, `:1046-1047`); Phantom instead fails
@@ -260,22 +257,7 @@ pub fn v154_tcp_tls() -> TlsSettings {
 /// values, so this recipe also serves Brave 154 (see [`crate::browser::brave`]).
 #[must_use]
 pub fn v154_tcp() -> TcpSettings {
-    const KEEPALIVE: Duration = Duration::from_secs(45);
-
-    TcpSettings {
-        nodelay: true,
-        send_buffer_size: None,
-        keepalive: TcpKeepalivePolicy::Fixed(TcpKeepalive {
-            idle: KEEPALIVE,
-            interval: Some(KEEPALIVE),
-        }),
-        address_selection: TcpAddressSelection::Racing(TcpAddressRacing {
-            fallback_delay: Duration::from_millis(300),
-        }),
-        port_randomization: Some(TcpPortRandomization {
-            minimum_windows_build: 22_621,
-        }),
-    }
+    crate::catalog::tcp_components::chromium_154_tcp()
 }
 
 /// Returns the UDP socket options Chromium 154.0.8037.58 sets on Windows.

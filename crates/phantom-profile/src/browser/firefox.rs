@@ -23,7 +23,7 @@ mod android;
 
 pub use android::v156_android_tcp_tls;
 
-use std::{num::NonZeroU32, time::Duration};
+use std::time::Duration;
 
 use crate::{
     cookie::CookiePlacement,
@@ -36,10 +36,7 @@ use crate::{
     },
     quic::QuicTransportSettings,
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
-    tcp::{
-        TcpAddressSelection, TcpBackupConnection, TcpKeepalivePolicy, TcpKeepaliveSchedule,
-        TcpSettings,
-    },
+    tcp::TcpSettings,
     tls::TlsSettings,
     websocket::{
         WebSocketConnectionPolicy, WebSocketEmptyMessageCompression, WebSocketField,
@@ -135,7 +132,7 @@ pub fn v157_tcp_tls() -> TlsSettings {
 ///   `TCP_NODELAY` and, on Windows only, a 524,288-byte `SO_SNDBUF`
 ///   (`netwerk/base/nsSocketTransport2.cpp:1449-1465`,
 ///   `netwerk/base/nsSocketTransportService2.cpp:1536-1538`).
-/// - Keepalive follows [`TcpKeepaliveSchedule`] with the
+/// - Keepalive follows [`crate::TcpKeepaliveSchedule`] with the
 ///   `network.http.tcp_keepalive.*` defaults: 10 seconds idle while
 ///   short-lived, 600 seconds once long-lived, and a 60-second short-lived
 ///   time (`modules/libpref/init/all.js:1263-1270`). The probe interval is
@@ -149,7 +146,7 @@ pub fn v157_tcp_tls() -> TlsSettings {
 ///   restarts the short-lived period (`:686`), an idle pooled connection
 ///   stays short-lived (`:1411-1414`), HTTP/2 disables keepalive
 ///   (`:405-406`), and a WebSocket upgrade switches at once (`:1303-1320`).
-/// - Addresses are chosen as [`TcpBackupConnection`] describes. Release
+/// - Addresses are chosen as [`crate::TcpBackupConnection`] describes. Release
 ///   builds keep the newer Happy Eyeballs behind the nightly-only
 ///   `network.http.happy_eyeballs_enabled`
 ///   (`modules/libpref/init/StaticPrefList.yaml:17153-17156`), so
@@ -204,22 +201,7 @@ pub fn v157_tcp_tls() -> TlsSettings {
 ///   interval wherever it can and never sets a probe count.
 #[must_use]
 pub fn v157_tcp() -> TcpSettings {
-    TcpSettings {
-        nodelay: true,
-        send_buffer_size: NonZeroU32::new(524_288),
-        keepalive: TcpKeepalivePolicy::Schedule(TcpKeepaliveSchedule {
-            short_lived_idle: Duration::from_secs(10),
-            long_lived_idle: Duration::from_secs(600),
-            minimum_interval: Duration::from_secs(1),
-            short_lived_time: Duration::from_secs(60),
-            probe_count: 10,
-        }),
-        address_selection: TcpAddressSelection::Backup(TcpBackupConnection {
-            delay: Duration::from_millis(250),
-            known_family_backup_timeout: Some(Duration::from_secs(5)),
-        }),
-        port_randomization: None,
-    }
+    crate::catalog::tcp_components::firefox_157_tcp()
 }
 
 /// Returns the address cache of Firefox 157.0 release builds.

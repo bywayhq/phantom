@@ -13,6 +13,7 @@ Keep browser observations separate from recipe implementations.
 | `crates/phantom-profile/catalog/http1-components.json` | Typed HTTP/1.1 connection limits and timers |
 | `crates/phantom-profile/catalog/dns-components.json` | Typed DNS-cache capacity and lifetimes |
 | `crates/phantom-profile/catalog/udp-components.json` | Typed UDP socket policy |
+| `crates/phantom-profile/catalog/tcp-components.json` | Typed TCP socket and address policies |
 | `crates/phantom-profile/catalog/http2-components.json` | Typed HTTP/2 settings and field overrides |
 | `crates/phantom-profile/catalog/http3-components.json` | Typed HTTP/3 settings and field overrides |
 | `crates/phantom-profile/src/catalog.rs` | Selection, required layers, and typed recipe bindings |
@@ -22,6 +23,7 @@ Keep browser observations separate from recipe implementations.
 | `crates/phantom-profile/src/catalog/http1_components.rs` | Committed generated HTTP/1.1 values |
 | `crates/phantom-profile/src/catalog/dns_components.rs` | Committed generated DNS-cache values |
 | `crates/phantom-profile/src/catalog/udp_components.rs` | Committed generated UDP values |
+| `crates/phantom-profile/src/catalog/tcp_components.rs` | Committed generated TCP values |
 | `crates/phantom-profile/src/catalog/http2_components.rs` | Committed generated HTTP/2 values |
 | `crates/phantom-profile/src/catalog/http3_components.rs` | Committed generated HTTP/3 values |
 | `scripts/dev/generate_profiles.py` | Closed-schema validation and offline generation |
@@ -31,7 +33,7 @@ runtime. Discovery and exact lookup borrow static records. Instantiation
 calls the selected recipe factory and returns fresh owned settings.
 
 All existing TLS factories, core QUIC transport, HTTP/1.1, HTTP/2, HTTP/3,
-DNS-cache, and UDP settings use structured components. Other layers use
+DNS-cache, TCP, and UDP settings use structured components. Other layers use
 handwritten factories. Their migration and historical-version growth remain
 in the [roadmap](../roadmap.md). Request templates use explicit typed bindings; they
 have no separate evidence records.
@@ -97,10 +99,11 @@ python -m unittest discover -s scripts/dev/tests -p test_generate_http2_componen
 python -m unittest discover -s scripts/dev/tests -p test_generate_tls_components.py
 python -m unittest discover -s scripts/dev/tests -p test_generate_quic_components.py
 python -m unittest discover -s scripts/dev/tests -p test_generate_connection_components.py
+python -m unittest discover -s scripts/dev/tests -p test_generate_tcp_components.py
 ```
 
 Generation sorts identifiers and emits fields and layers in fixed orders.
-All eight generated files use `rustfmt::skip` to preserve their output.
+All nine generated files use `rustfmt::skip` to preserve their output.
 The generator rejects duplicate JSON keys and identifiers, unknown values,
 inconsistent metadata, missing or escaping files, unsupported absence claims,
 and observed fields without capture references.
@@ -194,6 +197,24 @@ they fit both 32-bit and 64-bit hosts. Generated nonzero values are checked
 in Rust const blocks. Invalid literals fail compilation. There is no runtime
 panic or replacement value. Custom typed settings retain their host-sized
 range; this declaration bound does not change their APIs.
+
+## Declare TCP components
+
+Chromium 154 and Firefox 157 have separate TCP definitions. Each keeps five
+fields: no-delay, optional send buffer, keepalive, address selection, and
+optional port randomization. Keepalive records select unchanged, fixed, or
+scheduled timing. Address records select sequential attempts, racing, or a
+backup connection. Their nested fields remain closed typed records.
+
+Whole-second keepalive limits, probe counts, fallback delays, backup timeouts,
+and the signed socket-option size follow native profile validation. Windows
+build thresholds retain their full `u32` range. Send-buffer constants undergo
+checked Rust const construction. Overrides replace complete nested policies.
+
+Generation does not open sockets, choose addresses, change timers, or draw
+random values. The transport still applies these policies on each connection.
+Frozen controls compare every original field and composed profile. Backend
+socket and timer checks remain separate from declaration validation.
 
 ## Declare HTTP/2 components
 

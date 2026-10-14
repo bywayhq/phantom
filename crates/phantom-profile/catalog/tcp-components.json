@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "components": [
+    {
+      "id": "chromium_154_tcp",
+      "kind": "TcpSettings",
+      "base": null,
+      "values": {
+        "nodelay": true,
+        "send_buffer_size": null,
+        "keepalive": {
+          "kind": "Fixed",
+          "idle": {
+            "seconds": 45,
+            "nanoseconds": 0
+          },
+          "interval": {
+            "seconds": 45,
+            "nanoseconds": 0
+          }
+        },
+        "address_selection": {
+          "kind": "Racing",
+          "fallback_delay": {
+            "seconds": 0,
+            "nanoseconds": 300000000
+          }
+        },
+        "port_randomization": {
+          "minimum_windows_build": 22621
+        }
+      }
+    },
+    {
+      "id": "firefox_157_tcp",
+      "kind": "TcpSettings",
+      "base": null,
+      "values": {
+        "nodelay": true,
+        "send_buffer_size": 524288,
+        "keepalive": {
+          "kind": "Schedule",
+          "short_lived_idle": {
+            "seconds": 10,
+            "nanoseconds": 0
+          },
+          "long_lived_idle": {
+            "seconds": 600,
+            "nanoseconds": 0
+          },
+          "minimum_interval": {
+            "seconds": 1,
+            "nanoseconds": 0
+          },
+          "short_lived_time": {
+            "seconds": 60,
+            "nanoseconds": 0
+          },
+          "probe_count": 10
+        },
+        "address_selection": {
+          "kind": "Backup",
+          "delay": {
+            "seconds": 0,
+            "nanoseconds": 250000000
+          },
+          "known_family_backup_timeout": {
+            "seconds": 5,
+            "nanoseconds": 0
+          }
+        },
+        "port_randomization": null
+      }
+    }
+  ]
+}
