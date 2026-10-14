@@ -1088,6 +1088,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Encode and validate bounded DNS-over-HTTPS messages with `DnsWireQuery`,
+  preserving answer order, alias limits, and DNS lifetimes.
+
 - Add explicit SOCKS4 and SOCKS4a routes with local or proxy DNS, optional
   user identification, and HTTP/1.1, HTTP/2, and WebSocket TCP tunnels.
   IPv6 targets and HTTP/3 fail before proxy I/O.

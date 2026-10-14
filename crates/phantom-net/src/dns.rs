@@ -9,7 +9,7 @@
 //! therefore sends its own DNS queries, over UDP with a TCP retry on
 //! truncation, to the system's configured nameservers or to explicit ones.
 //!
-//! Each query carries one question with only the recursion-desired flag set
+//! Each UDP query carries one question with only the recursion-desired flag set
 //! and no EDNS(0) OPT record, the shape of Chromium's insecure DNS queries.
 //! The query leaves from Phantom's process rather than the operating
 //! system's resolver, as Chromium's built-in DNS client sends its queries
@@ -42,6 +42,7 @@ mod address_lookup;
 mod ech_config;
 mod https_record;
 mod query_sockets;
+pub mod wire;
 
 pub(crate) use address_lookup::AddressLookup;
 use query_sockets::QuerySockets;
