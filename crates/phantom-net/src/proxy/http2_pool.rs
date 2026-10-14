@@ -31,6 +31,8 @@ use super::{
 };
 use crate::http2::Http2Connection;
 
+mod idle;
+
 /// Tunnels one HTTP/2 proxy connection carries before a pool that allows
 /// more than one connection per route opens another.
 ///
@@ -79,10 +81,11 @@ pub const MAX_HTTP2_PROXY_POOL_ROUTES: usize = 32;
 /// than each trying again in turn.
 ///
 /// Clones share one pool. It holds at most
-/// [`MAX_HTTP2_PROXY_POOL_ROUTES`] routes, and keeps an idle connection until
-/// the proxy closes it, its route is forgotten, or a new tunnel finds it
-/// past its idle limit ([`Http2Settings::idle_timeout`]). No timer closes
-/// it sooner.
+/// [`MAX_HTTP2_PROXY_POOL_ROUTES`] routes. A timer stops reusing a connection
+/// past its read-idle limit ([`Http2Settings::idle_timeout`]), even without
+/// another tunnel opening. Existing streams and caller-owned connection
+/// handles keep it alive until they end. Without an idle limit, the pool
+/// keeps it until the proxy closes it or its route is forgotten.
 ///
 /// [`Http2Settings::idle_timeout`]: phantom_profile::Http2Settings::idle_timeout
 /// [`HttpsProxyConnector::with_http2_proxy_pool`]: super::HttpsProxyConnector::with_http2_proxy_pool
@@ -192,16 +195,28 @@ impl Http2ProxyPool {
                     return Err(HttpConnectError::PooledSetupFailed { kind });
                 }
 
-                state.slots.retain(|slot| slot.connection.is_reusable());
+                if state.idle_failed {
+                    // Surface a failed background rearm before a caller can
+                    // explicitly retry and establish a newly timed connection.
+                    state.idle_failed = false;
+                    return Err(HttpConnectError::RuntimeUnavailable);
+                }
+
+                let retired = state.prune();
                 if let Choice::Use(index) = state.choose(self.max_connections.get())
                     && let Some(slot) = state.slots.get(index)
                 {
+                    let lease = slot.lease(&route, true);
+                    drop(state);
+                    drop(retired);
                     debug!(outcome = "hit", "HTTP/2 proxy connection reused");
-                    return Ok(slot.lease(&route, true));
+                    return Ok(lease);
                 }
                 if state.connecting.is_none() {
                     let (failed, attempt) = watch::channel(None);
                     state.connecting = Some(attempt);
+                    drop(state);
+                    drop(retired);
                     break SetupReservation {
                         route: &route,
                         failed,
@@ -209,12 +224,14 @@ impl Http2ProxyPool {
                     };
                 }
                 waited_for = state.connecting.clone();
+                drop(state);
+                drop(retired);
             }
             changed.await;
         };
         debug!(outcome = "connect", "HTTP/2 proxy pool opening connection");
         match open().await {
-            Ok(connection) => Ok(reservation.finish(connection)),
+            Ok(connection) => reservation.finish(connection),
             Err(error) => {
                 reservation.fail(error.kind());
                 Err(error)
@@ -312,6 +329,8 @@ struct RouteConnections {
     /// Woken when a setup finishes, fails, or is cancelled, and when a
     /// tunnel ends.
     changed: Notify,
+    #[cfg(test)]
+    fail_next_deadline: std::sync::atomic::AtomicBool,
 }
 
 impl RouteConnections {
@@ -327,6 +346,10 @@ struct RouteState {
     /// after a later setup replaces it. Success and cancellation close the
     /// channel without a failure; waiters then reuse or open a connection.
     connecting: Option<watch::Receiver<Option<HttpConnectErrorKind>>>,
+    idle: Option<idle::Deadline>,
+    /// A background rearm failed. The next acquisition observes the failure
+    /// before an explicit subsequent call can attempt a new setup.
+    idle_failed: bool,
 }
 
 enum Choice {
@@ -404,19 +427,37 @@ struct SetupReservation<'a> {
 }
 
 impl SetupReservation<'_> {
-    fn finish(mut self, connection: Http2Connection) -> PooledConnection {
-        self.finished = true;
+    fn finish(mut self, connection: Http2Connection) -> Result<PooledConnection, HttpConnectError> {
+        let mut state = self.route.lock();
+        if state.idle_failed {
+            state.idle_failed = false;
+            drop(state);
+            self.fail(HttpConnectErrorKind::RuntimeUnavailable);
+            return Err(HttpConnectError::RuntimeUnavailable);
+        }
+
         let slot = Slot {
             connection,
             tunnels: Arc::default(),
         };
+        // Arm before publishing the lease or successful setup. A route with
+        // a required idle limit cannot succeed without its timer.
         let lease = slot.lease(self.route, false);
-        let mut state = self.route.lock();
-        state.connecting = None;
         state.slots.push(slot);
+        if self.route.arm_idle(&mut state).is_err() {
+            let retired = state.remove_timed();
+            drop(state);
+            drop(retired);
+            drop(lease);
+            self.fail(HttpConnectErrorKind::RuntimeUnavailable);
+            return Err(HttpConnectError::RuntimeUnavailable);
+        }
+
+        self.finished = true;
+        state.connecting = None;
         drop(state);
         self.route.changed.notify_waiters();
-        lease
+        Ok(lease)
     }
 
     /// Records that this attempt failed with `kind`, for the tunnels that
@@ -454,10 +495,9 @@ impl PooledConnection {
     /// Tunnels already open on it keep it.
     pub(super) fn retire(&self) {
         let mut state = self.tunnel.route.lock();
-        state
-            .slots
-            .retain(|slot| !Arc::ptr_eq(&slot.tunnels, &self.tunnel.tunnels));
+        let retired = state.remove_matching(&self.tunnel.tunnels);
         drop(state);
+        drop(retired);
         debug!(outcome = "retired", "HTTP/2 proxy connection retired");
     }
 

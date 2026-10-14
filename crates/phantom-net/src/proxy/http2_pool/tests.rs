@@ -23,6 +23,8 @@ use crate::{
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
+mod idle;
+
 fn key(settings: &ConnectionSettingsId) -> RouteKey {
     RouteKey::new(settings, "proxy.test", 443, "proxy.test", None)
 }

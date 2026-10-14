@@ -45,6 +45,7 @@ use crate::support::tunnel_proxy::{ConnectionPeer, finish_with_cleanup};
 use peer_contract::{TaskProbe, TaskRole};
 
 mod deadline_contract;
+mod idle_contract;
 mod listener_contract;
 mod origin_contract;
 pub(super) mod outcome_contract;

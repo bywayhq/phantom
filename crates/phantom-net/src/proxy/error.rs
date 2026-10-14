@@ -108,7 +108,7 @@ pub enum HttpConnectError {
         /// Zero-based position in the caller-supplied field list.
         index: usize,
     },
-    /// The proxy request was polled outside a Tokio runtime.
+    /// A runtime required by the proxy request or its idle timer is unavailable.
     RuntimeUnavailable,
     /// Establishing the TCP connection to the proxy failed.
     Connect(std::io::Error),
@@ -301,7 +301,7 @@ impl fmt::Display for HttpConnectError {
                 "HTTP/2 CONNECT field {index} is connection-specific"
             ),
             Self::RuntimeUnavailable => {
-                formatter.write_str("HTTP CONNECT requires a Tokio runtime")
+                formatter.write_str("HTTP CONNECT required runtime is unavailable")
             }
             Self::Connect(_) => formatter.write_str("proxy TCP connection failed"),
             Self::ProxyTls(_) => formatter.write_str("proxy TLS negotiation failed"),
@@ -368,7 +368,7 @@ impl HttpConnectErrorKind {
             Self::InvalidConfiguration => "invalid proxy configuration",
             Self::InvalidRequest => "invalid CONNECT request",
             Self::Authentication => "proxy authentication failure",
-            Self::RuntimeUnavailable => "no Tokio runtime",
+            Self::RuntimeUnavailable => "required runtime unavailable",
             Self::Connect => "proxy connect failure",
             Self::Tls => "proxy TLS failure",
             Self::UnsupportedProtocol => "unsupported proxy protocol",
