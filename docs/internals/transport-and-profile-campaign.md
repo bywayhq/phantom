@@ -138,7 +138,7 @@ demonstrated requirement. Do not assert a runtime bottleneck without data.
   explicit errors for unsupported settings. A JA3/JA4 hash or lossy TLS
   description cannot reconstruct a complete browser profile. Distinguish
   partial custom settings from a validated catalog recipe.
-- [ ] F3: Add SOCKS4 and SOCKS4a with explicit route capabilities, bounded
+- [x] F3: Add SOCKS4 and SOCKS4a with explicit route capabilities, bounded
   negotiation, and owned cancellation. Verify local versus proxy name
   resolution. Reject unsupported HTTP/3 use before proxy I/O.
 - [ ] F4: Add Digest proxy authentication with challenge, nonce, stale,
