@@ -8,18 +8,20 @@ Keep browser observations separate from recipe implementations.
 | File | Responsibility |
 | --- | --- |
 | `crates/phantom-profile/catalog/profiles.json` | Recipe identities and layer evidence |
+| `crates/phantom-profile/catalog/http3-components.json` | Typed HTTP/3 settings and field overrides |
 | `crates/phantom-profile/src/catalog.rs` | Selection, required layers, and typed recipe bindings |
 | `crates/phantom-profile/src/catalog/generated.rs` | Committed generated records |
+| `crates/phantom-profile/src/catalog/http3_components.rs` | Committed generated HTTP/3 values |
 | `scripts/dev/generate_profiles.py` | Closed-schema validation and offline generation |
 
 Cargo uses the committed registry. It does not run Python or read JSON at
 runtime. Discovery and exact lookup borrow static records. Instantiation
 calls the selected recipe factory and returns fresh owned settings.
 
-This is the registration foundation. Structured generation of recipe values,
-component reuse, and historical-version growth remain in the
-[roadmap](../roadmap.md). Request templates currently
-use explicit typed bindings; they have no separate catalog evidence records.
+HTTP/3 settings and request settings use structured components. Other layers
+still use handwritten factories. Their migration and historical-version
+growth remain in the [roadmap](../roadmap.md). Request templates use explicit
+typed bindings; they have no separate catalog evidence records.
 
 ## Identity and composition
 
@@ -77,10 +79,11 @@ revision, and configured layers.
 python scripts/dev/generate_profiles.py
 python scripts/dev/generate_profiles.py --check
 python -m unittest discover -s scripts/dev/tests -p test_generate_profiles.py
+python -m unittest discover -s scripts/dev/tests -p test_generate_profile_components.py
 ```
 
-Generation sorts identifiers and emits layers in a fixed order. The generated
-table has `rustfmt::skip` so formatting does not rewrite declaration output.
+Generation sorts identifiers and emits fields and layers in fixed orders.
+Both generated files use `rustfmt::skip` so formatting preserves their output.
 The generator rejects duplicate JSON keys and identifiers, unknown values,
 inconsistent metadata, missing or escaping files, unsupported absence claims,
 and observed fields without capture references.
@@ -88,13 +91,47 @@ and observed fields without capture references.
 Input limits bound local tooling: 16 MiB of JSON, 4,096 definitions, nesting
 depth 16, strings of 4,096 characters, 16 references per layer, and 64 entries
 per field or limitation list. These are resource ceilings, not measured corpus
-performance targets. The current records still repeat metadata; component
-migration and measurement will assess that cost.
+performance targets. The current records still repeat metadata; further
+component migration and measurement will assess that cost.
 
-The full gate and CI run the generator's tests, which also reject a stale
-committed registry. Run profile tests through the Cargo lock helper. Compare
+The full gate and CI run the generator's tests, which reject either stale
+generated file. Run profile tests through the Cargo lock helper. Compare
 all stored settings and ordering against existing factories, then run the
 affected backend replays before integrating a settings migration.
+
+## Declare HTTP/3 components
+
+Each component names a concrete `Http3Settings` or `Http3RequestSettings`
+value. It has an identifier, a kind, an optional base, and explicit values.
+A component without a base supplies every field. A derived component inherits
+only from the same kind and replaces each field it overrides. Ordered lists
+are replaced whole; their items are never merged or sorted.
+
+The current declaration has four components: Chromium 154 and Firefox 157
+connection and request settings. Firefox request settings inherit the absent
+extended CONNECT order from Chromium. They explicitly replace the ordinary
+header order, cookie splitting, and `Alt-Used` policy. Existing Chromium
+brand and Android factories continue to reuse Chromium's compiled values.
+
+The generator resolves inheritance offline and emits owned Rust settings.
+Public factories keep their signatures. You can customize the returned
+values without changing another instance. Runtime policies such as
+`RandomizedGrease` remain enum variants; generation and construction perform
+no random draws.
+
+Identifiers are bounded Rust names, not callable paths. Field names, enums,
+setting kinds, and header kinds come from closed lists. Validation rejects
+unknown references, cycles, incompatible kinds, invalid numbers, duplicate
+settings, invalid header orders, and unsupported WebTransport. It also checks
+the draft datagram dependency. Limits allow 4,096 components, 32 components
+per inheritance chain, and 64 initial settings. The JSON byte and nesting
+limits also apply to this declaration file.
+
+The source migration keeps independent literal controls from its original
+revision. Those tests compare every stored field and ordering, including
+draw policies. Existing capture and backend replay tests check wire behavior.
+The component declaration supplies implementation values; it adds no browser
+observation claim. Layer evidence remains in the registry and factory docs.
 
 ## Next
 

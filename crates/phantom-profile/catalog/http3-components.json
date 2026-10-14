@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "components": [
+    {
+      "id": "chromium_154_http3",
+      "kind": "Http3Settings",
+      "base": null,
+      "values": {
+        "initial_settings": [
+          {"kind": "QpackMaxTableCapacity", "value": 65536},
+          {"kind": "MaxFieldSectionSize", "value": 262144},
+          {"kind": "QpackBlockedStreams", "value": 100},
+          {"kind": "H3Datagram", "value": true},
+          {"kind": "RandomizedGrease", "value": null}
+        ],
+        "setting_order": "Ascending",
+        "qpack_encoding": "Dynamic",
+        "qpack_decoder_stream": "OnFeedback",
+        "qpack_encoder_stream": "OnFirstInstruction",
+        "qpack_stream_order": "DecoderFirst",
+        "reserved_frame_after_settings": false
+      }
+    },
+    {
+      "id": "chromium_154_http3_request",
+      "kind": "Http3RequestSettings",
+      "base": null,
+      "values": {
+        "pseudo_header_order": ["Method", "Authority", "Scheme", "Path"],
+        "extended_connect_pseudo_header_order": null,
+        "cookie_crumbs": "Split",
+        "alt_used": "Omit"
+      }
+    },
+    {
+      "id": "firefox_157_http3",
+      "kind": "Http3Settings",
+      "base": null,
+      "values": {
+        "initial_settings": [
+          {"kind": "QpackMaxTableCapacity", "value": 65536},
+          {"kind": "QpackBlockedStreams", "value": 20},
+          {"kind": "EnableWebTransportDraft02", "value": false},
+          {"kind": "H3DatagramDraft04", "value": true},
+          {"kind": "H3Datagram", "value": true},
+          {"kind": "EnableConnectProtocol", "value": true}
+        ],
+        "setting_order": "Fixed",
+        "qpack_encoding": "DynamicUnmatchedNames",
+        "qpack_decoder_stream": "Eager",
+        "qpack_encoder_stream": "Eager",
+        "qpack_stream_order": "EncoderFirst",
+        "reserved_frame_after_settings": true
+      }
+    },
+    {
+      "id": "firefox_157_http3_request",
+      "kind": "Http3RequestSettings",
+      "base": "chromium_154_http3_request",
+      "values": {
+        "pseudo_header_order": ["Method", "Scheme", "Authority", "Path"],
+        "cookie_crumbs": "Whole",
+        "alt_used": "Append"
+      }
+    }
+  ]
+}

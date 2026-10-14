@@ -1,4 +1,4 @@
-"""Validate catalog records and generate the committed Rust registry offline."""
+"""Validate catalog records and typed components, then generate Rust offline."""
 
 import argparse
 import json
@@ -10,6 +10,8 @@ from urllib.parse import urlsplit
 REPO = Path(__file__).resolve().parents[2]
 RECORDS = REPO / "crates/phantom-profile/catalog/profiles.json"
 OUTPUT = REPO / "crates/phantom-profile/src/catalog/generated.rs"
+COMPONENT_RECORDS = REPO / "crates/phantom-profile/catalog/http3-components.json"
+COMPONENT_OUTPUT = REPO / "crates/phantom-profile/src/catalog/http3_components.rs"
 
 # Resource ceilings for local declarations, not corpus performance claims.
 MAX_BYTES = 16 * 1024 * 1024
@@ -17,6 +19,108 @@ MAX_PROFILES = 4096
 MAX_DEPTH = 16
 MAX_STRING = 4096
 MAX_REFERENCES = 16
+MAX_COMPONENTS = 4096
+MAX_COMPONENT_CHAIN = 32
+MAX_VARINT = (1 << 62) - 1
+MAX_QPACK_TABLE_CAPACITY = (1 << 30) - 1
+COMPONENT_FIELDS = {
+    "Http3Settings": (
+        "initial_settings",
+        "setting_order",
+        "qpack_encoding",
+        "qpack_decoder_stream",
+        "qpack_encoder_stream",
+        "qpack_stream_order",
+        "reserved_frame_after_settings",
+    ),
+    "Http3RequestSettings": (
+        "pseudo_header_order",
+        "extended_connect_pseudo_header_order",
+        "cookie_crumbs",
+        "alt_used",
+    ),
+}
+COMPONENT_ENUMS = {
+    "setting_order": ("Http3SettingOrder", ("Fixed", "Ascending")),
+    "qpack_encoding": (
+        "Http3QpackEncoding",
+        ("Stateless", "Dynamic", "DynamicUnmatchedNames"),
+    ),
+    "qpack_decoder_stream": ("Http3QpackDecoderStream", ("Eager", "OnFeedback")),
+    "qpack_encoder_stream": (
+        "Http3QpackEncoderStream",
+        ("Eager", "OnFirstInstruction"),
+    ),
+    "qpack_stream_order": ("Http3QpackStreamOrder", ("EncoderFirst", "DecoderFirst")),
+    "cookie_crumbs": ("Http3CookieCrumbs", ("Whole", "Split")),
+    "alt_used": ("Http3AltUsed", ("Omit", "Append")),
+}
+SETTING_BOUNDS = {
+    "QpackMaxTableCapacity": MAX_QPACK_TABLE_CAPACITY,
+    "MaxFieldSectionSize": MAX_VARINT,
+    "QpackBlockedStreams": MAX_VARINT,
+}
+BOOL_SETTINGS = {
+    "H3Datagram",
+    "EnableConnectProtocol",
+    "EnableWebTransportDraft02",
+    "H3DatagramDraft04",
+}
+PSEUDO_HEADERS = ("Method", "Authority", "Scheme", "Path", "Protocol")
+RUST_KEYWORDS = {
+    "as",
+    "async",
+    "await",
+    "break",
+    "const",
+    "continue",
+    "crate",
+    "dyn",
+    "else",
+    "enum",
+    "extern",
+    "false",
+    "fn",
+    "for",
+    "if",
+    "impl",
+    "in",
+    "let",
+    "loop",
+    "match",
+    "mod",
+    "move",
+    "mut",
+    "pub",
+    "ref",
+    "return",
+    "self",
+    "static",
+    "struct",
+    "super",
+    "trait",
+    "true",
+    "type",
+    "unsafe",
+    "use",
+    "where",
+    "while",
+    "abstract",
+    "become",
+    "box",
+    "do",
+    "final",
+    "gen",
+    "macro",
+    "override",
+    "priv",
+    "try",
+    "typeof",
+    "unsized",
+    "virtual",
+    "yield",
+    "union",
+}
 LAYERS = (
     "TcpTls",
     "Tcp",
@@ -308,16 +412,201 @@ def validate(document, repo=REPO):
     return sorted(profiles, key=lambda entry: entry["id"])
 
 
-def load(path=RECORDS, repo=REPO):
+def read_document(path):
     with path.open("rb") as source:
         raw = source.read(MAX_BYTES + 1)
     if len(raw) > MAX_BYTES:
         raise DeclarationError("catalog input byte limit exceeded")
     try:
-        document = json.loads(raw, object_pairs_hook=object_pairs)
-    except (UnicodeError, json.JSONDecodeError, RecursionError) as error:
+        return json.loads(raw, object_pairs_hook=object_pairs)
+    except (UnicodeError, ValueError, RecursionError) as error:
         raise DeclarationError(f"invalid catalog JSON: {error}") from error
-    return validate(document, repo)
+
+
+def load(path=RECORDS, repo=REPO):
+    return validate(read_document(path), repo)
+
+
+def component_identifier(value):
+    text(value, "component identifier")
+    if not re.fullmatch(r"[a-z][a-z0-9_]{0,63}", value) or value in RUST_KEYWORDS:
+        raise DeclarationError("component identifier must be a non-keyword Rust name")
+    return value
+
+
+def boolean(value, context):
+    if type(value) is not bool:
+        raise DeclarationError(f"{context}: expected boolean")
+
+
+def validate_initial_settings(settings):
+    if not isinstance(settings, list) or len(settings) > 64:
+        raise DeclarationError("initial_settings: expected at most 64 settings")
+    kinds = {}
+    for setting in settings:
+        keys(setting, ("kind", "value"), "HTTP/3 setting")
+        kind = choice(
+            setting["kind"],
+            (*SETTING_BOUNDS, *BOOL_SETTINGS, "RandomizedGrease"),
+            "HTTP/3 setting kind",
+        )
+        if kind in kinds:
+            raise DeclarationError(f"duplicate HTTP/3 setting: {kind}")
+        value = setting["value"]
+        kinds[kind] = value
+        if kind in SETTING_BOUNDS:
+            if type(value) is not int or not 0 <= value <= SETTING_BOUNDS[kind]:
+                raise DeclarationError(f"{kind}: HTTP/3 setting value out of range")
+        elif kind in BOOL_SETTINGS:
+            boolean(value, kind)
+        elif value is not None:
+            raise DeclarationError(
+                "RandomizedGrease is a runtime policy without a value"
+            )
+    if kinds.get("EnableWebTransportDraft02"):
+        raise DeclarationError("WebTransport is not implemented")
+    if kinds.get("H3DatagramDraft04") and not kinds.get("H3Datagram"):
+        raise DeclarationError("draft datagrams require final H3Datagram enabled")
+
+
+def validate_pseudo_headers(order, extended):
+    required = set(PSEUDO_HEADERS if extended else PSEUDO_HEADERS[:-1])
+    if not isinstance(order, list) or len(order) != len(required):
+        raise DeclarationError("pseudo-header order has an invalid length")
+    for header in order:
+        choice(header, required, "HTTP/3 pseudo-header")
+    if set(order) != required:
+        raise DeclarationError("pseudo-header order must contain each header once")
+
+
+def validate_component_values(kind, values):
+    keys(values, COMPONENT_FIELDS[kind], kind)
+    for field, value in values.items():
+        if field in COMPONENT_ENUMS:
+            choice(value, COMPONENT_ENUMS[field][1], field)
+        elif field == "initial_settings":
+            validate_initial_settings(value)
+        elif field == "reserved_frame_after_settings":
+            boolean(value, field)
+        elif field == "pseudo_header_order":
+            validate_pseudo_headers(value, False)
+        elif value is not None:
+            validate_pseudo_headers(value, True)
+
+
+def validate_components(document):
+    check_depth(document)
+    keys(document, ("schema", "components"), "components")
+    if type(document["schema"]) is not int or document["schema"] != 1:
+        raise DeclarationError("unsupported component schema")
+    components = document["components"]
+    if not isinstance(components, list) or not 0 < len(components) <= MAX_COMPONENTS:
+        raise DeclarationError("component count is outside declaration limits")
+    by_id = {}
+    for component in components:
+        keys(component, ("id", "kind", "base", "values"), "component")
+        identifier = component_identifier(component["id"])
+        if identifier in by_id:
+            raise DeclarationError(f"duplicate component identifier: {identifier}")
+        kind = choice(component["kind"], COMPONENT_FIELDS, "component kind")
+        if component["base"] is not None:
+            component_identifier(component["base"])
+        values = component["values"]
+        if not isinstance(values, dict) or not set(values) <= set(
+            COMPONENT_FIELDS[kind]
+        ):
+            raise DeclarationError(f"{identifier}: unknown component override field")
+        by_id[identifier] = component
+
+    resolved = {}
+    chain_lengths = {}
+
+    def resolve(identifier, ancestors=()):
+        if identifier in ancestors:
+            raise DeclarationError("component reference cycle")
+        if len(ancestors) >= MAX_COMPONENT_CHAIN:
+            raise DeclarationError("component inheritance depth limit exceeded")
+        if identifier not in by_id:
+            raise DeclarationError(f"unknown component reference: {identifier}")
+        if identifier in resolved:
+            if len(ancestors) + chain_lengths[identifier] > MAX_COMPONENT_CHAIN:
+                raise DeclarationError("component inheritance depth limit exceeded")
+            return resolved[identifier]
+        component = by_id[identifier]
+        kind = component["kind"]
+        values = {}
+        chain_length = 1
+        if component["base"] is not None:
+            base = resolve(component["base"], (*ancestors, identifier))
+            if base["kind"] != kind:
+                raise DeclarationError(
+                    f"{identifier}: incompatible base component kind"
+                )
+            values.update(base["values"])
+            chain_length += chain_lengths[base["id"]]
+        if chain_length > MAX_COMPONENT_CHAIN:
+            raise DeclarationError("component inheritance depth limit exceeded")
+        # An override replaces one complete typed field, including ordered lists.
+        values.update(component["values"])
+        validate_component_values(kind, values)
+        resolved[identifier] = {"id": identifier, "kind": kind, "values": values}
+        chain_lengths[identifier] = chain_length
+        return resolved[identifier]
+
+    return [resolve(identifier) for identifier in sorted(by_id)]
+
+
+def load_components(path=COMPONENT_RECORDS):
+    return validate_components(read_document(path))
+
+
+def rust_header_order(headers):
+    return (
+        "vec!["
+        + ", ".join(f"crate::Http3PseudoHeader::{item}" for item in headers)
+        + "]"
+    )
+
+
+def rust_component_value(field, value):
+    if field in COMPONENT_ENUMS:
+        return f"crate::{COMPONENT_ENUMS[field][0]}::{value}"
+    if field == "reserved_frame_after_settings":
+        return str(value).lower()
+    if field == "pseudo_header_order":
+        return rust_header_order(value)
+    if field == "extended_connect_pseudo_header_order":
+        return "None" if value is None else f"Some({rust_header_order(value)})"
+    settings = []
+    for setting in value:
+        kind, argument = setting["kind"], setting["value"]
+        expression = f"crate::Http3Setting::{kind}"
+        if kind != "RandomizedGrease":
+            expression += f"({str(argument).lower()})"
+        settings.append(expression)
+    return "vec![" + ", ".join(settings) + "]"
+
+
+def generate_components(components):
+    lines = [
+        "// Generated by scripts/dev/generate_profiles.py; edit catalog/http3-components.json.",
+        "// Runtime draw policies remain enum variants; construction performs no draws.",
+        "",
+    ]
+    for component in components:
+        kind = component["kind"]
+        lines.extend(
+            [
+                "#[rustfmt::skip]",
+                f"pub(crate) fn {component['id']}() -> crate::{kind} {{",
+                f"    crate::{kind} {{",
+            ]
+        )
+        for field in COMPONENT_FIELDS[kind]:
+            expression = rust_component_value(field, component["values"][field])
+            lines.append(f"        {field}: {expression},")
+        lines.extend(["    }", "}", ""])
+    return "\n".join(lines)
 
 
 def rust_string(value):
@@ -407,19 +696,26 @@ def generate(profiles):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--check", action="store_true", help="reject a stale committed registry"
+        "--check", action="store_true", help="reject stale committed generated files"
     )
     arguments = parser.parse_args()
     try:
-        generated = generate(load())
-        if arguments.check:
-            if not OUTPUT.is_file() or OUTPUT.read_text(encoding="utf-8") != generated:
-                raise DeclarationError(
-                    "catalog registry is stale; run generate_profiles.py"
-                )
-        else:
-            OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-            OUTPUT.write_text(generated, encoding="utf-8", newline="\n")
+        outputs = (
+            (OUTPUT, generate(load())),
+            (COMPONENT_OUTPUT, generate_components(load_components())),
+        )
+        for output, generated in outputs:
+            if arguments.check:
+                if (
+                    not output.is_file()
+                    or output.read_text(encoding="utf-8") != generated
+                ):
+                    raise DeclarationError(
+                        f"{output.name} is stale; run generate_profiles.py"
+                    )
+            else:
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_text(generated, encoding="utf-8", newline="\n")
     except (DeclarationError, OSError) as error:
         print(f"catalog generation failed: {error}", file=sys.stderr)
         return 1

@@ -38,11 +38,7 @@ use crate::{
         Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings, Http2StaticNameIndex,
         Http2StreamSettings, Http2TableSizeUpdates, Http2UnindexedMatch,
     },
-    http3::{
-        Http3AltUsed, Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream,
-        Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings,
-        Http3Setting, Http3SettingOrder, Http3Settings,
-    },
+    http3::{Http3RequestSettings, Http3Settings},
     proxy_connect::{
         Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate,
     },
@@ -912,26 +908,11 @@ pub fn v157_quic() -> QuicTransportSettings {
 /// the decoder stream as 10, each with its type in the first frame. The
 /// encoder stream's first frame carried the Set Dynamic Table Capacity
 /// instruction for the server's 4096-byte table with the type. The QPACK
-/// encoding follows neqo: see [`Http3QpackEncoding::DynamicUnmatchedNames`],
+/// encoding follows neqo: see [`crate::Http3QpackEncoding::DynamicUnmatchedNames`],
 /// whose unit test reproduces the captured encoder stream and field sections.
 #[must_use]
 pub fn v157_http3() -> Http3Settings {
-    Http3Settings {
-        initial_settings: vec![
-            Http3Setting::QpackMaxTableCapacity(65_536),
-            Http3Setting::QpackBlockedStreams(20),
-            Http3Setting::EnableWebTransportDraft02(false),
-            Http3Setting::H3DatagramDraft04(true),
-            Http3Setting::H3Datagram(true),
-            Http3Setting::EnableConnectProtocol(true),
-        ],
-        setting_order: Http3SettingOrder::Fixed,
-        qpack_encoding: Http3QpackEncoding::DynamicUnmatchedNames,
-        qpack_decoder_stream: Http3QpackDecoderStream::Eager,
-        qpack_encoder_stream: Http3QpackEncoderStream::Eager,
-        qpack_stream_order: Http3QpackStreamOrder::EncoderFirst,
-        reserved_frame_after_settings: true,
-    }
+    crate::catalog::http3_components::firefox_157_http3()
 }
 
 /// Returns HTTP/3 request ordering observed from Firefox 157.0 on Windows 11.
@@ -940,10 +921,10 @@ pub fn v157_http3() -> Http3Settings {
 /// and `:path` in that order. No capture backs an HTTP/3 extended CONNECT,
 /// so [`Http3RequestSettings::extended_connect_pseudo_header_order`] is
 /// `None`. The retained cookie captures (`fixtures/cookies/firefox/`) show
-/// one joined `cookie` field over HTTP/3 ([`Http3CookieCrumbs::Whole`]).
+/// one joined `cookie` field over HTTP/3 ([`crate::Http3CookieCrumbs::Whole`]).
 ///
 /// A request to an alternative service carries `Alt-Used`
-/// ([`Http3AltUsed::Append`]): Firefox names the field in
+/// ([`crate::Http3AltUsed::Append`]): Firefox names the field in
 /// `netwerk/protocol/http/nsHttpAtomList.inc` (`Alternate_Service_Used`).
 /// The retained cookie captures carry it on every HTTP/3 request, and the
 /// snapshots on the fetch that follows the first navigation over HTTP/3,
@@ -952,17 +933,7 @@ pub fn v157_http3() -> Http3Settings {
 /// after `referer` when there is one.
 #[must_use]
 pub fn v157_http3_request() -> Http3RequestSettings {
-    Http3RequestSettings {
-        pseudo_header_order: vec![
-            Http3PseudoHeader::Method,
-            Http3PseudoHeader::Scheme,
-            Http3PseudoHeader::Authority,
-            Http3PseudoHeader::Path,
-        ],
-        extended_connect_pseudo_header_order: None,
-        cookie_crumbs: Http3CookieCrumbs::Whole,
-        alt_used: Http3AltUsed::Append,
-    }
+    crate::catalog::http3_components::firefox_157_http3_request()
 }
 
 const V157_ACCEPT_ENCODING: &str = "gzip, deflate, br, zstd";

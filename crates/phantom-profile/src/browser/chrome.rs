@@ -56,11 +56,7 @@ use crate::{
         Http2SensitiveProxyAuthorization, Http2Setting, Http2Settings, Http2StaticNameIndex,
         Http2StreamSettings, Http2TableSizeUpdates, Http2UnindexedMatch,
     },
-    http3::{
-        Http3AltUsed, Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream,
-        Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder, Http3RequestSettings,
-        Http3Setting, Http3SettingOrder, Http3Settings,
-    },
+    http3::{Http3RequestSettings, Http3Settings},
     proxy_connect::{
         Http2ProxyConnections, Http2RejectedConnect, ProxyConnectField, ProxyConnectTemplate,
     },
@@ -1246,21 +1242,7 @@ fn v154_fetch_lists(user_agent: Option<&str>, cache: FetchCache) -> RequestTempl
 /// customized before constructing a transport.
 #[must_use]
 pub fn v154_http3() -> Http3Settings {
-    Http3Settings {
-        initial_settings: vec![
-            Http3Setting::QpackMaxTableCapacity(65_536),
-            Http3Setting::MaxFieldSectionSize(262_144),
-            Http3Setting::QpackBlockedStreams(100),
-            Http3Setting::H3Datagram(true),
-            Http3Setting::RandomizedGrease,
-        ],
-        setting_order: Http3SettingOrder::Ascending,
-        qpack_encoding: Http3QpackEncoding::Dynamic,
-        qpack_decoder_stream: Http3QpackDecoderStream::OnFeedback,
-        qpack_encoder_stream: Http3QpackEncoderStream::OnFirstInstruction,
-        qpack_stream_order: Http3QpackStreamOrder::DecoderFirst,
-        reserved_frame_after_settings: false,
-    }
+    crate::catalog::http3_components::chromium_154_http3()
 }
 
 /// Returns TLS settings for the Chrome 154.0.8037.58 HTTP/3 offer on Windows 11.
@@ -1338,13 +1320,13 @@ pub fn v154_quic_tls() -> TlsSettings {
 /// [`Http3RequestSettings::extended_connect_pseudo_header_order`] is `None`.
 ///
 /// Each `cookie` field is split into one field per cookie
-/// ([`Http3CookieCrumbs::Split`]). The retained cookie captures
+/// ([`crate::Http3CookieCrumbs::Split`]). The retained cookie captures
 /// (`fixtures/cookies/`) show Chrome 154, Edge 154, Brave 154, and Opera 136
 /// inserting each crumb into the QPACK dynamic table with a static name
 /// reference and sending it as an indexed field line, at the position of the
 /// joined field.
 ///
-/// No request carries `Alt-Used` ([`Http3AltUsed::Omit`]), not even one sent
+/// No request carries `Alt-Used` ([`crate::Http3AltUsed::Omit`]), not even one sent
 /// to an alternative service. The retained Chrome 154 snapshots
 /// (`fixtures/client-hints/chrome/154.0.8037.97/`) send a navigation and a
 /// fetch over HTTP/3 to an alternative learned from Alt-Svc without it. At
@@ -1360,17 +1342,7 @@ pub fn v154_quic_tls() -> TlsSettings {
 /// (`net/spdy/spdy_http_utils.cc` lines 199-238).
 #[must_use]
 pub fn v154_http3_request() -> Http3RequestSettings {
-    Http3RequestSettings {
-        pseudo_header_order: vec![
-            Http3PseudoHeader::Method,
-            Http3PseudoHeader::Authority,
-            Http3PseudoHeader::Scheme,
-            Http3PseudoHeader::Path,
-        ],
-        extended_connect_pseudo_header_order: None,
-        cookie_crumbs: Http3CookieCrumbs::Split,
-        alt_used: Http3AltUsed::Omit,
-    }
+    crate::catalog::http3_components::chromium_154_http3_request()
 }
 
 /// Returns QUIC transport settings observed from Chrome 154.0.8037.58 on Windows 11.
