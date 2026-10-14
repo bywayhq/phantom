@@ -465,7 +465,7 @@ fn malformed_or_rejected_credentials_are_recoverable_and_redacted() -> TestResul
 #[test]
 fn proxy_schemes_and_paths_use_typed_errors_without_direct_fallback() -> TestResult {
     for value in [
-        "socks4://proxy.example",
+        "socks6://proxy.example",
         "masque://proxy.example",
         "ftp://proxy.example",
     ] {

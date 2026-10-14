@@ -113,7 +113,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
             ],
         ),
         "proxies": (
-            "HTTP CONNECT, forwarding, and SOCKS5 proxy routes",
+            "HTTP CONNECT, forwarding, and SOCKS proxy routes",
             [
                 "configuration_errors",
                 "environment",
@@ -124,6 +124,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "proxy_field_order",
                 "proxy_h2",
                 "proxy_h2_multiplex",
+                "socks4",
                 "socks5",
                 "socks5_local",
             ],
