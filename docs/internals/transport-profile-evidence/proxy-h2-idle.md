@@ -38,10 +38,22 @@ the peer could read GOAWAY. The original failure and a separate trace are
 retained in `proxy-h2-idle-ecadb639-failed-gate/` and
 `proxy-idle-diagnostic-ecad/` under the same archive parent.
 
-A native guard is being checked against identical manual-clock controls on
-old and repaired source. It stops new idle probes after the final reference
-is dropped while retaining the existing reset flush. Its outcome and the
-unchanged proxy control must be verified before integration.
+A native guard at `2bd1f082` stops new idle probes after the final reference
+is dropped while retaining the existing reset flush. With identical
+manual-clock assertions, the old source emitted PING before the required
+GOAWAY. The repaired source passed that control and the retained-sender
+control. All 52 client tests and the native Rust 1.88 check passed.
+
+The unchanged proxy test also passed with GOAWAY and EOF after acknowledged
+PINGs. Required vendor checks passed: HTTP/2 ran 219 executions across 167
+distinct passing tests; its existing ignored test remains. The dependent
+HTTP implementation passed 64 tests. Source, logs and binaries are retained
+in `idle-ping-2bd1f082-focused-final-v2/` under the same archive parent.
+
+An additional standalone HTTP/2 Clippy check failed on 13 diagnostics at
+unchanged parent source lines. The diagnostic mapping and full log are
+retained without suppression. The workspace's strict Clippy check remains
+required in the final integration gate, along with platform CI.
 
 Firefox's idle policy follows source. A browser idle-closure capture is still
 absent. These loopback controls establish Phantom's behavior. Buffered DATA

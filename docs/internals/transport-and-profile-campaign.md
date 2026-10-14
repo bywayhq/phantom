@@ -55,9 +55,9 @@ copying execution journals into this page.
 | F1 | `ticket-transfer` | Clearing, frozen stores, strict native decoding, and authenticated TCP publication pass focused checks. The reviewed lane is rebased on `6f6426f4`; scoped QUIC publication awaits native verification. Transfer encoding and full policy bindings remain. |
 | F3 | `socks4-integration` | SOCKS4/4a merged in PR #215 after the exact-head full gate and macOS/Windows CI. Main push CI passed. |
 | F4 | `digest-integration` | Digest merged in PR #218 after the full gate and platform CI. Enterprise contracts are recorded. PR #220 repaired the cookie and shared-port fixtures; main push CI passed. |
-| F5 | `doh-wire` | The bounded wire codec is committed at `edecd611`, with 78 DNS tests passing. Caller-reported DNS lifetimes await compilation and review. DoH transport and alternate-host discovery remain. |
+| F5 | `doh-wire` | The bounded wire codec is committed at `edecd611`. Caller-reported DNS lifetimes passed independent review, 160 focused tests, strict Clippy, default and Rust 1.88 builds. Rustdoc and delivery remain, as do DoH transport and alternate-host discovery. |
 | F8 | `http3-debug-auth` | Origin opt-in merged in PR #219 after independent review, all 22 gate steps, 4,643 Rust tests, and 43 green PR checks at `6f6426f4`. |
-| B2 | `proxy-h2-idle-integration` | The integration gate passed 21 steps but exposed a PING acknowledgment write during retirement. A native retirement guard is under causal verification. Integration and CI remain; Alt-Used and WINDOW_UPDATE stay separate. |
+| B2 | `proxy-h2-idle-integration` | The gate exposed a PING acknowledgment write during retirement. The guard at `2bd1f082` passes old-versus-repaired native controls, the unchanged proxy shutdown test, and both required vendor checks. The final integration gate and CI remain; Alt-Used and WINDOW_UPDATE stay separate. |
 
 Neither controlled timing reproduction proves the exact historical host
 delay. The unchanged historical TLS suite also passed all 1,041 tests with
