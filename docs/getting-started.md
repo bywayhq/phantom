@@ -169,6 +169,7 @@ No feature is on by default. Add the ones you need to the `phantom` line in
 | `websocket` | WebSocket |
 | `websocket-deflate` | WebSocket compression |
 | `json` | JSON request bodies and bounded, typed JSON response reads |
+| `fingerprint-import` | Complete custom profiles from JSON |
 | `serde` | Saving and loading cookie jars |
 | `full` | All of the above |
 | `diagnostics` | `ClientBuilder::key_log` and `ClientBuilder::qlog_dir` |

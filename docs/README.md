@@ -54,6 +54,8 @@ Find the page you need below. If you're new, start at the top.
 
 - [Coverage](reference/coverage.md): what each browser recipe covers.
 - [Profile reference](reference/profiles.md): every built-in recipe.
+- [Custom profile import](reference/fingerprint-import.md): complete JSON
+  settings and import limits.
 - [Route matrix](reference/route-matrix.md): schemes, protocols, and proxies.
 - [Environment proxies](reference/environment-proxies.md): snapshot variables,
   route precedence, and bypass rules.

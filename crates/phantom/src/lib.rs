@@ -47,7 +47,8 @@
 //! | `websocket-deflate` | Opt-in `permessage-deflate`; implies `websocket` |
 //! | `serde` | `Serialize` and `Deserialize` for `CookieSnapshot` (with `cookies`) |
 //! | `json` | Bounded typed-JSON requests and response reading |
-//! | `full` | `cookies`, `https-records`, `json`, `serde`, `sse`, and `websocket-deflate` |
+//! | `fingerprint-import` | Complete custom profiles from bounded JSON |
+//! | `full` | `cookies`, `https-records`, `json`, `fingerprint-import`, `serde`, `sse`, and `websocket-deflate` |
 //! | `diagnostics` | TLS key logging and QUIC qlog files for debugging your own connections |
 //! | `danger-disable-verification` | `ServerAuthentication::DangerDisabled`, which accepts any server certificate, for conformance testing |
 //!
@@ -355,3 +356,7 @@ pub mod dns {
         HttpsRecordResolver, ServiceRecord, SvcParam, TargetName,
     };
 }
+
+#[cfg(feature = "fingerprint-import")]
+#[doc = include_str!("../../../docs/reference/fingerprint-import.md")]
+pub mod fingerprint;

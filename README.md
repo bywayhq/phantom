@@ -90,6 +90,7 @@ No feature is on by default:
 | `websocket-deflate` | WebSocket compression |
 | `serde` | Saving and loading cookie jars |
 | `json` | Reading typed JSON responses with a byte limit |
+| `fingerprint-import` | Importing complete custom profiles from bounded JSON |
 | `full` | All of the above |
 | `diagnostics` | TLS key logs and QUIC qlog files for debugging; not in `full` |
 | `danger-disable-verification` | Turning off certificate checks, for testing only; not in `full` |
