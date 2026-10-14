@@ -13,3 +13,4 @@ mod proxy_connect_components;
 mod quic_components;
 mod tcp_components;
 mod udp_components;
+mod websocket_components;

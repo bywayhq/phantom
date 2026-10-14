@@ -28,6 +28,7 @@ pub(crate) mod proxy_connect_components;
 pub(crate) mod quic_components;
 pub(crate) mod tcp_components;
 pub(crate) mod udp_components;
+pub(crate) mod websocket_components;
 
 /// An immutable identifier assigned to one compiled recipe revision.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

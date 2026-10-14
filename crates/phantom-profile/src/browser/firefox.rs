@@ -23,8 +23,6 @@ mod android;
 
 pub use android::v156_android_tcp_tls;
 
-use std::time::Duration;
-
 use crate::{
     cookie::CookiePlacement,
     dns_cache::DnsCacheSettings,
@@ -36,11 +34,7 @@ use crate::{
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tcp::TcpSettings,
     tls::TlsSettings,
-    websocket::{
-        WebSocketConnectionPolicy, WebSocketEmptyMessageCompression, WebSocketField,
-        WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
-        WebSocketSettings,
-    },
+    websocket::WebSocketSettings,
 };
 
 /// Returns the automatic `Cookie` field position for Firefox 157.
@@ -379,7 +373,7 @@ pub fn v157_http2() -> Http2Settings {
 /// compression.
 ///
 /// `Accept-Encoding` and the three `Sec-Fetch-*` fields are
-/// [`WebSocketField::ByTrust`] entries, as on ordinary requests: Firefox
+/// [`crate::WebSocketField::ByTrust`] entries, as on ordinary requests: Firefox
 /// offers `br` and `zstd`, and sends `Sec-Fetch-*` at all, only to a
 /// potentially trustworthy URL. The retained proxy route captures show the
 /// `ws://` Upgrade to `127.0.0.1` with `gzip, deflate, br, zstd` and
@@ -409,7 +403,7 @@ pub fn v157_http2() -> Http2Settings {
 /// its per-host admission queue before that timer starts; Phantom's deadline
 /// includes that lookup.
 ///
-/// [`WebSocketProxiedSession::Reuse`] is source, not a capture: no retained
+/// [`crate::WebSocketProxiedSession::Reuse`] is source, not a capture: no retained
 /// capture opens a `wss://` WebSocket through a proxy. At tag
 /// `FIREFOX_157_0_RELEASE`, a WebSocket upgrade stays eligible for HTTP/2
 /// whatever the proxy (`netwerk/protocol/http/nsHttpChannel.cpp` lines
@@ -420,53 +414,7 @@ pub fn v157_http2() -> Http2Settings {
 /// and 1811-1875).
 #[must_use]
 pub fn v157_websocket() -> WebSocketSettings {
-    WebSocketSettings {
-        connection: WebSocketConnectionPolicy {
-            without_http2_session: WebSocketNewConnection::Http2ExtendedConnect,
-            with_incapable_http2_session: WebSocketNewConnection::Http1Upgrade,
-            http1_alpn_protocols: vec![Box::from(*b"http/1.1")],
-            refused_stream_retry: WebSocketRefusedStreamRetry::None,
-            proxied_http2_session: WebSocketProxiedSession::Reuse,
-        },
-        http1_fields: vec![
-            WebSocketField::authority("Host"),
-            WebSocketField::caller("User-Agent"),
-            WebSocketField::literal("Accept", "*/*"),
-            WebSocketField::caller("Accept-Language"),
-            websocket_accept_encoding("Accept-Encoding"),
-            WebSocketField::literal("Sec-WebSocket-Version", "13"),
-            WebSocketField::caller("Origin"),
-            WebSocketField::permessage_deflate("Sec-WebSocket-Extensions"),
-            WebSocketField::key("Sec-WebSocket-Key"),
-            WebSocketField::literal("Connection", "Upgrade"),
-            WebSocketField::trustworthy_only("Sec-Fetch-Dest", "empty"),
-            WebSocketField::trustworthy_only("Sec-Fetch-Mode", "websocket"),
-            WebSocketField::trustworthy_only("Sec-Fetch-Site", "same-origin"),
-            WebSocketField::literal("Pragma", "no-cache"),
-            WebSocketField::literal("Cache-Control", "no-cache"),
-            WebSocketField::literal("Upgrade", "websocket"),
-            WebSocketField::client_cookies("Cookie"),
-        ],
-        http2_fields: vec![
-            WebSocketField::caller("user-agent"),
-            WebSocketField::literal("accept", "*/*"),
-            WebSocketField::caller("accept-language"),
-            websocket_accept_encoding("accept-encoding"),
-            WebSocketField::literal("sec-websocket-version", "13"),
-            WebSocketField::caller("origin"),
-            WebSocketField::permessage_deflate("sec-websocket-extensions"),
-            WebSocketField::caller("sec-fetch-storage-access"),
-            WebSocketField::trustworthy_only("sec-fetch-dest", "empty"),
-            WebSocketField::trustworthy_only("sec-fetch-mode", "websocket"),
-            WebSocketField::trustworthy_only("sec-fetch-site", "same-origin"),
-            WebSocketField::literal("pragma", "no-cache"),
-            WebSocketField::literal("cache-control", "no-cache"),
-            WebSocketField::client_cookies("cookie"),
-        ],
-        permessage_deflate_offer: Vec::new(),
-        empty_message_compression: WebSocketEmptyMessageCompression::Uncompressed,
-        handshake_timeout: Some(Duration::from_secs(20)),
-    }
+    crate::catalog::websocket_components::firefox_157_websocket()
 }
 
 /// Returns the CONNECT request fields observed from Firefox 157.0 on Windows 11.
@@ -647,11 +595,6 @@ const V157_MACOS_USER_AGENT: &str =
 /// `modules/libpref/init/all.js` lines 1179-1180 at `FIREFOX_157_0_RELEASE`).
 fn accept_encoding(name: &str) -> RequestField {
     RequestField::by_trust(name, V157_ACCEPT_ENCODING, V157_PLAINTEXT_ACCEPT_ENCODING)
-}
-
-/// Returns [`accept_encoding`] for a WebSocket opening template.
-fn websocket_accept_encoding(name: &str) -> WebSocketField {
-    WebSocketField::by_trust(name, V157_ACCEPT_ENCODING, V157_PLAINTEXT_ACCEPT_ENCODING)
 }
 
 /// Returns Firefox 157's position of forwarded proxy credentials it

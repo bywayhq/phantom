@@ -52,8 +52,17 @@ from .tls import (
     rust_tls_value,
     validate_tls_values,
 )
+from .websocket import rust_websocket_value, validate_websocket_values
 
 COMPONENT_FIELDS = {
+    "WebSocketSettings": (
+        "connection",
+        "http1_fields",
+        "http2_fields",
+        "permessage_deflate_offer",
+        "empty_message_compression",
+        "handshake_timeout",
+    ),
     "ClientHintSettings": ("hints",),
     "CookiePlacement": ("before",),
     "ProxyConnectTemplate": (
@@ -154,6 +163,9 @@ COMPONENT_FIELDS = {
 
 def validate_component_values(kind, values):
     keys(values, COMPONENT_FIELDS[kind], kind)
+    if kind == "WebSocketSettings":
+        validate_websocket_values(values)
+        return
     if kind == "ClientHintSettings":
         validate_client_hints_values(values)
         return
@@ -264,6 +276,8 @@ def validate_components(document, allowed_kinds=None):
 
 
 def rust_component_value(field, value, kind="Http3Settings"):
+    if kind == "WebSocketSettings":
+        return rust_websocket_value(field, value)
     if kind == "ProxyConnectTemplate":
         return rust_proxy_connect_value(field, value)
     if kind == "TcpSettings":

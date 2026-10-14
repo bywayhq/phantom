@@ -14,6 +14,7 @@ Keep browser observations separate from recipe implementations.
 | `crates/phantom-profile/catalog/dns-components.json` | Typed DNS-cache capacity and lifetimes |
 | `crates/phantom-profile/catalog/udp-components.json` | Typed UDP socket policy |
 | `crates/phantom-profile/catalog/tcp-components.json` | Typed TCP socket and address policies |
+| `crates/phantom-profile/catalog/websocket-components.json` | Ordered opening fields and WebSocket policies |
 | `crates/phantom-profile/catalog/client-hints-components.json` | Ordered hint names, values, delivery, and model parameters |
 | `crates/phantom-profile/catalog/cookie-components.json` | Ordered automatic Cookie placement names |
 | `crates/phantom-profile/catalog/proxy-connect-components.json` | Ordered CONNECT fields and proxy connection policies |
@@ -27,6 +28,7 @@ Keep browser observations separate from recipe implementations.
 | `crates/phantom-profile/src/catalog/dns_components.rs` | Committed generated DNS-cache values |
 | `crates/phantom-profile/src/catalog/udp_components.rs` | Committed generated UDP values |
 | `crates/phantom-profile/src/catalog/tcp_components.rs` | Committed generated TCP values |
+| `crates/phantom-profile/src/catalog/websocket_components.rs` | Committed generated WebSocket settings |
 | `crates/phantom-profile/src/catalog/client_hints_components.rs` | Committed generated client hints |
 | `crates/phantom-profile/src/catalog/cookie_components.rs` | Committed generated Cookie placement |
 | `crates/phantom-profile/src/catalog/proxy_connect_components.rs` | Committed generated CONNECT values |
@@ -54,10 +56,11 @@ runtime. Discovery and exact lookup borrow static records. Instantiation
 calls the selected recipe factory and returns fresh owned settings.
 
 All existing TLS factories, core QUIC transport, HTTP/1.1, HTTP/2, HTTP/3,
-DNS-cache, TCP, UDP, client hints, Cookie placement, and CONNECT settings use
+DNS-cache, TCP, UDP, client hints, Cookie placement, CONNECT, and WebSocket
+settings use
 structured components. Other layers use handwritten factories. Their migration
-and historical-version growth remain
-in the [roadmap](../roadmap.md). Request templates use explicit typed bindings; they
+and historical-version growth remain in the [roadmap](../roadmap.md).
+Request templates use explicit typed bindings; they
 have no separate evidence records.
 
 ## Identity and composition
@@ -125,17 +128,18 @@ python -m unittest discover -s scripts/dev/tests -p test_generate_tcp_components
 python -m unittest scripts.dev.tests.test_generate_client_hints_profiles
 python -m unittest scripts.dev.tests.test_generate_cookie_profiles
 python -m unittest scripts.dev.tests.test_generate_proxy_connect_profiles
+python -m unittest scripts.dev.tests.test_generate_websocket_profiles
 ```
 
 Generation sorts identifiers and emits fields and layers in fixed orders.
-All twelve generated files use `rustfmt::skip` to preserve their output.
+All thirteen generated files use `rustfmt::skip` to preserve their output.
 The generator rejects duplicate JSON keys and identifiers, unknown values,
 inconsistent metadata, missing or escaping files, unsupported absence claims,
 and observed fields without capture references.
 
 Input limits bound local tooling: 16 MiB of JSON, 4,096 definitions, nesting
-depth 16, strings of 4,096 characters, 16 references per layer, and 64 entries
-per field or limitation list. These are resource ceilings, not measured corpus
+depth 16 and strings of 4,096 characters. Registry records allow 16 references
+per layer and 64 entries per field or limitation list. These are resource ceilings, not measured corpus
 performance targets. The current records still repeat metadata; further
 component migration and measurement will assess that cost.
 
@@ -290,6 +294,32 @@ strings at most 4,096 characters; custom typed APIs retain their native range.
 Frozen factory controls compare all values and composed recipes. Cookie
 insertion and CONNECT wire checks remain integration checks. These records
 add no browser observations or authentication behavior.
+
+## Declare WebSocket components
+
+Chromium 154 and Firefox 157 each supply six complete settings fields.
+Their connection records keep five policies, including ordered upgrade ALPN.
+Opening fields retain their spelling and order, typed placeholders, and
+optional URL-trust defaults. An absent value differs from an empty string.
+Compression records keep the ordered offer and empty-message choice.
+
+Existing branded and Android factories reuse these values. Seven catalog
+profiles configure WebSockets. Edge, Opera, and Firefox for Android retain
+no recipe for this layer. Generation adds no browser observation coverage.
+H2 pseudo-header order and priority remain part of HTTP/2 settings.
+
+The closed schema checks native profile invariants and bounds declarations:
+256 fields per protocol, 256-byte token names, 4,096-byte ASCII values,
+64 ALPN entries of at most 255 bytes, and four deflate parameters. Values
+allow spaces and tabs, including empty strings. Repeated ordinary fields
+and ALPN entries retain their order. These limits do not restrict custom
+Rust settings. The facade still validates opening-handshake semantics.
+
+Timeouts retain seconds and nanoseconds, or no limit. A present timeout
+must be positive. Native validation checks the host clock's range.
+Generated settings own fresh vectors and strings. Keys, masks, compression
+state, and connection choice remain runtime responsibilities.
+Frozen original controls compare all values and existing composition.
 
 ## Declare HTTP/2 components
 

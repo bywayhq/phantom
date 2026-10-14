@@ -1,0 +1,330 @@
+{
+  "schema": 1,
+  "components": [
+    {
+      "id": "chromium_154_websocket",
+      "kind": "WebSocketSettings",
+      "base": null,
+      "values": {
+        "connection": {
+          "without_http2_session": "Http1Upgrade",
+          "with_incapable_http2_session": "Http1Upgrade",
+          "http1_alpn_protocols": [
+            [
+              104,
+              116,
+              116,
+              112,
+              47,
+              49,
+              46,
+              49
+            ]
+          ],
+          "refused_stream_retry": "SameSessionOnce",
+          "proxied_http2_session": "Reuse"
+        },
+        "http1_fields": [
+          {
+            "kind": "Authority",
+            "name": "Host"
+          },
+          {
+            "kind": "Literal",
+            "name": "Connection",
+            "value": "Upgrade"
+          },
+          {
+            "kind": "Literal",
+            "name": "Pragma",
+            "value": "no-cache"
+          },
+          {
+            "kind": "Literal",
+            "name": "Cache-Control",
+            "value": "no-cache"
+          },
+          {
+            "kind": "Caller",
+            "name": "User-Agent"
+          },
+          {
+            "kind": "Literal",
+            "name": "Upgrade",
+            "value": "websocket"
+          },
+          {
+            "kind": "Caller",
+            "name": "Origin"
+          },
+          {
+            "kind": "Literal",
+            "name": "Sec-WebSocket-Version",
+            "value": "13"
+          },
+          {
+            "kind": "ByTrust",
+            "name": "Accept-Encoding",
+            "trustworthy": "gzip, deflate, br, zstd",
+            "untrustworthy": "gzip, deflate"
+          },
+          {
+            "kind": "Caller",
+            "name": "Accept-Language"
+          },
+          {
+            "kind": "Key",
+            "name": "Sec-WebSocket-Key"
+          },
+          {
+            "kind": "PerMessageDeflate",
+            "name": "Sec-WebSocket-Extensions"
+          },
+          {
+            "kind": "ClientCookies",
+            "name": "Cookie"
+          }
+        ],
+        "http2_fields": [
+          {
+            "kind": "Literal",
+            "name": "pragma",
+            "value": "no-cache"
+          },
+          {
+            "kind": "Literal",
+            "name": "cache-control",
+            "value": "no-cache"
+          },
+          {
+            "kind": "Caller",
+            "name": "user-agent"
+          },
+          {
+            "kind": "Caller",
+            "name": "origin"
+          },
+          {
+            "kind": "Literal",
+            "name": "sec-websocket-version",
+            "value": "13"
+          },
+          {
+            "kind": "ByTrust",
+            "name": "accept-encoding",
+            "trustworthy": "gzip, deflate, br, zstd",
+            "untrustworthy": "gzip, deflate"
+          },
+          {
+            "kind": "Caller",
+            "name": "accept-language"
+          },
+          {
+            "kind": "PerMessageDeflate",
+            "name": "sec-websocket-extensions"
+          },
+          {
+            "kind": "ClientCookies",
+            "name": "cookie"
+          }
+        ],
+        "permessage_deflate_offer": [
+          {
+            "kind": "ClientMaxWindowBits",
+            "bits": null
+          }
+        ],
+        "empty_message_compression": "Compressed",
+        "handshake_timeout": {
+          "seconds": 240,
+          "nanoseconds": 0
+        }
+      }
+    },
+    {
+      "id": "firefox_157_websocket",
+      "kind": "WebSocketSettings",
+      "base": null,
+      "values": {
+        "connection": {
+          "without_http2_session": "Http2ExtendedConnect",
+          "with_incapable_http2_session": "Http1Upgrade",
+          "http1_alpn_protocols": [
+            [
+              104,
+              116,
+              116,
+              112,
+              47,
+              49,
+              46,
+              49
+            ]
+          ],
+          "refused_stream_retry": "None",
+          "proxied_http2_session": "Reuse"
+        },
+        "http1_fields": [
+          {
+            "kind": "Authority",
+            "name": "Host"
+          },
+          {
+            "kind": "Caller",
+            "name": "User-Agent"
+          },
+          {
+            "kind": "Literal",
+            "name": "Accept",
+            "value": "*/*"
+          },
+          {
+            "kind": "Caller",
+            "name": "Accept-Language"
+          },
+          {
+            "kind": "ByTrust",
+            "name": "Accept-Encoding",
+            "trustworthy": "gzip, deflate, br, zstd",
+            "untrustworthy": "gzip, deflate"
+          },
+          {
+            "kind": "Literal",
+            "name": "Sec-WebSocket-Version",
+            "value": "13"
+          },
+          {
+            "kind": "Caller",
+            "name": "Origin"
+          },
+          {
+            "kind": "PerMessageDeflate",
+            "name": "Sec-WebSocket-Extensions"
+          },
+          {
+            "kind": "Key",
+            "name": "Sec-WebSocket-Key"
+          },
+          {
+            "kind": "Literal",
+            "name": "Connection",
+            "value": "Upgrade"
+          },
+          {
+            "kind": "ByTrust",
+            "name": "Sec-Fetch-Dest",
+            "trustworthy": "empty",
+            "untrustworthy": null
+          },
+          {
+            "kind": "ByTrust",
+            "name": "Sec-Fetch-Mode",
+            "trustworthy": "websocket",
+            "untrustworthy": null
+          },
+          {
+            "kind": "ByTrust",
+            "name": "Sec-Fetch-Site",
+            "trustworthy": "same-origin",
+            "untrustworthy": null
+          },
+          {
+            "kind": "Literal",
+            "name": "Pragma",
+            "value": "no-cache"
+          },
+          {
+            "kind": "Literal",
+            "name": "Cache-Control",
+            "value": "no-cache"
+          },
+          {
+            "kind": "Literal",
+            "name": "Upgrade",
+            "value": "websocket"
+          },
+          {
+            "kind": "ClientCookies",
+            "name": "Cookie"
+          }
+        ],
+        "http2_fields": [
+          {
+            "kind": "Caller",
+            "name": "user-agent"
+          },
+          {
+            "kind": "Literal",
+            "name": "accept",
+            "value": "*/*"
+          },
+          {
+            "kind": "Caller",
+            "name": "accept-language"
+          },
+          {
+            "kind": "ByTrust",
+            "name": "accept-encoding",
+            "trustworthy": "gzip, deflate, br, zstd",
+            "untrustworthy": "gzip, deflate"
+          },
+          {
+            "kind": "Literal",
+            "name": "sec-websocket-version",
+            "value": "13"
+          },
+          {
+            "kind": "Caller",
+            "name": "origin"
+          },
+          {
+            "kind": "PerMessageDeflate",
+            "name": "sec-websocket-extensions"
+          },
+          {
+            "kind": "Caller",
+            "name": "sec-fetch-storage-access"
+          },
+          {
+            "kind": "ByTrust",
+            "name": "sec-fetch-dest",
+            "trustworthy": "empty",
+            "untrustworthy": null
+          },
+          {
+            "kind": "ByTrust",
+            "name": "sec-fetch-mode",
+            "trustworthy": "websocket",
+            "untrustworthy": null
+          },
+          {
+            "kind": "ByTrust",
+            "name": "sec-fetch-site",
+            "trustworthy": "same-origin",
+            "untrustworthy": null
+          },
+          {
+            "kind": "Literal",
+            "name": "pragma",
+            "value": "no-cache"
+          },
+          {
+            "kind": "Literal",
+            "name": "cache-control",
+            "value": "no-cache"
+          },
+          {
+            "kind": "ClientCookies",
+            "name": "cookie"
+          }
+        ],
+        "permessage_deflate_offer": [],
+        "empty_message_compression": "Uncompressed",
+        "handshake_timeout": {
+          "seconds": 20,
+          "nanoseconds": 0
+        }
+      }
+    }
+  ]
+}

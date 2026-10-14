@@ -1106,6 +1106,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Forwarding checks proofs in the head and trailers, and accepts nonce
   state only after the complete body is consumed.
 
+- Store ordered WebSocket headers and connection settings in generated profile
+  components, preserving each existing recipe and constructor.
 - Generate client-hint recipes from typed catalog declarations, preserving
   their field order, delivery rules and Android model parameters.
 

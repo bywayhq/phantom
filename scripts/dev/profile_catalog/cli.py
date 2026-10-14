@@ -83,6 +83,14 @@ CLIENT_HINTS_COMPONENT_OUTPUT = (
 )
 
 
+WEBSOCKET_COMPONENT_RECORDS = (
+    REPO / "crates/phantom-profile/catalog/websocket-components.json"
+)
+WEBSOCKET_COMPONENT_OUTPUT = (
+    REPO / "crates/phantom-profile/src/catalog/websocket_components.rs"
+)
+
+
 def load(path=RECORDS, repo=REPO):
     return validate(read_document(path), repo)
 
@@ -131,6 +139,10 @@ def load_proxy_connect_components(path=PROXY_CONNECT_COMPONENT_RECORDS):
 
 def load_client_hints_components(path=CLIENT_HINTS_COMPONENT_RECORDS):
     return validate_components(read_document(path), ("ClientHintSettings",))
+
+
+def load_websocket_components(path=WEBSOCKET_COMPONENT_RECORDS):
+    return validate_components(read_document(path), ("WebSocketSettings",))
 
 
 def main():
@@ -185,6 +197,12 @@ def main():
                 CLIENT_HINTS_COMPONENT_OUTPUT,
                 generate_components(
                     load_client_hints_components(), "client-hints-components.json"
+                ),
+            ),
+            (
+                WEBSOCKET_COMPONENT_OUTPUT,
+                generate_components(
+                    load_websocket_components(), "websocket-components.json"
                 ),
             ),
         )

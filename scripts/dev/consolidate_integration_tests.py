@@ -162,6 +162,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "quic_components",
                 "tcp_components",
                 "udp_components",
+                "websocket_components",
             ],
         ),
         "public_api": (

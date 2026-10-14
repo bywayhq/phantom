@@ -43,8 +43,6 @@ pub use android::{
 
 pub(crate) use android::{model_value, validate_model};
 
-use std::time::Duration;
-
 use crate::{
     client_hints::ClientHintSettings,
     cookie::CookiePlacement,
@@ -55,11 +53,7 @@ use crate::{
     proxy_connect::ProxyConnectTemplate,
     request_template::{ProxyAuthorizationAttempt, RequestField, RequestTemplate},
     tls::TlsSettings,
-    websocket::{
-        WebSocketConnectionPolicy, WebSocketDeflateParameter, WebSocketEmptyMessageCompression,
-        WebSocketField, WebSocketNewConnection, WebSocketProxiedSession,
-        WebSocketRefusedStreamRetry, WebSocketSettings,
-    },
+    websocket::WebSocketSettings,
 };
 
 use crate::udp::UdpSettings;
@@ -433,7 +427,7 @@ pub fn v154_http2() -> Http2Settings {
 /// compression. Edge 154.0.4258.37, Brave 154.1.96.59, and Opera
 /// 136.0.6008.52 match this recipe on every compared field.
 ///
-/// `Accept-Encoding` is a [`WebSocketField::ByTrust`] entry, as on
+/// `Accept-Encoding` is a [`crate::WebSocketField::ByTrust`] entry, as on
 /// ordinary requests: Chrome offers `br` and `zstd` only to a potentially
 /// trustworthy URL. The retained proxy route captures show the `ws://`
 /// Upgrade to `127.0.0.1` with `gzip, deflate, br, zstd` and the one to
@@ -458,7 +452,7 @@ pub fn v154_http2() -> Http2Settings {
 /// at tag `154.0.8037.58`). The source comment sets it equal to the TCP
 /// connect timeout so that a page cannot tell which step timed out.
 ///
-/// [`WebSocketProxiedSession::Reuse`] is also source, not a capture: no
+/// [`crate::WebSocketProxiedSession::Reuse`] is also source, not a capture: no
 /// retained capture opens a `wss://` WebSocket through a proxy. At tag
 /// `154.0.8037.58`, `HttpStreamFactory::Job` lets a `wss://` WebSocket try
 /// HTTP/2 whatever the proxy (`net/http/http_stream_factory_job.cc` lines
@@ -469,44 +463,7 @@ pub fn v154_http2() -> Http2Settings {
 /// allows WebSockets (`net/spdy/spdy_session_pool.cc` lines 211-215).
 #[must_use]
 pub fn v154_websocket() -> WebSocketSettings {
-    WebSocketSettings {
-        connection: WebSocketConnectionPolicy {
-            without_http2_session: WebSocketNewConnection::Http1Upgrade,
-            with_incapable_http2_session: WebSocketNewConnection::Http1Upgrade,
-            http1_alpn_protocols: vec![Box::from(*b"http/1.1")],
-            refused_stream_retry: WebSocketRefusedStreamRetry::SameSessionOnce,
-            proxied_http2_session: WebSocketProxiedSession::Reuse,
-        },
-        http1_fields: vec![
-            WebSocketField::authority("Host"),
-            WebSocketField::literal("Connection", "Upgrade"),
-            WebSocketField::literal("Pragma", "no-cache"),
-            WebSocketField::literal("Cache-Control", "no-cache"),
-            WebSocketField::caller("User-Agent"),
-            WebSocketField::literal("Upgrade", "websocket"),
-            WebSocketField::caller("Origin"),
-            WebSocketField::literal("Sec-WebSocket-Version", "13"),
-            websocket_accept_encoding("Accept-Encoding"),
-            WebSocketField::caller("Accept-Language"),
-            WebSocketField::key("Sec-WebSocket-Key"),
-            WebSocketField::permessage_deflate("Sec-WebSocket-Extensions"),
-            WebSocketField::client_cookies("Cookie"),
-        ],
-        http2_fields: vec![
-            WebSocketField::literal("pragma", "no-cache"),
-            WebSocketField::literal("cache-control", "no-cache"),
-            WebSocketField::caller("user-agent"),
-            WebSocketField::caller("origin"),
-            WebSocketField::literal("sec-websocket-version", "13"),
-            websocket_accept_encoding("accept-encoding"),
-            WebSocketField::caller("accept-language"),
-            WebSocketField::permessage_deflate("sec-websocket-extensions"),
-            WebSocketField::client_cookies("cookie"),
-        ],
-        permessage_deflate_offer: vec![WebSocketDeflateParameter::ClientMaxWindowBits(None)],
-        empty_message_compression: WebSocketEmptyMessageCompression::Compressed,
-        handshake_timeout: Some(Duration::from_secs(240)),
-    }
+    crate::catalog::websocket_components::chromium_154_websocket()
 }
 
 /// Returns the CONNECT request fields observed from Chrome 154.0.8037.58 on
@@ -563,11 +520,6 @@ AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36";
 /// through both proxies.
 fn accept_encoding(name: &str) -> RequestField {
     RequestField::by_trust(name, V154_ACCEPT_ENCODING, V154_PLAINTEXT_ACCEPT_ENCODING)
-}
-
-/// Returns [`accept_encoding`] for a WebSocket opening template.
-fn websocket_accept_encoding(name: &str) -> WebSocketField {
-    WebSocketField::by_trust(name, V154_ACCEPT_ENCODING, V154_PLAINTEXT_ACCEPT_ENCODING)
 }
 
 /// Returns navigation request fields observed from Chrome 154.0.8037.58 on Windows 11.

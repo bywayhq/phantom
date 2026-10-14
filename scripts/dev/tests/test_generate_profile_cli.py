@@ -21,6 +21,7 @@ OUTPUT_NAMES = (
     "COOKIE_COMPONENT_OUTPUT",
     "PROXY_CONNECT_COMPONENT_OUTPUT",
     "CLIENT_HINTS_COMPONENT_OUTPUT",
+    "WEBSOCKET_COMPONENT_OUTPUT",
 )
 
 
@@ -74,27 +75,37 @@ class CatalogCliTests(unittest.TestCase):
                     )
 
     def test_invalid_last_declaration_preserves_outputs_and_missing_directories(self):
+        self.check_invalid_declaration(
+            "WEBSOCKET_COMPONENT_OUTPUT", "load_websocket_components"
+        )
+
+    def test_invalid_client_hints_still_preserve_all_outputs(self):
+        self.check_invalid_declaration(
+            "CLIENT_HINTS_COMPONENT_OUTPUT", "load_client_hints_components"
+        )
+
+    def check_invalid_declaration(self, output_name, loader):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             paths = {name: root / f"{name}.rs" for name in OUTPUT_NAMES}
             for path in paths.values():
                 path.write_bytes(b"retained original\r\n")
             missing = root / "not-created"
-            paths["CLIENT_HINTS_COMPONENT_OUTPUT"] = missing / "client_hints.rs"
+            paths[output_name] = missing / "invalid.rs"
             with (
                 mock.patch.multiple(cli, **paths),
                 mock.patch.object(sys, "argv", ["generate_profiles.py"]),
                 mock.patch.object(cli.sys, "stderr"),
                 mock.patch.object(
                     cli,
-                    "load_client_hints_components",
-                    side_effect=cli.DeclarationError("invalid client hints"),
+                    loader,
+                    side_effect=cli.DeclarationError("invalid websocket"),
                 ),
             ):
                 self.assertEqual(cli.main(), 1)
             self.assertFalse(missing.exists())
             for name, path in paths.items():
-                if name != "CLIENT_HINTS_COMPONENT_OUTPUT":
+                if name != output_name:
                     self.assertEqual(path.read_bytes(), b"retained original\r\n")
 
 
