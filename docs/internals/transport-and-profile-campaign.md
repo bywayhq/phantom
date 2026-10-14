@@ -50,12 +50,14 @@ copying execution journals into this page.
 | --- | --- | --- |
 | T1 | `h3-drain-diagnosis` | Readiness repair merged in PR #213 after the exact signed-head gate and platform CI. Main push CI passed; the historical trigger remains open. |
 | T2 | `tls-done-diagnosis` | Framed-response repair and EOF controls merged in PR #212 after the full gate and platform CI. Main push CI passed; historical attribution remains open. |
-| P1–P4 | `profile-catalog` | Catalog foundation and TLS, QUIC, H1, H2, H3, DNS-cache, and UDP components pass focused checks and review. TCP and remaining layers, immutable definitions, and root wire checks remain. |
+| P1–P4 | `profile-catalog` | Catalog foundation, TLS, QUIC, H1, H2, H3, DNS-cache, TCP, UDP, Cookie, CONNECT, and client-hint components pass focused checks and review. Remaining layers, immutable definitions, and integration wire checks remain. |
 | P5 | `profile-history` | Edge 153 Windows profile passes four profile and six native replay controls. Catalog registration, corpus measurements, and integration remain. |
-| F1 | `ticket-transfer` | Client-owned clearing and late-ticket isolation pass focused checks and review. Frozen stores and strict native decoding are under verification. Authenticated transfer encoding and full bindings remain. |
+| F1 | `ticket-transfer` | Clearing, frozen stores, strict native decoding, and authenticated TCP ticket publication pass focused checks and review. Scoped QUIC publication, transfer encoding, and full policy bindings remain. |
 | F3 | `socks4-integration` | SOCKS4/4a merged in PR #215 after the exact-head full gate and macOS/Windows CI. Main push CI passed. |
-| F4 | `digest-integration` | Digest merged in PR #218 after the full gate and platform CI. Enterprise contracts are recorded. Main's cookie fixture failure is being repaired before the next merge. |
-| F8 | `http3-debug-auth` | Origin opt-in is in draft PR #219. All 4,643 Rust controls passed. Its full gate needs the reviewed test-roster and shared-port repairs before integration. |
+| F4 | `digest-integration` | Digest merged in PR #218 after the full gate and platform CI. Enterprise contracts are recorded. PR #220 repaired the cookie and shared-port fixtures; main push CI passed. |
+| F5 | `doh-wire` | The bounded DNS wire codec is in implementation. DoH transport, exact TTL handling, and alternate-host discovery follow its reviewed contract. |
+| F8 | `http3-debug-auth` | The origin opt-in candidate in PR #219 passed independent review, all 22 gate steps, and 4,643 Rust tests at `bcf11cf5`. Refreshed exact-head CI and integration remain. |
+| B2 | `proxy-h2-idle-integration` | Proxy idle retirement passes focused native and facade controls and independent source review. Its rebased integration gate and CI remain. Alt-Used and WINDOW_UPDATE changes remain separate. |
 
 Neither controlled timing reproduction proves the exact historical host
 delay. The unchanged historical TLS suite also passed all 1,041 tests with
@@ -145,7 +147,7 @@ demonstrated requirement. Do not assert a runtime bottleneck without data.
 - [x] F3: Add SOCKS4 and SOCKS4a with explicit route capabilities, bounded
   negotiation, and owned cancellation. Verify local versus proxy name
   resolution. Reject unsupported HTTP/3 use before proxy I/O.
-- [ ] F4: Add Digest proxy authentication with challenge, nonce, stale,
+- [x] F4: Add Digest proxy authentication with challenge, nonce, stale,
   replay, and credential-isolation controls. Investigate enterprise proxy
   authentication using primary sources and peer APIs. Define the mechanism
   and platform contract before implementation. Record the result separately
