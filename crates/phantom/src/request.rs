@@ -1540,7 +1540,7 @@ fn ensure_request_supported(
             }
             (
                 ProtocolSelection::Exact(HttpProtocol::Http1) | ProtocolSelection::Http1Or2,
-                Route::Direct | Route::HttpProxy(_) | Route::Socks5(_),
+                Route::Direct | Route::HttpProxy(_) | Route::Socks4(_) | Route::Socks5(_),
             ) => Ok(()),
             (ProtocolSelection::Exact(protocol), Route::HttpProxy(_)) => {
                 Err(RequestError::unsupported_route(protocol))
@@ -1556,7 +1556,9 @@ fn ensure_request_supported(
         Some("https") => match selection {
             ProtocolSelection::Exact(HttpProtocol::Http3) => match route {
                 Route::Direct | Route::Socks5(_) | Route::ConnectUdp(_) => Ok(()),
-                Route::HttpProxy(_) => Err(RequestError::unsupported_route(HttpProtocol::Http3)),
+                Route::HttpProxy(_) | Route::Socks4(_) => {
+                    Err(RequestError::unsupported_route(HttpProtocol::Http3))
+                }
             },
             // Negotiation needs one origin TLS stream for ALPN; see
             // `Route::carries_origin_tls_for_alpn`.

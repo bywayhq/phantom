@@ -726,6 +726,7 @@ impl Http1TlsConnector {
             Err(
                 Http1TlsError::ForwardProxyConnect(_)
                 | Http1TlsError::Proxy(_)
+                | Http1TlsError::Socks4Proxy(_)
                 | Http1TlsError::Socks5Proxy(_),
             ) => "proxy_error",
             Err(Http1TlsError::Tls(_)) => "tls_error",
@@ -794,6 +795,11 @@ fn forward_connect_error(error: DirectConnectError) -> Http1TlsError {
 
 fn plaintext_route(tcp: &TcpRoute<'_>) -> &'static str {
     match tcp {
+        TcpRoute::Socks4 {
+            target: crate::route::Socks4Target::LocalDns(_),
+            ..
+        } => "socks4_local_dns",
+        TcpRoute::Socks4 { .. } => "socks4_remote_dns",
         TcpRoute::Socks5 {
             target: Socks5Target::LocalDns(_),
             ..
@@ -875,6 +881,14 @@ fn upgrade_span(route: &Http1Route<'_>) -> Span {
         Http1Route::Origin(OriginRoute::Plaintext { tcp, .. }) => {
             let route = plaintext_route(tcp);
             match tcp {
+                TcpRoute::Socks4 { .. } => debug_span!(
+                    "http1.proxy.socks4.upgrade_response_head",
+                    method = "GET",
+                    transport = "tcp",
+                    route,
+                    status = field::Empty,
+                    outcome = field::Empty
+                ),
                 TcpRoute::Socks5 { .. } => debug_span!(
                     "http1.proxy.socks5.upgrade_response_head",
                     method = "GET",
@@ -932,6 +946,7 @@ fn upgrade_outcome(result: &Result<Http1UpgradeOutcome, Http1TlsError>) -> &'sta
         Err(
             Http1TlsError::ForwardProxyConnect(_)
             | Http1TlsError::Proxy(_)
+            | Http1TlsError::Socks4Proxy(_)
             | Http1TlsError::Socks5Proxy(_),
         ) => "proxy_error",
         Err(Http1TlsError::Tls(_)) => "tls_error",
@@ -962,6 +977,7 @@ fn connection_outcome<T>(result: &Result<T, Http1TlsError>) -> &'static str {
         Err(
             Http1TlsError::ForwardProxyConnect(_)
             | Http1TlsError::Proxy(_)
+            | Http1TlsError::Socks4Proxy(_)
             | Http1TlsError::Socks5Proxy(_),
         ) => "proxy_error",
         Err(Http1TlsError::Tls(_)) => "tls_error",
@@ -979,6 +995,7 @@ impl From<ConnectionLegError> for Http1TlsError {
             }
             ConnectionLegError::Direct(DirectConnectError::Connect(error)) => Self::Connect(error),
             ConnectionLegError::HttpProxy(error) => Self::Proxy(error),
+            ConnectionLegError::Socks4(error) => Self::Socks4Proxy(error),
             ConnectionLegError::Socks5(error) => Self::Socks5Proxy(error),
         }
     }

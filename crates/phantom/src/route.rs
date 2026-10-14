@@ -16,9 +16,11 @@ pub(crate) use connect_udp::ConnectUdpTargetError;
 pub use connect_udp::{
     ConnectUdpProxy, ConnectUdpProxyConfigError, ConnectUdpProxyConfigErrorKind,
 };
+pub use socks4::{Socks4DnsMode, Socks4Proxy, Socks4ProxyConfigError, Socks4ProxyConfigErrorKind};
 pub use socks5::{Socks5DnsMode, Socks5Proxy, Socks5ProxyConfigError, Socks5ProxyConfigErrorKind};
 
 mod connect_udp;
+mod socks4;
 mod socks5;
 
 /// Route used to establish one origin connection.
@@ -67,6 +69,8 @@ pub enum Route {
     HttpProxy(HttpProxy),
     /// Tunnel TCP through a SOCKS5 proxy with explicit DNS ownership.
     Socks5(Socks5Proxy),
+    /// Tunnel TCP through SOCKS4 or SOCKS4a; HTTP/3 and IPv6 targets fail.
+    Socks4(Socks4Proxy),
     /// Tunnel exact HTTP/3 through an RFC 9298 CONNECT-UDP (MASQUE) proxy.
     ConnectUdp(ConnectUdpProxy),
 }
@@ -103,6 +107,15 @@ impl Route {
         Self::Socks5(proxy)
     }
 
+    /// Returns a SOCKS4 TCP route with explicit local or proxy-owned DNS.
+    ///
+    /// HTTP/1.1, HTTP/2 and negotiated requests use CONNECT tunneling.
+    /// HTTP/3 is unsupported; this route never learns a QUIC alternative.
+    #[must_use]
+    pub fn socks4(proxy: Socks4Proxy) -> Self {
+        Self::Socks4(proxy)
+    }
+
     /// Returns a CONNECT-UDP route for exact HTTP/3 requests.
     ///
     /// The proxy leg may be HTTP/3, HTTP/2, or HTTP/1.1. See
@@ -117,6 +130,10 @@ impl Route {
         match self {
             Self::Direct => "direct",
             Self::HttpProxy(proxy) => proxy.trace_name(),
+            Self::Socks4(proxy) => match proxy.dns_mode() {
+                Socks4DnsMode::Local => "socks4_local_dns",
+                Socks4DnsMode::Remote => "socks4_remote_dns",
+            },
             Self::Socks5(proxy) => match proxy.dns_mode() {
                 Socks5DnsMode::Local => "socks5_local_dns",
                 Socks5DnsMode::Remote => "socks5_remote_dns",
@@ -141,6 +158,7 @@ impl Route {
     ///
     /// - [`Route::Direct`] opens that stream itself.
     /// - [`Route::Socks5`] carries it in an RFC 1928 CONNECT.
+    /// - [`Route::Socks4`] carries it in a SOCKS4 CONNECT.
     /// - [`Route::HttpProxy`] carries it in an RFC 9110 section 9.3.6 CONNECT
     ///   tunnel, as a browser behind a proxy does.
     /// - [`Route::ConnectUdp`] carries only QUIC, so it has no TLS stream for
@@ -150,7 +168,7 @@ impl Route {
     /// separate question; see [`Self::carries_quic_alternative`].
     pub(crate) const fn carries_origin_tls_for_alpn(&self) -> bool {
         match self {
-            Self::Direct | Self::Socks5(_) | Self::HttpProxy(_) => true,
+            Self::Direct | Self::Socks4(_) | Self::Socks5(_) | Self::HttpProxy(_) => true,
             Self::ConnectUdp(_) => false,
         }
     }
@@ -163,6 +181,7 @@ impl Route {
     ///
     /// - [`Route::Direct`] sends QUIC itself.
     /// - [`Route::Socks5`] sends QUIC through RFC 1928 UDP ASSOCIATE.
+    /// - [`Route::Socks4`] carries only TCP and never learns a QUIC alternative.
     /// - [`Route::HttpProxy`] carries only TCP. A CONNECT tunnel cannot carry
     ///   QUIC, so a learned alternative could never be dialed, and Phantom
     ///   does not move the request to another route instead.
@@ -171,7 +190,7 @@ impl Route {
     pub(crate) const fn carries_quic_alternative(&self) -> bool {
         match self {
             Self::Direct | Self::Socks5(_) => true,
-            Self::HttpProxy(_) | Self::ConnectUdp(_) => false,
+            Self::HttpProxy(_) | Self::Socks4(_) | Self::ConnectUdp(_) => false,
         }
     }
 
@@ -214,7 +233,7 @@ impl Route {
     pub(crate) const fn as_http_proxy(&self) -> Option<&HttpProxy> {
         match self {
             Self::HttpProxy(proxy) => Some(proxy),
-            Self::Direct | Self::Socks5(_) | Self::ConnectUdp(_) => None,
+            Self::Direct | Self::Socks4(_) | Self::Socks5(_) | Self::ConnectUdp(_) => None,
         }
     }
 }

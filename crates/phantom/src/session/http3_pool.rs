@@ -856,7 +856,7 @@ impl PoolEntry {
                     credentials: proxy.credentials(),
                 })
             }
-            Route::HttpProxy(_) => {
+            Route::HttpProxy(_) | Route::Socks4(_) => {
                 return Err(SetupFailure::Other(RequestError::unsupported_route(
                     HttpProtocol::Http3,
                 )));

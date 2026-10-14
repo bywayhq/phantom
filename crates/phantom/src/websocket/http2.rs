@@ -382,6 +382,28 @@ impl WebSocketRequestBuilder {
                         .await
                 }
             }
+            Route::Socks4(proxy) => {
+                connector
+                    .extended_connect(
+                        phantom_net::route::Http2Route::Origin(
+                            phantom_net::route::OriginRoute::Tls {
+                                tcp: proxy
+                                    .tcp_route(phantom_net::route::Endpoint { host, port })
+                                    .map_err(|source| {
+                                        WebSocketError::request(
+                                            RequestError::http2_connection_setup(source.into()),
+                                        )
+                                    })?,
+                                server_name: host,
+                                setup: phantom_net::route::DirectTlsSetup::Default,
+                            },
+                        ),
+                        authority,
+                        request.target.clone(),
+                        prepared.headers,
+                    )
+                    .await
+            }
             Route::Socks5(proxy) => match proxy.dns_mode() {
                 Socks5DnsMode::Local => {
                     connector

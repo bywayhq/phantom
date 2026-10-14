@@ -1,7 +1,7 @@
 use std::{error::Error as StdError, fmt};
 
 use super::{EchFailure, Http1Error, TlsError, trace_alpn};
-use crate::proxy::{HttpConnectError, Socks5Error};
+use crate::proxy::{HttpConnectError, Socks4Error, Socks5Error};
 
 /// Stable category of HTTP/1 TLS or proxy setup failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -13,6 +13,8 @@ pub enum Http1TlsErrorKind {
     Connect,
     /// Opening or negotiating the HTTP proxy connection failed.
     HttpProxy,
+    /// The SOCKS4 proxy leg failed.
+    Socks4Proxy,
     /// SOCKS5 connection setup failed.
     Socks5Proxy,
     /// TLS setup or the handshake failed.
@@ -37,6 +39,8 @@ pub enum Http1TlsError {
     ForwardProxyConnect(std::io::Error),
     /// HTTP proxy connection setup or negotiation failed.
     Proxy(HttpConnectError),
+    /// The SOCKS4 proxy negotiation or CONNECT request failed.
+    Socks4Proxy(Socks4Error),
     /// SOCKS5 proxy negotiation failed.
     Socks5Proxy(Socks5Error),
     /// TLS connector setup or handshake failed.
@@ -63,6 +67,7 @@ impl fmt::Display for Http1TlsError {
                 formatter.write_str("HTTP forward proxy connection failed")
             }
             Self::Proxy(_) => formatter.write_str("HTTP proxy failed"),
+            Self::Socks4Proxy(_) => formatter.write_str("SOCKS4 proxy failed"),
             Self::Socks5Proxy(_) => formatter.write_str("SOCKS5 proxy failed"),
             Self::Tls(_) => formatter.write_str("TLS connection failed"),
             Self::Http1(_) => formatter.write_str("HTTP/1 request failed"),
@@ -83,6 +88,7 @@ impl StdError for Http1TlsError {
             Self::Connect(error) => Some(error),
             Self::ForwardProxyConnect(error) => Some(error),
             Self::Proxy(error) => Some(error),
+            Self::Socks4Proxy(error) => Some(error),
             Self::Socks5Proxy(error) => Some(error),
             Self::Tls(error) => Some(error),
             Self::Http1(error) => Some(error),
@@ -101,6 +107,7 @@ impl Http1TlsError {
             Self::RuntimeUnavailable => Http1TlsErrorKind::RuntimeUnavailable,
             Self::Connect(_) => Http1TlsErrorKind::Connect,
             Self::Proxy(_) | Self::ForwardProxyConnect(_) => Http1TlsErrorKind::HttpProxy,
+            Self::Socks4Proxy(_) => Http1TlsErrorKind::Socks4Proxy,
             Self::Socks5Proxy(_) => Http1TlsErrorKind::Socks5Proxy,
             Self::Tls(_) => Http1TlsErrorKind::Tls,
             Self::Http1(_) => Http1TlsErrorKind::Http1,
@@ -144,6 +151,12 @@ impl From<crate::direct::DirectTlsError> for Http1TlsError {
 impl From<HttpConnectError> for Http1TlsError {
     fn from(error: HttpConnectError) -> Self {
         Self::Proxy(error)
+    }
+}
+
+impl From<Socks4Error> for Http1TlsError {
+    fn from(error: Socks4Error) -> Self {
+        Self::Socks4Proxy(error)
     }
 }
 

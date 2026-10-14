@@ -695,6 +695,9 @@ impl PoolEntry {
         };
         let tcp = match route {
             Route::Direct => TcpRoute::Direct(endpoint_route),
+            Route::Socks4(proxy) => proxy
+                .tcp_route(endpoint_route)
+                .map_err(|source| RequestError::http1_connection_setup(source.into()))?,
             Route::Socks5(proxy) => TcpRoute::Socks5 {
                 proxy: phantom_net::route::Endpoint {
                     host: proxy.host(),

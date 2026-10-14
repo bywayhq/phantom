@@ -336,6 +336,31 @@ fn credentials_decode_strictly_preserve_plus_and_retain_route_identity() -> Test
 }
 
 #[test]
+fn socks4_environment_uris_use_only_user_identification() -> TestResult {
+    for scheme in ["socks4", "socks4a"] {
+        let value = format!("{scheme}://private%2Buser@127.0.0.1:1080");
+        let proxies = EnvironmentProxies::from_values([("all_proxy", &value)])?;
+        let route = selected(&proxies, "https://origin.example/")?;
+        let expected = Route::socks4(
+            crate::Socks4Proxy::new(&format!("{scheme}://127.0.0.1:1080"))?
+                .with_user_id("private+user")?,
+        );
+        assert_eq!(route, expected);
+        assert!(!format!("{route:?} {proxies:?}").contains("private"));
+
+        let error = EnvironmentProxies::from_values([(
+            "all_proxy",
+            format!("{scheme}://private:password@127.0.0.1:1080"),
+        )])
+        .err()
+        .ok_or("operation unexpectedly succeeded")?;
+        assert_eq!(error.kind(), EnvironmentProxyErrorKind::InvalidCredentials);
+        assert!(!format!("{error:?} {error}").contains("password"));
+    }
+    Ok(())
+}
+
+#[test]
 fn unicode_credentials_and_byte_limits_use_the_existing_proxy_validators() -> TestResult {
     let password = canary()?;
     let url = format!("SOCKS5H://%E7%94%A8%E6%88%B7:{password}%40@[::1]:1080");

@@ -23,7 +23,9 @@ use crate::{
     connection_leg::{self, ConnectionLegError},
     direct::{Dialer, DirectConnectError},
     host_resolver::HostResolver,
-    proxy::{HttpConnectError, HttpsProxyConnector, ProxyCredentialCache, Socks5Error},
+    proxy::{
+        HttpConnectError, HttpsProxyConnector, ProxyCredentialCache, Socks4Error, Socks5Error,
+    },
     route::{DirectTlsSetup, Http2Route, OriginRoute, ProxyTransport, TcpRoute},
     tcp::{TcpKeepaliveControl, TcpKeepaliveSource},
     tls::{ClientCertificate, ServerAuthentication, TlsConnector, TlsStream, trace_alpn},
@@ -660,7 +662,11 @@ impl Http2TlsConnector {
             Ok(_) => "ok",
             Err(Http2TlsError::RuntimeUnavailable) => "runtime_unavailable",
             Err(Http2TlsError::Connect(_)) => "connect_error",
-            Err(Http2TlsError::Proxy(_) | Http2TlsError::Socks5Proxy(_)) => "proxy_error",
+            Err(
+                Http2TlsError::Proxy(_)
+                | Http2TlsError::Socks4Proxy(_)
+                | Http2TlsError::Socks5Proxy(_),
+            ) => "proxy_error",
             Err(Http2TlsError::Tls(_)) => "tls_error",
             Err(Http2TlsError::Http2(Http2Error::Protocol(_))) => "http_protocol_error",
             Err(Http2TlsError::Http2(_)) => "http_preparation_error",
@@ -774,7 +780,9 @@ fn connection_outcome(result: &Result<Http2Connection, Http2TlsError>) -> &'stat
         Ok(_) => "ok",
         Err(Http2TlsError::RuntimeUnavailable) => "runtime_unavailable",
         Err(Http2TlsError::Connect(_)) => "connect_error",
-        Err(Http2TlsError::Proxy(_) | Http2TlsError::Socks5Proxy(_)) => "proxy_error",
+        Err(
+            Http2TlsError::Proxy(_) | Http2TlsError::Socks4Proxy(_) | Http2TlsError::Socks5Proxy(_),
+        ) => "proxy_error",
         Err(Http2TlsError::Tls(_)) => "tls_error",
         Err(Http2TlsError::Http2(Http2Error::Protocol(_))) => "http_protocol_error",
         Err(Http2TlsError::Http2(_)) => "http_preparation_error",
@@ -834,6 +842,8 @@ pub enum Http2TlsErrorKind {
     Connect,
     /// Opening or negotiating the HTTP proxy connection failed.
     HttpProxy,
+    /// The SOCKS4 proxy leg failed.
+    Socks4Proxy,
     /// SOCKS5 connection setup failed.
     Socks5Proxy,
     /// TLS setup or the handshake failed.
@@ -858,6 +868,8 @@ pub enum Http2TlsError {
     Connect(std::io::Error),
     /// HTTP CONNECT proxy negotiation failed.
     Proxy(HttpConnectError),
+    /// The SOCKS4 proxy negotiation or CONNECT request failed.
+    Socks4Proxy(Socks4Error),
     /// SOCKS5 proxy negotiation failed.
     Socks5Proxy(Socks5Error),
     /// TLS connector setup or handshake failed.
@@ -892,6 +904,7 @@ impl fmt::Display for Http2TlsError {
             }
             Self::Connect(_) => formatter.write_str("TCP connection failed"),
             Self::Proxy(_) => formatter.write_str("HTTP proxy failed"),
+            Self::Socks4Proxy(_) => formatter.write_str("SOCKS4 proxy failed"),
             Self::Socks5Proxy(_) => formatter.write_str("SOCKS5 proxy failed"),
             Self::Tls(_) => formatter.write_str("TLS connection failed"),
             Self::Http2(_) => formatter.write_str("HTTP/2 request failed"),
@@ -923,6 +936,7 @@ impl StdError for Http2TlsError {
         match self {
             Self::Connect(error) => Some(error),
             Self::Proxy(error) => Some(error),
+            Self::Socks4Proxy(error) => Some(error),
             Self::Socks5Proxy(error) => Some(error),
             Self::Tls(error) => Some(error),
             Self::Http2(error) => Some(error),
@@ -943,6 +957,7 @@ impl From<ConnectionLegError> for Http2TlsError {
             }
             ConnectionLegError::Direct(DirectConnectError::Connect(error)) => Self::Connect(error),
             ConnectionLegError::HttpProxy(error) => Self::Proxy(error),
+            ConnectionLegError::Socks4(error) => Self::Socks4Proxy(error),
             ConnectionLegError::Socks5(error) => Self::Socks5Proxy(error),
         }
     }
@@ -956,6 +971,7 @@ impl Http2TlsError {
             Self::RuntimeUnavailable => Http2TlsErrorKind::RuntimeUnavailable,
             Self::Connect(_) => Http2TlsErrorKind::Connect,
             Self::Proxy(_) => Http2TlsErrorKind::HttpProxy,
+            Self::Socks4Proxy(_) => Http2TlsErrorKind::Socks4Proxy,
             Self::Socks5Proxy(_) => Http2TlsErrorKind::Socks5Proxy,
             Self::Tls(_) => Http2TlsErrorKind::Tls,
             Self::Http2(_) => Http2TlsErrorKind::Http2,
@@ -1004,6 +1020,12 @@ impl From<crate::direct::DirectTlsError> for Http2TlsError {
 impl From<HttpConnectError> for Http2TlsError {
     fn from(error: HttpConnectError) -> Self {
         Self::Proxy(error)
+    }
+}
+
+impl From<Socks4Error> for Http2TlsError {
+    fn from(error: Socks4Error) -> Self {
+        Self::Socks4Proxy(error)
     }
 }
 

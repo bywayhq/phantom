@@ -9,7 +9,9 @@ use phantom_net::{
         ConnectUdpError, ConnectUdpErrorKind, Http3ConnectorError, Http3ConnectorErrorKind,
         Http3Error, Http3Unprocessed,
     },
-    proxy::{HttpConnectError, HttpConnectErrorKind, Socks5Error, Socks5ErrorKind},
+    proxy::{
+        HttpConnectError, HttpConnectErrorKind, Socks4ErrorKind, Socks5Error, Socks5ErrorKind,
+    },
     request::RequestBodyError,
     tcp::UnsupportedTcpSettings,
 };
@@ -185,6 +187,7 @@ impl BuildError {
             }
             Http1Or2TlsErrorKind::RuntimeUnavailable
             | Http1Or2TlsErrorKind::Connect
+            | Http1Or2TlsErrorKind::Socks4Proxy
             | Http1Or2TlsErrorKind::Socks5Proxy
             | Http1Or2TlsErrorKind::HttpProxy
             | Http1Or2TlsErrorKind::Http1
@@ -302,6 +305,7 @@ fn classify_http1_build_error(error: &Http1TlsError) -> BuildErrorKind {
         | Http1TlsError::Connect(_)
         | Http1TlsError::ForwardProxyConnect(_)
         | Http1TlsError::Proxy(_)
+        | Http1TlsError::Socks4Proxy(_)
         | Http1TlsError::Socks5Proxy(_)
         | Http1TlsError::Http1(_)
         | Http1TlsError::UnsupportedAlpn { .. } => BuildErrorKind::ProtocolConfiguration,
@@ -320,6 +324,7 @@ fn classify_http2_build_error(error: &Http2TlsError) -> BuildErrorKind {
         | Http2TlsError::RuntimeUnavailable
         | Http2TlsError::Connect(_)
         | Http2TlsError::Proxy(_)
+        | Http2TlsError::Socks4Proxy(_)
         | Http2TlsError::Socks5Proxy(_)
         | Http2TlsError::MissingNegotiatedAlpn
         | Http2TlsError::UnsupportedAlpn { .. }
@@ -887,6 +892,7 @@ impl RequestError {
                 {
                     RequestErrorKind::RuntimeUnavailable
                 }
+                Http1TlsError::Socks4Proxy(error) => socks4_request_error_kind(error.kind()),
                 Http1TlsError::Socks5Proxy(error) => socks5_request_error_kind(error.kind()),
                 Http1TlsError::Proxy(_) => RequestErrorKind::Proxy,
                 Http1TlsError::Tls(_) => RequestErrorKind::Tls,
@@ -940,6 +946,7 @@ impl RequestError {
                 {
                     RequestErrorKind::RuntimeUnavailable
                 }
+                Http2TlsError::Socks4Proxy(error) => socks4_request_error_kind(error.kind()),
                 Http2TlsError::Socks5Proxy(error) => socks5_request_error_kind(error.kind()),
                 Http2TlsError::Proxy(_) => RequestErrorKind::Proxy,
                 Http2TlsError::Tls(_) => RequestErrorKind::Tls,
@@ -986,8 +993,12 @@ impl RequestError {
     }
 
     pub(crate) fn http1_or_2(source: Http1Or2TlsError) -> Self {
-        // The SOCKS5 leg is classified from the source, so it reaches the same
-        // function as the exact H1 and H2 legs.
+        // SOCKS legs are classified from their source, as exact H1 and H2 are.
+        if let Http1Or2TlsError::Socks4Proxy(error) = &source {
+            let kind = socks4_request_error_kind(error.kind());
+            return Self::with_source(kind, None, "HTTP/1.1-or-HTTP/2 negotiation failed", source);
+        }
+
         if let Http1Or2TlsError::Socks5Proxy(error) = &source {
             let kind = socks5_request_error_kind(error.kind());
             return Self::with_source(kind, None, "HTTP/1.1-or-HTTP/2 negotiation failed", source);
@@ -1017,9 +1028,9 @@ impl RequestError {
                 (RequestErrorKind::ProtocolUnavailable, None)
             }
             // Handled above from the source.
-            Http1Or2TlsErrorKind::Socks5Proxy | Http1Or2TlsErrorKind::HttpProxy => {
-                (RequestErrorKind::Proxy, None)
-            }
+            Http1Or2TlsErrorKind::Socks4Proxy
+            | Http1Or2TlsErrorKind::Socks5Proxy
+            | Http1Or2TlsErrorKind::HttpProxy => (RequestErrorKind::Proxy, None),
             _ => (RequestErrorKind::ProtocolUnavailable, None),
         };
         Self::with_source(
@@ -1036,6 +1047,7 @@ impl RequestError {
         let retryable = match &source {
             Http1Or2TlsError::Connect(_) => true,
             Http1Or2TlsError::Proxy(error) => is_retryable_http_connect_kind(error.kind()),
+            Http1Or2TlsError::Socks4Proxy(error) => is_retryable_socks4_kind(error.kind()),
             Http1Or2TlsError::Socks5Proxy(error) => is_retryable_socks5_kind(error.kind()),
             Http1Or2TlsError::RuntimeUnavailable
             | Http1Or2TlsError::Tls(_)
@@ -1339,6 +1351,7 @@ fn is_retryable_http1_connection_setup(source: &Http1TlsError) -> bool {
     match source {
         Http1TlsError::Connect(_) | Http1TlsError::ForwardProxyConnect(_) => true,
         Http1TlsError::Proxy(error) => is_retryable_http_connect_kind(error.kind()),
+        Http1TlsError::Socks4Proxy(error) => is_retryable_socks4_kind(error.kind()),
         Http1TlsError::Socks5Proxy(error) => is_retryable_socks5_kind(error.kind()),
         Http1TlsError::RuntimeUnavailable
         | Http1TlsError::Tls(_)
@@ -1353,6 +1366,7 @@ fn is_retryable_http2_connection_setup(source: &Http2TlsError) -> bool {
     match source {
         Http2TlsError::Connect(_) => true,
         Http2TlsError::Proxy(error) => is_retryable_http_connect_kind(error.kind()),
+        Http2TlsError::Socks4Proxy(error) => is_retryable_socks4_kind(error.kind()),
         Http2TlsError::Socks5Proxy(error) => is_retryable_socks5_kind(error.kind()),
         Http2TlsError::RuntimeUnavailable
         | Http2TlsError::Tls(_)
@@ -1367,6 +1381,18 @@ fn is_retryable_http2_connection_setup(source: &Http2TlsError) -> bool {
 
 fn is_retryable_http_connect_kind(kind: HttpConnectErrorKind) -> bool {
     kind == HttpConnectErrorKind::Connect
+}
+
+fn is_retryable_socks4_kind(kind: Socks4ErrorKind) -> bool {
+    matches!(kind, Socks4ErrorKind::Connect | Socks4ErrorKind::Resolve)
+}
+
+fn socks4_request_error_kind(kind: Socks4ErrorKind) -> RequestErrorKind {
+    match kind {
+        Socks4ErrorKind::RuntimeUnavailable => RequestErrorKind::RuntimeUnavailable,
+        Socks4ErrorKind::Resolve => RequestErrorKind::Resolve,
+        _ => RequestErrorKind::Proxy,
+    }
 }
 
 fn is_retryable_socks5_kind(kind: Socks5ErrorKind) -> bool {

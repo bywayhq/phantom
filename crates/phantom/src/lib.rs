@@ -142,7 +142,8 @@ pub use response::{
 pub use retry::{RetryPolicy, StatusRetry, StatusRetryError};
 pub use route::{
     ConnectUdpProxy, ConnectUdpProxyConfigError, ConnectUdpProxyConfigErrorKind, HttpProxy,
-    ProxyConfigError, ProxyConfigErrorKind, Route, Socks5DnsMode, Socks5Proxy,
+    ProxyConfigError, ProxyConfigErrorKind, Route, Socks4DnsMode, Socks4Proxy,
+    Socks4ProxyConfigError, Socks4ProxyConfigErrorKind, Socks5DnsMode, Socks5Proxy,
     Socks5ProxyConfigError, Socks5ProxyConfigErrorKind,
 };
 pub use session::{

@@ -13,9 +13,9 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use crate::{
     direct::{Dialer, DirectConnectError, connect_tcp},
     proxy::{
-        HttpConnectError, HttpsProxyTunnel, ProxyCredentialCache, Socks5Error, TunnelStream,
-        http_connect_tunnel, http_connect_tunnel_with_basic_auth, socks5_tunnel_local_dns,
-        socks5_tunnel_remote_dns,
+        HttpConnectError, HttpsProxyTunnel, ProxyCredentialCache, Socks4Error, Socks5Error,
+        TunnelStream, http_connect_tunnel, http_connect_tunnel_with_basic_auth, socks4_tunnel,
+        socks5_tunnel_local_dns, socks5_tunnel_remote_dns,
     },
     route::{ConnectedStream, ProxyTransport, Socks5Target, TcpRoute},
     tcp::{ProfileTcpStream, TcpKeepaliveControl, TcpKeepaliveSource},
@@ -34,6 +34,7 @@ pub(crate) enum ConnectionLeg {
 pub(crate) enum ConnectionLegError {
     Direct(DirectConnectError),
     HttpProxy(HttpConnectError),
+    Socks4(Socks4Error),
     Socks5(Socks5Error),
 }
 
@@ -47,6 +48,7 @@ impl fmt::Debug for ConnectionLegError {
                 formatter.debug_tuple("Direct").field(error).finish()
             }
             Self::HttpProxy(error) => formatter.debug_tuple("HttpProxy").field(error).finish(),
+            Self::Socks4(error) => formatter.debug_tuple("Socks4").field(error).finish(),
             Self::Socks5(error) => formatter.debug_tuple("Socks5").field(error).finish(),
         }
     }
@@ -62,6 +64,7 @@ impl fmt::Display for ConnectionLegError {
                 formatter.write_str("TCP connection failed")
             }
             Self::HttpProxy(_) => formatter.write_str("HTTP proxy failed"),
+            Self::Socks4(_) => formatter.write_str("SOCKS4 proxy failed"),
             Self::Socks5(_) => formatter.write_str("SOCKS5 proxy failed"),
         }
     }
@@ -73,6 +76,7 @@ impl Error for ConnectionLegError {
             Self::Direct(DirectConnectError::RuntimeUnavailable) => None,
             Self::Direct(DirectConnectError::Connect(error)) => Some(error),
             Self::HttpProxy(error) => Some(error),
+            Self::Socks4(error) => Some(error),
             Self::Socks5(error) => Some(error),
         }
     }
@@ -154,6 +158,14 @@ pub(crate) async fn connect(
                     .map_err(ConnectionLegError::HttpProxy)
             }
         },
+        TcpRoute::Socks4 {
+            proxy,
+            target,
+            user_id,
+        } => socks4_tunnel(dialer, proxy, target, user_id)
+            .await
+            .map(ConnectionLeg::Tcp)
+            .map_err(ConnectionLegError::Socks4),
         TcpRoute::Socks5 {
             proxy,
             target,

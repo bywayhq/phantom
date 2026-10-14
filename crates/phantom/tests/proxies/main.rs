@@ -1,6 +1,6 @@
 //! Integration tests of `phantom-http`, one module per area of the public API.
 //!
-//! Covers HTTP CONNECT, forwarding, and SOCKS5 proxy routes.
+//! Covers HTTP CONNECT, forwarding, and SOCKS4/4a and SOCKS5 proxy routes.
 //!
 //! `support` holds the loopback servers and helpers that the crate's test
 //! binaries share.
@@ -17,5 +17,6 @@ mod proxy_credential_cache;
 mod proxy_field_order;
 mod proxy_h2;
 mod proxy_h2_multiplex;
+mod socks4;
 mod socks5;
 mod socks5_local;

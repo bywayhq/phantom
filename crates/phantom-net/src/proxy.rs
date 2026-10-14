@@ -9,6 +9,7 @@ mod http2_connect;
 mod http2_pool;
 mod http_connect;
 mod https_connect;
+mod socks4;
 mod socks5;
 mod socks5_udp;
 mod tunnel;
@@ -27,6 +28,8 @@ pub use http2_pool::{
 };
 pub(crate) use https_connect::HttpsProxyTunnel;
 pub use https_connect::{HttpsProxyConnector, HttpsProxyProtocol};
+pub(crate) use socks4::socks4_tunnel;
+pub use socks4::{Socks4Error, Socks4ErrorKind, Socks4UserId};
 pub use socks5::{Socks5Auth, Socks5Error, Socks5ErrorKind};
 pub(crate) use socks5::{socks5_tunnel_local_dns, socks5_tunnel_remote_dns};
 pub(crate) use socks5_udp::{

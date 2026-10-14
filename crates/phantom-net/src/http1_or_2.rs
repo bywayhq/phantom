@@ -21,7 +21,7 @@ use crate::{
         Http2Builder, Http2Connection, Http2TlsConnector, Http2TlsError, connect_selected,
         translate_settings, validate_http2,
     },
-    proxy::{HttpConnectError, ProxyCredentialCache, Socks5Error},
+    proxy::{HttpConnectError, ProxyCredentialCache, Socks4Error, Socks5Error},
     route::{DirectTlsSetup, OriginRoute, TcpRoute},
     tcp::{SlowerAttempt, SlowerConnection, SlowerKeepalive, TcpKeepaliveSource},
     tls::{ClientCertificate, TlsConnector, TlsError, trace_alpn},
@@ -49,6 +49,8 @@ pub enum Http1Or2TlsErrorKind {
     Connect,
     /// The HTTP proxy leg or its CONNECT request failed before origin TLS.
     HttpProxy,
+    /// The SOCKS4 proxy leg failed.
+    Socks4Proxy,
     /// The SOCKS5 proxy leg failed before TLS.
     Socks5Proxy,
     /// TLS setup or negotiation failed before an HTTP protocol was selected.
@@ -74,6 +76,8 @@ pub enum Http1Or2TlsError {
     /// The HTTP proxy connection, its TLS, authentication, or CONNECT request
     /// failed.
     Proxy(HttpConnectError),
+    /// The SOCKS4 proxy negotiation or CONNECT request failed.
+    Socks4Proxy(Socks4Error),
     /// The SOCKS5 proxy negotiation or CONNECT request failed.
     Socks5Proxy(Socks5Error),
     /// TLS connector setup or handshake failed.
@@ -101,6 +105,7 @@ impl From<ConnectionLegError> for Http1Or2TlsError {
             }
             ConnectionLegError::Direct(DirectConnectError::Connect(error)) => Self::Connect(error),
             ConnectionLegError::HttpProxy(error) => Self::Proxy(error),
+            ConnectionLegError::Socks4(error) => Self::Socks4Proxy(error),
             ConnectionLegError::Socks5(error) => Self::Socks5Proxy(error),
         }
     }
@@ -124,6 +129,7 @@ impl Http1Or2TlsError {
             Self::RuntimeUnavailable => Http1Or2TlsErrorKind::RuntimeUnavailable,
             Self::Connect(_) => Http1Or2TlsErrorKind::Connect,
             Self::Proxy(_) => Http1Or2TlsErrorKind::HttpProxy,
+            Self::Socks4Proxy(_) => Http1Or2TlsErrorKind::Socks4Proxy,
             Self::Socks5Proxy(_) => Http1Or2TlsErrorKind::Socks5Proxy,
             Self::Tls(_) => Http1Or2TlsErrorKind::Tls,
             Self::Http1(_) => Http1Or2TlsErrorKind::Http1,
@@ -143,6 +149,7 @@ impl fmt::Display for Http1Or2TlsError {
                 .write_str("negotiated HTTP/1.1 or HTTP/2 requests require a Tokio runtime"),
             Self::Connect(_) => formatter.write_str("TCP connection failed"),
             Self::Proxy(_) => formatter.write_str("HTTP proxy failed"),
+            Self::Socks4Proxy(_) => formatter.write_str("SOCKS4 proxy failed"),
             Self::Socks5Proxy(_) => formatter.write_str("SOCKS5 proxy failed"),
             Self::Tls(_) => formatter.write_str("TLS connection failed"),
             Self::Http1(_) => formatter.write_str("HTTP/1.1 connection failed"),
@@ -167,6 +174,7 @@ impl StdError for Http1Or2TlsError {
         match self {
             Self::Connect(error) => Some(error),
             Self::Proxy(error) => Some(error),
+            Self::Socks4Proxy(error) => Some(error),
             Self::Socks5Proxy(error) => Some(error),
             Self::Tls(error) => Some(error),
             Self::Http1(error) => Some(error),
@@ -201,6 +209,12 @@ impl From<crate::direct::DirectTlsError> for Http1Or2TlsError {
 impl From<HttpConnectError> for Http1Or2TlsError {
     fn from(error: HttpConnectError) -> Self {
         Self::Proxy(error)
+    }
+}
+
+impl From<Socks4Error> for Http1Or2TlsError {
+    fn from(error: Socks4Error) -> Self {
+        Self::Socks4Proxy(error)
     }
 }
 
@@ -797,7 +811,11 @@ impl ConnectOutcome {
             Ok(_) => "ok",
             Err(Http1Or2TlsError::RuntimeUnavailable) => "runtime_unavailable",
             Err(Http1Or2TlsError::Connect(_)) => "connect_error",
-            Err(Http1Or2TlsError::Proxy(_) | Http1Or2TlsError::Socks5Proxy(_)) => "proxy_error",
+            Err(
+                Http1Or2TlsError::Proxy(_)
+                | Http1Or2TlsError::Socks4Proxy(_)
+                | Http1Or2TlsError::Socks5Proxy(_),
+            ) => "proxy_error",
             Err(Http1Or2TlsError::Tls(_)) => "tls_error",
             Err(Http1Or2TlsError::Http1(_)) => "http1_error",
             Err(Http1Or2TlsError::Http2(_)) => "http2_error",

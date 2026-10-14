@@ -7,7 +7,10 @@ use std::{
 
 use crate::{
     authority::Endpoint,
-    route::{HttpProxy, ProxyConfigError, Route, Socks5Proxy, Socks5ProxyConfigError},
+    route::{
+        HttpProxy, ProxyConfigError, Route, Socks4Proxy, Socks4ProxyConfigError, Socks5Proxy,
+        Socks5ProxyConfigError,
+    },
 };
 
 const MAX_VARIABLE_BYTES: usize = 32 * 1024;
@@ -39,14 +42,15 @@ const VARIABLES: [&str; 8] = [
 ///
 /// `HTTP_PROXY` applies to HTTP and WebSocket origins. `HTTPS_PROXY` applies
 /// to HTTPS and secure WebSocket origins. The value's scheme selects the
-/// proxy transport: `http`, `https`, `socks5` or `socks5h`. HTTP proxies use
-/// their existing default HTTP/1.1 transport. SOCKS5 retains its explicit
+/// proxy transport: `http`, `https`, `socks4`, `socks4a`, `socks5` or `socks5h`.
+/// HTTP proxies use their existing default HTTP/1.1 transport. SOCKS routes keep their explicit
 /// local or remote DNS mode. Unsupported protocol combinations fail before I/O.
 /// URL schemes are case-insensitive.
 ///
 /// Proxy URLs may carry percent-encoded username and password values.
 /// A literal `+` remains `+`. Existing proxy validators check the decoded
 /// credentials, and existing challenge and pooling rules apply.
+/// SOCKS4 URLs accept only a user ID; a nonempty password is rejected.
 ///
 /// # Bypass rules
 ///
@@ -260,6 +264,7 @@ impl fmt::Display for EnvironmentProxyError {
 
 enum ProxySource {
     Http(ProxyConfigError),
+    Socks4(Socks4ProxyConfigError),
     Socks5(Socks5ProxyConfigError),
 }
 
@@ -267,6 +272,7 @@ impl StdError for EnvironmentProxyError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match &self.source {
             Some(ProxySource::Http(error)) => Some(error),
+            Some(ProxySource::Socks4(error)) => Some(error),
             Some(ProxySource::Socks5(error)) => Some(error),
             None => None,
         }
@@ -315,7 +321,10 @@ fn parse_proxy((variable, value): (&'static str, String)) -> Result<Route, Envir
         .split_once("://")
         .ok_or_else(|| invalid(EnvironmentProxyErrorKind::InvalidProxy))?;
     let scheme = scheme.to_ascii_lowercase();
-    if !matches!(scheme.as_str(), "http" | "https" | "socks5" | "socks5h") {
+    if !matches!(
+        scheme.as_str(),
+        "http" | "https" | "socks4" | "socks4a" | "socks5" | "socks5h"
+    ) {
         return Err(invalid(EnvironmentProxyErrorKind::UnsupportedProxyScheme));
     }
     let authority_end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
@@ -351,6 +360,22 @@ fn parse_proxy((variable, value): (&'static str, String)) -> Result<Route, Envir
                     })?;
             }
             Ok(Route::http_proxy(proxy))
+        }
+        "socks4" | "socks4a" => {
+            let mut proxy = Socks4Proxy::new(&clean).map_err(|source| {
+                invalid(EnvironmentProxyErrorKind::InvalidProxy)
+                    .with_source(ProxySource::Socks4(source))
+            })?;
+            if let Some((user_id, password)) = credentials {
+                if !password.is_empty() {
+                    return Err(invalid(EnvironmentProxyErrorKind::InvalidCredentials));
+                }
+                proxy = proxy.with_user_id(user_id).map_err(|source| {
+                    invalid(EnvironmentProxyErrorKind::InvalidCredentials)
+                        .with_source(ProxySource::Socks4(source))
+                })?;
+            }
+            Ok(Route::socks4(proxy))
         }
         _ => {
             let mut proxy = Socks5Proxy::new(&clean).map_err(|source| {

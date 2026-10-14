@@ -256,6 +256,9 @@ impl WebSocketRequestBuilder {
                             credentials: proxy.basic_credentials(),
                         })
                     }
+                    Route::Socks4(proxy) => proxy.tcp_route(endpoint).map_err(|source| {
+                        WebSocketError::request(RequestError::http1_connection_setup(source.into()))
+                    })?,
                     Route::Socks5(proxy) => TcpRoute::Socks5 {
                         proxy: phantom_net::route::Endpoint {
                             host: proxy.host(),

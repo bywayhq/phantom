@@ -1,6 +1,8 @@
 //! Borrowed routes used to connect to an origin.
 
-use crate::proxy::{HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, Socks5Auth};
+use crate::proxy::{
+    HttpBasicCredentials, HttpConnectHeader, HttpsProxyConnector, Socks4UserId, Socks5Auth,
+};
 use crate::{
     request::{AbsoluteForm, OriginForm},
     tcp::AddressFamilyMemory,
@@ -71,6 +73,20 @@ pub enum Socks5Target<'a> {
     RemoteDns(Endpoint<'a>),
 }
 
+/// A SOCKS4 CONNECT target with explicit DNS ownership.
+#[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
+pub enum Socks4Target<'a> {
+    /// Resolve locally and use the first IPv4 answer; IPv6-only answers fail.
+    LocalDns(Endpoint<'a>),
+    /// Send a domain to the SOCKS4a proxy; IPv4 literals need no lookup.
+    /// Callers supply canonical ASCII names, NUL-free, nonempty and at most
+    /// 253 bytes. Non-ASCII names fail before proxy I/O.
+    /// Port zero and IPv4 addresses in the reserved 0.0.0.1–255 marker range
+    /// fail before proxy I/O, as do IPv6 literals.
+    RemoteDns(Endpoint<'a>),
+}
+
 /// Route that supplies a TCP byte stream to an origin.
 ///
 /// Origin TLS and HTTP setup follow the route's connection setup. A proxy
@@ -84,6 +100,15 @@ pub enum TcpRoute<'a> {
     Connected(ConnectedStream),
     /// Open an HTTP CONNECT tunnel through a plaintext or TLS proxy.
     HttpConnect(HttpConnectRoute<'a>),
+    /// Open a SOCKS4 or SOCKS4a TCP tunnel; IPv6 targets are unsupported.
+    Socks4 {
+        /// Proxy endpoint, which may itself use IPv6.
+        proxy: Endpoint<'a>,
+        /// Target with explicit DNS ownership.
+        target: Socks4Target<'a>,
+        /// Identification sent to the proxy; debug output redacts it.
+        user_id: Socks4UserId<'a>,
+    },
     /// Open a SOCKS5 CONNECT tunnel with the selected DNS and auth policy.
     Socks5 {
         /// SOCKS5 proxy host and port.

@@ -731,6 +731,24 @@ impl PoolEntry {
                 .await
                 .map_err(RequestError::http2_connection_setup)?
             }
+            Route::Socks4(proxy) => super::box_send(
+                connector.connect(phantom_net::route::Http2Route::Origin(
+                    phantom_net::route::OriginRoute::Tls {
+                        tcp: proxy
+                            .tcp_route(phantom_net::route::Endpoint {
+                                host: endpoint.host(),
+                                port: endpoint.port(),
+                            })
+                            .map_err(|source| {
+                                RequestError::http2_connection_setup(source.into())
+                            })?,
+                        server_name: endpoint.host(),
+                        setup: phantom_net::route::DirectTlsSetup::Default,
+                    },
+                )),
+            )
+            .await
+            .map_err(RequestError::http2_connection_setup)?,
             Route::Socks5(proxy) => match proxy.dns_mode() {
                 crate::Socks5DnsMode::Local => super::box_send(connector.connect(
                     phantom_net::route::Http2Route::Origin(phantom_net::route::OriginRoute::Tls {
