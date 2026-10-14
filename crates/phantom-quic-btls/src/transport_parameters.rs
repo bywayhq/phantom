@@ -804,6 +804,11 @@ pub(crate) fn server_early_data_context(
         if matches!(identifier, 0x00 | 0x02 | 0x0a | 0x0b | 0x0d | 0x0f | 0x10) {
             continue;
         }
+        // RFC 9000 section 18.1: reserved parameters have no semantics and
+        // arbitrary values. Quinn generates a fresh one for each connection.
+        if identifier >= 27 && identifier % 31 == 27 {
+            continue;
+        }
         encode_varint(identifier, minimal_width(identifier), &mut context)?;
         let len = u64::try_from(value.len())
             .map_err(|_| profile_error("wire_parameters", "server parameter is too long"))?;

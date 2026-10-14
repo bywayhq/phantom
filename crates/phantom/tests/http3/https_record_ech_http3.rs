@@ -1025,3 +1025,4 @@ mod tcp_completed_outcome_contract;
 mod tcp_owner_contract;
 
 mod alt_destination;
+mod alt_early_data;

@@ -398,6 +398,126 @@ fn offer_early(
     (client, server)
 }
 
+// Quinn's decoded TransportParameters discard reserved values. Supply raw
+// parameters to the same context calculation and native server constructor
+// so this control retains the per-connection values a real endpoint writes.
+fn raw_parameter_server(server: &QuicServerConfig, encoded: &[u8]) -> Box<dyn crypto::Session> {
+    let state = server
+        .application_state
+        .as_deref()
+        .unwrap_or_else(|| panic!("raw-parameter server requires early data"));
+    let context =
+        crate::transport_parameters::server_early_data_context(encoded, state, QuicVersion::V1)
+            .unwrap_or_else(|error| panic!("raw-parameter early context: {error}"));
+    let session = ServerSession::new(&server.context, encoded, Some(&context));
+    Box::new(QuicServerSession {
+        state: Mutex::new(ServerState::new(QuicVersion::V1, session)),
+    })
+}
+
+fn offer_after_reserved_parameter_change(
+    application_state: &[u8],
+    transport_limit: u8,
+) -> (Box<dyn crypto::Session>, Box<dyn crypto::Session>) {
+    let client =
+        resuming_client().with_ech(&EchOffer::new(&published_list(1, 0, OTHER_PUBLIC_NAME)));
+    let base = server_config(Some((1, 0, OTHER_PUBLIC_NAME)));
+    let first_server = accepting(base.clone(), b"settings-v1");
+    let first_client = Arc::new(client.without_early_data())
+        .start_session(1, SERVER_NAME, &parameters(Side::Client))
+        .unwrap_or_else(|error| panic!("first raw-parameter client: {error}"));
+    // initial_source_connection_id=1, initial_max_data=5, reserved 27=[a1].
+    let first = exchange(
+        first_client,
+        raw_parameter_server(&first_server, &[0x0f, 1, 1, 4, 1, 5, 27, 1, 0xa1]),
+    );
+    assert_eq!(first.client_result, Ok(()));
+    assert!(!first.client.is_handshaking());
+    assert!(!first.server.is_handshaking());
+    assert!(!server_data(&*first.server).session_resumed());
+    assert!(server_data(&*first.server).ech_accepted());
+    assert_eq!(
+        server_data(&*first.server).early_data_accepted(),
+        Some(false)
+    );
+    assert!(client.has_ticket_for(SERVER_NAME));
+
+    let mut client = Arc::new(client.with_early_data())
+        .start_session(1, SERVER_NAME, &parameters(Side::Client))
+        .unwrap_or_else(|error| panic!("resumed raw-parameter client: {error}"));
+    assert!(
+        client.early_crypto().is_some(),
+        "no actual early-data offer"
+    );
+    // Change both reserved ID and payload without changing the ticket keys.
+    let mut server = raw_parameter_server(
+        &accepting(base, application_state),
+        &[0x0f, 1, 1, 4, 1, transport_limit, 58, 2, 0xb2, 0xc3],
+    );
+    let mut hello = Vec::new();
+    let _ = client.write_handshake(&mut hello);
+    assert!(!hello.is_empty());
+    server
+        .read_handshake(&hello)
+        .unwrap_or_else(|error| panic!("raw-parameter resumed hello: {error}"));
+    assert!(server.is_handshaking(), "completed before client Finished");
+    assert!(server_data(&*server).ech_accepted());
+    assert_eq!(server_data(&*server).early_data_accepted(), None);
+    (client, server)
+}
+
+#[test]
+fn changed_reserved_parameters_keep_native_ech_early_data_acceptance() {
+    let (client, server) = offer_after_reserved_parameter_change(b"settings-v1", 5);
+    assert!(server.early_crypto().is_some(), "no native early READ keys");
+    let complete = exchange(client, server);
+    assert_eq!(complete.client_result, Ok(()));
+    assert!(!complete.client.is_handshaking());
+    assert!(!complete.server.is_handshaking());
+    assert!(server_data(&*complete.server).session_resumed());
+    assert!(server_data(&*complete.server).ech_accepted());
+    assert!(client_data(&*complete.client).session_resumed());
+    assert_eq!(
+        server_data(&*complete.server).early_data_accepted(),
+        Some(true)
+    );
+    assert_eq!(complete.client.early_data_accepted(), Some(true));
+}
+
+#[test]
+fn changed_reserved_parameters_do_not_hide_application_context_rejection() {
+    let (client, server) = offer_after_reserved_parameter_change(b"settings-v2", 5);
+    assert!(server.early_crypto().is_none());
+    let complete = exchange(client, server);
+    assert_eq!(complete.client_result, Ok(()));
+    assert!(!complete.client.is_handshaking());
+    assert!(!complete.server.is_handshaking());
+    assert!(server_data(&*complete.server).session_resumed());
+    assert!(server_data(&*complete.server).ech_accepted());
+    assert_eq!(
+        server_data(&*complete.server).early_data_accepted(),
+        Some(false)
+    );
+    assert_eq!(complete.client.early_data_accepted(), Some(false));
+}
+
+#[test]
+fn changed_reserved_parameters_do_not_hide_transport_limit_rejection() {
+    let (client, server) = offer_after_reserved_parameter_change(b"settings-v1", 4);
+    assert!(server.early_crypto().is_none());
+    let complete = exchange(client, server);
+    assert_eq!(complete.client_result, Ok(()));
+    assert!(!complete.client.is_handshaking());
+    assert!(!complete.server.is_handshaking());
+    assert!(server_data(&*complete.server).session_resumed());
+    assert!(server_data(&*complete.server).ech_accepted());
+    assert_eq!(
+        server_data(&*complete.server).early_data_accepted(),
+        Some(false)
+    );
+    assert_eq!(complete.client.early_data_accepted(), Some(false));
+}
+
 #[test]
 fn early_data_context_rejects_empty_and_oversized_input() {
     for length in [0, usize::from(u16::MAX) + 1] {

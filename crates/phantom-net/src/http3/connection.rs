@@ -327,6 +327,12 @@ impl Http3Connection {
                 debug!("HTTP/3 early-data handshake metadata is invalid; the connection closed");
                 Err(invalid.error())
             }
+            (result, EarlyDataOutcome::Failed) => {
+                // Report the failed TLS handshake, rather than a discarded
+                // early stream's error. Failed handshakes are not replayable.
+                self.early_data_settled().await?;
+                result
+            }
             (result, _) => result,
         }
     }

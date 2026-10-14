@@ -20,7 +20,7 @@ use crate::QuicVersion;
 const CAPTURED_PARAMETERS: &str = "08024064070480600000110c000000019a7aaa7a00000001040480f00000090240670604806000000104800075307128044f524947200480010000c8200e4187dfa4b60190030245c00504806000000f00";
 
 #[test]
-fn early_data_context_ignores_only_forbidden_remembered_parameters() -> Result<(), Box<dyn Error>> {
+fn early_data_context_ignores_forbidden_remembered_parameters() -> Result<(), Box<dyn Error>> {
     let baseline = server_early_data_context(&[0x04, 0x01, 0x05], b"settings", QuicVersion::V1)?;
     for identifier in [0x00, 0x02, 0x0a, 0x0b, 0x0d, 0x0f, 0x10] {
         let encoded = [0x04, 0x01, 0x05, identifier, 0x01, 0x07];
@@ -38,6 +38,37 @@ fn early_data_context_ignores_only_forbidden_remembered_parameters() -> Result<(
             server_early_data_context(&encoded, b"settings", QuicVersion::V1)?,
             baseline,
             "identifier {identifier}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn early_data_context_ignores_changed_reserved_identifiers_and_payloads()
+-> Result<(), Box<dyn Error>> {
+    let baseline = server_early_data_context(&[0x04, 0x01, 0x05], b"settings", QuicVersion::V1)?;
+    for identifier in [27, 58, 89, 31 * 100_000 + 27] {
+        for payload in [&[][..], &[0xa1][..], &[0xb2, 0xc3, 0xd4][..]] {
+            let mut encoded = vec![0x04, 0x01, 0x05];
+            encode_varint(identifier, super::minimal_width(identifier), &mut encoded)?;
+            encoded.push(u8::try_from(payload.len())?);
+            encoded.extend_from_slice(payload);
+            assert_eq!(
+                server_early_data_context(&encoded, b"settings", QuicVersion::V1)?,
+                baseline,
+                "reserved identifier {identifier} with payload {payload:?}"
+            );
+        }
+    }
+    // Adjacent unknown extensions still bind their values to the ticket.
+    for identifier in [26, 28, 57, 59, 88, 90] {
+        let mut encoded = vec![0x04, 0x01, 0x05];
+        encode_varint(identifier, super::minimal_width(identifier), &mut encoded)?;
+        encoded.extend_from_slice(&[0x01, 0xa1]);
+        assert_ne!(
+            server_early_data_context(&encoded, b"settings", QuicVersion::V1)?,
+            baseline,
+            "nonreserved identifier {identifier}"
         );
     }
     Ok(())
