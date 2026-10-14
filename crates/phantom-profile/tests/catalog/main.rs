@@ -1,0 +1,12 @@
+//! Integration tests of `phantom-profile`, one module per area of the public API.
+//!
+//! Covers exact catalog definitions and original component values.
+
+mod catalog;
+mod dns_components;
+mod http1_components;
+mod http2_components;
+mod http3_components;
+mod quic_components;
+mod tcp_components;
+mod udp_components;

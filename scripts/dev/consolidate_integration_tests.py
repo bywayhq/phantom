@@ -148,6 +148,19 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
         ),
     },
     "crates/phantom-profile": {
+        "catalog": (
+            "exact catalog definitions and original component values",
+            [
+                "catalog",
+                "dns_components",
+                "http1_components",
+                "http2_components",
+                "http3_components",
+                "quic_components",
+                "tcp_components",
+                "udp_components",
+            ],
+        ),
         "public_api": (
             "profile construction through the public API",
             [
@@ -157,6 +170,10 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "quic_public_api",
                 "traits",
             ],
+        ),
+        "tls_components": (
+            "independent original TLS values and runtime draw policies",
+            ["branded_originals", "originals", "values"],
         ),
     },
 }
