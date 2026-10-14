@@ -27,12 +27,12 @@ https-records = ["phantom-net/https-records", "dep:base64"]
 json = ["dep:serde", "dep:serde_json"]
 serde = ["dep:serde"]
 sse = ["dep:futures-core", "tokio/time"]
-websocket = ["dep:btls", "dep:futures-util", "dep:tokio-tungstenite"]
+websocket = ["dep:futures-util", "dep:tokio-tungstenite"]
 websocket-deflate = ["websocket", "dep:tungstenite", "tungstenite/deflate"]
 
 [dependencies]
 base64 = { version = "=0.22.1", optional = true }
-btls = { workspace = true, optional = true }
+btls.workspace = true
 brotli.workspace = true
 bytes.workspace = true
 cookie = { version = "=0.18.2", optional = true }
@@ -54,10 +54,10 @@ tokio-tungstenite = { workspace = true, optional = true }
 tungstenite = { workspace = true, optional = true }
 tracing = "0.1.41"
 url = "=2.5.8"
+zeroize.workspace = true
 zstd.workspace = true
 
 [dev-dependencies]
-btls.workspace = true
 futures-util = { version = "=0.3.34", default-features = false, features = ["async-await", "std"] }
 h3 = { workspace = true, features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }
 h3-quinn.workspace = true

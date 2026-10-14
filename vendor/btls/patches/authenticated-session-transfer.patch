@@ -1,0 +1,3135 @@
+diff --git a/src/ssl/mod.rs b/src/ssl/mod.rs
+--- a/src/ssl/mod.rs
++++ b/src/ssl/mod.rs
+@@ -125,6 +125,12 @@
+ mod ech;
+ mod error;
+ mod mut_only;
++mod session_transfer;
++pub use session_transfer::{
++    open_envelope, seal_envelope, AuthenticatedSessionRecord, SessionImportPermit,
++    SessionPolicyBinding, SessionPolicyMutation, SessionTransferCredential,
++    SessionTransferEnvelope, SessionTransferError, SessionTransferPolicy, VerifiedSessionEnvelope,
++};
+ #[cfg(test)]
+ mod test;
+
+@@ -1116,6 +1122,10 @@
+                 );
+             }
+
++            builder.set_ex_data(
++                SslContext::cached_ex_index::<Arc<session_transfer::ContextEpoch>>(),
++                Arc::new(session_transfer::ContextEpoch::new()),
++            );
+             Ok(builder)
+         }
+     }
+@@ -1181,6 +1191,8 @@
+     where
+         F: Fn(&mut X509StoreContextRef) -> bool + 'static + Sync + Send,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.replace_ex_data(
+             SslContext::cached_ex_index::<SessionVerifierProvenance>(),
+             SessionVerifierProvenance::Custom,
+@@ -1207,6 +1219,8 @@
+     /// Configures the certificate verification method for new connections.
+     #[corresponds(SSL_CTX_set_verify)]
+     pub fn set_verify(&mut self, mode: SslVerifyMode) {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.ctx.check_x509();
+
+         unsafe {
+@@ -1235,6 +1249,8 @@
+     where
+         F: Fn(bool, &mut X509StoreContextRef) -> bool + 'static + Sync + Send,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.replace_ex_data(
+             SslContext::cached_ex_index::<SessionVerifierProvenance>(),
+             SessionVerifierProvenance::Custom,
+@@ -1271,6 +1287,8 @@
+     where
+         F: Fn(&mut SslRef) -> Result<(), SslVerifyError> + 'static + Sync + Send,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.replace_ex_data(
+             SslContext::cached_ex_index::<SessionVerifierProvenance>(),
+             SessionVerifierProvenance::Custom,
+@@ -1292,6 +1310,8 @@
+     /// [`SslVerifyMode::NONE`].
+     #[corresponds(SSL_CTX_set_reverify_on_resume)]
+     pub fn set_reverify_on_resume(&mut self, enabled: bool) {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { ffi::SSL_CTX_set_reverify_on_resume(self.as_ptr(), enabled as _) }
+     }
+
+@@ -1309,6 +1329,8 @@
+     where
+         F: Fn(&mut SslRef, &mut SslAlert) -> Result<(), SniError> + 'static + Sync + Send,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             // The SNI callback is somewhat unique in that the callback associated with the original
+             // context associated with an SSL can be used even if the SSL's context has been swapped
+@@ -1364,6 +1386,8 @@
+             + Sync
+             + Send,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.ctx.check_x509();
+
+         unsafe {
+@@ -1377,6 +1401,8 @@
+     /// If the peer's certificate chain is longer than this value, verification will fail.
+     #[corresponds(SSL_CTX_set_verify_depth)]
+     pub fn set_verify_depth(&mut self, depth: u32) {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.ctx.check_x509();
+
+         unsafe {
+@@ -1387,6 +1413,8 @@
+     /// Sets a custom certificate store for verifying peer certificates.
+     #[corresponds(SSL_CTX_set0_verify_cert_store)]
+     pub fn set_verify_cert_store(&mut self, cert_store: X509Store) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.ctx.check_x509();
+
+         unsafe {
+@@ -1405,6 +1433,8 @@
+     /// (there's no way to have both sharing and mutability).
+     #[corresponds(SSL_CTX_set_cert_store)]
+     pub fn set_cert_store(&mut self, cert_store: X509Store) {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.ctx.check_x509();
+
+         self.has_shared_cert_store = true;
+@@ -1416,6 +1446,8 @@
+     /// Replaces the context's certificate store, and allows mutating the store afterwards.
+     #[corresponds(SSL_CTX_set_cert_store)]
+     pub fn set_cert_store_builder(&mut self, cert_store: X509StoreBuilder) {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.ctx.check_x509();
+
+         self.has_shared_cert_store = false;
+@@ -1440,6 +1472,8 @@
+     /// It has no effect when used with DTLS.
+     #[corresponds(SSL_CTX_set_read_ahead)]
+     pub fn set_read_ahead(&mut self, read_ahead: bool) {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             ffi::SSL_CTX_set_read_ahead(self.as_ptr(), c_int::from(read_ahead));
+         }
+@@ -1448,6 +1482,8 @@
+     /// Sets the mode used by the context, returning the new bit-mask after adding mode.
+     #[corresponds(SSL_CTX_set_mode)]
+     pub fn set_mode(&mut self, mode: SslMode) -> SslMode {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         let bits = unsafe { ffi::SSL_CTX_set_mode(self.as_ptr(), mode.bits()) };
+         SslMode::from_bits_retain(bits)
+     }
+@@ -1455,12 +1491,16 @@
+     /// Sets the parameters to be used during ephemeral Diffie-Hellman key exchange.
+     #[corresponds(SSL_CTX_set_tmp_dh)]
+     pub fn set_tmp_dh(&mut self, dh: &DhRef<Params>) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { cvt(ffi::SSL_CTX_set_tmp_dh(self.as_ptr(), dh.as_ptr())) }
+     }
+
+     /// Sets the parameters to be used during ephemeral elliptic curve Diffie-Hellman key exchange.
+     #[corresponds(SSL_CTX_set_tmp_ecdh)]
+     pub fn set_tmp_ecdh(&mut self, key: &EcKeyRef<Params>) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { cvt(ffi::SSL_CTX_set_tmp_ecdh(self.as_ptr(), key.as_ptr())) }
+     }
+
+@@ -1470,6 +1510,8 @@
+     /// if present, or defaults specified at OpenSSL build time otherwise.
+     #[corresponds(SSL_CTX_set_default_verify_paths)]
+     pub fn set_default_verify_paths(&mut self) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.ctx.check_x509();
+
+         unsafe { cvt(ffi::SSL_CTX_set_default_verify_paths(self.as_ptr())) }
+@@ -1490,6 +1532,8 @@
+         ca_file: Option<&Path>,
+         ca_path: Option<&Path>,
+     ) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.ctx.check_x509();
+
+         let ca_file = ca_file.map(path_to_cstring).transpose()?;
+@@ -1510,6 +1554,8 @@
+     /// as trusted by this method.
+     #[corresponds(SSL_CTX_set_client_CA_list)]
+     pub fn set_client_ca_list(&mut self, list: Stack<X509Name>) {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.ctx.check_x509();
+
+         unsafe {
+@@ -1522,6 +1568,8 @@
+     /// requesting client-side TLS authentication.
+     #[corresponds(SSL_CTX_add_client_CA)]
+     pub fn add_client_ca(&mut self, cacert: &X509Ref) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.ctx.check_x509();
+
+         unsafe { cvt(ffi::SSL_CTX_add_client_CA(self.as_ptr(), cacert.as_ptr())) }
+@@ -1534,6 +1582,8 @@
+     /// verification is enabled.
+     #[corresponds(SSL_CTX_set_session_id_context)]
+     pub fn set_session_id_context(&mut self, sid_ctx: &[u8]) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             assert!(sid_ctx.len() <= c_uint::MAX as usize);
+             cvt(ffi::SSL_CTX_set_session_id_context(
+@@ -1555,6 +1605,8 @@
+         file: P,
+         file_type: SslFiletype,
+     ) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.ctx.check_x509();
+
+         let file = path_to_cstring(file.as_ref())?;
+@@ -1577,6 +1629,8 @@
+         &mut self,
+         file: P,
+     ) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         let file = path_to_cstring(file.as_ref())?;
+         unsafe {
+             cvt(ffi::SSL_CTX_use_certificate_chain_file(
+@@ -1591,6 +1645,8 @@
+     /// Use `add_extra_chain_cert` to add the remainder of the certificate chain.
+     #[corresponds(SSL_CTX_use_certificate)]
+     pub fn set_certificate(&mut self, cert: &X509Ref) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { cvt(ffi::SSL_CTX_use_certificate(self.as_ptr(), cert.as_ptr())) }
+     }
+
+@@ -1600,6 +1656,8 @@
+     /// `set_certificate` to a trusted root.
+     #[corresponds(SSL_CTX_add_extra_chain_cert)]
+     pub fn add_extra_chain_cert(&mut self, cert: X509) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.ctx.check_x509();
+
+         unsafe {
+@@ -1617,6 +1675,8 @@
+         file: P,
+         file_type: SslFiletype,
+     ) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         let file = path_to_cstring(file.as_ref())?;
+         unsafe {
+             cvt(ffi::SSL_CTX_use_PrivateKey_file(
+@@ -1633,6 +1693,8 @@
+     where
+         T: HasPrivate,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { cvt(ffi::SSL_CTX_use_PrivateKey(self.as_ptr(), key.as_ptr())) }
+     }
+
+@@ -1649,6 +1711,8 @@
+     /// [`ciphers`]: https://www.openssl.org/docs/manmaster/apps/ciphers.html
+     #[corresponds(SSL_CTX_set_cipher_list)]
+     pub fn set_cipher_list(&mut self, cipher_list: &str) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         let cipher_list = CString::new(cipher_list).map_err(ErrorStack::internal_error)?;
+         unsafe {
+             cvt(ffi::SSL_CTX_set_cipher_list(
+@@ -1670,6 +1734,8 @@
+     /// [`ciphers`]: <https://docs.openssl.org/master/man1/openssl-ciphers/>.
+     #[corresponds(SSL_CTX_set_strict_cipher_list)]
+     pub fn set_strict_cipher_list(&mut self, cipher_list: &str) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         let cipher_list = CString::new(cipher_list).map_err(ErrorStack::internal_error)?;
+         unsafe {
+             cvt(ffi::SSL_CTX_set_strict_cipher_list(
+@@ -1698,6 +1764,8 @@
+     /// `clear_options` for that.
+     #[corresponds(SSL_CTX_set_options)]
+     pub fn set_options(&mut self, option: SslOptions) -> SslOptions {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         let bits = unsafe { ffi::SSL_CTX_set_options(self.as_ptr(), option.bits()) };
+         SslOptions::from_bits_retain(bits)
+     }
+@@ -1713,6 +1781,8 @@
+     /// Clears the options used by the context, returning the old set.
+     #[corresponds(SSL_CTX_clear_options)]
+     pub fn clear_options(&mut self, option: SslOptions) -> SslOptions {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         let bits = unsafe { ffi::SSL_CTX_clear_options(self.as_ptr(), option.bits()) };
+         SslOptions::from_bits_retain(bits)
+     }
+@@ -1723,6 +1793,8 @@
+     /// TLS 1.0.
+     #[corresponds(SSL_CTX_set_min_proto_version)]
+     pub fn set_min_proto_version(&mut self, version: Option<SslVersion>) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             cvt(ffi::SSL_CTX_set_min_proto_version(
+                 self.as_ptr(),
+@@ -1736,6 +1808,8 @@
+     /// If version is `None`, the default maximum version is used. For BoringSSL this is TLS 1.3.
+     #[corresponds(SSL_CTX_set_max_proto_version)]
+     pub fn set_max_proto_version(&mut self, version: Option<SslVersion>) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             cvt(ffi::SSL_CTX_set_max_proto_version(
+                 self.as_ptr(),
+@@ -1778,6 +1852,8 @@
+     /// preference.
+     #[corresponds(SSL_CTX_set_alpn_protos)]
+     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             let r = ffi::SSL_CTX_set_alpn_protos(
+                 self.as_ptr(),
+@@ -1796,6 +1872,8 @@
+     /// Enables the DTLS extension "use_srtp" as defined in RFC5764.
+     #[corresponds(SSL_CTX_set_tlsext_use_srtp)]
+     pub fn set_tlsext_use_srtp(&mut self, protocols: &str) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             let cstr = CString::new(protocols).map_err(ErrorStack::internal_error)?;
+
+@@ -1824,6 +1902,8 @@
+     where
+         F: for<'a> Fn(&mut SslRef, &'a [u8]) -> Result<&'a [u8], AlpnError> + 'static + Sync + Send,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+             ffi::SSL_CTX_set_alpn_select_cb(
+@@ -1842,6 +1922,8 @@
+     where
+         F: Fn(ClientHello<'_>) -> Result<(), SelectCertError> + Sync + Send + 'static,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+             ffi::SSL_CTX_set_select_certificate_cb(
+@@ -1862,6 +1944,8 @@
+     where
+         C: CertificateCompressor,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         const {
+             assert!(C::CAN_COMPRESS || C::CAN_DECOMPRESS, "Either compression or decompression must be supported for algorithm to be registered");
+         };
+@@ -1900,6 +1984,8 @@
+     where
+         M: PrivateKeyMethod,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             self.replace_ex_data(SslContext::cached_ex_index::<M>(), method);
+
+@@ -1939,7 +2025,7 @@
+     /// * If context has been created for Raw Public Key verification (requires `rpk` Cargo feature)
+     ///
+     #[corresponds(SSL_CTX_get_cert_store)]
+-    pub fn cert_store_mut(&mut self) -> &mut X509StoreBuilderRef {
++    pub fn cert_store_mut(&mut self) -> SessionPolicyMutation<'_, X509StoreBuilderRef> {
+         self.ctx.check_x509();
+
+         assert!(
+@@ -1949,7 +2035,19 @@
+         );
+         // OTOH, it's not safe to return a shared &X509Store when the builder owns it exclusively
+
+-        unsafe { X509StoreBuilderRef::from_ptr_mut(ffi::SSL_CTX_get_cert_store(self.as_ptr())) }
++        let epoch = self.ctx.ex_data(SslContext::cached_ex_index::<
++            Arc<session_transfer::ContextEpoch>,
++        >());
++        let guard = epoch.map(|epoch| epoch.mutate());
++        // SAFETY: the unique builder owns its non-shared store. The mutation
++        // guard excludes policy freezing until this borrowed store is released.
++        let value = unsafe {
++            X509StoreBuilderRef::from_ptr_mut(ffi::SSL_CTX_get_cert_store(self.as_ptr()))
++        };
++        SessionPolicyMutation {
++            value,
++            _guard: guard,
++        }
+     }
+
+     /// Sets the callback dealing with OCSP stapling.
+@@ -1969,6 +2067,8 @@
+     where
+         F: Fn(&mut SslRef) -> Result<bool, ErrorStack> + 'static + Sync + Send,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+             cvt(ffi::SSL_CTX_set_tlsext_status_cb(
+@@ -1991,6 +2091,8 @@
+             + Sync
+             + Send,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+             ffi::SSL_CTX_set_psk_client_callback(self.as_ptr(), Some(raw_client_psk::<F>));
+@@ -2021,6 +2123,8 @@
+             + Sync
+             + Send,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+             ffi::SSL_CTX_set_psk_server_callback(self.as_ptr(), Some(raw_server_psk::<F>));
+@@ -2045,6 +2149,8 @@
+     where
+         F: Fn(&mut SslRef, SslSession) + 'static + Sync + Send,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.clear_scoped_client_session_identity();
+         unsafe {
+             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+@@ -2060,6 +2166,8 @@
+     where
+         F: Fn(&SslContextRef, &SslSessionRef) + 'static + Sync + Send,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+             ffi::SSL_CTX_sess_set_remove_cb(
+@@ -2087,6 +2195,8 @@
+             + Sync
+             + Send,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+         unsafe {
+             ffi::SSL_CTX_sess_set_get_cb(self.as_ptr(), Some(callbacks::raw_get_session::<F>));
+@@ -2103,6 +2213,8 @@
+     where
+         F: Fn(&SslRef, &str) + 'static + Sync + Send,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+             ffi::SSL_CTX_set_keylog_callback(self.as_ptr(), Some(callbacks::raw_keylog::<F>));
+@@ -2114,6 +2226,8 @@
+     /// Returns the previous session caching mode.
+     #[corresponds(SSL_CTX_set_session_cache_mode)]
+     pub fn set_session_cache_mode(&mut self, mode: SslSessionCacheMode) -> SslSessionCacheMode {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             let bits = ffi::SSL_CTX_set_session_cache_mode(self.as_ptr(), mode.bits());
+             SslSessionCacheMode::from_bits_retain(bits)
+@@ -2126,6 +2240,8 @@
+     /// separately by BoringSSL.
+     #[corresponds(SSL_CTX_set_timeout)]
+     pub fn set_session_timeout(&mut self, timeout: u32) -> u32 {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { ffi::SSL_CTX_set_timeout(self.as_ptr(), timeout) }
+     }
+
+@@ -2157,6 +2273,8 @@
+     #[corresponds(SSL_CTX_sess_set_cache_size)]
+     #[allow(clippy::useless_conversion)]
+     pub fn set_session_cache_size(&mut self, size: u32) -> u64 {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { ffi::SSL_CTX_sess_set_cache_size(self.as_ptr(), size.into()).into() }
+     }
+
+@@ -2169,6 +2287,8 @@
+     /// signing algorithm prefs.
+     #[corresponds(SSL_CTX_set1_sigalgs_list)]
+     pub fn set_sigalgs_list(&mut self, sigalgs: &str) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         let sigalgs = CString::new(sigalgs).map_err(ErrorStack::internal_error)?;
+         unsafe {
+             cvt(ffi::SSL_CTX_set1_sigalgs_list(
+@@ -2181,6 +2301,8 @@
+     /// Set's whether the context should enable GREASE.
+     #[corresponds(SSL_CTX_set_grease_enabled)]
+     pub fn set_grease_enabled(&mut self, enabled: bool) {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { ffi::SSL_CTX_set_grease_enabled(self.as_ptr(), enabled as _) }
+     }
+
+@@ -2192,6 +2314,8 @@
+     /// [RFC 8701]: https://www.rfc-editor.org/rfc/rfc8701.html
+     #[corresponds(SSL_CTX_set_grease_sigalgs_enabled)]
+     pub fn set_grease_sigalgs_enabled(&mut self, enabled: bool) {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { ffi::SSL_CTX_set_grease_sigalgs_enabled(self.as_ptr(), enabled as _) }
+     }
+
+@@ -2211,6 +2335,8 @@
+     #[cfg(not(feature = "fips"))]
+     #[corresponds(SSL_CTX_set_record_size_limit)]
+     pub fn set_record_size_limit(&mut self, limit: u16) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             cvt(ffi::SSL_CTX_set_record_size_limit(
+                 self.as_ptr(),
+@@ -2230,6 +2356,8 @@
+     #[cfg(not(feature = "fips"))]
+     #[corresponds(SSL_CTX_set_delegated_credentials)]
+     pub fn set_delegated_credentials(&mut self, sigalgs: &str) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         let sigalgs = CString::new(sigalgs).map_err(ErrorStack::internal_error)?;
+         unsafe {
+             cvt(ffi::SSL_CTX_set_delegated_credentials(self.as_ptr(), sigalgs.as_ptr()) as c_int)
+@@ -2241,6 +2369,8 @@
+     #[cfg(not(feature = "fips"))]
+     #[corresponds(SSL_CTX_set_aes_hw_override)]
+     pub fn set_aes_hw_override(&mut self, enable: bool) {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { ffi::SSL_CTX_set_aes_hw_override(self.as_ptr(), enable as _) }
+     }
+
+@@ -2267,6 +2397,8 @@
+     #[cfg(not(feature = "fips"))]
+     #[corresponds(SSL_CTX_set_preserve_tls13_cipher_list)]
+     pub fn set_preserve_tls13_cipher_list(&mut self, enable: bool) {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { ffi::SSL_CTX_set_preserve_tls13_cipher_list(self.as_ptr(), enable as _) }
+     }
+
+@@ -2282,6 +2414,8 @@
+         &mut self,
+         indices: &[ExtensionType],
+     ) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             cvt(ffi::SSL_CTX_set_extension_order(
+                 self.as_ptr(),
+@@ -2295,6 +2429,8 @@
+     /// Configures whether ClientHello extensions should be permuted.
+     #[corresponds(SSL_CTX_set_permute_extensions)]
+     pub fn set_permute_extensions(&mut self, enabled: bool) {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { ffi::SSL_CTX_set_permute_extensions(self.as_ptr(), enabled as _) }
+     }
+
+@@ -2309,6 +2445,8 @@
+     #[cfg(not(feature = "fips"))]
+     #[corresponds(SSL_CTX_set_tls12_extensions_in_tls13_client_hello)]
+     pub fn set_tls12_extensions_in_tls13_client_hello(&mut self, enabled: bool) {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             ffi::SSL_CTX_set_tls12_extensions_in_tls13_client_hello(self.as_ptr(), enabled as _)
+         }
+@@ -2334,6 +2472,8 @@
+         &mut self,
+         extensions: &[ExtensionType],
+     ) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             cvt(ffi::SSL_CTX_set_extension_order_tail(
+                 self.as_ptr(),
+@@ -2349,6 +2489,8 @@
+         &mut self,
+         prefs: &[SslSignatureAlgorithm],
+     ) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             cvt_0i(ffi::SSL_CTX_set_verify_algorithm_prefs(
+                 self.as_ptr(),
+@@ -2362,18 +2504,24 @@
+     /// Enables SCT requests on all client SSL handshakes.
+     #[corresponds(SSL_CTX_enable_signed_cert_timestamps)]
+     pub fn enable_signed_cert_timestamps(&mut self) {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { ffi::SSL_CTX_enable_signed_cert_timestamps(self.as_ptr()) }
+     }
+
+     /// Enables OCSP stapling on all client SSL handshakes.
+     #[corresponds(SSL_CTX_enable_ocsp_stapling)]
+     pub fn enable_ocsp_stapling(&mut self) {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { ffi::SSL_CTX_enable_ocsp_stapling(self.as_ptr()) }
+     }
+
+     /// Sets the context's supported curves.
+     #[corresponds(SSL_CTX_set1_curves_list)]
+     pub fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         let curves = CString::new(curves).map_err(ErrorStack::internal_error)?;
+         unsafe {
+             cvt_0i(ffi::SSL_CTX_set1_curves_list(
+@@ -2389,6 +2537,8 @@
+     /// This feature isn't available in the certified version of BoringSSL.
+     #[corresponds(SSL_CTX_set_compliance_policy)]
+     pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { cvt_0i(ffi::SSL_CTX_set_compliance_policy(self.as_ptr(), policy.0)).map(|_| ()) }
+     }
+
+@@ -2408,6 +2558,8 @@
+     /// [TLS Trust Anchor Identifiers draft]: https://datatracker.ietf.org/doc/draft-ietf-tls-trust-anchor-ids/
+     #[corresponds(SSL_CTX_set1_requested_trust_anchors)]
+     pub fn set_requested_trust_anchors(&mut self, ids: &[u8]) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         // SAFETY: `self` is valid and BoringSSL validates and copies `ids` before returning.
+         unsafe {
+             cvt_0i(ffi::SSL_CTX_set1_requested_trust_anchors(
+@@ -2425,6 +2577,8 @@
+     where
+         F: Fn(&SslRef, SslInfoCallbackMode, SslInfoCallbackValue) + Send + Sync + 'static,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+             ffi::SSL_CTX_set_info_callback(self.as_ptr(), Some(callbacks::raw_info_callback::<F>));
+@@ -2442,6 +2596,8 @@
+     where
+         F: for<'a> Fn(&SslRef, SslMessage<'a>) + Send + Sync + 'static,
+     {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
+             ffi::SSL_CTX_set_msg_callback(self.as_ptr(), Some(callbacks::raw_msg_callback::<F>));
+@@ -2454,6 +2610,8 @@
+     /// threads.
+     #[corresponds(SSL_CTX_set1_ech_keys)]
+     pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())) }
+     }
+
+@@ -2461,6 +2619,8 @@
+     #[corresponds(SSL_CTX_add1_credential)]
+     #[cfg(feature = "credential")]
+     pub fn add_credential(&mut self, credential: &SslCredentialRef) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             cvt_0i(ffi::SSL_CTX_add1_credential(
+                 self.as_ptr(),
+@@ -2478,6 +2638,8 @@
+         &mut self,
+         types: &[CertificateType],
+     ) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.ctx.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe {
+             cvt_0i(ffi::SSL_CTX_set1_accepted_peer_cert_types(
+                 self.as_ptr(),
+@@ -2587,6 +2749,12 @@
+ }
+
+ impl SslContextRef {
++    fn transfer_context_epoch(&self) -> Option<Arc<session_transfer::ContextEpoch>> {
++        self.ex_data(SslContext::cached_ex_index::<
++            Arc<session_transfer::ContextEpoch>,
++        >())
++        .cloned()
++    }
+     /// Returns the certificate associated with this `SslContext`, if present.
+     #[corresponds(SSL_CTX_get0_certificate)]
+     #[must_use]
+@@ -2771,6 +2939,8 @@
+     /// threads.
+     #[corresponds(SSL_CTX_set1_ech_keys)]
+     pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
++        let transfer_epoch = self.transfer_context_epoch();
++        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
+         unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())) }
+     }
+
+@@ -3092,7 +3262,7 @@
+ /// Clones refer to the same scope. Independently created values, including two
+ /// values created with [`Default`], refer to distinct scopes.
+ #[derive(Clone, Default)]
+-pub struct SslSessionScope(Arc<()>);
++pub struct SslSessionScope(Arc<session_transfer::ScopeState>);
+
+ #[derive(Clone, Copy)]
+ enum SessionVerifierProvenance {
+@@ -3156,6 +3326,8 @@
+     scope: SslSessionScope,
+     hostname: Box<str>,
+     publication: Arc<SessionPublication>,
++    transfer: Option<Arc<session_transfer::ConnectionPolicy>>,
++    imported: bool,
+ }
+
+ impl fmt::Debug for ScopedSslSession {
+@@ -3183,6 +3355,7 @@
+         session: SslSession,
+         keep_early_data: bool,
+         publication: &Arc<SessionPublication>,
++        transfer: Option<&Arc<session_transfer::ConnectionPolicy>>,
+     ) -> Result<Self, ErrorStack> {
+         let session = if keep_early_data {
+             session
+@@ -3195,6 +3368,8 @@
+             scope: scope.clone(),
+             hostname: hostname.into(),
+             publication: Arc::clone(publication),
++            transfer: transfer.cloned(),
++            imported: false,
+         })
+     }
+
+@@ -3207,6 +3382,7 @@
+     #[must_use]
+     pub fn is_authenticated(&self) -> bool {
+         self.publication.is_authenticated()
++            && self.transfer.as_ref().is_none_or(|token| token.valid())
+     }
+
+     /// Returns the time at which the session was established, in seconds since the Unix epoch.
+@@ -3247,7 +3423,8 @@
+         context: &SslContextRef,
+         hostname: &str,
+     ) -> bool {
+-        Arc::ptr_eq(&self.scope.0, &scope.0)
++        (!self.imported || self.transfer.as_ref().is_some_and(|token| token.valid()))
++            && Arc::ptr_eq(&self.scope.0, &scope.0)
+             && self.context.as_ptr() == context.as_ptr()
+             && session_hostnames_match(&self.hostname, hostname)
+     }
+@@ -3280,6 +3457,35 @@
+ }
+
+ impl SslSessionRef {
++    fn bounded_transfer_bytes(
++        &self,
++        bound: usize,
++    ) -> Result<zeroize::Zeroizing<Vec<u8>>, SessionTransferError> {
++        // SAFETY: a live immutable session uses the same pinned serializer for
++        // both length and write. The null output query does not write to Rust memory.
++        let size = unsafe { ffi::i2d_SSL_SESSION(self.as_ptr(), ptr::null_mut()) };
++        let size =
++            usize::try_from(size).map_err(|_| SessionTransferError::Backend(ErrorStack::get()))?;
++        if size == 0 {
++            return Err(SessionTransferError::Backend(ErrorStack::get()));
++        }
++        if size > bound {
++            return Err(SessionTransferError::TooLarge);
++        }
++        let mut bytes = zeroize::Zeroizing::new(Vec::new());
++        bytes
++            .try_reserve_exact(size)
++            .map_err(|_| SessionTransferError::Allocation)?;
++        bytes.resize(size, 0);
++        let mut output = bytes.as_mut_ptr();
++        // SAFETY: the checked allocation contains exactly the queried length;
++        // no safe session setter can mutate this authenticated immutable session.
++        let written = unsafe { ffi::i2d_SSL_SESSION(self.as_ptr(), &mut output) };
++        if usize::try_from(written).ok() != Some(size) {
++            return Err(SessionTransferError::Backend(ErrorStack::get()));
++        }
++        Ok(bytes)
++    }
+     /// Returns the SSL session ID.
+     #[corresponds(SSL_SESSION_get_id)]
+     #[must_use]
+@@ -3524,6 +3730,18 @@
+ }
+
+ impl SslRef {
++    pub(super) fn revoke_session_transfer(&self) {
++        if let Some(binding) =
++            self.ex_data(Ssl::cached_ex_index::<connector::ScopedSessionBinding>())
++        {
++            if let Some(transfer) = &binding.transfer {
++                transfer.revoke();
++            }
++            if let Some(transfer) = &binding.offered_imported_transfer {
++                transfer.revoke();
++            }
++        }
++    }
+     fn get_raw_rbio(&self) -> *mut ffi::BIO {
+         unsafe { ffi::SSL_get_rbio(self.as_ptr()) }
+     }
+@@ -3536,6 +3754,7 @@
+     /// `clear_options` for that.
+     #[corresponds(SSL_set_options)]
+     pub fn set_options(&mut self, option: SslOptions) -> SslOptions {
++        self.revoke_session_transfer();
+         let bits = unsafe { ffi::SSL_set_options(self.as_ptr(), option.bits()) };
+         SslOptions::from_bits_retain(bits)
+     }
+@@ -3543,12 +3762,14 @@
+     /// Clears the options used by the ongoing session, returning the old set.
+     #[corresponds(SSL_clear_options)]
+     pub fn clear_options(&mut self, option: SslOptions) -> SslOptions {
++        self.revoke_session_transfer();
+         let bits = unsafe { ffi::SSL_clear_options(self.as_ptr(), option.bits()) };
+         SslOptions::from_bits_retain(bits)
+     }
+
+     #[corresponds(SSL_set1_curves_list)]
+     pub fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         let curves = CString::new(curves).map_err(ErrorStack::internal_error)?;
+         unsafe { cvt_0i(ffi::SSL_set1_curves_list(self.as_ptr(), curves.as_ptr())).map(|_| ()) }
+     }
+@@ -3558,6 +3779,7 @@
+         &mut self,
+         prefs: &[SslSignatureAlgorithm],
+     ) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         self.invalidate_scoped_session_publication();
+
+         unsafe {
+@@ -3623,6 +3845,7 @@
+     /// [`SslContextBuilder::set_verify`]: struct.SslContextBuilder.html#method.set_verify
+     #[corresponds(SSL_set_verify)]
+     pub fn set_verify(&mut self, mode: SslVerifyMode) {
++        self.revoke_session_transfer();
+         self.ssl_context().check_x509();
+
+         self.invalidate_scoped_session_publication();
+@@ -3635,6 +3858,7 @@
+     /// If the peer's certificate chain is longer than this value, verification will fail.
+     #[corresponds(SSL_set_verify_depth)]
+     pub fn set_verify_depth(&mut self, depth: u32) {
++        self.revoke_session_transfer();
+         self.invalidate_scoped_session_publication();
+
+         self.ssl_context().check_x509();
+@@ -3675,6 +3899,7 @@
+     where
+         F: Fn(bool, &mut X509StoreContextRef) -> bool + 'static + Sync + Send,
+     {
++        self.revoke_session_transfer();
+         self.set_ex_data(
+             Ssl::cached_ex_index::<CustomSessionVerifier>(),
+             CustomSessionVerifier,
+@@ -3698,6 +3923,7 @@
+     /// Sets a custom certificate store for verifying peer certificates.
+     #[corresponds(SSL_set0_verify_cert_store)]
+     pub fn set_verify_cert_store(&mut self, cert_store: X509Store) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         self.invalidate_scoped_session_publication();
+
+         self.ssl_context().check_x509();
+@@ -3720,6 +3946,7 @@
+     where
+         F: Fn(&mut SslRef) -> Result<(), SslVerifyError> + 'static + Sync + Send,
+     {
++        self.revoke_session_transfer();
+         self.set_ex_data(
+             Ssl::cached_ex_index::<CustomSessionVerifier>(),
+             CustomSessionVerifier,
+@@ -3745,6 +3972,7 @@
+     /// [`SslContextBuilder::set_tmp_dh`]: struct.SslContextBuilder.html#method.set_tmp_dh
+     #[corresponds(SSL_set_tmp_dh)]
+     pub fn set_tmp_dh(&mut self, dh: &DhRef<Params>) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe { cvt(ffi::SSL_set_tmp_dh(self.as_ptr(), dh.as_ptr())) }
+     }
+
+@@ -3753,12 +3981,14 @@
+     /// [`SslContextBuilder::set_tmp_ecdh`]: struct.SslContextBuilder.html#method.set_tmp_ecdh
+     #[corresponds(SSL_set_tmp_ecdh)]
+     pub fn set_tmp_ecdh(&mut self, key: &EcKeyRef<Params>) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe { cvt(ffi::SSL_set_tmp_ecdh(self.as_ptr(), key.as_ptr())) }
+     }
+
+     /// Configures whether ClientHello extensions should be permuted.
+     #[corresponds(SSL_set_permute_extensions)]
+     pub fn set_permute_extensions(&mut self, enabled: bool) {
++        self.revoke_session_transfer();
+         unsafe { ffi::SSL_set_permute_extensions(self.as_ptr(), enabled as _) }
+     }
+
+@@ -3767,6 +3997,7 @@
+     #[cfg(not(feature = "fips"))]
+     #[corresponds(SSL_set_tls12_extensions_in_tls13_client_hello)]
+     pub fn set_tls12_extensions_in_tls13_client_hello(&mut self, enabled: bool) {
++        self.revoke_session_transfer();
+         unsafe { ffi::SSL_set_tls12_extensions_in_tls13_client_hello(self.as_ptr(), enabled as _) }
+     }
+
+@@ -3775,6 +4006,7 @@
+     #[cfg(not(feature = "fips"))]
+     #[corresponds(SSL_set_record_size_limit)]
+     pub fn set_record_size_limit(&mut self, limit: u16) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe { cvt(ffi::SSL_set_record_size_limit(self.as_ptr(), limit as _)).map(drop) }
+     }
+
+@@ -3783,6 +4015,7 @@
+     /// [`SslContextBuilder::set_alpn_protos`]: struct.SslContextBuilder.html#method.set_alpn_protos
+     #[corresponds(SSL_set_alpn_protos)]
+     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe {
+             let r = ffi::SSL_set_alpn_protos(
+                 self.as_ptr(),
+@@ -3886,6 +4119,7 @@
+     /// It has no effect for a server-side connection.
+     #[corresponds(SSL_set_tlsext_host_name)]
+     pub fn set_hostname(&mut self, hostname: &str) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         self.invalidate_scoped_session_publication();
+
+         let cstr = CString::new(hostname).map_err(ErrorStack::internal_error)?;
+@@ -3996,6 +4230,7 @@
+     /// TLS 1.0.
+     #[corresponds(SSL_set_min_proto_version)]
+     pub fn set_min_proto_version(&mut self, version: Option<SslVersion>) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe {
+             cvt(ffi::SSL_set_min_proto_version(
+                 self.as_ptr(),
+@@ -4009,6 +4244,7 @@
+     /// If version is `None`, the default maximum version is used. For BoringSSL this is TLS 1.3.
+     #[corresponds(SSL_set_max_proto_version)]
+     pub fn set_max_proto_version(&mut self, version: Option<SslVersion>) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe {
+             cvt(ffi::SSL_set_max_proto_version(
+                 self.as_ptr(),
+@@ -4094,6 +4330,7 @@
+     /// Enables the DTLS extension "use_srtp" as defined in RFC5764.
+     #[corresponds(SSL_set_tlsext_use_srtp)]
+     pub fn set_tlsext_use_srtp(&mut self, protocols: &str) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe {
+             let cstr = CString::new(protocols).map_err(ErrorStack::internal_error)?;
+
+@@ -4195,6 +4432,7 @@
+     /// It is most commonly used in the Server Name Indication (SNI) callback.
+     #[corresponds(SSL_set_SSL_CTX)]
+     pub fn set_ssl_context(&mut self, ctx: &SslContextRef) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         self.invalidate_scoped_session_publication();
+
+         assert_eq!(
+@@ -4219,6 +4457,7 @@
+     /// Returns a mutable reference to the X509 verification configuration.
+     #[corresponds(SSL_get0_param)]
+     pub fn verify_param_mut(&mut self) -> &mut X509VerifyParamRef {
++        self.revoke_session_transfer();
+         self.invalidate_scoped_session_publication();
+
+         self.ssl_context().check_x509();
+@@ -4228,6 +4467,7 @@
+
+     /// See [`Self::verify_param_mut`].
+     pub fn param_mut(&mut self) -> &mut X509VerifyParamRef {
++        self.revoke_session_transfer();
+         self.verify_param_mut()
+     }
+
+@@ -4313,6 +4553,7 @@
+     /// - the session ID context, protocol, and cipher configuration are compatible.
+     #[corresponds(SSL_set_session)]
+     pub unsafe fn set_session(&mut self, session: &SslSessionRef) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe { cvt(ffi::SSL_set_session(self.as_ptr(), session.as_ptr())) }
+     }
+
+@@ -4326,6 +4567,7 @@
+     /// Sets the status response a client wishes the server to reply with.
+     #[corresponds(SSL_set_tlsext_status_type)]
+     pub fn set_status_type(&mut self, type_: StatusType) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe {
+             cvt(ffi::SSL_set_tlsext_status_type(
+                 self.as_ptr(),
+@@ -4353,6 +4595,7 @@
+     /// Sets the OCSP response to be returned to the client.
+     #[corresponds(SSL_set_ocsp_response)]
+     pub fn set_ocsp_status(&mut self, response: &[u8]) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe {
+             assert!(response.len() <= c_int::MAX as usize);
+             cvt(ffi::SSL_set_ocsp_response(
+@@ -4465,6 +4708,7 @@
+     /// twice.
+     #[corresponds(SSL_set_early_data_enabled)]
+     pub fn set_early_data_enabled(&mut self, enabled: bool) {
++        self.revoke_session_transfer();
+         unsafe { ffi::SSL_set_early_data_enabled(self.as_ptr(), c_int::from(enabled)) }
+     }
+
+@@ -4507,12 +4751,14 @@
+     /// Sets the MTU used for DTLS connections.
+     #[corresponds(SSL_set_mtu)]
+     pub fn set_mtu(&mut self, mtu: u32) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe { cvt(ffi::SSL_set_mtu(self.as_ptr(), mtu as c_uint)) }
+     }
+
+     /// Sets the certificate.
+     #[corresponds(SSL_use_certificate)]
+     pub fn set_certificate(&mut self, cert: &X509Ref) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe {
+             cvt(ffi::SSL_use_certificate(self.as_ptr(), cert.as_ptr()))?;
+         }
+@@ -4526,6 +4772,7 @@
+     /// as trusted by this method.
+     #[corresponds(SSL_set_client_CA_list)]
+     pub fn set_client_ca_list(&mut self, list: Stack<X509Name>) {
++        self.revoke_session_transfer();
+         self.ssl_context().check_x509();
+
+         unsafe { ffi::SSL_set_client_CA_list(self.as_ptr(), list.as_ptr()) }
+@@ -4538,6 +4785,7 @@
+     where
+         T: HasPrivate,
+     {
++        self.revoke_session_transfer();
+         unsafe { cvt(ffi::SSL_use_PrivateKey(self.as_ptr(), key.as_ptr())) }
+     }
+
+@@ -4545,6 +4793,7 @@
+     /// enabled modes.
+     #[corresponds(SSL_set_mode)]
+     pub fn set_mode(&mut self, mode: SslMode) -> SslMode {
++        self.revoke_session_transfer();
+         let bits = unsafe { ffi::SSL_set_mode(self.as_ptr(), mode.bits()) };
+         SslMode::from_bits_retain(bits)
+     }
+@@ -4553,6 +4802,7 @@
+     /// enabled modes.
+     #[corresponds(SSL_clear_mode)]
+     pub fn clear_mode(&mut self, mode: SslMode) -> SslMode {
++        self.revoke_session_transfer();
+         let bits = unsafe { ffi::SSL_clear_mode(self.as_ptr(), mode.bits()) };
+         SslMode::from_bits_retain(bits)
+     }
+@@ -4560,6 +4810,7 @@
+     /// Appends `cert` to the chain associated with the current certificate of `SSL`.
+     #[corresponds(SSL_add1_chain_cert)]
+     pub fn add_chain_cert(&mut self, cert: &X509Ref) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe { cvt(ffi::SSL_add1_chain_cert(self.as_ptr(), cert.as_ptr())) }
+     }
+
+@@ -4572,6 +4823,7 @@
+     /// set of ECHConfigs. If the retry also fails, clients should report a connection failure.
+     #[corresponds(SSL_set1_ech_config_list)]
+     pub fn set_ech_config_list(&mut self, ech_config_list: &[u8]) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe {
+             cvt_0i(ffi::SSL_set1_ech_config_list(
+                 self.as_ptr(),
+@@ -4636,6 +4888,7 @@
+     // Whether or not to enable ECH grease on `SSL`.
+     #[corresponds(SSL_set_enable_ech_grease)]
+     pub fn set_enable_ech_grease(&self, enable: bool) {
++        self.revoke_session_transfer();
+         let enable = if enable { 1 } else { 0 };
+
+         unsafe {
+@@ -4656,6 +4909,7 @@
+         &mut self,
+         payload_length: usize,
+     ) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe {
+             cvt_0i(ffi::SSL_set_ech_grease_payload_length(
+                 self.as_ptr(),
+@@ -4695,6 +4949,7 @@
+         maximum_name_length: u8,
+         host: Option<&str>,
+     ) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         let (host_ptr, host_len) = match host {
+             Some(host) => (host.as_ptr().cast::<c_char>(), host.len()),
+             None => (ptr::null(), 0),
+@@ -4723,6 +4978,7 @@
+     #[cfg(not(feature = "fips"))]
+     #[corresponds(SSL_set1_ech_grease_aeads)]
+     pub fn set_ech_grease_aeads(&mut self, aead_ids: &[u16]) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe {
+             cvt_0i(ffi::SSL_set1_ech_grease_aeads(
+                 self.as_ptr(),
+@@ -4736,6 +4992,7 @@
+     /// Sets the compliance policy on `SSL`.
+     #[corresponds(SSL_set_compliance_policy)]
+     pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe { cvt_0i(ffi::SSL_set_compliance_policy(self.as_ptr(), policy.0)).map(|_| ()) }
+     }
+
+@@ -4743,6 +5000,7 @@
+     #[corresponds(SSL_add1_credential)]
+     #[cfg(feature = "credential")]
+     pub fn add_credential(&mut self, credential: &SslCredentialRef) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe { cvt_0i(ffi::SSL_add1_credential(self.as_ptr(), credential.as_ptr())).map(|_| ()) }
+     }
+
+@@ -4771,6 +5029,7 @@
+         &mut self,
+         types: &[CertificateType],
+     ) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         self.invalidate_scoped_session_publication();
+
+         if self.is_server() {
+@@ -4840,6 +5099,7 @@
+     /// Sets the client key shares to be used in the TLS 1.3 handshake.
+     #[corresponds(SSL_set1_client_key_shares)]
+     pub fn set_client_key_shares(&mut self, key_shares: &[KeyShare]) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe {
+             cvt(ffi::SSL_set1_client_key_shares(
+                 self.as_ptr(),
+@@ -4854,6 +5114,7 @@
+     /// Call this method before the handshake starts.
+     #[corresponds(SSL_set1_requested_trust_anchors)]
+     pub fn set_requested_trust_anchors(&mut self, ids: &[u8]) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         // SAFETY: `self` is valid and BoringSSL validates and copies `ids` before returning.
+         unsafe {
+             cvt_0i(ffi::SSL_set1_requested_trust_anchors(
+@@ -4868,6 +5129,7 @@
+     /// Enables ALPS for an ALPN protocol with an empty application settings value.
+     #[corresponds(SSL_add_application_settings)]
+     pub fn add_application_settings(&mut self, protocol: &[u8]) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         self.add_application_settings_with_payload(protocol, &[])
+     }
+
+@@ -4878,6 +5140,7 @@
+         protocol: &[u8],
+         settings: &[u8],
+     ) -> Result<(), ErrorStack> {
++        self.revoke_session_transfer();
+         unsafe {
+             cvt(ffi::SSL_add_application_settings(
+                 self.as_ptr(),
+@@ -4893,6 +5156,7 @@
+     /// Sets the ALPS use new codepoint flag.
+     #[corresponds(SSL_set_alps_use_new_codepoint)]
+     pub fn set_alps_use_new_codepoint(&mut self, enable: bool) {
++        self.revoke_session_transfer();
+         let enable = if enable { 1 } else { 0 };
+         unsafe { ffi::SSL_set_alps_use_new_codepoint(self.as_ptr(), enable) }
+     }
+@@ -4901,6 +5165,7 @@
+     #[cfg(not(feature = "fips"))]
+     #[corresponds(SSL_set_aes_hw_override)]
+     pub fn set_aes_hw_override(&mut self, enable: bool) {
++        self.revoke_session_transfer();
+         let enable = if enable { 1 } else { 0 };
+         unsafe { ffi::SSL_set_aes_hw_override(self.as_ptr(), enable) }
+     }
+diff --git a/src/ssl/connector.rs b/src/ssl/connector.rs
+--- a/src/ssl/connector.rs
++++ b/src/ssl/connector.rs
+@@ -102,6 +102,7 @@
+                 ssl,
+                 sni: true,
+                 verify_hostname: true,
++                transfer_policy: None,
+             })
+             .map_err(ClientSessionConfigurationError::Backend)
+     }
+@@ -207,6 +208,7 @@
+                 session,
+                 keep_early_data,
+                 &binding.publication,
++                binding.transfer.as_ref(),
+             );
+             (binding.callback)(session);
+         });
+@@ -335,6 +337,7 @@
+             ssl,
+             sni: true,
+             verify_hostname: true,
++            transfer_policy: None,
+         })
+     }
+
+@@ -399,9 +402,56 @@
+     ssl: Ssl,
+     sni: bool,
+     verify_hostname: bool,
++    transfer_policy: Option<super::SessionPolicyBinding>,
+ }
+
+ impl ConnectConfiguration {
++    /// Records the actual installed transfer policy for finalization after SSL configuration.
++    pub fn set_session_transfer_policy(
++        &mut self,
++        binding: &super::SessionPolicyBinding,
++    ) -> Result<(), super::SessionTransferError> {
++        if self.transfer_policy.is_some() {
++            return Err(super::SessionTransferError::Policy);
++        }
++        self.transfer_policy = Some(binding.clone());
++        Ok(())
++    }
++
++    /// Finalizes installed transfer policy after all connection configuration.
++    pub fn into_ssl_with_session_transfer<F>(
++        mut self,
++        domain: &str,
++        scope: &SslSessionScope,
++        session: Option<&ScopedSslSession>,
++        callback: F,
++    ) -> Result<Option<Ssl>, super::SessionTransferError>
++    where
++        F: Fn(Result<ScopedSslSession, ErrorStack>) + Send + Sync + 'static,
++    {
++        let policy = self
++            .transfer_policy
++            .take()
++            .ok_or(super::SessionTransferError::Policy)?;
++        let mut ssl = match self.into_ssl_with_scoped_session(domain, scope, session, callback)? {
++            Some(ssl) => ssl,
++            None => return Ok(None),
++        };
++        let _guard = policy.configuration_guard()?;
++        if !ssl.verify_mode().contains(SslVerifyMode::PEER)
++            || ssl
++                .ex_data(Ssl::cached_ex_index::<CustomSessionVerifier>())
++                .is_some()
++        {
++            return Err(super::SessionTransferError::Policy);
++        }
++        let transfer = policy.connection(ssl.ssl_context(), scope, domain)?;
++        let binding = ssl
++            .ex_data_mut(Ssl::cached_ex_index::<ScopedSessionBinding>())
++            .ok_or(super::SessionTransferError::Policy)?;
++        binding.transfer = Some(transfer);
++        Ok(Some(ssl))
++    }
+     /// Configures this connection for safely scoped client sessions.
+     ///
+     /// The domain is configured for hostname verification before an optional
+@@ -428,7 +478,44 @@
+             return Ok(None);
+         }
+
++        if self.transfer_policy.is_some() {
++            return Ok(None);
++        }
++        let import_guard_owner = session
++            .filter(|session| session.imported)
++            .and_then(|session| session.transfer.as_ref())
++            .map(|token| token.context_epoch_owner());
++        let _import_guard = match import_guard_owner
++            .as_ref()
++            .map(|owner| owner.freeze())
++            .transpose()
++        {
++            Ok(guard) => guard,
++            Err(_) => return Ok(None),
++        };
++        if session.is_some_and(|session| !session.matches(scope, self.ssl.ssl_context(), domain)) {
++            return Ok(None);
++        }
++        let _scope_guard = scope.transfer_use_guard();
++        if session.is_some_and(|session| !session.matches(scope, self.ssl.ssl_context(), domain)) {
++            return Ok(None);
++        }
++        if session.is_some_and(|session| session.imported)
++            && (!self.ssl.verify_mode().contains(SslVerifyMode::PEER)
++                || self
++                    .ssl
++                    .ex_data(Ssl::cached_ex_index::<CustomSessionVerifier>())
++                    .is_some())
++        {
++            return Ok(None);
++        }
+         let context = self.ssl.ssl_context().to_owned();
++        if let Some(session) = session {
++            // SAFETY: consuming `ConnectConfiguration` proves the handshake has
++            // not started. `matches` proves the exact verified hostname,
++            // context, and application scope that authenticated the session.
++            unsafe { self.ssl.set_session(session.session())? };
++        }
+         self.ssl.set_ex_data(
+             Ssl::cached_ex_index::<ScopedSessionBinding>(),
+             ScopedSessionBinding {
+@@ -437,15 +524,13 @@
+                 callback: Box::new(callback),
+                 context,
+                 publication: Arc::new(SessionPublication::new()),
++                transfer: None,
++                offered_imported_transfer: session
++                    .filter(|session| session.imported)
++                    .and_then(|session| session.transfer.clone()),
+                 offered_publication: session.map(|session| Arc::clone(&session.publication)),
+             },
+         );
+-        if let Some(session) = session {
+-            // SAFETY: consuming `ConnectConfiguration` proves the handshake has
+-            // not started. `matches` proves the exact verified hostname,
+-            // context, and application scope that authenticated the session.
+-            unsafe { self.ssl.set_session(session.session())? };
+-        }
+         Ok(Some(self.ssl))
+     }
+
+@@ -536,12 +621,14 @@
+     }
+ }
+
+-struct ScopedSessionBinding {
++pub(super) struct ScopedSessionBinding {
+     scope: SslSessionScope,
+     hostname: Box<str>,
+     callback: Box<dyn Fn(Result<ScopedSslSession, ErrorStack>) + Send + Sync>,
+     context: SslContext,
+     publication: Arc<SessionPublication>,
++    pub(super) transfer: Option<Arc<super::session_transfer::ConnectionPolicy>>,
++    pub(super) offered_imported_transfer: Option<Arc<super::session_transfer::ConnectionPolicy>>,
+     offered_publication: Option<Arc<SessionPublication>>,
+ }
+
+@@ -590,6 +677,17 @@
+             }
+         } else if self.peer_certificate().is_none() {
+             binding.publication.invalidate();
++            return false;
++        }
++        if binding
++            .transfer
++            .as_ref()
++            .is_some_and(|token| !token.valid())
++            || binding
++                .offered_imported_transfer
++                .as_ref()
++                .is_some_and(|token| !token.valid())
++        {
+             return false;
+         }
+         binding.publication.authenticate()
+diff --git a/src/ssl/session_transfer.rs b/src/ssl/session_transfer.rs
+new file mode 100644
+--- /dev/null
++++ b/src/ssl/session_transfer.rs
+@@ -0,0 +1,1014 @@
++//! Authenticated native session custody. Policy bytes come from the configuration owner.
++
++use std::fmt;
++use std::ops::{Deref, DerefMut};
++use std::sync::atomic::{AtomicBool, Ordering};
++use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
++use std::time::{SystemTime, UNIX_EPOCH};
++
++use foreign_types::ForeignTypeRef;
++use zeroize::Zeroizing;
++
++use super::{
++    ScopedSslSession, SessionPublication, SessionVerifierProvenance, SslContext, SslContextRef,
++    SslSession, SslSessionScope, SslVersion,
++};
++use crate::aead::ConcurrentAeadCtx;
++use crate::error::ErrorStack;
++use crate::hash::{hash, hmac_sha256, MessageDigest};
++
++const MAX_POLICY: usize = 1024 * 1024;
++const MAX_CREDENTIAL: usize = 64 * 1024;
++const MAX_METADATA: usize = 128 * 1024;
++const MAX_SESSION: usize = 256 * 1024;
++const MAX_RECORDS: usize = 2560;
++const MAX_ENVELOPE: usize = 16 * 1024 * 1024;
++const HEADER: usize = 56;
++const TAG: usize = 16;
++const MAGIC: &[u8; 8] = b"PHTKT001";
++const BACKEND: &str = concat!(
++    env!("CARGO_PKG_VERSION"),
++    ":boringssl:f1f2556a5dfa59e147d9d47279cc3f7f8a18b433:transfer1"
++);
++
++/// A bounded preparation, authentication or compatibility failure.
++#[derive(Debug)]
++#[non_exhaustive]
++pub enum SessionTransferError {
++    /// A named library allocation limit was exceeded.
++    TooLarge,
++    /// Bounded buffer allocation failed.
++    Allocation,
++    /// The cryptographic or native session backend failed.
++    Backend(ErrorStack),
++    /// Envelope or record framing is invalid.
++    Malformed,
++    /// Snapshot authentication failed.
++    Authentication,
++    /// The compiled backend or transfer format differs.
++    IncompatibleBackend,
++    /// The native session has expired.
++    Expired,
++    /// Native default peer authentication has not been established.
++    Unauthenticated,
++    /// Installed policy is absent, changed or belongs to another scope or peer.
++    Policy,
++    /// A live context mutation borrow prevents freezing policy.
++    Busy,
++    /// Configured credential contents differ.
++    Credentials,
++    /// A transaction-local record has already issued its permit.
++    Consumed,
++}
++
++impl fmt::Display for SessionTransferError {
++    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
++        f.write_str(match self {
++            Self::TooLarge => "session transfer exceeds a library resource limit",
++            Self::Allocation => "session transfer allocation failed",
++            Self::Backend(_) => "session transfer backend failed",
++            Self::Malformed => "invalid session transfer framing",
++            Self::Authentication => "session transfer authentication failed",
++            Self::IncompatibleBackend => "incompatible session transfer backend",
++            Self::Expired => "session transfer record has expired",
++            Self::Unauthenticated => "session has no authenticated publication proof",
++            Self::Policy => "session transfer policy does not match",
++            Self::Busy => "session transfer context is being mutated",
++            Self::Credentials => "session transfer credentials do not match",
++            Self::Consumed => "session transfer record was already consumed",
++        })
++    }
++}
++
++impl std::error::Error for SessionTransferError {
++    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
++        match self {
++            Self::Backend(error) => Some(error),
++            _ => None,
++        }
++    }
++}
++
++impl From<ErrorStack> for SessionTransferError {
++    fn from(error: ErrorStack) -> Self {
++        Self::Backend(error)
++    }
++}
++
++fn copy(bytes: &[u8], bound: usize) -> Result<Zeroizing<Vec<u8>>, SessionTransferError> {
++    if bytes.len() > bound {
++        return Err(SessionTransferError::TooLarge);
++    }
++    let mut result = Zeroizing::new(Vec::new());
++    result
++        .try_reserve_exact(bytes.len())
++        .map_err(|_| SessionTransferError::Allocation)?;
++    result.extend_from_slice(bytes);
++    Ok(result)
++}
++
++fn sha256(bytes: &[u8]) -> Result<[u8; 32], SessionTransferError> {
++    hash(MessageDigest::sha256(), bytes)?
++        .as_ref()
++        .try_into()
++        .map_err(|_| SessionTransferError::Malformed)
++}
++
++fn backend() -> Result<[u8; 32], SessionTransferError> {
++    let mut value = Writer::new(BACKEND.len() + 2)?;
++    value.raw(BACKEND.as_bytes())?;
++    value.raw(&[
++        u8::from(cfg!(feature = "rpk")),
++        u8::from(cfg!(feature = "fips")),
++    ])?;
++    sha256(&value.bytes)
++}
++
++fn key(key: &[u8; 32], label: &[u8]) -> Result<Zeroizing<[u8; 32]>, SessionTransferError> {
++    let mut input = Writer::new(label.len() + 32)?;
++    input.raw(label)?;
++    input.raw(&backend()?)?;
++    Ok(Zeroizing::new(hmac_sha256(key, &input.bytes)?))
++}
++
++/// Opaque canonical input provided by the configured credential owner.
++pub struct SessionTransferCredential(Zeroizing<Vec<u8>>);
++
++impl SessionTransferCredential {
++    /// Copies a bounded, already framed HMAC input without exposing credential fields.
++    pub fn from_canonical_hmac_input(input: &[u8]) -> Result<Self, SessionTransferError> {
++        Ok(Self(copy(input, MAX_CREDENTIAL)?))
++    }
++}
++
++/// Immutable owner policy, validated draw witness and credential custody input.
++pub struct SessionTransferPolicy {
++    commitment: [u8; 32],
++    witness: Zeroizing<Vec<u8>>,
++    credential: Option<SessionTransferCredential>,
++    owner_key: Zeroizing<[u8; 32]>,
++}
++
++impl SessionTransferPolicy {
++    /// Hashes complete noncredential owner policy and copies its validated witness.
++    ///
++    /// These bytes establish configuration identity, never peer authentication.
++    pub fn new(
++        policy: &[u8],
++        witness: &[u8],
++        credential: Option<SessionTransferCredential>,
++        owner_subkey: &[u8; 32],
++    ) -> Result<Self, SessionTransferError> {
++        if policy.len() > MAX_POLICY {
++            return Err(SessionTransferError::TooLarge);
++        }
++        Ok(Self {
++            commitment: sha256(policy)?,
++            witness: copy(witness, MAX_POLICY)?,
++            credential,
++            owner_key: Zeroizing::new(*owner_subkey),
++        })
++    }
++
++    fn credential_tag(
++        &self,
++        source_key: &[u8; 32],
++    ) -> Result<Option<[u8; 32]>, SessionTransferError> {
++        self.credential
++            .as_ref()
++            .map(|input| hmac_sha256(source_key, &input.0).map_err(SessionTransferError::Backend))
++            .transpose()
++    }
++}
++
++pub(super) struct ContextEpoch(Mutex<Option<Arc<AtomicBool>>>);
++
++impl ContextEpoch {
++    pub(super) fn new() -> Self {
++        Self(Mutex::new(None))
++    }
++    pub(super) fn mutate(&self) -> MutexGuard<'_, Option<Arc<AtomicBool>>> {
++        let mut state = self.0.lock().unwrap_or_else(PoisonError::into_inner);
++        if let Some(epoch) = state.take() {
++            epoch.store(false, Ordering::Release);
++        }
++        state
++    }
++    pub(super) fn freeze(
++        &self,
++    ) -> Result<MutexGuard<'_, Option<Arc<AtomicBool>>>, SessionTransferError> {
++        self.0.try_lock().map_err(|_| SessionTransferError::Busy)
++    }
++}
++
++/// A context-owned mutable borrow that keeps policy freezing excluded until dropped.
++pub struct SessionPolicyMutation<'a, T: ?Sized> {
++    pub(super) value: &'a mut T,
++    pub(super) _guard: Option<MutexGuard<'a, Option<Arc<AtomicBool>>>>,
++}
++
++impl<T: ?Sized> Deref for SessionPolicyMutation<'_, T> {
++    type Target = T;
++    fn deref(&self) -> &T {
++        self.value
++    }
++}
++impl<T: ?Sized> DerefMut for SessionPolicyMutation<'_, T> {
++    fn deref_mut(&mut self) -> &mut T {
++        self.value
++    }
++}
++
++pub(super) struct ScopeState {
++    installed: Mutex<Option<Arc<InstalledPolicy>>>,
++    live: AtomicBool,
++    used: AtomicBool,
++}
++impl Default for ScopeState {
++    fn default() -> Self {
++        Self {
++            installed: Mutex::new(None),
++            live: AtomicBool::new(true),
++            used: AtomicBool::new(false),
++        }
++    }
++}
++
++pub(super) struct InstalledPolicy {
++    context: SslContext,
++    epoch_owner: Arc<ContextEpoch>,
++    context_epoch: Arc<AtomicBool>,
++    server_name: Box<str>,
++    keep_early_data: bool,
++    policy: SessionTransferPolicy,
++}
++
++/// A policy installed on the actual native context, scope and configured peer.
++#[derive(Clone)]
++pub struct SessionPolicyBinding {
++    scope: SslSessionScope,
++    installed: Arc<InstalledPolicy>,
++}
++
++impl fmt::Debug for SessionPolicyBinding {
++    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
++        f.debug_struct("SessionPolicyBinding")
++            .finish_non_exhaustive()
++    }
++}
++
++impl SslSessionScope {
++    /// Binds complete owner policy before first use of this scope.
++    pub fn bind_transfer_policy(
++        &self,
++        context: &SslContextRef,
++        server_name: &str,
++        policy: SessionTransferPolicy,
++    ) -> Result<SessionPolicyBinding, SessionTransferError> {
++        use super::ScopedClientSessionMode;
++        let epoch = context
++            .transfer_context_epoch()
++            .ok_or(SessionTransferError::Policy)?;
++        let mut context_state = epoch.freeze()?;
++        let keep_early_data = match context.scoped_client_session_mode() {
++            ScopedClientSessionMode::Scoped => false,
++            ScopedClientSessionMode::ScopedWithEarlyData => true,
++            _ => return Err(SessionTransferError::Policy),
++        };
++        if !context.has_x509_support()
++            || !context.verify_mode().contains(super::SslVerifyMode::PEER)
++            || !matches!(
++                context.ex_data(SslContext::cached_ex_index::<SessionVerifierProvenance>()),
++                Some(SessionVerifierProvenance::Default)
++            )
++        {
++            return Err(SessionTransferError::Policy);
++        }
++        if server_name.is_empty()
++            || server_name.len() > 253
++            || !server_name.is_ascii()
++            || server_name.as_bytes().contains(&0)
++        {
++            return Err(SessionTransferError::Policy);
++        }
++        let mut installed = self
++            .0
++            .installed
++            .lock()
++            .unwrap_or_else(PoisonError::into_inner);
++        if !self.0.live.load(Ordering::Acquire) {
++            return Err(SessionTransferError::Policy);
++        }
++        if let Some(current) = installed.as_ref() {
++            let matches = current.context.as_ptr() == context.as_ptr()
++                && super::session_hostnames_match(&current.server_name, server_name)
++                && current.keep_early_data == keep_early_data
++                && current.policy.commitment == policy.commitment
++                && current.policy.witness.as_slice() == policy.witness.as_slice()
++                && match (
++                    current.policy.credential_tag(&current.policy.owner_key)?,
++                    policy.credential_tag(&current.policy.owner_key)?,
++                ) {
++                    (None, None) => true,
++                    (Some(left), Some(right)) => crate::memcmp::eq(&left, &right),
++                    _ => false,
++                }
++                && crate::memcmp::eq(&*current.policy.owner_key, &*policy.owner_key)
++                && current.context_epoch.load(Ordering::Acquire);
++            if !matches {
++                self.0.live.store(false, Ordering::Release);
++                return Err(SessionTransferError::Policy);
++            }
++            return Ok(SessionPolicyBinding {
++                scope: self.clone(),
++                installed: Arc::clone(current),
++            });
++        }
++        if self.0.used.load(Ordering::Acquire) {
++            return Err(SessionTransferError::Policy);
++        }
++        let context_epoch = context_state
++            .get_or_insert_with(|| Arc::new(AtomicBool::new(true)))
++            .clone();
++        let mut name = String::new();
++        name.try_reserve_exact(server_name.len())
++            .map_err(|_| SessionTransferError::Allocation)?;
++        name.push_str(server_name);
++        let server_name = name.into_boxed_str();
++        let value = Arc::new(InstalledPolicy {
++            context: context.to_owned(),
++            epoch_owner: Arc::clone(&epoch),
++            context_epoch,
++            server_name,
++            keep_early_data,
++            policy,
++        });
++        *installed = Some(Arc::clone(&value));
++        Ok(SessionPolicyBinding {
++            scope: self.clone(),
++            installed: value,
++        })
++    }
++
++    /// Permanently retires all transfer authority installed on this scope.
++    pub fn invalidate_transfer_policy(&self) {
++        let _guard = self
++            .0
++            .installed
++            .lock()
++            .unwrap_or_else(PoisonError::into_inner);
++        self.0.live.store(false, Ordering::Release);
++    }
++
++    pub(super) fn transfer_use_guard(&self) -> MutexGuard<'_, Option<Arc<InstalledPolicy>>> {
++        let guard = self
++            .0
++            .installed
++            .lock()
++            .unwrap_or_else(PoisonError::into_inner);
++        self.0.used.store(true, Ordering::Release);
++        guard
++    }
++}
++
++pub(super) struct ConnectionPolicy {
++    binding: SessionPolicyBinding,
++    live: AtomicBool,
++}
++impl ConnectionPolicy {
++    pub(super) fn context_epoch_owner(&self) -> Arc<ContextEpoch> {
++        Arc::clone(&self.binding.installed.epoch_owner)
++    }
++    pub(super) fn revoke(&self) {
++        self.live.store(false, Ordering::Release);
++    }
++    pub(super) fn valid(&self) -> bool {
++        self.live.load(Ordering::Acquire) && self.binding.valid()
++    }
++}
++
++impl SessionPolicyBinding {
++    pub(super) fn configuration_guard(
++        &self,
++    ) -> Result<MutexGuard<'_, Option<Arc<AtomicBool>>>, SessionTransferError> {
++        self.installed.epoch_owner.freeze()
++    }
++    fn valid(&self) -> bool {
++        self.scope.0.live.load(Ordering::Acquire)
++            && self.installed.context_epoch.load(Ordering::Acquire)
++    }
++    pub(super) fn connection(
++        &self,
++        context: &SslContextRef,
++        scope: &SslSessionScope,
++        server_name: &str,
++    ) -> Result<Arc<ConnectionPolicy>, SessionTransferError> {
++        if !self.valid()
++            || self.installed.context.as_ptr() != context.as_ptr()
++            || !Arc::ptr_eq(&self.scope.0, &scope.0)
++            || !super::session_hostnames_match(&self.installed.server_name, server_name)
++        {
++            return Err(SessionTransferError::Policy);
++        }
++        Ok(Arc::new(ConnectionPolicy {
++            binding: self.clone(),
++            live: AtomicBool::new(true),
++        }))
++    }
++
++    /// Seals a genuine authenticated callback session and bounded owner metadata.
++    pub fn seal_session(
++        &self,
++        session: &ScopedSslSession,
++        owner_metadata: &[u8],
++        snapshot_key: &[u8; 32],
++    ) -> Result<AuthenticatedSessionRecord, SessionTransferError> {
++        if !self.valid()
++            || !session.matches(
++                &self.scope,
++                &self.installed.context,
++                &self.installed.server_name,
++            )
++        {
++            return Err(SessionTransferError::Policy);
++        }
++        let provenance = session
++            .transfer
++            .as_ref()
++            .ok_or(SessionTransferError::Policy)?;
++        if !Arc::ptr_eq(&provenance.binding.installed, &self.installed)
++            || !session.is_authenticated()
++        {
++            return Err(SessionTransferError::Unauthenticated);
++        }
++        let expires_at = check_session(&session.session)?;
++        let native = session.session.bounded_transfer_bytes(MAX_SESSION)?;
++        if native.len() > MAX_SESSION || owner_metadata.len() > MAX_METADATA {
++            return Err(SessionTransferError::TooLarge);
++        }
++        let policy = &self.installed.policy;
++        let credential_tag = policy.credential_tag(&policy.owner_key)?;
++        let size = [
++            84,
++            credential_tag.map_or(0, |_| 32),
++            self.installed.server_name.len(),
++            policy.witness.len(),
++            owner_metadata.len(),
++            native.len(),
++        ]
++        .into_iter()
++        .try_fold(0_usize, |sum, length| sum.checked_add(length))
++        .ok_or(SessionTransferError::TooLarge)?;
++        let mut output = Writer::new(size)?;
++        output.raw(&1_u16.to_be_bytes())?;
++        output.raw(&policy.commitment)?;
++        output.raw(&[u8::from(credential_tag.is_some())])?;
++        if let Some(tag) = credential_tag {
++            output.raw(&tag)?;
++        }
++        output.raw(&*policy.owner_key)?;
++        output.field(self.installed.server_name.as_bytes())?;
++        output.raw(&[u8::from(self.installed.keep_early_data)])?;
++        output.field(&policy.witness)?;
++        output.field(owner_metadata)?;
++        output.field(&native)?;
++        let mac = hmac_sha256(
++            &*key(snapshot_key, b"phantom-ticket-record-v1")?,
++            &output.bytes,
++        )?;
++        if !session.is_authenticated() || !self.valid() {
++            return Err(SessionTransferError::Policy);
++        }
++        Ok(AuthenticatedSessionRecord {
++            body: output.bytes,
++            mac,
++            expires_at,
++        })
++    }
++}
++
++/// Opaque authenticated plaintext held only during a transfer transaction.
++pub struct AuthenticatedSessionRecord {
++    body: Zeroizing<Vec<u8>>,
++    mac: [u8; 32],
++    expires_at: u64,
++}
++
++/// Ciphertext suitable for external storage. Key holders can copy or replay it.
++pub struct SessionTransferEnvelope(Zeroizing<Vec<u8>>);
++impl SessionTransferEnvelope {
++    /// Returns only authenticated-envelope ciphertext and public framing.
++    #[must_use]
++    pub fn as_bytes(&self) -> &[u8] {
++        &self.0
++    }
++}
++
++/// Authenticated records opened for one transaction, not client-owned staging.
++pub struct VerifiedSessionEnvelope {
++    records: Vec<Option<AuthenticatedSessionRecord>>,
++    decoding_context: SslContext,
++}
++
++/// A decoded record bound to one recipient's installed native policy.
++pub struct SessionImportPermit {
++    session: SslSession,
++    recipient: SessionPolicyBinding,
++    metadata: Zeroizing<Vec<u8>>,
++    source_witness: Zeroizing<Vec<u8>>,
++}
++
++impl SessionImportPermit {
++    /// Returns the authenticated source draw witness for typed owner validation.
++    ///
++    /// Authentication does not establish that the owner's draw policy permits it.
++    #[must_use]
++    pub fn source_witness(&self) -> &[u8] {
++        &self.source_witness
++    }
++
++    /// Returns authenticated owner metadata for strict protocol-owner validation.
++    #[must_use]
++    pub fn owner_metadata(&self) -> &[u8] {
++        &self.metadata
++    }
++
++    /// Checks revocation again before creating an attachable imported session.
++    pub fn into_scoped_session(self) -> Result<ScopedSslSession, SessionTransferError> {
++        check_session(&self.session)?;
++        let epoch = self
++            .recipient
++            .installed
++            .context
++            .transfer_context_epoch()
++            .ok_or(SessionTransferError::Policy)?;
++        let _context_guard = epoch.freeze()?;
++        let _scope_guard = self
++            .recipient
++            .scope
++            .0
++            .installed
++            .lock()
++            .unwrap_or_else(PoisonError::into_inner);
++        if !self.recipient.valid() {
++            return Err(SessionTransferError::Policy);
++        }
++        let publication = Arc::new(SessionPublication::new());
++        publication.authenticate();
++        let token = self.recipient.connection(
++            &self.recipient.installed.context,
++            &self.recipient.scope,
++            &self.recipient.installed.server_name,
++        )?;
++        Ok(ScopedSslSession {
++            session: self.session,
++            context: self.recipient.installed.context.clone(),
++            scope: self.recipient.scope.clone(),
++            hostname: self.recipient.installed.server_name.clone(),
++            publication,
++            transfer: Some(token),
++            imported: true,
++        })
++    }
++}
++
++fn check_session(session: &super::SslSessionRef) -> Result<u64, SessionTransferError> {
++    if session.protocol_version() != SslVersion::TLS1_2
++        && session.protocol_version() != SslVersion::TLS1_3
++    {
++        return Err(SessionTransferError::IncompatibleBackend);
++    }
++    let expiry = session
++        .time()
++        .checked_add(u64::from(session.timeout()))
++        .ok_or(SessionTransferError::Expired)?;
++    check_expiry(expiry)?;
++    Ok(expiry)
++}
++
++fn check_expiry(expiry: u64) -> Result<(), SessionTransferError> {
++    let now = SystemTime::now()
++        .duration_since(UNIX_EPOCH)
++        .map_err(|_| SessionTransferError::Expired)?
++        .as_secs();
++    if expiry <= now {
++        return Err(SessionTransferError::Expired);
++    }
++    Ok(())
++}
++
++/// Encrypts only records authenticated under this exact snapshot key.
++pub fn seal_envelope(
++    records: &[AuthenticatedSessionRecord],
++    snapshot_key: &[u8; 32],
++) -> Result<SessionTransferEnvelope, SessionTransferError> {
++    if records.len() > MAX_RECORDS {
++        return Err(SessionTransferError::TooLarge);
++    }
++    let record_key = key(snapshot_key, b"phantom-ticket-record-v1")?;
++    let mut size = 4_usize;
++    for record in records {
++        if !crate::memcmp::eq(&hmac_sha256(&*record_key, &record.body)?, &record.mac) {
++            return Err(SessionTransferError::Authentication);
++        }
++        check_expiry(record.expires_at)?;
++        size = size
++            .checked_add(4)
++            .and_then(|n| n.checked_add(record.body.len()))
++            .and_then(|n| n.checked_add(32))
++            .ok_or(SessionTransferError::TooLarge)?;
++    }
++    let total = size
++        .checked_add(HEADER + TAG)
++        .filter(|n| *n <= MAX_ENVELOPE)
++        .ok_or(SessionTransferError::TooLarge)?;
++    let mut plaintext = Writer::new(size)?;
++    plaintext.raw(
++        &u32::try_from(records.len())
++            .map_err(|_| SessionTransferError::TooLarge)?
++            .to_be_bytes(),
++    )?;
++    for record in records {
++        plaintext.field(&record.body)?;
++        plaintext.raw(&record.mac)?;
++    }
++    let mut envelope = Writer::new(total)?;
++    envelope.raw(MAGIC)?;
++    envelope.raw(&backend()?)?;
++    let mut nonce = [0; 12];
++    crate::rand::rand_bytes(&mut nonce)?;
++    envelope.raw(&nonce)?;
++    envelope.raw(
++        &u32::try_from(size)
++            .map_err(|_| SessionTransferError::TooLarge)?
++            .to_be_bytes(),
++    )?;
++    let cipher =
++        ConcurrentAeadCtx::aes_256_gcm(&*key(snapshot_key, b"phantom-ticket-envelope-v1")?)?;
++    let mut tag = [0; TAG];
++    cipher.seal_in_place(&nonce, &mut plaintext.bytes, &mut tag, &envelope.bytes)?;
++    envelope.raw(&plaintext.bytes)?;
++    envelope.raw(&tag)?;
++    for record in records {
++        check_expiry(record.expires_at)?;
++    }
++    Ok(SessionTransferEnvelope(envelope.bytes))
++}
++
++/// Authenticates before parsing records, then strict-decodes every native session.
++///
++/// The decoding context grants parser compatibility, never recipient authority.
++pub fn open_envelope(
++    snapshot: &[u8],
++    snapshot_key: &[u8; 32],
++    decoding_context: &SslContextRef,
++) -> Result<VerifiedSessionEnvelope, SessionTransferError> {
++    if snapshot.len() > MAX_ENVELOPE {
++        return Err(SessionTransferError::TooLarge);
++    }
++    if snapshot.len() < HEADER + TAG || &snapshot[..8] != MAGIC {
++        return Err(SessionTransferError::Malformed);
++    }
++    if snapshot[8..40] != backend()? {
++        return Err(SessionTransferError::IncompatibleBackend);
++    }
++    let length = u32::from_be_bytes(
++        snapshot[52..56]
++            .try_into()
++            .map_err(|_| SessionTransferError::Malformed)?,
++    ) as usize;
++    if length != snapshot.len() - HEADER - TAG {
++        return Err(SessionTransferError::Malformed);
++    }
++    if !decoding_context.has_x509_support() {
++        return Err(SessionTransferError::IncompatibleBackend);
++    }
++    let mut plaintext = copy(&snapshot[HEADER..HEADER + length], MAX_ENVELOPE)?;
++    let cipher =
++        ConcurrentAeadCtx::aes_256_gcm(&*key(snapshot_key, b"phantom-ticket-envelope-v1")?)?;
++    cipher
++        .open_in_place(
++            &snapshot[40..52],
++            &mut plaintext,
++            &snapshot[HEADER + length..],
++            &snapshot[..HEADER],
++        )
++        .map_err(|_| SessionTransferError::Authentication)?;
++    let mut reader = Reader(&plaintext);
++    let count = reader.number()? as usize;
++    if count > MAX_RECORDS {
++        return Err(SessionTransferError::TooLarge);
++    }
++    let mut records = Vec::new();
++    records
++        .try_reserve_exact(count)
++        .map_err(|_| SessionTransferError::Allocation)?;
++    let record_key = key(snapshot_key, b"phantom-ticket-record-v1")?;
++    for _ in 0..count {
++        let body = reader.field(MAX_POLICY + MAX_METADATA + MAX_SESSION + 512)?;
++        let mac: [u8; 32] = reader
++            .take(32)?
++            .try_into()
++            .map_err(|_| SessionTransferError::Malformed)?;
++        if !crate::memcmp::eq(&hmac_sha256(&*record_key, body)?, &mac) {
++            return Err(SessionTransferError::Authentication);
++        }
++        let parsed = Record::parse(body)?;
++        let decoded = SslSession::from_bytes(parsed.native, decoding_context)?;
++        let expires_at = check_session(&decoded)?;
++        records.push(Some(AuthenticatedSessionRecord {
++            body: copy(body, MAX_ENVELOPE)?,
++            mac,
++            expires_at,
++        }));
++    }
++    if !reader.0.is_empty() {
++        return Err(SessionTransferError::Malformed);
++    }
++    Ok(VerifiedSessionEnvelope {
++        records,
++        decoding_context: decoding_context.to_owned(),
++    })
++}
++
++impl VerifiedSessionEnvelope {
++    /// Copies only remaining authenticated records into a compact new transaction.
++    ///
++    /// All records are strict-decoded and checked for expiry before any body is
++    /// copied. Failure leaves this transaction untouched and grants no authority.
++    pub fn try_clone_remaining(&self) -> Result<Self, SessionTransferError> {
++        let mut count = 0_usize;
++        let mut total = 4_usize;
++        for record in self.records.iter().flatten() {
++            let parsed = Record::parse(&record.body)?;
++            let decoded = SslSession::from_bytes(parsed.native, &self.decoding_context)?;
++            check_session(&decoded)?;
++            count += 1;
++            total = total
++                .checked_add(36)
++                .and_then(|size| size.checked_add(record.body.len()))
++                .filter(|size| *size <= MAX_ENVELOPE - HEADER - TAG)
++                .ok_or(SessionTransferError::TooLarge)?;
++        }
++        if count > MAX_RECORDS {
++            return Err(SessionTransferError::TooLarge);
++        }
++        let mut records = Vec::new();
++        records
++            .try_reserve_exact(count)
++            .map_err(|_| SessionTransferError::Allocation)?;
++        for record in self.records.iter().flatten() {
++            records.push(Some(AuthenticatedSessionRecord {
++                body: copy(&record.body, MAX_ENVELOPE)?,
++                mac: record.mac,
++                expires_at: record.expires_at,
++            }));
++        }
++        Ok(Self {
++            records,
++            decoding_context: self.decoding_context.clone(),
++        })
++    }
++
++    /// Rekeys only remaining authenticated records without changing this transaction.
++    ///
++    /// Original source commitments, credential custody subkeys and provenance
++    /// remain inside the encrypted records. No recipient permit is issued.
++    pub fn seal_remaining_envelope(
++        &self,
++        new_key: &[u8; 32],
++    ) -> Result<SessionTransferEnvelope, SessionTransferError> {
++        let cloned = self.try_clone_remaining()?;
++        let record_key = key(new_key, b"phantom-ticket-record-v1")?;
++        let mut records = Vec::new();
++        records
++            .try_reserve_exact(cloned.records.len())
++            .map_err(|_| SessionTransferError::Allocation)?;
++        for mut record in cloned.records.into_iter().flatten() {
++            record.mac = hmac_sha256(&*record_key, &record.body)?;
++            records.push(record);
++        }
++        seal_envelope(&records, new_key)
++    }
++    /// Returns the number of original slots, including consumed slots.
++    #[must_use]
++    pub fn record_count(&self) -> usize {
++        self.records.len()
++    }
++
++    /// Returns the authenticated source draw witness for typed owner validation.
++    ///
++    /// Consumed or invalid slots fail. This grants neither native authority nor
++    /// evidence that the witness is an allowed draw under the owner's policy.
++    pub fn source_witness(&self, index: usize) -> Result<&[u8], SessionTransferError> {
++        let record = self
++            .records
++            .get(index)
++            .ok_or(SessionTransferError::Malformed)?
++            .as_ref()
++            .ok_or(SessionTransferError::Consumed)?;
++        Ok(Record::parse(&record.body)?.source_witness)
++    }
++
++    /// Returns authenticated application metadata, never native bytes or custody keys.
++    pub fn owner_metadata(&self, index: usize) -> Result<&[u8], SessionTransferError> {
++        let record = self
++            .records
++            .get(index)
++            .ok_or(SessionTransferError::Malformed)?
++            .as_ref()
++            .ok_or(SessionTransferError::Consumed)?;
++        Ok(Record::parse(&record.body)?.metadata)
++    }
++    /// Recomputes actual recipient credentials under the authenticated source subkey.
++    ///
++    /// Success consumes only this transaction-local record. Existing client staging
++    /// must remain unchanged until the owner commits all prepared replacements.
++    pub fn authorize_record(
++        &mut self,
++        index: usize,
++        recipient: &SessionPolicyBinding,
++    ) -> Result<SessionImportPermit, SessionTransferError> {
++        let record = self
++            .records
++            .get(index)
++            .ok_or(SessionTransferError::Malformed)?
++            .as_ref()
++            .ok_or(SessionTransferError::Consumed)?;
++        let parsed = Record::parse(&record.body)?;
++        if !recipient.valid()
++            || !crate::memcmp::eq(parsed.commitment, &recipient.installed.policy.commitment)
++            || !super::session_hostnames_match(parsed.hostname, &recipient.installed.server_name)
++            || parsed.keep_early_data != recipient.installed.keep_early_data
++        {
++            return Err(SessionTransferError::Policy);
++        }
++        let source_key: &[u8; 32] = parsed
++            .source_key
++            .try_into()
++            .map_err(|_| SessionTransferError::Malformed)?;
++        let tag = recipient.installed.policy.credential_tag(source_key)?;
++        match (tag, parsed.credential_tag) {
++            (None, None) => {}
++            (Some(actual), Some(expected)) if crate::memcmp::eq(&actual, expected) => {}
++            _ => return Err(SessionTransferError::Credentials),
++        }
++        let session = SslSession::from_bytes(parsed.native, &recipient.installed.context)?;
++        check_session(&session)?;
++        let session = if recipient.installed.keep_early_data {
++            session
++        } else {
++            session.copy_without_early_data()?
++        };
++        let metadata = copy(parsed.metadata, MAX_METADATA)?;
++        let source_witness = copy(parsed.source_witness, MAX_POLICY)?;
++        if !recipient.valid() {
++            return Err(SessionTransferError::Policy);
++        }
++        self.records[index] = None;
++        Ok(SessionImportPermit {
++            session,
++            recipient: recipient.clone(),
++            metadata,
++            source_witness,
++        })
++    }
++}
++
++struct Record<'a> {
++    commitment: &'a [u8],
++    credential_tag: Option<&'a [u8]>,
++    source_key: &'a [u8],
++    hostname: &'a str,
++    keep_early_data: bool,
++    metadata: &'a [u8],
++    source_witness: &'a [u8],
++    native: &'a [u8],
++}
++impl<'a> Record<'a> {
++    fn parse(body: &'a [u8]) -> Result<Self, SessionTransferError> {
++        let mut r = Reader(body);
++        if r.take(2)? != 1_u16.to_be_bytes() {
++            return Err(SessionTransferError::Malformed);
++        }
++        let commitment = r.take(32)?;
++        let credential_tag = if r.boolean()? {
++            Some(r.take(32)?)
++        } else {
++            None
++        };
++        let source_key = r.take(32)?;
++        let hostname =
++            std::str::from_utf8(r.field(253)?).map_err(|_| SessionTransferError::Malformed)?;
++        if hostname.is_empty() || !hostname.is_ascii() || hostname.as_bytes().contains(&0) {
++            return Err(SessionTransferError::Malformed);
++        }
++        let keep_early_data = r.boolean()?;
++        let source_witness = r.field(MAX_POLICY)?;
++        let metadata = r.field(MAX_METADATA)?;
++        let native = r.field(MAX_SESSION)?;
++        if !r.0.is_empty() {
++            return Err(SessionTransferError::Malformed);
++        }
++        Ok(Self {
++            commitment,
++            credential_tag,
++            source_key,
++            hostname,
++            keep_early_data,
++            metadata,
++            source_witness,
++            native,
++        })
++    }
++}
++
++struct Writer {
++    bytes: Zeroizing<Vec<u8>>,
++    limit: usize,
++}
++impl Writer {
++    fn new(size: usize) -> Result<Self, SessionTransferError> {
++        if size > MAX_ENVELOPE {
++            return Err(SessionTransferError::TooLarge);
++        }
++        let mut bytes = Zeroizing::new(Vec::new());
++        bytes
++            .try_reserve_exact(size)
++            .map_err(|_| SessionTransferError::Allocation)?;
++        Ok(Self { bytes, limit: size })
++    }
++    fn raw(&mut self, value: &[u8]) -> Result<(), SessionTransferError> {
++        if self
++            .bytes
++            .len()
++            .checked_add(value.len())
++            .filter(|size| *size <= self.limit)
++            .is_none()
++        {
++            return Err(SessionTransferError::TooLarge);
++        }
++        self.bytes.extend_from_slice(value);
++        Ok(())
++    }
++    fn field(&mut self, value: &[u8]) -> Result<(), SessionTransferError> {
++        self.raw(
++            &u32::try_from(value.len())
++                .map_err(|_| SessionTransferError::TooLarge)?
++                .to_be_bytes(),
++        )?;
++        self.raw(value)?;
++        Ok(())
++    }
++}
++struct Reader<'a>(&'a [u8]);
++impl<'a> Reader<'a> {
++    fn take(&mut self, size: usize) -> Result<&'a [u8], SessionTransferError> {
++        if size > self.0.len() {
++            return Err(SessionTransferError::Malformed);
++        }
++        let (head, tail) = self.0.split_at(size);
++        self.0 = tail;
++        Ok(head)
++    }
++    fn number(&mut self) -> Result<u32, SessionTransferError> {
++        Ok(u32::from_be_bytes(
++            self.take(4)?
++                .try_into()
++                .map_err(|_| SessionTransferError::Malformed)?,
++        ))
++    }
++    fn field(&mut self, bound: usize) -> Result<&'a [u8], SessionTransferError> {
++        let size = self.number()? as usize;
++        if size > bound {
++            return Err(SessionTransferError::TooLarge);
++        }
++        self.take(size)
++    }
++    fn boolean(&mut self) -> Result<bool, SessionTransferError> {
++        match self.take(1)?[0] {
++            0 => Ok(false),
++            1 => Ok(true),
++            _ => Err(SessionTransferError::Malformed),
++        }
++    }
++}
++
++#[cfg(test)]
++mod tests;
++
++macro_rules! redacted_debug {
++    ($($kind:ty),+ $(,)?) => { $(impl fmt::Debug for $kind {
++        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
++            f.debug_struct(stringify!($kind)).finish_non_exhaustive()
++        }
++    })+ };
++}
++redacted_debug!(
++    SessionTransferCredential,
++    SessionTransferPolicy,
++    AuthenticatedSessionRecord,
++    SessionTransferEnvelope,
++    VerifiedSessionEnvelope,
++    SessionImportPermit
++);
+diff --git a/src/ssl/session_transfer/tests.rs b/src/ssl/session_transfer/tests.rs
+new file mode 100644
+--- /dev/null
++++ b/src/ssl/session_transfer/tests.rs
+@@ -0,0 +1,159 @@
++use super::*;
++
++#[test]
++fn transfer_preparation_bounds_and_redaction_are_explicit() {
++    assert!(matches!(
++        SessionTransferCredential::from_canonical_hmac_input(&vec![0; MAX_CREDENTIAL + 1]),
++        Err(SessionTransferError::TooLarge)
++    ));
++    assert!(matches!(
++        SessionTransferPolicy::new(&vec![0; MAX_POLICY + 1], &[], None, &[1; 32]),
++        Err(SessionTransferError::TooLarge)
++    ));
++    assert!(matches!(
++        SessionTransferPolicy::new(&[], &vec![0; MAX_POLICY + 1], None, &[1; 32]),
++        Err(SessionTransferError::TooLarge)
++    ));
++    let input =
++        SessionTransferCredential::from_canonical_hmac_input(b"synthetic-password").unwrap();
++    assert_eq!(format!("{input:?}"), "SessionTransferCredential { .. }");
++    let policy = SessionTransferPolicy::new(b"policy", b"witness", Some(input), &[1; 32]).unwrap();
++    assert_eq!(format!("{policy:?}"), "SessionTransferPolicy { .. }");
++}
++
++#[test]
++fn transfer_writer_never_grows_secret_allocations() {
++    let mut writer = Writer::new(4).unwrap();
++    let capacity = writer.bytes.capacity();
++    writer.raw(&[1, 2, 3, 4]).unwrap();
++    assert!(matches!(
++        writer.raw(&[5]),
++        Err(SessionTransferError::TooLarge)
++    ));
++    assert_eq!(writer.bytes.capacity(), capacity);
++    assert_eq!(writer.bytes.len(), 4);
++    let mut reader = Reader(&[0, 0, 0, 5, 1]);
++    assert!(matches!(
++        reader.field(4),
++        Err(SessionTransferError::TooLarge)
++    ));
++    assert!(matches!(
++        Reader(&[2]).boolean(),
++        Err(SessionTransferError::Malformed)
++    ));
++    assert!(matches!(
++        Reader(&[]).take(1),
++        Err(SessionTransferError::Malformed)
++    ));
++}
++
++#[test]
++fn transfer_empty_envelope_authentication_and_whole_input_are_checked() {
++    let context = super::super::SslContext::builder(super::super::SslMethod::tls())
++        .unwrap()
++        .build();
++    let snapshot = seal_envelope(&[], &[1; 32]).unwrap();
++    assert_eq!(
++        open_envelope(snapshot.as_bytes(), &[1; 32], &context)
++            .unwrap()
++            .record_count(),
++        0
++    );
++    assert!(matches!(
++        open_envelope(snapshot.as_bytes(), &[2; 32], &context),
++        Err(SessionTransferError::Authentication)
++    ));
++    for end in 0..snapshot.as_bytes().len() {
++        assert!(open_envelope(&snapshot.as_bytes()[..end], &[1; 32], &context).is_err());
++    }
++    let mut trailing = snapshot.as_bytes().to_vec();
++    trailing.push(0);
++    assert!(matches!(
++        open_envelope(&trailing, &[1; 32], &context),
++        Err(SessionTransferError::Malformed)
++    ));
++    let mut changed = snapshot.as_bytes().to_vec();
++    changed[8] ^= 1;
++    assert!(matches!(
++        open_envelope(&changed, &[1; 32], &context),
++        Err(SessionTransferError::IncompatibleBackend)
++    ));
++    let mut changed = snapshot.as_bytes().to_vec();
++    changed[HEADER] ^= 1;
++    assert!(matches!(
++        open_envelope(&changed, &[1; 32], &context),
++        Err(SessionTransferError::Authentication)
++    ));
++}
++
++#[test]
++fn transfer_same_key_sealing_rejects_forged_record_mac_without_mutating_source() {
++    let body = copy(b"synthetic malformed attacker body", MAX_ENVELOPE).unwrap();
++    let original = body.clone();
++    let record = AuthenticatedSessionRecord {
++        body,
++        mac: [0; 32],
++        expires_at: u64::MAX,
++    };
++    assert!(matches!(
++        seal_envelope(std::slice::from_ref(&record), &[1; 32]),
++        Err(SessionTransferError::Authentication)
++    ));
++    assert_eq!(record.body.as_slice(), original.as_slice());
++    assert_eq!(record.mac, [0; 32]);
++}
++
++#[test]
++fn transfer_authenticated_malformed_native_record_never_grants_import_authority() {
++    // A custody key holder can forge envelopes. Authentication cannot make
++    // malformed native bytes or invalid record framing safe to attach.
++    let mut body = Writer::new(128).unwrap();
++    body.raw(&1_u16.to_be_bytes()).unwrap();
++    body.raw(&[0; 32]).unwrap();
++    body.raw(&[0]).unwrap();
++    body.raw(&[1; 32]).unwrap();
++    body.field(b"example.test").unwrap();
++    body.raw(&[0]).unwrap();
++    body.field(&[]).unwrap();
++    body.field(b"metadata").unwrap();
++    body.field(b"not a native session").unwrap();
++    let mac = hmac_sha256(
++        &*key(&[7; 32], b"phantom-ticket-record-v1").unwrap(),
++        &body.bytes,
++    )
++    .unwrap();
++    let record = AuthenticatedSessionRecord {
++        body: body.bytes,
++        mac,
++        expires_at: u64::MAX,
++    };
++    let envelope = seal_envelope(&[record], &[7; 32]).unwrap();
++    let context = super::super::SslContext::builder(super::super::SslMethod::tls())
++        .unwrap()
++        .build();
++    assert!(matches!(
++        open_envelope(envelope.as_bytes(), &[7; 32], &context),
++        Err(SessionTransferError::Backend(_))
++    ));
++    assert!(matches!(
++        Record::parse(&[0; 2]),
++        Err(SessionTransferError::Malformed)
++    ));
++}
++
++#[test]
++fn transfer_source_witness_field_bound_rejects_before_native_decode() {
++    let mut body = Writer::new(100).unwrap();
++    body.raw(&1_u16.to_be_bytes()).unwrap();
++    body.raw(&[0; 32]).unwrap();
++    body.raw(&[0]).unwrap();
++    body.raw(&[1; 32]).unwrap();
++    body.field(b"example.test").unwrap();
++    body.raw(&[0]).unwrap();
++    body.raw(&u32::try_from(MAX_POLICY + 1).unwrap().to_be_bytes())
++        .unwrap();
++    assert!(matches!(
++        Record::parse(&body.bytes),
++        Err(SessionTransferError::TooLarge)
++    ));
++}
+diff --git a/src/ssl/test/session_resumption.rs b/src/ssl/test/session_resumption.rs
+--- a/src/ssl/test/session_resumption.rs
++++ b/src/ssl/test/session_resumption.rs
+@@ -25,6 +25,578 @@
+ static SUCCESS_DECRYPTION_CALLED_BACK: AtomicU8 = AtomicU8::new(0);
+ static NOOP_ENCRYPTION_CALLED_BACK: AtomicU8 = AtomicU8::new(0);
+ static NOOP_DECRYPTION_CALLED_BACK: AtomicU8 = AtomicU8::new(0);
++
++fn transfer_test_binding(
++    client: &SslConnector,
++    scope: &SslSessionScope,
++    credential: &[u8],
++    owner_key: &[u8; 32],
++) -> crate::ssl::SessionPolicyBinding {
++    let input =
++        crate::ssl::SessionTransferCredential::from_canonical_hmac_input(credential).unwrap();
++    let policy = crate::ssl::SessionTransferPolicy::new(
++        b"complete synthetic native test policy",
++        b"fixed validated witness",
++        Some(input),
++        owner_key,
++    )
++    .unwrap();
++    scope
++        .bind_transfer_policy(client.context(), "foobar.com", policy)
++        .unwrap()
++}
++
++fn transfer_test_client(version: SslVersion) -> SslConnector {
++    let mut client = publication_client_builder();
++    client.set_min_proto_version(Some(version)).unwrap();
++    client.set_max_proto_version(Some(version)).unwrap();
++    client.enable_scoped_client_sessions();
++    client.build()
++}
++fn transfer_test_fixture(
++    version: SslVersion,
++    credential: &[u8],
++    owner_key: &[u8; 32],
++) -> (
++    ScopedSslSession,
++    crate::ssl::SessionPolicyBinding,
++    SslConnector,
++    SslSessionScope,
++) {
++    let (session, binding, client, scope, server) =
++        transfer_test_live_fixture(version, credential, owner_key, 1);
++    drop(server);
++    (session, binding, client, scope)
++}
++fn transfer_test_live_fixture(
++    version: SslVersion,
++    credential: &[u8],
++    owner_key: &[u8; 32],
++    connections: usize,
++) -> (
++    ScopedSslSession,
++    crate::ssl::SessionPolicyBinding,
++    SslConnector,
++    SslSessionScope,
++    Server,
++) {
++    let mut server = Server::builder();
++    server.expected_connections_count(connections);
++    server.ctx().set_min_proto_version(Some(version)).unwrap();
++    server.ctx().set_max_proto_version(Some(version)).unwrap();
++    let server = server.build();
++    let client = transfer_test_client(version);
++    let scope = SslSessionScope::default();
++    let binding = transfer_test_binding(&client, &scope, credential, owner_key);
++    let sessions = Arc::new(Mutex::new(Vec::new()));
++    let captured = Arc::clone(&sessions);
++    let mut configuration = client.configure().unwrap();
++    configuration.set_session_transfer_policy(&binding).unwrap();
++    let ssl = configuration
++        .into_ssl_with_session_transfer("foobar.com", &scope, None, move |session| {
++            captured.lock().unwrap().push(session.unwrap())
++        })
++        .unwrap()
++        .unwrap();
++    let mut stream = ssl.connect(server.connect_tcp()).unwrap();
++    stream.read_exact(&mut [0]).unwrap();
++    assert!(!sessions.lock().unwrap().is_empty());
++    assert!(sessions
++        .lock()
++        .unwrap()
++        .iter()
++        .all(|session| !session.is_authenticated()));
++    assert!(matches!(
++        binding.seal_session(&sessions.lock().unwrap()[0], b"TCP metadata", &[7; 32]),
++        Err(crate::ssl::SessionTransferError::Unauthenticated)
++    ));
++    assert!(stream.ssl().authenticate_scoped_session_publication());
++    let session = sessions.lock().unwrap().pop().unwrap();
++    assert!(session.is_authenticated());
++    drop(stream);
++    (session, binding, client, scope, server)
++}
++
++#[test]
++fn authenticated_transfer_real_tls12_and_tls13_cross_key_import_and_reexport() {
++    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
++        let (session, source, _, _) =
++            transfer_test_fixture(version, b"actual credential frame", &[1; 32]);
++        let record = source
++            .seal_session(&session, b"bounded TCP metadata", &[7; 32])
++            .unwrap();
++        assert!(matches!(
++            crate::ssl::seal_envelope(&[record], &[8; 32]),
++            Err(crate::ssl::SessionTransferError::Authentication)
++        ));
++        assert!(session.is_authenticated());
++        let record = source
++            .seal_session(&session, b"bounded TCP metadata", &[7; 32])
++            .unwrap();
++        let envelope = crate::ssl::seal_envelope(&[record], &[7; 32]).unwrap();
++        let recipient = transfer_test_client(version);
++        let scope = SslSessionScope::default();
++        let recipient_binding =
++            transfer_test_binding(&recipient, &scope, b"actual credential frame", &[2; 32]);
++        let mut opened =
++            crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], recipient.context()).unwrap();
++        assert_eq!(opened.record_count(), 1);
++        assert_eq!(opened.owner_metadata(0).unwrap(), b"bounded TCP metadata");
++        assert_eq!(
++            opened.source_witness(0).unwrap(),
++            b"fixed validated witness"
++        );
++        let permit = opened.authorize_record(0, &recipient_binding).unwrap();
++        assert_eq!(permit.source_witness(), b"fixed validated witness");
++        assert!(matches!(
++            opened.source_witness(0),
++            Err(crate::ssl::SessionTransferError::Consumed)
++        ));
++        assert!(matches!(
++            opened.source_witness(1),
++            Err(crate::ssl::SessionTransferError::Malformed)
++        ));
++        assert!(matches!(
++            opened.authorize_record(0, &recipient_binding),
++            Err(crate::ssl::SessionTransferError::Consumed)
++        ));
++        let imported = permit.into_scoped_session().unwrap();
++        assert!(imported.is_authenticated());
++        assert_eq!(imported.protocol_version(), session.protocol_version());
++        assert_eq!(imported.time(), session.time());
++        assert_eq!(imported.timeout(), session.timeout());
++        assert_eq!(
++            imported.should_be_single_use(),
++            session.should_be_single_use()
++        );
++        assert!(imported.matches(&scope, recipient.context(), "foobar.com"));
++        let reexported = recipient_binding
++            .seal_session(&imported, b"bounded TCP metadata", &[9; 32])
++            .unwrap();
++        let reexported = crate::ssl::seal_envelope(&[reexported], &[9; 32]).unwrap();
++        let third = transfer_test_client(version);
++        let third_scope = SslSessionScope::default();
++        let third_binding =
++            transfer_test_binding(&third, &third_scope, b"actual credential frame", &[3; 32]);
++        let mut reopened =
++            crate::ssl::open_envelope(reexported.as_bytes(), &[9; 32], third.context()).unwrap();
++        assert!(reopened
++            .authorize_record(0, &third_binding)
++            .unwrap()
++            .into_scoped_session()
++            .unwrap()
++            .is_authenticated());
++    }
++}
++
++#[test]
++fn authenticated_transfer_wrong_credentials_and_scope_retirement_fail_closed() {
++    let (session, source, _, _) =
++        transfer_test_fixture(SslVersion::TLS1_3, b"credential-a", &[1; 32]);
++    let record = source
++        .seal_session(&session, b"metadata", &[7; 32])
++        .unwrap();
++    let envelope = crate::ssl::seal_envelope(&[record], &[7; 32]).unwrap();
++    let recipient = publication_client();
++    let wrong_scope = SslSessionScope::default();
++    let wrong = transfer_test_binding(&recipient, &wrong_scope, b"credential-b", &[2; 32]);
++    let mut opened =
++        crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], recipient.context()).unwrap();
++    assert!(matches!(
++        opened.authorize_record(0, &wrong),
++        Err(crate::ssl::SessionTransferError::Credentials)
++    ));
++    assert_eq!(opened.owner_metadata(0).unwrap(), b"metadata");
++    let scope = SslSessionScope::default();
++    let right = transfer_test_binding(&recipient, &scope, b"credential-a", &[2; 32]);
++    let permit = opened.authorize_record(0, &right).unwrap();
++    scope.invalidate_transfer_policy();
++    assert!(matches!(
++        permit.into_scoped_session(),
++        Err(crate::ssl::SessionTransferError::Policy)
++    ));
++    let mut opened =
++        crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], recipient.context()).unwrap();
++    assert!(matches!(
++        opened.authorize_record(0, &right),
++        Err(crate::ssl::SessionTransferError::Policy)
++    ));
++    assert!(session.is_authenticated());
++}
++
++#[test]
++fn authenticated_transfer_live_context_borrow_blocks_binding_and_revokes_old_import() {
++    let (session, source, _, _) =
++        transfer_test_fixture(SslVersion::TLS1_3, b"credential", &[1; 32]);
++    let record = source
++        .seal_session(&session, b"metadata", &[7; 32])
++        .unwrap();
++    let envelope = crate::ssl::seal_envelope(&[record], &[7; 32]).unwrap();
++    let mut builder = publication_client_builder();
++    builder.enable_scoped_client_sessions();
++    let context = builder.ctx.to_owned();
++    let scope = SslSessionScope::default();
++    let policy = || {
++        crate::ssl::SessionTransferPolicy::new(
++            b"complete synthetic native test policy",
++            b"fixed validated witness",
++            Some(
++                crate::ssl::SessionTransferCredential::from_canonical_hmac_input(b"credential")
++                    .unwrap(),
++            ),
++            &[2; 32],
++        )
++        .unwrap()
++    };
++    let binding = scope
++        .bind_transfer_policy(&context, "foobar.com", policy())
++        .unwrap();
++    let mut opened = crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], &context).unwrap();
++    let permit = opened.authorize_record(0, &binding).unwrap();
++    let guard = builder.cert_store_mut();
++    let new_scope = SslSessionScope::default();
++    assert!(matches!(
++        new_scope.bind_transfer_policy(&context, "foobar.com", policy()),
++        Err(crate::ssl::SessionTransferError::Busy)
++    ));
++    assert!(matches!(
++        permit.into_scoped_session(),
++        Err(crate::ssl::SessionTransferError::Busy)
++    ));
++    drop(guard);
++    assert!(matches!(
++        scope.bind_transfer_policy(&context, "foobar.com", policy()),
++        Err(crate::ssl::SessionTransferError::Policy)
++    ));
++    let new_binding = new_scope
++        .bind_transfer_policy(&context, "foobar.com", policy())
++        .unwrap();
++    let mut reopened = crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], &context).unwrap();
++    let imported = reopened
++        .authorize_record(0, &new_binding)
++        .unwrap()
++        .into_scoped_session()
++        .unwrap();
++    assert!(imported.is_authenticated());
++    builder.set_options(crate::ssl::SslOptions::NO_TICKET);
++    assert!(!imported.is_authenticated());
++    assert!(!imported.matches(&new_scope, &context, "foobar.com"));
++    assert!(new_binding
++        .seal_session(&imported, b"metadata", &[9; 32])
++        .is_err());
++}
++
++#[test]
++fn authenticated_transfer_imported_sessions_resume_real_tls12_and_tls13() {
++    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
++        let (session, source, _, _, server) =
++            transfer_test_live_fixture(version, b"credential", &[1; 32], 2);
++        let record = source
++            .seal_session(&session, b"metadata", &[7; 32])
++            .unwrap();
++        let envelope = crate::ssl::seal_envelope(&[record], &[7; 32]).unwrap();
++        let recipient = transfer_test_client(version);
++        let scope = SslSessionScope::default();
++        let binding = transfer_test_binding(&recipient, &scope, b"credential", &[2; 32]);
++        let mut opened =
++            crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], recipient.context()).unwrap();
++        let imported = opened
++            .authorize_record(0, &binding)
++            .unwrap()
++            .into_scoped_session()
++            .unwrap();
++        let captured = Arc::new(Mutex::new(Vec::new()));
++        let received = Arc::clone(&captured);
++        let mut configuration = recipient.configure().unwrap();
++        configuration.set_session_transfer_policy(&binding).unwrap();
++        let ssl = configuration
++            .into_ssl_with_session_transfer("foobar.com", &scope, Some(&imported), move |session| {
++                received.lock().unwrap().push(session.unwrap())
++            })
++            .unwrap()
++            .unwrap();
++        let mut stream = ssl.connect(server.connect_tcp()).unwrap();
++        stream.read_exact(&mut [0]).unwrap();
++        assert!(stream.ssl().session_reused());
++        assert_eq!(stream.ssl().version2(), Some(version));
++        assert!(stream.ssl().authenticate_scoped_session_publication());
++        assert!(captured
++            .lock()
++            .unwrap()
++            .iter()
++            .all(ScopedSslSession::is_authenticated));
++        assert!(imported.is_authenticated());
++        drop(stream);
++        drop(server);
++    }
++}
++
++#[test]
++fn authenticated_transfer_staging_clone_and_rekey_preserve_source_and_exclude_consumed() {
++    let (session, source, _, _) =
++        transfer_test_fixture(SslVersion::TLS1_3, b"credential", &[1; 32]);
++    let records = [
++        source.seal_session(&session, b"first", &[7; 32]).unwrap(),
++        source.seal_session(&session, b"second", &[7; 32]).unwrap(),
++    ];
++    let envelope = crate::ssl::seal_envelope(&records, &[7; 32]).unwrap();
++    let recipient = publication_client();
++    let scope = SslSessionScope::default();
++    let binding = transfer_test_binding(&recipient, &scope, b"credential", &[2; 32]);
++    let mut source_staging =
++        crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], recipient.context()).unwrap();
++    let mut transaction = source_staging.try_clone_remaining().unwrap();
++    transaction.authorize_record(0, &binding).unwrap();
++    assert_eq!(source_staging.owner_metadata(0).unwrap(), b"first");
++    assert_eq!(source_staging.owner_metadata(1).unwrap(), b"second");
++    assert_eq!(transaction.try_clone_remaining().unwrap().record_count(), 1);
++    for key in [[7; 32], [9; 32]] {
++        let rekeyed = transaction.seal_remaining_envelope(&key).unwrap();
++        let mut opened =
++            crate::ssl::open_envelope(rekeyed.as_bytes(), &key, recipient.context()).unwrap();
++        assert_eq!(opened.record_count(), 1);
++        assert_eq!(opened.owner_metadata(0).unwrap(), b"second");
++        assert_eq!(
++            opened.source_witness(0).unwrap(),
++            b"fixed validated witness"
++        );
++        assert!(opened
++            .authorize_record(0, &binding)
++            .unwrap()
++            .into_scoped_session()
++            .unwrap()
++            .is_authenticated());
++        let mut damaged = rekeyed.as_bytes().to_vec();
++        let last = damaged.len() - 1;
++        damaged[last] ^= 1;
++        assert!(matches!(
++            crate::ssl::open_envelope(&damaged, &key, recipient.context()),
++            Err(crate::ssl::SessionTransferError::Authentication)
++        ));
++    }
++    assert_eq!(transaction.owner_metadata(1).unwrap(), b"second");
++    assert_eq!(
++        transaction.source_witness(1).unwrap(),
++        b"fixed validated witness"
++    );
++    source_staging.authorize_record(0, &binding).unwrap();
++    source_staging.authorize_record(1, &binding).unwrap();
++    assert_eq!(
++        source_staging.try_clone_remaining().unwrap().record_count(),
++        0
++    );
++}
++
++#[test]
++fn authenticated_transfer_expiry_blocks_clone_rekey_and_permit_without_source_change() {
++    let (session, source, client, _) =
++        transfer_test_fixture(SslVersion::TLS1_3, b"credential", &[1; 32]);
++    let now = std::time::SystemTime::now()
++        .duration_since(std::time::UNIX_EPOCH)
++        .unwrap()
++        .as_secs();
++    // SAFETY: the real callback's session remains owned by this test, with no
++    // live connection. The pinned native setters explicitly support expiry tests.
++    unsafe {
++        ffi::SSL_SESSION_set_time(session.session().as_ptr(), now);
++        ffi::SSL_SESSION_set_timeout(session.session().as_ptr(), 5);
++    }
++    let record = source
++        .seal_session(&session, b"unchanged metadata", &[7; 32])
++        .unwrap();
++    let envelope = crate::ssl::seal_envelope(&[record], &[7; 32]).unwrap();
++    let opened =
++        crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], client.context()).unwrap();
++    let mut transaction = opened.try_clone_remaining().unwrap();
++    let recipient = publication_client();
++    let scope = SslSessionScope::default();
++    let binding = transfer_test_binding(&recipient, &scope, b"credential", &[2; 32]);
++    let permit = transaction.authorize_record(0, &binding).unwrap();
++    let expires = std::time::UNIX_EPOCH + std::time::Duration::from_secs(now + 5);
++    if let Ok(remaining) = expires.duration_since(std::time::SystemTime::now()) {
++        std::thread::sleep(remaining + std::time::Duration::from_millis(50));
++    }
++    assert!(matches!(
++        source.seal_session(&session, b"metadata", &[7; 32]),
++        Err(crate::ssl::SessionTransferError::Expired)
++    ));
++    assert!(matches!(
++        opened.try_clone_remaining(),
++        Err(crate::ssl::SessionTransferError::Expired)
++    ));
++    assert!(matches!(
++        opened.seal_remaining_envelope(&[9; 32]),
++        Err(crate::ssl::SessionTransferError::Expired)
++    ));
++    assert_eq!(opened.owner_metadata(0).unwrap(), b"unchanged metadata");
++    assert!(matches!(
++        permit.into_scoped_session(),
++        Err(crate::ssl::SessionTransferError::Expired)
++    ));
++    assert!(matches!(
++        crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], client.context()),
++        Err(crate::ssl::SessionTransferError::Expired)
++    ));
++}
++
++#[test]
++fn authenticated_transfer_ssl_shared_and_mutable_parameter_changes_cannot_rehabilitate() {
++    for shared_change in [true, false] {
++        let server = tls13_server(1).build();
++        let client = publication_client();
++        let scope = SslSessionScope::default();
++        let binding = transfer_test_binding(&client, &scope, b"credential", &[1; 32]);
++        let sessions = Arc::new(Mutex::new(Vec::new()));
++        let captured = Arc::clone(&sessions);
++        let mut configuration = client.configure().unwrap();
++        configuration.set_session_transfer_policy(&binding).unwrap();
++        let ssl = configuration
++            .into_ssl_with_session_transfer("foobar.com", &scope, None, move |session| {
++                captured.lock().unwrap().push(session.unwrap())
++            })
++            .unwrap()
++            .unwrap();
++        let mut stream = ssl.connect(server.connect_tcp()).unwrap();
++        stream.read_exact(&mut [0]).unwrap();
++        assert!(stream.ssl().authenticate_scoped_session_publication());
++        let session = sessions.lock().unwrap().pop().unwrap();
++        assert!(binding
++            .seal_session(&session, b"metadata", &[7; 32])
++            .is_ok());
++        if shared_change {
++            stream.ssl().set_enable_ech_grease(true);
++        } else {
++            let _parameters = stream.ssl_mut().param_mut();
++        }
++        assert!(!session.is_authenticated());
++        assert!(!stream.ssl().authenticate_scoped_session_publication());
++        assert!(matches!(
++            binding.seal_session(&session, b"metadata", &[7; 32]),
++            Err(crate::ssl::SessionTransferError::Unauthenticated)
++        ));
++        drop(stream);
++        drop(server);
++    }
++}
++
++#[test]
++fn authenticated_transfer_policy_hostname_and_verification_mismatches_reject() {
++    let (session, source, _, _) =
++        transfer_test_fixture(SslVersion::TLS1_3, b"credential", &[1; 32]);
++    let record = source
++        .seal_session(&session, b"metadata", &[7; 32])
++        .unwrap();
++    let envelope = crate::ssl::seal_envelope(&[record], &[7; 32]).unwrap();
++    for (policy_bytes, hostname) in [
++        (b"other policy".as_slice(), "foobar.com"),
++        (
++            b"complete synthetic native test policy".as_slice(),
++            "other.example",
++        ),
++    ] {
++        let recipient = publication_client();
++        let scope = SslSessionScope::default();
++        let policy = crate::ssl::SessionTransferPolicy::new(
++            policy_bytes,
++            b"fixed validated witness",
++            Some(
++                crate::ssl::SessionTransferCredential::from_canonical_hmac_input(b"credential")
++                    .unwrap(),
++            ),
++            &[2; 32],
++        )
++        .unwrap();
++        let binding = scope
++            .bind_transfer_policy(recipient.context(), hostname, policy)
++            .unwrap();
++        let mut opened =
++            crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], recipient.context()).unwrap();
++        assert!(matches!(
++            opened.authorize_record(0, &binding),
++            Err(crate::ssl::SessionTransferError::Policy)
++        ));
++        assert_eq!(opened.owner_metadata(0).unwrap(), b"metadata");
++    }
++    for custom in [false, true] {
++        let mut builder = publication_client_builder();
++        if custom {
++            builder.set_verify_callback(SslVerifyMode::PEER, |_, _| true);
++        } else {
++            builder.set_verify(SslVerifyMode::NONE);
++        }
++        builder.enable_scoped_client_sessions();
++        let recipient = builder.build();
++        let policy =
++            crate::ssl::SessionTransferPolicy::new(b"policy", b"witness", None, &[2; 32]).unwrap();
++        assert!(matches!(
++            SslSessionScope::default().bind_transfer_policy(
++                recipient.context(),
++                "foobar.com",
++                policy
++            ),
++            Err(crate::ssl::SessionTransferError::Policy)
++        ));
++    }
++}
++
++#[test]
++fn authenticated_transfer_connection_override_and_failed_hostname_never_authenticate() {
++    let client = publication_client();
++    let scope = SslSessionScope::default();
++    let binding = transfer_test_binding(&client, &scope, b"credential", &[1; 32]);
++    let mut configuration = client.configure().unwrap();
++    configuration.set_session_transfer_policy(&binding).unwrap();
++    configuration.set_verify_callback(SslVerifyMode::PEER, |_, _| true);
++    assert!(matches!(
++        configuration.into_ssl_with_session_transfer("foobar.com", &scope, None, |_| {}),
++        Err(crate::ssl::SessionTransferError::Policy)
++    ));
++    let mut configuration = client.configure().unwrap();
++    configuration.set_session_transfer_policy(&binding).unwrap();
++    configuration.set_verify_hostname(false);
++    assert!(configuration
++        .into_ssl_with_session_transfer("foobar.com", &scope, None, |_| {})
++        .unwrap()
++        .is_none());
++
++    let mut server = tls13_server(1);
++    server.should_error();
++    let server = server.build();
++    let scope = SslSessionScope::default();
++    let policy =
++        crate::ssl::SessionTransferPolicy::new(b"policy", b"witness", None, &[1; 32]).unwrap();
++    let binding = scope
++        .bind_transfer_policy(client.context(), "other.example", policy)
++        .unwrap();
++    let sessions = Arc::new(Mutex::new(Vec::new()));
++    let captured = Arc::clone(&sessions);
++    let mut configuration = client.configure().unwrap();
++    configuration.set_session_transfer_policy(&binding).unwrap();
++    let ssl = configuration
++        .into_ssl_with_session_transfer("other.example", &scope, None, move |session| {
++            captured.lock().unwrap().push(session.unwrap())
++        })
++        .unwrap()
++        .unwrap();
++    let failure = ssl.connect(server.connect_tcp()).unwrap_err();
++    let crate::ssl::HandshakeError::Failure(failed) = failure else {
++        panic!("expected hostname failure")
++    };
++    assert!(!failed.ssl().authenticate_scoped_session_publication());
++    assert!(sessions
++        .lock()
++        .unwrap()
++        .iter()
++        .all(|session| !session.is_authenticated()));
++    for session in sessions.lock().unwrap().iter() {
++        assert!(matches!(
++            binding.seal_session(session, b"metadata", &[7; 32]),
++            Err(crate::ssl::SessionTransferError::Unauthenticated)
++        ));
++    }
++    drop(failed);
++    drop(server);
++}
+
+ #[test]
+ fn scoped_context_configuration_preserves_original_policy() {

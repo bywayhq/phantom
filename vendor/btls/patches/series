@@ -17,4 +17,6 @@ message-callback-context.patch
 strict-session-transfer.patch
 authenticated-session-publication.patch
 scoped-context-session-delivery.patch
+authenticated-session-transfer.patch
+session-transfer-dependency.patch
 publish-identity.patch

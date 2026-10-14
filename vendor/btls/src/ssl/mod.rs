@@ -125,6 +125,12 @@ mod credential;
 mod ech;
 mod error;
 mod mut_only;
+mod session_transfer;
+pub use session_transfer::{
+    open_envelope, seal_envelope, AuthenticatedSessionRecord, SessionImportPermit,
+    SessionPolicyBinding, SessionPolicyMutation, SessionTransferCredential,
+    SessionTransferEnvelope, SessionTransferError, SessionTransferPolicy, VerifiedSessionEnvelope,
+};
 #[cfg(test)]
 mod test;
 
@@ -1116,6 +1122,10 @@ impl SslContextBuilder {
                 );
             }
 
+            builder.set_ex_data(
+                SslContext::cached_ex_index::<Arc<session_transfer::ContextEpoch>>(),
+                Arc::new(session_transfer::ContextEpoch::new()),
+            );
             Ok(builder)
         }
     }
@@ -1181,6 +1191,8 @@ impl SslContextBuilder {
     where
         F: Fn(&mut X509StoreContextRef) -> bool + 'static + Sync + Send,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.replace_ex_data(
             SslContext::cached_ex_index::<SessionVerifierProvenance>(),
             SessionVerifierProvenance::Custom,
@@ -1207,6 +1219,8 @@ impl SslContextBuilder {
     /// Configures the certificate verification method for new connections.
     #[corresponds(SSL_CTX_set_verify)]
     pub fn set_verify(&mut self, mode: SslVerifyMode) {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.ctx.check_x509();
 
         unsafe {
@@ -1235,6 +1249,8 @@ impl SslContextBuilder {
     where
         F: Fn(bool, &mut X509StoreContextRef) -> bool + 'static + Sync + Send,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.replace_ex_data(
             SslContext::cached_ex_index::<SessionVerifierProvenance>(),
             SessionVerifierProvenance::Custom,
@@ -1271,6 +1287,8 @@ impl SslContextBuilder {
     where
         F: Fn(&mut SslRef) -> Result<(), SslVerifyError> + 'static + Sync + Send,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.replace_ex_data(
             SslContext::cached_ex_index::<SessionVerifierProvenance>(),
             SessionVerifierProvenance::Custom,
@@ -1292,6 +1310,8 @@ impl SslContextBuilder {
     /// [`SslVerifyMode::NONE`].
     #[corresponds(SSL_CTX_set_reverify_on_resume)]
     pub fn set_reverify_on_resume(&mut self, enabled: bool) {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { ffi::SSL_CTX_set_reverify_on_resume(self.as_ptr(), enabled as _) }
     }
 
@@ -1309,6 +1329,8 @@ impl SslContextBuilder {
     where
         F: Fn(&mut SslRef, &mut SslAlert) -> Result<(), SniError> + 'static + Sync + Send,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             // The SNI callback is somewhat unique in that the callback associated with the original
             // context associated with an SSL can be used even if the SSL's context has been swapped
@@ -1364,6 +1386,8 @@ impl SslContextBuilder {
             + Sync
             + Send,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.ctx.check_x509();
 
         unsafe {
@@ -1377,6 +1401,8 @@ impl SslContextBuilder {
     /// If the peer's certificate chain is longer than this value, verification will fail.
     #[corresponds(SSL_CTX_set_verify_depth)]
     pub fn set_verify_depth(&mut self, depth: u32) {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.ctx.check_x509();
 
         unsafe {
@@ -1387,6 +1413,8 @@ impl SslContextBuilder {
     /// Sets a custom certificate store for verifying peer certificates.
     #[corresponds(SSL_CTX_set0_verify_cert_store)]
     pub fn set_verify_cert_store(&mut self, cert_store: X509Store) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.ctx.check_x509();
 
         unsafe {
@@ -1405,6 +1433,8 @@ impl SslContextBuilder {
     /// (there's no way to have both sharing and mutability).
     #[corresponds(SSL_CTX_set_cert_store)]
     pub fn set_cert_store(&mut self, cert_store: X509Store) {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.ctx.check_x509();
 
         self.has_shared_cert_store = true;
@@ -1416,6 +1446,8 @@ impl SslContextBuilder {
     /// Replaces the context's certificate store, and allows mutating the store afterwards.
     #[corresponds(SSL_CTX_set_cert_store)]
     pub fn set_cert_store_builder(&mut self, cert_store: X509StoreBuilder) {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.ctx.check_x509();
 
         self.has_shared_cert_store = false;
@@ -1440,6 +1472,8 @@ impl SslContextBuilder {
     /// It has no effect when used with DTLS.
     #[corresponds(SSL_CTX_set_read_ahead)]
     pub fn set_read_ahead(&mut self, read_ahead: bool) {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             ffi::SSL_CTX_set_read_ahead(self.as_ptr(), c_int::from(read_ahead));
         }
@@ -1448,6 +1482,8 @@ impl SslContextBuilder {
     /// Sets the mode used by the context, returning the new bit-mask after adding mode.
     #[corresponds(SSL_CTX_set_mode)]
     pub fn set_mode(&mut self, mode: SslMode) -> SslMode {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         let bits = unsafe { ffi::SSL_CTX_set_mode(self.as_ptr(), mode.bits()) };
         SslMode::from_bits_retain(bits)
     }
@@ -1455,12 +1491,16 @@ impl SslContextBuilder {
     /// Sets the parameters to be used during ephemeral Diffie-Hellman key exchange.
     #[corresponds(SSL_CTX_set_tmp_dh)]
     pub fn set_tmp_dh(&mut self, dh: &DhRef<Params>) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { cvt(ffi::SSL_CTX_set_tmp_dh(self.as_ptr(), dh.as_ptr())) }
     }
 
     /// Sets the parameters to be used during ephemeral elliptic curve Diffie-Hellman key exchange.
     #[corresponds(SSL_CTX_set_tmp_ecdh)]
     pub fn set_tmp_ecdh(&mut self, key: &EcKeyRef<Params>) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { cvt(ffi::SSL_CTX_set_tmp_ecdh(self.as_ptr(), key.as_ptr())) }
     }
 
@@ -1470,6 +1510,8 @@ impl SslContextBuilder {
     /// if present, or defaults specified at OpenSSL build time otherwise.
     #[corresponds(SSL_CTX_set_default_verify_paths)]
     pub fn set_default_verify_paths(&mut self) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.ctx.check_x509();
 
         unsafe { cvt(ffi::SSL_CTX_set_default_verify_paths(self.as_ptr())) }
@@ -1490,6 +1532,8 @@ impl SslContextBuilder {
         ca_file: Option<&Path>,
         ca_path: Option<&Path>,
     ) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.ctx.check_x509();
 
         let ca_file = ca_file.map(path_to_cstring).transpose()?;
@@ -1510,6 +1554,8 @@ impl SslContextBuilder {
     /// as trusted by this method.
     #[corresponds(SSL_CTX_set_client_CA_list)]
     pub fn set_client_ca_list(&mut self, list: Stack<X509Name>) {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.ctx.check_x509();
 
         unsafe {
@@ -1522,6 +1568,8 @@ impl SslContextBuilder {
     /// requesting client-side TLS authentication.
     #[corresponds(SSL_CTX_add_client_CA)]
     pub fn add_client_ca(&mut self, cacert: &X509Ref) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.ctx.check_x509();
 
         unsafe { cvt(ffi::SSL_CTX_add_client_CA(self.as_ptr(), cacert.as_ptr())) }
@@ -1534,6 +1582,8 @@ impl SslContextBuilder {
     /// verification is enabled.
     #[corresponds(SSL_CTX_set_session_id_context)]
     pub fn set_session_id_context(&mut self, sid_ctx: &[u8]) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             assert!(sid_ctx.len() <= c_uint::MAX as usize);
             cvt(ffi::SSL_CTX_set_session_id_context(
@@ -1555,6 +1605,8 @@ impl SslContextBuilder {
         file: P,
         file_type: SslFiletype,
     ) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.ctx.check_x509();
 
         let file = path_to_cstring(file.as_ref())?;
@@ -1577,6 +1629,8 @@ impl SslContextBuilder {
         &mut self,
         file: P,
     ) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         let file = path_to_cstring(file.as_ref())?;
         unsafe {
             cvt(ffi::SSL_CTX_use_certificate_chain_file(
@@ -1591,6 +1645,8 @@ impl SslContextBuilder {
     /// Use `add_extra_chain_cert` to add the remainder of the certificate chain.
     #[corresponds(SSL_CTX_use_certificate)]
     pub fn set_certificate(&mut self, cert: &X509Ref) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { cvt(ffi::SSL_CTX_use_certificate(self.as_ptr(), cert.as_ptr())) }
     }
 
@@ -1600,6 +1656,8 @@ impl SslContextBuilder {
     /// `set_certificate` to a trusted root.
     #[corresponds(SSL_CTX_add_extra_chain_cert)]
     pub fn add_extra_chain_cert(&mut self, cert: X509) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.ctx.check_x509();
 
         unsafe {
@@ -1617,6 +1675,8 @@ impl SslContextBuilder {
         file: P,
         file_type: SslFiletype,
     ) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         let file = path_to_cstring(file.as_ref())?;
         unsafe {
             cvt(ffi::SSL_CTX_use_PrivateKey_file(
@@ -1633,6 +1693,8 @@ impl SslContextBuilder {
     where
         T: HasPrivate,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { cvt(ffi::SSL_CTX_use_PrivateKey(self.as_ptr(), key.as_ptr())) }
     }
 
@@ -1649,6 +1711,8 @@ impl SslContextBuilder {
     /// [`ciphers`]: https://www.openssl.org/docs/manmaster/apps/ciphers.html
     #[corresponds(SSL_CTX_set_cipher_list)]
     pub fn set_cipher_list(&mut self, cipher_list: &str) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         let cipher_list = CString::new(cipher_list).map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt(ffi::SSL_CTX_set_cipher_list(
@@ -1670,6 +1734,8 @@ impl SslContextBuilder {
     /// [`ciphers`]: <https://docs.openssl.org/master/man1/openssl-ciphers/>.
     #[corresponds(SSL_CTX_set_strict_cipher_list)]
     pub fn set_strict_cipher_list(&mut self, cipher_list: &str) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         let cipher_list = CString::new(cipher_list).map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt(ffi::SSL_CTX_set_strict_cipher_list(
@@ -1698,6 +1764,8 @@ impl SslContextBuilder {
     /// `clear_options` for that.
     #[corresponds(SSL_CTX_set_options)]
     pub fn set_options(&mut self, option: SslOptions) -> SslOptions {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         let bits = unsafe { ffi::SSL_CTX_set_options(self.as_ptr(), option.bits()) };
         SslOptions::from_bits_retain(bits)
     }
@@ -1713,6 +1781,8 @@ impl SslContextBuilder {
     /// Clears the options used by the context, returning the old set.
     #[corresponds(SSL_CTX_clear_options)]
     pub fn clear_options(&mut self, option: SslOptions) -> SslOptions {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         let bits = unsafe { ffi::SSL_CTX_clear_options(self.as_ptr(), option.bits()) };
         SslOptions::from_bits_retain(bits)
     }
@@ -1723,6 +1793,8 @@ impl SslContextBuilder {
     /// TLS 1.0.
     #[corresponds(SSL_CTX_set_min_proto_version)]
     pub fn set_min_proto_version(&mut self, version: Option<SslVersion>) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             cvt(ffi::SSL_CTX_set_min_proto_version(
                 self.as_ptr(),
@@ -1736,6 +1808,8 @@ impl SslContextBuilder {
     /// If version is `None`, the default maximum version is used. For BoringSSL this is TLS 1.3.
     #[corresponds(SSL_CTX_set_max_proto_version)]
     pub fn set_max_proto_version(&mut self, version: Option<SslVersion>) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             cvt(ffi::SSL_CTX_set_max_proto_version(
                 self.as_ptr(),
@@ -1778,6 +1852,8 @@ impl SslContextBuilder {
     /// preference.
     #[corresponds(SSL_CTX_set_alpn_protos)]
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             let r = ffi::SSL_CTX_set_alpn_protos(
                 self.as_ptr(),
@@ -1796,6 +1872,8 @@ impl SslContextBuilder {
     /// Enables the DTLS extension "use_srtp" as defined in RFC5764.
     #[corresponds(SSL_CTX_set_tlsext_use_srtp)]
     pub fn set_tlsext_use_srtp(&mut self, protocols: &str) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             let cstr = CString::new(protocols).map_err(ErrorStack::internal_error)?;
 
@@ -1824,6 +1902,8 @@ impl SslContextBuilder {
     where
         F: for<'a> Fn(&mut SslRef, &'a [u8]) -> Result<&'a [u8], AlpnError> + 'static + Sync + Send,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_alpn_select_cb(
@@ -1842,6 +1922,8 @@ impl SslContextBuilder {
     where
         F: Fn(ClientHello<'_>) -> Result<(), SelectCertError> + Sync + Send + 'static,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_select_certificate_cb(
@@ -1862,6 +1944,8 @@ impl SslContextBuilder {
     where
         C: CertificateCompressor,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         const {
             assert!(C::CAN_COMPRESS || C::CAN_DECOMPRESS, "Either compression or decompression must be supported for algorithm to be registered");
         };
@@ -1900,6 +1984,8 @@ impl SslContextBuilder {
     where
         M: PrivateKeyMethod,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<M>(), method);
 
@@ -1939,7 +2025,7 @@ impl SslContextBuilder {
     /// * If context has been created for Raw Public Key verification (requires `rpk` Cargo feature)
     ///
     #[corresponds(SSL_CTX_get_cert_store)]
-    pub fn cert_store_mut(&mut self) -> &mut X509StoreBuilderRef {
+    pub fn cert_store_mut(&mut self) -> SessionPolicyMutation<'_, X509StoreBuilderRef> {
         self.ctx.check_x509();
 
         assert!(
@@ -1949,7 +2035,19 @@ impl SslContextBuilder {
         );
         // OTOH, it's not safe to return a shared &X509Store when the builder owns it exclusively
 
-        unsafe { X509StoreBuilderRef::from_ptr_mut(ffi::SSL_CTX_get_cert_store(self.as_ptr())) }
+        let epoch = self.ctx.ex_data(SslContext::cached_ex_index::<
+            Arc<session_transfer::ContextEpoch>,
+        >());
+        let guard = epoch.map(|epoch| epoch.mutate());
+        // SAFETY: the unique builder owns its non-shared store. The mutation
+        // guard excludes policy freezing until this borrowed store is released.
+        let value = unsafe {
+            X509StoreBuilderRef::from_ptr_mut(ffi::SSL_CTX_get_cert_store(self.as_ptr()))
+        };
+        SessionPolicyMutation {
+            value,
+            _guard: guard,
+        }
     }
 
     /// Sets the callback dealing with OCSP stapling.
@@ -1969,6 +2067,8 @@ impl SslContextBuilder {
     where
         F: Fn(&mut SslRef) -> Result<bool, ErrorStack> + 'static + Sync + Send,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             cvt(ffi::SSL_CTX_set_tlsext_status_cb(
@@ -1991,6 +2091,8 @@ impl SslContextBuilder {
             + Sync
             + Send,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_psk_client_callback(self.as_ptr(), Some(raw_client_psk::<F>));
@@ -2021,6 +2123,8 @@ impl SslContextBuilder {
             + Sync
             + Send,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_psk_server_callback(self.as_ptr(), Some(raw_server_psk::<F>));
@@ -2045,6 +2149,8 @@ impl SslContextBuilder {
     where
         F: Fn(&mut SslRef, SslSession) + 'static + Sync + Send,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.clear_scoped_client_session_identity();
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
@@ -2060,6 +2166,8 @@ impl SslContextBuilder {
     where
         F: Fn(&SslContextRef, &SslSessionRef) + 'static + Sync + Send,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_sess_set_remove_cb(
@@ -2087,6 +2195,8 @@ impl SslContextBuilder {
             + Sync
             + Send,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
         unsafe {
             ffi::SSL_CTX_sess_set_get_cb(self.as_ptr(), Some(callbacks::raw_get_session::<F>));
@@ -2103,6 +2213,8 @@ impl SslContextBuilder {
     where
         F: Fn(&SslRef, &str) + 'static + Sync + Send,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_keylog_callback(self.as_ptr(), Some(callbacks::raw_keylog::<F>));
@@ -2114,6 +2226,8 @@ impl SslContextBuilder {
     /// Returns the previous session caching mode.
     #[corresponds(SSL_CTX_set_session_cache_mode)]
     pub fn set_session_cache_mode(&mut self, mode: SslSessionCacheMode) -> SslSessionCacheMode {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             let bits = ffi::SSL_CTX_set_session_cache_mode(self.as_ptr(), mode.bits());
             SslSessionCacheMode::from_bits_retain(bits)
@@ -2126,6 +2240,8 @@ impl SslContextBuilder {
     /// separately by BoringSSL.
     #[corresponds(SSL_CTX_set_timeout)]
     pub fn set_session_timeout(&mut self, timeout: u32) -> u32 {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { ffi::SSL_CTX_set_timeout(self.as_ptr(), timeout) }
     }
 
@@ -2157,6 +2273,8 @@ impl SslContextBuilder {
     #[corresponds(SSL_CTX_sess_set_cache_size)]
     #[allow(clippy::useless_conversion)]
     pub fn set_session_cache_size(&mut self, size: u32) -> u64 {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { ffi::SSL_CTX_sess_set_cache_size(self.as_ptr(), size.into()).into() }
     }
 
@@ -2169,6 +2287,8 @@ impl SslContextBuilder {
     /// signing algorithm prefs.
     #[corresponds(SSL_CTX_set1_sigalgs_list)]
     pub fn set_sigalgs_list(&mut self, sigalgs: &str) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         let sigalgs = CString::new(sigalgs).map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt(ffi::SSL_CTX_set1_sigalgs_list(
@@ -2181,6 +2301,8 @@ impl SslContextBuilder {
     /// Set's whether the context should enable GREASE.
     #[corresponds(SSL_CTX_set_grease_enabled)]
     pub fn set_grease_enabled(&mut self, enabled: bool) {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { ffi::SSL_CTX_set_grease_enabled(self.as_ptr(), enabled as _) }
     }
 
@@ -2192,6 +2314,8 @@ impl SslContextBuilder {
     /// [RFC 8701]: https://www.rfc-editor.org/rfc/rfc8701.html
     #[corresponds(SSL_CTX_set_grease_sigalgs_enabled)]
     pub fn set_grease_sigalgs_enabled(&mut self, enabled: bool) {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { ffi::SSL_CTX_set_grease_sigalgs_enabled(self.as_ptr(), enabled as _) }
     }
 
@@ -2211,6 +2335,8 @@ impl SslContextBuilder {
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_CTX_set_record_size_limit)]
     pub fn set_record_size_limit(&mut self, limit: u16) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             cvt(ffi::SSL_CTX_set_record_size_limit(
                 self.as_ptr(),
@@ -2230,6 +2356,8 @@ impl SslContextBuilder {
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_CTX_set_delegated_credentials)]
     pub fn set_delegated_credentials(&mut self, sigalgs: &str) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         let sigalgs = CString::new(sigalgs).map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt(ffi::SSL_CTX_set_delegated_credentials(self.as_ptr(), sigalgs.as_ptr()) as c_int)
@@ -2241,6 +2369,8 @@ impl SslContextBuilder {
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_CTX_set_aes_hw_override)]
     pub fn set_aes_hw_override(&mut self, enable: bool) {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { ffi::SSL_CTX_set_aes_hw_override(self.as_ptr(), enable as _) }
     }
 
@@ -2267,6 +2397,8 @@ impl SslContextBuilder {
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_CTX_set_preserve_tls13_cipher_list)]
     pub fn set_preserve_tls13_cipher_list(&mut self, enable: bool) {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { ffi::SSL_CTX_set_preserve_tls13_cipher_list(self.as_ptr(), enable as _) }
     }
 
@@ -2282,6 +2414,8 @@ impl SslContextBuilder {
         &mut self,
         indices: &[ExtensionType],
     ) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             cvt(ffi::SSL_CTX_set_extension_order(
                 self.as_ptr(),
@@ -2295,6 +2429,8 @@ impl SslContextBuilder {
     /// Configures whether ClientHello extensions should be permuted.
     #[corresponds(SSL_CTX_set_permute_extensions)]
     pub fn set_permute_extensions(&mut self, enabled: bool) {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { ffi::SSL_CTX_set_permute_extensions(self.as_ptr(), enabled as _) }
     }
 
@@ -2309,6 +2445,8 @@ impl SslContextBuilder {
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_CTX_set_tls12_extensions_in_tls13_client_hello)]
     pub fn set_tls12_extensions_in_tls13_client_hello(&mut self, enabled: bool) {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             ffi::SSL_CTX_set_tls12_extensions_in_tls13_client_hello(self.as_ptr(), enabled as _)
         }
@@ -2334,6 +2472,8 @@ impl SslContextBuilder {
         &mut self,
         extensions: &[ExtensionType],
     ) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             cvt(ffi::SSL_CTX_set_extension_order_tail(
                 self.as_ptr(),
@@ -2349,6 +2489,8 @@ impl SslContextBuilder {
         &mut self,
         prefs: &[SslSignatureAlgorithm],
     ) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             cvt_0i(ffi::SSL_CTX_set_verify_algorithm_prefs(
                 self.as_ptr(),
@@ -2362,18 +2504,24 @@ impl SslContextBuilder {
     /// Enables SCT requests on all client SSL handshakes.
     #[corresponds(SSL_CTX_enable_signed_cert_timestamps)]
     pub fn enable_signed_cert_timestamps(&mut self) {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { ffi::SSL_CTX_enable_signed_cert_timestamps(self.as_ptr()) }
     }
 
     /// Enables OCSP stapling on all client SSL handshakes.
     #[corresponds(SSL_CTX_enable_ocsp_stapling)]
     pub fn enable_ocsp_stapling(&mut self) {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { ffi::SSL_CTX_enable_ocsp_stapling(self.as_ptr()) }
     }
 
     /// Sets the context's supported curves.
     #[corresponds(SSL_CTX_set1_curves_list)]
     pub fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         let curves = CString::new(curves).map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt_0i(ffi::SSL_CTX_set1_curves_list(
@@ -2389,6 +2537,8 @@ impl SslContextBuilder {
     /// This feature isn't available in the certified version of BoringSSL.
     #[corresponds(SSL_CTX_set_compliance_policy)]
     pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { cvt_0i(ffi::SSL_CTX_set_compliance_policy(self.as_ptr(), policy.0)).map(|_| ()) }
     }
 
@@ -2408,6 +2558,8 @@ impl SslContextBuilder {
     /// [TLS Trust Anchor Identifiers draft]: https://datatracker.ietf.org/doc/draft-ietf-tls-trust-anchor-ids/
     #[corresponds(SSL_CTX_set1_requested_trust_anchors)]
     pub fn set_requested_trust_anchors(&mut self, ids: &[u8]) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         // SAFETY: `self` is valid and BoringSSL validates and copies `ids` before returning.
         unsafe {
             cvt_0i(ffi::SSL_CTX_set1_requested_trust_anchors(
@@ -2425,6 +2577,8 @@ impl SslContextBuilder {
     where
         F: Fn(&SslRef, SslInfoCallbackMode, SslInfoCallbackValue) + Send + Sync + 'static,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_info_callback(self.as_ptr(), Some(callbacks::raw_info_callback::<F>));
@@ -2442,6 +2596,8 @@ impl SslContextBuilder {
     where
         F: for<'a> Fn(&SslRef, SslMessage<'a>) + Send + Sync + 'static,
     {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             self.replace_ex_data(SslContext::cached_ex_index::<F>(), callback);
             ffi::SSL_CTX_set_msg_callback(self.as_ptr(), Some(callbacks::raw_msg_callback::<F>));
@@ -2454,6 +2610,8 @@ impl SslContextBuilder {
     /// threads.
     #[corresponds(SSL_CTX_set1_ech_keys)]
     pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())) }
     }
 
@@ -2461,6 +2619,8 @@ impl SslContextBuilder {
     #[corresponds(SSL_CTX_add1_credential)]
     #[cfg(feature = "credential")]
     pub fn add_credential(&mut self, credential: &SslCredentialRef) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             cvt_0i(ffi::SSL_CTX_add1_credential(
                 self.as_ptr(),
@@ -2478,6 +2638,8 @@ impl SslContextBuilder {
         &mut self,
         types: &[CertificateType],
     ) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.ctx.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe {
             cvt_0i(ffi::SSL_CTX_set1_accepted_peer_cert_types(
                 self.as_ptr(),
@@ -2587,6 +2749,12 @@ impl SslContext {
 }
 
 impl SslContextRef {
+    fn transfer_context_epoch(&self) -> Option<Arc<session_transfer::ContextEpoch>> {
+        self.ex_data(SslContext::cached_ex_index::<
+            Arc<session_transfer::ContextEpoch>,
+        >())
+        .cloned()
+    }
     /// Returns the certificate associated with this `SslContext`, if present.
     #[corresponds(SSL_CTX_get0_certificate)]
     #[must_use]
@@ -2771,6 +2939,8 @@ impl SslContextRef {
     /// threads.
     #[corresponds(SSL_CTX_set1_ech_keys)]
     pub fn set_ech_keys(&self, keys: &SslEchKeys) -> Result<(), ErrorStack> {
+        let transfer_epoch = self.transfer_context_epoch();
+        let _transfer_mutation = transfer_epoch.as_ref().map(|epoch| epoch.mutate());
         unsafe { cvt(ffi::SSL_CTX_set1_ech_keys(self.as_ptr(), keys.as_ptr())) }
     }
 
@@ -3092,7 +3262,7 @@ impl SslSession {
 /// Clones refer to the same scope. Independently created values, including two
 /// values created with [`Default`], refer to distinct scopes.
 #[derive(Clone, Default)]
-pub struct SslSessionScope(Arc<()>);
+pub struct SslSessionScope(Arc<session_transfer::ScopeState>);
 
 #[derive(Clone, Copy)]
 enum SessionVerifierProvenance {
@@ -3156,6 +3326,8 @@ pub struct ScopedSslSession {
     scope: SslSessionScope,
     hostname: Box<str>,
     publication: Arc<SessionPublication>,
+    transfer: Option<Arc<session_transfer::ConnectionPolicy>>,
+    imported: bool,
 }
 
 impl fmt::Debug for ScopedSslSession {
@@ -3183,6 +3355,7 @@ impl ScopedSslSession {
         session: SslSession,
         keep_early_data: bool,
         publication: &Arc<SessionPublication>,
+        transfer: Option<&Arc<session_transfer::ConnectionPolicy>>,
     ) -> Result<Self, ErrorStack> {
         let session = if keep_early_data {
             session
@@ -3195,6 +3368,8 @@ impl ScopedSslSession {
             scope: scope.clone(),
             hostname: hostname.into(),
             publication: Arc::clone(publication),
+            transfer: transfer.cloned(),
+            imported: false,
         })
     }
 
@@ -3207,6 +3382,7 @@ impl ScopedSslSession {
     #[must_use]
     pub fn is_authenticated(&self) -> bool {
         self.publication.is_authenticated()
+            && self.transfer.as_ref().is_none_or(|token| token.valid())
     }
 
     /// Returns the time at which the session was established, in seconds since the Unix epoch.
@@ -3247,7 +3423,8 @@ impl ScopedSslSession {
         context: &SslContextRef,
         hostname: &str,
     ) -> bool {
-        Arc::ptr_eq(&self.scope.0, &scope.0)
+        (!self.imported || self.transfer.as_ref().is_some_and(|token| token.valid()))
+            && Arc::ptr_eq(&self.scope.0, &scope.0)
             && self.context.as_ptr() == context.as_ptr()
             && session_hostnames_match(&self.hostname, hostname)
     }
@@ -3280,6 +3457,35 @@ impl ToOwned for SslSessionRef {
 }
 
 impl SslSessionRef {
+    fn bounded_transfer_bytes(
+        &self,
+        bound: usize,
+    ) -> Result<zeroize::Zeroizing<Vec<u8>>, SessionTransferError> {
+        // SAFETY: a live immutable session uses the same pinned serializer for
+        // both length and write. The null output query does not write to Rust memory.
+        let size = unsafe { ffi::i2d_SSL_SESSION(self.as_ptr(), ptr::null_mut()) };
+        let size =
+            usize::try_from(size).map_err(|_| SessionTransferError::Backend(ErrorStack::get()))?;
+        if size == 0 {
+            return Err(SessionTransferError::Backend(ErrorStack::get()));
+        }
+        if size > bound {
+            return Err(SessionTransferError::TooLarge);
+        }
+        let mut bytes = zeroize::Zeroizing::new(Vec::new());
+        bytes
+            .try_reserve_exact(size)
+            .map_err(|_| SessionTransferError::Allocation)?;
+        bytes.resize(size, 0);
+        let mut output = bytes.as_mut_ptr();
+        // SAFETY: the checked allocation contains exactly the queried length;
+        // no safe session setter can mutate this authenticated immutable session.
+        let written = unsafe { ffi::i2d_SSL_SESSION(self.as_ptr(), &mut output) };
+        if usize::try_from(written).ok() != Some(size) {
+            return Err(SessionTransferError::Backend(ErrorStack::get()));
+        }
+        Ok(bytes)
+    }
     /// Returns the SSL session ID.
     #[corresponds(SSL_SESSION_get_id)]
     #[must_use]
@@ -3524,6 +3730,18 @@ impl fmt::Debug for SslRef {
 }
 
 impl SslRef {
+    pub(super) fn revoke_session_transfer(&self) {
+        if let Some(binding) =
+            self.ex_data(Ssl::cached_ex_index::<connector::ScopedSessionBinding>())
+        {
+            if let Some(transfer) = &binding.transfer {
+                transfer.revoke();
+            }
+            if let Some(transfer) = &binding.offered_imported_transfer {
+                transfer.revoke();
+            }
+        }
+    }
     fn get_raw_rbio(&self) -> *mut ffi::BIO {
         unsafe { ffi::SSL_get_rbio(self.as_ptr()) }
     }
@@ -3536,6 +3754,7 @@ impl SslRef {
     /// `clear_options` for that.
     #[corresponds(SSL_set_options)]
     pub fn set_options(&mut self, option: SslOptions) -> SslOptions {
+        self.revoke_session_transfer();
         let bits = unsafe { ffi::SSL_set_options(self.as_ptr(), option.bits()) };
         SslOptions::from_bits_retain(bits)
     }
@@ -3543,12 +3762,14 @@ impl SslRef {
     /// Clears the options used by the ongoing session, returning the old set.
     #[corresponds(SSL_clear_options)]
     pub fn clear_options(&mut self, option: SslOptions) -> SslOptions {
+        self.revoke_session_transfer();
         let bits = unsafe { ffi::SSL_clear_options(self.as_ptr(), option.bits()) };
         SslOptions::from_bits_retain(bits)
     }
 
     #[corresponds(SSL_set1_curves_list)]
     pub fn set_curves_list(&mut self, curves: &str) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         let curves = CString::new(curves).map_err(ErrorStack::internal_error)?;
         unsafe { cvt_0i(ffi::SSL_set1_curves_list(self.as_ptr(), curves.as_ptr())).map(|_| ()) }
     }
@@ -3558,6 +3779,7 @@ impl SslRef {
         &mut self,
         prefs: &[SslSignatureAlgorithm],
     ) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         self.invalidate_scoped_session_publication();
 
         unsafe {
@@ -3623,6 +3845,7 @@ impl SslRef {
     /// [`SslContextBuilder::set_verify`]: struct.SslContextBuilder.html#method.set_verify
     #[corresponds(SSL_set_verify)]
     pub fn set_verify(&mut self, mode: SslVerifyMode) {
+        self.revoke_session_transfer();
         self.ssl_context().check_x509();
 
         self.invalidate_scoped_session_publication();
@@ -3635,6 +3858,7 @@ impl SslRef {
     /// If the peer's certificate chain is longer than this value, verification will fail.
     #[corresponds(SSL_set_verify_depth)]
     pub fn set_verify_depth(&mut self, depth: u32) {
+        self.revoke_session_transfer();
         self.invalidate_scoped_session_publication();
 
         self.ssl_context().check_x509();
@@ -3675,6 +3899,7 @@ impl SslRef {
     where
         F: Fn(bool, &mut X509StoreContextRef) -> bool + 'static + Sync + Send,
     {
+        self.revoke_session_transfer();
         self.set_ex_data(
             Ssl::cached_ex_index::<CustomSessionVerifier>(),
             CustomSessionVerifier,
@@ -3698,6 +3923,7 @@ impl SslRef {
     /// Sets a custom certificate store for verifying peer certificates.
     #[corresponds(SSL_set0_verify_cert_store)]
     pub fn set_verify_cert_store(&mut self, cert_store: X509Store) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         self.invalidate_scoped_session_publication();
 
         self.ssl_context().check_x509();
@@ -3720,6 +3946,7 @@ impl SslRef {
     where
         F: Fn(&mut SslRef) -> Result<(), SslVerifyError> + 'static + Sync + Send,
     {
+        self.revoke_session_transfer();
         self.set_ex_data(
             Ssl::cached_ex_index::<CustomSessionVerifier>(),
             CustomSessionVerifier,
@@ -3745,6 +3972,7 @@ impl SslRef {
     /// [`SslContextBuilder::set_tmp_dh`]: struct.SslContextBuilder.html#method.set_tmp_dh
     #[corresponds(SSL_set_tmp_dh)]
     pub fn set_tmp_dh(&mut self, dh: &DhRef<Params>) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe { cvt(ffi::SSL_set_tmp_dh(self.as_ptr(), dh.as_ptr())) }
     }
 
@@ -3753,12 +3981,14 @@ impl SslRef {
     /// [`SslContextBuilder::set_tmp_ecdh`]: struct.SslContextBuilder.html#method.set_tmp_ecdh
     #[corresponds(SSL_set_tmp_ecdh)]
     pub fn set_tmp_ecdh(&mut self, key: &EcKeyRef<Params>) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe { cvt(ffi::SSL_set_tmp_ecdh(self.as_ptr(), key.as_ptr())) }
     }
 
     /// Configures whether ClientHello extensions should be permuted.
     #[corresponds(SSL_set_permute_extensions)]
     pub fn set_permute_extensions(&mut self, enabled: bool) {
+        self.revoke_session_transfer();
         unsafe { ffi::SSL_set_permute_extensions(self.as_ptr(), enabled as _) }
     }
 
@@ -3767,6 +3997,7 @@ impl SslRef {
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_set_tls12_extensions_in_tls13_client_hello)]
     pub fn set_tls12_extensions_in_tls13_client_hello(&mut self, enabled: bool) {
+        self.revoke_session_transfer();
         unsafe { ffi::SSL_set_tls12_extensions_in_tls13_client_hello(self.as_ptr(), enabled as _) }
     }
 
@@ -3775,6 +4006,7 @@ impl SslRef {
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_set_record_size_limit)]
     pub fn set_record_size_limit(&mut self, limit: u16) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe { cvt(ffi::SSL_set_record_size_limit(self.as_ptr(), limit as _)).map(drop) }
     }
 
@@ -3783,6 +4015,7 @@ impl SslRef {
     /// [`SslContextBuilder::set_alpn_protos`]: struct.SslContextBuilder.html#method.set_alpn_protos
     #[corresponds(SSL_set_alpn_protos)]
     pub fn set_alpn_protos(&mut self, protocols: &[u8]) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe {
             let r = ffi::SSL_set_alpn_protos(
                 self.as_ptr(),
@@ -3886,6 +4119,7 @@ impl SslRef {
     /// It has no effect for a server-side connection.
     #[corresponds(SSL_set_tlsext_host_name)]
     pub fn set_hostname(&mut self, hostname: &str) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         self.invalidate_scoped_session_publication();
 
         let cstr = CString::new(hostname).map_err(ErrorStack::internal_error)?;
@@ -3996,6 +4230,7 @@ impl SslRef {
     /// TLS 1.0.
     #[corresponds(SSL_set_min_proto_version)]
     pub fn set_min_proto_version(&mut self, version: Option<SslVersion>) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe {
             cvt(ffi::SSL_set_min_proto_version(
                 self.as_ptr(),
@@ -4009,6 +4244,7 @@ impl SslRef {
     /// If version is `None`, the default maximum version is used. For BoringSSL this is TLS 1.3.
     #[corresponds(SSL_set_max_proto_version)]
     pub fn set_max_proto_version(&mut self, version: Option<SslVersion>) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe {
             cvt(ffi::SSL_set_max_proto_version(
                 self.as_ptr(),
@@ -4094,6 +4330,7 @@ impl SslRef {
     /// Enables the DTLS extension "use_srtp" as defined in RFC5764.
     #[corresponds(SSL_set_tlsext_use_srtp)]
     pub fn set_tlsext_use_srtp(&mut self, protocols: &str) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe {
             let cstr = CString::new(protocols).map_err(ErrorStack::internal_error)?;
 
@@ -4195,6 +4432,7 @@ impl SslRef {
     /// It is most commonly used in the Server Name Indication (SNI) callback.
     #[corresponds(SSL_set_SSL_CTX)]
     pub fn set_ssl_context(&mut self, ctx: &SslContextRef) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         self.invalidate_scoped_session_publication();
 
         assert_eq!(
@@ -4219,6 +4457,7 @@ impl SslRef {
     /// Returns a mutable reference to the X509 verification configuration.
     #[corresponds(SSL_get0_param)]
     pub fn verify_param_mut(&mut self) -> &mut X509VerifyParamRef {
+        self.revoke_session_transfer();
         self.invalidate_scoped_session_publication();
 
         self.ssl_context().check_x509();
@@ -4228,6 +4467,7 @@ impl SslRef {
 
     /// See [`Self::verify_param_mut`].
     pub fn param_mut(&mut self) -> &mut X509VerifyParamRef {
+        self.revoke_session_transfer();
         self.verify_param_mut()
     }
 
@@ -4313,6 +4553,7 @@ impl SslRef {
     /// - the session ID context, protocol, and cipher configuration are compatible.
     #[corresponds(SSL_set_session)]
     pub unsafe fn set_session(&mut self, session: &SslSessionRef) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe { cvt(ffi::SSL_set_session(self.as_ptr(), session.as_ptr())) }
     }
 
@@ -4326,6 +4567,7 @@ impl SslRef {
     /// Sets the status response a client wishes the server to reply with.
     #[corresponds(SSL_set_tlsext_status_type)]
     pub fn set_status_type(&mut self, type_: StatusType) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe {
             cvt(ffi::SSL_set_tlsext_status_type(
                 self.as_ptr(),
@@ -4353,6 +4595,7 @@ impl SslRef {
     /// Sets the OCSP response to be returned to the client.
     #[corresponds(SSL_set_ocsp_response)]
     pub fn set_ocsp_status(&mut self, response: &[u8]) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe {
             assert!(response.len() <= c_int::MAX as usize);
             cvt(ffi::SSL_set_ocsp_response(
@@ -4465,6 +4708,7 @@ impl SslRef {
     /// twice.
     #[corresponds(SSL_set_early_data_enabled)]
     pub fn set_early_data_enabled(&mut self, enabled: bool) {
+        self.revoke_session_transfer();
         unsafe { ffi::SSL_set_early_data_enabled(self.as_ptr(), c_int::from(enabled)) }
     }
 
@@ -4507,12 +4751,14 @@ impl SslRef {
     /// Sets the MTU used for DTLS connections.
     #[corresponds(SSL_set_mtu)]
     pub fn set_mtu(&mut self, mtu: u32) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe { cvt(ffi::SSL_set_mtu(self.as_ptr(), mtu as c_uint)) }
     }
 
     /// Sets the certificate.
     #[corresponds(SSL_use_certificate)]
     pub fn set_certificate(&mut self, cert: &X509Ref) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe {
             cvt(ffi::SSL_use_certificate(self.as_ptr(), cert.as_ptr()))?;
         }
@@ -4526,6 +4772,7 @@ impl SslRef {
     /// as trusted by this method.
     #[corresponds(SSL_set_client_CA_list)]
     pub fn set_client_ca_list(&mut self, list: Stack<X509Name>) {
+        self.revoke_session_transfer();
         self.ssl_context().check_x509();
 
         unsafe { ffi::SSL_set_client_CA_list(self.as_ptr(), list.as_ptr()) }
@@ -4538,6 +4785,7 @@ impl SslRef {
     where
         T: HasPrivate,
     {
+        self.revoke_session_transfer();
         unsafe { cvt(ffi::SSL_use_PrivateKey(self.as_ptr(), key.as_ptr())) }
     }
 
@@ -4545,6 +4793,7 @@ impl SslRef {
     /// enabled modes.
     #[corresponds(SSL_set_mode)]
     pub fn set_mode(&mut self, mode: SslMode) -> SslMode {
+        self.revoke_session_transfer();
         let bits = unsafe { ffi::SSL_set_mode(self.as_ptr(), mode.bits()) };
         SslMode::from_bits_retain(bits)
     }
@@ -4553,6 +4802,7 @@ impl SslRef {
     /// enabled modes.
     #[corresponds(SSL_clear_mode)]
     pub fn clear_mode(&mut self, mode: SslMode) -> SslMode {
+        self.revoke_session_transfer();
         let bits = unsafe { ffi::SSL_clear_mode(self.as_ptr(), mode.bits()) };
         SslMode::from_bits_retain(bits)
     }
@@ -4560,6 +4810,7 @@ impl SslRef {
     /// Appends `cert` to the chain associated with the current certificate of `SSL`.
     #[corresponds(SSL_add1_chain_cert)]
     pub fn add_chain_cert(&mut self, cert: &X509Ref) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe { cvt(ffi::SSL_add1_chain_cert(self.as_ptr(), cert.as_ptr())) }
     }
 
@@ -4572,6 +4823,7 @@ impl SslRef {
     /// set of ECHConfigs. If the retry also fails, clients should report a connection failure.
     #[corresponds(SSL_set1_ech_config_list)]
     pub fn set_ech_config_list(&mut self, ech_config_list: &[u8]) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe {
             cvt_0i(ffi::SSL_set1_ech_config_list(
                 self.as_ptr(),
@@ -4636,6 +4888,7 @@ impl SslRef {
     // Whether or not to enable ECH grease on `SSL`.
     #[corresponds(SSL_set_enable_ech_grease)]
     pub fn set_enable_ech_grease(&self, enable: bool) {
+        self.revoke_session_transfer();
         let enable = if enable { 1 } else { 0 };
 
         unsafe {
@@ -4656,6 +4909,7 @@ impl SslRef {
         &mut self,
         payload_length: usize,
     ) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe {
             cvt_0i(ffi::SSL_set_ech_grease_payload_length(
                 self.as_ptr(),
@@ -4695,6 +4949,7 @@ impl SslRef {
         maximum_name_length: u8,
         host: Option<&str>,
     ) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         let (host_ptr, host_len) = match host {
             Some(host) => (host.as_ptr().cast::<c_char>(), host.len()),
             None => (ptr::null(), 0),
@@ -4723,6 +4978,7 @@ impl SslRef {
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_set1_ech_grease_aeads)]
     pub fn set_ech_grease_aeads(&mut self, aead_ids: &[u16]) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe {
             cvt_0i(ffi::SSL_set1_ech_grease_aeads(
                 self.as_ptr(),
@@ -4736,6 +4992,7 @@ impl SslRef {
     /// Sets the compliance policy on `SSL`.
     #[corresponds(SSL_set_compliance_policy)]
     pub fn set_compliance_policy(&mut self, policy: CompliancePolicy) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe { cvt_0i(ffi::SSL_set_compliance_policy(self.as_ptr(), policy.0)).map(|_| ()) }
     }
 
@@ -4743,6 +5000,7 @@ impl SslRef {
     #[corresponds(SSL_add1_credential)]
     #[cfg(feature = "credential")]
     pub fn add_credential(&mut self, credential: &SslCredentialRef) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe { cvt_0i(ffi::SSL_add1_credential(self.as_ptr(), credential.as_ptr())).map(|_| ()) }
     }
 
@@ -4771,6 +5029,7 @@ impl SslRef {
         &mut self,
         types: &[CertificateType],
     ) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         self.invalidate_scoped_session_publication();
 
         if self.is_server() {
@@ -4840,6 +5099,7 @@ impl SslRef {
     /// Sets the client key shares to be used in the TLS 1.3 handshake.
     #[corresponds(SSL_set1_client_key_shares)]
     pub fn set_client_key_shares(&mut self, key_shares: &[KeyShare]) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe {
             cvt(ffi::SSL_set1_client_key_shares(
                 self.as_ptr(),
@@ -4854,6 +5114,7 @@ impl SslRef {
     /// Call this method before the handshake starts.
     #[corresponds(SSL_set1_requested_trust_anchors)]
     pub fn set_requested_trust_anchors(&mut self, ids: &[u8]) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         // SAFETY: `self` is valid and BoringSSL validates and copies `ids` before returning.
         unsafe {
             cvt_0i(ffi::SSL_set1_requested_trust_anchors(
@@ -4868,6 +5129,7 @@ impl SslRef {
     /// Enables ALPS for an ALPN protocol with an empty application settings value.
     #[corresponds(SSL_add_application_settings)]
     pub fn add_application_settings(&mut self, protocol: &[u8]) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         self.add_application_settings_with_payload(protocol, &[])
     }
 
@@ -4878,6 +5140,7 @@ impl SslRef {
         protocol: &[u8],
         settings: &[u8],
     ) -> Result<(), ErrorStack> {
+        self.revoke_session_transfer();
         unsafe {
             cvt(ffi::SSL_add_application_settings(
                 self.as_ptr(),
@@ -4893,6 +5156,7 @@ impl SslRef {
     /// Sets the ALPS use new codepoint flag.
     #[corresponds(SSL_set_alps_use_new_codepoint)]
     pub fn set_alps_use_new_codepoint(&mut self, enable: bool) {
+        self.revoke_session_transfer();
         let enable = if enable { 1 } else { 0 };
         unsafe { ffi::SSL_set_alps_use_new_codepoint(self.as_ptr(), enable) }
     }
@@ -4901,6 +5165,7 @@ impl SslRef {
     #[cfg(not(feature = "fips"))]
     #[corresponds(SSL_set_aes_hw_override)]
     pub fn set_aes_hw_override(&mut self, enable: bool) {
+        self.revoke_session_transfer();
         let enable = if enable { 1 } else { 0 };
         unsafe { ffi::SSL_set_aes_hw_override(self.as_ptr(), enable) }
     }

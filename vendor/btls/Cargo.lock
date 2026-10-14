@@ -254,7 +254,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-btls"
-version = "0.5.6-phantom.9"
+version = "0.5.6-phantom.10"
 dependencies = [
  "bitflags",
  "brotli",
@@ -263,6 +263,7 @@ dependencies = [
  "hex",
  "libc",
  "openssl-macros",
+ "zeroize",
 ]
 
 [[package]]
@@ -385,3 +386,9 @@ name = "windows-link"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
+
+[[package]]
+name = "zeroize"
+version = "1.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e13c156562582aa81c60cb29407084cdb54c4164760106ab78e6c5b0858cf64e"

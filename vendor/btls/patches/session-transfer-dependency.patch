@@ -1,0 +1,10 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -73,6 +73,7 @@
+ [dependencies]
+ bitflags = "2.11.1"
+ foreign-types = "0.5"
++zeroize = "=1.9.0"
+ openssl-macros = "0.1.1"
+ libc = "0.2.185"
+ btls-sys = { version = "0.5.6", git = "https://github.com/bywayhq/btls", rev = "f478ea16a4b2f6ebbd221ce7cafdec10a32028eb" }

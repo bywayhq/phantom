@@ -102,6 +102,7 @@ impl SslContextRef {
                 ssl,
                 sni: true,
                 verify_hostname: true,
+                transfer_policy: None,
             })
             .map_err(ClientSessionConfigurationError::Backend)
     }
@@ -207,6 +208,7 @@ impl SslContextBuilder {
                 session,
                 keep_early_data,
                 &binding.publication,
+                binding.transfer.as_ref(),
             );
             (binding.callback)(session);
         });
@@ -335,6 +337,7 @@ impl SslConnector {
             ssl,
             sni: true,
             verify_hostname: true,
+            transfer_policy: None,
         })
     }
 
@@ -399,9 +402,56 @@ pub struct ConnectConfiguration {
     ssl: Ssl,
     sni: bool,
     verify_hostname: bool,
+    transfer_policy: Option<super::SessionPolicyBinding>,
 }
 
 impl ConnectConfiguration {
+    /// Records the actual installed transfer policy for finalization after SSL configuration.
+    pub fn set_session_transfer_policy(
+        &mut self,
+        binding: &super::SessionPolicyBinding,
+    ) -> Result<(), super::SessionTransferError> {
+        if self.transfer_policy.is_some() {
+            return Err(super::SessionTransferError::Policy);
+        }
+        self.transfer_policy = Some(binding.clone());
+        Ok(())
+    }
+
+    /// Finalizes installed transfer policy after all connection configuration.
+    pub fn into_ssl_with_session_transfer<F>(
+        mut self,
+        domain: &str,
+        scope: &SslSessionScope,
+        session: Option<&ScopedSslSession>,
+        callback: F,
+    ) -> Result<Option<Ssl>, super::SessionTransferError>
+    where
+        F: Fn(Result<ScopedSslSession, ErrorStack>) + Send + Sync + 'static,
+    {
+        let policy = self
+            .transfer_policy
+            .take()
+            .ok_or(super::SessionTransferError::Policy)?;
+        let mut ssl = match self.into_ssl_with_scoped_session(domain, scope, session, callback)? {
+            Some(ssl) => ssl,
+            None => return Ok(None),
+        };
+        let _guard = policy.configuration_guard()?;
+        if !ssl.verify_mode().contains(SslVerifyMode::PEER)
+            || ssl
+                .ex_data(Ssl::cached_ex_index::<CustomSessionVerifier>())
+                .is_some()
+        {
+            return Err(super::SessionTransferError::Policy);
+        }
+        let transfer = policy.connection(ssl.ssl_context(), scope, domain)?;
+        let binding = ssl
+            .ex_data_mut(Ssl::cached_ex_index::<ScopedSessionBinding>())
+            .ok_or(super::SessionTransferError::Policy)?;
+        binding.transfer = Some(transfer);
+        Ok(Some(ssl))
+    }
     /// Configures this connection for safely scoped client sessions.
     ///
     /// The domain is configured for hostname verification before an optional
@@ -428,7 +478,44 @@ impl ConnectConfiguration {
             return Ok(None);
         }
 
+        if self.transfer_policy.is_some() {
+            return Ok(None);
+        }
+        let import_guard_owner = session
+            .filter(|session| session.imported)
+            .and_then(|session| session.transfer.as_ref())
+            .map(|token| token.context_epoch_owner());
+        let _import_guard = match import_guard_owner
+            .as_ref()
+            .map(|owner| owner.freeze())
+            .transpose()
+        {
+            Ok(guard) => guard,
+            Err(_) => return Ok(None),
+        };
+        if session.is_some_and(|session| !session.matches(scope, self.ssl.ssl_context(), domain)) {
+            return Ok(None);
+        }
+        let _scope_guard = scope.transfer_use_guard();
+        if session.is_some_and(|session| !session.matches(scope, self.ssl.ssl_context(), domain)) {
+            return Ok(None);
+        }
+        if session.is_some_and(|session| session.imported)
+            && (!self.ssl.verify_mode().contains(SslVerifyMode::PEER)
+                || self
+                    .ssl
+                    .ex_data(Ssl::cached_ex_index::<CustomSessionVerifier>())
+                    .is_some())
+        {
+            return Ok(None);
+        }
         let context = self.ssl.ssl_context().to_owned();
+        if let Some(session) = session {
+            // SAFETY: consuming `ConnectConfiguration` proves the handshake has
+            // not started. `matches` proves the exact verified hostname,
+            // context, and application scope that authenticated the session.
+            unsafe { self.ssl.set_session(session.session())? };
+        }
         self.ssl.set_ex_data(
             Ssl::cached_ex_index::<ScopedSessionBinding>(),
             ScopedSessionBinding {
@@ -437,15 +524,13 @@ impl ConnectConfiguration {
                 callback: Box::new(callback),
                 context,
                 publication: Arc::new(SessionPublication::new()),
+                transfer: None,
+                offered_imported_transfer: session
+                    .filter(|session| session.imported)
+                    .and_then(|session| session.transfer.clone()),
                 offered_publication: session.map(|session| Arc::clone(&session.publication)),
             },
         );
-        if let Some(session) = session {
-            // SAFETY: consuming `ConnectConfiguration` proves the handshake has
-            // not started. `matches` proves the exact verified hostname,
-            // context, and application scope that authenticated the session.
-            unsafe { self.ssl.set_session(session.session())? };
-        }
         Ok(Some(self.ssl))
     }
 
@@ -536,12 +621,14 @@ impl ConnectConfiguration {
     }
 }
 
-struct ScopedSessionBinding {
+pub(super) struct ScopedSessionBinding {
     scope: SslSessionScope,
     hostname: Box<str>,
     callback: Box<dyn Fn(Result<ScopedSslSession, ErrorStack>) + Send + Sync>,
     context: SslContext,
     publication: Arc<SessionPublication>,
+    pub(super) transfer: Option<Arc<super::session_transfer::ConnectionPolicy>>,
+    pub(super) offered_imported_transfer: Option<Arc<super::session_transfer::ConnectionPolicy>>,
     offered_publication: Option<Arc<SessionPublication>>,
 }
 
@@ -590,6 +677,17 @@ impl SslRef {
             }
         } else if self.peer_certificate().is_none() {
             binding.publication.invalidate();
+            return false;
+        }
+        if binding
+            .transfer
+            .as_ref()
+            .is_some_and(|token| !token.valid())
+            || binding
+                .offered_imported_transfer
+                .as_ref()
+                .is_some_and(|token| !token.valid())
+        {
             return false;
         }
         binding.publication.authenticate()

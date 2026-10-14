@@ -37,7 +37,7 @@ size limit, and delegated-credential patches.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.9`), keeps
+renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.10`), keeps
 the upstream library name so source, tests, and examples are unchanged, and
 points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -54,6 +54,27 @@ content changes without an upstream version change, and update the exact pins
 in the root `Cargo.toml` and in every renamed dependent.
 
 ## Why this patch exists
+
+`session-transfer-dependency.patch` adds the pinned `zeroize` dependency for
+secret buffers used by session transfer. It changes no TLS wire behavior.
+
+`authenticated-session-transfer.patch` adds authenticated, bounded session
+envelopes and cold staging. An installed policy binds the actual context,
+hostname and application scope. Only sessions from a completed, ordinarily
+verified handshake can acquire transfer provenance. Raw session decoding
+does not grant that provenance. Import authenticates the envelope before
+parsing secret fields, checks native expiry and matches the destination
+policy. The owner must also validate the authenticated source witness and
+its TCP or QUIC metadata before attaching an imported session.
+
+Context and connection mutations revoke transfer authority. The mutable
+certificate-store accessor returns a `SessionPolicyMutation` guard for the
+whole borrow. Transfer callers install a policy on `ConnectConfiguration`
+and finalize through `into_ssl_with_session_transfer` after configuring the
+connection. Local scoped sessions retain their existing attachment method.
+Keys and owned secret buffers use `Zeroizing`; this does not claim to wipe
+native scratch storage. Custody-key holders can copy, replay or forge
+records. The envelope does not provide global replay prevention.
 
 The upstream safe wrapper can enable ALPS only with an empty application
 settings value, although its pinned BoringSSL C API accepts distinct protocol

@@ -31,6 +31,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `AltSvcRace::origin_delay()` with `origin_delay_policy()` and match
   `AltSvcOriginDelay::Fixed` or `AltSvcOriginDelay::Rtt`.
 
+- Hold a policy guard while editing the native TLS certificate store.
+  Migrate: `SslContextBuilder::cert_store_mut()` now returns
+  `SessionPolicyMutation<X509StoreBuilderRef>`. Keep the guard for the
+  mutable borrow. Native session-transfer callers install their binding
+  with `set_session_transfer_policy()` and finalize configured connections
+  with `into_ssl_with_session_transfer()`.
+
 - Select HTTP proxy credentials explicitly. Migrate: wrap borrowed Basic
   credentials in `HttpProxyAuthentication::Basic` for `HttpConnectRoute`
   and `Http2Route::Forward`. Use `HttpProxy::with_digest_auth` for Digest.
