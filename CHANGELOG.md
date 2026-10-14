@@ -2510,6 +2510,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Disperse snapshot capture's shared TCP/UDP listener ports below the usual
+  ephemeral ranges, so reserved Windows port blocks do not exhaust retries.
+
 - Pin nextest 0.9.145 to prevent concurrent tests from inheriting sibling
   capture pipes on macOS. Keep leaked-output failures and retries unchanged.
 - Keep Cargo lock waiters running when a finished holder is replaced during

@@ -467,6 +467,77 @@ class SnapshotOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 for owner in run.owners:
                     await owner.close(loop.time() + 10)
 
+    def test_shared_port_reservation_escapes_a_wide_ephemeral_exclusion(self):
+        sockets = []
+        candidates = []
+
+        def acquire(*args):
+            sock = mock.Mock()
+            sockets.append(sock)
+            ephemeral = 56_000 + len(sockets)
+
+            def bind(address):
+                host, port = address
+                self.assertEqual(host, snapshot.HOST)
+                candidates.append(port)
+                if 55_961 <= port <= 56_860:
+                    failure = PermissionError(errno.EACCES, "reserved test port")
+                    failure.winerror = 10013
+                    raise failure
+
+            sock.bind.side_effect = bind
+            sock.getsockname.return_value = (snapshot.HOST, ephemeral)
+            return sock
+
+        with (
+            mock.patch.object(snapshot.socket, "socket", side_effect=acquire),
+            mock.patch.object(snapshot.secrets, "randbelow", return_value=0),
+        ):
+            tcp, udp = reserve_shared_port()
+
+        self.assertEqual(len(sockets), 2)
+        self.assertIs(tcp, sockets[0])
+        self.assertIs(udp, sockets[1])
+        self.assertEqual(candidates, [20_000, 20_000])
+        tcp.listen.assert_called_once_with(64)
+        for sock in sockets:
+            sock.setblocking.assert_called_once_with(False)
+            sock.close.assert_not_called()
+
+    def test_shared_port_reservation_exhaustion_preserves_last_bind_error(self):
+        sockets = []
+        candidates = []
+        failures = []
+
+        def acquire(*args):
+            sock = mock.Mock()
+            sockets.append(sock)
+
+            def bind(address):
+                candidates.append(address[1])
+                failure = PermissionError(errno.EACCES, "reserved test port")
+                failure.winerror = 10013
+                failures.append(failure)
+                raise failure
+
+            sock.bind.side_effect = bind
+            return sock
+
+        with (
+            mock.patch.object(snapshot.socket, "socket", side_effect=acquire),
+            mock.patch.object(snapshot.secrets, "randbelow", return_value=12_767),
+            self.assertRaises(PermissionError) as raised,
+        ):
+            reserve_shared_port()
+
+        self.assertIs(raised.exception, failures[-1])
+        self.assertEqual(len(failures), snapshot.MAX_PORT_ATTEMPTS)
+        self.assertEqual(len(set(candidates)), snapshot.MAX_PORT_ATTEMPTS)
+        self.assertTrue(all(20_000 <= port < 32_768 for port in candidates))
+        for sock in sockets:
+            sock.close.assert_called_once_with()
+            sock.listen.assert_not_called()
+
     async def test_raw_socket_acquisition_preserves_creation_bind_and_listen_failures(
         self,
     ):

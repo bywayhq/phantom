@@ -1110,12 +1110,14 @@ def quic_server(run: SnapshotRun, configuration):
 
 
 def reserve_shared_port() -> tuple[socket.socket, socket.socket]:
-    """Bind TCP and UDP on one ephemeral loopback port number.
+    """Bind TCP and UDP on one available loopback port number.
 
-    Windows excludes blocks of UDP ports inside its ephemeral TCP range and
-    blocks of TCP ports inside its ephemeral UDP range, and hands out ports
-    close to the previous one, so attempts alternate which protocol picks.
+    Disperse candidates below the usual ephemeral ranges, as the Rust shared
+    port helper does. Sequential Windows ephemeral ports can keep both
+    protocols inside excluded blocks for the entire retry budget.
     """
+    first_port, span, stride = 20_000, 12_768, 7_919
+    seed = secrets.randbelow(span)
     for attempt in range(MAX_PORT_ATTEMPTS):
         owned = []
         binding = False
@@ -1126,8 +1128,9 @@ def reserve_shared_port() -> tuple[socket.socket, socket.socket]:
             owned.append(udp)
             first, second = (tcp, udp) if attempt % 2 == 0 else (udp, tcp)
             binding = True
-            first.bind((HOST, 0))
-            second.bind((HOST, first.getsockname()[1]))
+            port = first_port + (seed + attempt * stride) % span
+            first.bind((HOST, port))
+            second.bind((HOST, port))
             binding = False
             tcp.listen(64)
             tcp.setblocking(False)
