@@ -56,7 +56,7 @@ copying execution journals into this page.
 | F3 | `socks4-integration` | SOCKS4/4a merged in PR #215 after the exact-head full gate and macOS/Windows CI. Main push CI passed. |
 | F4 | `digest-integration` | Digest merged in PR #218 after the full gate and platform CI. Enterprise contracts are recorded. PR #220 repaired the cookie and shared-port fixtures; main push CI passed. |
 | F5 | `doh-wire` | The bounded DNS wire codec is in implementation. DoH transport, exact TTL handling, and alternate-host discovery follow its reviewed contract. |
-| F8 | `http3-debug-auth` | The origin opt-in candidate in PR #219 passed independent review, all 22 gate steps, and 4,643 Rust tests at `bcf11cf5`. Refreshed exact-head CI and integration remain. |
+| F8 | `http3-debug-auth` | Origin opt-in merged in PR #219 after independent review, all 22 gate steps, 4,643 Rust tests, and 43 green PR checks at `6f6426f4`. |
 | B2 | `proxy-h2-idle-integration` | Proxy idle retirement passes focused native and facade controls and independent source review. Its rebased integration gate and CI remain. Alt-Used and WINDOW_UPDATE changes remain separate. |
 
 Neither controlled timing reproduction proves the exact historical host
