@@ -424,54 +424,68 @@ fn authenticated_transfer_staging_clone_and_rekey_preserve_source_and_exclude_co
 
 #[test]
 fn authenticated_transfer_expiry_blocks_clone_rekey_and_permit_without_source_change() {
-    let (session, source, client, _) =
-        transfer_test_fixture(SslVersion::TLS1_3, b"credential", &[1; 32]);
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    // SAFETY: the real callback's session remains owned by this test, with no
-    // live connection. The pinned native setters explicitly support expiry tests.
-    unsafe {
-        ffi::SSL_SESSION_set_time(session.session().as_ptr(), now);
-        ffi::SSL_SESSION_set_timeout(session.session().as_ptr(), 5);
+    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
+        let (session, source, client, _) = transfer_test_fixture(version, b"credential", &[1; 32]);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        // SAFETY: the real callback's session remains owned by this test, with no
+        // live connection. The pinned native setters explicitly support expiry tests.
+        unsafe {
+            ffi::SSL_SESSION_set_time(session.session().as_ptr(), now);
+            ffi::SSL_SESSION_set_timeout(session.session().as_ptr(), 5);
+        }
+        let record = source
+            .seal_session(&session, b"unchanged metadata", &[7; 32])
+            .unwrap();
+        let envelope = crate::ssl::seal_envelope(&[record], &[7; 32]).unwrap();
+        let opened =
+            crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], client.context()).unwrap();
+        let mut transaction = opened.try_clone_remaining().unwrap();
+        let recipient = publication_client();
+        let scope = SslSessionScope::default();
+        let binding = transfer_test_binding(&recipient, &scope, b"credential", &[2; 32]);
+        let permit = transaction.authorize_record(0, &binding).unwrap();
+        let expires = std::time::UNIX_EPOCH + std::time::Duration::from_secs(now + 5);
+        if let Ok(remaining) = expires.duration_since(std::time::SystemTime::now()) {
+            std::thread::sleep(remaining + std::time::Duration::from_millis(50));
+        }
+        assert!(matches!(
+            source.seal_session(&session, b"metadata", &[7; 32]),
+            Err(crate::ssl::SessionTransferError::Expired)
+        ));
+        assert!(matches!(
+            opened.try_clone_remaining(),
+            Err(crate::ssl::SessionTransferError::Expired)
+        ));
+        assert!(matches!(
+            opened.seal_remaining_envelope(&[9; 32]),
+            Err(crate::ssl::SessionTransferError::Expired)
+        ));
+        assert_eq!(opened.owner_metadata(0).unwrap(), b"unchanged metadata");
+        assert!(matches!(
+            permit.into_scoped_session(),
+            Err(crate::ssl::SessionTransferError::Expired)
+        ));
+        assert!(matches!(
+            crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], client.context()),
+            Err(crate::ssl::SessionTransferError::Expired)
+        ));
+        let configured = cold_test_policy(
+            b"complete synthetic native test policy",
+            Some(b"credential"),
+            &[9; 32],
+        );
+        assert!(matches!(
+            opened.validate_record_policy(0, &configured, "foobar.com", false),
+            Err(crate::ssl::SessionTransferError::Expired)
+        ));
+        assert!(matches!(
+            opened.prepare_remaining_records(&[9; 32], 16 * 1024 * 1024),
+            Err(crate::ssl::SessionTransferError::Expired)
+        ));
     }
-    let record = source
-        .seal_session(&session, b"unchanged metadata", &[7; 32])
-        .unwrap();
-    let envelope = crate::ssl::seal_envelope(&[record], &[7; 32]).unwrap();
-    let opened =
-        crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], client.context()).unwrap();
-    let mut transaction = opened.try_clone_remaining().unwrap();
-    let recipient = publication_client();
-    let scope = SslSessionScope::default();
-    let binding = transfer_test_binding(&recipient, &scope, b"credential", &[2; 32]);
-    let permit = transaction.authorize_record(0, &binding).unwrap();
-    let expires = std::time::UNIX_EPOCH + std::time::Duration::from_secs(now + 5);
-    if let Ok(remaining) = expires.duration_since(std::time::SystemTime::now()) {
-        std::thread::sleep(remaining + std::time::Duration::from_millis(50));
-    }
-    assert!(matches!(
-        source.seal_session(&session, b"metadata", &[7; 32]),
-        Err(crate::ssl::SessionTransferError::Expired)
-    ));
-    assert!(matches!(
-        opened.try_clone_remaining(),
-        Err(crate::ssl::SessionTransferError::Expired)
-    ));
-    assert!(matches!(
-        opened.seal_remaining_envelope(&[9; 32]),
-        Err(crate::ssl::SessionTransferError::Expired)
-    ));
-    assert_eq!(opened.owner_metadata(0).unwrap(), b"unchanged metadata");
-    assert!(matches!(
-        permit.into_scoped_session(),
-        Err(crate::ssl::SessionTransferError::Expired)
-    ));
-    assert!(matches!(
-        crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], client.context()),
-        Err(crate::ssl::SessionTransferError::Expired)
-    ));
 }
 
 #[test]
@@ -2210,4 +2224,364 @@ fn authenticated_transfer_frozen_policy_does_not_freeze_exposed_imported_ssl_tok
     frozen.validate_binding(&binding, "foobar.com").unwrap();
     // A supported store replacement must consume permits and keep its sessions
     // private. Native policy guards alone cannot make this exposed wrapper safe.
+}
+
+fn cold_test_policy(
+    policy: &[u8],
+    credential: Option<&[u8]>,
+    owner_key: &[u8; 32],
+) -> crate::ssl::SessionTransferPolicy {
+    let credential = credential.map(|bytes| {
+        crate::ssl::SessionTransferCredential::from_canonical_hmac_input(bytes).unwrap()
+    });
+    crate::ssl::SessionTransferPolicy::new(policy, b"allowed recipient draw", credential, owner_key)
+        .unwrap()
+}
+
+fn cold_test_fixture(
+    version: SslVersion,
+    credential: Option<&[u8]>,
+) -> (
+    ScopedSslSession,
+    crate::ssl::SessionPolicyBinding,
+    SslConnector,
+    SslSessionScope,
+) {
+    let mut server = Server::builder();
+    server.ctx().set_min_proto_version(Some(version)).unwrap();
+    server.ctx().set_max_proto_version(Some(version)).unwrap();
+    let server = server.build();
+    let client = transfer_test_client(version);
+    let scope = SslSessionScope::default();
+    let policy = cold_test_policy(
+        b"complete synthetic native test policy",
+        credential,
+        &[1; 32],
+    );
+    let binding = scope
+        .bind_transfer_policy(client.context(), "foobar.com", policy)
+        .unwrap();
+    let sessions = Arc::new(Mutex::new(Vec::new()));
+    let captured = Arc::clone(&sessions);
+    let mut configuration = client.configure().unwrap();
+    configuration.set_session_transfer_policy(&binding).unwrap();
+    let ssl = configuration
+        .into_ssl_with_session_transfer("foobar.com", &scope, None, move |session| {
+            captured.lock().unwrap().push(session.unwrap())
+        })
+        .unwrap()
+        .unwrap();
+    let mut stream = ssl.connect(server.connect_tcp()).unwrap();
+    stream.read_exact(&mut [0]).unwrap();
+    assert!(stream.ssl().authenticate_scoped_session_publication());
+    let session = sessions.lock().unwrap().pop().unwrap();
+    assert!(session.is_authenticated());
+    drop(stream);
+    drop(server);
+    (session, binding, client, scope)
+}
+
+#[test]
+fn authenticated_transfer_cold_policy_checks_real_tls12_and_tls13_without_consuming() {
+    use crate::ssl::{SessionTransferError as Error, SessionTransferPolicy};
+    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
+        let (session, source, client, _) =
+            transfer_test_fixture(version, b"actual credential", &[1; 32]);
+        let record = source
+            .seal_session(&session, b"original owner metadata", &[7; 32])
+            .unwrap();
+        let sealed = crate::ssl::seal_envelope(&[record], &[7; 32]).unwrap();
+        let mut opened =
+            crate::ssl::open_envelope(sealed.as_bytes(), &[7; 32], client.context()).unwrap();
+        let right = cold_test_policy(
+            b"complete synthetic native test policy",
+            Some(b"actual credential"),
+            &[2; 32],
+        );
+        let wrong_policy = cold_test_policy(b"other policy", Some(b"actual credential"), &[2; 32]);
+        let wrong_credentials = cold_test_policy(
+            b"complete synthetic native test policy",
+            Some(b"wrong credential"),
+            &[2; 32],
+        );
+        opened
+            .validate_record_policy(0, &right, "foobar.com", false)
+            .unwrap();
+        assert!(matches!(
+            opened.validate_record_policy(0, &wrong_policy, "foobar.com", false),
+            Err(Error::Policy)
+        ));
+        assert!(matches!(
+            opened.validate_record_policy(0, &wrong_credentials, "foobar.com", false),
+            Err(Error::Credentials)
+        ));
+        for name in ["wrong.example", "", "foobar.com\0"] {
+            assert!(matches!(
+                opened.validate_record_policy(0, &right, name, false),
+                Err(Error::Policy)
+            ));
+        }
+        assert!(matches!(
+            opened.validate_record_policy(0, &right, "foobar.com", true),
+            Err(Error::Policy)
+        ));
+        assert!(matches!(
+            opened.validate_record_policy(1, &right, "foobar.com", false),
+            Err(Error::Malformed)
+        ));
+        assert_eq!(
+            opened.owner_metadata(0).unwrap(),
+            b"original owner metadata"
+        );
+        assert_eq!(
+            opened.source_witness(0).unwrap(),
+            b"fixed validated witness"
+        );
+        assert_eq!(opened.record_count(), 1);
+        let recipient = transfer_test_client(version);
+        let scope = SslSessionScope::default();
+        let expected = SessionTransferPolicy::new(
+            b"complete synthetic native test policy",
+            b"recipient draw",
+            Some(
+                crate::ssl::SessionTransferCredential::from_canonical_hmac_input(
+                    b"actual credential",
+                )
+                .unwrap(),
+            ),
+            &[2; 32],
+        )
+        .unwrap();
+        let binding = scope
+            .bind_transfer_policy(recipient.context(), "foobar.com", expected)
+            .unwrap();
+        let permit = opened.authorize_record(0, &binding).unwrap();
+        assert!(matches!(
+            opened.validate_record_policy(0, &right, "foobar.com", false),
+            Err(Error::Consumed)
+        ));
+        scope.invalidate_transfer_policy();
+        assert!(matches!(permit.into_scoped_session(), Err(Error::Policy)));
+        assert!(session.is_authenticated());
+    }
+}
+
+#[test]
+fn authenticated_transfer_cold_policy_distinguishes_absent_and_empty_credentials() {
+    use crate::ssl::SessionTransferError as Error;
+    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
+        for credential in [None, Some(&b""[..])] {
+            let (session, source, client, _) = cold_test_fixture(version, credential);
+            let sealed = crate::ssl::seal_envelope(
+                &[source
+                    .seal_session(&session, b"metadata", &[7; 32])
+                    .unwrap()],
+                &[7; 32],
+            )
+            .unwrap();
+            let opened =
+                crate::ssl::open_envelope(sealed.as_bytes(), &[7; 32], client.context()).unwrap();
+            let right = cold_test_policy(
+                b"complete synthetic native test policy",
+                credential,
+                &[9; 32],
+            );
+            let other = if credential.is_some() {
+                None
+            } else {
+                Some(&b""[..])
+            };
+            let wrong = cold_test_policy(b"complete synthetic native test policy", other, &[9; 32]);
+            opened
+                .validate_record_policy(0, &right, "foobar.com", false)
+                .unwrap();
+            assert!(matches!(
+                opened.validate_record_policy(0, &wrong, "foobar.com", false),
+                Err(Error::Credentials)
+            ));
+            assert_eq!(opened.owner_metadata(0).unwrap(), b"metadata");
+            assert_eq!(opened.record_count(), 1);
+        }
+    }
+}
+
+#[test]
+fn authenticated_transfer_cold_records_rekey_compact_and_combine_real_tls12_and_tls13() {
+    use crate::ssl::SessionTransferError as Error;
+    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
+        let (session, source, client, _) = transfer_test_fixture(version, b"credential", &[1; 32]);
+        let records = [
+            source
+                .seal_session(&session, b"consumed first", &[7; 32])
+                .unwrap(),
+            source
+                .seal_session(&session, b"retained middle", &[7; 32])
+                .unwrap(),
+            source
+                .seal_session(&session, b"consumed last", &[7; 32])
+                .unwrap(),
+        ];
+        let middle_length = records[1].encoded_len();
+        let sealed = crate::ssl::seal_envelope(&records, &[7; 32]).unwrap();
+        let mut opened =
+            crate::ssl::open_envelope(sealed.as_bytes(), &[7; 32], client.context()).unwrap();
+        let recipient = transfer_test_client(version);
+        let scope = SslSessionScope::default();
+        let binding = transfer_test_binding(&recipient, &scope, b"credential", &[2; 32]);
+        drop(opened.authorize_record(0, &binding).unwrap());
+        drop(opened.authorize_record(2, &binding).unwrap());
+        assert!(matches!(
+            opened.prepare_remaining_records(&[9; 32], middle_length - 1),
+            Err(Error::TooLarge)
+        ));
+        assert_eq!(opened.record_count(), 3);
+        assert_eq!(opened.owner_metadata(1).unwrap(), b"retained middle");
+        let mut compact = opened
+            .prepare_remaining_records(&[9; 32], middle_length)
+            .unwrap();
+        assert_eq!(compact.len(), 1);
+        assert_eq!(compact[0].encoded_len(), middle_length);
+        let fresh = source
+            .seal_session(&session, b"fresh live owner", &[9; 32])
+            .unwrap();
+        compact.push(fresh);
+        let combined = crate::ssl::seal_envelope(&compact, &[9; 32]).unwrap();
+        assert_eq!(
+            combined.as_bytes().len(),
+            56 + 16
+                + 4
+                + compact
+                    .iter()
+                    .map(|record| record.encoded_len())
+                    .sum::<usize>()
+        );
+        assert!(matches!(
+            crate::ssl::open_envelope(combined.as_bytes(), &[7; 32], client.context()),
+            Err(Error::Authentication)
+        ));
+        let mut decoded =
+            crate::ssl::open_envelope(combined.as_bytes(), &[9; 32], recipient.context()).unwrap();
+        assert_eq!(decoded.record_count(), 2);
+        assert_eq!(decoded.owner_metadata(0).unwrap(), b"retained middle");
+        assert_eq!(decoded.owner_metadata(1).unwrap(), b"fresh live owner");
+        for index in 0..2 {
+            assert_eq!(
+                decoded.source_witness(index).unwrap(),
+                b"fixed validated witness"
+            );
+            let imported = decoded
+                .authorize_record(index, &binding)
+                .unwrap()
+                .into_scoped_session()
+                .unwrap();
+            assert!(imported.is_authenticated());
+            assert!(imported.matches(&scope, recipient.context(), "foobar.com"));
+        }
+        assert!(matches!(opened.owner_metadata(0), Err(Error::Consumed)));
+        assert!(matches!(opened.owner_metadata(2), Err(Error::Consumed)));
+        assert_eq!(opened.owner_metadata(1).unwrap(), b"retained middle");
+        assert!(session.is_authenticated());
+    }
+}
+
+#[test]
+fn authenticated_transfer_cold_policy_preserves_real_tls13_true_early_data_mode() {
+    use crate::ssl::SessionTransferError as Error;
+    let mut server = tls13_server(1);
+    server.ssl_cb(|ssl| ssl.set_early_data_enabled(true));
+    let server = server.build();
+    let mut source_builder = publication_client_builder();
+    source_builder
+        .set_min_proto_version(Some(SslVersion::TLS1_3))
+        .unwrap();
+    source_builder
+        .set_max_proto_version(Some(SslVersion::TLS1_3))
+        .unwrap();
+    source_builder.enable_scoped_client_sessions_with_early_data();
+    let client = source_builder.build();
+    let scope = SslSessionScope::default();
+    let policy = cold_test_policy(
+        b"complete synthetic native test policy",
+        Some(b"credential"),
+        &[1; 32],
+    );
+    let binding = scope
+        .bind_transfer_policy(client.context(), "foobar.com", policy)
+        .unwrap();
+    let sessions = Arc::new(Mutex::new(Vec::new()));
+    let captured = Arc::clone(&sessions);
+    let mut configuration = client.configure().unwrap();
+    configuration.set_early_data_enabled(true);
+    configuration.set_session_transfer_policy(&binding).unwrap();
+    let ssl = configuration
+        .into_ssl_with_session_transfer("foobar.com", &scope, None, move |session| {
+            captured.lock().unwrap().push(session.unwrap())
+        })
+        .unwrap()
+        .unwrap();
+    let mut stream = ssl.connect(server.connect_tcp()).unwrap();
+    stream.read_exact(&mut [0]).unwrap();
+    assert!(stream.ssl().authenticate_scoped_session_publication());
+    let session = sessions.lock().unwrap().pop().unwrap();
+    assert!(session.is_authenticated());
+    // Retention mode is configured authority. Native ticket capability depends
+    // on the server's offer; this test never sends or claims accepted early data.
+    let native_capability = session.early_data_capable();
+    let record = binding
+        .seal_session(&session, b"true-mode metadata", &[7; 32])
+        .unwrap();
+    let sealed = crate::ssl::seal_envelope(&[record], &[7; 32]).unwrap();
+    let mut opened =
+        crate::ssl::open_envelope(sealed.as_bytes(), &[7; 32], client.context()).unwrap();
+    let current = cold_test_policy(
+        b"complete synthetic native test policy",
+        Some(b"credential"),
+        &[9; 32],
+    );
+    opened
+        .validate_record_policy(0, &current, "foobar.com", true)
+        .unwrap();
+    assert!(matches!(
+        opened.validate_record_policy(0, &current, "foobar.com", false),
+        Err(Error::Policy)
+    ));
+    assert_eq!(opened.record_count(), 1);
+    assert_eq!(opened.owner_metadata(0).unwrap(), b"true-mode metadata");
+    let false_client = transfer_test_client(SslVersion::TLS1_3);
+    let false_binding = transfer_test_binding(
+        &false_client,
+        &SslSessionScope::default(),
+        b"credential",
+        &[9; 32],
+    );
+    assert!(matches!(
+        opened.authorize_record(0, &false_binding),
+        Err(Error::Policy)
+    ));
+    assert_eq!(opened.owner_metadata(0).unwrap(), b"true-mode metadata");
+    let mut recipient_builder = publication_client_builder();
+    recipient_builder
+        .set_min_proto_version(Some(SslVersion::TLS1_3))
+        .unwrap();
+    recipient_builder
+        .set_max_proto_version(Some(SslVersion::TLS1_3))
+        .unwrap();
+    recipient_builder.enable_scoped_client_sessions_with_early_data();
+    let recipient = recipient_builder.build();
+    let recipient_scope = SslSessionScope::default();
+    let recipient_binding = recipient_scope
+        .bind_transfer_policy(recipient.context(), "foobar.com", current)
+        .unwrap();
+    let imported = opened
+        .authorize_record(0, &recipient_binding)
+        .unwrap()
+        .into_scoped_session()
+        .unwrap();
+    assert!(imported.is_authenticated());
+    assert!(imported.matches(&recipient_scope, recipient.context(), "foobar.com"));
+    assert_eq!(imported.early_data_capable(), native_capability);
+    assert!(matches!(opened.owner_metadata(0), Err(Error::Consumed)));
+    assert!(session.is_authenticated());
+    drop(stream);
+    drop(server);
 }

@@ -20,5 +20,6 @@ scoped-context-session-delivery.patch
 authenticated-session-transfer.patch
 session-transfer-store-freeze.patch
 session-transfer-record-size.patch
+session-transfer-cold-custody.patch
 session-transfer-dependency.patch
 publish-identity.patch

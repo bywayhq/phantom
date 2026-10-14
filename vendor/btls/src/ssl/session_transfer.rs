@@ -1014,6 +1014,103 @@ pub fn open_envelope(
 }
 
 impl VerifiedSessionEnvelope {
+    /// Checks configured policy and credentials without authorizing attachment.
+    ///
+    /// This compares stable commitment, hostname, early-data mode and actual
+    /// credentials under the authenticated source subkey, then strict-decodes
+    /// the session and checks expiry. It consumes no slot and issues no permit.
+    /// The caller must separately validate source draw and owner metadata.
+    /// Only an actual installed recipient binding can authorize attachment.
+    pub fn validate_record_policy(
+        &self,
+        index: usize,
+        configured: &SessionTransferPolicy,
+        server_name: &str,
+        keep_early_data: bool,
+    ) -> Result<(), SessionTransferError> {
+        let record = self
+            .records
+            .get(index)
+            .ok_or(SessionTransferError::Malformed)?
+            .as_ref()
+            .ok_or(SessionTransferError::Consumed)?;
+        let parsed = Record::parse(&record.body)?;
+        if server_name.is_empty()
+            || server_name.len() > 253
+            || !server_name.is_ascii()
+            || server_name.as_bytes().contains(&0)
+            || !crate::memcmp::eq(parsed.commitment, &configured.commitment)
+            || !super::session_hostnames_match(parsed.hostname, server_name)
+            || parsed.keep_early_data != keep_early_data
+        {
+            return Err(SessionTransferError::Policy);
+        }
+        let source_key: &[u8; 32] = parsed
+            .source_key
+            .try_into()
+            .map_err(|_| SessionTransferError::Malformed)?;
+        match (
+            configured.credential_tag(source_key)?,
+            parsed.credential_tag,
+        ) {
+            (None, None) => {}
+            (Some(actual), Some(expected)) if crate::memcmp::eq(&actual, expected) => {}
+            _ => return Err(SessionTransferError::Credentials),
+        }
+        let session = SslSession::from_bytes(parsed.native, &self.decoding_context)?;
+        check_session(&session)?;
+        Ok(())
+    }
+
+    /// Rekeys remaining opaque records for bounded combination with live exports.
+    ///
+    /// Results retain ascending original-slot order with consumed holes omitted.
+    /// The caller must remap owner slots explicitly. `max_encoded_len` bounds
+    /// their summed encoded lengths, excluding envelope header, count and tag;
+    /// the native whole-envelope limit also applies before any body is copied.
+    /// Source metadata, witness and credential custody are unchanged. This
+    /// neither consumes source slots nor creates a recipient permit or session.
+    /// Snapshot key holders can copy, replay or forge compatible ciphertext;
+    /// rekeying adds no independent origin authentication or anti-replay rule.
+    pub fn prepare_remaining_records(
+        &self,
+        new_key: &[u8; 32],
+        max_encoded_len: usize,
+    ) -> Result<Vec<AuthenticatedSessionRecord>, SessionTransferError> {
+        let bound = max_encoded_len.min(MAX_ENVELOPE - HEADER - TAG - 4);
+        let mut count = 0_usize;
+        let mut total = 0_usize;
+        for record in self.records.iter().flatten() {
+            let parsed = Record::parse(&record.body)?;
+            let session = SslSession::from_bytes(parsed.native, &self.decoding_context)?;
+            check_session(&session)?;
+            count += 1;
+            if count > MAX_RECORDS {
+                return Err(SessionTransferError::TooLarge);
+            }
+            total = total
+                .checked_add(record.encoded_len())
+                .filter(|size| *size <= bound)
+                .ok_or(SessionTransferError::TooLarge)?;
+        }
+        let record_key = key(new_key, b"phantom-ticket-record-v1")?;
+        let mut records = Vec::new();
+        records
+            .try_reserve_exact(count)
+            .map_err(|_| SessionTransferError::Allocation)?;
+        for record in self.records.iter().flatten() {
+            check_expiry(record.expires_at)?;
+            let body = copy(&record.body, MAX_ENVELOPE)?;
+            let mac = hmac_sha256(&*record_key, &body)?;
+            records.push(AuthenticatedSessionRecord {
+                body,
+                mac,
+                expires_at: record.expires_at,
+            });
+        }
+        Ok(records)
+    }
+
     /// Copies only remaining authenticated records into a compact new transaction.
     ///
     /// All records are strict-decoded and checked for expiry before any body is
