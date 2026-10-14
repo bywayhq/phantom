@@ -457,10 +457,20 @@ OUTPUT_NAMES = (
     "CLIENT_HINTS_COMPONENT_OUTPUT",
     "WEBSOCKET_COMPONENT_OUTPUT",
     "REQUEST_TEMPLATE_OUTPUT",
+    "COMPOSITION_OUTPUT",
 )
 
 
 class TemplateCliBoundaryTests(unittest.TestCase):
+    def test_fixture_redirects_every_generator_output(self):
+        outputs = {
+            name
+            for name, value in vars(cli).items()
+            if isinstance(value, Path)
+            and (name == "OUTPUT" or name.endswith("_OUTPUT"))
+        }
+        self.assertEqual(set(OUTPUT_NAMES), outputs)
+
     def output_context(self, directory, stack):
         paths = []
         for name in OUTPUT_NAMES:
@@ -472,7 +482,7 @@ class TemplateCliBoundaryTests(unittest.TestCase):
         stack.enter_context(redirect_stderr(io.StringIO()))
         return paths
 
-    def test_invalid_template_input_preserves_all_fourteen_outputs(self):
+    def test_invalid_template_input_preserves_all_outputs(self):
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
             paths = self.output_context(directory, stack)
             stack.enter_context(
@@ -489,7 +499,7 @@ class TemplateCliBoundaryTests(unittest.TestCase):
                 )
             )
 
-    def test_unknown_template_binding_preserves_all_fourteen_outputs(self):
+    def test_unknown_template_binding_preserves_all_outputs(self):
         profiles = cli.load()
         profiles[0]["templates"]["Navigation"] = "unknown"
         with tempfile.TemporaryDirectory() as directory, ExitStack() as stack:
@@ -516,7 +526,7 @@ class TemplateCliBoundaryTests(unittest.TestCase):
                 self.assertEqual([output.read_bytes() for output in paths], all_before)
                 path.write_bytes(expected)
 
-    def test_absolute_cli_checks_all_fourteen_outputs_from_an_arbitrary_cwd(self):
+    def test_absolute_cli_checks_all_outputs_from_an_arbitrary_cwd(self):
         paths = [getattr(cli, name) for name in OUTPUT_NAMES]
         before = [path.read_bytes() for path in paths]
         with tempfile.TemporaryDirectory() as directory:
