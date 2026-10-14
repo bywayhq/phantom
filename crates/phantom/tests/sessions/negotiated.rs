@@ -67,7 +67,7 @@ async fn negotiated_http1_learns_and_sends_client_cookies() -> TestResult<()> {
             let first_head = read_head(&mut first).await?;
             first
                 .write_all(
-                    b"HTTP/1.1 204 No Content\r\nSet-Cookie: learned=1; Secure; Path=/\r\nContent-Length: 0\r\n\r\n",
+                    b"HTTP/1.1 204 No Content\r\nConnection: close\r\nSet-Cookie: learned=1; Secure; Path=/\r\nContent-Length: 0\r\n\r\n",
                 )
                 .await?;
             drop(first);

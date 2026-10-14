@@ -2512,6 +2512,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Disperse snapshot capture's shared TCP/UDP listener ports below the usual
   ephemeral ranges, so reserved Windows port blocks do not exhaust retries.
+- Declare connection closure in the negotiated HTTP/1 cookie test before
+  dropping the peer, so the second request cannot race pooled reuse.
 
 - Pin nextest 0.9.145 to prevent concurrent tests from inheriting sibling
   capture pipes on macOS. Keep leaked-output failures and retries unchanged.
