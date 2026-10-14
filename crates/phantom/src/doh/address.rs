@@ -156,9 +156,14 @@ fn into_answer(family: Family) -> io::Result<AddressAnswer> {
     match family {
         Family::Positive { addresses, expiry } => {
             AddressAnswer::positive(addresses, remaining(expiry))
+                .map(|answer| answer.with_cache_deadline(expiry.into_std()))
         }
         Family::Negative { kind, expiry } => {
-            Ok(AddressAnswer::negative(kind, expiry.map(remaining)))
+            let answer = AddressAnswer::negative(kind, expiry.map(remaining));
+            Ok(match expiry {
+                Some(deadline) => answer.with_cache_deadline(deadline.into_std()),
+                None => answer,
+            })
         }
     }
 }

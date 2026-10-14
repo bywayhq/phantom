@@ -79,6 +79,23 @@ impl AddressAnswer {
         }
     }
 
+    /// Shortens freshness to an already adjusted absolute deadline.
+    ///
+    /// Preserve the deadline computed from a DoH exchange or earlier CNAME
+    /// response without a duration round-trip. The construction anchor and
+    /// negative cache cap stay in force. This cannot revive a zero, missing
+    /// or unrepresentable lifetime.
+    #[must_use]
+    pub fn with_cache_deadline(mut self, deadline: Instant) -> Self {
+        let anchor = self.lifetime.created_at;
+        self.lifetime.ttl = self
+            .lifetime
+            .ttl
+            .and_then(|ttl| anchor.checked_add(ttl))
+            .map(|original| original.min(deadline).saturating_duration_since(anchor));
+        self
+    }
+
     pub(super) fn into_parts(self) -> (io::Result<Vec<IpAddr>>, AnswerLifetime) {
         let outcome = match self.outcome {
             AnswerOutcome::Positive(addresses) => Ok(addresses),
@@ -149,5 +166,67 @@ impl AnswerLifetime {
         // An unrepresentable finite DNS lifetime cannot authorize infinite
         // freshness. The current resolution still receives the answer.
         self.created_at.checked_add(ttl)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AddressAnswer, AddressNegativeKind, Duration, Instant, io};
+    use std::net::Ipv4Addr;
+
+    #[test]
+    fn absolute_deadline_is_retained_without_resetting_the_answer_anchor() -> io::Result<()> {
+        let answer =
+            AddressAnswer::positive(vec![Ipv4Addr::LOCALHOST.into()], Duration::from_secs(30))?;
+        let deadline = answer.lifetime.created_at + Duration::from_millis(500);
+        let shortened = answer.clone().with_cache_deadline(deadline);
+        assert_eq!(shortened.lifetime.created_at, answer.lifetime.created_at);
+        assert_eq!(shortened.lifetime.expires_at(None), Some(deadline));
+        let later = shortened
+            .clone()
+            .with_cache_deadline(deadline + Duration::from_secs(30));
+        assert_eq!(later.lifetime.expires_at(None), Some(deadline));
+        assert!(later.into_parts().0.is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn held_expired_deadline_and_missing_or_overflow_lifetimes_cannot_revive() -> io::Result<()> {
+        let expired = Instant::now();
+        let answer =
+            AddressAnswer::positive(vec![Ipv4Addr::LOCALHOST.into()], Duration::from_secs(30))?
+                .with_cache_deadline(expired);
+        assert_eq!(answer.lifetime.expires_at(None), None);
+        assert!(answer.into_parts().0.is_ok());
+        let later = Instant::now() + Duration::from_secs(30);
+        for ttl in [Duration::ZERO, Duration::MAX] {
+            let answer = AddressAnswer::positive(vec![Ipv4Addr::LOCALHOST.into()], ttl)?
+                .with_cache_deadline(later);
+            assert_eq!(answer.lifetime.expires_at(None), None);
+        }
+        let negative =
+            AddressAnswer::negative(AddressNegativeKind::NoData, None).with_cache_deadline(later);
+        assert_eq!(
+            negative.lifetime.expires_at(Some(Duration::from_secs(60))),
+            None
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn negative_deadline_and_configured_cap_share_the_original_anchor() {
+        let answer =
+            AddressAnswer::negative(AddressNegativeKind::NxDomain, Some(Duration::from_secs(30)));
+        let anchor = answer.lifetime.created_at;
+        let deadline = anchor + Duration::from_secs(10);
+        let answer = answer.with_cache_deadline(deadline);
+        assert_eq!(
+            answer.lifetime.expires_at(Some(Duration::from_secs(20))),
+            Some(deadline)
+        );
+        assert_eq!(
+            answer.lifetime.expires_at(Some(Duration::from_secs(5))),
+            Some(anchor + Duration::from_secs(5))
+        );
     }
 }

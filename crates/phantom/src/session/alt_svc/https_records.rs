@@ -21,26 +21,22 @@ use std::{
     time::{Duration, Instant},
 };
 
-use phantom_net::dns::{
-    EchConfigList, HttpsRecord, HttpsRecordAnswer, HttpsRecordLookup, HttpsRecordResolver,
-    TargetName,
-};
+use phantom_net::dns::{EchConfigList, HttpsRecord, HttpsRecordResolver, TargetName};
 use tokio::sync::watch;
 use tracing::{Instrument, debug, instrument::WithSubscriber};
 
 use crate::authority::Endpoint;
 
-/// How long a lookup result without a usable TTL is kept: a failed lookup,
-/// or a negative answer without an SOA record.
+/// Retry backoff for an operational lookup failure, separate from DNS freshness.
 ///
 /// Chromium keeps a failed HTTPS query as an empty result for as long as
 /// the address records it was resolved with; Phantom's address lookups go
 /// through the operating system and expose no TTL, so it uses a fixed
 /// period instead.
-const UNTIMED_RESULT_TTL: Duration = Duration::from_secs(60);
+const FAILED_LOOKUP_BACKOFF: Duration = Duration::from_secs(60);
 
 /// Longest time any result is kept: one day, the cap common to DNS caches.
-const MAX_RESULT_TTL: u32 = 24 * 60 * 60;
+const MAX_RESULT_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 
 /// ALPN of HTTP/3 (RFC 9114 section 3.1).
 const H3_ALPN: &[u8] = b"h3";
@@ -324,18 +320,18 @@ impl HttpsRecordDiscovery {
             runtime.spawn(
                 async move {
                     let result = resolver.lookup(&host, port).await;
-                    let (summary, ttl) = match &result {
+                    let (summary, deadline) = match &result {
                         Ok(records) => {
                             let answers = records
                                 .answers()
                                 .iter()
                                 .map(|answer| (answer.owner(), answer.record()))
                                 .collect::<Vec<_>>();
-                            (summarize(&answers, &host, port), result_ttl(records))
+                            (summarize(&answers, &host, port), records.cache_deadline(MAX_RESULT_TTL))
                         }
                         Err(error) => {
                             debug!(outcome = "failed", kind = ?error.kind(), "HTTPS record lookup failed");
-                            (RecordSummary::default(), UNTIMED_RESULT_TTL)
+                            (RecordSummary::default(), Instant::now().checked_add(FAILED_LOOKUP_BACKOFF))
                         }
                     };
                     debug!(
@@ -346,12 +342,12 @@ impl HttpsRecordDiscovery {
                             .iter()
                             .filter(|endpoint| endpoint.ech.is_some())
                             .count(),
-                        ttl_seconds = ttl.as_secs(),
+                        cacheable = deadline.is_some_and(|deadline| deadline > Instant::now()),
                         "HTTPS record lookup finished"
                     );
                     let summary = Arc::new(summary);
-                    owner.complete(Arc::clone(&summary), ttl);
-                    // Cancelled waiters need no answer; the result is already cached.
+                    owner.complete(Arc::clone(&summary), deadline);
+                    // Current waiters receive the result even when it cannot be cached.
                     let _ = sender.send(Some(summary));
                 }
                 .instrument(span)
@@ -375,7 +371,7 @@ impl Cache {
     }
 
     /// Publishes a completed result without evicting any lookup still running.
-    fn complete(&self, lookup: u64, summary: Arc<RecordSummary>, ttl: Duration) {
+    fn complete(&self, lookup: u64, summary: Arc<RecordSummary>, deadline: Option<Instant>) {
         let mut state = self.lock_state();
         let Some(position) = state
             .pending
@@ -386,18 +382,22 @@ impl Cache {
         };
         let pending = state.pending.remove(position);
 
-        let now = Instant::now();
+        // The reservation is released even when freshness expired before publication.
+        // Invalidate an older result for the same origin, without disturbing other work.
+        state
+            .ready
+            .retain(|other| other.host != pending.host || other.port != pending.port);
+        let Some(expires_at) = deadline.filter(|deadline| *deadline > Instant::now()) else {
+            return;
+        };
         let entry = ReadyEntry {
             host: pending.host,
             port: pending.port,
             summary,
-            expires_at: now.checked_add(ttl).unwrap_or(now),
+            expires_at,
         };
         // A lookup on another runtime may have finished first; the last
         // completion wins, while other runtimes' work stays reserved.
-        state
-            .ready
-            .retain(|other| other.host != entry.host || other.port != entry.port);
         if state.ready.len() == self.capacity.get() {
             state.ready.pop_front();
         }
@@ -406,9 +406,9 @@ impl Cache {
 }
 
 impl LookupOwner {
-    fn complete(mut self, summary: Arc<RecordSummary>, ttl: Duration) {
+    fn complete(mut self, summary: Arc<RecordSummary>, deadline: Option<Instant>) {
         if let Some(lookup) = self.lookup.take() {
-            self.cache.complete(lookup, summary, ttl);
+            self.cache.complete(lookup, summary, deadline);
         }
     }
 }
@@ -424,20 +424,6 @@ impl Drop for LookupOwner {
             .pending
             .retain(|entry| entry.lookup != lookup);
     }
-}
-
-/// Returns how long a successful lookup's result stays fresh.
-///
-/// Answers use the lowest TTL among them. A negative answer uses its SOA
-/// negative TTL when present.
-fn result_ttl(lookup: &HttpsRecordLookup) -> Duration {
-    let seconds = match lookup.answers().iter().map(HttpsRecordAnswer::ttl).min() {
-        Some(ttl) => Some(ttl),
-        None => lookup.negative_ttl(),
-    };
-    seconds.map_or(UNTIMED_RESULT_TTL, |seconds| {
-        Duration::from_secs(u64::from(seconds.min(MAX_RESULT_TTL)))
-    })
 }
 
 /// Returns what the records say about a request to `host`:`port`, by

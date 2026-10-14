@@ -1,10 +1,11 @@
-//! Explicit DNS-over-HTTPS address lookups through an independent HTTP/2 client.
+//! Explicit DNS-over-HTTPS lookups through an independent HTTP/2 client.
 
 use std::{
     error::Error, fmt, io, net::IpAddr, num::NonZeroU16, num::NonZeroUsize, sync::Arc,
     time::Duration,
 };
 
+use phantom_net::dns::{HttpsLookupError, HttpsRecordResolver};
 use phantom_profile::ClientProfile;
 use tokio::sync::Semaphore;
 use url::{Host, Url};
@@ -16,6 +17,7 @@ use crate::{
 
 mod address;
 mod exchange;
+mod https;
 #[cfg(test)]
 mod tests;
 
@@ -226,6 +228,28 @@ impl DnsOverHttps {
         AddressResolver::from_answer_fn(move |host| {
             let endpoint = Arc::clone(&endpoint);
             async move { address::lookup(&endpoint, &host).await }
+        })
+    }
+
+    /// Returns an HTTPS-record resolver through this endpoint's HTTP/2 client.
+    ///
+    /// It queries `host` for port 443 and `_<port>._https.<host>` otherwise.
+    /// Hosts must be ASCII DNS names; IP literals and port zero fail before I/O.
+    /// Records retain their owner, order and parameters. HTTP Age and elapsed
+    /// exchange time shorten their cache lifetime, including prior CNAME hops.
+    ///
+    /// Both resolver factories share the endpoint's admission limit and deadline.
+    /// This does not enable discovery or follow HTTPS AliasMode targets.
+    #[must_use]
+    pub fn https_record_resolver(&self) -> HttpsRecordResolver {
+        let endpoint = Arc::clone(&self.endpoint);
+        HttpsRecordResolver::from_fn(move |host, port| {
+            let endpoint = Arc::clone(&endpoint);
+            async move {
+                https::lookup(&endpoint, &host, port)
+                    .await
+                    .map_err(HttpsLookupError::other)
+            }
         })
     }
 }

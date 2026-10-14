@@ -15,6 +15,10 @@ use crate::support::{
     tunnel_proxy::ConnectionPeer,
 };
 
+pub(super) mod application;
+pub(super) mod scripted;
+pub(super) mod wire;
+
 pub(super) struct ObservedQuery {
     pub(super) method: Method,
     pub(super) uri: Uri,

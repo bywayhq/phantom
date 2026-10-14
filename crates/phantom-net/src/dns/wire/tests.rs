@@ -522,6 +522,8 @@ fn https_order_and_individual_ttls_survive_without_following_targets() -> TestRe
     let DnsWireResult::Https(answer) = query.parse_response(&bytes)? else {
         return Err("HTTPS records were followed or lost".into());
     };
+    assert_eq!(answer.response_ttl(), 0);
+    let answer = answer.into_lookup();
     assert_eq!(answer.answers().len(), 3);
     assert_eq!(
         answer
@@ -573,6 +575,7 @@ fn alias_mode_ignores_parameters_without_following_its_target() -> TestResult {
     let DnsWireResult::Https(answer) = query.parse_response(&bytes)? else {
         return Err("AliasMode was followed".into());
     };
+    let answer = answer.into_lookup();
     assert_eq!(answer.answers().len(), 1);
     assert!(matches!(
         answer.answers()[0].record(),
@@ -593,6 +596,8 @@ fn https_follow_up_caps_each_answer_ttl_by_the_preceding_aliases() -> TestResult
     let DnsWireResult::Https(answer) = next.parse_response(&bytes)? else {
         return Err("missing HTTPS records".into());
     };
+    assert_eq!(answer.response_ttl(), 10);
+    let answer = answer.into_lookup();
     assert_eq!(
         answer.answers().iter().map(|a| a.ttl()).collect::<Vec<_>>(),
         [20, 10]
@@ -602,6 +607,31 @@ fn https_follow_up_caps_each_answer_ttl_by_the_preceding_aliases() -> TestResult
             .answers()
             .iter()
             .all(|a| a.owner() == "target.example.test")
+    );
+    Ok(())
+}
+
+#[test]
+fn https_current_reply_ttl_excludes_previously_received_aliases() -> TestResult {
+    let query = query(DnsWireQueryKind::Https)?;
+    let mut message = response(&query);
+    message
+        .answers
+        .push(alias(&query.name(), "target.example.test.", 7)?);
+    let next = follow_up(&query, &message)?.into_query();
+    let bytes = https_response(&next, &[(60, b"\x00\x01\x00"), (50, b"\x00\x02\x00")])?;
+    let DnsWireResult::Https(answer) = next.parse_response(&bytes)? else {
+        return Err("missing HTTPS records".into());
+    };
+    assert_eq!(answer.response_ttl(), 50);
+    let lookup = answer.into_lookup();
+    assert_eq!(
+        lookup
+            .answers()
+            .iter()
+            .map(|answer| answer.ttl())
+            .collect::<Vec<_>>(),
+        [7, 7]
     );
     Ok(())
 }

@@ -24,6 +24,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     pin::Pin,
     sync::{Arc, OnceLock},
+    time::{Duration, Instant},
 };
 
 use hickory_resolver::{
@@ -329,17 +330,14 @@ impl HttpsRecordResolver {
         let lookup = match resolver.lookup(name.clone(), RecordType::HTTPS).await {
             Ok(lookup) => lookup,
             Err(NetError::Dns(DnsError::NoRecordsFound(no_records))) => {
-                return Ok(HttpsRecordLookup {
-                    answers: Box::default(),
-                    negative_ttl: no_records.negative_ttl,
-                });
+                return Ok(HttpsRecordLookup::new(Vec::new(), no_records.negative_ttl));
             }
             Err(error) => return Err(HttpsLookupError::resolve(error)),
         };
-        Ok(HttpsRecordLookup {
-            answers: https_answers(&name, lookup.answers())?,
-            negative_ttl: None,
-        })
+        Ok(HttpsRecordLookup::new(
+            https_answers(&name, lookup.answers())?.into_vec(),
+            None,
+        ))
     }
 }
 
@@ -424,10 +422,10 @@ pub fn https_answers_from_message(
         Name::from_ascii(query_name(host, port)).map_err(|_| HttpsLookupError::invalid_name())?;
     let message =
         Message::from_vec(message).map_err(|error| HttpsLookupError::resolve(error.into()))?;
-    Ok(HttpsRecordLookup {
-        answers: https_answers(&name, &message.answers)?,
-        negative_ttl: None,
-    })
+    Ok(HttpsRecordLookup::new(
+        https_answers(&name, &message.answers)?.into_vec(),
+        None,
+    ))
 }
 
 impl fmt::Debug for HttpsRecordResolver {
@@ -497,23 +495,80 @@ fn dotted(name: &str) -> Box<str> {
 }
 
 /// The HTTPS records found for one query name.
-#[derive(Clone, Debug, Eq, PartialEq)]
+///
+/// Cache freshness starts at construction. Moving or cloning a result does
+/// not restart its lifetime. Raw record TTLs remain available separately.
+#[derive(Clone, Debug)]
 pub struct HttpsRecordLookup {
     answers: Box<[HttpsRecordAnswer]>,
     negative_ttl: Option<u32>,
+    created_at: Instant,
+    expires_at: Option<Instant>,
 }
 
 impl HttpsRecordLookup {
     /// Creates a lookup result, for a resolver built with
     /// [`HttpsRecordResolver::from_fn`].
     ///
-    /// `negative_ttl` is how long, in seconds, an empty result may be cached.
+    /// The lowest answer TTL starts now. For an empty result, `negative_ttl`
+    /// supplies the SOA-derived lifetime in seconds. Zero or missing lifetimes
+    /// allow the current lookup to use the result but prevent cache reuse.
     #[must_use]
     pub fn new(answers: Vec<HttpsRecordAnswer>, negative_ttl: Option<u32>) -> Self {
+        let created_at = Instant::now();
+        let ttl = answers
+            .iter()
+            .map(HttpsRecordAnswer::ttl)
+            .min()
+            .or(negative_ttl);
+        let expires_at = ttl
+            .filter(|ttl| *ttl != 0)
+            .and_then(|ttl| created_at.checked_add(Duration::from_secs(u64::from(ttl))));
         Self {
             answers: answers.into_boxed_slice(),
             negative_ttl,
+            created_at,
+            expires_at,
         }
+    }
+
+    /// Shortens freshness to at most `remaining` from this call's time.
+    ///
+    /// Subtract HTTP age and elapsed exchange time before calling this for
+    /// DoH answers. The original deadline and construction anchor stay in
+    /// force. A zero or unrepresentable duration prevents cache reuse. This
+    /// cannot make an expired or missing-SOA result fresh again.
+    #[must_use]
+    pub fn with_cache_lifetime(mut self, remaining: Duration) -> Self {
+        self.expires_at = if remaining.is_zero() {
+            None
+        } else {
+            self.expires_at
+                .zip(Instant::now().checked_add(remaining))
+                .map(|(original, adjusted)| original.min(adjusted))
+        };
+        self
+    }
+
+    /// Shortens freshness to an already adjusted absolute deadline.
+    ///
+    /// Use this after aging a DoH response or CNAME chain. Passing the exact
+    /// deadline avoids restarting freshness between clock reads. It cannot
+    /// revive an expired or missing-SOA result or change the construction anchor.
+    #[must_use]
+    pub fn with_cache_deadline(mut self, deadline: Instant) -> Self {
+        self.expires_at = self.expires_at.map(|original| original.min(deadline));
+        self
+    }
+
+    /// Returns the absolute deadline for cache reuse, capped from construction.
+    ///
+    /// Returns `None` for expired, zero, missing or unrepresentable lifetimes.
+    /// A cache must check this deadline again when publishing a result.
+    #[must_use]
+    pub fn cache_deadline(&self, maximum: Duration) -> Option<Instant> {
+        let deadline = self.expires_at?.min(self.created_at.checked_add(maximum)?);
+        (deadline > Instant::now()).then_some(deadline)
     }
 
     /// Returns the HTTPS answer records in response order.
@@ -689,5 +744,7 @@ impl StdError for HttpsLookupError {
     }
 }
 
+#[cfg(test)]
+mod lifetime_tests;
 #[cfg(test)]
 mod tests;

@@ -190,7 +190,9 @@ The last column shows which changes a server can observe.
 | Raced alternative setup limit | 4 seconds | Chrome 153 source and capture | `AltSvcRace::with_alternative_setup_limit` | Yes: when QUIC setup stops |
 | Broken alternative period | 300 seconds, doubling to 2 days | Chrome 153 NetLog and source | `AltSvcBrokenBackoff` | Yes: when QUIC is tried again |
 | Alt-Svc lifetime without `ma` | 24 hours | RFC 7838 | Server's `ma` | No |
-| HTTPS record result lifetime | Answer TTL, at most 1 day; 60 seconds without one | Phantom | Not configurable | Resolver only |
+| HTTPS record result lifetime | Earliest record or negative SOA expiry, at most 1 day from lookup construction; missing or expired lifetimes are not cached | Phantom | Resolver can shorten expiry | Resolver only |
+| HTTPS record lookup failure backoff | 60 seconds | Phantom | Not configurable | Resolver only |
+| Explicit DoH lookup deadline and admission | Caller-supplied finite deadline and concurrent lookup limit, shared by address and HTTPS record factories | Phantom | `DohConfiguration` | Yes: cancellation or refused lookup |
 | HTTPS record query timeout and attempts | 5 seconds, 2 attempts | hickory-resolver default | `HttpsRecordResolver::from_fn` replaces the resolver | Resolver only |
 | Early data answer wait | Until the handshake ends | QUIC | Connect timeout | No |
 | TCP second-attempt delay | 300 ms racing in `chrome::v154_tcp`; a 250 ms backup attempt in `firefox::v157_tcp`, IPv4 until the origin's address family is known, then that family with each backup connect limited to 5 seconds | Chromium 154 source; Firefox 157 source and hook logs | `TcpSettings::address_selection` | Yes |

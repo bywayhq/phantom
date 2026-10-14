@@ -12,6 +12,9 @@ use crate::support::{
     tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
 
+mod answers;
+mod failures;
+mod lifecycle;
 mod peer;
 
 const DEADLINE: Duration = Duration::from_secs(10);

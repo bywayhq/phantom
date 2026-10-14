@@ -19,6 +19,8 @@ type TestResult<T> = Result<T, Box<dyn std::error::Error>>;
 const HOST: &str = "origin.test";
 const OWNER: &str = "_8443._https.origin.test";
 
+mod lifetime;
+
 fn rdata(priority: u16, target: &[&str], params: &[(u16, &[u8])]) -> Vec<u8> {
     let mut bytes = priority.to_be_bytes().to_vec();
     for label in target {

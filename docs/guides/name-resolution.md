@@ -157,6 +157,7 @@ fn over_https() -> Result<Client, Box<dyn Error>> {
     let doh = DnsOverHttps::builder(profile.clone(), config)?.build()?;
     Ok(Client::builder(profile)
         .dns_resolver(doh.address_resolver())
+        .https_record_discovery(doh.https_record_resolver())
         .build()?)
 }
 ```
@@ -169,13 +170,13 @@ It refuses redirects and protocol fallback. GET is also available through
 Answers keep their DNS lifetime after HTTP age and lookup time are deducted.
 With an address cache, expired answers and transport errors are not stored.
 The configured deadline and lookup limit bound work shared by resolver clones.
-HTTPS record discovery still uses its own resolver.
+The example also enables HTTPS record discovery through the same endpoint.
+Both resolvers preserve expiry across CNAME replies and cache publication.
 
 ## Limits
 
-- Overrides and custom resolvers cover address lookups only. HTTPS DNS
-  record lookups ([HTTP/3 discovery](http3-discovery.md)) still use their
-  own resolver.
+- Address overrides do not replace the HTTPS record resolver. Enable
+  [HTTP/3 discovery](http3-discovery.md) with a resolver you choose.
 - An IPv6 link-local address can't carry a scope ID. Leave such names to
   the operating system.
 - On Windows, `system_nameservers` asks the DNS servers of every active

@@ -13,6 +13,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Keep HTTPS record expiry anchored when passing answers to discovery.
+  Migrate: compare `HttpsRecordLookup::answers()` and `negative_ttl()`
+  instead of comparing lookups. For `DnsWireResult::Https`, call
+  `DnsHttpsRecords::into_lookup()` to obtain the lookup. Use
+  `with_cache_deadline` to preserve an earlier absolute expiry.
+
 - Select HTTP proxy credentials explicitly. Migrate: wrap borrowed Basic
   credentials in `HttpProxyAuthentication::Basic` for `HttpConnectRoute`
   and `Http2Route::Forward`. Use `HttpProxy::with_digest_auth` for Digest.
@@ -1090,7 +1096,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Resolve addresses through an explicit DNS-over-HTTPS endpoint with verified
   TLS, pinned bootstrap addresses, bounded lookups and DNS answer lifetimes.
-  Choose GET or POST with `DnsOverHttps` in `phantom::dns`.
+  Choose GET or POST with `DnsOverHttps` in `phantom::dns`. Its address and
+  HTTPS record resolvers share one endpoint and admission limit.
 
 - Accept caller-reported DNS lifetimes with `AddressResolver::from_answer_fn`
   and `AddressAnswer`. Preserve answer order, cap negative answers by their

@@ -257,9 +257,10 @@ impl DnsWireQuery {
         }
         if has_answers {
             return match self.kind {
-                DnsWireQueryKind::Https => {
-                    Ok(DnsWireResult::Https(HttpsRecordLookup::new(answers, None)))
-                }
+                DnsWireQueryKind::Https => Ok(DnsWireResult::Https(DnsHttpsRecords {
+                    lookup: HttpsRecordLookup::new(answers, None),
+                    response_ttl: response_ttl.unwrap_or(0),
+                })),
                 DnsWireQueryKind::A | DnsWireQueryKind::Aaaa => {
                     Ok(DnsWireResult::Addresses(DnsAddressRecords {
                         addresses: addresses.into_boxed_slice(),
@@ -456,11 +457,35 @@ pub enum DnsWireResult {
     /// Ordered terminal A or AAAA records.
     Addresses(DnsAddressRecords),
     /// Ordered terminal HTTPS records.
-    Https(HttpsRecordLookup),
+    Https(DnsHttpsRecords),
     /// A CNAME-only response needs another query of the same type.
     Cname(DnsWireFollowUp),
     /// An NXDOMAIN or NODATA response, with its SOA-derived lifetime if any.
     Negative(DnsNegativeAnswer),
+}
+
+/// HTTPS records with the TTL supplied by this response alone.
+#[derive(Clone, Debug)]
+pub struct DnsHttpsRecords {
+    lookup: HttpsRecordLookup,
+    response_ttl: u32,
+}
+
+impl DnsHttpsRecords {
+    /// Returns this reply's minimum HTTPS/CNAME TTL, excluding earlier replies.
+    ///
+    /// Adjust it by this HTTP exchange's age and elapsed time. Keep earlier
+    /// replies' separately adjusted deadlines across CNAME follow-ups.
+    #[must_use]
+    pub const fn response_ttl(&self) -> u32 {
+        self.response_ttl
+    }
+
+    /// Returns the ordered records and their cumulative raw DNS lifetimes.
+    #[must_use]
+    pub fn into_lookup(self) -> HttpsRecordLookup {
+        self.lookup
+    }
 }
 
 /// Address records in answer order, with the minimum address/CNAME TTL.
