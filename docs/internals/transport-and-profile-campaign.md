@@ -4,7 +4,7 @@ Use this plan to repair the historical timing failures, grow the browser
 corpus, and deliver the named client features. Track each result against its
 acceptance criteria before closing the work.
 
-The campaign is active. The plan was committed at `9fd95ff5` before source
+The campaign is active. The plan was committed at `dbdee197` before source
 changes began.
 
 ## Starting point
@@ -48,10 +48,14 @@ copying execution journals into this page.
 
 | Task | Owner lane | State and next check |
 | --- | --- | --- |
-| T1 | `h3-drain-diagnosis` | Observed-readiness repair passes the same delayed GOAWAY control and all 400 session tests. Independently reviewed; root integration gate and PR remain. |
-| T2 | `tls-done-diagnosis` | Framed-response repair and EOF controls pass; independently reviewed and integrated locally. Full root gate and PR delivery remain. |
-| P1–P5 | `profile-catalog` | Contract review complete. Implement exact lookup and per-layer records before migrating recipe values. |
-| F8 | `http3-debug-auth` | Explicit origin opt-in implemented. Run native and facade certificate, hostname, clone, and session-isolation controls. |
+| T1 | `h3-drain-diagnosis` | Readiness repair merged in PR #213 after the exact signed-head gate and platform CI. Main push CI passed; the historical trigger remains open. |
+| T2 | `tls-done-diagnosis` | Framed-response repair and EOF controls merged in PR #212 after the full gate and platform CI. Main push CI passed; historical attribution remains open. |
+| P1–P4 | `profile-catalog` | Catalog foundation and generated H3, H2, and core TLS components pass focused checks and review. Branded and Android TLS overrides, remaining layers, immutable definitions, and root wire checks remain. |
+| P5 | `profile-history` | Edge 153 Windows profile passes four profile and six native replay controls. Catalog registration, corpus measurements, and integration remain. |
+| F1 | `ticket-transfer` | Snapshot contract reviewed. Client-owned clearing and late-ticket generation isolation are implemented; focused checks are running. Transfer encoding and full bindings remain. |
+| F3 | `socks4-integration` | SOCKS4/4a source, loopback controls, and documentation reviewed. Rebased root gate and PR delivery remain. |
+| F4 | `digest-auth` | Parser, engine, and nonce cache reviewed. All 147 proxy controls pass, including H1 and H2 CONNECT. Public forwarding checks and final implementation review remain. |
+| F8 | `http3-debug-auth` | Origin opt-in passes 86 focused controls and review. Human-signed integration prepared; rebased root gate and PR delivery remain. |
 
 Neither controlled timing reproduction proves the exact historical host
 delay. The unchanged historical TLS suite also passed all 1,041 tests with
