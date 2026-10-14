@@ -211,6 +211,10 @@ pub use phantom::profile::WebSocketProxiedSession
 pub use phantom::profile::WebSocketRefusedStreamRetry
 pub use phantom::profile::WebSocketSettings
 pub use phantom::profile::browser
+pub enum phantom::AltSvcHttpsPolicy
+pub phantom::AltSvcHttpsPolicy::Destination
+pub phantom::AltSvcHttpsPolicy::Destination::lookup_timeout: core::time::Duration
+pub phantom::AltSvcHttpsPolicy::OriginOnly
 #[non_exhaustive] pub enum phantom::AltSvcSnapshotErrorKind
 pub phantom::AltSvcSnapshotErrorKind::Disabled
 pub phantom::AltSvcSnapshotErrorKind::InvalidAlternative
@@ -546,6 +550,7 @@ impl phantom::ClientBuilder
 pub fn phantom::ClientBuilder::add_proxy_root_certificate_der(self, impl core::convert::Into<alloc::boxed::Box<[u8]>>) -> Self
 pub fn phantom::ClientBuilder::add_root_certificate_der(self, impl core::convert::Into<alloc::boxed::Box<[u8]>>) -> Self
 pub fn phantom::ClientBuilder::alt_svc(self, core::num::nonzero::NonZeroUsize) -> Self
+pub fn phantom::ClientBuilder::alt_svc_https_policy(self, phantom::AltSvcHttpsPolicy) -> Self
 pub fn phantom::ClientBuilder::alt_svc_policy(self, phantom::AltSvcPolicy) -> Self
 pub fn phantom::ClientBuilder::base_url(self, &str) -> core::result::Result<Self, phantom::BuildError>
 pub fn phantom::ClientBuilder::build(self) -> core::result::Result<phantom::Client, phantom::BuildError>

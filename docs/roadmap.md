@@ -189,6 +189,12 @@ features or blockers for the Phase 2 API work.
 - An opt-in race of up to three Alt-Svc alternatives at once, where Chrome
   races only the first
   ([Race the alternative against the origin](guides/http3-discovery.md#race-the-alternative-against-the-origin)).
+- Explicit DoH for address and HTTPS-record lookups, with caller-chosen
+  endpoints and bootstrap addresses
+  ([Resolve names over HTTPS](guides/name-resolution.md#resolve-names-over-https)).
+- Opt-in ECH discovery for a learned direct Alt-Svc destination, with the
+  origin's TLS name and HTTP authority
+  ([Look up a learned alternative](guides/http3-discovery.md#look-up-a-learned-alternative)).
 - WebSocket over HTTP/3 (RFC 9220) to a server the caller controls, as a
   stream on the client's pooled HTTP/3 connection, directly, over SOCKS5
   UDP, or through CONNECT-UDP, for a custom profile with an extended CONNECT
@@ -389,7 +395,8 @@ completed phase scope.
   ([TLS resumption over TCP evidence](explanation/validation.md#tls-resumption-over-tcp-evidence)).
   Blocker: no Firefox recipe offers ECH from HTTPS records, since Firefox
   waits for the record only over DNS over HTTPS, so no named recipe would
-  reach this; it waits on the DNS over HTTPS entry below. With early data,
+  reach this. Explicit DoH is available, but no Firefox recipe enables this
+  ECH policy. With early data,
   Phantom's retry after an ECH rejection would also have to move from the
   handshake to the request.
 - Validator slots in the Edge, Brave, Opera, and Android templates.
@@ -403,24 +410,23 @@ completed phase scope.
 
 #### Discovery, DNS, and ECH
 
-- ECH on an Alt-Svc alternative at another host. Evidence: Chrome's
-  alternative job resolves that host, HTTPS record included
-  (`net/quic/quic_session_pool_direct_job.cc`); Phantom looks up only the
-  origin's records. Blocker: a capture of Chrome reaching such an
-  alternative whose own record carries `ech`.
-- DNS over HTTPS where the captured browser uses it. Blocker: no retained
+- Browser evidence for ECH on an Alt-Svc alternative at another host.
+  Phantom supports an explicit destination lookup. Chrome's alternative job
+  resolves that host, HTTPS record included
+  (`net/quic/quic_session_pool_direct_job.cc`). A capture of Chrome reaching
+  an alternative whose own record carries `ech` remains absent.
+- Browser-default DNS over HTTPS recipes. Blocker: no retained
   capture shows a browser using DNS over HTTPS with its default settings;
   the ECH captures turned it on by policy or preferences. A caller can
-  supply an `AddressResolver` and an `HttpsRecordResolver` that query over
-  HTTPS, but no recipe does.
+  use explicit DoH resolvers, but no recipe enables them by default.
 
 ### Proposed after Phase 1
 
 Each starts from a proposal with acceptance criteria and, where it touches
 the wire, capture evidence.
 
-- Import of externally described fingerprints, limited to fields Phantom
-  reproduces byte for byte.
+- Partial JA3/JA4 descriptions cannot replace the complete custom-profile
+  import format. The bounded importer shipped in PR #226.
 
 ## Standing rules
 

@@ -9,6 +9,10 @@ pub phantom_quic_btls::CryptoError::InsufficientOutputCapacity::required: usize
 pub phantom_quic_btls::CryptoError::InvalidConnectionIdLength
 pub phantom_quic_btls::CryptoError::InvalidConnectionIdLength::actual: usize
 pub phantom_quic_btls::CryptoError::InvalidConnectionIdLength::maximum: usize
+pub phantom_quic_btls::CryptoError::InvalidEarlyDataContextLength
+pub phantom_quic_btls::CryptoError::InvalidEarlyDataContextLength::actual: usize
+pub phantom_quic_btls::CryptoError::InvalidEarlyDataContextLength::maximum: usize
+pub phantom_quic_btls::CryptoError::InvalidEarlyDataContextLength::minimum: usize
 pub phantom_quic_btls::CryptoError::InvalidHkdfContextLength
 pub phantom_quic_btls::CryptoError::InvalidHkdfContextLength::actual: usize
 pub phantom_quic_btls::CryptoError::InvalidHkdfContextLength::maximum: usize
@@ -124,6 +128,7 @@ impl phantom_quic_btls::QuicTlsProfileError
 pub const fn phantom_quic_btls::QuicTlsProfileError::field(&self) -> &'static str
 pub const fn phantom_quic_btls::QuicTlsProfileError::kind(&self) -> phantom_quic_btls::QuicTlsProfileErrorKind
 impl core::error::Error for phantom_quic_btls::QuicTlsProfileError
+pub fn phantom_quic_btls::QuicTlsProfileError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for phantom_quic_btls::QuicTlsProfileError
 pub fn phantom_quic_btls::QuicTlsProfileError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_quic_btls::QuicTransportProfileError

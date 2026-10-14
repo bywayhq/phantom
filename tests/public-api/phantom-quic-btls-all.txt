@@ -9,6 +9,10 @@ pub phantom_quic_btls::CryptoError::InsufficientOutputCapacity::required: usize
 pub phantom_quic_btls::CryptoError::InvalidConnectionIdLength
 pub phantom_quic_btls::CryptoError::InvalidConnectionIdLength::actual: usize
 pub phantom_quic_btls::CryptoError::InvalidConnectionIdLength::maximum: usize
+pub phantom_quic_btls::CryptoError::InvalidEarlyDataContextLength
+pub phantom_quic_btls::CryptoError::InvalidEarlyDataContextLength::actual: usize
+pub phantom_quic_btls::CryptoError::InvalidEarlyDataContextLength::maximum: usize
+pub phantom_quic_btls::CryptoError::InvalidEarlyDataContextLength::minimum: usize
 pub phantom_quic_btls::CryptoError::InvalidHkdfContextLength
 pub phantom_quic_btls::CryptoError::InvalidHkdfContextLength::actual: usize
 pub phantom_quic_btls::CryptoError::InvalidHkdfContextLength::maximum: usize
@@ -118,6 +122,7 @@ impl phantom_quic_btls::QuicClientConfig
 pub fn phantom_quic_btls::QuicClientConfig::configure_client(&self, &mut quinn_proto::config::ClientConfig, &str)
 pub fn phantom_quic_btls::QuicClientConfig::configure_path(&self, &mut quinn_proto::config::transport::TransportConfig, core::net::ip_addr::IpAddr) -> core::result::Result<(), phantom_quic_btls::QuicTransportProfileError>
 pub fn phantom_quic_btls::QuicClientConfig::configure_transport(&self, &mut quinn_proto::config::EndpointConfig, &mut quinn_proto::config::transport::TransportConfig) -> core::result::Result<(), phantom_quic_btls::QuicTransportProfileError>
+pub fn phantom_quic_btls::QuicClientConfig::danger_disable_server_authentication(self) -> Self
 pub fn phantom_quic_btls::QuicClientConfig::enable_session_resumption(&mut btls::ssl::SslContextBuilder) -> core::result::Result<(), phantom_quic_btls::QuicTlsProfileError>
 pub fn phantom_quic_btls::QuicClientConfig::has_ticket_for(&self, &str) -> bool
 pub const fn phantom_quic_btls::QuicClientConfig::new(btls::ssl::SslContext) -> Self
@@ -143,6 +148,7 @@ pub fn phantom_quic_btls::QuicClientConfig::start_session(alloc::sync::Arc<Self>
 pub struct phantom_quic_btls::QuicServerConfig
 impl phantom_quic_btls::QuicServerConfig
 pub const fn phantom_quic_btls::QuicServerConfig::new(btls::ssl::SslContext) -> Self
+pub fn phantom_quic_btls::QuicServerConfig::with_early_data(self, &[u8]) -> core::result::Result<Self, phantom_quic_btls::CryptoError>
 impl core::fmt::Debug for phantom_quic_btls::QuicServerConfig
 pub fn phantom_quic_btls::QuicServerConfig::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl quinn_proto::crypto::ServerConfig for phantom_quic_btls::QuicServerConfig
@@ -154,6 +160,7 @@ impl phantom_quic_btls::QuicTlsProfileError
 pub const fn phantom_quic_btls::QuicTlsProfileError::field(&self) -> &'static str
 pub const fn phantom_quic_btls::QuicTlsProfileError::kind(&self) -> phantom_quic_btls::QuicTlsProfileErrorKind
 impl core::error::Error for phantom_quic_btls::QuicTlsProfileError
+pub fn phantom_quic_btls::QuicTlsProfileError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Display for phantom_quic_btls::QuicTlsProfileError
 pub fn phantom_quic_btls::QuicTlsProfileError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_quic_btls::QuicTransportProfileError
@@ -166,6 +173,7 @@ pub fn phantom_quic_btls::QuicTransportProfileError::fmt(&self, &mut core::fmt::
 pub struct phantom_quic_btls::ServerHandshakeData
 impl phantom_quic_btls::ServerHandshakeData
 pub fn phantom_quic_btls::ServerHandshakeData::client_hello(&self) -> &[u8]
+pub const fn phantom_quic_btls::ServerHandshakeData::early_data_accepted(&self) -> core::option::Option<bool>
 pub const fn phantom_quic_btls::ServerHandshakeData::ech_accepted(&self) -> bool
 pub fn phantom_quic_btls::ServerHandshakeData::protocol(&self) -> &[u8]
 pub fn phantom_quic_btls::ServerHandshakeData::server_name(&self) -> core::option::Option<&str>

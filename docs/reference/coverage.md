@@ -560,10 +560,11 @@ Supported lifecycle:
   bounded duplex DATA stream with FIN, a stream-scoped `H3_REQUEST_CANCELLED`
   reset with datagram abort, and a readable rejection body.
 
-Planned:
-
-- Encrypted Client Hello on an Alt-Svc alternative at another host
-  ([roadmap](../roadmap.md#discovery-dns-and-ech)).
+- Opt-in HTTPS lookup for a learned direct alternative
+  (`AltSvcHttpsPolicy::Destination`). A compatible record supplies ECH while
+  the origin keeps its TLS name and HTTP authority. Proxy routes and pinned
+  alternatives retain their existing behavior. See
+  [Look up a learned alternative](../guides/http3-discovery.md#look-up-a-learned-alternative).
 
 Not supported:
 
