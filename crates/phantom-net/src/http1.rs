@@ -22,6 +22,7 @@ use crate::request::{AbsoluteForm, OriginForm, RequestHeader};
 use crate::request::{RequestBody, RequestBodyMetadata};
 pub use body::Http1Body;
 pub use connection::Http1Connection;
+pub use proxy_opening::Http1ProxyOpening;
 pub use upgrade::{Http1Upgrade, Http1UpgradeOutcome};
 pub use upgrade_opening::Http1UpgradeOpening;
 
@@ -628,6 +629,7 @@ mod body;
 mod connection;
 mod driver;
 mod limits;
+mod proxy_opening;
 mod request;
 mod response_head;
 mod tls;

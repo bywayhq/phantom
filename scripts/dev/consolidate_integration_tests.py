@@ -124,6 +124,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "digest_proxy",
                 "environment",
                 "forward_proxy",
+                "http_connect_retention",
                 "negotiated_proxy",
                 "proxy",
                 "proxy_credential_cache",

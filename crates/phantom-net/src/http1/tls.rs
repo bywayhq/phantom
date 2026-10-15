@@ -13,7 +13,9 @@ use tracing::{Instrument, Span, debug, debug_span, field};
 
 use super::{
     Http1Body, Http1Connection, Http1Error, Http1UpgradeOpening, Http1UpgradeOutcome,
-    OperationOutcome, PreparedGet, PreparedRequest, RequestHeader, connection::early_data_error,
+    OperationOutcome, PreparedGet, PreparedRequest, RequestHeader,
+    connection::early_data_error,
+    proxy_opening::{Http1ProxyOpening, ProxyBinding},
     send_prepared_upgrade,
 };
 use crate::{
@@ -23,8 +25,8 @@ use crate::{
     host_resolver::HostResolver,
     proxy::ProxyCredentialCache,
     route::{
-        DirectTlsSetup, Http1Route, Http1Target, OriginRoute, ProxyTransport, Socks5Target,
-        TcpRoute,
+        DirectTlsSetup, Http1Route, Http1Target, HttpConnectRoute, OriginRoute, ProxyTransport,
+        Socks5Target, TcpRoute,
     },
     tcp::{SlowerAttempt, SlowerConnection, SlowerKeepalive, TcpKeepaliveSource},
     tls::{ClientCertificate, ServerAuthentication, TlsConnector, TlsStream, trace_alpn},
@@ -71,6 +73,103 @@ pub struct Http1TlsConnector {
 }
 
 impl Http1TlsConnector {
+    /// Opens a plaintext proxy TCP socket without sending CONNECT or origin TLS.
+    ///
+    /// Retain the returned slower opening before finishing the primary. Both
+    /// use this connector's origin TLS context and immutable route binding.
+    ///
+    /// # Errors
+    ///
+    /// Rejects another proxy transport or invalid CONNECT fields before I/O,
+    /// and returns TCP connection errors through the HTTP proxy error category.
+    pub async fn open_http_connect_retaining(
+        &self,
+        route: HttpConnectRoute<'_>,
+        origin_server_name: &str,
+        family: &crate::tcp::AddressFamilyMemory,
+    ) -> Result<
+        (
+            Http1ProxyOpening,
+            Option<SlowerConnection<Http1ProxyOpening>>,
+        ),
+        Http1TlsError,
+    > {
+        let binding = ProxyBinding::new(route, origin_server_name)?;
+        let slower_binding = ProxyBinding::new(route, origin_server_name)?;
+        let ProxyTransport::Tcp(endpoint) = route.proxy else {
+            return Err(invalid_route("retained CONNECT requires a plaintext proxy"));
+        };
+        let (stream, slower) =
+            connect_tcp_keeping_slower(endpoint.host, endpoint.port, self.dialer(), Some(family))
+                .await
+                .map_err(|error| {
+                    Http1TlsError::Proxy(match error {
+                        DirectConnectError::RuntimeUnavailable => {
+                            crate::proxy::HttpConnectError::RuntimeUnavailable
+                        }
+                        DirectConnectError::Connect(error) => {
+                            crate::proxy::HttpConnectError::Connect(error)
+                        }
+                    })
+                })?;
+        let slower = slower.map(|attempt| self.slower_proxy_opening(attempt, slower_binding));
+        Ok((
+            Http1ProxyOpening::new(stream, self.clone(), binding),
+            slower,
+        ))
+    }
+
+    fn slower_proxy_opening(
+        &self,
+        attempt: SlowerAttempt,
+        binding: ProxyBinding,
+    ) -> SlowerConnection<Http1ProxyOpening> {
+        let connector = self.clone();
+        SlowerConnection::new(attempt.progress(), async move {
+            let stream = attempt
+                .connect()
+                .await
+                .ok()?
+                .into_stream(SlowerKeepalive::OnFirstRequest);
+            Some(Http1ProxyOpening::new(stream, connector, binding))
+        })
+    }
+
+    pub(super) async fn finish_http_connect(
+        &self,
+        stream: crate::tcp::ProfileTcpStream,
+        route: HttpConnectRoute<'_>,
+        server_name: &str,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        let span = connection_span(&Http1Route::Origin(OriginRoute::Tls {
+            tcp: TcpRoute::HttpConnect(route),
+            server_name,
+            setup: DirectTlsSetup::Default,
+        }));
+        self.trace_connect(
+            span,
+            pin!(async {
+                let ProxyTransport::Tcp(endpoint) = route.proxy else {
+                    return Err(invalid_route("retained CONNECT requires a plaintext proxy"));
+                };
+                let tunnel = crate::proxy::connect_http_tunnel_from_stream(
+                    stream,
+                    self.dialer(),
+                    self.proxy_credentials.as_ref(),
+                    endpoint.host,
+                    endpoint.port,
+                    route.authority,
+                    route.headers,
+                    route.credentials,
+                )
+                .await?;
+                let stream = self.tls.connect(server_name, tunnel).await?;
+                connect_over_tls(stream).await
+            }),
+        )
+        .await
+    }
+
     /// Builds a connector from validated TLS settings and bundled public roots.
     ///
     /// # Errors

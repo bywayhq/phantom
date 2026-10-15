@@ -222,6 +222,12 @@ Direct H2 WebSocket openings share these rules. Their dedicated winner is
 not an ordinary pool slot. An accepted stream or rejected body keeps its
 family owner; a redundant backup closes without CONNECT or other requests.
 
+An exact HTTP/1 HTTPS request through a plaintext CONNECT proxy retains
+only the slower TCP opening. Its first claimant sends CONNECT and starts
+origin TLS. Cancellation after claim closes the socket. Returning an
+unpolled claim preserves the spare's original idle age. A spare remains
+bound to its proxy endpoint, origin authority, credentials and TLS context.
+
 ### RTT-based racing
 
 `AltSvcRace::with_rtt_delay` opts into client-local connection timing.

@@ -1984,8 +1984,12 @@ Differences from the browsers:
   Dedicated winners stay outside ordinary pool slots. Accepted streams and
   rejected bodies retain their owner. A backup sends no CONNECT and closes
   while the winner remains usable, or serves later ordinary requests after
-  it retires. Connections to a proxy still close the slower attempt and
-  neither use nor learn the family; Firefox keeps both on every entry.
+  it retires. Exact HTTP/1 HTTPS requests through a plaintext CONNECT proxy
+  also retain the slower TCP opening and learn the proxy's address family.
+  That spare sends no CONNECT or origin TLS until claimed. Its claimant
+  supplies the current ordered CONNECT fields and performs authentication.
+  Other proxy paths still close the slower attempt and neither use nor
+  learn the family; Firefox keeps both on every entry.
 - The slower attempt reaches the pool, and becomes claimable, once the
   first connection's handshake has finished. Firefox lets a request claim
   it as soon as the first connection takes its request.

@@ -21,7 +21,7 @@ use phantom_net::route::{
 use phantom_net::tcp::{AddressFamilyMemory, SlowerConnection, SlowerProgress};
 use phantom_net::{
     http1::{
-        Http1Body, Http1Connection, Http1TlsConnector, Http1TlsError,
+        Http1Body, Http1Connection, Http1ProxyOpening, Http1TlsConnector, Http1TlsError,
         validate_forward_request_body_source_with_trailers,
         validate_request_body_source_with_trailers,
     },
@@ -750,13 +750,18 @@ impl PoolEntry {
                 Checkout::Spare(claim) => {
                     // A slower attempt that fails drops the claim, and the
                     // request chooses again.
-                    if let Some(lease) = claim.wait().await {
+                    if let Some(delivery) = claim.wait_delivery().await {
+                        let lease = self.finish_spare(delivery, endpoint, route).await?;
                         debug!(
                             outcome = "claimed",
                             "HTTP/1 slower backup connection acquired"
                         );
                         return Ok(lease);
                     }
+                }
+                Checkout::Proxy(claim) => {
+                    // A claimed proxy still needs CONNECT and origin TLS setup.
+                    return super::box_send(self.finish_proxy_claim(claim, endpoint, route)).await;
                 }
                 Checkout::Reserved(reservation) => break reservation,
             }
@@ -772,6 +777,60 @@ impl PoolEntry {
             self.connections.adopt(slower);
         }
         Ok(reservation.into_lease(connection))
+    }
+
+    async fn finish_proxy_opening(
+        &self,
+        opening: Http1ProxyOpening,
+        slower: Option<SlowerConnection<Http1ProxyOpening>>,
+        route: HttpConnectRoute<'_>,
+    ) -> Result<Http1Connection, RequestError> {
+        // Adoption precedes the primary's first CONNECT/authentication/TLS byte.
+        if let Some(slower) = slower {
+            self.connections.adopt_proxy(slower);
+        }
+        opening
+            .finish(route)
+            .await
+            .map_err(RequestError::http1_connection_setup)
+    }
+
+    async fn finish_spare(
+        &self,
+        delivery: SpareDelivery,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Result<ConnectionLease, RequestError> {
+        match delivery {
+            SpareDelivery::Ready(lease) => Ok(lease),
+            SpareDelivery::Proxy(claim) => {
+                super::box_send(self.finish_proxy_claim(claim, endpoint, route)).await
+            }
+        }
+    }
+
+    async fn finish_proxy_claim(
+        &self,
+        claim: ProxyClaim,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Result<ConnectionLease, RequestError> {
+        let Some(proxy) = route.as_http_proxy().filter(|proxy| !proxy.uses_tls()) else {
+            return Err(RequestError::unsupported_route(HttpProtocol::Http1));
+        };
+        let authority = endpoint.tunnel_authority();
+        claim
+            .finish(HttpConnectRoute {
+                proxy: ProxyTransport::Tcp(phantom_net::route::Endpoint {
+                    host: proxy.host(),
+                    port: proxy.port(),
+                }),
+                authority: &authority,
+                headers: proxy.ordered_connect_headers(),
+                credentials: proxy.authentication(),
+            })
+            .await
+            .map_err(RequestError::http1_connection_setup)
     }
 
     /// Opens a connection for [`Self::acquire`] in `mode` over `route`, with
@@ -872,6 +931,25 @@ impl PoolEntry {
                     return super::box_send(connector.connect(Http1Route::Forward(transport)))
                         .await
                         .map_err(RequestError::http1_connection_setup);
+                }
+                if mode == Http1ConnectionMode::TlsOrigin && !proxy.uses_tls() {
+                    let connect_route = HttpConnectRoute {
+                        proxy: transport,
+                        authority: &authority,
+                        headers: proxy.ordered_connect_headers(),
+                        credentials: proxy.authentication(),
+                    };
+                    let (opening, slower) = super::box_send(connector.open_http_connect_retaining(
+                        connect_route,
+                        origin_endpoint.host(),
+                        &self.connections.family,
+                    ))
+                    .await
+                    .map_err(RequestError::http1_connection_setup)?;
+                    let connection =
+                        super::box_send(self.finish_proxy_opening(opening, slower, connect_route))
+                            .await?;
+                    return Ok((connection, None));
                 }
                 TcpRoute::HttpConnect(HttpConnectRoute {
                     proxy: transport,
@@ -986,7 +1064,9 @@ impl ConnectionSet {
 struct Spare {
     id: u64,
     progress: SlowerProgress,
-    claim: Option<oneshot::Sender<ConnectionLease>>,
+    claim: Option<oneshot::Sender<SpareDelivery>>,
+    ready: Option<Http1ProxyOpening>,
+    idle_since: Option<Instant>,
     /// The task finishing the attempt, once it is spawned.
     task: Option<AbortHandle>,
 }
@@ -1008,7 +1088,7 @@ struct SpareReport {
 }
 
 impl SpareReport {
-    fn finished(mut self, connection: Option<Http1Connection>) {
+    fn finished(mut self, connection: Option<SpareConnection>) {
         if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
             entry.spare_finished(self.id, connection);
         }
@@ -1060,20 +1140,82 @@ enum Checkout {
     Idle(ConnectionLease),
     /// The slower connection of a backup connection, once it is ready.
     Spare(SpareClaim),
+    /// A connected quiet proxy socket whose claimant must establish its tunnel.
+    Proxy(ProxyClaim),
     /// A slot for a connection the caller opens.
     Reserved(Reservation),
 }
 
 /// A request's claim on a slower connection still in its setup.
 struct SpareClaim {
-    receiver: oneshot::Receiver<ConnectionLease>,
+    receiver: oneshot::Receiver<SpareDelivery>,
 }
 
 impl SpareClaim {
     /// The connection, leased to the request, or `None` when its setup
     /// failed.
+    #[cfg(test)]
     async fn wait(self) -> Option<ConnectionLease> {
+        match self.wait_delivery().await? {
+            SpareDelivery::Ready(lease) => Some(lease),
+            SpareDelivery::Proxy(_) => None,
+        }
+    }
+
+    async fn wait_delivery(self) -> Option<SpareDelivery> {
         self.receiver.await.ok()
+    }
+}
+
+enum SpareConnection {
+    Ready(Http1Connection),
+    Proxy(Http1ProxyOpening),
+}
+
+enum SpareDelivery {
+    Ready(ConnectionLease),
+    Proxy(ProxyClaim),
+}
+
+/// A claim can return a still-quiet socket until its finish future is polled.
+struct ProxyClaim {
+    reservation: Reservation,
+    opening: Option<Http1ProxyOpening>,
+    progress: SlowerProgress,
+    since: Instant,
+}
+
+impl ProxyClaim {
+    async fn finish(
+        mut self,
+        route: HttpConnectRoute<'_>,
+    ) -> Result<ConnectionLease, Http1TlsError> {
+        let Some(opening) = self.opening.take() else {
+            return Err(Http1TlsError::Connect(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "proxy opening was already consumed",
+            )));
+        };
+        // Taking the opening commits this claim: cancellation closes the socket.
+        let connection = opening.finish(route).await?;
+        self.reservation.released = true;
+        Ok(Reservation {
+            connections: Arc::clone(&self.reservation.connections),
+            released: false,
+        }
+        .into_lease(connection))
+    }
+}
+
+impl Drop for ProxyClaim {
+    fn drop(&mut self) {
+        if let Some(opening) = self.opening.take() {
+            self.reservation.connections.keep_proxy_ready(
+                opening,
+                self.progress.clone(),
+                self.since,
+            );
+        }
     }
 }
 
@@ -1127,6 +1269,18 @@ impl EntryConnections {
     ///
     /// Outside a Tokio runtime the attempt is closed instead.
     fn adopt(self: &Arc<Self>, slower: SlowerConnection<Http1Connection>) {
+        self.adopt_spare(SlowerConnection::new(slower.progress(), async move {
+            slower.finish().await.map(SpareConnection::Ready)
+        }));
+    }
+
+    fn adopt_proxy(self: &Arc<Self>, slower: SlowerConnection<Http1ProxyOpening>) {
+        self.adopt_spare(SlowerConnection::new(slower.progress(), async move {
+            slower.finish().await.map(SpareConnection::Proxy)
+        }));
+    }
+
+    fn adopt_spare(self: &Arc<Self>, slower: SlowerConnection<SpareConnection>) {
         let Ok(runtime) = tokio::runtime::Handle::try_current() else {
             return;
         };
@@ -1141,6 +1295,8 @@ impl EntryConnections {
                 id,
                 progress,
                 claim: None,
+                ready: None,
+                idle_since: None,
                 task: None,
             });
             id
@@ -1162,36 +1318,87 @@ impl EntryConnections {
 
     /// Gives a finished slower connection to the request that claimed it,
     /// or to the idle list.
-    fn spare_finished(self: &Arc<Self>, id: u64, connection: Option<Http1Connection>) {
+    fn spare_finished(self: &Arc<Self>, id: u64, connection: Option<SpareConnection>) {
         let mut set = self.lock();
-        let claim = set.take_spare(id).and_then(|spare| spare.claim);
-        let Some(connection) = connection.filter(Http1Connection::is_reusable) else {
+        let spare = set.take_spare(id);
+        let Some(mut spare) = spare else {
             drop(set);
-            debug!(outcome = "failed", "HTTP/1 slower backup connection failed");
-            self.prune_empty_family();
-            // A claimant finds its claim dropped and chooses again.
+            drop(connection);
             return;
         };
-        match claim.filter(|claim| !claim.is_closed()) {
-            Some(claim) => {
-                set.leased += 1;
-                drop(set);
-                let lease = Reservation {
-                    connections: Arc::clone(self),
-                    released: false,
+        let claim = spare.claim.take().filter(|claim| !claim.is_closed());
+        match connection {
+            Some(SpareConnection::Proxy(opening)) => {
+                let since = Instant::now();
+                if let Some(claim) = claim {
+                    set.leased += 1;
+                    drop(set);
+                    let delivery = SpareDelivery::Proxy(ProxyClaim {
+                        reservation: Reservation {
+                            connections: Arc::clone(self),
+                            released: false,
+                        },
+                        opening: Some(opening),
+                        progress: spare.progress,
+                        since,
+                    });
+                    // A lost receiver returns the untouched opening outside the lock.
+                    drop(claim.send(delivery));
+                } else {
+                    spare.ready = Some(opening);
+                    spare.idle_since = Some(since);
+                    spare.task = None;
+                    set.spares.push(spare);
+                    drop(set);
+                    self.idle_added();
                 }
-                .into_lease(connection);
-                // A claimant that just left drops the lease, which returns
-                // the connection to the idle list.
-                drop(claim.send(lease));
             }
-            None => {
-                set.idle.push(IdleConnection::new(connection));
+            Some(SpareConnection::Ready(connection)) if connection.is_reusable() => match claim {
+                Some(claim) => {
+                    set.leased += 1;
+                    drop(set);
+                    let lease = Reservation {
+                        connections: Arc::clone(self),
+                        released: false,
+                    }
+                    .into_lease(connection);
+                    drop(claim.send(SpareDelivery::Ready(lease)));
+                }
+                None => {
+                    set.idle.push(IdleConnection::new(connection));
+                    drop(set);
+                    debug!(outcome = "kept", "HTTP/1 slower backup connection idle");
+                    self.idle_added();
+                }
+            },
+            connection => {
                 drop(set);
-                debug!(outcome = "kept", "HTTP/1 slower backup connection idle");
-                self.idle_added();
+                drop(connection);
+                debug!(outcome = "failed", "HTTP/1 slower backup connection failed");
+                self.prune_empty_family();
             }
         }
+    }
+
+    fn keep_proxy_ready(
+        &self,
+        opening: Http1ProxyOpening,
+        progress: SlowerProgress,
+        since: Instant,
+    ) {
+        let mut set = self.lock();
+        let id = set.next_spare;
+        set.next_spare = set.next_spare.wrapping_add(1);
+        set.spares.push(Spare {
+            id,
+            progress,
+            ready: Some(opening),
+            idle_since: Some(since),
+            claim: None,
+            task: None,
+        });
+        drop(set);
+        self.idle_added();
     }
 
     /// Leases the most recently used idle connection, or reserves a slot for a
@@ -1200,13 +1407,38 @@ impl EntryConnections {
         let mut set = self.lock();
         let timeout = self.used_idle_timeout;
         set.idle.retain(|idle| idle.is_reusable(timeout));
+        // Move expired raw sockets out before dropping them: stream/TLS owner
+        // destruction must not run while the pool lock is held.
+        let expired = take_expired_proxy_openings(&mut set, Instant::now(), timeout);
         if !force_new_connection
             && set.idle.is_empty()
             && let Some(spare) = set.spares.iter_mut().find(|spare| !spare.is_claimed())
         {
-            let (sender, receiver) = oneshot::channel();
-            spare.claim = Some(sender);
-            return Checkout::Spare(SpareClaim { receiver });
+            if spare.ready.is_some() {
+                let id = spare.id;
+                if let Some(mut spare) = set.take_spare(id)
+                    && let Some(opening) = spare.ready.take()
+                {
+                    set.leased += 1;
+                    drop(set);
+                    drop(expired);
+                    return Checkout::Proxy(ProxyClaim {
+                        reservation: Reservation {
+                            connections: Arc::clone(self),
+                            released: false,
+                        },
+                        opening: Some(opening),
+                        progress: spare.progress,
+                        since: spare.idle_since.unwrap_or_else(Instant::now),
+                    });
+                }
+            } else {
+                let (sender, receiver) = oneshot::channel();
+                spare.claim = Some(sender);
+                drop(set);
+                drop(expired);
+                return Checkout::Spare(SpareClaim { receiver });
+            }
         }
         let idle = if force_new_connection {
             if set.open() >= self.max.get() && !set.idle.is_empty() {
@@ -1233,6 +1465,8 @@ impl EntryConnections {
             connections: Arc::clone(self),
             released: false,
         };
+        drop(set);
+        drop(expired);
         match idle {
             Some(connection) => Checkout::Idle(reservation.into_lease(connection)),
             None => Checkout::Reserved(reservation),
@@ -1266,6 +1500,29 @@ impl EntryConnections {
     }
 }
 
+/// Returns retired raw sockets to the caller, which drops them after unlocking.
+fn take_expired_proxy_openings(
+    set: &mut ConnectionSet,
+    now: Instant,
+    limit: Option<Duration>,
+) -> Vec<Spare> {
+    let mut expired = Vec::new();
+    if let Some(limit) = limit {
+        let mut index = 0;
+        while index < set.spares.len() {
+            if set.spares[index]
+                .idle_since
+                .is_some_and(|since| now.saturating_duration_since(since) >= limit)
+            {
+                expired.push(set.spares.swap_remove(index));
+            } else {
+                index += 1;
+            }
+        }
+    }
+    expired
+}
+
 impl PrunedEntry for EntryConnections {
     fn prune(&self, now: Instant, http1_limit: Option<Duration>) -> Pruned {
         let mut set = self.lock();
@@ -1273,16 +1530,23 @@ impl PrunedEntry for EntryConnections {
             idle.connection.is_reusable()
                 && http1_limit.is_none_or(|limit| idle.idle_for(now) < limit)
         });
+        let expired = take_expired_proxy_openings(&mut set, now, http1_limit);
         let next = http1_limit.and_then(|limit| {
             set.idle
                 .iter()
                 .map(|idle| limit.saturating_sub(idle.idle_for(now)))
+                .chain(
+                    set.spares
+                        .iter()
+                        .filter_map(|spare| spare.idle_since)
+                        .map(|since| limit.saturating_sub(now.saturating_duration_since(since))),
+                )
                 .min()
         });
-        Pruned {
-            next,
-            empty: set.is_empty(),
-        }
+        let empty = set.is_empty();
+        drop(set);
+        drop(expired);
+        Pruned { next, empty }
     }
 
     fn address_family(&self) -> Option<&Arc<AddressFamilyMemory>> {

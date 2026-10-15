@@ -1152,3 +1152,5 @@ async fn dropping_route_connect_closes_stream_and_records_cancelled_once() -> Te
 }
 
 mod upgrade_opening;
+
+mod proxy_retention;

@@ -24,6 +24,7 @@ use super::{
 use crate::{
     direct::{Dialer, DirectConnectError, connect_tcp},
     request::RequestHeader,
+    tcp::TcpKeepaliveSource,
 };
 
 pub(super) const MAX_CONNECT_HEADERS: usize = 100;
@@ -228,6 +229,112 @@ pub(crate) async fn http_connect_tunnel_with_digest_auth(
         .await
     });
     exchange.await
+}
+
+/// Checks a later claimed tunnel without reserving a Digest nonce or using I/O.
+pub(crate) fn validate_http_tunnel(
+    authority: &str,
+    headers: &[HttpConnectHeader],
+    credentials: Option<super::HttpProxyAuthentication<'_>>,
+) -> Result<(), HttpConnectError> {
+    match credentials {
+        None => PreparedConnect::new(authority, headers).map(drop),
+        Some(super::HttpProxyAuthentication::Basic(credentials)) => {
+            PreparedBasicConnect::new(authority, headers, credentials).map(drop)
+        }
+        Some(super::HttpProxyAuthentication::Digest(_)) => {
+            super::digest::http1::validate_slot(headers)?;
+            PreparedConnect::prepare(authority, headers, Authorization::Omit).map(drop)
+        }
+    }
+}
+
+/// Uses the supplied quiet socket first; only existing authentication policy
+/// can open another socket. Preparing a retained socket never calls this.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn connect_http_tunnel_from_stream(
+    stream: crate::tcp::ProfileTcpStream,
+    dialer: Dialer<'_>,
+    cache: Option<&ProxyCredentialCache>,
+    proxy_host: &str,
+    proxy_port: u16,
+    authority: &str,
+    headers: &[HttpConnectHeader],
+    credentials: Option<super::HttpProxyAuthentication<'_>>,
+) -> Result<TunnelStream<crate::tcp::ProfileTcpStream>, HttpConnectError> {
+    trace_connect(
+        "http",
+        pin!(async {
+            validate_http_tunnel(authority, headers, credentials)?;
+            // Activate starts short-lived keepalive before its first CONNECT write
+            // (Firefox 157 nsHttpConnection.cpp:666-698). An idle spare has no dispatch.
+            if let Some(keepalive) = stream.tcp_keepalive() {
+                keepalive.request_dispatched();
+            }
+            let first = Mutex::new(Some(stream));
+            let open = || async {
+                let stream = first.lock().unwrap_or_else(PoisonError::into_inner).take();
+                match stream {
+                    Some(stream) => Ok(stream),
+                    None => connect_proxy_tcp(dialer, proxy_host, proxy_port).await,
+                }
+            };
+            match credentials {
+                None => establish(open().await?, PreparedConnect::new(authority, headers)?).await,
+                Some(super::HttpProxyAuthentication::Basic(credentials)) => {
+                    let requests = PreparedBasicConnect::new(authority, headers, credentials)?;
+                    let plan = BasicAuthPlan::new(
+                        cache,
+                        ProxyScheme::Http,
+                        proxy_host,
+                        proxy_port,
+                        credentials,
+                    );
+                    let exchange: Pin<
+                        Box<
+                            dyn Future<
+                                    Output = Result<
+                                        TunnelStream<crate::tcp::ProfileTcpStream>,
+                                        HttpConnectError,
+                                    >,
+                                > + Send
+                                + '_,
+                        >,
+                    > = Box::pin(basic_auth_exchange(&plan, &requests, open));
+                    exchange.await
+                }
+                Some(super::HttpProxyAuthentication::Digest(credentials)) => {
+                    let scope = super::digest::cache::DigestCacheKey::new(
+                        ProxyScheme::Http,
+                        proxy_host,
+                        proxy_port,
+                        None,
+                        credentials.policy(),
+                    );
+                    let exchange: Pin<
+                        Box<
+                            dyn Future<
+                                    Output = Result<
+                                        TunnelStream<crate::tcp::ProfileTcpStream>,
+                                        HttpConnectError,
+                                    >,
+                                > + Send
+                                + '_,
+                        >,
+                    > = Box::pin(super::digest::http1::connect(
+                        &scope,
+                        credentials,
+                        cache.is_some(),
+                        authority,
+                        headers,
+                        open,
+                    ));
+                    exchange.await
+                }
+            }
+        }),
+    )
+    .await
 }
 
 /// Runs one challenge-driven CONNECT exchange on connections from `connect`.

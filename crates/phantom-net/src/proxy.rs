@@ -39,7 +39,8 @@ pub use digest::{
 pub use error::{HttpConnectError, HttpConnectErrorKind};
 pub use http_connect::{HttpConnectHeader, connect_http_tunnel};
 pub(crate) use http_connect::{
-    http_connect_tunnel, http_connect_tunnel_with_basic_auth, http_connect_tunnel_with_digest_auth,
+    connect_http_tunnel_from_stream, http_connect_tunnel, http_connect_tunnel_with_basic_auth,
+    http_connect_tunnel_with_digest_auth, validate_http_tunnel,
 };
 pub use http2_pool::{
     HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING, Http2ProxyPool, MAX_HTTP2_PROXY_POOL_ROUTES,

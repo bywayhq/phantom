@@ -106,7 +106,7 @@ combinations and limits listed here.
 
 | Layer | Summary | Main gaps |
 | --- | --- | --- |
-| TCP | Profile `TCP_NODELAY`, send buffer, fixed or scheduled keepalive, Windows port randomization, Chromium Happy Eyeballs, and Firefox's backup connection, on every TCP path | Firefox's kept slower connection and remembered address family on proxy routes; failed-address suppression |
+| TCP | Profile `TCP_NODELAY`, send buffer, fixed or scheduled keepalive, Windows port randomization, Chromium Happy Eyeballs, and Firefox's backup connection, on every TCP path | Firefox's retained backups on remaining proxy routes; failed-address suppression |
 | TLS over TCP | Typed ordered ClientHellos from retained captures | More versions and platforms |
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse, browser per-host connection bounds | Broader retry classes |
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity and stream numbering | Firefox stream `WINDOW_UPDATE` |
@@ -172,11 +172,17 @@ Supported:
   Firefox Windows, macOS, Linux and Android. The Android Chrome and Firefox
   profiles include their respective TCP policies. macOS/Linux TCP factories
   are standalone components, not complete platform profiles.
+- Exact HTTP/1 HTTPS requests through plaintext CONNECT proxies retain a
+  quiet slower TCP connection and remember the proxy's address family.
+  A later request claims the socket before sending its current CONNECT
+  fields, authenticating to the proxy, and verifying origin TLS. Unused
+  spares expire with the request pool's idle timer.
 
 Not modeled:
 
 - Parts of Firefox's address selection: keeping the slower connection, and
-  remembering the address family, on proxy routes; skipping an address that
+  remembering the address family, on forwarded, TLS-proxy, SOCKS, negotiated
+  and HTTP/2 proxy requests, and proxy WebSockets; skipping an address that
   failed before on the same cached DNS
   record; and
   noticing at once that a server closed an idle connection, which can make

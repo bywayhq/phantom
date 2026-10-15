@@ -1157,6 +1157,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Keep Firefox's slower proxy connection for exact HTTP/1 HTTPS requests
+  through a plaintext CONNECT proxy. The spare stays quiet until a request
+  claims it, then sends that request's ordered CONNECT fields and performs
+  proxy authentication and origin TLS. The pool remembers the proxy address
+  family and closes unused spares on its idle timer.
+
 - Retain direct HTTP/2 WebSocket backup connections for exact and profile-policy
   openings. The dedicated connection keeps its address-family ownership through
   an accepted stream or rejected response body. A connected backup finishes

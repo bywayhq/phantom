@@ -22,3 +22,5 @@ mod session_ticket_proxy_transfer;
 mod socks4;
 mod socks5;
 mod socks5_local;
+
+mod http_connect_retention;

@@ -351,15 +351,17 @@ completed phase scope.
   `chrome_android::v154_*`, and Play served that build to the emulator; no
   record compares it with the stable version Google lists. Blocker: a
   physical device, to check the emulator's CPU and network against a phone.
-- Firefox's address selection on proxies, plus
+- Firefox's address selection on the remaining proxy paths, plus
   failed-address suppression. Evidence: Firefox keeps the slower backup
   connection and address family on every connection entry, proxies,
   WebSocket, and HTTP/2 included, and skips an address that failed to
   connect on the same cached
   DNS record (`netwerk/protocol/http/DnsAndConnectSocket.cpp:671-745`,
   `netwerk/base/nsSocketTransport2.cpp:1742-1745`); no hook log covers
-  these routes, and Phantom closes the slower attempt there, learns no
-  family, and tries a failed address again
+  these routes. Exact HTTP/1 HTTPS requests through a plaintext CONNECT proxy
+  now retain a quiet TCP spare and remember the proxy address family.
+  Other proxy paths close the slower attempt and learn no family.
+  Phantom still tries a failed address again
   ([TCP socket option evidence](explanation/validation.md#tcp-socket-option-evidence)).
   Blocker: none recorded; the work is to give proxy connections a family
   and a second connection, and to record
