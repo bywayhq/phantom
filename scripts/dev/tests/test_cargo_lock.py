@@ -5,6 +5,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 REPO = Path(__file__).resolve().parents[3]
 BASH = shutil.which("bash")
@@ -63,6 +64,7 @@ class CargoLockTests(unittest.TestCase):
         self.git("config", "core.autocrlf", "false")
         self.lock = self.root / ".git/phantom-cargo-lock"
         self.environment = {**os.environ, "PHANTOM_CARGO_SLOTS": "1"}
+        self.marker_processes = {}
 
     def git(self, *arguments: str) -> None:
         subprocess.run(["git", "-C", str(self.root), *arguments], check=True)
@@ -89,13 +91,37 @@ class CargoLockTests(unittest.TestCase):
             process.communicate(timeout=15)
 
         self.addCleanup(stop)
+        for marker in ("STARTED", "FINISHED", "WAITING"):
+            self.marker_processes[paths[marker]] = (process, paths["WRAPPER_PID"])
         return process, paths
 
     def wait_for(self, path: Path) -> None:
         deadline = time.monotonic() + 15
         while not path.exists():
+            owner = self.marker_processes.get(path)
+            identity = "no matching owned wrapper"
+            if owner is not None:
+                process, pid_file = owner
+                status = process.poll()
+                identity = (
+                    f"owned pid={process.pid}, status={status}, pid_file={pid_file}"
+                )
+                if status is not None:
+                    if path.exists():
+                        return
+                    try:
+                        output, error = process.communicate(
+                            timeout=max(0, deadline - time.monotonic())
+                        )
+                        details = f"stdout={output!r}, stderr={error!r}"
+                    except subprocess.TimeoutExpired as error:
+                        details = (
+                            "terminal wrapper pipes remained open through the deadline; "
+                            f"stdout={error.stdout!r}, stderr={error.stderr!r}"
+                        )
+                    self.fail(f"{path} absent after {identity}; {details}")
             if time.monotonic() >= deadline:
-                self.fail(f"timed out waiting for {path}")
+                self.fail(f"timed out waiting for {path}; {identity}")
             time.sleep(0.01)
 
     def signal(self, process: subprocess.Popen, name: str, pid_file: Path) -> None:
@@ -111,6 +137,51 @@ class CargoLockTests(unittest.TestCase):
         output, error = process.communicate(timeout=15)
         self.assertEqual(process.returncode, expected, output + error)
         return error
+
+    def test_missing_marker_reports_the_terminal_wrappers_output(self) -> None:
+        process, paths = self.start(
+            "early-failure",
+            "printf 'retained stdout'; printf 'retained stderr' >&2; exit 37",
+        )
+        with self.assertRaises(AssertionError) as failure:
+            self.wait_for(paths["STARTED"])
+        message = str(failure.exception)
+        self.assertIn(f"owned pid={process.pid}, status=37", message)
+        self.assertIn(str(paths["WRAPPER_PID"]), message)
+        self.assertIn("retained stdout", message)
+        self.assertIn("retained stderr", message)
+        self.assertFalse(paths["STARTED"].exists())
+        self.assertFalse(self.lock.exists())
+        self.finish(process, 37)
+
+    def test_completed_wrapper_can_publish_marker_during_the_terminal_probe(
+        self,
+    ) -> None:
+        marker = self.root / "completed-marker"
+        process = Mock(pid=123)
+
+        def completed() -> int:
+            marker.touch()
+            return 0
+
+        process.poll.side_effect = completed
+        self.marker_processes[marker] = (process, self.root / "owned-pid")
+        self.wait_for(marker)
+        self.assertTrue(marker.exists())
+        process.poll.assert_called_once_with()
+        process.communicate.assert_not_called()
+
+    def test_marker_timeout_does_not_read_a_live_wrappers_pipes(self) -> None:
+        marker = self.root / "not-created"
+        process = Mock(pid=123)
+        process.poll.return_value = None
+        self.marker_processes[marker] = (process, self.root / "owned-pid")
+        with (
+            patch.object(time, "monotonic", side_effect=(0, 15)),
+            self.assertRaisesRegex(AssertionError, "status=None"),
+        ):
+            self.wait_for(marker)
+        process.communicate.assert_not_called()
 
     def test_a_dead_holder_is_preserved_without_starting_another_command(self) -> None:
         self.lock.mkdir()

@@ -29,6 +29,7 @@ class ThreadedLaunchContext(LaunchContext):
         self.reports: list[dict] = []
         self.previous_handler = loop.get_exception_handler()
         self.actual_executor = loop.run_in_executor
+        self.actual_sweep = self.sweep_owned_processes
 
     def prepare(self) -> None:
         super().prepare()
@@ -41,6 +42,13 @@ class ThreadedLaunchContext(LaunchContext):
                 browser_launch.LaunchPlan, "takes_turns", property(lambda _: True)
             )
         )
+
+    def sweep_owned_processes(self, profile) -> None:
+        # This fixture owns every child; OS-wide discovery has separate controls.
+        self.case.assertEqual(profile, self.profile)
+        for process in self.processes:
+            self.case.assertEqual(process.args[-1], str(profile))
+            self.actual_tree(process)
 
     def record_executor(self, executor, function, *arguments):
         self.case.assertIsNone(self.future)
@@ -186,3 +194,19 @@ class BrowserLaunchThreadedLifecycleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(context.sweep_attempts, 2)
         self.assertIs(context.future.exception(), failure)
         self.assertEqual(tuple(context.reports), reports)
+
+    async def test_cancelled_held_launch_sweeps_an_independent_owned_child(
+        self,
+    ) -> None:
+        context = self.context
+        await context.cancel_held_entry()
+        context.second_process()
+        reports, ended, removed = await context.complete_and_snapshot()
+
+        self.assertEqual(ended, (True, True))
+        self.assertTrue(removed)
+        self.assertEqual(context.tree_attempts, 1)
+        self.assertEqual(context.sweep_attempts, 1)
+        self.assertIsNone(context.future.exception())
+        self.assertIs(context.future.result(), context.browser)
+        self.assertEqual(reports, ())
