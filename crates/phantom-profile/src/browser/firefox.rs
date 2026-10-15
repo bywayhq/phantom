@@ -372,6 +372,9 @@ pub fn v157_http1() -> Http1Settings {
 /// later, and the `GOAWAY` 170 to 171 seconds later. No capture shows a
 /// close on the idle timer; Firefox 157 sent the same `GOAWAY` at browser
 /// exit.
+/// The connection advertises a 131,072-byte stream window. Each request raises
+/// it to 12,582,912 bytes with one WINDOW_UPDATE after HEADERS, an increment of
+/// 12,451,840 bytes in the retained navigation and extended CONNECT captures.
 #[must_use]
 pub fn v157_http2() -> Http2Settings {
     crate::catalog::http2_components::firefox_157_http2()

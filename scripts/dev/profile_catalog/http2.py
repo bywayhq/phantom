@@ -139,6 +139,16 @@ def validate_http2_values(values):
         MAX_HTTP2_WINDOW,
         "initial_connection_window_size",
     )
+    target = values["initial_stream_window_target"]
+    if target is not None:
+        advertised = next(
+            item["value"]
+            for item in values["initial_settings"]
+            if item["kind"] == "InitialWindowSize"
+        )
+        bounded_integer(
+            target, advertised, MAX_HTTP2_WINDOW, "initial_stream_window_target"
+        )
     validate_pseudo_headers(values["pseudo_header_order"], False)
     if values["extended_connect_pseudo_header_order"] is not None:
         validate_pseudo_headers(values["extended_connect_pseudo_header_order"], True)
@@ -202,6 +212,8 @@ def rust_http2_value(field, value):
             )
             + "]"
         )
+    if field == "initial_stream_window_target":
+        return rust_option(value, str)
     if field in ("initial_connection_window_size", "ping_failure_retries"):
         return str(value)
     if field == "pseudo_header_order":

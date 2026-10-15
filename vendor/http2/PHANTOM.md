@@ -17,7 +17,7 @@ This directory is the complete crates.io source for `http2` version `0.5.20`.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.17`),
+renames the package (`http2` becomes `phantom-http2` at `0.5.20-phantom.18`),
 keeps the upstream library name so source, tests, and examples are unchanged,
 and points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -892,6 +892,68 @@ Check both feature selections when changing these guards:
 cargo check --manifest-path vendor/http2/Cargo.toml --all-targets --locked
 cargo test --manifest-path vendor/http2/Cargo.toml --locked --lib -- --skip hpack::test::fixture
 ```
+
+## Opening request receive window
+
+`initial-stream-window.patch` adds the optional client builder policy
+`initial_stream_window_target`. Its default is `None`. A configured target
+raises each locally initiated request stream from its advertised initial
+receive window with one WINDOW_UPDATE. It follows the complete opening
+HEADERS/CONTINUATION block and precedes DATA or another stream's frames.
+Trailers and remotely initiated push streams receive no opening update.
+If a preface PING is owed, the existing immediate-PING contract takes
+precedence: HEADERS/CONTINUATION, PING, WINDOW_UPDATE, then DATA.
+
+The policy is value-driven; it does not inspect a browser identity. A target
+below the advertised initial stream window or above 2^31 - 1 returns an
+invalid-input I/O error from the handshake before writing the preface.
+An equal target emits no update. Clearing the policy with `None` restores
+the original behavior. Subsequent local SETTINGS still adjust active
+windows; the one-time increment is calculated against the stream's baseline
+when its opening HEADERS are scheduled and is omitted if that baseline
+already reaches the target.
+
+The opening update uses a scheduler fence, rather than the receive-side
+replenishment queue, which may run before request HEADERS. Receive credit is
+committed to both accounting counters when the codec accepts the update.
+The local request tracks the initial SETTINGS baseline already applied:
+its peer processes those SETTINGS before its HEADERS, so their later ACK
+must not grant the baseline twice. Remotely initiated streams keep the
+upstream ACK-based baseline. A queued or write-blocked stream does not get
+opening credit early; cancellation or response completion suppresses an outstanding
+opening update.
+
+Firefox's ordinary request path appends the opening update after generating
+HEADERS and before transmitting the buffer. Its defaults are a 131072-byte
+initial window and a 12582912-byte pull target, yielding an increment of
+12451840. The reviewed source is pinned at
+[`Http2StreamBase.cpp:540-584`](https://github.com/mozilla-firefox/firefox/blob/64cfaf34e56f4c82eea77d032ec592c083b5b161/netwerk/protocol/http/Http2StreamBase.cpp#L540-L584)
+and [the preference definitions](https://github.com/mozilla-firefox/firefox/blob/64cfaf34e56f4c82eea77d032ec592c083b5b161/modules/libpref/init/StaticPrefList.yaml#L16708-L16716).
+This backend policy covers the opening update only. It does not reproduce
+Firefox's continuing DATA acknowledgment thresholds or transaction-specific
+receive-window overrides. Profile selection and transport translation belong
+to Phantom's dependent crates.
+
+The `client::tests::initial_stream_window` controls exercise repeated GETs,
+POST DATA and trailers, split header blocks and tiny write pipes, custom
+preface-PING composition, default/cleared/equal targets, recoverable invalid
+configuration, zero and maximum bounds before initial SETTINGS ACK, actual
+receive-credit exhaustion without release before and after initial SETTINGS
+ACK (with a processed-PING barrier), and without double ACK credit,
+a response larger than 131072 bytes followed by capacity release, and
+concurrency admission with queued cancellation. The tests retain the existing
+HEADERS-before-RST cancellation behavior while asserting no boost for the
+cancelled stream. These are local wire controls, not browser or remote-server
+acceptance evidence.
+
+A separate later-SETTINGS control calls the real
+`Connection::set_initial_window_size` after the initial ACK, keeps an existing
+boosted stream with unreleased DATA, and processes the later ACK through a
+PING barrier. Changes below and above the opening target check the old
+stream's single baseline adjustment, the next stream's changed increment
+(or no boost), and exact credit exhaustion followed by FLOW_CONTROL_ERROR.
+Extended CONNECT still requires the root-owned profile translation and
+real-peer coverage; this backend packet does not establish that integration.
 
 ## Refreshing the vendor copy
 

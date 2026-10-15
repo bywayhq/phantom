@@ -373,13 +373,14 @@ impl Send {
     pub fn poll_preface_ping<T, B>(
         &mut self,
         cx: &mut Context,
+        store: &mut Store,
         dst: &mut Codec<T, Prioritized<B>>,
     ) -> Poll<io::Result<()>>
     where
         T: AsyncWrite + Unpin,
         B: Buf,
     {
-        self.prioritize.poll_preface_ping(cx, dst)
+        self.prioritize.poll_preface_ping(cx, store, dst)
     }
 
     pub fn poll_complete<T, B>(

@@ -141,6 +141,54 @@ impl<'a> SessionCapture<'a> {
         Err(format!("{prefix} first HEADERS omitted :path").into())
     }
 
+    fn opening_stream_target(
+        &self,
+        prefix: &str,
+        stream: &str,
+        advertised: u32,
+    ) -> CaptureResult<Option<u32>> {
+        let count: usize = self.value(&format!("{prefix}_frame_count"))?.parse()?;
+        let mut opened = false;
+        let mut complete = false;
+        for index in 0..count {
+            let frame = self.value(&format!("{prefix}_frame_{index}"))?;
+            if field_attribute(frame, "dir")? != "client" {
+                continue;
+            }
+            let kind = field_attribute(frame, "type")?;
+            let id = field_attribute(frame, "stream")?;
+            if !opened {
+                if kind != "HEADERS" || id != stream {
+                    continue;
+                }
+                opened = true;
+            } else if complete {
+                if kind == "PING" && id == "0" {
+                    continue;
+                }
+                if kind != "WINDOW_UPDATE" || id != stream {
+                    return Ok(None);
+                }
+                let increment: u32 = field_attribute(frame, "increment")?.parse()?;
+                let target = advertised
+                    .checked_add(increment)
+                    .filter(|target| increment != 0 && *target < (1 << 31))
+                    .ok_or("opening stream window overflow or zero increment")?;
+                return Ok(Some(target));
+            } else if kind != "CONTINUATION" || id != stream {
+                return Err("opening HEADERS block was interrupted".into());
+            }
+            let flags = field_attribute(frame, "flags")?;
+            complete =
+                u8::from_str_radix(flags.strip_prefix("0x").ok_or("invalid frame flags")?, 16)? & 4
+                    != 0;
+        }
+        if !opened || !complete {
+            return Err("opening HEADERS block was incomplete".into());
+        }
+        Ok(None)
+    }
+
     fn connection_settings(&self, prefix: &str) -> CaptureResult<Http2Settings> {
         let frames: usize = self.value(&format!("{prefix}_frame_count"))?.parse()?;
         let mut initial_settings = None;
@@ -179,8 +227,19 @@ impl<'a> SessionCapture<'a> {
             .map(parse_pseudo_header)
             .collect::<CaptureResult<Vec<_>>>()?;
         let increment = window_increment.ok_or("connection omitted a WINDOW_UPDATE")?;
+        let initial_settings = initial_settings.ok_or("connection omitted client SETTINGS")?;
+        let advertised = initial_settings
+            .iter()
+            .find_map(|setting| match setting {
+                Http2Setting::InitialWindowSize(value) => Some(*value),
+                _ => None,
+            })
+            .ok_or("connection omitted initial stream window")?;
+        let initial_stream_window_target =
+            self.opening_stream_target(prefix, field_attribute(headers, "stream")?, advertised)?;
         Ok(Http2Settings {
-            initial_settings: initial_settings.ok_or("connection omitted client SETTINGS")?,
+            initial_settings,
+            initial_stream_window_target,
             initial_connection_window_size: INITIAL_CONNECTION_WINDOW
                 .checked_add(increment)
                 .ok_or("connection window overflow")?,

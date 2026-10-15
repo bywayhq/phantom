@@ -89,6 +89,13 @@ struct Inner {
     /// The number of stream refs to this shared state.
     refs: usize,
 
+    /// Receive-window target for opening local request streams.
+    initial_stream_window_target: Option<WindowSize>,
+
+    /// Local requests follow the advertised baseline even before its ACK:
+    /// the peer must process our SETTINGS before their HEADERS.
+    unacknowledged_initial_window_size: Option<WindowSize>,
+
     /// Headers stream dependency
     headers_stream_dependency: Option<StreamDependency>,
 
@@ -210,7 +217,7 @@ where
         me.actions.send.poll_preface_ping_timeout(cx)
     }
 
-    /// Writes a preface PING that is due, ahead of any other frame.
+    /// Completes the last request frame's PING and opening window update.
     pub fn poll_preface_ping<T>(
         &mut self,
         cx: &mut Context,
@@ -220,7 +227,8 @@ where
         T: AsyncWrite + Unpin,
     {
         let mut me = self.inner.lock();
-        me.actions.send.poll_preface_ping(cx, dst)
+        let me = &mut *me;
+        me.actions.send.poll_preface_ping(cx, &mut me.store, dst)
     }
 
     pub fn clear_expired_reset_streams(&mut self) {
@@ -280,7 +288,9 @@ where
         let mut me = self.inner.lock();
         let me = &mut *me;
 
-        me.actions.recv.apply_local_settings(frame, &mut me.store)
+        me.actions.recv.apply_local_settings(frame, &mut me.store)?;
+        me.unacknowledged_initial_window_size = None;
+        Ok(())
     }
 
     pub fn send_request(
@@ -339,11 +349,18 @@ where
 
         let stream_id = me.actions.send.open()?;
 
+        let initial_recv_window = me
+            .unacknowledged_initial_window_size
+            .unwrap_or_else(|| me.actions.recv.init_window_sz());
         let mut stream = Stream::new(
             stream_id,
             me.actions.send.init_window_sz(),
-            me.actions.recv.init_window_sz(),
+            initial_recv_window,
         );
+        if let Some(target) = me.initial_stream_window_target {
+            stream.recv_initial_window_size = Some(initial_recv_window);
+            stream.initial_window_target = Some(target);
+        }
 
         if *request.method() == Method::HEAD {
             stream.content_length = ContentLength::Head;
@@ -525,6 +542,10 @@ impl Inner {
                 task: None,
                 conn_error: None,
             },
+            initial_stream_window_target: config.initial_stream_window_target,
+            unacknowledged_initial_window_size: config
+                .initial_stream_window_target
+                .map(|_| config.local_initial_window_size),
             store: Store::new(),
             refs: 1,
             headers_stream_dependency: config.headers_stream_dependency,
@@ -1071,8 +1092,11 @@ impl Inner {
         let mut send_buffer = send_buffer.inner.lock();
         let send_buffer = &mut *send_buffer;
 
-        // A due preface PING directly follows its request frame.
-        ready!(self.actions.send.poll_preface_ping(cx, dst))?;
+        // Request companions precede connection and ordinary window updates.
+        ready!(self
+            .actions
+            .send
+            .poll_preface_ping(cx, &mut self.store, dst))?;
 
         // Send WINDOW_UPDATE frames first
         //

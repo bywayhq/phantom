@@ -12,6 +12,7 @@ fn settings() -> Http2Settings {
             Http2Setting::InitialWindowSize(65_535),
         ],
         initial_connection_window_size: 65_535,
+        initial_stream_window_target: None,
         pseudo_header_order: vec![
             Http2PseudoHeader::Method,
             Http2PseudoHeader::Authority,
@@ -385,4 +386,59 @@ fn assert_field(result: Result<(), InvalidHttp2Settings>, expected_field: &'stat
         result.as_ref().map_err(InvalidHttp2Settings::field),
         Err(expected_field)
     );
+}
+
+#[test]
+fn opening_stream_target_is_bounded_by_its_advertised_window()
+-> Result<(), Box<dyn std::error::Error>> {
+    for target in [None, Some(65_535), Some((1 << 31) - 1)] {
+        let mut value = settings();
+        value.initial_stream_window_target = target;
+        value.validate()?;
+    }
+    for target in [0, 65_534, 1 << 31, u32::MAX] {
+        let mut value = settings();
+        value.initial_stream_window_target = Some(target);
+        assert_field(value.validate(), "initial_stream_window_target");
+    }
+    let mut zero = settings();
+    zero.initial_settings = vec![Http2Setting::InitialWindowSize(0)];
+    zero.initial_stream_window_target = Some(0);
+    zero.validate()?;
+    Ok(())
+}
+
+#[test]
+fn captured_opening_stream_credit_is_distinct_from_the_connection_window()
+-> Result<(), Box<dyn std::error::Error>> {
+    use super::session_capture::SessionCapture;
+    let input =
+        include_str!("../../../../fixtures/websocket/firefox/157.0/windows-11-26200/accept.txt");
+    let observed = SessionCapture::parse(input)?.navigation_settings()?;
+    assert_eq!(observed.len(), 3);
+    assert!(
+        observed
+            .iter()
+            .all(|settings| settings.initial_stream_window_target == Some(12_582_912))
+    );
+    let omitted = input.replace(
+        "stream:3,length:4,increment:12451840",
+        "stream:0,length:4,increment:12451840",
+    );
+    assert!(
+        SessionCapture::parse(&omitted)?
+            .navigation_settings()?
+            .iter()
+            .all(|settings| settings.initial_stream_window_target.is_none())
+    );
+    let invalid = input.replace(
+        "stream:3,length:4,increment:12451840",
+        "stream:3,length:4,increment:2147483647",
+    );
+    assert!(
+        SessionCapture::parse(&invalid)?
+            .navigation_settings()
+            .is_err()
+    );
+    Ok(())
 }

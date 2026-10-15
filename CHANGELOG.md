@@ -13,6 +13,15 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Add `Http2Settings::initial_stream_window_target` for the receive credit
+  sent after each request's opening headers. Firefox 157 now advertises
+  131,072 bytes and raises each request stream to 12,582,912 bytes with a
+  `WINDOW_UPDATE`. This also applies to extended CONNECT. Migrate: add
+  `initial_stream_window_target: None` to custom settings literals and
+  `"initial_stream_window_target": null` to imported HTTP/2 JSON to keep
+  the previous behavior. Re-export ticket snapshots: the changed profile
+  policy binding rejects older snapshots.
+
 - Return the connected slower attempt from exact HTTP/2 setup. Migrate:
   replace `let connection = connector.connect(route).await?` with
   `let (connection, slower) = connector.connect(route).await?` for

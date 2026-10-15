@@ -109,7 +109,7 @@ combinations and limits listed here.
 | TCP | Profile `TCP_NODELAY`, send buffer, fixed or scheduled keepalive, Windows port randomization, Chromium Happy Eyeballs, and Firefox's backup connection, on every TCP path | Firefox's retained backups on remaining proxy routes; failed-address suppression |
 | TLS over TCP | Typed ordered ClientHellos from retained captures | More versions and platforms |
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse, browser per-host connection bounds | Broader retry classes |
-| HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity and stream numbering | Firefox stream `WINDOW_UPDATE` |
+| HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity, stream numbering and opening stream receive credit | Firefox continuing DATA acknowledgment thresholds |
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
 | HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP, to the origin, or to a caller-pinned alternative directly or through CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5; client-local RTT racing on direct routes; opt-in H2 fallback for exact H3 | Browser timing evidence for RTT racing |
 | Routes | Direct, HTTP forward and CONNECT, SOCKS4/4a, SOCKS5, CONNECT-UDP | NTLM and Negotiate authentication |
@@ -905,7 +905,6 @@ compression offers, and HPACK settings differ. The remaining gaps are:
 
 | Gap | Why | What would close it |
 | --- | --- | --- |
-| Firefox's stream `WINDOW_UPDATE` | It appears on every Firefox stream, not only the CONNECT stream, so it belongs to the HTTP/2 request path. | Modeling it on the Firefox HTTP/2 request path |
 | `wss://` opening inside a proxy tunnel | The proxy route captures record the CONNECT of a `wss://` opening but not the opening inside its TLS tunnel. | A capture that decrypts the tunnelled `wss://` opening |
 
 ## Routes

@@ -3497,6 +3497,15 @@ Further observations:
   and `1`, which code to their own raw length.
 - Firefox H2 CONNECT adds fetch metadata (and `sec-fetch-storage-access` from
   a cross-site page) and follows it with a stream `WINDOW_UPDATE`.
+  The retained opening increments are 12,451,840 bytes, from the advertised
+  131,072-byte initial window to 12,582,912 bytes. The Firefox 157 recipe
+  applies this to ordinary requests and extended CONNECT. The update follows
+  the complete HEADERS/CONTINUATION block and precedes DATA. A configured
+  preface PING retains its immediate position before the update.
+  [Firefox's request path](https://github.com/mozilla-firefox/firefox/blob/64cfaf34e56f4c82eea77d032ec592c083b5b161/netwerk/protocol/http/Http2StreamBase.cpp#L540-L584)
+  and [its window preferences](https://github.com/mozilla-firefox/firefox/blob/64cfaf34e56f4c82eea77d032ec592c083b5b161/modules/libpref/init/StaticPrefList.yaml#L16708-L16716)
+  define the opening target. Continuing DATA acknowledgment thresholds and
+  transaction-specific receive-window overrides remain outside this policy.
 - Both browsers compress a 64 KiB random message even though the output
   grows to 65,558 bytes.
 - The HTTP/1.1 opening-field order differs by family and is retained

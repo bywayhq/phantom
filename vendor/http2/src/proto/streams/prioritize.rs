@@ -63,6 +63,9 @@ pub(super) struct Prioritize {
 
     /// When a PING follows a request frame on a read-idle connection.
     preface_ping: Option<PrefacePing>,
+
+    /// Companion to the last opening HEADERS, ahead of any other stream.
+    opening_window_update: Option<frame::WindowUpdate>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -106,6 +109,7 @@ impl Prioritize {
             pending_open: store::Queue::new(),
             flow,
             last_opened_id: StreamId::ZERO,
+            opening_window_update: None,
             in_flight_data_frame: InFlightData::Nothing,
             max_buffer_size: config.local_max_buffer_size,
             preface_ping: config
@@ -128,31 +132,48 @@ impl Prioritize {
         }
     }
 
-    /// Writes the PING due after the last request frame, if any, as soon as
-    /// the codec can take a frame. Every path that writes a frame on the
-    /// connection calls this first, so the PING directly follows its request
-    /// frame.
+    /// Completes companions of the last request frame before any other frame.
+    /// The preface PING keeps its immediate position; the opening receive-window
+    /// update follows it. Codec readiness drains CONTINUATION first.
     pub(super) fn poll_preface_ping<T, B>(
         &mut self,
         cx: &mut Context,
+        store: &mut Store,
         dst: &mut Codec<T, Prioritized<B>>,
     ) -> Poll<io::Result<()>>
     where
         T: AsyncWrite + Unpin,
         B: Buf,
     {
-        if !self
+        if self
             .preface_ping
             .as_ref()
             .map_or(false, PrefacePing::is_due)
         {
-            return Poll::Ready(Ok(()));
+            ready!(dst.poll_ready(cx))?;
+            if let Some(ping) = self.preface_ping.as_mut().and_then(PrefacePing::take_due) {
+                dst.buffer(ping.into()).expect("invalid frame");
+            }
+            ready!(dst.poll_ready(cx))?;
         }
-        ready!(dst.poll_ready(cx))?;
-        if let Some(ping) = self.preface_ping.as_mut().and_then(PrefacePing::take_due) {
-            dst.buffer(ping.into()).expect("invalid frame");
+        if let Some(update) = self.opening_window_update {
+            ready!(dst.poll_ready(cx))?;
+            if let Some(mut stream) = store.find_mut(&update.stream_id()) {
+                // A cancelled or completed stream needs no additional credit.
+                if !stream.state.is_closed() && !stream.state.is_recv_end_stream() {
+                    let mut flow = stream.recv_flow;
+                    let inc = update.size_increment();
+                    flow.inc_window(inc).map_err(window_update_error)?;
+                    flow.assign_capacity(inc).map_err(window_update_error)?;
+                    dst.buffer(update.into())
+                        .map_err(|error| io::Error::new(io::ErrorKind::InvalidInput, error))?;
+                    stream.recv_flow = flow;
+                }
+            }
+            self.opening_window_update = None;
+            ready!(dst.poll_ready(cx))?;
         }
-        dst.poll_ready(cx)
+        Poll::Ready(Ok(()))
     }
 
     pub(crate) fn max_buffer_size(&self) -> usize {
@@ -573,9 +594,9 @@ impl Prioritize {
         tracing::trace!("poll_complete");
 
         loop {
-            // A PING owed to the frame buffered last must follow it before
-            // any other frame.
-            ready!(self.poll_preface_ping(cx, dst))?;
+            // Complete the last frame's PING and opening window update before
+            // admitting or scheduling another stream.
+            ready!(self.poll_preface_ping(cx, store, dst))?;
 
             if let Some(mut stream) = self.pop_pending_open(store, counts) {
                 self.pending_send.push_front(&mut stream);
@@ -929,6 +950,17 @@ impl Prioritize {
                         }
                     };
 
+                    if matches!(frame, Frame::Headers(_)) {
+                        if let Some(target) = stream.initial_window_target.take() {
+                            let initial = stream.recv_initial_window_size.unwrap_or(target);
+                            let inc = target.saturating_sub(initial);
+                            if inc != 0 {
+                                self.opening_window_update =
+                                    Some(frame::WindowUpdate::new(stream.id, inc));
+                            }
+                        }
+                    }
+
                     tracing::trace!("pop_frame; frame={:?}", frame);
 
                     if cfg!(debug_assertions) && stream.state.is_idle() {
@@ -1005,4 +1037,8 @@ impl<B: Buf> fmt::Debug for Prioritized<B> {
             .field("stream", &self.stream)
             .finish()
     }
+}
+
+fn window_update_error(reason: Reason) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidInput, reason.to_string())
 }

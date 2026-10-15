@@ -378,6 +378,8 @@ mod tests {
                 retain_initial_max_send_streams: false,
                 max_send_streams_cap: usize::MAX,
                 preface_ping: None,
+                initial_stream_window_target: None,
+                local_initial_window_size: DEFAULT_INITIAL_WINDOW_SIZE,
                 preface_ping_timeout: None,
                 local_max_buffer_size: 0,
                 local_next_stream_id: 2.into(),

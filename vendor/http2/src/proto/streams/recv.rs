@@ -678,40 +678,31 @@ impl Recv {
             // flow-controlled frames until it receives WINDOW_UPDATE frames that
             // cause the flow-control window to become positive.
 
-            match target.cmp(&old_sz) {
-                Ordering::Less => {
-                    // We must decrease the (local) window on every open stream.
-                    let dec = old_sz - target;
-                    tracing::trace!("decrementing all windows; dec={}", dec);
-
-                    store.try_for_each(|mut stream| {
-                        stream
-                            .recv_flow
-                            .dec_recv_window(dec)
+            store.try_for_each(|mut stream| {
+                // Local request HEADERS follow the initial SETTINGS on the
+                // wire, so these streams can already use its advertised
+                // baseline before ACK. Push streams retain the ACK baseline.
+                let old = stream.recv_initial_window_size.unwrap_or(old_sz);
+                let mut flow = stream.recv_flow;
+                match target.cmp(&old) {
+                    Ordering::Less => flow
+                        .dec_recv_window(old - target)
+                        .map_err(proto::Error::library_go_away)?,
+                    Ordering::Greater => {
+                        let inc = target - old;
+                        flow.inc_window(inc)
                             .map_err(proto::Error::library_go_away)?;
-                        Ok::<_, proto::Error>(())
-                    })?;
+                        flow.assign_capacity(inc)
+                            .map_err(proto::Error::library_go_away)?;
+                    }
+                    Ordering::Equal => (),
                 }
-                Ordering::Greater => {
-                    // We must increase the (local) window on every open stream.
-                    let inc = target - old_sz;
-                    tracing::trace!("incrementing all windows; inc={}", inc);
-                    store.try_for_each(|mut stream| {
-                        // XXX: Shouldn't the peer have already noticed our
-                        // overflow and sent us a GOAWAY?
-                        stream
-                            .recv_flow
-                            .inc_window(inc)
-                            .map_err(proto::Error::library_go_away)?;
-                        stream
-                            .recv_flow
-                            .assign_capacity(inc)
-                            .map_err(proto::Error::library_go_away)?;
-                        Ok::<_, proto::Error>(())
-                    })?;
+                stream.recv_flow = flow;
+                if stream.recv_initial_window_size.is_some() {
+                    stream.recv_initial_window_size = Some(target);
                 }
-                Ordering::Equal => (),
-            }
+                Ok::<_, proto::Error>(())
+            })?;
         }
 
         Ok(())

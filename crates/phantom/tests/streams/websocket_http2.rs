@@ -775,3 +775,5 @@ fn poisoned_wire_recorder_rejects_read_before_consuming_bytes() {
 mod opening_early_data;
 #[cfg(all(windows, feature = "https-records"))]
 mod retention;
+
+mod initial_stream_window;

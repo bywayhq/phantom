@@ -130,6 +130,7 @@ COMPONENT_FIELDS = {
     "Http2Settings": (
         "initial_settings",
         "initial_connection_window_size",
+        "initial_stream_window_target",
         "pseudo_header_order",
         "extended_connect_pseudo_header_order",
         "headers_priority",

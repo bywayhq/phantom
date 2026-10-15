@@ -31,6 +31,9 @@ where
     /// Whether frames read are reported to the preface PING state.
     preface_ping: bool,
 
+    /// Opening stream updates must precede other connection frames.
+    initial_stream_window_target: bool,
+
     /// The idle PING state, when the connection sends one.
     idle_ping: Option<super::idle_ping::IdlePing>,
 }
@@ -92,6 +95,7 @@ pub(crate) struct Config {
     pub preface_ping: Option<Duration>,
     pub preface_ping_timeout: Option<(Duration, crate::client::PingTimer)>,
     pub idle_ping: Option<(Duration, Option<Duration>, crate::client::PingTimer)>,
+    pub initial_stream_window_target: Option<WindowSize>,
     pub max_send_buffer_size: usize,
     pub reset_stream_duration: Duration,
     pub reset_stream_max: usize,
@@ -141,6 +145,11 @@ where
                 retain_initial_max_send_streams: config.retain_initial_max_send_streams,
                 max_send_streams_cap: config.max_send_streams_cap,
                 preface_ping: config.preface_ping,
+                initial_stream_window_target: config.initial_stream_window_target,
+                local_initial_window_size: config
+                    .settings
+                    .initial_window_size()
+                    .unwrap_or(DEFAULT_INITIAL_WINDOW_SIZE),
                 preface_ping_timeout: config.preface_ping_timeout.clone(),
                 local_max_buffer_size: config.max_send_buffer_size,
                 local_next_stream_id: config.next_stream_id,
@@ -174,6 +183,7 @@ where
             codec,
             idle_close_requested: false,
             preface_ping: config.preface_ping.is_some(),
+            initial_stream_window_target: config.initial_stream_window_target.is_some(),
             idle_ping: config.idle_ping.map(|(after, timeout, timer)| {
                 super::idle_ping::IdlePing::new(after, timeout, timer)
             }),
@@ -442,6 +452,11 @@ where
         self.clear_expired_reset_streams();
 
         loop {
+            // Complete the opening header block's companion before any
+            // connection frame, including a graceful GOAWAY.
+            if self.initial_stream_window_target {
+                ready!(self.inner.streams.poll_preface_ping(cx, &mut self.codec))?;
+            }
             // First, ensure that the `Connection` is able to receive a frame
             //
             // The order here matters:

@@ -13,6 +13,7 @@
           { "kind": "MaxHeaderListSize", "value": 262144 }
         ],
         "initial_connection_window_size": 15728640,
+        "initial_stream_window_target": null,
         "pseudo_header_order": ["Method", "Authority", "Scheme", "Path"],
         "extended_connect_pseudo_header_order": ["Method", "Authority", "Scheme", "Path", "Protocol"],
         "headers_priority": { "dependency_stream_id": 0, "weight": 256, "exclusive": true },
@@ -54,6 +55,7 @@
           { "kind": "MaxFrameSize", "value": 16384 }
         ],
         "initial_connection_window_size": 12582912,
+        "initial_stream_window_target": 12582912,
         "pseudo_header_order": ["Method", "Path", "Authority", "Scheme"],
         "extended_connect_pseudo_header_order": ["Method", "Path", "Authority", "Scheme", "Protocol"],
         "headers_priority": { "dependency_stream_id": 0, "weight": 42, "exclusive": false },

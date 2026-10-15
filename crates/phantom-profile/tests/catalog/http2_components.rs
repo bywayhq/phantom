@@ -72,6 +72,7 @@ fn chromium_settings() -> Http2Settings {
             Http2Setting::MaxHeaderListSize(262_144),
         ],
         initial_connection_window_size: 15_728_640,
+        initial_stream_window_target: None,
         pseudo_header_order: vec![
             Http2PseudoHeader::Method,
             Http2PseudoHeader::Authority,
@@ -130,6 +131,7 @@ fn firefox_settings() -> Http2Settings {
             Http2Setting::MaxFrameSize(16_384),
         ],
         initial_connection_window_size: 12_582_912,
+        initial_stream_window_target: Some(12_582_912),
         pseudo_header_order: vec![
             Http2PseudoHeader::Method,
             Http2PseudoHeader::Path,

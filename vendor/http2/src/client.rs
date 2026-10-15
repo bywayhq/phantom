@@ -390,6 +390,9 @@ pub struct Builder {
     /// Initial target window size for new connections.
     initial_target_connection_window_size: Option<u32>,
 
+    /// Receive-window target announced after each opening request header block.
+    initial_stream_window_target: Option<u32>,
+
     /// Maximum amount of bytes to "buffer" for writing per stream.
     max_send_buffer_size: usize,
 
@@ -771,6 +774,7 @@ impl Builder {
             reset_stream_max: proto::DEFAULT_RESET_STREAM_MAX,
             pending_accept_reset_stream_max: proto::DEFAULT_REMOTE_RESET_STREAM_MAX,
             initial_target_connection_window_size: None,
+            initial_stream_window_target: None,
             initial_max_send_streams: usize::MAX,
             retain_initial_max_send_streams: false,
             max_send_streams_cap: usize::MAX,
@@ -823,6 +827,25 @@ impl Builder {
     /// ```
     pub fn initial_window_size(&mut self, size: u32) -> &mut Self {
         self.settings.set_initial_window_size(Some(size));
+        self
+    }
+
+    /// Sets a receive-window target for locally initiated request streams.
+    ///
+    /// After each opening HEADERS block (including CONTINUATION), one
+    /// WINDOW_UPDATE raises that stream's initial window to `target`. It
+    /// precedes request DATA and other streams' frames. An owed preface PING
+    /// retains its immediate position after the header block, before the update.
+    /// Trailers and remotely initiated push streams do not get this update.
+    ///
+    /// `None`, the default, preserves the advertised initial window. An equal
+    /// target emits no update. A target below the advertised initial window or
+    /// above 2^31 - 1 makes the handshake fail with an invalid-input I/O error,
+    /// before writing the connection preface. Later SETTINGS changes still
+    /// adjust the windows; a stream queued after such a change is raised only
+    /// if its initial window is below the target.
+    pub fn initial_stream_window_target(&mut self, target: Option<u32>) -> &mut Self {
+        self.initial_stream_window_target = target;
         self
     }
 
@@ -1671,6 +1694,19 @@ where
         mut io: T,
         builder: Builder,
     ) -> Result<(SendRequest<B>, Connection<T, B>), crate::Error> {
+        if let Some(target) = builder.initial_stream_window_target {
+            let initial = builder
+                .settings
+                .initial_window_size()
+                .unwrap_or(crate::frame::DEFAULT_INITIAL_WINDOW_SIZE);
+            if target < initial || target > proto::MAX_WINDOW_SIZE {
+                return Err(Error::from(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "initial stream window target must be between the advertised window and 2^31 - 1",
+                ))
+                .into());
+            }
+        }
         #[cfg(feature = "unstable")]
         let initial_peer_settings = builder.initial_peer_settings.clone();
         bind_connection(&mut io).await?;
@@ -1709,6 +1745,7 @@ where
                 preface_ping: builder.preface_ping,
                 preface_ping_timeout: builder.preface_ping_timeout.clone(),
                 idle_ping: builder.idle_ping.clone(),
+                initial_stream_window_target: builder.initial_stream_window_target,
                 max_send_buffer_size: builder.max_send_buffer_size,
                 reset_stream_duration: builder.reset_stream_duration,
                 reset_stream_max: builder.reset_stream_max,

@@ -85,6 +85,13 @@ pub(super) struct Stream {
 
     pub in_flight_recv_data: WindowSize,
 
+    /// Initial SETTINGS baseline already applied to a local request stream.
+    /// This prevents an ACK from crediting the advertised baseline twice.
+    pub recv_initial_window_size: Option<WindowSize>,
+
+    /// Consumed only by the first opening HEADERS emitted for this stream.
+    pub initial_window_target: Option<WindowSize>,
+
     /// Next node in the linked list of streams waiting to send window updates.
     pub next_window_update: Option<store::Key>,
 
@@ -190,6 +197,8 @@ impl Stream {
             is_pending_accept: false,
             recv_flow,
             in_flight_recv_data: 0,
+            recv_initial_window_size: None,
+            initial_window_target: None,
             next_window_update: None,
             is_pending_window_update: false,
             reset_at: None,

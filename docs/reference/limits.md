@@ -324,6 +324,8 @@ from Chromium.
 | Caller-reported DNS lifetime | `AddressResolver::from_answer_fn`: remaining lifetime from answer construction, without a profile floor; zero, expired or unrepresentable lifetimes are not stored |
 | Caller-reported negative DNS answer | Lesser of its remaining lifetime and `negative_ttl`, both aged from construction; callback errors are never stored |
 | Empty non-final HTTP/2 DATA frames per connection | 100 |
+| HTTP/2 opening stream receive target | `None`, or the advertised initial stream window through 2,147,483,647 bytes; an equal target emits no update |
+| Firefox 157 opening stream receive credit | 131,072 bytes advertised, raised to 12,582,912 bytes after opening headers; subsequent DATA acknowledgment thresholds are not modeled |
 | Unread small HTTP/2 DATA frame overhead per connection | Half the initial connection window, at least 25,600 bytes |
 | Distinct ALPS `ACCEPT_CH` origins per connection | 1,024 |
 | Informational (1xx) responses before the final head (H1, H2, and H3) | 8 |

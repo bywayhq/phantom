@@ -6,6 +6,7 @@ pub(crate) fn chromium_154_http2() -> crate::Http2Settings {
     crate::Http2Settings {
         initial_settings: vec![crate::Http2Setting::HeaderTableSize(65536), crate::Http2Setting::EnablePush(false), crate::Http2Setting::InitialWindowSize(6291456), crate::Http2Setting::MaxHeaderListSize(262144)],
         initial_connection_window_size: 15728640,
+        initial_stream_window_target: None,
         pseudo_header_order: vec![crate::Http2PseudoHeader::Method, crate::Http2PseudoHeader::Authority, crate::Http2PseudoHeader::Scheme, crate::Http2PseudoHeader::Path],
         extended_connect_pseudo_header_order: Some(vec![crate::Http2PseudoHeader::Method, crate::Http2PseudoHeader::Authority, crate::Http2PseudoHeader::Scheme, crate::Http2PseudoHeader::Path, crate::Http2PseudoHeader::Protocol]),
         headers_priority: Some(crate::Http2Priority { dependency_stream_id: 0, weight: 256, exclusive: true }),
@@ -26,6 +27,7 @@ pub(crate) fn firefox_157_http2() -> crate::Http2Settings {
     crate::Http2Settings {
         initial_settings: vec![crate::Http2Setting::HeaderTableSize(65536), crate::Http2Setting::EnablePush(false), crate::Http2Setting::InitialWindowSize(131072), crate::Http2Setting::MaxFrameSize(16384)],
         initial_connection_window_size: 12582912,
+        initial_stream_window_target: Some(12582912),
         pseudo_header_order: vec![crate::Http2PseudoHeader::Method, crate::Http2PseudoHeader::Path, crate::Http2PseudoHeader::Authority, crate::Http2PseudoHeader::Scheme],
         extended_connect_pseudo_header_order: Some(vec![crate::Http2PseudoHeader::Method, crate::Http2PseudoHeader::Path, crate::Http2PseudoHeader::Authority, crate::Http2PseudoHeader::Scheme, crate::Http2PseudoHeader::Protocol]),
         headers_priority: Some(crate::Http2Priority { dependency_stream_id: 0, weight: 42, exclusive: false }),

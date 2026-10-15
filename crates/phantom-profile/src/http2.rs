@@ -371,6 +371,14 @@ pub struct Http2Settings {
     /// 65,535..=2,147,483,647. A larger target emits an initial WINDOW_UPDATE
     /// containing the difference.
     pub initial_connection_window_size: u32,
+    /// Receive target granted once after each local request's opening HEADERS.
+    ///
+    /// `None` uses only the advertised [`Http2Setting::InitialWindowSize`]. A
+    /// target must be at least that setting and at most 2,147,483,647 bytes.
+    /// The difference is sent after the complete HEADERS/CONTINUATION block,
+    /// before DATA. An equal target emits no WINDOW_UPDATE; trailers do not
+    /// grant another window. The connection receive window is independent.
+    pub initial_stream_window_target: Option<u32>,
     /// Wire order of `:method`, `:authority`, `:scheme`, and `:path`.
     pub pseudo_header_order: Vec<Http2PseudoHeader>,
     /// Wire order of pseudo-headers on an extended CONNECT request.
@@ -508,6 +516,22 @@ impl Http2Settings {
     /// identifies the setting that failed.
     pub fn validate(&self) -> Result<(), InvalidHttp2Settings> {
         validate_initial_settings(&self.initial_settings)?;
+        if let Some(target) = self.initial_stream_window_target {
+            let advertised = self
+                .initial_settings
+                .iter()
+                .find_map(|setting| match setting {
+                    Http2Setting::InitialWindowSize(value) => Some(*value),
+                    _ => None,
+                });
+            if target > MAX_WINDOW_SIZE || advertised.is_some_and(|value| target < value) {
+                return Err(InvalidHttp2Settings::new(
+                    crate::ValidationErrorKind::OutOfRange,
+                    "initial_stream_window_target",
+                    "stream target must be between the advertised initial window and 2147483647 bytes",
+                ));
+            }
+        }
 
         if !(INITIAL_CONNECTION_WINDOW_SIZE..=MAX_WINDOW_SIZE)
             .contains(&self.initial_connection_window_size)

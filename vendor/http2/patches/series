@@ -26,4 +26,5 @@ late-reset-expiration.patch
 default-feature-compilation.patch
 io-error-causes.patch
 idle-ping-retirement.patch
+initial-stream-window.patch
 publish-identity.patch

@@ -443,6 +443,26 @@ for each origin and route.
   under two sites can have 6 connections for each. A Phantom client has no
   top-level site and keeps one bound per origin and route.
 
+## HTTP/2 opening receive window
+
+`Http2Settings::initial_stream_window_target` sets the receive credit for
+each new request stream. The advertised `InitialWindowSize` stays unchanged.
+
+| Recipe | Advertised window | Opening target | Increment |
+| --- | ---: | ---: | ---: |
+| `firefox::v157_http2` | 131,072 bytes | 12,582,912 bytes | 12,451,840 bytes |
+| Chromium recipes | 6,291,456 bytes | None | None |
+
+The update follows the complete opening HEADERS block and any CONTINUATION
+frames. It precedes request DATA. A configured preface PING still goes
+immediately after the headers, before the window update. Ordinary requests
+and extended CONNECT use the same policy. Trailers do not grant it again.
+
+`None` keeps the advertised window. An equal target emits no update.
+Validation rejects a target below the advertised window or above
+2,147,483,647 bytes. The connection window is separate. Continuing DATA
+acknowledgment thresholds and transaction-specific overrides are not modeled.
+
 ## Idle HTTP/2 connections
 
 `Http2Settings::idle_timeout` sets how long an HTTP/2 connection may go

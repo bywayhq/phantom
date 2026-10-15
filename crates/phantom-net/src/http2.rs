@@ -607,6 +607,7 @@ fn translate_settings_with_pseudo_order(
 
     let mut client = client::Builder::new();
     client.initial_connection_window_size(settings.initial_connection_window_size);
+    client.initial_stream_window_target(settings.initial_stream_window_target);
     client.local_max_header_list_size(limits::MAX_RESPONSE_HEADER_LIST_BYTES);
     client.max_informational_responses(limits::MAX_INFORMATIONAL_RESPONSES);
     client.hpack_encoder_profile(hpack_encoder_profile(&settings.hpack, peer)?);

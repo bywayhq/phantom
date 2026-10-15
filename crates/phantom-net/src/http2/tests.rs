@@ -155,6 +155,7 @@ mod hpack_replay;
 mod hpack_transitions;
 mod idle_close;
 mod idle_ping;
+mod initial_stream_window;
 mod ping_peer;
 mod preface_ping;
 mod request_body_cancellation;

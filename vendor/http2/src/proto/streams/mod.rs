@@ -59,6 +59,12 @@ pub struct Config {
     /// connection closes, and the timer that measures it.
     pub preface_ping_timeout: Option<(Duration, crate::client::PingTimer)>,
 
+    /// Optional receive-window target for locally initiated request streams.
+    pub initial_stream_window_target: Option<WindowSize>,
+
+    /// Initial window advertised in the local connection preface.
+    pub local_initial_window_size: WindowSize,
+
     /// Max amount of DATA bytes to buffer per stream.
     pub local_max_buffer_size: usize,
 

@@ -52,6 +52,28 @@ class Http2ComponentTests(unittest.TestCase):
         self.assertIn("Duration::new(170, 0)", expected)
         self.assertNotIn("draw_", expected)
 
+    def test_opening_stream_target_is_optional_bounded_and_rendered(self):
+        self.assertIsNone(self.values["initial_stream_window_target"])
+        self.assertEqual(
+            self.document["components"][1]["values"]["initial_stream_window_target"],
+            12_582_912,
+        )
+        for target in (None, 6_291_456, (1 << 31) - 1):
+            self.values["initial_stream_window_target"] = target
+            self.resolve()
+        for target in (True, -1, 0, 6_291_455, 1 << 31, "12582912"):
+            self.values["initial_stream_window_target"] = target
+            self.reject()
+        self.values["initial_stream_window_target"] = None
+        derived = copy.deepcopy(self.document["components"][0])
+        derived.update(id="derived_http2", base="firefox_157_http2")
+        derived["values"] = {"initial_stream_window_target": None}
+        self.document["components"].append(derived)
+        resolved = {item["id"]: item["values"] for item in self.resolve()}
+        self.assertIsNone(resolved["derived_http2"]["initial_stream_window_target"])
+        del self.values["initial_stream_window_target"]
+        self.reject()
+
     def test_inheritance_replaces_whole_nested_values_and_ordered_lists(self):
         overrides = {
             "initial_settings": [{"kind": "InitialWindowSize", "value": 0}],

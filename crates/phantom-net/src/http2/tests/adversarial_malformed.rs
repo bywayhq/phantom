@@ -207,6 +207,36 @@ pub(super) async fn establish_baseline(
             _ => {}
         }
     }
+    // Finish every opening frame before injecting a fault. Otherwise a
+    // legitimate opening WINDOW_UPDATE can be mistaken for its error reply.
+    let probe = b"baseline";
+    write_frame(stream, 0x06, 0, 0, probe).await?;
+    stream.flush().await?;
+    let mut opening_grant = false;
+    loop {
+        let frame = read_frame(stream)
+            .await?
+            .ok_or("client closed before baseline PING ACK")?;
+        if (frame.frame_type, frame.flags, frame.stream_id) == (0x06, 0x01, 0) {
+            if frame.payload != probe {
+                return Err("baseline PING ACK changed payload".into());
+            }
+            break;
+        }
+        if (frame.frame_type, frame.flags) != (0x08, 0) {
+            return Err("unexpected frame before baseline PING ACK".into());
+        }
+        let increment = u32::from_be_bytes(frame.payload.as_slice().try_into()?);
+        if increment == 0 || increment > 0x7fff_ffff {
+            return Err("invalid opening window increment".into());
+        }
+        if frame.stream_id != 0 {
+            if frame.stream_id != first || opening_grant {
+                return Err("unexpected or repeated opening stream grant".into());
+            }
+            opening_grant = true;
+        }
+    }
     client_settings.ok_or_else(|| "client SETTINGS were not observed".into())
 }
 

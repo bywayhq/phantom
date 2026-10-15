@@ -16,6 +16,7 @@ pub(super) fn parse(v: &Value) -> Result<Http2Settings> {
         &[
             "initial_settings",
             "initial_connection_window_size",
+            "initial_stream_window_target",
             "pseudo_header_order",
             "extended_connect_pseudo_header_order",
             "headers_priority",
@@ -41,6 +42,12 @@ pub(super) fn parse(v: &Value) -> Result<Http2Settings> {
                 "http2.initial_connection_window_size",
             )?
             .integer("http2.initial_connection_window_size")?,
+        initial_stream_window_target: v
+            .member(
+                "initial_stream_window_target",
+                "http2.initial_stream_window_target",
+            )?
+            .optional(|v| v.integer("http2.initial_stream_window_target"))?,
         pseudo_header_order: v
             .member("pseudo_header_order", "http2.pseudo_header_order")?
             .list("http2.pseudo_header_order", pseudo)?,

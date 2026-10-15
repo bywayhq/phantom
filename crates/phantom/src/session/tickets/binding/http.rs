@@ -344,6 +344,7 @@ pub(super) fn http2(e: &mut Encoder, value: &Http2Settings) -> Result<(), Prepar
     let Http2Settings {
         initial_settings,
         initial_connection_window_size,
+        initial_stream_window_target,
         pseudo_header_order,
         extended_connect_pseudo_header_order,
         headers_priority,
@@ -359,6 +360,9 @@ pub(super) fn http2(e: &mut Encoder, value: &Http2Settings) -> Result<(), Prepar
     } = value;
     e.list(initial_settings, http2_setting)?;
     e.u32(*initial_connection_window_size)?;
+    e.option(initial_stream_window_target.as_ref(), |e, value| {
+        e.u32(*value)
+    })?;
     e.list(pseudo_header_order, http2_pseudo_header)?;
     e.option(extended_connect_pseudo_header_order.as_ref(), |e, value| {
         e.list(value, http2_pseudo_header)

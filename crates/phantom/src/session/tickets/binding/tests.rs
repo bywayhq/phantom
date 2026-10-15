@@ -824,7 +824,7 @@ fn all_eighteen_quic_fields_change_policy_identity() -> TestResult {
 }
 
 #[test]
-fn all_fourteen_http2_fields_change_policy_identity() -> TestResult {
+fn all_fifteen_http2_fields_change_policy_identity() -> TestResult {
     let base = chrome::v154_http2();
     let mut changed = Vec::new();
     let priority = phantom_profile::Http2Priority {
@@ -847,6 +847,7 @@ fn all_fourteen_http2_fields_change_policy_identity() -> TestResult {
         initial_connection_window_size,
         base.initial_connection_window_size + 1
     );
+    field!(initial_stream_window_target, Some(12_582_912));
     field!(
         pseudo_header_order,
         base.pseudo_header_order.iter().copied().rev().collect()
@@ -869,7 +870,7 @@ fn all_fourteen_http2_fields_change_policy_identity() -> TestResult {
         idle_timeout,
         phantom_profile::Http2IdleTimeout::ClosedOnTimer(Duration::from_secs(9999))
     );
-    assert_eq!(changed.len(), 14);
+    assert_eq!(changed.len(), 15);
     let encode = |settings| {
         profile::encode(
             &ClientProfile::new(chrome::v154_tcp_tls()).with_http2(settings),
@@ -1184,3 +1185,32 @@ fn opaque_socks_framing_rejects_oversized_input_without_secret_diagnostics() -> 
 }
 
 mod tcp_schedule;
+
+#[test]
+fn opening_stream_target_values_change_ticket_policy_identity() -> TestResult {
+    let base = chrome::v154_http2();
+    let advertised = base
+        .initial_settings
+        .iter()
+        .find_map(|setting| match setting {
+            phantom_profile::Http2Setting::InitialWindowSize(value) => Some(*value),
+            _ => None,
+        })
+        .ok_or("advertised stream window absent")?;
+    let encode = |target| {
+        let mut settings = base.clone();
+        settings.initial_stream_window_target = target;
+        profile::encode(
+            &ClientProfile::new(chrome::v154_tcp_tls()).with_http2(settings),
+            None,
+            None,
+        )
+    };
+    let absent = encode(None)?;
+    let equal = encode(Some(advertised))?;
+    let higher = encode(Some(advertised + 1))?;
+    assert_ne!(absent, equal);
+    assert_ne!(absent, higher);
+    assert_ne!(equal, higher);
+    Ok(())
+}

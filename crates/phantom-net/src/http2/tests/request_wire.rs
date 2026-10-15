@@ -195,6 +195,7 @@ async fn emits_every_supported_setting_in_declared_order() -> TestResult<()> {
             Http2Setting::EnablePush(true),
         ],
         initial_connection_window_size: 80_000,
+        initial_stream_window_target: None,
         pseudo_header_order: vec![
             Http2PseudoHeader::Path,
             Http2PseudoHeader::Scheme,

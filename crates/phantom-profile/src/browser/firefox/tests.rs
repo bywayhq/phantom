@@ -180,6 +180,7 @@ fn firefox_157_http2_recipe_matches_windows_session_capture()
         ]
     );
     assert_eq!(settings.initial_connection_window_size, 12_582_912);
+    assert_eq!(settings.initial_stream_window_target, Some(12_582_912));
     assert_eq!(
         settings.pseudo_header_order,
         [
