@@ -18,13 +18,30 @@ use crate::{
 /// An HTTPS spare may finish proxy TLS before claim. Its original proxy TLS
 /// context and ticket cache are retained; application early data is not offered.
 pub struct Http1ProxyOpening {
-    state: Box<ProxyOpeningState>,
+    state: Box<dyn OpeningOwner>,
 }
 
 struct ProxyOpeningState {
     stream: ProxyStream,
     connector: Http1TlsConnector,
     binding: ProxyBinding,
+}
+
+// Keep the pool's Send/Sync proof at this existing allocation. Setup takes
+// the concrete box back without copying the state or allocating again.
+trait OpeningOwner: Send + Sync {
+    fn state(&self) -> &ProxyOpeningState;
+    fn into_state(self: Box<Self>) -> Box<ProxyOpeningState>;
+}
+
+impl OpeningOwner for ProxyOpeningState {
+    fn state(&self) -> &ProxyOpeningState {
+        self
+    }
+
+    fn into_state(self: Box<Self>) -> Box<ProxyOpeningState> {
+        self
+    }
 }
 
 enum ProxyStream {
@@ -162,13 +179,14 @@ impl Http1ProxyOpening {
         self,
         transport: ProxyTransport<'_>,
     ) -> Result<Http1Connection, Http1TlsError> {
-        if !matches!(&self.state.binding.purpose, ProxyPurpose::Forward)
-            || !self.state.binding.matches_transport(transport)
+        let state = self.state.state();
+        if !matches!(&state.binding.purpose, ProxyPurpose::Forward)
+            || !state.binding.matches_transport(transport)
         {
             return Err(binding_error());
         }
         let opening = self.complete_proxy_tls().await?;
-        match opening.state.stream {
+        match opening.state.into_state().stream {
             ProxyStream::HttpsReady(stream) => super::tls::connect_plaintext(stream)
                 .await
                 .map_err(Into::into),
@@ -195,17 +213,18 @@ impl Http1ProxyOpening {
     }
 
     /// Completes only outer TLS. The existing slower owner calls this before claim.
-    pub(super) async fn complete_proxy_tls(mut self) -> Result<Self, Http1TlsError> {
-        self.state.stream = match self.state.stream {
+    pub(super) async fn complete_proxy_tls(self) -> Result<Self, Http1TlsError> {
+        let mut state = self.state.into_state();
+        state.stream = match state.stream {
             ProxyStream::HttpsPending(stream) => {
-                let Some((server_name, proxy)) = &self.state.binding.proxy_tls else {
+                let Some((server_name, proxy)) = &state.binding.proxy_tls else {
                     return Err(binding_error());
                 };
                 ProxyStream::HttpsReady(proxy.finish_http1_proxy_tls(stream, server_name).await?)
             }
             stream => stream,
         };
-        Ok(self)
+        Ok(Self { state })
     }
 
     /// Sends this request's CONNECT, authenticates the origin and starts HTTP/1.
@@ -222,7 +241,7 @@ impl Http1ProxyOpening {
         self,
         route: HttpConnectRoute<'_>,
     ) -> Result<Http1Connection, Http1TlsError> {
-        if !self.state.binding.matches(route) {
+        if !self.state.state().binding.matches(route) {
             return Err(binding_error());
         }
         crate::proxy::validate_http_tunnel(route.authority, route.headers, route.credentials)?;
@@ -231,7 +250,7 @@ impl Http1ProxyOpening {
             stream,
             connector,
             binding,
-        } = *opening.state;
+        } = *opening.state.into_state();
         let ProxyPurpose::Connect { server_name, .. } = binding.purpose else {
             return Err(binding_error());
         };
