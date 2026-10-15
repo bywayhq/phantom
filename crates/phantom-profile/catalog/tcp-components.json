@@ -56,7 +56,9 @@
             "seconds": 60,
             "nanoseconds": 0
           },
-          "probe_count": 10
+          "probe_count": 10,
+          "set_interval": true,
+          "set_probe_count": false
         },
         "address_selection": {
           "kind": "Backup",
@@ -70,6 +72,123 @@
           }
         },
         "port_randomization": null
+      }
+    },
+    {
+      "id": "chromium_154_macos_tcp",
+      "kind": "TcpSettings",
+      "base": "chromium_154_tcp",
+      "values": {
+        "keepalive": {
+          "kind": "Fixed",
+          "idle": {
+            "seconds": 45,
+            "nanoseconds": 0
+          },
+          "interval": null
+        },
+        "port_randomization": null
+      }
+    },
+    {
+      "id": "chromium_154_android_tcp",
+      "kind": "TcpSettings",
+      "base": "chromium_154_tcp",
+      "values": {
+        "keepalive": {
+          "kind": "Unchanged"
+        },
+        "port_randomization": null
+      }
+    },
+    {
+      "id": "firefox_157_macos_tcp",
+      "kind": "TcpSettings",
+      "base": "firefox_157_tcp",
+      "values": {
+        "send_buffer_size": null,
+        "keepalive": {
+          "kind": "Schedule",
+          "short_lived_idle": {
+            "seconds": 10,
+            "nanoseconds": 0
+          },
+          "long_lived_idle": {
+            "seconds": 600,
+            "nanoseconds": 0
+          },
+          "minimum_interval": {
+            "seconds": 1,
+            "nanoseconds": 0
+          },
+          "short_lived_time": {
+            "seconds": 60,
+            "nanoseconds": 0
+          },
+          "probe_count": 8,
+          "set_interval": false,
+          "set_probe_count": false
+        }
+      }
+    },
+    {
+      "id": "firefox_157_linux_tcp",
+      "kind": "TcpSettings",
+      "base": "firefox_157_tcp",
+      "values": {
+        "send_buffer_size": null,
+        "keepalive": {
+          "kind": "Schedule",
+          "short_lived_idle": {
+            "seconds": 10,
+            "nanoseconds": 0
+          },
+          "long_lived_idle": {
+            "seconds": 600,
+            "nanoseconds": 0
+          },
+          "minimum_interval": {
+            "seconds": 1,
+            "nanoseconds": 0
+          },
+          "short_lived_time": {
+            "seconds": 60,
+            "nanoseconds": 0
+          },
+          "probe_count": 4,
+          "set_interval": true,
+          "set_probe_count": true
+        }
+      }
+    },
+    {
+      "id": "firefox_156_android_tcp",
+      "kind": "TcpSettings",
+      "base": "firefox_157_tcp",
+      "values": {
+        "send_buffer_size": null,
+        "keepalive": {
+          "kind": "Schedule",
+          "short_lived_idle": {
+            "seconds": 10,
+            "nanoseconds": 0
+          },
+          "long_lived_idle": {
+            "seconds": 600,
+            "nanoseconds": 0
+          },
+          "minimum_interval": {
+            "seconds": 1,
+            "nanoseconds": 0
+          },
+          "short_lived_time": {
+            "seconds": 60,
+            "nanoseconds": 0
+          },
+          "probe_count": 4,
+          "set_interval": true,
+          "set_probe_count": true
+        }
       }
     }
   ]

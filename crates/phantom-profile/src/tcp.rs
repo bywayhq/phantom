@@ -50,7 +50,7 @@ pub struct TcpKeepalive {
 /// Keepalive that follows what an HTTP connection is doing, as Firefox's
 /// `nsHttpConnection` sets it.
 ///
-/// Every value is applied to the connected socket, never before `connect`:
+/// Keepalive changes reach the connected socket, never before `connect`:
 ///
 /// - When a connection opens for a request, and again whenever an HTTP/1
 ///   request is dispatched on it, keepalive is enabled with
@@ -72,8 +72,9 @@ pub struct TcpKeepalive {
 /// [`Self::probe_count`] intervals, plus two seconds, after the request's
 /// dispatch.
 ///
-/// Phantom applies the interval wherever the host can set one; see
-/// [`TcpKeepalive`] for how each operating system takes the values. A change
+/// [`Self::set_interval`] and [`Self::set_probe_count`] select the socket
+/// options. Both timing inputs still determine the switch when their option
+/// is left unchanged. See [`TcpKeepalive`] for the platform options. A change
 /// reaches the socket before the connection's next read or write, so a
 /// connection nobody reads or writes takes it late.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -99,8 +100,17 @@ pub struct TcpKeepaliveSchedule {
     /// Keepalive probes the switch time leaves room for, in
     /// `1..=`[`MAX_TCP_KEEPALIVE_PROBES`].
     ///
-    /// Phantom does not set the operating system's probe count.
+    /// This remains a timer input when [`Self::set_probe_count`] is false.
     pub probe_count: u32,
+    /// Sets the computed probe interval on the socket.
+    ///
+    /// False leaves it unchanged. Windows requires true because its idle and
+    /// interval values are applied together.
+    pub set_interval: bool,
+    /// Sets [`Self::probe_count`] on the socket.
+    ///
+    /// False leaves the operating system's probe count unchanged.
+    pub set_probe_count: bool,
 }
 
 /// When and how a client sets TCP keepalive.

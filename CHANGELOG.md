@@ -23,6 +23,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   address family. With the default one-connection limit, a usable winner
   makes the backup redundant; a retired winner can be replaced by it.
 
+- Add platform TCP factories and enable TCP in the Chrome 154 and Firefox
+  156 Android profiles. Migrate: add required `set_interval` and
+  `set_probe_count` fields to `TcpKeepaliveSchedule` literals and imported
+  scheduled-keepalive JSON. For the previous Windows schedule, use `true`
+  and `false` respectively. Choose the named macOS, Linux or Android TCP
+  factory for those socket policies. Re-export ticket snapshots: the
+  updated profile-policy binding rejects older snapshots.
+
 - Make Firefox 157 send `Alt-Used` only when its learned mapping was already
   validated as a request hop was planned. Authenticated H3 setup validates
   later plans; retries keep the original decision. Pinned alternatives

@@ -115,6 +115,7 @@ fn keepalive(interval: Option<Duration>) -> TcpSettings {
 const FULL_SUPPORT: KeepaliveSupport = KeepaliveSupport {
     idle: true,
     interval: true,
+    probe_count: true,
     interval_required: false,
 };
 
@@ -135,6 +136,7 @@ fn host_check_accepts_what_the_platform_can_apply() {
     let nothing = KeepaliveSupport {
         idle: false,
         interval: false,
+        probe_count: false,
         interval_required: true,
     };
     assert_eq!(check_keepalive_support(&without_keepalive, nothing), Ok(()));
@@ -397,4 +399,124 @@ async fn a_reset_connect_stops_firefox_at_the_first_address_but_not_chromium() -
 fn unsupported_tcp_settings_keep_their_public_error_traits() {
     fn check<T: Clone + std::fmt::Debug + Eq + std::error::Error + Send + Sync>() {}
     check::<super::UnsupportedTcpSettings>();
+}
+
+#[test]
+fn schedule_host_checks_follow_requested_setters_not_timer_inputs() {
+    let macos = phantom_profile::browser::firefox::v157_macos_tcp();
+    let linux = phantom_profile::browser::firefox::v157_linux_tcp();
+    let idle_only = KeepaliveSupport {
+        interval: false,
+        probe_count: false,
+        ..FULL_SUPPORT
+    };
+    assert_eq!(check_keepalive_support(&macos, idle_only), Ok(()));
+    assert_eq!(
+        check_keepalive_support(&linux, idle_only).map_err(|error| error.field()),
+        Err("keepalive.set_interval")
+    );
+
+    let no_count = KeepaliveSupport {
+        probe_count: false,
+        ..FULL_SUPPORT
+    };
+    assert_eq!(
+        check_keepalive_support(&linux, no_count).map_err(|error| error.field()),
+        Err("keepalive.set_probe_count")
+    );
+    assert_eq!(check_keepalive_support(&macos, no_count), Ok(()));
+    let no_idle = KeepaliveSupport {
+        idle: false,
+        ..FULL_SUPPORT
+    };
+    assert_eq!(
+        check_keepalive_support(&macos, no_idle).map_err(|error| error.field()),
+        Err("keepalive.short_lived_idle")
+    );
+
+    let windows = KeepaliveSupport {
+        interval_required: true,
+        ..FULL_SUPPORT
+    };
+    assert_eq!(
+        check_keepalive_support(&macos, windows).map_err(|error| error.field()),
+        Err("keepalive.set_interval")
+    );
+    assert_eq!(
+        check_keepalive_support(&phantom_profile::browser::firefox::v157_tcp(), windows),
+        Ok(())
+    );
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn android_chrome_enables_nodelay_without_enabling_keepalive() -> TestResult {
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let settings = chrome::v154_android_tcp();
+    check_host_support(&settings)?;
+
+    let stream = tokio::time::timeout(
+        Duration::from_secs(5),
+        connect(
+            "127.0.0.1",
+            listener.local_addr()?.port(),
+            Some(settings),
+            None,
+            None,
+        ),
+    )
+    .await??;
+    let socket = SockRef::from(&stream);
+    assert!(socket.tcp_nodelay()?);
+    assert!(!socket.keepalive()?);
+    Ok(())
+}
+
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "macos"))]
+#[test]
+fn macos_chrome_changes_only_keepalive_idle_and_nodelay() -> TestResult {
+    let socket = tokio::net::TcpSocket::new_v4()?;
+    socket.bind("127.0.0.1:0".parse()?)?;
+    let options = SockRef::from(&socket);
+    options.set_tcp_keepalive(
+        &socket2::TcpKeepalive::new()
+            .with_time(Duration::from_secs(17))
+            .with_interval(Duration::from_secs(19))
+            .with_retries(11),
+    )?;
+    let send_buffer = options.send_buffer_size()?;
+    super::apply_options(&socket, chrome::v154_macos_tcp())?;
+
+    assert!(options.tcp_nodelay()?);
+    assert!(options.keepalive()?);
+    assert_eq!(options.tcp_keepalive_time()?, Duration::from_secs(45));
+    assert_eq!(options.tcp_keepalive_interval()?, Duration::from_secs(19));
+    assert_eq!(options.tcp_keepalive_retries()?, 11);
+    assert_eq!(options.send_buffer_size()?, send_buffer);
+    Ok(())
+}
+
+#[cfg(windows)]
+#[tokio::test(flavor = "current_thread")]
+async fn macos_firefox_schedule_is_rejected_before_connect_on_windows() -> TestResult {
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let result = connect(
+        "127.0.0.1",
+        listener.local_addr()?.port(),
+        Some(phantom_profile::browser::firefox::v157_macos_tcp()),
+        None,
+        None,
+    )
+    .await;
+    let error = result
+        .err()
+        .ok_or("idle-only schedule connected on Windows")?;
+    assert_eq!(error.kind(), io::ErrorKind::Unsupported);
+    assert!(error.to_string().contains("keepalive.set_interval"));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(50), listener.accept())
+            .await
+            .is_err(),
+        "unsupported schedule opened a connection"
+    );
+    Ok(())
 }

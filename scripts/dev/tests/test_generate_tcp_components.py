@@ -40,9 +40,10 @@ class TcpComponentTests(unittest.TestCase):
         for component in self.document["components"]:
             component["values"] = dict(reversed(component["values"].items()))
             for field in ("keepalive", "address_selection"):
-                component["values"][field] = dict(
-                    reversed(component["values"][field].items())
-                )
+                if field in component["values"]:
+                    component["values"][field] = dict(
+                        reversed(component["values"][field].items())
+                    )
         self.assertEqual(
             generator.generate_components(self.resolve(), "tcp-components.json"),
             generated,
@@ -65,6 +66,25 @@ class TcpComponentTests(unittest.TestCase):
         for value in (0, (1 << 32) - 1):
             self.values["port_randomization"] = {"minimum_windows_build": value}
             self.resolve()
+
+    def test_schedule_socket_setters_are_required_booleans(self):
+        schedule = self.document["components"][1]["values"]["keepalive"]
+        for field in ("set_interval", "set_probe_count"):
+            for invalid in (None, 0, 1, "true", []):
+                document = copy.deepcopy(self.document)
+                document["components"][1]["values"]["keepalive"][field] = invalid
+                with (
+                    self.subTest(field=field, invalid=invalid),
+                    self.assertRaises(generator.DeclarationError),
+                ):
+                    self.resolve(document)
+            document = copy.deepcopy(self.document)
+            del document["components"][1]["values"]["keepalive"][field]
+            with self.assertRaises(generator.DeclarationError):
+                self.resolve(document)
+            for value in (False, True):
+                schedule[field] = value
+                self.resolve()
 
     def test_fixed_keepalive_bounds_and_optional_interval_are_preserved(self):
         for field in ("idle", "interval"):

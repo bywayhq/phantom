@@ -72,8 +72,8 @@ class CompositionDeclarationTests(unittest.TestCase):
         self.assertEqual(len(original), 10)
         pairs = [value for entry in original for value in entry["composition"].values()]
         self.assertEqual(len(pairs), 140)
-        self.assertEqual(sum(value is not None for value in pairs), 94)
-        self.assertEqual(sum(value is None for value in pairs), 46)
+        self.assertEqual(sum(value is not None for value in pairs), 96)
+        self.assertEqual(sum(value is None for value in pairs), 44)
         self.assertEqual(
             cli.COMPOSITION_OUTPUT.read_text(encoding="utf-8"),
             composition.generate_compositions(profiles),

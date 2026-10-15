@@ -77,6 +77,8 @@ fn firefox_original() -> TcpSettings {
             minimum_interval: Duration::from_secs(1),
             short_lived_time: Duration::from_secs(60),
             probe_count: 10,
+            set_interval: true,
+            set_probe_count: false,
         }),
         address_selection: TcpAddressSelection::Backup(TcpBackupConnection {
             delay: Duration::from_millis(250),
@@ -84,4 +86,53 @@ fn firefox_original() -> TcpSettings {
         }),
         port_randomization: None,
     }
+}
+
+#[test]
+fn platform_tcp_factories_keep_their_complete_source_policies() -> TestResult {
+    let mut chrome_macos = chrome_original();
+    chrome_macos.keepalive = TcpKeepalivePolicy::Fixed(TcpKeepalive {
+        idle: Duration::from_secs(45),
+        interval: None,
+    });
+    chrome_macos.port_randomization = None;
+    let mut chrome_android = chrome_original();
+    chrome_android.keepalive = TcpKeepalivePolicy::Unchanged;
+    chrome_android.port_randomization = None;
+
+    let mut firefox_macos = firefox_original();
+    firefox_macos.send_buffer_size = None;
+    firefox_macos.keepalive = TcpKeepalivePolicy::Schedule(TcpKeepaliveSchedule {
+        short_lived_idle: Duration::from_secs(10),
+        long_lived_idle: Duration::from_secs(600),
+        minimum_interval: Duration::from_secs(1),
+        short_lived_time: Duration::from_secs(60),
+        probe_count: 8,
+        set_interval: false,
+        set_probe_count: false,
+    });
+    let mut firefox_linux = firefox_macos;
+    firefox_linux.keepalive = TcpKeepalivePolicy::Schedule(TcpKeepaliveSchedule {
+        short_lived_idle: Duration::from_secs(10),
+        long_lived_idle: Duration::from_secs(600),
+        minimum_interval: Duration::from_secs(1),
+        short_lived_time: Duration::from_secs(60),
+        probe_count: 4,
+        set_interval: true,
+        set_probe_count: true,
+    });
+
+    for (actual, expected) in [
+        (browser::chrome::v154_macos_tcp(), chrome_macos),
+        (browser::chrome::v154_android_tcp(), chrome_android),
+        (browser::firefox::v157_macos_tcp(), firefox_macos),
+        (browser::firefox::v157_linux_tcp(), firefox_linux),
+        (browser::firefox::v156_android_tcp(), firefox_linux),
+    ] {
+        actual.validate()?;
+        assert_eq!(actual, expected);
+    }
+    assert_eq!(browser::chrome::v154_android().tcp(), Some(&chrome_android));
+    assert_eq!(browser::firefox::v156_android().tcp(), Some(&firefox_linux));
+    Ok(())
 }

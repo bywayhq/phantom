@@ -1182,3 +1182,5 @@ fn opaque_socks_framing_rejects_oversized_input_without_secret_diagnostics() -> 
     assert!(!format!("{error:?} {error}").contains("xxxx"));
     Ok(())
 }
+
+mod tcp_schedule;

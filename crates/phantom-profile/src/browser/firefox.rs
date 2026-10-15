@@ -13,15 +13,15 @@
 //! capture can therefore complete a TLS handshake with a test certificate, and
 //! only the TCP ClientHello is captured. It has a recipe here.
 //!
-//! There is no Firefox for Android H2, WebSocket, request template, TCP,
-//! HTTP/1.1 connection, address-cache, proxy CONNECT, or cookie-placement
-//! recipe: none of those layers was captured on Android.
+//! TCP settings come from Firefox source. There is no Android H2, WebSocket,
+//! request template, HTTP/1.1 connection, address-cache, proxy CONNECT, or
+//! cookie-placement recipe: none of those layers was captured on Android.
 
 use crate::{ClientProfile, Http3ClientSettings};
 
 mod android;
 
-pub use android::v156_android_tcp_tls;
+pub use android::{v156_android_tcp, v156_android_tcp_tls};
 
 use crate::{
     cookie::CookiePlacement,
@@ -103,6 +103,9 @@ pub fn v157_tcp_tls() -> TlsSettings {
 
 /// Returns the TCP socket options and keepalive of Firefox 157.0 on Windows.
 ///
+/// For other platforms, use [`v157_macos_tcp`], [`v157_linux_tcp`], or
+/// [`v156_android_tcp`].
+///
 /// From the Firefox 157.0 socket hook logs taken on Windows 11 under
 /// `fixtures/socket-hooks/firefox/157.0/windows-11-26200/`, which the
 /// recipe's hook tests replay, and from source at tag
@@ -176,12 +179,34 @@ pub fn v157_tcp_tls() -> TlsSettings {
 /// - Firefox sets `SO_SNDBUF` on Windows only. On Linux a fixed send buffer
 ///   turns off the kernel's send buffer autotuning, so clear
 ///   [`TcpSettings::send_buffer_size`] for a profile used elsewhere.
-/// - On macOS Firefox sets only the keepalive idle time and assumes 8 probes;
-///   on Linux and Android it also sets `TCP_KEEPCNT` to 4. Phantom sets the
-///   interval wherever it can and never sets a probe count.
 #[must_use]
 pub fn v157_tcp() -> TcpSettings {
     crate::catalog::tcp_components::firefox_157_tcp()
+}
+
+/// Returns Firefox 157.0 TCP settings for macOS.
+///
+/// Keepalive follows [`crate::TcpKeepaliveSchedule`]. Firefox sets only its
+/// idle time, leaving the socket's interval and probe count unchanged. The
+/// switch timer assumes eight probes. The send buffer stays unchanged.
+/// These values come from `nsSocketTransport2.cpp` and
+/// `nsSocketTransportService2.h` at `FIREFOX_157_0_RELEASE`, not a socket-hook
+/// capture. Address-selection limits are the same as [`v157_tcp`].
+#[must_use]
+pub fn v157_macos_tcp() -> TcpSettings {
+    crate::catalog::tcp_components::firefox_157_macos_tcp()
+}
+
+/// Returns Firefox 157.0 TCP settings for Linux.
+///
+/// Keepalive follows [`crate::TcpKeepaliveSchedule`], setting idle time,
+/// the computed interval, and four probes. The send buffer stays unchanged.
+/// These values come from `nsSocketTransport2.cpp` and
+/// `nsSocketTransportService2.h` at `FIREFOX_157_0_RELEASE`, not a socket-hook
+/// capture. Address-selection limits are the same as [`v157_tcp`].
+#[must_use]
+pub fn v157_linux_tcp() -> TcpSettings {
+    crate::catalog::tcp_components::firefox_157_linux_tcp()
 }
 
 /// Returns the address cache of Firefox 157.0 release builds.
@@ -985,15 +1010,15 @@ pub fn v157_windows() -> ClientProfile {
         .with_cookie_placement(v157_cookie_placement())
 }
 
-/// Returns the captured Android layers for Firefox 156.
+/// Returns the Firefox 156 Android profile.
 ///
-/// Supplies TCP TLS only.
-/// TCP socket, UDP socket, HTTP/1.1 policy, address-cache, proxy CONNECT,
+/// Supplies captured TCP TLS and TCP socket settings from Firefox source.
+/// UDP socket, HTTP/1.1 policy, address-cache, proxy CONNECT,
 /// and cookie-placement recipes are absent. Their generic defaults remain.
 /// No request template is selected. These captures came from emulators.
 #[must_use]
 pub fn v156_android() -> ClientProfile {
-    ClientProfile::new(v156_android_tcp_tls())
+    ClientProfile::new(v156_android_tcp_tls()).with_tcp(v156_android_tcp())
 }
 
 #[cfg(test)]

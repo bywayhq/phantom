@@ -116,7 +116,7 @@ repeated slots. Import does not sample those policies.
 | --- | --- |
 | `tcp` | `nodelay`, `send_buffer_size`, `keepalive`, `address_selection`, `port_randomization` |
 | Fixed keepalive | `kind`: `Fixed`; `idle`, `interval` durations |
-| Scheduled keepalive | `kind`: `Schedule`; `short_lived_idle`, `long_lived_idle`, `minimum_interval`, `short_lived_time` durations; `probe_count` |
+| Scheduled keepalive | `kind`: `Schedule`; `short_lived_idle`, `long_lived_idle`, `minimum_interval`, `short_lived_time` durations; `probe_count`; `set_interval`, `set_probe_count` booleans |
 | Unchanged keepalive | `kind`: `Unchanged` |
 | Sequential addresses | `kind`: `Sequential`; `advance`: `AfterAnyFailure` or `AfterRefusalOrTimeout` |
 | Racing addresses | `kind`: `Racing`; `fallback_delay` duration |

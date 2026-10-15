@@ -58,7 +58,7 @@ ANDROID = {
 
 TARGET_CONTRACTS = {
     "ChromeWindows154": ("Chrome", "Windows", WINDOWS),
-    "ChromeAndroid154": ("Chrome", "Android", ANDROID),
+    "ChromeAndroid154": ("Chrome", "Android", ANDROID | {"Tcp"}),
     "EdgeWindows154": ("Edge", "Windows", WINDOWS),
     "EdgeWindows153": (
         "Edge",
@@ -77,7 +77,7 @@ TARGET_CONTRACTS = {
     "BraveWindows154": ("Brave", "Windows", WINDOWS),
     "BraveAndroid153": ("Brave", "Android", ANDROID),
     "FirefoxWindows157": ("Firefox", "Windows", WINDOWS - {"Udp", "ClientHints"}),
-    "FirefoxAndroid156": ("Firefox", "Android", {"TcpTls"}),
+    "FirefoxAndroid156": ("Firefox", "Android", {"TcpTls", "Tcp"}),
     "OperaWindows136": ("Opera", "Windows", WINDOWS),
     "OperaAndroid102": ("Opera", "Android", {"TcpTls", "ClientHints"}),
 }

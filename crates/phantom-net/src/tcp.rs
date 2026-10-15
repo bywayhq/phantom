@@ -628,6 +628,62 @@ fn with_interval(
     ))
 }
 
+// The targets of socket2 0.6.5's `TcpKeepalive::with_retries`, less Cygwin,
+// a tier 3 target that Phantom does not build or test; a probe count there is
+// rejected by `check_host_support` instead of being applied unverified.
+#[cfg(any(
+    target_os = "android",
+    target_os = "dragonfly",
+    target_os = "emscripten",
+    target_os = "freebsd",
+    target_os = "fuchsia",
+    target_os = "illumos",
+    target_os = "ios",
+    target_os = "visionos",
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "netbsd",
+    target_os = "tvos",
+    target_os = "watchos",
+    target_os = "windows",
+    target_os = "nuttx",
+    all(target_os = "wasi", not(target_env = "p1")),
+))]
+fn with_probe_count(
+    parameters: socket2::TcpKeepalive,
+    count: u32,
+) -> io::Result<socket2::TcpKeepalive> {
+    Ok(parameters.with_retries(count))
+}
+
+#[cfg(not(any(
+    target_os = "android",
+    target_os = "dragonfly",
+    target_os = "emscripten",
+    target_os = "freebsd",
+    target_os = "fuchsia",
+    target_os = "illumos",
+    target_os = "ios",
+    target_os = "visionos",
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "netbsd",
+    target_os = "tvos",
+    target_os = "watchos",
+    target_os = "windows",
+    target_os = "nuttx",
+    all(target_os = "wasi", not(target_env = "p1")),
+)))]
+fn with_probe_count(
+    _parameters: socket2::TcpKeepalive,
+    _count: u32,
+) -> io::Result<socket2::TcpKeepalive> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        UNSUPPORTED_PROBE_COUNT,
+    ))
+}
+
 /// Which keepalive values the host's socket API can apply.
 #[derive(Clone, Copy, Debug)]
 struct KeepaliveSupport {
@@ -637,6 +693,8 @@ struct KeepaliveSupport {
     /// The targets of socket2 0.6.5's `TcpKeepalive::with_interval`, less
     /// Cygwin (see `with_interval`).
     interval: bool,
+    /// The targets of socket2 0.6.5's `TcpKeepalive::with_retries`, less Cygwin.
+    probe_count: bool,
     /// Windows applies both values through `SIO_KEEPALIVE_VALS`, where an
     /// unset interval becomes zero milliseconds rather than a system default.
     interval_required: bool,
@@ -666,10 +724,29 @@ const HOST_KEEPALIVE: KeepaliveSupport = KeepaliveSupport {
         target_os = "nuttx",
         all(target_os = "wasi", not(target_env = "p1")),
     )),
+    probe_count: cfg!(any(
+        target_os = "android",
+        target_os = "dragonfly",
+        target_os = "emscripten",
+        target_os = "freebsd",
+        target_os = "fuchsia",
+        target_os = "illumos",
+        target_os = "ios",
+        target_os = "visionos",
+        target_os = "linux",
+        target_os = "macos",
+        target_os = "netbsd",
+        target_os = "tvos",
+        target_os = "watchos",
+        target_os = "windows",
+        target_os = "nuttx",
+        all(target_os = "wasi", not(target_env = "p1")),
+    )),
     interval_required: cfg!(windows),
 };
 
 const UNSUPPORTED_INTERVAL: &str = "this platform cannot set a TCP keepalive interval";
+const UNSUPPORTED_PROBE_COUNT: &str = "this platform cannot set a TCP keepalive probe count";
 
 /// Checks that this host can apply `settings` exactly, without I/O.
 ///
@@ -681,9 +758,9 @@ const UNSUPPORTED_INTERVAL: &str = "this platform cannot set a TCP keepalive int
 /// # Errors
 ///
 /// Returns [`UnsupportedTcpSettings`] when this platform cannot set a
-/// keepalive idle time, when an interval is requested where none can be set,
-/// or when Windows would need an interval the settings leave unset. It also
-/// rejects unknown keepalive, address-selection, and address-advance policies.
+/// requested keepalive idle time, interval, or probe count. It also rejects
+/// an unset interval on Windows, and unknown keepalive, address-selection,
+/// and address-advance policies.
 pub fn check_host_support(settings: &TcpSettings) -> Result<(), UnsupportedTcpSettings> {
     check_policy_support(settings)?;
     check_keepalive_support(settings, HOST_KEEPALIVE)
@@ -718,18 +795,29 @@ fn check_keepalive_support(
     let keepalive = match settings.keepalive {
         TcpKeepalivePolicy::Unchanged => return Ok(()),
         TcpKeepalivePolicy::Fixed(keepalive) => keepalive,
-        // A schedule always sets an interval, which Windows requires anyway.
-        TcpKeepalivePolicy::Schedule(_) => {
+        TcpKeepalivePolicy::Schedule(schedule) => {
             if !support.idle {
                 return Err(UnsupportedTcpSettings {
                     field: "keepalive.short_lived_idle",
                     message: "this platform cannot set a TCP keepalive idle time",
                 });
             }
-            if !support.interval {
+            if schedule.set_interval && !support.interval {
                 return Err(UnsupportedTcpSettings {
-                    field: "keepalive.minimum_interval",
+                    field: "keepalive.set_interval",
                     message: UNSUPPORTED_INTERVAL,
+                });
+            }
+            if !schedule.set_interval && support.interval_required {
+                return Err(UnsupportedTcpSettings {
+                    field: "keepalive.set_interval",
+                    message: "Windows requires a TCP keepalive interval with the idle time",
+                });
+            }
+            if schedule.set_probe_count && !support.probe_count {
+                return Err(UnsupportedTcpSettings {
+                    field: "keepalive.set_probe_count",
+                    message: UNSUPPORTED_PROBE_COUNT,
                 });
             }
             return Ok(());

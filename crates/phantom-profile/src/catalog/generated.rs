@@ -582,11 +582,21 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
-                support: LayerSupport::Unavailable,
+                support: LayerSupport::Configured,
                 references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Source,
+                        location: "https://chromium.googlesource.com/chromium/src/+/73c14f6228d7cd537c855007e8f88678969cc0eb/net/socket/tcp_socket_posix.cc",
+                        build: "154.0.8037.57",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/chrome/android.rs",
+                        build: "154.0.8037.57",
+                    },
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &["TCP settings come from browser source; Android socket options were not captured.", "Address-selection limits are described by the recipe rustdoc."],
             },
             LayerEvidence {
                 layer: ProfileLayer::Udp,
@@ -1849,11 +1859,21 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
             },
             LayerEvidence {
                 layer: ProfileLayer::Tcp,
-                support: LayerSupport::Unavailable,
+                support: LayerSupport::Configured,
                 references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Source,
+                        location: "https://hg.mozilla.org/releases/mozilla-release/file/19a90052d7869f7b194ff27d316520366ad1d592/netwerk/base/nsSocketTransport2.cpp",
+                        build: "156.0.1",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/firefox/android.rs",
+                        build: "156.0.1",
+                    },
                 ],
                 verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                limitations: &["TCP settings come from browser source; Android socket options were not captured.", "Address-selection limits are described by the recipe rustdoc."],
             },
             LayerEvidence {
                 layer: ProfileLayer::Udp,

@@ -91,12 +91,13 @@ fn windows_factories_keep_tcp_and_quic_tls_in_their_own_layers() {
 }
 
 #[test]
-fn android_factories_leave_uncaptured_policies_absent() {
-    for (name, profile, tls, has_http2, has_http3, has_hints, has_websocket) in [
+fn android_factories_supply_captured_or_sourced_policies_and_keep_other_layers_absent() {
+    for (name, profile, tls, tcp, has_http2, has_http3, has_hints, has_websocket) in [
         (
             "chrome",
             chrome::v154_android(),
             chrome::v154_android_tcp_tls(),
+            Some(chrome::v154_android_tcp()),
             true,
             true,
             true,
@@ -106,6 +107,7 @@ fn android_factories_leave_uncaptured_policies_absent() {
             "edge",
             edge::v153_android(),
             edge::v153_android_tcp_tls(),
+            None,
             true,
             true,
             true,
@@ -115,6 +117,7 @@ fn android_factories_leave_uncaptured_policies_absent() {
             "brave",
             brave::v153_android(),
             brave::v153_android_tcp_tls(),
+            None,
             true,
             true,
             true,
@@ -124,6 +127,7 @@ fn android_factories_leave_uncaptured_policies_absent() {
             "opera",
             opera::v102_android(),
             opera::v102_android_tcp_tls(),
+            None,
             false,
             false,
             true,
@@ -133,6 +137,7 @@ fn android_factories_leave_uncaptured_policies_absent() {
             "firefox",
             firefox::v156_android(),
             firefox::v156_android_tcp_tls(),
+            Some(firefox::v156_android_tcp()),
             false,
             false,
             false,
@@ -140,7 +145,7 @@ fn android_factories_leave_uncaptured_policies_absent() {
         ),
     ] {
         assert_eq!(profile.tls(), &tls, "{name}");
-        assert_eq!(profile.tcp(), None, "{name}");
+        assert_eq!(profile.tcp(), tcp.as_ref(), "{name}");
         assert_eq!(profile.udp(), None, "{name}");
         assert_eq!(profile.http1(), None, "{name}");
         assert_eq!(profile.dns_cache(), None, "{name}");

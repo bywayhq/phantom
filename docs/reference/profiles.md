@@ -242,21 +242,29 @@ resolved addresses.
 | `chrome::v154_tcp` | Set (Nagle off) | OS default | 45 s idle and 45 s interval before connecting, as Chromium on Windows and Linux | Happy Eyeballs racing, 300 ms fallback delay | Random (`SO_RANDOMIZE_PORT`) from build 22621, Windows 11 22H2 |
 | `firefox::v157_tcp` | Set (Nagle off) | 524,288 bytes, as Firefox on Windows | Scheduled: 10 s idle, then 600 s; off for HTTP/2 | One at a time, resolver order; the next only after a refused, unreachable, or timed-out connect | OS default (sequential) |
 | Brave, Edge, Opera | `chrome::v154_tcp` | `chrome::v154_tcp` | `chrome::v154_tcp` | `chrome::v154_tcp` | `chrome::v154_tcp` |
-| Android browsers | Not covered | Not covered | Not covered | Not covered | Not covered |
+| `chrome::v154_macos_tcp` | Set | OS default | 45 s idle; interval and count unchanged | Racing, 300 ms fallback | OS default |
+| `chrome::v154_android_tcp` | Set | OS default | Unchanged | Racing, 300 ms fallback | OS default |
+| `firefox::v157_macos_tcp` | Set | OS default | 10 s then 600 s idle; interval and count unchanged | Firefox backup, 250 ms | OS default |
+| `firefox::v157_linux_tcp`, `firefox::v156_android_tcp` | Set | OS default | 10 s then 600 s idle; setup-derived interval and count 4 | Firefox backup, 250 ms | OS default |
+| Other Android browsers | Not covered | Not covered | Not covered | Not covered | Not covered |
 
 - Chromium racing: the first attempt prefers IPv6; a failed attempt is
   followed by one on the other family; 300 ms after the first attempt a
   second one starts, so one attempt prefers each family. `TcpAddressRacing`
   documents the full behavior.
-- Chromium on macOS sets only the idle time; for that platform, set the
-  interval of `TcpKeepalivePolicy::Fixed` to `None`.
+- Choose a platform TCP factory explicitly. The macOS and Linux factories
+  above provide TCP settings only. They do not select TLS or request fields.
 - Firefox's schedule (`TcpKeepalivePolicy::Schedule`): a connection gets a
   10-second idle time and a probe interval of its setup time in whole
   seconds, at least one, once it connects and again with each HTTP/1
   request. A request still running 72 s later (with a one-second interval)
   moves the connection to 600 s; a connection idle in the pool keeps 10 s.
   HTTP/2 turns keepalive off, and an upgrade, such as WebSocket, moves to
-  600 s at once. `TcpKeepaliveSchedule` documents the rule.
+  600 s at once. The Windows timer assumes 10 probes, macOS 8, and
+  Linux/Android 4. With a one-second interval their transition delays are
+  72, 70 and 66 seconds. `set_interval` and `set_probe_count` control socket
+  writes separately from the timer inputs. `TcpKeepaliveSchedule` documents
+  the rule.
 - `TcpAddressSelection::Backup` (`TcpBackupConnection`), which
   `firefox::v157_tcp` sets with a 250 ms delay: the first attempt tries
   every address in resolver order and moves on only after a refused,
@@ -294,14 +302,12 @@ resolved addresses.
   failure, and `AfterRefusalOrTimeout`, which `firefox::v157_tcp` sets,
   only after a refused, unreachable, or timed-out connect, as Firefox does;
   any other failure, such as a reset, ends the connect.
-- Firefox sets `SO_SNDBUF` on Windows only. On Linux a fixed send buffer
-  turns off the kernel's send buffer autotuning, so clear
-  `send_buffer_size` for a profile used off Windows.
+- Firefox sets `SO_SNDBUF` on Windows only. The macOS, Linux and Android
+  factories leave the send buffer unchanged.
 - Not modeled for Firefox: keeping the slower connection, and remembering
   the address family, on proxy routes;
   skipping an address that failed before on the same cached DNS record; its
-  `SO_LINGER` of `{1, 0}` (its close is still a FIN, as Phantom's is); and
-  the probe counts of macOS and Linux.
+  `SO_LINGER` of `{1, 0}` (its close is still a FIN, as Phantom's is).
 - Brave 1.96.59 builds the Chromium tag behind `chrome::v154_tcp` and
   changes none of the values it cites, so Brave uses that recipe.
 - `TcpPortRandomization` sets `SO_RANDOMIZE_PORT` from a minimum Windows
@@ -321,7 +327,8 @@ resolved addresses.
 | --- | --- |
 | Keepalive idle time and interval | Whole seconds, 1 to 32,767 |
 | Schedule short-lived time | Whole seconds, 1 to 300 |
-| Schedule probe count | 1 to 127 |
+| Schedule probe count | 1 to 127, including when its socket write is disabled |
+| Schedule socket setters | Required `set_interval` and `set_probe_count` booleans |
 | Send buffer size | 1 to 2,147,483,647 bytes |
 | Racing fallback delay, backup delay | Nonzero, at most 10 seconds |
 | Setting the host cannot apply | `ClientBuilder::build` fails with `BuildErrorKind::InvalidProfile` |

@@ -24,6 +24,8 @@ fn quick_schedule() -> TcpKeepaliveSchedule {
         minimum_interval: Duration::from_secs(1),
         short_lived_time: Duration::from_secs(1),
         probe_count: 1,
+        set_interval: true,
+        set_probe_count: false,
     }
 }
 
@@ -246,6 +248,109 @@ async fn a_later_request_moves_the_switch_later() -> TestResult {
     assert!(
         elapsed >= delay + Duration::from_secs(2),
         "switched {elapsed:?} after opening"
+    );
+    Ok(())
+}
+
+#[test]
+fn platform_probe_counts_time_the_switch_independently_of_socket_setters() -> TestResult {
+    for (settings, one_second, two_seconds) in [
+        (firefox::v157_tcp(), 72, 82),
+        (firefox::v157_macos_tcp(), 70, 78),
+        (firefox::v157_linux_tcp(), 66, 70),
+        (firefox::v156_android_tcp(), 66, 70),
+    ] {
+        let phantom_profile::TcpKeepalivePolicy::Schedule(schedule) = settings.keepalive else {
+            return Err("platform recipe lost its schedule".into());
+        };
+        assert_eq!(
+            switch_delay(&schedule, Duration::from_secs(1)),
+            Duration::from_secs(one_second)
+        );
+        assert_eq!(
+            switch_delay(&schedule, Duration::from_secs(2)),
+            Duration::from_secs(two_seconds)
+        );
+    }
+    Ok(())
+}
+
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "macos"))]
+#[tokio::test(flavor = "current_thread")]
+async fn macos_schedule_preserves_socket_interval_and_count_through_http_lifecycle() -> TestResult {
+    assert_platform_schedule(firefox::v157_macos_tcp(), Duration::from_secs(19), 11).await
+}
+
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "macos"))]
+#[tokio::test(flavor = "current_thread")]
+async fn linux_and_android_schedules_set_socket_interval_and_count_through_http_lifecycle()
+-> TestResult {
+    for settings in [firefox::v157_linux_tcp(), firefox::v156_android_tcp()] {
+        assert_platform_schedule(settings, Duration::from_secs(2), 4).await?;
+    }
+    Ok(())
+}
+
+#[cfg(any(target_os = "linux", target_os = "android", target_os = "macos"))]
+async fn assert_platform_schedule(
+    settings: phantom_profile::TcpSettings,
+    expected_interval: Duration,
+    expected_count: u32,
+) -> TestResult {
+    let phantom_profile::TcpKeepalivePolicy::Schedule(schedule) = settings.keepalive else {
+        return Err("platform recipe lost its schedule".into());
+    };
+    let (client, _peer) = tokio::time::timeout(Duration::from_secs(5), loopback_pair()).await??;
+    let socket = SockRef::from(&client);
+    socket.set_tcp_keepalive(
+        &socket2::TcpKeepalive::new()
+            .with_time(Duration::from_secs(17))
+            .with_interval(Duration::from_secs(19))
+            .with_retries(11),
+    )?;
+    socket.set_keepalive(false)?;
+    let control = TcpKeepaliveControl::opened_idle(schedule, Duration::from_millis(2_050));
+
+    apply(&control, &client)?;
+    assert!(!socket.keepalive()?);
+    assert_eq!(socket.tcp_keepalive_time()?, Duration::from_secs(17));
+    assert_eq!(socket.tcp_keepalive_interval()?, Duration::from_secs(19));
+    assert_eq!(socket.tcp_keepalive_retries()?, 11);
+
+    let assert_options = |idle| -> TestResult {
+        assert!(socket.keepalive()?);
+        assert_eq!(socket.tcp_keepalive_time()?, Duration::from_secs(idle));
+        assert_eq!(socket.tcp_keepalive_interval()?, expected_interval);
+        assert_eq!(socket.tcp_keepalive_retries()?, expected_count);
+        Ok(())
+    };
+    control.request_dispatched();
+    apply(&control, &client)?;
+    assert_options(10)?;
+
+    control.upgraded();
+    apply(&control, &client)?;
+    assert_options(600)?;
+
+    control.connection_idle();
+    control.request_dispatched();
+    apply(&control, &client)?;
+    assert_options(10)?;
+
+    control.http2_negotiated();
+    apply(&control, &client)?;
+    control.request_dispatched();
+    control.upgraded();
+    apply(&control, &client)?;
+    assert!(!socket.keepalive()?);
+    assert_eq!(
+        control.applied_phases(),
+        [
+            KeepalivePhase::ShortLived,
+            KeepalivePhase::LongLived,
+            KeepalivePhase::ShortLived,
+            KeepalivePhase::Disabled
+        ]
     );
     Ok(())
 }

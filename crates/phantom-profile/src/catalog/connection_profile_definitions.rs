@@ -53,7 +53,9 @@ impl TlsComponent {
 #[derive(Clone, Copy, Debug)]
 #[rustfmt::skip]
 pub(super) enum TcpComponent {
+    Chromium154Android,
     Chromium154,
+    Firefox156Android,
     Firefox157,
 }
 
@@ -61,7 +63,9 @@ pub(super) enum TcpComponent {
 impl TcpComponent {
     pub(super) fn create(self) -> crate::TcpSettings {
         match self {
+            Self::Chromium154Android => super::tcp_components::chromium_154_android_tcp(),
             Self::Chromium154 => super::tcp_components::chromium_154_tcp(),
+            Self::Firefox156Android => super::tcp_components::firefox_156_android_tcp(),
             Self::Firefox157 => super::tcp_components::firefox_157_tcp(),
         }
     }
@@ -309,7 +313,7 @@ pub(super) static BRAVEWINDOWS154: ConnectionProfileDefinition = ConnectionProfi
 #[rustfmt::skip]
 pub(super) static CHROMEANDROID154: ConnectionProfileDefinition = ConnectionProfileDefinition {
     tls: TlsComponent::Chromium154AndroidTcp,
-    tcp: None,
+    tcp: Some(TcpComponent::Chromium154Android),
     udp: None,
     dns_cache: None,
     http1: None,
@@ -409,7 +413,7 @@ pub(super) static EDGEWINDOWS154: ConnectionProfileDefinition = ConnectionProfil
 #[rustfmt::skip]
 pub(super) static FIREFOXANDROID156: ConnectionProfileDefinition = ConnectionProfileDefinition {
     tls: TlsComponent::Firefox156AndroidTcp,
-    tcp: None,
+    tcp: Some(TcpComponent::Firefox156Android),
     udp: None,
     dns_cache: None,
     http1: None,

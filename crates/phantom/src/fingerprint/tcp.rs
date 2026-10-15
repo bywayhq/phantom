@@ -79,6 +79,8 @@ fn keepalive(v: &Value) -> Result<TcpKeepalivePolicy> {
                     "minimum_interval",
                     "short_lived_time",
                     "probe_count",
+                    "set_interval",
+                    "set_probe_count",
                 ],
                 "tcp.keepalive",
             )?;
@@ -98,6 +100,12 @@ fn keepalive(v: &Value) -> Result<TcpKeepalivePolicy> {
                 probe_count: v
                     .member("probe_count", "tcp.keepalive.probe_count")?
                     .integer("tcp.keepalive.probe_count")?,
+                set_interval: v
+                    .member("set_interval", "tcp.keepalive.set_interval")?
+                    .boolean("tcp.keepalive.set_interval")?,
+                set_probe_count: v
+                    .member("set_probe_count", "tcp.keepalive.set_probe_count")?
+                    .boolean("tcp.keepalive.set_probe_count")?,
             }))
         }
         _ => Err(json::unsupported("tcp.keepalive.kind")),
@@ -148,5 +156,50 @@ fn selection(v: &Value) -> Result<TcpAddressSelection> {
             }))
         }
         _ => Err(json::unsupported("tcp.address_selection.kind")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type TestResult = std::result::Result<(), Box<dyn std::error::Error>>;
+
+    fn scheduled(interval: &str, count: &str) -> String {
+        format!(
+            r#"{{"kind":"Schedule","short_lived_idle":{{"seconds":10,"nanoseconds":0}},"long_lived_idle":{{"seconds":600,"nanoseconds":0}},"minimum_interval":{{"seconds":1,"nanoseconds":0}},"short_lived_time":{{"seconds":60,"nanoseconds":0}},"probe_count":8,"set_interval":{interval},"set_probe_count":{count}}}"#
+        )
+    }
+
+    #[test]
+    fn schedule_import_keeps_socket_setters_separate_from_timer_inputs() -> TestResult {
+        for (interval, count) in [(false, false), (true, false), (false, true), (true, true)] {
+            let payload = scheduled(&interval.to_string(), &count.to_string());
+            let value = json::parse(payload.as_bytes())?;
+            let TcpKeepalivePolicy::Schedule(schedule) = keepalive(&value)? else {
+                return Err("schedule changed kind".into());
+            };
+            assert_eq!(schedule.set_interval, interval);
+            assert_eq!(schedule.set_probe_count, count);
+            assert_eq!(schedule.probe_count, 8);
+            assert_eq!(schedule.minimum_interval, std::time::Duration::from_secs(1));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn schedule_import_requires_boolean_socket_setters() -> TestResult {
+        for invalid in ["null", "0", "1", "\"true\"", "[]"] {
+            for payload in [scheduled(invalid, "false"), scheduled("false", invalid)] {
+                let value = json::parse(payload.as_bytes())?;
+                assert!(keepalive(&value).is_err());
+            }
+        }
+        let complete = scheduled("false", "false");
+        for missing in [",\"set_interval\":false", ",\"set_probe_count\":false"] {
+            let value = json::parse(complete.replace(missing, "").as_bytes())?;
+            assert!(keepalive(&value).is_err());
+        }
+        Ok(())
     }
 }

@@ -63,6 +63,8 @@ def validate_tcp_values(values):
                 "minimum_interval",
                 "short_lived_time",
                 "probe_count",
+                "set_interval",
+                "set_probe_count",
             ),
             "TCP keepalive schedule",
         )
@@ -70,6 +72,8 @@ def validate_tcp_values(values):
             tcp_whole_seconds(keepalive[field], 32_767, field)
         tcp_whole_seconds(keepalive["short_lived_time"], 300, "short_lived_time")
         bounded_integer(keepalive["probe_count"], 1, 127, "TCP keepalive probe count")
+        boolean(keepalive["set_interval"], "set_interval")
+        boolean(keepalive["set_probe_count"], "set_probe_count")
     selection = values["address_selection"]
     if not isinstance(selection, dict):
         raise DeclarationError("TCP address selection must be a typed policy")
@@ -148,6 +152,8 @@ def rust_tcp_value(field, value):
             )
         ]
         fields.append(f"probe_count: {value['probe_count']}")
+        for name in ("set_interval", "set_probe_count"):
+            fields.append(f"{name}: {str(value[name]).lower()}")
         return (
             expression + "(crate::TcpKeepaliveSchedule { " + ", ".join(fields) + " })"
         )

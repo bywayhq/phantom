@@ -304,6 +304,11 @@ features or blockers for the Phase 2 API work.
   `RuntimeProvider` that binds as the QUIC sockets do
   ([UDP socket option evidence](explanation/validation.md#udp-socket-option-evidence)).
 
+- Platform TCP factories: Chromium macOS idle-only keepalive and Android
+  TCP, plus Firefox macOS idle-only and Linux/Android counted keepalive.
+  Chrome and Firefox Android profiles include TCP. These are source-backed
+  policies; physical device and platform socket observations remain separate.
+
 ### Remaining
 
 These deferred follow-ups remain open after the Phase 1 exit audit. Each
@@ -337,14 +342,8 @@ completed phase scope.
   literal Chromium-family `User-Agent`, which needs a headful capture; Intel
   Macs and other macOS versions. Blocker: a headful launch on the capture
   host and an Intel Mac.
-- Chromium's macOS TCP keepalive as a named recipe. Evidence: on macOS
-  Chromium sets only the keepalive idle time, through `TCP_KEEPALIVE`
-  (`net/socket/tcp_socket_posix.cc:102-106` at `154.0.8037.58`), where
-  `chromium::v154_tcp` also sets the interval; a caller gets the macOS
-  behavior by setting `TcpKeepalive::interval` to `None`
-  ([TCP socket option evidence](explanation/validation.md#tcp-socket-option-evidence)).
-  Blocker: none recorded; a source-backed recipe.
-- Firefox for Android beyond TLS. Evidence: `firefox_android::v156_tls` only.
+- Firefox for Android beyond TLS and TCP. Delivered: the TLS recipe and
+  source-backed `firefox::v156_android_tcp` in the Android profile.
   Blocker: trusting a test certificate on Android, such as a user CA with
   `security.enterprise_roots.enabled`.
 - Chrome for Android on a phone. Evidence: Chrome 154.0.8037.57 captures on
@@ -352,12 +351,6 @@ completed phase scope.
   `chrome_android::v154_*`, and Play served that build to the emulator; no
   record compares it with the stable version Google lists. Blocker: a
   physical device, to check the emulator's CPU and network against a phone.
-- Chrome for Android's TCP socket options as a named recipe. Evidence:
-  Chromium's client sockets set `TCP_NODELAY` and, on Android, no keepalive
-  (`net/socket/tcp_socket_posix.cc:499`, `:512-516` at `154.0.8037.58`);
-  the emulator ends the guest's TCP connections, so no capture shows them
-  ([Chrome for Android 154 recipes](explanation/validation.md#chrome-for-android-154-recipes)).
-  Blocker: none recorded; a source-backed recipe.
 - Firefox's address selection on proxies, plus
   failed-address suppression. Evidence: Firefox keeps the slower backup
   connection and address family on every connection entry, proxies,

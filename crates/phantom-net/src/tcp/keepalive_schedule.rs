@@ -19,7 +19,7 @@ use phantom_profile::TcpKeepaliveSchedule;
 use socket2::SockRef;
 use tokio::{net::TcpStream, sync::oneshot};
 
-use super::{option_error, with_interval};
+use super::{option_error, with_interval, with_probe_count};
 
 /// Extra time Firefox adds to the short-lived period before the switch
 /// (`netwerk/protocol/http/nsHttpConnection.cpp:2183-2184` at tag
@@ -233,8 +233,13 @@ impl TcpKeepaliveControl {
         };
         match idle {
             Some(idle) => {
-                let parameters =
-                    with_interval(socket2::TcpKeepalive::new().with_time(idle), state.interval)?;
+                let mut parameters = socket2::TcpKeepalive::new().with_time(idle);
+                if state.schedule.set_interval {
+                    parameters = with_interval(parameters, state.interval)?;
+                }
+                if state.schedule.set_probe_count {
+                    parameters = with_probe_count(parameters, state.schedule.probe_count)?;
+                }
                 socket
                     .set_tcp_keepalive(&parameters)
                     .map_err(|error| option_error("TCP keepalive", error))?;

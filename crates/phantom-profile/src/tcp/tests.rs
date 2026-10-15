@@ -30,6 +30,8 @@ fn schedule() -> TcpKeepaliveSchedule {
         minimum_interval: Duration::from_secs(1),
         short_lived_time: Duration::from_secs(60),
         probe_count: 10,
+        set_interval: true,
+        set_probe_count: false,
     }
 }
 
@@ -248,5 +250,35 @@ fn backup_timeouts_outside_bounds_or_in_fractions_are_rejected() {
             "address_selection.known_family_backup_timeout",
             "{timeout:?}"
         );
+    }
+}
+
+#[test]
+fn schedule_timer_inputs_are_validated_even_when_socket_setters_are_disabled() {
+    for set_interval in [false, true] {
+        for set_probe_count in [false, true] {
+            let schedule = TcpKeepaliveSchedule {
+                set_interval,
+                set_probe_count,
+                ..schedule()
+            };
+            assert_eq!(with_schedule(schedule).validate(), Ok(()));
+            assert!(
+                with_schedule(TcpKeepaliveSchedule {
+                    minimum_interval: Duration::ZERO,
+                    ..schedule
+                })
+                .validate()
+                .is_err()
+            );
+            assert!(
+                with_schedule(TcpKeepaliveSchedule {
+                    probe_count: 0,
+                    ..schedule
+                })
+                .validate()
+                .is_err()
+            );
+        }
     }
 }

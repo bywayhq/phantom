@@ -303,7 +303,8 @@ from Chromium.
 | Decoded data frame size | 16 KiB |
 | TCP keepalive idle time and interval | Whole seconds, 1 to 32,767 |
 | TCP keepalive schedule short-lived time | Whole seconds, 1 to 300 |
-| TCP keepalive schedule probe count | 1 to 127 |
+| TCP keepalive schedule probe count | 1 to 127, also used when the socket setter is disabled |
+| TCP keepalive schedule socket setters | Required `set_interval` and `set_probe_count` flags; `ClientBuilder::build` rejects unsupported host combinations |
 | TCP send buffer size | 1 to 2,147,483,647 bytes |
 | TCP racing fallback delay and backup delay | Nonzero, at most 10 seconds |
 | TCP backup connect timeout once the address family is known | Whole seconds, 1 to 600 (`MAX_TCP_BACKUP_TIMEOUT_SECONDS`) |

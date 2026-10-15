@@ -12,10 +12,9 @@
 //! Android capture against it. Values that carry the platform, such as client
 //! hints and `User-Agent`, have their own data.
 //!
-//! There is no TCP, HTTP/1.1 connection, address-cache, proxy CONNECT, or
-//! cookie-placement recipe. The emulator's network terminates the device's TCP
-//! connections, so no socket option reaches a host listener, and the other
-//! layers rest on Chromium source or on captures not taken on Android.
+//! TCP settings come from Chromium source, not from the emulator captures:
+//! the emulator terminates the device's TCP connections. HTTP/1.1 connection,
+//! address-cache, proxy CONNECT, and cookie-placement recipes remain absent.
 
 use crate::{
     browser::chrome,
@@ -24,9 +23,21 @@ use crate::{
     http3::{Http3RequestSettings, Http3Settings},
     quic::QuicTransportSettings,
     request_template::RequestTemplate,
+    tcp::TcpSettings,
     tls::TlsSettings,
     websocket::WebSocketSettings,
 };
+
+/// Returns Chrome 154.0.8037.57 TCP settings for Android.
+///
+/// Chromium sets `TCP_NODELAY` but does not enable keepalive on Android.
+/// It leaves the send buffer and port selection unchanged. These values come
+/// from `net/socket/tcp_socket_posix.cc` at the build's source tag, not from
+/// socket-hook captures. Address racing keeps the 300 ms fallback delay.
+#[must_use]
+pub fn v154_android_tcp() -> TcpSettings {
+    crate::catalog::tcp_components::chromium_154_android_tcp()
+}
 
 /// The `User-Agent` Chrome 154 for Android sent on every captured request.
 ///

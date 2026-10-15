@@ -246,6 +246,8 @@ pub(super) fn tcp(e: &mut Encoder, value: &TcpSettings) -> Result<(), Preparatio
                 minimum_interval,
                 short_lived_time,
                 probe_count,
+                set_interval,
+                set_probe_count,
             } = value;
             e.u8(2)?;
             e.duration(*short_lived_idle)?;
@@ -253,6 +255,8 @@ pub(super) fn tcp(e: &mut Encoder, value: &TcpSettings) -> Result<(), Preparatio
             e.duration(*minimum_interval)?;
             e.duration(*short_lived_time)?;
             e.u32(*probe_count)?;
+            e.bool(*set_interval)?;
+            e.bool(*set_probe_count)?;
         }
         _ => return Err(PreparationError::Unsupported("keepalive")),
     }

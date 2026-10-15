@@ -19,6 +19,25 @@ class CatalogDeclarationTests(unittest.TestCase):
         with self.assertRaises(generator.DeclarationError):
             generator.validate(document)
 
+    def test_android_tcp_evidence_is_source_only_and_limited_to_chrome_and_firefox(
+        self,
+    ):
+        for profile in self.document["profiles"]:
+            if profile["metadata"]["platform"] != "Android":
+                continue
+            tcp = next(layer for layer in profile["layers"] if layer["layer"] == "Tcp")
+            if profile["target"] in ("ChromeAndroid154", "FirefoxAndroid156"):
+                self.assertEqual(tcp["support"], "Configured")
+                self.assertEqual(tcp["verified_fields"], [])
+                self.assertEqual(
+                    {reference["kind"] for reference in tcp["references"]},
+                    {"Source", "Recipe"},
+                )
+                self.assertIsNotNone(profile["composition"]["Tcp"])
+            else:
+                self.assertEqual(tcp["support"], "Unavailable")
+                self.assertIsNone(profile["composition"]["Tcp"])
+
     def test_generation_is_independent_of_record_and_layer_object_order(self):
         expected = generator.generate(generator.validate(self.document))
         self.document["profiles"].reverse()

@@ -26,10 +26,10 @@ requires verification of the outer proxy certificate.
 | Brave 154 | Browser source | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Opera 136 | Hook logs | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Firefox 157 | Hook logs, partial | Captured | Captured | Captured | Captured | Captured | Not sent by Firefox | Captured | Captured |
-| Firefox 156 for Android | Not covered | Captured | Not covered | Not covered | Not covered | Not covered | Not sent by Firefox | Not covered | Not covered |
+| Firefox 156 for Android | Browser source | Captured | Not covered | Not covered | Not covered | Not covered | Not sent by Firefox | Not covered | Not covered |
 | Opera 102 for Android | Not covered | Captured | Not covered | Not covered | Not covered | Not covered | Captured | Not covered | Not covered |
 | Brave 153 for Android | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
-| Chrome 154 for Android | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
+| Chrome 154 for Android | Browser source | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Edge 153 for Android | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Not covered |
 
 - **Captured**: retained traffic for the named build.
@@ -61,8 +61,10 @@ Read the matrix with these conditions:
   recipes, the only Chromium version Phantom carries. So do Chrome's,
   Edge's, and Brave's for Android, except that Edge for Android has no
   WebSocket recipe.
-- The emulator's network hides the device's TCP connections, so the Android
-  browsers have no TCP, HTTP/1.1 connection, or address-cache recipe.
+- Android TCP policies are available for Chrome 154 and Firefox 156.
+  The emulator hides device TCP connections, so these policies have no
+  device socket observations. Android HTTP/1.1 connection and address-cache
+  recipes remain absent.
 - Firefox's H2 recipe rests on H2 session captures, not on raw startup bytes.
 - Navigation templates cover H1, H2, and H3 for Chrome, Edge, Brave, Opera,
   and Brave for Android, and H1 and H2 for Firefox, whose H3 navigation and
@@ -166,8 +168,10 @@ Supported:
   family and register connected backups with their ordinary request pool.
   Backup setup sends no CONNECT. Dedicated winners stay outside ordinary
   pool slots; accepted streams and rejected bodies own their lifetime.
-- Named TCP policies: `chrome::v154_tcp` for Windows and Linux;
-  `firefox::v157_tcp` for Windows.
+- Named TCP policies: Chromium Windows/Linux, macOS and Android;
+  Firefox Windows, macOS, Linux and Android. The Android Chrome and Firefox
+  profiles include their respective TCP policies. macOS/Linux TCP factories
+  are standalone components, not complete platform profiles.
 
 Not modeled:
 
@@ -177,9 +181,6 @@ Not modeled:
   record; and
   noticing at once that a server closed an idle connection, which can make
   Firefox remember a family longer.
-- Firefox's keepalive on macOS (idle time only) and on Linux and Android
-  (`TCP_KEEPCNT` of 4) as named recipes.
-- Chromium's macOS idle-only keepalive as a named recipe.
 - Chromium's resolver behavior before racing: its own address sorting,
   partial DNS results, and HTTPS records fetched with the address queries.
   Phantom races the resolver's complete answer.
@@ -319,7 +320,7 @@ Supported:
 - Flow-controlled request bodies, owned or pull-driven, and streaming
   responses.
 - An early, incomplete response does not stop the request upload (RFC 9113
-  §8.1). The upload continues as the caller reads the response body.
+  Â§8.1). The upload continues as the caller reads the response body.
 - Exact WebSocket [extended CONNECT](glossary.md#extended-connect) on the
   direct, HTTP CONNECT, and SOCKS5 routes, including streams on a pooled
   proxied session
@@ -921,7 +922,7 @@ Supported HTTP proxies:
   Chrome 154, Edge 154, and Firefox 157 send them, with the tunnelled
   request's `User-Agent`.
 - HTTPS proxies reached over HTTP/2 when the route selects it explicitly
-  (RFC 9113 §8.5 CONNECT). Tunnels to different origins are streams of one
+  (RFC 9113 Â§8.5 CONNECT). Tunnels to different origins are streams of one
   proxy connection per session, proxy, and set of credentials, as Chrome
   154, Edge 154, and Firefox 157 open them. A tunnel past the proxy's
   `SETTINGS_MAX_CONCURRENT_STREAMS` waits on that connection, as in the
@@ -1128,7 +1129,8 @@ How the recipes differ:
   `v136_windows_client_hints`, `v136_macos_client_hints`, and its request
   templates, which equal the Chromium templates apart from `User-Agent`.
 - `firefox::v156_android_tcp_tls` returns `firefox::v157_tcp_tls`, which the Android
-  ClientHellos equal, with the `OldestFirst` ticket order. No other Firefox for Android layer is captured,
+  ClientHellos equal, with the `OldestFirst` ticket order. The Android
+  profile also includes its TCP policy. No other Firefox for Android layer is captured,
   because no certificate override can be installed on Android.
 - `opera::v102_android_*` carries only `v102_android_tcp_tls`, Chrome 154's ClientHello
   without trust-anchor IDs, `v102_android_client_hints()` with the captured

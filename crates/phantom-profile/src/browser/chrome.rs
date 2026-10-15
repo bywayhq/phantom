@@ -25,10 +25,9 @@
 //! Android capture against it. Values that carry the platform, such as client
 //! hints and `User-Agent`, have their own data.
 //!
-//! There is no TCP, HTTP/1.1 connection, address-cache, proxy CONNECT, or
-//! cookie-placement recipe. The emulator's network terminates the device's TCP
-//! connections, so no socket option reaches a host listener, and the other
-//! layers rest on Chromium source or on captures not taken on Android.
+//! TCP settings come from Chromium source, not from the emulator captures:
+//! the emulator terminates the device's TCP connections. HTTP/1.1 connection,
+//! address-cache, proxy CONNECT, and cookie-placement recipes remain absent.
 
 use crate::{ClientProfile, Http3ClientSettings};
 
@@ -38,7 +37,7 @@ pub use android::{
     v154_android_client_hints, v154_android_client_hints_for_model,
     v154_android_fetch_no_store_template, v154_android_http2, v154_android_http3,
     v154_android_http3_request, v154_android_navigation_template, v154_android_quic,
-    v154_android_quic_tls, v154_android_tcp_tls, v154_android_websocket,
+    v154_android_quic_tls, v154_android_tcp, v154_android_tcp_tls, v154_android_websocket,
 };
 
 pub(crate) use android::{model_value, validate_model};
@@ -206,6 +205,17 @@ pub fn v154_tcp_tls() -> TlsSettings {
 #[must_use]
 pub fn v154_tcp() -> TcpSettings {
     crate::catalog::tcp_components::chromium_154_tcp()
+}
+
+/// Returns Chrome 154.0.8037.58 TCP settings for macOS.
+///
+/// Chromium sets `TCP_NODELAY` and a 45-second keepalive idle time. It leaves
+/// the probe interval, probe count, send buffer, and port selection unchanged.
+/// These values come from `net/socket/tcp_socket_posix.cc` at that build's
+/// source tag; no macOS socket-hook capture verifies them.
+#[must_use]
+pub fn v154_macos_tcp() -> TcpSettings {
+    crate::catalog::tcp_components::chromium_154_macos_tcp()
 }
 
 /// Returns the UDP socket options Chromium 154.0.8037.58 sets on Windows.
@@ -1066,16 +1076,17 @@ pub fn v154_windows() -> ClientProfile {
         .with_cookie_placement(v154_cookie_placement())
 }
 
-/// Returns the captured Android layers for Chrome 154.
+/// Returns the Chrome 154 Android profile.
 ///
-/// Supplies TCP TLS, HTTP/2, HTTP/3, and client hints. WebSocket
-/// settings are included.
-/// TCP socket, UDP socket, HTTP/1.1 policy, address-cache, proxy CONNECT,
+/// Supplies source-derived TCP socket settings, captured TCP TLS, HTTP/2,
+/// HTTP/3, client hints, and WebSocket settings.
+/// UDP socket, HTTP/1.1 policy, address-cache, proxy CONNECT,
 /// and cookie-placement recipes are absent. Their generic defaults remain.
 /// No request template is selected. These captures came from emulators.
 #[must_use]
 pub fn v154_android() -> ClientProfile {
     ClientProfile::new(v154_android_tcp_tls())
+        .with_tcp(v154_android_tcp())
         .with_http2(v154_android_http2())
         .with_http3(Http3ClientSettings::new(
             v154_android_quic_tls(),

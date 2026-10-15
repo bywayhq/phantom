@@ -1892,6 +1892,47 @@ encode were.
 | `firefox::v157_tcp` address selection | Release builds keep Happy Eyeballs behind the nightly-only `network.http.happy_eyeballs_enabled` (`modules/libpref/init/StaticPrefList.yaml:17153-17156`). `DnsAndConnectSocket` arms a 250 ms backup timer once the primary attempt is connecting (`modules/libpref/init/all.js:1205`; `netwerk/protocol/http/DnsAndConnectSocket.cpp:242-265`, `:307-329`); without a learned family the backup resolves IPv4 only (`all.js:1237`; `DnsAndConnectSocket.cpp:179-186`, `:222-225`). An attempt moves to its next address only after a refused, unreachable, or timed-out connect (`netwerk/base/nsSocketTransport2.cpp:169-200`, `:1747-1755`), and a primary attempt that ends before the timer cancels it (`DnsAndConnectSocket.cpp:267-277`). The attempt that loses keeps connecting; its connection goes to the idle list, after a null transaction finishes its TLS handshake on a TLS origin (`:267-287`, `:671-745`), and a request may claim it meanwhile (`netwerk/protocol/http/ConnectionAttemptPool.cpp:141-163`; `netwerk/protocol/http/PendingTransactionInfo.cpp:20-44`, `:113-128`). Each connection records its address family on the connection entry, the first one setting it (`DnsAndConnectSocket.cpp:1152-1165`; `netwerk/protocol/http/ConnectionEntry.cpp:125-149`); later connections resolve that family alone, the backup with `network.http.fallback-connection-timeout`, 5 s, on each connect, and try the other family once it fails (`all.js:1220`; `DnsAndConnectSocket.cpp:167-178`, `:1014-1046`, `:1063`, `:1295-1303`; `nsSocketTransport2.cpp:1541`, `:1799-1825`). Once a connection reports HTTP/2, the entry's other attempts are closed and its other connections are not reused (`netwerk/protocol/http/nsHttpConnectionMgr.cpp:921-1033`; `ConnectionEntry.cpp:627-650`). |
 | `chrome::v154_tcp` address racing | Happy Eyeballs v2 is enabled and v3 disabled by default, so every TCP connection uses a `TcpConnectJob` (`net/base/features.cc:114-124`, `net/socket/transport_connect_job.cc:118-123`). It prefers IPv6 first (`net/socket/tcp_connect_job.h:211`), the other family after a failure (`net/socket/tcp_connect_job_connector.cc:298-303`), and starts a second, IPv4-preferring attempt `kIPv6FallbackTime = 300` ms after the first (`net/socket/tcp_connect_job.h:85`, `net/socket/tcp_connect_job.cc:443-466`, `:573-610`). No address is tried twice (`:703-746`); the first connection wins and a total failure returns the most recent error (`:406-431`, `:946-958`). The delay-changing trials `kAdjustIPv6FallbackTime` and `kIPv6FallbackBasedOnRTT` are disabled by default (`net/base/features.cc:128`, `:136`). |
 
+
+#### Platform TCP recipes
+
+The named platform TCP factories use pinned release source. They do not
+add macOS/Linux socket-hook observations or physical Android evidence.
+
+| Factory | Source behavior |
+| --- | --- |
+| `chrome::v154_macos_tcp` | NODELAY; 45 s keepalive idle; leave interval and count unchanged |
+| `chrome::v154_android_tcp` | NODELAY; no keepalive enable call; 300 ms racing delay |
+| `firefox::v157_macos_tcp` | 10/600 s idle schedule; leave socket interval/count unchanged; timer assumes 8 probes |
+| `firefox::v157_linux_tcp` | 10/600 s idle schedule; setup-derived interval; socket count and timer count 4 |
+| `firefox::v156_android_tcp` | Same Linux-style setters and timer, at the Firefox 156.0.1 release |
+
+Chromium desktop `154.0.8037.58` is revision
+`a654841425914cbb703a2931e07b70a83aedbafd`; Android `154.0.8037.57` is
+`73c14f6228d7cd537c855007e8f88678969cc0eb`. Their socket default files
+match. Apple applies only the idle setting in
+[`tcp_socket_posix.cc:74–108`](https://github.com/chromium/chromium/blob/a654841425914cbb703a2931e07b70a83aedbafd/net/socket/tcp_socket_posix.cc#L74-L108).
+Android omits keepalive at `:493–517`. The Android build keeps the existing
+300 ms Happy Eyeballs v2 default; no resolver parity is inferred.
+
+Firefox 157 is revision `fdd757a2e09c9471cddf383e64e631e4ce178499`.
+Its [platform setters](https://github.com/mozilla-firefox/firefox/blob/fdd757a2e09c9471cddf383e64e631e4ce178499/netwerk/base/nsSocketTransport2.cpp#L3311-L3401)
+write only idle on macOS, and idle, interval and count on Linux/Android.
+The [timer constants](https://github.com/mozilla-firefox/firefox/blob/fdd757a2e09c9471cddf383e64e631e4ce178499/netwerk/base/nsSocketTransportService2.h#L58-L70)
+are Windows 10, macOS 8 and other platforms 4 probes. The timer still uses
+the computed interval when its socket setter is disabled. With a one-second
+interval, the transition occurs after 72, 70 or 66 seconds respectively.
+
+Firefox Android 156.0.1 is revision
+`19a90052d7869f7b194ff27d316520366ad1d592`. Its
+[socket setters](https://github.com/mozilla-firefox/firefox/blob/19a90052d7869f7b194ff27d316520366ad1d592/netwerk/base/nsSocketTransport2.cpp#L3311-L3401)
+and timer constants match those Firefox 157 paths. No Android keepalive
+override was found in the release's GeckoView preferences. Non-Windows
+factories omit the Windows-only send-buffer setting and port randomization.
+
+The Android catalog components record source coverage without observation
+fields. Emulator host TCP traffic does not reveal the device's socket
+settings. These factories do not add complete macOS or Linux profiles.
+
 Differences from the browsers:
 
 - Chromium ignores a failure to set any of these options
@@ -1900,17 +1941,9 @@ Differences from the browsers:
   profile did not ask for. Chromium's comment expects `SO_RANDOMIZE_PORT` to
   fail on a socket that is already bound; Phantom sets it before a source
   binding binds the socket, so a bound connection gets a random port too.
-- Chromium on macOS sets only the keepalive idle time
-  (`net/socket/tcp_socket_posix.cc:102-106`), and Android and iOS builds
-  enable no keepalive (`:512-516`). `chrome::v154_tcp` describes Windows
-  and Linux; a macOS profile sets the interval of its
-  `TcpKeepalivePolicy::Fixed` to `None`.
-- Firefox applies keepalive after connecting, where Phantom's fixed
-  keepalive and Chromium apply it before; no packet shows the difference.
-  On macOS Firefox sets only the idle time and assumes 8 probes, and on
-  Linux and Android it also sets `TCP_KEEPCNT` to 4
-  (`netwerk/base/nsSocketTransport2.cpp:3311-3401`); Phantom's schedule sets
-  the interval wherever the host can and never a probe count.
+- Firefox and Phantom's scheduled keepalive apply after connecting.
+  Chromium and Phantom's fixed keepalive apply before connecting; no
+  packet shows that timing difference.
 - Brave 1.96.59 builds Chromium tag `154.0.8037.58` and changes none of
   the values above, so it uses `chrome::v154_tcp`. Neither
   `patches/net-base-features.cc.patch` nor

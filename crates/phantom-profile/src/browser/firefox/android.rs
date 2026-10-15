@@ -8,11 +8,11 @@
 //! capture can therefore complete a TLS handshake with a test certificate, and
 //! only the TCP ClientHello is captured. It has a recipe here.
 //!
-//! There is no Firefox for Android H2, WebSocket, request template, TCP,
-//! HTTP/1.1 connection, address-cache, proxy CONNECT, or cookie-placement
-//! recipe: none of those layers was captured on Android.
+//! TCP settings come from Firefox source. There is no Android H2, WebSocket,
+//! request template, HTTP/1.1 connection, address-cache, proxy CONNECT, or
+//! cookie-placement recipe: none of those layers was captured on Android.
 
-use crate::tls::TlsSettings;
+use crate::{tcp::TcpSettings, tls::TlsSettings};
 
 /// Returns TLS settings captured from Firefox 156.0.1 for Android.
 ///
@@ -49,4 +49,17 @@ use crate::tls::TlsSettings;
 #[must_use]
 pub fn v156_android_tcp_tls() -> TlsSettings {
     crate::tls::components::firefox_156_android_tcp_tls()
+}
+
+/// Returns Firefox 156.0.1 TCP settings for Android.
+///
+/// Keepalive follows [`crate::TcpKeepaliveSchedule`], setting idle time,
+/// the computed interval, and four probes. The send buffer stays unchanged.
+/// These values come from `nsSocketTransport2.cpp` and
+/// `nsSocketTransportService2.h` at `FIREFOX_156_0_1_RELEASE`, not an Android
+/// socket-hook capture. Address-selection limits are the same as
+/// [`crate::browser::firefox::v157_tcp`].
+#[must_use]
+pub fn v156_android_tcp() -> TcpSettings {
+    crate::catalog::tcp_components::firefox_156_android_tcp()
 }
