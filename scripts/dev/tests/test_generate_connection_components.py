@@ -140,6 +140,21 @@ class ConnectionComponentTests(unittest.TestCase):
         self.assertIn("negative_ttl: None", generated)
         self.assertIn("negative_ttl: Some(std::time::Duration::new(60, 0))", generated)
 
+    def test_system_dns_ttl_policies_are_closed_typed_values(self):
+        for invalid in (None, True, 0, {}, [], "WindowsCache", "firefoxwindows"):
+            document = copy.deepcopy(self.dns)
+            document["components"][0]["values"]["system_ttl"] = invalid
+            self.reject(document, "DnsCacheSettings")
+        missing = copy.deepcopy(self.dns)
+        del missing["components"][0]["values"]["system_ttl"]
+        self.reject(missing, "DnsCacheSettings")
+        for policy in ("Ignore", "FirefoxWindows"):
+            self.dns["components"][0]["values"]["system_ttl"] = policy
+            generated = generator.generate_components(
+                generator.validate_components(self.dns), "dns-components.json"
+            )
+            self.assertIn(f"system_ttl: crate::SystemDnsTtlPolicy::{policy}", generated)
+
     def test_udp_port_randomization_is_boolean_and_preserves_false(self):
         values = self.udp["components"][0]["values"]
         for value in (0, 1, "true", None, [], {}):

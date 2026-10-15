@@ -221,16 +221,16 @@ pub fn v157_linux_tcp() -> TcpSettings {
 /// (`netwerk/dns/nsHostResolver.cpp:66-68`, `:1304-1309`).
 ///
 /// On Windows `network.dns.get-ttl` is on
-/// (`modules/libpref/init/StaticPrefList.yaml:15663-15671`): after each
-/// system lookup Firefox resolves the name again and reads the smallest
-/// record TTL from the operating system's cache with `DnsQuery_A`
+/// (`modules/libpref/init/StaticPrefList.yaml:15663-15671`). Firefox obtains
+/// the smallest native A/AAAA answer TTL with `DnsQuery_A`, using options
+/// that permit DNS wire queries, rather than restricting it to cache reads
 /// (`netwerk/dns/nsHostResolver.cpp:1625-1645`,
 /// `netwerk/dns/GetAddrInfo.cpp:150-175`), then keeps the answer for that
 /// TTL, without a lower bound (`nsHostResolver.cpp:1311-1318`), hence a zero
-/// `min_record_ttl`. Its socket hook logs show a 1,757-second TTL kept.
-/// Phantom's system lookups report no TTL, so a Phantom client keeps those
-/// answers for 60 seconds; only a resolver that reports TTLs applies the
-/// record rule.
+/// `min_record_ttl`. This recipe selects [`crate::SystemDnsTtlPolicy::FirefoxWindows`].
+/// Phantom obtains the TTL before publishing a system answer. Firefox may
+/// instead schedule a lower-priority second lookup; that scheduling is not
+/// modeled. Non-ASCII names use the standard resolver without optional TTLs.
 ///
 /// Firefox also serves an expired answer for up to
 /// `network.dnsCacheExpirationGracePeriod`, 600 seconds, while it resolves

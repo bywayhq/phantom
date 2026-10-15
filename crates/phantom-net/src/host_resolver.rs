@@ -17,6 +17,8 @@ use phantom_profile::{DnsCacheSettings, UdpSettings};
 use crate::address_cache::AddressCache;
 
 mod answer;
+#[cfg(any(windows, test))]
+pub(crate) mod system_ttl;
 use answer::AnswerLifetime;
 pub use answer::{AddressAnswer, AddressNegative, AddressNegativeKind};
 
@@ -39,6 +41,81 @@ pub(crate) trait DnsLookup: fmt::Debug + Send + Sync {
     fn opened_with(&self, settings: UdpSettings) -> Arc<dyn DnsLookup>;
     /// Returns the UDP settings of the query sockets, if any.
     fn socket_settings(&self) -> Option<UdpSettings>;
+    fn configuration_token(&self) -> io::Result<Option<DnsConfigurationToken>> {
+        Ok(None)
+    }
+    fn start_with_configuration(
+        self: Arc<Self>,
+        host: String,
+        token: Option<DnsConfigurationToken>,
+    ) -> ResolveFuture {
+        if token.is_some() {
+            return Box::pin(async { Err(configuration_changed()) });
+        }
+        self.start(host)
+    }
+}
+
+/// Opaque invalidation stamp for a paired system DNS resolver.
+///
+/// A stamp contains no native handle and cannot keep a resolver thread alive.
+/// It is equal only to stamps from the same owner and configuration generation.
+#[derive(Clone)]
+pub struct DnsConfigurationToken {
+    identity: Arc<()>,
+    check: Arc<dyn Fn() -> io::Result<bool> + Send + Sync>,
+}
+
+impl DnsConfigurationToken {
+    #[cfg(all(feature = "https-records", any(windows, test)))]
+    pub(crate) fn new(check: impl Fn() -> io::Result<bool> + Send + Sync + 'static) -> Self {
+        Self {
+            identity: Arc::new(()),
+            check: Arc::new(check),
+        }
+    }
+
+    /// Checks delivered invalidations, including terminal watch failures.
+    /// No settings read, socket or blocking refresh is performed.
+    ///
+    /// # Errors
+    ///
+    /// Returns a terminal configuration-watch error when invalidation state
+    /// can no longer be observed.
+    pub fn is_current(&self) -> io::Result<bool> {
+        (self.check)()
+    }
+
+    pub(crate) fn require_current(&self) -> io::Result<()> {
+        if self.is_current()? {
+            Ok(())
+        } else {
+            Err(configuration_changed())
+        }
+    }
+}
+impl PartialEq for DnsConfigurationToken {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.identity, &other.identity)
+    }
+}
+impl Eq for DnsConfigurationToken {}
+impl fmt::Debug for DnsConfigurationToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("DnsConfigurationToken(..)")
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct ConfigurationChanged;
+impl fmt::Display for ConfigurationChanged {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("DNS configuration changed during lookup")
+    }
+}
+impl std::error::Error for ConfigurationChanged {}
+pub(crate) fn configuration_changed() -> io::Error {
+    io::Error::other(ConfigurationChanged)
 }
 
 /// A legacy resolution or a DNS answer with a bounded cache lifetime.
@@ -48,12 +125,19 @@ pub(crate) enum Resolved {
         ttl: Option<Duration>,
     },
     Answer(AddressAnswer),
+    #[cfg(any(windows, test))]
+    System {
+        addresses: Vec<SocketAddr>,
+        ttl: system_ttl::SystemTtl,
+    },
 }
 
 pub(crate) enum CacheLifetime {
     Legacy(Option<Duration>),
     Dns(AnswerLifetime),
     Never,
+    #[cfg(any(windows, test))]
+    System(Option<std::time::Instant>),
 }
 
 impl Resolved {
@@ -79,6 +163,15 @@ impl Resolved {
     pub(crate) fn into_parts(self) -> (io::Result<Vec<SocketAddr>>, CacheLifetime) {
         match self {
             Self::Legacy { addresses, ttl } => (Ok(addresses), CacheLifetime::Legacy(ttl)),
+            #[cfg(any(windows, test))]
+            Self::System { addresses, ttl } => {
+                let lifetime = match ttl {
+                    system_ttl::SystemTtl::Unavailable => CacheLifetime::Legacy(None),
+                    system_ttl::SystemTtl::Deadline(expiry) => CacheLifetime::System(Some(expiry)),
+                    system_ttl::SystemTtl::Uncacheable => CacheLifetime::System(None),
+                };
+                (Ok(addresses), lifetime)
+            }
             Self::Answer(answer) => {
                 let (addresses, lifetime) = answer.into_parts();
                 (
@@ -239,6 +332,13 @@ impl AddressResolver {
         }
     }
 
+    #[cfg(all(any(windows, test), feature = "https-records"))]
+    pub(crate) fn from_dns_backend(lookup: Arc<dyn DnsLookup>) -> Self {
+        Self {
+            backend: Backend::Dns(lookup),
+        }
+    }
+
     /// Opens the UDP sockets of this resolver's own DNS queries with
     /// `settings`: the client applies its profile's [`UdpSettings`] here
     /// when it builds.
@@ -275,18 +375,70 @@ impl AddressResolver {
         }
     }
 
+    /// Samples the paired configuration without reading native settings.
+    ///
+    /// Fixed, callback and DoH resolvers return `None`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a terminal configuration-watch error.
+    pub fn configuration_token(&self) -> io::Result<Option<DnsConfigurationToken>> {
+        match &self.backend {
+            #[cfg(feature = "https-records")]
+            Backend::Dns(lookup) => lookup.configuration_token(),
+            Backend::Function(_) | Backend::AnswerFunction(_) => Ok(None),
+        }
+    }
+
     /// Starts a lookup of `host`, already lowercased.
     pub(crate) fn lookup(&self, host: &str) -> ResolveFuture {
-        match &self.backend {
-            Backend::Function(lookup) | Backend::AnswerFunction(lookup) => lookup(host.to_owned()),
-            #[cfg(feature = "https-records")]
-            Backend::Dns(lookup) => Arc::clone(lookup).start(host.to_owned()),
+        match self.configuration_token() {
+            Ok(token) => self.lookup_with_configuration(host, token),
+            Err(error) => Box::pin(async { Err(error) }),
         }
+    }
+
+    pub(crate) fn lookup_with_configuration(
+        &self,
+        host: &str,
+        token: Option<DnsConfigurationToken>,
+    ) -> ResolveFuture {
+        if let Some(token) = &token
+            && let Err(error) = token.require_current()
+        {
+            return Box::pin(async { Err(error) });
+        }
+        let future = match &self.backend {
+            Backend::Function(lookup) | Backend::AnswerFunction(lookup) => {
+                if token.is_some() {
+                    return Box::pin(async { Err(configuration_changed()) });
+                }
+                lookup(host.to_owned())
+            }
+            #[cfg(feature = "https-records")]
+            Backend::Dns(lookup) => {
+                Arc::clone(lookup).start_with_configuration(host.to_owned(), token.clone())
+            }
+        };
+        Box::pin(async move {
+            let result = future.await;
+            if let Some(token) = token {
+                token.require_current()?;
+            }
+            result
+        })
     }
 
     /// Only legacy callbacks may retain operational failures as negatives.
     pub(crate) fn cache_errors(&self) -> bool {
-        !matches!(&self.backend, Backend::AnswerFunction(_))
+        match &self.backend {
+            Backend::AnswerFunction(_) => false,
+            #[cfg(feature = "https-records")]
+            Backend::Dns(lookup) => lookup
+                .configuration_token()
+                .is_ok_and(|token| token.is_none()),
+            Backend::Function(_) => true,
+        }
     }
 }
 

@@ -12,6 +12,7 @@
 
 use std::{
     collections::VecDeque,
+    io,
     net::IpAddr,
     num::NonZeroUsize,
     sync::{
@@ -22,9 +23,10 @@ use std::{
 };
 
 use phantom_net::dns::{
-    EchConfigList, HttpsLookupError, HttpsRecord, HttpsRecordLookup, HttpsRecordResolver,
-    TargetName,
+    EchConfigList, HttpsLookupError, HttpsLookupErrorKind, HttpsRecord, HttpsRecordLookup,
+    HttpsRecordResolver, TargetName,
 };
+use phantom_net::host_resolver::DnsConfigurationToken;
 use tokio::sync::watch;
 use tracing::{Instrument, debug, instrument::WithSubscriber};
 
@@ -62,6 +64,8 @@ const SUPPORTED_KEYS: std::ops::RangeInclusive<u16> = 1..=6;
 pub(crate) struct HttpsRecordDiscovery {
     resolver: HttpsRecordResolver,
     cache: Arc<Cache>,
+    #[cfg(test)]
+    configuration: Option<Arc<TestConfiguration>>,
 }
 
 struct Cache {
@@ -91,6 +95,8 @@ struct PendingEntry {
     lookup: u64,
     result: LookupResult,
     runtime: tokio::runtime::Id,
+    configuration: ConfigurationFence,
+    publisher: watch::Sender<Option<Arc<RecordSummary>>>,
 }
 
 /// Keeps a lookup reserved even if its waiters or completed records disappear.
@@ -99,9 +105,111 @@ struct LookupOwner {
     lookup: Option<u64>,
 }
 
+/// A cache result belongs to the system configuration sampled before its query.
+#[derive(Clone, Default)]
+enum ConfigurationFence {
+    #[default]
+    Untracked,
+    Native(DnsConfigurationToken),
+    #[cfg(test)]
+    Controlled {
+        observer: Arc<TestConfiguration>,
+        generation: u64,
+    },
+}
+
+impl std::fmt::Debug for ConfigurationFence {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ConfigurationFence")
+            .finish_non_exhaustive()
+    }
+}
+
+impl ConfigurationFence {
+    fn check(&self) -> Result<(), Arc<HttpsLookupError>> {
+        let current = match self {
+            Self::Untracked => Ok(true),
+            Self::Native(token) => token.is_current(),
+            #[cfg(test)]
+            Self::Controlled {
+                observer,
+                generation,
+            } => observer.current(*generation),
+        };
+        match current {
+            Ok(true) => Ok(()),
+            Ok(false) => Err(configuration_error(io::Error::other(
+                "DNS configuration changed",
+            ))),
+            Err(error) => Err(configuration_error(error)),
+        }
+    }
+
+    fn matches(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Untracked, Self::Untracked) => true,
+            (Self::Native(left), Self::Native(right)) => left == right,
+            #[cfg(test)]
+            (
+                Self::Controlled {
+                    observer: left,
+                    generation: left_generation,
+                },
+                Self::Controlled {
+                    observer: right,
+                    generation: right_generation,
+                },
+            ) => Arc::ptr_eq(left, right) && left_generation == right_generation,
+            _ => false,
+        }
+    }
+
+    fn native_token(&self) -> Option<DnsConfigurationToken> {
+        match self {
+            Self::Native(token) => Some(token.clone()),
+            _ => None,
+        }
+    }
+}
+
+fn configuration_error(error: io::Error) -> Arc<HttpsLookupError> {
+    Arc::new(HttpsLookupError::configuration(error))
+}
+
+#[cfg(test)]
+#[derive(Default)]
+struct TestConfiguration {
+    generation: AtomicU64,
+    terminal: std::sync::atomic::AtomicBool,
+}
+
+#[cfg(test)]
+impl TestConfiguration {
+    fn current(&self, generation: u64) -> io::Result<bool> {
+        if self.terminal.load(Ordering::Acquire) {
+            return Err(io::Error::new(
+                io::ErrorKind::BrokenPipe,
+                "configuration observer stopped",
+            ));
+        }
+        Ok(self.generation.load(Ordering::Acquire) == generation)
+    }
+
+    fn sample(self: &Arc<Self>) -> io::Result<ConfigurationFence> {
+        let generation = self.generation.load(Ordering::Acquire);
+        self.current(generation)?;
+        Ok(ConfigurationFence::Controlled {
+            observer: Arc::clone(self),
+            generation,
+        })
+    }
+}
+
 /// What an origin's HTTPS records say, by Chromium 154's rules.
 #[derive(Debug, Default)]
 struct RecordSummary {
+    configuration: ConfigurationFence,
     advertises_h3: bool,
     /// The usable ServiceMode records in priority order, each one the
     /// connection metadata of one Chromium service endpoint.
@@ -124,6 +232,20 @@ struct ServiceEndpoint {
 }
 
 impl RecordSummary {
+    fn configuration_failure(error: Arc<HttpsLookupError>) -> Arc<Self> {
+        Arc::new(Self {
+            destination: Some(DestinationRecords::Failed(error)),
+            ..Self::default()
+        })
+    }
+
+    fn checked(self: Arc<Self>) -> Arc<Self> {
+        match self.configuration.check() {
+            Ok(()) => self,
+            Err(error) => Self::configuration_failure(error),
+        }
+    }
+
     /// Returns the `ech` value a TCP connection offering `alpn` uses.
     ///
     /// `DnsTaskResultsManager::UpdateEndpoints`
@@ -171,7 +293,10 @@ pub(crate) enum Discovery {
 }
 
 /// An in-flight lookup's eventual result.
-pub(crate) struct PendingLookup(LookupResult);
+pub(crate) struct PendingLookup {
+    result: LookupResult,
+    configuration: ConfigurationFence,
+}
 
 impl PendingLookup {
     /// Waits for the lookup and returns whether the records advertise `h3`.
@@ -185,9 +310,16 @@ impl PendingLookup {
     }
 
     async fn summary(mut self) -> Option<Arc<RecordSummary>> {
-        match self.0.wait_for(Option::is_some).await {
-            Ok(result) => result.clone(),
-            Err(_) => None,
+        if let Err(error) = self.configuration.check() {
+            return Some(RecordSummary::configuration_failure(error));
+        }
+        match self.result.wait_for(Option::is_some).await {
+            Ok(result) => result.clone().map(RecordSummary::checked),
+            Err(_) => self
+                .configuration
+                .check()
+                .err()
+                .map(RecordSummary::configuration_failure),
         }
     }
 }
@@ -208,6 +340,8 @@ impl HttpsRecordDiscovery {
                 state: Mutex::default(),
                 next_lookup: AtomicU64::new(1),
             }),
+            #[cfg(test)]
+            configuration: None,
         }
     }
 
@@ -247,7 +381,7 @@ impl HttpsRecordDiscovery {
                 State::Pending(pending) => pending.summary().await?,
                 State::Unavailable(_) => return None,
             };
-            summary.tcp_ech(&alpn)
+            summary.checked().tcp_ech(&alpn)
         }
     }
 
@@ -265,7 +399,7 @@ impl HttpsRecordDiscovery {
                 State::Pending(pending) => pending.summary().await?,
                 State::Unavailable(_) => return None,
             };
-            summary.quic_ech()
+            summary.checked().quic_ech()
         }
     }
 
@@ -286,6 +420,7 @@ impl HttpsRecordDiscovery {
                 }
                 State::Unavailable(error) => return Err(error),
             };
+            let summary = summary.checked();
             match &summary.destination {
                 Some(DestinationRecords::Answer(records)) => {
                     https_policy::select(records, &host, port)
@@ -296,6 +431,16 @@ impl HttpsRecordDiscovery {
                 None => Err(DestinationError::DiscoveryUnavailable),
             }
         }
+    }
+
+    fn configuration(&self) -> io::Result<ConfigurationFence> {
+        #[cfg(test)]
+        if let Some(observer) = &self.configuration {
+            return observer.sample();
+        }
+        self.resolver
+            .configuration_token()
+            .map(|token| token.map_or(ConfigurationFence::Untracked, ConfigurationFence::Native))
     }
 
     fn state(&self, origin: &Endpoint) -> State {
@@ -310,28 +455,55 @@ impl HttpsRecordDiscovery {
             return State::Unavailable(DestinationError::RuntimeUnavailable);
         };
         let host = host.to_ascii_lowercase();
+        let configuration = self.configuration();
         let now = Instant::now();
         let mut state = self.cache.lock_state();
-        state.ready.retain(|entry| entry.expires_at > now);
-
-        if let Some(position) = state
+        state
             .ready
-            .iter()
-            .position(|entry| *entry.host == *host && entry.port == port)
-            && let Some(entry) = state.ready.remove(position)
+            .retain(|entry| entry.expires_at > now && entry.summary.configuration.check().is_ok());
+        // Retire results, not reservations: the publisher still owns its work.
+        for pending in &state.pending {
+            if let Err(error) = pending.configuration.check() {
+                let _ = pending
+                    .publisher
+                    .send_replace(Some(RecordSummary::configuration_failure(error)));
+            }
+        }
+        let configuration = match configuration {
+            Ok(configuration) => configuration,
+            Err(error) => {
+                return State::Unavailable(DestinationError::Lookup(configuration_error(error)));
+            }
+        };
+        if let Err(error) = configuration.check() {
+            return State::Unavailable(DestinationError::Lookup(error));
+        }
+
+        if let Some(position) = state.ready.iter().position(|entry| {
+            *entry.host == *host
+                && entry.port == port
+                && entry.summary.configuration.matches(&configuration)
+        }) && let Some(entry) = state.ready.remove(position)
         {
             let summary = Arc::clone(&entry.summary);
             state.ready.push_back(entry);
-            return State::Ready(summary);
+            return State::Ready(summary.checked());
         }
 
         // A request joins a lookup in flight only on its own runtime, as the
         // address cache keys its lookups: another runtime may no longer be
-        // driven. Each origin has at most one lookup per runtime.
+        // driven. Each origin has at most one current-generation lookup per runtime;
+        // older work retains its reservation.
         if let Some(entry) = state.pending.iter().find(|entry| {
-            *entry.host == *host && entry.port == port && entry.runtime == runtime.id()
+            *entry.host == *host
+                && entry.port == port
+                && entry.runtime == runtime.id()
+                && entry.configuration.matches(&configuration)
         }) {
-            return State::Pending(PendingLookup(entry.result.clone()));
+            return State::Pending(PendingLookup {
+                result: entry.result.clone(),
+                configuration: configuration.clone(),
+            });
         }
 
         if state
@@ -352,6 +524,8 @@ impl HttpsRecordDiscovery {
             lookup,
             result: receiver.clone(),
             runtime: runtime.id(),
+            configuration: configuration.clone(),
+            publisher: sender,
         });
         let owner = LookupOwner {
             cache: Arc::clone(&self.cache),
@@ -360,12 +534,21 @@ impl HttpsRecordDiscovery {
         drop(state);
 
         let resolver = self.resolver.clone();
+        let lookup_configuration = configuration.clone();
         let span = tracing::debug_span!("https_record.lookup");
         drop(
             runtime.spawn(
                 async move {
-                    let result = resolver.lookup(&host, port).await;
-                    let (summary, deadline) = match result {
+                    let result = match lookup_configuration.check() {
+                        Ok(()) => resolver.lookup_with_configuration(
+                            &host, port, lookup_configuration.native_token(),
+                        ).await,
+                        Err(error) => {
+                            owner.complete(RecordSummary::configuration_failure(error), None);
+                            return;
+                        }
+                    };
+                    let (mut summary, deadline) = match result {
                         Ok(records) => {
                             let answers = records
                                 .answers()
@@ -379,13 +562,17 @@ impl HttpsRecordDiscovery {
                         }
                         Err(error) => {
                             debug!(outcome = "failed", kind = ?error.kind(), "HTTPS record lookup failed");
+                            let deadline = (error.kind() != HttpsLookupErrorKind::Configuration)
+                                .then(|| Instant::now().checked_add(FAILED_LOOKUP_BACKOFF))
+                                .flatten();
                             let summary = RecordSummary {
                                 destination: Some(DestinationRecords::Failed(Arc::new(error))),
                                 ..RecordSummary::default()
                             };
-                            (summary, Instant::now().checked_add(FAILED_LOOKUP_BACKOFF))
+                            (summary, deadline)
                         }
                     };
+                    summary.configuration = lookup_configuration;
                     debug!(
                         advertises_h3 = summary.advertises_h3,
                         endpoints = summary.endpoints.len(),
@@ -398,15 +585,16 @@ impl HttpsRecordDiscovery {
                         "HTTPS record lookup finished"
                     );
                     let summary = Arc::new(summary);
-                    owner.complete(Arc::clone(&summary), deadline);
-                    // Current waiters receive the result even when it cannot be cached.
-                    let _ = sender.send(Some(summary));
+                    owner.complete(summary, deadline);
                 }
                 .instrument(span)
                 .with_current_subscriber(),
             ),
         );
-        State::Pending(PendingLookup(receiver))
+        State::Pending(PendingLookup {
+            result: receiver,
+            configuration,
+        })
     }
 }
 
@@ -422,7 +610,7 @@ impl Cache {
         self.next_lookup.fetch_add(1, Ordering::Relaxed)
     }
 
-    /// Publishes a completed result without evicting any lookup still running.
+    /// Releases only this publisher's reservation before checking its result.
     fn complete(&self, lookup: u64, summary: Arc<RecordSummary>, deadline: Option<Instant>) {
         let mut state = self.lock_state();
         let Some(position) = state
@@ -433,27 +621,38 @@ impl Cache {
             return;
         };
         let pending = state.pending.remove(position);
-
-        // The reservation is released even when freshness expired before publication.
-        // Invalidate an older result for the same origin, without disturbing other work.
-        state
-            .ready
-            .retain(|other| other.host != pending.host || other.port != pending.port);
-        let Some(expires_at) = deadline.filter(|deadline| *deadline > Instant::now()) else {
-            return;
+        let summary = match pending.configuration.check() {
+            Ok(()) => summary.checked(),
+            Err(error) => RecordSummary::configuration_failure(error),
         };
-        let entry = ReadyEntry {
-            host: pending.host,
-            port: pending.port,
-            summary,
-            expires_at,
-        };
-        // A lookup on another runtime may have finished first; the last
-        // completion wins, while other runtimes' work stays reserved.
-        if state.ready.len() == self.capacity.get() {
-            state.ready.pop_front();
+        let configuration_failed = matches!(
+            &summary.destination,
+            Some(DestinationRecords::Failed(error))
+                if error.kind() == HttpsLookupErrorKind::Configuration
+        );
+        if !configuration_failed {
+            // A stale completion must not erase another generation's result.
+            state.ready.retain(|other| {
+                other.host != pending.host
+                    || other.port != pending.port
+                    || !other.summary.configuration.matches(&pending.configuration)
+            });
+            if let Some(expires_at) = deadline.filter(|deadline| *deadline > Instant::now()) {
+                let entry = ReadyEntry {
+                    host: pending.host,
+                    port: pending.port,
+                    summary: Arc::clone(&summary),
+                    expires_at,
+                };
+                if state.ready.len() == self.capacity.get() {
+                    state.ready.pop_front();
+                }
+                state.ready.push_back(entry);
+            }
         }
-        state.ready.push_back(entry);
+        drop(state);
+        // Even an uncached answer or configuration failure reaches existing waiters.
+        let _ = pending.publisher.send_replace(Some(summary));
     }
 }
 
@@ -554,6 +753,7 @@ fn summarize(answers: &[(&str, &HttpsRecord)], host: &str, port: u16) -> RecordS
             .any(|endpoint| endpoint.protocols.iter().any(|id| **id == *H3_ALPN)),
         endpoints,
         destination: None,
+        configuration: ConfigurationFence::Untracked,
     }
 }
 

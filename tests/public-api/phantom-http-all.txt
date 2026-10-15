@@ -9,6 +9,7 @@ pub use phantom::ClientCertificateError
 pub use phantom::ClientCertificateErrorKind
 pub use phantom::DigestAuthError
 pub use phantom::DigestPolicy
+pub use phantom::DnsConfigurationToken
 pub use phantom::HttpConnectHeader
 pub use phantom::HttpDigestCredentials
 pub use phantom::InvalidAuthorization
@@ -42,6 +43,7 @@ pub use phantom::dns::HttpsRecordResolver
 pub use phantom::dns::ServiceRecord
 pub use phantom::dns::SvcParam
 pub use phantom::dns::TargetName
+pub use phantom::dns::chromium_windows_resolvers
 pub enum phantom::dns::DohAddressFamilies
 pub phantom::dns::DohAddressFamilies::DualIpv6First
 pub phantom::dns::DohAddressFamilies::Ipv4Only
@@ -183,6 +185,7 @@ pub use phantom::profile::RequestTemplate
 pub use phantom::profile::SessionTicketOrder
 pub use phantom::profile::SessionTickets
 pub use phantom::profile::SignatureScheme
+pub use phantom::profile::SystemDnsTtlPolicy
 pub use phantom::profile::TcpAddressAdvance
 pub use phantom::profile::TcpAddressRacing
 pub use phantom::profile::TcpAddressSelection

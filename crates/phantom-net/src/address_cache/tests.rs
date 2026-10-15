@@ -20,8 +20,11 @@ use tokio::sync::watch;
 use super::{AddressCache, Answer};
 use crate::host_resolver::{AddressResolver, Resolved};
 
+#[cfg(feature = "https-records")]
+mod configuration_generation;
 mod dns_answers;
 mod routes;
+mod system_ttl;
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
@@ -31,6 +34,7 @@ const V4_OTHER: IpAddr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2));
 
 fn settings(max_entries: usize, ttl: Duration, negative_ttl: Option<Duration>) -> DnsCacheSettings {
     DnsCacheSettings {
+        system_ttl: phantom_profile::SystemDnsTtlPolicy::Ignore,
         max_entries: NonZeroUsize::new(max_entries).unwrap_or(NonZeroUsize::MIN),
         ttl,
         min_record_ttl: Duration::ZERO,

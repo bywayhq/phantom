@@ -39,8 +39,8 @@ Phantom's claims rest on five kinds of evidence:
 | [UDP socket options](#udp-socket-option-evidence) | Browser source at Chromium's tags, hook logs of Chrome 154, Edge 154, and Opera 136, plus socket read-back tests | Firefox's hook logs hold no QUIC socket; its absence rests on source |
 | [Socket hooks](#socket-hook-evidence) | Hook logs of Chrome 154, Edge 154, and Opera 136 on Windows: socket options, address racing, connections per origin, idle reuse, and lookups, replayed against the Chromium recipes | One run per scenario on one Windows host; loopback origins only |
 | [Firefox socket hooks](#firefox-socket-hook-evidence) | Hook logs and MOZ_LOG lines of Firefox 157.0 on Windows: socket options, keepalive over each connection's life, the IPv4 backup connection and the slower connection it keeps, the idle close, and lookups, replayed against `firefox::v157_tcp` and `firefox::v157_http1` | One to five runs per scenario on one Windows host; loopback origins only |
-| [Address cache](#address-cache-evidence) | Browser source at one tag per browser, Brave's included, plus unit and loopback tests, and hook logs for Chrome, Edge, and Opera | One hook log per browser; record TTLs only through Phantom's own DNS queries, which no recipe turns on; Firefox's grace period not modeled |
-| [Chromium's built-in DNS client](#chromiums-built-in-dns-client) | Chromium source and the Chromium-family `lookups` hook logs, plus loopback tests against a scripted DNS server | Opt-in only; Chromium's nameserver choice per platform, retry timing, and address sort not modeled; no log shows an AAAA query |
+| [Address cache](#address-cache-evidence) | Browser source, retained hook logs, unit and loopback tests; Windows native source and isolated probes | Paired Windows configuration/cache integration awaits compiled controls; no induced native invalidation or browser DNS replay; Firefox's grace period not modeled |
+| [Chromium's built-in DNS client](#chromiums-built-in-dns-client) | Chromium source and the Chromium-family `lookups` hook logs, plus loopback tests against a scripted DNS server | Opt-in only; Windows configuration projection is source-reviewed; other platform choices, retry timing and address sort remain different; no log shows an AAAA query |
 | [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, Brave's included, plus loopback tests, and hook logs for Chrome, Edge, and Opera | One hook log per browser; no Edge or Opera source |
 | [Plaintext origin trust](#plaintext-origin-trust-evidence) | Chrome 154, Edge 154, and Firefox 157 proxy route captures, browser source, and loopback tests of Phantom | HTTP/1.1 and HTTP/2 page loads and default-mode `fetch()`; WebSocket trust comparisons use HTTP/1.1 Upgrade |
 | [ALPS `ACCEPT_CH` restart](#alps-accept_ch-restart-evidence) | Chromium source, two Chrome 154.0.8037.97 captures of a navigation that restarted, plus loopback tests against BoringSSL H2 and QUIC servers | H2 only; no capture over HTTP/3 |
@@ -2413,9 +2413,9 @@ another runtime that has stopped being driven.
 
 `AddressResolver::system_nameservers`, with the `https-records` feature,
 sends Phantom's own A and AAAA queries as Chromium's built-in DNS client
-does, and reports each answer's record TTL. No recipe and no default turns
-it on, so a client resolves through the operating system, which reports no
-TTL, unless the caller passes that resolver to `ClientBuilder::dns_resolver`.
+does, and reports each answer's record TTL. No recipe or default turns it
+on. The paired Windows constructor is another explicit choice. System
+answers use `ttl` unless `FirefoxWindows` obtains a native lifetime.
 
 A capture of one page load cannot show how long a browser reuses an answer, so
 the recipes rest on browser source at Chromium tag `154.0.8037.58` and Firefox
@@ -2448,15 +2448,13 @@ Differences from the browsers:
   TTL and are kept the 60 s of Chromium's system-resolver path. That
   resolver does not model the whole client; see
   [Chromium's built-in DNS client](#chromiums-built-in-dns-client) below.
-- Firefox reads the record TTL only through `DnsQuery_A`, a Windows API
-  that needs an FFI boundary Phantom does not have. Its hook logs show a
-  1,757-second TTL kept, so connections opened 33, 68, and 98 s after the
-  first needed no lookup
-  ([Firefox socket hook evidence](#firefox-socket-hook-evidence)). A Phantom
-  client with a Firefox profile resolves through the operating system and
-  keeps each answer 60 s. Phantom's own DNS queries would report a TTL, but
-  they leave from Phantom's process, where Firefox's lookups leave from the
-  operating system's resolver.
+- Firefox's retained hook log reports a 1,757-second native TTL and no new
+  lookup for connections 33, 68 and 98 seconds later
+  ([Firefox socket hook evidence](#firefox-socket-hook-evidence)).
+  `SystemDnsTtlPolicy::FirefoxWindows` adds native canonical-name and
+  A/AAAA lifetime queries. The native query options permit network I/O;
+  this is not a cache-only lookup. Missing lifetime information uses `ttl`.
+  No new browser capture compares this implementation with Firefox.
 - Firefox serves an expired answer for up to
   `network.dnsCacheExpirationGracePeriod`, 600 seconds, while it resolves
   the name again (`modules/libpref/init/StaticPrefList.yaml:15680-15685`,
@@ -2465,8 +2463,9 @@ Differences from the browsers:
 - Both browsers flush the cache when the network changes
   (`net/dns/host_resolver_manager.cc:1803-1816`, `:1912-1925`;
   `netwerk/dns/nsDNSService2.cpp:1366-1383`,
-  `netwerk/dns/nsHostResolver.cpp:219-256`). Phantom does not watch the
-  network; `Client::clear_dns_cache` is the caller's equivalent.
+  `netwerk/dns/nsHostResolver.cpp:219-256`). The paired Windows resolvers
+  watch interface, route and selected registry changes. Other resolver
+  paths retain explicit cache clearing.
 - Firefox evicts from an LRU queue; Phantom, like Chromium, evicts the entry
   that expires soonest.
 - Brave builds the same Chromium tag without changing these values, and
@@ -2520,6 +2519,42 @@ Limits:
 - The source was read at one tag per browser, so field-trial changes would
   not be seen.
 
+### Windows resolver configuration and native lifetimes
+
+The Windows implementation has two separate policies. `FirefoxWindows`
+adds canonical system-name and A/AAAA lifetime queries to successful system
+address lookups. The paired `dns::chromium_windows_resolvers` constructor
+owns watched settings for Phantom's address and HTTPS queries. The profile
+does not select that pair automatically.
+
+The configuration projection follows the pinned Chromium Windows source:
+adapter order, nameserver comparison, suffix precedence and devolution,
+NRPT and DNS proxy checks, and the PPP compatibility heuristic. A
+system-only decision reaches the system address resolver before raw DNS
+queries or the IPv6 probe. Raw HTTPS queries return a configuration error
+in that mode. This does not establish behavior for every VPN.
+
+The watcher is started before the first settings read. Token checks bracket
+the settings read, query completion and cache publication. Address and
+HTTPS caches reject results from an observed old generation, including
+pending joins and operational failure backoff. Same-generation refreshes
+share one owned result; canceling a waiter does not release that work.
+These are delivered-notification fences, not an atomic Windows snapshot.
+
+Retained verification currently covers the native pieces separately:
+28 configuration controls pass on Rust 1.99 and 1.88, and one read-only
+native probe returned a built-in configuration. The watch has 21 synthetic
+controls on both toolchains. Its earlier lifecycle probe started, remained
+quiet and joined successfully. No probe changed host configuration or
+induced a notification. The lifecycle probe and updated atomic counter
+have distinct source and binary identities.
+
+The combined address/HTTPS cache implementation is source-reviewed only.
+Its compiled integration controls, full gate and cross-platform checks are
+pending. No browser capture demonstrates nameserver choice, search order
+or refresh parity for this implementation. Native cancellation can block;
+failed callback cancellation retains its state to avoid use-after-free.
+
 ### Chromium's built-in DNS client
 
 `AddressResolver::system_nameservers` resolves a name as Chromium 154's
@@ -2536,12 +2571,12 @@ query, in the same millisecond and each from its own socket, for the name in
 | --- | --- | --- |
 | `localhost` and names under it | `::1` and `127.0.0.1` without a lookup (`net/dns/host_resolver_manager.cc:334-344`, `:1260-1282`) | The same |
 | Names under `local` | The system resolver (`:1459-1504`) | The same |
-| The hosts file | Answers before DNS, IPv6 first (`:1169-1258`; `net/dns/host_cache.cc:306-318`) | The same, from the file read when the resolver is built; Chromium rereads it when it changes |
+| The hosts file | Answers before DNS, IPv6 first (`:1169-1258`; `net/dns/host_cache.cc:306-318`) | Read when each resolver snapshot is built; there is no dedicated hosts-file watcher |
 | AAAA | Only when a UDP socket connected to `2001:4860:4860::8888` gets a source address that is neither link-local nor Teredo, a result kept 1 s (`net/dns/host_resolver_manager.cc:155-160`, `:820-841`, `:1569-1694`); the probe socket sets `SO_RANDOMIZE_PORT` before its `connect` | The same probe, on a socket bound to `[::]:0` with the profile's `UdpSettings`, then connected; it sends nothing |
 | Query order | HTTPS first, with `kPrioritizeHttpsResourceRecord` on by default, then AAAA, then A (`net/dns/host_resolver_dns_task.cc:39`, `:393-433`) | AAAA, then A once the AAAA datagram has left. The HTTPS query belongs to `ClientBuilder::https_record_discovery`, which spawns it as its own task, so its order against the address queries is not modeled |
 | Query shape | One question, recursion desired, no OPT record (`net/dns/dns_transaction.cc:656`, `:1159`) | The same, as for HTTPS records |
 | Answer order | IPv6 results before IPv4 (`net/dns/host_cache.cc:306-318`), then the address sorter | IPv6 then IPv4, each in response order, without a sort |
-| Failure | The system resolver answers instead (`net/dns/host_resolver_manager.cc:1415-1421`), and after 16 lookups in a row that it answered, the built-in client stops until the DNS configuration changes (`net/dns/host_resolver_manager_job.cc:787-792`, `net/dns/host_resolver_manager.cc:1869-1880`, `net/dns/dns_client.h:67`, `net/dns/dns_client.cc:245-256`, `:385-391`) | The same, but the stop is permanent for the resolver, which never reads the configuration again |
+| Failure | The system resolver answers instead (`net/dns/host_resolver_manager.cc:1415-1421`), and after 16 lookups in a row that it answered, the built-in client stops until the DNS configuration changes (`net/dns/host_resolver_manager_job.cc:787-792`, `net/dns/host_resolver_manager.cc:1869-1880`, `net/dns/dns_client.h:67`, `net/dns/dns_client.cc:245-256`, `:385-391`) | The fixed resolver stays stopped; the paired Windows resolver starts a new snapshot after observed invalidation |
 | System resolver | Without a global IPv6 route, `getaddrinfo` for IPv4 only, and for both families again when every IPv4 address is a loopback address (`net/dns/host_resolver_system_task.cc:539-549`, `:628-645`) | `getaddrinfo` for both families, keeping the same addresses Chromium would get |
 | TTL | The smallest TTL of the results, at least 60 s (see the table above) | The smallest TTL of the A, AAAA, and CNAME records and of an empty answer's SOA record; the cache applies `min_record_ttl` |
 
@@ -2561,17 +2596,12 @@ resolver fixed so no test opens a probe socket or needs the network:
 
 Differences from the browser:
 
-- Nameservers come from hickory's reading of the host configuration: on
-  Windows, the DNS servers of every adapter that is up. Chromium takes
-  those of the first such adapter that is not a loopback adapter, and
-  falls back to the system resolver for every name when it finds a VPN
-  adapter, a name resolution policy, a DNS proxy, or adapters with
-  different servers (`net/dns/dns_config_service_win.cc:411-502`). On
-  macOS and Linux it reads the configuration with its own rules. Phantom
-  models none of these, so on such a host it queries servers Chrome would
-  not.
-- A name without a dot goes to the system resolver; Chromium queries it
-  with the host's search suffixes.
+- `AddressResolver::system_nameservers` retains hickory's fixed reading of
+  the host's servers. The paired Windows constructor instead applies the
+  reviewed Windows eligibility and suffix-search projection described
+  above. macOS and Linux have no equivalent paired constructor.
+- The fixed resolver sends single-label names to the system resolver. The
+  paired Windows resolver uses configured search suffixes.
 - Retries follow hickory 0.26, as for HTTPS record queries: within each of
   two attempts, the query is sent again, from a new socket with the same
   message ID, after 1.2 times the server's smoothed round trip or 333 ms,
@@ -2586,8 +2616,8 @@ Differences from the browser:
   HTTPS records in their own cache.
 - Chromium sorts IPv6 and IPv4 addresses with the platform's address
   sorter; Phantom keeps IPv6 first, each family in response order.
-- Chromium resolves a name again when the network or the DNS configuration
-  changes; Phantom reads both once.
+- The paired Windows resolver checks observed configuration generations.
+  The fixed resolver still reads its configuration once.
 
 Reproduce: read the cited files at the tag above, and run `cargo test -p
 phantom-net --features https-records dns::address_lookup`.
@@ -2636,7 +2666,7 @@ them. The calls came from `chrome.dll`, `msedge.dll`, and
 | IPv4 attempt after a pending `[::1]` attempt to `localhost` (`happy-eyeballs-slow`, two connect jobs) | 304 and 312 ms | 300 and 302 ms | 302 and 315 ms | 300 ms fallback delay |
 | IPv4 attempt after a refused `[::1]` attempt (`happy-eyeballs`) | 3 ms, after the failure | 3 ms, after the failure | 301 and 301 ms: the refusal takes Windows' SYN retransmissions | The other family after a failure; 300 ms otherwise |
 | System-resolver lookups of `127.0.0.1.nip.io` for fetches 10 s apart for 120 s (`lookups-system`) | At 0, 60, and 120 s | At 0, 60, and 120 s | At 0, 60, and 120 s | `chrome::v154_dns_cache`: an answer kept 60 s |
-| Lookups with the default built-in DNS client (`lookups`) | One HTTPS and then one A query at 0 s, each from its own socket; no AAAA query | The same | The same | `chrome::v154_dns_cache`: an answer kept for its record TTL, at least 60 s, when the resolver reports one, which only `AddressResolver::system_nameservers` does |
+| Lookups with the default built-in DNS client (`lookups`) | One HTTPS and then one A query at 0 s, each from its own socket; no AAAA query | The same | The same | `chrome::v154_dns_cache`: an answer kept for its record TTL, at least 60 s, when the resolver reports one, through Phantom's own queries, including the paired Windows resolver |
 | A used connection idle 290 s, then 310 s (`idle`) | Reused, then closed by the next request, which opened another | The same | The same | `chrome::v154_http1`: reused under 300 s idle, replaced at 300 s or more |
 
 Each system-resolver lookup was two `getaddrinfo` calls from the browser
@@ -2787,7 +2817,7 @@ through `WSOCK32.dll`) and the keepalive calls from `xul.dll`.
 | The first attempt's `127.0.0.1` connection | Kept, carried a request 2.9 s later, and got a 2,000 ms interval, its setup time | Kept idle with no keepalive until a request, then the interval of its setup time |
 | Later connections to the origin, also after it closed them all | `127.0.0.1` alone; MOZ_LOG `SetupDnsFlags flags=8224` (IPv6 disabled) | IPv4 alone while the pool entry remembers the family |
 | `getaddrinfo` hints | `AI_CANONNAME`, `AF_UNSPEC` or `AF_INET`, no `AI_ADDRCONFIG` | The operating system's resolver, without `AI_ADDRCONFIG` |
-| Lookups for connections opened 0, 33, 68, and 98 s in (`dns-cache`) | Lookups in the first 31 ms only; `DnsQuery_A` read a TTL of 1,757 s and MOZ_LOG cached the answer that long | The record TTL, with no lower bound, for an answer that carries one; Phantom's system lookups carry none, so 60 s |
+| Lookups for connections opened 0, 33, 68, and 98 s in (`dns-cache`) | Lookups in the first 31 ms only; `DnsQuery_A` read a TTL of 1,757 s and MOZ_LOG cached the answer that long | The native remaining lifetime on Windows with `FirefoxWindows`, without a lower bound; fallback 60 s when no lifetime is available |
 
 The `backup` scenario makes `getaddrinfo` resolve `localhost`, which Windows
 answers with `[::1]` then `127.0.0.1`, in place of `127.0.0.1.nip.io`. The log

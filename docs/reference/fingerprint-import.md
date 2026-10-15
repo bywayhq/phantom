@@ -123,7 +123,7 @@ repeated slots. Import does not sample those policies.
 | Backup addresses | `kind`: `Backup`; `delay` duration, nullable `known_family_backup_timeout` |
 | TCP port randomization | Null or `minimum_windows_build` |
 | `udp` | `port_randomization` boolean |
-| `dns_cache` | `max_entries`, `ttl`, `min_record_ttl`, nullable `negative_ttl` |
+| `dns_cache` | `max_entries`, `ttl`, `min_record_ttl`, nullable `negative_ttl`, `system_ttl` (`Ignore` or `FirefoxWindows`) |
 | `http1` | `max_connections_per_origin`, `idle_timeout` |
 | HTTP/1 idle timeout | `kind`: `Unlimited`, or `CheckedOnRequest` / `ClosedOnTimer` with `duration` |
 

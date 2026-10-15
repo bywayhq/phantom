@@ -107,32 +107,34 @@ from the callback fail the request and are never cached.
 
 ## Resolve names with Phantom's own DNS queries
 
-Have Phantom send DNS queries itself, as Chromium's built-in DNS client does,
-and cache each answer for as long as the DNS record allows.
+On Windows, share watched settings between address and HTTPS lookups.
+This requires the `https-records` feature.
 
 ```rust
+# #[cfg(all(windows, feature = "https-records"))]
 use std::error::Error;
+# #[cfg(all(windows, feature = "https-records"))]
+use phantom::{Client, dns::chromium_windows_resolvers, profile::browser::chrome};
 
-use phantom::profile::{ClientProfile, browser::chrome};
-use phantom::{AddressResolver, Client};
-
-fn own_queries() -> Result<Client, Box<dyn Error>> {
-    let profile = ClientProfile::new(chrome::v154_tcp_tls())
-        .with_http2(chrome::v154_http2())
-        .with_udp(chrome::v154_udp())
-        .with_dns_cache(chrome::v154_dns_cache());
-    let resolver = AddressResolver::system_nameservers()?;
-    Ok(Client::builder(profile).dns_resolver(resolver).build()?)
+# #[cfg(all(windows, feature = "https-records"))]
+async fn watched_windows() -> Result<Client, Box<dyn Error>> {
+    let (addresses, https) = chromium_windows_resolvers().await?;
+    Ok(Client::builder(chrome::v154_windows())
+        .dns_resolver(addresses)
+        .alt_svc(32)
+        .https_record_discovery(https)
+        .build()?)
 }
 ```
 
-- This needs the `https-records` feature.
-- `system_nameservers` reads the host's DNS servers and hosts file once,
-  when you call it. `AddressResolver::with_nameservers` takes servers you
-  choose.
-- Phantom answers `localhost` and names in the hosts file without a
-  query. Names without a dot go to the operating system, as do lookups
-  that fail.
+Apply both returned resolvers to share their configuration. A system-only
+configuration disables raw HTTPS queries; see
+[Windows DNS configuration](../reference/limits.md#windows-dns-configuration).
+
+For fixed configuration on any supported platform, use
+`AddressResolver::system_nameservers()` or `with_nameservers` with servers
+you choose. These resolvers read configuration once. `localhost` and hosts
+entries are local; single-label names and failed lookups use the system.
 
 ## Resolve names over HTTPS
 

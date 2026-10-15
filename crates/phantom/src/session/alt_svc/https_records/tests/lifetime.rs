@@ -56,7 +56,7 @@ async fn completion_rechecks_deadline_and_releases_pending_admission() -> TestRe
     let resolver =
         HttpsRecordResolver::from_fn(|_, _| async { Ok(HttpsRecordLookup::new(Vec::new(), None)) });
     let discovery = HttpsRecordDiscovery::new(resolver, NonZeroUsize::MIN);
-    let (_, result) = tokio::sync::watch::channel(None);
+    let (publisher, result) = tokio::sync::watch::channel(None);
     let runtime = tokio::runtime::Handle::current().id();
     discovery
         .cache
@@ -68,6 +68,8 @@ async fn completion_rechecks_deadline_and_releases_pending_admission() -> TestRe
             lookup: 17,
             result,
             runtime,
+            configuration: super::super::ConfigurationFence::Untracked,
+            publisher,
         });
     discovery
         .cache

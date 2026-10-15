@@ -1,6 +1,7 @@
-//! Independent dns factory values frozen at 51cd42aeaf9274cc59650846df1eebd7f3cc4c4c.
+//! Legacy DNS values frozen at 51cd42aeaf9274cc59650846df1eebd7f3cc4c4c.
+//! Native TTL policy is checked alongside those unchanged values.
 
-use phantom_profile::{DnsCacheSettings, browser};
+use phantom_profile::{DnsCacheSettings, SystemDnsTtlPolicy, browser};
 use std::{num::NonZeroUsize, time::Duration};
 
 #[test]
@@ -36,6 +37,7 @@ fn composed_profiles_keep_address_cache_lifetimes() -> Result<(), Box<dyn std::e
 }
 fn chrome_original() -> DnsCacheSettings {
     DnsCacheSettings {
+        system_ttl: SystemDnsTtlPolicy::Ignore,
         max_entries: NonZeroUsize::new(1000).unwrap_or(NonZeroUsize::MIN),
         ttl: Duration::from_secs(60),
         min_record_ttl: Duration::from_secs(60),
@@ -45,6 +47,7 @@ fn chrome_original() -> DnsCacheSettings {
 
 fn firefox_original() -> DnsCacheSettings {
     DnsCacheSettings {
+        system_ttl: SystemDnsTtlPolicy::FirefoxWindows,
         max_entries: NonZeroUsize::new(1600).unwrap_or(NonZeroUsize::MIN),
         ttl: Duration::from_secs(60),
         min_record_ttl: Duration::ZERO,

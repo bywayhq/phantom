@@ -15,14 +15,13 @@
 //! `https-records` feature adds `dns`, HTTPS DNS record lookups, and the
 //! resolver dependency they need.
 //!
-//! All `unsafe` code is confined to the private `socket_ffi` module, the
-//! socket FFI boundary that sets Winsock's `SO_RANDOMIZE_PORT` on Windows and
-//! binds [`SourceBinding`]'s interface by index: it looks the index up with
-//! `if_nametoindex` on Apple platforms, and with the IP Helper LUID
-//! conversions on Windows, where it also sets `IP_UNICAST_IF`. Linux and
-//! Android compile the module only in tests. The rest of the crate denies
-//! `unsafe_code`, and every unsafe block in that module carries a `SAFETY`
-//! comment required by `clippy::undocumented_unsafe_blocks`.
+//! Unsafe code stays in two private modules. `socket_ffi` sets Windows port
+//! randomization and platform interface binding. `system_dns_ffi` owns Windows
+//! system resolution, DNS settings reads and configuration notifications.
+//! Its safe API returns owned data and generation observations. Native pointers,
+//! handles and callbacks stay private. Every unsafe block carries a `SAFETY`
+//! comment required by `clippy::undocumented_unsafe_blocks`; the rest of
+//! the crate denies `unsafe_code`.
 
 #![deny(unsafe_code)]
 
@@ -60,6 +59,9 @@ mod shutdown_timer;
 #[allow(unsafe_code, reason = "private socket FFI boundary")]
 mod socket_ffi;
 mod source_binding;
+#[cfg(windows)]
+#[allow(unsafe_code, reason = "private Windows system DNS FFI boundary")]
+mod system_dns_ffi;
 pub mod tcp;
 pub(crate) mod tls;
 mod udp;

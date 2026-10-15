@@ -103,7 +103,7 @@ pub use http::Uri;
 pub use phantom_net::ServerAuthentication;
 /// Caller-supplied host name resolution for [`ClientBuilder::dns_resolver`].
 pub use phantom_net::host_resolver::{
-    AddressAnswer, AddressNegative, AddressNegativeKind, AddressResolver,
+    AddressAnswer, AddressNegative, AddressNegativeKind, AddressResolver, DnsConfigurationToken,
 };
 /// An ordered HTTP CONNECT field or destination-authority placeholder.
 pub use phantom_net::proxy::{
@@ -330,11 +330,11 @@ pub mod profile {
         QuicAckFrequencyDraft, QuicConnectionIdLength, QuicTransportGrease, QuicTransportParameter,
         QuicTransportParameterKind, QuicTransportParameterOrder, QuicTransportSettings,
         QuicVarIntWidth, QuicVersionGrease, QuicVersionInformation, RequestField, RequestTemplate,
-        SessionTicketOrder, SessionTickets, SignatureScheme, TcpAddressAdvance, TcpAddressRacing,
-        TcpAddressSelection, TcpBackupConnection, TcpKeepalive, TcpKeepalivePolicy,
-        TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings, TlsSettings, TlsVersion,
-        TlsVersionRange, TrustAnchorIds, TrustAnchorOrder, TrustAnchorOrders, UdpSettings,
-        UnknownCipherSuite, UrlTrust, ValidationErrorKind, WebSocketConnectionPolicy,
+        SessionTicketOrder, SessionTickets, SignatureScheme, SystemDnsTtlPolicy, TcpAddressAdvance,
+        TcpAddressRacing, TcpAddressSelection, TcpBackupConnection, TcpKeepalive,
+        TcpKeepalivePolicy, TcpKeepaliveSchedule, TcpPortRandomization, TcpSettings, TlsSettings,
+        TlsVersion, TlsVersionRange, TrustAnchorIds, TrustAnchorOrder, TrustAnchorOrders,
+        UdpSettings, UnknownCipherSuite, UrlTrust, ValidationErrorKind, WebSocketConnectionPolicy,
         WebSocketDeflateParameter, WebSocketEmptyMessageCompression, WebSocketField,
         WebSocketNewConnection, WebSocketProxiedSession, WebSocketRefusedStreamRetry,
         WebSocketSettings,
@@ -354,6 +354,8 @@ pub mod dns {
         DnsOverHttps, DnsOverHttpsBuilder, DohAddressFamilies, DohBuildError, DohBuildErrorKind,
         DohConfiguration, DohMethod,
     };
+    #[cfg(windows)]
+    pub use phantom_net::dns::chromium_windows_resolvers;
     pub use phantom_net::dns::{
         AliasRecord, EchCipherSuite, EchConfig, EchConfigExtension, EchConfigList,
         EchConfigListError, EchConfigListErrorKind, HttpsLookupError, HttpsLookupErrorKind,

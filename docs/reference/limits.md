@@ -27,7 +27,7 @@ explains how Phantom limits the state a client keeps.
 | HTTPS DNS record discovery | Off | `https-records` feature, then `ClientBuilder::https_record_discovery` |
 | Address cache | As the profile's `DnsCacheSettings`; off without one | `ClientProfile::with_dns_cache` or `ClientBuilder::dns_cache`; `ClientBuilder::no_dns_cache` turns it off |
 | Host-to-address overrides | None | `ClientBuilder::resolve` |
-| Address resolver | The operating system's | `ClientBuilder::dns_resolver`; `AddressResolver::system_nameservers` (`https-records` feature) sends Phantom's own queries |
+| Address resolver | The operating system's | `ClientBuilder::dns_resolver`; [paired Windows resolvers](../guides/name-resolution.md#resolve-names-with-phantoms-own-dns-queries) or `AddressResolver::system_nameservers` send Phantom's own queries |
 | Local source address | The operating system's | `ClientBuilder::local_address`, one per address family |
 | Interface binding | None | `ClientBuilder::interface` on Linux, Android, macOS, and Windows |
 | TLS client certificate | None; a `CertificateRequest` gets an empty `Certificate` | `ClientBuilder::client_certificate`, `ClientBuilder::client_certificate_for` |
@@ -192,7 +192,7 @@ The last column shows which changes a server can observe.
 | Broken alternative period | 300 seconds, doubling to 2 days | Chrome 153 NetLog and source | `AltSvcBrokenBackoff` | Yes: when QUIC is tried again |
 | Alt-Svc lifetime without `ma` | 24 hours | RFC 7838 | Server's `ma` | No |
 | HTTPS record result lifetime | Earliest record or negative SOA expiry, at most 1 day from lookup construction; missing or expired lifetimes are not cached | Phantom | Resolver can shorten expiry | Resolver only |
-| HTTPS record lookup failure backoff | 60 seconds | Phantom | Not configurable | Resolver only |
+| HTTPS record lookup failure backoff | 60 seconds for operational failures; configuration failures are not retained | Phantom | Not configurable | Resolver only |
 | Explicit DoH lookup deadline and admission | Caller-supplied finite deadline and concurrent lookup limit, shared by address and HTTPS record factories | Phantom | `DohConfiguration` | Yes: cancellation or refused lookup |
 | HTTPS record query timeout and attempts | 5 seconds, 2 attempts | hickory-resolver default | `HttpsRecordResolver::from_fn` replaces the resolver | Resolver only |
 | Early data answer wait | Until the handshake ends | QUIC | Connect timeout | No |
@@ -282,6 +282,26 @@ Neither closes existing connections. This history is separate from session
 tickets and browser network partitions or persisted network-success state.
 See [Choose the delay from connection timing](../guides/http3-discovery.md#choose-the-delay-from-connection-timing).
 
+## Windows DNS configuration
+
+`dns::chromium_windows_resolvers` requires Windows and `https-records`.
+Apply both returned resolvers to share their configuration. Profiles do not
+select this constructor automatically.
+
+| Policy | Behavior |
+| --- | --- |
+| Eligible built-in configuration | First active non-loopback adapter with servers, configured search suffixes and devolution |
+| System-only configuration | Addresses use the system resolver; HTTPS queries return `HttpsLookupErrorKind::Configuration` before raw DNS I/O |
+| Watched change or terminal watcher failure | Invalidates the paired address and HTTPS cache state; affected work fails without an automatic lookup retry |
+| Fixed servers, callbacks and DoH | Retain their own resolver and cache behavior; they do not join this watch |
+| Final paired resolver drop | Joins the native worker; native cancellation can block |
+
+Name resolution policy, DNS proxy settings, PPP adapters or differing active
+adapter servers select system-only mode. PPP is a compatibility heuristic;
+it does not identify every VPN. Notifications are not an atomic view of all
+Windows settings. A configuration error is neither a negative DNS answer
+nor an operational HTTPS lookup backoff.
+
 ## Cookies
 
 The optional cookie jar (`CookieLimits`) defaults to:
@@ -303,7 +323,7 @@ from Chromium.
 | Raced Alt-Svc alternative setup, including name resolution | 4 seconds, or `AltSvcRace::with_alternative_setup_limit` |
 | Cached HTTPS queries by host and port, per client | The `maximum_origins` given to `ClientBuilder::alt_svc`, least recently used evicted |
 | Lifetime of an HTTPS DNS record result | Earliest record or negative SOA expiry, at most 1 day from lookup construction; missing or expired lifetimes are not cached |
-| HTTPS lookup failure backoff | 60 seconds |
+| HTTPS lookup failure backoff | 60 seconds for operational failures; configuration failures are not retained |
 | Learned alternative HTTPS lookup | Off by default; `AltSvcHttpsPolicy::Destination` uses a nonzero caller timeout within the connection setup budget |
 | TLS session tickets per H1/H2 pool entry | `TlsSettings::session_tickets`: 2 in Chromium-family recipes, 10 in Firefox recipes; enabled limits are 1 through 10; when full, the ticket the recipe's [ticket order](profiles.md#tls-session-ticket-order) names is dropped |
 | QUIC session tickets per H3 pool entry, and per CONNECT-UDP outer connection | 4, least recently stored evicted |
@@ -319,7 +339,7 @@ from Chromium.
 | Digest forwarding nonce acceptance | Complete body and verified head/trailers |
 | `407` body read so the replay can use the challenged HTTP/1.1 proxy connection | 64 KiB, `phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES`, chunk framing included on CONNECT; a longer body gets a new connection |
 | Host names with cached addresses, per client | `DnsCacheSettings::max_entries`: 1,000 in `chrome::v154_dns_cache`, 1,600 in `firefox::v157_dns_cache`; an expired name, then the one that expires soonest, evicted |
-| Lifetime of cached addresses | Without a record TTL, `DnsCacheSettings::ttl`: 60 seconds in both recipes. With one, from `AddressResolver::system_nameservers`, the TTL or `DnsCacheSettings::min_record_ttl`, whichever is longer: at least 60 seconds in `chrome::v154_dns_cache`, no minimum in `firefox::v157_dns_cache` |
+| Lifetime of cached addresses | Without a lifetime, `DnsCacheSettings::ttl`: 60 seconds in both recipes. Raw DNS record TTLs use `min_record_ttl`; native or caller-supplied remaining lifetimes are never extended |
 | Lifetime of a cached failed lookup or empty answer | `DnsCacheSettings::negative_ttl`: not kept in `chrome::v154_dns_cache`, 60 seconds in `firefox::v157_dns_cache` |
 | Caller-reported DNS lifetime | `AddressResolver::from_answer_fn`: remaining lifetime from answer construction, without a profile floor; zero, expired or unrepresentable lifetimes are not stored |
 | Caller-reported negative DNS answer | Lesser of its remaining lifetime and `negative_ttl`, both aged from construction; callback errors are never stored |
@@ -382,7 +402,9 @@ it and retains the tickets for another attempt.
 A stored snapshot and its randomly generated 32-byte key are sensitive
 resumption material. Keep them separate. The `PHOWN003` format requires a
 compatible library and native TLS backend. Earlier snapshots are rejected;
-re-export tickets with the updated library.
+re-export tickets with the updated library. Profile-policy binding version 3
+also rejects snapshots made before `DnsCacheSettings::system_ttl` was added,
+even when their outer format is `PHOWN003`.
 
 H3 field-section size is measured as RFC 9114 Section 4.2.2 defines it: each
 field line counts its name and value lengths plus 32 bytes. The 256 KiB

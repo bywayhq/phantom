@@ -23,6 +23,7 @@ const OVERRIDE_V6: IpAddr = IpAddr::V6(Ipv6Addr::LOCALHOST);
 
 fn settings(ttl: Duration) -> DnsCacheSettings {
     DnsCacheSettings {
+        system_ttl: phantom_profile::SystemDnsTtlPolicy::Ignore,
         max_entries: NonZeroUsize::new(16).unwrap_or(NonZeroUsize::MIN),
         ttl,
         min_record_ttl: Duration::ZERO,

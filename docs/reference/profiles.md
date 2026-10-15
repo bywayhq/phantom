@@ -511,18 +511,23 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 | Edge, Opera | 1,000, from `chrome::v154_dns_cache` | 60 s, as hook logs show through the system resolver | The TTL, at least 60 s | Not kept |
 | Android browsers | Not covered | Not covered | Not covered | Not covered |
 
-- The operating system's resolver reports no record TTL, and neither does
-  an `AddressResolver::from_fn` resolver, so by default every answer is
-  kept for `ttl`: Chromium's system-resolver value and Firefox's
-  `network.dnsCacheExpiration`.
+`DnsCacheSettings::system_ttl` controls native TTL handling. Use
+`SystemDnsTtlPolicy::Ignore` for the fallback `ttl`, or `FirefoxWindows` to
+obtain a canonical system name and its A/AAAA lifetimes on Windows.
+`firefox::v157_dns_cache` selects `FirefoxWindows`; Chromium recipes select
+`Ignore`. Other platforms retain the fallback lifetime. Native remaining
+lifetimes are never extended by `min_record_ttl`.
+
+- `AddressResolver::from_fn` supplies no record TTL and uses `ttl`.
+  Caller-supplied resolvers are unaffected by `system_ttl`.
 - With the `https-records` feature, `AddressResolver::system_nameservers`
   sends Phantom's own A and AAAA queries, as Chromium's built-in DNS client
   does, and reports each answer's record TTL. Chromium keeps such an
   answer for its TTL, at least 60 s. No recipe turns the resolver on
   ([Resolve host names](../guides/name-resolution.md#resolve-names-with-phantoms-own-dns-queries)).
-- Firefox on Windows reads the record TTL from the operating system and
-  keeps the answer that long, without a lower bound. Phantom cannot read
-  that TTL, so a Firefox profile keeps each answer 60 s.
+- With `FirefoxWindows`, a successful system lookup can perform additional
+  native DNS queries. Missing lifetime information uses `ttl`; zero or
+  expired lifetimes are not stored.
 - Firefox serves an expired answer for up to 600 s more while it resolves the
   name again in the background. Phantom resolves an expired name before it
   connects.
@@ -536,9 +541,10 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 - When the cache is full, an expired name is replaced first, then the one
   that would expire soonest, as in Chromium.
 - `ClientBuilder::dns_cache` replaces the profile's settings and
-  `ClientBuilder::no_dns_cache` turns the cache off. Browsers flush the cache
-  when the network changes; Phantom does not watch the network, so call
-  `Client::clear_dns_cache` after such a change.
+  `ClientBuilder::no_dns_cache` turns the cache off. The explicit
+  [paired Windows resolvers](../guides/name-resolution.md#resolve-names-with-phantoms-own-dns-queries)
+  invalidate address and HTTPS results after observed configuration changes.
+  Other resolvers still need `Client::clear_dns_cache` when needed.
 
 ## Request templates
 

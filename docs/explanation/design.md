@@ -302,12 +302,12 @@ Chromium's QUIC session retransmits as it was sent.
 A fingerprinting client works inside the TLS handshake and a native TLS
 library, where a mistake is a security bug. Phantom keeps that work inside
 three narrow boundaries: TLS verification stays on unless the caller turns it
-off, unsafe code lives in two private FFI modules, and vendored changes go
+off, unsafe code lives in three private FFI modules, and vendored changes go
 through a recorded patch series.
 
-In practice, verification can be disabled only for H1 and H2 conformance
-testing, and your build cannot swap Phantom's patched dependencies for stock
-ones. Recoverable input and network failures return typed errors. Runtime
+Verification can be disabled for explicit H1, H2 and H3 conformance testing.
+Your build cannot swap Phantom's patched dependencies for stock ones.
+Recoverable input and network failures return typed errors. Runtime
 library code must not panic.
 
 ### TLS boundary
@@ -340,38 +340,108 @@ H3.
 
 ### Unsafe code
 
-The workspace forbids `unsafe_code`. Two crates make an exception, each for
-one private module that is the crate's complete FFI boundary:
+The workspace forbids `unsafe_code`. Two crates make exceptions for
+three private modules:
 
 | Crate | Module | Foreign calls |
 | --- | --- | --- |
 | `phantom-quic-btls` | `backend` | BoringSSL's QUIC TLS API, for Quinn |
 | `phantom-net` | `socket_ffi`, compiled on Apple platforms and Windows, and in Linux and Android tests | libc `if_nametoindex`; Winsock `setsockopt` and, in tests, `getsockopt`; IP Helper LUID conversions; ntdll `RtlGetVersion` |
+| `phantom-net` | `system_dns_ffi`, Windows only | Winsock address and DNS record lookup; adapter and registry reads; registry, interface and route notifications |
 
 Both crates follow the same rules:
 
 - The crate overrides the workspace lint with `unsafe_code = "deny"` and
   `unsafe_op_in_unsafe_fn = "deny"`, and allows unsafe code only on the
-  declaration of that one module.
+  declarations of those audited modules.
 - Every unsafe block there carries a `SAFETY` comment;
   `clippy::undocumented_unsafe_blocks` is denied.
 - No raw pointer or FFI item crosses the module's API. Callers of `backend`
   supply only the safe `btls` `SslContext` wrapper. Callers of
   `socket_ffi` pass a `BorrowedSocket`, an interface name, or an interface
   index, and get an `io::Result`, or ask for the Windows version and get an
-  `Option<WindowsVersion>`.
+  `Option<WindowsVersion>`. `system_dns_ffi` returns owned addresses, DNS
+  deadlines and settings. Its watch owner exposes safe generation observations
+  and typed errors. Native handles and callback contexts stay inside it.
 - `scripts/ci/check-unsafe-boundaries.sh` fails when an `allow(unsafe_code`
   or `expect(unsafe_code` attribute appears anywhere outside `vendor/` but
-  the two module declarations, in `crates/phantom-quic-btls/src/lib.rs` and
+  the three module declarations, in `crates/phantom-quic-btls/src/lib.rs` and
   `crates/phantom-net/src/lib.rs`, or when a manifest sets `unsafe_code` to
   `allow` or `warn`. CI's Quality job and `scripts/dev/gate.sh` run it.
 
 Safe code in either crate cannot add unsafe operations without moving them
-into that module, where review concentrates. A change to it needs the same
+into an audited module, where review concentrates. A change to it needs the same
 scrutiny as a vendored patch: a stated invariant for every unsafe block, and
 tests that exercise the failure paths. The macOS and Windows CI jobs also run
 `phantom-quic-btls`'s unit tests in release mode to check the native link. The
 failure-path tests are listed in Validation.
+
+#### Windows system DNS audit
+
+`system_dns_ffi` has three responsibilities: system resolution, settings reads
+and configuration notifications. Their native allocations and callbacks stay
+inside the module. Each API returns owned Rust data or an opaque generation.
+
+The address and TTL lookup runs on the existing blocking resolver worker.
+It initializes Winsock 2.2 and checks the negotiated version. Every successful
+initialization has a matching cleanup. Address and DNS list owners drop first.
+Native queries can block. Dropping a waiter does not cancel the OS call.
+
+The address lookup adds `AI_CANONNAME` to the standard resolver's stream-socket
+hints. Only a successful call creates a list owner. It copies addresses in
+their returned order, including IPv6 flow and scope values. Known sockaddr
+families require a nonnull pointer and sufficient advertised length before an
+unaligned copy. Oversized lists fail rather than return a truncated answer.
+
+An optional canonical name is copied while the successful address list owns
+it. The bounded scan requires the OS contract of a terminated string. Missing,
+non-ASCII or oversized metadata cannot invalidate successfully copied addresses.
+Non-ASCII input keeps the existing system resolver path without native TTLs.
+
+The optional A and AAAA queries use Firefox's five native flags. They can issue
+OS DNS traffic. Failed queries never create an assumed list owner. Successful
+lists retain their original head until `DnsFreeRecordList` releases it once.
+Traversal reads only raw fixed-header fields before `Data`. It creates no
+reference to the complete variable-RDATA record and does not read its union.
+
+Only matching answer records contribute lifetimes. Each query anchors its
+deadline before calling the OS. Zero, expired and overflowing lifetimes cannot
+gain fallback cache time. Copying or publishing a result never extends its
+deadline. Cache generation checks reject late publication after a clear.
+They do not stop an already running native query.
+
+The `configuration` child reads adapters and registry values without issuing
+DNS queries or changing settings. Adapter storage is aligned and bounded.
+Every projected node, field, string and socket address is checked against its
+original allocation and advertised length. The reader copies owned values
+before releasing storage. Registry keys close once, and registry and expanded
+strings have explicit type and size checks. An unsupported pointer width or
+malformed native output returns a typed error. The safe policy converter
+makes the eligibility decision outside the FFI boundary.
+
+The `configuration_watch` child registers before the first settings read.
+It owns its registry keys, event handles and notification registrations.
+Registry watches cover subtree name, attribute, last-write and security changes.
+Optional paths watch their nearest existing ancestors. An event triggers one
+rearm. Interface and route callbacks ignore borrowed row pointers. They only
+advance the shared generation and wake observers. They do not read settings
+or take owner locks.
+
+Shutdown signals the wait and joins the owned watch thread. Terminal failure
+is published before native cancellation starts. Callback state remains alive
+until `CancelMibChangeNotify2` succeeds. Failed cancellation retains the affected
+registration's state because native quiescence is unknown. At most two such
+registrations are retained per failed owner. Repeated failed owners have no
+global retention bound. Cancellation and joining may block. The final paired
+resolver drop also joins its blocking settings worker.
+
+The paired resolver samples the same observer before and after a settings
+read. Address and HTTPS caches check that generation before publication and
+consumption. Notifications can arrive after an OS setting changes, so matching
+tokens do not establish an OS-wide atomic snapshot. Configuration errors are
+separate from DNS negatives and operational retry backoff. Native resource
+checks, synthetic layout and generation controls, and browser evidence remain
+separate validation tasks.
 
 #### Windows port randomization audit
 

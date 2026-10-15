@@ -1444,6 +1444,7 @@ dependencies = [
  "http-body",
  "http-body-util",
  "httparse",
+ "idna",
  "libc",
  "phantom-btls",
  "phantom-h3",

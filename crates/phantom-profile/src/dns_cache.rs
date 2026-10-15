@@ -2,6 +2,20 @@
 
 use std::{num::NonZeroUsize, time::Duration};
 
+/// Whether system address lookups also obtain native DNS lifetime information.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SystemDnsTtlPolicy {
+    /// Use the configured fallback lifetime without additional native queries.
+    Ignore,
+    /// On Windows, request a canonical system name and query its A/AAAA TTLs.
+    ///
+    /// Uses Firefox's native DNS query options, which permit network queries.
+    /// Other platforms keep the configured fallback lifetime. Custom resolvers
+    /// are unaffected. This does not reproduce Firefox's background refresh
+    /// scheduling or stale-answer grace period.
+    FirefoxWindows,
+}
+
 /// How a client reuses the addresses it resolves for its own connections.
 ///
 /// A client that caches addresses resolves a host name once and reuses the
@@ -12,15 +26,18 @@ use std::{num::NonZeroUsize, time::Duration};
 /// proxy resolves, through `socks5h://`, an HTTP proxy, or CONNECT-UDP, is
 /// never resolved or cached locally.
 ///
-/// An answer from the operating system's resolver, or from a caller's
-/// resolver built with `AddressResolver::from_fn`, carries no record TTL and
-/// is kept for [`Self::ttl`]. An answer from a resolver that sends its own
+/// [`Self::system_ttl`] can obtain a native remaining lifetime on Windows,
+/// which the cache never extends. Without one, a system answer is kept for
+/// [`Self::ttl`], as is a caller's `AddressResolver::from_fn` answer.
+/// An answer from a resolver that sends its own
 /// DNS queries through `AddressResolver::system_nameservers` carries the
 /// smallest record TTL and is kept for that TTL or [`Self::min_record_ttl`],
 /// whichever is longer. A caller using `AddressResolver::from_answer_fn`
 /// supplies a remaining DNS lifetime, which the cache never extends.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DnsCacheSettings {
+    /// Native TTL handling for successful system-resolver address lookups.
+    pub system_ttl: SystemDnsTtlPolicy,
     /// Most host names kept at once.
     ///
     /// When the cache is full, a new answer first replaces an expired one,
@@ -36,7 +53,8 @@ pub struct DnsCacheSettings {
     /// Such an answer is kept for its record TTL or this, whichever is
     /// longer, and [`Self::ttl`] does not apply to it. A zero duration keeps
     /// the record TTL as it is, and a record TTL of zero then keeps nothing.
-    /// This floor does not apply to `AddressResolver::from_answer_fn`.
+    /// This floor does not apply to native remaining lifetimes or to
+    /// `AddressResolver::from_answer_fn`.
     pub min_record_ttl: Duration,
     /// How long a failed lookup is remembered, or `None` to resolve again on
     /// the next connection.
@@ -50,7 +68,7 @@ pub struct DnsCacheSettings {
 mod tests {
     use std::time::Duration;
 
-    use crate::{browser::chrome, browser::firefox};
+    use crate::{SystemDnsTtlPolicy, browser::chrome, browser::firefox};
 
     #[test]
     fn chromium_154_keeps_1000_answers_for_60_seconds_and_no_failures() {
@@ -58,6 +76,8 @@ mod tests {
         // resolver TTLs, `net/dns/host_resolver_manager_job.cc:55-58`, and the
         // built-in client's `kMinimumTTLSeconds`, `:61`, at `154.0.8037.58`.
         let settings = chrome::v154_dns_cache();
+
+        assert_eq!(settings.system_ttl, SystemDnsTtlPolicy::Ignore);
 
         assert_eq!(settings.max_entries.get(), 1000);
         assert_eq!(settings.ttl, Duration::from_secs(60));
@@ -74,6 +94,8 @@ mod tests {
         // A record TTL from `DnsQuery_A` replaces the lifetime without a bound,
         // `netwerk/dns/nsHostResolver.cpp:1314-1315`.
         let settings = firefox::v157_dns_cache();
+
+        assert_eq!(settings.system_ttl, SystemDnsTtlPolicy::FirefoxWindows);
 
         assert_eq!(settings.max_entries.get(), 1600);
         assert_eq!(settings.ttl, Duration::from_secs(60));

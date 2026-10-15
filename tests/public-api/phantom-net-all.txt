@@ -142,6 +142,7 @@ impl core::fmt::Display for phantom_net::dns::EchConfigListError
 pub fn phantom_net::dns::EchConfigListError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::dns::HttpsLookupError
 impl phantom_net::dns::HttpsLookupError
+pub fn phantom_net::dns::HttpsLookupError::configuration(impl core::error::Error + core::marker::Send + core::marker::Sync + 'static) -> Self
 pub const fn phantom_net::dns::HttpsLookupError::kind(&self) -> phantom_net::dns::HttpsLookupErrorKind
 pub fn phantom_net::dns::HttpsLookupError::other(impl core::error::Error + core::marker::Send + core::marker::Sync + 'static) -> Self
 impl core::error::Error for phantom_net::dns::HttpsLookupError
@@ -171,8 +172,10 @@ pub fn phantom_net::dns::HttpsRecordLookup::with_cache_deadline(self, std::time:
 pub fn phantom_net::dns::HttpsRecordLookup::with_cache_lifetime(self, core::time::Duration) -> Self
 pub struct phantom_net::dns::HttpsRecordResolver
 impl phantom_net::dns::HttpsRecordResolver
+pub fn phantom_net::dns::HttpsRecordResolver::configuration_token(&self) -> core::io::error::Result<core::option::Option<phantom_net::host_resolver::DnsConfigurationToken>>
 pub fn phantom_net::dns::HttpsRecordResolver::from_fn<F, Fut>(F) -> Self where F: core::ops::function::Fn(alloc::string::String, u16) -> Fut + core::marker::Send + core::marker::Sync + 'static, Fut: core::future::future::Future<Output = core::result::Result<phantom_net::dns::HttpsRecordLookup, phantom_net::dns::HttpsLookupError>> + core::marker::Send + 'static
 pub async fn phantom_net::dns::HttpsRecordResolver::lookup(&self, &str, u16) -> core::result::Result<phantom_net::dns::HttpsRecordLookup, phantom_net::dns::HttpsLookupError>
+pub async fn phantom_net::dns::HttpsRecordResolver::lookup_with_configuration(&self, &str, u16, core::option::Option<phantom_net::host_resolver::DnsConfigurationToken>) -> core::result::Result<phantom_net::dns::HttpsRecordLookup, phantom_net::dns::HttpsLookupError>
 pub fn phantom_net::dns::HttpsRecordResolver::system() -> core::result::Result<Self, phantom_net::dns::HttpsLookupError>
 pub fn phantom_net::dns::HttpsRecordResolver::udp_settings(&self) -> core::option::Option<phantom_profile::udp::UdpSettings>
 pub fn phantom_net::dns::HttpsRecordResolver::with_nameservers(impl core::iter::traits::collect::IntoIterator<Item = core::net::socket_addr::SocketAddr>) -> core::result::Result<Self, phantom_net::dns::HttpsLookupError>
@@ -195,6 +198,7 @@ pub struct phantom_net::dns::SvcParam
 impl phantom_net::dns::SvcParam
 pub const fn phantom_net::dns::SvcParam::key(&self) -> u16
 pub fn phantom_net::dns::SvcParam::value(&self) -> &[u8]
+pub async fn phantom_net::dns::chromium_windows_resolvers() -> core::io::error::Result<(phantom_net::host_resolver::AddressResolver, phantom_net::dns::HttpsRecordResolver)>
 pub mod phantom_net::host_resolver
 pub enum phantom_net::host_resolver::AddressNegativeKind
 pub phantom_net::host_resolver::AddressNegativeKind::NoData
@@ -212,12 +216,21 @@ impl core::fmt::Display for phantom_net::host_resolver::AddressNegative
 pub fn phantom_net::host_resolver::AddressNegative::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::host_resolver::AddressResolver
 impl phantom_net::host_resolver::AddressResolver
+pub fn phantom_net::host_resolver::AddressResolver::configuration_token(&self) -> core::io::error::Result<core::option::Option<phantom_net::host_resolver::DnsConfigurationToken>>
 pub fn phantom_net::host_resolver::AddressResolver::from_answer_fn<F, Fut>(F) -> Self where F: core::ops::function::Fn(alloc::string::String) -> Fut + core::marker::Send + core::marker::Sync + 'static, Fut: core::future::future::Future<Output = core::io::error::Result<phantom_net::host_resolver::AddressAnswer>> + core::marker::Send + 'static
 pub fn phantom_net::host_resolver::AddressResolver::from_fn<F, Fut>(F) -> Self where F: core::ops::function::Fn(alloc::string::String) -> Fut + core::marker::Send + core::marker::Sync + 'static, Fut: core::future::future::Future<Output = core::io::error::Result<alloc::vec::Vec<core::net::ip_addr::IpAddr>>> + core::marker::Send + 'static
 pub fn phantom_net::host_resolver::AddressResolver::system_nameservers() -> core::io::error::Result<Self>
 pub fn phantom_net::host_resolver::AddressResolver::with_nameservers(impl core::iter::traits::collect::IntoIterator<Item = core::net::socket_addr::SocketAddr>) -> core::io::error::Result<Self>
 impl core::fmt::Debug for phantom_net::host_resolver::AddressResolver
 pub fn phantom_net::host_resolver::AddressResolver::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::host_resolver::DnsConfigurationToken
+impl phantom_net::host_resolver::DnsConfigurationToken
+pub fn phantom_net::host_resolver::DnsConfigurationToken::is_current(&self) -> core::io::error::Result<bool>
+impl core::cmp::Eq for phantom_net::host_resolver::DnsConfigurationToken
+impl core::cmp::PartialEq for phantom_net::host_resolver::DnsConfigurationToken
+pub fn phantom_net::host_resolver::DnsConfigurationToken::eq(&self, &Self) -> bool
+impl core::fmt::Debug for phantom_net::host_resolver::DnsConfigurationToken
+pub fn phantom_net::host_resolver::DnsConfigurationToken::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::host_resolver::HostResolver
 impl phantom_net::host_resolver::HostResolver
 pub fn phantom_net::host_resolver::HostResolver::cache(&self) -> core::option::Option<&phantom_net::address_cache::AddressCache>

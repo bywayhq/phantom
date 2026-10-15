@@ -15,8 +15,9 @@ use std::{
 use phantom_profile::DnsCacheSettings;
 use tokio::sync::watch;
 
-use crate::host_resolver::{AddressResolver, CacheLifetime, Resolved};
+use crate::host_resolver::{AddressResolver, CacheLifetime, DnsConfigurationToken, Resolved};
 
+#[cfg(test)]
 type LookupFuture = Pin<Box<dyn Future<Output = io::Result<Vec<SocketAddr>>> + Send>>;
 type ResolverFuture = Pin<Box<dyn Future<Output = io::Result<Resolved>> + Send>>;
 
@@ -28,7 +29,7 @@ type PendingKey = (Box<str>, Option<tokio::runtime::Id>);
 #[derive(Clone)]
 enum Lookup {
     /// Runs on the blocking pool, as the operating system resolver must.
-    Blocking(Arc<dyn Fn(Box<str>) -> LookupFuture + Send + Sync>),
+    Blocking(Arc<dyn Fn(Box<str>) -> ResolverFuture + Send + Sync>),
     /// A caller's async resolver, run as a task on the runtime.
     Task(AddressResolver),
 }
@@ -45,8 +46,9 @@ enum Lookup {
 /// lookup.
 ///
 /// A lookup's answer keeps the resolver's address order, on which address
-/// racing depends. An answer without a record TTL, as from the operating
-/// system, is kept for [`DnsCacheSettings::ttl`]; one with a record TTL,
+/// racing depends. A system answer with a native remaining lifetime keeps
+/// its absolute expiry without a floor. An answer without a record TTL is
+/// kept for [`DnsCacheSettings::ttl`]; one with a record TTL,
 /// from the built-in DNS resolver, for that TTL or
 /// [`DnsCacheSettings::min_record_ttl`], whichever is longer. A failure or an
 /// empty answer is kept for [`DnsCacheSettings::negative_ttl`], or not at
@@ -106,6 +108,7 @@ struct State {
     /// Advanced by [`AddressCache::clear`], so that a resolution started
     /// before the clear does not store its answer after it.
     generation: u64,
+    configuration: Option<DnsConfigurationToken>,
 }
 
 struct Entry {
@@ -209,8 +212,21 @@ impl AddressCache {
     #[must_use]
     pub fn new(settings: DnsCacheSettings) -> Self {
         // Runs on a blocking-pool thread, so blocking here is intended.
-        Self::with_lookup(settings, |host| {
-            Box::pin(async move { Ok((&*host, 0).to_socket_addrs()?.collect()) })
+        Self::with_blocking_lookup(settings, move |host| {
+            Box::pin(async move {
+                #[cfg(windows)]
+                if settings.system_ttl == phantom_profile::SystemDnsTtlPolicy::FirefoxWindows
+                    && host.is_ascii()
+                {
+                    let (addresses, ttl) = crate::system_dns_ffi::resolve(&host)?;
+                    return Ok(Resolved::System { addresses, ttl });
+                }
+
+                Ok(Resolved::Legacy {
+                    addresses: (&*host, 0).to_socket_addrs()?.collect(),
+                    ttl: None,
+                })
+            })
         })
     }
 
@@ -219,9 +235,25 @@ impl AddressCache {
     /// `lookup` receives the lowercased name. Its future runs on a
     /// blocking-pool thread under a Tokio current-thread runtime without I/O
     /// or timer drivers.
+    #[cfg(test)]
     pub(crate) fn with_lookup<F>(settings: DnsCacheSettings, lookup: F) -> Self
     where
         F: Fn(Box<str>) -> LookupFuture + Send + Sync + 'static,
+    {
+        Self::with_blocking_lookup(settings, move |host| {
+            let resolution = lookup(host);
+            Box::pin(async move {
+                resolution.await.map(|addresses| Resolved::Legacy {
+                    addresses,
+                    ttl: None,
+                })
+            })
+        })
+    }
+
+    fn with_blocking_lookup<F>(settings: DnsCacheSettings, lookup: F) -> Self
+    where
+        F: Fn(Box<str>) -> ResolverFuture + Send + Sync + 'static,
     {
         Self::with(settings, Lookup::Blocking(Arc::new(lookup)))
     }
@@ -300,8 +332,14 @@ impl AddressCache {
             return Ok((vec![SocketAddr::new(address, port)], false));
         }
 
-        let answer = self.cached_or_pending(host.to_ascii_lowercase().into_boxed_str())?;
-        self.consume_answer(answer, port).await
+        let configuration = self.configuration_token()?;
+        let answer = self.cached_or_pending_with_configuration(
+            host.to_ascii_lowercase().into_boxed_str(),
+            configuration.clone(),
+        )?;
+        let result = self.consume_answer(answer, port).await;
+        Self::check_configuration(&configuration)?;
+        result
     }
 
     /// Waits for the selected answer and gives its addresses the caller's port.
@@ -318,11 +356,15 @@ impl AddressCache {
             Answer::Inline {
                 host,
                 generation,
+                configuration,
                 resolution,
             } => {
-                let (outcome, lifetime) =
-                    Outcome::from_resolution(resolution.await, self.cache_errors());
-                self.complete(&host, None, generation, &outcome, lifetime);
+                let mut result = resolution.await;
+                if let Err(error) = Self::check_configuration(&configuration) {
+                    result = Err(error);
+                }
+                let (outcome, lifetime) = Outcome::from_resolution(result, self.cache_errors());
+                self.complete(&host, None, generation, &configuration, &outcome, lifetime);
                 return outcome.addresses(port).map(|addresses| (addresses, false));
             }
         };
@@ -345,8 +387,24 @@ impl AddressCache {
     /// Provenance is decided under the lock: a resolution publishing before
     /// its caller starts waiting does not make that lookup a cache hit.
     /// Past the shared bound, a caller's resolution runs inline.
+    #[cfg(test)]
     fn cached_or_pending(&self, host: Box<str>) -> io::Result<Answer> {
+        let configuration = self.configuration_token()?;
+        self.cached_or_pending_with_configuration(host, configuration)
+    }
+
+    fn cached_or_pending_with_configuration(
+        &self,
+        host: Box<str>,
+        configuration: Option<DnsConfigurationToken>,
+    ) -> io::Result<Answer> {
         let mut state = self.lock();
+        Self::check_configuration(&configuration)?;
+        if state.configuration != configuration {
+            state.entries.clear();
+            state.pending.clear();
+            state.configuration = configuration.clone();
+        }
         let now = Instant::now();
         match state.entries.get(&host) {
             Some(entry) if entry.is_fresh(now) => {
@@ -379,10 +437,11 @@ impl AddressCache {
         let shared = state.shared_resolutions < self.inner.settings.max_entries.get();
         if !shared && let Lookup::Task(resolver) = &self.inner.lookup {
             drop(state);
-            let resolution = resolver.lookup(&key.0);
+            let resolution = resolver.lookup_with_configuration(&key.0, configuration.clone());
             return Ok(Answer::Inline {
                 host: key.0,
                 generation,
+                configuration,
                 resolution,
             });
         }
@@ -399,6 +458,7 @@ impl AddressCache {
             key,
             shared,
             generation,
+            configuration,
             sender: Some(sender),
         };
         match &self.inner.lookup {
@@ -409,14 +469,12 @@ impl AddressCache {
                         .build()
                         .map_err(io::Error::other)
                         .and_then(|runtime| runtime.block_on(resolution));
-                    publisher.publish(result.map(|addresses| Resolved::Legacy {
-                        addresses,
-                        ttl: None,
-                    }));
+                    publisher.publish(result);
                 }));
             }
             Lookup::Task(resolver) => {
-                let resolution = resolver.lookup(&publisher.key.0);
+                let resolution = resolver
+                    .lookup_with_configuration(&publisher.key.0, publisher.configuration.clone());
                 drop(runtime.spawn(async move {
                     publisher.publish(resolution.await);
                 }));
@@ -435,11 +493,15 @@ impl AddressCache {
         host: &str,
         pending: Option<&PendingKey>,
         generation: u64,
+        configuration: &Option<DnsConfigurationToken>,
         outcome: &Outcome,
         lifetime: CacheLifetime,
     ) {
         let mut state = self.lock();
-        if state.generation != generation {
+        if state.generation != generation
+            || state.configuration != *configuration
+            || Self::check_configuration(configuration).is_err()
+        {
             return;
         }
 
@@ -477,6 +539,13 @@ impl AddressCache {
                 Some(expires_at)
             }
             CacheLifetime::Never => return,
+            #[cfg(any(windows, test))]
+            CacheLifetime::System(expiry) => {
+                let Some(expiry) = expiry.filter(|expiry| *expiry > now) else {
+                    return;
+                };
+                Some(expiry)
+            }
         };
         if !state.entries.contains_key(host)
             && state.entries.len() >= self.inner.settings.max_entries.get()
@@ -513,6 +582,19 @@ impl AddressCache {
             .unwrap_or_else(PoisonError::into_inner)
     }
 
+    fn configuration_token(&self) -> io::Result<Option<DnsConfigurationToken>> {
+        match &self.inner.lookup {
+            Lookup::Blocking(_) => Ok(None),
+            Lookup::Task(resolver) => resolver.configuration_token(),
+        }
+    }
+
+    fn check_configuration(token: &Option<DnsConfigurationToken>) -> io::Result<()> {
+        token
+            .as_ref()
+            .map_or(Ok(()), DnsConfigurationToken::require_current)
+    }
+
     fn cache_errors(&self) -> bool {
         match &self.inner.lookup {
             Lookup::Blocking(_) => true,
@@ -532,16 +614,26 @@ struct Publisher {
     /// Whether `key` is in `pending`, so that completion releases it.
     shared: bool,
     generation: u64,
+    configuration: Option<DnsConfigurationToken>,
     sender: Option<watch::Sender<Option<Outcome>>>,
 }
 
 impl Publisher {
     /// Stores the resolution's result and answers its waiters.
-    fn publish(mut self, result: io::Result<Resolved>) {
+    fn publish(mut self, mut result: io::Result<Resolved>) {
+        if let Err(error) = AddressCache::check_configuration(&self.configuration) {
+            result = Err(error);
+        }
         let (outcome, lifetime) = Outcome::from_resolution(result, self.cache.cache_errors());
         let pending = self.shared.then_some(&self.key);
-        self.cache
-            .complete(&self.key.0, pending, self.generation, &outcome, lifetime);
+        self.cache.complete(
+            &self.key.0,
+            pending,
+            self.generation,
+            &self.configuration,
+            &outcome,
+            lifetime,
+        );
         if let Some(sender) = self.sender.take() {
             let _ = sender.send(Some(outcome));
         }
@@ -564,7 +656,7 @@ impl Drop for Publisher {
     }
 }
 
-/// How [`AddressCache::cached_or_pending`] answers a lookup.
+/// How [`AddressCache::cached_or_pending_with_configuration`] answers a lookup.
 enum Answer {
     /// A fresh cache entry selected while holding the cache lock.
     Stored(Outcome),
@@ -574,6 +666,7 @@ enum Answer {
     Inline {
         host: Box<str>,
         generation: u64,
+        configuration: Option<DnsConfigurationToken>,
         resolution: ResolverFuture,
     },
 }

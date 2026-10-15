@@ -550,6 +550,9 @@ pub phantom_profile::SignatureScheme::RsaPkcs1Sha512
 pub phantom_profile::SignatureScheme::RsaPssRsaeSha256
 pub phantom_profile::SignatureScheme::RsaPssRsaeSha384
 pub phantom_profile::SignatureScheme::RsaPssRsaeSha512
+pub enum phantom_profile::SystemDnsTtlPolicy
+pub phantom_profile::SystemDnsTtlPolicy::FirefoxWindows
+pub phantom_profile::SystemDnsTtlPolicy::Ignore
 #[non_exhaustive] pub enum phantom_profile::TcpAddressAdvance
 pub phantom_profile::TcpAddressAdvance::AfterAnyFailure
 pub phantom_profile::TcpAddressAdvance::AfterRefusalOrTimeout
@@ -693,6 +696,7 @@ pub struct phantom_profile::DnsCacheSettings
 pub phantom_profile::DnsCacheSettings::max_entries: core::num::nonzero::NonZeroUsize
 pub phantom_profile::DnsCacheSettings::min_record_ttl: core::time::Duration
 pub phantom_profile::DnsCacheSettings::negative_ttl: core::option::Option<core::time::Duration>
+pub phantom_profile::DnsCacheSettings::system_ttl: phantom_profile::SystemDnsTtlPolicy
 pub phantom_profile::DnsCacheSettings::ttl: core::time::Duration
 pub struct phantom_profile::EchGreaseSettings
 impl phantom_profile::EchGreaseSettings

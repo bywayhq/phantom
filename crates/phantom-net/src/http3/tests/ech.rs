@@ -255,6 +255,7 @@ async fn a_malformed_list_fails_before_any_packet() -> TestResult<()> {
 /// so the tests time the record from the notice, not from the request.
 fn slow_resolver(delay: Duration) -> (crate::host_resolver::HostResolver, Arc<Notify>) {
     let settings = phantom_profile::DnsCacheSettings {
+        system_ttl: phantom_profile::SystemDnsTtlPolicy::Ignore,
         max_entries: std::num::NonZeroUsize::MIN,
         ttl: Duration::from_secs(60),
         min_record_ttl: Duration::ZERO,

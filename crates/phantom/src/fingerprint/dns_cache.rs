@@ -1,14 +1,31 @@
 //! Complete DNS cache description parsing.
 
-use super::{Result, json::Value};
-use phantom_profile::DnsCacheSettings;
+use super::{
+    Result,
+    json::{self, Value},
+};
+use phantom_profile::{DnsCacheSettings, SystemDnsTtlPolicy};
 
 pub(super) fn parse(v: &Value) -> Result<DnsCacheSettings> {
     v.record(
-        &["max_entries", "ttl", "min_record_ttl", "negative_ttl"],
+        &[
+            "max_entries",
+            "ttl",
+            "min_record_ttl",
+            "negative_ttl",
+            "system_ttl",
+        ],
         "dns_cache",
     )?;
     let settings = DnsCacheSettings {
+        system_ttl: match v
+            .member("system_ttl", "dns_cache.system_ttl")?
+            .text("dns_cache.system_ttl")?
+        {
+            "Ignore" => SystemDnsTtlPolicy::Ignore,
+            "FirefoxWindows" => SystemDnsTtlPolicy::FirefoxWindows,
+            _ => return Err(json::unsupported("dns_cache.system_ttl")),
+        },
         max_entries: v
             .member("max_entries", "dns_cache.max_entries")?
             .nonzero_usize("dns_cache.max_entries")?,

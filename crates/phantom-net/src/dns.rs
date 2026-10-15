@@ -40,6 +40,12 @@ use hickory_resolver::{
 use phantom_profile::UdpSettings;
 
 mod address_lookup;
+#[cfg(any(windows, test))]
+pub(crate) mod system_configuration;
+#[cfg(windows)]
+mod system_resolver;
+#[cfg(windows)]
+pub use system_resolver::chromium_windows_resolvers;
 mod ech_config;
 mod https_record;
 mod query_sockets;
@@ -72,6 +78,8 @@ type LookupFuture =
 #[derive(Clone)]
 enum Backend {
     Dns(Nameservers),
+    #[cfg(windows)]
+    Windows(system_resolver::SystemDnsView),
     Function(Arc<dyn Fn(String, u16) -> LookupFuture + Send + Sync>),
 }
 
@@ -287,6 +295,8 @@ impl HttpsRecordResolver {
             Backend::Dns(nameservers) => {
                 Self::from_nameservers(nameservers.with_udp_settings(settings))
             }
+            #[cfg(windows)]
+            Backend::Windows(view) => Self::from_system(view.with_udp_settings(settings)),
             Backend::Function(_) => self,
         }
     }
@@ -297,6 +307,8 @@ impl HttpsRecordResolver {
     pub fn udp_settings(&self) -> Option<UdpSettings> {
         match &self.backend {
             Backend::Dns(nameservers) => nameservers.udp,
+            #[cfg(windows)]
+            Backend::Windows(view) => view.udp_settings(),
             Backend::Function(_) => None,
         }
     }
@@ -319,26 +331,110 @@ impl HttpsRecordResolver {
         host: &str,
         port: u16,
     ) -> Result<HttpsRecordLookup, HttpsLookupError> {
-        let resolver = match &self.backend {
-            Backend::Dns(nameservers) => {
-                nameservers.resolver().map_err(HttpsLookupError::resolve)?
-            }
-            Backend::Function(lookup) => return lookup(host.to_owned(), port).await,
-        };
-        let query_name = query_name(host, port);
-        let name = Name::from_ascii(&query_name).map_err(|_| HttpsLookupError::invalid_name())?;
-        let lookup = match resolver.lookup(name.clone(), RecordType::HTTPS).await {
-            Ok(lookup) => lookup,
-            Err(NetError::Dns(DnsError::NoRecordsFound(no_records))) => {
-                return Ok(HttpsRecordLookup::new(Vec::new(), no_records.negative_ttl));
-            }
-            Err(error) => return Err(HttpsLookupError::resolve(error)),
-        };
-        Ok(HttpsRecordLookup::new(
-            https_answers(&name, lookup.answers())?.into_vec(),
-            None,
-        ))
+        let token = self
+            .configuration_token()
+            .map_err(Self::configuration_error)?;
+        self.lookup_with_configuration(host, port, token).await
     }
+
+    fn configuration_error(error: std::io::Error) -> HttpsLookupError {
+        HttpsLookupError::configuration(error)
+    }
+
+    /// Samples delivered configuration changes without reading settings or opening sockets.
+    /// Returns the current configuration stamp for a paired system resolver.
+    ///
+    /// Fixed and callback resolvers return `None`.
+    ///
+    /// # Errors
+    ///
+    /// Returns a terminal configuration-watch error.
+    pub fn configuration_token(
+        &self,
+    ) -> std::io::Result<Option<crate::host_resolver::DnsConfigurationToken>> {
+        match &self.backend {
+            #[cfg(windows)]
+            Backend::Windows(view) => view.configuration_token().map(Some),
+            Backend::Dns(_) | Backend::Function(_) => Ok(None),
+        }
+    }
+
+    /// Uses exactly the sampled generation. The caller must also fence its cache.
+    /// Looks up HTTPS records using a previously sampled configuration stamp.
+    ///
+    /// Pass the current stamp from this resolver, or `None` for a fixed or
+    /// callback resolver. A changed configuration fails the lookup.
+    ///
+    /// # Errors
+    ///
+    /// Returns configuration, DNS transport, or record errors. Configuration
+    /// errors must not be stored as negative DNS answers.
+    pub async fn lookup_with_configuration(
+        &self,
+        host: &str,
+        port: u16,
+        token: Option<crate::host_resolver::DnsConfigurationToken>,
+    ) -> Result<HttpsRecordLookup, HttpsLookupError> {
+        match &self.backend {
+            #[cfg(windows)]
+            Backend::Windows(view) => {
+                view.https(
+                    host,
+                    port,
+                    token.ok_or_else(|| {
+                        HttpsLookupError::configuration(
+                            crate::host_resolver::configuration_changed(),
+                        )
+                    })?,
+                )
+                .await
+            }
+            Backend::Dns(nameservers) => {
+                if token.is_some() {
+                    return Err(HttpsLookupError::configuration(
+                        crate::host_resolver::configuration_changed(),
+                    ));
+                }
+                lookup_dns(nameservers, host, port).await
+            }
+            Backend::Function(lookup) => {
+                if token.is_some() {
+                    return Err(HttpsLookupError::configuration(
+                        crate::host_resolver::configuration_changed(),
+                    ));
+                }
+                lookup(host.to_owned(), port).await
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    fn from_system(view: system_resolver::SystemDnsView) -> Self {
+        Self {
+            backend: Backend::Windows(view),
+        }
+    }
+}
+
+async fn lookup_dns(
+    nameservers: &Nameservers,
+    host: &str,
+    port: u16,
+) -> Result<HttpsRecordLookup, HttpsLookupError> {
+    let resolver = nameservers.resolver().map_err(HttpsLookupError::resolve)?;
+    let query_name = query_name(host, port);
+    let name = Name::from_ascii(&query_name).map_err(|_| HttpsLookupError::invalid_name())?;
+    let lookup = match resolver.lookup(name.clone(), RecordType::HTTPS).await {
+        Ok(lookup) => lookup,
+        Err(NetError::Dns(DnsError::NoRecordsFound(no_records))) => {
+            return Ok(HttpsRecordLookup::new(Vec::new(), no_records.negative_ttl));
+        }
+        Err(error) => return Err(HttpsLookupError::resolve(error)),
+    };
+    Ok(HttpsRecordLookup::new(
+        https_answers(&name, lookup.answers())?.into_vec(),
+        None,
+    ))
 }
 
 /// Extracts the HTTPS records that answer `query` from an answer section.
@@ -435,6 +531,8 @@ impl fmt::Debug for HttpsRecordResolver {
             Backend::Dns(nameservers) => debug
                 .field("nameservers", &nameservers.len())
                 .field("udp", &nameservers.udp),
+            #[cfg(windows)]
+            Backend::Windows(view) => debug.field("backend", view),
             Backend::Function(_) => debug.field("backend", &"function"),
         };
         debug.finish_non_exhaustive()
@@ -655,11 +753,14 @@ pub struct HttpsLookupError {
 }
 
 impl HttpsLookupError {
-    fn configuration(error: NameserverConfigurationError) -> Self {
+    /// Creates a configuration error for unavailable or changed resolver settings.
+    /// Resolver callbacks can return this category without treating it as a DNS
+    /// answer or an operational lookup failure. The original source is retained.
+    pub fn configuration(source: impl StdError + Send + Sync + 'static) -> Self {
         Self {
             kind: HttpsLookupErrorKind::Configuration,
             detail: None,
-            source: Some(Box::new(error)),
+            source: Some(Box::new(source)),
         }
     }
 

@@ -79,7 +79,13 @@ COMPONENT_FIELDS = {
         "port_randomization",
     ),
     "Http1Settings": ("max_connections_per_origin", "idle_timeout"),
-    "DnsCacheSettings": ("max_entries", "ttl", "min_record_ttl", "negative_ttl"),
+    "DnsCacheSettings": (
+        "system_ttl",
+        "max_entries",
+        "ttl",
+        "min_record_ttl",
+        "negative_ttl",
+    ),
     "UdpSettings": ("port_randomization",),
     "QuicTransportSettings": (
         "max_idle_timeout_ms",
@@ -291,6 +297,8 @@ def rust_component_value(field, value, kind="Http3Settings"):
             expression += f"({rust_duration(value['duration'])})"
         return expression
     if kind == "DnsCacheSettings":
+        if field == "system_ttl":
+            return f"crate::SystemDnsTtlPolicy::{value}"
         if field == "max_entries":
             return rust_nonzero_usize(value)
         return (

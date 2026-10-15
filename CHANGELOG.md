@@ -22,6 +22,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   the previous behavior. Re-export ticket snapshots: the changed profile
   policy binding rejects older snapshots.
 
+- Add native system DNS lifetime policy. Migrate: add
+  `system_ttl: SystemDnsTtlPolicy::Ignore` to `DnsCacheSettings` literals
+  and `"system_ttl": "Ignore"` to imported DNS-cache JSON to retain the
+  previous fallback lifetime. Use `FirefoxWindows` for native Windows
+  lifetimes; the Firefox 157 recipe selects it. Re-export session-ticket
+  snapshots with the updated library: profile-policy binding version 4
+  rejects earlier bindings, including those inside `PHOWN003` snapshots.
+
 - Return the connected slower attempt from exact HTTP/2 setup. Migrate:
   replace `let connection = connector.connect(route).await?` with
   `let (connection, slower) = connector.connect(route).await?` for
@@ -1185,6 +1193,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   headers, cookies and credentials. The pool remembers the proxy address
   family and expires unused spares on its idle timer. Existing origin, route,
   runtime and credential partitions remain in place.
+
+- Add the explicit Windows `dns::chromium_windows_resolvers` pair for
+  watched nameservers, suffix search and shared address/HTTPS cache
+  invalidation. Fixed-server, callback and DoH resolvers keep their
+  existing behavior.
 
 - Keep Firefox's slower proxy connection for exact HTTP/1 HTTPS requests
   through a plaintext CONNECT proxy. The spare stays quiet until a request

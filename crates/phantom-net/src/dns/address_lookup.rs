@@ -64,6 +64,8 @@ pub(crate) struct AddressLookup {
     /// queries failed, shared as `ipv6` is, as Chromium's `DnsClient` keeps
     /// one count.
     fallbacks: Arc<AtomicU32>,
+    search: Option<Arc<SearchPolicy>>,
+    use_local_ipv6: bool,
 }
 
 impl AddressLookup {
@@ -90,7 +92,38 @@ impl AddressLookup {
             ipv6: Arc::new(Ipv6Route::Probe(Mutex::default())),
             system: SystemResolver::Os,
             fallbacks: Arc::default(),
+            search: None,
+            use_local_ipv6: false,
         }
+    }
+
+    #[cfg(windows)]
+    pub(super) fn from_configuration(
+        configuration: &super::system_configuration::WindowsDnsConfiguration,
+    ) -> io::Result<Self> {
+        let mut lookup = Self::with_nameservers(configuration.servers.iter().copied())?;
+        lookup.search = Some(Arc::new(SearchPolicy {
+            suffixes: configuration.search.clone(),
+            ndots: configuration.ndots,
+            append_to_multi_label: configuration.append_to_multi_label,
+        }));
+        lookup.use_local_ipv6 = configuration.use_local_ipv6;
+        Ok(lookup)
+    }
+
+    #[cfg(windows)]
+    pub(super) fn nameservers(&self) -> Nameservers {
+        self.nameservers.clone()
+    }
+
+    #[cfg(windows)]
+    pub(super) async fn system_only(host: &str) -> io::Result<Resolved> {
+        // This explicit mode delegates family/search/NRPT decisions to Windows.
+        // It opens no Phantom probe or raw DNS socket.
+        Ok(Resolved::Legacy {
+            addresses: SystemResolver::Os.resolve(host).await?,
+            ttl: None,
+        })
     }
 
     /// A lookup that queries `nameservers`, reads `hosts` as a hosts file,
@@ -122,6 +155,8 @@ impl AddressLookup {
             ipv6: Arc::clone(&self.ipv6),
             system: self.system.clone(),
             fallbacks: Arc::clone(&self.fallbacks),
+            search: self.search.clone(),
+            use_local_ipv6: self.use_local_ipv6,
         }
     }
 
@@ -137,24 +172,38 @@ impl AddressLookup {
                 IpAddr::V4(Ipv4Addr::LOCALHOST),
             ]));
         }
-        let ipv6 = self.ipv6.reachable(self.nameservers.udp);
-        let name = match fully_qualified(host) {
-            Some(name) if self.fallbacks.load(Ordering::Relaxed) < MAX_FALLBACKS => name,
-            _ => return self.resolve_by_system(host, ipv6).await,
+        let ipv6 = self.use_local_ipv6 || self.ipv6.reachable(self.nameservers.udp);
+        if self.fallbacks.load(Ordering::Relaxed) >= MAX_FALLBACKS {
+            return self.resolve_by_system(host, ipv6).await;
+        }
+        let names = match &self.search {
+            Some(search) => search.names(host)?,
+            None => fully_qualified(host).into_iter().collect(),
         };
-        if let Some(addresses) = self.hosts_answer(&name, ipv6) {
+        if names.is_empty() {
+            return self.resolve_by_system(host, ipv6).await;
+        }
+        let original = Name::from_ascii(format!("{}.", host.trim_end_matches('.')))
+            .map_err(io::Error::other)?;
+        if let Some(addresses) = self.hosts_answer(&original, ipv6) {
             return Ok(Resolved::without_ttl(addresses));
         }
-        if let Some(resolved) = self.query(name, ipv6).await {
-            self.fallbacks.store(0, Ordering::Relaxed);
-            return Ok(resolved);
+        for name in names {
+            match self.query_result(name, ipv6).await {
+                QueryResult::Answer(resolved) => {
+                    self.fallbacks.store(0, Ordering::Relaxed);
+                    return Ok(resolved);
+                }
+                QueryResult::Empty => {}
+                QueryResult::Failed => break,
+            }
         }
         // Chromium counts a fallback only once the system resolver has
         // answered (`net/dns/host_resolver_manager_job.cc:787-792`,
         // `net/dns/host_resolver_manager.cc:1869-1880`), and clears the count
         // only on a DNS answer or a new DNS configuration
-        // (`net/dns/dns_client.cc:385-391`), which this lookup never reads
-        // again.
+        // (`net/dns/dns_client.cc:385-391`). The paired system owner creates
+        // a fresh lookup on each delivered configuration generation.
         let resolved = self.resolve_by_system(host, ipv6).await?;
         self.fallbacks.fetch_add(1, Ordering::Relaxed);
         Ok(resolved)
@@ -211,8 +260,10 @@ impl AddressLookup {
     /// Sends the AAAA query, when `ipv6`, and the A query, and returns their
     /// addresses, IPv6 first, with the smallest TTL; or `None` when a query
     /// failed or no address came back.
-    async fn query(&self, name: Name, ipv6: bool) -> Option<Resolved> {
-        let resolver = self.nameservers.resolver().ok()?;
+    async fn query_result(&self, name: Name, ipv6: bool) -> QueryResult {
+        let Ok(resolver) = self.nameservers.resolver() else {
+            return QueryResult::Failed;
+        };
         // The A query waits until the AAAA datagram has been sent, or the
         // AAAA lookup has ended without one, so AAAA always goes first.
         let aaaa_sent = Arc::new(Notify::new());
@@ -235,7 +286,9 @@ impl AddressLookup {
         let mut found = Vec::new();
         let mut ttl: Option<u32> = None;
         for answer in [aaaa, Some(a)].into_iter().flatten() {
-            let (addresses, answer_ttl) = family_answer(answer)?;
+            let Some((addresses, answer_ttl)) = family_answer(answer) else {
+                return QueryResult::Failed;
+            };
             found.extend(addresses);
             ttl = match (ttl, answer_ttl) {
                 (Some(ttl), Some(answer_ttl)) => Some(ttl.min(answer_ttl)),
@@ -243,12 +296,67 @@ impl AddressLookup {
             };
         }
         if found.is_empty() {
-            return None;
+            return QueryResult::Empty;
         }
-        Some(Resolved::with_ttl(
+        QueryResult::Answer(Resolved::with_ttl(
             found,
             ttl.map(|seconds| Duration::from_secs(u64::from(seconds))),
         ))
+    }
+}
+
+enum QueryResult {
+    Answer(Resolved),
+    Empty,
+    Failed,
+}
+
+#[derive(Debug)]
+struct SearchPolicy {
+    suffixes: Vec<String>,
+    ndots: u8,
+    append_to_multi_label: bool,
+}
+
+impl SearchPolicy {
+    // Chromium154 DnsTransactionImpl::PrepareSearch, lines501-551.
+    fn names(&self, host: &str) -> io::Result<Vec<Name>> {
+        let bare = host.trim_end_matches('.');
+        if bare == "local" || bare.ends_with(".local") {
+            return Ok(Vec::new());
+        }
+        let original = Name::from_ascii(format!("{bare}.")).map_err(io::Error::other)?;
+        if host.ends_with('.') {
+            return Ok(vec![original]);
+        }
+        let dots = bare.bytes().filter(|b| *b == b'.').count();
+        if dots > 0 && !self.append_to_multi_label {
+            return Ok(vec![original]);
+        }
+        let mut names = Vec::new();
+        names
+            .try_reserve(self.suffixes.len() + 1)
+            .map_err(io::Error::other)?;
+        let mut had_original = dots >= usize::from(self.ndots);
+        if had_original {
+            names.push(original.clone());
+        }
+        for suffix in &self.suffixes {
+            let Ok(name) = Name::from_ascii(format!("{bare}.{suffix}.")) else {
+                continue;
+            };
+            if name == original {
+                if had_original {
+                    continue;
+                }
+                had_original = true;
+            }
+            names.push(name);
+        }
+        if dots > 0 && !had_original {
+            names.push(original);
+        }
+        Ok(names)
     }
 }
 

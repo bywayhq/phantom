@@ -737,6 +737,12 @@ Supported:
   answer's record TTL reported to the cache. Its query sockets take the
   profile's `UdpSettings`. Enable it explicitly; no recipe or default
   selects it.
+- An opt-in paired Windows address/HTTPS resolver,
+  `dns::chromium_windows_resolvers`, with shared watched configuration,
+  nameserver eligibility, suffix search and cache generation checks.
+  See [Windows DNS configuration](limits.md#windows-dns-configuration).
+- Windows native address lifetimes under
+  `DnsCacheSettings::system_ttl = SystemDnsTtlPolicy::FirefoxWindows`.
 - Caller host-to-address overrides and a caller-supplied async address
   resolver for the same names, off by default. An override skips the
   resolver and the cache; the resolver's answers go through the cache when
@@ -810,17 +816,13 @@ Not modeled:
   rejects every `Domain` on a `__Host-` cookie. Only a request to an IP
   literal can reach the difference, which for `http://` means a loopback
   address.
-- Chromium's built-in DNS client as the default resolver of the
-  Chromium-family profiles. `AddressResolver::system_nameservers` is opt-in
-  because it does not follow Chromium's choice of nameservers, or its
-  fallback to the system resolver on a host with a VPN adapter, a name
-  resolution policy, or different servers per adapter.
-- Firefox's record TTL on Windows, which it reads from the operating
-  system's cache with `DnsQuery_A`. Phantom's system lookups report no TTL,
-  so with them a Firefox profile keeps each answer 60 s; a resolver that
-  reports TTLs gets the record rule.
-- Firefox's 600-second grace period for expired answers, and the flush both
-  browsers do when the network changes.
+- Chromium's built-in DNS client as the default resolver of its profiles.
+  The paired Windows constructor is opt-in. The older
+  `AddressResolver::system_nameservers` keeps its fixed configuration.
+- Firefox's 600-second grace period for expired answers. Other platforms
+  use the configured fallback lifetime for system answers.
+- Network-change invalidation outside the explicitly paired Windows
+  resolvers. Callers can clear the address cache themselves.
 
 Planned:
 

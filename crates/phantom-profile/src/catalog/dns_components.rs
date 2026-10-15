@@ -4,6 +4,7 @@
 #[rustfmt::skip]
 pub(crate) fn chromium_154_dns_cache() -> crate::DnsCacheSettings {
     crate::DnsCacheSettings {
+        system_ttl: crate::SystemDnsTtlPolicy::Ignore,
         max_entries: const { match std::num::NonZeroUsize::new(1000) { Some(value) => value, None => panic!("invalid nonzero component literal") } },
         ttl: std::time::Duration::new(60, 0),
         min_record_ttl: std::time::Duration::new(60, 0),
@@ -14,6 +15,7 @@ pub(crate) fn chromium_154_dns_cache() -> crate::DnsCacheSettings {
 #[rustfmt::skip]
 pub(crate) fn firefox_157_dns_cache() -> crate::DnsCacheSettings {
     crate::DnsCacheSettings {
+        system_ttl: crate::SystemDnsTtlPolicy::FirefoxWindows,
         max_entries: const { match std::num::NonZeroUsize::new(1600) { Some(value) => value, None => panic!("invalid nonzero component literal") } },
         ttl: std::time::Duration::new(60, 0),
         min_record_ttl: std::time::Duration::new(0, 0),

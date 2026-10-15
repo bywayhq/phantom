@@ -98,6 +98,9 @@ fn ips(addresses: &[SocketAddr]) -> Vec<IpAddr> {
 fn legacy_parts(resolved: &crate::host_resolver::Resolved) -> (&[SocketAddr], Option<Duration>) {
     match resolved {
         crate::host_resolver::Resolved::Legacy { addresses, ttl } => (addresses, *ttl),
+        crate::host_resolver::Resolved::System { .. } => {
+            panic!("legacy lookup returned a native system answer")
+        }
         crate::host_resolver::Resolved::Answer(_) => {
             panic!("legacy lookup returned a caller DNS answer")
         }
@@ -433,6 +436,7 @@ async fn the_address_cache_keeps_a_dns_answer_for_its_record_ttl() -> TestResult
     let mut server = DnsServer::spawn(records(1, 1)).await?;
     let resolver = AddressResolver::from_dns(lookup(&server, false)?);
     let settings = DnsCacheSettings {
+        system_ttl: phantom_profile::SystemDnsTtlPolicy::Ignore,
         max_entries: NonZeroUsize::MIN,
         ttl: Duration::ZERO,
         min_record_ttl: Duration::ZERO,
@@ -493,3 +497,5 @@ async fn query_sockets_randomize_their_port_with_the_profiles_udp_settings() -> 
     server.finish().await?;
     Ok(())
 }
+
+mod configuration;

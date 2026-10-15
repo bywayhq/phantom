@@ -6,6 +6,7 @@
       "kind": "DnsCacheSettings",
       "base": null,
       "values": {
+        "system_ttl": "Ignore",
         "max_entries": 1000,
         "ttl": {
           "seconds": 60,
@@ -23,6 +24,7 @@
       "kind": "DnsCacheSettings",
       "base": null,
       "values": {
+        "system_ttl": "FirefoxWindows",
         "max_entries": 1600,
         "ttl": {
           "seconds": 60,

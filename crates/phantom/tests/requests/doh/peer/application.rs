@@ -70,6 +70,7 @@ impl Application {
             .dns_resolver(doh.address_resolver());
         if cache {
             builder = builder.dns_cache(DnsCacheSettings {
+                system_ttl: phantom_profile::SystemDnsTtlPolicy::Ignore,
                 max_entries: NonZeroUsize::MIN,
                 ttl: Duration::from_secs(60),
                 min_record_ttl: Duration::from_secs(60),
