@@ -566,15 +566,16 @@ class SnapshotOwnershipTests(unittest.IsolatedAsyncioTestCase):
                     raise primary
                 sock = create(*args, **kwargs)
                 sockets.append(sock)
+                proxy = mock.Mock(wraps=sock)
+                # These failures precede listener publication. Keep real socket
+                # ownership without unrelated port collisions bypassing the fault.
+                proxy.bind.return_value = None
+                proxy.listen.return_value = None
                 if operation == "bind" and len(sockets) == index:
-                    proxy = mock.Mock(wraps=sock)
                     proxy.bind.side_effect = primary
-                    return proxy
                 if operation == "listen" and len(sockets) == index:
-                    proxy = mock.Mock(wraps=sock)
                     proxy.listen.side_effect = primary
-                    return proxy
-                return sock
+                return proxy
 
             with (
                 self.subTest(scope=scope, operation=operation),
@@ -593,6 +594,39 @@ class SnapshotOwnershipTests(unittest.IsolatedAsyncioTestCase):
                 index - 1 if operation == "create" else 3 if scope == "serving" else 2,
             )
             self.assertTrue(all(sock.fileno() == -1 for sock in sockets))
+            for sock in sockets:
+                sock.close()
+
+    def test_reserved_bind_retry_preserves_later_listen_failure(self):
+        create = socket.socket
+        primary = OSError(errno.EIO, "original listen failure after bind retry")
+        reserved = PermissionError(errno.EACCES, "reserved test port")
+        reserved.winerror = 10013
+        sockets = []
+
+        def acquire(*args, **kwargs):
+            sock = create(*args, **kwargs)
+            sockets.append(sock)
+            proxy = mock.Mock(wraps=sock)
+            proxy.bind.return_value = None
+            proxy.listen.return_value = None
+            if len(sockets) == 1:
+                proxy.bind.side_effect = reserved
+            if len(sockets) == 3:
+                proxy.listen.side_effect = primary
+            return proxy
+
+        try:
+            with (
+                mock.patch.object(snapshot.socket, "socket", side_effect=acquire),
+                self.assertRaises(OSError) as raised,
+            ):
+                reserve_shared_port()
+
+            self.assertIs(raised.exception, primary)
+            self.assertEqual(len(sockets), 4)
+            self.assertTrue(all(sock.fileno() == -1 for sock in sockets))
+        finally:
             for sock in sockets:
                 sock.close()
 
