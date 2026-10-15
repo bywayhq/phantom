@@ -2661,6 +2661,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Hold the TLS ticket test peer until its cleanup timeout has been polled.
+  Delayed scheduling can no longer release it before the timeout branch.
+
 - Reserve both TCP and UDP in the alternative-host test origin so its
   advertisement listener cannot receive the destination port.
 

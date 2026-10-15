@@ -837,14 +837,30 @@ async fn ticket_control_cleanup_retains_timeout_and_completed_peer_failure() -> 
         Err(std::io::Error::other("completed ticket peer failure").into())
     });
     ready_rx.await?;
-    let (result, released) = tokio::join!(
-        finish_ticket_control_peer(Ok(()), &mut peer, std::time::Duration::from_millis(10)),
-        async {
-            tokio::time::sleep(std::time::Duration::from_millis(30)).await;
-            release_tx.send(())
-        }
+    let mut cleanup = std::pin::pin!(finish_ticket_control_peer(
+        Ok(()),
+        &mut peer,
+        std::time::Duration::from_millis(10),
+    ));
+    assert!(
+        std::future::poll_fn(|context| {
+            std::task::Poll::Ready(std::future::Future::poll(cleanup.as_mut(), context))
+        })
+        .await
+        .is_pending()
     );
-    released?;
+    tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+    // Poll the elapsed timeout while the blocking peer is still held. A
+    // second timer releasing it could win after a delayed runtime wakeup.
+    assert!(
+        std::future::poll_fn(|context| {
+            std::task::Poll::Ready(std::future::Future::poll(cleanup.as_mut(), context))
+        })
+        .await
+        .is_pending()
+    );
+    release_tx.send(())?;
+    let result = cleanup.await;
     let error = result.err().ok_or("peer timeout was lost")?;
     assert!(error.to_string().contains("deadline has elapsed"));
     assert!(error.to_string().contains("completed ticket peer failure"));

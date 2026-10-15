@@ -54,6 +54,22 @@ listener could bind the destination port. The same control and all six
 scenarios passed with the reservation. This verifies the missing ownership
 constraint. The original CI log separately records the observed collision.
 
+## TLS ticket cleanup phase ordering
+
+The gate on `dc59841a` failed the ticket cleanup control's timeout assertion.
+The control joined a cleanup deadline of 10 ms with a peer-release sleep of
+30 ms. A delayed runtime wakeup can leave both ready. If the peer finishes
+before cleanup is polled, Tokio returns its error before checking the timer.
+
+A control forced that ordering and reproduced the missing-timeout assertion.
+The repair keeps the blocking peer held while polling cleanup after the
+original sleep. It releases the peer only after cleanup enters its second
+join. Both original error assertions and all deadlines remain unchanged.
+All 17 session-cache tests passed. Production cleanup behavior is unchanged.
+
+This demonstrates a permitted ordering that explains the failed assertion.
+The original gate did not record the scheduler sequence.
+
 ## Retained evidence
 
 The integration owner's local archive is
@@ -77,6 +93,12 @@ test ran. An unchanged retry with one build job reached the behavioral
 control. That compiler failure is not counted as a reproduced test failure.
 
 Full integration gates and platform CI remain separate delivery requirements.
+
+`firefox-ech-retention-rebased-dc59841a-gate/` retains the original gate
+failure and its other 22 passing steps. `tls-cleanup-phase-controls-v1/`
+contains baseline, forced-order and repaired source. The corresponding
+`tls-cleanup-phase-red-v1/` and `tls-cleanup-phase-fixed-v1/` packets retain
+commands, full output, source hashes and native-artifact guards.
 
 ## Next
 
