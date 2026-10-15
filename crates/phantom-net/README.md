@@ -18,6 +18,20 @@ Phantom's typed errors. `std::error::Error::source` retains their underlying
 causes for diagnostics. `Http1ProtocolError` is an opaque payload; you do
 not need to depend on the HTTP engine to inspect a failure.
 
+## Ticket transactions
+
+`SessionTicketCacheOwner::capture_stores` captures TCP TLS and QUIC stores
+without consuming their tickets. Authenticate the complete manifest and each
+source witness when sealing a snapshot. Treat records and keys as secrets.
+
+Prepare native-authorized replacements before calling `replace_stores`.
+It validates every destination before swapping any store. Prepare accompanying
+client registry changes first, then apply them after replacement succeeds.
+Release registry locks before finishing the returned retirement handle.
+
+These lower-level operations do not extend the `Client` snapshot API, which
+still supports direct TCP only.
+
 ## Next
 
 - [Phantom README](https://github.com/bywayhq/phantom/blob/main/README.md):

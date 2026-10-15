@@ -1125,6 +1125,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Add mixed TCP TLS and QUIC ticket transactions to `phantom-net`. Capture
+  preserves source tickets. Replacement validates all destinations before
+  changing any store and defers old-ticket cleanup until locks are released.
+  Client snapshot export and import still support direct TCP only.
+
 - Add authenticated QUIC ticket capture and replacement primitives to
   `phantom-quic-btls`. They retain the actual QUIC version, remembered server
   parameters, application state and RTT. Capture leaves source tickets

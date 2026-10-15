@@ -1,6 +1,8 @@
 pub mod phantom_net
 pub use phantom_net::NssKeyLogReceiver
 pub use phantom_net::NssKeyLogSender
+pub use phantom_net::QuicSessionRecordMetadata
+pub use phantom_net::QuicSessionStoreHeader
 pub use phantom_net::nss_key_log_channel
 pub mod phantom_net::address_cache
 pub struct phantom_net::address_cache::AddressCache
@@ -1399,6 +1401,12 @@ pub phantom_net::ServerAuthentication::DangerDisabled
 pub phantom_net::ServerAuthentication::WebPki
 impl phantom_net::ServerAuthentication
 pub const fn phantom_net::ServerAuthentication::verifies(self) -> bool
+pub enum phantom_net::SessionTicketStoreExport
+pub phantom_net::SessionTicketStoreExport::Quic(phantom_quic_btls::resumption::transfer::QuicSessionStoreExport)
+pub phantom_net::SessionTicketStoreExport::Tcp(phantom_net::TcpSessionStoreExport)
+pub enum phantom_net::SessionTicketStoreHeader
+pub phantom_net::SessionTicketStoreHeader::Quic(phantom_quic_btls::resumption::transfer::metadata::QuicSessionStoreHeader)
+pub phantom_net::SessionTicketStoreHeader::Tcp(phantom_net::TcpSessionStoreHeader)
 #[non_exhaustive] pub enum phantom_net::TlsErrorKind
 pub phantom_net::TlsErrorKind::BackendConfiguration
 pub phantom_net::TlsErrorKind::Handshake
@@ -1443,6 +1451,9 @@ pub fn phantom_net::OrderedResponseHeaders::as_slice(&self) -> &[phantom_net::Re
 pub fn phantom_net::OrderedResponseHeaders::is_empty(&self) -> bool
 pub fn phantom_net::OrderedResponseHeaders::iter(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &phantom_net::ResponseHeader>
 pub fn phantom_net::OrderedResponseHeaders::len(&self) -> usize
+pub struct phantom_net::PreparedSessionTicketReplacement<'a>(_)
+impl core::fmt::Debug for phantom_net::PreparedSessionTicketReplacement<'_>
+pub fn phantom_net::PreparedSessionTicketReplacement<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::PreparedTcpSessionReplacement(_)
 impl core::fmt::Debug for phantom_net::PreparedTcpSessionReplacement
 pub fn phantom_net::PreparedTcpSessionReplacement::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -1458,6 +1469,11 @@ impl phantom_net::RetiredSessionTicketPublications
 pub fn phantom_net::RetiredSessionTicketPublications::finish(self) -> usize
 impl core::fmt::Debug for phantom_net::RetiredSessionTicketPublications
 pub fn phantom_net::RetiredSessionTicketPublications::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::RetiredSessionTicketReplacements(_)
+impl phantom_net::RetiredSessionTicketReplacements
+pub fn phantom_net::RetiredSessionTicketReplacements::finish(self) -> usize
+impl core::fmt::Debug for phantom_net::RetiredSessionTicketReplacements
+pub fn phantom_net::RetiredSessionTicketReplacements::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::RetiredTcpSessionReplacements(_)
 impl phantom_net::RetiredTcpSessionReplacements
 pub fn phantom_net::RetiredTcpSessionReplacements::finish(self) -> usize
@@ -1473,10 +1489,14 @@ pub fn phantom_net::SessionTicketCache::fmt(&self, &mut core::fmt::Formatter<'_>
 pub struct phantom_net::SessionTicketCacheOwner
 impl phantom_net::SessionTicketCacheOwner
 pub fn phantom_net::SessionTicketCacheOwner::bind_tcp_transfer_policy(&self, &str, btls::ssl::session_transfer::SessionTransferPolicy) -> core::result::Result<btls::ssl::session_transfer::SessionPolicyBinding, btls::ssl::session_transfer::SessionTransferError>
+pub fn phantom_net::SessionTicketCacheOwner::bind_transfer_policy(&self, &str, btls::ssl::session_transfer::SessionTransferPolicy) -> core::result::Result<btls::ssl::session_transfer::SessionPolicyBinding, btls::ssl::session_transfer::SessionTransferError>
+pub fn phantom_net::SessionTicketCacheOwner::capture_stores(&[(&Self, &str)]) -> core::result::Result<alloc::vec::Vec<phantom_net::SessionTicketStoreExport>, btls::ssl::session_transfer::SessionTransferError>
 pub fn phantom_net::SessionTicketCacheOwner::capture_tcp_stores(&[(&Self, &str)]) -> core::result::Result<alloc::vec::Vec<phantom_net::TcpSessionStoreExport>, btls::ssl::session_transfer::SessionTransferError>
 pub fn phantom_net::SessionTicketCacheOwner::clear_stores(&[Self]) -> core::result::Result<usize, btls::ssl::session_transfer::SessionTransferError>
 pub fn phantom_net::SessionTicketCacheOwner::freeze(&self) -> phantom_net::FrozenSessionTicketCache<'_>
+pub fn phantom_net::SessionTicketCacheOwner::prepare_replacement(&self, alloc::sync::Arc<str>, phantom_net::SessionTicketStoreHeader, alloc::vec::Vec<btls::ssl::session_transfer::SessionImportPermit>) -> core::result::Result<phantom_net::PreparedSessionTicketReplacement<'_>, btls::ssl::session_transfer::SessionTransferError>
 pub fn phantom_net::SessionTicketCacheOwner::prepare_tcp_replacement(&self, alloc::sync::Arc<str>, phantom_net::TcpSessionStoreHeader, alloc::vec::Vec<btls::ssl::session_transfer::SessionImportPermit>) -> core::result::Result<phantom_net::PreparedTcpSessionReplacement, btls::ssl::session_transfer::SessionTransferError>
+pub fn phantom_net::SessionTicketCacheOwner::replace_stores(alloc::vec::Vec<phantom_net::PreparedSessionTicketReplacement<'_>>) -> core::result::Result<phantom_net::RetiredSessionTicketReplacements, btls::ssl::session_transfer::SessionTransferError>
 pub fn phantom_net::SessionTicketCacheOwner::replace_tcp_stores(alloc::vec::Vec<phantom_net::PreparedTcpSessionReplacement>) -> core::result::Result<phantom_net::RetiredTcpSessionReplacements, btls::ssl::session_transfer::SessionTransferError>
 pub fn phantom_net::SessionTicketCacheOwner::same_cache(&self, &Self) -> bool
 impl core::fmt::Debug for phantom_net::SessionTicketCacheOwner

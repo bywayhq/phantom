@@ -1,6 +1,6 @@
 //! Bounded native-backed capture and complete TCP store replacement.
 
-use btls::ssl::{PreparedSessionPolicyFreeze, SessionImportPermit};
+use btls::ssl::{FrozenSessionPolicies, PreparedSessionPolicyFreeze, SessionImportPermit};
 
 use super::*;
 use crate::session_tickets::tcp_transfer::{
@@ -19,6 +19,7 @@ struct Destination {
 pub(crate) struct PreparedTlsSessionReplacement {
     destination: Destination,
     payload: Replacement,
+    committed: bool,
 }
 
 struct Replacement {
@@ -27,19 +28,45 @@ struct Replacement {
     next_batch: u64,
 }
 
-struct RetiredStore {
+/// Preallocated pending references, kept alive until every transaction guard drops.
+pub(crate) struct PreparedTlsSessionCapture {
+    owner: TlsSessionOwner,
+    binding: SessionPolicyBinding,
+    hostname: Arc<str>,
+    original_index: usize,
+    records: Vec<TcpSessionExportRecord>,
+    header: Option<TcpSessionStoreHeader>,
+    attempted: bool,
+}
+
+/// Capture validation borrows the exact store, plan and held native policies.
+pub(crate) struct ValidatedTlsSessionCapture<'a, 'store, 'native> {
+    frozen: &'a FrozenTlsSessionCache<'store>,
+    prepared: &'a mut PreparedTlsSessionCapture,
+    _policies: &'a FrozenSessionPolicies<'native>,
+    header: TcpSessionStoreHeader,
+    now: u64,
+}
+
+/// Hold every transaction's validation token before committing any replacement.
+pub(crate) struct ValidatedTlsSessionReplacement<'a, 'store, 'native> {
+    frozen: &'a mut FrozenTlsSessionCache<'store>,
+    replacement: &'a mut PreparedTlsSessionReplacement,
+    _policies: &'a FrozenSessionPolicies<'native>,
+}
+
+/// Old native sessions and publication registrations, retired only after unlock.
+pub(crate) struct RetiredTlsSessionStore {
     sessions: VecDeque<CachedSession>,
     publications: RetiredTlsTicketPublications,
 }
 
-pub(crate) struct RetiredTlsSessionReplacements(Vec<Option<RetiredStore>>);
+pub(crate) struct RetiredTlsSessionReplacements(Vec<RetiredTlsSessionStore>);
 impl RetiredTlsSessionReplacements {
     pub(crate) fn finish(self) -> usize {
         let mut count = 0;
-        for retired in self.0.into_iter().flatten() {
-            count += retired.sessions.len();
-            drop(retired.sessions);
-            count += retired.publications.finish();
+        for retired in self.0 {
+            count += retired.finish();
         }
         count
     }
@@ -149,6 +176,35 @@ impl TlsSessionOwner {
                 generation: Arc::new(()),
                 next_batch: header.next_batch,
             },
+            committed: false,
+        })
+    }
+
+    /// Prepare storage and retain the actual installed binding before freezing stores.
+    pub(crate) fn prepare_capture(
+        &self,
+        hostname: &str,
+        original_index: usize,
+    ) -> Result<PreparedTlsSessionCapture, SessionTransferError> {
+        validate_hostname(hostname)?;
+        let binding = self
+            .inner
+            .store
+            .lock()
+            .map_err(|_| SessionTransferError::Policy)?
+            .transfer_binding
+            .clone()
+            .ok_or(SessionTransferError::Policy)?;
+        Ok(PreparedTlsSessionCapture {
+            owner: TlsSessionOwner {
+                inner: Arc::clone(&self.inner),
+            },
+            binding,
+            hostname: Arc::from(hostname),
+            original_index,
+            records: reserved(MAX_SESSIONS)?,
+            header: None,
+            attempted: false,
         })
     }
 
@@ -158,134 +214,65 @@ impl TlsSessionOwner {
         if inputs.len() > MAX_OWNERS {
             return Err(SessionTransferError::TooLarge);
         }
-        let mut destinations = reserved(inputs.len())?;
-        let mut buffers = reserved(inputs.len())?;
-        for (input_index, (owner, hostname)) in inputs.iter().enumerate() {
-            validate_hostname(hostname)?;
-            let binding = owner
-                .inner
-                .store
-                .lock()
-                .map_err(|_| SessionTransferError::Policy)?
-                .transfer_binding
-                .clone()
-                .ok_or(SessionTransferError::Policy)?;
-            destinations.push((input_index, &owner.inner, binding, *hostname));
-            buffers.push(reserved(MAX_SESSIONS)?);
+        let mut plans = reserved(inputs.len())?;
+        for (index, (owner, hostname)) in inputs.iter().enumerate() {
+            plans.push(owner.prepare_capture(hostname, index)?);
         }
-        destinations.sort_unstable_by_key(|(_, inner, _, _)| Arc::as_ptr(inner) as usize);
-        if destinations
-            .windows(2)
-            .any(|pair| Arc::ptr_eq(pair[0].1, pair[1].1))
-        {
-            return Err(SessionTransferError::Policy);
+        let mut owners = reserved(plans.len())?;
+        for (owner, _) in inputs {
+            owners.push(*owner);
         }
-        let mut bindings = reserved(destinations.len())?;
-        for (_, _, binding, _) in &destinations {
+        let order = Self::ordered_store_indices(&owners)?;
+        let mut lock_owners = reserved(owners.len())?;
+        for index in order {
+            lock_owners.push(TlsSessionOwner {
+                inner: Arc::clone(&owners[index].inner),
+            });
+        }
+        plans.sort_unstable_by_key(|plan| Arc::as_ptr(&plan.owner.inner) as usize);
+        // Cloned binding handles keep native guards independent of mutable plans.
+        let mut policy_bindings = reserved(plans.len())?;
+        for plan in &plans {
+            policy_bindings.push(plan.binding().clone());
+        }
+        let mut bindings = reserved(policy_bindings.len())?;
+        for binding in &policy_bindings {
             bindings.push(binding);
         }
         let native_plan = PreparedSessionPolicyFreeze::new(&bindings)?;
-        let mut frozen = reserved(destinations.len())?;
-        let mut exports = reserved(destinations.len())?;
-        for (_, inner, _, _) in &destinations {
-            frozen.push(
-                inner
-                    .store
-                    .lock()
-                    .map_err(|_| SessionTransferError::Policy)?,
-            );
+        let mut frozen = reserved(plans.len())?;
+        let validated = reserved(plans.len())?;
+        for owner in &lock_owners {
+            frozen.push(owner.freeze_transfer()?);
         }
         let policies = native_plan.try_freeze()?;
         let now = unix_time();
         let result: Result<(), SessionTransferError> = (|| {
+            let mut validated = validated;
             let mut total = 0usize;
-            // Inspect the entire snapshot before capturing a native reference.
-            for ((_, inner, binding, hostname), store) in destinations.iter().zip(&frozen) {
-                policies.validate_binding(binding, hostname)?;
-                policies.validate_binding(
-                    store
-                        .transfer_binding
-                        .as_ref()
-                        .ok_or(SessionTransferError::Policy)?,
-                    hostname,
-                )?;
-                if store.sessions.len() > inner.per_hostname {
-                    return Err(SessionTransferError::TooLarge);
-                }
-                for (index, cached) in store.sessions.iter().enumerate() {
-                    if cached.hostname.as_ref() != *hostname {
-                        return Err(SessionTransferError::Policy);
-                    }
-                    validate_arrival(
-                        store
-                            .sessions
-                            .iter()
-                            .take(index)
-                            .map(|cached| cached.arrival),
-                        cached.arrival,
-                        store.next_batch,
-                    )?;
-                }
-                let count = store
-                    .sessions
-                    .iter()
-                    .filter(|cached| !is_expired(&cached.session, now))
-                    .count();
+            for (store, plan) in frozen.iter().zip(&mut plans) {
+                let token = store.validate_capture(plan, &policies, now)?;
                 total = total
-                    .checked_add(count)
+                    .checked_add(token.record_count())
+                    .filter(|count| *count <= MAX_RECORDS)
                     .ok_or(SessionTransferError::TooLarge)?;
-                if total > MAX_RECORDS {
-                    return Err(SessionTransferError::TooLarge);
-                }
+                validated.push(token);
             }
-            for (((input_index, inner, binding, _), store), records) in
-                destinations.iter().zip(&frozen).zip(&mut buffers)
-            {
-                let header = TcpSessionStoreHeader {
-                    order: order_code(inner.order),
-                    per_hostname: inner.per_hostname as u8,
-                    physical: store.sessions.len() as u8,
-                    records: store
-                        .sessions
-                        .iter()
-                        .filter(|cached| !is_expired(&cached.session, now))
-                        .count() as u8,
-                    next_batch: store.next_batch,
-                };
-                header.validate()?;
-                for (ordinal, cached) in store.sessions.iter().enumerate() {
-                    if is_expired(&cached.session, now) {
-                        continue;
-                    }
-                    records.push(TcpSessionExportRecord {
-                        pending: binding
-                            .prepare_session_export(&cached.session, &cached.hostname)?,
-                        header,
-                        ordinal: ordinal as u8,
-                        batch: cached.arrival.batch,
-                        sequence: cached.arrival.sequence,
-                        hostname: Arc::clone(&cached.hostname),
-                    });
-                }
-                exports.push((*input_index, header));
+            // The complete snapshot is checked before the first native up-reference.
+            for token in validated {
+                token.capture()?;
             }
             Ok(())
         })();
-        // Pending up-references may have native destructors. Keep them in buffers
-        // until every native and store guard is released, including error paths.
         drop(policies);
         drop(frozen);
         result?;
-        let mut output = reserved(exports.len())?;
-        for ((input_index, header), records) in exports.into_iter().zip(buffers) {
-            output.push((input_index, TcpSessionStoreExport { header, records }));
+        plans.sort_unstable_by_key(PreparedTlsSessionCapture::original_index);
+        let mut output = reserved(plans.len())?;
+        for plan in plans {
+            output.push(plan.into_export()?);
         }
-        output.sort_unstable_by_key(|(index, _)| *index);
-        let mut values = reserved(output.len())?;
-        for (_, export) in output {
-            values.push(export);
-        }
-        Ok(values)
+        Ok(output)
     }
 
     pub(crate) fn replace_stores(
@@ -295,95 +282,55 @@ impl TlsSessionOwner {
             return Err(SessionTransferError::TooLarge);
         }
         let mut replacements = replacements;
+        let mut owners = reserved(replacements.len())?;
+        for replacement in &replacements {
+            owners.push(replacement.destination_owner());
+        }
+        let mut owner_refs = reserved(owners.len())?;
+        for owner in &owners {
+            owner_refs.push(owner);
+        }
+        let order = Self::ordered_store_indices(&owner_refs)?;
+        let mut lock_owners = reserved(owners.len())?;
+        for index in order {
+            lock_owners.push(TlsSessionOwner {
+                inner: Arc::clone(&owners[index].inner),
+            });
+        }
         replacements.sort_unstable_by_key(|replacement| {
             Arc::as_ptr(&replacement.destination.inner) as usize
         });
-        if replacements
-            .windows(2)
-            .any(|pair| Arc::ptr_eq(&pair[0].destination.inner, &pair[1].destination.inner))
-        {
-            return Err(SessionTransferError::Policy);
+        let mut policy_bindings = reserved(replacements.len())?;
+        for replacement in &replacements {
+            policy_bindings.push(replacement.binding().clone());
         }
-        let mut destinations = reserved(replacements.len())?;
-        let mut payloads = reserved(replacements.len())?;
-        let mut retired = reserved(replacements.len())?;
-        for replacement in replacements {
-            destinations.push(replacement.destination);
-            payloads.push(replacement.payload);
-            retired.push(None);
-        }
-        let mut bindings = reserved(destinations.len())?;
-        for destination in &destinations {
-            bindings.push(&destination.binding);
+        let mut bindings = reserved(policy_bindings.len())?;
+        for binding in &policy_bindings {
+            bindings.push(binding);
         }
         let native_plan = PreparedSessionPolicyFreeze::new(&bindings)?;
-        let mut frozen = reserved(destinations.len())?;
-        for destination in &destinations {
-            frozen.push(
-                destination
-                    .inner
-                    .store
-                    .lock()
-                    .map_err(|_| SessionTransferError::Policy)?,
-            );
+        // Old native sessions must also outlive store guards during unwinding.
+        let mut retired = reserved(replacements.len())?;
+        let mut frozen = reserved(replacements.len())?;
+        let validated = reserved(replacements.len())?;
+        for owner in &lock_owners {
+            frozen.push(owner.freeze_transfer()?);
         }
         let policies = native_plan.try_freeze()?;
         let result: Result<(), SessionTransferError> = (|| {
+            let mut validated = validated;
             let mut total = 0usize;
-            for ((destination, payload), store) in destinations.iter().zip(&payloads).zip(&frozen) {
-                validate_configuration(&destination.inner, destination.header)?;
-                if payload.sessions.len() != destination.header.record_count() {
-                    return Err(SessionTransferError::Malformed);
-                }
+            for (store, replacement) in frozen.iter_mut().zip(&mut replacements) {
+                let token = store.validate_replacement(replacement, &policies)?;
                 total = total
-                    .checked_add(payload.sessions.len())
+                    .checked_add(token.record_count())
+                    .filter(|count| *count <= MAX_RECORDS)
                     .ok_or(SessionTransferError::TooLarge)?;
-                if total > MAX_RECORDS {
-                    return Err(SessionTransferError::TooLarge);
-                }
-                policies.validate_binding(&destination.binding, &destination.hostname)?;
-                policies.validate_binding(
-                    store
-                        .transfer_binding
-                        .as_ref()
-                        .ok_or(SessionTransferError::Policy)?,
-                    &destination.hostname,
-                )?;
-                for (index, cached) in payload.sessions.iter().enumerate() {
-                    if cached.hostname != destination.hostname {
-                        return Err(SessionTransferError::Policy);
-                    }
-                    validate_arrival(
-                        payload
-                            .sessions
-                            .iter()
-                            .take(index)
-                            .map(|cached| cached.arrival),
-                        cached.arrival,
-                        payload.next_batch,
-                    )?;
-                    policies.validate_scoped_session(
-                        &destination.binding,
-                        &cached.session,
-                        &cached.hostname,
-                    )?;
-                }
+                validated.push(token);
             }
-            // Every fallible operation has finished. These swaps cannot allocate
-            // or destroy old native sessions while any store/native guard is held.
-            for ((store, payload), cleanup) in
-                frozen.iter_mut().zip(&mut payloads).zip(&mut retired)
-            {
-                std::mem::swap(&mut store.sessions, &mut payload.sessions);
-                std::mem::swap(&mut store.generation, &mut payload.generation);
-                std::mem::swap(&mut store.next_batch, &mut payload.next_batch);
-                store.started = true;
-                *cleanup = Some(RetiredStore {
-                    sessions: std::mem::take(&mut payload.sessions),
-                    publications: RetiredTlsTicketPublications {
-                        captures: std::mem::take(&mut store.captures),
-                    },
-                });
+            // No fallible work or allocation remains after the first store swap.
+            for token in validated {
+                retired.push(token.commit());
             }
             Ok(())
         })();
@@ -391,5 +338,215 @@ impl TlsSessionOwner {
         drop(frozen);
         result?;
         Ok(RetiredTlsSessionReplacements(retired))
+    }
+}
+
+impl PreparedTlsSessionCapture {
+    pub(crate) fn binding(&self) -> &SessionPolicyBinding {
+        &self.binding
+    }
+
+    pub(crate) fn original_index(&self) -> usize {
+        self.original_index
+    }
+
+    /// Consume only after every store/native guard has dropped, including errors.
+    pub(crate) fn into_export(self) -> Result<TcpSessionStoreExport, SessionTransferError> {
+        let header = self.header.ok_or(SessionTransferError::Policy)?;
+        Ok(TcpSessionStoreExport {
+            header,
+            records: self.records,
+        })
+    }
+}
+
+impl PreparedTlsSessionReplacement {
+    pub(crate) fn binding(&self) -> &SessionPolicyBinding {
+        &self.destination.binding
+    }
+
+    pub(crate) fn destination_owner(&self) -> TlsSessionOwner {
+        TlsSessionOwner {
+            inner: Arc::clone(&self.destination.inner),
+        }
+    }
+}
+
+impl<'store> FrozenTlsSessionCache<'store> {
+    /// Validate the complete physical queue without acquiring native references.
+    /// Use one timestamp for every owner in the transaction. Keep the plan alive
+    /// until all guards drop even when validation or later capture fails.
+    pub(crate) fn validate_capture<'a, 'native>(
+        &'a self,
+        prepared: &'a mut PreparedTlsSessionCapture,
+        policies: &'a FrozenSessionPolicies<'native>,
+        now: u64,
+    ) -> Result<ValidatedTlsSessionCapture<'a, 'store, 'native>, SessionTransferError> {
+        if self.poisoned
+            || !std::ptr::eq(self.inner, prepared.owner.inner.as_ref())
+            || prepared.attempted
+        {
+            return Err(SessionTransferError::Policy);
+        }
+        prepared.attempted = true;
+        policies.validate_binding(&prepared.binding, &prepared.hostname)?;
+        policies.validate_binding(
+            self.store
+                .transfer_binding
+                .as_ref()
+                .ok_or(SessionTransferError::Policy)?,
+            &prepared.hostname,
+        )?;
+        if self.store.sessions.len() > self.inner.per_hostname {
+            return Err(SessionTransferError::TooLarge);
+        }
+        for (index, cached) in self.store.sessions.iter().enumerate() {
+            if cached.hostname != prepared.hostname {
+                return Err(SessionTransferError::Policy);
+            }
+            validate_arrival(
+                self.store
+                    .sessions
+                    .iter()
+                    .take(index)
+                    .map(|cached| cached.arrival),
+                cached.arrival,
+                self.store.next_batch,
+            )?;
+        }
+        let header = TcpSessionStoreHeader {
+            order: order_code(self.inner.order),
+            per_hostname: self.inner.per_hostname as u8,
+            physical: self.store.sessions.len() as u8,
+            records: self
+                .store
+                .sessions
+                .iter()
+                .filter(|cached| !is_expired(&cached.session, now))
+                .count() as u8,
+            next_batch: self.store.next_batch,
+        };
+        header.validate()?;
+        Ok(ValidatedTlsSessionCapture {
+            frozen: self,
+            prepared,
+            _policies: policies,
+            header,
+            now,
+        })
+    }
+
+    /// Validate a private prepared import without mutation or allocation.
+    pub(crate) fn validate_replacement<'a, 'native>(
+        &'a mut self,
+        replacement: &'a mut PreparedTlsSessionReplacement,
+        policies: &'a FrozenSessionPolicies<'native>,
+    ) -> Result<ValidatedTlsSessionReplacement<'a, 'store, 'native>, SessionTransferError> {
+        let destination = &replacement.destination;
+        let payload = &replacement.payload;
+        if self.poisoned
+            || !std::ptr::eq(self.inner, destination.inner.as_ref())
+            || replacement.committed
+        {
+            return Err(SessionTransferError::Policy);
+        }
+        validate_configuration(self.inner, destination.header)?;
+        if payload.sessions.len() != destination.header.record_count() {
+            return Err(SessionTransferError::Malformed);
+        }
+        policies.validate_binding(&destination.binding, &destination.hostname)?;
+        policies.validate_binding(
+            self.store
+                .transfer_binding
+                .as_ref()
+                .ok_or(SessionTransferError::Policy)?,
+            &destination.hostname,
+        )?;
+        for (index, cached) in payload.sessions.iter().enumerate() {
+            if cached.hostname != destination.hostname {
+                return Err(SessionTransferError::Policy);
+            }
+            validate_arrival(
+                payload
+                    .sessions
+                    .iter()
+                    .take(index)
+                    .map(|cached| cached.arrival),
+                cached.arrival,
+                payload.next_batch,
+            )?;
+            policies.validate_scoped_session(
+                &destination.binding,
+                &cached.session,
+                &cached.hostname,
+            )?;
+        }
+        Ok(ValidatedTlsSessionReplacement {
+            frozen: self,
+            replacement,
+            _policies: policies,
+        })
+    }
+}
+
+impl ValidatedTlsSessionCapture<'_, '_, '_> {
+    pub(crate) fn record_count(&self) -> usize {
+        self.header.record_count()
+    }
+
+    /// Partial native up-references stay in the plan until the caller unlocks.
+    pub(crate) fn capture(self) -> Result<(), SessionTransferError> {
+        for (ordinal, cached) in self.frozen.store.sessions.iter().enumerate() {
+            if is_expired(&cached.session, self.now) {
+                continue;
+            }
+            self.prepared.records.push(TcpSessionExportRecord {
+                pending: self
+                    .prepared
+                    .binding
+                    .prepare_session_export(&cached.session, &cached.hostname)?,
+                header: self.header,
+                ordinal: ordinal as u8,
+                batch: cached.arrival.batch,
+                sequence: cached.arrival.sequence,
+                hostname: Arc::clone(&cached.hostname),
+            });
+        }
+        self.prepared.header = Some(self.header);
+        Ok(())
+    }
+}
+
+impl ValidatedTlsSessionReplacement<'_, '_, '_> {
+    pub(crate) fn record_count(&self) -> usize {
+        self.replacement.payload.sessions.len()
+    }
+
+    /// No allocation, native destruction or fallible work is allowed here.
+    /// Retain the returned old sessions/publications until every guard drops.
+    #[must_use]
+    pub(crate) fn commit(self) -> RetiredTlsSessionStore {
+        let store = &mut self.frozen.store;
+        let replacement = self.replacement;
+        let payload = &mut replacement.payload;
+        std::mem::swap(&mut store.sessions, &mut payload.sessions);
+        std::mem::swap(&mut store.generation, &mut payload.generation);
+        std::mem::swap(&mut store.next_batch, &mut payload.next_batch);
+        store.started = true;
+        replacement.committed = true;
+        RetiredTlsSessionStore {
+            sessions: std::mem::take(&mut payload.sessions),
+            publications: RetiredTlsTicketPublications {
+                captures: std::mem::take(&mut store.captures),
+            },
+        }
+    }
+}
+
+impl RetiredTlsSessionStore {
+    pub(crate) fn finish(self) -> usize {
+        let count = self.sessions.len();
+        drop(self.sessions);
+        count + self.publications.finish()
     }
 }

@@ -109,3 +109,50 @@ fn clear_empty_owner_set_changes_nothing() -> TestResult {
     assert_eq!(SessionTicketCacheOwner::clear_stores(&[])?, 0);
     Ok(())
 }
+
+#[test]
+fn actual_connector_bindings_enable_mixed_store_transfer() -> TestResult {
+    let tcp = tcp()?.with_isolated_session_cache();
+    let quic = quic()?.with_isolated_session_cache();
+    let owners = [
+        owner(quic.session_ticket_cache())?,
+        owner(tcp.session_ticket_cache())?,
+    ];
+    let inputs = [(&owners[0], "example.test"), (&owners[1], "example.test")];
+    assert!(matches!(
+        SessionTicketCacheOwner::capture_stores(&inputs),
+        Err(btls::ssl::SessionTransferError::Policy)
+    ));
+    for owner in &owners {
+        owner.bind_transfer_policy(
+            "example.test",
+            btls::ssl::SessionTransferPolicy::new(
+                b"actual connector transfer",
+                &[0, 0],
+                None,
+                &[19; 32],
+            )?,
+        )?;
+    }
+    let captured = SessionTicketCacheOwner::capture_stores(&inputs)?;
+    let mut replacements = Vec::new();
+    for (owner, export) in owners.iter().zip(captured) {
+        let header = match export {
+            SessionTicketStoreExport::Tcp(export) => SessionTicketStoreHeader::Tcp(export.header()),
+            SessionTicketStoreExport::Quic(export) => {
+                SessionTicketStoreHeader::Quic(export.header())
+            }
+        };
+        replacements.push(owner.prepare_replacement(
+            Arc::from("example.test"),
+            header,
+            Vec::new(),
+        )?);
+    }
+    assert_eq!(
+        SessionTicketCacheOwner::replace_stores(replacements)?.finish(),
+        0
+    );
+    assert_eq!(SessionTicketCacheOwner::clear_stores(&owners)?, 0);
+    Ok(())
+}

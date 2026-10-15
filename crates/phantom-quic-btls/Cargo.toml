@@ -37,6 +37,8 @@ btls-sys = { workspace = true, features = ["prefix-symbols"] }
 
 [dev-dependencies]
 phantom-testkit = { version = "=0.1.0", path = "../phantom-testkit" }
+quinn = { workspace = true, features = ["ring"] }
+tokio = { version = "1.53.1", features = ["macros", "net", "rt", "sync", "time"] }
 
 [lints.rust]
 missing_debug_implementations = "warn"

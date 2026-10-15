@@ -8,13 +8,52 @@ pub use tcp_transfer::{
 use std::{fmt, sync::Arc};
 
 use phantom_quic_btls::{
-    FrozenQuicSessionTicketCache, QuicSessionTicketCache, QuicSessionTicketCacheOwner,
-    QuicTicketGeneration, RetiredQuicTicketPublications,
+    FrozenQuicSessionTicketCache, QuicSessionStoreExport, QuicSessionStoreHeader,
+    QuicSessionTicketCache, QuicSessionTicketCacheOwner, QuicTicketGeneration,
+    RetiredQuicTicketPublications,
 };
 
 use crate::tls::{
-    FrozenTlsSessionCache, RetiredTlsTicketPublications, TlsSessionControl, TlsSessionOwner,
+    FrozenTlsSessionCache, MixedSessionOwner, MixedSessionStoreExport, MixedSessionStoreHeader,
+    PreparedMixedSessionReplacement, RetiredMixedSessionStores, RetiredTlsTicketPublications,
+    TlsSessionControl, TlsSessionOwner, capture_mixed_stores, replace_mixed_stores,
 };
+
+/// Storage metadata for one TCP TLS or QUIC ticket owner.
+///
+/// Authenticate the complete header and its record-slot mapping before native
+/// authorization, including an empty header that replaces a store with no tickets.
+/// Parsing or constructing this value grants no import authority.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SessionTicketStoreHeader {
+    /// TCP TLS ticket order and physical slots.
+    Tcp(TcpSessionStoreHeader),
+    /// QUIC physical slots and remembered round-trip time.
+    Quic(QuicSessionStoreHeader),
+}
+
+/// A nonconsuming capture of one TCP TLS or QUIC ticket store.
+///
+/// Seal records and authenticate the complete store manifest after capture
+/// returns. Enforce the final encoded snapshot size at that sealing boundary.
+#[derive(Debug)]
+pub enum SessionTicketStoreExport {
+    /// TCP TLS tickets in their original physical slots.
+    Tcp(TcpSessionStoreExport),
+    /// QUIC tickets, remembered parameters, application state and RTT.
+    Quic(QuicSessionStoreExport),
+}
+
+/// Native-authorized private replacement retaining its actual owner's lifetime.
+///
+/// Prepare every replacement before calling
+/// [`SessionTicketCacheOwner::replace_stores`]. This value cannot be cloned.
+pub struct PreparedSessionTicketReplacement<'a>(PreparedMixedSessionReplacement<'a>);
+
+/// Old tickets whose cleanup follows the complete client transaction.
+///
+/// Finish only after store guards and any client registry lock have dropped.
+pub struct RetiredSessionTicketReplacements(RetiredMixedSessionStores);
 
 /// A weak control for one connector's TCP TLS or QUIC ticket cache.
 ///
@@ -126,6 +165,112 @@ impl SessionTicketCache {
 }
 
 impl SessionTicketCacheOwner {
+    fn mixed_owner(&self) -> MixedSessionOwner<'_> {
+        match &self.cache {
+            OwnedCache::Tcp(owner) => MixedSessionOwner::Tcp(owner),
+            OwnedCache::Quic(owner) => MixedSessionOwner::Quic(owner),
+        }
+    }
+
+    /// Capture distinct TCP TLS and QUIC stores at one frozen-store boundary.
+    ///
+    /// Results retain input order and transport kind. TCP stores lock before
+    /// QUIC stores, each in its actual owner's private order, as in clear.
+    /// Capture preserves source tickets and publication generations. Native
+    /// serialization and sealing take place after every store guard drops.
+    ///
+    /// Authenticate each header, record-slot mapping and source witness before
+    /// importing. Enforce the final encoded snapshot size before emitting it.
+    ///
+    /// # Errors
+    /// Rejects aliases, unbound or poisoned stores, native policy contention,
+    /// allocation failures, and more than 256 owners or 2560 combined records.
+    pub fn capture_stores(
+        inputs: &[(&Self, &str)],
+    ) -> Result<Vec<SessionTicketStoreExport>, btls::ssl::SessionTransferError> {
+        if inputs.len() > tcp_transfer::MAX_OWNERS {
+            return Err(btls::ssl::SessionTransferError::TooLarge);
+        }
+        let mut stores = tcp_transfer::reserved(inputs.len())?;
+        let mut output = tcp_transfer::reserved(inputs.len())?;
+        for (owner, hostname) in inputs {
+            stores.push((owner.mixed_owner(), *hostname));
+        }
+        for export in capture_mixed_stores(&stores)? {
+            output.push(match export {
+                MixedSessionStoreExport::Tcp(export) => SessionTicketStoreExport::Tcp(export),
+                MixedSessionStoreExport::Quic(export) => SessionTicketStoreExport::Quic(export),
+            });
+        }
+        Ok(output)
+    }
+
+    /// Consume native-authorized permits into one private replacement.
+    ///
+    /// Authenticate the complete manifest and validate source witnesses before
+    /// native authorization. Reject oversized snapshots before authorizing any
+    /// native record. Metadata alone cannot authorize a session.
+    ///
+    /// # Errors
+    /// Returns a policy error for a header of the wrong transport kind, or the
+    /// native authorization, metadata or allocation failure.
+    pub fn prepare_replacement(
+        &self,
+        hostname: Arc<str>,
+        header: SessionTicketStoreHeader,
+        permits: Vec<btls::ssl::SessionImportPermit>,
+    ) -> Result<PreparedSessionTicketReplacement<'_>, btls::ssl::SessionTransferError> {
+        let header = match header {
+            SessionTicketStoreHeader::Tcp(header) => MixedSessionStoreHeader::Tcp(header),
+            SessionTicketStoreHeader::Quic(header) => MixedSessionStoreHeader::Quic(header),
+        };
+        PreparedMixedSessionReplacement::new(self.mixed_owner(), hostname, header, permits)
+            .map(PreparedSessionTicketReplacement)
+    }
+
+    /// Validate every TCP TLS and QUIC destination before replacing any store.
+    ///
+    /// All validation runs under one native freeze and the same store order as
+    /// clear. After validation, every swap is infallible and uses preallocated
+    /// storage. Prepare any accompanying client registry update before calling
+    /// this method. Apply that update before finishing the returned cleanup.
+    ///
+    /// # Errors
+    /// Rejects aliases, poisoned stores, changed owner policy, native policy
+    /// contention, allocation failures, or more than 256 owners or 2560 records.
+    /// An error leaves all destination stores and generations unchanged.
+    pub fn replace_stores(
+        replacements: Vec<PreparedSessionTicketReplacement<'_>>,
+    ) -> Result<RetiredSessionTicketReplacements, btls::ssl::SessionTransferError> {
+        if replacements.len() > tcp_transfer::MAX_OWNERS {
+            return Err(btls::ssl::SessionTransferError::TooLarge);
+        }
+        let mut stores = tcp_transfer::reserved(replacements.len())?;
+        stores.extend(replacements.into_iter().map(|replacement| replacement.0));
+        replace_mixed_stores(stores).map(RetiredSessionTicketReplacements)
+    }
+
+    /// Install native transfer policy on this TCP TLS or QUIC cache.
+    ///
+    /// Install it before the cache's first handshake. The actual owner supplies
+    /// its TLS context and application scope. Repeating an equal installation
+    /// is allowed. Policy bytes do not establish peer authentication or grant
+    /// authority to import a session.
+    ///
+    /// # Errors
+    /// Returns the native policy, allocation or configuration failure, including
+    /// a first installation after a handshake has started.
+    pub fn bind_transfer_policy(
+        &self,
+        server_name: &str,
+        policy: btls::ssl::SessionTransferPolicy,
+    ) -> Result<btls::ssl::SessionPolicyBinding, btls::ssl::SessionTransferError> {
+        match &self.cache {
+            OwnedCache::Tcp(cache) => cache.bind_transfer_policy(server_name, policy),
+            OwnedCache::Quic(cache) => cache.bind_transfer_policy(server_name, policy),
+        }
+    }
+
     /// Clears distinct TCP and QUIC stores at one frozen-store boundary.
     ///
     /// Aliases are cleared once. TCP stores lock before QUIC stores, each in
@@ -319,6 +464,32 @@ impl RetiredSessionTicketPublications {
                 RetiredPublications::Tcp(publications) => publications.finish(),
                 RetiredPublications::Quic(publications) => publications.finish(),
             }
+    }
+}
+
+impl RetiredSessionTicketReplacements {
+    /// Release replaced sessions after store guards and registry locks drop.
+    ///
+    /// Returns the number of retired retained and pending tickets.
+    #[must_use]
+    pub fn finish(self) -> usize {
+        self.0.finish()
+    }
+}
+
+impl fmt::Debug for PreparedSessionTicketReplacement<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("PreparedSessionTicketReplacement")
+            .finish_non_exhaustive()
+    }
+}
+
+impl fmt::Debug for RetiredSessionTicketReplacements {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("RetiredSessionTicketReplacements")
+            .finish_non_exhaustive()
     }
 }
 

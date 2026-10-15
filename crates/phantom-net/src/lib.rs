@@ -67,12 +67,14 @@ mod udp;
 pub use authorization::{InvalidAuthorization, InvalidAuthorizationKind};
 #[cfg(feature = "keylog")]
 pub use phantom_quic_btls::{NssKeyLogReceiver, NssKeyLogSender, nss_key_log_channel};
+pub use phantom_quic_btls::{QuicSessionRecordMetadata, QuicSessionStoreHeader};
 pub use response::{OrderedResponseHeaders, ResponseHeader};
 pub use session_tickets::{
-    FrozenSessionTicketCache, PreparedTcpSessionReplacement, RetiredSessionTicketPublications,
+    FrozenSessionTicketCache, PreparedSessionTicketReplacement, PreparedTcpSessionReplacement,
+    RetiredSessionTicketPublications, RetiredSessionTicketReplacements,
     RetiredTcpSessionReplacements, SessionTicketCache, SessionTicketCacheOwner,
-    SessionTicketGeneration, TcpSessionExportRecord, TcpSessionRecordMetadata,
-    TcpSessionStoreExport, TcpSessionStoreHeader,
+    SessionTicketGeneration, SessionTicketStoreExport, SessionTicketStoreHeader,
+    TcpSessionExportRecord, TcpSessionRecordMetadata, TcpSessionStoreExport, TcpSessionStoreHeader,
 };
 #[doc(hidden)]
 pub use shutdown_timer::run_after;

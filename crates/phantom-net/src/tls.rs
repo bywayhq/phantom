@@ -37,8 +37,10 @@ use self::configuration::extension_order_trace_name;
 use self::configuration::require_supported;
 pub(crate) use self::early_data::{EarlyDataFailure, EarlyDataWait};
 pub(crate) use self::session_cache::{
-    FrozenTlsSessionCache, PreparedTlsSessionReplacement, RetiredTlsSessionReplacements,
-    RetiredTlsTicketPublications, TlsSessionControl, TlsSessionOwner,
+    FrozenTlsSessionCache, MixedSessionOwner, MixedSessionStoreExport, MixedSessionStoreHeader,
+    PreparedMixedSessionReplacement, PreparedTlsSessionReplacement, RetiredMixedSessionStores,
+    RetiredTlsSessionReplacements, RetiredTlsTicketPublications, TlsSessionControl,
+    TlsSessionOwner, capture_mixed_stores, replace_mixed_stores,
 };
 use self::{
     early_data::EarlyData,

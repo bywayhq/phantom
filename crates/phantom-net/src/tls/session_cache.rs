@@ -1,5 +1,13 @@
+mod mixed;
 mod transfer;
 
+pub(crate) use mixed::{
+    MixedSessionOwner, MixedSessionStoreExport, MixedSessionStoreHeader,
+    PreparedMixedSessionReplacement, RetiredMixedSessionStores,
+};
+pub(crate) use mixed::{
+    capture_stores as capture_mixed_stores, replace_stores as replace_mixed_stores,
+};
 pub(crate) use transfer::{PreparedTlsSessionReplacement, RetiredTlsSessionReplacements};
 
 use std::{
@@ -82,7 +90,9 @@ pub(crate) struct TlsSessionOwner {
 }
 
 pub(crate) struct FrozenTlsSessionCache<'a> {
+    inner: &'a CacheInner,
     store: MutexGuard<'a, Store>,
+    poisoned: bool,
 }
 
 pub(crate) struct RetiredTlsTicketPublications {
@@ -160,13 +170,30 @@ impl TlsSessionOwner {
         Arc::ptr_eq(&self.inner, &other.inner)
     }
 
-    pub(crate) fn freeze(&self) -> FrozenTlsSessionCache<'_> {
-        FrozenTlsSessionCache {
+    /// Transfer rejects poison even though an ordinary clear recovers the store.
+    pub(crate) fn freeze_transfer(
+        &self,
+    ) -> Result<FrozenTlsSessionCache<'_>, SessionTransferError> {
+        Ok(FrozenTlsSessionCache {
+            inner: &self.inner,
             store: self
                 .inner
                 .store
                 .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner),
+                .map_err(|_| SessionTransferError::Policy)?,
+            poisoned: false,
+        })
+    }
+
+    pub(crate) fn freeze(&self) -> FrozenTlsSessionCache<'_> {
+        let (store, poisoned) = match self.inner.store.lock() {
+            Ok(store) => (store, false),
+            Err(error) => (error.into_inner(), true),
+        };
+        FrozenTlsSessionCache {
+            inner: &self.inner,
+            store,
+            poisoned,
         }
     }
 }
@@ -540,7 +567,7 @@ fn unix_time() -> u64 {
 #[cfg(test)]
 mod tests {
     mod clear;
-    mod transaction;
+    pub(in crate::tls::session_cache) mod transaction;
 
     use super::{TicketOrder, TlsSessionCache};
 
