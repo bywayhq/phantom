@@ -29,6 +29,7 @@ pub fn phantom_profile::browser::chrome::v154_android_http3_request() -> phantom
 pub fn phantom_profile::browser::chrome::v154_android_navigation_template() -> phantom_profile::RequestTemplate
 pub fn phantom_profile::browser::chrome::v154_android_quic() -> phantom_profile::QuicTransportSettings
 pub fn phantom_profile::browser::chrome::v154_android_quic_tls() -> phantom_profile::TlsSettings
+pub fn phantom_profile::browser::chrome::v154_android_tcp() -> phantom_profile::TcpSettings
 pub fn phantom_profile::browser::chrome::v154_android_tcp_tls() -> phantom_profile::TlsSettings
 pub fn phantom_profile::browser::chrome::v154_android_websocket() -> phantom_profile::WebSocketSettings
 pub fn phantom_profile::browser::chrome::v154_cookie_placement() -> phantom_profile::CookiePlacement
@@ -41,6 +42,7 @@ pub fn phantom_profile::browser::chrome::v154_macos_client_hints() -> phantom_pr
 pub fn phantom_profile::browser::chrome::v154_macos_fetch_no_store_template() -> phantom_profile::RequestTemplate
 pub fn phantom_profile::browser::chrome::v154_macos_fetch_template() -> phantom_profile::RequestTemplate
 pub fn phantom_profile::browser::chrome::v154_macos_navigation_template() -> phantom_profile::RequestTemplate
+pub fn phantom_profile::browser::chrome::v154_macos_tcp() -> phantom_profile::TcpSettings
 pub fn phantom_profile::browser::chrome::v154_proxy_connect() -> phantom_profile::ProxyConnectTemplate
 pub fn phantom_profile::browser::chrome::v154_quic() -> phantom_profile::QuicTransportSettings
 pub fn phantom_profile::browser::chrome::v154_quic_tls() -> phantom_profile::TlsSettings
@@ -85,6 +87,7 @@ pub fn phantom_profile::browser::edge::v154_windows_fetch_no_store_template() ->
 pub fn phantom_profile::browser::edge::v154_windows_navigation_template() -> phantom_profile::RequestTemplate
 pub mod phantom_profile::browser::firefox
 pub fn phantom_profile::browser::firefox::v156_android() -> phantom_profile::ClientProfile
+pub fn phantom_profile::browser::firefox::v156_android_tcp() -> phantom_profile::TcpSettings
 pub fn phantom_profile::browser::firefox::v156_android_tcp_tls() -> phantom_profile::TlsSettings
 pub fn phantom_profile::browser::firefox::v157_cookie_placement() -> phantom_profile::CookiePlacement
 pub fn phantom_profile::browser::firefox::v157_dns_cache() -> phantom_profile::DnsCacheSettings
@@ -92,9 +95,11 @@ pub fn phantom_profile::browser::firefox::v157_http1() -> phantom_profile::Http1
 pub fn phantom_profile::browser::firefox::v157_http2() -> phantom_profile::Http2Settings
 pub fn phantom_profile::browser::firefox::v157_http3() -> phantom_profile::Http3Settings
 pub fn phantom_profile::browser::firefox::v157_http3_request() -> phantom_profile::Http3RequestSettings
+pub fn phantom_profile::browser::firefox::v157_linux_tcp() -> phantom_profile::TcpSettings
 pub fn phantom_profile::browser::firefox::v157_macos_fetch_no_store_template() -> phantom_profile::RequestTemplate
 pub fn phantom_profile::browser::firefox::v157_macos_fetch_template() -> phantom_profile::RequestTemplate
 pub fn phantom_profile::browser::firefox::v157_macos_navigation_template() -> phantom_profile::RequestTemplate
+pub fn phantom_profile::browser::firefox::v157_macos_tcp() -> phantom_profile::TcpSettings
 pub fn phantom_profile::browser::firefox::v157_proxy_connect() -> phantom_profile::ProxyConnectTemplate
 pub fn phantom_profile::browser::firefox::v157_quic() -> phantom_profile::QuicTransportSettings
 pub fn phantom_profile::browser::firefox::v157_quic_tls() -> phantom_profile::TlsSettings
@@ -919,6 +924,8 @@ pub struct phantom_profile::TcpKeepaliveSchedule
 pub phantom_profile::TcpKeepaliveSchedule::long_lived_idle: core::time::Duration
 pub phantom_profile::TcpKeepaliveSchedule::minimum_interval: core::time::Duration
 pub phantom_profile::TcpKeepaliveSchedule::probe_count: u32
+pub phantom_profile::TcpKeepaliveSchedule::set_interval: bool
+pub phantom_profile::TcpKeepaliveSchedule::set_probe_count: bool
 pub phantom_profile::TcpKeepaliveSchedule::short_lived_idle: core::time::Duration
 pub phantom_profile::TcpKeepaliveSchedule::short_lived_time: core::time::Duration
 pub struct phantom_profile::TcpPortRandomization
