@@ -39,8 +39,8 @@ Phantom's claims rest on five kinds of evidence:
 | [UDP socket options](#udp-socket-option-evidence) | Browser source at Chromium's tags, hook logs of Chrome 154, Edge 154, and Opera 136, plus socket read-back tests | Firefox's hook logs hold no QUIC socket; its absence rests on source |
 | [Socket hooks](#socket-hook-evidence) | Hook logs of Chrome 154, Edge 154, and Opera 136 on Windows: socket options, address racing, connections per origin, idle reuse, and lookups, replayed against the Chromium recipes | One run per scenario on one Windows host; loopback origins only |
 | [Firefox socket hooks](#firefox-socket-hook-evidence) | Hook logs and MOZ_LOG lines of Firefox 157.0 on Windows: socket options, keepalive over each connection's life, the IPv4 backup connection and the slower connection it keeps, the idle close, and lookups, replayed against `firefox::v157_tcp` and `firefox::v157_http1` | One to five runs per scenario on one Windows host; loopback origins only |
-| [Address cache](#address-cache-evidence) | Browser source, retained hook logs, unit and loopback tests; Windows native source and isolated probes | Paired Windows configuration/cache integration awaits compiled controls; no induced native invalidation or browser DNS replay; Firefox's grace period not modeled |
-| [Chromium's built-in DNS client](#chromiums-built-in-dns-client) | Chromium source and the Chromium-family `lookups` hook logs, plus loopback tests against a scripted DNS server | Opt-in only; Windows configuration projection is source-reviewed; other platform choices, retry timing and address sort remain different; no log shows an AAAA query |
+| [Address cache](#address-cache-evidence) | Browser source, retained hook logs, unit and loopback tests; Windows native source and isolated probes | No induced native invalidation or browser DNS replay; Firefox's grace period not modeled |
+| [Chromium's built-in DNS client](#chromiums-built-in-dns-client) | Chromium source and the Chromium-family `lookups` hook logs, plus loopback tests against a scripted DNS server | Opt-in only; Windows configuration projection has compiled controls but no browser capture; other platform choices, retry timing and address sort remain different; no log shows an AAAA query |
 | [HTTP/1.1 connection bound](#http11-connection-bound-evidence) | Browser source at one tag per browser, Brave's included, plus loopback tests, and hook logs for Chrome, Edge, and Opera | One hook log per browser; no Edge or Opera source |
 | [Plaintext origin trust](#plaintext-origin-trust-evidence) | Chrome 154, Edge 154, and Firefox 157 proxy route captures, browser source, and loopback tests of Phantom | HTTP/1.1 and HTTP/2 page loads and default-mode `fetch()`; WebSocket trust comparisons use HTTP/1.1 Upgrade |
 | [ALPS `ACCEPT_CH` restart](#alps-accept_ch-restart-evidence) | Chromium source, two Chrome 154.0.8037.97 captures of a navigation that restarted, plus loopback tests against BoringSSL H2 and QUIC servers | H2 only; no capture over HTTP/3 |
@@ -2549,11 +2549,12 @@ quiet and joined successfully. No probe changed host configuration or
 induced a notification. The lifecycle probe and updated atomic counter
 have distinct source and binary identities.
 
-The combined address/HTTPS cache implementation is source-reviewed only.
-Its compiled integration controls, full gate and cross-platform checks are
-pending. No browser capture demonstrates nameserver choice, search order
-or refresh parity for this implementation. Native cancellation can block;
-failed callback cancellation retains its state to avoid use-after-free.
+The combined implementation passed strict Clippy and 801 focused tests,
+including 94 new automatic controls and one separately allocated native DNS
+probe. The full integration gate and cross-platform checks remain pending.
+No browser capture demonstrates nameserver choice, search order or refresh
+parity for this implementation. Native cancellation can block; failed
+callback cancellation retains its state to avoid use-after-free.
 
 ### Chromium's built-in DNS client
 
