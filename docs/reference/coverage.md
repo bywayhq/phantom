@@ -320,7 +320,7 @@ Supported:
 - Flow-controlled request bodies, owned or pull-driven, and streaming
   responses.
 - An early, incomplete response does not stop the request upload (RFC 9113
-  Â§8.1). The upload continues as the caller reads the response body.
+  §8.1). The upload continues as the caller reads the response body.
 - Exact WebSocket [extended CONNECT](glossary.md#extended-connect) on the
   direct, HTTP CONNECT, and SOCKS5 routes, including streams on a pooled
   proxied session
@@ -922,7 +922,7 @@ Supported HTTP proxies:
   Chrome 154, Edge 154, and Firefox 157 send them, with the tunnelled
   request's `User-Agent`.
 - HTTPS proxies reached over HTTP/2 when the route selects it explicitly
-  (RFC 9113 Â§8.5 CONNECT). Tunnels to different origins are streams of one
+  (RFC 9113 §8.5 CONNECT). Tunnels to different origins are streams of one
   proxy connection per session, proxy, and set of credentials, as Chrome
   154, Edge 154, and Firefox 157 open them. A tunnel past the proxy's
   `SETTINGS_MAX_CONCURRENT_STREAMS` waits on that connection, as in the
