@@ -420,9 +420,21 @@ impl Snapshot {
     }
 }
 
+// Erase the shared owner's structural auto-trait graph at its existing Arc.
+// Lookup futures still borrow the same concrete owner and are checked locally.
+trait SystemDnsState: fmt::Debug + Send + Sync {
+    fn state(&self) -> &SystemDnsOwner;
+}
+
+impl SystemDnsState for SystemDnsOwner {
+    fn state(&self) -> &SystemDnsOwner {
+        self
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(super) struct SystemDnsView {
-    owner: Arc<SystemDnsOwner>,
+    owner: Arc<dyn SystemDnsState>,
     udp: Option<UdpSettings>,
 }
 impl SystemDnsView {
@@ -436,7 +448,7 @@ impl SystemDnsView {
         self.udp
     }
     pub(super) fn configuration_token(&self) -> io::Result<DnsConfigurationToken> {
-        self.owner.token().map(|(_, token)| token)
+        self.owner.state().token().map(|(_, token)| token)
     }
     pub(super) async fn https(
         &self,
@@ -446,6 +458,7 @@ impl SystemDnsView {
     ) -> Result<HttpsRecordLookup, HttpsLookupError> {
         let snapshot = self
             .owner
+            .state()
             .snapshot(&token)
             .await
             .map_err(HttpsLookupError::configuration)?;
@@ -481,7 +494,7 @@ impl DnsLookup for SystemDnsView {
     ) -> ResolveFuture {
         Box::pin(async move {
             let token = token.ok_or_else(configuration_changed)?;
-            let snapshot = self.owner.snapshot(&token).await?;
+            let snapshot = self.owner.state().snapshot(&token).await?;
             token.require_current()?;
             let result = snapshot.resolve_address(&host, self.udp).await;
             token.require_current()?;

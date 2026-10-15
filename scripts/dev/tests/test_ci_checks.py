@@ -45,10 +45,15 @@ class CiCheckTests(unittest.TestCase):
             "ruff@0.16.9 --with ruff==0.16.9 nightly-2026-09-01\n"
             "ShellCheck 0.11.0 cargo-nextest@0.9.145\n",
         )
-        for package in ("phantom-quic-btls", "phantom-net"):
-            self.write(
-                f"crates/{package}/src/lib.rs", "#[allow(unsafe_code)]\nmod ffi;\n"
-            )
+        self.write(
+            "crates/phantom-quic-btls/src/lib.rs",
+            "#[allow(unsafe_code)]\nmod backend;\n",
+        )
+        self.write(
+            "crates/phantom-net/src/lib.rs",
+            "#[allow(unsafe_code)]\nmod socket_ffi;\n"
+            "#[allow(unsafe_code)]\nmod system_dns_ffi;\n",
+        )
         self.write("Cargo.toml", '[workspace.lints.rust]\nunsafe_code = "forbid"\n')
         subprocess.run(["git", "-C", str(self.root), "init", "-q"], check=True)
         subprocess.run(
@@ -90,6 +95,72 @@ class CiCheckTests(unittest.TestCase):
     def test_no_manifest_relaxation_matches_is_success(self) -> None:
         result = self.run_check("check-unsafe-boundaries.sh", "*Cargo.toml", 1)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_unsafe_checks_reject_missing_audited_allowances(self) -> None:
+        for package, module in (
+            ("phantom-quic-btls", "backend"),
+            ("phantom-net", "socket_ffi"),
+            ("phantom-net", "system_dns_ffi"),
+        ):
+            with self.subTest(module=module):
+                path = f"crates/{package}/src/lib.rs"
+                original = (self.root / path).read_text(encoding="utf-8")
+                self.write(
+                    path,
+                    original.replace(
+                        f"#[allow(unsafe_code)]\nmod {module};",
+                        f"mod {module};",
+                    ),
+                )
+                result = self.run_check("check-unsafe-boundaries.sh", "unused", 1)
+                self.write(path, original)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn("unsafe_code allowance(s)", result.stderr)
+                self.assertIn(
+                    "allowance moved outside audited declarations", result.stderr
+                )
+
+    def test_unsafe_checks_reject_renamed_audited_modules(self) -> None:
+        for package, module in (
+            ("phantom-quic-btls", "backend"),
+            ("phantom-net", "socket_ffi"),
+            ("phantom-net", "system_dns_ffi"),
+        ):
+            with self.subTest(module=module):
+                path = f"crates/{package}/src/lib.rs"
+                original = (self.root / path).read_text(encoding="utf-8")
+                self.write(path, original.replace(f"mod {module};", "mod other_ffi;"))
+                result = self.run_check("check-unsafe-boundaries.sh", "unused", 1)
+                self.write(path, original)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn(
+                    "allowance moved outside audited declarations", result.stderr
+                )
+                self.assertNotIn("unsafe_code allowance(s)", result.stderr)
+
+    def test_unsafe_checks_reject_allowances_moved_onto_other_modules(self) -> None:
+        for package, module in (
+            ("phantom-quic-btls", "backend"),
+            ("phantom-net", "socket_ffi"),
+            ("phantom-net", "system_dns_ffi"),
+        ):
+            with self.subTest(module=module):
+                path = f"crates/{package}/src/lib.rs"
+                original = (self.root / path).read_text(encoding="utf-8")
+                self.write(
+                    path,
+                    original.replace(
+                        f"#[allow(unsafe_code)]\nmod {module};",
+                        f"mod {module};\n#[allow(unsafe_code)]\nmod other_ffi;",
+                    ),
+                )
+                result = self.run_check("check-unsafe-boundaries.sh", "unused", 1)
+                self.write(path, original)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn(
+                    "allowance moved outside audited declarations", result.stderr
+                )
+                self.assertNotIn("unsafe_code allowance(s)", result.stderr)
 
     def test_pin_checks_propagate_each_search_failure(self) -> None:
         for pattern in (

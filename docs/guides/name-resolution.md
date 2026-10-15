@@ -112,7 +112,7 @@ This requires the `https-records` feature.
 
 ```rust
 # #[cfg(all(windows, feature = "https-records"))]
-use std::error::Error;
+use std::{error::Error, num::NonZeroUsize};
 # #[cfg(all(windows, feature = "https-records"))]
 use phantom::{Client, dns::chromium_windows_resolvers, profile::browser::chrome};
 
@@ -121,7 +121,7 @@ async fn watched_windows() -> Result<Client, Box<dyn Error>> {
     let (addresses, https) = chromium_windows_resolvers().await?;
     Ok(Client::builder(chrome::v154_windows())
         .dns_resolver(addresses)
-        .alt_svc(32)
+        .alt_svc(NonZeroUsize::new(32).unwrap())
         .https_record_discovery(https)
         .build()?)
 }
