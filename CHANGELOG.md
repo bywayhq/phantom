@@ -31,6 +31,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   `AltSvcRace::origin_delay()` with `origin_delay_policy()` and match
   `AltSvcOriginDelay::Fixed` or `AltSvcOriginDelay::Rtt`.
 
+- Isolate QUIC ticket caches when applying a TLS profile or enabling early
+  data. Migrate: configure profiles and early data before collecting tickets.
+  Derive `without_early_data()` from an enabled connector to share its
+  tickets without sending 0-RTT. Repeated `with_early_data()` calls still
+  share an already-enabled cache.
+
 - Hold a policy guard while editing the native TLS certificate store.
   Migrate: `SslContextBuilder::cert_store_mut()` now returns
   `SessionPolicyMutation<X509StoreBuilderRef>`. Keep the guard for the
@@ -1150,6 +1156,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   DNS lifetime, and keep operational errors out of this resolver's cache.
 - Encode and validate bounded DNS-over-HTTPS messages with `DnsWireQuery`,
   preserving answer order, alias limits, and DNS lifetimes.
+
+- Export and import encrypted direct TCP TLS ticket snapshots with
+  `Client::export_session_tickets`, `import_session_tickets` and
+  `SessionTicketSnapshot`. Matching live owners are replaced together;
+  unmatched owners wait for first use. Unsupported proxy or QUIC owners
+  reject the complete transfer. Failed imports preserve retained tickets.
+
 - Add native session-store transfer preparation with bounded exports and
   nonblocking policy guards. Expose encoded record lengths for snapshot byte
   budgets. Validate cold records against configured policy and credentials,

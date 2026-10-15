@@ -14,6 +14,7 @@ use std::{
 
 use btls::{
     error::ErrorStack,
+    hash::{Hasher, MessageDigest},
     ssl::{
         SslConnector as BoringConnector, SslContext, SslContextBuilder, SslMethod, SslOptions,
         SslVerifyMode, SslVersion,
@@ -36,7 +37,8 @@ use self::configuration::extension_order_trace_name;
 use self::configuration::require_supported;
 pub(crate) use self::early_data::{EarlyDataFailure, EarlyDataWait};
 pub(crate) use self::session_cache::{
-    FrozenTlsSessionCache, RetiredTlsTicketPublications, TlsSessionControl, TlsSessionOwner,
+    FrozenTlsSessionCache, PreparedTlsSessionReplacement, RetiredTlsSessionReplacements,
+    RetiredTlsTicketPublications, TlsSessionControl, TlsSessionOwner,
 };
 use self::{
     early_data::EarlyData,
@@ -50,6 +52,87 @@ mod early_data;
 #[cfg(feature = "keylog")]
 pub(crate) mod key_log;
 mod session_cache;
+
+fn bundled_server_roots<'a>() -> impl ExactSizeIterator<Item = &'a [u8]> {
+    webpki_root_certs::TLS_SERVER_ROOT_CERTS
+        .iter()
+        .map(AsRef::as_ref)
+}
+
+/// Returns a versioned content identity of the ordered bundled DER roots.
+///
+/// This is only trust-store content identity. It does not bind verification
+/// policy, additional roots, a server, route or authenticated session.
+///
+/// # Errors
+///
+/// Returns a backend hashing failure or an unrepresentable framing length.
+pub fn bundled_server_root_identity() -> Result<[u8; 32], TlsError> {
+    root_content_identity(bundled_server_roots())
+}
+
+fn root_content_identity<'a>(
+    roots: impl ExactSizeIterator<Item = &'a [u8]>,
+) -> Result<[u8; 32], TlsError> {
+    const FIELD: &str = "bundled server root identity";
+    let mut digest =
+        Hasher::new(MessageDigest::sha256()).map_err(|error| TlsError::backend(FIELD, error))?;
+    let mut update = |bytes: &[u8]| {
+        digest
+            .update(bytes)
+            .map_err(|error| TlsError::backend(FIELD, error))
+    };
+    update(b"phantom-ticket-bundled-roots-v1")?;
+    update(
+        &u64::try_from(roots.len())
+            .map_err(|_| TlsError::configuration(FIELD, "root count exceeds framing range"))?
+            .to_be_bytes(),
+    )?;
+    for root in roots {
+        update(
+            &u64::try_from(root.len())
+                .map_err(|_| TlsError::configuration(FIELD, "root length exceeds framing range"))?
+                .to_be_bytes(),
+        )?;
+        update(root)?;
+    }
+    let result = digest
+        .finish()
+        .map_err(|error| TlsError::backend(FIELD, error))?;
+    result
+        .as_ref()
+        .try_into()
+        .map_err(|_| TlsError::configuration(FIELD, "SHA-256 returned an invalid digest length"))
+}
+
+#[cfg(test)]
+mod bundled_roots_tests {
+    use super::*;
+
+    #[test]
+    fn bundled_root_identity_uses_actual_ordered_der_framing() {
+        let roots: Vec<_> = bundled_server_roots().collect();
+        let mut framed = b"phantom-ticket-bundled-roots-v1".to_vec();
+        framed.extend_from_slice(&(roots.len() as u64).to_be_bytes());
+        for root in roots {
+            framed.extend_from_slice(&(root.len() as u64).to_be_bytes());
+            framed.extend_from_slice(root);
+        }
+        assert_eq!(
+            bundled_server_root_identity().unwrap(),
+            btls::sha::sha256(&framed)
+        );
+    }
+
+    #[test]
+    fn root_identity_binds_order_count_and_der_boundaries() {
+        let identity = |values: &[&[u8]]| root_content_identity(values.iter().copied()).unwrap();
+        assert_ne!(identity(&[b"a", b"bc"]), identity(&[b"ab", b"c"]));
+        assert_ne!(identity(&[b"a", b"b"]), identity(&[b"b", b"a"]));
+        assert_ne!(identity(&[]), identity(&[b""]));
+        assert_ne!(identity(&[b"a"]), identity(&[b"b"]));
+    }
+}
 
 /// Policy for authenticating a TLS server certificate.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
@@ -149,9 +232,7 @@ impl TlsConnector {
         Self::build_with_roots(
             settings,
             ServerAuthentication::WebPki,
-            webpki_root_certs::TLS_SERVER_ROOT_CERTS
-                .iter()
-                .map(AsRef::as_ref),
+            bundled_server_roots(),
         )
     }
 
@@ -163,10 +244,7 @@ impl TlsConnector {
         Self::build_with_roots(
             settings,
             ServerAuthentication::WebPki,
-            webpki_root_certs::TLS_SERVER_ROOT_CERTS
-                .iter()
-                .map(AsRef::as_ref)
-                .chain(roots),
+            bundled_server_roots().chain(roots),
         )
     }
 
@@ -197,9 +275,7 @@ impl TlsConnector {
         Self::build_with_roots_and_sessions(
             settings,
             server_authentication,
-            webpki_root_certs::TLS_SERVER_ROOT_CERTS
-                .iter()
-                .map(AsRef::as_ref)
+            bundled_server_roots()
                 .filter(|_| server_authentication.verifies())
                 .chain(roots),
             ClientSessions::External(&mut prepare_sessions),
@@ -266,7 +342,13 @@ impl TlsConnector {
             .session_tickets
             .tcp_per_origin_limit()
             .filter(|_| self.scoped_sessions_enabled)
-            .map(|limit| TlsSessionCache::new(limit.get(), self.session_ticket_order));
+            .map(|limit| {
+                TlsSessionCache::new(
+                    limit.get(),
+                    self.session_ticket_order,
+                    self.backend.context().to_owned(),
+                )
+            });
         connector
     }
 
@@ -657,6 +739,12 @@ impl TlsConnector {
                     .map_err(|error| TlsError::backend("key_shares", error))?;
             }
 
+            if let Some(certificate) = &self.client_certificate {
+                certificate
+                    .apply(&mut configuration)
+                    .map_err(|error| TlsError::backend("client_certificate", error))?;
+            }
+
             let ssl = if let Some(cache) = &self.session_cache {
                 let capture = cache.begin_handshake(server_name);
                 let session = capture.take_session();
@@ -678,43 +766,52 @@ impl TlsConnector {
                     && session
                         .as_ref()
                         .is_some_and(btls::ssl::ScopedSslSession::early_data_capable);
+                if omit_session_ticket_extension {
+                    configuration.set_options(SslOptions::NO_TICKET);
+                }
+                if offers_early_data {
+                    configuration.set_early_data_enabled(true);
+                }
                 let callback_capture = capture.clone();
-                let mut ssl = configuration
-                    .into_ssl_with_scoped_session(
-                        server_name,
-                        cache.scope(),
-                        session.as_ref(),
-                        move |session| callback_capture.capture(session),
-                    )
-                    .map_err(|error| TlsError::backend("session resumption", error))?
-                    .ok_or_else(|| {
-                        TlsError::configuration(
-                            "session resumption",
-                            "cached session does not match its connector scope and hostname",
+                let callback = move |session| callback_capture.capture(session);
+                let ssl = if let Some(binding) = capture.transfer_binding() {
+                    configuration
+                        .set_session_transfer_policy(binding)
+                        .map_err(TlsError::session_transfer)?;
+                    configuration
+                        .into_ssl_with_session_transfer(
+                            server_name,
+                            cache.scope(),
+                            session.as_ref(),
+                            callback,
                         )
-                    })?;
+                        .map_err(TlsError::session_transfer)?
+                } else {
+                    configuration
+                        .into_ssl_with_scoped_session(
+                            server_name,
+                            cache.scope(),
+                            session.as_ref(),
+                            callback,
+                        )
+                        .map_err(|error| TlsError::backend("session resumption", error))?
+                }
+                .ok_or_else(|| {
+                    TlsError::configuration(
+                        "session resumption",
+                        "cached session does not match its connector scope and hostname",
+                    )
+                })?;
                 if reusable {
                     attempted_reusable_session = session;
                 }
                 session_capture = Some(capture);
-                if omit_session_ticket_extension {
-                    ssl.set_options(SslOptions::NO_TICKET);
-                }
-                if offers_early_data {
-                    ssl.set_early_data_enabled(true);
-                }
                 ssl
             } else {
                 configuration
                     .into_ssl(server_name)
                     .map_err(|error| TlsError::backend("server_name", error))?
             };
-            let mut ssl = ssl;
-            if let Some(certificate) = &self.client_certificate {
-                certificate
-                    .apply(&mut ssl)
-                    .map_err(|error| TlsError::backend("client_certificate", error))?;
-            }
             let mut stream = BoringStream::new(ssl, stream)
                 .map_err(|error| TlsError::backend("stream", error))?;
             if let Err(error) = Pin::new(&mut stream).connect().await {
@@ -1131,6 +1228,15 @@ impl TlsError {
             Some(field),
             message.into(),
             None,
+        )
+    }
+
+    fn session_transfer(source: btls::ssl::SessionTransferError) -> Self {
+        Self::new(
+            TlsErrorKind::BackendConfiguration,
+            Some("session transfer"),
+            "native session transfer policy rejected the connection".into(),
+            Some(Box::new(source)),
         )
     }
 

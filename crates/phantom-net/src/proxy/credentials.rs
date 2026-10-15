@@ -32,6 +32,24 @@ pub enum HttpProxyAuthentication<'a> {
 }
 
 impl HttpProxyAuthentication<'_> {
+    /// Prepares opaque configured credentials for authenticated session transfer.
+    ///
+    /// Native code compares these inputs using the authenticated source owner's
+    /// private key. Digest challenges and nonce state do not affect the input.
+    /// This input does not prove successful proxy authentication.
+    ///
+    /// # Errors
+    ///
+    /// Returns an allocation or framing-bound failure without credential contents.
+    pub fn session_transfer_credential(
+        self,
+    ) -> Result<btls::ssl::SessionTransferCredential, btls::ssl::SessionTransferError> {
+        match self {
+            Self::Basic(credentials) => credentials.session_transfer_credential(),
+            Self::Digest(credentials) => credentials.session_transfer_credential(),
+        }
+    }
+
     pub(super) fn to_owned(self) -> HttpProxyCredentials {
         match self {
             Self::Basic(credentials) => HttpProxyCredentials::Basic(credentials.clone()),
@@ -39,3 +57,6 @@ impl HttpProxyAuthentication<'_> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

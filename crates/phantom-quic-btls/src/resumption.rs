@@ -25,7 +25,10 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError, Weak};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use btls::ssl::{ScopedSslSession, SslSessionScope};
+use btls::ssl::{
+    ScopedSslSession, SessionPolicyBinding, SessionTransferError, SessionTransferPolicy,
+    SslContext, SslSessionScope,
+};
 
 use crate::QuicVersion;
 
@@ -46,14 +49,22 @@ pub(crate) const MAX_HELD_TICKETS: usize = 2;
 /// later full handshake.
 pub(crate) const MAX_SESSIONS: usize = 4;
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub(crate) struct SessionCache {
-    state: Arc<Mutex<CacheState>>,
+    inner: Arc<CacheOwner>,
+}
+
+struct CacheOwner {
+    context: SslContext,
+    verify_peer: bool,
+    state: Mutex<CacheState>,
 }
 
 #[derive(Default)]
 struct CacheState {
     scope: SslSessionScope,
+    started: bool,
+    transfer_binding: Option<SessionPolicyBinding>,
     sessions: VecDeque<CachedSession>,
     /// The latest round-trip time per server name, least recently recorded
     /// first, bounded like the tickets.
@@ -68,12 +79,12 @@ struct CacheState {
 /// remembered RTTs and prevents older handshakes from publishing tickets.
 #[derive(Clone)]
 pub struct QuicSessionTicketCache {
-    state: Weak<Mutex<CacheState>>,
+    inner: Weak<CacheOwner>,
 }
 
 /// A temporary strong owner used while a client freezes its ticket stores.
 pub struct QuicSessionTicketCacheOwner {
-    state: Arc<Mutex<CacheState>>,
+    inner: Arc<CacheOwner>,
 }
 
 /// A synchronous guard that blocks ticket consumption and publication.
@@ -100,7 +111,7 @@ impl QuicSessionTicketCache {
     /// Returns whether the configuration or a handshake still owns the cache.
     #[must_use]
     pub fn is_live(&self) -> bool {
-        self.state.strong_count() != 0
+        self.inner.strong_count() != 0
     }
 
     /// Clears retained tickets and retires pending ticket publication.
@@ -123,24 +134,52 @@ impl QuicSessionTicketCache {
     /// Temporarily retain a live cache for a bounded synchronous transaction.
     #[must_use]
     pub fn upgrade(&self) -> Option<QuicSessionTicketCacheOwner> {
-        self.state
+        self.inner
             .upgrade()
-            .map(|state| QuicSessionTicketCacheOwner { state })
+            .map(|inner| QuicSessionTicketCacheOwner { inner })
     }
 }
 
 impl QuicSessionTicketCacheOwner {
+    /// Bind policy to this cache's actual context and scope before first use.
+    ///
+    /// Repeating the same binding succeeds. An incompatible binding retires
+    /// the native scope. Custom or disabled authentication cannot bind.
+    pub fn bind_transfer_policy(
+        &self,
+        server_name: &str,
+        policy: SessionTransferPolicy,
+    ) -> Result<SessionPolicyBinding, SessionTransferError> {
+        let mut state = self
+            .inner
+            .state
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if !self.inner.verify_peer || (state.started && state.transfer_binding.is_none()) {
+            return Err(SessionTransferError::Policy);
+        }
+        let binding = state
+            .scope
+            .bind_transfer_policy(&self.inner.context, server_name, policy)?;
+        state.transfer_binding = Some(binding.clone());
+        Ok(binding)
+    }
+
     /// Compare live cache identity solely to avoid locking it twice.
     #[must_use]
     pub fn same_cache(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.state, &other.state)
+        Arc::ptr_eq(&self.inner, &other.inner)
     }
 
     /// Block consumption and publication until the guard drops.
     #[must_use]
     pub fn freeze(&self) -> FrozenQuicSessionTicketCache<'_> {
         FrozenQuicSessionTicketCache {
-            state: self.state.lock().unwrap_or_else(PoisonError::into_inner),
+            state: self
+                .inner
+                .state
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner),
         }
     }
 }
@@ -238,9 +277,19 @@ impl std::fmt::Debug for RetiredQuicTicketPublications {
 pub(crate) struct SessionCacheCapture {
     cache: SessionCache,
     generation: Arc<()>,
+    scope: SslSessionScope,
+    transfer_binding: Option<SessionPolicyBinding>,
 }
 
 impl SessionCacheCapture {
+    pub(crate) fn scope(&self) -> SslSessionScope {
+        self.scope.clone()
+    }
+
+    pub(crate) fn transfer_binding(&self) -> Option<&SessionPolicyBinding> {
+        self.transfer_binding.as_ref()
+    }
+
     fn register_application_state(&self, inner: &Arc<Mutex<ApplicationStateInner>>) -> bool {
         let mut state = self.cache.state();
         if !Arc::ptr_eq(&state.generation, &self.generation) {
@@ -502,16 +551,35 @@ impl std::fmt::Debug for ApplicationState {
 }
 
 impl SessionCache {
+    pub(crate) fn new(context: SslContext, verify_peer: bool) -> Self {
+        Self {
+            inner: Arc::new(CacheOwner {
+                context,
+                verify_peer,
+                state: Mutex::new(CacheState::default()),
+            }),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn has_transfer_policy(&self) -> bool {
+        self.state().transfer_binding.is_some()
+    }
+
     pub(crate) fn capture(&self) -> SessionCacheCapture {
+        let mut state = self.state();
+        state.started = true;
         SessionCacheCapture {
             cache: self.clone(),
-            generation: Arc::clone(&self.state().generation),
+            generation: Arc::clone(&state.generation),
+            scope: state.scope.clone(),
+            transfer_binding: state.transfer_binding.clone(),
         }
     }
 
     pub(crate) fn control(&self) -> QuicSessionTicketCache {
         QuicSessionTicketCache {
-            state: Arc::downgrade(&self.state),
+            inner: Arc::downgrade(&self.inner),
         }
     }
 
@@ -649,13 +717,17 @@ impl SessionCache {
 
     #[cfg(test)]
     pub(crate) fn shares_storage_with(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.state, &other.state)
+        Arc::ptr_eq(&self.inner, &other.inner)
     }
 
     fn state(&self) -> MutexGuard<'_, CacheState> {
-        self.state.lock().unwrap_or_else(PoisonError::into_inner)
+        self.inner
+            .state
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
     }
 
+    #[cfg(test)]
     pub(crate) fn scope(&self) -> SslSessionScope {
         self.state().scope.clone()
     }
@@ -696,9 +768,19 @@ mod tests {
 
     use super::{MAX_SESSIONS, SessionCache, server_names_match};
 
+    fn test_cache() -> SessionCache {
+        use btls::ssl::{SslContext, SslMethod, SslVerifyMode};
+        let mut context = SslContext::builder(SslMethod::tls())
+            .unwrap_or_else(|error| panic!("test context allocation failed: {error}"));
+        context.set_verify(SslVerifyMode::PEER);
+        crate::QuicClientConfig::enable_session_resumption(&mut context)
+            .unwrap_or_else(|error| panic!("test session callback failed: {error}"));
+        SessionCache::new(context.build(), true)
+    }
+
     #[test]
     fn round_trip_times_keep_the_latest_value_per_server_name() {
-        let cache = SessionCache::default();
+        let cache = test_cache();
         assert_eq!(cache.round_trip_time("example.test"), None);
         cache.record_round_trip_time("example.test", Duration::from_millis(40));
         cache.record_round_trip_time("EXAMPLE.test", Duration::from_millis(3));
@@ -719,7 +801,7 @@ mod tests {
 
     #[test]
     fn weak_cache_controls_do_not_retain_the_cache_and_clear_rtts() {
-        let cache = SessionCache::default();
+        let cache = test_cache();
         let control = cache.control();
         let old = cache.capture();
         cache.record_round_trip_time("example.test", Duration::from_millis(5));
@@ -743,7 +825,7 @@ mod tests {
 
     #[test]
     fn reusing_application_state_keeps_one_weak_registration() {
-        let cache = SessionCache::default();
+        let cache = test_cache();
         let state = super::ApplicationState::new();
         for _ in 0..100 {
             state.start(Some((cache.clone(), Box::from("example.test"))), None);
@@ -759,7 +841,7 @@ mod tests {
 
     #[test]
     fn dropping_a_frozen_store_preserves_rtts_and_publication() {
-        let cache = SessionCache::default();
+        let cache = test_cache();
         let control = cache.control();
         let capture = cache.capture();
         cache.record_round_trip_time("example.test", Duration::from_millis(5));
@@ -769,7 +851,7 @@ mod tests {
         let same = control
             .upgrade()
             .unwrap_or_else(|| panic!("live test cache missing"));
-        let other = SessionCache::default();
+        let other = test_cache();
         let other = other
             .control()
             .upgrade()

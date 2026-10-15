@@ -53,6 +53,36 @@ struct Socks5Credentials {
 }
 
 impl Socks5Proxy {
+    pub(crate) fn encode_ticket_route(
+        &self,
+        e: &mut crate::session::TicketBindingEncoder,
+    ) -> Result<(), crate::session::PreparationError> {
+        e.text(self.endpoint.host())?;
+        e.u16(self.endpoint.port())?;
+        e.u8(match self.dns_mode {
+            Socks5DnsMode::Local => 0,
+            Socks5DnsMode::Remote => 1,
+        })?;
+        e.option(self.credentials.as_ref(), |e, _| e.u8(1))
+    }
+    pub(super) fn transfer_credential(
+        &self,
+    ) -> Result<Option<btls::ssl::SessionTransferCredential>, crate::session::PreparationError>
+    {
+        self.credentials
+            .as_ref()
+            .map(|credentials| {
+                crate::session::TicketBindingEncoder::transfer_credential(
+                    b"phantom-ticket-socks5-user-password",
+                    &[
+                        credentials.username.as_bytes(),
+                        credentials.password.as_bytes(),
+                    ],
+                )
+            })
+            .transpose()
+    }
+
     /// Parses a SOCKS5 proxy URI with explicit DNS ownership.
     ///
     /// Port 1080 is used when omitted. Unicode hostnames are normalized to

@@ -45,6 +45,29 @@ pub struct Socks4Proxy {
 }
 
 impl Socks4Proxy {
+    pub(crate) fn encode_ticket_route(
+        &self,
+        e: &mut crate::session::TicketBindingEncoder,
+    ) -> Result<(), crate::session::PreparationError> {
+        e.text(self.endpoint.host())?;
+        e.u16(self.endpoint.port())?;
+        e.u8(match self.dns_mode {
+            Socks4DnsMode::Local => 0,
+            Socks4DnsMode::Remote => 1,
+        })?;
+        e.u8(1)
+    }
+    pub(super) fn transfer_credential(
+        &self,
+    ) -> Result<Option<btls::ssl::SessionTransferCredential>, crate::session::PreparationError>
+    {
+        crate::session::TicketBindingEncoder::transfer_credential(
+            b"phantom-ticket-socks4-user-id",
+            &[self.user_id.as_bytes()],
+        )
+        .map(Some)
+    }
+
     /// Parses a `socks4` or `socks4a` proxy URI; omitted ports use 1080.
     ///
     /// Host names are normalized to ASCII. Invalid schemes, authorities,

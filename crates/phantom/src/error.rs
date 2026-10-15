@@ -339,6 +339,9 @@ fn classify_http2_build_error(error: &Http2TlsError) -> BuildErrorKind {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum RequestErrorKind {
+    /// Imported session tickets could not be installed before TLS use.
+    /// The request is not sent, and pending custody remains available for retry.
+    SessionTickets,
     /// A request header hook failed before network I/O.
     HeaderHook,
     /// The request URI cannot be parsed.
@@ -476,6 +479,15 @@ enum RequestRetryability {
 }
 
 impl RequestError {
+    pub(crate) fn session_tickets(source: impl StdError + Send + Sync + 'static) -> Self {
+        Self::with_source(
+            RequestErrorKind::SessionTickets,
+            None,
+            "session tickets could not be installed before TLS use",
+            source,
+        )
+    }
+
     pub(crate) fn header_hook(source: crate::HeaderHookError) -> Self {
         Self::with_source(
             RequestErrorKind::HeaderHook,

@@ -212,6 +212,9 @@ Supported:
   when its ALPN offer includes the ticket's protocol.
   Proxy routes and connections that offer ECH from an HTTPS record
   never offer it, and the Chromium-family recipes never do.
+- Client-owned ticket clearing, including pending TLS/QUIC publication.
+- Encrypted direct TCP ticket export and import, with matching profile,
+  peer and route policy. Pending owners are installed before first use.
 - A shutdown with or without a TLS `close_notify` alert before the TCP FIN
   (`TlsSettings::close_notify`): the Chromium-family recipes send only the
   FIN, as Chrome 154 does, and the Firefox recipes send the alert first, as
@@ -226,8 +229,8 @@ Planned:
 Not supported:
 
 - Browser versions and platforms other than the captured builds.
-- Clearing, exporting, or importing a client's TLS session tickets; the
-  client keeps them for its life.
+- Ticket export or import for proxy or QUIC owners. Such owners reject the
+  whole transfer attempt.
 
 ## HTTP/1.1
 

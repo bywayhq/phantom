@@ -15,6 +15,12 @@ pub struct HttpBasicCredentials {
 }
 
 impl HttpBasicCredentials {
+    pub(super) fn session_transfer_credential(
+        &self,
+    ) -> Result<btls::ssl::SessionTransferCredential, btls::ssl::SessionTransferError> {
+        super::credential_frame::credential(1, 0, &[&self.authorization])
+    }
+
     /// Validates and prepares an HTTP Basic credential pair.
     ///
     /// Usernames and passwords are intentionally restricted to ASCII so the

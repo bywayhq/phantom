@@ -2,7 +2,79 @@
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
+use phantom_net::proxy::HttpsProxyProtocol;
 use phantom_net::{SessionTicketCache, SessionTicketCacheOwner, SessionTicketGeneration};
+
+use crate::{Route, authority::Endpoint};
+
+use binding::{PreparationError, PreparedCacheDescriptor, TicketCacheLeg, TicketCacheProtocol};
+
+mod api;
+pub(super) mod binding;
+mod envelope;
+mod staging;
+mod transfer;
+mod transfer_import;
+
+pub use api::{SessionTicketError, SessionTicketErrorKind, SessionTicketSnapshot};
+
+pub(super) struct TicketCacheBinding<'a> {
+    pub(super) origin: &'a Endpoint,
+    pub(super) server_name: &'a str,
+    pub(super) leg: TicketCacheLeg,
+    pub(super) protocol: Result<TicketCacheProtocol, PreparationError>,
+    pub(super) route: &'a Route,
+}
+
+impl TicketCacheBinding<'_> {
+    pub(super) fn proxy_protocol(
+        protocol: HttpsProxyProtocol,
+    ) -> Result<TicketCacheProtocol, PreparationError> {
+        match protocol {
+            HttpsProxyProtocol::Http1 => Ok(TicketCacheProtocol::Http1),
+            HttpsProxyProtocol::Http2 => Ok(TicketCacheProtocol::Http2),
+            _ => Err(PreparationError::Unsupported("HttpsProxyProtocol")),
+        }
+    }
+}
+
+struct RegisteredCache {
+    cache: SessionTicketCache,
+    binding: Result<RegisteredBinding, PreparationError>,
+    native_binding: Result<btls::ssl::SessionPolicyBinding, PreparationError>,
+}
+
+/// Retains typed inputs for stable policy and local same-cache conflict checks.
+/// Neither the descriptor nor these inputs authorize native session attachment.
+struct RegisteredBinding {
+    descriptor: PreparedCacheDescriptor,
+    origin: Endpoint,
+    server_name: String,
+    leg: TicketCacheLeg,
+    protocol: TicketCacheProtocol,
+    route: Route,
+}
+
+#[derive(Default)]
+struct TicketRegistry {
+    caches: Vec<RegisteredCache>,
+    cold: Option<staging::ColdState>,
+}
+
+#[derive(Debug)]
+pub(super) struct TicketUseError(transfer_import::ImportError);
+
+impl std::fmt::Display for TicketUseError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(formatter)
+    }
+}
+
+impl std::error::Error for TicketUseError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.0)
+    }
+}
 
 /// Registered caches remain weak so evicted entries can release their tickets.
 /// Dead registrations are removed on every registration and clear. The live
@@ -10,28 +82,323 @@ use phantom_net::{SessionTicketCache, SessionTicketCacheOwner, SessionTicketGene
 /// or setup. No connection or setup is retained by this registry.
 #[derive(Default)]
 pub(super) struct TicketOwner {
-    caches: Mutex<Vec<SessionTicketCache>>,
+    preparation:
+        Option<Result<std::sync::Arc<binding::PreparedTicketPolicy>, binding::PreparationError>>,
+    registry: Mutex<TicketRegistry>,
 }
 
 impl TicketOwner {
+    pub(super) fn with_preparation(
+        preparation: Result<
+            std::sync::Arc<binding::PreparedTicketPolicy>,
+            binding::PreparationError,
+        >,
+    ) -> Self {
+        Self {
+            preparation: Some(preparation),
+            registry: Mutex::default(),
+        }
+    }
+
     /// Register before the connector is used. The registry lock serializes
     /// this with clear, so a new cache is either cleared or starts empty after
     /// it. Cache callbacks never acquire the owner lock.
-    pub(super) fn register(&self, cache: Option<SessionTicketCache>) {
+    pub(super) fn register(
+        &self,
+        cache: Option<SessionTicketCache>,
+        input: TicketCacheBinding<'_>,
+    ) {
         let Some(cache) = cache else {
             return;
         };
-        let mut caches = self.caches();
-        caches.retain(SessionTicketCache::is_live);
-        caches.push(cache);
+        let mut registry = self.registry();
+        self.register_locked(
+            &mut registry.caches,
+            cache,
+            self.prepare_registration(input),
+        );
+    }
+
+    fn register_locked(
+        &self,
+        caches: &mut Vec<RegisteredCache>,
+        cache: SessionTicketCache,
+        mut binding: Result<RegisteredBinding, PreparationError>,
+    ) {
+        caches.retain(|registered| registered.cache.is_live());
+        let mut native_binding = Err(PreparationError::Unsupported("dead cache"));
+        if let Some(owner) = cache.upgrade() {
+            let mut duplicate = None;
+            let mut conflict = binding.as_ref().err().copied();
+            for existing in &*caches {
+                if existing
+                    .cache
+                    .upgrade()
+                    .is_some_and(|other| owner.same_cache(&other))
+                {
+                    match (&existing.binding, &binding) {
+                        (Ok(existing_binding), Ok(new_binding))
+                            if existing_binding.descriptor != new_binding.descriptor
+                                || existing_binding.route != new_binding.route =>
+                        {
+                            conflict = Some(PreparationError::Unsupported(
+                                "conflicting cache descriptors",
+                            ));
+                        }
+                        (Ok(_), Ok(_)) => duplicate = Some(existing.native_binding.clone()),
+                        (Err(error), _) => conflict = Some(*error),
+                        _ => {}
+                    }
+                }
+            }
+            if let Some(error) = conflict {
+                binding = Err(error);
+                native_binding = Err(error);
+                for existing in &mut *caches {
+                    if existing
+                        .cache
+                        .upgrade()
+                        .is_some_and(|other| owner.same_cache(&other))
+                    {
+                        existing.binding = Err(error);
+                        existing.native_binding = Err(error);
+                    }
+                }
+            } else {
+                native_binding = duplicate.unwrap_or_else(|| {
+                    let prepared = self
+                        .preparation
+                        .as_ref()
+                        .ok_or(PreparationError::Unsupported("missing client preparation"))?
+                        .as_ref()
+                        .map_err(|error| *error)?;
+                    let registration = binding.as_ref().map_err(|error| *error)?;
+                    prepared.bind_direct_tcp_transfer_policy(
+                        &owner,
+                        &registration.descriptor,
+                        &registration.server_name,
+                        registration.leg,
+                        registration.protocol,
+                        &registration.route,
+                    )
+                });
+            }
+        }
+        caches.push(RegisteredCache {
+            cache,
+            binding,
+            native_binding,
+        });
+    }
+
+    /// Publish matching cold TCP custody before a connector's next TLS use.
+    /// Registration and replacement share one registry order with import/clear.
+    pub(super) fn register_tcp_before_use(
+        &self,
+        cache: Option<SessionTicketCache>,
+        input: TicketCacheBinding<'_>,
+    ) -> Result<(), TicketUseError> {
+        self.prepare_tcp_before_use(cache, input)
+            .map_err(TicketUseError)
+    }
+
+    fn prepare_tcp_before_use(
+        &self,
+        cache: Option<SessionTicketCache>,
+        input: TicketCacheBinding<'_>,
+    ) -> Result<(), transfer_import::ImportError> {
+        use transfer_import::ImportError;
+
+        let Some(cache) = cache else {
+            return Ok(());
+        };
+        let Some(owner) = cache.upgrade() else {
+            return Ok(());
+        };
+        let origin = input.origin;
+        let server_name = input.server_name;
+        let leg = input.leg;
+        let protocol = input.protocol;
+        let route = input.route;
+        let mut registry = self
+            .registry
+            .lock()
+            .map_err(|_| ImportError::RegistryPoisoned)?;
+        registry
+            .caches
+            .retain(|registered| registered.cache.is_live());
+        let index = registry.caches.iter().position(|registered| {
+            registered
+                .cache
+                .upgrade()
+                .is_some_and(|other| owner.same_cache(&other))
+        });
+        let index = match index {
+            Some(index) => index,
+            None => {
+                let index = registry.caches.len();
+                self.register_locked(
+                    &mut registry.caches,
+                    cache,
+                    self.prepare_registration(input),
+                );
+                index
+            }
+        };
+        let Some(cold) = registry.cold.as_ref() else {
+            return Ok(());
+        };
+        // Unsupported routes without matching staged intent keep their normal
+        // behavior, including an unrelated cache's preparation failure.
+        if !matches!(route, Route::Direct)
+            || leg != TicketCacheLeg::Origin
+            || !matches!(
+                protocol,
+                Ok(TicketCacheProtocol::Http1
+                    | TicketCacheProtocol::Http2
+                    | TicketCacheProtocol::Negotiated)
+            )
+        {
+            return Ok(());
+        }
+        let mut matching = cold.owners.iter().enumerate().filter(|(_, staged)| {
+            staged.origin.host().eq_ignore_ascii_case(origin.host())
+                && staged.origin.port() == origin.port()
+                && staged.leg == leg
+                && Ok(staged.protocol) == protocol
+        });
+        let Some((position, staged)) = matching.next() else {
+            return Ok(());
+        };
+        let registration = &registry.caches[index];
+        let binding = registration.binding.as_ref().map_err(|error| *error)?;
+        if matching.next().is_some()
+            || staged.origin.authority().as_str() != origin.authority().as_str()
+            || staged.server_name.as_str() != server_name
+            || binding.route != *route
+            || binding.leg != leg
+            || Ok(binding.protocol) != protocol
+            || staged.origin.authority().as_str() != binding.origin.authority().as_str()
+            || staged.server_name.as_str() != binding.server_name
+            || staged.policy.as_slice() != binding.descriptor.policy()
+            || staged.has_credentials
+        {
+            return Err(ImportError::OwnerMapping);
+        }
+        // Only the private clone is consumed. Every failure retains published
+        // native custody, metadata and live store contents unchanged.
+        let mut working = cold.try_clone_remaining()?;
+        if matches!(
+            registration.native_binding,
+            Err(PreparationError::Backend | PreparationError::Allocation)
+        ) {
+            let preparation = self
+                .preparation
+                .as_ref()
+                .ok_or(PreparationError::Unsupported("missing client preparation"))?
+                .as_ref()
+                .map_err(|error| *error)?;
+            let retried = preparation.bind_direct_tcp_transfer_policy(
+                &owner,
+                &binding.descriptor,
+                &binding.server_name,
+                binding.leg,
+                binding.protocol,
+                &binding.route,
+            );
+            registry.caches[index].native_binding = retried;
+        }
+        let recipient = registry.caches[index]
+            .native_binding
+            .as_ref()
+            .map_err(|error| *error)?;
+        let staged = &working.owners[position];
+        let mut permits = Vec::new();
+        permits
+            .try_reserve_exact(staged.slots.len())
+            .map_err(|_| ImportError::Allocation)?;
+        for slot in &staged.slots {
+            permits.push(
+                working
+                    .native
+                    .authorize_record(usize::from(slot.native_slot), recipient)?,
+            );
+        }
+        let replacement = owner.prepare_tcp_replacement(
+            std::sync::Arc::from(staged.server_name.as_str()),
+            staged.header,
+            permits,
+        )?;
+        // Empty intent has no consumed native slot. Remove it explicitly.
+        if staged.slots.is_empty() {
+            working.owners.remove(position);
+        }
+        let next = working.try_clone_remaining()?;
+        let next = (!next.owners.is_empty()).then_some(next);
+        let mut replacements = Vec::new();
+        replacements
+            .try_reserve_exact(1)
+            .map_err(|_| ImportError::Allocation)?;
+        replacements.push(replacement);
+        let retired = SessionTicketCacheOwner::replace_tcp_stores(replacements)?;
+        let old = std::mem::replace(&mut registry.cold, next);
+        drop(registry);
+        drop(old);
+        let _ = retired.finish();
+        Ok(())
+    }
+
+    fn prepare_registration(
+        &self,
+        input: TicketCacheBinding<'_>,
+    ) -> Result<RegisteredBinding, PreparationError> {
+        let preparation = self
+            .preparation
+            .as_ref()
+            .ok_or(PreparationError::Unsupported("missing client preparation"))?
+            .as_ref()
+            .map_err(|error| *error)?;
+        let protocol = input.protocol?;
+        let descriptor = preparation.prepare_cache_descriptor(
+            input.origin,
+            input.server_name,
+            input.leg,
+            protocol,
+            input.route,
+        )?;
+        let mut server_name = String::new();
+        server_name
+            .try_reserve_exact(input.server_name.len())
+            .map_err(|_| PreparationError::Allocation)?;
+        server_name.push_str(input.server_name);
+        Ok(RegisteredBinding {
+            descriptor,
+            origin: input.origin.clone(),
+            server_name,
+            leg: input.leg,
+            protocol,
+            route: input.route.clone(),
+        })
     }
 
     pub(super) fn clear(&self) -> usize {
-        let mut caches = self.caches();
-        caches.retain(SessionTicketCache::is_live);
+        let mut registry = self.registry();
+        let cold = registry.cold.take();
+        // Captured cold state has already validated every present native slot.
+        // Metadata access counts present records without rejecting expired ones.
+        let cold_count = cold.as_ref().map_or(0, |cold| {
+            (0..cold.native.record_count())
+                .filter(|index| cold.native.owner_metadata(*index).is_ok())
+                .count()
+        });
+        let caches = &mut registry.caches;
+        caches.retain(|registered| registered.cache.is_live());
         caches.shrink_to_fit();
         let mut owners: Vec<SessionTicketCacheOwner> = Vec::with_capacity(caches.len());
-        for owner in caches.iter().filter_map(SessionTicketCache::upgrade) {
+        for owner in caches
+            .iter()
+            .filter_map(|registered| registered.cache.upgrade())
+        {
             if !owners.iter().any(|existing| existing.same_cache(&owner)) {
                 owners.push(owner);
             }
@@ -50,52 +417,18 @@ impl TicketOwner {
         // Publication callbacks may hold a capture lock while waiting for
         // its store. Release every store before retiring any capture.
         drop(guards);
-        retired.into_iter().map(|retired| retired.finish()).sum()
+        drop(cold);
+        cold_count
+            + retired
+                .into_iter()
+                .map(|retired| retired.finish())
+                .sum::<usize>()
     }
 
-    fn caches(&self) -> MutexGuard<'_, Vec<SessionTicketCache>> {
-        self.caches.lock().unwrap_or_else(PoisonError::into_inner)
+    fn registry(&self) -> MutexGuard<'_, TicketRegistry> {
+        self.registry.lock().unwrap_or_else(PoisonError::into_inner)
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::TicketOwner;
-    use phantom_net::http1::Http1TlsConnector;
-    use phantom_profile::browser::chrome;
-
-    #[test]
-    fn dead_cache_controls_are_pruned_without_retaining_connectors() {
-        let base = Http1TlsConnector::new(&chrome::v154_tcp_tls())
-            .unwrap_or_else(|error| panic!("test connector failed: {error}"));
-        let owner = TicketOwner::default();
-        for _ in 0..100 {
-            let connector = base.with_isolated_session_cache();
-            owner.register(connector.session_ticket_cache());
-        }
-        assert_eq!(owner.caches().len(), 1);
-        assert_eq!(owner.clear(), 0);
-        assert!(owner.caches().is_empty());
-        let connector = base.with_isolated_session_cache();
-        owner.register(connector.session_ticket_cache());
-        assert_eq!(owner.clear(), 0);
-        assert_eq!(owner.caches().len(), 1);
-        drop(connector);
-        assert_eq!(owner.clear(), 0);
-        assert!(owner.caches().is_empty());
-    }
-
-    #[test]
-    fn repeated_controls_clear_one_store_without_locking_it_twice() {
-        let connector = Http1TlsConnector::new(&chrome::v154_tcp_tls())
-            .unwrap_or_else(|error| panic!("test connector failed: {error}"))
-            .with_isolated_session_cache();
-        let owner = TicketOwner::default();
-        let control = connector.session_ticket_cache();
-        owner.register(control.clone());
-        owner.register(control);
-        assert_eq!(owner.caches().len(), 2);
-        assert_eq!(owner.clear(), 0);
-        assert_eq!(owner.caches().len(), 2);
-    }
-}
+mod tests;

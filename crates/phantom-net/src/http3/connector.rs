@@ -324,7 +324,11 @@ impl Http3Connector {
     /// after the handshake, without the SETTINGS remembered with the ticket,
     /// and carries later requests, including those sent again.
     ///
-    /// The clone shares this connector's ticket cache and identity.
+    /// The clone keeps this connector's identity. Turning early data on from a
+    /// disabled setting starts a fresh, empty cache if this connector has one.
+    /// If early data is already enabled, the clone shares the cache. Enable it
+    /// before collecting tickets, then use [`Self::without_early_data`] to share
+    /// those tickets without offering 0-RTT.
     #[must_use]
     pub fn with_early_data(&self) -> Self {
         self.with_crypto(self.crypto.with_early_data())

@@ -75,6 +75,30 @@ pub enum Route {
     ConnectUdp(ConnectUdpProxy),
 }
 
+/// Configured credential input only; it carries no peer or scope authority.
+pub(crate) fn transfer_credential(
+    route: &Route,
+) -> Result<Option<btls::ssl::SessionTransferCredential>, crate::session::PreparationError> {
+    match route {
+        Route::Direct => Ok(None),
+        Route::HttpProxy(proxy) => proxy.transfer_credential(),
+        Route::Socks4(proxy) => proxy.transfer_credential(),
+        Route::Socks5(proxy) => proxy.transfer_credential(),
+        Route::ConnectUdp(proxy) => proxy.transfer_credential(),
+    }
+}
+
+pub(crate) fn transfer_credential_error(
+    error: btls::ssl::SessionTransferError,
+) -> crate::session::PreparationError {
+    use crate::session::PreparationError;
+    match error {
+        btls::ssl::SessionTransferError::TooLarge => PreparationError::TooLarge,
+        btls::ssl::SessionTransferError::Allocation => PreparationError::Allocation,
+        _ => PreparationError::Backend,
+    }
+}
+
 impl Route {
     /// Returns a direct route.
     #[must_use]
@@ -299,6 +323,69 @@ enum HttpProxyTransport {
 }
 
 impl HttpProxy {
+    pub(crate) fn encode_ticket_route(
+        &self,
+        e: &mut crate::session::TicketBindingEncoder,
+    ) -> Result<(), crate::session::PreparationError> {
+        use crate::session::PreparationError;
+        e.u8(match self.transport {
+            HttpProxyTransport::Plaintext => 0,
+            HttpProxyTransport::Tls => 1,
+        })?;
+        e.u8(match self.protocol {
+            HttpsProxyProtocol::Http1 => 0,
+            HttpsProxyProtocol::Http2 => 1,
+            _ => return Err(PreparationError::Unsupported("HttpsProxyProtocol")),
+        })?;
+        e.text(self.endpoint.host())?;
+        e.u16(self.endpoint.port())?;
+        e.bool(self.connect_headers_set)?;
+        e.list(&self.connect_headers, |e, header| match header {
+            HttpConnectHeader::Authority { name } => {
+                e.u8(0)?;
+                e.text(name)
+            }
+            HttpConnectHeader::Field(header) => {
+                e.u8(1)?;
+                e.request_header(header)
+            }
+            HttpConnectHeader::ProxyAuthorization { name } => {
+                e.u8(2)?;
+                e.text(name)
+            }
+            _ => Err(PreparationError::Unsupported("HttpConnectHeader")),
+        })?;
+        // Per-request profile fields are intentionally excluded, just as in Eq.
+        e.option(
+            self.credentials.as_ref(),
+            |e, credentials| match credentials.as_ref() {
+                HttpProxyAuthentication::Basic(_) => e.u8(1),
+                HttpProxyAuthentication::Digest(credentials) => {
+                    e.u8(2)?;
+                    e.u8(match credentials.policy() {
+                        phantom_net::proxy::DigestPolicy::Sha2Only => 1,
+                        phantom_net::proxy::DigestPolicy::AllowLegacyMd5 => 2,
+                        _ => return Err(PreparationError::Unsupported("DigestPolicy")),
+                    })
+                }
+            },
+        )
+    }
+    pub(super) fn transfer_credential(
+        &self,
+    ) -> Result<Option<btls::ssl::SessionTransferCredential>, crate::session::PreparationError>
+    {
+        self.credentials
+            .as_ref()
+            .map(|credentials| {
+                credentials
+                    .as_ref()
+                    .session_transfer_credential()
+                    .map_err(transfer_credential_error)
+            })
+            .transpose()
+    }
+
     /// Parses an HTTP or HTTPS proxy URI.
     ///
     /// The URI must use `http` or `https`, contain only an authority and

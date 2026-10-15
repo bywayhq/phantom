@@ -43,6 +43,7 @@ fn is_reconnectable(error: &RequestError) -> bool {
         | RequestErrorKind::InvalidAuthority
         | RequestErrorKind::InvalidHeader
         | RequestErrorKind::HeaderHook
+        | RequestErrorKind::SessionTickets
         | RequestErrorKind::RequestTemplate
         | RequestErrorKind::ProtocolUnavailable
         | RequestErrorKind::UnsupportedRoute
@@ -497,5 +498,19 @@ impl Future for NextEvent<'_> {
 impl Drop for NextEvent<'_> {
     fn drop(&mut self) {
         self.source.cancel_read_outcome();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn ticket_install_failure_ends_reconnects_without_a_replay_signal() {
+        let error = crate::RequestError::session_tickets(std::io::Error::other("ticket-custody"));
+        assert!(!super::is_reconnectable(&error));
+        assert!(!error.is_retryable_connection_setup());
+        assert_eq!(
+            error.replay_observation(),
+            crate::RequestReplayObservation::Unknown
+        );
     }
 }

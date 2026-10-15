@@ -112,6 +112,60 @@ impl Variable {
 }
 
 impl ConnectUdpProxy {
+    pub(crate) fn encode_ticket_route(
+        &self,
+        e: &mut crate::session::TicketBindingEncoder,
+    ) -> Result<(), crate::session::PreparationError> {
+        e.text(self.endpoint.host())?;
+        e.u16(self.endpoint.port())?;
+        e.u8(match self.transport {
+            ConnectUdpTransport::Http3 => 0,
+            ConnectUdpTransport::Http2 => 1,
+            ConnectUdpTransport::Http1 => 2,
+        })?;
+        e.list(&self.template, |e, part| match part {
+            TemplatePart::Literal(value) => {
+                e.u8(0)?;
+                e.text(value)
+            }
+            TemplatePart::Expression {
+                operator,
+                variables,
+            } => {
+                e.u8(1)?;
+                e.u8(match operator {
+                    Operator::Simple => 0,
+                    Operator::Query => 1,
+                    Operator::QueryContinuation => 2,
+                })?;
+                e.list(variables, |e, variable| {
+                    e.u8(match variable {
+                        Variable::TargetHost => 0,
+                        Variable::TargetPort => 1,
+                    })
+                })
+            }
+        })?;
+        e.list(
+            &self.headers,
+            crate::session::TicketBindingEncoder::request_header,
+        )?;
+        e.option(self.credentials.as_ref(), |e, _| e.u8(1))
+    }
+    pub(super) fn transfer_credential(
+        &self,
+    ) -> Result<Option<btls::ssl::SessionTransferCredential>, crate::session::PreparationError>
+    {
+        self.credentials
+            .as_ref()
+            .map(|credentials| {
+                phantom_net::proxy::HttpProxyAuthentication::Basic(credentials)
+                    .session_transfer_credential()
+                    .map_err(super::transfer_credential_error)
+            })
+            .transpose()
+    }
+
     /// Parses a CONNECT-UDP URI template.
     ///
     /// For example,

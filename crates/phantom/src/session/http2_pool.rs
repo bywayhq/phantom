@@ -23,6 +23,10 @@ use tokio::{
 };
 use tracing::debug;
 
+use super::tickets::{
+    TicketCacheBinding,
+    binding::{TicketCacheLeg, TicketCacheProtocol},
+};
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     client_hints::{AcceptChRestart, ClientHintContext, Dispatched},
@@ -372,7 +376,7 @@ impl Http2Pool {
         base: &Http2TlsConnector,
         endpoint: &Endpoint,
         route: &Route,
-    ) -> Http2TlsConnector {
+    ) -> Result<Http2TlsConnector, RequestError> {
         let entry = self
             .entry(PoolKey::new(
                 endpoint,
@@ -380,14 +384,23 @@ impl Http2Pool {
                 Http2ConnectionMode::TlsOrigin,
             ))
             .await;
-        entry
+        let connector = entry
             .connector
-            .get_or_init(|| {
-                let connector = base.with_isolated_session_cache();
-                entry.tickets.register(connector.session_ticket_cache());
-                connector
-            })
-            .clone()
+            .get_or_init(|| base.with_isolated_session_cache());
+        entry
+            .tickets
+            .register_tcp_before_use(
+                connector.session_ticket_cache(),
+                TicketCacheBinding {
+                    origin: endpoint,
+                    server_name: endpoint.host(),
+                    leg: TicketCacheLeg::Origin,
+                    protocol: Ok(TicketCacheProtocol::Http2),
+                    route,
+                },
+            )
+            .map_err(RequestError::session_tickets)?;
+        Ok(connector.clone())
     }
 
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
@@ -671,11 +684,21 @@ impl PoolEntry {
         route: &Route,
         mode: Http2ConnectionMode,
     ) -> Result<Http2Connection, RequestError> {
-        let connector = self.connector.get_or_init(|| {
-            let connector = connector.with_isolated_session_cache();
-            self.tickets.register(connector.session_ticket_cache());
-            connector
-        });
+        let connector = self
+            .connector
+            .get_or_init(|| connector.with_isolated_session_cache());
+        self.tickets
+            .register_tcp_before_use(
+                connector.session_ticket_cache(),
+                TicketCacheBinding {
+                    origin: endpoint,
+                    server_name: endpoint.host(),
+                    leg: TicketCacheLeg::Origin,
+                    protocol: Ok(TicketCacheProtocol::Http2),
+                    route,
+                },
+            )
+            .map_err(RequestError::session_tickets)?;
         let connection = match route {
             // The forwarding connector's pool decides whether this proxy
             // connection also carries other origins' forwarded requests and
@@ -685,7 +708,16 @@ impl PoolEntry {
                     .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
                 let proxy_connector = self.https_proxy.get_or_init(|| {
                     let connector = proxy.https_connector(&base.with_isolated_session_cache());
-                    self.tickets.register(connector.session_ticket_cache());
+                    self.tickets.register(
+                        connector.session_ticket_cache(),
+                        TicketCacheBinding {
+                            origin: endpoint,
+                            server_name: proxy.host(),
+                            leg: TicketCacheLeg::HttpProxy,
+                            protocol: TicketCacheBinding::proxy_protocol(connector.protocol()),
+                            route,
+                        },
+                    );
                     connector
                 });
                 super::box_send(connector.connect(phantom_net::route::Http2Route::Forward {
@@ -725,7 +757,16 @@ impl PoolEntry {
                         .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
                     let proxy_connector = self.https_proxy.get_or_init(|| {
                         let connector = proxy.https_connector(&base.with_isolated_session_cache());
-                        self.tickets.register(connector.session_ticket_cache());
+                        self.tickets.register(
+                            connector.session_ticket_cache(),
+                            TicketCacheBinding {
+                                origin: endpoint,
+                                server_name: proxy.host(),
+                                leg: TicketCacheLeg::HttpProxy,
+                                protocol: TicketCacheBinding::proxy_protocol(connector.protocol()),
+                                route,
+                            },
+                        );
                         connector
                     });
                     phantom_net::route::ProxyTransport::Tls {

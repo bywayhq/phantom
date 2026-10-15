@@ -420,7 +420,7 @@ fn enabling_session_tickets_again_requires_a_new_isolated_cache() {
 }
 
 #[test]
-fn changing_an_enabled_profile_preserves_its_isolated_cache() {
+fn changing_an_enabled_profile_starts_an_empty_isolated_cache() {
     let server_context = server_context();
     let config = Arc::new(resuming_config().with_isolated_session_cache());
     handshake(&config, &server_context);
@@ -433,7 +433,8 @@ fn changing_an_enabled_profile_preserves_its_isolated_cache() {
         config.with_tls_profile(&settings),
         "changed enabled profile",
     ));
-    assert!(changed.has_ticket_for(SERVER_NAME));
+    assert!(!changed.has_ticket_for(SERVER_NAME));
+    assert!(!resumed(handshake(&changed, &server_context).as_ref()));
     assert!(resumed(handshake(&changed, &server_context).as_ref()));
 }
 
@@ -468,11 +469,14 @@ fn accepting_handshake(
 #[test]
 fn early_data_is_offered_only_by_an_opted_in_configuration() {
     let server_context = server_context();
-    let config = resuming_config().with_isolated_session_cache();
-    assert!(!config.sends_early_data());
-    let early = Arc::new(config.with_early_data());
+    let early = Arc::new(
+        resuming_config()
+            .with_isolated_session_cache()
+            .with_early_data(),
+    );
     assert!(early.sends_early_data());
-    let config = Arc::new(config);
+    let config = Arc::new(early.without_early_data());
+    assert!(!config.sends_early_data());
     accepting_handshake(&config, &server_context);
 
     // Resuming without the opt-in installs no 0-RTT keys.
@@ -976,4 +980,180 @@ fn a_ticket_from_a_version_2_connection_starts_the_next_connection_in_version_2(
         test_ok(RawServer::new(&server_context), "server session"),
     );
     assert!(resumed(resumed_v2.as_ref()));
+}
+
+fn transfer_policy() -> btls::ssl::SessionTransferPolicy {
+    test_ok(
+        btls::ssl::SessionTransferPolicy::new(
+            b"synthetic QUIC handshake policy",
+            &[0, 0],
+            None,
+            &[7; 32],
+        ),
+        "transfer test policy",
+    )
+}
+
+#[test]
+fn bound_quic_handshake_publishes_native_transfer_proof_and_keeps_early_data() {
+    let server_context = server_context();
+    let config = Arc::new(
+        resuming_config()
+            .with_isolated_session_cache()
+            .with_early_data(),
+    );
+    let owner = test_some(
+        test_some(config.session_ticket_cache(), "cache control").upgrade(),
+        "cache owner",
+    );
+    let binding = test_ok(
+        owner.bind_transfer_policy(SERVER_NAME, transfer_policy()),
+        "bound transfer policy",
+    );
+    let server = test_ok(
+        RawServer::new_accepting_early_data(&server_context),
+        "early data server",
+    );
+    let first = handshake_with(start(&config), server);
+    assert!(!resumed(first.as_ref()));
+    let cache = test_some(config.session_cache(), "cache");
+    let ticket = test_some(cache.take(SERVER_NAME), "bound callback ticket");
+    assert!(ticket.session.is_authenticated());
+    assert!(ticket.session.early_data_capable());
+    let _pending = test_ok(
+        binding.prepare_session_export(&ticket.session, SERVER_NAME),
+        "actual native transfer proof",
+    );
+    assert!(matches!(
+        binding.prepare_session_export(&ticket.session, "other.example"),
+        Err(btls::ssl::SessionTransferError::Policy)
+    ));
+    cache.insert(SERVER_NAME, ticket);
+    assert_eq!(cache_len(&config), 1);
+}
+
+#[test]
+fn bound_quic_session_rejects_another_peer_without_an_unbound_fallback() {
+    let config = Arc::new(resuming_config().with_isolated_session_cache());
+    let owner = test_some(
+        test_some(config.session_ticket_cache(), "cache control").upgrade(),
+        "cache owner",
+    );
+    test_ok(
+        owner.bind_transfer_policy(SERVER_NAME, transfer_policy()),
+        "bound transfer policy",
+    );
+    let result = crypto::ClientConfig::start_session(
+        Arc::clone(&config),
+        0x0000_0001,
+        "other.example",
+        &transport_parameters(),
+    );
+    assert!(matches!(
+        result,
+        Err(ConnectError::CryptoProvider(
+            "session transfer policy does not match"
+        ))
+    ));
+    assert_eq!(cache_len(&config), 0);
+    test_ok(
+        owner.bind_transfer_policy(SERVER_NAME, transfer_policy()),
+        "original policy remains live",
+    );
+}
+
+#[test]
+fn unbound_quic_handshake_retains_local_resumption_but_cannot_bind_late() {
+    let server_context = server_context();
+    let config = Arc::new(resuming_config().with_isolated_session_cache());
+    let first = handshake(&config, &server_context);
+    assert!(!resumed(first.as_ref()));
+    let owner = test_some(
+        test_some(config.session_ticket_cache(), "cache control").upgrade(),
+        "cache owner",
+    );
+    assert!(matches!(
+        owner.bind_transfer_policy(SERVER_NAME, transfer_policy()),
+        Err(btls::ssl::SessionTransferError::Policy)
+    ));
+    let second = handshake(&config, &server_context);
+    assert!(resumed(second.as_ref()));
+}
+
+#[test]
+fn prebinding_profile_and_early_data_derivations_cannot_publish_under_the_original_policy() {
+    let server_context = server_context();
+    let original = resuming_config().with_isolated_session_cache();
+    let mut settings = resuming_tls_settings();
+    settings.ech = phantom_profile::EchSettings::Disabled;
+    let profile_alias = test_ok(
+        original.without_ticket_offers().with_tls_profile(&settings),
+        "derived TLS profile",
+    );
+    let early_alias = original.with_early_data();
+    let owner = test_some(
+        test_some(original.session_ticket_cache(), "original cache control").upgrade(),
+        "original cache owner",
+    );
+    let binding = test_ok(
+        owner.bind_transfer_policy(SERVER_NAME, transfer_policy()),
+        "later original binding",
+    );
+    for alias in [profile_alias, early_alias] {
+        let alias = Arc::new(alias);
+        handshake(&alias, &server_context);
+        let cache = test_some(alias.session_cache(), "derived cache");
+        let ticket = test_some(cache.take(SERVER_NAME), "derived callback ticket");
+        assert!(ticket.session.is_authenticated());
+        assert!(matches!(
+            binding.prepare_session_export(&ticket.session, SERVER_NAME),
+            Err(btls::ssl::SessionTransferError::Policy)
+        ));
+    }
+    assert_eq!(cache_len(&original), 0);
+}
+
+#[test]
+fn bound_ticket_and_early_data_suppression_keep_native_publication_authority() {
+    let server_context = server_context();
+    let original = Arc::new(
+        resuming_config()
+            .with_isolated_session_cache()
+            .with_early_data(),
+    );
+    let owner = test_some(
+        test_some(original.session_ticket_cache(), "cache control").upgrade(),
+        "cache owner",
+    );
+    let binding = test_ok(
+        owner.bind_transfer_policy(SERVER_NAME, transfer_policy()),
+        "bound policy",
+    );
+    accepting_handshake(&original, &server_context);
+    assert_eq!(cache_len(&original), 1);
+    let suppressed = Arc::new(original.without_ticket_offers().without_early_data());
+    let client = start(&suppressed);
+    assert!(client.early_crypto().is_none());
+    let server = test_ok(
+        RawServer::new_accepting_early_data(&server_context),
+        "server accepting early data",
+    );
+    let full = handshake_with(client, server);
+    assert!(!resumed(full.as_ref()));
+    assert_eq!(cache_len(&original), 2);
+    let cache = test_some(original.session_cache(), "original cache");
+    for _ in 0..2 {
+        let ticket = test_some(
+            cache.take(SERVER_NAME),
+            "original or suppressed callback ticket",
+        );
+        let _pending = test_ok(
+            binding.prepare_session_export(&ticket.session, SERVER_NAME),
+            "same native publication authority",
+        );
+    }
+    test_ok(
+        owner.bind_transfer_policy(SERVER_NAME, transfer_policy()),
+        "original binding remains live",
+    );
 }

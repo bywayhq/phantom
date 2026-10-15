@@ -1,3 +1,10 @@
+pub(crate) mod tcp_transfer;
+
+pub use tcp_transfer::{
+    PreparedTcpSessionReplacement, RetiredTcpSessionReplacements, TcpSessionExportRecord,
+    TcpSessionRecordMetadata, TcpSessionStoreExport, TcpSessionStoreHeader,
+};
+
 use std::{fmt, sync::Arc};
 
 use phantom_quic_btls::{
@@ -119,6 +126,77 @@ impl SessionTicketCache {
 }
 
 impl SessionTicketCacheOwner {
+    /// Capture distinct TCP stores without serializing while their locks are held.
+    /// The caller authenticates every store header and record-slot mapping.
+    /// QUIC, duplicate stores or an unbound cache return a policy error.
+    pub fn capture_tcp_stores(
+        inputs: &[(&Self, &str)],
+    ) -> Result<Vec<TcpSessionStoreExport>, btls::ssl::SessionTransferError> {
+        if inputs.len() > tcp_transfer::MAX_OWNERS {
+            return Err(btls::ssl::SessionTransferError::TooLarge);
+        }
+        let mut tcp = tcp_transfer::reserved(inputs.len())?;
+        for (owner, hostname) in inputs {
+            let OwnedCache::Tcp(cache) = &owner.cache else {
+                return Err(btls::ssl::SessionTransferError::Policy);
+            };
+            tcp.push((cache, *hostname));
+        }
+        TlsSessionOwner::capture_stores(&tcp)
+    }
+
+    /// Privately consume native-authorized permits before transaction locking.
+    /// Authenticate the complete manifest and validate source witnesses before
+    /// native authorization. Metadata alone never authorizes a session.
+    pub fn prepare_tcp_replacement(
+        &self,
+        hostname: Arc<str>,
+        header: TcpSessionStoreHeader,
+        permits: Vec<btls::ssl::SessionImportPermit>,
+    ) -> Result<PreparedTcpSessionReplacement, btls::ssl::SessionTransferError> {
+        match &self.cache {
+            OwnedCache::Tcp(cache) => cache
+                .prepare_replacement(hostname, header, permits)
+                .map(PreparedTcpSessionReplacement),
+            OwnedCache::Quic(_) => Err(btls::ssl::SessionTransferError::Policy),
+        }
+    }
+
+    /// Validate every destination before replacing any store, without allocation
+    /// under frozen stores. Finish cleanup only after this function returns.
+    pub fn replace_tcp_stores(
+        replacements: Vec<PreparedTcpSessionReplacement>,
+    ) -> Result<RetiredTcpSessionReplacements, btls::ssl::SessionTransferError> {
+        if replacements.len() > tcp_transfer::MAX_OWNERS {
+            return Err(btls::ssl::SessionTransferError::TooLarge);
+        }
+        let mut tcp = tcp_transfer::reserved(replacements.len())?;
+        for replacement in replacements {
+            tcp.push(replacement.0);
+        }
+        TlsSessionOwner::replace_stores(tcp).map(RetiredTcpSessionReplacements)
+    }
+
+    /// Installs native transfer policy on this live TCP cache before its first use.
+    ///
+    /// The cache supplies its actual TLS context and application scope. Repeating
+    /// an equal installation is allowed. A QUIC owner or a first installation
+    /// after a handshake starts returns a policy error. These policy bytes do
+    /// not establish peer authentication or authorize imported sessions.
+    ///
+    /// # Errors
+    /// Returns the native policy, allocation or configuration failure.
+    pub fn bind_tcp_transfer_policy(
+        &self,
+        server_name: &str,
+        policy: btls::ssl::SessionTransferPolicy,
+    ) -> Result<btls::ssl::SessionPolicyBinding, btls::ssl::SessionTransferError> {
+        match &self.cache {
+            OwnedCache::Tcp(cache) => cache.bind_transfer_policy(server_name, policy),
+            OwnedCache::Quic(_) => Err(btls::ssl::SessionTransferError::Policy),
+        }
+    }
+
     /// Compare identity only to avoid locking the same live store twice.
     #[must_use]
     pub fn same_cache(&self, other: &Self) -> bool {

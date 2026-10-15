@@ -33,6 +33,10 @@ use tokio::{
 };
 use tracing::{Span, debug};
 
+use super::tickets::{
+    TicketCacheBinding,
+    binding::{TicketCacheLeg, TicketCacheProtocol},
+};
 use super::{
     address_families::AddressFamilies,
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
@@ -518,16 +522,25 @@ impl Http1Or2Pool {
         base: &Http1Or2TlsConnector,
         endpoint: &Endpoint,
         route: &Route,
-    ) -> Http1Or2TlsConnector {
+    ) -> Result<Http1Or2TlsConnector, RequestError> {
         let entry = self.entry(PoolKey::new(endpoint, route)).await;
-        entry
+        let connector = entry
             .connector
-            .get_or_init(|| {
-                let connector = base.with_isolated_session_cache();
-                entry.tickets.register(connector.session_ticket_cache());
-                connector
-            })
-            .clone()
+            .get_or_init(|| base.with_isolated_session_cache());
+        entry
+            .tickets
+            .register_tcp_before_use(
+                connector.session_ticket_cache(),
+                TicketCacheBinding {
+                    origin: endpoint,
+                    server_name: endpoint.host(),
+                    leg: TicketCacheLeg::Origin,
+                    protocol: Ok(TicketCacheProtocol::Negotiated),
+                    route,
+                },
+            )
+            .map_err(RequestError::session_tickets)?;
+        Ok(connector.clone())
     }
 
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
@@ -1228,11 +1241,21 @@ impl PoolEntry {
         endpoint: &Endpoint,
         route: &Route,
     ) -> Result<Opened, RequestError> {
-        let cached = self.connector.get_or_init(|| {
-            let connector = connector.with_isolated_session_cache();
-            self.tickets.register(connector.session_ticket_cache());
-            connector
-        });
+        let cached = self
+            .connector
+            .get_or_init(|| connector.with_isolated_session_cache());
+        self.tickets
+            .register_tcp_before_use(
+                cached.session_ticket_cache(),
+                TicketCacheBinding {
+                    origin: endpoint,
+                    server_name: endpoint.host(),
+                    leg: TicketCacheLeg::Origin,
+                    protocol: Ok(TicketCacheProtocol::Negotiated),
+                    route,
+                },
+            )
+            .map_err(RequestError::session_tickets)?;
         // Keep this entry's tickets when an early-data ALPN change restarts setup.
         let restarted;
         let connector = if connector.offers_early_data() == cached.offers_early_data() {
@@ -1269,6 +1292,7 @@ impl PoolEntry {
                 auth: proxy.auth(),
             },
             Route::HttpProxy(proxy) => {
+                let origin_endpoint = endpoint;
                 let endpoint = phantom_net::route::Endpoint {
                     host: proxy.host(),
                     port: proxy.port(),
@@ -1278,7 +1302,16 @@ impl PoolEntry {
                         https_proxy.ok_or_else(RequestError::unsupported_negotiated_route)?;
                     let proxy_connector = self.https_proxy.get_or_init(|| {
                         let connector = proxy.https_connector(&base.with_isolated_session_cache());
-                        self.tickets.register(connector.session_ticket_cache());
+                        self.tickets.register(
+                            connector.session_ticket_cache(),
+                            TicketCacheBinding {
+                                origin: origin_endpoint,
+                                server_name: proxy.host(),
+                                leg: TicketCacheLeg::HttpProxy,
+                                protocol: TicketCacheBinding::proxy_protocol(connector.protocol()),
+                                route,
+                            },
+                        );
                         connector
                     });
                     ProxyTransport::Tls {

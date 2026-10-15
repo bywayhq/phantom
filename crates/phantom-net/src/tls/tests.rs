@@ -28,6 +28,7 @@ mod hello_retry;
 mod record_size_limit;
 mod resumption;
 mod session_cache;
+mod session_transfer;
 mod tracing;
 mod websocket_early_data;
 

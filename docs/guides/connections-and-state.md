@@ -153,6 +153,13 @@ pending tickets removed.
 Open connections keep working. A ticket already offered to a handshake
 stays with that handshake.
 
+To transfer direct TCP tickets, call `export_session_tickets(&key)` on the
+source and `import_session_tickets(&snapshot, &key)` on the recipient. Supply
+a secret, randomly generated 32-byte key. Both clients need matching
+settings. Keep the key separate from `snapshot.as_bytes()` when storing it.
+Rebuild a stored snapshot with `SessionTicketSnapshot::from_bytes(&bytes)?`.
+Proxy and QUIC ticket transfer return an error.
+
 ## Limits
 
 - Browsers keep separate TLS session tickets for each site a page runs

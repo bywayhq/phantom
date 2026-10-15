@@ -1,3 +1,7 @@
+mod transfer;
+
+pub(crate) use transfer::{PreparedTlsSessionReplacement, RetiredTlsSessionReplacements};
+
 use std::{
     cmp::Reverse,
     collections::VecDeque,
@@ -7,7 +11,10 @@ use std::{
 
 use btls::{
     error::ErrorStack,
-    ssl::{ScopedSslSession, SslSessionScope},
+    ssl::{
+        ScopedSslSession, SessionPolicyBinding, SessionTransferError, SessionTransferPolicy,
+        SslContext, SslSessionScope,
+    },
 };
 use phantom_profile::SessionTicketOrder;
 use tracing::debug;
@@ -28,6 +35,7 @@ pub(super) struct TlsSessionCapture {
     hostname: Arc<str>,
     state: Arc<Mutex<CaptureState>>,
     generation: Arc<()>,
+    transfer_binding: Option<SessionPolicyBinding>,
 }
 
 #[derive(Default)]
@@ -41,6 +49,7 @@ struct CaptureState {
 }
 
 struct CacheInner {
+    context: SslContext,
     scope: SslSessionScope,
     /// The profile's TCP session-ticket limit, applied per verified
     /// hostname within this cache, whatever the port. The `phantom` client
@@ -52,6 +61,8 @@ struct CacheInner {
 
 #[derive(Default)]
 struct Store {
+    started: bool,
+    transfer_binding: Option<SessionPolicyBinding>,
     /// Sessions in the order they were stored.
     sessions: VecDeque<CachedSession>,
     next_batch: u64,
@@ -101,6 +112,27 @@ impl TlsSessionControl {
 }
 
 impl TlsSessionOwner {
+    pub(crate) fn bind_transfer_policy(
+        &self,
+        server_name: &str,
+        policy: SessionTransferPolicy,
+    ) -> Result<SessionPolicyBinding, SessionTransferError> {
+        let mut store = self
+            .inner
+            .store
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if store.started && store.transfer_binding.is_none() {
+            return Err(SessionTransferError::Policy);
+        }
+        let binding =
+            self.inner
+                .scope
+                .bind_transfer_policy(&self.inner.context, server_name, policy)?;
+        store.transfer_binding = Some(binding.clone());
+        Ok(binding)
+    }
+
     pub(crate) fn same_cache(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.inner, &other.inner)
     }
@@ -194,9 +226,10 @@ struct Arrival {
 }
 
 impl TlsSessionCache {
-    pub(super) fn new(per_hostname: u8, order: TicketOrder) -> Self {
+    pub(super) fn new(per_hostname: u8, order: TicketOrder, context: SslContext) -> Self {
         Self {
             inner: Arc::new(CacheInner {
+                context,
                 scope: SslSessionScope::default(),
                 per_hostname: usize::from(per_hostname).clamp(1, MAX_SESSIONS),
                 order,
@@ -208,6 +241,7 @@ impl TlsSessionCache {
     pub(super) fn begin_handshake(&self, hostname: &str) -> TlsSessionCapture {
         let state = Arc::default();
         let mut store = self.store();
+        store.started = true;
         store.captures.retain(|capture| capture.strong_count() != 0);
         store.captures.push(Arc::downgrade(&state));
         TlsSessionCapture {
@@ -215,6 +249,7 @@ impl TlsSessionCache {
             hostname: hostname.into(),
             state,
             generation: Arc::clone(&store.generation),
+            transfer_binding: store.transfer_binding.clone(),
         }
     }
 
@@ -284,6 +319,7 @@ impl TlsSessionCache {
         if !Arc::ptr_eq(&store.generation, generation) {
             return None;
         }
+        store.started = true;
         let sessions = &mut store.sessions;
         prune_expired(sessions, now);
         let position = next_position(self.inner.order, arrivals_for(sessions, hostname))?;
@@ -322,6 +358,10 @@ impl TlsSessionCache {
 }
 
 impl TlsSessionCapture {
+    pub(super) fn transfer_binding(&self) -> Option<&SessionPolicyBinding> {
+        self.transfer_binding.as_ref()
+    }
+
     pub(super) fn take_session(&self) -> Option<ScopedSslSession> {
         self.cache
             .take_in_generation(&self.hostname, &self.generation)
@@ -476,11 +516,19 @@ fn unix_time() -> u64 {
 
 #[cfg(test)]
 mod tests {
+    mod transaction;
+
     use super::{TicketOrder, TlsSessionCache};
+
+    fn context() -> btls::ssl::SslContext {
+        btls::ssl::SslContextBuilder::new(btls::ssl::SslMethod::tls())
+            .expect("test context allocation failed")
+            .build()
+    }
 
     #[test]
     fn weak_control_does_not_retain_an_evicted_cache() {
-        let cache = TlsSessionCache::new(2, TicketOrder::Newest);
+        let cache = TlsSessionCache::new(2, TicketOrder::Newest, context());
         let control = cache.control();
         let capture = cache.begin_handshake("example.test");
         drop(cache);
@@ -494,7 +542,7 @@ mod tests {
 
     #[test]
     fn clear_retires_old_captures_and_prunes_cancelled_handshakes() {
-        let cache = TlsSessionCache::new(2, TicketOrder::OldestConnection);
+        let cache = TlsSessionCache::new(2, TicketOrder::OldestConnection, context());
         for _ in 0..100 {
             drop(cache.begin_handshake("example.test"));
         }
@@ -511,7 +559,7 @@ mod tests {
 
     #[test]
     fn dropping_a_frozen_store_preserves_publication_and_owned_identity() {
-        let cache = TlsSessionCache::new(2, TicketOrder::Newest);
+        let cache = TlsSessionCache::new(2, TicketOrder::Newest, context());
         let control = cache.control();
         let capture = cache.begin_handshake("example.test");
         let owner = control
@@ -520,7 +568,7 @@ mod tests {
         let same = control
             .upgrade()
             .unwrap_or_else(|| panic!("live test cache missing"));
-        let other = TlsSessionCache::new(2, TicketOrder::Newest);
+        let other = TlsSessionCache::new(2, TicketOrder::Newest, context());
         let other = other
             .control()
             .upgrade()

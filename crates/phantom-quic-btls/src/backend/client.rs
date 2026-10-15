@@ -168,7 +168,10 @@ impl QuicClientConfig {
     #[must_use]
     pub fn danger_disable_server_authentication(mut self) -> Self {
         if self.verify_peer {
-            self.sessions = self.sessions.as_ref().map(|_| SessionCache::default());
+            self.sessions = self
+                .sessions
+                .as_ref()
+                .map(|_| SessionCache::new(self.context.clone(), false));
             self.application_state = None;
         }
         self.verify_peer = false;
@@ -210,7 +213,8 @@ impl QuicClientConfig {
     /// connection resumes, so this discards any existing cache and clears the
     /// early-data offer that a transport profile's `early_data` set. Enabling
     /// tickets again requires a new [`Self::with_isolated_session_cache`]
-    /// configuration. Changing an enabled profile keeps its existing cache.
+    /// configuration. Applying an enabled profile to a configuration that
+    /// has a cache starts a fresh, empty cache without transfer policy.
     ///
     /// A `requested_trust_anchor_ids` list drawn per connection gets a new
     /// order, drawn uniformly from its orders, in every session's
@@ -240,6 +244,11 @@ impl QuicClientConfig {
         if !profile.session_tickets {
             self.early_data = false;
             self.sessions = None;
+        } else {
+            self.sessions = self
+                .sessions
+                .as_ref()
+                .map(|_| SessionCache::new(self.context.clone(), self.verify_peer));
         }
         let client_certificate = self.tls_profile.client_certificate.take();
         self.tls_profile = ClientTlsProfile {
@@ -259,7 +268,10 @@ impl QuicClientConfig {
     /// the reverse.
     #[must_use]
     pub fn with_client_certificate(&self, certificate: &QuicClientCertificate) -> Self {
-        let sessions = self.sessions.as_ref().map(|_| SessionCache::default());
+        let sessions = self
+            .sessions
+            .as_ref()
+            .map(|_| SessionCache::new(self.context.clone(), self.verify_peer));
         let mut config = self.clone_with_sessions(sessions);
         config.tls_profile.client_certificate = Some(Arc::clone(&certificate.inner));
         config
@@ -281,7 +293,10 @@ impl QuicClientConfig {
             context: self.context.clone(),
             transport_profile: self.transport_profile.clone(),
             tls_profile: self.tls_profile.clone(),
-            sessions: self.tls_profile.session_tickets.then(SessionCache::default),
+            sessions: self
+                .tls_profile
+                .session_tickets
+                .then(|| SessionCache::new(self.context.clone(), self.verify_peer)),
             offer_tickets: true,
             early_data: self.early_data,
             application_state: None,
@@ -324,15 +339,23 @@ impl QuicClientConfig {
     /// (RFC 8446, section 8, and RFC 9001, section 9.2). Send only requests
     /// whose repetition is harmless.
     ///
-    /// The clone shares this configuration's ticket cache. A connection offers
-    /// 0-RTT only when it presents a ticket that permits early data and whose
+    /// Enabling early data starts a fresh, empty cache without transfer policy
+    /// when this configuration has a cache. Repeating an enabled setting shares
+    /// the cache. A connection offers 0-RTT only with a ticket that permits it and whose
     /// issuer's transport parameters were retained; otherwise it performs an
     /// ordinary resumed or full handshake. When the server rejects 0-RTT, the
     /// handshake still completes and Quinn reports the rejection through
     /// `early_data_accepted`.
     #[must_use]
     pub fn with_early_data(&self) -> Self {
-        let mut config = self.clone_with_sessions(self.sessions.clone());
+        let sessions = self.sessions.as_ref().map(|cache| {
+            if !self.early_data {
+                SessionCache::new(self.context.clone(), self.verify_peer)
+            } else {
+                cache.clone()
+            }
+        });
+        let mut config = self.clone_with_sessions(sessions);
         config.early_data = true;
         config
     }
@@ -728,10 +751,13 @@ impl crypto::ClientConfig for QuicClientConfig {
             &encoded_parameters,
             &self.tls_profile,
             ClientSessionOptions {
-                session: self.sessions.as_ref().map(|cache| ScopedSessionOffer {
+                session: capture.as_ref().map(|cache| ScopedSessionOffer {
                     scope: cache.scope(),
                     session: session.as_deref(),
                 }),
+                transfer_binding: capture
+                    .as_ref()
+                    .and_then(SessionCacheCapture::transfer_binding),
                 early_data,
                 ech_config_list: self.ech.as_ref().map(EchOffer::config_list),
                 verify_peer: self.verify_peer,
@@ -1712,6 +1738,7 @@ fn map_start_error(server_name: &str, error: ClientSessionError) -> ConnectError
         ClientSessionError::X509ContextRequired => "X.509 context required",
         ClientSessionError::PeerVerificationDisabled => "peer verification disabled",
         ClientSessionError::SessionScopeMismatch => "session context, name or cache scope mismatch",
+        ClientSessionError::SessionTransferPolicy => "session transfer policy does not match",
         ClientSessionError::CallbackInstall(error) => match error {
             CallbackInstallError::ExDataIndexAllocation => "QUIC callback index allocation",
             CallbackInstallError::StateAllocation => "QUIC callback state allocation",

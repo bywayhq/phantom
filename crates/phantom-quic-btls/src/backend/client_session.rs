@@ -5,7 +5,9 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::ptr::{self, NonNull};
 use std::slice;
 
-use btls::ssl::{ScopedSslSession, Ssl, SslContext, SslRef, SslSessionScope, SslVerifyMode};
+use btls::ssl::{
+    ScopedSslSession, SessionPolicyBinding, Ssl, SslContext, SslRef, SslSessionScope, SslVerifyMode,
+};
 use btls_sys as ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use phantom_profile::{EchGreasePayloadLength, TrustAnchorIds};
@@ -39,6 +41,7 @@ pub(super) enum ClientSessionError {
     },
     PeerVerificationDisabled,
     SessionScopeMismatch,
+    SessionTransferPolicy,
     CallbackInstall(CallbackInstallError),
     Callback(CallbackError),
     BackendFailure(&'static str),
@@ -145,6 +148,7 @@ pub(super) struct ScopedSessionOffer<'a> {
 
 pub(super) struct ClientSessionOptions<'a> {
     pub(super) session: Option<ScopedSessionOffer<'a>>,
+    pub(super) transfer_binding: Option<&'a SessionPolicyBinding>,
     pub(super) early_data: bool,
     pub(super) ech_config_list: Option<&'a [u8]>,
     pub(super) verify_peer: bool,
@@ -154,6 +158,7 @@ impl Default for ClientSessionOptions<'_> {
     fn default() -> Self {
         Self {
             session: None,
+            transfer_binding: None,
             early_data: false,
             ech_config_list: None,
             verify_peer: true,
@@ -207,10 +212,14 @@ impl ClientSession {
     ) -> Result<Self, ClientSessionError> {
         let ClientSessionOptions {
             session,
+            transfer_binding,
             early_data,
             ech_config_list,
             verify_peer,
         } = options;
+        if transfer_binding.is_some() && session.is_none() {
+            return Err(ClientSessionError::SessionTransferPolicy);
+        }
         if server_name.is_empty() {
             return Err(ClientSessionError::InvalidServerName);
         }
@@ -300,18 +309,26 @@ impl ClientSession {
         .map_err(ClientSessionError::CallbackInstall)?;
         let ssl = if let Some(offer) = session {
             let sink = callbacks.clone();
-            ssl.into_ssl_with_scoped_session(
-                server_name,
-                &offer.scope,
-                offer.session,
-                move |session| {
-                    if let Ok(session) = session {
-                        // The queue owns no SSL; this cannot form an owner cycle.
-                        let _ = catch_unwind(AssertUnwindSafe(|| sink.push_session(session)));
-                    }
-                },
-            )
-            .map_err(|_| backend_failure("scoped session configuration"))?
+            let publish = move |session: Result<ScopedSslSession, btls::error::ErrorStack>| {
+                if let Ok(session) = session {
+                    // The queue owns no SSL; this cannot form an owner cycle.
+                    let _ = catch_unwind(AssertUnwindSafe(|| sink.push_session(session)));
+                }
+            };
+            if let Some(binding) = transfer_binding {
+                ssl.set_session_transfer_policy(binding)
+                    .map_err(|_| ClientSessionError::SessionTransferPolicy)?;
+                ssl.into_ssl_with_session_transfer(
+                    server_name,
+                    &offer.scope,
+                    offer.session,
+                    publish,
+                )
+                .map_err(|_| ClientSessionError::SessionTransferPolicy)?
+            } else {
+                ssl.into_ssl_with_scoped_session(server_name, &offer.scope, offer.session, publish)
+                    .map_err(|_| backend_failure("scoped session configuration"))?
+            }
             .ok_or(ClientSessionError::SessionScopeMismatch)?
         } else {
             ssl.into_ssl(server_name)

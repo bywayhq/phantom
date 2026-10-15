@@ -44,6 +44,20 @@ pub struct HttpDigestCredentials {
 }
 
 impl HttpDigestCredentials {
+    pub(super) fn session_transfer_credential(
+        &self,
+    ) -> Result<btls::ssl::SessionTransferCredential, btls::ssl::SessionTransferError> {
+        let policy = match self.policy {
+            DigestPolicy::Sha2Only => 1,
+            DigestPolicy::AllowLegacyMd5 => 2,
+        };
+        super::credential_frame::credential(
+            2,
+            policy,
+            &[self.username.as_bytes(), self.password.as_bytes()],
+        )
+    }
+
     /// Prepares credentials with the SHA-2-only policy.
     ///
     /// # Errors

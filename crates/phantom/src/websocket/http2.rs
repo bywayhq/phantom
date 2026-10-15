@@ -159,14 +159,14 @@ impl WebSocketRequestBuilder {
                     .http1_or_2
                     .tls_origin_connector(negotiated, &request.endpoint, route)
                     .await
+                    .map_err(WebSocketError::request)?
                     .http2_connector(),
-                _ => {
-                    client
-                        .state
-                        .http2
-                        .tls_origin_connector(base, &request.endpoint, route)
-                        .await
-                }
+                _ => client
+                    .state
+                    .http2
+                    .tls_origin_connector(base, &request.endpoint, route)
+                    .await
+                    .map_err(WebSocketError::request)?,
             }),
         };
         let connector = pooled.as_ref().unwrap_or(base);

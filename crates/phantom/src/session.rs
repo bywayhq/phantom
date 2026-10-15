@@ -32,6 +32,13 @@ mod prune_timer;
 mod stream_count;
 mod tickets;
 
+pub use tickets::{SessionTicketError, SessionTicketErrorKind, SessionTicketSnapshot};
+
+pub(crate) use tickets::binding::encoding::Encoder as TicketBindingEncoder;
+pub(crate) use tickets::binding::{
+    BindingPlan, PreparationError, PreparedTicketPolicy, TicketClientContext,
+};
+
 const DEFAULT_MAX_RETAINED_HTTP1_CONNECTIONS: NonZeroUsize = match NonZeroUsize::new(32) {
     Some(value) => value,
     None => NonZeroUsize::MIN,
@@ -451,7 +458,9 @@ impl ClientOptions {
             .https_record_resolver
             .zip(self.max_alt_svc_origins)
             .map(|(resolver, capacity)| alt_svc::HttpsRecordDiscovery::new(resolver, capacity));
-        let tickets = Arc::new(tickets::TicketOwner::default());
+        let tickets = Arc::new(tickets::TicketOwner::with_preparation(
+            inner.ticket_preparation.clone(),
+        ));
         // One timer prunes the H1 and H2 connections of every pool, as
         // Firefox's connection manager prunes all of its connections on one.
         let prune_timer = (inner.http1_idle_timer.is_some() || inner.http2_idle_timer.is_some())

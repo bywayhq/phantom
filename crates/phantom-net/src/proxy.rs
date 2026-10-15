@@ -6,6 +6,7 @@ mod challenged_connection;
 mod connect_udp;
 mod connect_udp_pool;
 mod credential_cache;
+mod credential_frame;
 mod credentials;
 mod digest;
 mod error;

@@ -102,6 +102,8 @@ pub struct Client {
 /// stay shared.
 #[derive(Clone, Debug)]
 pub(crate) struct ClientInner {
+    pub(crate) ticket_preparation:
+        Result<Arc<crate::session::PreparedTicketPolicy>, crate::session::PreparationError>,
     pub(crate) base_url: Option<crate::base_url::BaseUrl>,
     pub(crate) header_hooks: Vec<crate::header_hook::HeaderHook>,
     pub(crate) http1: Option<Http1TlsConnector>,
@@ -1952,7 +1954,23 @@ impl ClientBuilder {
 
         // One draw for the client, before any connector is built, so that
         // all of its connectors share it.
+        let ticket_plan = crate::session::BindingPlan::capture(&self.profile);
         phantom_net::draw_per_client(&mut self.profile).map_err(BuildError::per_client_draw)?;
+        let ticket_preparation = ticket_plan
+            .and_then(|plan| plan.complete(&self.profile))
+            .and_then(|prepared| {
+                prepared.with_client_context(crate::session::TicketClientContext {
+                    origin_authentication: self.server_authentication,
+                    origin_roots: &self.additional_roots,
+                    proxy_authentication: self.proxy_server_authentication,
+                    proxy_roots: &self.proxy_additional_roots,
+                    default_certificate: self.client_certificate.as_ref(),
+                    certificate_origins: &certificate_origins,
+                    source_binding: &self.source_binding,
+                    http3_early_data: self.options.http3_early_data,
+                })
+            })
+            .map(Arc::new);
         let roots = || self.additional_roots.iter().map(AsRef::as_ref);
         let tcp = self.profile.tcp();
         let supports_http1 = self
@@ -2181,6 +2199,7 @@ impl ClientBuilder {
 
         let host_resolver = self.host_resolver()?;
         let mut inner = ClientInner {
+            ticket_preparation,
             base_url: self.base_url,
             header_hooks: self.header_hooks,
             http1,

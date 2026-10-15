@@ -13,6 +13,8 @@ type BoxError = Box<dyn StdError + Send + Sync>;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum WebSocketErrorKind {
+    /// Imported session tickets could not be installed before TLS use.
+    SessionTickets,
     /// The WebSocket URI is syntactically invalid.
     InvalidUri,
     /// The URI does not use the `ws` or `wss` WebSocket scheme.
@@ -153,6 +155,7 @@ impl WebSocketError {
             RequestErrorKind::RuntimeUnavailable => WebSocketErrorKind::RuntimeUnavailable,
             RequestErrorKind::Capacity => WebSocketErrorKind::Capacity,
             RequestErrorKind::Tls => WebSocketErrorKind::Tls,
+            RequestErrorKind::SessionTickets => WebSocketErrorKind::SessionTickets,
             RequestErrorKind::Http1 => WebSocketErrorKind::Http1,
             RequestErrorKind::Http2 => WebSocketErrorKind::Http2,
             RequestErrorKind::Http3 => WebSocketErrorKind::Http3,
@@ -355,6 +358,28 @@ pub(super) fn refused_extended_connect_stream(error: &Http2TlsError) -> bool {
 mod tests {
     use super::{StdError, WebSocketError, WebSocketErrorKind};
     use crate::{RequestError, TimeoutPhase};
+
+    #[test]
+    fn ticket_install_failure_keeps_its_category_and_source_without_handshake_retry()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let error = WebSocketError::request(RequestError::session_tickets(std::io::Error::other(
+            "private-ticket-custody",
+        )));
+        assert_eq!(error.kind(), WebSocketErrorKind::SessionTickets);
+        assert!(!error.is_retryable_connection_setup());
+        let request = error
+            .source()
+            .and_then(|cause| cause.downcast_ref::<RequestError>())
+            .ok_or("request cause")?;
+        assert_eq!(request.kind(), crate::RequestErrorKind::SessionTickets);
+        assert!(
+            request
+                .source()
+                .is_some_and(|cause| cause.is::<std::io::Error>())
+        );
+        assert!(!error.to_string().contains("private-ticket-custody"));
+        Ok(())
+    }
 
     #[test]
     fn formatting_omits_sources_and_keeps_their_original_type() {

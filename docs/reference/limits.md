@@ -315,6 +315,15 @@ offered to native handshakes. Clearing also forgets saved QUIC RTTs and prevents
 older handshakes from restoring or publishing tickets. Existing connections
 and already offered sessions continue.
 
+`Client::export_session_tickets` and `import_session_tickets` currently
+transfer direct-origin TCP owners only. An unsupported proxy or QUIC owner
+rejects the entire operation. Snapshots contain at most 256 owners, 2,560
+records and 16 MiB of encrypted data. Import checks the selected default
+route and configured protocol for every owner before changing any cache.
+Unmatched owners wait for first use, and unmentioned owners keep their
+state. A stored snapshot and its key are sensitive resumption material.
+Snapshot formats require a compatible library and native TLS backend.
+
 H3 field-section size is measured as RFC 9114 Section 4.2.2 defines it: each
 field line counts its name and value lengths plus 32 bytes. The 256 KiB
 ceiling applies even when a profile omits `SETTINGS_MAX_FIELD_SECTION_SIZE`,

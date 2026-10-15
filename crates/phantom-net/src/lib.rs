@@ -69,15 +69,17 @@ pub use authorization::{InvalidAuthorization, InvalidAuthorizationKind};
 pub use phantom_quic_btls::{NssKeyLogReceiver, NssKeyLogSender, nss_key_log_channel};
 pub use response::{OrderedResponseHeaders, ResponseHeader};
 pub use session_tickets::{
-    FrozenSessionTicketCache, RetiredSessionTicketPublications, SessionTicketCache,
-    SessionTicketCacheOwner, SessionTicketGeneration,
+    FrozenSessionTicketCache, PreparedTcpSessionReplacement, RetiredSessionTicketPublications,
+    RetiredTcpSessionReplacements, SessionTicketCache, SessionTicketCacheOwner,
+    SessionTicketGeneration, TcpSessionExportRecord, TcpSessionRecordMetadata,
+    TcpSessionStoreExport, TcpSessionStoreHeader,
 };
 #[doc(hidden)]
 pub use shutdown_timer::run_after;
 pub use source_binding::{InvalidSourceBinding, SourceBinding};
 pub use tls::{
     ClientCertificate, ClientCertificateError, ClientCertificateErrorKind, EchFailure,
-    ServerAuthentication, TlsError, TlsErrorKind, draw_per_client,
+    ServerAuthentication, TlsError, TlsErrorKind, bundled_server_root_identity, draw_per_client,
 };
 
 #[cfg(all(test, debug_assertions))]

@@ -303,3 +303,188 @@ fn client_certificate_with_another_certificate_s_key_is_invalid() -> FixtureResu
         &other_key,
     ))
 }
+
+fn transfer_test_config(custom_verifier: bool) -> FixtureResult<QuicClientConfig> {
+    use btls::ssl::{SslMethod, SslVerifyMode};
+    let mut context = SslContext::builder(SslMethod::tls())?;
+    context.set_verify(SslVerifyMode::PEER);
+    if custom_verifier {
+        context.set_verify_callback(SslVerifyMode::PEER, |_, _| true);
+    }
+    QuicClientConfig::enable_session_resumption(&mut context)?;
+    Ok(QuicClientConfig::new(context.build())
+        .with_tls_profile(&phantom_profile::browser::chrome::v154_quic_tls())?
+        .with_isolated_session_cache())
+}
+
+fn transfer_test_policy()
+-> Result<btls::ssl::SessionTransferPolicy, btls::ssl::SessionTransferError> {
+    btls::ssl::SessionTransferPolicy::new(b"synthetic QUIC owner policy", &[0, 0], None, &[3; 32])
+}
+
+fn transfer_test_owner(
+    config: &QuicClientConfig,
+) -> FixtureResult<crate::QuicSessionTicketCacheOwner> {
+    config
+        .session_ticket_cache()
+        .and_then(|cache| cache.upgrade())
+        .ok_or_else(|| "missing live QUIC ticket owner".into())
+}
+
+#[test]
+fn upgraded_ticket_owner_retains_its_actual_context_until_drop() -> FixtureResult {
+    let config = transfer_test_config(false)?;
+    let control = config
+        .session_ticket_cache()
+        .ok_or("missing cache control")?;
+    let owner = transfer_test_owner(&config)?;
+    drop(config);
+    assert!(control.is_live());
+    owner.bind_transfer_policy("peer.example", transfer_test_policy()?)?;
+    drop(owner);
+    assert!(!control.is_live());
+    Ok(())
+}
+
+#[test]
+fn first_ticket_capture_prevents_late_transfer_binding() -> FixtureResult {
+    let config = transfer_test_config(false)?;
+    let cache = config.session_cache().ok_or("missing cache")?;
+    let capture = cache.capture();
+    assert!(capture.transfer_binding().is_none());
+    assert!(matches!(
+        transfer_test_owner(&config)?.bind_transfer_policy("peer.example", transfer_test_policy()?),
+        Err(btls::ssl::SessionTransferError::Policy)
+    ));
+    assert!(cache.capture().transfer_binding().is_none());
+    Ok(())
+}
+
+#[test]
+fn repeated_bound_policy_is_captured_before_and_after_first_use() -> FixtureResult {
+    let config = transfer_test_config(false)?;
+    let owner = transfer_test_owner(&config)?;
+    owner.bind_transfer_policy("peer.example", transfer_test_policy()?)?;
+    let cache = config.session_cache().ok_or("missing cache")?;
+    assert!(cache.capture().transfer_binding().is_some());
+    owner.bind_transfer_policy("PEER.example", transfer_test_policy()?)?;
+    assert!(cache.capture().transfer_binding().is_some());
+    Ok(())
+}
+
+#[test]
+fn bound_profile_and_early_data_changes_fork_without_revoking_original() -> FixtureResult {
+    let config = transfer_test_config(false)?;
+    let owner = transfer_test_owner(&config)?;
+    owner.bind_transfer_policy("peer.example", transfer_test_policy()?)?;
+    let original = config.session_cache().ok_or("missing cache")?;
+    let changed = config
+        .clone_with_sessions(config.sessions.clone())
+        .with_tls_profile(&phantom_profile::browser::chrome::v154_quic_tls())?;
+    let changed_cache = changed.session_cache().ok_or("missing changed cache")?;
+    assert!(!original.shares_storage_with(changed_cache));
+    assert!(!changed_cache.has_transfer_policy());
+    let early = config.with_early_data();
+    assert!(!original.shares_storage_with(early.session_cache().ok_or("missing early cache")?));
+    assert!(
+        !early
+            .session_cache()
+            .ok_or("missing early cache")?
+            .has_transfer_policy()
+    );
+    let suppressed = config.without_ticket_offers().without_early_data();
+    assert!(
+        original.shares_storage_with(
+            suppressed
+                .session_cache()
+                .ok_or("missing suppressed cache")?
+        )
+    );
+    owner.bind_transfer_policy("peer.example", transfer_test_policy()?)?;
+    Ok(())
+}
+
+#[test]
+fn unbound_profile_and_early_data_changes_start_independent_caches() -> FixtureResult {
+    let config = transfer_test_config(false)?;
+    let original = config.session_cache().ok_or("missing cache")?;
+    let changed = config
+        .clone_with_sessions(config.sessions.clone())
+        .with_tls_profile(&phantom_profile::browser::chrome::v154_quic_tls())?;
+    assert!(!original.shares_storage_with(changed.session_cache().ok_or("missing changed cache")?));
+    assert!(
+        !original.shares_storage_with(
+            config
+                .with_early_data()
+                .session_cache()
+                .ok_or("missing early cache")?
+        )
+    );
+    let early = config.with_early_data();
+    assert!(
+        early
+            .session_cache()
+            .ok_or("missing early cache")?
+            .shares_storage_with(
+                early
+                    .with_early_data()
+                    .session_cache()
+                    .ok_or("missing repeated early cache")?
+            )
+    );
+    Ok(())
+}
+
+#[test]
+fn custom_verifier_cannot_bind_transfer_policy() -> FixtureResult {
+    let config = transfer_test_config(true)?;
+    assert!(matches!(
+        transfer_test_owner(&config)?.bind_transfer_policy("peer.example", transfer_test_policy()?),
+        Err(btls::ssl::SessionTransferError::Policy)
+    ));
+    Ok(())
+}
+
+#[cfg(feature = "danger-disable-verification")]
+#[test]
+fn per_session_disabled_authentication_cannot_bind_the_verifying_context() -> FixtureResult {
+    let original = transfer_test_config(false)?;
+    let disabled = original
+        .clone_with_sessions(original.sessions.clone())
+        .danger_disable_server_authentication();
+    assert!(matches!(
+        transfer_test_owner(&disabled)?
+            .bind_transfer_policy("peer.example", transfer_test_policy()?),
+        Err(btls::ssl::SessionTransferError::Policy)
+    ));
+    transfer_test_owner(&original)?
+        .bind_transfer_policy("peer.example", transfer_test_policy()?)?;
+    Ok(())
+}
+
+#[test]
+fn captured_transfer_policy_checks_the_final_ssl_verification_mode() -> FixtureResult {
+    let config = transfer_test_config(false)?;
+    transfer_test_owner(&config)?.bind_transfer_policy("peer.example", transfer_test_policy()?)?;
+    let capture = config.session_cache().ok_or("missing cache")?.capture();
+    let result = ClientSession::new_with_profile(
+        &config.context,
+        "peer.example",
+        &[1, 0],
+        &config.tls_profile,
+        ClientSessionOptions {
+            session: Some(ScopedSessionOffer {
+                scope: capture.scope(),
+                session: None,
+            }),
+            transfer_binding: capture.transfer_binding(),
+            verify_peer: false,
+            ..ClientSessionOptions::default()
+        },
+    );
+    assert!(matches!(
+        result,
+        Err(ClientSessionError::SessionTransferPolicy)
+    ));
+    Ok(())
+}

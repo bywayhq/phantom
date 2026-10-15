@@ -100,7 +100,8 @@ async fn pooled_tls_connector(
                 state
                     .http1
                     .tls_origin_connector(base, endpoint, route)
-                    .await,
+                    .await
+                    .map_err(WebSocketError::request)?,
             )),
             None => Ok(None),
         },
@@ -114,6 +115,7 @@ async fn pooled_tls_connector(
                     .http1_or_2
                     .tls_origin_connector(base, endpoint, route)
                     .await
+                    .map_err(WebSocketError::request)?
                     .http1_connector(protocols)
                     .map(Some)
                     .map_err(setup);
@@ -123,6 +125,7 @@ async fn pooled_tls_connector(
                     .http1
                     .tls_origin_connector(base, endpoint, route)
                     .await
+                    .map_err(WebSocketError::request)?
                     .with_alpn_protocols(protocols)
                     .map(Some)
                     .map_err(setup),

@@ -23,6 +23,10 @@ use phantom_net::{
 use tokio::sync::{Mutex, Notify, OwnedMutexGuard};
 use tracing::debug;
 
+use super::tickets::{
+    TicketCacheBinding,
+    binding::{TicketCacheLeg, TicketCacheProtocol},
+};
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     alt_svc::{
@@ -798,20 +802,31 @@ impl PoolEntry {
         // retry. `open` also bounds this wait with the whole setup budget.
         #[cfg(feature = "https-records")]
         let destination = self.destination_plan(connector, route, transport).await?;
+        let early_origin = self.origin_early.get_or_init(|| {
+            connector
+                .sends_early_data()
+                .then(|| connector.with_isolated_session_cache())
+        });
         let origin = self.origin.get_or_init(|| {
-            let connector = connector.without_early_data().with_isolated_session_cache();
-            self.tickets.register(connector.session_ticket_cache());
+            // Derive suppression from the enabled owner so both offers share
+            // one cache without enabling early data on an already bound alias.
+            let connector = early_origin.as_ref().map_or_else(
+                || connector.without_early_data().with_isolated_session_cache(),
+                Http3Connector::without_early_data,
+            );
+            self.tickets.register(
+                connector.session_ticket_cache(),
+                TicketCacheBinding {
+                    origin: endpoint,
+                    server_name: endpoint.host(),
+                    leg: TicketCacheLeg::Origin,
+                    protocol: Ok(TicketCacheProtocol::Http3),
+                    route,
+                },
+            );
             connector
         });
-        let early_origin = self
-            .origin_early
-            .get_or_init(|| {
-                connector
-                    .sends_early_data()
-                    .then(|| origin.with_early_data())
-            })
-            .as_ref()
-            .filter(|_| early_data);
+        let early_origin = early_origin.as_ref().filter(|_| early_data);
         let http3_proxy = match route {
             Route::ConnectUdp(proxy) if proxy.tcp_protocol().is_none() => {
                 let base = connect_udp_http3(connect_udp_proxy)?;
@@ -985,7 +1000,16 @@ impl PoolEntry {
                         {
                             self.tcp_proxy.get_or_init(|| {
                                 let connector = base.with_isolated_session_cache();
-                                self.tickets.register(connector.session_ticket_cache());
+                            self.tickets.register(
+                                    connector.session_ticket_cache(),
+                                    TicketCacheBinding {
+                                        origin: endpoint,
+                                        server_name: proxy.host(),
+                                        leg: TicketCacheLeg::ConnectUdp,
+                                        protocol: TicketCacheBinding::proxy_protocol(protocol),
+                                        route,
+                                    },
+                                );
                                 connector
                             })
                         } else {

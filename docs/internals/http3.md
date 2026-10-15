@@ -547,9 +547,11 @@ Whether a resumed connection offers early (0-RTT) data is profile data:
 clears it when the TLS settings disable `session_tickets`, since such a
 connection never resumes. `ClientBuilder::http3_early_data(bool)` overrides it
 through `Http3Connector::with_early_data` or `without_early_data`. The pool
-keeps an origin connector without early data and, when the client offers
-early data, an early-data twin that shares its ticket cache. A request's
-first connection attempt uses the twin.
+creates an early-data connector first when the client enables early data,
+then derives its ordinary connector with `without_early_data`. Both share
+the same ticket cache. A request's first connection attempt uses the
+early-data connector. Applying a TLS profile or turning early data on
+starts a fresh cache; repeating an enabled setting preserves it.
 
 A new connection from the twin that presents a ticket permitting early data is
 returned before its handshake completes, and the pool stores it at once, so
