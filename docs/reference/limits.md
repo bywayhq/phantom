@@ -402,7 +402,7 @@ it and retains the tickets for another attempt.
 A stored snapshot and its randomly generated 32-byte key are sensitive
 resumption material. Keep them separate. The `PHOWN003` format requires a
 compatible library and native TLS backend. Earlier snapshots are rejected;
-re-export tickets with the updated library. Profile-policy binding version 3
+re-export tickets with the updated library. Profile-policy binding version 4
 also rejects snapshots made before `DnsCacheSettings::system_ttl` was added,
 even when their outer format is `PHOWN003`.
 
