@@ -60,7 +60,7 @@ copying execution journals into this page.
 | F6 | `connect-udp-sharing` | Merged in PR #229 at `0f404ab2` after independent review, all 22 gate steps, 4,982 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. Both named peer implementations passed their explicit controls. |
 | F7 | `rtt-racing` | Merged in PR #228 at `3973d41c` after independent review, all 22 gate steps, 4,943 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. No browser timing parity or performance benefit is claimed. |
 | F8 | `http3-debug-auth` | Origin opt-in merged in PR #219 after independent review, all 22 gate steps, 4,643 Rust tests, and 43 green PR checks at `6f6426f4`. |
-| B1 | `firefox-ech-retention` | Direct ECH and H1 WebSocket retention merged in PRs #238 and #241; main push CI passed. Exact H2 is PR #242 with independent review, all 23 gate steps and 5,330 Rust tests passed; macOS CI failed an H3/ECH handshake control; repair and merge are pending. Direct H2 WebSocket retention is in integration: both baseline failures reproduced, and all 23 new controls plus pinned nightly pass. Its regressions, full gate and delivery remain pending. Proxy ownership and failed-address feedback remain open. |
+| B1 | `firefox-ech-retention` | Direct ECH and H1 WebSocket retention merged in PRs #238 and #241; main push CI passed. Exact H2 is PR #242. Its macOS fixture repair passed a deterministic failing/passing control, all eight ECH controls, all 23 gate steps and 5,331 Rust tests. Fresh PR CI and merge are pending. Direct H2 WebSocket retention is in integration: both baseline failures reproduced, all 23 new controls and pinned nightly passed, and 270 regression test executions passed. Its full gate and delivery remain pending. Proxy ownership and failed-address feedback remain open. |
 | B2 | `firefox-alt-used-mapping` | Proxy idle closure merged in PR #222 and template placement in PR #230; their main push CI passed. Mapping-time omission merged in PR #237 at `f307150d` after independent review, all 23 gate steps, 5,297 Rust tests and 43 green PR checks. Main push CI then exposed a macOS alternative-port fixture collision. The repair merged in PR #239 at `9e06e1e6` after independent review, all 23 gate steps, 5,298 Rust tests and 41 green PR checks. All four applicable main push workflows passed; ordinary H2 stream WINDOW_UPDATE remains open. |
 
 
@@ -197,9 +197,11 @@ uncertainty. Research must lead to a decision, bounded experiment, or repair.
   and ECH. Cover slower backup ownership, remembered families, failed-address
   suppression, cache lifetime, and connection reuse without changing routes.
   Direct ECH and H1 WebSocket retention are merged with green main CI.
-  Exact H2 is PR #242 with its full gate passed, blocked by a macOS H3/ECH handshake control; repair and merge are pending.
+  Exact H2 is PR #242. Its macOS fixture repair passed the full gate;
+  fresh PR CI and merge are pending.
   Direct H2 WebSocket retention passed both baseline reproductions and all
-  23 new controls; its regressions, full gate and delivery are pending.
+  23 new controls. Its 270 regression test executions passed; the full gate
+  and delivery are pending.
   Proxy ownership and failed-address feedback remain open.
 - [ ] B2: Correct Firefox `Alt-Used` placement and mapping-time omission,
   ordinary H2 stream `WINDOW_UPDATE` shape, and HTTPS-proxy H2 idle closure.
