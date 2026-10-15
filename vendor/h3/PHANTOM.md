@@ -36,9 +36,9 @@ engine minimum or proof that every isolated core feature needs Rust 1.88.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.14`,
-`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.14`, `h3-quinn`
-becomes `phantom-h3-quinn` at `0.0.10-phantom.14`), keeps the upstream library
+renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.15`,
+`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.15`, `h3-quinn`
+becomes `phantom-h3-quinn` at `0.0.10-phantom.15`), keeps the upstream library
 name so source, tests, and examples are unchanged, and points the repository
 metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
 reserved archive files out of the packaged crate, and records the upstream
@@ -56,6 +56,9 @@ content changes without an upstream version change, and update the exact pins
 in the root `Cargo.toml` and in every renamed dependent.
 
 ## Why this patch exists
+
+The current identity pins the Quinn forks at `0.11.12-phantom.6` and
+`0.11.18-phantom.6`. This dependency refresh changes no HTTP/3 Rust source.
 
 Upstream builds the outbound SETTINGS frame from individual builder fields in
 library-defined order. It also generates its own GREASE entry and always emits

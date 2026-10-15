@@ -32,6 +32,8 @@ use btls::ssl::{
 
 use crate::QuicVersion;
 
+pub(crate) mod transfer;
+
 /// Largest application state stored with a ticket, in bytes.
 ///
 /// HTTP/3 stores the server's SETTINGS frame, which the vendored engine keeps
@@ -89,7 +91,9 @@ pub struct QuicSessionTicketCacheOwner {
 
 /// A synchronous guard that blocks ticket consumption and publication.
 pub struct FrozenQuicSessionTicketCache<'a> {
+    inner: &'a CacheOwner,
     state: MutexGuard<'a, CacheState>,
+    poisoned: bool,
 }
 
 /// Deferred held-ticket retirement, completed after all store guards drop.
@@ -195,12 +199,14 @@ impl QuicSessionTicketCacheOwner {
     /// Block consumption and publication until the guard drops.
     #[must_use]
     pub fn freeze(&self) -> FrozenQuicSessionTicketCache<'_> {
+        let (state, poisoned) = match self.inner.state.lock() {
+            Ok(state) => (state, false),
+            Err(error) => (error.into_inner(), true),
+        };
         FrozenQuicSessionTicketCache {
-            state: self
-                .inner
-                .state
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner),
+            inner: &self.inner,
+            state,
+            poisoned,
         }
     }
 }

@@ -42,6 +42,11 @@ pub use key_log::{
 pub(crate) use key_schedule::{DirectionKeys, EndpointSide};
 pub(crate) use packet::PacketProtectionKey;
 pub use reset::StatelessResetKey;
+pub use resumption::transfer::{
+    PreparedQuicSessionCapture, PreparedQuicSessionReplacement, QuicSessionExportRecord,
+    QuicSessionRecordMetadata, QuicSessionStoreExport, QuicSessionStoreHeader,
+    RetiredQuicSessionStore, ValidatedQuicSessionReplacement,
+};
 pub use resumption::{
     ApplicationState, FrozenQuicSessionTicketCache, QuicSessionTicketCache,
     QuicSessionTicketCacheOwner, QuicTicketGeneration, RetiredQuicTicketPublications,

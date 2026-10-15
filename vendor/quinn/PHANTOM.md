@@ -37,7 +37,7 @@ Apply this patch before `publish-identity.patch`.
 ## Publish identity
 
 `publish-identity.patch` renames the package to `phantom-quinn` at
-`0.11.12-phantom.5`, keeps the `quinn` library name, and points the repository
+`0.11.12-phantom.6`, keeps the `quinn` library name, and points the repository
 metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
 reserved archive files out of the packaged crate, records the upstream source
 under `[package.metadata.phantom]`. The standalone `Cargo.lock` is packaging
@@ -47,6 +47,9 @@ refreshing, keep the `phantom-quinn-proto` pin identical to the root
 changes without an upstream version change.
 
 ## Required check
+
+The current identity pins `phantom-quinn-proto` at `0.11.18-phantom.6` for
+its remembered-server-parameter validator. Quinn's Rust source is unchanged.
 
 `scripts/ci/check-vendor.sh quinn` downloads the checksummed upstream crate,
 replays every entry in `patches/series`, compares the result with this

@@ -8,5 +8,6 @@ quic-v2.patch
 provider-startup-errors.patch
 ack-frequency-receive-format.patch
 supported-integer-multiples.patch
+strict-remembered-server-parameters.patch
 supported-rust-version.patch
 publish-identity.patch

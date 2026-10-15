@@ -17,6 +17,18 @@ and typed errors remain public. The `keylog` feature adds bounded key-log
 queues. Packet keys, key derivation, version helpers, and Retry helpers are
 private; Quinn receives them through its crypto traits.
 
+Ticket transfer uses the cache owner's prepared capture and replacement
+types. Capture keeps source tickets available and seals records after the
+store and native guards drop. Import requires native-authenticated permits
+for the destination's installed policy. Validate every replacement while all
+transaction guards are held, commit them, then release the guards before
+finishing retired stores. Treat exported records and their keys as secrets.
+
+The records retain the receiving connection's QUIC version, remembered server
+parameters, application state and RTT. Parameter parsing does not validate
+HTTP/3 application state. The consumer must check that state before import.
+The application's `Client` snapshot API still supports direct TCP only.
+
 The public API intentionally uses `btls` context types, `quinn-proto` config
 types and crypto traits, and `phantom-profile` settings. With `keylog`,
 `NssKeyLogLine` also implements `zeroize::Zeroize`. BoringSSL FFI remains

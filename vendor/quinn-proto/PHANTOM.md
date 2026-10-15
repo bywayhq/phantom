@@ -33,9 +33,18 @@ order and accepted values stay unchanged.
 
 ## Publish identity
 
+`strict-remembered-server-parameters.patch` adds
+`TransportParameters::validate_remembered_server` for imported QUIC tickets.
+It parses the complete server block for QUIC v1 or v2 and rejects malformed
+Version Information, including a chosen version that differs from the
+ticket's actual version. Version Information remains optional. Old
+connection IDs are parsed without comparing them to a new handshake.
+This validates parameter bytes, not ticket authenticity or HTTP/3 state.
+The focused controls are `transport_parameters::tests`.
+
 `publish-identity.patch` is always the last entry in `patches/series`. It
 renames the package (`quinn-proto` becomes `phantom-quinn-proto` at
-`0.11.18-phantom.5`), keeps the upstream library name so source, tests, and
+`0.11.18-phantom.6`), keeps the upstream library name so source, tests, and
 examples are unchanged, and points the repository metadata at Phantom. It
 removes the upstream documentation link, keeps Cargo's reserved archive files
 out of the packaged crate, and records the upstream package, version, and

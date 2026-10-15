@@ -324,7 +324,9 @@ case "${1:-}" in
     rustfmt --check --edition 2021 vendor/quinn-proto/src/tests/key_update.rs
     rustfmt --check --edition 2024 --config skip_children=true \
       vendor/quinn-proto/src/tests/transport_limits.rs \
-      vendor/quinn-proto/src/tests/quic_v2.rs
+      vendor/quinn-proto/src/tests/quic_v2.rs \
+      vendor/quinn-proto/src/transport_parameters.rs \
+      vendor/quinn-proto/src/transport_parameters/tests.rs
     cargo clippy --manifest-path vendor/quinn-proto/Cargo.toml \
       --all-targets --locked -- -D warnings
     cargo check --manifest-path vendor/quinn-proto/Cargo.toml \
@@ -345,6 +347,8 @@ case "${1:-}" in
       --locked draft02
     cargo test --manifest-path vendor/quinn-proto/Cargo.toml \
       --locked tests::quic_v2
+    cargo test --manifest-path vendor/quinn-proto/Cargo.toml \
+      --locked transport_parameters::tests
     ;;
   h3)
     check_h3_patch_replay

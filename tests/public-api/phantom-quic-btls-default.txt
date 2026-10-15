@@ -75,8 +75,12 @@ impl core::fmt::Debug for phantom_quic_btls::EchOffer
 pub fn phantom_quic_btls::EchOffer::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_quic_btls::FrozenQuicSessionTicketCache<'a>
 impl phantom_quic_btls::FrozenQuicSessionTicketCache<'_>
+pub fn phantom_quic_btls::FrozenQuicSessionTicketCache<'_>::capture(&self, &mut phantom_quic_btls::PreparedQuicSessionCapture, &btls::ssl::session_transfer::FrozenSessionPolicies<'_>) -> core::result::Result<(), btls::ssl::session_transfer::SessionTransferError>
+impl phantom_quic_btls::FrozenQuicSessionTicketCache<'_>
 pub fn phantom_quic_btls::FrozenQuicSessionTicketCache<'_>::drain(&mut self, phantom_quic_btls::QuicTicketGeneration) -> phantom_quic_btls::RetiredQuicTicketPublications
 pub fn phantom_quic_btls::FrozenQuicSessionTicketCache<'_>::retained_count(&self) -> usize
+impl<'store> phantom_quic_btls::FrozenQuicSessionTicketCache<'store>
+pub fn phantom_quic_btls::FrozenQuicSessionTicketCache<'store>::validate_replacement<'a, 'native>(&'a mut self, &'a mut phantom_quic_btls::PreparedQuicSessionReplacement, &'a btls::ssl::session_transfer::FrozenSessionPolicies<'native>) -> core::result::Result<phantom_quic_btls::ValidatedQuicSessionReplacement<'a, 'store, 'native>, btls::ssl::session_transfer::SessionTransferError>
 impl core::fmt::Debug for phantom_quic_btls::FrozenQuicSessionTicketCache<'_>
 pub fn phantom_quic_btls::FrozenQuicSessionTicketCache<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_quic_btls::HandshakeData
@@ -97,6 +101,18 @@ impl phantom_quic_btls::PeerIdentity
 pub fn phantom_quic_btls::PeerIdentity::certificates(&self) -> &[alloc::vec::Vec<u8>]
 impl core::fmt::Debug for phantom_quic_btls::PeerIdentity
 pub fn phantom_quic_btls::PeerIdentity::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::PreparedQuicSessionCapture
+impl phantom_quic_btls::PreparedQuicSessionCapture
+pub fn phantom_quic_btls::PreparedQuicSessionCapture::binding(&self) -> &btls::ssl::session_transfer::SessionPolicyBinding
+pub fn phantom_quic_btls::PreparedQuicSessionCapture::into_export(self) -> core::result::Result<phantom_quic_btls::QuicSessionStoreExport, btls::ssl::session_transfer::SessionTransferError>
+pub fn phantom_quic_btls::PreparedQuicSessionCapture::original_index(&self) -> usize
+impl core::fmt::Debug for phantom_quic_btls::PreparedQuicSessionCapture
+pub fn phantom_quic_btls::PreparedQuicSessionCapture::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::PreparedQuicSessionReplacement
+impl phantom_quic_btls::PreparedQuicSessionReplacement
+pub fn phantom_quic_btls::PreparedQuicSessionReplacement::binding(&self) -> &btls::ssl::session_transfer::SessionPolicyBinding
+impl core::fmt::Debug for phantom_quic_btls::PreparedQuicSessionReplacement
+pub fn phantom_quic_btls::PreparedQuicSessionReplacement::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_quic_btls::QuicClientCertificate
 impl phantom_quic_btls::QuicClientCertificate
 pub fn phantom_quic_btls::QuicClientCertificate::from_der<'a>(impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>, &[u8]) -> core::result::Result<Self, phantom_quic_btls::QuicTlsProfileError>
@@ -130,6 +146,37 @@ impl core::fmt::Debug for phantom_quic_btls::QuicClientConfig
 pub fn phantom_quic_btls::QuicClientConfig::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl quinn_proto::crypto::ClientConfig for phantom_quic_btls::QuicClientConfig
 pub fn phantom_quic_btls::QuicClientConfig::start_session(alloc::sync::Arc<Self>, u32, &str, &quinn_proto::transport_parameters::TransportParameters) -> core::result::Result<alloc::boxed::Box<dyn quinn_proto::crypto::Session>, quinn_proto::endpoint::ConnectError>
+pub struct phantom_quic_btls::QuicSessionExportRecord
+impl phantom_quic_btls::QuicSessionExportRecord
+pub fn phantom_quic_btls::QuicSessionExportRecord::application_state(&self) -> core::option::Option<&[u8]>
+pub fn phantom_quic_btls::QuicSessionExportRecord::ordinal(&self) -> usize
+pub fn phantom_quic_btls::QuicSessionExportRecord::seal(self, &[u8], &[u8; 32]) -> core::result::Result<btls::ssl::session_transfer::AuthenticatedSessionRecord, btls::ssl::session_transfer::SessionTransferError>
+impl core::fmt::Debug for phantom_quic_btls::QuicSessionExportRecord
+pub fn phantom_quic_btls::QuicSessionExportRecord::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::QuicSessionRecordMetadata<'a>
+impl<'a> phantom_quic_btls::QuicSessionRecordMetadata<'a>
+pub fn phantom_quic_btls::QuicSessionRecordMetadata<'a>::application_state(&self) -> core::option::Option<&'a [u8]>
+pub fn phantom_quic_btls::QuicSessionRecordMetadata<'a>::header(&self) -> phantom_quic_btls::QuicSessionStoreHeader
+pub fn phantom_quic_btls::QuicSessionRecordMetadata<'a>::hostname(&self) -> &'a str
+pub fn phantom_quic_btls::QuicSessionRecordMetadata<'a>::ordinal(&self) -> usize
+pub fn phantom_quic_btls::QuicSessionRecordMetadata<'a>::parse(&'a [u8]) -> core::result::Result<Self, btls::ssl::session_transfer::SessionTransferError>
+pub fn phantom_quic_btls::QuicSessionRecordMetadata<'a>::payload(&self) -> &'a [u8]
+pub fn phantom_quic_btls::QuicSessionRecordMetadata<'a>::validate_transport_parameters(&self) -> core::result::Result<(), btls::ssl::session_transfer::SessionTransferError>
+impl core::fmt::Debug for phantom_quic_btls::QuicSessionRecordMetadata<'_>
+pub fn phantom_quic_btls::QuicSessionRecordMetadata<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::QuicSessionStoreExport
+impl phantom_quic_btls::QuicSessionStoreExport
+pub fn phantom_quic_btls::QuicSessionStoreExport::header(&self) -> phantom_quic_btls::QuicSessionStoreHeader
+pub fn phantom_quic_btls::QuicSessionStoreExport::into_records(self) -> alloc::vec::Vec<phantom_quic_btls::QuicSessionExportRecord>
+impl core::fmt::Debug for phantom_quic_btls::QuicSessionStoreExport
+pub fn phantom_quic_btls::QuicSessionStoreExport::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::QuicSessionStoreHeader
+impl phantom_quic_btls::QuicSessionStoreHeader
+pub fn phantom_quic_btls::QuicSessionStoreHeader::excluded_expired_count(self) -> usize
+pub fn phantom_quic_btls::QuicSessionStoreHeader::parse(&[u8]) -> core::result::Result<Self, btls::ssl::session_transfer::SessionTransferError>
+pub fn phantom_quic_btls::QuicSessionStoreHeader::record_count(self) -> usize
+pub fn phantom_quic_btls::QuicSessionStoreHeader::round_trip_time(self) -> core::option::Option<core::time::Duration>
+pub fn phantom_quic_btls::QuicSessionStoreHeader::to_bytes(self) -> [u8; 26]
 pub struct phantom_quic_btls::QuicSessionTicketCache
 impl phantom_quic_btls::QuicSessionTicketCache
 pub fn phantom_quic_btls::QuicSessionTicketCache::clear(&self) -> usize
@@ -143,6 +190,9 @@ pub fn phantom_quic_btls::QuicSessionTicketCacheOwner::bind_transfer_policy(&sel
 pub fn phantom_quic_btls::QuicSessionTicketCacheOwner::freeze(&self) -> phantom_quic_btls::FrozenQuicSessionTicketCache<'_>
 pub fn phantom_quic_btls::QuicSessionTicketCacheOwner::ordered_store_indices(&[&Self]) -> core::result::Result<alloc::vec::Vec<usize>, btls::ssl::session_transfer::SessionTransferError>
 pub fn phantom_quic_btls::QuicSessionTicketCacheOwner::same_cache(&self, &Self) -> bool
+impl phantom_quic_btls::QuicSessionTicketCacheOwner
+pub fn phantom_quic_btls::QuicSessionTicketCacheOwner::prepare_captures(&[(&Self, &str)]) -> core::result::Result<alloc::vec::Vec<phantom_quic_btls::PreparedQuicSessionCapture>, btls::ssl::session_transfer::SessionTransferError>
+pub fn phantom_quic_btls::QuicSessionTicketCacheOwner::prepare_replacement(&self, alloc::sync::Arc<str>, phantom_quic_btls::QuicSessionStoreHeader, alloc::vec::Vec<btls::ssl::session_transfer::SessionImportPermit>) -> core::result::Result<phantom_quic_btls::PreparedQuicSessionReplacement, btls::ssl::session_transfer::SessionTransferError>
 impl core::fmt::Debug for phantom_quic_btls::QuicSessionTicketCacheOwner
 pub fn phantom_quic_btls::QuicSessionTicketCacheOwner::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_quic_btls::QuicTicketGeneration(_)
@@ -165,6 +215,11 @@ pub const fn phantom_quic_btls::QuicTransportProfileError::kind(&self) -> phanto
 impl core::error::Error for phantom_quic_btls::QuicTransportProfileError
 impl core::fmt::Display for phantom_quic_btls::QuicTransportProfileError
 pub fn phantom_quic_btls::QuicTransportProfileError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::RetiredQuicSessionStore
+impl phantom_quic_btls::RetiredQuicSessionStore
+pub fn phantom_quic_btls::RetiredQuicSessionStore::finish(self) -> usize
+impl core::fmt::Debug for phantom_quic_btls::RetiredQuicSessionStore
+pub fn phantom_quic_btls::RetiredQuicSessionStore::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_quic_btls::RetiredQuicTicketPublications
 impl phantom_quic_btls::RetiredQuicTicketPublications
 pub fn phantom_quic_btls::RetiredQuicTicketPublications::finish(self) -> usize
@@ -184,4 +239,9 @@ impl quinn_proto::crypto::HmacKey for phantom_quic_btls::StatelessResetKey
 pub fn phantom_quic_btls::StatelessResetKey::sign(&self, &[u8], &mut [u8])
 pub fn phantom_quic_btls::StatelessResetKey::signature_len(&self) -> usize
 pub fn phantom_quic_btls::StatelessResetKey::verify(&self, &[u8], &[u8]) -> core::result::Result<(), quinn_proto::crypto::CryptoError>
+pub struct phantom_quic_btls::ValidatedQuicSessionReplacement<'a, 'store, 'native>
+impl phantom_quic_btls::ValidatedQuicSessionReplacement<'_, '_, '_>
+pub fn phantom_quic_btls::ValidatedQuicSessionReplacement<'_, '_, '_>::commit(self) -> phantom_quic_btls::RetiredQuicSessionStore
+impl core::fmt::Debug for phantom_quic_btls::ValidatedQuicSessionReplacement<'_, '_, '_>
+pub fn phantom_quic_btls::ValidatedQuicSessionReplacement<'_, '_, '_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub type phantom_quic_btls::Result<T> = core::result::Result<T, phantom_quic_btls::CryptoError>

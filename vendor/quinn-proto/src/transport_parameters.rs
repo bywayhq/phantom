@@ -462,6 +462,34 @@ impl TransportParameters {
         }
     }
 
+    /// Validate remembered server transport parameters for the ticket's QUIC version.
+    ///
+    /// Accepts only QUIC v1 and v2. Uses the normal client-side reader, then rejects
+    /// malformed or duplicate Version Information and a present Chosen Version that
+    /// differs from `version`. Version Information may be absent.
+    ///
+    /// This consumes the complete parameter block. It does not authenticate a ticket
+    /// or compare the old connection's IDs with a new connection. Fresh handshakes
+    /// still perform their normal connection-specific validation. Callers enforce
+    /// their remembered-parameter storage limits before invoking this method.
+    pub fn validate_remembered_server(bytes: &[u8], version: u32) -> Result<(), Error> {
+        if !matches!(version, 0x0000_0001 | 0x6b33_43cf) {
+            return Err(Error::IllegalValue);
+        }
+        let mut input = bytes;
+        let params = Self::read(Side::Client, &mut input)?;
+        if let Some(error) = params.version_information_error {
+            return Err(error);
+        }
+        if params
+            .version_information
+            .is_some_and(|info| info.chosen != version)
+        {
+            return Err(Error::IllegalValue);
+        }
+        Ok(())
+    }
+
     /// Decode `TransportParameters` from buffer
     pub fn read<R: Buf>(side: Side, r: &mut R) -> Result<Self, Error> {
         // Initialize to protocol-specified defaults
@@ -1160,3 +1188,6 @@ mod test {
         low_limit.validate_resumption_from(&high_limit).unwrap_err();
     }
 }
+
+#[cfg(test)]
+mod tests;

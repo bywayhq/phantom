@@ -8,12 +8,12 @@ index 6c13df0..1f7b0f1 100644
  futures = "0.3"
 -h3 = { path = "../h3", features = ["tracing"] }
 -h3-quinn = { path = "../h3-quinn", features = ["tracing", "datagram"] }
-+h3 = { package = "phantom-h3", version = "=0.0.8-phantom.14", path = "../h3", features = ["tracing"] }
-+h3-quinn = { package = "phantom-h3-quinn", version = "=0.0.10-phantom.14", path = "../h3-quinn", features = ["tracing", "datagram"] }
++h3 = { package = "phantom-h3", version = "=0.0.8-phantom.15", path = "../h3", features = ["tracing"] }
++h3-quinn = { package = "phantom-h3-quinn", version = "=0.0.10-phantom.15", path = "../h3-quinn", features = ["tracing", "datagram"] }
  h3-webtransport = { path = "../h3-webtransport" }
  http = "1"
 -quinn = { version = "0.11", default-features = false, features = [
-+quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.5", path = "../../quinn", default-features = false, features = [
++quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.6", path = "../../quinn", default-features = false, features = [
      "runtime-tokio",
      "rustls",
      "ring",
@@ -22,7 +22,7 @@ index 6c13df0..1f7b0f1 100644
  
  tracing-tree = { version = "0.4" }
 -h3-datagram = { path = "../h3-datagram" }
-+h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.14", path = "../h3-datagram" }
++h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.15", path = "../h3-datagram" }
  
  [features]
  tree = []
@@ -36,7 +36,7 @@ index 26682b3..0f7cff3 100644
 -name = "h3-datagram"
 -version = "0.0.2"
 +name = "phantom-h3-datagram"
-+version = "0.0.2-phantom.14"
++version = "0.0.2-phantom.15"
  edition = "2021"
 -documentation = "https://docs.rs/h3-datagram"
 -repository = "https://github.com/hyperium/h3"
@@ -66,7 +66,7 @@ index 26682b3..0f7cff3 100644
  [dependencies.h3]
 -version = "0.0.8"
 +package = "phantom-h3"
-+version = "=0.0.8-phantom.14"
++version = "=0.0.8-phantom.15"
  path = "../h3"
  features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"]
 +
@@ -81,7 +81,7 @@ index 89bcd26..991dee3 100644
 -name = "h3-quinn"
 -version = "0.0.10"
 +name = "phantom-h3-quinn"
-+version = "0.0.10-phantom.14"
++version = "0.0.10-phantom.15"
  rust-version = "1.88"
  authors = ["Jean-Christophe BEGUE <jc.begue@pm.me>"]
  edition = "2021"
@@ -107,16 +107,16 @@ index 89bcd26..991dee3 100644
  
  [dependencies]
 -h3 = { version = "0.0.8", path = "../h3" }
-+h3 = { package = "phantom-h3", version = "=0.0.8-phantom.14", path = "../h3" }
++h3 = { package = "phantom-h3", version = "=0.0.8-phantom.15", path = "../h3" }
  bytes = "1"
 -quinn = { version = "0.11.7", default-features = false, features = [
-+quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.5", path = "../../quinn", default-features = false, features = [
++quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.6", path = "../../quinn", default-features = false, features = [
      "futures-io",
  ] }
  tokio-util = { version = "0.7.9" }
  futures-util = { version = "0.3.28", default-features = false }
 -h3-datagram = {version = "0.0.2", path = "../h3-datagram", optional = true }
-+h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.14", path = "../h3-datagram", optional = true }
++h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.15", path = "../h3-datagram", optional = true }
  tracing = { version = "0.1.40", optional = true }
  
  [features]
@@ -134,12 +134,12 @@ index d73e845..f8bb3ad 100644
  tracing = "0.1.37"
  tokio = { version = "1.28", default-features = false }
 -h3-datagram = { version = "0.0.2", path = "../h3-datagram" }
-+h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.14", path = "../h3-datagram" }
++h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.15", path = "../h3-datagram" }
  
  [dependencies.h3]
 -version = "0.0.8"
 +package = "phantom-h3"
-+version = "=0.0.8-phantom.14"
++version = "=0.0.8-phantom.15"
  path = "../h3"
  features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"]
 diff --git a/h3/Cargo.toml b/h3/Cargo.toml
@@ -151,7 +151,7 @@ index d074363..3250c10 100644
 -name = "h3"
 -version = "0.0.8"
 +name = "phantom-h3"
-+version = "0.0.8-phantom.14"
++version = "0.0.8-phantom.15"
  rust-version = "1.88"
  authors = [
      "Sean McArthur <sean@seanmonstar.com>",
@@ -189,13 +189,13 @@ index d074363..3250c10 100644
  futures-util = { version = "0.3", default-features = false, features = ["io"] }
  proptest = "1"
 -quinn = { version = "0.11", default-features = false, features = [
-+quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.5", path = "../../quinn", default-features = false, features = [
++quinn = { package = "phantom-quinn", version = "=0.11.12-phantom.6", path = "../../quinn", default-features = false, features = [
      "runtime-tokio",
      "rustls",
      "ring",
  ] }
 -quinn-proto = { version = "0.11", default-features = false }
-+quinn-proto = { package = "phantom-quinn-proto", version = "=0.11.18-phantom.5", path = "../../quinn-proto", default-features = false }
++quinn-proto = { package = "phantom-quinn-proto", version = "=0.11.18-phantom.6", path = "../../quinn-proto", default-features = false }
  rcgen = "0.14"
  rustls = { version = "0.23", default-features = false, features = ["logging", "ring", "std"] }
  tokio = { version = "1", features = ["rt", "macros", "io-util", "io-std"] }
@@ -204,7 +204,7 @@ index d074363..3250c10 100644
  futures = { version = "0.3.28" }
  tokio-util = { version = "0.7.9" }
 -h3-datagram = {path = "../h3-datagram" }
-+h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.14", path = "../h3-datagram" }
++h3-datagram = { package = "phantom-h3-datagram", version = "=0.0.2-phantom.15", path = "../h3-datagram" }
 +
 +[lib]
 +name = "h3"

@@ -1125,6 +1125,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Add authenticated QUIC ticket capture and replacement primitives to
+  `phantom-quic-btls`. They retain the actual QUIC version, remembered server
+  parameters, application state and RTT. Capture leaves source tickets
+  available. Replacement validates the complete queue before committing it.
+  Client snapshot export and import still support direct TCP only.
+
 - `fingerprint::import_profile_json` imports complete custom profiles through
   the `fingerprint-import` feature. It preserves explicit settings and order,
   validates native settings, and rejects incomplete or unsupported descriptions.
