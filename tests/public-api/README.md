@@ -19,8 +19,8 @@ Check feature-gated documentation links with default and all-feature builds.
 
 | Package | All-feature lines | Interface |
 | --- | ---: | --- |
-| `phantom-http` | 1,158 | Application client, ordered requests, responses, state, custom profile import |
-| `phantom-net` | 1,440 | Protocol connections, routes, resolvers, transport errors |
+| `phantom-http` | 1,163 | Application client, ordered requests, responses, state, custom profile import |
+| `phantom-net` | 1,455 | Protocol connections, routes, resolvers, transport errors |
 | `phantom-profile` | 918 | Browser recipes and typed settings |
 | `phantom-quic-btls` | 199 | Quinn crypto provider, handshake state, typed errors |
 | `phantom-testkit` | 428 | Wire inspection and loopback test tools |

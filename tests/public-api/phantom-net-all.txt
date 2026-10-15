@@ -722,6 +722,7 @@ pub fn phantom_net::http2::validate_request_body_source_with_trailers(&http::met
 pub mod phantom_net::http3
 #[non_exhaustive] pub enum phantom_net::http3::ConnectUdpErrorKind
 pub phantom_net::http3::ConnectUdpErrorKind::Authentication
+pub phantom_net::http3::ConnectUdpErrorKind::Capacity
 pub phantom_net::http3::ConnectUdpErrorKind::Configuration
 pub phantom_net::http3::ConnectUdpErrorKind::Connect
 pub phantom_net::http3::ConnectUdpErrorKind::DatagramCapacity
@@ -1052,6 +1053,18 @@ pub phantom_net::proxy::Socks5ErrorKind::Negotiation
 pub phantom_net::proxy::Socks5ErrorKind::Rejected
 pub phantom_net::proxy::Socks5ErrorKind::Resolve
 pub phantom_net::proxy::Socks5ErrorKind::RuntimeUnavailable
+pub struct phantom_net::proxy::ConnectUdpProxyPool
+impl phantom_net::proxy::ConnectUdpProxyPool
+pub fn phantom_net::proxy::ConnectUdpProxyPool::clear(&self)
+pub fn phantom_net::proxy::ConnectUdpProxyPool::fresh(&self) -> Self
+pub fn phantom_net::proxy::ConnectUdpProxyPool::max_active(&self) -> core::num::nonzero::NonZeroUsize
+pub fn phantom_net::proxy::ConnectUdpProxyPool::max_pending(&self) -> core::num::nonzero::NonZeroUsize
+pub fn phantom_net::proxy::ConnectUdpProxyPool::new() -> Self
+pub fn phantom_net::proxy::ConnectUdpProxyPool::with_limits(core::num::nonzero::NonZeroUsize, core::num::nonzero::NonZeroUsize) -> core::result::Result<Self, phantom_net::http3::ConnectUdpError>
+impl core::default::Default for phantom_net::proxy::ConnectUdpProxyPool
+pub fn phantom_net::proxy::ConnectUdpProxyPool::default() -> Self
+impl core::fmt::Debug for phantom_net::proxy::ConnectUdpProxyPool
+pub fn phantom_net::proxy::ConnectUdpProxyPool::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::proxy::DigestForwardAuthentication<'a>
 impl<'a> phantom_net::proxy::DigestForwardAuthentication<'a>
 pub fn phantom_net::proxy::DigestForwardAuthentication<'a>::accept(&mut self, &http::header::map::HeaderMap) -> core::result::Result<core::option::Option<phantom_net::proxy::DigestResponseAuthentication>, phantom_net::proxy::DigestAuthError>
@@ -1166,6 +1179,7 @@ impl<S> core::fmt::Debug for phantom_net::proxy::TunnelStream<S>
 pub fn phantom_net::proxy::TunnelStream<S>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub const phantom_net::proxy::HTTP2_PROXY_CONNECTIONS_PER_ROUTE_CEILING: usize
 pub const phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES: usize
+pub const phantom_net::proxy::MAX_CONNECT_UDP_POOL_KEYS: usize
 pub const phantom_net::proxy::MAX_HTTP2_PROXY_POOL_ROUTES: usize
 pub const phantom_net::proxy::MAX_PROXY_CREDENTIAL_ENTRIES: usize
 pub const phantom_net::proxy::MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION: usize
@@ -1317,6 +1331,7 @@ pub phantom_net::route::ConnectUdpRoute::authority: &'a str
 pub phantom_net::route::ConnectUdpRoute::credentials: core::option::Option<&'a phantom_net::proxy::HttpBasicCredentials>
 pub phantom_net::route::ConnectUdpRoute::headers: alloc::vec::Vec<phantom_net::request::RequestHeader>
 pub phantom_net::route::ConnectUdpRoute::path: phantom_net::request::OriginForm
+pub phantom_net::route::ConnectUdpRoute::pool: core::option::Option<&'a phantom_net::proxy::ConnectUdpProxyPool>
 pub phantom_net::route::ConnectUdpRoute::proxy: phantom_net::route::Endpoint<'a>
 pub phantom_net::route::ConnectUdpRoute::transport: phantom_net::route::ConnectUdpTransport<'a>
 impl core::fmt::Debug for phantom_net::route::ConnectUdpRoute<'_>

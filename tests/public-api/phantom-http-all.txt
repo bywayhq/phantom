@@ -233,6 +233,7 @@ pub phantom::BuildErrorKind::TrustStore
 pub phantom::ConnectUdpProxyConfigErrorKind::Fragment
 pub phantom::ConnectUdpProxyConfigErrorKind::InvalidAuthority
 pub phantom::ConnectUdpProxyConfigErrorKind::InvalidCredentials
+pub phantom::ConnectUdpProxyConfigErrorKind::InvalidLimits
 pub phantom::ConnectUdpProxyConfigErrorKind::InvalidTemplate
 pub phantom::ConnectUdpProxyConfigErrorKind::MissingVariable
 pub phantom::ConnectUdpProxyConfigErrorKind::UnknownVariable
@@ -612,6 +613,10 @@ pub fn phantom::ConnectUdpProxy::new(&str) -> core::result::Result<Self, phantom
 pub fn phantom::ConnectUdpProxy::with_basic_auth(self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> core::result::Result<Self, phantom::ConnectUdpProxyConfigError>
 pub fn phantom::ConnectUdpProxy::with_http1_transport(self) -> Self
 pub fn phantom::ConnectUdpProxy::with_http2_transport(self) -> Self
+pub fn phantom::ConnectUdpProxy::with_tunnel_limits(self, core::num::nonzero::NonZeroUsize, core::num::nonzero::NonZeroUsize) -> core::result::Result<Self, phantom::ConnectUdpProxyConfigError>
+impl core::cmp::Eq for phantom::ConnectUdpProxy
+impl core::cmp::PartialEq for phantom::ConnectUdpProxy
+pub fn phantom::ConnectUdpProxy::eq(&self, &Self) -> bool
 impl core::fmt::Debug for phantom::ConnectUdpProxy
 pub fn phantom::ConnectUdpProxy::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::ConnectUdpProxyConfigError
