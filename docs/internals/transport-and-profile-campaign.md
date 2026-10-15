@@ -52,13 +52,13 @@ copying execution journals into this page.
 | T2 | `tls-done-diagnosis` | Framed-response repair and EOF controls merged in PR #212 after the full gate and platform CI. Main push CI passed; historical attribution remains open. |
 | P1–P4 | `profile-catalog` | Catalog composition merged in PR #223 at `8754e971` after independent review, all 22 gate steps, 4,708 Rust tests and 43 green PR checks. Provenance and coverage are recorded per component, with explicit reuse and absent layers. |
 | P5 | `profile-catalog` | Edge 153 Windows and corpus measurements merged in PR #225 at `b0a40765` after independent review, all 22 gate steps, 4,828 Rust tests and 43 green PR checks. All eight applicable main push workflows passed. Synthetic growth measurements cover 11 through 1,035 records without changing existing definitions. |
-| F1 | `ticket-transfer` | Scoped QUIC publication is committed at `8566d49e` after independent review, native session controls, strict Clippy and four wire fixtures. Clearing, frozen stores, strict decoding and TCP publication also pass focused checks. Transfer encoding, full policy bindings and integration remain. |
+| F1 | `ticket-transfer` | Native cold-policy validation and opaque record rekeying are signed at `8a62d8ea` after independent review, 69 native controls, strict Clippy and both Linux vendor checks. Live TCP export/import controls pass. Atomic cold staging, public transfer APIs and integration remain. |
 | F2 | `fingerprint-import` | Bounded JSON import merged in PR #226 at `8b13da48` after independent review, all 22 gate steps, 4,851 Rust tests and 41 green PR checks. All six applicable main push workflows passed. Import controls cover all 11 profiles and 22 templates. |
 | F3 | `socks4-integration` | SOCKS4/4a merged in PR #215 after the exact-head full gate and macOS/Windows CI. Main push CI passed. |
 | F4 | `digest-integration` | Digest merged in PR #218 after the full gate and platform CI. Enterprise contracts are recorded. PR #220 repaired the cookie and shared-port fixtures; main push CI passed. |
 | F5 | `alt-svc-ech-delivery` | DoH merged in PR #224 at `c7201173`; all nine applicable main workflows passed. Alternate-host ECH discovery and opt-in native server early data merged in PR #227 at `b9fdc60a` after independent review, all 22 gate steps, 4,903 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. Browser captures remain separate. |
-| F6 | `connect-udp-sharing` | The H2/H3 sharing contract is reviewed. Implementation is underway with bounded admission, isolated outer ticket stores and independent pinned peers. Runtime verification remains. |
-| F7 | `rtt-racing` | Opt-in client-local verified direct RTT racing passed independent review, 73 focused controls, 131 doctests and five existing ignores at `d31742f1`. Strict Clippy, Rust 1.88 and rustdoc passed. Rebased composition onto `b9fdc60a` is independently reviewed and public inventories are regenerated. Full gate, PR checks and platform CI remain. No browser timing parity or performance benefit is claimed. |
+| F6 | `connect-udp-sharing` | Shared H2/H3 outer connections are signed and rebased at `95195527`. Native lifecycle and flow-control controls, both pinned peers, strict Clippy, 131 doctests and rustdoc pass. The composition retry issue is repaired: a real direct/proxy handshake classifier control fails before the repair and passes after it. Full gate and delivery remain. |
+| F7 | `rtt-racing` | Merged in PR #228 at `3973d41c` after independent review, all 22 gate steps, 4,943 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. No browser timing parity or performance benefit is claimed. |
 | F8 | `http3-debug-auth` | Origin opt-in merged in PR #219 after independent review, all 22 gate steps, 4,643 Rust tests, and 43 green PR checks at `6f6426f4`. |
 | B2 | `proxy-h2-idle-integration` | Proxy timer closure and the idle-PING guard merged in PR #222 at `98fe3750` after all 22 gate steps, 4,659 Rust tests and 43 green PR checks. All nine main push workflows passed. Alt-Used and WINDOW_UPDATE remain separate open changes. |
 
@@ -169,7 +169,7 @@ demonstrated requirement. Do not assert a runtime bottleneck without data.
   cancellation, flow control, and shutdown. Resolve the exact protocol
   extensions meant by datagram APIs before adding them. Test a named peer
   implementation and reject unsupported extensions explicitly.
-- [ ] F7: Add an RTT-derived racing policy where the target browser behavior
+- [x] F7: Add an RTT-derived racing policy where the target browser behavior
   supports it. Define which measurements feed it, their lifetime and
   bounds, and behavior before a sample exists. Verify timing decisions and
   cancellation with controlled peers. Keep existing fixed policies explicit.

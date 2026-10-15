@@ -2591,6 +2591,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Keep HTTP/3 origin-ticket retries separate from CONNECT-UDP proxy
+  handshake failures. Each TLS leg retains its own retry budget.
+
 - Ignore reserved QUIC transport parameters when binding early-data tickets
   to server settings. Changing GREASE no longer rejects otherwise eligible
   early data; meaningful settings still reject it when they change.

@@ -36,6 +36,9 @@ initiating dial policy and Tokio runtime. The facade owns one pool per immutable
 scope. Native callers explicitly choose the paths that share their pool.
 No inner origin tickets enter an outer cache.
 
+Outer proxy handshakes own their ticket retry. An outer TLS failure cannot
+trigger the inner-origin ticket retry after that proxy attempt fails.
+
 One setup owner publishes a connection after an accepted response. A stream
 reset may retain a healthy outer as anonymous. Sending credentials does not
 prove that the peer accepted them. With Basic credentials, an initial
@@ -74,8 +77,9 @@ credentials and outer profile. Inner-origin descriptors would conflict.
 
 Client ticket clearing and transfer registration need this ownership seam.
 The pool adds no transfer authority or export API. Retiring live handles is
-separate from clearing tickets held by active connector clones. Current main has no client ticket clearing or transfer API. This is a
-prerequisite for F1 composition, which remains separate from sharing delivery.
+separate from clearing tickets held by active connector clones. Current main
+has no client ticket clearing or transfer API. This is a prerequisite for F1
+composition, which remains separate from sharing delivery.
 
 ## Controls and evidence
 
@@ -113,6 +117,12 @@ uses a duplex H2 connection without TLS. This is a flow-control result.
 
 The refreshed fixtures also pass the twelve existing sharing controls and ten
 peer-ownership controls. Strict all-target lint and Rust 1.88 checks pass.
+
+A real local QUIC peer rejects incompatible ALPN on direct and pooled proxy
+connections. The original classifier incorrectly accepted the proxy failure
+for an inner-ticket retry. Narrowing it to origin handshake errors makes the
+same control pass. This checks error classification without seeding tickets
+or measuring total connection attempts.
 
 The independent adapters use aioquic 1.3.0, python-h2 4.4.1 and hpack 4.2.0.
 Their Python unit controls exercise integer widths, fragmented capsules,

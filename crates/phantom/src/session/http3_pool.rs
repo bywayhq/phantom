@@ -17,10 +17,7 @@ use phantom_net::http3::{
 use phantom_net::proxy::HttpsProxyConnector;
 use phantom_net::request::RequestBody;
 use phantom_net::{
-    http3::{
-        ConnectUdpError, ConnectUdpErrorKind, Http3Connection, Http3Connector, Http3ConnectorError,
-        Http3ConnectorErrorKind,
-    },
+    http3::{Http3Connection, Http3Connector, Http3ConnectorError, Http3ConnectorErrorKind},
     request::{OriginForm, RequestHeader},
 };
 use tokio::sync::{Mutex, Notify, OwnedMutexGuard};
@@ -825,7 +822,7 @@ impl PoolEntry {
         ))
         .await;
         match first {
-            Err(failure) if presented_ticket && failure.is_handshake() => {
+            Err(failure) if presented_ticket && failure.is_origin_handshake() => {
                 debug!(
                     outcome = "full_handshake_retry",
                     "HTTP/3 handshake that presented a session ticket failed"
@@ -1040,8 +1037,8 @@ enum SetupFailure {
 }
 
 impl SetupFailure {
-    /// Returns whether the origin or outer-proxy TLS handshake failed.
-    fn is_handshake(&self) -> bool {
+    /// Returns whether the inner origin TLS handshake failed.
+    fn is_origin_handshake(&self) -> bool {
         let error = match self {
             Self::Origin(error) | Self::ConnectUdp(error) => error,
             Self::Other(_) => return false,
@@ -1051,13 +1048,7 @@ impl SetupFailure {
         if error.ech_failure().is_some() {
             return false;
         }
-        match error.kind() {
-            Http3ConnectorErrorKind::Handshake => true,
-            Http3ConnectorErrorKind::Proxy => std::error::Error::source(error)
-                .and_then(|source| source.downcast_ref::<ConnectUdpError>())
-                .is_some_and(|source| source.kind() == ConnectUdpErrorKind::Handshake),
-            _ => false,
-        }
+        matches!(error.kind(), Http3ConnectorErrorKind::Handshake)
     }
 
     fn into_request_error(self) -> RequestError {
@@ -1631,275 +1622,4 @@ struct ConnectionLease {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::{num::NonZeroUsize, sync::Arc};
-
-    use super::{Http3Pool, Http3TransportTarget, PoolKey, TransportLocation};
-    use crate::{Route, Socks5Proxy, authority::Endpoint};
-
-    #[tokio::test]
-    async fn per_origin_admission_survives_lru_eviction() -> Result<(), Box<dyn std::error::Error>>
-    {
-        let one = NonZeroUsize::MIN;
-        let pool = Http3Pool::new(one, one, one);
-        let first = Endpoint::new("first.test:443".parse()?, 443)?;
-        let second = Endpoint::new("second.test:443".parse()?, 443)?;
-
-        let first_entry = pool.entry(PoolKey::new(&first, &Route::Direct)).await;
-        let permit = first_entry.admit().await?;
-        pool.entry(PoolKey::new(&second, &Route::Direct)).await;
-        drop(first_entry);
-        let replacement = pool.entry(PoolKey::new(&first, &Route::Direct)).await;
-
-        assert!(Arc::ptr_eq(permit.admission(), &replacement.admission));
-        assert_eq!(replacement.admission.available_active(), 0);
-        drop(permit);
-        assert_eq!(replacement.admission.available_active(), 1);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn connect_turn_serializes_one_transport_location_only()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let one = NonZeroUsize::MIN;
-        let pool = Http3Pool::new(one, one, one);
-        let endpoint = Endpoint::new("origin.test:443".parse()?, 443)?;
-        let entry = pool.entry(PoolKey::new(&endpoint, &Route::Direct)).await;
-        let alternative = TransportLocation::new(Http3TransportTarget::new("alt.test", 8443));
-        let origin = TransportLocation::new(Http3TransportTarget::for_origin(&endpoint));
-
-        let setup = entry.connect_turn(alternative.clone()).await;
-        // Exact H3 to the origin location does not wait for the alternative.
-        let exact = std::pin::pin!(entry.connect_turn(origin));
-        let exact = poll_once(exact).ok_or("exact H3 waited for another location")?;
-        // A second setup to the same location waits until the turn ends.
-        let mut same = std::pin::pin!(entry.connect_turn(alternative));
-        assert!(poll_once(same.as_mut()).is_none());
-        drop(setup);
-        let same = poll_once(same).ok_or("the released turn was not handed over")?;
-
-        drop((exact, same));
-        assert!(super::lock_turns(&entry.turns).is_empty());
-        Ok(())
-    }
-
-    #[test]
-    fn an_attempt_limit_without_a_time_driver_fails_instead_of_panicking()
-    -> Result<(), Box<dyn std::error::Error>> {
-        use phantom_net::http3::Http3Connector;
-        use phantom_profile::browser::chrome;
-
-        use super::Http3SetupControl;
-        use crate::RequestErrorKind;
-
-        // I/O but no time driver: `tokio::time::timeout` would panic here.
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_io()
-            .build()?;
-        runtime.block_on(async {
-            let connector = Http3Connector::new_with_additional_roots(
-                &chrome::v154_quic_tls(),
-                &chrome::v154_quic(),
-                &chrome::v154_http3(),
-                &chrome::v154_http3_request(),
-                std::iter::empty(),
-            )?;
-            let one = NonZeroUsize::MIN;
-            let pool = Http3Pool::new(one, one, one);
-            let endpoint = Endpoint::new("origin.test:443".parse()?, 443)?;
-            let entry = pool.entry(PoolKey::new(&endpoint, &Route::Direct)).await;
-            let control = Http3SetupControl {
-                attempt_limit: Some(std::time::Duration::from_secs(1)),
-                ..Http3SetupControl::default()
-            };
-            let result = entry
-                .acquire(
-                    &connector,
-                    None,
-                    &endpoint,
-                    &Route::Direct,
-                    Http3TransportTarget::for_origin(&endpoint),
-                    control,
-                )
-                .await;
-            match result {
-                Ok(_) => Err("a limited attempt ran without a time driver".into()),
-                Err(error) => {
-                    assert_eq!(error.kind(), RequestErrorKind::RuntimeUnavailable);
-                    Ok(())
-                }
-            }
-        })
-    }
-
-    /// A request awaits `acquire` whether it reuses a connection or opens one,
-    /// so only `open`, which a new connection boxes, may hold the connectors'
-    /// futures.
-    #[cfg(debug_assertions)]
-    #[test]
-    fn acquire_leaves_connection_setup_off_the_request_future() {
-        // A reuse holds only the arguments, the connect turn, and the boxed
-        // setup.
-        let size = phantom_testkit::future_size::future_size(&super::PoolEntry::acquire);
-        assert!(size <= 1024, "PoolEntry::acquire is {size} bytes");
-    }
-
-    /// `connect_with` holds the connectors' futures for a new connection,
-    /// boxed apart from `open`; see `phantom_testkit::future_size`.
-    ///
-    /// With all features, `connect_with` is 8,728 bytes and `open` 1,120 on
-    /// Windows (x86-64, Rust 1.99.0), the only platform measured.
-    #[cfg(debug_assertions)]
-    #[test]
-    fn opening_a_connection_stays_within_the_setup_budget() {
-        use phantom_testkit::future_size::{SETUP_FUTURE_BUDGET, assert_within, future_size};
-
-        assert_within(
-            SETUP_FUTURE_BUDGET,
-            &[
-                ("PoolEntry::open", future_size(&super::PoolEntry::open)),
-                (
-                    "PoolEntry::connect_with",
-                    future_size(&super::PoolEntry::connect_with),
-                ),
-            ],
-        );
-    }
-
-    fn poll_once<F: std::future::Future>(future: std::pin::Pin<&mut F>) -> Option<F::Output> {
-        match future.poll(&mut std::task::Context::from_waker(std::task::Waker::noop())) {
-            std::task::Poll::Ready(output) => Some(output),
-            std::task::Poll::Pending => None,
-        }
-    }
-
-    /// Only a replay-safe request on a connection whose early data is
-    /// unanswered, where the QPACK policy does not wait for the peer's
-    /// SETTINGS or remembered SETTINGS stand in for them, goes out before the
-    /// handshake with the pre-handshake client hints; every other request
-    /// waits and uses the handshake's hints.
-    #[test]
-    fn only_an_unheld_replay_safe_request_goes_out_before_the_handshake() {
-        use super::sends_before_handshake;
-
-        assert!(sends_before_handshake(true, true, false));
-        for (replay_safe, pending, waits) in [
-            (true, true, true),
-            (false, true, false),
-            (true, false, false),
-            (false, false, true),
-        ] {
-            assert!(!sends_before_handshake(replay_safe, pending, waits));
-        }
-    }
-
-    #[test]
-    fn only_bodiless_safe_requests_without_trailers_are_replay_safe() {
-        use http::Method;
-        use phantom_net::request::RequestBody;
-        use phantom_net::request::RequestHeader;
-
-        use super::is_replay_safe;
-
-        for method in [Method::GET, Method::HEAD, Method::OPTIONS, Method::TRACE] {
-            assert!(is_replay_safe(&method, None, &[]), "{method}");
-        }
-        for method in [Method::POST, Method::PUT, Method::DELETE, Method::CONNECT] {
-            assert!(!is_replay_safe(&method, None, &[]), "{method}");
-        }
-        let body = RequestBody::from_bytes(bytes::Bytes::from_static(b"body"));
-        assert!(!is_replay_safe(&Method::GET, Some(&body), &[]));
-        let trailer = RequestHeader::new("x-trailer", "1");
-        assert!(!is_replay_safe(&Method::GET, None, &[trailer]));
-    }
-
-    #[test]
-    fn transport_location_is_separate_from_origin_pool_identity()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let endpoint = Endpoint::new("origin.test:443".parse()?, 443)?;
-        let key = PoolKey::new(&endpoint, &Route::Direct);
-        let alternative = TransportLocation::new(Http3TransportTarget::new("Alt.Test", 8443));
-        let matching = TransportLocation::new(Http3TransportTarget::new("alt.test", 8443));
-        let origin = TransportLocation::new(Http3TransportTarget::for_origin(&endpoint));
-
-        assert_eq!(key, PoolKey::new(&endpoint, &Route::Direct));
-        assert_eq!(alternative, matching);
-        assert_ne!(alternative, origin);
-        Ok(())
-    }
-
-    #[cfg(feature = "https-records")]
-    #[test]
-    fn destination_policy_applies_only_to_learned_direct_alt_svc()
-    -> Result<(), Box<dyn std::error::Error>> {
-        use crate::session::alt_svc::{AltSvcStore, AlternativeTarget};
-        use crate::{AltSvcHttpsPolicy, AltSvcSnapshot, AltSvcSnapshotEntry};
-        use std::time::{Duration, SystemTime};
-
-        let endpoint = Endpoint::new("origin.test:443".parse()?, 443)?;
-        let store = AltSvcStore::new(NonZeroUsize::MIN);
-        store.import(&AltSvcSnapshot::new(vec![AltSvcSnapshotEntry::new(
-            "https://origin.test",
-            "alt.test",
-            8443,
-            SystemTime::now()
-                .checked_add(Duration::from_secs(30))
-                .ok_or("expiry overflow")?,
-        )]))?;
-        let selected = store.get_up_to(&endpoint, &Route::Direct, 1);
-        let alternative = AlternativeTarget::new(selected.first().ok_or("alternative absent")?);
-        let learned = Http3TransportTarget::for_alternative(&alternative);
-        let origin_https = AlternativeTarget::https_record(&endpoint, false, false);
-        let timeout = Duration::from_secs(1);
-        let policy = AltSvcHttpsPolicy::Destination {
-            lookup_timeout: timeout,
-        };
-
-        assert_eq!(
-            learned.destination_lookup_timeout(&Route::Direct, policy),
-            Some(timeout)
-        );
-        assert_eq!(
-            learned.destination_lookup_timeout(&Route::Direct, AltSvcHttpsPolicy::default()),
-            None
-        );
-        let proxy = Route::socks5(Socks5Proxy::new("socks5h://proxy.test:1080")?);
-        assert_eq!(learned.destination_lookup_timeout(&proxy, policy), None);
-        for target in [
-            Http3TransportTarget::for_origin(&endpoint),
-            Http3TransportTarget::for_alternative(&origin_https),
-            Http3TransportTarget::new("alt.test", 8443),
-        ] {
-            assert_eq!(
-                target.destination_lookup_timeout(&Route::Direct, policy),
-                None
-            );
-        }
-        Ok(())
-    }
-
-    #[test]
-    fn an_alternative_learned_on_one_route_uses_that_route_s_entry()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let endpoint = Endpoint::new("origin.test:443".parse()?, 443)?;
-        let proxied = Route::socks5(Socks5Proxy::new("socks5h://proxy.test:1080")?);
-        let other = Route::socks5(Socks5Proxy::new("socks5h://other.test:1080")?);
-
-        // The same alternative location on another route is another entry, so
-        // a proxied alternative never reuses a direct connection or another
-        // proxy's.
-        assert_ne!(
-            PoolKey::new(&endpoint, &proxied),
-            PoolKey::new(&endpoint, &Route::Direct)
-        );
-        assert_ne!(
-            PoolKey::new(&endpoint, &proxied),
-            PoolKey::new(&endpoint, &other)
-        );
-        assert_eq!(
-            PoolKey::new(&endpoint, &proxied),
-            PoolKey::new(&endpoint, &proxied)
-        );
-        Ok(())
-    }
-}
+mod tests;
