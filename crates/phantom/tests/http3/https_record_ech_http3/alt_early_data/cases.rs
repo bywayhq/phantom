@@ -103,9 +103,13 @@ impl Fixture {
         assert!(!native.session_resumed());
         assert!(native.ech_accepted());
         assert_eq!(native.early_data_accepted(), Some(false));
-        assert!(matches!(next(&mut self.peer.events).await?, Event::Drained));
-        self.gate.open.send_replace(false);
-        Ok(())
+        retire_warm_connection(
+            &subscriber,
+            &self.peer.read,
+            &mut self.peer.events,
+            &self.gate.open,
+        )
+        .await
     }
 
     fn assert_request(&self, request: &RequestSeen, attempt: Attempt, path: &str, gate_open: bool) {
@@ -376,4 +380,60 @@ async fn rejected_ech_never_replays_the_early_application_request() -> TestResul
 #[tokio::test]
 async fn cancelling_a_held_ech_attempt_joins_peers_and_releases_udp_sockets() -> TestResult<()> {
     bounded(exercise(Attempt::Cancel)).await
+}
+
+// The server's local drain does not prove the client retired its pool entry.
+async fn retire_warm_connection(
+    subscriber: &OutcomeSubscriber,
+    read: &mpsc::UnboundedSender<()>,
+    events: &mut mpsc::UnboundedReceiver<Event>,
+    gate: &watch::Sender<bool>,
+) -> TestResult<()> {
+    subscriber.server_goaway().await;
+    read.send(())?;
+    assert!(matches!(next(events).await?, Event::Drained));
+    gate.send_replace(false);
+    Ok(())
+}
+
+#[tokio::test]
+async fn local_drain_cannot_close_the_gate_before_the_warm_client_retires() -> TestResult<()> {
+    use std::{future::Future, task::Context};
+
+    let warm = OutcomeSubscriber::default();
+    let unrelated = OutcomeSubscriber::default();
+    let warm_dispatch = warm.dispatch();
+    let unrelated_dispatch = unrelated.dispatch();
+    let (read, mut read_rx) = mpsc::unbounded_channel();
+    let (events_tx, mut events) = mpsc::unbounded_channel();
+    let (gate, _) = watch::channel(true);
+    events_tx.send(Event::Drained)?;
+    let mut retirement = std::pin::pin!(retire_warm_connection(&warm, &read, &mut events, &gate,));
+    let mut context = Context::from_waker(std::task::Waker::noop());
+    assert!(retirement.as_mut().poll(&mut context).is_pending());
+    assert!(*gate.borrow());
+    assert!(matches!(
+        read_rx.try_recv(),
+        Err(mpsc::error::TryRecvError::Empty)
+    ));
+    tracing::dispatcher::with_default(&unrelated_dispatch, || {
+        tracing::info!(target: "h3::client::connection", "Server initiated graceful shutdown, last: StreamId(0)");
+    });
+    assert!(retirement.as_mut().poll(&mut context).is_pending());
+    assert!(*gate.borrow());
+    tracing::dispatcher::with_default(&warm_dispatch, || {
+        tracing::info!(target: "h3::server::connection", "Server initiated graceful shutdown, last: StreamId(0)");
+    });
+    assert!(retirement.as_mut().poll(&mut context).is_pending());
+    assert!(*gate.borrow());
+    tracing::dispatcher::with_default(&warm_dispatch, || {
+        tracing::info!(target: "h3::client::connection", "Server initiated graceful shutdown, last: StreamId(0)");
+    });
+    assert!(matches!(
+        retirement.as_mut().poll(&mut context),
+        std::task::Poll::Ready(Ok(()))
+    ));
+    assert!(!*gate.borrow());
+    read_rx.try_recv()?;
+    Ok(())
 }

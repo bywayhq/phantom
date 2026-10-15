@@ -273,6 +273,13 @@ async fn serve(
         Ok(Err(error)) if error.is_h3_no_error() => {}
         Ok(Err(error)) => return Err(error.into()),
     }
+    if connection == 1 {
+        h3.shutdown(0).await?;
+        // Keep the warm flight open until its client processed GOAWAY.
+        read.recv()
+            .await
+            .ok_or("client dropped retirement acknowledgement")?;
+    }
     quic.close(0_u32.into(), b"new connection required");
     drop(h3);
     endpoint.wait_idle().await;

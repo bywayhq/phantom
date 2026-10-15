@@ -6,6 +6,9 @@ use std::{
     },
 };
 
+#[path = "tracing/retirement.rs"]
+mod retirement;
+
 static DYNAMIC_CALLSITE_FALLBACK: OnceLock<()> = OnceLock::new();
 
 use tracing::{
@@ -19,6 +22,7 @@ use tracing::{
 pub(crate) struct OutcomeSubscriber {
     next_span_id: Arc<AtomicU64>,
     state: Arc<Mutex<CaptureState>>,
+    server_retirement: retirement::ServerRetirement,
 }
 
 #[derive(Default)]
@@ -172,6 +176,11 @@ impl OutcomeSubscriber {
             .collect()
     }
 
+    /// Waits for this dispatcher's HTTP/3 client to process server GOAWAY.
+    pub(crate) async fn server_goaway(&self) {
+        self.server_retirement.observed().await;
+    }
+
     fn state(&self) -> MutexGuard<'_, CaptureState> {
         match self.state.lock() {
             Ok(state) => state,
@@ -294,7 +303,9 @@ impl Subscriber for OutcomeSubscriber {
 
     fn record_follows_from(&self, _span: &Id, _follows: &Id) {}
 
-    fn event(&self, _event: &Event<'_>) {}
+    fn event(&self, event: &Event<'_>) {
+        self.server_retirement.event(event);
+    }
 
     fn enter(&self, _span: &Id) {}
 
