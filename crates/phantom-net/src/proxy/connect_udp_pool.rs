@@ -30,7 +30,7 @@ pub const MAX_CONNECT_UDP_POOL_KEYS: usize = 32;
 /// Resource limits apply to this pool, across its keys and protocols.
 #[derive(Clone)]
 pub struct ConnectUdpProxyPool {
-    inner: Arc<Pool>,
+    inner: Arc<dyn PoolState>,
 }
 
 impl Default for ConnectUdpProxyPool {
@@ -96,13 +96,13 @@ impl ConnectUdpProxyPool {
     /// Returns the active tunnel and setup limit.
     #[must_use]
     pub fn max_active(&self) -> NonZeroUsize {
-        self.inner.maximum_active
+        self.inner.state().maximum_active
     }
 
     /// Returns the queued tunnel-open limit.
     #[must_use]
     pub fn max_pending(&self) -> NonZeroUsize {
-        self.inner.maximum_pending
+        self.inner.state().maximum_pending
     }
 
     /// Retires retained sessions while allowing existing tunnels to finish.
@@ -110,7 +110,7 @@ impl ConnectUdpProxyPool {
     /// Active keys and their admission counts remain registered. Pending setup
     /// owners cannot publish into the cleared generation.
     pub fn clear(&self) {
-        for entry in lock(&self.inner.entries).iter() {
+        for entry in lock(&self.inner.state().entries).iter() {
             let mut state = lock(&entry.state);
             state.generation = state.generation.wrapping_add(1);
             state.session = None;
@@ -123,7 +123,7 @@ impl ConnectUdpProxyPool {
     pub(crate) async fn acquire(&self, key: PoolKey) -> Result<Acquisition, ConnectUdpError> {
         let permit = self.admit().await?;
         let entry = {
-            let mut entries = lock(&self.inner.entries);
+            let mut entries = lock(&self.inner.state().entries);
             if let Some(entry) = entries.iter().find(|entry| entry.key == key) {
                 Arc::clone(entry)
             } else {
@@ -157,13 +157,13 @@ impl ConnectUdpProxyPool {
     }
 
     async fn admit(&self) -> Result<OwnedSemaphorePermit, ConnectUdpError> {
-        if let Ok(permit) = Arc::clone(&self.inner.active).try_acquire_owned() {
+        if let Ok(permit) = Arc::clone(&self.inner.state().active).try_acquire_owned() {
             return Ok(permit);
         }
-        let pending = Arc::clone(&self.inner.pending)
+        let pending = Arc::clone(&self.inner.state().pending)
             .try_acquire_owned()
             .map_err(|_| capacity())?;
-        let active = Arc::clone(&self.inner.active)
+        let active = Arc::clone(&self.inner.state().active)
             .acquire_owned()
             .await
             .map_err(|_| capacity())?;
@@ -215,9 +215,14 @@ impl fmt::Debug for ConnectUdpProxyPool {
         f.debug_struct("ConnectUdpProxyPool")
             .field("max_active", &self.max_active())
             .field("max_pending", &self.max_pending())
-            .field("retained_keys", &lock(&self.inner.entries).len())
+            .field("retained_keys", &lock(&self.inner.state().entries).len())
             .finish()
     }
+}
+
+// Keep the retained transport types out of callers' Send and Sync proofs.
+trait PoolState: Send + Sync + std::panic::RefUnwindSafe + std::panic::UnwindSafe {
+    fn state(&self) -> &Pool;
 }
 
 struct Pool {
@@ -226,6 +231,12 @@ struct Pool {
     maximum_active: NonZeroUsize,
     maximum_pending: NonZeroUsize,
     entries: Mutex<Vec<Arc<Entry>>>,
+}
+
+impl PoolState for Pool {
+    fn state(&self) -> &Pool {
+        self
+    }
 }
 
 #[derive(Clone, Eq)]
@@ -384,7 +395,7 @@ pub(crate) struct TunnelLease {
     entry: Arc<Entry>,
     generation: u64,
     _permit: OwnedSemaphorePermit,
-    _pool: Arc<Pool>,
+    _pool: Arc<dyn PoolState>,
 }
 
 impl TunnelLease {

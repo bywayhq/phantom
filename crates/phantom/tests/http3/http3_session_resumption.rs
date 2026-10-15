@@ -533,7 +533,7 @@ async fn connect_udp_proxy_and_origin_tickets_stay_in_their_own_caches() -> Test
         )?;
         let (read_tx, mut read) = mpsc::unbounded_channel::<()>();
         let (served_tx, mut served) = mpsc::unbounded_channel();
-        let server = tokio::spawn(async move {
+        let server = ConnectionPeer::spawn(async move {
             for _ in 0..3 {
                 let incoming = endpoint.accept().await.ok_or("HTTP/3 endpoint closed")?;
                 let (quic, connection) = serve_one(incoming).await?;
@@ -569,8 +569,11 @@ async fn connect_udp_proxy_and_origin_tickets_stay_in_their_own_caches() -> Test
         assert_eq!(origin_store.counts(), none);
         assert_eq!(proxy_store.counts(), none);
 
-        // A new inner connection needs a new outer connection. Each presents
-        // the ticket its own server issued, and each server accepts it.
+        // Retire the shared outer connection so both legs must resume. The
+        // proxy remains listening with the same ticket store.
+        proxy.close_connections_and_wait().await?;
+        proxy.reopen();
+        // Each leg presents the ticket its own server issued.
         through_proxy(&session).await?;
         let one = Presented {
             presented: 1,

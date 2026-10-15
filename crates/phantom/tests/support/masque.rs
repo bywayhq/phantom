@@ -159,6 +159,7 @@ impl Drop for ProxyConnection<'_> {
 /// A running CONNECT-UDP proxy; aborted on drop.
 pub(crate) struct MasqueProxy {
     pub(crate) address: SocketAddr,
+    endpoint: quinn::Endpoint,
     log: Arc<Mutex<ProxyLog>>,
     close: watch::Sender<CloseState>,
     task: JoinHandle<()>,
@@ -226,6 +227,7 @@ impl MasqueProxy {
         let log = Arc::new(Mutex::new(ProxyLog::default()));
         let (close, mut close_rx) = watch::channel(CloseState::default());
         let task_log = Arc::clone(&log);
+        let retained_endpoint = endpoint.clone();
         let task = tokio::spawn(async move {
             let endpoint = ProxyEndpoint(endpoint);
             let mut connections = JoinSet::new();
@@ -266,6 +268,7 @@ impl MasqueProxy {
         });
         Ok(Self {
             address,
+            endpoint: retained_endpoint,
             log,
             close,
             task,
@@ -316,6 +319,14 @@ impl MasqueProxy {
             result = finish_with_cleanup(result, Err(error));
         }
         result
+    }
+
+    /// Closes existing connections and waits for their QUIC drainage.
+    /// Reopen explicitly before starting a replacement connection.
+    pub(crate) async fn close_connections_and_wait(&self) -> TestResult<()> {
+        self.close_connections();
+        timeout(STREAM_SHUTDOWN, self.endpoint.wait_idle()).await?;
+        Ok(())
     }
 
     /// Closes every open outer QUIC connection.

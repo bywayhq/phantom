@@ -115,8 +115,9 @@ connection credit. The actual capsule writer blocks, a sibling completes two
 markers, and returning peer credit lets the blocked capsule finish. Its peer
 uses a duplex H2 connection without TLS. This is a flow-control result.
 
-The refreshed fixtures also pass the twelve existing sharing controls and ten
-peer-ownership controls. Strict all-target lint and Rust 1.88 checks pass.
+The final focused run passes 17 native sharing controls, ten peer-ownership
+controls, and both named peers. Strict all-target lint and Rust 1.88 checks
+passed before the integration repairs below; the full rerun remains required.
 
 A real local QUIC peer rejects incompatible ALPN on direct and pooled proxy
 connections. The original classifier incorrectly accepted the proxy failure
@@ -132,6 +133,25 @@ The retained runs identify the actual interpreter, pinned packages and owned
 child processes. Both peers shared one authenticated outer across two origins.
 The aioquic fixture checks each datagram against the peer's current packet
 capacity before queueing it; an oversized head cannot stall its siblings.
+
+The first rebased integration gate at `eb7ab1c9` failed two nextest controls
+and the pinned nightly recursion check. Its full logs remain under
+`target/transport-profile-campaign/connect-udp-eb7ab1c9-gate/`, including
+copies of every step log. Those failures have not been rebaselined.
+
+The new pooled setup enlarged the HTTP/3 send future to 13,528 bytes.
+Boxing that setup branch reduces it to 11,360 bytes under the unchanged
+12,288-byte limit. Private pool ownership and explicit `Send` bounds on the
+two SOCKS setup helpers keep downstream compiler proofs bounded. The final
+pinned nightly check passes without warnings. The private owner change also
+passes its identity and auto-trait control.
+
+The existing ticket-isolation fixture required a fresh outer connection but
+kept a healthy shared outer open. It now closes and drains that connection
+before reopening the proxy with the same server ticket store. The original
+ticket counts, two-connection assertion and deadlines remain unchanged.
+That control and five existing SOCKS upgrade controls pass. These focused
+results do not replace the pending exact-head integration gate.
 
 The explicit Rust interoperability tests require `PHANTOM_CONNECT_UDP_PYTHON`
 to name an interpreter with those pinned packages. The process is owned

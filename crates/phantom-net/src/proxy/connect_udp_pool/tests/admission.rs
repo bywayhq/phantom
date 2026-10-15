@@ -55,16 +55,16 @@ async fn active_and_pending_limits_release_after_cancel() -> TestResult {
     let pending_key = key(1)?;
     let waiting_pool = pool.clone();
     let waiting = tokio::spawn(async move { waiting_pool.acquire(pending_key).await });
-    wait_until(|| pool.inner.pending.available_permits() == 0).await?;
+    wait_until(|| pool.inner.state().pending.available_permits() == 0).await?;
     assert_eq!(
         pool.acquire(key(2)?).await.err().map(|e| e.kind()),
         Some(ConnectUdpErrorKind::Capacity)
     );
     waiting.abort();
     assert!(waiting.await.err().is_some_and(|e| e.is_cancelled()));
-    assert_eq!(pool.inner.pending.available_permits(), 1);
+    assert_eq!(pool.inner.state().pending.available_permits(), 1);
     drop(owner);
-    assert_eq!(pool.inner.active.available_permits(), 1);
+    assert_eq!(pool.inner.state().active.available_permits(), 1);
     drop(setup(pool.acquire(key(3)?).await?)?);
     Ok(())
 }
@@ -82,7 +82,7 @@ async fn setup_failure_wakes_its_waiters_with_the_original_category() -> TestRes
         waiting.await?.err().map(|e| e.kind()),
         Some(ConnectUdpErrorKind::Handshake)
     );
-    assert_eq!(pool.inner.active.available_permits(), 100);
+    assert_eq!(pool.inner.state().active.available_permits(), 100);
     Ok(())
 }
 
@@ -101,7 +101,7 @@ async fn canceled_setup_does_not_leave_a_reservation_or_permit() -> TestResult {
         Some(ConnectUdpErrorKind::Protocol)
     );
     drop(setup(pool.acquire(key).await?)?);
-    assert_eq!(pool.inner.active.available_permits(), 100);
+    assert_eq!(pool.inner.state().active.available_permits(), 100);
     Ok(())
 }
 
@@ -116,12 +116,18 @@ async fn full_key_table_never_evicts_a_live_scope() -> TestResult {
         pool.acquire(key(33)?).await.err().map(|e| e.kind()),
         Some(ConnectUdpErrorKind::Capacity)
     );
-    assert_eq!(lock(&pool.inner.entries).len(), MAX_CONNECT_UDP_POOL_KEYS);
+    assert_eq!(
+        lock(&pool.inner.state().entries).len(),
+        MAX_CONNECT_UDP_POOL_KEYS
+    );
     owners.pop();
     owners.push(setup(pool.acquire(key(34)?).await?)?);
-    assert_eq!(lock(&pool.inner.entries).len(), MAX_CONNECT_UDP_POOL_KEYS);
+    assert_eq!(
+        lock(&pool.inner.state().entries).len(),
+        MAX_CONNECT_UDP_POOL_KEYS
+    );
     drop(owners);
-    assert_eq!(pool.inner.active.available_permits(), 100);
+    assert_eq!(pool.inner.state().active.available_permits(), 100);
     Ok(())
 }
 
@@ -130,7 +136,7 @@ async fn clear_keeps_live_admission_and_fresh_pool_has_independent_state() -> Te
     let pool = ConnectUdpProxyPool::with_limits(one(), one())?;
     let owner = setup(pool.acquire(key(0)?).await?)?;
     pool.clear();
-    assert_eq!(pool.inner.active.available_permits(), 0);
+    assert_eq!(pool.inner.state().active.available_permits(), 0);
     assert!(
         lock(&owner.lease.as_ref().ok_or("lease absent")?.entry.state)
             .connecting
@@ -138,9 +144,9 @@ async fn clear_keeps_live_admission_and_fresh_pool_has_independent_state() -> Te
     );
     let fresh = pool.fresh();
     assert!(!Arc::ptr_eq(&pool.inner, &fresh.inner));
-    assert_eq!(fresh.inner.active.available_permits(), 1);
+    assert_eq!(fresh.inner.state().active.available_permits(), 1);
     drop(owner);
-    assert_eq!(pool.inner.active.available_permits(), 1);
+    assert_eq!(pool.inner.state().active.available_permits(), 1);
     Ok(())
 }
 

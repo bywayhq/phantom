@@ -924,7 +924,7 @@ impl Http3Connector {
     /// the proxy without local DNS resolution. Proxy and QUIC failures are
     /// terminal for this connection attempt.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn connect_socks5_remote_target(
+    pub(crate) fn connect_socks5_remote_target(
         &self,
         proxy_host: &str,
         proxy_port: u16,
@@ -932,39 +932,42 @@ impl Http3Connector {
         target_host: &str,
         target_port: u16,
         server_name: &str,
-    ) -> Result<Http3Connection, Http3ConnectorError> {
-        QuicClientConfig::validate_server_name(server_name)
-            .map_err(Http3ConnectorError::invalid_server_name)?;
-        let auth = auth.validate().map_err(Http3ConnectorError::proxy)?;
-        let target = prepare_socks5_udp_remote_target(target_host, target_port)
-            .map_err(Http3ConnectorError::proxy)?;
-        tokio::runtime::Handle::try_current()
-            .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
-        poll_tokio_io(|| async {
-            let association = associate_socks5_udp_remote_with_auth(
-                self.dialer(),
-                proxy_host,
-                proxy_port,
-                target,
-                auth,
-            )
+    ) -> impl std::future::Future<Output = Result<Http3Connection, Http3ConnectorError>> + Send
+    {
+        async move {
+            QuicClientConfig::validate_server_name(server_name)
+                .map_err(Http3ConnectorError::invalid_server_name)?;
+            let auth = auth.validate().map_err(Http3ConnectorError::proxy)?;
+            let target = prepare_socks5_udp_remote_target(target_host, target_port)
+                .map_err(Http3ConnectorError::proxy)?;
+            tokio::runtime::Handle::try_current()
+                .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
+            poll_tokio_io(|| async {
+                let association = associate_socks5_udp_remote_with_auth(
+                    self.dialer(),
+                    proxy_host,
+                    proxy_port,
+                    target,
+                    auth,
+                )
+                .await
+                .map_err(Http3ConnectorError::proxy)?;
+                let (socket, logical_remote) = association.into_parts();
+                connect_bound_with_socket(
+                    logical_remote,
+                    server_name,
+                    Arc::clone(&self.crypto),
+                    &self.settings,
+                    Arc::clone(&self.identity),
+                    socket,
+                    self.connection_options(),
+                )
+                .await
+                .map_err(Http3ConnectorError::transaction)
+            })
             .await
-            .map_err(Http3ConnectorError::proxy)?;
-            let (socket, logical_remote) = association.into_parts();
-            connect_bound_with_socket(
-                logical_remote,
-                server_name,
-                Arc::clone(&self.crypto),
-                &self.settings,
-                Arc::clone(&self.identity),
-                socket,
-                self.connection_options(),
-            )
-            .await
-            .map_err(Http3ConnectorError::transaction)
-        })
-        .await
-        .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
+            .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
+        }
     }
 
     /// Opens one reusable HTTP/3 connection through an authenticated SOCKS5 UDP association.
@@ -974,7 +977,7 @@ impl Http3Connector {
     /// QUIC failure advances to the next resolved address using a new
     /// association; proxy failures and all other failures are terminal.
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn connect_socks5_local_target(
+    pub(crate) fn connect_socks5_local_target(
         &self,
         proxy_host: &str,
         proxy_port: u16,
@@ -982,21 +985,30 @@ impl Http3Connector {
         target_host: &str,
         target_port: u16,
         server_name: &str,
-    ) -> Result<Http3Connection, Http3ConnectorError> {
-        QuicClientConfig::validate_server_name(server_name)
-            .map_err(Http3ConnectorError::invalid_server_name)?;
-        let auth = auth.validate().map_err(Http3ConnectorError::proxy)?;
-        tokio::runtime::Handle::try_current()
-            .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
-        poll_tokio_io(|| async {
-            let addresses = resolve(self.host_resolver.as_ref(), target_host, target_port)
+    ) -> impl std::future::Future<Output = Result<Http3Connection, Http3ConnectorError>> + Send
+    {
+        async move {
+            QuicClientConfig::validate_server_name(server_name)
+                .map_err(Http3ConnectorError::invalid_server_name)?;
+            let auth = auth.validate().map_err(Http3ConnectorError::proxy)?;
+            tokio::runtime::Handle::try_current()
+                .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
+            poll_tokio_io(|| async {
+                let addresses = resolve(self.host_resolver.as_ref(), target_host, target_port)
+                    .await
+                    .map_err(Http3ConnectorError::resolve)?;
+                self.connect_socks5_to_addresses(
+                    proxy_host,
+                    proxy_port,
+                    auth,
+                    addresses,
+                    server_name,
+                )
                 .await
-                .map_err(Http3ConnectorError::resolve)?;
-            self.connect_socks5_to_addresses(proxy_host, proxy_port, auth, addresses, server_name)
-                .await
-        })
-        .await
-        .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
+            })
+            .await
+            .map_err(|RuntimeUnavailable| Http3ConnectorError::runtime_unavailable())?
+        }
     }
 
     /// Sends one empty-body GET over a connection opened by this connector.
@@ -1220,18 +1232,18 @@ impl Http3Connector {
             let span = connect_udp::span("h3");
             let tunnel = async {
                 if let (Some(pool), Some(key)) = (pool, key) {
-                    return pool
-                        .open_http3(
-                            key,
-                            self,
-                            proxy,
-                            proxy_host,
-                            proxy_port,
-                            anonymous,
-                            authenticated,
-                            span.clone(),
-                        )
-                        .await;
+                    // Keep pooled proxy setup off direct callers' stack frames.
+                    return Box::pin(pool.open_http3(
+                        key,
+                        self,
+                        proxy,
+                        proxy_host,
+                        proxy_port,
+                        anonymous,
+                        authenticated,
+                        span.clone(),
+                    ))
+                    .await;
                 }
                 let addresses = resolve(self.host_resolver.as_ref(), proxy_host, proxy_port)
                     .await
