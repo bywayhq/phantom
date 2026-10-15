@@ -153,6 +153,13 @@ ticket counts, two-connection assertion and deadlines remain unchanged.
 That control and five existing SOCKS upgrade controls pass. These focused
 results do not replace the pending exact-head integration gate.
 
+The rerun at `f181d1f7` passed all 4,982 Rust tests and the pinned nightly
+check. Workspace and feature-matrix Clippy rejected the two explicit future
+signatures as a style issue. Item-local allowances retain their required
+`Send` proof boundary. All other gate steps passed. The complete logs remain
+under `target/transport-profile-campaign/connect-udp-f181d1f7-gate/`.
+The next signed-head gate must pass before delivery.
+
 The explicit Rust interoperability tests require `PHANTOM_CONNECT_UDP_PYTHON`
 to name an interpreter with those pinned packages. The process is owned
 directly, with readiness and result files retained under the lane's target

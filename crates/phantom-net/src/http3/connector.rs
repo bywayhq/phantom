@@ -924,6 +924,10 @@ impl Http3Connector {
     /// the proxy without local DNS resolution. Proxy and QUIC failures are
     /// terminal for this connection attempt.
     #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::manual_async_fn,
+        reason = "Keep the explicit Send proof boundary for the pinned nightly compiler."
+    )]
     pub(crate) fn connect_socks5_remote_target(
         &self,
         proxy_host: &str,
@@ -977,6 +981,10 @@ impl Http3Connector {
     /// QUIC failure advances to the next resolved address using a new
     /// association; proxy failures and all other failures are terminal.
     #[allow(clippy::too_many_arguments)]
+    #[allow(
+        clippy::manual_async_fn,
+        reason = "Keep the explicit Send proof boundary for the pinned nightly compiler."
+    )]
     pub(crate) fn connect_socks5_local_target(
         &self,
         proxy_host: &str,
