@@ -20,6 +20,8 @@ fn target(host: &str, port: u16) -> TestResult<AlternativeTarget> {
     Ok(AlternativeTarget::new(&AltSvcSelection {
         location: AltSvcLocation::parse(host, port).ok_or("invalid target")?,
         generation: 1,
+        mapping_validated: false,
+        publication: None,
         broken: false,
         origin_quic_recently_broken: false,
     }))

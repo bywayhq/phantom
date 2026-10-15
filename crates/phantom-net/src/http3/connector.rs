@@ -420,17 +420,14 @@ impl Http3Connector {
         )
     }
 
-    /// Returns whether a request sent to an alternative service carries an
-    /// `Alt-Used` field, as [`Http3RequestSettings::alt_used`] says.
+    /// Returns the profile's `Alt-Used` emission policy.
     ///
-    /// The connector itself never adds the field: the caller that chose the
-    /// alternative appends it to the request's fields.
+    /// The caller that chose the alternative applies the policy to its
+    /// request-time mapping eligibility and places the generated field.
+    /// The connector itself never adds the field.
     #[must_use]
-    pub fn sends_alt_used(&self) -> bool {
-        matches!(
-            self.request_settings.alt_used,
-            phantom_profile::Http3AltUsed::Append
-        )
+    pub const fn alt_used_policy(&self) -> phantom_profile::Http3AltUsed {
+        self.request_settings.alt_used
     }
 
     fn with_crypto(&self, crypto: QuicClientConfig) -> Self {
@@ -1706,6 +1703,28 @@ impl Http3Connector {
     /// stream, for example while the peer withholds SETTINGS or stream credit.
     pub async fn can_reuse(&self, connection: &Http3Connection) -> bool {
         self.can_reuse_now(connection)
+    }
+
+    /// Registers checked handshake publication for one alternative mapping.
+    ///
+    /// Returns false for an unrelated connection, disabled peer verification,
+    /// or failed handshake checks. True accepts registration; a connection
+    /// still checking early data may confirm the value later. This never waits
+    /// or performs I/O. Later connection closure does not erase confirmation.
+    ///
+    /// A pending connection retains only one weak destination. Repeated
+    /// registration replaces it. Mapping owners must check their current
+    /// generation while holding their store lock across this call, so an old
+    /// registration cannot displace a newer mapping's destination.
+    #[must_use]
+    pub fn register_mapping_confirmation(
+        &self,
+        connection: &Http3Connection,
+        confirmation: &super::Http3MappingConfirmation,
+    ) -> bool {
+        self.server_authentication.verifies()
+            && connection.belongs_to(&self.identity)
+            && connection.register_mapping_confirmation(confirmation)
     }
 
     /// Returns whether an originating connection is currently reusable,

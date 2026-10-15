@@ -1040,3 +1040,5 @@ fn a_pinned_alternative_needs_a_canonical_host_and_a_nonzero_port() {
         );
     }
 }
+
+mod validation;

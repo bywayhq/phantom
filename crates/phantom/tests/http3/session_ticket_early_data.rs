@@ -341,3 +341,5 @@ fn client(identity: &TestIdentity) -> TestResult<Client> {
         .add_root_certificate_der(identity.root_der.clone())
         .build()?)
 }
+
+mod mapping_confirmation;

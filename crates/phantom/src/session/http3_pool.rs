@@ -30,7 +30,7 @@ use super::tickets::{
 use super::{
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     alt_svc::{
-        DEFAULT_ALTERNATIVE_SETUP_LIMIT,
+        AltSvcValidationPublication, DEFAULT_ALTERNATIVE_SETUP_LIMIT,
         rtt_history::{Publication, RttHistory},
     },
     client_hints::{AcceptChRestart, ClientHintContext, Dispatched},
@@ -48,10 +48,11 @@ use crate::{
 ///
 /// The origin endpoint still owns TLS authentication, request authority, pool
 /// identity, and route policy. This value changes only where QUIC is sent.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 pub(crate) struct Http3TransportTarget<'a> {
     host: &'a str,
     port: u16,
+    validation: Option<&'a AltSvcValidationPublication>,
     #[cfg(feature = "https-records")]
     alt_svc: bool,
 }
@@ -61,6 +62,7 @@ impl<'a> Http3TransportTarget<'a> {
         Self {
             host,
             port,
+            validation: None,
             #[cfg(feature = "https-records")]
             alt_svc: false,
         }
@@ -74,6 +76,7 @@ impl<'a> Http3TransportTarget<'a> {
         Self {
             host: alternative.host(),
             port: alternative.port(),
+            validation: alternative.validation_publication(),
             #[cfg(feature = "https-records")]
             alt_svc: alternative.is_alt_svc(),
         }
@@ -1269,6 +1272,11 @@ impl Http3Admission {
                     .await
             })
             .await?;
+        // Acquisition has released every pool lock. Registration holds only the
+        // mapping's entries lock across net's synchronous checked-state update.
+        if let Some(validation) = transport.validation {
+            validation.register(connector, &lease.connection);
+        }
         Ok(Http3Lease {
             entry,
             lease,

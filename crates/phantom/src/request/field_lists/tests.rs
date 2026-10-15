@@ -897,3 +897,67 @@ where
     stream.write_all(payload).await?;
     Ok(())
 }
+
+#[test]
+fn pinned_alt_used_policy_preserves_the_optional_template_slot() -> TestResult {
+    use crate::session::alt_svc::PinnedAlternative;
+    use phantom_net::request::RequestHeader;
+    use phantom_profile::{Http3AltUsed, RequestField, browser::firefox};
+
+    for policy in [
+        Http3AltUsed::Omit,
+        Http3AltUsed::Append,
+        Http3AltUsed::ValidatedMapping,
+    ] {
+        let mut request_settings = chrome::v154_http3_request();
+        request_settings.alt_used = policy;
+        let mut template = firefox::v157_windows_navigation_template();
+        template.http1_fields = vec![
+            RequestField::literal("x-before", "before"),
+            RequestField::literal("x-after", "after"),
+        ];
+        template.http2_fields = template.http1_fields.clone();
+        template.http3_fields = Some(vec![
+            RequestField::literal("x-before", "before"),
+            RequestField::AltUsed,
+            RequestField::literal("x-after", "after"),
+        ]);
+        let profile = profile(false)
+            .with_http3(Http3ClientSettings::new(
+                chrome::v154_quic_tls(),
+                chrome::v154_quic(),
+                chrome::v154_http3(),
+                request_settings,
+            ))
+            .with_request_template(template);
+        let client = Client::builder(profile).build()?;
+        let mut request = client
+            .get(HttpProtocol::Http3, "https://origin.example/")?
+            .request;
+        let original = super::attempt_headers(&client, &request, HttpProtocol::Http3, &[]);
+        assert_eq!(
+            original,
+            [
+                RequestHeader::new("x-before", b"before"),
+                RequestHeader::new("x-after", b"after")
+            ]
+        );
+        request.alternative = PinnedAlternative::parse("alt.example", 8443);
+        let fields = super::attempt_headers(&client, &request, HttpProtocol::Http3, &[]);
+        let mut expected = vec![RequestHeader::new("x-before", b"before")];
+        if policy != Http3AltUsed::Omit {
+            expected.push(RequestHeader::new("alt-used", b"alt.example:8443"));
+        }
+        expected.push(RequestHeader::new("x-after", b"after"));
+        assert_eq!(fields, expected);
+        assert_eq!(
+            super::attempt_headers(&client, &request, HttpProtocol::Http3, &[]),
+            fields
+        );
+        assert_eq!(
+            super::attempt_headers(&client, &request, HttpProtocol::Http1, &[]),
+            original
+        );
+    }
+    Ok(())
+}

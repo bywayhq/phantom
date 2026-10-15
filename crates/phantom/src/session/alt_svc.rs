@@ -3,7 +3,7 @@ use std::{
     net::Ipv6Addr,
     num::NonZeroUsize,
     sync::{
-        Mutex, MutexGuard,
+        Arc, Mutex, MutexGuard, Weak,
         atomic::{AtomicU64, Ordering},
     },
     time::{Duration, Instant},
@@ -12,7 +12,10 @@ use std::{
 use phantom_net::{
     OrderedResponseHeaders,
     http2::{AltSvcFrameScope, AltSvcFrames},
-    http3::{Http3ConnectorError, Http3ConnectorErrorKind},
+    http3::{
+        Http3Connection, Http3Connector, Http3ConnectorError, Http3ConnectorErrorKind,
+        Http3MappingConfirmation,
+    },
 };
 use tracing::debug;
 
@@ -28,6 +31,8 @@ pub(crate) const MAX_ALTERNATIVES_PER_ORIGIN: usize = 8;
 pub(super) struct AltSvcSelection {
     location: AltSvcLocation,
     generation: u64,
+    mapping_validated: bool,
+    publication: Option<AltSvcValidationPublication>,
     broken: bool,
     origin_quic_recently_broken: bool,
 }
@@ -54,6 +59,7 @@ impl AltSvcSelection {
 pub(crate) struct AlternativeTarget {
     location: AltSvcLocation,
     source: AlternativeSource,
+    publication: Option<AltSvcValidationPublication>,
     broken: bool,
     origin_quic_recently_broken: bool,
 }
@@ -62,7 +68,11 @@ pub(crate) struct AlternativeTarget {
 #[derive(Clone, Debug)]
 enum AlternativeSource {
     /// A stored Alt-Svc advertisement, named on the wire by `Alt-Used`.
-    AltSvc { alt_used: Box<str>, generation: u64 },
+    AltSvc {
+        alt_used: Box<str>,
+        generation: u64,
+        mapping_validated: bool,
+    },
     /// An HTTPS DNS record for the origin's own location.
     #[cfg(feature = "https-records")]
     HttpsRecord,
@@ -80,7 +90,9 @@ impl AlternativeTarget {
             source: AlternativeSource::AltSvc {
                 alt_used: selection.location.authority(),
                 generation: selection.generation,
+                mapping_validated: selection.mapping_validated,
             },
+            publication: selection.publication.clone(),
             broken: selection.broken,
             origin_quic_recently_broken: selection.origin_quic_recently_broken,
         }
@@ -97,6 +109,7 @@ impl AlternativeTarget {
         Self {
             location: AltSvcLocation::origin(origin),
             source: AlternativeSource::HttpsRecord,
+            publication: None,
             broken,
             origin_quic_recently_broken,
         }
@@ -121,6 +134,34 @@ impl AlternativeTarget {
             #[cfg(feature = "https-records")]
             AlternativeSource::HttpsRecord => None,
         }
+    }
+
+    /// Applies the profile to the eligibility copied when this hop was planned.
+    pub(crate) fn alt_used_for(&self, policy: phantom_profile::Http3AltUsed) -> Option<&str> {
+        match policy {
+            phantom_profile::Http3AltUsed::Omit => None,
+            phantom_profile::Http3AltUsed::Append => self.alt_used(),
+            phantom_profile::Http3AltUsed::ValidatedMapping if self.mapping_validated() => {
+                self.alt_used()
+            }
+            _ => None,
+        }
+    }
+
+    /// Returns whether the mapping was validated when this target was selected.
+    /// Later setup completion cannot change this request's decision.
+    pub(crate) const fn mapping_validated(&self) -> bool {
+        match &self.source {
+            AlternativeSource::AltSvc {
+                mapping_validated, ..
+            } => *mapping_validated,
+            #[cfg(feature = "https-records")]
+            AlternativeSource::HttpsRecord => false,
+        }
+    }
+
+    pub(crate) fn validation_publication(&self) -> Option<&AltSvcValidationPublication> {
+        self.publication.as_ref()
     }
 
     /// Returns the store generation of an Alt-Svc alternative.
@@ -251,7 +292,7 @@ impl PinnedAlternative {
 
 pub(super) struct AltSvcStore {
     capacity: NonZeroUsize,
-    entries: Mutex<VecDeque<Entry>>,
+    entries: Arc<Mutex<VecDeque<Entry>>>,
     /// Race failure history by origin and alternative, least recently marked
     /// first. A record outlives its broken period so a later failure backs off
     /// further; a successful alternative connection removes it.
@@ -263,7 +304,7 @@ impl AltSvcStore {
     pub(super) fn new(capacity: NonZeroUsize) -> Self {
         Self {
             capacity,
-            entries: Mutex::new(VecDeque::new()),
+            entries: Arc::new(Mutex::new(VecDeque::new())),
             broken: Mutex::new(VecDeque::new()),
             next_generation: AtomicU64::new(1),
         }
@@ -575,6 +616,8 @@ impl AltSvcStore {
                     (remaining > 0).then(|| StoredAlternative {
                         location: alternative.location,
                         expires_at: expiration_at(now, remaining),
+                        mapping_validated: false,
+                        confirmation: Http3MappingConfirmation::new(),
                     })
                 })
                 .collect(),
@@ -583,11 +626,14 @@ impl AltSvcStore {
             self.remove_key(&key);
             return;
         }
-        self.replace(Entry {
-            key,
-            alternatives,
-            generation: self.next_generation.fetch_add(1, Ordering::Relaxed),
-        });
+        self.replace(
+            Entry {
+                key,
+                alternatives,
+                generation: self.next_generation.fetch_add(1, Ordering::Relaxed),
+            },
+            now,
+        );
     }
 
     #[cfg(test)]
@@ -658,6 +704,15 @@ impl AltSvcStore {
         let selections = locations
             .into_iter()
             .map(|location| AltSvcSelection {
+                mapping_validated: entry.alternatives.iter().any(|alternative| {
+                    alternative.location == location && alternative.is_validated()
+                }),
+                publication: Some(AltSvcValidationPublication {
+                    entries: Arc::downgrade(&self.entries),
+                    key: key.clone(),
+                    location: location.clone(),
+                    generation: entry.generation,
+                }),
                 location,
                 generation: entry.generation,
                 broken,
@@ -668,14 +723,22 @@ impl AltSvcStore {
         selections
     }
 
-    fn replace(&self, entry: Entry) {
+    fn replace(&self, mut entry: Entry, now: Instant) {
         let mut entries = self.lock_entries();
         if let Some(position) = entries
             .iter()
             .position(|candidate| candidate.key == entry.key)
+            && let Some(previous) = entries.remove(position)
         {
-            entries.remove(position);
+            for alternative in &mut entry.alternatives {
+                alternative.mapping_validated = previous.alternatives.iter().any(|held| {
+                    held.location == alternative.location
+                        && held.expires_at > now
+                        && held.is_validated()
+                });
+            }
         }
+        share_confirmation_cells(&mut entry.alternatives);
         if entries.len() == self.capacity.get() {
             entries.pop_front();
             debug!(outcome = "evicted", "Alt-Svc origin evicted");
@@ -797,6 +860,83 @@ struct Entry {
 struct StoredAlternative {
     location: AltSvcLocation,
     expires_at: Instant,
+    /// Confirmation inherited from an equivalent live advertisement.
+    mapping_validated: bool,
+    confirmation: Http3MappingConfirmation,
+}
+
+impl StoredAlternative {
+    fn is_validated(&self) -> bool {
+        self.mapping_validated || self.confirmation.is_confirmed()
+    }
+}
+
+/// Duplicate fields for one target share one current-generation writer.
+fn share_confirmation_cells(alternatives: &mut [StoredAlternative]) {
+    for index in 0..alternatives.len() {
+        if let Some(previous) = alternatives[..index]
+            .iter()
+            .find(|previous| previous.location == alternatives[index].location)
+        {
+            alternatives[index].confirmation = previous.confirmation.clone();
+        }
+    }
+}
+
+/// A completed setup may validate only its original, still-live mapping.
+/// The weak owner cannot keep a client store alive or recreate removed state.
+#[derive(Clone)]
+pub(crate) struct AltSvcValidationPublication {
+    entries: Weak<Mutex<VecDeque<Entry>>>,
+    key: StoreKey,
+    location: AltSvcLocation,
+    generation: u64,
+}
+
+impl std::fmt::Debug for AltSvcValidationPublication {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("AltSvcValidationPublication")
+            .finish_non_exhaustive()
+    }
+}
+
+impl AltSvcValidationPublication {
+    /// Registers only against the current, unexpired mapping while holding its
+    /// store lock. Net checks the origin connector's identity and authentication.
+    pub(crate) fn register(
+        &self,
+        connector: &Http3Connector,
+        connection: &Http3Connection,
+    ) -> bool {
+        let Some(owner) = self.entries.upgrade() else {
+            return false;
+        };
+        let entries = match owner.lock() {
+            Ok(entries) => entries,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        self.current_confirmation(&entries, Instant::now())
+            .is_some_and(|confirmation| {
+                connector.register_mapping_confirmation(connection, confirmation)
+            })
+    }
+
+    fn current_confirmation<'a>(
+        &self,
+        entries: &'a VecDeque<Entry>,
+        now: Instant,
+    ) -> Option<&'a Http3MappingConfirmation> {
+        entries
+            .iter()
+            .find(|entry| entry.key == self.key && entry.generation == self.generation)?
+            .alternatives
+            .iter()
+            .find(|alternative| {
+                alternative.location == self.location && alternative.expires_at > now
+            })
+            .map(|alternative| &alternative.confirmation)
+    }
 }
 
 enum Update {

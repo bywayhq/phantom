@@ -209,6 +209,7 @@ fn http3_alt_used(e: &mut Encoder, value: &Http3AltUsed) -> Result<(), Preparati
     e.u8(match value {
         Http3AltUsed::Omit => 0,
         Http3AltUsed::Append => 1,
+        Http3AltUsed::ValidatedMapping => 2,
         _ => return Err(PreparationError::Unsupported("Http3AltUsed")),
     })
 }
@@ -535,5 +536,24 @@ fn http3_setting(e: &mut Encoder, value: &Http3Setting) -> Result<(), Preparatio
         }
         Http3Setting::RandomizedGrease => e.u8(7),
         _ => Err(PreparationError::Unsupported("Http3Setting")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn alt_used_policies_keep_distinct_canonical_tags() -> Result<(), PreparationError> {
+        for (policy, tag) in [
+            (Http3AltUsed::Omit, 0),
+            (Http3AltUsed::Append, 1),
+            (Http3AltUsed::ValidatedMapping, 2),
+        ] {
+            let mut encoder = Encoder::new();
+            http3_alt_used(&mut encoder, &policy)?;
+            assert_eq!(encoder.finish(), vec![tag]);
+        }
+        Ok(())
     }
 }

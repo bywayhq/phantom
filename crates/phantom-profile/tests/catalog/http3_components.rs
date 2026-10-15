@@ -2,6 +2,8 @@
 //!
 //! The baselines below were copied from the browser factories at
 //! ae2aba3d42b29ddb881e119a4710c75dc757a66d, independently of declarations.
+//! Firefox now intentionally uses mapping-time Alt-Used eligibility; all other
+//! values retain that baseline.
 
 use phantom_profile::{
     Http3AltUsed, Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream,
@@ -136,6 +138,6 @@ fn firefox_request() -> Http3RequestSettings {
         ],
         extended_connect_pseudo_header_order: None,
         cookie_crumbs: Http3CookieCrumbs::Whole,
-        alt_used: Http3AltUsed::Append,
+        alt_used: Http3AltUsed::ValidatedMapping,
     }
 }

@@ -594,9 +594,10 @@ impl RequestBuilder {
     /// route, and the request keeps the origin's authority, TLS server name,
     /// and certificate check. Under a profile whose
     /// [`Http3RequestSettings::alt_used`](crate::profile::Http3RequestSettings::alt_used)
-    /// is `Append`, such as the Firefox 157 recipe, an `Alt-Used` field naming
-    /// the alternative follows the template, caller, and cookie fields; the
-    /// Chromium-family recipes send none, as Chrome 154 does not.
+    /// is `Append` or `ValidatedMapping`, an `Alt-Used` field names the
+    /// alternative at the template's generated slot, or last without a slot.
+    /// An explicit pin is immediately eligible under `ValidatedMapping`,
+    /// including the Firefox 157 recipe. Chromium-family recipes omit it.
     ///
     /// This needs no Alt-Svc store and no TLS connection to learn from, so it
     /// also reaches an alternative through a CONNECT-UDP proxy. Setup retries

@@ -717,6 +717,7 @@ mod ech;
 mod expect_continue;
 mod extended_connect;
 mod firefox;
+mod mapping_confirmation;
 mod profile;
 mod qpack;
 mod quic;

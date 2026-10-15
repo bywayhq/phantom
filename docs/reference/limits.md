@@ -304,8 +304,9 @@ from Chromium.
 
 Automatic client-hint settings cannot generate, position or request a hint
 replay for `Alt-Used` on H1, H2 or H3. Other custom hint names retain their
-configured behavior. See [Alt-Used](profiles.md#alt-used-on-http3) for emission
-and template placement.
+configured behavior. `ValidatedMapping` samples eligibility once per hop;
+retries keep that decision. Imported Alt-Svc snapshots start unvalidated.
+See [Alt-Used](profiles.md#alt-used-on-http3) for emission and placement.
 
 `Client::clear_session_tickets` returns `Result<usize, SessionTicketError>`.
 It removes retained TCP TLS and QUIC tickets, including imported tickets

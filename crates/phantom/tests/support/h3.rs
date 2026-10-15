@@ -20,8 +20,8 @@ pub(crate) fn client_settings() -> Http3ClientSettings {
 }
 
 /// Returns `settings` with a request profile that appends `Alt-Used` to a
-/// request sent to an alternative service, as the Firefox 157 recipe does
-/// and the Chromium recipe of [`client_settings`] does not.
+/// request sent to an alternative service. This is an explicit unconditional
+/// policy, distinct from mapping validation in the Firefox recipe.
 pub(crate) fn appending_alt_used(settings: Http3ClientSettings) -> Http3ClientSettings {
     let mut request = settings.request().clone();
     request.alt_used = Http3AltUsed::Append;

@@ -43,6 +43,6 @@ pub(crate) fn firefox_157_http3_request() -> crate::Http3RequestSettings {
         pseudo_header_order: vec![crate::Http3PseudoHeader::Method, crate::Http3PseudoHeader::Scheme, crate::Http3PseudoHeader::Authority, crate::Http3PseudoHeader::Path],
         extended_connect_pseudo_header_order: None,
         cookie_crumbs: crate::Http3CookieCrumbs::Whole,
-        alt_used: crate::Http3AltUsed::Append,
+        alt_used: crate::Http3AltUsed::ValidatedMapping,
     }
 }

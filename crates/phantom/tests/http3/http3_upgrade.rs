@@ -39,6 +39,7 @@ use http3_upgrade_support::{
 use tls_support::{TestIdentity, TestResult, tls_settings};
 
 mod alt_used;
+mod mapping_alt_used;
 
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const ORIGIN_NAME: &str = "127.0.0.1";
@@ -118,7 +119,7 @@ async fn opt_in_alt_svc_preserves_origin_identity_while_upgrading_to_http3() -> 
     .await
 }
 
-/// Without a template slot, the generated alternative field stays last.
+/// An append policy without a template slot keeps the generated field last.
 #[tokio::test]
 async fn an_alternative_without_a_template_slot_keeps_alt_used_last() -> TestResult<()> {
     bounded(async {
@@ -136,11 +137,13 @@ async fn an_alternative_without_a_template_slot_keeps_alt_used_last() -> TestRes
         .await?;
         let alternative_authority = format!("127.0.0.1:{}", fixture.alternative_address().port());
         let base = client_settings();
+        let mut request = firefox::v157_http3_request();
+        request.alt_used = phantom::profile::Http3AltUsed::Append;
         let settings = Http3ClientSettings::new(
             base.tls().clone(),
             base.quic_transport().clone(),
             base.http3().clone(),
-            firefox::v157_http3_request(),
+            request,
         );
         let client = upgrade_client_with(&identity, settings)?;
 

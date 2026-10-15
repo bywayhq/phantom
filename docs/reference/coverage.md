@@ -458,8 +458,9 @@ Supported requests and routes:
 - Opt-in, bounded [Alt-Svc](glossary.md#alt-svc) upgrade from negotiated HTTPS
   on a direct or SOCKS5 route. Phantom keeps the origin authority, SNI, and
   authentication identity, and adds a canonical `Alt-Used` field with an
-  explicit port only under a profile that sends it, such as Firefox 157's;
-  Chrome 154 sends none. The alternative is dialed over the route that learned it.
+  explicit port under the selected profile policy. Firefox 157 samples
+  checked mapping eligibility when each request hop is planned. The
+  alternative is dialed over the route that learned it.
 - Opt-in H3 discovery from [HTTPS DNS records](glossary.md#https-record)
   (RFC 9460) on the direct route,
   for an origin with no stored Alt-Svc alternative. A ServiceMode record
@@ -582,8 +583,10 @@ Supported lifecycle:
 
 Not supported:
 
-- Firefox's request-time Alt-Svc mapping eligibility and the resulting
-  `Alt-Used` omission. `Append` sends the field on every alternative request.
+- Firefox's complete speculative mapping-validation scheduler and
+  cross-origin connection coalescing. `ValidatedMapping` samples learned
+  eligibility when planning each request hop and publishes authenticated
+  H3 setup for later plans. It does not reproduce that scheduler.
 - Nonempty local H3 application settings.
 - Datagram APIs for specific extensions.
 - HTTPS-record queries sent with the address queries from one DNS client, as

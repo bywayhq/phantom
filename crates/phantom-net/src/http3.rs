@@ -35,6 +35,7 @@ use crate::direct::{RuntimeUnavailable, poll_tokio_io};
 mod alps;
 mod early_data;
 mod early_streams;
+mod mapping_confirmation;
 use crate::request::{OriginForm, RequestHeader};
 pub use body::Http3Body;
 pub use connect_udp::{ConnectUdpError, ConnectUdpErrorKind};
@@ -44,6 +45,7 @@ pub use error::{Http3Error, Http3ErrorKind, Http3Unprocessed};
 pub use extended_connect::{
     Http3ExtendedConnectOutcome, Http3ExtendedConnectStream, Http3ExtendedProtocol,
 };
+pub use mapping_confirmation::Http3MappingConfirmation;
 #[cfg(feature = "qlog")]
 pub use qlog::{QlogCapture, QlogCaptureError};
 

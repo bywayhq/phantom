@@ -142,6 +142,7 @@ fn alt_used(v: &Value) -> Result<Http3AltUsed> {
     match v.text("http3.alt_used")? {
         "Omit" => Ok(Http3AltUsed::Omit),
         "Append" => Ok(Http3AltUsed::Append),
+        "ValidatedMapping" => Ok(Http3AltUsed::ValidatedMapping),
         _ => Err(json::unsupported("http3.alt_used")),
     }
 }

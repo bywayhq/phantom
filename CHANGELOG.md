@@ -13,6 +13,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Make Firefox 157 send `Alt-Used` only when its learned mapping was already
+  validated as a request hop was planned. Authenticated H3 setup validates
+  later plans; retries keep the original decision. Pinned alternatives
+  remain eligible immediately. Migrate: use `Http3AltUsed::Append` for the
+  previous unconditional policy. For native connectors, replace
+  `sends_alt_used()` with `alt_used_policy()` and apply the selected policy.
+
 - Require receiving routes when importing TLS ticket snapshots. Migrate:
   replace `import_session_tickets(&snapshot, &key)` with
   `import_session_tickets(&snapshot, &key, &[])` for direct connections.

@@ -52,7 +52,7 @@ copying execution journals into this page.
 | T2 | `tls-done-diagnosis` | Framed-response repair and EOF controls merged in PR #212 after the full gate and platform CI. Main push CI passed; historical attribution remains open. |
 | P1–P4 | `profile-catalog` | Catalog composition merged in PR #223 at `8754e971` after independent review, all 22 gate steps, 4,708 Rust tests and 43 green PR checks. Provenance and coverage are recorded per component, with explicit reuse and absent layers. |
 | P5 | `profile-catalog` | Edge 153 Windows and corpus measurements merged in PR #225 at `b0a40765` after independent review, all 22 gate steps, 4,828 Rust tests and 43 green PR checks. All eight applicable main push workflows passed. Synthetic growth measurements cover 11 through 1,035 records without changing existing definitions. |
-| F1 | `ticket-transfer` | Direct TCP snapshots, cold import and fallible clearing merged in PR #231 at `d61b96d1`. Lower QUIC primitives merged in PR #234 at `e741aca3`; all nine main push workflows passed. Mixed TCP/QUIC transactions are in PR #235 at `ca6f7161` after independent review and all 23 gate steps. Client QUIC and proxy transfer passed focused Windows controls for cold import, warm replacement, credentials, accepted/rejected early data and shared H2/H3 outer-session resumption. Linux runtime and final integration remain pending. |
+| F1 | `ticket-transfer` | TCP snapshots merged in PR #231, QUIC primitives in PR #234, and mixed transactions in PR #235. All nine main push workflows passed for PR #235. Final client transfer is in PR #236 at `b132f446`, after independent review, all 23 gate steps and 5,270 Rust tests. Focused Linux runtime passed. Platform CI and fast-forward delivery remain pending. |
 | F2 | `fingerprint-import` | Bounded JSON import merged in PR #226 at `8b13da48` after independent review, all 22 gate steps, 4,851 Rust tests and 41 green PR checks. All six applicable main push workflows passed. Import controls cover all 11 profiles and 22 templates. |
 | F3 | `socks4-integration` | SOCKS4/4a merged in PR #215 after the exact-head full gate and macOS/Windows CI. Main push CI passed. |
 | F4 | `digest-integration` | Digest merged in PR #218 after the full gate and platform CI. Enterprise contracts are recorded. PR #220 repaired the cookie and shared-port fixtures; main push CI passed. |
@@ -60,7 +60,7 @@ copying execution journals into this page.
 | F6 | `connect-udp-sharing` | Merged in PR #229 at `0f404ab2` after independent review, all 22 gate steps, 4,982 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. Both named peer implementations passed their explicit controls. |
 | F7 | `rtt-racing` | Merged in PR #228 at `3973d41c` after independent review, all 22 gate steps, 4,943 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. No browser timing parity or performance benefit is claimed. |
 | F8 | `http3-debug-auth` | Origin opt-in merged in PR #219 after independent review, all 22 gate steps, 4,643 Rust tests, and 43 green PR checks at `6f6426f4`. |
-| B2 | `proxy-h2-idle-integration` | Proxy timer closure and the idle-PING guard merged in PR #222 at `98fe3750` after all 22 gate steps, 4,659 Rust tests and 43 green PR checks. All nine main push workflows passed. Alt-Used template placement merged in PR #230 at `49eaa148` after independent review, all 22 gate steps, 4,990 Rust tests and 43 green PR checks. All eight applicable main push workflows passed. Mapping-time omission and WINDOW_UPDATE remain open. |
+| B2 | `firefox-alt-used-mapping` | Proxy idle closure merged in PR #222 and template placement in PR #230; their main push CI passed. Mapping-time omission passed independent source review and focused peer controls, including accepted/rejected early handshakes before any response. API generation, strict Clippy and catalog checks passed. Full gate and delivery remain pending. Ordinary H2 stream WINDOW_UPDATE is a separate open slice. |
 
 Neither controlled timing reproduction proves the exact historical host
 delay. The unchanged historical TLS suite also passed all 1,041 tests with
@@ -191,11 +191,11 @@ uncertainty. Research must lead to a decision, bounded experiment, or repair.
 - [ ] B2: Correct Firefox `Alt-Used` placement and mapping-time omission,
   ordinary H2 stream `WINDOW_UPDATE` shape, and HTTPS-proxy H2 idle closure.
   Record and verify these as separate changes with their own wire controls.
-  The optional H3 slot and Firefox navigation/fetch placement are implemented
-  in `firefox-alt-used` and passed 21 focused tests. Its integration gate and
-  delivery remain pending.
-  Timing remains open: validated-mapping eligibility and request planning
-  require separate state and controls, rather than a first-stream counter.
+  The optional H3 slot and Firefox navigation/fetch placement merged in
+  PR #230. Mapping-time omission now has checked-handshake publication,
+  per-mapping lifetime and immutable request-hop decisions. Focused wire
+  controls passed; its full gate and delivery remain pending. Ordinary H2
+  opening-stream WINDOW_UPDATE remains a separate repair.
   The proxy idle-timer repair merged in PR #222 after its full gate and
   platform checks. Its [evidence](transport-profile-evidence/proxy-h2-idle.md)
   records the controlled baseline, retirement guard and verified delivery.

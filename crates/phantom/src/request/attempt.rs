@@ -794,7 +794,13 @@ fn pinned_alt_used<'a>(
             .inner
             .connectors_for(&request.endpoint)
             .http3
-            .is_some_and(|connector| connector.sends_alt_used())
+            .is_some_and(|connector| {
+                matches!(
+                    connector.alt_used_policy(),
+                    phantom_profile::Http3AltUsed::Append
+                        | phantom_profile::Http3AltUsed::ValidatedMapping
+                )
+            })
     {
         return None;
     }

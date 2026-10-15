@@ -365,6 +365,7 @@ pub phantom_profile::Http2UnindexedMatch::Literal
 #[non_exhaustive] pub enum phantom_profile::Http3AltUsed
 pub phantom_profile::Http3AltUsed::Append
 pub phantom_profile::Http3AltUsed::Omit
+pub phantom_profile::Http3AltUsed::ValidatedMapping
 #[non_exhaustive] pub enum phantom_profile::Http3CookieCrumbs
 pub phantom_profile::Http3CookieCrumbs::Split
 pub phantom_profile::Http3CookieCrumbs::Whole

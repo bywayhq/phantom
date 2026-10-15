@@ -651,12 +651,19 @@ explicit port.
 | Recipe | `alt_used` |
 | --- | --- |
 | `chrome::v154_http3_request`, used by every Chromium-family recipe | `Omit` |
-| `firefox::v157_http3_request` | `Append`: one generated header |
+| `firefox::v157_http3_request` | `ValidatedMapping`: checked when planning the request |
 
 - An exact H3 request to the origin, and one that an HTTPS record sends over
   H3 to the origin's own host and port, never carry the field.
+- `ValidatedMapping` sends the header when a learned mapping was already
+  validated by authenticated H3 setup when that request hop was planned.
+  Completing setup later does not change the hop's fields, including retries.
+  A pinned alternative sends it on the first request.
+- Equivalent live advertisement refresh keeps established validation.
+  Changed, expired, cleared and imported mappings start unvalidated.
+- `Append` always sends the header to an alternative. `Omit` suppresses it.
 - A caller-supplied `Alt-Used` field or trailer fails before any I/O under
-  either setting.
+  every setting.
 - `RequestField::AltUsed` places the generated field in an HTTP/3 template.
   Firefox navigation puts it after `accept-encoding` and before optional
   `referer`; fetch puts it after `referer`. Without a slot, it stays last.

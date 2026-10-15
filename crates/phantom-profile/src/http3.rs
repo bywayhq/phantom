@@ -280,28 +280,38 @@ pub enum Http3CookieCrumbs {
 /// `Alt-Used`.
 ///
 /// RFC 7838 section 5 asks a client (SHOULD) to name the alternative service
-/// it uses in an `Alt-Used` field; Chrome 154 does not. The rule applies to
-/// every HTTP/3 request sent to an alternative, whether learned from
-/// `Alt-Svc` or pinned by the caller. An exact HTTP/3 request to the origin,
-/// and one sent to the origin's own host and port because an HTTPS record
-/// lists `h3`, never carry the field. The client generates its value; a
-/// caller-supplied `Alt-Used` field or trailer is rejected under either
-/// setting. Automatic client-hint settings cannot generate, move or request
-/// a hint replay for this field on any protocol. Other custom hint names
-/// retain their configured behavior.
+/// it uses in an `Alt-Used` field; Chrome 154 does not. This policy applies
+/// to alternatives learned from `Alt-Svc` or pinned by the caller. An exact
+/// HTTP/3 request to the origin, and one sent to the origin's own host and
+/// port because an HTTPS record lists `h3`, never carry the field.
+///
+/// The client generates the alternative's host and port, with IPv6 literals
+/// in brackets and an explicit port even when it is 443. A caller-supplied
+/// `Alt-Used` field or trailer is rejected under every setting. Automatic
+/// client-hint settings cannot generate, move or request a hint replay for
+/// this field on any protocol. Other custom hint names retain their
+/// configured behavior.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Http3AltUsed {
     /// Send no `Alt-Used` field.
     Omit,
-    /// Send one `Alt-Used` field at the template's generated slot.
+    /// Send one `Alt-Used` field on every request to an alternative service.
     ///
-    /// Without [`crate::RequestField::AltUsed`], it follows every other
-    /// ordinary request field.
-    ///
-    /// Its value is the alternative's host and port, with an IPv6 literal in
-    /// brackets and the port present even when it is 443.
+    /// [`crate::RequestField::AltUsed`] places it in the template. Without
+    /// that slot, it follows every other ordinary request field.
     Append,
+    /// Send `Alt-Used` when the mapping was validated at request planning.
+    ///
+    /// A learned mapping becomes eligible after authenticated HTTP/3 setup
+    /// completes. A caller-pinned alternative is immediately eligible.
+    /// Setup completing later cannot change the current hop's decision,
+    /// including when its headers are rebuilt for a retry. A redirect hop
+    /// samples eligibility again.
+    ///
+    /// Placement follows [`Self::Append`]. This models Firefox's mapping-time
+    /// header decision, without reproducing its background setup scheduler.
+    ValidatedMapping,
 }
 
 /// Ordered HTTP/3 request construction independent of the concrete backend.

@@ -20,6 +20,26 @@ use crate::request::{OriginForm, RequestHeader};
 use crate::tls::test_support::{TEST_SERVER_NAME, TestIdentity};
 
 #[test]
+fn connector_preserves_distinct_alt_used_policies() -> TestResult<()> {
+    for policy in [
+        phantom_profile::Http3AltUsed::Omit,
+        phantom_profile::Http3AltUsed::Append,
+        phantom_profile::Http3AltUsed::ValidatedMapping,
+    ] {
+        let mut request = chrome::v154_http3_request();
+        request.alt_used = policy;
+        let connector = Http3Connector::new(
+            &h3_tls_settings(),
+            &chrome::v154_quic(),
+            &chrome::v154_http3(),
+            &request,
+        )?;
+        assert_eq!(connector.alt_used_policy(), policy);
+    }
+    Ok(())
+}
+
+#[test]
 fn constructor_rejects_tcp_tls_recipe() {
     let result = Http3Connector::new(
         &chrome::v154_tcp_tls(),

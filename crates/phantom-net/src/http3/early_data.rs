@@ -1,10 +1,12 @@
 //! Early (0-RTT) data state for one QUIC connection.
 
-use std::future::Future;
+use std::{future::Future, sync::Arc};
 
 use tokio::sync::{oneshot, watch};
 
-use super::{Http3Error, Http3ErrorKind};
+use super::{
+    Http3Error, Http3ErrorKind, Http3MappingConfirmation, mapping_confirmation::MappingPublication,
+};
 
 /// How the server answered a connection's early data.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -65,11 +67,13 @@ impl InvalidHandshake {
 #[derive(Clone)]
 pub(super) struct EarlyData {
     outcome: watch::Receiver<Option<EarlyDataOutcome>>,
+    mapping: Arc<MappingPublication>,
 }
 
 /// Publishes a connection's early-data answer to its [`EarlyData`].
 pub(super) struct EarlyDataAnswer {
     sender: watch::Sender<Option<EarlyDataOutcome>>,
+    mapping: Arc<MappingPublication>,
     #[cfg(test)]
     hold: Option<std::sync::Arc<tokio::sync::Semaphore>>,
 }
@@ -78,13 +82,15 @@ impl EarlyData {
     /// Returns the unsettled answer and the handle that settles it.
     pub(super) fn channel() -> (EarlyDataAnswer, Self) {
         let (sender, outcome) = watch::channel(None);
+        let mapping = Arc::new(MappingPublication::default());
         (
             EarlyDataAnswer {
                 sender,
+                mapping: Arc::clone(&mapping),
                 #[cfg(test)]
                 hold: None,
             },
-            Self { outcome },
+            Self { outcome, mapping },
         )
     }
 
@@ -96,6 +102,13 @@ impl EarlyData {
     /// Returns the answer if the handshake has ended.
     pub(super) fn settled(&self) -> Option<EarlyDataOutcome> {
         *self.outcome.borrow()
+    }
+
+    pub(super) fn register_mapping_confirmation(
+        &self,
+        confirmation: &Http3MappingConfirmation,
+    ) -> bool {
+        self.mapping.register(confirmation, &self.outcome)
     }
 
     /// Waits for the handshake to end and returns the answer.
@@ -112,7 +125,18 @@ impl EarlyDataAnswer {
     /// Publishes an answer known without waiting, as when the server
     /// rejected the early data before the early session had started.
     pub(super) fn publish(self, outcome: EarlyDataOutcome) {
-        let _ = self.sender.send(Some(outcome));
+        Self::publish_checked(&self.sender, &self.mapping, outcome);
+    }
+
+    fn publish_checked(
+        sender: &watch::Sender<Option<EarlyDataOutcome>>,
+        mapping: &MappingPublication,
+        outcome: EarlyDataOutcome,
+    ) {
+        // A dropped connection may have no receivers. Its weak destination can
+        // still record the completed check without retaining the connection.
+        let _ = sender.send(Some(outcome));
+        mapping.complete(outcome);
     }
 
     /// Makes the connection take a permit from `hold` after Quinn's answer
@@ -150,6 +174,7 @@ impl EarlyDataAnswer {
     {
         let Self {
             sender,
+            mapping,
             #[cfg(test)]
             hold,
         } = self;
@@ -164,7 +189,114 @@ impl EarlyDataAnswer {
                 Ok(false) if connection.close_reason().is_none() => restart().await,
                 Ok(false) | Err(_) => EarlyDataOutcome::Failed,
             };
-            let _ = sender.send(Some(outcome));
+            Self::publish_checked(&sender, &mapping, outcome);
         }));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{EarlyData, EarlyDataOutcome, InvalidHandshake};
+    use crate::http3::Http3MappingConfirmation;
+
+    #[test]
+    fn checked_completion_confirms_pending_and_late_registrations() {
+        for outcome in [EarlyDataOutcome::Accepted, EarlyDataOutcome::Rejected] {
+            let (answer, early) = EarlyData::channel();
+            let pending = Http3MappingConfirmation::new();
+            assert!(early.register_mapping_confirmation(&pending));
+            assert!(!pending.is_confirmed());
+
+            answer.publish(outcome);
+            assert_eq!(early.settled(), Some(outcome));
+            assert!(pending.is_confirmed());
+
+            let late = Http3MappingConfirmation::new();
+            assert!(early.register_mapping_confirmation(&late));
+            assert!(late.is_confirmed());
+        }
+    }
+
+    #[test]
+    fn registration_between_outcome_publication_and_slot_drain_is_not_lost() {
+        for outcome in [EarlyDataOutcome::Accepted, EarlyDataOutcome::Rejected] {
+            let (answer, early) = EarlyData::channel();
+            let superseded = Http3MappingConfirmation::new();
+            assert!(early.register_mapping_confirmation(&superseded));
+
+            // Pause at the production publication boundary: the checked watch
+            // value is visible, but completion has not acquired the slot yet.
+            assert!(answer.sender.send(Some(outcome)).is_ok());
+            let current = Http3MappingConfirmation::new();
+            assert!(early.register_mapping_confirmation(&current));
+            answer.mapping.complete(outcome);
+
+            assert!(current.is_confirmed());
+            assert!(!superseded.is_confirmed());
+        }
+    }
+
+    #[test]
+    fn pending_registration_replaces_only_the_previous_destination() {
+        let (answer, early) = EarlyData::channel();
+        let previous = Http3MappingConfirmation::new();
+        let current = Http3MappingConfirmation::new();
+        assert!(early.register_mapping_confirmation(&previous));
+        assert!(early.register_mapping_confirmation(&current));
+        assert!(early.register_mapping_confirmation(&current.clone()));
+        assert!(!previous.is_confirmed());
+        assert!(!current.is_confirmed());
+
+        answer.publish(EarlyDataOutcome::Accepted);
+        assert!(!previous.is_confirmed());
+        assert!(current.is_confirmed());
+    }
+
+    #[test]
+    fn failed_and_invalid_outcomes_never_confirm_a_mapping() {
+        for outcome in [
+            EarlyDataOutcome::Failed,
+            EarlyDataOutcome::Invalid(InvalidHandshake::Alpn),
+            EarlyDataOutcome::Invalid(InvalidHandshake::Alps),
+            EarlyDataOutcome::Invalid(InvalidHandshake::AlpsSettings),
+        ] {
+            let (answer, early) = EarlyData::channel();
+            let pending = Http3MappingConfirmation::new();
+            assert!(early.register_mapping_confirmation(&pending));
+
+            answer.publish(outcome);
+            assert!(!pending.is_confirmed());
+            let late = Http3MappingConfirmation::new();
+            assert!(!early.register_mapping_confirmation(&late));
+            assert!(!late.is_confirmed());
+        }
+    }
+
+    #[test]
+    fn cancelled_publication_cannot_accept_a_new_destination() {
+        let (answer, early) = EarlyData::channel();
+        let pending = Http3MappingConfirmation::new();
+        assert!(early.register_mapping_confirmation(&pending));
+        drop(answer);
+
+        let late = Http3MappingConfirmation::new();
+        assert!(!early.register_mapping_confirmation(&late));
+        assert!(!pending.is_confirmed());
+        assert!(!late.is_confirmed());
+    }
+
+    #[test]
+    fn failure_on_another_connection_does_not_erase_confirmation() {
+        let (success, first) = EarlyData::channel();
+        let (failure, second) = EarlyData::channel();
+        let confirmation = Http3MappingConfirmation::new();
+        assert!(first.register_mapping_confirmation(&confirmation));
+        assert!(second.register_mapping_confirmation(&confirmation));
+
+        success.publish(EarlyDataOutcome::Rejected);
+        failure.publish(EarlyDataOutcome::Failed);
+        assert!(confirmation.is_confirmed());
+        assert!(!second.register_mapping_confirmation(&confirmation));
+        assert!(confirmation.is_confirmed());
     }
 }

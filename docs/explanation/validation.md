@@ -1852,9 +1852,9 @@ Limits:
 - The order of the shuffled extensions is drawn per connection, by
   BoringSSL for Phantom and by NSS for Firefox, so no two ClientHellos are
   expected to share it; only the fixed tail is compared.
-- Firefox's request-time mapping eligibility and resulting `Alt-Used`
-  omission remain unmodeled. The template placement change and its focused
-  checks are described under [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence).
+- Firefox's full speculative mapping-validation scheduler and cross-origin
+  connection coalescing remain unmodeled. Mapping-time header decisions and
+  their checks are described under [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence).
 - neqo stops using the dynamic table once 1000 streams hold unacknowledged
   field sections; Phantom does not.
 - Phantom never sends `ACK_FREQUENCY` or `RESET_STREAM_AT`. No capture shows
@@ -4475,7 +4475,9 @@ Chrome connects to an alternative at another host or port
 (`net/http/http_stream_factory_job_controller.cc` lines 1366-1376). Firefox
 157 sends the field (`HTTP_ATOM(Alternate_Service_Used, "Alt-Used")` in
 `netwerk/protocol/http/nsHttpAtomList.inc`), and the retained Firefox H3
-snapshots and cookie captures show it, so the Firefox recipe sets `Append`.
+snapshots and cookie captures show it. The Firefox recipe sets
+`ValidatedMapping` to distinguish checked and unchecked mappings at request
+planning.
 `crates/phantom-profile/src/browser/chrome/http3_tests.rs` and
 `crates/phantom-profile/src/browser/firefox/tests.rs` check both recipes against
 those captures.
@@ -4485,7 +4487,10 @@ value with the canonical alternative host and explicit port. An optional
 `RequestField::AltUsed` HTTP/3 slot places it within the template. Firefox
 navigation puts it after `accept-encoding` and before optional `referer`;
 fetch puts it after `referer`. Without a slot, it follows every other field.
-The enum spelling `Append` is unchanged.
+`Append` remains an explicit unconditional policy. `ValidatedMapping` uses
+the same value and slot only when the learned mapping was validated before
+that request hop was planned. An explicitly pinned alternative is eligible
+immediately. Exact-origin and HTTPS-record origin requests send no field.
 
 Firefox 157 source at `FIREFOX_157_0_RELEASE`, resolved to commit
 `fdd757a2e09c9471cddf383e64e631e4ce178499`, explains the insertion stage:
@@ -4533,8 +4538,27 @@ and origin absence, and ordinary custom-hint positive controls. Unit/import
 controls cover the single H3-only slot, trusted values and shared hint
 anchors. All 21 selected tests passed on Windows: four profile tests, five
 facade unit tests, ten HTTP/3 wire tests, the origin-winner field-list test
-and the HTTPS-record origin test. The final integration gate and delivery
-remain pending.
+and the HTTPS-record origin test. Placement was delivered in PR #230.
+
+Mapping validation belongs to the current origin, route, advertisement
+generation and target. Checked authenticated H3 setup publishes into an
+opaque mapping-owned confirmation cell. Fresh and reused inner-origin
+leases register the current cell. Early setup confirms it only after the
+checked accepted or rejected outcome settles, including late ALPS handling.
+Failed setup and verification-disabled connections cannot confirm it.
+Publication does not wait for an HTTP response. Proxy outer setup is not
+origin authentication.
+
+Each request hop copies the mapping's checked state before setup. A header
+retry keeps that copy. A redirect plans a new hop. Equivalent unexpired
+advertisements preserve established validation, but get a new pending cell.
+Old generation completions cannot validate replacement advertisements.
+Clearing, expiry, replacement and snapshot import reset validation. The
+snapshot format stores advertisements, without authentication authority.
+This models header eligibility, not Firefox's full speculative scheduler or
+cross-origin coalescing. The historical snapshot schedule remains inferred.
+Phantom also retains an explicit port in this header, including port 443;
+Firefox's source omits the default port.
 
 Automatic client-hint settings cannot generate, move or request a hint replay
 for `Alt-Used` on any protocol. Default hints, stored `Accept-CH`, ALPS restart
@@ -4618,10 +4642,11 @@ Alt-Svc upgrade, as they carry exact H3.
 
 Limits:
 
-- Firefox's request-time mapping eligibility and the resulting omission
-  remain unmodeled. Under `Append`, Phantom sends `Alt-Used` on every request
-  to an alternative. A first-stream counter would not reproduce the preloaded
-  mapping captures described above.
+- Firefox's full speculative mapping-validation scheduler and cross-origin
+  coalescing remain unmodeled. Mapping-time omission follows checked setup
+  available to Phantom; the historical capture schedule was not recorded.
+  `Append` remains available for unconditional emission. A first-stream
+  counter would not reproduce the preloaded mapping captures above.
 - The Chrome snapshots show only a same-host, same-port `h3=":<port>"`
   alternative, so the omission at another host or port rests on Chromium
   source alone. No Edge, Brave, Opera, or Android capture reaches H3 through

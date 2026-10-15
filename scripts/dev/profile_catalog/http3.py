@@ -25,7 +25,7 @@ COMPONENT_ENUMS = {
     ),
     "qpack_stream_order": ("Http3QpackStreamOrder", ("EncoderFirst", "DecoderFirst")),
     "cookie_crumbs": ("Http3CookieCrumbs", ("Whole", "Split")),
-    "alt_used": ("Http3AltUsed", ("Omit", "Append")),
+    "alt_used": ("Http3AltUsed", ("Omit", "Append", "ValidatedMapping")),
 }
 
 

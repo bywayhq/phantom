@@ -60,7 +60,7 @@
       "values": {
         "pseudo_header_order": ["Method", "Scheme", "Authority", "Path"],
         "cookie_crumbs": "Whole",
-        "alt_used": "Append"
+        "alt_used": "ValidatedMapping"
       }
     }
   ]

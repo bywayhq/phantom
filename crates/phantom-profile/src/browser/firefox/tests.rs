@@ -309,9 +309,16 @@ const V157_ALT_SVC_SNAPSHOT: &str = include_str!(concat!(
 ));
 
 #[test]
-fn requests_to_an_alternative_append_alt_used() {
-    assert_eq!(v157_http3_request().alt_used, Http3AltUsed::Append);
-    // The fetch Firefox 157 sent over HTTP/3 to the learned alternative.
+fn alternative_fields_use_request_time_mapping_eligibility() {
+    assert_eq!(
+        v157_http3_request().alt_used,
+        Http3AltUsed::ValidatedMapping
+    );
+    // These fields show both outcomes; their mapping schedule was not recorded.
+    assert!(V157_ALT_SVC_SNAPSHOT.lines().any(|line| {
+        line.strip_prefix("request_2_field_order=")
+            .is_some_and(|order| !order.split(',').any(|name| name == "alt-used"))
+    }));
     assert!(V157_ALT_SVC_SNAPSHOT.lines().any(|line| {
         line.strip_prefix("request_3_field_order=")
             .is_some_and(|order| order.split(',').any(|name| name == "alt-used"))

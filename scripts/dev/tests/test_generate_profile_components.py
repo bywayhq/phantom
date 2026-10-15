@@ -40,6 +40,8 @@ class Http3ComponentTests(unittest.TestCase):
         )
         self.assertIn("crate::Http3Setting::RandomizedGrease", expected)
         self.assertIn("Http3SettingOrder::Ascending", expected)
+        self.assertIn("alt_used: crate::Http3AltUsed::Omit", expected)
+        self.assertIn("alt_used: crate::Http3AltUsed::ValidatedMapping", expected)
         self.assertIn("reserved_frame_after_settings: true", expected)
         self.assertNotIn("draw_", expected)
 

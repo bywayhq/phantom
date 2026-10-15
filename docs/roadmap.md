@@ -314,10 +314,11 @@ completed phase scope.
   The optional `RequestField::AltUsed` HTTP/3 slot passed 21 focused
   placement and omission tests. Its integration gate and delivery remain in the
   [campaign](internals/transport-and-profile-campaign.md#browser-fidelity).
-  Remaining: request-time mapping eligibility and resulting omission. Phantom
-  still sends the field on every alternative request under `Append`.
-  Blocker: validated-mapping state and request planning before dispatch;
-  a first-stream counter does not model those decisions.
+  Mapping-time omission uses `Http3AltUsed::ValidatedMapping`: each request
+  hop samples learned eligibility before setup, and checked authenticated H3
+  setup validates later plans. Retries retain their sampled decision.
+  Remaining: Firefox's complete speculative validation scheduler,
+  cross-origin coalescing and default-port omission in the header value.
 - macOS beyond client hints and request fields. Delivered: `macos` client
   hints for Chrome 154, Edge 154, and Opera 136 and `macos` request
   templates for Chrome 154 and Firefox 157, from macOS 15.5 captures on an

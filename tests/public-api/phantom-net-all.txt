@@ -820,6 +820,7 @@ impl core::fmt::Debug for phantom_net::http3::Http3Connection
 pub fn phantom_net::http3::Http3Connection::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::http3::Http3Connector
 impl phantom_net::http3::Http3Connector
+pub const fn phantom_net::http3::Http3Connector::alt_used_policy(&self) -> phantom_profile::http3::Http3AltUsed
 pub fn phantom_net::http3::Http3Connector::attach_key_log(&self, &phantom_quic_btls::key_log::NssKeyLogSender)
 pub async fn phantom_net::http3::Http3Connector::can_reuse(&self, &phantom_net::http3::Http3Connection) -> bool
 pub fn phantom_net::http3::Http3Connector::can_reuse_now(&self, &phantom_net::http3::Http3Connection) -> bool
@@ -832,6 +833,7 @@ pub fn phantom_net::http3::Http3Connector::new(&phantom_profile::tls::TlsSetting
 pub fn phantom_net::http3::Http3Connector::new_with_additional_roots<'a>(&phantom_profile::tls::TlsSettings, &phantom_profile::quic::QuicTransportSettings, &phantom_profile::http3::Http3Settings, &phantom_profile::http3::Http3RequestSettings, impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>) -> core::result::Result<Self, phantom_net::http3::Http3ConnectorError>
 pub fn phantom_net::http3::Http3Connector::new_with_server_authentication(&phantom_profile::tls::TlsSettings, &phantom_profile::quic::QuicTransportSettings, &phantom_profile::http3::Http3Settings, &phantom_profile::http3::Http3RequestSettings, phantom_net::ServerAuthentication) -> core::result::Result<Self, phantom_net::http3::Http3ConnectorError>
 pub fn phantom_net::http3::Http3Connector::prepare_connect_udp_outer(&self, &Self, &phantom_net::proxy::ConnectUdpProxyPool, &str, u16, &str, &[phantom_net::request::RequestHeader], core::option::Option<&phantom_net::proxy::HttpBasicCredentials>) -> core::result::Result<phantom_net::proxy::PreparedConnectUdpOuter, phantom_net::http3::ConnectUdpError>
+pub fn phantom_net::http3::Http3Connector::register_mapping_confirmation(&self, &phantom_net::http3::Http3Connection, &phantom_net::http3::Http3MappingConfirmation) -> bool
 pub fn phantom_net::http3::Http3Connector::requests_wait_for_peer_settings(&self) -> bool
 pub fn phantom_net::http3::Http3Connector::resumes_sessions(&self) -> bool
 pub async fn phantom_net::http3::Http3Connector::send(&self, phantom_net::route::DatagramRoute<'_>, &str, http::method::Method, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<bytes::bytes::Bytes>) -> core::result::Result<http::response::Response<phantom_net::http3::Http3Body>, phantom_net::http3::Http3ConnectorError>
@@ -840,7 +842,6 @@ pub async fn phantom_net::http3::Http3Connector::send_get_on(&self, &phantom_net
 pub async fn phantom_net::http3::Http3Connector::send_request_body_on(&self, &phantom_net::http3::Http3Connection, http::method::Method, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<phantom_net::request::RequestBody>) -> core::result::Result<http::response::Response<phantom_net::http3::Http3Body>, phantom_net::http3::Http3ConnectorError>
 pub async fn phantom_net::http3::Http3Connector::send_request_body_with_trailers_on(&self, &phantom_net::http3::Http3Connection, http::method::Method, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<phantom_net::request::RequestBody>, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<http::response::Response<phantom_net::http3::Http3Body>, phantom_net::http3::Http3ConnectorError>
 pub async fn phantom_net::http3::Http3Connector::send_request_on(&self, &phantom_net::http3::Http3Connection, http::method::Method, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<bytes::bytes::Bytes>) -> core::result::Result<http::response::Response<phantom_net::http3::Http3Body>, phantom_net::http3::Http3ConnectorError>
-pub fn phantom_net::http3::Http3Connector::sends_alt_used(&self) -> bool
 pub fn phantom_net::http3::Http3Connector::sends_early_data(&self) -> bool
 pub const fn phantom_net::http3::Http3Connector::server_authentication(&self) -> phantom_net::ServerAuthentication
 pub fn phantom_net::http3::Http3Connector::session_ticket_cache(&self) -> core::option::Option<phantom_net::SessionTicketCache>
@@ -893,6 +894,12 @@ impl tokio::io::async_write::AsyncWrite for phantom_net::http3::Http3ExtendedCon
 pub fn phantom_net::http3::Http3ExtendedConnectStream::poll_flush(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::io::error::Result<()>>
 pub fn phantom_net::http3::Http3ExtendedConnectStream::poll_shutdown(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::io::error::Result<()>>
 pub fn phantom_net::http3::Http3ExtendedConnectStream::poll_write(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>, &[u8]) -> core::task::poll::Poll<core::io::error::Result<usize>>
+pub struct phantom_net::http3::Http3MappingConfirmation
+impl phantom_net::http3::Http3MappingConfirmation
+pub fn phantom_net::http3::Http3MappingConfirmation::is_confirmed(&self) -> bool
+pub fn phantom_net::http3::Http3MappingConfirmation::new() -> Self
+impl core::fmt::Debug for phantom_net::http3::Http3MappingConfirmation
+pub fn phantom_net::http3::Http3MappingConfirmation::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 #[non_exhaustive] pub struct phantom_net::http3::Http3SendOptions
 pub phantom_net::http3::Http3SendOptions::body: core::option::Option<bytes::bytes::Bytes>
 pub phantom_net::http3::Http3SendOptions::qlog: core::option::Option<phantom_net::http3::QlogCapture>

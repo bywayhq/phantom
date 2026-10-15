@@ -6,11 +6,12 @@ use std::{
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
+use phantom_net::http3::Http3MappingConfirmation;
 use tracing::debug;
 
 use super::{
     AltSvcLocation, AltSvcStore, Entry, MAX_ALTERNATIVES_PER_ORIGIN, MAX_DELTA_SECONDS, OriginKey,
-    StoreKey, StoredAlternative, canonical_origin, expiration_at,
+    StoreKey, StoredAlternative, canonical_origin, expiration_at, share_confirmation_cells,
 };
 use crate::authority::Endpoint;
 
@@ -281,6 +282,8 @@ impl AltSvcStore {
                 alternatives.push(StoredAlternative {
                     location,
                     expires_at: expiration_at_duration(now, remaining),
+                    mapping_validated: false,
+                    confirmation: Http3MappingConfirmation::new(),
                 });
             }
         }
@@ -288,7 +291,7 @@ impl AltSvcStore {
 
         let mut entries = self.lock_entries();
         // Newest first, so capacity keeps the most recently used origins.
-        for (origin, alternatives, _) in origins.into_iter().rev() {
+        for (origin, mut alternatives, _) in origins.into_iter().rev() {
             let key = StoreKey::new_direct(origin);
             if alternatives.is_empty()
                 || entries.len() == self.capacity.get()
@@ -296,6 +299,7 @@ impl AltSvcStore {
             {
                 continue;
             }
+            share_confirmation_cells(&mut alternatives);
             entries.push_front(Entry {
                 key,
                 alternatives,

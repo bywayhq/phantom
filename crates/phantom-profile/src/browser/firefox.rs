@@ -560,15 +560,15 @@ pub fn v157_http3() -> Http3Settings {
 /// `None`. The retained cookie captures (`fixtures/cookies/firefox/`) show
 /// one joined `cookie` field over HTTP/3 ([`crate::Http3CookieCrumbs::Whole`]).
 ///
-/// A request to an alternative service carries `Alt-Used`
-/// ([`crate::Http3AltUsed::Append`]): Firefox names the field in
-/// `netwerk/protocol/http/nsHttpAtomList.inc` (`Alternate_Service_Used`).
-/// The retained cookie captures carry it on every HTTP/3 request, and the
-/// snapshots on the fetch that follows the first navigation over HTTP/3,
-/// which carries none. Phantom sends it on every request to an alternative,
-/// using the navigation or fetch template's [`RequestField::AltUsed`] slot.
-/// A custom template without that slot places the field last. The omission
-/// on the first request of the retained snapshots is not implemented.
+/// Firefox's channel setup chooses `Alt-Used` from the mapping available
+/// while preparing the request, before its HTTP/3 stream opens. This recipe
+/// selects [`crate::Http3AltUsed::ValidatedMapping`] for that decision.
+/// Learned alternatives become eligible after authenticated setup; a pinned
+/// alternative is eligible immediately. This does not reproduce Firefox's
+/// background connection scheduler or imply a universal first-stream omission.
+///
+/// The navigation or fetch template's [`RequestField::AltUsed`] slot places
+/// the field. A custom template without that slot places it last.
 #[must_use]
 pub fn v157_http3_request() -> Http3RequestSettings {
     crate::catalog::http3_components::firefox_157_http3_request()

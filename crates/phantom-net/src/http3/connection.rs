@@ -137,6 +137,20 @@ impl Http3Connection {
         }
     }
 
+    pub(super) fn register_mapping_confirmation(
+        &self,
+        confirmation: &super::Http3MappingConfirmation,
+    ) -> bool {
+        match &self.inner.early_data {
+            Some(early) => early.register_mapping_confirmation(confirmation),
+            None => {
+                // An ordinary handle exists only after checked H3 construction.
+                confirmation.confirm();
+                true
+            }
+        }
+    }
+
     /// Returns current QUIC RTT after completed and checked H3 setup.
     ///
     /// Returns `None` while early data or its handshake metadata is pending,
