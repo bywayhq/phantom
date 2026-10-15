@@ -48,7 +48,7 @@ copying execution journals into this page.
 
 | Task | Owner lane | State and next check |
 | --- | --- | --- |
-| T1 | `h3-drain-diagnosis` | Readiness repair merged in PR #213 after the exact signed-head gate and platform CI. Main push CI passed; the historical trigger remains open. |
+| T1 | `h3-drain-diagnosis` | Readiness repair merged in PR #213 after the exact signed-head gate and platform CI. Main push CI passed. The exact historical source now rebuilds with a retained executable and symbols. Windows denied scheduler recording with `0xc5585011` before the contention trial started; the historical trigger remains open. |
 | T2 | `tls-done-diagnosis` | Framed-response repair and EOF controls merged in PR #212 after the full gate and platform CI. Main push CI passed; historical attribution remains open. |
 | P1–P4 | `profile-catalog` | Catalog composition merged in PR #223 at `8754e971` after independent review, all 22 gate steps, 4,708 Rust tests and 43 green PR checks. Provenance and coverage are recorded per component, with explicit reuse and absent layers. |
 | P5 | `profile-catalog` | Edge 153 Windows and corpus measurements merged in PR #225 at `b0a40765` after independent review, all 22 gate steps, 4,828 Rust tests and 43 green PR checks. All eight applicable main push workflows passed. Synthetic growth measurements cover 11 through 1,035 records without changing existing definitions. |
@@ -60,15 +60,16 @@ copying execution journals into this page.
 | F6 | `connect-udp-sharing` | Merged in PR #229 at `0f404ab2` after independent review, all 22 gate steps, 4,982 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. Both named peer implementations passed their explicit controls. |
 | F7 | `rtt-racing` | Merged in PR #228 at `3973d41c` after independent review, all 22 gate steps, 4,943 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. No browser timing parity or performance benefit is claimed. |
 | F8 | `http3-debug-auth` | Origin opt-in merged in PR #219 after independent review, all 22 gate steps, 4,643 Rust tests, and 43 green PR checks at `6f6426f4`. |
-| B1 | `firefox-ech-retention` | Direct ECH and H1 WebSocket retention merged in PRs #238 and #241; main push CI passed. Exact H2 is PR #242. Its macOS fixture repair passed a deterministic failing/passing control, all eight ECH controls, all 23 gate steps and 5,331 Rust tests. Fresh PR CI and merge are pending. Direct H2 WebSocket retention is in integration: both baseline failures reproduced, all 23 new controls and pinned nightly passed, and 270 regression test executions passed. Its full gate and delivery remain pending. Proxy ownership and failed-address feedback remain open. |
+| B1 | `firefox-ech-retention` | Direct ECH and H1 WebSocket retention merged in PRs #238 and #241; main push CI passed. Exact H2 merged in PR #242 at `4c7a3833` after all 23 gate steps, 5,331 Rust tests and 43 green PR checks. All eight applicable main push workflows passed. Direct H2 WebSocket retention is in integration. Its first full gate passed 22 steps but caught a setup-size regression. The reviewed repair passes the unchanged 12,288-byte budget at 11,696 bytes. The 23 focused controls and pinned nightly passed again. A fresh full gate and delivery remain pending. Proxy ownership and failed-address feedback remain open. |
 | B2 | `firefox-alt-used-mapping` | Proxy idle closure merged in PR #222 and template placement in PR #230; their main push CI passed. Mapping-time omission merged in PR #237 at `f307150d` after independent review, all 23 gate steps, 5,297 Rust tests and 43 green PR checks. Main push CI then exposed a macOS alternative-port fixture collision. The repair merged in PR #239 at `9e06e1e6` after independent review, all 23 gate steps, 5,298 Rust tests and 41 green PR checks. All four applicable main push workflows passed; ordinary H2 stream WINDOW_UPDATE remains open. |
 
 
-The Windows DNS watch draft passes all 20 synthetic controls on the current
-compiler and Rust 1.88. Those checks compile the byte-exact draft in an
-isolated harness. They do not exercise native watch startup, configuration
-changes, or production resolver integration. The reviewed TCP/keepalive and
-H2 stream-window candidates still need integrated runtime checks and gates.
+The Windows DNS drafts pass 21 watch controls and 28 configuration controls
+on the current compiler and Rust 1.88. Native probes started and stopped the
+watch and read a valid configuration. These checks do not establish behavior
+after an actual configuration change or production resolver integration.
+The reviewed TCP/keepalive and H2 stream-window candidates still need
+integrated runtime checks and gates.
 
 Neither controlled timing reproduction proves the exact historical host
 delay. The unchanged historical TLS suite also passed all 1,041 tests with
@@ -197,11 +198,13 @@ uncertainty. Research must lead to a decision, bounded experiment, or repair.
   and ECH. Cover slower backup ownership, remembered families, failed-address
   suppression, cache lifetime, and connection reuse without changing routes.
   Direct ECH and H1 WebSocket retention are merged with green main CI.
-  Exact H2 is PR #242. Its macOS fixture repair passed the full gate;
-  fresh PR CI and merge are pending.
-  Direct H2 WebSocket retention passed both baseline reproductions and all
-  23 new controls. Its 270 regression test executions passed; the full gate
-  and delivery are pending.
+  Exact H2 merged in PR #242 after its full gate and all 43 PR checks.
+  All eight applicable main push workflows passed.
+  Direct H2 WebSocket retention passed both baseline reproductions and 270
+  regression test executions. Its first full gate caught a setup-size
+  regression. The repair passes the unchanged budget and all 23 focused
+  controls; pinned nightly also passes. Its fresh full gate and delivery
+  remain pending.
   Proxy ownership and failed-address feedback remain open.
 - [ ] B2: Correct Firefox `Alt-Used` placement and mapping-time omission,
   ordinary H2 stream `WINDOW_UPDATE` shape, and HTTPS-proxy H2 idle closure.
