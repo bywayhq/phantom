@@ -490,6 +490,11 @@ Supported wire behavior:
   connection-scoped `ACCEPT_CH`, whose missing hints restart a request, with
   a live test against a BoringSSL QUIC server.
 - Typed, ordered SETTINGS and request and response fields.
+- An optional `RequestField::AltUsed` HTTP/3 template slot for the generated
+  alternative header. Firefox navigation places it after `accept-encoding`
+  and before optional `referer`; fetch places it after `referer`. Without
+  the slot, it stays last. Automatic client-hint settings cannot control it
+  on any protocol; other custom hint names retain their behavior.
 - Chrome's nonzero inbound [QPACK](glossary.md#qpack), randomized GREASE, H3
   DATAGRAM, and deferred decoder-stream policy.
 - Chrome's QPACK stream order: the decoder stream is client stream 6 and the
@@ -574,6 +579,8 @@ Supported lifecycle:
 
 Not supported:
 
+- Firefox's request-time Alt-Svc mapping eligibility and the resulting
+  `Alt-Used` omission. `Append` sends the field on every alternative request.
 - Nonempty local H3 application settings.
 - Datagram APIs for specific extensions.
 - HTTPS-record queries sent with the address queries from one DNS client, as

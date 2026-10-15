@@ -356,6 +356,10 @@ fn assert_matches(
             }
             // No capture read here restarted for a connection's ACCEPT_CH.
             RequestField::RestartClientHints => {}
+            RequestField::AltUsed => {
+                // This helper checks order; mapping eligibility controls presence.
+                let _ = observed.next_if(|(name, _)| name == "alt-used");
+            }
         }
     }
     assert_eq!(observed.next(), None, "{label}: unexpected trailing field");
@@ -750,8 +754,7 @@ const FIREFOX_157_H3_SNAPSHOT: &str = include_str!(concat!(
     "snapshot-1.txt"
 ));
 
-/// Returns the ordinary field names of one captured HTTP/3 request, without
-/// the fields the client generates.
+/// Returns the ordinary field names of one captured HTTP/3 request, without cookies.
 fn captured_http3_order(fixture: &str, key: &str) -> Vec<String> {
     let prefix = format!("{key}_field_order=");
     let line = fixture
@@ -759,7 +762,7 @@ fn captured_http3_order(fixture: &str, key: &str) -> Vec<String> {
         .find_map(|line| line.strip_prefix(prefix.as_str()))
         .unwrap_or_else(|| panic!("fixture lacks {prefix}"));
     line.split(',')
-        .filter(|name| !name.starts_with(':') && *name != "alt-used" && *name != "cookie")
+        .filter(|name| !name.starts_with(':') && *name != "cookie")
         .map(str::to_owned)
         .collect()
 }
@@ -2345,5 +2348,98 @@ fn assert_direct_pages_match(
         }
         assert_eq!(pages, 3, "{version}");
     }
+    Ok(())
+}
+
+#[test]
+fn alt_used_is_one_optional_generated_http3_slot() -> Result<(), Box<dyn std::error::Error>> {
+    let template = firefox::v157_windows_navigation_template();
+    template.validate()?;
+    assert_eq!(RequestField::AltUsed.name(), Some("alt-used"));
+    assert_eq!(
+        RequestField::AltUsed.default_value(crate::UrlTrust::PotentiallyTrustworthy),
+        None
+    );
+    assert_eq!(format!("{:?}", RequestField::AltUsed), "AltUsed");
+    for protocol in [1, 2] {
+        let mut invalid = template.clone();
+        let fields = if protocol == 1 {
+            &mut invalid.http1_fields
+        } else {
+            &mut invalid.http2_fields
+        };
+        fields.push(RequestField::AltUsed);
+        assert_eq!(
+            invalid
+                .validate()
+                .err()
+                .ok_or("accepted wrong protocol")?
+                .kind(),
+            crate::ValidationErrorKind::Unsupported
+        );
+    }
+    let mut duplicate = template.clone();
+    duplicate
+        .http3_fields
+        .as_mut()
+        .ok_or("missing HTTP/3")?
+        .push(RequestField::AltUsed);
+    assert_eq!(
+        duplicate
+            .validate()
+            .err()
+            .ok_or("accepted duplicate")?
+            .kind(),
+        crate::ValidationErrorKind::Duplicate
+    );
+    for forbidden in [
+        RequestField::caller("alt-used"),
+        RequestField::literal("alt-used", "spoofed"),
+        RequestField::ClientHint {
+            name: "alt-used".into(),
+        },
+    ] {
+        let mut invalid = template.clone();
+        invalid.http3_fields = Some(vec![forbidden, RequestField::literal("x-end", "end")]);
+        assert_eq!(
+            invalid
+                .validate()
+                .err()
+                .ok_or("accepted reserved name")?
+                .kind(),
+            crate::ValidationErrorKind::Unsupported
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn alt_used_does_not_change_shared_client_hint_anchors() -> Result<(), Box<dyn std::error::Error>> {
+    let fields = vec![
+        RequestField::ClientHints,
+        RequestField::RestartClientHints,
+        RequestField::caller("referer"),
+        RequestField::literal("x-end", "end"),
+    ];
+    let mut h3 = fields.clone();
+    h3.insert(2, RequestField::AltUsed);
+    let template = RequestTemplate {
+        http1_fields: fields.clone(),
+        http2_fields: fields.clone(),
+        http3_fields: Some(h3.clone()),
+        http2_priority: None,
+        requested_client_hint_placement: true,
+        restarts_for_connection_accept_ch: true,
+    };
+    template.validate()?;
+    assert_eq!(client_hint_placement(&fields), client_hint_placement(&h3));
+    assert_eq!(
+        restart_client_hint_placement(&fields),
+        restart_client_hint_placement(&h3)
+    );
+    assert_eq!(
+        super::restart_slot_signature(&fields),
+        super::restart_slot_signature(&h3)
+    );
     Ok(())
 }

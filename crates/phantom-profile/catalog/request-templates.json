@@ -3023,6 +3023,9 @@
             "required": false
           },
           {
+            "variant": "AltUsed"
+          },
+          {
             "variant": "ByTrust",
             "name": "sec-fetch-dest",
             "trustworthy": "empty",
@@ -3247,6 +3250,9 @@
             "variant": "Caller",
             "name": "referer",
             "required": false
+          },
+          {
+            "variant": "AltUsed"
           },
           {
             "variant": "ByTrust",
@@ -3636,6 +3642,14 @@
             "name": "accept-encoding",
             "trustworthy": "gzip, deflate, br, zstd",
             "untrustworthy": "gzip, deflate"
+          },
+          {
+            "variant": "AltUsed"
+          },
+          {
+            "variant": "Caller",
+            "name": "referer",
+            "required": false
           },
           {
             "variant": "Literal",

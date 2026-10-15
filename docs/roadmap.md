@@ -311,11 +311,13 @@ completed phase scope.
   `encrypted_client_hello` and its `record_size_limit`,
   `extended_master_secret`, and `renegotiation_info` extensions
   ([Validation](explanation/validation.md#firefox-157-http3-recipe)).
-  Remaining: the position of `Alt-Used`, and its omission from the first
-  request, both of which the captures show: Firefox sends no `Alt-Used` on
-  its first H3 navigation to a learned alternative, while Phantom sends it on
-  every request to an alternative. Blocker: none recorded; it needs a
-  template slot for a field the client generates.
+  The optional `RequestField::AltUsed` HTTP/3 slot passed 21 focused
+  placement and omission tests. Its integration gate and delivery remain in the
+  [campaign](internals/transport-and-profile-campaign.md#browser-fidelity).
+  Remaining: request-time mapping eligibility and resulting omission. Phantom
+  still sends the field on every alternative request under `Append`.
+  Blocker: validated-mapping state and request planning before dispatch;
+  a first-stream counter does not model those decisions.
 - macOS beyond client hints and request fields. Delivered: `macos` client
   hints for Chrome 154, Edge 154, and Opera 136 and `macos` request
   templates for Chrome 154 and Firefox 157, from macOS 15.5 captures on an

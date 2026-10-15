@@ -69,11 +69,40 @@ class TemplateDeclarationTests(unittest.TestCase):
             for identifier in profile["templates"].values()
             for name in ("http1_fields", "http2_fields", "http3_fields")
         )
-        self.assertEqual(count, 726)
+        self.assertEqual(count, 730)
         self.assertEqual(
             domain.generate_templates(templates),
             cli.REQUEST_TEMPLATE_OUTPUT.read_text(encoding="utf-8"),
         )
+
+    def test_alt_used_is_a_single_http3_unit_slot(self):
+        slot = {"variant": "AltUsed"}
+        value = empty_values()
+        value["http3_fields"] = [slot]
+        domain.validate_templates(document(value))
+        for fields, protocol in (
+            ([slot], 1),
+            ([slot], 2),
+            ([slot, slot], 3),
+            ([{**slot, "name": "alt-used"}], 3),
+            ([literal("alt-used", "spoofed")], 3),
+        ):
+            with self.subTest(fields=fields, protocol=protocol):
+                self.reject_fields(fields, protocol)
+
+    def test_alt_used_is_not_a_cross_protocol_hint_anchor(self):
+        fields = [
+            {"variant": "ClientHints"},
+            {"variant": "RestartClientHints"},
+            literal("x-end"),
+        ]
+        h3 = copy.deepcopy(fields)
+        h3.insert(2, {"variant": "AltUsed"})
+        value = empty_values()
+        value.update(http1_fields=fields, http2_fields=fields, http3_fields=h3)
+        domain.validate_templates(document(value))
+        self.assertEqual(domain.hint_signature(fields), domain.hint_signature(h3))
+        self.assertEqual(domain.restart_signature(fields), domain.restart_signature(h3))
 
     def test_generation_is_independent_of_declaration_and_object_order(self):
         expected = domain.generate_templates(domain.validate_templates(self.actual))

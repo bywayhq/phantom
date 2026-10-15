@@ -148,6 +148,10 @@ fn field(v: &Value) -> Result<RequestField> {
                 attempt: attempt(v.member("attempt", "request_template.fields.attempt")?)?,
             })
         }
+        "AltUsed" => {
+            v.record(&["variant"], "request_template.fields")?;
+            Ok(RequestField::AltUsed)
+        }
         "RestartClientHints" => {
             v.record(&["variant"], "request_template.fields")?;
             Ok(RequestField::RestartClientHints)

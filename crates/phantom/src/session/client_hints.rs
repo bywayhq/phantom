@@ -6,12 +6,13 @@ use std::{
 
 use http::{HeaderMap, header::HeaderName};
 use phantom_net::request::{RequestBody, RequestHeader};
-use phantom_profile::{ClientHintDelivery, ClientHintSettings, ClientHintSlot};
+use phantom_profile::{ClientHintDelivery, ClientHintSettings, ClientHintSlot, RequestField};
 use sfv::{BareItem, List, ListEntry, Parser};
 use tracing::debug;
 
 use crate::{
-    PreparedRequestTemplate, RequestError, authority::Endpoint, request::template::is_managed,
+    HttpProtocol, PreparedRequestTemplate, RequestError, authority::Endpoint,
+    request::template::is_managed,
 };
 
 const ACCEPT_CH: HeaderName = HeaderName::from_static("accept-ch");
@@ -92,12 +93,27 @@ impl<'a> ClientHintContext<'a> {
     /// caller, would be sent.
     pub(crate) fn prepare(
         self,
-        caller: Vec<RequestHeader>,
+        mut caller: Vec<RequestHeader>,
     ) -> Result<Vec<RequestHeader>, RequestError> {
+        // Shared hint anchors omit the H3-only slot. Keep its trusted value
+        // aside until ordinary and restart hint groups have been placed.
+        let alt_used = self.template.and_then(|template| {
+            let fields = template.fields_for(HttpProtocol::Http3)?;
+            let slot = fields
+                .iter()
+                .position(|field| matches!(field, RequestField::AltUsed))?;
+            let index = caller
+                .iter()
+                .position(|field| field.name().eq_ignore_ascii_case("alt-used"))?;
+            // Unslotted caller fields follow the template. Keep that boundary
+            // if all optional template entries after the slot are absent.
+            let following = caller.get(index + 1).map(|field| field.name().to_owned());
+            Some((fields, slot, caller.remove(index), following))
+        });
         let stored = self.store.and_then(|store| {
             store.active_indices(&OriginKey::new(self.endpoint, self.is_https()))
         });
-        let prepared = prepare_fields(
+        let mut prepared = prepare_fields(
             self.settings,
             stored.as_deref(),
             Some(self.restart),
@@ -105,6 +121,9 @@ impl<'a> ClientHintContext<'a> {
             self.template,
             self.managed,
         );
+        if let Some((fields, slot, field, following)) = alt_used {
+            self.restore_alt_used(&mut prepared, fields, slot, field, following.as_deref());
+        }
         // A template without slots places no hint; `check` already refused
         // default hints for it, so only requested hints remain.
         let unplaced = self.template.is_some_and(|template| {
@@ -114,6 +133,65 @@ impl<'a> ClientHintContext<'a> {
             return Err(RequestError::request_template_requested_hint());
         }
         Ok(prepared)
+    }
+
+    fn restore_alt_used(
+        self,
+        prepared: &mut Vec<RequestHeader>,
+        fields: &[RequestField],
+        slot: usize,
+        field: RequestHeader,
+        following: Option<&str>,
+    ) {
+        let named: Vec<&str> = fields
+            .iter()
+            .filter_map(|field| match field {
+                RequestField::ClientHint { name } => Some(&**name),
+                _ => None,
+            })
+            .collect();
+        let at = |name: &str| {
+            prepared
+                .iter()
+                .position(|field| field.name().eq_ignore_ascii_case(name))
+        };
+        let restarting = |name: &str| {
+            self.restart.iter().any(|index| {
+                self.settings.hints()[*index]
+                    .name()
+                    .eq_ignore_ascii_case(name)
+            })
+        };
+        let position = fields[slot + 1..]
+            .iter()
+            .find_map(|next| match next {
+                RequestField::ClientHints => self
+                    .settings
+                    .hints()
+                    .iter()
+                    .filter(|hint| {
+                        !named.contains(&hint.name())
+                            && !restarting(hint.name())
+                            && !is_managed(self.managed, hint.name())
+                    })
+                    .find_map(|hint| at(hint.name())),
+                RequestField::ClientHint { name } if !restarting(name) => at(name),
+                RequestField::ClientHint { .. } => None,
+                RequestField::RestartClientHints => self
+                    .restart
+                    .iter()
+                    .map(|index| &self.settings.hints()[*index])
+                    .filter(|hint| !is_managed(self.managed, hint.name()))
+                    .find_map(|hint| at(hint.name())),
+                _ => next.name().and_then(at),
+            })
+            .unwrap_or(prepared.len());
+        // Cookie insertion and unslotted caller fields can precede the next
+        // template entry. Newly placed hints can precede that old boundary.
+        let position = following
+            .and_then(at)
+            .map_or(position, |next| position.min(next));
+        prepared.insert(position, field);
     }
 
     /// Returns the hints a connection's ALPS `ACCEPT_CH` asks for that `sent`

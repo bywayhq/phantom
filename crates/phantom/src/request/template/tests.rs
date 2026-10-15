@@ -845,3 +845,41 @@ fn default_mode_fetch_templates_send_no_pragma_or_cache_control() {
         ]
     );
 }
+
+#[test]
+fn alt_used_slot_expands_only_the_trusted_transport_value() {
+    let fields = [
+        RequestField::literal("x-before", "one"),
+        RequestField::AltUsed,
+        RequestField::caller("referer"),
+        RequestField::literal("x-after", "two"),
+    ];
+    let caller = [RequestHeader::new("referer", "https://example.test/")];
+    for authority in [None, Some("alternative.test:443")] {
+        let (expanded, credentials) = super::expand_on_route_with_alt_used(
+            &fields,
+            &caller,
+            None,
+            true,
+            super::Forwarding::default(),
+            &[],
+            authority,
+        );
+        assert!(!credentials);
+        let mut expected = vec![("x-before", b"one".as_slice())];
+        if let Some(authority) = authority {
+            expected.push(("alt-used", authority.as_bytes()));
+        }
+        expected.extend([
+            ("referer", b"https://example.test/".as_slice()),
+            ("x-after", b"two".as_slice()),
+        ]);
+        assert_eq!(
+            expanded
+                .iter()
+                .map(|header| (header.name(), header.value()))
+                .collect::<Vec<_>>(),
+            expected
+        );
+    }
+}

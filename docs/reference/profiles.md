@@ -651,14 +651,18 @@ explicit port.
 | Recipe | `alt_used` |
 | --- | --- |
 | `chrome::v154_http3_request`, used by every Chromium-family recipe | `Omit` |
-| `firefox::v157_http3_request` | `Append`: one header after all others |
+| `firefox::v157_http3_request` | `Append`: one generated header |
 
 - An exact H3 request to the origin, and one that an HTTPS record sends over
   H3 to the origin's own host and port, never carry the field.
 - A caller-supplied `Alt-Used` field or trailer fails before any I/O under
   either setting.
-- Firefox places the field elsewhere in the list; see
-  [Template limits](#template-limits).
+- `RequestField::AltUsed` places the generated field in an HTTP/3 template.
+  Firefox navigation puts it after `accept-encoding` and before optional
+  `referer`; fetch puts it after `referer`. Without a slot, it stays last.
+- Automatic client-hint settings cannot generate, move or request a hint
+  replay for `Alt-Used` on any protocol. Other custom hint names keep their
+  configured behavior.
 
 ### Client hints in templates
 
@@ -710,9 +714,9 @@ hints go. Phantom fails with `RequestErrorKind::RequestTemplate`:
   confirms the value.
 - The Firefox HTTP/1.1, HTTP/2, and HTTP/3 lists come from Firefox 157.0
   on Windows, and the macOS templates' HTTP/1.1 and HTTP/2 fields from 157.0
-  on macOS. Firefox sends `Alt-Used` after `accept-encoding` on requests to
-  an origin it reached through Alt-Svc; Phantom appends the field it
-  generates last.
+  on macOS. Request-time mapping eligibility and the resulting omission of
+  `Alt-Used` remain unmodeled. Under `Append`, Phantom sends it on every
+  request to an alternative.
 
 | Browser | HTTP/2 HEADERS priority, navigation | `fetch` |
 | --- | --- | --- |

@@ -566,11 +566,26 @@ async fn two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt
         let client = client_builder_with(&identity, appending_alt_used(client_settings()))?
             .alt_svc_policy(capped_race(Duration::from_secs(30), limit, 2)?)
             .build()?;
+        let fields = vec![
+            phantom::profile::RequestField::literal("x-before", "one"),
+            phantom::profile::RequestField::literal("x-after", "two"),
+        ];
+        let mut h3_fields = fields.clone();
+        h3_fields.insert(1, phantom::profile::RequestField::AltUsed);
+        let template = PreparedRequestTemplate::new(phantom::profile::RequestTemplate {
+            http1_fields: fields.clone(),
+            http2_fields: fields,
+            http3_fields: Some(h3_fields),
+            http2_priority: None,
+            requested_client_hint_placement: false,
+            restarts_for_connection_accept_ch: false,
+        })?;
         let serving = fixture.alternative_address().port();
         import_alternatives_for(&client, ORIGIN_NAME, &fixture, &[blackhole.port, serving])?;
 
         let first = client
             .get_negotiated(&fixture.origin_url("/first"))?
+            .template(&template)
             .send()
             .await?;
         assert_eq!(protocol(&first)?, HttpProtocol::Http3);
@@ -586,6 +601,7 @@ async fn two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt
         // request reuses the pooled connection to the second.
         let second = client
             .get_negotiated(&fixture.origin_url("/second"))?
+            .template(&template)
             .send()
             .await?;
         assert_eq!(protocol(&second)?, HttpProtocol::Http3);
@@ -602,7 +618,18 @@ async fn two_raced_alternatives_send_on_the_one_that_connects_and_name_it_in_alt
         let authority = format!("{ORIGIN_NAME}:{}", fixture_port(&observed)?);
         assert_eq!(observed.alternative_requests.len(), 2);
         for request in &observed.alternative_requests {
-            assert_eq!(field_values(request, "alt-used"), [alt_used.as_bytes()]);
+            assert_eq!(
+                request
+                    .fields
+                    .iter()
+                    .map(|field| (field.name.as_str(), field.value.as_slice()))
+                    .collect::<Vec<_>>(),
+                [
+                    ("x-before", b"one".as_slice()),
+                    ("alt-used", alt_used.as_bytes()),
+                    ("x-after", b"two".as_slice()),
+                ]
+            );
             // Only the QUIC location differs from the origin.
             assert_eq!(request.authority.as_deref(), Some(authority.as_str()));
             assert_eq!(request.server_name.as_deref(), Some(ORIGIN_NAME));

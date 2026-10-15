@@ -170,8 +170,14 @@ async fn send_once_exact(
                     },
                 }),
         };
-        let prepared_headers =
-            route_attempt_headers(client, request, protocol, &request_headers, forwarding);
+        let prepared_headers = route_attempt_headers(
+            client,
+            request,
+            protocol,
+            &request_headers,
+            forwarding,
+            pinned_alt_used(client, request, protocol),
+        );
         // Checked before the attempt takes a one-shot body.
         // A pinned alternative is the caller's choice of where QUIC goes, so
         // its failure never moves the request to the origin over HTTP/2.
@@ -757,7 +763,45 @@ pub(super) fn attempt_headers(
         protocol,
         request_headers,
         Forwarding::default(),
+        pinned_alt_used(client, request, protocol),
     )
+}
+
+/// Builds an alternative's fields with its own generated authority.
+pub(super) fn alternative_headers(
+    client: &Client,
+    request: &ResolvedRequest,
+    request_headers: &[RequestHeader],
+    alt_used: Option<&str>,
+) -> Vec<RequestHeader> {
+    route_attempt_headers(
+        client,
+        request,
+        HttpProtocol::Http3,
+        request_headers,
+        Forwarding::default(),
+        alt_used,
+    )
+}
+
+fn pinned_alt_used<'a>(
+    client: &Client,
+    request: &'a ResolvedRequest,
+    protocol: HttpProtocol,
+) -> Option<&'a str> {
+    if protocol != HttpProtocol::Http3
+        || !client
+            .inner
+            .connectors_for(&request.endpoint)
+            .http3
+            .is_some_and(|connector| connector.sends_alt_used())
+    {
+        return None;
+    }
+    request
+        .alternative
+        .as_ref()
+        .map(|alternative| alternative.alt_used())
 }
 
 /// Returns the fields of one attempt, with the template's route-dependent
@@ -771,6 +815,7 @@ fn route_attempt_headers(
     protocol: HttpProtocol,
     request_headers: &[RequestHeader],
     forwarding: Forwarding<'_>,
+    alt_used: Option<&str>,
 ) -> Vec<RequestHeader> {
     let fields = request
         .template
@@ -779,17 +824,27 @@ fn route_attempt_headers(
     // `send` rejects a template without a list for any protocol the request
     // may use, so a missing list never reaches this point with a template.
     let (mut headers, placed) = match fields {
-        Some(fields) => super::template::expand_on_route_with_managed_headers(
+        Some(fields) => super::template::expand_on_route_with_alt_used(
             fields,
             request_headers,
             client.inner.client_hints.as_ref(),
             is_potentially_trustworthy(&request.url),
             forwarding,
             request.managed_headers,
+            alt_used,
         ),
         None => (request_headers.to_vec(), false),
     };
     inject_cookie(client, request, protocol, &mut headers);
+    if let Some(value) = alt_used
+        && !fields.is_some_and(|fields| {
+            fields
+                .iter()
+                .any(|field| matches!(field, phantom_profile::RequestField::AltUsed))
+        })
+    {
+        headers.push(RequestHeader::new("alt-used", value.as_bytes()));
+    }
     #[cfg(test)]
     field_lists::counts::built(protocol);
     if !placed && let Some(credentials) = forwarding.credentials {
@@ -1063,18 +1118,8 @@ async fn dispatch_attempt(
                 .connectors_for(endpoint)
                 .http3
                 .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
-            let mut request_headers = request_headers;
-            // A pinned alternative is reached as a learned one is, with its
-            // `Alt-Used` field after every other field when the profile sends
-            // it.
             let transport = match &request.alternative {
                 Some(alternative) => {
-                    if connector.sends_alt_used() {
-                        request_headers.push(RequestHeader::new(
-                            "alt-used",
-                            alternative.alt_used().as_bytes(),
-                        ));
-                    }
                     Http3TransportTarget::new(alternative.host(), alternative.port())
                 }
                 None => Http3TransportTarget::for_origin(endpoint),

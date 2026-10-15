@@ -60,7 +60,7 @@ copying execution journals into this page.
 | F6 | `connect-udp-sharing` | Shared H2/H3 outer connections are rebased. The first integration gate at `eb7ab1c9` exposed future-size, compiler-proof and ticket-fixture failures. Their repairs pass the unchanged size budget, pinned nightly check and 37 focused controls, including both named peers. The origin/proxy retry classifier repair has a failing-before control. The rerun passed all 4,982 tests and pinned nightly but failed the style lint on explicit future signatures. Narrow lint allowances preserve the required proof boundary; the next signed-head full gate and delivery remain. |
 | F7 | `rtt-racing` | Merged in PR #228 at `3973d41c` after independent review, all 22 gate steps, 4,943 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. No browser timing parity or performance benefit is claimed. |
 | F8 | `http3-debug-auth` | Origin opt-in merged in PR #219 after independent review, all 22 gate steps, 4,643 Rust tests, and 43 green PR checks at `6f6426f4`. |
-| B2 | `proxy-h2-idle-integration` | Proxy timer closure and the idle-PING guard merged in PR #222 at `98fe3750` after all 22 gate steps, 4,659 Rust tests and 43 green PR checks. All nine main push workflows passed. Alt-Used and WINDOW_UPDATE remain separate open changes. |
+| B2 | `proxy-h2-idle-integration` | Proxy timer closure and the idle-PING guard merged in PR #222 at `98fe3750` after all 22 gate steps, 4,659 Rust tests and 43 green PR checks. All nine main push workflows passed. Alt-Used template placement passed 21 focused tests in `firefox-alt-used`; independent final review, gate and delivery remain pending. Mapping-time omission and WINDOW_UPDATE remain open. |
 
 Neither controlled timing reproduction proves the exact historical host
 delay. The unchanged historical TLS suite also passed all 1,041 tests with
@@ -188,9 +188,14 @@ uncertainty. Research must lead to a decision, bounded experiment, or repair.
 - [ ] B1: Extend Firefox address selection to proxies, WebSockets, exact H2,
   and ECH. Cover slower backup ownership, remembered families, failed-address
   suppression, cache lifetime, and connection reuse without changing routes.
-- [ ] B2: Correct Firefox `Alt-Used` position and first-request omission,
+- [ ] B2: Correct Firefox `Alt-Used` placement and mapping-time omission,
   ordinary H2 stream `WINDOW_UPDATE` shape, and HTTPS-proxy H2 idle closure.
   Record and verify these as separate changes with their own wire controls.
+  The optional H3 slot and Firefox navigation/fetch placement are implemented
+  in `firefox-alt-used` and passed 21 focused tests. Its integration gate and
+  delivery remain pending.
+  Timing remains open: validated-mapping eligibility and request planning
+  require separate state and controls, rather than a first-stream counter.
   The proxy idle-timer repair merged in PR #222 after its full gate and
   platform checks. Its [evidence](transport-profile-evidence/proxy-h2-idle.md)
   records the controlled baseline, retirement guard and verified delivery.

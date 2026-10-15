@@ -32,6 +32,7 @@ pub(super) enum RequestFieldDefinition {
         attempt: ProxyAuthorizationAttempt,
     },
     RestartClientHints,
+    AltUsed,
 }
 
 impl RequestFieldDefinition {
@@ -70,6 +71,7 @@ impl RequestFieldDefinition {
                 attempt,
             },
             Self::RestartClientHints => RequestField::RestartClientHints,
+            Self::AltUsed => RequestField::AltUsed,
         }
     }
 }

@@ -656,3 +656,157 @@ mod template_slots {
         assert_eq!(prepared.last().map(RequestHeader::name), Some("x-first"));
     }
 }
+
+#[test]
+fn alt_used_is_reserved_for_transport_across_hint_learning_and_restarts()
+-> Result<(), Box<dyn std::error::Error>> {
+    for delivery in [ClientHintDelivery::Default, ClientHintDelivery::AcceptCh] {
+        let settings = ClientHintSettings::new(vec![
+            ClientHint::new("alt-used", "spoofed.test:443", delivery),
+            ClientHint::new("x-requested-hint", "ordinary", ClientHintDelivery::AcceptCh),
+        ]);
+        let endpoint = endpoint("example.test");
+        let store = ClientHintStore::new(NonZeroUsize::MIN);
+        let context =
+            ClientHintContext::new(&endpoint, "https://example.test", &settings, Some(&store));
+        assert!(context.prepare(Vec::new())?.is_empty());
+        assert_eq!(context.connection_restart(&[], Some(b"Alt-Used")), None);
+        assert_eq!(
+            context
+                .connection_restart(&[], Some(b"Alt-Used, x-requested-hint"))
+                .as_deref(),
+            Some([1].as_slice())
+        );
+        let mut response = HeaderMap::new();
+        response.insert("accept-ch", HeaderValue::from_static("alt-used"));
+        response.insert("critical-ch", HeaderValue::from_static("alt-used"));
+        assert!(!store.learn_and_should_retry(&endpoint, true, &settings, &response, &[]));
+        assert!(context.prepare(Vec::new())?.is_empty());
+        let selected = vec![
+            RequestHeader::new("x-before", "one"),
+            RequestHeader::new("alt-used", "selected.test:443"),
+            RequestHeader::new("x-after", "two"),
+        ];
+        let prepared = context.prepare(selected)?;
+        assert_eq!(
+            prepared
+                .iter()
+                .map(|header| (header.name(), header.value()))
+                .collect::<Vec<_>>(),
+            [
+                ("x-before", b"one".as_slice()),
+                ("alt-used", b"selected.test:443".as_slice()),
+                ("x-after", b"two".as_slice()),
+            ]
+        );
+        response.insert(
+            "accept-ch",
+            HeaderValue::from_static("alt-used, x-requested-hint"),
+        );
+        response.insert(
+            "critical-ch",
+            HeaderValue::from_static("alt-used, x-requested-hint"),
+        );
+        assert!(store.learn_and_should_retry(&endpoint, true, &settings, &response, &prepared));
+        let prepared = context.prepare(prepared)?;
+        assert_eq!(
+            value(&prepared, "x-requested-hint"),
+            Some(b"ordinary".as_slice())
+        );
+        assert_eq!(
+            value(&prepared, "alt-used"),
+            Some(b"selected.test:443".as_slice())
+        );
+        assert!(!store.learn_and_should_retry(&endpoint, true, &settings, &response, &prepared));
+    }
+    Ok(())
+}
+
+#[test]
+fn alt_used_keeps_its_slot_around_generated_hint_groups() -> Result<(), Box<dyn std::error::Error>>
+{
+    use crate::{
+        HttpProtocol, PreparedRequestTemplate,
+        request::template::{Forwarding, expand_on_route_with_alt_used},
+    };
+    use phantom_profile::{RequestField, RequestTemplate};
+    let settings = ClientHintSettings::new(vec![
+        ClientHint::new("x-named", "named", ClientHintDelivery::Default),
+        ClientHint::new("x-ordinary", "ordinary", ClientHintDelivery::Default),
+        ClientHint::new("x-restarted", "restarted", ClientHintDelivery::AcceptCh),
+    ]);
+    let endpoint = endpoint("example.test");
+    let mut restart = RestartHints::default();
+    restart.add(&[2]);
+    let fields = vec![
+        RequestField::ClientHint {
+            name: "x-named".into(),
+        },
+        RequestField::ClientHints,
+        RequestField::RestartClientHints,
+        RequestField::caller("x-optional"),
+        RequestField::literal("x-end", "end"),
+    ];
+    for slot in [0, 1, 2, 3, 5] {
+        for optional in [false, true] {
+            for authority in [None, Some("selected.test:443")] {
+                let mut h3 = fields.clone();
+                h3.insert(slot, RequestField::AltUsed);
+                let template = PreparedRequestTemplate::new(RequestTemplate {
+                    http1_fields: fields.clone(),
+                    http2_fields: fields.clone(),
+                    http3_fields: Some(h3),
+                    http2_priority: None,
+                    requested_client_hint_placement: true,
+                    restarts_for_connection_accept_ch: true,
+                })?;
+                let mut caller = Vec::new();
+                if optional {
+                    caller.push(RequestHeader::new("x-optional", "optional"));
+                }
+                caller.push(RequestHeader::new("x-extra", "extra"));
+                let (expanded, _) = expand_on_route_with_alt_used(
+                    template
+                        .fields_for(HttpProtocol::Http3)
+                        .ok_or("missing H3")?,
+                    &caller,
+                    Some(&settings),
+                    true,
+                    Forwarding::default(),
+                    &[],
+                    authority,
+                );
+                let prepared =
+                    ClientHintContext::new(&endpoint, "https://example.test", &settings, None)
+                        .with_template(Some(&template))
+                        .with_restart_hints(&restart)
+                        .prepare(expanded)?;
+                let mut expected = vec![
+                    ("x-named", b"named".as_slice()),
+                    ("x-ordinary", b"ordinary".as_slice()),
+                    ("x-restarted", b"restarted".as_slice()),
+                ];
+                if optional {
+                    expected.push(("x-optional", b"optional"));
+                }
+                expected.extend([
+                    ("x-end", b"end".as_slice()),
+                    ("x-extra", b"extra".as_slice()),
+                ]);
+                if let Some(authority) = authority {
+                    let index = if slot == 5 { expected.len() - 1 } else { slot };
+                    expected.insert(index, ("alt-used", authority.as_bytes()));
+                }
+                assert_eq!(
+                    prepared
+                        .iter()
+                        .map(|field| (field.name(), field.value()))
+                        .collect::<Vec<_>>(),
+                    expected,
+                    "slot={slot}, optional={optional}, authority={authority:?}"
+                );
+            }
+        }
+    }
+    Ok(())
+}

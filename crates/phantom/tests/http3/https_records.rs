@@ -110,8 +110,12 @@ async fn sequential_client_uses_http3_once_the_https_record_is_known() -> TestRe
 
         assert_eq!(lookup.completed().await?, Ok(()));
 
+        let template = phantom::PreparedRequestTemplate::new(
+            phantom::profile::browser::firefox::v157_windows_fetch_template(),
+        )?;
         let second = client
             .get_negotiated(&fixture.origin_url("/second"))?
+            .template(&template)
             .send()
             .await?;
         assert_eq!(protocol(&second)?, HttpProtocol::Http3);

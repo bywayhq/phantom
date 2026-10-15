@@ -23,7 +23,10 @@ use phantom_net::request::{RequestBody, RequestHeader};
 
 use super::{
     RequestBodyFraming, ResolvedRequest,
-    attempt::{AttemptRequest, attempt_client_hints, attempt_headers, client_hint_origin},
+    attempt::{
+        AttemptRequest, alternative_headers, attempt_client_hints, attempt_headers,
+        client_hint_origin,
+    },
 };
 use crate::{
     Client, HttpProtocol, RequestError, Route,
@@ -72,20 +75,9 @@ pub(super) fn raced(
         client_hints: attempt_client_hints(client, request, hint_origin.as_deref(), &no_restart),
         body,
     };
-    // The alternatives differ at most in `Alt-Used`; the list is built once.
-    let headers = attempt_headers(client, request, HttpProtocol::Http3, fields.headers);
     let http3 = alternatives
         .iter()
-        .map(|alternative| {
-            checked_alternative_fields(
-                client,
-                request,
-                route,
-                alternative,
-                &fields,
-                headers.clone(),
-            )
-        })
+        .map(|alternative| checked_alternative_fields(client, request, route, alternative, &fields))
         .collect::<Result<_, _>>()?;
     let negotiated = negotiated(client, request, &fields)?;
     Ok(RacedFields { http3, negotiated })
@@ -125,7 +117,7 @@ pub(super) fn negotiated(
 }
 
 /// Builds and checks the HTTP/3 list of a request to an Alt-Svc alternative,
-/// with the alternative's `Alt-Used` field last when the profile sends it.
+/// with the alternative's `Alt-Used` field at its template slot, or last.
 pub(super) fn alternative_fields(
     client: &Client,
     request: &ResolvedRequest,
@@ -133,30 +125,27 @@ pub(super) fn alternative_fields(
     alternative: &AlternativeTarget,
     attempt: &AttemptFields<'_>,
 ) -> Result<Http3Fields, RequestError> {
-    let headers = attempt_headers(client, request, HttpProtocol::Http3, attempt.headers);
-    checked_alternative_fields(client, request, route, alternative, attempt, headers)
+    checked_alternative_fields(client, request, route, alternative, attempt)
 }
 
-/// Appends the alternative's `Alt-Used` field to the HTTP/3 `headers` built
-/// for this attempt, when the profile sends it, and checks the list.
+/// Builds the candidate's field list and checks it before I/O.
 fn checked_alternative_fields(
     client: &Client,
     request: &ResolvedRequest,
     route: &Route,
     alternative: &AlternativeTarget,
     attempt: &AttemptFields<'_>,
-    mut headers: Vec<RequestHeader>,
 ) -> Result<Http3Fields, RequestError> {
     let connector = client
         .inner
         .connectors_for(&request.endpoint)
         .http3
         .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
-    if connector.sends_alt_used()
-        && let Some(alt_used) = alternative.alt_used()
-    {
-        headers.push(RequestHeader::new("alt-used", alt_used.as_bytes()));
-    }
+    let alt_used = connector
+        .sends_alt_used()
+        .then(|| alternative.alt_used())
+        .flatten();
+    let headers = alternative_headers(client, request, attempt.headers, alt_used);
     #[cfg(test)]
     counts::checked(&[HttpProtocol::Http3]);
     http3_pool::validate_request(

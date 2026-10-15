@@ -62,7 +62,7 @@ const RACED_ONCE: Counts = Counts {
 };
 
 #[tokio::test]
-async fn a_race_won_by_the_origin_builds_each_list_once() -> TestResult {
+async fn a_race_won_by_the_origin_builds_each_candidate_list_once() -> TestResult {
     timeout(TEST_TIMEOUT, async {
         let identity = Identity::generate()?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
@@ -77,8 +77,29 @@ async fn a_race_won_by_the_origin_builds_each_list_once() -> TestResult {
         // The alternative's datagrams reach a socket that never answers, so
         // the origin wins.
         let blackhole = phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?;
-        let client = racing_client(&identity, Duration::ZERO)?;
-        import_alternative(&client, origin, blackhole.local_addr()?.port())?;
+        let other_blackhole = phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?;
+        let backoff = AltSvcBrokenBackoff::new(Duration::from_secs(60), Duration::from_secs(600))?;
+        let race = AltSvcRace::new(Duration::ZERO, backoff)
+            .with_max_alternatives(NonZeroUsize::new(2).ok_or("zero alternative capacity")?);
+        let client = alternative_client_builder(&identity)
+            .alt_svc_policy(AltSvcPolicy::race(race))
+            .build()?;
+        client.import_alt_svc(&AltSvcSnapshot::new(
+            [
+                blackhole.local_addr()?.port(),
+                other_blackhole.local_addr()?.port(),
+            ]
+            .into_iter()
+            .map(|port| {
+                AltSvcSnapshotEntry::new(
+                    format!("https://{origin}"),
+                    "127.0.0.1",
+                    port,
+                    SystemTime::now() + Duration::from_secs(3600),
+                )
+            })
+            .collect(),
+        ))?;
         counts::take();
 
         let response = client
@@ -86,7 +107,13 @@ async fn a_race_won_by_the_origin_builds_each_list_once() -> TestResult {
             .send()
             .await?;
 
-        assert_eq!(counts::take(), RACED_ONCE);
+        assert_eq!(
+            counts::take(),
+            Counts {
+                built: [1, 1, 2],
+                checked: [1, 1, 2]
+            }
+        );
         assert_eq!(protocol(&response)?, HttpProtocol::Http1);
         assert_eq!(response.into_body().collect_with_limit(16).await?, "ok");
         drop(server.await??);

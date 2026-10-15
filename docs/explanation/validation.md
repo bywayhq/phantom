@@ -56,7 +56,7 @@ Phantom's claims rest on five kinds of evidence:
 | [HTTP/2 idle close](#http2-idle-close-evidence) | Firefox source, the Firefox 157 exit capture of the same `GOAWAY`, plus loopback tests of Phantom | No capture shows a close on the idle timer |
 | [Revalidation and uploads](#revalidation-and-upload-evidence) | Chrome 154.0.8037.97 and Firefox 157 captures, compared with the default-mode `fetch` templates, and browser source | One run per scenario; HTTP/1.1 and HTTP/3 validator positions rest on source; uploads recorded for future work |
 | [Alt-Svc racing](#alt-svc-racing-evidence) | Chrome 154 captures, an origin with two alternatives among them, and Chromium source, plus loopback tests of Phantom | Caller-supplied origin delay; at most eight alternatives per origin; several listed differences from Chromium |
-| [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests; Chrome 154 and Firefox 157 captures and Chromium source for `Alt-Used` | Firefox's `Alt-Used` position and first-request omission not modeled; no browser capture on a proxy route |
+| [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence) | Loopback tests; Chrome 154 and Firefox 157 captures and browser source for `Alt-Used`; 21 focused placement controls | Integration gate and delivery pending; Firefox mapping-time omission not modeled; no browser capture on a proxy route |
 | [QUIC resumption and 0-RTT](#quic-resumption-and-0-rtt-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures, with the Chromium-family ones replayed against Phantom's resumed H3 connections | Loopback and headless only; `initial_rtt_us` compared by encoding, not value |
 | [TLS resumption over TCP](#tls-resumption-over-tcp-evidence) | Chrome 154, Edge 154, Brave 154, Opera 136, and Firefox 157 captures, replayed against Phantom's resumed TCP ClientHellos | Loopback and headless only; no network partitions in Phantom |
 | [Firefox ECH GREASE payload](#firefox-ech-grease-payload-evidence) | NSS source, and Firefox 157 fresh, resumed, and IP-literal ClientHellos over TCP and QUIC, replayed against Phantom and an independent model of NSS's rule | Resumed lengths with early data compared through the rule; no QUIC capture to an IPv6 literal |
@@ -1852,9 +1852,9 @@ Limits:
 - The order of the shuffled extensions is drawn per connection, by
   BoringSSL for Phantom and by NSS for Firefox, so no two ClientHellos are
   expected to share it; only the fixed tail is compared.
-- Firefox sends `Alt-Used` after `accept-encoding`, or after `referer` on a
-  `fetch`, on requests to an origin it reached through Alt-Svc. Phantom
-  generates the field and appends it last.
+- Firefox's request-time mapping eligibility and resulting `Alt-Used`
+  omission remain unmodeled. The template placement change and its focused
+  checks are described under [Alt-Svc upgrade](#alt-svc-http3-upgrade-evidence).
 - neqo stops using the dynamic table once 1000 streams hold unacknowledged
   field sections; Phantom does not.
 - Phantom never sends `ACK_FREQUENCY` or `RESET_STREAM_AT`. No capture shows
@@ -4480,20 +4480,66 @@ snapshots and cookie captures show it, so the Firefox recipe sets `Append`.
 `crates/phantom-profile/src/browser/firefox/tests.rs` check both recipes against
 those captures.
 
-Under `Append`, the managed H3 attempt carries one automatically generated
-`Alt-Used` value with the canonical alternative host and explicit port, after
-every other field. Under the Chromium recipe, a learned alternative receives
-only the caller's fields
-(`opt_in_alt_svc_preserves_origin_identity_while_upgrading_to_http3`), and
-the Firefox request recipe adds the field last
-(`firefox_request_recipe_names_a_learned_alternative_in_alt_used_last`).
-Regressions prove that exact H3 requests to the origin and the tested
-negotiated H2 origin request do not receive the field, even under `Append`. A
-request-field regression proves that a caller-supplied `Alt-Used` is rejected
-before any network I/O under either setting. `Alt-Used` is also reserved in
-trailers, as part of the pre-I/O validation contract rather than as protocol
-coverage claimed here. This evidence verifies the field's value and scope, not
-Firefox's position among ordinary request fields.
+Under `Append`, the managed H3 attempt carries one generated `Alt-Used`
+value with the canonical alternative host and explicit port. An optional
+`RequestField::AltUsed` HTTP/3 slot places it within the template. Firefox
+navigation puts it after `accept-encoding` and before optional `referer`;
+fetch puts it after `referer`. Without a slot, it follows every other field.
+The enum spelling `Append` is unchanged.
+
+Firefox 157 source at `FIREFOX_157_0_RELEASE`, resolved to commit
+`fdd757a2e09c9471cddf383e64e631e4ce178499`, explains the insertion stage:
+
+- [Channel setup](https://github.com/mozilla-firefox/firefox/blob/fdd757a2e09c9471cddf383e64e631e4ce178499/netwerk/protocol/http/nsHttpChannel.cpp#L8202-L8230)
+  obtains an eligible mapping, clears any old field and adds the current one.
+- [Header insertion and flattening](https://github.com/mozilla-firefox/firefox/blob/fdd757a2e09c9471cddf383e64e631e4ce178499/netwerk/protocol/http/nsHttpHeaderArray.cpp#L74-L109)
+  append a newly added field and preserve the existing sequence
+  ([flattening](https://github.com/mozilla-firefox/firefox/blob/fdd757a2e09c9471cddf383e64e631e4ce178499/netwerk/protocol/http/nsHttpHeaderArray.cpp#L406-L451)).
+  Its position depends on which fields already exist at insertion.
+- [Mapping lookup](https://github.com/mozilla-firefox/firefox/blob/fdd757a2e09c9471cddf383e64e631e4ce178499/netwerk/protocol/http/AlternateServices.cpp#L994-L1032)
+  normally requires a validated H3 mapping; a force-H3-first branch bypasses
+  that requirement. [Validation](https://github.com/mozilla-firefox/firefox/blob/fdd757a2e09c9471cddf383e64e631e4ce178499/netwerk/protocol/http/AlternateServices.cpp#L630-L686)
+  checks the negotiated protocol and TLS verification.
+- [Dispatch](https://github.com/mozilla-firefox/firefox/blob/fdd757a2e09c9471cddf383e64e631e4ce178499/netwerk/protocol/http/nsHttpConnectionMgr.cpp#L1619-L1639)
+  can reuse an available H3 connection through
+  [coalescing](https://github.com/mozilla-firefox/firefox/blob/fdd757a2e09c9471cddf383e64e631e4ce178499/netwerk/protocol/http/nsHttpConnectionMgr.cpp#L2273-L2306).
+  [H3 activation](https://github.com/mozilla-firefox/firefox/blob/fdd757a2e09c9471cddf383e64e631e4ce178499/netwerk/protocol/http/Http3Stream.cpp#L90-L120)
+  sends the request's existing fields onward.
+
+The five retained [Firefox HTTP/3 snapshots](../../fixtures/http3/firefox/157.0/windows-11-26200/)
+each omit `Alt-Used` on the first recorded H3 navigation, connection 0/stream
+0. Their later fetch on that connection includes it after `referer`. In the
+three runs in the [cookie capture](../../fixtures/cookies/firefox/157.0/windows-11-26200/crumbs-h3.txt),
+`network.http.http3.alt-svc-mapping-for-testing` preloads the mapping. Every
+first H3 navigation includes the field after `accept-encoding`; later
+navigation with `referer` puts it before `referer`, and fetch puts it after.
+These captures do not establish a universal first-request omission.
+
+Request planning before mapping validation, followed by dispatch on available
+H3, is a source-consistent explanation for the snapshots. Their historical
+channel/mapping schedule was not recorded, so that explanation is an inference.
+The captures report Firefox 157.0 on Windows 11, but no executable hash or
+BuildID proves a byte-identical match to the release tag. The retained field
+name bytes agree with their recorded order; no new capture or independent
+QPACK decode was performed for this placement change.
+
+Existing regressions check Chromium omission, exact-origin absence and
+caller/trailer rejection. The no-slot fallback control is now named
+`an_alternative_without_a_template_slot_keeps_alt_used_last`. Focused
+controls in `tests/http3/http3_upgrade/alt_used.rs` check full ordered
+navigation/fetch lists with referer and cookies on learned and pinned
+alternatives. They also check automatic hint exclusion for `Alt-Used`, Omit
+and origin absence, and ordinary custom-hint positive controls. Unit/import
+controls cover the single H3-only slot, trusted values and shared hint
+anchors. All 21 selected tests passed on Windows: four profile tests, five
+facade unit tests, ten HTTP/3 wire tests, the origin-winner field-list test
+and the HTTPS-record origin test. The final integration gate and delivery
+remain pending.
+
+Automatic client-hint settings cannot generate, move or request a hint replay
+for `Alt-Used` on any protocol. Default hints, stored `Accept-CH`, ALPS restart
+and `Critical-CH` classification use the transport-owned name exclusion.
+Other custom hint names keep their configured behavior.
 
 `tests/http3/alt_svc_pinned.rs` covers an exact H3 request to an alternative
 the caller pins, directly and through the HTTP/3 leg of a CONNECT-UDP proxy,
@@ -4572,10 +4618,10 @@ Alt-Svc upgrade, as they carry exact H3.
 
 Limits:
 
-- Firefox sends `Alt-Used` after `accept-encoding` or `referer`; Phantom
-  appends it last. In each Firefox snapshot the first H3 request, a
-  navigation, carries no `Alt-Used` while the fetch after it does; Phantom
-  sends the field on every request to an alternative.
+- Firefox's request-time mapping eligibility and the resulting omission
+  remain unmodeled. Under `Append`, Phantom sends `Alt-Used` on every request
+  to an alternative. A first-stream counter would not reproduce the preloaded
+  mapping captures described above.
 - The Chrome snapshots show only a same-host, same-port `h3=":<port>"`
   alternative, so the omission at another host or port rests on Chromium
   source alone. No Edge, Brave, Opera, or Android capture reaches H3 through

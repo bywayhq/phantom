@@ -33,6 +33,7 @@ FIELD_KEYS = {
     "ByForwarding": ("name", "unforwarded", "forwarded"),
     "ProxyAuthorization": ("name", "attempt"),
     "RestartClientHints": (),
+    "AltUsed": (),
 }
 HINT_FIELDS = {"ClientHint", "ClientHints"}
 TOKEN_PUNCTUATION = "!#$%&'*+-.^_`|~"
@@ -68,7 +69,10 @@ def validate_fields(fields, protocol):
         variant = choice(entry["variant"], FIELD_KEYS, "template field variant")
         keys(entry, ("variant", *FIELD_KEYS[variant]), "template field")
         repeated_auth = False
-        if variant == "ProxyAuthorization":
+        if variant == "AltUsed":
+            if protocol != 3:
+                raise DeclarationError("Alt-Used slots require HTTP/3")
+        elif variant == "ProxyAuthorization":
             attempt = choice(
                 entry["attempt"], ("Every", "Preemptive", "Replay"), "proxy attempt"
             )
@@ -109,9 +113,9 @@ def validate_fields(fields, protocol):
             if isinstance(later, dict) and "variant" in later
         ):
             raise DeclarationError("client-hint slots require a later literal field")
-        if "name" not in entry:
+        if "name" not in entry and variant != "AltUsed":
             continue
-        name = entry["name"]
+        name = "alt-used" if variant == "AltUsed" else entry["name"]
         if not isinstance(name, str) or not name or len(name) > MAX_STRING:
             raise DeclarationError(
                 "template field name must be a bounded nonempty token"
@@ -141,8 +145,10 @@ def validate_fields(fields, protocol):
             raise DeclarationError(
                 "HTTP/2 and HTTP/3 cannot carry connection-specific fields"
             )
-        if lower in GENERATED_FIELDS and not (
-            lower == "content-length" and variant == "Caller"
+        if (
+            lower in GENERATED_FIELDS
+            and variant != "AltUsed"
+            and not (lower == "content-length" and variant == "Caller")
         ):
             raise DeclarationError("template cannot declare client-generated fields")
         if lower in names and not repeated_auth:
@@ -159,6 +165,8 @@ def validate_fields(fields, protocol):
 def following_names(fields, index, skip_hints=False):
     names = []
     for entry in fields[index + 1 :]:
+        if entry["variant"] == "AltUsed":
+            continue
         if skip_hints and entry["variant"] in HINT_FIELDS:
             continue
         if "name" in entry:

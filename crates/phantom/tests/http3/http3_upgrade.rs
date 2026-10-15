@@ -38,6 +38,8 @@ use http3_upgrade_support::{
 };
 use tls_support::{TestIdentity, TestResult, tls_settings};
 
+mod alt_used;
+
 const TEST_TIMEOUT: Duration = Duration::from_secs(5);
 const ORIGIN_NAME: &str = "127.0.0.1";
 
@@ -116,10 +118,9 @@ async fn opt_in_alt_svc_preserves_origin_identity_while_upgrading_to_http3() -> 
     .await
 }
 
-/// The Firefox 157 request recipe names the learned alternative in one
-/// `Alt-Used` field after every other field.
+/// Without a template slot, the generated alternative field stays last.
 #[tokio::test]
-async fn firefox_request_recipe_names_a_learned_alternative_in_alt_used_last() -> TestResult<()> {
+async fn an_alternative_without_a_template_slot_keeps_alt_used_last() -> TestResult<()> {
     bounded(async {
         let identity =
             TestIdentity::generate_for_ip_and_dns(IpAddr::V4(Ipv4Addr::LOCALHOST), "localhost")?;

@@ -237,6 +237,7 @@ pub(crate) fn expand_on_route(
     expand_on_route_with_managed_headers(fields, caller, hints, trustworthy, route, &[])
 }
 
+#[cfg(test)]
 pub(crate) fn expand_on_route_with_managed_headers(
     fields: &[RequestField],
     caller: &[RequestHeader],
@@ -244,6 +245,19 @@ pub(crate) fn expand_on_route_with_managed_headers(
     trustworthy: bool,
     route: Forwarding<'_>,
     managed: &[&str],
+) -> (Vec<RequestHeader>, bool) {
+    expand_on_route_with_alt_used(fields, caller, hints, trustworthy, route, managed, None)
+}
+
+/// Expands the template with a transport-owned alternative authority.
+pub(crate) fn expand_on_route_with_alt_used(
+    fields: &[RequestField],
+    caller: &[RequestHeader],
+    hints: Option<&ClientHintSettings>,
+    trustworthy: bool,
+    route: Forwarding<'_>,
+    managed: &[&str],
+    alt_used: Option<&str>,
 ) -> (Vec<RequestHeader>, bool) {
     let mut credentials = route.credentials;
     let mut used = vec![false; caller.len()];
@@ -268,6 +282,11 @@ pub(crate) fn expand_on_route_with_managed_headers(
     };
     for field in fields {
         match field {
+            RequestField::AltUsed => {
+                if let Some(value) = alt_used {
+                    expanded.push(RequestHeader::new("alt-used", value.as_bytes()));
+                }
+            }
             RequestField::Literal { name, .. } | RequestField::ByTrust { name, .. } => {
                 if !place(name, &mut expanded)
                     && let Some(value) = field.default_value(if trustworthy {
@@ -377,9 +396,11 @@ pub(crate) fn supplies_managed_default(
 }
 
 pub(crate) fn is_managed(managed: &[&str], name: &str) -> bool {
-    managed
-        .iter()
-        .any(|managed| managed.eq_ignore_ascii_case(name))
+    // Alt-Used is reserved for the selected transport on every request.
+    name.eq_ignore_ascii_case("alt-used")
+        || managed
+            .iter()
+            .any(|managed| managed.eq_ignore_ascii_case(name))
 }
 
 fn respelled(name: &str, header: &RequestHeader) -> RequestHeader {

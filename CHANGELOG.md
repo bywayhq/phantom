@@ -2593,6 +2593,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Keep HTTP/3 origin-ticket retries separate from CONNECT-UDP proxy
   handshake failures. Each TLS leg retains its own retry budget.
+- Place generated HTTP/3 `Alt-Used` at an optional `RequestField::AltUsed`
+  template slot. Firefox navigation puts it after `accept-encoding` and
+  before optional `referer`; fetch puts it after `referer`. Without a slot,
+  the field stays last. `Http3AltUsed::Append` keeps its name.
+- Keep automatic client-hint settings from generating, moving or requesting
+  a hint replay for transport-owned `Alt-Used` on any protocol. Other custom
+  hint names keep their configured behavior.
 
 - Ignore reserved QUIC transport parameters when binding early-data tickets
   to server settings. Changing GREASE no longer rejects otherwise eligible

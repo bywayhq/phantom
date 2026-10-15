@@ -66,6 +66,16 @@ pub fn phantom_profile::browser::edge::v153_android_navigation_template() -> pha
 pub fn phantom_profile::browser::edge::v153_android_quic() -> phantom_profile::QuicTransportSettings
 pub fn phantom_profile::browser::edge::v153_android_quic_tls() -> phantom_profile::TlsSettings
 pub fn phantom_profile::browser::edge::v153_android_tcp_tls() -> phantom_profile::TlsSettings
+pub fn phantom_profile::browser::edge::v153_http2() -> phantom_profile::Http2Settings
+pub fn phantom_profile::browser::edge::v153_http3() -> phantom_profile::Http3Settings
+pub fn phantom_profile::browser::edge::v153_http3_request() -> phantom_profile::Http3RequestSettings
+pub fn phantom_profile::browser::edge::v153_quic() -> phantom_profile::QuicTransportSettings
+pub fn phantom_profile::browser::edge::v153_quic_tls() -> phantom_profile::TlsSettings
+pub fn phantom_profile::browser::edge::v153_tcp_tls() -> phantom_profile::TlsSettings
+pub fn phantom_profile::browser::edge::v153_windows() -> phantom_profile::ClientProfile
+pub fn phantom_profile::browser::edge::v153_windows_client_hints() -> phantom_profile::ClientHintSettings
+pub fn phantom_profile::browser::edge::v153_windows_fetch_no_store_template() -> phantom_profile::RequestTemplate
+pub fn phantom_profile::browser::edge::v153_windows_navigation_template() -> phantom_profile::RequestTemplate
 pub fn phantom_profile::browser::edge::v154_macos_client_hints() -> phantom_profile::ClientHintSettings
 pub fn phantom_profile::browser::edge::v154_quic_tls() -> phantom_profile::TlsSettings
 pub fn phantom_profile::browser::edge::v154_tcp_tls() -> phantom_profile::TlsSettings
@@ -108,6 +118,98 @@ pub fn phantom_profile::browser::opera::v136_windows() -> phantom_profile::Clien
 pub fn phantom_profile::browser::opera::v136_windows_client_hints() -> phantom_profile::ClientHintSettings
 pub fn phantom_profile::browser::opera::v136_windows_fetch_no_store_template() -> phantom_profile::RequestTemplate
 pub fn phantom_profile::browser::opera::v136_windows_navigation_template() -> phantom_profile::RequestTemplate
+pub mod phantom_profile::catalog
+#[non_exhaustive] pub enum phantom_profile::catalog::Browser
+pub phantom_profile::catalog::Browser::Brave
+pub phantom_profile::catalog::Browser::Chrome
+pub phantom_profile::catalog::Browser::Edge
+pub phantom_profile::catalog::Browser::Firefox
+pub phantom_profile::catalog::Browser::Opera
+#[non_exhaustive] pub enum phantom_profile::catalog::CaptureEnvironment
+pub phantom_profile::catalog::CaptureEnvironment::Desktop
+pub phantom_profile::catalog::CaptureEnvironment::Emulator
+pub phantom_profile::catalog::CaptureEnvironment::PhysicalDevice
+#[non_exhaustive] pub enum phantom_profile::catalog::CatalogError
+pub phantom_profile::catalog::CatalogError::UnavailableLayer
+pub phantom_profile::catalog::CatalogError::UnavailableLayer::layer: phantom_profile::catalog::ProfileLayer
+pub phantom_profile::catalog::CatalogError::UnavailableLayer::profile: phantom_profile::catalog::ProfileId
+pub phantom_profile::catalog::CatalogError::UnavailableTemplate
+pub phantom_profile::catalog::CatalogError::UnavailableTemplate::kind: phantom_profile::catalog::RequestTemplateKind
+pub phantom_profile::catalog::CatalogError::UnavailableTemplate::profile: phantom_profile::catalog::ProfileId
+pub phantom_profile::catalog::CatalogError::UnknownProfile
+impl core::error::Error for phantom_profile::catalog::CatalogError
+impl core::fmt::Display for phantom_profile::catalog::CatalogError
+pub fn phantom_profile::catalog::CatalogError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+#[non_exhaustive] pub enum phantom_profile::catalog::EvidenceKind
+pub phantom_profile::catalog::EvidenceKind::Capture
+pub phantom_profile::catalog::EvidenceKind::Recipe
+pub phantom_profile::catalog::EvidenceKind::Reused
+pub phantom_profile::catalog::EvidenceKind::Source
+#[non_exhaustive] pub enum phantom_profile::catalog::LayerSupport
+pub phantom_profile::catalog::LayerSupport::Configured
+pub phantom_profile::catalog::LayerSupport::IntentionallyAbsent
+pub phantom_profile::catalog::LayerSupport::Unavailable
+#[non_exhaustive] pub enum phantom_profile::catalog::ProfileLayer
+pub phantom_profile::catalog::ProfileLayer::ClientHints
+pub phantom_profile::catalog::ProfileLayer::CookiePlacement
+pub phantom_profile::catalog::ProfileLayer::Dns
+pub phantom_profile::catalog::ProfileLayer::Http1
+pub phantom_profile::catalog::ProfileLayer::Http2
+pub phantom_profile::catalog::ProfileLayer::Http3
+pub phantom_profile::catalog::ProfileLayer::Http3Request
+pub phantom_profile::catalog::ProfileLayer::ProxyConnect
+pub phantom_profile::catalog::ProfileLayer::QuicTls
+pub phantom_profile::catalog::ProfileLayer::QuicTransport
+pub phantom_profile::catalog::ProfileLayer::Tcp
+pub phantom_profile::catalog::ProfileLayer::TcpTls
+pub phantom_profile::catalog::ProfileLayer::Udp
+pub phantom_profile::catalog::ProfileLayer::WebSocket
+#[non_exhaustive] pub enum phantom_profile::catalog::ProfilePlatform
+pub phantom_profile::catalog::ProfilePlatform::Android
+pub phantom_profile::catalog::ProfilePlatform::Linux
+pub phantom_profile::catalog::ProfilePlatform::Macos
+pub phantom_profile::catalog::ProfilePlatform::Windows
+#[non_exhaustive] pub enum phantom_profile::catalog::RequestTemplateKind
+pub phantom_profile::catalog::RequestTemplateKind::Fetch
+pub phantom_profile::catalog::RequestTemplateKind::FetchNoStore
+pub phantom_profile::catalog::RequestTemplateKind::FetchUpload
+pub phantom_profile::catalog::RequestTemplateKind::Navigation
+pub struct phantom_profile::catalog::EvidenceReference
+impl phantom_profile::catalog::EvidenceReference
+pub const fn phantom_profile::catalog::EvidenceReference::build(&self) -> &'static str
+pub const fn phantom_profile::catalog::EvidenceReference::kind(&self) -> phantom_profile::catalog::EvidenceKind
+pub const fn phantom_profile::catalog::EvidenceReference::location(&self) -> &'static str
+pub struct phantom_profile::catalog::LayerEvidence
+impl phantom_profile::catalog::LayerEvidence
+pub const fn phantom_profile::catalog::LayerEvidence::layer(&self) -> phantom_profile::catalog::ProfileLayer
+pub const fn phantom_profile::catalog::LayerEvidence::limitations(&self) -> &'static [&'static str]
+pub const fn phantom_profile::catalog::LayerEvidence::references(&self) -> &'static [phantom_profile::catalog::EvidenceReference]
+pub const fn phantom_profile::catalog::LayerEvidence::support(&self) -> phantom_profile::catalog::LayerSupport
+pub const fn phantom_profile::catalog::LayerEvidence::verified_fields(&self) -> &'static [&'static str]
+pub struct phantom_profile::catalog::ProfileDefinition
+impl phantom_profile::catalog::ProfileDefinition
+pub fn phantom_profile::catalog::ProfileDefinition::evidence(&self, phantom_profile::catalog::ProfileLayer) -> core::option::Option<&'static phantom_profile::catalog::LayerEvidence>
+pub const fn phantom_profile::catalog::ProfileDefinition::id(&self) -> phantom_profile::catalog::ProfileId
+pub fn phantom_profile::catalog::ProfileDefinition::instantiate(&self, &[phantom_profile::catalog::ProfileLayer]) -> core::result::Result<phantom_profile::ClientProfile, phantom_profile::catalog::CatalogError>
+pub const fn phantom_profile::catalog::ProfileDefinition::layers(&self) -> &'static [phantom_profile::catalog::LayerEvidence]
+pub const fn phantom_profile::catalog::ProfileDefinition::metadata(&self) -> &phantom_profile::catalog::ProfileMetadata
+pub fn phantom_profile::catalog::ProfileDefinition::request_template(&self, phantom_profile::catalog::RequestTemplateKind) -> core::result::Result<phantom_profile::RequestTemplate, phantom_profile::catalog::CatalogError>
+pub struct phantom_profile::catalog::ProfileId(_)
+impl phantom_profile::catalog::ProfileId
+pub const fn phantom_profile::catalog::ProfileId::as_str(self) -> &'static str
+impl core::fmt::Display for phantom_profile::catalog::ProfileId
+pub fn phantom_profile::catalog::ProfileId::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_profile::catalog::ProfileMetadata
+impl phantom_profile::catalog::ProfileMetadata
+pub const fn phantom_profile::catalog::ProfileMetadata::architecture(&self) -> core::option::Option<&'static str>
+pub const fn phantom_profile::catalog::ProfileMetadata::browser(&self) -> phantom_profile::catalog::Browser
+pub const fn phantom_profile::catalog::ProfileMetadata::build(&self) -> &'static str
+pub const fn phantom_profile::catalog::ProfileMetadata::environment(&self) -> phantom_profile::catalog::CaptureEnvironment
+pub const fn phantom_profile::catalog::ProfileMetadata::platform(&self) -> phantom_profile::catalog::ProfilePlatform
+pub const fn phantom_profile::catalog::ProfileMetadata::platform_release(&self) -> &'static str
+pub const fn phantom_profile::catalog::ProfileMetadata::revision(&self) -> u32
+pub fn phantom_profile::catalog::profile(&str) -> core::result::Result<&'static phantom_profile::catalog::ProfileDefinition, phantom_profile::catalog::CatalogError>
+pub fn phantom_profile::catalog::profiles() -> &'static [phantom_profile::catalog::ProfileDefinition]
 #[non_exhaustive] pub enum phantom_profile::CertificateCompression
 pub phantom_profile::CertificateCompression::Brotli
 pub phantom_profile::CertificateCompression::Zlib
@@ -387,6 +489,7 @@ pub phantom_profile::QuicVersionGrease::First
 pub phantom_profile::QuicVersionGrease::Omit
 pub phantom_profile::QuicVersionGrease::Permuted
 #[non_exhaustive] pub enum phantom_profile::RequestField
+pub phantom_profile::RequestField::AltUsed
 pub phantom_profile::RequestField::ByForwarding
 pub phantom_profile::RequestField::ByForwarding::forwarded: core::option::Option<alloc::boxed::Box<str>>
 pub phantom_profile::RequestField::ByForwarding::name: alloc::boxed::Box<str>

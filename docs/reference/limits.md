@@ -260,6 +260,7 @@ from Chromium.
 | Limit | Value |
 | --- | --- |
 | Undelivered HTTP/2 ALTSVC frames per connection | 16 |
+| Generated `Alt-Used` template slots | At most one `RequestField::AltUsed`, in the HTTP/3 list only; without it, the generated field stays last |
 | Raced Alt-Svc alternative setup, including name resolution | 4 seconds, or `AltSvcRace::with_alternative_setup_limit` |
 | Cached HTTPS queries by host and port, per client | The `maximum_origins` given to `ClientBuilder::alt_svc`, least recently used evicted |
 | Lifetime of an HTTPS DNS record result | Earliest record or negative SOA expiry, at most 1 day from lookup construction; missing or expired lifetimes are not cached |
@@ -300,6 +301,11 @@ from Chromium.
 | TCP backup connect timeout once the address family is known | Whole seconds, 1 to 600 (`MAX_TCP_BACKUP_TIMEOUT_SECONDS`) |
 | Concurrent TCP attempts per connection with address racing or a backup | 2 |
 | Pool keys remembered as having selected HTTP/2 through negotiation, per client | 500, least recently used evicted |
+
+Automatic client-hint settings cannot generate, position or request a hint
+replay for `Alt-Used` on H1, H2 or H3. Other custom hint names retain their
+configured behavior. See [Alt-Used](profiles.md#alt-used-on-http3) for emission
+and template placement.
 
 H3 field-section size is measured as RFC 9114 Section 4.2.2 defines it: each
 field line counts its name and value lengths plus 32 bytes. The 256 KiB

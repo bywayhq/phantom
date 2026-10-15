@@ -566,8 +566,9 @@ pub fn v157_http3() -> Http3Settings {
 /// The retained cookie captures carry it on every HTTP/3 request, and the
 /// snapshots on the fetch that follows the first navigation over HTTP/3,
 /// which carries none. Phantom sends it on every request to an alternative,
-/// and appends it last, where Firefox sends it after `accept-encoding`, or
-/// after `referer` when there is one.
+/// using the navigation or fetch template's [`RequestField::AltUsed`] slot.
+/// A custom template without that slot places the field last. The omission
+/// on the first request of the retained snapshots is not implemented.
 #[must_use]
 pub fn v157_http3_request() -> Http3RequestSettings {
     crate::catalog::http3_components::firefox_157_http3_request()
@@ -631,13 +632,14 @@ fn replay_proxy_authorization(name: &str) -> RequestField {
 /// retained SSE and WebSocket captures and the HTTP/2 order from the page
 /// requests of the WebSocket captures; every run agrees. Firefox sends
 /// `Priority` on HTTP/1.1 too and ends HTTP/2 requests with `te: trailers`.
-/// The HTTP/3 list is the HTTP/2 order without `te`. The retained Firefox
+/// The HTTP/3 list omits `te` and places generated `Alt-Used` after
+/// `accept-encoding`, before an optional `referer`. The retained Firefox
 /// 157.0 HTTP/3 snapshots and cookie captures show a script navigation,
 /// which adds `referer` after `accept-encoding` and has no `Sec-Fetch-User`;
 /// the fields it shares with this list come in the same order. On requests
 /// to an origin it reached through Alt-Svc, Firefox sends `Alt-Used` after
-/// `accept-encoding`, or after `referer` when there is one. Phantom
-/// generates that field and appends it last. Each captured HTTP/2 page
+/// `accept-encoding` on navigation and after `referer` on fetch. Phantom
+/// places it through the template's generated slot. Each captured HTTP/2 page
 /// request carries HEADERS priority weight 42, not exclusive, on stream 0,
 /// which is also [`v157_http2`]'s connection priority.
 ///
@@ -715,6 +717,8 @@ fn navigation_template(user_agent: &str) -> RequestTemplate {
             RequestField::literal("accept", V157_NAVIGATION_ACCEPT),
             RequestField::literal("accept-language", V157_ACCEPT_LANGUAGE),
             accept_encoding("accept-encoding"),
+            RequestField::AltUsed,
+            RequestField::caller("referer"),
             RequestField::literal("upgrade-insecure-requests", "1"),
             RequestField::trustworthy_only("sec-fetch-dest", "document"),
             RequestField::trustworthy_only("sec-fetch-mode", "navigate"),
@@ -934,6 +938,7 @@ fn fetch_template(user_agent: &str, cache: FetchCache) -> RequestTemplate {
         RequestField::literal("accept-language", V157_ACCEPT_LANGUAGE),
         accept_encoding("accept-encoding"),
         RequestField::caller("referer"),
+        RequestField::AltUsed,
         RequestField::trustworthy_only("sec-fetch-dest", "empty"),
         RequestField::trustworthy_only("sec-fetch-mode", "cors"),
         RequestField::trustworthy_only("sec-fetch-site", "same-origin"),

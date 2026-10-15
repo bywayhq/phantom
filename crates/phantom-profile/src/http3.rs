@@ -286,13 +286,18 @@ pub enum Http3CookieCrumbs {
 /// and one sent to the origin's own host and port because an HTTPS record
 /// lists `h3`, never carry the field. The client generates its value; a
 /// caller-supplied `Alt-Used` field or trailer is rejected under either
-/// setting.
+/// setting. Automatic client-hint settings cannot generate, move or request
+/// a hint replay for this field on any protocol. Other custom hint names
+/// retain their configured behavior.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Http3AltUsed {
     /// Send no `Alt-Used` field.
     Omit,
-    /// Append one `Alt-Used` field after every other request field.
+    /// Send one `Alt-Used` field at the template's generated slot.
+    ///
+    /// Without [`crate::RequestField::AltUsed`], it follows every other
+    /// ordinary request field.
     ///
     /// Its value is the alternative's host and port, with an IPv6 literal in
     /// brackets and the port present even when it is 443.
