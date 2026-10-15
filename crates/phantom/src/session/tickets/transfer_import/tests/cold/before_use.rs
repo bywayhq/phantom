@@ -268,8 +268,8 @@ async fn clear_removes_mixed_live_and_cold_tickets_without_before_use_resurrecti
     assert!(live_count > 0);
     assert_eq!(cold.owners.len(), 1);
     assert!(!cold.native.is_empty());
-    assert_eq!(recipient.clear(), live_count + cold.native.len());
-    assert_eq!(recipient.clear(), 0);
+    assert_eq!(recipient.clear()?, live_count + cold.native.len());
+    assert_eq!(recipient.clear()?, 0);
     assert!(recipient.registry().cold.is_none());
     assert_eq!(store_header(&live)?.record_count(), 0);
     let pending = unused_connector(&fixture)?;

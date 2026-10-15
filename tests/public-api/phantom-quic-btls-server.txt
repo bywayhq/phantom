@@ -73,6 +73,12 @@ pub fn phantom_quic_btls::EchOffer::new(&[u8]) -> Self
 pub fn phantom_quic_btls::EchOffer::outcome(&self) -> core::option::Option<phantom_quic_btls::EchOutcome>
 impl core::fmt::Debug for phantom_quic_btls::EchOffer
 pub fn phantom_quic_btls::EchOffer::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::FrozenQuicSessionTicketCache<'a>
+impl phantom_quic_btls::FrozenQuicSessionTicketCache<'_>
+pub fn phantom_quic_btls::FrozenQuicSessionTicketCache<'_>::drain(&mut self, phantom_quic_btls::QuicTicketGeneration) -> phantom_quic_btls::RetiredQuicTicketPublications
+pub fn phantom_quic_btls::FrozenQuicSessionTicketCache<'_>::retained_count(&self) -> usize
+impl core::fmt::Debug for phantom_quic_btls::FrozenQuicSessionTicketCache<'_>
+pub fn phantom_quic_btls::FrozenQuicSessionTicketCache<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_quic_btls::HandshakeData
 impl phantom_quic_btls::HandshakeData
 pub const fn phantom_quic_btls::HandshakeData::ech_accepted(&self) -> bool
@@ -108,6 +114,7 @@ pub fn phantom_quic_btls::QuicClientConfig::receives_datagrams(&self) -> bool
 pub fn phantom_quic_btls::QuicClientConfig::record_round_trip_time(&self, &str, core::time::Duration)
 pub const fn phantom_quic_btls::QuicClientConfig::resumes_sessions(&self) -> bool
 pub const fn phantom_quic_btls::QuicClientConfig::sends_early_data(&self) -> bool
+pub fn phantom_quic_btls::QuicClientConfig::session_ticket_cache(&self) -> core::option::Option<phantom_quic_btls::QuicSessionTicketCache>
 pub fn phantom_quic_btls::QuicClientConfig::validate_server_name(&str) -> core::result::Result<(), phantom_quic_btls::InvalidServerName>
 pub fn phantom_quic_btls::QuicClientConfig::validate_tls_profile(&phantom_profile::tls::TlsSettings) -> core::result::Result<(), phantom_quic_btls::QuicTlsProfileError>
 pub fn phantom_quic_btls::QuicClientConfig::with_application_state(&self, &phantom_quic_btls::ApplicationState) -> Self
@@ -133,6 +140,26 @@ impl quinn_proto::crypto::ServerConfig for phantom_quic_btls::QuicServerConfig
 pub fn phantom_quic_btls::QuicServerConfig::initial_keys(&self, u32, &quinn_proto::shared::ConnectionId) -> core::result::Result<quinn_proto::crypto::Keys, quinn_proto::crypto::UnsupportedVersion>
 pub fn phantom_quic_btls::QuicServerConfig::retry_tag(&self, u32, &quinn_proto::shared::ConnectionId, &[u8]) -> [u8; 16]
 pub fn phantom_quic_btls::QuicServerConfig::start_session(alloc::sync::Arc<Self>, u32, &quinn_proto::transport_parameters::TransportParameters) -> alloc::boxed::Box<dyn quinn_proto::crypto::Session>
+pub struct phantom_quic_btls::QuicSessionTicketCache
+impl phantom_quic_btls::QuicSessionTicketCache
+pub fn phantom_quic_btls::QuicSessionTicketCache::clear(&self) -> usize
+pub fn phantom_quic_btls::QuicSessionTicketCache::is_live(&self) -> bool
+pub fn phantom_quic_btls::QuicSessionTicketCache::upgrade(&self) -> core::option::Option<phantom_quic_btls::QuicSessionTicketCacheOwner>
+impl core::fmt::Debug for phantom_quic_btls::QuicSessionTicketCache
+pub fn phantom_quic_btls::QuicSessionTicketCache::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::QuicSessionTicketCacheOwner
+impl phantom_quic_btls::QuicSessionTicketCacheOwner
+pub fn phantom_quic_btls::QuicSessionTicketCacheOwner::bind_transfer_policy(&self, &str, btls::ssl::session_transfer::SessionTransferPolicy) -> core::result::Result<btls::ssl::session_transfer::SessionPolicyBinding, btls::ssl::session_transfer::SessionTransferError>
+pub fn phantom_quic_btls::QuicSessionTicketCacheOwner::freeze(&self) -> phantom_quic_btls::FrozenQuicSessionTicketCache<'_>
+pub fn phantom_quic_btls::QuicSessionTicketCacheOwner::ordered_store_indices(&[&Self]) -> core::result::Result<alloc::vec::Vec<usize>, btls::ssl::session_transfer::SessionTransferError>
+pub fn phantom_quic_btls::QuicSessionTicketCacheOwner::same_cache(&self, &Self) -> bool
+impl core::fmt::Debug for phantom_quic_btls::QuicSessionTicketCacheOwner
+pub fn phantom_quic_btls::QuicSessionTicketCacheOwner::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::QuicTicketGeneration(_)
+impl core::default::Default for phantom_quic_btls::QuicTicketGeneration
+pub fn phantom_quic_btls::QuicTicketGeneration::default() -> Self
+impl core::fmt::Debug for phantom_quic_btls::QuicTicketGeneration
+pub fn phantom_quic_btls::QuicTicketGeneration::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_quic_btls::QuicTlsProfileError
 impl phantom_quic_btls::QuicTlsProfileError
 pub const fn phantom_quic_btls::QuicTlsProfileError::field(&self) -> &'static str
@@ -148,6 +175,11 @@ pub const fn phantom_quic_btls::QuicTransportProfileError::kind(&self) -> phanto
 impl core::error::Error for phantom_quic_btls::QuicTransportProfileError
 impl core::fmt::Display for phantom_quic_btls::QuicTransportProfileError
 pub fn phantom_quic_btls::QuicTransportProfileError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_quic_btls::RetiredQuicTicketPublications
+impl phantom_quic_btls::RetiredQuicTicketPublications
+pub fn phantom_quic_btls::RetiredQuicTicketPublications::finish(self) -> usize
+impl core::fmt::Debug for phantom_quic_btls::RetiredQuicTicketPublications
+pub fn phantom_quic_btls::RetiredQuicTicketPublications::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_quic_btls::ServerHandshakeData
 impl phantom_quic_btls::ServerHandshakeData
 pub fn phantom_quic_btls::ServerHandshakeData::client_hello(&self) -> &[u8]

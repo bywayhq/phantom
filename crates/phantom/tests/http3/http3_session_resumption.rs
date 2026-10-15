@@ -650,8 +650,8 @@ async fn clear_removes_origin_and_outer_connect_udp_tickets() -> TestResult<()> 
         request().await?;
         assert_eq!(origin_store.counts(), none);
         assert_eq!(proxy_store.counts(), none);
-        assert!(client.clone().clear_session_tickets() >= 2);
-        assert_eq!(client.clear_session_tickets(), 0);
+        assert!(client.clone().clear_session_tickets()? >= 2);
+        assert_eq!(client.clear_session_tickets()?, 0);
         request().await?;
         assert_eq!(origin_store.counts(), none);
         assert_eq!(proxy_store.counts(), none);

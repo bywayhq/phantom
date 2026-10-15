@@ -449,7 +449,7 @@ fn unverified_client_stays_locally_constructible_but_transfer_ineligible() -> Te
             "disabled server authentication"
         ))
     ));
-    assert_eq!(client.clear_session_tickets(), 0);
+    assert_eq!(client.clear_session_tickets()?, 0);
     Ok(())
 }
 
@@ -986,14 +986,14 @@ fn real_client_construction_retains_ineligible_preparation_without_failing() -> 
         client.inner.ticket_preparation,
         Err(PreparationError::TooLarge)
     ));
-    assert_eq!(client.clear_session_tickets(), 0);
+    assert_eq!(client.clear_session_tickets()?, 0);
     let owner =
         super::super::TicketOwner::with_preparation(client.inner.ticket_preparation.clone());
     assert!(matches!(
         owner.preparation,
         Some(Err(PreparationError::TooLarge))
     ));
-    assert_eq!(owner.clear(), 0);
+    assert_eq!(owner.clear()?, 0);
     Ok(())
 }
 
@@ -1010,7 +1010,7 @@ fn successful_preparation_is_retained_by_the_ticket_owner() -> TestResult {
         .as_ref()
         .map_err(|error| *error)?;
     assert!(actual.canonical == expected);
-    assert_eq!(owner.clear(), 0);
+    assert_eq!(owner.clear()?, 0);
     Ok(())
 }
 

@@ -126,6 +126,71 @@ impl SessionTicketCache {
 }
 
 impl SessionTicketCacheOwner {
+    /// Clears distinct TCP and QUIC stores at one frozen-store boundary.
+    ///
+    /// Aliases are cleared once. TCP stores lock before QUIC stores, each in
+    /// its actual owner's private order. Unlike transfer, clear has no owner
+    /// count limit and accepts stores without an installed transfer binding.
+    /// All allocation precedes locks; retirement runs after every guard drops.
+    ///
+    /// # Errors
+    /// Returns an allocation failure before changing any store.
+    pub fn clear_stores(owners: &[Self]) -> Result<usize, btls::ssl::SessionTransferError> {
+        let order = Self::clear_order(owners)?;
+        let mut generations = tcp_transfer::reserved(order.len())?;
+        let mut guards = tcp_transfer::reserved(order.len())?;
+        let mut retired = tcp_transfer::reserved(order.len())?;
+        for _ in &order {
+            generations.push(SessionTicketGeneration::default());
+        }
+        for index in order {
+            guards.push(owners[index].freeze());
+        }
+        for (guard, generation) in guards.iter_mut().zip(generations) {
+            retired.push(guard.drain(generation));
+        }
+        drop(guards);
+        Ok(retired
+            .into_iter()
+            .map(RetiredSessionTicketPublications::finish)
+            .sum())
+    }
+
+    fn clear_order(owners: &[Self]) -> Result<Vec<usize>, btls::ssl::SessionTransferError> {
+        let mut tcp = tcp_transfer::reserved(owners.len())?;
+        let mut quic = tcp_transfer::reserved(owners.len())?;
+        let mut tcp_indices = tcp_transfer::reserved(owners.len())?;
+        let mut quic_indices = tcp_transfer::reserved(owners.len())?;
+        for (index, owner) in owners.iter().enumerate() {
+            match &owner.cache {
+                OwnedCache::Tcp(cache) => {
+                    if !tcp
+                        .iter()
+                        .any(|other: &&TlsSessionOwner| other.same_cache(cache))
+                    {
+                        tcp.push(cache);
+                        tcp_indices.push(index);
+                    }
+                }
+                OwnedCache::Quic(cache) => {
+                    if !quic
+                        .iter()
+                        .any(|other: &&QuicSessionTicketCacheOwner| other.same_cache(cache))
+                    {
+                        quic.push(cache);
+                        quic_indices.push(index);
+                    }
+                }
+            }
+        }
+        let tcp_order = TlsSessionOwner::ordered_store_indices(&tcp)?;
+        let quic_order = QuicSessionTicketCacheOwner::ordered_store_indices(&quic)?;
+        let mut order = tcp_transfer::reserved(tcp.len() + quic.len())?;
+        order.extend(tcp_order.into_iter().map(|index| tcp_indices[index]));
+        order.extend(quic_order.into_iter().map(|index| quic_indices[index]));
+        Ok(order)
+    }
+
     /// Capture distinct TCP stores without serializing while their locks are held.
     /// The caller authenticates every store header and record-slot mapping.
     /// QUIC, duplicate stores or an unbound cache return a policy error.
@@ -297,3 +362,6 @@ impl fmt::Debug for RetiredSessionTicketPublications {
             .finish_non_exhaustive()
     }
 }
+
+#[cfg(test)]
+mod tests;

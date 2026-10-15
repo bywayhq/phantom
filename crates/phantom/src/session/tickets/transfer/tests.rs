@@ -99,7 +99,7 @@ fn many_exact_same_cache_aliases_export_one_owner_without_changing_registration(
         1
     );
     assert_eq!(owner.registry().caches.len(), MAX_OWNERS + 1);
-    assert_eq!(owner.clear(), 0);
+    assert_eq!(owner.clear()?, 0);
     Ok(())
 }
 
@@ -153,7 +153,7 @@ fn distinct_stores_with_identical_logical_owner_are_rejected_before_capture() ->
             .all(|entry| entry.native_binding.is_ok())
     );
     drop(frozen);
-    assert_eq!(owner.clear(), 0);
+    assert_eq!(owner.clear()?, 0);
     Ok(())
 }
 
@@ -277,7 +277,7 @@ fn more_than_256_distinct_owners_fail_before_capture() -> TestResult {
         Err(TcpExportError::TooLarge)
     ));
     assert_eq!(owner.registry().caches.len(), MAX_OWNERS + 1);
-    assert_eq!(owner.clear(), 0);
+    assert_eq!(owner.clear()?, 0);
     Ok(())
 }
 

@@ -178,8 +178,8 @@ async fn clearing_shared_client_tickets_forces_full_tcp_handshakes() -> TestResu
             send(&client, protocol, format!("https://{address}/first")).await?;
             closed.recv().await.ok_or("peer stopped")?;
             let clone = client.clone();
-            assert!(clone.clear_session_tickets() > 0);
-            assert_eq!(client.clear_session_tickets(), 0);
+            assert!(clone.clear_session_tickets()? > 0);
+            assert_eq!(client.clear_session_tickets()?, 0);
             send(&client, protocol, format!("https://{address}/cleared")).await?;
             closed.recv().await.ok_or("peer stopped")?;
             send(&client, protocol, format!("https://{address}/fresh")).await?;

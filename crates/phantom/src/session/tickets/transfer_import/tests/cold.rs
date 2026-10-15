@@ -419,4 +419,5 @@ async fn empty_cold_intent_replaces_old_records_and_is_removed_when_applied_live
 
 mod api;
 mod before_use;
+mod clear_failure;
 mod export;

@@ -703,6 +703,7 @@ pub(crate) struct ObservedStreamRequest {
 #[derive(Default)]
 struct StreamLog {
     connections: usize,
+    resumed_handshakes: Vec<bool>,
     completed_connections: usize,
     sharing_connections: usize,
     stream_ids: Vec<(usize, u64)>,
@@ -717,6 +718,7 @@ pub(crate) struct MasqueStreamProxy {
     pub(crate) address: SocketAddr,
     log: Arc<Mutex<StreamLog>>,
     stopping: watch::Sender<bool>,
+    close_connections: mpsc::Sender<oneshot::Sender<()>>,
     task: Option<ConnectionPeer<TestResult<()>>>,
 }
 
@@ -749,7 +751,8 @@ impl MasqueStreamProxy {
         let log = Arc::new(Mutex::new(StreamLog::default()));
         let task_log = Arc::clone(&log);
         let (stopping, mut stopped) = watch::channel(false);
-        let stop_children = stopping.clone();
+        let (stop_children, child_stopped) = watch::channel(false);
+        let (close_connections, mut close_requests) = mpsc::channel::<oneshot::Sender<()>>(1);
         let task = ConnectionPeer::spawn(async move {
             let mut connections = JoinSet::new();
             let mut outcome = Ok(());
@@ -768,6 +771,25 @@ impl MasqueStreamProxy {
                             outcome = finish_with_cleanup(previous, completed);
                         }
                         stopped = stream_outcomes::stopped(&mut stopped) => return stopped,
+                        requested = close_requests.recv() => {
+                            let complete = requested.ok_or("MASQUE close control disappeared")?;
+                            stop_children.send_replace(true);
+                            while let Some(completed) = connections.join_next().await {
+                                lock(&task_log).completed_connections += 1;
+                                let completed = match completed {
+                                    Ok(result) => result,
+                                    Err(error) => Err(error.into()),
+                                };
+                                let previous = std::mem::replace(&mut outcome, Ok(()));
+                                outcome = finish_with_cleanup(previous, completed);
+                            }
+                            // Only reopen after every old connection and relay has drained.
+                            stop_children.send_replace(false);
+                            // A cancelled observer does not cancel the peer's closure.
+                            if complete.send(()).is_err() {
+                                continue;
+                            }
+                        }
                         accepted = listener.accept() => {
                             let (tcp, _) = accepted?;
                             if connections.len() == MAX_STREAM_CONNECTIONS {
@@ -784,7 +806,7 @@ impl MasqueStreamProxy {
 
                             let log = Arc::clone(&task_log);
                             let acceptor = acceptor.clone();
-                            let mut stopped = stopped.clone();
+                            let mut stopped = child_stopped.clone();
                             connections.spawn(async move {
                                 let stream = tokio::select! {
                                     biased;
@@ -792,6 +814,7 @@ impl MasqueStreamProxy {
                                     stopped = stream_outcomes::stopped(&mut stopped) => return stopped,
                                 };
 
+                                lock(&log).resumed_handshakes.push(stream.ssl().session_reused());
                                 match leg {
                                     StreamLeg::Http1 => serve_http1_until(stream, mode, log, stopped).await,
                                     StreamLeg::Http2 => serve_http2_until(stream, mode, log, stopped).await,
@@ -819,6 +842,7 @@ impl MasqueStreamProxy {
             address,
             log,
             stopping,
+            close_connections,
             task: Some(task),
         })
     }
@@ -836,6 +860,22 @@ impl MasqueStreamProxy {
 
     pub(crate) fn requests(&self) -> Vec<ObservedStreamRequest> {
         lock(&self.log).requests.clone()
+    }
+
+    /// TLS resumption observed after each successful outer handshake.
+    pub(crate) fn resumed_handshakes(&self) -> Vec<bool> {
+        lock(&self.log).resumed_handshakes.clone()
+    }
+
+    /// Retires existing connections, drains their relays, and keeps listening.
+    pub(crate) async fn close_connections_and_wait(&self) -> TestResult<()> {
+        let (complete, completed) = oneshot::channel();
+        timeout(STREAM_SHUTDOWN, async {
+            self.close_connections.send(complete).await?;
+            completed.await?;
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        })
+        .await?
     }
 
     pub(crate) fn client_capsules(&self) -> Vec<(u64, Option<u64>, usize)> {

@@ -1,8 +1,9 @@
 # Public API inventory
 
 Review the library exports in these generated files. The inventories include
-the support-crate API consolidation, proxy error sources, and shared route
-lookup type. The containing Git commit records each snapshot update.
+the support-crate API consolidation, session-ticket operations, proxy error
+sources, and shared route lookup type. The containing Git commit records
+each snapshot update.
 
 Generated with `cargo-public-api` 0.52.0 and `nightly-2026-09-01`, on
 `x86_64-pc-windows-msvc`. `-sss` omits blanket, auto-trait, and derived
@@ -19,10 +20,10 @@ Check feature-gated documentation links with default and all-feature builds.
 
 | Package | All-feature lines | Interface |
 | --- | ---: | --- |
-| `phantom-http` | 1,163 | Application client, ordered requests, responses, state, custom profile import |
-| `phantom-net` | 1,455 | Protocol connections, routes, resolvers, transport errors |
+| `phantom-http` | 1,195 | Application client, ordered requests, responses, state, custom profile import |
+| `phantom-net` | 1,540 | Protocol connections, routes, resolvers, transport errors |
 | `phantom-profile` | 1,021 | Browser recipes and typed settings |
-| `phantom-quic-btls` | 199 | Quinn crypto provider, handshake state, typed errors |
+| `phantom-quic-btls` | 231 | Quinn crypto provider, handshake state, typed errors |
 | `phantom-testkit` | 428 | Wire inspection and loopback test tools |
 
 The QUIC snapshots confirm the nine retired packet-crypto exports are
@@ -44,7 +45,7 @@ compile checks verify those paths.
 | Library | Dependencies named by its API |
 | --- | --- |
 | `phantom-http` | `bytes`, `http`, `http-body`, `futures-core`, `futures-sink`, optional `serde`, `phantom-net`, `phantom-profile` |
-| `phantom-net` | `bytes`, `http`, `http-body`, Tokio I/O, `phantom-profile`, `phantom-quic-btls` |
+| `phantom-net` | `bytes`, `http`, `http-body`, Tokio I/O, `btls`, `phantom-profile`, `phantom-quic-btls` |
 | `phantom-profile` | Standard library only |
 | `phantom-quic-btls` | `btls`, `quinn-proto`, `phantom-profile`, `zeroize` (`keylog`) |
 | `phantom-testkit` | Tokio I/O, timers and task errors |

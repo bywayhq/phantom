@@ -328,6 +328,7 @@ pub phantom::RequestErrorKind::RequestTemplate
 pub phantom::RequestErrorKind::Resolve
 pub phantom::RequestErrorKind::ResponseBodyLimit
 pub phantom::RequestErrorKind::RuntimeUnavailable
+pub phantom::RequestErrorKind::SessionTickets
 pub phantom::RequestErrorKind::Timeout
 pub phantom::RequestErrorKind::Tls
 pub phantom::RequestErrorKind::UnsupportedRoute
@@ -358,6 +359,17 @@ pub const fn phantom::Route::direct() -> Self
 pub fn phantom::Route::http_proxy(phantom::HttpProxy) -> Self
 pub fn phantom::Route::socks4(phantom::Socks4Proxy) -> Self
 pub fn phantom::Route::socks5(phantom::Socks5Proxy) -> Self
+#[non_exhaustive] pub enum phantom::SessionTicketErrorKind
+pub phantom::SessionTicketErrorKind::Allocation
+pub phantom::SessionTicketErrorKind::Authentication
+pub phantom::SessionTicketErrorKind::Backend
+pub phantom::SessionTicketErrorKind::Busy
+pub phantom::SessionTicketErrorKind::Expired
+pub phantom::SessionTicketErrorKind::IncompatibleBackend
+pub phantom::SessionTicketErrorKind::InvalidSnapshot
+pub phantom::SessionTicketErrorKind::Policy
+pub phantom::SessionTicketErrorKind::TooLarge
+pub phantom::SessionTicketErrorKind::Unsupported
 #[non_exhaustive] pub enum phantom::Socks4DnsMode
 pub phantom::Socks4DnsMode::Local
 pub phantom::Socks4DnsMode::Remote
@@ -429,6 +441,7 @@ pub phantom::WebSocketErrorKind::ProtocolUnavailable
 pub phantom::WebSocketErrorKind::Proxy
 pub phantom::WebSocketErrorKind::Random
 pub phantom::WebSocketErrorKind::RuntimeUnavailable
+pub phantom::WebSocketErrorKind::SessionTickets
 pub phantom::WebSocketErrorKind::Timeout
 pub phantom::WebSocketErrorKind::Tls
 pub phantom::WebSocketErrorKind::UnsupportedRoute
@@ -548,6 +561,7 @@ pub fn phantom::Client::clear_alt_svc(&self)
 pub fn phantom::Client::clear_alt_svc_racing_history(&self)
 pub fn phantom::Client::clear_client_hints(&self)
 pub fn phantom::Client::clear_dns_cache(&self)
+pub fn phantom::Client::clear_session_tickets(&self) -> core::result::Result<usize, phantom::SessionTicketError>
 pub fn phantom::Client::cookie_jar(&self) -> core::option::Option<&phantom::CookieJar>
 pub fn phantom::Client::event_source(&self, phantom::HttpProtocol, &str) -> core::result::Result<phantom::SseRequestBuilder, phantom::RequestError>
 pub fn phantom::Client::export_alt_svc(&self) -> core::option::Option<phantom::AltSvcSnapshot>
@@ -556,6 +570,9 @@ pub fn phantom::Client::import_alt_svc(&self, &phantom::AltSvcSnapshot) -> core:
 pub fn phantom::Client::import_cookies(&self, &phantom::CookieSnapshot) -> core::result::Result<(), phantom::CookieSnapshotError>
 pub fn phantom::Client::request_timeouts(&self) -> phantom::RequestTimeouts
 pub fn phantom::Client::retry_policy(&self) -> phantom::RetryPolicy
+impl phantom::Client
+pub fn phantom::Client::export_session_tickets(&self, &[u8; 32]) -> core::result::Result<phantom::SessionTicketSnapshot, phantom::SessionTicketError>
+pub fn phantom::Client::import_session_tickets(&self, &phantom::SessionTicketSnapshot, &[u8; 32]) -> core::result::Result<(), phantom::SessionTicketError>
 impl core::fmt::Debug for phantom::Client
 pub fn phantom::Client::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::ClientBuilder
@@ -975,6 +992,21 @@ pub const fn phantom::RetryPolicy::with_max_retries(self, core::option::Option<u
 pub const fn phantom::RetryPolicy::with_reused_connection_replay(self, bool) -> Self
 pub const fn phantom::RetryPolicy::with_status_retry(self, phantom::StatusRetry) -> Self
 pub const fn phantom::RetryPolicy::with_unprocessed_replay(self, core::option::Option<core::num::nonzero::NonZeroUsize>) -> Self
+pub struct phantom::SessionTicketError
+impl phantom::SessionTicketError
+pub fn phantom::SessionTicketError::kind(&self) -> phantom::SessionTicketErrorKind
+impl core::error::Error for phantom::SessionTicketError
+pub fn phantom::SessionTicketError::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+impl core::fmt::Debug for phantom::SessionTicketError
+pub fn phantom::SessionTicketError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for phantom::SessionTicketError
+pub fn phantom::SessionTicketError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom::SessionTicketSnapshot(_)
+impl phantom::SessionTicketSnapshot
+pub fn phantom::SessionTicketSnapshot::as_bytes(&self) -> &[u8]
+pub fn phantom::SessionTicketSnapshot::from_bytes(&[u8]) -> core::result::Result<Self, phantom::SessionTicketError>
+impl core::fmt::Debug for phantom::SessionTicketSnapshot
+pub fn phantom::SessionTicketSnapshot::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::Socks4Proxy
 impl phantom::Socks4Proxy
 pub const fn phantom::Socks4Proxy::dns_mode(&self) -> phantom::Socks4DnsMode

@@ -112,6 +112,29 @@ impl TlsSessionControl {
 }
 
 impl TlsSessionOwner {
+    /// Original indices in private actual-store lock order, with no transfer bound.
+    /// Reject aliases before any locks; this operation grants no ticket authority.
+    ///
+    /// # Errors
+    /// Returns allocation failure or a policy error for duplicate stores.
+    pub(crate) fn ordered_store_indices(
+        owners: &[&Self],
+    ) -> Result<Vec<usize>, SessionTransferError> {
+        let mut order = Vec::new();
+        order
+            .try_reserve_exact(owners.len())
+            .map_err(|_| SessionTransferError::Allocation)?;
+        order.extend(0..owners.len());
+        order.sort_unstable_by_key(|index| Arc::as_ptr(&owners[*index].inner) as usize);
+        if order
+            .windows(2)
+            .any(|pair| owners[pair[0]].same_cache(owners[pair[1]]))
+        {
+            return Err(SessionTransferError::Policy);
+        }
+        Ok(order)
+    }
+
     pub(crate) fn bind_transfer_policy(
         &self,
         server_name: &str,
@@ -516,19 +539,18 @@ fn unix_time() -> u64 {
 
 #[cfg(test)]
 mod tests {
+    mod clear;
     mod transaction;
 
     use super::{TicketOrder, TlsSessionCache};
 
-    fn context() -> btls::ssl::SslContext {
-        btls::ssl::SslContextBuilder::new(btls::ssl::SslMethod::tls())
-            .expect("test context allocation failed")
-            .build()
+    fn context() -> Result<btls::ssl::SslContext, btls::error::ErrorStack> {
+        Ok(btls::ssl::SslContextBuilder::new(btls::ssl::SslMethod::tls())?.build())
     }
 
     #[test]
-    fn weak_control_does_not_retain_an_evicted_cache() {
-        let cache = TlsSessionCache::new(2, TicketOrder::Newest, context());
+    fn weak_control_does_not_retain_an_evicted_cache() -> Result<(), btls::error::ErrorStack> {
+        let cache = TlsSessionCache::new(2, TicketOrder::Newest, context()?);
         let control = cache.control();
         let capture = cache.begin_handshake("example.test");
         drop(cache);
@@ -538,11 +560,13 @@ mod tests {
         drop(capture);
         assert!(!control.is_live());
         assert_eq!(control.clear(), 0);
+        Ok(())
     }
 
     #[test]
-    fn clear_retires_old_captures_and_prunes_cancelled_handshakes() {
-        let cache = TlsSessionCache::new(2, TicketOrder::OldestConnection, context());
+    fn clear_retires_old_captures_and_prunes_cancelled_handshakes()
+    -> Result<(), btls::error::ErrorStack> {
+        let cache = TlsSessionCache::new(2, TicketOrder::OldestConnection, context()?);
         for _ in 0..100 {
             drop(cache.begin_handshake("example.test"));
         }
@@ -555,11 +579,13 @@ mod tests {
         assert!(!fresh.state().retired);
         assert!(!std::sync::Arc::ptr_eq(&old.generation, &fresh.generation));
         assert_eq!(cache.store().captures.len(), 1);
+        Ok(())
     }
 
     #[test]
-    fn dropping_a_frozen_store_preserves_publication_and_owned_identity() {
-        let cache = TlsSessionCache::new(2, TicketOrder::Newest, context());
+    fn dropping_a_frozen_store_preserves_publication_and_owned_identity()
+    -> Result<(), btls::error::ErrorStack> {
+        let cache = TlsSessionCache::new(2, TicketOrder::Newest, context()?);
         let control = cache.control();
         let capture = cache.begin_handshake("example.test");
         let owner = control
@@ -568,7 +594,7 @@ mod tests {
         let same = control
             .upgrade()
             .unwrap_or_else(|| panic!("live test cache missing"));
-        let other = TlsSessionCache::new(2, TicketOrder::Newest, context());
+        let other = TlsSessionCache::new(2, TicketOrder::Newest, context()?);
         let other = other
             .control()
             .upgrade()
@@ -589,5 +615,6 @@ mod tests {
         assert!(control.is_live());
         drop(owner);
         assert!(!control.is_live());
+        Ok(())
     }
 }

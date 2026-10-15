@@ -178,6 +178,7 @@ fn request_field(e: &mut Encoder, value: &RequestField) -> Result<(), Preparatio
             proxy_authorization_attempt(e, attempt)
         }
         RequestField::RestartClientHints => e.u8(7),
+        RequestField::AltUsed => e.u8(8),
         _ => Err(PreparationError::Unsupported("request_field")),
     }
 }
@@ -310,5 +311,85 @@ fn websocket_field(e: &mut Encoder, value: &WebSocketField) -> Result<(), Prepar
             optional_text(e, untrustworthy.as_deref())
         }
         _ => Err(PreparationError::Unsupported("websocket_field")),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    type TestResult = Result<(), Box<dyn std::error::Error + Send + Sync>>;
+
+    #[test]
+    fn request_operators_keep_distinct_stable_policy_tags() -> TestResult {
+        let fields = [
+            RequestField::literal("x-field", "one"),
+            RequestField::Caller {
+                name: "x-field".into(),
+                required: false,
+            },
+            RequestField::ClientHint {
+                name: "sec-ch-ua".into(),
+            },
+            RequestField::ClientHints,
+            RequestField::ByTrust {
+                name: "x-field".into(),
+                trustworthy: None,
+                untrustworthy: None,
+            },
+            RequestField::ByForwarding {
+                name: "x-field".into(),
+                unforwarded: None,
+                forwarded: None,
+            },
+            RequestField::ProxyAuthorization {
+                name: "Proxy-Authorization".into(),
+                attempt: phantom_profile::ProxyAuthorizationAttempt::Every,
+            },
+            RequestField::RestartClientHints,
+            RequestField::AltUsed,
+        ];
+        for (tag, field) in (0_u8..).zip(fields) {
+            let mut encoder = Encoder::new();
+            request_field(&mut encoder, &field)?;
+            assert_eq!(encoder.finish().first(), Some(&tag));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn firefox_alt_used_placement_participates_in_ticket_policy() -> TestResult {
+        use phantom_profile::browser::firefox;
+        for request in [
+            firefox::v157_windows_navigation_template(),
+            firefox::v157_windows_fetch_no_store_template(),
+            firefox::v157_macos_navigation_template(),
+            firefox::v157_macos_fetch_no_store_template(),
+        ] {
+            let profile = firefox::v157_windows().with_request_template(request.clone());
+            let original = super::super::profile::encode(&profile, None, None)?;
+            let mut moved = request.clone();
+            moved
+                .http3_fields
+                .as_mut()
+                .ok_or("missing H3 fields")?
+                .reverse();
+            let changed = profile.clone().with_request_template(moved);
+            assert_ne!(
+                original,
+                super::super::profile::encode(&changed, None, None)?
+            );
+            let mut removed = request;
+            let fields = removed.http3_fields.as_mut().ok_or("missing H3 fields")?;
+            let count = fields.len();
+            fields.retain(|field| !matches!(field, RequestField::AltUsed));
+            assert_eq!(fields.len() + 1, count);
+            let changed = profile.with_request_template(removed);
+            assert_ne!(
+                original,
+                super::super::profile::encode(&changed, None, None)?
+            );
+        }
+        Ok(())
     }
 }

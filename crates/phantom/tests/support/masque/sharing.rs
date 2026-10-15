@@ -239,73 +239,93 @@ where
         log.sharing_connections += 1;
         log.sharing_connections
     };
+    let (stop_tunnels, tunnel_stopped) = watch::channel(false);
     let mut tasks = JoinSet::new();
-    let outcome = loop {
-        tokio::select! {
-            biased;
-            stopped = stream_outcomes::stopped(&mut stopped) => break stopped,
-            accepted = connection.accept() => match accepted {
-                Some(Ok((request, mut respond))) => {
-                    if tasks.len() >= MAX_STREAM_REQUESTS { break Err("MASQUE active stream limit exceeded".into()); }
-                    let observed = ObservedStreamRequest {
-                        method: request.method().to_string(),
-                        protocol: request.extensions().get::<::http2::ext::Protocol>().map(|p| p.as_str().to_owned()),
-                        scheme: request.uri().scheme_str().map(str::to_owned),
-                        authority: request.uri().authority().map(ToString::to_string),
-                        path: request.uri().path_and_query().map_or_else(String::new, |p| p.as_str().to_owned()),
-                        fields: request.extensions().get::<::http2::ext::OrderedHeaders>().map(|fields| fields.as_slice().iter().map(|(n,v)| (n.as_str().to_owned(),v.as_bytes().to_vec())).collect()).unwrap_or_default(),
-                        head: None,
-                    };
-                    {
-                        let mut log = lock(&log);
-                        if log.stream_ids.len() >= MAX_STREAM_REQUESTS { break Err("MASQUE stream record limit exceeded".into()); }
-                        log.stream_ids.push((connection_id, request.body().stream_id().as_u32().into()));
-                    }
-                    let authenticated = authorized(&observed.fields);
-                    let target = parse_target(&observed.path);
-                    record_stream_request(&log, observed)?;
-                    if matches!(mode, StreamMode::SharingChallenge | StreamMode::SharingChallengeResetOnce) && !authenticated {
-                        respond.send_response(Response::builder().status(407).header("proxy-authenticate", CHALLENGE).body(())?, true)?;
-                        continue;
-                    }
-                    if mode == StreamMode::SharingChallengeResetOnce && authenticated {
-                        let mut log = lock(&log);
-                        if !log.authenticated_reset_sent {
-                            log.authenticated_reset_sent = true;
-                            respond.send_reset(::http2::Reason::CANCEL);
+    let mut intentional_stop = false;
+    let outcome: TestResult<()> = async {
+        loop {
+            tokio::select! {
+                biased;
+                stopped = stream_outcomes::stopped(&mut stopped) => {
+                    intentional_stop = stopped.is_ok();
+                    break stopped;
+                },
+                accepted = connection.accept() => match accepted {
+                    Some(Ok((request, mut respond))) => {
+                        if tasks.len() >= MAX_STREAM_REQUESTS { break Err("MASQUE active stream limit exceeded".into()); }
+                        let observed = ObservedStreamRequest {
+                            method: request.method().to_string(),
+                            protocol: request.extensions().get::<::http2::ext::Protocol>().map(|p| p.as_str().to_owned()),
+                            scheme: request.uri().scheme_str().map(str::to_owned),
+                            authority: request.uri().authority().map(ToString::to_string),
+                            path: request.uri().path_and_query().map_or_else(String::new, |p| p.as_str().to_owned()),
+                            fields: request.extensions().get::<::http2::ext::OrderedHeaders>().map(|fields| fields.as_slice().iter().map(|(n,v)| (n.as_str().to_owned(),v.as_bytes().to_vec())).collect()).unwrap_or_default(),
+                            head: None,
+                        };
+                        {
+                            let mut log = lock(&log);
+                            if log.stream_ids.len() >= MAX_STREAM_REQUESTS { break Err("MASQUE stream record limit exceeded".into()); }
+                            log.stream_ids.push((connection_id, request.body().stream_id().as_u32().into()));
+                        }
+                        let authenticated = authorized(&observed.fields);
+                        let target = parse_target(&observed.path);
+                        record_stream_request(&log, observed)?;
+                        if matches!(mode, StreamMode::SharingChallenge | StreamMode::SharingChallengeResetOnce) && !authenticated {
+                            respond.send_response(Response::builder().status(407).header("proxy-authenticate", CHALLENGE).body(())?, true)?;
                             continue;
                         }
+                        if mode == StreamMode::SharingChallengeResetOnce && authenticated {
+                            let mut log = lock(&log);
+                            if !log.authenticated_reset_sent {
+                                log.authenticated_reset_sent = true;
+                                respond.send_reset(::http2::Reason::CANCEL);
+                                continue;
+                            }
+                        }
+                        let target = target.ok_or("CONNECT-UDP path has no loopback target")?;
+                        let send = respond.send_response(Response::builder().status(200).header("capsule-protocol", "?1").body(())?, false)?;
+                        let mut send = send;
+                        if mode == StreamMode::SharingResetFirst && request.body().stream_id().as_u32() == 1 {
+                            send.send_reset(::http2::Reason::CANCEL);
+                            continue;
+                        }
+                        tasks.spawn(h2_tunnel(request.into_body(), send, target, Arc::clone(&log), tunnel_stopped.clone()));
                     }
-                    let target = target.ok_or("CONNECT-UDP path has no loopback target")?;
-                    let send = respond.send_response(Response::builder().status(200).header("capsule-protocol", "?1").body(())?, false)?;
-                    let mut send = send;
-                    if mode == StreamMode::SharingResetFirst && request.body().stream_id().as_u32() == 1 {
-                        send.send_reset(::http2::Reason::CANCEL);
-                        continue;
-                    }
-                    tasks.spawn(h2_tunnel(request.into_body(), send, target, Arc::clone(&log), stopped.clone()));
-                }
-                Some(Err(error)) if stream_outcomes::h2_peer_closed(&error) => break Ok(()),
-                Some(Err(error)) => break Err(error.into()),
-                None => break Ok(()),
-            },
-            joined = tasks.join_next(), if !tasks.is_empty() => match joined {
-                Some(Ok(Ok(()))) => {},
-                Some(Ok(Err(error))) => break Err(error),
-                Some(Err(error)) => break Err(error.into()),
-                None => break Err("MASQUE stream task disappeared".into()),
-            },
+                    Some(Err(error)) if stream_outcomes::h2_peer_closed(&error) => break Ok(()),
+                    Some(Err(error)) => break Err(error.into()),
+                    None => break Ok(()),
+                },
+                joined = tasks.join_next(), if !tasks.is_empty() => match joined {
+                    Some(Ok(Ok(()))) => {},
+                    Some(Ok(Err(error))) => break Err(error),
+                    Some(Err(error)) => break Err(error.into()),
+                    None => break Err("MASQUE stream task disappeared".into()),
+                },
+            }
         }
-    };
-    tasks.abort_all();
+    }
+    .await;
+    // Let each relay stop and join its own pumps before the connection exits.
+    stop_tunnels.send_replace(true);
     let mut cleanup = Ok(());
     while let Some(joined) = tasks.join_next().await {
         let result = match joined {
             Ok(result) => result,
-            Err(error) if error.is_cancelled() => Ok(()),
             Err(error) => Err(error.into()),
         };
         cleanup = finish_with_cleanup(cleanup, result);
+    }
+    if intentional_stop {
+        // Graceful shutdown sends GOAWAY before its round-trip PING fence.
+        // Keep driving it so the close acknowledgement covers peer retirement,
+        // not only dropping this server's transport and relay tasks.
+        connection.graceful_shutdown();
+        let closed = match poll_fn(|cx| connection.poll_closed(cx)).await {
+            Ok(()) => Ok(()),
+            Err(error) if stream_outcomes::h2_peer_closed(&error) => Ok(()),
+            Err(error) => Err(error.into()),
+        };
+        cleanup = finish_with_cleanup(cleanup, closed);
     }
     finish_with_cleanup(outcome, cleanup)
 }

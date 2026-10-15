@@ -57,7 +57,7 @@ impl fmt::Debug for SessionTicketSnapshot {
     }
 }
 
-/// The category of a session-ticket snapshot failure.
+/// The category of a session-ticket operation failure.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum SessionTicketErrorKind {
@@ -100,7 +100,7 @@ impl SessionTicketError {
         Self { kind, source: None }
     }
 
-    fn with_source(source: impl StdError + Send + Sync + 'static) -> Self {
+    pub(super) fn with_source(source: impl StdError + Send + Sync + 'static) -> Self {
         Self {
             kind: classify(&source),
             source: Some(Box::new(source)),
@@ -261,6 +261,9 @@ impl Client {
     /// a cache stay private until first use. An empty owner clears its matching
     /// cache. Unmentioned owners keep their tickets. Import replaces caches;
     /// existing connections continue working.
+    /// If installation before first use fails, the request returns
+    /// [`RequestErrorKind::SessionTickets`](crate::RequestErrorKind::SessionTickets)
+    /// without being sent. Pending tickets remain available for another attempt.
     ///
     /// # Errors
     ///

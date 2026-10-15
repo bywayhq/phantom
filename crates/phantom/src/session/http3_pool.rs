@@ -960,6 +960,8 @@ impl PoolEntry {
         } else {
             None
         });
+        let mut prepared_outer = None;
+        let mut shared_tcp = None;
         let datagrams = match route {
             Route::Direct => {
                 #[cfg(feature = "https-records")]
@@ -988,9 +990,31 @@ impl PoolEntry {
             // Route clones share outer sessions through their isolated pool.
             Route::ConnectUdp(proxy) => {
                 let outer = match proxy.tcp_protocol() {
-                    None => ConnectUdpTransport::Http3(http3_proxy.ok_or_else(|| {
-                        SetupFailure::Other(RequestError::unsupported_route(HttpProtocol::Http3))
-                    })?),
+                    None => {
+                        let base = http3_proxy.ok_or_else(|| {
+                            SetupFailure::Other(RequestError::unsupported_route(
+                                HttpProtocol::Http3,
+                            ))
+                        })?;
+                        prepared_outer = Some(
+                            connector
+                                .prepare_connect_udp_outer(
+                                    base,
+                                    proxy.pool(),
+                                    proxy.host(),
+                                    proxy.port(),
+                                    proxy.authority(),
+                                    proxy.headers(),
+                                    proxy.credentials(),
+                                )
+                                .map_err(|error| {
+                                    SetupFailure::Other(
+                                        RequestError::http3_connect_udp_preparation(error),
+                                    )
+                                })?,
+                        );
+                        ConnectUdpTransport::Http3(base)
+                    }
                     Some(protocol) => {
                         let base =
                             connect_udp_tcp(connect_udp_proxy).map_err(SetupFailure::Other)?;
@@ -1013,7 +1037,27 @@ impl PoolEntry {
                                 connector
                             })
                         } else {
-                            base
+                            // The client base also serves H1 proxies. Select the
+                            // route's H2 policy before preparing its shared cache.
+                            let shared: &HttpsProxyConnector =
+                                shared_tcp.insert(base.clone().with_protocol(protocol));
+                            prepared_outer = Some(
+                                shared
+                                    .prepare_connect_udp_outer(
+                                        proxy.pool(),
+                                        proxy.host(),
+                                        proxy.port(),
+                                        proxy.authority(),
+                                        proxy.headers(),
+                                        proxy.credentials(),
+                                    )
+                                    .map_err(|error| {
+                                        SetupFailure::Other(
+                                            RequestError::http3_connect_udp_preparation(error),
+                                        )
+                                    })?,
+                            );
+                            shared
                         };
                         ConnectUdpTransport::Tls {
                             connector,
@@ -1021,6 +1065,34 @@ impl PoolEntry {
                         }
                     }
                 };
+                if let Some(prepared) = &prepared_outer {
+                    // Preparation releases both net pool locks before registration.
+                    // The token pins this exact cache through the awaited TLS setup.
+                    let proxy_endpoint = Endpoint::new(
+                        proxy.authority().parse().map_err(|_| {
+                            SetupFailure::Other(RequestError::invalid_authority(
+                                "invalid CONNECT-UDP proxy authority",
+                            ))
+                        })?,
+                        proxy.port(),
+                    )
+                    .map_err(|error| {
+                        SetupFailure::Other(RequestError::invalid_authority(error.message()))
+                    })?;
+                    self.tickets.register_shared_outer_before_use(
+                        prepared.session_ticket_cache(),
+                        TicketCacheBinding {
+                            origin: &proxy_endpoint,
+                            server_name: proxy.host(),
+                            leg: TicketCacheLeg::ConnectUdp,
+                            protocol: match proxy.tcp_protocol() {
+                                Some(protocol) => TicketCacheBinding::proxy_protocol(protocol),
+                                None => Ok(TicketCacheProtocol::Http3),
+                            },
+                            route,
+                        },
+                    );
+                }
                 DatagramRoute::ConnectUdp(ConnectUdpRoute {
                     proxy: DialEndpoint {
                         host: proxy.host(),
@@ -1032,7 +1104,7 @@ impl PoolEntry {
                     headers: proxy.headers().to_vec(),
                     credentials: proxy.credentials(),
                     pool: Some(proxy.pool()),
-                    prepared_outer: None,
+                    prepared_outer: prepared_outer.as_ref(),
                 })
             }
             Route::HttpProxy(_) | Route::Socks4(_) => {

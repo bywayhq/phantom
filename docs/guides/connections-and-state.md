@@ -140,15 +140,16 @@ watch the network, so call `clear_dns_cache` after a change.
 Forget tickets used to resume future TLS connections to servers and proxies.
 
 ```rust
-use phantom::Client;
+use phantom::{Client, SessionTicketError};
 
-fn forget_tickets(client: &Client) -> usize {
+fn forget_tickets(client: &Client) -> Result<usize, SessionTicketError> {
     client.clear_session_tickets()
 }
 ```
 
 Clones share the same ticket stores. The return value counts retained and
 pending tickets removed.
+If preparation fails, the error leaves those tickets in place.
 
 Open connections keep working. A ticket already offered to a handshake
 stays with that handshake.
@@ -158,7 +159,8 @@ source and `import_session_tickets(&snapshot, &key)` on the recipient. Supply
 a secret, randomly generated 32-byte key. Both clients need matching
 settings. Keep the key separate from `snapshot.as_bytes()` when storing it.
 Rebuild a stored snapshot with `SessionTicketSnapshot::from_bytes(&bytes)?`.
-Proxy and QUIC ticket transfer return an error.
+Export rejects the whole operation if any live cache belongs to a proxy or
+QUIC connection. Import also rejects snapshots containing those owners.
 
 ## Limits
 

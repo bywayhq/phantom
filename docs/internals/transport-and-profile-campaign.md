@@ -52,15 +52,15 @@ copying execution journals into this page.
 | T2 | `tls-done-diagnosis` | Framed-response repair and EOF controls merged in PR #212 after the full gate and platform CI. Main push CI passed; historical attribution remains open. |
 | P1–P4 | `profile-catalog` | Catalog composition merged in PR #223 at `8754e971` after independent review, all 22 gate steps, 4,708 Rust tests and 43 green PR checks. Provenance and coverage are recorded per component, with explicit reuse and absent layers. |
 | P5 | `profile-catalog` | Edge 153 Windows and corpus measurements merged in PR #225 at `b0a40765` after independent review, all 22 gate steps, 4,828 Rust tests and 43 green PR checks. All eight applicable main push workflows passed. Synthetic growth measurements cover 11 through 1,035 records without changing existing definitions. |
-| F1 | `ticket-transfer` | Native cold-policy validation and opaque record rekeying are signed at `8a62d8ea` after independent review, 69 native controls, strict Clippy and both Linux vendor checks. Live TCP export/import controls pass. Atomic cold staging, public transfer APIs and integration remain. |
+| F1 | `ticket-transfer` | Direct TCP snapshots, cold import, shared outer registration and fallible clear passed 133 ticket controls plus six store-order controls, including real contention. Signed checkpoint `fd8e374e` is preserved. The lane is rebased onto `49eaa148`. H2 and H3 clear passed against real peers, along with 58 native CONNECT-UDP controls. Final API checks and integration remain. QUIC and proxy transfer remain open. |
 | F2 | `fingerprint-import` | Bounded JSON import merged in PR #226 at `8b13da48` after independent review, all 22 gate steps, 4,851 Rust tests and 41 green PR checks. All six applicable main push workflows passed. Import controls cover all 11 profiles and 22 templates. |
 | F3 | `socks4-integration` | SOCKS4/4a merged in PR #215 after the exact-head full gate and macOS/Windows CI. Main push CI passed. |
 | F4 | `digest-integration` | Digest merged in PR #218 after the full gate and platform CI. Enterprise contracts are recorded. PR #220 repaired the cookie and shared-port fixtures; main push CI passed. |
 | F5 | `alt-svc-ech-delivery` | DoH merged in PR #224 at `c7201173`; all nine applicable main workflows passed. Alternate-host ECH discovery and opt-in native server early data merged in PR #227 at `b9fdc60a` after independent review, all 22 gate steps, 4,903 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. Browser captures remain separate. |
-| F6 | `connect-udp-sharing` | Merged in PR #229 at `0f404ab2` after independent review, all 22 gate steps, 4,982 Rust tests and 43 green PR checks, including macOS and Windows. Main push CI is running. Both named peer implementations passed their explicit controls. |
+| F6 | `connect-udp-sharing` | Merged in PR #229 at `0f404ab2` after independent review, all 22 gate steps, 4,982 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. Both named peer implementations passed their explicit controls. |
 | F7 | `rtt-racing` | Merged in PR #228 at `3973d41c` after independent review, all 22 gate steps, 4,943 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. No browser timing parity or performance benefit is claimed. |
 | F8 | `http3-debug-auth` | Origin opt-in merged in PR #219 after independent review, all 22 gate steps, 4,643 Rust tests, and 43 green PR checks at `6f6426f4`. |
-| B2 | `proxy-h2-idle-integration` | Proxy timer closure and the idle-PING guard merged in PR #222 at `98fe3750` after all 22 gate steps, 4,659 Rust tests and 43 green PR checks. All nine main push workflows passed. Alt-Used template placement passed 21 focused tests in `firefox-alt-used`; independent final review passed; gate and delivery remain pending. Mapping-time omission and WINDOW_UPDATE remain open. |
+| B2 | `proxy-h2-idle-integration` | Proxy timer closure and the idle-PING guard merged in PR #222 at `98fe3750` after all 22 gate steps, 4,659 Rust tests and 43 green PR checks. All nine main push workflows passed. Alt-Used template placement merged in PR #230 at `49eaa148` after independent review, all 22 gate steps, 4,990 Rust tests and 43 green PR checks. All eight applicable main push workflows passed. Mapping-time omission and WINDOW_UPDATE remain open. |
 
 Neither controlled timing reproduction proves the exact historical host
 delay. The unchanged historical TLS suite also passed all 1,041 tests with
@@ -164,7 +164,7 @@ demonstrated requirement. Do not assert a runtime bottleneck without data.
   bounds, HTTPS records, and target-host identity. Keep route and protocol
   choices explicit. Verify resumed ECH early-data acceptance and rejection
   only where source and replay-safety contracts support it.
-- [ ] F6: Support multiple CONNECT-UDP tunnels on one outer connection.
+- [x] F6: Support multiple CONNECT-UDP tunnels on one outer connection.
   Verify bounded admission, authentication isolation, per-tunnel failure and
   cancellation, flow control, and shutdown. Resolve the exact protocol
   extensions meant by datagram APIs before adding them. Test a named peer

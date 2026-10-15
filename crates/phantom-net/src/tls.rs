@@ -110,7 +110,7 @@ mod bundled_roots_tests {
     use super::*;
 
     #[test]
-    fn bundled_root_identity_uses_actual_ordered_der_framing() {
+    fn bundled_root_identity_uses_actual_ordered_der_framing() -> Result<(), TlsError> {
         let roots: Vec<_> = bundled_server_roots().collect();
         let mut framed = b"phantom-ticket-bundled-roots-v1".to_vec();
         framed.extend_from_slice(&(roots.len() as u64).to_be_bytes());
@@ -118,19 +118,18 @@ mod bundled_roots_tests {
             framed.extend_from_slice(&(root.len() as u64).to_be_bytes());
             framed.extend_from_slice(root);
         }
-        assert_eq!(
-            bundled_server_root_identity().unwrap(),
-            btls::sha::sha256(&framed)
-        );
+        assert_eq!(bundled_server_root_identity()?, btls::sha::sha256(&framed));
+        Ok(())
     }
 
     #[test]
-    fn root_identity_binds_order_count_and_der_boundaries() {
-        let identity = |values: &[&[u8]]| root_content_identity(values.iter().copied()).unwrap();
-        assert_ne!(identity(&[b"a", b"bc"]), identity(&[b"ab", b"c"]));
-        assert_ne!(identity(&[b"a", b"b"]), identity(&[b"b", b"a"]));
-        assert_ne!(identity(&[]), identity(&[b""]));
-        assert_ne!(identity(&[b"a"]), identity(&[b"b"]));
+    fn root_identity_binds_order_count_and_der_boundaries() -> Result<(), TlsError> {
+        let identity = |values: &[&[u8]]| root_content_identity(values.iter().copied());
+        assert_ne!(identity(&[b"a", b"bc"])?, identity(&[b"ab", b"c"])?);
+        assert_ne!(identity(&[b"a", b"b"])?, identity(&[b"b", b"a"])?);
+        assert_ne!(identity(&[])?, identity(&[b""])?);
+        assert_ne!(identity(&[b"a"])?, identity(&[b"b"])?);
+        Ok(())
     }
 }
 

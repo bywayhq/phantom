@@ -559,8 +559,11 @@ impl Client {
     /// working, and native buffers belonging to those connections are retained
     /// until their connection ends. Returns the tickets removed from caches
     /// and pending library callbacks. Clones share the same ticket owner.
-    #[must_use]
-    pub fn clear_session_tickets(&self) -> usize {
+    ///
+    /// # Errors
+    ///
+    /// Returns an allocation or registry error without removing tickets.
+    pub fn clear_session_tickets(&self) -> Result<usize, crate::SessionTicketError> {
         self.state.tickets.clear()
     }
 

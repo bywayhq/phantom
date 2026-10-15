@@ -175,7 +175,7 @@ fn http2_request(
 }
 
 enum LegOutcome {
-    Tunnel(HttpsProxyTunnel),
+    Tunnel(Box<HttpsProxyTunnel>),
     Retry,
 }
 
@@ -224,7 +224,7 @@ impl HttpsProxyConnector {
                 )
                 .await?
             {
-                LegOutcome::Tunnel(tunnel) => Ok(tunnel),
+                LegOutcome::Tunnel(tunnel) => Ok(*tunnel),
                 LegOutcome::Retry => Err(HttpConnectError::InvalidResponse),
             };
         };
@@ -240,7 +240,7 @@ impl HttpsProxyConnector {
             )
             .await?
         {
-            LegOutcome::Tunnel(tunnel) => Ok(tunnel),
+            LegOutcome::Tunnel(tunnel) => Ok(*tunnel),
             LegOutcome::Retry => {
                 record_attempts(span, true);
                 match self
@@ -254,7 +254,7 @@ impl HttpsProxyConnector {
                     )
                     .await
                 {
-                    Ok(LegOutcome::Tunnel(tunnel)) => Ok(tunnel),
+                    Ok(LegOutcome::Tunnel(tunnel)) => Ok(*tunnel),
                     Ok(LegOutcome::Retry) => Err(HttpConnectError::InvalidResponse),
                     Err(HttpConnectError::Rejected { status: 407 }) => {
                         Err(HttpConnectError::AuthenticationRejected)
@@ -265,6 +265,7 @@ impl HttpsProxyConnector {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn connect_udp_pooled_tunnel(
         &self,
         pool: &ConnectUdpProxyPool,
@@ -455,7 +456,7 @@ impl HttpsProxyConnector {
                 Ok(
                     match http1_exchange(stream, &head, inspect_challenge, span).await? {
                         Http1Outcome::Upgraded(stream) => {
-                            LegOutcome::Tunnel(HttpsProxyTunnel::http1(stream))
+                            LegOutcome::Tunnel(Box::new(HttpsProxyTunnel::http1(stream)))
                         }
                         Http1Outcome::Retry => LegOutcome::Retry,
                     },
@@ -468,9 +469,9 @@ impl HttpsProxyConnector {
                     .connect_http2_extended_proxy(proxy_host, proxy_port, proxy_server_name)
                     .await?;
                 match http2_exchange(&connection, request, inspect_challenge, span).await? {
-                    Http2Outcome::Tunnel(stream) => {
-                        Ok(LegOutcome::Tunnel(HttpsProxyTunnel::http2(stream)))
-                    }
+                    Http2Outcome::Tunnel(stream) => Ok(LegOutcome::Tunnel(Box::new(
+                        HttpsProxyTunnel::http2(stream),
+                    ))),
                     Http2Outcome::Retry => Ok(LegOutcome::Retry),
                 }
             }

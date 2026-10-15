@@ -307,11 +307,13 @@ replay for `Alt-Used` on H1, H2 or H3. Other custom hint names retain their
 configured behavior. See [Alt-Used](profiles.md#alt-used-on-http3) for emission
 and template placement.
 
-`Client::clear_session_tickets` removes library-owned TCP TLS and QUIC
-session tickets. It covers live origin and proxy caches after pool eviction,
-including pending tickets and tickets held while waiting for HTTP/3 settings.
-Client clones share these caches. The removed count excludes sessions already
-offered to native handshakes. Clearing also forgets saved QUIC RTTs and prevents
+`Client::clear_session_tickets` returns `Result<usize, SessionTicketError>`.
+It removes retained TCP TLS and QUIC tickets, including imported tickets
+awaiting first use and pending library publication. It covers live origin
+and TLS proxy caches after pool eviction, including shared H2 and H3
+CONNECT-UDP outer caches. Clones share these stores. The count excludes
+sessions already offered to native handshakes. Allocation or registry failure
+leaves the tickets in place. Clearing also forgets saved QUIC RTTs and prevents
 older handshakes from restoring or publishing tickets. Existing connections
 and already offered sessions continue.
 

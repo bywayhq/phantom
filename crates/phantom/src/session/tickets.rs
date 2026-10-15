@@ -3,7 +3,7 @@
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use phantom_net::proxy::HttpsProxyProtocol;
-use phantom_net::{SessionTicketCache, SessionTicketCacheOwner, SessionTicketGeneration};
+use phantom_net::{SessionTicketCache, SessionTicketCacheOwner};
 
 use crate::{Route, authority::Endpoint};
 
@@ -117,6 +117,79 @@ impl TicketOwner {
             cache,
             self.prepare_registration(input),
         );
+    }
+
+    /// Register the pinned shared H2/H3 outer cache before its first TLS use.
+    /// Equal registrations do not add aliases. Conflicts remain ineligible for
+    /// transfer while the original weak control still covers ticket clearing.
+    pub(super) fn register_shared_outer_before_use(
+        &self,
+        cache: Option<SessionTicketCache>,
+        input: TicketCacheBinding<'_>,
+    ) {
+        let Some(cache) = cache else {
+            return;
+        };
+        let binding = if input.leg == TicketCacheLeg::ConnectUdp
+            && matches!(
+                input.protocol,
+                Ok(TicketCacheProtocol::Http2 | TicketCacheProtocol::Http3)
+            )
+            && matches!(input.route, Route::ConnectUdp(_))
+        {
+            self.prepare_registration(input)
+        } else {
+            Err(PreparationError::Unsupported(
+                "shared CONNECT-UDP outer registration",
+            ))
+        };
+        let mut registry = self.registry();
+        let caches = &mut registry.caches;
+        caches.retain(|registered| registered.cache.is_live());
+        let Some(owner) = cache.upgrade() else {
+            return;
+        };
+        let mut found = false;
+        let mut conflict = binding.as_ref().err().copied();
+        for existing in &*caches {
+            if existing
+                .cache
+                .upgrade()
+                .is_some_and(|other| owner.same_cache(&other))
+            {
+                found = true;
+                match (&existing.binding, &binding) {
+                    (Ok(previous), Ok(current))
+                        if previous.descriptor != current.descriptor
+                            || previous.origin != current.origin
+                            || previous.server_name != current.server_name
+                            || previous.leg != current.leg
+                            || previous.protocol != current.protocol
+                            || previous.route != current.route =>
+                    {
+                        conflict = Some(PreparationError::Unsupported(
+                            "conflicting cache descriptors",
+                        ));
+                    }
+                    (Err(error), _) => conflict = Some(*error),
+                    _ => {}
+                }
+            }
+        }
+        if !found {
+            self.register_locked(caches, cache, binding);
+        } else if let Some(error) = conflict {
+            for existing in caches {
+                if existing
+                    .cache
+                    .upgrade()
+                    .is_some_and(|other| owner.same_cache(&other))
+                {
+                    existing.binding = Err(error);
+                    existing.native_binding = Err(error);
+                }
+            }
+        }
     }
 
     fn register_locked(
@@ -381,8 +454,26 @@ impl TicketOwner {
         })
     }
 
-    pub(super) fn clear(&self) -> usize {
-        let mut registry = self.registry();
+    pub(super) fn clear(&self) -> Result<usize, SessionTicketError> {
+        let mut registry = self.registry.lock().map_err(|_| {
+            SessionTicketError::with_source(transfer_import::ImportError::RegistryPoisoned)
+        })?;
+        let mut owners = Vec::new();
+        owners
+            .try_reserve_exact(registry.caches.len())
+            .map_err(|_| {
+                SessionTicketError::with_source(btls::ssl::SessionTransferError::Allocation)
+            })?;
+        owners.extend(
+            registry
+                .caches
+                .iter()
+                .filter_map(|registered| registered.cache.upgrade()),
+        );
+        // Clear and lower-level transfer acquire actual stores in the same order.
+        // Cold custody remains published until every live store can be cleared.
+        let live_count = SessionTicketCacheOwner::clear_stores(&owners)
+            .map_err(SessionTicketError::with_source)?;
         let cold = registry.cold.take();
         // Captured cold state has already validated every present native slot.
         // Metadata access counts present records without rejecting expired ones.
@@ -391,38 +482,11 @@ impl TicketOwner {
                 .filter(|index| cold.native.owner_metadata(*index).is_ok())
                 .count()
         });
-        let caches = &mut registry.caches;
-        caches.retain(|registered| registered.cache.is_live());
-        caches.shrink_to_fit();
-        let mut owners: Vec<SessionTicketCacheOwner> = Vec::with_capacity(caches.len());
-        for owner in caches
-            .iter()
-            .filter_map(|registered| registered.cache.upgrade())
-        {
-            if !owners.iter().any(|existing| existing.same_cache(&owner)) {
-                owners.push(owner);
-            }
-        }
-        let generations: Vec<_> = (0..owners.len())
-            .map(|_| SessionTicketGeneration::default())
-            .collect();
-        let mut guards = Vec::with_capacity(owners.len());
-        let mut retired = Vec::with_capacity(owners.len());
-        for owner in &owners {
-            guards.push(owner.freeze());
-        }
-        for (guard, generation) in guards.iter_mut().zip(generations) {
-            retired.push(guard.drain(generation));
-        }
-        // Publication callbacks may hold a capture lock while waiting for
-        // its store. Release every store before retiring any capture.
-        drop(guards);
+        registry
+            .caches
+            .retain(|registered| registered.cache.is_live());
         drop(cold);
-        cold_count
-            + retired
-                .into_iter()
-                .map(|retired| retired.finish())
-                .sum::<usize>()
+        Ok(cold_count + live_count)
     }
 
     fn registry(&self) -> MutexGuard<'_, TicketRegistry> {

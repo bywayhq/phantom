@@ -1224,6 +1224,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Add `Client::clear_session_tickets` to remove origin and proxy TLS/QUIC
   tickets across client clones, including pending tickets and saved QUIC RTTs.
   Clearing prevents older handshakes from restoring or publishing tickets.
+  It returns `Result<usize, SessionTicketError>` and preserves tickets if
+  preparation fails. Concurrent clear and transfer use one store lock order.
 
 - Observe DNS fixture failures with `phantom_testkit::dns::DnsServer::finish`.
   Interrupted completion waits retain the original task for another call.

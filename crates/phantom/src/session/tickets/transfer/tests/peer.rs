@@ -181,7 +181,7 @@ async fn live_tls12_and_tls13_export_preserve_store_and_bind_actual_native_metad
                 after.slots().collect::<Vec<_>>()
             );
         }
-        assert_eq!(fixture.owner.clear(), opened.record_count());
+        assert_eq!(fixture.owner.clear()?, opened.record_count());
     }
     Ok(())
 }
@@ -200,6 +200,6 @@ async fn conflicting_live_registration_rejects_export_without_consuming_real_tic
         fixture.owner.export_tcp(&KEY),
         Err(TcpExportError::ConflictingOwner)
     ));
-    assert_eq!(fixture.owner.clear(), count);
+    assert_eq!(fixture.owner.clear()?, count);
     Ok(())
 }

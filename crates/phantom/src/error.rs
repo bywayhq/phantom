@@ -1204,6 +1204,16 @@ impl RequestError {
         error
     }
 
+    /// Classifies synchronous shared outer preparation without granting a retry.
+    pub(crate) fn http3_connect_udp_preparation(source: ConnectUdpError) -> Self {
+        Self::with_source(
+            Http3ProxyFailure::ConnectUdp(source.kind()).request_error_kind(),
+            Some(HttpProtocol::Http3),
+            "HTTP/3 CONNECT-UDP outer preparation failed",
+            source,
+        )
+    }
+
     pub(crate) fn http1_body(source: Http1Error) -> Self {
         Self::with_source(
             body_error_kind(RequestErrorKind::Http1, &source),

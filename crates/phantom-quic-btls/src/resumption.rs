@@ -141,6 +141,27 @@ impl QuicSessionTicketCache {
 }
 
 impl QuicSessionTicketCacheOwner {
+    /// Original indices in private actual-store lock order, with no transfer bound.
+    /// Reject aliases before any locks; this operation grants no ticket authority.
+    ///
+    /// # Errors
+    /// Returns allocation failure or a policy error for duplicate stores.
+    pub fn ordered_store_indices(owners: &[&Self]) -> Result<Vec<usize>, SessionTransferError> {
+        let mut order = Vec::new();
+        order
+            .try_reserve_exact(owners.len())
+            .map_err(|_| SessionTransferError::Allocation)?;
+        order.extend(0..owners.len());
+        order.sort_unstable_by_key(|index| Arc::as_ptr(&owners[*index].inner) as usize);
+        if order
+            .windows(2)
+            .any(|pair| owners[pair[0]].same_cache(owners[pair[1]]))
+        {
+            return Err(SessionTransferError::Policy);
+        }
+        Ok(order)
+    }
+
     /// Bind policy to this cache's actual context and scope before first use.
     ///
     /// Repeating the same binding succeeds. An incompatible binding retires

@@ -6,6 +6,7 @@ mod native;
 mod pressure;
 mod python_peer;
 mod stream_limit;
+mod ticket_clear;
 
 async fn checked<F>(future: F) -> super::TestResult<()>
 where

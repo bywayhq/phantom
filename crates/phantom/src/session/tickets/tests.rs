@@ -56,14 +56,14 @@ fn dead_cache_controls_are_pruned_without_retaining_connectors() -> TestResult {
         owner.register(connector.session_ticket_cache(), direct(&origin, &route));
     }
     assert_eq!(owner.registry().caches.len(), 1);
-    assert_eq!(owner.clear(), 0);
+    assert_eq!(owner.clear()?, 0);
     assert!(owner.registry().caches.is_empty());
     let connector = base.with_isolated_session_cache();
     owner.register(connector.session_ticket_cache(), direct(&origin, &route));
-    assert_eq!(owner.clear(), 0);
+    assert_eq!(owner.clear()?, 0);
     assert_eq!(owner.registry().caches.len(), 1);
     drop(connector);
-    assert_eq!(owner.clear(), 0);
+    assert_eq!(owner.clear()?, 0);
     assert!(owner.registry().caches.is_empty());
     Ok(())
 }
@@ -80,7 +80,7 @@ fn repeated_controls_clear_one_store_without_locking_it_twice() -> TestResult {
     owner.register(control.clone(), direct(&origin, &route));
     owner.register(control, direct(&origin, &route));
     assert_eq!(owner.registry().caches.len(), 2);
-    assert_eq!(owner.clear(), 0);
+    assert_eq!(owner.clear()?, 0);
     assert_eq!(owner.registry().caches.len(), 2);
     Ok(())
 }
@@ -104,10 +104,10 @@ fn ineligible_preparation_keeps_local_weak_registration_and_none_is_noop() -> Te
         ));
         assert!(caches[0].cache.is_live());
     }
-    assert_eq!(owner.clear(), 0);
+    assert_eq!(owner.clear()?, 0);
     assert_eq!(owner.registry().caches.len(), 1);
     drop(connector);
-    assert_eq!(owner.clear(), 0);
+    assert_eq!(owner.clear()?, 0);
     assert!(owner.registry().caches.is_empty());
     Ok(())
 }
@@ -146,7 +146,7 @@ fn equal_duplicate_metadata_stays_eligible_and_conflicts_mark_every_copy() -> Te
         }
         assert!(caches[2].binding.is_ok());
     }
-    assert_eq!(owner.clear(), 0);
+    assert_eq!(owner.clear()?, 0);
     assert_eq!(owner.registry().caches.len(), 4);
     Ok(())
 }
@@ -455,7 +455,7 @@ fn proxy_legs_and_http3_metadata_do_not_install_tcp_transfer_policy() -> TestRes
             TicketCacheProtocol::Http1,
             &direct_route,
         )?;
-        assert_eq!(owner.clear(), 0);
+        assert_eq!(owner.clear()?, 0);
     }
     Ok(())
 }
@@ -490,7 +490,7 @@ fn native_binding_registration_does_not_keep_an_evicted_cache_alive() -> TestRes
     owner.register(connector.session_ticket_cache(), direct(&origin, &route));
     assert!(owner.registry().caches[0].native_binding.is_ok());
     drop(connector);
-    assert_eq!(owner.clear(), 0);
+    assert_eq!(owner.clear()?, 0);
     assert!(owner.registry().caches.is_empty());
     Ok(())
 }
@@ -552,3 +552,5 @@ fn same_cache_changed_credentials_conflict_before_rebinding_a_live_native_scope(
     native.bind_tcp_transfer_policy("proxy.example", policy()?)?;
     Ok(())
 }
+
+mod shared_outer;
