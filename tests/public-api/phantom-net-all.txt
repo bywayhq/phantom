@@ -709,7 +709,7 @@ pub struct phantom_net::http2::Http2TlsConnector
 impl phantom_net::http2::Http2TlsConnector
 pub fn phantom_net::http2::Http2TlsConnector::alpn_protocols(&self) -> alloc::vec::Vec<alloc::boxed::Box<[u8]>>
 pub fn phantom_net::http2::Http2TlsConnector::attach_key_log(&self, &phantom_quic_btls::key_log::NssKeyLogSender)
-pub async fn phantom_net::http2::Http2TlsConnector::connect(&self, phantom_net::route::Http2Route<'_>) -> core::result::Result<phantom_net::http2::Http2Connection, phantom_net::http2::Http2TlsError>
+pub async fn phantom_net::http2::Http2TlsConnector::connect(&self, phantom_net::route::Http2Route<'_>) -> core::result::Result<(phantom_net::http2::Http2Connection, core::option::Option<SlowerConnection<phantom_net::http2::Http2Connection>>), phantom_net::http2::Http2TlsError>
 pub fn phantom_net::http2::Http2TlsConnector::ech_from_https_records(&self) -> bool
 pub async fn phantom_net::http2::Http2TlsConnector::extended_connect(&self, phantom_net::route::Http2Route<'_>, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<phantom_net::http2::Http2ExtendedConnectOutcome, phantom_net::http2::Http2TlsError>
 pub fn phantom_net::http2::Http2TlsConnector::host_resolver(&self) -> core::option::Option<&phantom_net::host_resolver::HostResolver>

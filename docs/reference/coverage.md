@@ -156,6 +156,12 @@ Supported:
   key; later connections try that family alone, falling back to the other
   when its addresses fail, until a prune of the client's idle timer finds
   every key of the origin without a connection.
+- Direct exact HTTP/2 requests retain the address family and finish a slower
+  attempt only if its TCP connection already exists when the winner is ready.
+  The backup authenticates and starts H2 without a request. With the default
+  one-connection limit, it closes if the winner remains usable, or replaces a
+  retired winner. ECH selection and authenticated retry use the same rules
+  as the direct HTTP/1.1 and negotiated attempts.
 - Named TCP policies: `chrome::v154_tcp` for Windows and Linux;
   `firefox::v157_tcp` for Windows.
 
@@ -163,9 +169,8 @@ Not modeled:
 
 - Parts of Firefox's address selection: keeping the slower connection, and
   remembering the address family, on proxy routes, on HTTP/2 WebSocket
-  connections, and on exact HTTP/2 requests, where Phantom starts the
-  backup and closes the slower attempt;
-  skipping an address that failed before on the same cached DNS record; and
+  connections; skipping an address that failed before on the same cached DNS
+  record; and
   noticing at once that a server closed an idle connection, which can make
   Firefox remember a family longer.
 - Firefox's keepalive on macOS (idle time only) and on Linux and Android

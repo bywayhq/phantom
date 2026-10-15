@@ -90,7 +90,7 @@ async fn final_alps_zero_concurrency_holds_headers_until_wire_update_and_reuses_
 
         let connector = alps_test_connector(&identity)?;
         let tcp = tokio::net::TcpStream::connect(address).await?;
-        let connection = connector
+        let (connection, slower) = connector
             .connect(crate::route::Http2Route::Origin(
                 crate::route::OriginRoute::Tls {
                     tcp: crate::route::TcpRoute::Connected(crate::route::ConnectedStream::new(tcp)),
@@ -99,6 +99,7 @@ async fn final_alps_zero_concurrency_holds_headers_until_wire_update_and_reuses_
                 },
             ))
             .await?;
+        assert!(slower.is_none());
         let mut first = Box::pin(request_and_collect(&connection, "/first", vec![]));
         let first_poll = poll_fn(|context| Poll::Ready(first.as_mut().poll(context))).await;
         assert!(

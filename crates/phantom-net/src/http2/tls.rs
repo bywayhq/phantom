@@ -21,13 +21,15 @@ use super::{
 use crate::{
     SourceBinding,
     connection_leg::{self, ConnectionLegError},
-    direct::{Dialer, DirectConnectError},
+    direct::{Dialer, DirectConnectError, connect_tcp_keeping_slower},
     host_resolver::HostResolver,
     proxy::{
         HttpConnectError, HttpsProxyConnector, ProxyCredentialCache, Socks4Error, Socks5Error,
     },
     route::{DirectTlsSetup, Http2Route, OriginRoute, ProxyTransport, TcpRoute},
-    tcp::{TcpKeepaliveControl, TcpKeepaliveSource},
+    tcp::{
+        SlowerAttempt, SlowerConnection, SlowerKeepalive, TcpKeepaliveControl, TcpKeepaliveSource,
+    },
     tls::{ClientCertificate, ServerAuthentication, TlsConnector, TlsStream, trace_alpn},
 };
 
@@ -52,7 +54,8 @@ use crate::tls::{EchFailure, TlsError};
 ///     server_name: "example.com",
 ///     setup: DirectTlsSetup::Default,
 /// });
-/// let connection = connector.connect(route).await?;
+/// let (connection, slower) = connector.connect(route).await?;
+/// assert!(slower.is_none());
 /// let _response = connection.send_get(
 ///     "example.com",
 ///     OriginForm::parse("/")?,
@@ -356,21 +359,28 @@ impl Http2TlsConnector {
     ///
     /// A forwarding route uses its proxy connector's TLS and HTTP/2 settings.
     /// Its credentials select a pool partition and are not sent by this call.
+    /// The returned slower connection, when present, makes progress only while
+    /// polled. Dropping it closes its socket.
     ///
     /// # Errors
     ///
     /// Returns [`Http2TlsError`] for invalid routes or settings, connection
     /// setup, TLS, ALPS, or HTTP/2 failures. Plaintext origins, plaintext
-    /// forwarding proxies, and retaining a slower attempt fail before I/O.
-    pub async fn connect(&self, route: Http2Route<'_>) -> Result<Http2Connection, Http2TlsError> {
+    /// forwarding proxies fail before I/O. A connected slower direct attempt
+    /// finishes TLS and HTTP/2 setup without sending a request. A still-pending
+    /// attempt is closed when the first connection selects HTTP/2.
+    pub async fn connect(
+        &self,
+        route: Http2Route<'_>,
+    ) -> Result<(Http2Connection, Option<SlowerConnection<Http2Connection>>), Http2TlsError> {
         match route {
             Http2Route::Origin(origin) => {
                 self.trace_connect(pin!(async {
                     origin
-                        .validate(false, false)
+                        .validate(false, true)
                         .map_err(Http2TlsError::Connect)?;
                     let client = translate_settings(&self.http2)?;
-                    self.connect_origin(origin, client, true, false).await
+                    self.connect_retaining_origin(origin, client).await
                 }))
                 .await
             }
@@ -391,6 +401,7 @@ impl Http2TlsConnector {
                         credentials,
                     )
                     .await
+                    .map(|connection| (connection, None))
                     .map_err(Into::into)
             }
         }
@@ -519,6 +530,144 @@ impl Http2TlsConnector {
             })
     }
 
+    async fn connect_retaining_origin(
+        &self,
+        origin: OriginRoute<'_>,
+        client: Http2Builder,
+    ) -> Result<(Http2Connection, Option<SlowerConnection<Http2Connection>>), Http2TlsError> {
+        let OriginRoute::Tls {
+            tcp,
+            server_name,
+            setup,
+        } = origin
+        else {
+            return Err(invalid_route("HTTP/2 origins require TLS"));
+        };
+        let mut slower;
+        #[cfg(feature = "https-records")]
+        let mut selected_ech = None;
+        let connection = match (tcp, setup) {
+            (TcpRoute::Direct(endpoint), DirectTlsSetup::KeepSlower(family)) => {
+                let (stream, attempt) = connect_tcp_keeping_slower(
+                    endpoint.host,
+                    endpoint.port,
+                    self.dialer(),
+                    Some(family),
+                )
+                .await
+                .map_err(ConnectionLegError::Direct)?;
+                slower = attempt;
+                let handshake = async {
+                    let stream = self
+                        .tls
+                        .connect_offering_early_data(server_name, stream)
+                        .await?;
+                    let keepalive = stream.tcp_keepalive();
+                    connect_over_tls(stream, client, false, keepalive).await
+                };
+                match slower.as_mut() {
+                    Some(attempt) => attempt.alongside(handshake).await?,
+                    None => handshake.await?,
+                }
+            }
+            #[cfg(feature = "https-records")]
+            (TcpRoute::Direct(endpoint), DirectTlsSetup::EchKeepingSlower { lookup, family }) => {
+                let (stream, attempt, selected) = crate::direct::connect_tls_with_ech_retaining(
+                    &self.tls,
+                    self.dialer(),
+                    endpoint,
+                    server_name,
+                    lookup,
+                    true,
+                    Some(family),
+                )
+                .await?;
+                slower = attempt;
+                selected_ech = Some(selected);
+                let keepalive = stream.tcp_keepalive();
+                let protocol = connect_over_tls(stream, client, false, keepalive);
+                match slower.as_mut() {
+                    Some(attempt) => attempt.alongside(protocol).await?,
+                    None => protocol.await?,
+                }
+            }
+            (tcp, setup) => {
+                return self
+                    .connect_origin(
+                        OriginRoute::Tls {
+                            tcp,
+                            server_name,
+                            setup,
+                        },
+                        client,
+                        true,
+                        false,
+                    )
+                    .await
+                    .map(|connection| (connection, None));
+            }
+        };
+        // H2 cancels pending attempts; a connected loser may finish its null
+        // transaction before the pool decides whether the session is redundant.
+        let slower = slower.filter(SlowerAttempt::has_connected).map(|attempt| {
+            self.slower_connection(
+                attempt,
+                server_name,
+                #[cfg(feature = "https-records")]
+                selected_ech,
+            )
+        });
+        Ok((connection, slower))
+    }
+
+    fn slower_connection(
+        &self,
+        attempt: SlowerAttempt,
+        server_name: &str,
+        #[cfg(feature = "https-records")] selected: Option<crate::direct::SelectedEch>,
+    ) -> SlowerConnection<Http2Connection> {
+        let connector = self.clone();
+        let server_name = server_name.to_owned();
+        SlowerConnection::new(attempt.progress(), async move {
+            let client = translate_settings(&connector.http2).ok()?;
+            let stream = attempt
+                .connect()
+                .await
+                .ok()?
+                .into_stream(SlowerKeepalive::BeforeTls);
+            let handshake = async {
+                #[cfg(feature = "https-records")]
+                if let Some(selected) = selected {
+                    return selected
+                        .connect(
+                            &connector.tls,
+                            connector.dialer(),
+                            &server_name,
+                            stream,
+                            true,
+                        )
+                        .await
+                        .map_err(Http2TlsError::from);
+                }
+                connector
+                    .tls
+                    .connect_offering_early_data(&server_name, stream)
+                    .await
+                    .map_err(Http2TlsError::from)
+            };
+            let stream = handshake
+                .await
+                .inspect_err(|error| debug!(error = %error, "slower HTTP/2 handshake failed"))
+                .ok()?;
+            let keepalive = stream.tcp_keepalive();
+            let connection = connect_over_tls(stream, client, false, keepalive)
+                .await
+                .ok()?;
+            connection.early_data_answered().await;
+            connection.is_reusable().then_some(connection)
+        })
+    }
+
     async fn connect_origin(
         &self,
         origin: OriginRoute<'_>,
@@ -627,12 +776,9 @@ impl Http2TlsConnector {
     ///
     /// A cancelled operation is dropped by its caller after this wrapper's
     /// future, so outside the span and after the span records cancellation.
-    async fn trace_connect<F>(
-        &self,
-        operation: Pin<&mut F>,
-    ) -> Result<Http2Connection, Http2TlsError>
+    async fn trace_connect<F, T>(&self, operation: Pin<&mut F>) -> Result<T, Http2TlsError>
     where
-        F: Future<Output = Result<Http2Connection, Http2TlsError>>,
+        F: Future<Output = Result<T, Http2TlsError>>,
     {
         let span = debug_span!(
             "http2.tls.connect",
@@ -785,7 +931,7 @@ where
     }
 }
 
-fn connection_outcome(result: &Result<Http2Connection, Http2TlsError>) -> &'static str {
+fn connection_outcome<T>(result: &Result<T, Http2TlsError>) -> &'static str {
     match result {
         Ok(_) => "ok",
         Err(Http2TlsError::RuntimeUnavailable) => "runtime_unavailable",

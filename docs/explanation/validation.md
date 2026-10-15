@@ -1941,9 +1941,14 @@ Differences from the browsers:
   the corresponding request pool before sending the Upgrade GET. The
   opening holds pool ownership until cancellation, release of a rejected
   response body, or an accepted upgrade. A retained spare has its own pool
-  ownership. Connections to a proxy, HTTP/2 WebSocket connections, and exact
-  HTTP/2 requests start the backup, close the slower attempt, and neither
-  use nor learn the family; Firefox keeps the
+  ownership. Direct exact HTTP/2 requests also remember the family. Only a
+  slower TCP attempt already connected when the winner is ready finishes TLS
+  and H2 setup. It sends no request. With the default one-connection limit,
+  the pool drops it if the winner remains usable, or admits it after the
+  winner retires. Both attempts use the same selected ECH configuration and
+  authenticated retry rules. Connections to a proxy and HTTP/2 WebSocket
+  connections start the backup, close the slower attempt, and neither use
+  nor learn the family; Firefox keeps the
   connection and the family on every connection entry.
 - The slower attempt reaches the pool, and becomes claimable, once the
   first connection's handshake has finished. Firefox lets a request claim
@@ -1959,8 +1964,8 @@ Differences from the browsers:
   but it notices a server's close of an idle connection at once and stops
   its timer when no connection is left, where Phantom notices the close
   only when the timer fires; so Phantom may forget a family sooner. The
-  HTTP/1.1 and negotiated pools of one client keep separate memories, and
-  a memory ends when the pool has evicted every entry that held it.
+  HTTP/1.1, negotiated, and exact HTTP/2 pools of one client keep separate
+  memories. A memory ends when the pool has evicted every entry that held it.
   ([Firefox socket hook evidence](#firefox-socket-hook-evidence)).
 
 Tests in `phantom-net` read the options back from connected sockets with
@@ -1996,6 +2001,23 @@ profile-policy openings in the negotiated pool. Its ownership control failed
 with zero active openings in the exact pool, and its public spare-claim
 control reached the same deadline. Both pass with the correct pool. These
 controlled tests do not add browser capture evidence.
+
+Exact-H2 integration adds ownership and family controls plus two public
+loopback controls. Before the change, both public controls reached their
+original 10-second per-case deadlines. The first candidate passed replacement
+but failed redundant retirement with Windows `ConnectionAborted`. Diagnostic
+markers localized that failure to the fixture's server SETTINGS ACK write,
+after it had read the client preface and initial SETTINGS.
+
+The redundant peer now observes the exact preface, initial stream-zero
+non-ACK SETTINGS, no request HEADERS, and actual `GOAWAY(NO_ERROR)`, without
+writing to the closing connection. This proves client startup and graceful
+retirement, not a completed bidirectional SETTINGS exchange. The replacement
+peer still exchanges SETTINGS and ACK, checks quiet startup, and serves two
+later requests. Both public controls pass with ordinary TLS and accepted ECH
+at their unchanged deadlines. All 46 focused transport, pool, stack,
+WebSocket and ECH controls pass. The full gate and delivery are pending.
+These tests add no Firefox capture or general timing comparison.
 
 Reproduce: read the cited files at the tags above, and run the listed tests.
 

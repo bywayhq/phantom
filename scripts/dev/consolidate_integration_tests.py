@@ -86,6 +86,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "session_http2_authority",
                 "session_http2_idle",
                 "session_http2_lifecycle",
+                "session_http2_retention",
                 "session_http3",
                 "session_tcp_early_data",
                 "session_tls_resumption",

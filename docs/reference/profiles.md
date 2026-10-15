@@ -277,6 +277,12 @@ resolved addresses.
   ownership through cancellation or a rejected response body. An accepted
   upgrade releases that ownership while the spare stays available.
   `TcpBackupConnection` documents the full behavior.
+- Direct exact HTTP/2 requests also remember the family. Only an already
+  connected slower TCP attempt finishes TLS and H2 setup, without a request.
+  Pending attempts close when the winner is ready. The backup uses the same
+  selected ECH configuration and authenticated retry rules. With the default
+  one-connection limit, a usable winner makes it redundant. Otherwise it may
+  replace a retired winner, within the pool's connection and spread limits.
 - `TcpAddressSelection::Sequential` takes a `TcpAddressAdvance`:
   `AfterAnyFailure`, the default, moves to the next address after any
   failure, and `AfterRefusalOrTimeout`, which `firefox::v157_tcp` sets,
@@ -286,12 +292,10 @@ resolved addresses.
   turns off the kernel's send buffer autotuning, so clear
   `send_buffer_size` for a profile used off Windows.
 - Not modeled for Firefox: keeping the slower connection, and remembering
-  the address family, on proxy routes, HTTP/2 WebSocket connections, and
-  exact HTTP/2 requests, where Phantom starts the backup
-  and closes the slower attempt; skipping an address that failed before on
-  the same cached DNS record; its `SO_LINGER` of `{1, 0}` (its close is
-  still a FIN, as Phantom's is); and the probe
-  counts of macOS and Linux.
+  the address family, on proxy routes and HTTP/2 WebSocket connections;
+  skipping an address that failed before on the same cached DNS record; its
+  `SO_LINGER` of `{1, 0}` (its close is still a FIN, as Phantom's is); and
+  the probe counts of macOS and Linux.
 - Brave 1.96.59 builds the Chromium tag behind `chrome::v154_tcp` and
   changes none of the values it cites, so Brave uses that recipe.
 - `TcpPortRandomization` sets `SO_RANDOMIZE_PORT` from a minimum Windows

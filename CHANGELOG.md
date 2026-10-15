@@ -13,6 +13,16 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Return the connected slower attempt from exact HTTP/2 setup. Migrate:
+  replace `let connection = connector.connect(route).await?` with
+  `let (connection, slower) = connector.connect(route).await?` for
+  `Http2TlsConnector::connect`. Poll `slower.finish()` to complete a returned
+  backup, or drop it to close its socket. Direct `KeepSlower` and
+  `EchKeepingSlower` setups retain only an already-connected attempt.
+  The client pool finishes that backup without a request and retains the
+  address family. With the default one-connection limit, a usable winner
+  makes the backup redundant; a retired winner can be replaced by it.
+
 - Make Firefox 157 send `Alt-Used` only when its learned mapping was already
   validated as a request hop was planned. Authenticated H3 setup validates
   later plans; retries keep the original decision. Pinned alternatives

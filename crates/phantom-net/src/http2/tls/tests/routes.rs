@@ -19,7 +19,7 @@ fn assert_invalid_route<T>(future: impl Future<Output = Result<T, Http2TlsError>
 }
 
 #[test]
-fn unsupported_origin_modes_fail_without_a_runtime() -> TestResult<()> {
+fn origin_validation_distinguishes_retaining_connect_from_one_shot_operations() -> TestResult<()> {
     let identity = TestIdentity::generate()?;
     let connector = test_connector(&identity)?;
     let family = AddressFamilyMemory::new();
@@ -40,6 +40,14 @@ fn unsupported_origin_modes_fail_without_a_runtime() -> TestResult<()> {
             };
             let route = Http2Route::Origin(origin);
             match operation {
+                0 if !plaintext => {
+                    let mut connect = pin!(connector.connect(route));
+                    let mut context = std::task::Context::from_waker(std::task::Waker::noop());
+                    assert!(matches!(
+                        connect.as_mut().poll(&mut context),
+                        std::task::Poll::Ready(Err(Http2TlsError::RuntimeUnavailable))
+                    ));
+                }
                 0 => assert_invalid_route(connector.connect(route)),
                 1 => assert_invalid_route(connector.send(
                     route,

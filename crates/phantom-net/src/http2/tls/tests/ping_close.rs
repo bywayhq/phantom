@@ -59,7 +59,7 @@ async fn chromium_ping_timeout_close_sends_nothing_after_goaway() -> TestResult<
             &http2,
             [identity.root_der()],
         )?;
-        let connection = connector
+        let (connection, slower) = connector
             .connect(crate::route::Http2Route::Origin(
                 crate::route::OriginRoute::Tls {
                     tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
@@ -71,6 +71,7 @@ async fn chromium_ping_timeout_close_sends_nothing_after_goaway() -> TestResult<
                 },
             ))
             .await?;
+        assert!(slower.is_none());
         tokio::time::sleep(Duration::from_millis(600)).await;
         let result = connection
             .send_get(TEST_AUTHORITY, OriginForm::parse("/")?, Vec::new())

@@ -60,7 +60,7 @@ async fn current_alps_codepoint_uses_last_table_size_without_wire_ack_and_reuses
 
         let connector = alps_test_connector(&identity)?;
         let tcp = tokio::net::TcpStream::connect(address).await?;
-        let connection = connector
+        let (connection, slower) = connector
             .connect(crate::route::Http2Route::Origin(
                 crate::route::OriginRoute::Tls {
                     tcp: crate::route::TcpRoute::Connected(crate::route::ConnectedStream::new(tcp)),
@@ -69,6 +69,7 @@ async fn current_alps_codepoint_uses_last_table_size_without_wire_ack_and_reuses
                 },
             ))
             .await?;
+        assert!(slower.is_none());
         request_and_collect(&connection, "/first", vec![]).await?;
         request_and_collect(&connection, "/second", vec![]).await?;
         assert!(!connection.is_closed());

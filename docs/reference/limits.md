@@ -213,9 +213,11 @@ is setting up, or the timers above. The one pool timer, which a profile
 with `Http1IdleTimeout::ClosedOnTimer` such as `firefox::v157_http1`
 starts, closes idle HTTP/1.1 connections and ends a remembered address
 family once its origin has no connection; no request waits for it. Direct
-HTTP/1.1 and negotiated openings initially offer one selected ECH
-configuration across their retained attempts. Authenticated ECH rejection permits one reconnect
-to that attempt's selected address.
+HTTP/1.1, negotiated, and exact HTTP/2 openings initially offer one selected
+ECH configuration across their retained attempts. Exact H2 retains only an
+already-connected backup. Its setup sends no request, and the pool admits it
+within the configured connection and spread limits. Authenticated ECH
+rejection permits one reconnect to that attempt's selected address.
 
 ### RTT-based racing
 

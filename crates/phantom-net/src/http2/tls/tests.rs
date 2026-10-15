@@ -42,6 +42,7 @@ mod alps_hpack_last_wins;
 mod key_update;
 mod ping_close;
 mod record_shape;
+mod retention;
 mod routes;
 
 const TEST_AUTHORITY: &str = "server.phantom.test:8443";
@@ -157,7 +158,7 @@ async fn reusable_connect_applies_alpn_and_alps_to_multiple_requests() -> TestRe
 
         let connector = alps_test_connector(&identity)?;
         let tcp = TcpStream::connect(address).await?;
-        let connection = connector
+        let (connection, slower) = connector
             .connect(crate::route::Http2Route::Origin(
                 crate::route::OriginRoute::Tls {
                     tcp: crate::route::TcpRoute::Connected(crate::route::ConnectedStream::new(tcp)),
@@ -166,6 +167,7 @@ async fn reusable_connect_applies_alpn_and_alps_to_multiple_requests() -> TestRe
                 },
             ))
             .await?;
+        assert!(slower.is_none());
         assert_eq!(
             connection.accept_ch_for_origin("https://server.phantom.test:8443"),
             Some(&b"Sec-CH-UA-Arch"[..])
@@ -191,7 +193,7 @@ async fn reusable_connect_direct_serves_multiple_requests() -> TestResult<()> {
         });
 
         let connector = test_connector(&identity)?;
-        let connection = connector
+        let (connection, slower) = connector
             .connect(crate::route::Http2Route::Origin(
                 crate::route::OriginRoute::Tls {
                     tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
@@ -203,6 +205,7 @@ async fn reusable_connect_direct_serves_multiple_requests() -> TestResult<()> {
                 },
             ))
             .await?;
+        assert!(slower.is_none());
         request_and_collect(&connection, "/direct-one", vec![]).await?;
         request_and_collect(&connection, "/direct-two", vec![]).await?;
         drop(connection);
@@ -239,7 +242,7 @@ async fn reusable_connect_http_connect_keeps_origin_data_out_of_proxy_head() -> 
             HttpConnectHeader::authority("Host"),
             HttpConnectHeader::field(RequestHeader::new("Proxy-Authorization", "Basic cHJveHk=")),
         ];
-        let connection = connector
+        let (connection, slower) = connector
             .connect(crate::route::Http2Route::Origin(
                 crate::route::OriginRoute::Tls {
                     tcp: crate::route::TcpRoute::HttpConnect(crate::route::HttpConnectRoute {
@@ -256,6 +259,7 @@ async fn reusable_connect_http_connect_keeps_origin_data_out_of_proxy_head() -> 
                 },
             ))
             .await?;
+        assert!(slower.is_none());
         let origin_headers = vec![RequestHeader::new("x-origin-secret", "not-for-proxy")];
         request_and_collect(&connection, "/tunneled-one", origin_headers).await?;
         request_and_collect(&connection, "/tunneled-two", vec![]).await?;

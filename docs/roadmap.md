@@ -353,10 +353,11 @@ completed phase scope.
   the emulator ends the guest's TCP connections, so no capture shows them
   ([Chrome for Android 154 recipes](explanation/validation.md#chrome-for-android-154-recipes)).
   Blocker: none recorded; a source-backed recipe.
-- Firefox's address selection on proxies, HTTP/2 WebSockets, and exact
-  HTTP/2 requests, plus failed-address suppression. Evidence: Firefox keeps the slower backup connection and the
-  address family on every connection entry, proxies, WebSocket, and HTTP/2
-  included, and skips an address that failed to connect on the same cached
+- Firefox's address selection on proxies and HTTP/2 WebSockets, plus
+  failed-address suppression. Evidence: Firefox keeps the slower backup
+  connection and address family on every connection entry, proxies,
+  WebSocket, and HTTP/2 included, and skips an address that failed to
+  connect on the same cached
   DNS record (`netwerk/protocol/http/DnsAndConnectSocket.cpp:671-745`,
   `netwerk/base/nsSocketTransport2.cpp:1742-1745`); no hook log covers
   these routes, and Phantom closes the slower attempt there, learns no
@@ -365,6 +366,14 @@ completed phase scope.
   Blocker: none recorded; the work is to give the proxy and HTTP/2
   connectors a family and a second connection, and to record
   connect failures in the address cache.
+- Direct exact-H2 retention is in integration. It remembers the family and
+  finishes only an already-connected backup, with the same ECH selection
+  and authenticated retry rules. The default pool closes a redundant backup
+  or admits it after the winner retires, without an automatic request.
+  Public controls pass for retired-winner reuse and redundant retirement,
+  with ordinary TLS and accepted ECH. All 46 focused controls pass. The full
+  gate and delivery are pending
+  ([TCP socket option evidence](explanation/validation.md#tcp-socket-option-evidence)).
 
 #### Wire fidelity
 

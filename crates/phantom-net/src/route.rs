@@ -123,8 +123,9 @@ pub enum TcpRoute<'a> {
 /// Setup policy for a new direct origin TLS connection.
 ///
 /// ECH and retaining a slower address attempt can be used together. Both
-/// require a direct route. Retaining a slower attempt is supported only by
-/// HTTP/1.1 and negotiated connection openings.
+/// require a direct route. HTTP/1.1, negotiated and exact HTTP/2 openings
+/// support retention. After HTTP/2 selection, only an already-connected
+/// slower attempt is retained.
 #[non_exhaustive]
 pub enum DirectTlsSetup<'a> {
     /// Use the connector's normal TLS setup.

@@ -2,7 +2,7 @@ use std::{
     collections::VecDeque,
     num::NonZeroUsize,
     pin::pin,
-    sync::{Arc, MutexGuard, OnceLock, PoisonError},
+    sync::{Arc, MutexGuard, OnceLock, PoisonError, Weak},
     time::Duration,
 };
 
@@ -15,10 +15,12 @@ use phantom_net::{
         Http2TlsError, validate_request_body_source_with_trailers,
     },
     request::{OriginForm, RequestHeader},
+    tcp::{AddressFamilyMemory, SlowerConnection},
 };
 use phantom_profile::Http2Priority;
 use tokio::{
     sync::{Mutex, Notify},
+    task::AbortHandle,
     time::Instant,
 };
 use tracing::debug;
@@ -28,6 +30,7 @@ use super::tickets::{
     binding::{TicketCacheLeg, TicketCacheProtocol},
 };
 use super::{
+    address_families::AddressFamilies,
     admission::{Admission, AdmissionPermit, AdmissionRegistry},
     client_hints::{AcceptChRestart, ClientHintContext, Dispatched},
     http2_connections::{Choice, Http2Spread},
@@ -428,6 +431,7 @@ impl Http2Pool {
             Http2Spread::new(self.max_connections, self.max_active),
         );
         entry.prune.clone_from(&self.prune_timer);
+        entry.family = state.families.get(&key.origin());
         // HTTPS records are looked up on the direct route only: Chromium sends
         // no HTTPS query for a proxied request.
         #[cfg(feature = "https-records")]
@@ -449,6 +453,7 @@ impl Http2Pool {
 struct PoolState {
     entries: VecDeque<(PoolKey, Arc<PoolEntry>)>,
     admissions: AdmissionRegistry<PoolKey>,
+    families: AddressFamilies<PoolKey>,
 }
 
 fn invalidates_connection(error: &Http2Error) -> bool {
@@ -511,6 +516,7 @@ struct PoolEntry {
     /// and whenever a stream on one of the key's connections ends.
     setup_done: Arc<Notify>,
     admission: Arc<Admission>,
+    family: Arc<AddressFamilyMemory>,
     connector: OnceLock<Http2TlsConnector>,
     https_proxy: OnceLock<HttpsProxyConnector>,
     /// The client's prune timer, when the profile closes idle connections on
@@ -528,9 +534,12 @@ impl PoolEntry {
                 slots: Vec::new(),
                 connecting: false,
                 spread,
+                spares: Vec::new(),
+                next_spare: 0,
             }),
             setup_done: Arc::new(Notify::new()),
             admission,
+            family: Arc::default(),
             connector: OnceLock::new(),
             https_proxy: OnceLock::new(),
             prune: None,
@@ -549,7 +558,7 @@ impl PoolEntry {
         &self,
         connector: &Http2TlsConnector,
         endpoint: &Endpoint,
-    ) -> Result<Http2Connection, Http2TlsError> {
+    ) -> Result<(Http2Connection, Option<SlowerConnection<Http2Connection>>), Http2TlsError> {
         // Bound the connector's `Send` proof separately from pool setup;
         // see `box_send`.
         #[cfg(feature = "https-records")]
@@ -565,7 +574,10 @@ impl PoolEntry {
                         port: endpoint.port(),
                     }),
                     server_name: endpoint.host(),
-                    setup: phantom_net::route::DirectTlsSetup::Ech(ech.as_mut()),
+                    setup: phantom_net::route::DirectTlsSetup::EchKeepingSlower {
+                        lookup: ech.as_mut(),
+                        family: &self.family,
+                    },
                 },
             )))
             .await;
@@ -577,7 +589,7 @@ impl PoolEntry {
                     port: endpoint.port(),
                 }),
                 server_name: endpoint.host(),
-                setup: phantom_net::route::DirectTlsSetup::Default,
+                setup: phantom_net::route::DirectTlsSetup::KeepSlower(&self.family),
             },
         )))
         .await
@@ -607,7 +619,7 @@ impl PoolEntry {
                 let mut connections = self.lock();
                 connections.retain_reusable();
                 if connections.slots.is_empty() {
-                    if !connections.connecting {
+                    if !connections.connecting && connections.spares.is_empty() {
                         return None;
                     }
                 } else {
@@ -626,7 +638,7 @@ impl PoolEntry {
     }
 
     async fn acquire(
-        &self,
+        self: &Arc<Self>,
         connector: &Http2TlsConnector,
         https_proxy: Option<&HttpsProxyConnector>,
         endpoint: &Endpoint,
@@ -655,7 +667,8 @@ impl PoolEntry {
                     );
                     return Ok(slot.lease());
                 }
-                if !connections.connecting {
+                if !connections.connecting && connections.spares.is_empty() {
+                    self.family.mark_active();
                     connections.connecting = true;
                     break SetupReservation {
                         entry: self,
@@ -670,9 +683,9 @@ impl PoolEntry {
         // Boxed: opening a connection awaits the largest connector futures,
         // which would otherwise enlarge the future of every request, including
         // one that reuses a pooled connection.
-        let connection =
+        let (connection, slower) =
             super::box_send(self.open(connector, https_proxy, endpoint, route, mode)).await?;
-        Ok(reservation.finish(connection))
+        Ok(reservation.finish(connection, slower))
     }
 
     /// Opens a connection for [`Self::acquire`] in `mode` over `route`.
@@ -683,7 +696,7 @@ impl PoolEntry {
         endpoint: &Endpoint,
         route: &Route,
         mode: Http2ConnectionMode,
-    ) -> Result<Http2Connection, RequestError> {
+    ) -> Result<(Http2Connection, Option<SlowerConnection<Http2Connection>>), RequestError> {
         let connector = self
             .connector
             .get_or_init(|| connector.with_isolated_session_cache());
@@ -745,10 +758,12 @@ impl PoolEntry {
             Route::ConnectUdp(_) => {
                 return Err(RequestError::unsupported_route(HttpProtocol::Http2));
             }
-            Route::Direct => self
-                .connect_direct(connector, endpoint)
-                .await
-                .map_err(RequestError::http2_connection_setup)?,
+            Route::Direct => {
+                return self
+                    .connect_direct(connector, endpoint)
+                    .await
+                    .map_err(RequestError::http2_connection_setup);
+            }
             Route::HttpProxy(proxy) => {
                 let connect_authority = endpoint.tunnel_authority();
                 let proxy_endpoint = phantom_net::route::Endpoint {
@@ -866,6 +881,80 @@ impl PoolEntry {
         Ok(connection)
     }
 
+    /// Starts a backup whose slot is already registered under the entry lock.
+    fn spawn_spare(
+        self: &Arc<Self>,
+        runtime: tokio::runtime::Handle,
+        id: u64,
+        slower: SlowerConnection<Http2Connection>,
+    ) {
+        let report = SpareReport {
+            entry: Some(Arc::downgrade(self)),
+            id,
+        };
+        // A shutting-down runtime can drop the report immediately; do not spawn
+        // under the entry lock that its completion takes.
+        let task = runtime.spawn(async move {
+            report.finish(slower.finish().await);
+        });
+        if let Some(spare) = self.lock().spares.iter_mut().find(|spare| spare.id == id) {
+            spare.task = Some(task.abort_handle());
+        }
+    }
+
+    fn spare_finished(&self, id: u64, connection: Option<Http2Connection>) {
+        let mut state = self.lock();
+        let registered = state
+            .spares
+            .iter()
+            .position(|spare| spare.id == id)
+            .map(|position| state.spares.swap_remove(position))
+            .is_some();
+        let mut expired = Vec::new();
+        for index in (0..state.slots.len()).rev() {
+            if !state.slots[index].connection.is_reusable() {
+                expired.push(state.slots.remove(index));
+            }
+        }
+        let left = connection
+            .as_ref()
+            .and_then(Http2Connection::idle_time_left);
+        let mut retired = connection;
+        let mut kept = false;
+        if registered
+            && !state.connecting
+            && retired.as_ref().is_some_and(Http2Connection::is_reusable)
+            && matches!(state.choose(), Choice::Open)
+            && let Some(connection) = retired.take()
+        {
+            state.slots.push(ConnectionSlot {
+                connection,
+                token: Arc::new(()),
+                streams: StreamCount::notifying(Arc::clone(&self.setup_done)),
+            });
+            kept = true;
+        }
+        drop(state);
+        // A redundant H2 session closes after its preface/SETTINGS, with no
+        // request. As in the negotiated pool, drop it outside the entry lock.
+        drop(retired);
+        drop(expired);
+        if kept && let (Some(timer), Some(left)) = (&self.prune, left) {
+            timer.idle_added(left);
+        }
+        self.prune_empty_family();
+        self.setup_done.notify_waiters();
+    }
+
+    fn prune_empty_family(&self) {
+        if let Some(timer) = &self.prune
+            && self.lock().is_empty()
+            && self.family.family().is_some()
+        {
+            timer.idle_added(Duration::from_secs(1));
+        }
+    }
+
     async fn invalidate(&self, token: &Arc<()>) {
         let mut connections = self.lock();
         if let Some(position) = connections
@@ -878,6 +967,49 @@ impl PoolEntry {
                 outcome = "invalidated",
                 "HTTP/2 client pool connection invalidated"
             );
+        }
+        drop(connections);
+        self.prune_empty_family();
+    }
+}
+
+impl Drop for PoolEntry {
+    fn drop(&mut self) {
+        for spare in &self
+            .connections
+            .get_mut()
+            .unwrap_or_else(PoisonError::into_inner)
+            .spares
+        {
+            if let Some(task) = &spare.task {
+                task.abort();
+            }
+        }
+    }
+}
+
+struct Spare {
+    id: u64,
+    task: Option<AbortHandle>,
+}
+
+struct SpareReport {
+    entry: Option<Weak<PoolEntry>>,
+    id: u64,
+}
+
+impl SpareReport {
+    fn finish(mut self, connection: Option<Http2Connection>) {
+        if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
+            entry.spare_finished(self.id, connection);
+        }
+    }
+}
+
+impl Drop for SpareReport {
+    fn drop(&mut self) {
+        if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
+            entry.spare_finished(self.id, None);
         }
     }
 }
@@ -894,13 +1026,12 @@ impl PrunedEntry for PoolEntry {
                 .iter()
                 .filter_map(|slot| slot.connection.idle_time_left())
                 .min(),
-            empty: connections.slots.is_empty() && !connections.connecting,
+            empty: connections.is_empty(),
         }
     }
 
-    /// The exact H2 pool remembers no address family.
-    fn address_family(&self) -> Option<&Arc<phantom_net::tcp::AddressFamilyMemory>> {
-        None
+    fn address_family(&self) -> Option<&Arc<AddressFamilyMemory>> {
+        Some(&self.family)
     }
 }
 
@@ -910,6 +1041,8 @@ struct Connections {
     /// Whether the key's one connection setup is in flight.
     connecting: bool,
     spread: Http2Spread,
+    spares: Vec<Spare>,
+    next_spare: u64,
 }
 
 /// The key's one connection setup in flight.
@@ -918,14 +1051,22 @@ struct Connections {
 /// frees the setup and wakes every request waiting for it. They are not
 /// served in arrival order: the first to run takes the next setup.
 struct SetupReservation<'a> {
-    entry: &'a PoolEntry,
+    entry: &'a Arc<PoolEntry>,
     finished: bool,
 }
 
 impl SetupReservation<'_> {
     /// Pools the new connection and leases it for this request's stream.
-    fn finish(mut self, connection: Http2Connection) -> ConnectionLease {
-        self.finished = true;
+    fn finish(
+        mut self,
+        connection: Http2Connection,
+        slower: Option<SlowerConnection<Http2Connection>>,
+    ) -> ConnectionLease {
+        let spare = slower.and_then(|slower| {
+            tokio::runtime::Handle::try_current()
+                .ok()
+                .map(|runtime| (runtime, slower))
+        });
         let left = connection.idle_time_left();
         let slot = ConnectionSlot {
             connection,
@@ -934,9 +1075,18 @@ impl SetupReservation<'_> {
         };
         let lease = slot.lease();
         let mut connections = self.entry.lock();
-        connections.connecting = false;
         connections.slots.push(slot);
+        let spare = spare.map(|(runtime, slower)| {
+            self.entry.family.mark_active();
+            (runtime, connections.register_spare(), slower)
+        });
+        // Waiters must see the winner and its backup before setup is released.
+        connections.connecting = false;
+        self.finished = true;
         drop(connections);
+        if let Some((runtime, id, slower)) = spare {
+            self.entry.spawn_spare(runtime, id, slower);
+        }
         // Reported after the push, so a prune that runs from here on finds
         // the connection.
         if let (Some(timer), Some(left)) = (&self.entry.prune, left) {
@@ -951,12 +1101,24 @@ impl Drop for SetupReservation<'_> {
     fn drop(&mut self) {
         if !self.finished {
             self.entry.lock().connecting = false;
+            self.entry.prune_empty_family();
             self.entry.setup_done.notify_waiters();
         }
     }
 }
 
 impl Connections {
+    fn register_spare(&mut self) -> u64 {
+        let id = self.next_spare;
+        self.next_spare = self.next_spare.wrapping_add(1);
+        self.spares.push(Spare { id, task: None });
+        id
+    }
+
+    fn is_empty(&self) -> bool {
+        self.slots.is_empty() && !self.connecting && self.spares.is_empty()
+    }
+
     fn retain_reusable(&mut self) {
         self.slots.retain(|slot| slot.connection.is_reusable());
     }
@@ -996,6 +1158,7 @@ struct ConnectionLease {
 
 #[cfg(test)]
 mod tests {
+    mod retention;
     use std::{num::NonZeroUsize, sync::Arc};
 
     use super::{Http2Pool, PoolEntry, PoolKey, SetupReservation};
@@ -1022,7 +1185,7 @@ mod tests {
     }
 
     /// Reserves the key's one setup, as `PoolEntry::acquire` does.
-    fn reserve(entry: &PoolEntry) -> SetupReservation<'_> {
+    fn reserve(entry: &Arc<PoolEntry>) -> SetupReservation<'_> {
         entry.lock().connecting = true;
         SetupReservation {
             entry,
@@ -1062,7 +1225,7 @@ mod tests {
             &phantom_profile::browser::chrome::v154_http2(),
         )
         .await?;
-        drop(reservation.finish(connection));
+        drop(reservation.finish(connection, None));
         assert!(
             reuse.await.is_some(),
             "the WebSocket did not join the new connection"
@@ -1107,7 +1270,7 @@ mod tests {
         let (client, _server) = tokio::io::duplex(64 * 1024);
         let connection = phantom_net::http2::Http2Connection::connect(client, &settings).await?;
         let start = Instant::now();
-        drop(reserve(&entry).finish(connection));
+        drop(reserve(&entry).finish(connection, None));
         assert_eq!(timer.wake_at(), Some(start + Duration::from_secs(2)));
 
         advance(Duration::from_millis(1_500)).await;

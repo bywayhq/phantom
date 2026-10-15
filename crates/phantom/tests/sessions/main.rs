@@ -23,6 +23,8 @@ mod session_http1_parallel;
 mod session_http2_authority;
 mod session_http2_idle;
 mod session_http2_lifecycle;
+#[cfg(all(windows, feature = "https-records"))]
+mod session_http2_retention;
 mod session_http3;
 mod session_tcp_early_data;
 mod session_tls_resumption;
