@@ -348,6 +348,7 @@ fn resuming_client() -> QuicClientConfig {
     QuicClientConfig::new(builder.build())
         .with_tls_profile(&phantom_profile::browser::chrome::v154_quic_tls())
         .unwrap_or_else(|error| panic!("client TLS profile: {error}"))
+        .with_early_data()
         .with_isolated_session_cache()
 }
 

@@ -391,15 +391,26 @@ mod tests {
         let first = prepare([1; 32])?;
         let second = prepare([2; 32])?;
         let origin = Endpoint::new("origin.example:443".parse()?, 443)?;
+        let mut password_bytes = [0_u8; 16];
+        btls::rand::rand_bytes(&mut password_bytes)?;
+        let password: String = password_bytes
+            .into_iter()
+            .flat_map(|byte| {
+                [
+                    char::from(b'a' + (byte >> 4)),
+                    char::from(b'a' + (byte & 0x0f)),
+                ]
+            })
+            .collect();
         let routes = [
             Route::Direct,
             Route::http_proxy(
                 crate::HttpProxy::new("https://proxy.example")?
-                    .with_basic_auth("user", "password")?,
+                    .with_basic_auth("user", &password)?,
             ),
             Route::http_proxy(
                 crate::HttpProxy::new("https://proxy.example")?
-                    .with_digest_auth("user", "password")?,
+                    .with_digest_auth("user", &password)?,
             ),
             Route::socks4(crate::Socks4Proxy::new("socks4a://proxy.example")?),
             Route::socks4(
@@ -407,13 +418,13 @@ mod tests {
             ),
             Route::socks5(
                 crate::Socks5Proxy::new("socks5h://proxy.example")?
-                    .with_username_password("user", "password")?,
+                    .with_username_password("user", &password)?,
             ),
             Route::connect_udp(
                 crate::ConnectUdpProxy::new(
                     "https://proxy.example/udp/{target_host}/{target_port}/",
                 )?
-                .with_basic_auth("user", "password")?,
+                .with_basic_auth("user", &password)?,
             ),
         ];
         for route in routes {
