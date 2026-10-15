@@ -105,6 +105,7 @@ async fn observed_goaway_preserves_accepted_datagrams_and_opens_a_fresh_outer() 
         let (first, first_remote) = pool
             .open_http3(
                 key.clone(),
+                None,
                 &base,
                 &base,
                 "127.0.0.1",
@@ -139,6 +140,7 @@ async fn observed_goaway_preserves_accepted_datagrams_and_opens_a_fresh_outer() 
         let (next, next_remote) = pool
             .open_http3(
                 key,
+                None,
                 &base,
                 &base,
                 "127.0.0.1",

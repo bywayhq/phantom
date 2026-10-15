@@ -35,8 +35,8 @@ use crate::{
     host_resolver::{HostResolver, resolve},
     proxy::{
         ConnectUdpProxyPool, HttpBasicCredentials, HttpsProxyConnector, HttpsProxyProtocol,
-        PoolKey, PreparedConnectUdp, ProxySettingsId, Socks5Auth, Socks5Error,
-        associate_socks5_udp_local_with_auth, associate_socks5_udp_remote_with_auth,
+        PoolKey, PreparedConnectUdp, PreparedConnectUdpOuter, ProxySettingsId, Socks5Auth,
+        Socks5Error, associate_socks5_udp_local_with_auth, associate_socks5_udp_remote_with_auth,
         prepare_socks5_udp_remote_target,
     },
     request::{RequestBody, RequestBodyMetadata},
@@ -250,6 +250,39 @@ impl Http3Connector {
             #[cfg(test)]
             early_race: None,
         })
+    }
+
+    /// Prepares the actual shared HTTP/3 proxy cache before TLS use.
+    ///
+    /// Both base connector identities and the current runtime scope the cache.
+    /// Register its weak ticket-cache control before passing it to the route.
+    /// No admission permit, lookup or connection is started.
+    ///
+    /// # Errors
+    /// Returns a runtime or capacity error without opening a connection.
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_connect_udp_outer(
+        &self,
+        proxy: &Self,
+        pool: &ConnectUdpProxyPool,
+        host: &str,
+        port: u16,
+        authority: &str,
+        fields: &[RequestHeader],
+        credentials: Option<&HttpBasicCredentials>,
+    ) -> Result<PreparedConnectUdpOuter, ConnectUdpError> {
+        pool.prepare_http3(
+            PoolKey::http3(
+                &proxy.proxy_settings,
+                &self.proxy_dial_settings,
+                host,
+                port,
+                authority,
+                fields,
+                credentials,
+            )?,
+            proxy,
+        )
     }
 
     /// Returns a connector clone with a fresh, empty QUIC ticket cache.
@@ -738,6 +771,7 @@ impl Http3Connector {
                         route.headers,
                         route.credentials,
                         route.pool,
+                        route.prepared_outer,
                         server_name,
                     )
                     .await
@@ -756,6 +790,7 @@ impl Http3Connector {
                         route.headers,
                         route.credentials,
                         route.pool,
+                        route.prepared_outer,
                         server_name,
                     )
                     .await
@@ -1211,6 +1246,7 @@ impl Http3Connector {
         headers: Vec<RequestHeader>,
         credentials: Option<&HttpBasicCredentials>,
         pool: Option<&ConnectUdpProxyPool>,
+        prepared_outer: Option<&PreparedConnectUdpOuter>,
         server_name: &str,
     ) -> Result<Http3Connection, Http3ConnectorError> {
         QuicClientConfig::validate_server_name(server_name)
@@ -1246,6 +1282,17 @@ impl Http3Connector {
             })
             .transpose()
             .map_err(Http3ConnectorError::connect_udp)?;
+        if let Some(prepared) = prepared_outer {
+            let pool = pool.ok_or_else(|| {
+                Http3ConnectorError::connect_udp(crate::proxy::connect_udp_prepared_error())
+            })?;
+            let key = key.as_ref().ok_or_else(|| {
+                Http3ConnectorError::connect_udp(crate::proxy::connect_udp_prepared_error())
+            })?;
+            prepared
+                .validate(pool, key)
+                .map_err(Http3ConnectorError::connect_udp)?;
+        }
         tokio::runtime::Handle::try_current()
             .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
         poll_tokio_io(|| async {
@@ -1255,6 +1302,7 @@ impl Http3Connector {
                     // Keep pooled proxy setup off direct callers' stack frames.
                     return Box::pin(pool.open_http3(
                         key,
+                        prepared_outer,
                         self,
                         proxy,
                         proxy_host,
@@ -1386,6 +1434,7 @@ impl Http3Connector {
         headers: Vec<RequestHeader>,
         credentials: Option<&HttpBasicCredentials>,
         pool: Option<&ConnectUdpProxyPool>,
+        prepared_outer: Option<&PreparedConnectUdpOuter>,
         server_name: &str,
     ) -> Result<Http3Connection, Http3ConnectorError> {
         QuicClientConfig::validate_server_name(server_name)
@@ -1415,6 +1464,17 @@ impl Http3Connector {
         } else {
             None
         };
+        if let Some(prepared) = prepared_outer {
+            let pool = pool.ok_or_else(|| {
+                Http3ConnectorError::connect_udp(crate::proxy::connect_udp_prepared_error())
+            })?;
+            let key = key.as_ref().ok_or_else(|| {
+                Http3ConnectorError::connect_udp(crate::proxy::connect_udp_prepared_error())
+            })?;
+            prepared
+                .validate(pool, key)
+                .map_err(Http3ConnectorError::connect_udp)?;
+        }
         tokio::runtime::Handle::try_current()
             .map_err(|_| Http3ConnectorError::runtime_unavailable())?;
         poll_tokio_io(|| async {
@@ -1426,7 +1486,13 @@ impl Http3Connector {
                 let stream = if let (Some(pool), Some(key)) = (pool, key) {
                     proxy
                         .connect_udp_pooled_tunnel(
-                            pool, key, proxy_host, proxy_port, request, &span,
+                            pool,
+                            key,
+                            prepared_outer,
+                            proxy_host,
+                            proxy_port,
+                            request,
+                            &span,
                         )
                         .await?
                 } else {

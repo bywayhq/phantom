@@ -46,6 +46,9 @@ pub struct ConnectUdpRoute<'a> {
     /// Optional bounded pool for sharing authenticated H2/H3 outer sessions.
     /// Without a pool, each tunnel owns its outer connection.
     pub pool: Option<&'a ConnectUdpProxyPool>,
+    /// Actual prepared outer cache registered before TLS use. Requires a matching
+    /// shared H2/H3 pool; clearing that cache slot before selection rejects it.
+    pub prepared_outer: Option<&'a crate::proxy::PreparedConnectUdpOuter>,
 }
 
 impl std::fmt::Debug for ConnectUdpRoute<'_> {
@@ -141,6 +144,7 @@ mod tests {
             headers: vec![RequestHeader::new("authorization", "private-header-token")],
             credentials: Some(&credentials),
             pool: None,
+            prepared_outer: None,
         });
         let debug = format!("{route:?}");
         for secret in [

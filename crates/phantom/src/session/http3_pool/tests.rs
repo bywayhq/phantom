@@ -363,6 +363,7 @@ async fn only_an_origin_handshake_failure_qualifies_for_inner_ticket_retry()
                         headers: Vec::new(),
                         credentials: None,
                         pool: Some(&pool),
+                        prepared_outer: None,
                     }),
                     "origin.test",
                 )

@@ -16,6 +16,10 @@ use crate::{
 };
 
 pub(crate) mod http3;
+mod prepared_outer;
+
+pub use prepared_outer::PreparedConnectUdpOuter;
+pub(crate) use prepared_outer::invalid_prepared as prepared_outer_error;
 
 /// Most independently scoped outer sessions retained by a CONNECT-UDP pool.
 ///
@@ -122,31 +126,7 @@ impl ConnectUdpProxyPool {
 
     pub(crate) async fn acquire(&self, key: PoolKey) -> Result<Acquisition, ConnectUdpError> {
         let permit = self.admit().await?;
-        let entry = {
-            let mut entries = lock(&self.inner.state().entries);
-            if let Some(entry) = entries.iter().find(|entry| entry.key == key) {
-                Arc::clone(entry)
-            } else {
-                if entries.len() == MAX_CONNECT_UDP_POOL_KEYS {
-                    // A lease or setup owner holds an additional Arc. Never
-                    // forget such a key and open a duplicate live connection.
-                    if let Some(index) = entries
-                        .iter()
-                        .position(|entry| Arc::strong_count(entry) == 1)
-                    {
-                        entries.remove(index);
-                    } else {
-                        return Err(capacity());
-                    }
-                }
-                let entry = Arc::new(Entry {
-                    key,
-                    state: Mutex::new(SessionState::default()),
-                });
-                entries.push(Arc::clone(&entry));
-                entry
-            }
-        };
+        let entry = self.entry(key)?;
         let lease = TunnelLease {
             entry,
             generation: 0,
@@ -154,6 +134,31 @@ impl ConnectUdpProxyPool {
             _pool: Arc::clone(&self.inner),
         };
         Self::acquire_entry(lease).await
+    }
+
+    fn entry(&self, key: PoolKey) -> Result<Arc<Entry>, ConnectUdpError> {
+        let mut entries = lock(&self.inner.state().entries);
+        if let Some(entry) = entries.iter().find(|entry| entry.key == key) {
+            return Ok(Arc::clone(entry));
+        }
+        if entries.len() == MAX_CONNECT_UDP_POOL_KEYS {
+            // A prepared owner, lease or setup keeps its key from eviction.
+            let Some(index) = entries
+                .iter()
+                .position(|entry| Arc::strong_count(entry) == 1)
+            else {
+                return Err(capacity());
+            };
+            entries.remove(index);
+        } else {
+            entries.try_reserve(1).map_err(|_| capacity())?;
+        }
+        let entry = Arc::new(Entry {
+            key,
+            state: Mutex::new(SessionState::default()),
+        });
+        entries.push(Arc::clone(&entry));
+        Ok(entry)
     }
 
     async fn admit(&self) -> Result<OwnedSemaphorePermit, ConnectUdpError> {

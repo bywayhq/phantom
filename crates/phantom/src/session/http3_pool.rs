@@ -1000,7 +1000,7 @@ impl PoolEntry {
                         {
                             self.tcp_proxy.get_or_init(|| {
                                 let connector = base.with_isolated_session_cache();
-                            self.tickets.register(
+                                self.tickets.register(
                                     connector.session_ticket_cache(),
                                     TicketCacheBinding {
                                         origin: endpoint,
@@ -1032,6 +1032,7 @@ impl PoolEntry {
                     headers: proxy.headers().to_vec(),
                     credentials: proxy.credentials(),
                     pool: Some(proxy.pool()),
+                    prepared_outer: None,
                 })
             }
             Route::HttpProxy(_) | Route::Socks4(_) => {

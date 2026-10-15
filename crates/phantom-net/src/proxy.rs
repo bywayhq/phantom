@@ -22,10 +22,13 @@ mod tunnel;
 pub use authentication::{HttpBasicCredentials, validate_basic_proxy_challenge};
 pub use challenged_connection::MAX_CHALLENGE_BODY_BYTES;
 pub(crate) use connect_udp::PreparedConnectUdp;
+pub(crate) use connect_udp_pool::prepared_outer_error as connect_udp_prepared_error;
 pub(crate) use connect_udp_pool::{
     Acquisition, OuterSession, PoolKey, ProxySettingsId, TunnelLease,
 };
-pub use connect_udp_pool::{ConnectUdpProxyPool, MAX_CONNECT_UDP_POOL_KEYS};
+pub use connect_udp_pool::{
+    ConnectUdpProxyPool, MAX_CONNECT_UDP_POOL_KEYS, PreparedConnectUdpOuter,
+};
 pub(crate) use credential_cache::{AuthAttempt, AuthStep, BasicAuthPlan};
 pub use credential_cache::{MAX_PROXY_CREDENTIAL_ENTRIES, ProxyCredentialCache, ProxyScheme};
 pub use credentials::{HttpProxyAuthentication, HttpProxyCredentials};

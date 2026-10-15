@@ -6,7 +6,7 @@ use http::Request;
 use quinn::AsyncUdpSocket;
 use tracing::Span;
 
-use super::{Acquisition, ConnectUdpProxyPool, OuterSession, PoolKey};
+use super::{Acquisition, ConnectUdpProxyPool, OuterSession, PoolKey, PreparedConnectUdpOuter};
 use crate::http3::{
     ConnectUdpError, ConnectUdpErrorKind, Http3Connector,
     connect_udp::{self, OpenOutcome},
@@ -17,6 +17,7 @@ impl ConnectUdpProxyPool {
     pub(crate) async fn open_http3(
         &self,
         key: PoolKey,
+        prepared: Option<&PreparedConnectUdpOuter>,
         initiator: &Http3Connector,
         proxy: &Http3Connector,
         host: &str,
@@ -25,9 +26,15 @@ impl ConnectUdpProxyPool {
         authenticated: Option<Request<()>>,
         span: Span,
     ) -> Result<(Arc<dyn AsyncUdpSocket>, SocketAddr), ConnectUdpError> {
-        let mut acquisition = self.acquire(key).await?;
+        let mut acquisition = match prepared {
+            Some(prepared) => self.acquire_prepared(key, prepared).await?,
+            None => self.acquire(key).await?,
+        };
         let mut challenged = false;
         loop {
+            if let Some(prepared) = prepared {
+                acquisition.validate_prepared(prepared)?;
+            }
             match acquisition {
                 Acquisition::Reuse {
                     session: OuterSession::Http3(outer),
@@ -71,7 +78,10 @@ impl ConnectUdpProxyPool {
                     }
                 }
                 Acquisition::Setup(setup) => {
-                    let proxy = setup.http3_connector(proxy)?;
+                    let proxy = match prepared {
+                        Some(prepared) => setup.prepared_http3(prepared)?,
+                        None => setup.http3_connector(proxy)?,
+                    };
                     let mut established = None;
                     let result = async {
                         let mut outer = dial_outer(initiator, &proxy, host, port).await?;

@@ -15,7 +15,7 @@ use tracing::Span;
 
 use super::{
     Acquisition, ConnectUdpProxyPool, HttpBasicCredentials, HttpConnectError, HttpsProxyConnector,
-    HttpsProxyProtocol, OuterSession, PoolKey, TunnelStream,
+    HttpsProxyProtocol, OuterSession, PoolKey, PreparedConnectUdpOuter, TunnelStream,
     authentication::{has_valid_basic_challenge, validate_basic_proxy_challenge},
     http_connect::{
         MAX_CONNECT_HEADERS, MAX_INFORMATIONAL_RESPONSES, append_field, extend_bounded,
@@ -269,6 +269,7 @@ impl HttpsProxyConnector {
         &self,
         pool: &ConnectUdpProxyPool,
         key: PoolKey,
+        prepared: Option<&PreparedConnectUdpOuter>,
         host: &str,
         port: u16,
         request: PreparedConnectUdp,
@@ -290,9 +291,15 @@ impl HttpsProxyConnector {
                 ));
             }
         };
-        let mut acquisition = pool.acquire(key).await?;
+        let mut acquisition = match prepared {
+            Some(prepared) => pool.acquire_prepared(key, prepared).await?,
+            None => pool.acquire(key).await?,
+        };
         let mut challenged = false;
         loop {
+            if let Some(prepared) = prepared {
+                acquisition.validate_prepared(prepared)?;
+            }
             match acquisition {
                 Acquisition::Reuse {
                     session: OuterSession::Http2(connection),
@@ -337,7 +344,10 @@ impl HttpsProxyConnector {
                     }
                 }
                 Acquisition::Setup(setup) => {
-                    let connector = setup.http2_connector(self)?;
+                    let connector = match prepared {
+                        Some(prepared) => setup.prepared_http2(prepared)?,
+                        None => setup.http2_connector(self)?,
+                    };
                     let mut established = None;
                     let result = async {
                         let mut connection = connector

@@ -13,6 +13,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Pin a prepared shared CONNECT-UDP outer connector before registering its
+  ticket cache. Migrate: add `prepared_outer: None` to native
+  `ConnectUdpRoute` literals, or prepare and register the actual cache and
+  pass `Some(&prepared)` before opening a tunnel. A pool clear before setup
+  selects the connector makes that prepared value stale.
+
 - Share CONNECT-UDP proxy connections across route clones for HTTP/2 and
   HTTP/3. Migrate: clone one `ConnectUdpProxy` to share its pool; construct
   another to keep connections separate. Independently constructed routes

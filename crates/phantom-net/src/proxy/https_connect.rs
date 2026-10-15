@@ -299,6 +299,33 @@ impl HttpsProxyConnector {
         self.protocol
     }
 
+    /// Prepares the actual shared HTTP/2 proxy cache before TLS use.
+    ///
+    /// Register its weak ticket-cache control before passing it to the route.
+    /// No admission permit, lookup or connection is started.
+    ///
+    /// # Errors
+    /// Returns a configuration, runtime or capacity error. HTTP/1.1 remains
+    /// dedicated and cannot use a shared prepared connector.
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_connect_udp_outer(
+        &self,
+        pool: &super::ConnectUdpProxyPool,
+        host: &str,
+        port: u16,
+        authority: &str,
+        fields: &[crate::request::RequestHeader],
+        credentials: Option<&super::HttpBasicCredentials>,
+    ) -> Result<super::PreparedConnectUdpOuter, crate::http3::ConnectUdpError> {
+        if self.protocol != HttpsProxyProtocol::Http2 {
+            return Err(super::connect_udp_pool::prepared_outer_error());
+        }
+        pool.prepare_http2(
+            super::PoolKey::http2(self, host, port, authority, fields, credentials)?,
+            self,
+        )
+    }
+
     /// Returns a connector clone with a fresh isolated TLS session cache.
     ///
     /// The clone keeps this connector's [`Http2ProxyPool`], so its HTTP/2

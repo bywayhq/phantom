@@ -42,6 +42,7 @@ async fn open(
                 headers: Vec::new(),
                 credentials: None,
                 pool: Some(pool),
+                prepared_outer: None,
             }),
             "127.0.0.1",
         )
