@@ -1946,10 +1946,13 @@ Differences from the browsers:
   and H2 setup. It sends no request. With the default one-connection limit,
   the pool drops it if the winner remains usable, or admits it after the
   winner retires. Both attempts use the same selected ECH configuration and
-  authenticated retry rules. Connections to a proxy and HTTP/2 WebSocket
-  connections start the backup, close the slower attempt, and neither use
-  nor learn the family; Firefox keeps the
-  connection and the family on every connection entry.
+  authenticated retry rules. Direct exact and profile-policy HTTP/2
+  WebSocket openings also keep the family and register connected backups.
+  Dedicated winners stay outside ordinary pool slots. Accepted streams and
+  rejected bodies retain their owner. A backup sends no CONNECT and closes
+  while the winner remains usable, or serves later ordinary requests after
+  it retires. Connections to a proxy still close the slower attempt and
+  neither use nor learn the family; Firefox keeps both on every entry.
 - The slower attempt reaches the pool, and becomes claimable, once the
   first connection's handshake has finished. Firefox lets a request claim
   it as soon as the first connection takes its request.
@@ -1992,7 +1995,19 @@ Tests in `phantom-net` read the options back from connected sockets with
 | `http1::tls::tests::upgrade_opening` | A connected TLS opening sends no GET before `send`, preserves ordered request headers, closes without a GET when dropped, and rejects invalid headers before connecting |
 | `session::http1_pool::tests::websocket_opening` and `session::http1_or_2_pool::tests::websocket_opening` | Cancellation, rejected bodies, and accepted upgrades release the correct HTTP owner; pending spares survive opening cancellation; plaintext profile-policy openings use the exact HTTP/1 pool |
 | `websocket_retention` (facade, Windows) | Exact H1 and profile-policy H1 openings authenticate actual ECH connections, keep the spare quiet, and let an ordinary request claim it before the peer releases 101; plaintext profile-policy openings use the same request pool without a third TCP connection |
+| `http2::tls::tests::extended_connect_retention` | A connected opening sends no CONNECT before `send`, keeps ordered headers, validates before dialing, cancels while SETTINGS is missing, and preserves certificate errors |
+| `session::http2_pool::tests::websocket_retention` and `session::http1_or_2_pool::tests::websocket_retention` | Dedicated winner and backup publication, redundant closure, retired-winner replacement, stale completion, competing setup, family lifetime, cancellation, and task abort |
+| `websocket::http2::tests` | Accepted streams and rejected response bodies retain the actual dedicated owner until completion or transport drop |
+| `websocket_http2::retention` (facade, Windows) | Exact and profile-policy openings, with ordinary TLS and accepted ECH: quiet authenticated backups retire redundantly or serve later GETs without a third TCP connection or replayed CONNECT |
+| `websocket_http2::opening_early_data` | Actual resumed TLS acceptance and rejection keep CONNECT out of early data; changed ALPN returns the setup error without fallback |
 | `profile_tcp_settings_reach_every_tcp_connector` (facade) | A profile's settings reach each TCP connector the client builds, including the WebSocket HTTP/1.1 connector |
+
+Both public H2 WebSocket retention controls failed at their unchanged
+10-second deadlines against `5a9c89a7`, before the retention implementation.
+Each baseline stops at its first exact/TLS case. After the change, both
+controls pass every exact/profile-policy and ordinary-TLS/accepted-ECH case.
+All 23 new controls and the pinned nightly check pass. These local controls
+do not establish browser scheduling parity or proxy address selection.
 
 The public exact-H1 WebSocket control failed at its unchanged 20-second
 deadline against `523a7b5f`, before the WebSocket retention change. The same

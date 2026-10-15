@@ -7,6 +7,8 @@ use std::{
 };
 
 use http::{Method, Response};
+#[cfg(feature = "websocket")]
+use phantom_net::http2::Http2TlsConnector;
 use phantom_net::{
     http1::Http1TlsError,
     http1::{
@@ -539,6 +541,17 @@ impl Http1Or2Pool {
         OriginOpening { entry }
     }
 
+    /// Owns a dedicated direct H2 opening in its negotiated origin entry.
+    #[cfg(feature = "websocket")]
+    pub(crate) async fn origin_http2_opening(&self, endpoint: &Endpoint) -> OriginHttp2Opening {
+        let entry = self.entry(PoolKey::new(endpoint, &Route::Direct)).await;
+        entry.connections.begin_http2_opening();
+        OriginHttp2Opening {
+            entry,
+            pending: true,
+        }
+    }
+
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
         let mut state = self.state.lock().await;
         if let Some(position) = state
@@ -599,6 +612,105 @@ impl Http1Or2Pool {
         let entry = Arc::new(entry);
         state.entries.push_back((key, Arc::clone(&entry)));
         entry
+    }
+}
+
+/// A dedicated direct H2 setup or connected stream, separate from pooled slots.
+#[cfg(feature = "websocket")]
+pub(crate) struct OriginHttp2Opening {
+    entry: Arc<PoolEntry>,
+    pending: bool,
+}
+
+#[cfg(feature = "websocket")]
+impl OriginHttp2Opening {
+    pub(crate) fn family(&self) -> &Arc<AddressFamilyMemory> {
+        &self.entry.connections.family
+    }
+
+    pub(crate) fn connector(
+        &self,
+        base: &Http1Or2TlsConnector,
+        endpoint: &Endpoint,
+    ) -> Result<Http2TlsConnector, RequestError> {
+        self.entry
+            .origin_connector(base, endpoint, &Route::Direct)
+            .map(|connector| connector.http2_connector())
+    }
+
+    pub(crate) fn connected(
+        mut self,
+        winner: &Http2Connection,
+        slower: Option<SlowerConnection<Http2Connection>>,
+    ) -> DedicatedHttp2Owner {
+        let owner = DedicatedHttp2Owner {
+            connection: Some(Arc::new(winner.clone())),
+            connections: Arc::clone(&self.entry.connections),
+        };
+        let spare = slower.and_then(|slower| {
+            tokio::runtime::Handle::try_current()
+                .ok()
+                .map(|runtime| (runtime, slower))
+        });
+        let spare = {
+            let mut state = self.entry.connections.lock();
+            state.openings -= 1;
+            state.dedicated.retain(|owner| owner.strong_count() != 0);
+            if let Some(connection) = &owner.connection {
+                state.dedicated.push(Arc::downgrade(connection));
+            }
+            let spare = spare.map(|(runtime, slower)| {
+                let id = state.next_spare;
+                state.next_spare = state.next_spare.wrapping_add(1);
+                state.spares.push(Spare {
+                    id,
+                    progress: slower.progress(),
+                    claim: None,
+                    task: None,
+                });
+                (runtime, id, slower)
+            });
+            self.pending = false;
+            spare
+        };
+        if let Some((runtime, id, slower)) = spare {
+            let progress = slower.progress();
+            self.entry.connections.spawn_spare(
+                runtime,
+                id,
+                SlowerConnection::new(progress, async move {
+                    slower.finish().await.map(Http1Or2Connection::Http2)
+                }),
+            );
+        }
+        self.entry.connections.setup_done.notify_waiters();
+        owner
+    }
+}
+
+#[cfg(feature = "websocket")]
+impl Drop for OriginHttp2Opening {
+    fn drop(&mut self) {
+        if self.pending {
+            self.entry.connections.lock().openings -= 1;
+            self.entry.connections.prune_empty_family();
+            self.entry.connections.setup_done.notify_waiters();
+        }
+    }
+}
+
+#[cfg(feature = "websocket")]
+pub(crate) struct DedicatedHttp2Owner {
+    connection: Option<Arc<Http2Connection>>,
+    connections: Arc<EntryConnections>,
+}
+
+#[cfg(feature = "websocket")]
+impl Drop for DedicatedHttp2Owner {
+    fn drop(&mut self) {
+        drop(self.connection.take());
+        self.connections.prune_empty_family();
+        self.connections.setup_done.notify_waiters();
     }
 }
 
@@ -1475,6 +1587,7 @@ struct EntryConnections {
 struct ConnectionState {
     /// Direct Upgrade openings that have not handed off their transport.
     openings: usize,
+    dedicated: Vec<Weak<Http2Connection>>,
     /// Reusable H2 connections, oldest first.
     http2: Vec<Http2Slot>,
     /// How H2 streams spread across `http2`.
@@ -1516,6 +1629,7 @@ impl ConnectionState {
             && self.connecting == 0
             && self.spares.is_empty()
             && self.openings == 0
+            && !self.dedicated.iter().any(|owner| owner.strong_count() != 0)
     }
 
     fn take_spare(&mut self, id: u64) -> Option<Spare> {
@@ -1684,6 +1798,13 @@ impl SpareClaim {
 }
 
 impl EntryConnections {
+    #[cfg(feature = "websocket")]
+    fn begin_http2_opening(&self) {
+        let mut state = self.lock();
+        self.family.mark_active();
+        state.openings += 1;
+    }
+
     /// Starts with the browser default of one H2 connection per key.
     fn new(max_http1: NonZeroUsize, http2_keys: Arc<Http2Keys>, key: PoolKey) -> Self {
         let state = ConnectionState {
@@ -1693,6 +1814,7 @@ impl EntryConnections {
             http1_leased: 0,
             connecting: 0,
             openings: 0,
+            dedicated: Vec::new(),
             spares: Vec::new(),
             next_spare: 0,
             selected_http2: http2_keys.contains(&key),
@@ -1784,6 +1906,15 @@ impl EntryConnections {
             });
             id
         };
+        self.spawn_spare(runtime, id, slower);
+    }
+
+    fn spawn_spare(
+        self: &Arc<Self>,
+        runtime: tokio::runtime::Handle,
+        id: u64,
+        slower: SlowerConnection<Http1Or2Connection>,
+    ) {
         let report = SpareReport {
             entry: Some(Arc::downgrade(self)),
             id,
@@ -1815,7 +1946,15 @@ impl EntryConnections {
     /// `netwerk/protocol/http/Http2Session.cpp:812-826`, `:3570-3615`).
     fn spare_finished(self: &Arc<Self>, id: u64, connection: Option<Http1Or2Connection>) {
         let mut state = self.lock();
-        let mut claim = state.take_spare(id).and_then(|spare| spare.claim);
+        let Some(spare) = state.take_spare(id) else {
+            drop(state);
+            drop(connection);
+            return;
+        };
+        let mut claim = spare.claim;
+        state.dedicated.retain(|owner| owner.strong_count() != 0);
+        let dedicated: Vec<_> = state.dedicated.iter().filter_map(Weak::upgrade).collect();
+        let dedicated_reusable = dedicated.iter().any(|owner| owner.is_reusable());
         match connection {
             None => {
                 drop(state);
@@ -1826,7 +1965,11 @@ impl EntryConnections {
             }
             Some(Http1Or2Connection::Http2(connection)) => {
                 let left = connection.idle_time_left();
-                let (closed, idle) = state.place_http2(connection, &self.setup_done);
+                let (closed, idle) = if dedicated_reusable || state.connecting != 0 {
+                    (Some(connection), Vec::new())
+                } else {
+                    state.place_http2(connection, &self.setup_done)
+                };
                 drop(state);
                 if closed.is_none() {
                     self.http2_joined(left);
@@ -1839,7 +1982,7 @@ impl EntryConnections {
             }
             Some(Http1Or2Connection::Http1(connection)) => {
                 state.http2.retain(|slot| slot.connection.is_reusable());
-                if !state.http2.is_empty() || !connection.is_reusable() {
+                if !state.http2.is_empty() || dedicated_reusable || !connection.is_reusable() {
                     drop(state);
                     debug!(
                         outcome = "redundant",
@@ -1873,6 +2016,7 @@ impl EntryConnections {
                 drop(connection);
             }
         }
+        drop(dedicated);
         // A claimant whose claim is dropped here chooses again: the H2
         // connection, an idle one, or a new one.
         drop(claim);

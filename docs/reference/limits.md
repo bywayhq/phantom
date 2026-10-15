@@ -218,6 +218,9 @@ ECH configuration across their retained attempts. Exact H2 retains only an
 already-connected backup. Its setup sends no request, and the pool admits it
 within the configured connection and spread limits. Authenticated ECH
 rejection permits one reconnect to that attempt's selected address.
+Direct H2 WebSocket openings share these rules. Their dedicated winner is
+not an ordinary pool slot. An accepted stream or rejected body keeps its
+family owner; a redundant backup closes without CONNECT or other requests.
 
 ### RTT-based racing
 

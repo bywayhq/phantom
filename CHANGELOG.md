@@ -1149,6 +1149,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Retain direct HTTP/2 WebSocket backup connections for exact and profile-policy
+  openings. The dedicated connection keeps its address-family ownership through
+  an accepted stream or rejected response body. A connected backup finishes
+  TLS and H2 without sending CONNECT, closes when redundant, or serves later
+  ordinary requests after the winner retires. Native callers can use
+  `Http2TlsConnector::open_extended_connect` to register the actual connection
+  before `Http2ExtendedConnectOpening::send` sends the request.
+
 - Add `Http1TlsConnector::open_upgrade` and `Http1UpgradeOpening::send` to
   separate a direct connection from sending its validated Upgrade GET.
 

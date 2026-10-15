@@ -18,6 +18,8 @@ use crate::{
 
 mod early_data;
 mod slower_connection;
+#[cfg(feature = "websocket")]
+mod websocket_retention;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 

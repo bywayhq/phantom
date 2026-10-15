@@ -283,6 +283,12 @@ resolved addresses.
   selected ECH configuration and authenticated retry rules. With the default
   one-connection limit, a usable winner makes it redundant. Otherwise it may
   replace a retired winner, within the pool's connection and spread limits.
+- Direct HTTP/2 WebSocket openings, exact or chosen by profile policy, use
+  their request pool's remembered family and ticket connector. Their dedicated
+  connection stays outside ordinary pool slots. An accepted stream or rejected
+  response body keeps that ownership until it ends. A connected backup finishes
+  without CONNECT. It closes while the dedicated winner is usable, or becomes
+  an ordinary pooled connection after that winner retires.
 - `TcpAddressSelection::Sequential` takes a `TcpAddressAdvance`:
   `AfterAnyFailure`, the default, moves to the next address after any
   failure, and `AfterRefusalOrTimeout`, which `firefox::v157_tcp` sets,
@@ -292,7 +298,7 @@ resolved addresses.
   turns off the kernel's send buffer autotuning, so clear
   `send_buffer_size` for a profile used off Windows.
 - Not modeled for Firefox: keeping the slower connection, and remembering
-  the address family, on proxy routes and HTTP/2 WebSocket connections;
+  the address family, on proxy routes;
   skipping an address that failed before on the same cached DNS record; its
   `SO_LINGER` of `{1, 0}` (its close is still a FIN, as Phantom's is); and
   the probe counts of macOS and Linux.

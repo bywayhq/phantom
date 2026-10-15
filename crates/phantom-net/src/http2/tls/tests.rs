@@ -39,6 +39,7 @@ use crate::{
 
 mod alps_concurrency_gate;
 mod alps_hpack_last_wins;
+mod extended_connect_retention;
 mod key_update;
 mod ping_close;
 mod record_shape;

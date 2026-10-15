@@ -771,3 +771,7 @@ fn poisoned_wire_recorder_rejects_read_before_consuming_bytes() {
     assert_eq!(buffer.filled(), b"old");
     assert_eq!(stream.inner, b"wire");
 }
+
+mod opening_early_data;
+#[cfg(all(windows, feature = "https-records"))]
+mod retention;

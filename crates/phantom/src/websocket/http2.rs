@@ -5,7 +5,9 @@ use std::sync::Arc;
 
 use http::Response;
 use phantom_net::{
-    http2::{Http2ExtendedConnectOutcome, Http2TlsConnector, Http2TlsError},
+    http2::{
+        Http2ExtendedConnectOpening, Http2ExtendedConnectOutcome, Http2TlsConnector, Http2TlsError,
+    },
     request::{OriginForm, RequestHeader},
 };
 use phantom_profile::WebSocketRefusedStreamRetry;
@@ -34,10 +36,17 @@ use crate::{
 async fn extended_connect_direct(
     #[cfg_attr(not(feature = "https-records"), allow(unused_variables))] client: &Client,
     connector: &Http2TlsConnector,
+    family: &phantom_net::tcp::AddressFamilyMemory,
     endpoint: &Endpoint,
     target: OriginForm,
     headers: Vec<RequestHeader>,
-) -> Result<Http2ExtendedConnectOutcome, Http2TlsError> {
+) -> Result<
+    (
+        Http2ExtendedConnectOpening,
+        Option<phantom_net::tcp::SlowerConnection<phantom_net::http2::Http2Connection>>,
+    ),
+    Http2TlsError,
+> {
     let (host, port, authority) = (
         endpoint.host(),
         endpoint.port(),
@@ -49,14 +58,17 @@ async fn extended_connect_direct(
     }) {
         let mut ech = std::pin::pin!(ech);
         return connector
-            .extended_connect(
+            .open_extended_connect(
                 phantom_net::route::Http2Route::Origin(phantom_net::route::OriginRoute::Tls {
                     tcp: phantom_net::route::TcpRoute::Direct(phantom_net::route::Endpoint {
                         host,
                         port,
                     }),
                     server_name: host,
-                    setup: phantom_net::route::DirectTlsSetup::Ech(ech.as_mut()),
+                    setup: phantom_net::route::DirectTlsSetup::EchKeepingSlower {
+                        lookup: ech.as_mut(),
+                        family,
+                    },
                 }),
                 authority,
                 target,
@@ -65,20 +77,45 @@ async fn extended_connect_direct(
             .await;
     }
     connector
-        .extended_connect(
+        .open_extended_connect(
             phantom_net::route::Http2Route::Origin(phantom_net::route::OriginRoute::Tls {
                 tcp: phantom_net::route::TcpRoute::Direct(phantom_net::route::Endpoint {
                     host,
                     port,
                 }),
                 server_name: host,
-                setup: phantom_net::route::DirectTlsSetup::Default,
+                setup: phantom_net::route::DirectTlsSetup::KeepSlower(family),
             }),
             authority,
             target,
             headers,
         )
         .await
+}
+
+enum OpeningOwner {
+    Exact(crate::session::http2_pool::OriginHttp2Opening),
+    Negotiated(crate::session::http1_or_2_pool::OriginHttp2Opening),
+}
+
+impl OpeningOwner {
+    fn family(&self) -> &phantom_net::tcp::AddressFamilyMemory {
+        match self {
+            Self::Exact(owner) => owner.family(),
+            Self::Negotiated(owner) => owner.family(),
+        }
+    }
+
+    fn connected(
+        self,
+        connection: &phantom_net::http2::Http2Connection,
+        slower: Option<phantom_net::tcp::SlowerConnection<phantom_net::http2::Http2Connection>>,
+    ) -> Box<dyn Send + Sync> {
+        match self {
+            Self::Exact(owner) => Box::new(owner.connected(connection, slower)),
+            Self::Negotiated(owner) => Box::new(owner.connected(connection, slower)),
+        }
+    }
 }
 
 impl WebSocketRequestBuilder {
@@ -146,13 +183,44 @@ impl WebSocketRequestBuilder {
             cookie_value,
             extension_offer.as_ref().map(http::HeaderValue::as_bytes),
         )?;
+        let direct_opening = if matches!(
+            (&target, route),
+            (Http2Target::NewConnection, Route::Direct)
+        ) {
+            Some(match (selection, connectors.http1_or_2) {
+                (WebSocketSelection::ProfilePolicy, Some(negotiated)) => {
+                    let owner = client
+                        .state
+                        .http1_or_2
+                        .origin_http2_opening(&request.endpoint)
+                        .await;
+                    let connector = owner
+                        .connector(negotiated, &request.endpoint)
+                        .map_err(WebSocketError::request)?;
+                    (OpeningOwner::Negotiated(owner), connector)
+                }
+                _ => {
+                    let owner = client
+                        .state
+                        .http2
+                        .origin_http2_opening(&request.endpoint)
+                        .await;
+                    let connector = owner
+                        .connector(base, &request.endpoint)
+                        .map_err(WebSocketError::request)?;
+                    (OpeningOwner::Exact(owner), connector)
+                }
+            })
+        } else {
+            None
+        };
         // A new connection shares the TLS session tickets of a request pool
         // key, as `pooled_tls_connector` in `http1.rs` describes, looked up
         // only for a valid opening since creating a key can evict another; a
         // pooled session makes no handshake, and CONNECT-UDP is rejected
         // below before any I/O and creates no pool key.
         let pooled = match (&target, route) {
-            (Http2Target::Session(..), _) | (_, Route::ConnectUdp(_)) => None,
+            (Http2Target::Session(..), _) | (_, Route::ConnectUdp(_) | Route::Direct) => None,
             (Http2Target::NewConnection, _) => Some(match (selection, connectors.http1_or_2) {
                 (WebSocketSelection::ProfilePolicy, Some(negotiated)) => client
                     .state
@@ -249,14 +317,28 @@ impl WebSocketRequestBuilder {
                 )));
             }
             Route::Direct => {
-                extended_connect_direct(
+                let Some((owner, connector)) = direct_opening else {
+                    return Err(WebSocketError::request(
+                        RequestError::unsupported_transport_outcome(),
+                    ));
+                };
+                let (opening, slower) = extended_connect_direct(
                     &client,
-                    connector,
+                    &connector,
+                    owner.family(),
                     &request.endpoint,
                     request.target.clone(),
                     prepared.headers,
                 )
                 .await
+                .map_err(RequestError::http2_connection_setup)
+                .map_err(WebSocketError::request)?;
+                let owner = owner.connected(opening.connection(), slower);
+                let mut outcome = opening.send().await;
+                if let Ok(outcome) = &mut outcome {
+                    retain_opening_owner(outcome, owner);
+                }
+                outcome
             }
             Route::HttpProxy(proxy) => {
                 let connect_authority = request.endpoint.tunnel_authority();
@@ -477,6 +559,18 @@ impl WebSocketRequestBuilder {
     }
 }
 
+fn retain_opening_owner(outcome: &mut Http2ExtendedConnectOutcome, owner: Box<dyn Send + Sync>) {
+    match outcome {
+        Http2ExtendedConnectOutcome::Accepted { stream, .. } => {
+            stream.retain_until_stream_complete(owner)
+        }
+        Http2ExtendedConnectOutcome::Rejected(response) => {
+            response.body_mut().retain_until_stream_complete(owner)
+        }
+        _ => {}
+    }
+}
+
 /// Validates the CONNECT response and installs the frame engine.
 #[allow(clippy::too_many_arguments)]
 async fn finish_http2(
@@ -540,5 +634,101 @@ async fn finish_http2(
         _ => Err(WebSocketError::request(
             RequestError::unsupported_transport_outcome(),
         )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bytes::Bytes;
+    use http_body_util::BodyExt as _;
+    use std::sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    };
+
+    struct Released(Arc<AtomicBool>);
+    impl Drop for Released {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::SeqCst);
+        }
+    }
+
+    async fn outcome_owner(rejected: bool) -> Result<(), Box<dyn std::error::Error>> {
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            let (io, peer) = tokio::io::duplex(65536);
+            let settings = phantom_profile::browser::firefox::v157_http2();
+            let connection = phantom_net::http2::Http2Connection::connect(io, &settings).await?;
+            let released = Arc::new(AtomicBool::new(false));
+            let (done, completed) = tokio::sync::oneshot::channel();
+            let caller = async {
+                let mut outcome = connection
+                    .send_extended_connect_with_settings(
+                        &settings,
+                        "origin.test",
+                        OriginForm::parse("/events")?,
+                        Vec::new(),
+                    )
+                    .await?;
+                retain_opening_owner(&mut outcome, Box::new(Released(Arc::clone(&released))));
+                assert!(!released.load(Ordering::SeqCst));
+                match outcome {
+                    Http2ExtendedConnectOutcome::Rejected(response) if rejected => {
+                        assert_eq!(response.status(), 403);
+                        assert_eq!(
+                            response.into_body().collect().await?.to_bytes(),
+                            b"denied".as_slice()
+                        );
+                    }
+                    Http2ExtendedConnectOutcome::Accepted { stream, .. } if !rejected => {
+                        drop(stream)
+                    }
+                    _ => return Err("unexpected opening outcome".into()),
+                }
+                assert!(released.load(Ordering::SeqCst));
+                done.send(())
+                    .map_err(|_| "peer ended before owner release")?;
+                Result::<_, Box<dyn std::error::Error>>::Ok(())
+            };
+            let server = async {
+                let mut builder = ::http2::server::Builder::new();
+                builder.enable_connect_protocol();
+                let mut connection = builder.handshake::<_, Bytes>(peer).await?;
+                let (_request, mut respond) =
+                    connection.accept().await.ok_or("missing CONNECT")??;
+                let response = http::Response::builder()
+                    .status(if rejected { 403 } else { 200 })
+                    .body(())?;
+                let mut body = respond.send_response(response, false)?;
+                if rejected {
+                    body.send_data(Bytes::from_static(b"denied"), true)?;
+                }
+                tokio::select! {
+                    biased;
+                    result = completed => result?,
+                    next = connection.accept() => match next {
+                        Some(Ok(_)) => return Err("unexpected second application stream".into()),
+                        Some(Err(error)) => return Err(error.into()),
+                        None => return Err("peer ended before owner release".into()),
+                    }
+                }
+                Result::<_, Box<dyn std::error::Error>>::Ok(())
+            };
+            tokio::try_join!(caller, server)?;
+            Ok(())
+        })
+        .await?
+    }
+
+    #[tokio::test]
+    async fn rejected_connect_body_retains_dedicated_owner_until_body_completion()
+    -> Result<(), Box<dyn std::error::Error>> {
+        outcome_owner(true).await
+    }
+
+    #[tokio::test]
+    async fn accepted_connect_stream_retains_dedicated_owner_until_transport_drop()
+    -> Result<(), Box<dyn std::error::Error>> {
+        outcome_owner(false).await
     }
 }

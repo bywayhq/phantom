@@ -104,7 +104,7 @@ combinations and limits listed here.
 
 | Layer | Summary | Main gaps |
 | --- | --- | --- |
-| TCP | Profile `TCP_NODELAY`, send buffer, fixed or scheduled keepalive, Windows port randomization, Chromium Happy Eyeballs, and Firefox's backup connection, on every TCP path | Firefox's kept slower connection and remembered address family on proxy, WebSocket, and exact H2 connections |
+| TCP | Profile `TCP_NODELAY`, send buffer, fixed or scheduled keepalive, Windows port randomization, Chromium Happy Eyeballs, and Firefox's backup connection, on every TCP path | Firefox's kept slower connection and remembered address family on proxy routes; failed-address suppression |
 | TLS over TCP | Typed ordered ClientHellos from retained captures | More versions and platforms |
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse, browser per-host connection bounds | Broader retry classes |
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity and stream numbering | Firefox stream `WINDOW_UPDATE` |
@@ -162,14 +162,18 @@ Supported:
   one-connection limit, it closes if the winner remains usable, or replaces a
   retired winner. ECH selection and authenticated retry use the same rules
   as the direct HTTP/1.1 and negotiated attempts.
+- Direct exact and profile-policy HTTP/2 WebSocket openings remember the
+  family and register connected backups with their ordinary request pool.
+  Backup setup sends no CONNECT. Dedicated winners stay outside ordinary
+  pool slots; accepted streams and rejected bodies own their lifetime.
 - Named TCP policies: `chrome::v154_tcp` for Windows and Linux;
   `firefox::v157_tcp` for Windows.
 
 Not modeled:
 
 - Parts of Firefox's address selection: keeping the slower connection, and
-  remembering the address family, on proxy routes, on HTTP/2 WebSocket
-  connections; skipping an address that failed before on the same cached DNS
+  remembering the address family, on proxy routes; skipping an address that
+  failed before on the same cached DNS
   record; and
   noticing at once that a server closed an idle connection, which can make
   Firefox remember a family longer.

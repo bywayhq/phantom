@@ -387,23 +387,20 @@ impl Http2Pool {
                 Http2ConnectionMode::TlsOrigin,
             ))
             .await;
-        let connector = entry
-            .connector
-            .get_or_init(|| base.with_isolated_session_cache());
-        entry
-            .tickets
-            .register_before_use(
-                connector.session_ticket_cache(),
-                TicketCacheBinding {
-                    origin: endpoint,
-                    server_name: endpoint.host(),
-                    leg: TicketCacheLeg::Origin,
-                    protocol: Ok(TicketCacheProtocol::Http2),
-                    route,
-                },
-            )
-            .map_err(RequestError::session_tickets)?;
-        Ok(connector.clone())
+        entry.origin_connector(base, endpoint, route)
+    }
+
+    /// Owns a dedicated direct H2 opening in its ordinary origin entry.
+    #[cfg(feature = "websocket")]
+    pub(crate) async fn origin_http2_opening(&self, endpoint: &Endpoint) -> OriginHttp2Opening {
+        let entry = self
+            .entry(PoolKey::new(
+                endpoint,
+                &Route::Direct,
+                Http2ConnectionMode::TlsOrigin,
+            ))
+            .await;
+        entry.begin_http2_opening()
     }
 
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
@@ -536,6 +533,8 @@ impl PoolEntry {
                 spread,
                 spares: Vec::new(),
                 next_spare: 0,
+                openings: 0,
+                dedicated: Vec::new(),
             }),
             setup_done: Arc::new(Notify::new()),
             admission,
@@ -548,6 +547,30 @@ impl PoolEntry {
         }
     }
 
+    #[cfg(feature = "websocket")]
+    fn origin_connector(
+        &self,
+        base: &Http2TlsConnector,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Result<Http2TlsConnector, RequestError> {
+        let connector = self
+            .connector
+            .get_or_init(|| base.with_isolated_session_cache());
+        self.tickets
+            .register_before_use(
+                connector.session_ticket_cache(),
+                TicketCacheBinding {
+                    origin: endpoint,
+                    server_name: endpoint.host(),
+                    leg: TicketCacheLeg::Origin,
+                    protocol: Ok(TicketCacheProtocol::Http2),
+                    route,
+                },
+            )
+            .map_err(RequestError::session_tickets)?;
+        Ok(connector.clone())
+    }
     async fn admit(&self) -> Result<AdmissionPermit, RequestError> {
         Arc::clone(&self.admission).admit(HttpProtocol::Http2).await
     }
@@ -904,6 +927,8 @@ impl PoolEntry {
 
     fn spare_finished(&self, id: u64, connection: Option<Http2Connection>) {
         let mut state = self.lock();
+        state.dedicated.retain(|owner| owner.strong_count() != 0);
+        let dedicated: Vec<_> = state.dedicated.iter().filter_map(Weak::upgrade).collect();
         let registered = state
             .spares
             .iter()
@@ -923,6 +948,7 @@ impl PoolEntry {
         let mut kept = false;
         if registered
             && !state.connecting
+            && !dedicated.iter().any(|owner| owner.is_reusable())
             && retired.as_ref().is_some_and(Http2Connection::is_reusable)
             && matches!(state.choose(), Choice::Open)
             && let Some(connection) = retired.take()
@@ -935,6 +961,7 @@ impl PoolEntry {
             kept = true;
         }
         drop(state);
+        drop(dedicated);
         // A redundant H2 session closes after its preface/SETTINGS, with no
         // request. As in the negotiated pool, drop it outside the entry lock.
         drop(retired);
@@ -970,6 +997,103 @@ impl PoolEntry {
         }
         drop(connections);
         self.prune_empty_family();
+    }
+}
+
+/// A direct dedicated H2 setup that still owns its origin family.
+#[cfg(feature = "websocket")]
+pub(crate) struct OriginHttp2Opening {
+    entry: Arc<PoolEntry>,
+    pending: bool,
+}
+
+#[cfg(feature = "websocket")]
+impl PoolEntry {
+    fn begin_http2_opening(self: &Arc<Self>) -> OriginHttp2Opening {
+        {
+            let mut state = self.lock();
+            self.family.mark_active();
+            state.openings += 1;
+        }
+        OriginHttp2Opening {
+            entry: Arc::clone(self),
+            pending: true,
+        }
+    }
+}
+
+#[cfg(feature = "websocket")]
+impl OriginHttp2Opening {
+    pub(crate) fn family(&self) -> &Arc<AddressFamilyMemory> {
+        &self.entry.family
+    }
+
+    pub(crate) fn connector(
+        &self,
+        base: &Http2TlsConnector,
+        endpoint: &Endpoint,
+    ) -> Result<Http2TlsConnector, RequestError> {
+        self.entry.origin_connector(base, endpoint, &Route::Direct)
+    }
+
+    /// Publishes the actual winner and spare before either can notify waiters.
+    pub(crate) fn connected(
+        mut self,
+        winner: &Http2Connection,
+        slower: Option<SlowerConnection<Http2Connection>>,
+    ) -> DedicatedHttp2Owner {
+        let owner = DedicatedHttp2Owner {
+            connection: Some(Arc::new(winner.clone())),
+            entry: Arc::clone(&self.entry),
+        };
+        let spare = slower.and_then(|slower| {
+            tokio::runtime::Handle::try_current()
+                .ok()
+                .map(|runtime| (runtime, slower))
+        });
+        let spare = {
+            let mut state = self.entry.lock();
+            state.openings -= 1;
+            state.dedicated.retain(|owner| owner.strong_count() != 0);
+            if let Some(connection) = &owner.connection {
+                state.dedicated.push(Arc::downgrade(connection));
+            }
+            let spare = spare.map(|(runtime, slower)| (runtime, state.register_spare(), slower));
+            self.pending = false;
+            spare
+        };
+        if let Some((runtime, id, slower)) = spare {
+            self.entry.spawn_spare(runtime, id, slower);
+        }
+        self.entry.setup_done.notify_waiters();
+        owner
+    }
+}
+
+#[cfg(feature = "websocket")]
+impl Drop for OriginHttp2Opening {
+    fn drop(&mut self) {
+        if self.pending {
+            self.entry.lock().openings -= 1;
+            self.entry.prune_empty_family();
+            self.entry.setup_done.notify_waiters();
+        }
+    }
+}
+
+#[cfg(feature = "websocket")]
+pub(crate) struct DedicatedHttp2Owner {
+    connection: Option<Arc<Http2Connection>>,
+    entry: Arc<PoolEntry>,
+}
+
+#[cfg(feature = "websocket")]
+impl Drop for DedicatedHttp2Owner {
+    fn drop(&mut self) {
+        // Release the last wrapped handle outside the entry lock before prune.
+        drop(self.connection.take());
+        self.entry.prune_empty_family();
+        self.entry.setup_done.notify_waiters();
     }
 }
 
@@ -1043,6 +1167,8 @@ struct Connections {
     spread: Http2Spread,
     spares: Vec<Spare>,
     next_spare: u64,
+    openings: usize,
+    dedicated: Vec<Weak<Http2Connection>>,
 }
 
 /// The key's one connection setup in flight.
@@ -1116,7 +1242,11 @@ impl Connections {
     }
 
     fn is_empty(&self) -> bool {
-        self.slots.is_empty() && !self.connecting && self.spares.is_empty()
+        self.slots.is_empty()
+            && !self.connecting
+            && self.spares.is_empty()
+            && self.openings == 0
+            && !self.dedicated.iter().any(|owner| owner.strong_count() != 0)
     }
 
     fn retain_reusable(&mut self) {
@@ -1159,6 +1289,8 @@ struct ConnectionLease {
 #[cfg(test)]
 mod tests {
     mod retention;
+    #[cfg(feature = "websocket")]
+    mod websocket_retention;
     use std::{num::NonZeroUsize, sync::Arc};
 
     use super::{Http2Pool, PoolEntry, PoolKey, SetupReservation};

@@ -163,6 +163,11 @@ features or blockers for the Phase 2 API work.
   when HTTPS records supply ECH. Both connections initially offer the same
   selected ECH configuration. Direct HTTP/1.1 WebSocket openings also keep
   their backup in the corresponding request pool before sending Upgrade.
+  Direct exact H2 requests and exact/profile-policy H2 WebSocket openings
+  finish an already-connected backup without a request, using the same ECH
+  selection. A usable winner makes it redundant; a retired winner can leave
+  it for later ordinary requests. H2 WebSocket streams and rejected bodies
+  keep their dedicated connection's family owner outside ordinary pool slots.
   The slower connection counts against its
   runtime pool key's bound, finishes TLS, and waits for a request to claim
   it. HTTP/2 selection closes redundant slower attempts. Each origin keeps
@@ -353,7 +358,7 @@ completed phase scope.
   the emulator ends the guest's TCP connections, so no capture shows them
   ([Chrome for Android 154 recipes](explanation/validation.md#chrome-for-android-154-recipes)).
   Blocker: none recorded; a source-backed recipe.
-- Firefox's address selection on proxies and HTTP/2 WebSockets, plus
+- Firefox's address selection on proxies, plus
   failed-address suppression. Evidence: Firefox keeps the slower backup
   connection and address family on every connection entry, proxies,
   WebSocket, and HTTP/2 included, and skips an address that failed to
@@ -363,17 +368,9 @@ completed phase scope.
   these routes, and Phantom closes the slower attempt there, learns no
   family, and tries a failed address again
   ([TCP socket option evidence](explanation/validation.md#tcp-socket-option-evidence)).
-  Blocker: none recorded; the work is to give the proxy and HTTP/2
-  connectors a family and a second connection, and to record
+  Blocker: none recorded; the work is to give proxy connections a family
+  and a second connection, and to record
   connect failures in the address cache.
-- Direct exact-H2 retention is in integration. It remembers the family and
-  finishes only an already-connected backup, with the same ECH selection
-  and authenticated retry rules. The default pool closes a redundant backup
-  or admits it after the winner retires, without an automatic request.
-  Public controls pass for retired-winner reuse and redundant retirement,
-  with ordinary TLS and accepted ECH. All 46 focused controls pass. The full
-  gate and delivery are pending
-  ([TCP socket option evidence](explanation/validation.md#tcp-socket-option-evidence)).
 
 #### Wire fidelity
 

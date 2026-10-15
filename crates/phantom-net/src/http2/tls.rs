@@ -14,9 +14,9 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use super::{
-    Http2Body, Http2Builder, Http2Connection, Http2Error, Http2ExtendedConnectOutcome,
-    OperationOutcome, OriginForm, PreparedRequest, RequestHeader, alps,
-    translate_extended_connect_settings, translate_settings, validate_extended_connect,
+    Http2Body, Http2Builder, Http2Connection, Http2Error, Http2ExtendedConnectOpening,
+    Http2ExtendedConnectOutcome, OperationOutcome, OriginForm, PreparedRequest, RequestHeader,
+    alps, translate_extended_connect_settings, translate_settings, validate_extended_connect,
 };
 use crate::{
     SourceBinding,
@@ -382,7 +382,7 @@ impl Http2TlsConnector {
                         .validate(false, true)
                         .map_err(Http2TlsError::Connect)?;
                     let client = translate_settings(&self.http2)?;
-                    self.connect_retaining_origin(origin, client).await
+                    self.connect_retaining_origin(origin, client, false).await
                 });
                 self.trace_connect(operation.as_mut()).await
             }
@@ -532,10 +532,56 @@ impl Http2TlsConnector {
             })
     }
 
+    /// Connects an extended CONNECT opening without sending its request.
+    ///
+    /// Settings, fields and routes are validated before I/O. Direct routes
+    /// offer early data for the preface and SETTINGS. `send` waits for its
+    /// checked result and the peer's extended CONNECT setting before HEADERS.
+    /// A direct retaining setup returns only an already-connected backup;
+    /// its null transaction sends no CONNECT or other application request.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Http2TlsError`] for invalid input or connection setup.
+    /// Forwarding routes are rejected. No protocol or route fallback occurs.
+    pub async fn open_extended_connect(
+        &self,
+        route: Http2Route<'_>,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<
+        (
+            Http2ExtendedConnectOpening,
+            Option<SlowerConnection<Http2Connection>>,
+        ),
+        Http2TlsError,
+    > {
+        let client = self.prepare_extended_connect(authority, &target, &headers)?;
+        let Http2Route::Origin(origin) = route else {
+            return Err(invalid_route("extended CONNECT requires an origin route"));
+        };
+        origin
+            .validate(false, true)
+            .map_err(Http2TlsError::Connect)?;
+        let (connection, slower) = self.connect_retaining_origin(origin, client, true).await?;
+        Ok((
+            Http2ExtendedConnectOpening::new(
+                connection,
+                self.http2.clone(),
+                authority.to_owned(),
+                target,
+                headers,
+            ),
+            slower,
+        ))
+    }
+
     async fn connect_retaining_origin(
         &self,
         origin: OriginRoute<'_>,
         client: Http2Builder,
+        extended_connect: bool,
     ) -> Result<(Http2Connection, Option<SlowerConnection<Http2Connection>>), Http2TlsError> {
         let OriginRoute::Tls {
             tcp,
@@ -565,7 +611,7 @@ impl Http2TlsConnector {
                         .connect_offering_early_data(server_name, stream)
                         .await?;
                     let keepalive = stream.tcp_keepalive();
-                    connect_over_tls(stream, client, false, keepalive).await
+                    connect_over_tls(stream, client, extended_connect, keepalive).await
                 };
                 match slower.as_mut() {
                     Some(attempt) => attempt.alongside(handshake).await?,
@@ -587,7 +633,7 @@ impl Http2TlsConnector {
                 slower = attempt;
                 selected_ech = Some(selected);
                 let keepalive = stream.tcp_keepalive();
-                let protocol = connect_over_tls(stream, client, false, keepalive);
+                let protocol = connect_over_tls(stream, client, extended_connect, keepalive);
                 match slower.as_mut() {
                     Some(attempt) => attempt.alongside(protocol).await?,
                     None => protocol.await?,
@@ -603,7 +649,7 @@ impl Http2TlsConnector {
                         },
                         client,
                         true,
-                        false,
+                        extended_connect,
                     )
                     .await
                     .map(|connection| (connection, None));

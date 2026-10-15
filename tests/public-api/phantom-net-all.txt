@@ -687,6 +687,12 @@ pub async fn phantom_net::http2::Http2Connection::send_request_body_with_trailer
 pub async fn phantom_net::http2::Http2Connection::send_request_with_trailers(&self, http::method::Method, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<bytes::bytes::Bytes>, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<http::response::Response<phantom_net::http2::Http2Body>, phantom_net::http2::Http2Error>
 impl core::fmt::Debug for phantom_net::http2::Http2Connection
 pub fn phantom_net::http2::Http2Connection::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::http2::Http2ExtendedConnectOpening
+impl phantom_net::http2::Http2ExtendedConnectOpening
+pub fn phantom_net::http2::Http2ExtendedConnectOpening::connection(&self) -> &phantom_net::http2::Http2Connection
+pub async fn phantom_net::http2::Http2ExtendedConnectOpening::send(self) -> core::result::Result<phantom_net::http2::Http2ExtendedConnectOutcome, phantom_net::http2::Http2TlsError>
+impl core::fmt::Debug for phantom_net::http2::Http2ExtendedConnectOpening
+pub fn phantom_net::http2::Http2ExtendedConnectOpening::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::http2::Http2ExtendedConnectStream
 impl core::fmt::Debug for phantom_net::http2::Http2ExtendedConnectStream
 pub fn phantom_net::http2::Http2ExtendedConnectStream::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -716,6 +722,7 @@ pub fn phantom_net::http2::Http2TlsConnector::host_resolver(&self) -> core::opti
 pub fn phantom_net::http2::Http2TlsConnector::new(&phantom_profile::tls::TlsSettings, &phantom_profile::http2::Http2Settings) -> core::result::Result<Self, phantom_net::http2::Http2TlsError>
 pub fn phantom_net::http2::Http2TlsConnector::new_with_additional_roots<'a>(&phantom_profile::tls::TlsSettings, &phantom_profile::http2::Http2Settings, impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>) -> core::result::Result<Self, phantom_net::http2::Http2TlsError>
 pub fn phantom_net::http2::Http2TlsConnector::new_with_server_authentication(&phantom_profile::tls::TlsSettings, &phantom_profile::http2::Http2Settings, phantom_net::ServerAuthentication) -> core::result::Result<Self, phantom_net::http2::Http2TlsError>
+pub async fn phantom_net::http2::Http2TlsConnector::open_extended_connect(&self, phantom_net::route::Http2Route<'_>, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<(phantom_net::http2::Http2ExtendedConnectOpening, core::option::Option<SlowerConnection<phantom_net::http2::Http2Connection>>), phantom_net::http2::Http2TlsError>
 pub async fn phantom_net::http2::Http2TlsConnector::send(&self, phantom_net::route::Http2Route<'_>, http::method::Method, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<bytes::bytes::Bytes>) -> core::result::Result<http::response::Response<phantom_net::http2::Http2Body>, phantom_net::http2::Http2TlsError>
 pub async fn phantom_net::http2::Http2TlsConnector::send_extended_connect_on(&self, &phantom_net::http2::Http2Connection, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<phantom_net::http2::Http2ExtendedConnectOutcome, phantom_net::http2::Http2TlsError>
 pub fn phantom_net::http2::Http2TlsConnector::session_ticket_cache(&self) -> core::option::Option<phantom_net::SessionTicketCache>
