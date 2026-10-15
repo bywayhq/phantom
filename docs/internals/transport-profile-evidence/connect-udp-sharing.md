@@ -158,7 +158,12 @@ check. Workspace and feature-matrix Clippy rejected the two explicit future
 signatures as a style issue. Item-local allowances retain their required
 `Send` proof boundary. All other gate steps passed. The complete logs remain
 under `target/transport-profile-campaign/connect-udp-f181d1f7-gate/`.
-The next signed-head gate must pass before delivery.
+The signed `0f404ab2` gate then passed all 22 steps, including all 4,982
+Rust tests, strict Clippy, documentation, feature and MSRV rows, and the
+pinned nightly check. Immutable step logs remain under
+`target/transport-profile-campaign/connect-udp-0f404ab2-gate/`.
+PR #229 passed all 43 checks, including macOS and Windows, and merged by
+fast-forward at that exact commit. Main push CI is still running.
 
 The explicit Rust interoperability tests require `PHANTOM_CONNECT_UDP_PYTHON`
 to name an interpreter with those pinned packages. The process is owned
