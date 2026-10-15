@@ -73,6 +73,33 @@ Each artifact was checked before copying from the lane.
 T2's fixture defect has a verified repair. Exact attribution of the historical
 17.579-second pause remains unresolved. Green replay does not close it.
 
+## 2026-10-15 isolated observation
+
+One original test from `39488c237cdccf61c0abf2f64767fb19fb4e6392`
+failed with Windows error 10048 while connecting for `/retire`, before
+reaching `/done`. Owned cleanup completed and historical source stayed
+unchanged. The observation records no owner-bound `/done` receive or sleep
+timer sequence. This separate address-in-use error does not reproduce the
+historical response/EOF timeout or explain its 17.579-second pause. The replay
+does not establish the historical native dependency identity, and observer
+effects apply. The original cause remains open.
+
+Artifacts are retained at
+`C:/code/phantom-worktrees/tls-done-diagnosis/target/transport-profile-campaign/T2-next-causal-step-v1/`:
+`observed-once.json` contains the stage events; `owned-once-v1/result.json`
+and `complete.log` retain the command, failure and cleanup outcome.
+
+| Input or artifact | SHA256 |
+| --- | --- |
+| Historical `tls_resumption.py` | `94aa22c6206de97383151dd61be51f323a8f4cfb8187d7eb048defd947300b72` |
+| Historical `test_tls_resumption.py` | `5bd2ec3e15b8a86d73b7fdc317d67b9b81209c24b051f4dd05cf1e3034690d68` |
+| Observer source | `dcf2e7d4e36b78282fa53ef12af1c08ac7354eb249c7b16d0909d8d3adb2236d` |
+| `owned-once-v1/complete.log` | `201e5d40caf9864d11ebe0ec2ae8a2eebbafd3a01ae217e2960b6ce7453417a8` |
+| `observed-once.json` | `df1b6b2ade8c635eba120d70685a7995e1575c7edc4cb6f45b8cee11b7b593d5` |
+
+The next causal observation still needs to reach `/done` and associate its
+native receive, response completion and retirement timer with one connection.
+
 ## Next
 
 - [Campaign](../transport-and-profile-campaign.md): open tasks and delivery.
