@@ -29,7 +29,7 @@ use tracing::debug;
 use super::{
     HttpConnectError, HttpConnectErrorKind, HttpProxyAuthentication, HttpProxyCredentials,
 };
-use crate::http2::Http2Connection;
+use crate::{http2::Http2Connection, tcp::AddressFamilyMemory};
 
 mod idle;
 
@@ -178,7 +178,7 @@ impl Http2ProxyPool {
         open: F,
     ) -> Result<PooledConnection, HttpConnectError>
     where
-        F: FnOnce() -> Fut,
+        F: FnOnce(AddressFamilyMemory) -> Fut,
         Fut: Future<Output = Result<Http2Connection, HttpConnectError>>,
     {
         let route = self.route(key);
@@ -230,7 +230,7 @@ impl Http2ProxyPool {
             changed.await;
         };
         debug!(outcome = "connect", "HTTP/2 proxy pool opening connection");
-        match open().await {
+        match open(route.family.clone()).await {
             Ok(connection) => reservation.finish(connection),
             Err(error) => {
                 reservation.fail(error.kind());
@@ -326,6 +326,10 @@ impl fmt::Debug for ConnectionSettingsId {
 #[derive(Default)]
 struct RouteConnections {
     state: Mutex<RouteState>,
+    /// The physical proxy's family, shared by this keyed route's setups.
+    /// Keep it through slot retirement: forwarding handles can outlive slots.
+    /// A route recreated after bounded LRU eviction starts with fresh memory.
+    family: AddressFamilyMemory,
     /// Woken when a setup finishes, fails, or is cancelled, and when a
     /// tunnel ends.
     changed: Notify,

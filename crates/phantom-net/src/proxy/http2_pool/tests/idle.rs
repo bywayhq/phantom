@@ -64,10 +64,10 @@ async fn an_unlimited_connection_has_no_idle_callback() -> TestResult {
     let route = pool.route(key(&settings));
     // A scheduling failure must not affect an untimed profile.
     route.fail_next_deadline.store(true, Ordering::Release);
-    let first = pool.acquire(key(&settings), || connection(&peers)).await?;
+    let first = pool.acquire(key(&settings), |_| connection(&peers)).await?;
     assert!(route.lock().idle.is_none());
     assert!(route.fail_next_deadline.load(Ordering::Acquire));
-    let second = pool.acquire(key(&settings), || connection(&peers)).await?;
+    let second = pool.acquire(key(&settings), |_| connection(&peers)).await?;
     assert!(same_connection(&first, &second));
     Ok(())
 }
@@ -81,14 +81,14 @@ async fn a_required_timer_failure_fails_setup_and_all_existing_waiters() -> Test
     route.fail_next_deadline.store(true, Ordering::Release);
     let opens = AtomicUsize::new(0);
     let (release, gate) = oneshot::channel();
-    let mut first = Box::pin(pool.acquire(key(&settings), || async {
+    let mut first = Box::pin(pool.acquire(key(&settings), |_| async {
         opens.fetch_add(1, Ordering::AcqRel);
         gate.await
             .map_err(|_| HttpConnectError::RuntimeUnavailable)?;
         timed_connection(&peers, Duration::from_secs(10)).await
     }));
     assert!(!poll_once(&mut first).await);
-    let mut waiter = Box::pin(pool.acquire(key(&settings), || async {
+    let mut waiter = Box::pin(pool.acquire(key(&settings), |_| async {
         opens.fetch_add(1, Ordering::AcqRel);
         timed_connection(&peers, Duration::from_secs(10)).await
     }));
@@ -107,7 +107,7 @@ async fn a_required_timer_failure_fails_setup_and_all_existing_waiters() -> Test
     assert!(route.lock().slots.is_empty());
 
     let retry = pool
-        .acquire(key(&settings), || {
+        .acquire(key(&settings), |_| {
             timed_connection(&peers, Duration::from_secs(10))
         })
         .await?;
@@ -123,7 +123,7 @@ async fn a_failed_rearm_is_observed_before_an_explicit_retry() -> TestResult {
     let peers = std::sync::Mutex::new(Vec::new());
     let route = pool.route(key(&settings));
     let first = pool
-        .acquire(key(&settings), || {
+        .acquire(key(&settings), |_| {
             timed_connection(&peers, Duration::from_secs(10))
         })
         .await?;
@@ -142,7 +142,7 @@ async fn a_failed_rearm_is_observed_before_an_explicit_retry() -> TestResult {
     assert!(!first.connection.is_closed(), "a caller lease must survive");
 
     let observed = pool
-        .acquire(key(&settings), || {
+        .acquire(key(&settings), |_| {
             timed_connection(&peers, Duration::from_secs(10))
         })
         .await;
@@ -151,7 +151,7 @@ async fn a_failed_rearm_is_observed_before_an_explicit_retry() -> TestResult {
         Err(HttpConnectError::RuntimeUnavailable)
     ));
     let retry = pool
-        .acquire(key(&settings), || {
+        .acquire(key(&settings), |_| {
             timed_connection(&peers, Duration::from_secs(10))
         })
         .await?;
@@ -167,7 +167,7 @@ async fn a_cancelled_callback_cannot_retire_a_replacement_connection() -> TestRe
     let peers = std::sync::Mutex::new(Vec::new());
     let route = pool.route(key(&settings));
     let old = pool
-        .acquire(key(&settings), || {
+        .acquire(key(&settings), |_| {
             timed_connection(&peers, Duration::from_secs(10))
         })
         .await?;
@@ -175,12 +175,12 @@ async fn a_cancelled_callback_cannot_retire_a_replacement_connection() -> TestRe
     old.retire();
     route.lock().idle = None;
     let new = pool
-        .acquire(key(&settings), || {
+        .acquire(key(&settings), |_| {
             timed_connection(&peers, Duration::from_secs(10))
         })
         .await?;
     route.prune_idle(&identity);
-    let again = pool.acquire(key(&settings), || connection(&peers)).await?;
+    let again = pool.acquire(key(&settings), |_| connection(&peers)).await?;
     assert!(same_connection(&new, &again));
     assert!(route.lock().idle.is_some());
     Ok(())
@@ -194,7 +194,7 @@ async fn the_pending_timer_does_not_keep_a_route_alive() -> TestResult {
     let route = pool.route(key(&settings));
     let weak = std::sync::Arc::downgrade(&route);
     let lease = pool
-        .acquire(key(&settings), || {
+        .acquire(key(&settings), |_| {
             timed_connection(&peers, Duration::from_secs(10))
         })
         .await?;
@@ -219,7 +219,7 @@ fn a_timed_pool_does_not_require_the_callers_time_driver() -> TestResult {
         let settings = ConnectionSettingsId::default();
         let peers = std::sync::Mutex::new(Vec::new());
         let first = pool
-            .acquire(key(&settings), || {
+            .acquire(key(&settings), |_| {
                 timed_connection(&peers, Duration::from_secs(10))
             })
             .await?;
@@ -236,12 +236,12 @@ async fn expired_slots_do_not_retire_another_routes_live_connection() -> TestRes
     let other_settings = ConnectionSettingsId::default();
     let peers = std::sync::Mutex::new(Vec::new());
     let old = pool
-        .acquire(key(&old_settings), || {
+        .acquire(key(&old_settings), |_| {
             timed_connection(&peers, Duration::from_secs(1))
         })
         .await?;
     let other = pool
-        .acquire(key(&other_settings), || {
+        .acquire(key(&other_settings), |_| {
             timed_connection(&peers, Duration::from_secs(10))
         })
         .await?;
@@ -250,7 +250,7 @@ async fn expired_slots_do_not_retire_another_routes_live_connection() -> TestRes
     tokio::time::sleep(QUIET).await;
     assert!(pool.route(key(&old_settings)).lock().slots.is_empty());
     let again = pool
-        .acquire(key(&other_settings), || connection(&peers))
+        .acquire(key(&other_settings), |_| connection(&peers))
         .await?;
     assert!(same_connection(&other, &again));
     assert!(!old.connection.is_closed());
@@ -267,14 +267,14 @@ async fn expiry_removes_only_the_due_slot_from_a_multiconnection_route() -> Test
     let mut old = Vec::new();
     for _ in 0..super::super::MAX_TUNNELS_PER_HTTP2_PROXY_CONNECTION {
         old.push(
-            pool.acquire(key(&settings), || {
+            pool.acquire(key(&settings), |_| {
                 timed_connection(&peers, Duration::from_secs(1))
             })
             .await?,
         );
     }
     let other = pool
-        .acquire(key(&settings), || {
+        .acquire(key(&settings), |_| {
             timed_connection(&peers, Duration::from_secs(10))
         })
         .await?;
@@ -284,7 +284,7 @@ async fn expiry_removes_only_the_due_slot_from_a_multiconnection_route() -> Test
     ));
     tokio::time::sleep(QUIET).await;
     assert_eq!(pool.route(key(&settings)).lock().slots.len(), 1);
-    let again = pool.acquire(key(&settings), || connection(&peers)).await?;
+    let again = pool.acquire(key(&settings), |_| connection(&peers)).await?;
     assert!(same_connection(&other, &again));
     Ok(())
 }
@@ -435,7 +435,7 @@ async fn tunnel_idle(activity: ReadActivity) -> TestResult {
         profile.ping_failure_retries = 0;
         profile.idle_timeout = Http2IdleTimeout::ClosedOnTimer(Duration::from_secs(1));
         let first = pool
-            .acquire(key(&settings), || async {
+            .acquire(key(&settings), |_| async {
                 Http2Connection::connect(client, &profile)
                     .await
                     .map_err(|error| HttpConnectError::Write(std::io::Error::other(error)))
@@ -479,7 +479,7 @@ async fn tunnel_idle(activity: ReadActivity) -> TestResult {
             "live tunnel was aborted at the idle deadline"
         );
         let peers = std::sync::Mutex::new(Vec::new());
-        let next = pool.acquire(key(&settings), || connection(&peers)).await?;
+        let next = pool.acquire(key(&settings), |_| connection(&peers)).await?;
         match activity {
             ReadActivity::Quiet => {
                 assert!(!std::sync::Arc::ptr_eq(&identity, &next.tunnel.tunnels))

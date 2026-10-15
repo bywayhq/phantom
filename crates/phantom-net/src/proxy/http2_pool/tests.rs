@@ -23,6 +23,7 @@ use crate::{
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
+mod family;
 mod idle;
 
 fn key(settings: &ConnectionSettingsId) -> RouteKey {
@@ -59,7 +60,7 @@ async fn concurrent_tunnels_share_one_setup() -> TestResult {
     let opens = AtomicUsize::new(0);
     let (release, gate) = oneshot::channel::<()>();
     let gate = std::sync::Mutex::new(Some(gate));
-    let open = || async {
+    let open = |_| async {
         opens.fetch_add(1, Ordering::AcqRel);
         let gate = gate.lock().ok().and_then(|mut gate| gate.take());
         if let Some(gate) = gate {
@@ -88,13 +89,13 @@ async fn a_cancelled_setup_wakes_its_waiters_and_one_retries() -> TestResult {
     let settings = ConnectionSettingsId::default();
     let peers = std::sync::Mutex::new(Vec::new());
     let opens = AtomicUsize::new(0);
-    let stalled = Box::pin(pool.acquire(key(&settings), || async {
+    let stalled = Box::pin(pool.acquire(key(&settings), |_| async {
         opens.fetch_add(1, Ordering::AcqRel);
         pending::<Result<Http2Connection, HttpConnectError>>().await
     }));
     let mut stalled = stalled;
     assert!(!poll_once(&mut stalled).await);
-    let open = || async {
+    let open = |_| async {
         opens.fetch_add(1, Ordering::AcqRel);
         connection(&peers).await
     };
@@ -119,7 +120,7 @@ async fn a_failed_setup_fails_its_waiters_with_its_kind() -> TestResult {
     let peers = std::sync::Mutex::new(Vec::new());
     let opens = AtomicUsize::new(0);
     let (release, gate) = oneshot::channel::<()>();
-    let mut failing = Box::pin(pool.acquire(key(&settings), || async {
+    let mut failing = Box::pin(pool.acquire(key(&settings), |_| async {
         opens.fetch_add(1, Ordering::AcqRel);
         let _ = gate.await;
         Err::<Http2Connection, _>(HttpConnectError::Connect(io::Error::from(
@@ -127,7 +128,7 @@ async fn a_failed_setup_fails_its_waiters_with_its_kind() -> TestResult {
         )))
     }));
     assert!(!poll_once(&mut failing).await);
-    let open = || async {
+    let open = |_| async {
         opens.fetch_add(1, Ordering::AcqRel);
         connection(&peers).await
     };
@@ -157,7 +158,7 @@ async fn a_later_setup_failure_does_not_replace_a_waiters_failure() -> TestResul
     let settings = ConnectionSettingsId::default();
     let opens = AtomicUsize::new(0);
     let (release, gate) = oneshot::channel::<()>();
-    let mut first = Box::pin(pool.acquire(key(&settings), || async {
+    let mut first = Box::pin(pool.acquire(key(&settings), |_| async {
         opens.fetch_add(1, Ordering::AcqRel);
         gate.await
             .map_err(|_| HttpConnectError::RuntimeUnavailable)?;
@@ -167,7 +168,7 @@ async fn a_later_setup_failure_does_not_replace_a_waiters_failure() -> TestResul
     }));
     assert!(!poll_once(&mut first).await);
 
-    let mut waiter = Box::pin(pool.acquire(key(&settings), || async {
+    let mut waiter = Box::pin(pool.acquire(key(&settings), |_| async {
         opens.fetch_add(1, Ordering::AcqRel);
         Err::<Http2Connection, _>(HttpConnectError::RuntimeUnavailable)
     }));
@@ -179,7 +180,7 @@ async fn a_later_setup_failure_does_not_replace_a_waiters_failure() -> TestResul
     assert!(matches!(first.await, Err(HttpConnectError::Connect(_))));
 
     let second = pool
-        .acquire(key(&settings), || async {
+        .acquire(key(&settings), |_| async {
             opens.fetch_add(1, Ordering::AcqRel);
             Err::<Http2Connection, _>(HttpConnectError::InvalidResponse)
         })
@@ -203,13 +204,13 @@ async fn a_cancelled_setup_waiter_does_not_inherit_a_later_failure() -> TestResu
     let settings = ConnectionSettingsId::default();
     let peers = std::sync::Mutex::new(Vec::new());
     let opens = AtomicUsize::new(0);
-    let mut first = Box::pin(pool.acquire(key(&settings), || async {
+    let mut first = Box::pin(pool.acquire(key(&settings), |_| async {
         opens.fetch_add(1, Ordering::AcqRel);
         pending::<Result<Http2Connection, HttpConnectError>>().await
     }));
     assert!(!poll_once(&mut first).await);
 
-    let mut waiter = Box::pin(pool.acquire(key(&settings), || async {
+    let mut waiter = Box::pin(pool.acquire(key(&settings), |_| async {
         opens.fetch_add(1, Ordering::AcqRel);
         connection(&peers).await
     }));
@@ -217,7 +218,7 @@ async fn a_cancelled_setup_waiter_does_not_inherit_a_later_failure() -> TestResu
     drop(first);
 
     let second = pool
-        .acquire(key(&settings), || async {
+        .acquire(key(&settings), |_| async {
             opens.fetch_add(1, Ordering::AcqRel);
             Err::<Http2Connection, _>(HttpConnectError::InvalidResponse)
         })
@@ -239,7 +240,7 @@ fn a_tunnel_on_another_runtime_opens_its_own_connection() -> TestResult {
     let settings = ConnectionSettingsId::default();
     let peers = std::sync::Mutex::new(Vec::new());
     let opens = AtomicUsize::new(0);
-    let open = || async {
+    let open = |_| async {
         opens.fetch_add(1, Ordering::AcqRel);
         connection(&peers).await
     };
@@ -269,7 +270,7 @@ async fn a_connection_past_its_idle_limit_takes_no_new_tunnel() -> TestResult {
     let settings = ConnectionSettingsId::default();
     let peers = std::sync::Mutex::new(Vec::new());
     let opens = AtomicUsize::new(0);
-    let open = || async {
+    let open = |_| async {
         opens.fetch_add(1, Ordering::AcqRel);
         let (client, server) = tokio::io::duplex(64 * 1024);
         if let Ok(mut peers) = peers.lock() {

@@ -814,7 +814,6 @@ impl HttpsProxyConnector {
         &self,
         target: &ProxyTarget<'_>,
     ) -> Result<TunnelConnection, HttpConnectError> {
-        let open = || self.connect_http2_proxy(target.host, target.port, target.server_name);
         match &self.http2_pool {
             Some(pool) => {
                 let key = RouteKey::new(
@@ -824,9 +823,21 @@ impl HttpsProxyConnector {
                     target.server_name,
                     target.credentials,
                 );
-                pool.acquire(key, open).await.map(TunnelConnection::Pooled)
+                pool.acquire(key, |family| {
+                    self.connect_pooled_http2_proxy(
+                        target.host,
+                        target.port,
+                        target.server_name,
+                        family,
+                    )
+                })
+                .await
+                .map(TunnelConnection::Pooled)
             }
-            None => open().await.map(TunnelConnection::Dedicated),
+            None => self
+                .connect_http2_proxy(target.host, target.port, target.server_name)
+                .await
+                .map(TunnelConnection::Dedicated),
         }
     }
 
@@ -1078,6 +1089,63 @@ impl HttpsProxyConnector {
             .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(error)))
     }
 
+    async fn connect_pooled_http2_proxy(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        family: crate::tcp::AddressFamilyMemory,
+    ) -> Result<Http2Connection, HttpConnectError> {
+        let client = self.http2_builder()?;
+        let (stream, slower) = crate::direct::connect_tcp_keeping_slower(
+            proxy_host,
+            proxy_port,
+            self.dialer(),
+            Some(&family),
+        )
+        .await
+        .map_err(|error| match error {
+            DirectConnectError::RuntimeUnavailable => HttpConnectError::RuntimeUnavailable,
+            DirectConnectError::Connect(error) => HttpConnectError::Connect(error),
+        })?;
+        self.finish_pooled_http2_proxy(stream, slower, proxy_server_name, client)
+            .await
+    }
+
+    async fn finish_pooled_http2_proxy(
+        &self,
+        stream: crate::tcp::ProfileTcpStream,
+        mut slower: Option<crate::tcp::SlowerAttempt>,
+        server_name: &str,
+        client: Http2Builder,
+    ) -> Result<Http2Connection, HttpConnectError> {
+        let handshake = self.tls.connect(server_name, stream);
+        let stream = match slower.as_mut() {
+            Some(attempt) => attempt.alongside(handshake).await,
+            None => handshake.await,
+        }
+        .map_err(HttpConnectError::ProxyTls)?;
+        match stream.negotiated_alpn() {
+            Some(b"h2") => {}
+            Some(selected) => {
+                return Err(HttpConnectError::UnsupportedAlpn {
+                    selected: selected.into(),
+                });
+            }
+            None => return Err(HttpConnectError::MissingNegotiatedAlpn),
+        }
+        // Firefox reports H2 before proxy authentication/CONNECT and closes
+        // pending attempts (nsHttpConnection.cpp:307-395, ConnectionEntry.cpp:
+        // 627-649 at FIREFOX_157_0_RELEASE). A raw loser never sends CONNECT.
+        drop(slower);
+        if let Some(keepalive) = crate::tcp::TcpKeepaliveSource::tcp_keepalive(&stream) {
+            keepalive.http2_negotiated();
+        }
+        connect_selected(stream, client)
+            .await
+            .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(error)))
+    }
+
     /// Opens one dedicated HTTP/2 connection to the proxy for exact extended
     /// CONNECT, using the profile's extended CONNECT pseudo-header order.
     pub(super) async fn connect_http2_extended_proxy(
@@ -1302,3 +1370,6 @@ fn require_http1_alpn(settings: &TlsSettings) -> Result<(), HttpConnectError> {
         .then_some(())
         .ok_or(HttpConnectError::MissingHttp1Alpn)
 }
+
+#[cfg(test)]
+mod tests;
