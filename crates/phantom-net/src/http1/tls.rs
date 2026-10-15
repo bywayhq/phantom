@@ -12,8 +12,9 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tracing::{Instrument, Span, debug, debug_span, field};
 
 use super::{
-    Http1Body, Http1Connection, Http1Error, Http1UpgradeOutcome, OperationOutcome, PreparedGet,
-    PreparedRequest, RequestHeader, connection::early_data_error, send_prepared_upgrade,
+    Http1Body, Http1Connection, Http1Error, Http1UpgradeOpening, Http1UpgradeOutcome,
+    OperationOutcome, PreparedGet, PreparedRequest, RequestHeader, connection::early_data_error,
+    send_prepared_upgrade,
 };
 use crate::{
     SourceBinding,
@@ -449,6 +450,149 @@ impl Http1TlsConnector {
             }),
         )
         .await
+    }
+
+    /// Connects a direct origin before sending its prepared Upgrade GET.
+    ///
+    /// The returned opening sends no application bytes until `send` is called.
+    /// A retaining route returns its slower attempt separately, so its owner
+    /// can keep that connection while waiting for the Upgrade response.
+    ///
+    /// # Errors
+    ///
+    /// Rejects invalid request fields and non-direct routes before lookup or I/O.
+    /// Returns connection, TLS and ALPN failures without sending the GET.
+    pub async fn open_upgrade(
+        &self,
+        route: OriginRoute<'_>,
+        target: crate::request::OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<
+        (
+            Http1UpgradeOpening,
+            Option<SlowerConnection<Http1Connection>>,
+        ),
+        Http1TlsError,
+    > {
+        let route = Http1Route::Origin(route);
+        validate_route(&route, true)?;
+        let prepared = PreparedGet::new(target, headers)?;
+        let span = upgrade_span(&route);
+        let outcome = OperationOutcome::new(&span);
+        let result = async {
+            match route {
+                Http1Route::Origin(OriginRoute::Plaintext {
+                    tcp: TcpRoute::Direct(endpoint),
+                    family,
+                }) => {
+                    let (stream, slower) = connect_tcp_keeping_slower(
+                        endpoint.host,
+                        endpoint.port,
+                        self.dialer(),
+                        family,
+                    )
+                    .await
+                    .map_err(Http1TlsError::from_direct)?;
+                    Ok((
+                        super::upgrade_opening::OpeningStream::Plaintext(stream),
+                        slower.map(slower_plaintext),
+                    ))
+                }
+                Http1Route::Origin(OriginRoute::Tls {
+                    tcp: TcpRoute::Direct(endpoint),
+                    server_name,
+                    setup,
+                }) => {
+                    #[cfg(feature = "https-records")]
+                    let mut selected_ech = None;
+                    let (stream, slower) = match setup {
+                        #[cfg(feature = "https-records")]
+                        DirectTlsSetup::EchKeepingSlower { lookup, family } => {
+                            let (stream, slower, selected) =
+                                crate::direct::connect_tls_with_ech_retaining(
+                                    &self.tls,
+                                    self.dialer(),
+                                    endpoint,
+                                    server_name,
+                                    lookup,
+                                    true,
+                                    Some(family),
+                                )
+                                .await?;
+                            selected_ech = Some(selected);
+                            (stream, slower)
+                        }
+                        #[cfg(feature = "https-records")]
+                        DirectTlsSetup::Ech(lookup) => (
+                            crate::direct::connect_tls_with_ech(
+                                &self.tls,
+                                self.dialer(),
+                                endpoint.host,
+                                endpoint.port,
+                                server_name,
+                                lookup,
+                                true,
+                            )
+                            .await?,
+                            None,
+                        ),
+                        DirectTlsSetup::Default => {
+                            let stream = connect_tcp(endpoint.host, endpoint.port, self.dialer())
+                                .await
+                                .map_err(Http1TlsError::from_direct)?;
+                            (
+                                self.tls
+                                    .connect_offering_early_data(server_name, stream)
+                                    .await?,
+                                None,
+                            )
+                        }
+                        DirectTlsSetup::KeepSlower(family) => {
+                            let (stream, mut slower) = connect_tcp_keeping_slower(
+                                endpoint.host,
+                                endpoint.port,
+                                self.dialer(),
+                                Some(family),
+                            )
+                            .await
+                            .map_err(Http1TlsError::from_direct)?;
+                            let handshake =
+                                self.tls.connect_offering_early_data(server_name, stream);
+                            let stream = match slower.as_mut() {
+                                Some(attempt) => attempt.alongside(handshake).await,
+                                None => handshake.await,
+                            }?;
+                            (stream, slower)
+                        }
+                    };
+                    require_http1_selected(&stream)?;
+                    let slower = slower.map(|attempt| {
+                        #[cfg(feature = "https-records")]
+                        if let Some(selected) = selected_ech {
+                            return self.slower_tls_with_ech(attempt, server_name, selected);
+                        }
+                        self.slower_tls(attempt, server_name)
+                    });
+                    Ok((super::upgrade_opening::OpeningStream::Tls(stream), slower))
+                }
+                _ => Err(invalid_route(
+                    "connected Upgrade opening requires a direct origin",
+                )),
+            }
+        }
+        .instrument(span.clone())
+        .await;
+        let classified = connection_outcome(&result);
+        match result {
+            Ok((stream, slower)) => Ok((
+                Http1UpgradeOpening::new(stream, prepared, span, outcome),
+                slower,
+            )),
+            Err(error) => {
+                outcome.finish(classified);
+                Err(error)
+            }
+        }
     }
 
     /// Opens one Upgrade GET over an explicit origin or forwarding route.
@@ -1021,7 +1165,7 @@ fn upgrade_span(route: &Http1Route<'_>) -> Span {
 
 /// Sends a prepared plaintext Upgrade on an established connection and
 /// records the response status on the current span.
-async fn send_plaintext_tunnel_upgrade<S>(
+pub(super) async fn send_plaintext_tunnel_upgrade<S>(
     stream: S,
     prepared: PreparedGet,
 ) -> Result<Http1UpgradeOutcome, Http1TlsError>
@@ -1038,7 +1182,7 @@ where
     Ok(outcome)
 }
 
-fn upgrade_outcome(result: &Result<Http1UpgradeOutcome, Http1TlsError>) -> &'static str {
+pub(super) fn upgrade_outcome(result: &Result<Http1UpgradeOutcome, Http1TlsError>) -> &'static str {
     match result {
         Ok(Http1UpgradeOutcome::Upgraded(_)) => "upgraded",
         Ok(Http1UpgradeOutcome::Rejected(_)) => "rejected",
@@ -1164,7 +1308,7 @@ where
 /// On a stream whose handshake returned to send early data, the GET travels
 /// in it. When the handshake then fails, this reports the error a fresh
 /// connection reports.
-async fn upgrade_over_tls<S>(
+pub(super) async fn upgrade_over_tls<S>(
     stream: TlsStream<S>,
     prepared: PreparedGet,
 ) -> Result<Http1UpgradeOutcome, Http1TlsError>

@@ -23,6 +23,7 @@ use crate::request::{RequestBody, RequestBodyMetadata};
 pub use body::Http1Body;
 pub use connection::Http1Connection;
 pub use upgrade::{Http1Upgrade, Http1UpgradeOutcome};
+pub use upgrade_opening::Http1UpgradeOpening;
 
 /// Opaque failure from the HTTP/1.1 protocol driver.
 ///
@@ -631,6 +632,7 @@ mod request;
 mod response_head;
 mod tls;
 mod upgrade;
+mod upgrade_opening;
 
 #[cfg(test)]
 pub(crate) use tls::slower_plaintext;

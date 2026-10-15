@@ -395,23 +395,30 @@ impl Http1Pool {
                 Http1ConnectionMode::TlsOrigin,
             ))
             .await;
-        let connector = entry
-            .connector
-            .get_or_init(|| base.with_isolated_session_cache());
-        entry
-            .tickets
-            .register_before_use(
-                connector.session_ticket_cache(),
-                TicketCacheBinding {
-                    origin: endpoint,
-                    server_name: endpoint.host(),
-                    leg: TicketCacheLeg::Origin,
-                    protocol: Ok(TicketCacheProtocol::Http1),
-                    route,
-                },
-            )
-            .map_err(RequestError::session_tickets)?;
-        Ok(connector.clone())
+        entry.origin_connector(base, endpoint, route)
+    }
+
+    /// Holds a direct WebSocket opening in its request entry until transport handoff.
+    #[cfg(feature = "websocket")]
+    pub(crate) async fn origin_opening(
+        &self,
+        endpoint: &Endpoint,
+        plaintext: bool,
+    ) -> OriginOpening {
+        let mode = if plaintext {
+            Http1ConnectionMode::PlaintextOrigin
+        } else {
+            Http1ConnectionMode::TlsOrigin
+        };
+        let entry = self
+            .entry(PoolKey::new(endpoint, &Route::Direct, mode))
+            .await;
+        {
+            let mut state = entry.connections.lock();
+            entry.connections.family.mark_active();
+            state.openings += 1;
+        }
+        OriginOpening { entry }
     }
 
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
@@ -554,6 +561,42 @@ fn has_close_token(headers: &HeaderMap) -> bool {
         .any(|token| token.trim().eq_ignore_ascii_case("close"))
 }
 
+/// An HTTP opening still owns a direct origin transport or rejection body.
+#[cfg(feature = "websocket")]
+pub(crate) struct OriginOpening {
+    entry: Arc<PoolEntry>,
+}
+
+#[cfg(feature = "websocket")]
+impl OriginOpening {
+    pub(crate) fn family(&self) -> &Arc<AddressFamilyMemory> {
+        &self.entry.connections.family
+    }
+
+    pub(crate) fn connector(
+        &self,
+        base: &Http1TlsConnector,
+        endpoint: &Endpoint,
+    ) -> Result<Http1TlsConnector, RequestError> {
+        self.entry.origin_connector(base, endpoint, &Route::Direct)
+    }
+
+    pub(crate) fn adopt(&self, slower: SlowerConnection<phantom_net::http1::Http1Connection>) {
+        self.entry.connections.adopt(slower);
+    }
+}
+
+#[cfg(feature = "websocket")]
+impl Drop for OriginOpening {
+    fn drop(&mut self) {
+        {
+            let mut state = self.entry.connections.lock();
+            state.openings = state.openings.saturating_sub(1);
+        }
+        self.entry.connections.prune_empty_family();
+    }
+}
+
 #[derive(Default)]
 struct PoolState {
     entries: VecDeque<(PoolKey, Arc<PoolEntry>)>,
@@ -604,6 +647,31 @@ struct PoolEntry {
 }
 
 impl PoolEntry {
+    #[cfg(feature = "websocket")]
+    fn origin_connector(
+        &self,
+        base: &Http1TlsConnector,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Result<Http1TlsConnector, RequestError> {
+        let connector = self
+            .connector
+            .get_or_init(|| base.with_isolated_session_cache());
+        self.tickets
+            .register_before_use(
+                connector.session_ticket_cache(),
+                TicketCacheBinding {
+                    origin: endpoint,
+                    server_name: endpoint.host(),
+                    leg: TicketCacheLeg::Origin,
+                    protocol: Ok(TicketCacheProtocol::Http1),
+                    route,
+                },
+            )
+            .map_err(RequestError::session_tickets)?;
+        Ok(connector.clone())
+    }
+
     fn new(admission: Arc<Admission>, connections: Arc<EntryConnections>) -> Self {
         Self {
             tickets: Arc::default(),
@@ -873,6 +941,8 @@ struct EntryConnections {
 
 #[derive(Default)]
 struct ConnectionSet {
+    /// Direct Upgrade openings that have not handed off their transport.
+    openings: usize,
     /// Connections with no request, least recently used first.
     idle: Vec<IdleConnection>,
     /// Connections leased to a request, and connections being opened.
@@ -893,7 +963,7 @@ impl ConnectionSet {
     }
 
     fn is_empty(&self) -> bool {
-        self.idle.is_empty() && self.leased == 0 && self.spares.is_empty()
+        self.idle.is_empty() && self.leased == 0 && self.spares.is_empty() && self.openings == 0
     }
 
     fn take_spare(&mut self, id: u64) -> Option<Spare> {

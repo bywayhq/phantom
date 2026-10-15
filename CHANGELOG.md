@@ -1139,6 +1139,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Add `Http1TlsConnector::open_upgrade` and `Http1UpgradeOpening::send` to
+  separate a direct connection from sending its validated Upgrade GET.
+
 - Keep and authenticate the slower direct ECH connection in HTTP/1.1 and
   negotiated pools. A later request can claim it without another connection
   or ECH lookup. Native callers can combine the policies with
@@ -2665,6 +2668,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   rejected early data each make one for their retry.
 
 ### Fixed
+
+- Keep direct HTTP/1.1 WebSocket backup connections in the matching request
+  pool under Firefox's backup policy. Ordinary requests can claim a quiet
+  spare while the Upgrade response is pending. Cancellation and rejected
+  response bodies retain the correct family ownership.
 
 - Hold the TLS ticket test peer until its cleanup timeout has been polled.
   Delayed scheduling can no longer release it before the timeout branch.

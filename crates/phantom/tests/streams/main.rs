@@ -29,3 +29,6 @@ mod websocket_http3;
 mod websocket_profile;
 #[cfg(feature = "websocket")]
 mod websocket_trust;
+
+#[cfg(all(feature = "websocket", feature = "https-records", windows))]
+mod websocket_retention;

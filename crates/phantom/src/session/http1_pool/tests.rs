@@ -364,3 +364,6 @@ fn challenge_drain_without_a_time_driver_is_runtime_unavailable() -> TestResult 
     assert_eq!(error.kind(), crate::RequestErrorKind::RuntimeUnavailable);
     Ok(())
 }
+
+#[cfg(feature = "websocket")]
+mod websocket_opening;

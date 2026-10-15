@@ -524,23 +524,19 @@ impl Http1Or2Pool {
         route: &Route,
     ) -> Result<Http1Or2TlsConnector, RequestError> {
         let entry = self.entry(PoolKey::new(endpoint, route)).await;
-        let connector = entry
-            .connector
-            .get_or_init(|| base.with_isolated_session_cache());
-        entry
-            .tickets
-            .register_before_use(
-                connector.session_ticket_cache(),
-                TicketCacheBinding {
-                    origin: endpoint,
-                    server_name: endpoint.host(),
-                    leg: TicketCacheLeg::Origin,
-                    protocol: Ok(TicketCacheProtocol::Negotiated),
-                    route,
-                },
-            )
-            .map_err(RequestError::session_tickets)?;
-        Ok(connector.clone())
+        entry.origin_connector(base, endpoint, route)
+    }
+
+    /// Holds a direct WebSocket opening in its request entry until transport handoff.
+    #[cfg(feature = "websocket")]
+    pub(crate) async fn origin_opening(&self, endpoint: &Endpoint) -> OriginOpening {
+        let entry = self.entry(PoolKey::new(endpoint, &Route::Direct)).await;
+        {
+            let mut state = entry.connections.lock();
+            entry.connections.family.mark_active();
+            state.openings += 1;
+        }
+        OriginOpening { entry }
     }
 
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
@@ -603,6 +599,48 @@ impl Http1Or2Pool {
         let entry = Arc::new(entry);
         state.entries.push_back((key, Arc::clone(&entry)));
         entry
+    }
+}
+
+/// An HTTP opening still owns a direct origin transport or rejection body.
+#[cfg(feature = "websocket")]
+pub(crate) struct OriginOpening {
+    entry: Arc<PoolEntry>,
+}
+
+#[cfg(feature = "websocket")]
+impl OriginOpening {
+    pub(crate) fn family(&self) -> &Arc<AddressFamilyMemory> {
+        &self.entry.connections.family
+    }
+
+    pub(crate) fn connector(
+        &self,
+        base: &Http1Or2TlsConnector,
+        endpoint: &Endpoint,
+    ) -> Result<Http1Or2TlsConnector, RequestError> {
+        self.entry.origin_connector(base, endpoint, &Route::Direct)
+    }
+
+    pub(crate) fn adopt(&self, slower: SlowerConnection<phantom_net::http1::Http1Connection>) {
+        let progress = slower.progress();
+        self.entry
+            .connections
+            .adopt(SlowerConnection::new(progress, async move {
+                slower.finish().await.map(Http1Or2Connection::Http1)
+            }));
+    }
+}
+
+#[cfg(feature = "websocket")]
+impl Drop for OriginOpening {
+    fn drop(&mut self) {
+        {
+            let mut state = self.entry.connections.lock();
+            state.openings = state.openings.saturating_sub(1);
+        }
+        self.entry.connections.prune_empty_family();
+        self.entry.connections.setup_done.notify_waiters();
     }
 }
 
@@ -709,6 +747,31 @@ struct PoolEntry {
 }
 
 impl PoolEntry {
+    #[cfg(feature = "websocket")]
+    fn origin_connector(
+        &self,
+        base: &Http1Or2TlsConnector,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Result<Http1Or2TlsConnector, RequestError> {
+        let connector = self
+            .connector
+            .get_or_init(|| base.with_isolated_session_cache());
+        self.tickets
+            .register_before_use(
+                connector.session_ticket_cache(),
+                TicketCacheBinding {
+                    origin: endpoint,
+                    server_name: endpoint.host(),
+                    leg: TicketCacheLeg::Origin,
+                    protocol: Ok(TicketCacheProtocol::Negotiated),
+                    route,
+                },
+            )
+            .map_err(RequestError::session_tickets)?;
+        Ok(connector.clone())
+    }
+
     fn new(
         selection_admission: Arc<Admission>,
         http1_admission: Arc<Admission>,
@@ -1410,6 +1473,8 @@ struct EntryConnections {
 }
 
 struct ConnectionState {
+    /// Direct Upgrade openings that have not handed off their transport.
+    openings: usize,
     /// Reusable H2 connections, oldest first.
     http2: Vec<Http2Slot>,
     /// How H2 streams spread across `http2`.
@@ -1450,6 +1515,7 @@ impl ConnectionState {
             && self.http1_leased == 0
             && self.connecting == 0
             && self.spares.is_empty()
+            && self.openings == 0
     }
 
     fn take_spare(&mut self, id: u64) -> Option<Spare> {
@@ -1626,6 +1692,7 @@ impl EntryConnections {
             http1_idle: Vec::new(),
             http1_leased: 0,
             connecting: 0,
+            openings: 0,
             spares: Vec::new(),
             next_spare: 0,
             selected_http2: http2_keys.contains(&key),

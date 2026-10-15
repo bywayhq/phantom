@@ -1150,3 +1150,5 @@ async fn dropping_route_connect_closes_stream_and_records_cancelled_once() -> Te
     assert_eq!(subscriber.outcomes_for("tls.handshake"), ["cancelled"]);
     Ok(())
 }
+
+mod upgrade_opening;

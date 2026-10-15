@@ -653,3 +653,6 @@ fn opening_a_connection_stays_within_the_setup_budget() {
         &[("PoolEntry::open", future_size(&super::PoolEntry::open))],
     );
 }
+
+#[cfg(feature = "websocket")]
+mod websocket_opening;

@@ -10,8 +10,11 @@ use phantom_net::route::{
 };
 
 use phantom_net::{
-    http1::{Http1TlsConnector, Http1TlsError, Http1UpgradeOutcome},
+    http1::{
+        Http1Connection, Http1TlsConnector, Http1TlsError, Http1UpgradeOpening, Http1UpgradeOutcome,
+    },
     request::{OriginForm, RequestHeader},
+    tcp::{AddressFamilyMemory, SlowerConnection},
 };
 
 #[cfg(feature = "websocket-deflate")]
@@ -35,7 +38,14 @@ async fn upgrade_direct(
     endpoint: &Endpoint,
     target: OriginForm,
     headers: Vec<RequestHeader>,
-) -> Result<Http1UpgradeOutcome, Http1TlsError> {
+    family: &AddressFamilyMemory,
+) -> Result<
+    (
+        Http1UpgradeOpening,
+        Option<SlowerConnection<Http1Connection>>,
+    ),
+    Http1TlsError,
+> {
     let tcp = || {
         TcpRoute::Direct(phantom_net::route::Endpoint {
             host: endpoint.host(),
@@ -49,27 +59,104 @@ async fn upgrade_direct(
         connector.alpn_protocols()
     }) {
         let mut ech = std::pin::pin!(ech);
-        return crate::session::box_send(connector.upgrade(
-            Http1Route::Origin(OriginRoute::Tls {
+        return crate::session::box_send(connector.open_upgrade(
+            OriginRoute::Tls {
                 tcp: tcp(),
                 server_name: endpoint.host(),
-                setup: DirectTlsSetup::Ech(ech.as_mut()),
-            }),
-            Http1Target::Origin(target),
+                setup: DirectTlsSetup::EchKeepingSlower {
+                    lookup: ech.as_mut(),
+                    family,
+                },
+            },
+            target,
             headers,
         ))
         .await;
     }
-    crate::session::box_send(connector.upgrade(
-        Http1Route::Origin(OriginRoute::Tls {
+    crate::session::box_send(connector.open_upgrade(
+        OriginRoute::Tls {
             tcp: tcp(),
             server_name: endpoint.host(),
-            setup: DirectTlsSetup::Default,
-        }),
-        Http1Target::Origin(target),
+            setup: DirectTlsSetup::KeepSlower(family),
+        },
+        target,
         headers,
     ))
     .await
+}
+
+enum OpeningOwner {
+    Exact(crate::session::http1_pool::OriginOpening),
+    Negotiated(crate::session::http1_or_2_pool::OriginOpening),
+}
+
+impl OpeningOwner {
+    fn family(&self) -> &AddressFamilyMemory {
+        match self {
+            Self::Exact(owner) => owner.family(),
+            Self::Negotiated(owner) => owner.family(),
+        }
+    }
+
+    fn adopt(&self, slower: SlowerConnection<Http1Connection>) {
+        match self {
+            Self::Exact(owner) => owner.adopt(slower),
+            Self::Negotiated(owner) => owner.adopt(slower),
+        }
+    }
+}
+
+async fn direct_opening(
+    client: &Client,
+    upgrade_connector: Http1UpgradeConnector,
+    endpoint: &Endpoint,
+    plaintext: bool,
+    base: &Http1TlsConnector,
+) -> Result<(Http1TlsConnector, OpeningOwner), WebSocketError> {
+    let setup = |error| WebSocketError::request(RequestError::http1_connection_setup(error));
+    let connectors = client.inner.connectors_for(endpoint);
+    // Cleartext profile-policy requests use the exact HTTP/1 pool.
+    if !plaintext
+        && matches!(upgrade_connector, Http1UpgradeConnector::PolicyAlpn)
+        && let Some(negotiated) = connectors.http1_or_2
+    {
+        let owner = client.state.http1_or_2.origin_opening(endpoint).await;
+        let websocket = client
+            .inner
+            .websocket
+            .as_ref()
+            .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
+        let connector = owner
+            .connector(negotiated, endpoint)
+            .map_err(WebSocketError::request)?
+            .http1_connector(&websocket.connection.http1_alpn_protocols)
+            .map_err(setup)?;
+        return Ok((connector, OpeningOwner::Negotiated(owner)));
+    }
+    let owner = client.state.http1.origin_opening(endpoint, plaintext).await;
+    let mut connector = if plaintext {
+        base.clone()
+    } else {
+        owner
+            .connector(
+                connectors
+                    .http1
+                    .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?,
+                endpoint,
+            )
+            .map_err(WebSocketError::request)?
+    };
+    if !plaintext && matches!(upgrade_connector, Http1UpgradeConnector::PolicyAlpn) {
+        let websocket = client
+            .inner
+            .websocket
+            .as_ref()
+            .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
+        connector = connector
+            .with_alpn_protocols(&websocket.connection.http1_alpn_protocols)
+            .map_err(setup)?;
+    }
+    Ok((connector, OpeningOwner::Exact(owner)))
 }
 
 /// The connector of the request pool whose TLS session tickets a `wss://`
@@ -200,107 +287,145 @@ impl WebSocketRequestBuilder {
         // evict another. CONNECT-UDP is rejected below before any I/O, and
         // creates no pool key.
         let pooled = if request.transport == WebSocketTransport::Tls
-            && !matches!(route, Route::ConnectUdp(_))
+            && !matches!(route, Route::Direct | Route::ConnectUdp(_))
         {
             pooled_tls_connector(&client, upgrade_connector, &request.endpoint, route).await?
         } else {
             None
         };
         let connector = pooled.as_ref().unwrap_or(base);
-        let outcome =
-            if request.transport == WebSocketTransport::Tls && matches!(route, Route::Direct) {
+        let mut opening_owner = None;
+        let outcome = if matches!(route, Route::Direct) {
+            let plaintext = request.transport == WebSocketTransport::Plaintext;
+            let (connector, owner) = direct_opening(
+                &client,
+                upgrade_connector,
+                &request.endpoint,
+                plaintext,
+                base,
+            )
+            .await?;
+            let opened = if plaintext {
+                crate::session::box_send(connector.open_upgrade(
+                    OriginRoute::Plaintext {
+                        tcp: TcpRoute::Direct(phantom_net::route::Endpoint {
+                            host: request.endpoint.host(),
+                            port: request.endpoint.port(),
+                        }),
+                        family: Some(owner.family()),
+                    },
+                    request.target,
+                    prepared.headers,
+                ))
+                .await
+            } else {
                 upgrade_direct(
                     &client,
-                    connector,
+                    &connector,
                     &request.endpoint,
                     request.target,
                     prepared.headers,
+                    owner.family(),
                 )
                 .await
-            } else {
-                let authority = request.endpoint.tunnel_authority();
-                let proxy_connector = if let Route::HttpProxy(proxy) = route
-                    && proxy.uses_tls()
-                {
-                    Some(proxy.https_connector(
-                        client.inner.websocket_https_proxy.as_ref().ok_or_else(|| {
-                            WebSocketError::request(RequestError::unsupported_route(
-                                HttpProtocol::Http1,
-                            ))
-                        })?,
-                    ))
-                } else {
-                    None
-                };
-                let endpoint = phantom_net::route::Endpoint {
-                    host: request.endpoint.host(),
-                    port: request.endpoint.port(),
-                };
-                let tcp = match route {
-                    Route::Direct => TcpRoute::Direct(endpoint),
-                    Route::HttpProxy(proxy) => {
-                        // Plain WebSockets also use CONNECT and an origin-form Upgrade.
-                        let endpoint = phantom_net::route::Endpoint {
-                            host: proxy.host(),
-                            port: proxy.port(),
-                        };
-                        let transport = match &proxy_connector {
-                            Some(connector) => ProxyTransport::Tls {
-                                endpoint,
-                                server_name: proxy.host(),
-                                connector,
-                            },
-                            None => ProxyTransport::Tcp(endpoint),
-                        };
-                        TcpRoute::HttpConnect(HttpConnectRoute {
-                            proxy: transport,
-                            authority: &authority,
-                            headers: proxy.ordered_connect_headers(),
-                            credentials: proxy.authentication(),
-                        })
+            };
+            match opened {
+                Ok((opening, slower)) => {
+                    if let Some(slower) = slower {
+                        owner.adopt(slower);
                     }
-                    Route::Socks4(proxy) => proxy.tcp_route(endpoint).map_err(|source| {
-                        WebSocketError::request(RequestError::http1_connection_setup(source.into()))
-                    })?,
-                    Route::Socks5(proxy) => TcpRoute::Socks5 {
-                        proxy: phantom_net::route::Endpoint {
-                            host: proxy.host(),
-                            port: proxy.port(),
-                        },
-                        target: match proxy.dns_mode() {
-                            crate::Socks5DnsMode::Local => Socks5Target::LocalDns(endpoint),
-                            crate::Socks5DnsMode::Remote => Socks5Target::RemoteDns(endpoint),
-                        },
-                        auth: proxy.auth(),
-                    },
-                    Route::ConnectUdp(_) => {
-                        return Err(WebSocketError::request(RequestError::unsupported_route(
-                            HttpProtocol::Http1,
-                        )));
-                    }
-                };
-                let origin = match request.transport {
-                    WebSocketTransport::Plaintext => OriginRoute::Plaintext { tcp, family: None },
-                    WebSocketTransport::Tls => OriginRoute::Tls {
-                        tcp,
-                        server_name: request.endpoint.host(),
-                        setup: DirectTlsSetup::Default,
-                    },
-                };
-                let operation = connector.upgrade(
-                    Http1Route::Origin(origin),
-                    Http1Target::Origin(request.target),
-                    prepared.headers,
-                );
-                crate::session::box_send(operation).await
+                    opening_owner = Some(owner);
+                    opening.send().await
+                }
+                Err(error) => Err(error),
             }
-            .map_err(RequestError::http1_connection_setup)
-            .map_err(WebSocketError::request)?;
+        } else {
+            let authority = request.endpoint.tunnel_authority();
+            let proxy_connector = if let Route::HttpProxy(proxy) = route
+                && proxy.uses_tls()
+            {
+                Some(proxy.https_connector(
+                    client.inner.websocket_https_proxy.as_ref().ok_or_else(|| {
+                        WebSocketError::request(RequestError::unsupported_route(
+                            HttpProtocol::Http1,
+                        ))
+                    })?,
+                ))
+            } else {
+                None
+            };
+            let endpoint = phantom_net::route::Endpoint {
+                host: request.endpoint.host(),
+                port: request.endpoint.port(),
+            };
+            let tcp = match route {
+                Route::Direct => TcpRoute::Direct(endpoint),
+                Route::HttpProxy(proxy) => {
+                    // Plain WebSockets also use CONNECT and an origin-form Upgrade.
+                    let endpoint = phantom_net::route::Endpoint {
+                        host: proxy.host(),
+                        port: proxy.port(),
+                    };
+                    let transport = match &proxy_connector {
+                        Some(connector) => ProxyTransport::Tls {
+                            endpoint,
+                            server_name: proxy.host(),
+                            connector,
+                        },
+                        None => ProxyTransport::Tcp(endpoint),
+                    };
+                    TcpRoute::HttpConnect(HttpConnectRoute {
+                        proxy: transport,
+                        authority: &authority,
+                        headers: proxy.ordered_connect_headers(),
+                        credentials: proxy.authentication(),
+                    })
+                }
+                Route::Socks4(proxy) => proxy.tcp_route(endpoint).map_err(|source| {
+                    WebSocketError::request(RequestError::http1_connection_setup(source.into()))
+                })?,
+                Route::Socks5(proxy) => TcpRoute::Socks5 {
+                    proxy: phantom_net::route::Endpoint {
+                        host: proxy.host(),
+                        port: proxy.port(),
+                    },
+                    target: match proxy.dns_mode() {
+                        crate::Socks5DnsMode::Local => Socks5Target::LocalDns(endpoint),
+                        crate::Socks5DnsMode::Remote => Socks5Target::RemoteDns(endpoint),
+                    },
+                    auth: proxy.auth(),
+                },
+                Route::ConnectUdp(_) => {
+                    return Err(WebSocketError::request(RequestError::unsupported_route(
+                        HttpProtocol::Http1,
+                    )));
+                }
+            };
+            let origin = match request.transport {
+                WebSocketTransport::Plaintext => OriginRoute::Plaintext { tcp, family: None },
+                WebSocketTransport::Tls => OriginRoute::Tls {
+                    tcp,
+                    server_name: request.endpoint.host(),
+                    setup: DirectTlsSetup::Default,
+                },
+            };
+            let operation = connector.upgrade(
+                Http1Route::Origin(origin),
+                Http1Target::Origin(request.target),
+                prepared.headers,
+            );
+            crate::session::box_send(operation).await
+        }
+        .map_err(RequestError::http1_connection_setup)
+        .map_err(WebSocketError::request)?;
 
         match outcome {
             Http1UpgradeOutcome::Rejected(response) => {
                 let (parts, body) = response.into_parts();
-                let response = Response::from_parts(parts, ResponseBody::http1(body));
+                let response = Response::from_parts(
+                    parts,
+                    ResponseBody::http1_with_guard(body, opening_owner.take()),
+                );
                 #[cfg(feature = "cookies")]
                 if let Some(jar) = cookie_jar.as_deref() {
                     jar.store_response_headers(&request.cookie_url, response.headers());
@@ -308,6 +433,7 @@ impl WebSocketRequestBuilder {
                 Err(WebSocketError::rejected(response))
             }
             Http1UpgradeOutcome::Upgraded(response) => {
+                drop(opening_owner.take());
                 let selected_protocol = validate_response(
                     response.version(),
                     response.headers(),

@@ -395,6 +395,7 @@ pub fn phantom_net::http1::Http1TlsConnector::host_resolver(&self) -> core::opti
 pub fn phantom_net::http1::Http1TlsConnector::new(&phantom_profile::tls::TlsSettings) -> core::result::Result<Self, phantom_net::http1::Http1TlsError>
 pub fn phantom_net::http1::Http1TlsConnector::new_with_additional_roots<'a>(&phantom_profile::tls::TlsSettings, impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>) -> core::result::Result<Self, phantom_net::http1::Http1TlsError>
 pub fn phantom_net::http1::Http1TlsConnector::new_with_server_authentication(&phantom_profile::tls::TlsSettings, phantom_net::ServerAuthentication) -> core::result::Result<Self, phantom_net::http1::Http1TlsError>
+pub async fn phantom_net::http1::Http1TlsConnector::open_upgrade(&self, phantom_net::route::OriginRoute<'_>, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<(phantom_net::http1::Http1UpgradeOpening, core::option::Option<SlowerConnection<phantom_net::http1::Http1Connection>>), phantom_net::http1::Http1TlsError>
 pub async fn phantom_net::http1::Http1TlsConnector::send(&self, phantom_net::route::Http1Route<'_>, http::method::Method, phantom_net::route::Http1Target, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<bytes::bytes::Bytes>) -> core::result::Result<http::response::Response<phantom_net::http1::Http1Body>, phantom_net::http1::Http1TlsError>
 pub fn phantom_net::http1::Http1TlsConnector::session_ticket_cache(&self) -> core::option::Option<phantom_net::SessionTicketCache>
 pub fn phantom_net::http1::Http1TlsConnector::source_binding(&self) -> core::option::Option<&phantom_net::SourceBinding>
@@ -418,6 +419,11 @@ pub fn phantom_net::http1::Http1Upgrade::poll_flush(core::pin::Pin<&mut Self>, &
 pub fn phantom_net::http1::Http1Upgrade::poll_shutdown(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::io::error::Result<()>>
 pub fn phantom_net::http1::Http1Upgrade::poll_write(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>, &[u8]) -> core::task::poll::Poll<core::io::error::Result<usize>>
 pub fn phantom_net::http1::Http1Upgrade::poll_write_vectored(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>, &[core::io::io_slice::IoSlice<'_>]) -> core::task::poll::Poll<core::io::error::Result<usize>>
+pub struct phantom_net::http1::Http1UpgradeOpening
+impl phantom_net::http1::Http1UpgradeOpening
+pub async fn phantom_net::http1::Http1UpgradeOpening::send(self) -> core::result::Result<phantom_net::http1::Http1UpgradeOutcome, phantom_net::http1::Http1TlsError>
+impl core::fmt::Debug for phantom_net::http1::Http1UpgradeOpening
+pub fn phantom_net::http1::Http1UpgradeOpening::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn phantom_net::http1::validate_forward_request_body_source_with_trailers(&http::method::Method, &phantom_net::request::AbsoluteForm, &[phantom_net::request::RequestHeader], core::option::Option<&phantom_net::request::RequestBody>, &[phantom_net::request::RequestHeader]) -> core::result::Result<(), phantom_net::http1::Http1Error>
 pub fn phantom_net::http1::validate_get(&phantom_net::request::OriginForm, &[phantom_net::request::RequestHeader]) -> core::result::Result<(), phantom_net::http1::Http1Error>
 pub fn phantom_net::http1::validate_request(&http::method::Method, &phantom_net::request::OriginForm, &[phantom_net::request::RequestHeader], core::option::Option<&bytes::bytes::Bytes>) -> core::result::Result<(), phantom_net::http1::Http1Error>

@@ -1937,9 +1937,13 @@ Differences from the browsers:
   including connections that offer ECH from HTTPS records. Both attempts
   initially use the same selected ECH configuration and TLS context. Each
   attempt permits one retry after authenticated rejection, at its selected
-  address. Connections to a proxy, WebSocket connections, and exact HTTP/2
-  requests start the backup, close the slower attempt, and neither use nor
-  learn the family; Firefox keeps the
+  address. Direct HTTP/1.1 WebSocket openings also retain their backup in
+  the corresponding request pool before sending the Upgrade GET. The
+  opening holds pool ownership until cancellation, release of a rejected
+  response body, or an accepted upgrade. A retained spare has its own pool
+  ownership. Connections to a proxy, HTTP/2 WebSocket connections, and exact
+  HTTP/2 requests start the backup, close the slower attempt, and neither
+  use nor learn the family; Firefox keeps the
   connection and the family on every connection entry.
 - The slower attempt reaches the pool, and becomes claimable, once the
   first connection's handshake has finished. Firefox lets a request claim
@@ -1980,7 +1984,18 @@ Tests in `phantom-net` read the options back from connected sockets with
 | `a_firefox_profile_keeps_the_slower_backup_connection_for_later_requests` (facade, Windows) | Over loopback, with `[::1]` refused slowly: the IPv4 backup carries the first request, the slower attempt's `127.0.0.1` connection opens with no request, and the next two requests use the two connections without a third |
 | `http1_or_2::tests::ech::retention` | Real loopback TLS verifies the selected family, authenticated idle spare, reuse, and one retry at the selected address after authenticated ECH rejection, on exact H1 and negotiated openings |
 | `client_adopts_an_authenticated_ech_backup_without_sending_a_request_until_claimed` (facade, Windows) | A public client authenticates both actual connections, leaves the spare application-quiet, then uses it for an ordinary request without a third TCP connection |
+| `http1::tls::tests::upgrade_opening` | A connected TLS opening sends no GET before `send`, preserves ordered request headers, closes without a GET when dropped, and rejects invalid headers before connecting |
+| `session::http1_pool::tests::websocket_opening` and `session::http1_or_2_pool::tests::websocket_opening` | Cancellation, rejected bodies, and accepted upgrades release the correct HTTP owner; pending spares survive opening cancellation; plaintext profile-policy openings use the exact HTTP/1 pool |
+| `websocket_retention` (facade, Windows) | Exact H1 and profile-policy H1 openings authenticate actual ECH connections, keep the spare quiet, and let an ordinary request claim it before the peer releases 101; plaintext profile-policy openings use the same request pool without a third TCP connection |
 | `profile_tcp_settings_reach_every_tcp_connector` (facade) | A profile's settings reach each TCP connector the client builds, including the WebSocket HTTP/1.1 connector |
+
+The public exact-H1 WebSocket control failed at its unchanged 20-second
+deadline against `523a7b5f`, before the WebSocket retention change. The same
+control passes after the repair. An earlier candidate put plaintext
+profile-policy openings in the negotiated pool. Its ownership control failed
+with zero active openings in the exact pool, and its public spare-claim
+control reached the same deadline. Both pass with the correct pool. These
+controlled tests do not add browser capture evidence.
 
 Reproduce: read the cited files at the tags above, and run the listed tests.
 

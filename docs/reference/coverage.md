@@ -144,8 +144,10 @@ Supported:
   `firefox::v157_tcp` uses: an IPv4 attempt 250 ms after a first attempt in
   resolver order that has not connected. On the direct route the HTTP/1.1
   and negotiated pools keep the slower attempt's connection, including
-  when HTTPS records supply ECH. Both connections initially offer the same
-  selected ECH configuration and use the same TLS context. The slower connection sends no request.
+  when HTTPS records supply ECH. Direct HTTP/1.1 WebSocket openings use the
+  corresponding request pool too, with their backup available before the
+  Upgrade response. Both connections initially offer the same selected ECH
+  configuration and use the same TLS context. The slower connection sends no request.
   Once connected, it counts toward its runtime pool key's bound, finishes
   its TLS handshake, and waits idle or
   goes to a request that claimed it. Once the first connection selects H2,
@@ -160,7 +162,7 @@ Supported:
 Not modeled:
 
 - Parts of Firefox's address selection: keeping the slower connection, and
-  remembering the address family, on proxy routes, on WebSocket
+  remembering the address family, on proxy routes, on HTTP/2 WebSocket
   connections, and on exact HTTP/2 requests, where Phantom starts the
   backup and closes the slower attempt;
   skipping an address that failed before on the same cached DNS record; and

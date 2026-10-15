@@ -272,6 +272,10 @@ resolved addresses.
   every runtime's key; later connections try that family alone, each backup
   connect limited to `known_family_backup_timeout` (5 s for Firefox), and
   the other family once its addresses fail.
+  Direct HTTP/1.1 WebSocket openings retain their backup in the matching
+  request pool before sending the Upgrade GET. The opening holds its pool
+  ownership through cancellation or a rejected response body. An accepted
+  upgrade releases that ownership while the spare stays available.
   `TcpBackupConnection` documents the full behavior.
 - `TcpAddressSelection::Sequential` takes a `TcpAddressAdvance`:
   `AfterAnyFailure`, the default, moves to the next address after any
@@ -282,8 +286,8 @@ resolved addresses.
   turns off the kernel's send buffer autotuning, so clear
   `send_buffer_size` for a profile used off Windows.
 - Not modeled for Firefox: keeping the slower connection, and remembering
-  the address family, on proxy routes, WebSocket connections, and exact
-  HTTP/2 requests, where Phantom starts the backup
+  the address family, on proxy routes, HTTP/2 WebSocket connections, and
+  exact HTTP/2 requests, where Phantom starts the backup
   and closes the slower attempt; skipping an address that failed before on
   the same cached DNS record; its `SO_LINGER` of `{1, 0}` (its close is
   still a FIN, as Phantom's is); and the probe
