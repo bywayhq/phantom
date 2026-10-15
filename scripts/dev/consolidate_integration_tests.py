@@ -112,6 +112,8 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "https_record_ech_exact",
                 "https_record_ech_http3",
                 "https_records",
+                "session_ticket_early_data",
+                "session_ticket_transfer",
             ],
         ),
         "proxies": (
@@ -127,6 +129,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "proxy_field_order",
                 "proxy_h2",
                 "proxy_h2_multiplex",
+                "session_ticket_proxy_transfer",
                 "socks4",
                 "socks5",
                 "socks5_local",

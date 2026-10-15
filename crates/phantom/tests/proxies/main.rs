@@ -18,6 +18,7 @@ mod proxy_credential_cache;
 mod proxy_field_order;
 mod proxy_h2;
 mod proxy_h2_multiplex;
+mod session_ticket_proxy_transfer;
 mod socks4;
 mod socks5;
 mod socks5_local;

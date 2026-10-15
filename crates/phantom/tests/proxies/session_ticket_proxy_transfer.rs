@@ -12,9 +12,7 @@ use phantom::{
 use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 use tokio_btls::SslStream;
 
-mod support;
-
-use support::{
+use crate::support::{
     tls::{self, H1_ALPN, TestIdentity, TestResult},
     tunnel_proxy::{
         finish_with_cleanup, http1_challenge_then_connect_on, http1_connect_on,
