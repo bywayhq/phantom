@@ -70,6 +70,23 @@ All 17 session-cache tests passed. Production cleanup behavior is unchanged.
 This demonstrates a permitted ordering that explains the failed assertion.
 The original gate did not record the scheduler sequence.
 
+## Abandoned relay socket owners
+
+The Windows DNS gate on `414fd37b` failed the gated relay's port rebind with
+Windows error 10048. Its wait observed read guards being dropped. Those guards
+can disappear while the parent and receiver futures still own socket references.
+
+The fixture now also waits for both task completion handles before rebinding.
+Its original two-second bound and both socket rebind assertions stay unchanged.
+A control drops both read guards while holding the actual sockets. The wait
+must remain pending until both owners finish, including after only one finishes.
+Removing the completion checks makes that control fail. With them restored,
+all ten relay controls and strict Clippy pass.
+
+This demonstrates an ownership-readiness gap. The original run did not record
+the failing bind stage or port ownership, so it does not prove that this gap
+caused error 10048. Production relay behavior is unchanged.
+
 ## Retained evidence
 
 The integration owner's local archive is
@@ -99,6 +116,13 @@ failure and its other 22 passing steps. `tls-cleanup-phase-controls-v1/`
 contains baseline, forced-order and repaired source. The corresponding
 `tls-cleanup-phase-red-v1/` and `tls-cleanup-phase-fixed-v1/` packets retain
 commands, full output, source hashes and native-artifact guards.
+
+The original relay failure remains in `windows-dns-414fd37b-gate/`.
+The `relay-abandonment-readiness` worktree's
+`target/transport-profile-campaign/relay-readiness-focused-v2/` contains the
+negative control, restored source, complete logs and retained test binaries.
+Its earlier source and independent review packets preserve the proposed
+ownership check and the execution driver's cancellation limits.
 
 ## Next
 

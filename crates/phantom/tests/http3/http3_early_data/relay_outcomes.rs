@@ -136,6 +136,28 @@ pub(crate) async fn pending_front(observation: &RelayObservation) -> TestResult<
     Ok(())
 }
 
+// Read guards can be gone while a task still owns captured socket references.
+// Cancellation is complete only after both futures have been destroyed.
+async fn wait_for_abandonment(
+    owner: &AbortHandle,
+    worker: &AbortHandle,
+    observation: &RelayObservation,
+) -> TestResult<()> {
+    timeout(OBSERVATION_LIMIT, async {
+        while !observation.front.destroyed.load(Ordering::SeqCst)
+            || !observation.reply.destroyed.load(Ordering::SeqCst)
+            || !owner.is_finished()
+            || !worker.is_finished()
+        {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .map_err(RelayDropDeadline)?;
+
+    Ok(())
+}
+
 enum RelayKind {
     Delayed,
     Gated,
@@ -222,16 +244,9 @@ async fn exercise(kind: RelayKind, contract: ObservedContract) -> TestResult<()>
                 return Err("relay replaced the original local read cause".into());
             }
         } else {
+            let owner = task.abort_handle();
             drop(task);
-            timeout(OBSERVATION_LIMIT, async {
-                while !backup.observation.front.destroyed.load(Ordering::SeqCst)
-                    || !backup.observation.reply.destroyed.load(Ordering::SeqCst)
-                {
-                    tokio::task::yield_now().await;
-                }
-            })
-            .await
-            .map_err(RelayDropDeadline)?;
+            wait_for_abandonment(&owner, &worker, &backup.observation).await?;
             let _front = phantom_testkit::udp::bind_tokio(address)?;
             let _reply = phantom_testkit::udp::bind_tokio(upstream)?;
         }
@@ -265,3 +280,5 @@ async fn stopping_a_delaying_relay_retains_its_completed_local_read_error() -> T
 async fn stopping_a_gated_relay_retains_its_completed_local_read_error() -> TestResult<()> {
     exercise(RelayKind::Gated, ObservedContract::CompletedReadFailure).await
 }
+
+mod abandonment;

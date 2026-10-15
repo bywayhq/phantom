@@ -2701,6 +2701,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Wait for both relay socket owners to finish before testing port reuse after
+  cancellation. Keep the original rebind assertions and deadlines.
+
 - Keep direct HTTP/1.1 WebSocket backup connections in the matching request
   pool under Firefox's backup policy. Ordinary requests can claim a quiet
   spare while the Upgrade response is pending. Cancellation and rejected
