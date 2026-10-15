@@ -204,33 +204,40 @@ impl Http1TlsConnector {
         })
     }
 
-    pub(super) async fn finish_proxy_opening(
+    #[allow(
+        clippy::manual_async_fn,
+        reason = "Keep the explicit Send proof boundary for the pinned nightly compiler."
+    )]
+    pub(super) fn finish_proxy_opening(
         &self,
         stream: ProxyStream,
         binding: ProxyBinding,
         route: HttpConnectRoute<'_>,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        let span = connection_span(&Http1Route::Origin(OriginRoute::Tls {
-            tcp: TcpRoute::HttpConnect(route),
-            server_name: binding.server_name()?,
-            setup: DirectTlsSetup::Default,
-        }));
-        self.trace_connect(
-            span,
-            pin!(async {
-                let (leg, server_name) = binding
-                    .finish_connect(
-                        stream,
-                        route,
-                        self.dialer(),
-                        self.proxy_credentials.as_ref(),
-                    )
-                    .await?;
-                let stream = self.tls.connect(&server_name, leg).await?;
-                connect_over_tls(stream).await
-            }),
-        )
-        .await
+    ) -> impl Future<Output = Result<Http1Connection, Http1TlsError>> + Send {
+        // Keep the Send proof for this nested setup at its owning connector.
+        async move {
+            let span = connection_span(&Http1Route::Origin(OriginRoute::Tls {
+                tcp: TcpRoute::HttpConnect(route),
+                server_name: binding.server_name()?,
+                setup: DirectTlsSetup::Default,
+            }));
+            self.trace_connect(
+                span,
+                pin!(async {
+                    let (leg, server_name) = binding
+                        .finish_connect(
+                            stream,
+                            route,
+                            self.dialer(),
+                            self.proxy_credentials.as_ref(),
+                        )
+                        .await?;
+                    let stream = self.tls.connect(&server_name, leg).await?;
+                    connect_over_tls(stream).await
+                }),
+            )
+            .await
+        }
     }
 
     /// Builds a connector from validated TLS settings and bundled public roots.

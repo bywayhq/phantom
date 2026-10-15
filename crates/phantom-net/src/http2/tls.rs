@@ -122,27 +122,34 @@ impl Http2TlsConnector {
         ))
     }
 
-    pub(super) async fn finish_proxy_opening(
+    #[allow(
+        clippy::manual_async_fn,
+        reason = "Keep the explicit Send proof boundary for the pinned nightly compiler."
+    )]
+    pub(super) fn finish_proxy_opening(
         &self,
         stream: ProxyStream,
         binding: ProxyBinding,
         route: crate::route::HttpConnectRoute<'_>,
-    ) -> Result<Http2Connection, Http2TlsError> {
-        self.trace_connect(pin!(async {
-            let client = translate_settings(&self.http2)?;
-            let (leg, server_name) = binding
-                .finish_connect(
-                    stream,
-                    route,
-                    self.dialer(),
-                    self.proxy_credentials.as_ref(),
-                )
-                .await?;
-            let stream = self.tls.connect(&server_name, leg).await?;
-            let keepalive = stream.tcp_keepalive();
-            connect_over_tls(stream, client, false, keepalive).await
-        }))
-        .await
+    ) -> impl Future<Output = Result<Http2Connection, Http2TlsError>> + Send {
+        // Keep the Send proof for this nested setup at its owning connector.
+        async move {
+            self.trace_connect(pin!(async {
+                let client = translate_settings(&self.http2)?;
+                let (leg, server_name) = binding
+                    .finish_connect(
+                        stream,
+                        route,
+                        self.dialer(),
+                        self.proxy_credentials.as_ref(),
+                    )
+                    .await?;
+                let stream = self.tls.connect(&server_name, leg).await?;
+                let keepalive = stream.tcp_keepalive();
+                connect_over_tls(stream, client, false, keepalive).await
+            }))
+            .await
+        }
     }
 
     /// Builds a connector from validated TLS and HTTP/2 settings.

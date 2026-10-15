@@ -16,13 +16,30 @@ use crate::{
 /// An HTTPS backup may finish outer HTTP/1 TLS while it waits. Dropping the
 /// opening closes its socket.
 pub struct Http2ProxyOpening {
-    state: Box<ProxyOpeningState>,
+    state: Box<dyn OpeningOwner>,
 }
 
 struct ProxyOpeningState {
     stream: ProxyStream,
     connector: Http2TlsConnector,
     binding: ProxyBinding,
+}
+
+// Keep the pool's Send/Sync proof at this existing allocation. Setup takes
+// the concrete box back without copying the state or allocating again.
+trait OpeningOwner: Send + Sync {
+    fn state(&self) -> &ProxyOpeningState;
+    fn into_state(self: Box<Self>) -> Box<ProxyOpeningState>;
+}
+
+impl OpeningOwner for ProxyOpeningState {
+    fn state(&self) -> &ProxyOpeningState {
+        self
+    }
+
+    fn into_state(self: Box<Self>) -> Box<ProxyOpeningState> {
+        self
+    }
 }
 
 impl fmt::Debug for Http2ProxyOpening {
@@ -48,13 +65,10 @@ impl Http2ProxyOpening {
         }
     }
 
-    pub(super) async fn complete_proxy_tls(mut self) -> Result<Self, Http2TlsError> {
-        self.state.stream = self
-            .state
-            .binding
-            .complete_proxy_tls(self.state.stream)
-            .await?;
-        Ok(self)
+    pub(super) async fn complete_proxy_tls(self) -> Result<Self, Http2TlsError> {
+        let mut state = self.state.into_state();
+        state.stream = state.binding.complete_proxy_tls(state.stream).await?;
+        Ok(Self { state })
     }
 
     /// Sends this claimant's CONNECT and starts the actual origin protocol.
@@ -70,13 +84,13 @@ impl Http2ProxyOpening {
         self,
         route: HttpConnectRoute<'_>,
     ) -> Result<Http2Connection, Http2TlsError> {
-        self.state.binding.validate_connect(route)?;
+        self.state.state().binding.validate_connect(route)?;
         let opening = self.complete_proxy_tls().await?;
         let ProxyOpeningState {
             stream,
             connector,
             binding,
-        } = *opening.state;
+        } = *opening.state.into_state();
         connector.finish_proxy_opening(stream, binding, route).await
     }
 }
