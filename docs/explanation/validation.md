@@ -1990,9 +1990,11 @@ Differences from the browsers:
   supplies the current ordered CONNECT fields and performs authentication.
   Other proxy paths still close the slower attempt and neither use nor
   learn the family; Firefox keeps both on every entry.
-- The slower attempt reaches the pool, and becomes claimable, once the
-  first connection's handshake has finished. Firefox lets a request claim
-  it as soon as the first connection takes its request.
+- A direct connection's slower attempt becomes claimable once the first
+  connection's handshake has finished. The plaintext CONNECT proxy path
+  above registers its spare before the primary sends CONNECT or starts
+  origin TLS. Firefox lets a request claim the slower attempt as soon as
+  the first connection takes its request.
 - Phantom keeps one memory of an origin's address family per pool for the
   origin and route, shared by the origin's pool entries on every runtime,
   as per-origin admission is. A prune of the client's timer forgets it when

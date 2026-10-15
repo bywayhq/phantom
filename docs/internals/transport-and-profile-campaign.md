@@ -60,18 +60,20 @@ copying execution journals into this page.
 | F6 | `connect-udp-sharing` | Merged in PR #229 at `0f404ab2` after independent review, all 22 gate steps, 4,982 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. Both named peer implementations passed their explicit controls. |
 | F7 | `rtt-racing` | Merged in PR #228 at `3973d41c` after independent review, all 22 gate steps, 4,943 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. No browser timing parity or performance benefit is claimed. |
 | F8 | `http3-debug-auth` | Origin opt-in merged in PR #219 after independent review, all 22 gate steps, 4,643 Rust tests, and 43 green PR checks at `6f6426f4`. |
-| B1 | `firefox-ech-retention` | Direct ECH and H1 WebSocket retention merged in PRs #238 and #241; main push CI passed. Exact H2 merged in PR #242 at `4c7a3833` after all 23 gate steps, 5,331 Rust tests and 43 green PR checks. All eight applicable main push workflows passed. Direct H2 WebSocket retention merged in PR #243 at `5097b4f3` after all 23 gate steps, 5,354 Rust tests and 43 green PR checks. The repair also passes the unchanged 12,288-byte setup budget at 11,696 bytes. Main push CI is being watched. Proxy ownership and failed-address feedback remain open. |
+| B1 | `firefox-proxy-retention-integration` | Direct ECH and H1 WebSocket retention merged in PRs #238 and #241; main push CI passed. Exact H2 merged in PR #242 at `4c7a3833` after all 23 gate steps, 5,331 Rust tests and 43 green PR checks. Direct H2 WebSocket retention merged in PR #243 at `5097b4f3` after all 23 gate steps, 5,354 Rust tests and 43 green PR checks. Both main push runs passed all eight applicable workflows. The WebSocket repair also passes the unchanged 12,288-byte setup budget at 11,696 bytes. Plaintext CONNECT proxy retention passed 630 focused tests, including 20 new controls, and strict Clippy before rebase onto `4d6c13cd`. Final review, the full gate and PR checks remain pending. Other proxy paths and failed-address feedback remain open. |
 | B2 | `firefox-alt-used-mapping` | Proxy idle closure merged in PR #222 and template placement in PR #230; their main push CI passed. Mapping-time omission merged in PR #237 at `f307150d` after independent review, all 23 gate steps, 5,297 Rust tests and 43 green PR checks. Main push CI then exposed a macOS alternative-port fixture collision. The repair merged in PR #239 at `9e06e1e6` after independent review, all 23 gate steps, 5,298 Rust tests and 41 green PR checks. All four applicable main push workflows passed; ordinary H2 stream WINDOW_UPDATE remains open. |
 
-| B3 | `platform-tcp-integration` | The reviewed TCP/keepalive slice passed 552 focused tests and strict Clippy. The generated API inventory records five recipe functions and two policy fields. Rebased onto PR #243; the full gate and platform PR checks remain pending. |
+| B3 | `platform-tcp-integration` | TCP/keepalive policies merged in PR #244 at `4d6c13cd` after independent review, all 23 gate steps, 5,363 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. The generated API inventory records five recipe functions and two policy fields. |
 
 The Windows DNS drafts pass 21 watch controls and 28 configuration controls
 on the current compiler and Rust 1.88. Native probes started and stopped the
 watch and read a valid configuration. These checks do not establish behavior
 after an actual configuration change or production resolver integration.
-The shared DNS configuration and HTTPS cache drafts have source review but
-have not compiled. The H2 stream-window candidate still needs integrated
-runtime checks and gates.
+The integrated Windows DNS candidate compiles. Its latest verification run
+stopped on four Clippy findings before runtime tests. The source guard also
+detected a dependency-order change in the lockfile; both versions are retained
+for review. The H2 stream-window candidate has independent source review but
+still needs integrated runtime checks and gates.
 
 Neither controlled timing reproduction proves the exact historical host
 delay. The unchanged historical TLS suite also passed all 1,041 tests with
@@ -204,7 +206,7 @@ uncertainty. Research must lead to a decision, bounded experiment, or repair.
   All eight applicable main push workflows passed.
   Direct H2 WebSocket retention merged in PR #243 after its full gate and
   all 43 PR checks. Its repaired setup future stays within the unchanged
-  size budget. Main push CI is being watched.
+  size budget. All eight applicable main push workflows passed.
   Proxy ownership and failed-address feedback remain open.
 - [ ] B2: Correct Firefox `Alt-Used` placement and mapping-time omission,
   ordinary H2 stream `WINDOW_UPDATE` shape, and HTTPS-proxy H2 idle closure.
@@ -218,7 +220,7 @@ uncertainty. Research must lead to a decision, bounded experiment, or repair.
   The proxy idle-timer repair merged in PR #222 after its full gate and
   platform checks. Its [evidence](transport-profile-evidence/proxy-h2-idle.md)
   records the controlled baseline, retirement guard and verified delivery.
-- [ ] B3: Add Chromium macOS idle-only keepalive and Android TCP recipes.
+- [x] B3: Add Chromium macOS idle-only keepalive and Android TCP recipes.
   Add verified source-backed Firefox macOS, Linux, and Android keepalive
   recipes. Source-backed support and observed socket behavior remain distinct.
 - [ ] B4: Add Firefox Windows DNS record TTL through an audited FFI boundary
