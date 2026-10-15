@@ -93,6 +93,10 @@ name = "http3"
 path = "tests/http3/main.rs"
 
 [[test]]
+name = "session_ticket_proxy_transfer"
+path = "tests/session_ticket_proxy_transfer.rs"
+
+[[test]]
 name = "streams"
 path = "tests/streams/main.rs"
 

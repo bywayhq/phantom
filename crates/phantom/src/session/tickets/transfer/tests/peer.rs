@@ -139,7 +139,7 @@ async fn live_tls12_and_tls13_export_preserve_store_and_bind_actual_native_metad
         let other = origin("second.example:443")?;
         register(&fixture.owner, &second, &other);
         seed(&second, &fixture.server, &other).await?;
-        let sealed = fixture.owner.export_tcp(&KEY)?;
+        let sealed = fixture.owner.export(&KEY)?;
         let opened = envelope::open_manifest(sealed.as_bytes(), &KEY)?;
         assert_eq!(opened.owner_count(), 2);
         assert!(opened.record_count() >= 2);
@@ -154,14 +154,20 @@ async fn live_tls12_and_tls13_export_preserve_store_and_bind_actual_native_metad
         let mut dense = 0;
         for owner in opened.owners() {
             let owner = owner?;
-            assert!(owner.header.record_count() > 0);
-            assert_eq!(owner.header.excluded_expired_count(), 0);
+            let SessionTicketStoreHeader::Tcp(header) = owner.header else {
+                return Err("TCP peer exported a QUIC header".into());
+            };
+            assert!(header.record_count() > 0);
+            assert_eq!(header.excluded_expired_count(), 0);
             for slot in owner.slots() {
                 assert_eq!(usize::from(slot.native_slot), dense);
                 assert_eq!(verified.source_witness(dense)?, owner.source_witness);
                 let metadata =
                     phantom_net::TcpSessionRecordMetadata::parse(verified.owner_metadata(dense)?)?;
-                assert_eq!(metadata.header(), owner.header);
+                assert_eq!(
+                    SessionTicketStoreHeader::Tcp(metadata.header()),
+                    owner.header
+                );
                 assert_eq!(metadata.hostname(), owner.server_name);
                 assert_eq!(metadata.ordinal(), usize::from(slot.physical_ordinal));
                 assert_eq!(metadata.payload(), owner_payload(owner.record_owner_index));
@@ -170,7 +176,7 @@ async fn live_tls12_and_tls13_export_preserve_store_and_bind_actual_native_metad
         }
         assert_eq!(dense, opened.record_count());
         // A second export retains the same store counts, physical ordinals and counters.
-        let repeat = fixture.owner.export_tcp(&KEY)?;
+        let repeat = fixture.owner.export(&KEY)?;
         let repeat = envelope::open_manifest(repeat.as_bytes(), &KEY)?;
         assert_eq!(repeat.record_count(), opened.record_count());
         for (before, after) in opened.owners().zip(repeat.owners()) {
@@ -191,14 +197,14 @@ async fn conflicting_live_registration_rejects_export_without_consuming_real_tic
 {
     let fixture = Fixture::new(TlsVersion::Tls13)?;
     seed(&fixture.connector, &fixture.server, &fixture.endpoint).await?;
-    let sealed = fixture.owner.export_tcp(&KEY)?;
+    let sealed = fixture.owner.export(&KEY)?;
     let count = envelope::open_manifest(sealed.as_bytes(), &KEY)?.record_count();
     assert!(count > 0);
     let changed = origin("origin.example")?;
     register(&fixture.owner, &fixture.connector, &changed);
     assert!(matches!(
-        fixture.owner.export_tcp(&KEY),
-        Err(TcpExportError::ConflictingOwner)
+        fixture.owner.export(&KEY),
+        Err(ExportError::ConflictingOwner)
     ));
     assert_eq!(fixture.owner.clear()?, count);
     Ok(())

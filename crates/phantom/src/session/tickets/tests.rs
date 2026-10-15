@@ -373,7 +373,7 @@ fn descriptor_conflict_does_not_rebind_or_revoke_the_original_native_scope() -> 
         );
     }
     // A conflicting native rebind would permanently retire this scope.
-    prepared.bind_direct_tcp_transfer_policy(
+    prepared.bind_transfer_policy(
         &native,
         &descriptor,
         origin.host(),
@@ -385,78 +385,141 @@ fn descriptor_conflict_does_not_rebind_or_revoke_the_original_native_scope() -> 
 }
 
 #[test]
-fn proxy_legs_and_http3_metadata_do_not_install_tcp_transfer_policy() -> TestResult {
+fn proxy_legs_and_http3_install_native_policy_on_actual_matching_cache_kinds() -> TestResult {
     let origin = origin()?;
     let direct_route = Route::Direct;
     let proxy_route = Route::http_proxy(crate::HttpProxy::new("https://proxy.example")?);
-    let base = Http1TlsConnector::new(&chrome::v154_tcp_tls())?;
-    for (route, leg, protocol) in [
+    let profile = chrome::v154_windows();
+    let h1 = Http1TlsConnector::new(profile.tls())?.with_isolated_session_cache();
+    let h2 = phantom_net::http2::Http2TlsConnector::new(
+        profile.tls(),
+        profile.http2().ok_or("H2 settings missing")?,
+    )?
+    .with_isolated_session_cache();
+    let h3_settings = profile.http3().ok_or("H3 settings missing")?;
+    let h3 = phantom_net::http3::Http3Connector::new(
+        h3_settings.tls(),
+        h3_settings.quic_transport(),
+        h3_settings.http3(),
+        h3_settings.request(),
+    )?
+    .with_isolated_session_cache();
+    for (cache, route, leg, protocol) in [
         (
+            h1.session_ticket_cache(),
             &proxy_route,
             TicketCacheLeg::Origin,
             TicketCacheProtocol::Http1,
         ),
         (
+            h2.session_ticket_cache(),
             &proxy_route,
             TicketCacheLeg::HttpProxy,
             TicketCacheProtocol::Http2,
         ),
         (
-            &direct_route,
-            TicketCacheLeg::ConnectUdp,
-            TicketCacheProtocol::Http2,
-        ),
-        (
+            h3.session_ticket_cache(),
             &direct_route,
             TicketCacheLeg::Origin,
             TicketCacheProtocol::Http3,
         ),
     ] {
-        let connector = base.with_isolated_session_cache();
-        let owner = prepared_owner()?;
+        let owner = prepared_owner_for(&profile)?;
         let mut input = direct(&origin, route);
         input.leg = leg;
         input.protocol = Ok(protocol);
-        owner.register(connector.session_ticket_cache(), input);
-        {
-            let cache_registry = owner.registry();
-            let caches = &cache_registry.caches;
-            assert!(caches[0].binding.is_ok());
-            assert!(matches!(
-                caches[0].native_binding,
-                Err(binding::PreparationError::Unsupported(
-                    "non-direct TCP transfer"
-                ))
-            ));
+        if leg == TicketCacheLeg::HttpProxy {
+            input.server_name = "proxy.example";
         }
-        let native = connector
-            .session_ticket_cache()
-            .ok_or("missing cache")?
-            .upgrade()
-            .ok_or("dead cache")?;
-        let prepared = owner
-            .preparation
-            .as_ref()
-            .ok_or("missing preparation")?
-            .as_ref()
-            .map_err(|e| *e)?;
-        let descriptor = prepared.prepare_cache_descriptor(
-            &origin,
-            origin.host(),
-            TicketCacheLeg::Origin,
-            TicketCacheProtocol::Http1,
-            &direct_route,
+        owner.register(cache, input);
+        let binding = {
+            let registry = owner.registry();
+            assert_eq!(registry.caches.len(), 1);
+            assert!(registry.caches[0].binding.is_ok());
+            registry.caches[0]
+                .native_binding
+                .as_ref()
+                .map_err(|error| *error)?
+                .clone()
+        };
+        let frozen = btls::ssl::PreparedSessionPolicyFreeze::new(&[&binding])?.try_freeze()?;
+        frozen.validate_binding(
+            &binding,
+            if leg == TicketCacheLeg::HttpProxy {
+                "proxy.example"
+            } else {
+                origin.host()
+            },
         )?;
-        prepared.bind_direct_tcp_transfer_policy(
-            &native,
-            &descriptor,
-            origin.host(),
-            TicketCacheLeg::Origin,
-            TicketCacheProtocol::Http1,
-            &direct_route,
-        )?;
+        drop(frozen);
         assert_eq!(owner.clear()?, 0);
     }
+    Ok(())
+}
+
+#[test]
+fn invalid_route_leg_does_not_install_or_revoke_a_tcp_transfer_scope() -> TestResult {
+    let origin = origin()?;
+    let route = Route::Direct;
+    let connector = Http1TlsConnector::new(&chrome::v154_tcp_tls())?.with_isolated_session_cache();
+    let owner = prepared_owner()?;
+    let mut input = direct(&origin, &route);
+    input.leg = TicketCacheLeg::ConnectUdp;
+    input.protocol = Ok(TicketCacheProtocol::Http2);
+    owner.register(connector.session_ticket_cache(), input);
+    assert!(owner.registry().caches[0].binding.is_ok());
+    assert!(matches!(
+        owner.registry().caches[0].native_binding,
+        Err(binding::PreparationError::Unsupported(
+            "ticket route and protocol"
+        ))
+    ));
+    let native = connector
+        .session_ticket_cache()
+        .and_then(|cache| cache.upgrade())
+        .ok_or("actual cache missing")?;
+    let prepared = owner
+        .preparation
+        .as_ref()
+        .ok_or("missing preparation")?
+        .as_ref()
+        .map_err(|error| *error)?;
+    let descriptor = prepared.prepare_cache_descriptor(
+        &origin,
+        origin.host(),
+        TicketCacheLeg::Origin,
+        TicketCacheProtocol::Http1,
+        &route,
+    )?;
+    prepared.bind_transfer_policy(
+        &native,
+        &descriptor,
+        origin.host(),
+        TicketCacheLeg::Origin,
+        TicketCacheProtocol::Http1,
+        &route,
+    )?;
+    assert_eq!(owner.clear()?, 0);
+    Ok(())
+}
+
+#[test]
+fn tcp_cache_labeled_http3_rejects_export_instead_of_claiming_quic_support() -> TestResult {
+    let origin = origin()?;
+    let route = Route::Direct;
+    let connector = Http1TlsConnector::new(&chrome::v154_tcp_tls())?.with_isolated_session_cache();
+    let owner = prepared_owner()?;
+    let mut input = direct(&origin, &route);
+    input.protocol = Ok(TicketCacheProtocol::Http3);
+    owner.register(connector.session_ticket_cache(), input);
+    assert!(owner.registry().caches[0].binding.is_ok());
+    assert!(matches!(
+        owner.export(&[1; 32]),
+        Err(super::transfer::ExportError::Envelope(
+            super::envelope::EnvelopeError::UnsupportedProtocol
+        ))
+    ));
+    assert_eq!(owner.clear()?, 0);
     Ok(())
 }
 
@@ -475,7 +538,7 @@ fn native_rejection_is_explicit_even_when_descriptor_preparation_succeeds() -> T
     assert!(matches!(
         caches[0].native_binding,
         Err(binding::PreparationError::Unsupported(
-            "native TCP transfer policy"
+            "native ticket transfer policy"
         ))
     ));
     Ok(())
@@ -500,11 +563,7 @@ fn same_cache_changed_credentials_conflict_before_rebinding_a_live_native_scope(
     let origin = origin()?;
     let connector = Http1TlsConnector::new(&chrome::v154_tcp_tls())?.with_isolated_session_cache();
     let cache = connector.session_ticket_cache().ok_or("missing cache")?;
-    let native = cache.upgrade().ok_or("dead cache")?;
-    let policy = || {
-        btls::ssl::SessionTransferPolicy::new(b"known live native policy", &[0, 0], None, &[7; 32])
-    };
-    native.bind_tcp_transfer_policy("proxy.example", policy()?)?;
+    assert!(cache.is_live());
     let owner = prepared_owner()?;
     let route = Route::http_proxy(
         crate::HttpProxy::new("https://proxy.example")?.with_basic_auth("user", "password")?,
@@ -520,18 +579,18 @@ fn same_cache_changed_credentials_conflict_before_rebinding_a_live_native_scope(
         route,
     };
     owner.register(Some(cache.clone()), input(&route));
+    let original_binding = owner.registry().caches[0]
+        .native_binding
+        .as_ref()
+        .map_err(|error| *error)?
+        .clone();
     let same_route = route.clone();
     owner.register(Some(cache.clone()), input(&same_route));
     {
         let cache_registry = owner.registry();
         let caches = &cache_registry.caches;
         assert!(caches.iter().all(|cache| cache.binding.is_ok()));
-        assert!(caches.iter().all(|cache| matches!(
-            cache.native_binding,
-            Err(binding::PreparationError::Unsupported(
-                "non-direct TCP transfer"
-            ))
-        )));
+        assert!(caches.iter().all(|cache| cache.native_binding.is_ok()));
     }
     owner.register(Some(cache), input(&changed));
     let cache_registry = owner.registry();
@@ -549,7 +608,10 @@ fn same_cache_changed_credentials_conflict_before_rebinding_a_live_native_scope(
             "conflicting cache descriptors"
         ))
     )));
-    native.bind_tcp_transfer_policy("proxy.example", policy()?)?;
+    drop(cache_registry);
+    let frozen = btls::ssl::PreparedSessionPolicyFreeze::new(&[&original_binding])?.try_freeze()?;
+    frozen.validate_binding(&original_binding, "proxy.example")?;
+    drop(frozen);
     Ok(())
 }
 

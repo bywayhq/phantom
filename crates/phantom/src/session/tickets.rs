@@ -1,6 +1,8 @@
 //! Controls every TLS and QUIC cache owned by one client.
 
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::sync::Mutex;
+#[cfg(test)]
+use std::sync::{MutexGuard, PoisonError};
 
 use phantom_net::proxy::HttpsProxyProtocol;
 use phantom_net::{SessionTicketCache, SessionTicketCacheOwner};
@@ -18,6 +20,7 @@ mod transfer_import;
 
 pub use api::{SessionTicketError, SessionTicketErrorKind, SessionTicketSnapshot};
 
+#[derive(Clone, Copy)]
 pub(super) struct TicketCacheBinding<'a> {
     pub(super) origin: &'a Endpoint,
     pub(super) server_name: &'a str,
@@ -103,6 +106,7 @@ impl TicketOwner {
     /// Register before the connector is used. The registry lock serializes
     /// this with clear, so a new cache is either cleared or starts empty after
     /// it. Cache callbacks never acquire the owner lock.
+    #[cfg(test)]
     pub(super) fn register(
         &self,
         cache: Option<SessionTicketCache>,
@@ -119,77 +123,25 @@ impl TicketOwner {
         );
     }
 
-    /// Register the pinned shared H2/H3 outer cache before its first TLS use.
-    /// Equal registrations do not add aliases. Conflicts remain ineligible for
-    /// transfer while the original weak control still covers ticket clearing.
+    /// Register the pinned shared outer owner and apply matching cold intent.
     pub(super) fn register_shared_outer_before_use(
         &self,
         cache: Option<SessionTicketCache>,
         input: TicketCacheBinding<'_>,
-    ) {
-        let Some(cache) = cache else {
-            return;
-        };
-        let binding = if input.leg == TicketCacheLeg::ConnectUdp
+    ) -> Result<(), TicketUseError> {
+        let supported = input.leg == TicketCacheLeg::ConnectUdp
             && matches!(
                 input.protocol,
                 Ok(TicketCacheProtocol::Http2 | TicketCacheProtocol::Http3)
             )
-            && matches!(input.route, Route::ConnectUdp(_))
-        {
-            self.prepare_registration(input)
-        } else {
-            Err(PreparationError::Unsupported(
-                "shared CONNECT-UDP outer registration",
-            ))
-        };
-        let mut registry = self.registry();
-        let caches = &mut registry.caches;
-        caches.retain(|registered| registered.cache.is_live());
-        let Some(owner) = cache.upgrade() else {
-            return;
-        };
-        let mut found = false;
-        let mut conflict = binding.as_ref().err().copied();
-        for existing in &*caches {
-            if existing
-                .cache
-                .upgrade()
-                .is_some_and(|other| owner.same_cache(&other))
-            {
-                found = true;
-                match (&existing.binding, &binding) {
-                    (Ok(previous), Ok(current))
-                        if previous.descriptor != current.descriptor
-                            || previous.origin != current.origin
-                            || previous.server_name != current.server_name
-                            || previous.leg != current.leg
-                            || previous.protocol != current.protocol
-                            || previous.route != current.route =>
-                    {
-                        conflict = Some(PreparationError::Unsupported(
-                            "conflicting cache descriptors",
-                        ));
-                    }
-                    (Err(error), _) => conflict = Some(*error),
-                    _ => {}
-                }
-            }
+            && matches!(input.route, Route::ConnectUdp(_));
+        let registered = self.register_before_use(cache, input);
+        if !supported {
+            return Err(TicketUseError(
+                transfer_import::ImportError::UnsupportedRoute,
+            ));
         }
-        if !found {
-            self.register_locked(caches, cache, binding);
-        } else if let Some(error) = conflict {
-            for existing in caches {
-                if existing
-                    .cache
-                    .upgrade()
-                    .is_some_and(|other| owner.same_cache(&other))
-                {
-                    existing.binding = Err(error);
-                    existing.native_binding = Err(error);
-                }
-            }
-        }
+        registered
     }
 
     fn register_locked(
@@ -246,7 +198,7 @@ impl TicketOwner {
                         .as_ref()
                         .map_err(|error| *error)?;
                     let registration = binding.as_ref().map_err(|error| *error)?;
-                    prepared.bind_direct_tcp_transfer_policy(
+                    prepared.bind_transfer_policy(
                         &owner,
                         &registration.descriptor,
                         &registration.server_name,
@@ -264,18 +216,18 @@ impl TicketOwner {
         });
     }
 
-    /// Publish matching cold TCP custody before a connector's next TLS use.
+    /// Apply matching cold custody before a connector's next TCP or QUIC TLS use.
     /// Registration and replacement share one registry order with import/clear.
-    pub(super) fn register_tcp_before_use(
+    pub(super) fn register_before_use(
         &self,
         cache: Option<SessionTicketCache>,
         input: TicketCacheBinding<'_>,
     ) -> Result<(), TicketUseError> {
-        self.prepare_tcp_before_use(cache, input)
+        self.prepare_before_use(cache, input)
             .map_err(TicketUseError)
     }
 
-    fn prepare_tcp_before_use(
+    fn prepare_before_use(
         &self,
         cache: Option<SessionTicketCache>,
         input: TicketCacheBinding<'_>,
@@ -307,7 +259,26 @@ impl TicketOwner {
                 .is_some_and(|other| owner.same_cache(&other))
         });
         let index = match index {
-            Some(index) => index,
+            Some(index) => {
+                let prepared = self.prepare_registration(input);
+                let previous = &mut registry.caches[index];
+                let conflict = match (&previous.binding, prepared) {
+                    (Ok(old), Ok(new))
+                        if old.descriptor != new.descriptor || old.route != new.route =>
+                    {
+                        Some(PreparationError::Unsupported(
+                            "conflicting cache descriptors",
+                        ))
+                    }
+                    (_, Err(error)) => Some(error),
+                    _ => None,
+                };
+                if let Some(error) = conflict {
+                    previous.binding = Err(error);
+                    previous.native_binding = Err(error);
+                }
+                index
+            }
             None => {
                 let index = registry.caches.len();
                 self.register_locked(
@@ -321,40 +292,36 @@ impl TicketOwner {
         let Some(cold) = registry.cold.as_ref() else {
             return Ok(());
         };
-        // Unsupported routes without matching staged intent keep their normal
-        // behavior, including an unrelated cache's preparation failure.
-        if !matches!(route, Route::Direct)
-            || leg != TicketCacheLeg::Origin
-            || !matches!(
-                protocol,
-                Ok(TicketCacheProtocol::Http1
-                    | TicketCacheProtocol::Http2
-                    | TicketCacheProtocol::Negotiated)
-            )
-        {
-            return Ok(());
-        }
-        let mut matching = cold.owners.iter().enumerate().filter(|(_, staged)| {
+        let registration = &registry.caches[index];
+        let candidate = cold.owners.iter().any(|staged| {
             staged.origin.host().eq_ignore_ascii_case(origin.host())
                 && staged.origin.port() == origin.port()
                 && staged.leg == leg
                 && Ok(staged.protocol) == protocol
         });
-        let Some((position, staged)) = matching.next() else {
+        if !candidate {
+            return Ok(());
+        }
+        let binding = registration.binding.as_ref().map_err(|error| *error)?;
+        let same_identity = |staged: &staging::ColdOwner| {
+            staged.origin.authority().as_str() == origin.authority().as_str()
+                && staged.server_name.as_str() == server_name
+                && staged.leg == leg
+                && Ok(staged.protocol) == protocol
+        };
+        if !cold.owners.iter().any(same_identity) {
+            return Err(ImportError::OwnerMapping);
+        }
+        let mut matching = cold.owners.iter().enumerate().filter(|(_, staged)| {
+            same_identity(staged) && staged.policy.as_slice() == binding.descriptor.policy()
+        });
+        let Some((position, _)) = matching.next() else {
             return Ok(());
         };
-        let registration = &registry.caches[index];
-        let binding = registration.binding.as_ref().map_err(|error| *error)?;
         if matching.next().is_some()
-            || staged.origin.authority().as_str() != origin.authority().as_str()
-            || staged.server_name.as_str() != server_name
             || binding.route != *route
             || binding.leg != leg
             || Ok(binding.protocol) != protocol
-            || staged.origin.authority().as_str() != binding.origin.authority().as_str()
-            || staged.server_name.as_str() != binding.server_name
-            || staged.policy.as_slice() != binding.descriptor.policy()
-            || staged.has_credentials
         {
             return Err(ImportError::OwnerMapping);
         }
@@ -371,7 +338,7 @@ impl TicketOwner {
                 .ok_or(PreparationError::Unsupported("missing client preparation"))?
                 .as_ref()
                 .map_err(|error| *error)?;
-            let retried = preparation.bind_direct_tcp_transfer_policy(
+            let retried = preparation.bind_transfer_policy(
                 &owner,
                 &binding.descriptor,
                 &binding.server_name,
@@ -397,7 +364,7 @@ impl TicketOwner {
                     .authorize_record(usize::from(slot.native_slot), recipient)?,
             );
         }
-        let replacement = owner.prepare_tcp_replacement(
+        let replacement = owner.prepare_replacement(
             std::sync::Arc::from(staged.server_name.as_str()),
             staged.header,
             permits,
@@ -413,7 +380,7 @@ impl TicketOwner {
             .try_reserve_exact(1)
             .map_err(|_| ImportError::Allocation)?;
         replacements.push(replacement);
-        let retired = SessionTicketCacheOwner::replace_tcp_stores(replacements)?;
+        let retired = SessionTicketCacheOwner::replace_stores(replacements)?;
         let old = std::mem::replace(&mut registry.cold, next);
         drop(registry);
         drop(old);
@@ -489,6 +456,7 @@ impl TicketOwner {
         Ok(cold_count + live_count)
     }
 
+    #[cfg(test)]
     fn registry(&self) -> MutexGuard<'_, TicketRegistry> {
         self.registry.lock().unwrap_or_else(PoisonError::into_inner)
     }

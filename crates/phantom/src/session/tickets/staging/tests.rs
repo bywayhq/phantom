@@ -138,7 +138,7 @@ impl Fixture {
     }
 
     fn snapshot(&self, decoding: &SslContextRef) -> TestResult<(OpenedManifest, ColdState)> {
-        let sealed = self.owner.export_tcp(&KEY)?;
+        let sealed = self.owner.export(&KEY)?;
         let manifest = envelope::open_manifest(sealed.as_bytes(), &KEY)?;
         let native = btls::ssl::open_envelope(manifest.native_ciphertext(), &KEY, decoding)?;
         let preparation = self
@@ -165,18 +165,22 @@ impl Fixture {
             assert!(!view.has_credentials);
             assert!(crate::route::transfer_credential(&binding.route)?.is_none());
             preparation.validate_source_witness(view.source_witness)?;
-            let configured = preparation.configured_direct_tcp_policy(
+            let configured = preparation.configured_policy(
                 &binding.descriptor,
                 binding.leg,
                 binding.protocol,
                 &binding.route,
             )?;
             for slot in view.slots() {
-                preparation.validate_configured_direct_tcp_record(
-                    &native,
+                native.validate_record_policy(
                     usize::from(slot.native_slot),
                     &configured,
                     view.server_name,
+                    preparation.allows_early_data(
+                        view.leg,
+                        view.protocol,
+                        &crate::Route::Direct,
+                    )?,
                 )?;
             }
         }
@@ -419,7 +423,7 @@ struct StateSnapshot {
 #[derive(Debug, Eq, PartialEq)]
 struct OwnerSnapshot {
     authority: String,
-    header: [u8; 22],
+    header: SessionTicketStoreHeader,
     original_index: u16,
     policy: [u8; 32],
     witness: [u8; 32],
@@ -441,7 +445,7 @@ fn snapshot(state: &ColdState) -> TestResult<StateSnapshot> {
             .iter()
             .map(|owner| OwnerSnapshot {
                 authority: owner.origin.authority().as_str().to_owned(),
-                header: owner.header.to_bytes(),
+                header: owner.header,
                 original_index: owner.record_owner_index,
                 policy: btls::sha::sha256(&owner.policy),
                 witness: btls::sha::sha256(&owner.source_witness),
@@ -688,3 +692,5 @@ async fn consumed_incoming_owner_still_replaces_old_while_another_owner_stays_pe
     assert_eq!((snapshot(&old)?, snapshot(&incoming)?), before);
     Ok(())
 }
+
+mod mixed;

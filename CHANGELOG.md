@@ -13,6 +13,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Require receiving routes when importing TLS ticket snapshots. Migrate:
+  replace `import_session_tickets(&snapshot, &key)` with
+  `import_session_tickets(&snapshot, &key, &[])` for direct connections.
+  Supply matching proxy routes in the third argument when needed. Re-export
+  tickets with the updated library: the new `PHOWN003` format rejects
+  earlier snapshot formats.
+
 - Pin a prepared shared CONNECT-UDP outer connector before registering its
   ticket cache. Migrate: add `prepared_outer: None` to native
   `ConnectUdpRoute` literals, or prepare and register the actual cache and
@@ -1128,13 +1135,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Add mixed TCP TLS and QUIC ticket transactions to `phantom-net`. Capture
   preserves source tickets. Replacement validates all destinations before
   changing any store and defers old-ticket cleanup until locks are released.
-  Client snapshot export and import still support direct TCP only.
 
 - Add authenticated QUIC ticket capture and replacement primitives to
   `phantom-quic-btls`. They retain the actual QUIC version, remembered server
   parameters, application state and RTT. Capture leaves source tickets
   available. Replacement validates the complete queue before committing it.
-  Client snapshot export and import still support direct TCP only.
 
 - `fingerprint::import_profile_json` imports complete custom profiles through
   the `fingerprint-import` feature. It preserves explicit settings and order,
@@ -1174,11 +1179,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Encode and validate bounded DNS-over-HTTPS messages with `DnsWireQuery`,
   preserving answer order, alias limits, and DNS lifetimes.
 
-- Export and import encrypted direct TCP TLS ticket snapshots with
+- Transfer encrypted TCP TLS and QUIC session tickets with
   `Client::export_session_tickets`, `import_session_tickets` and
-  `SessionTicketSnapshot`. Matching live owners are replaced together;
-  unmatched owners wait for first use. Unsupported proxy or QUIC owners
-  reject the complete transfer. Failed imports preserve retained tickets.
+  `SessionTicketSnapshot`. Matching owners are replaced together; cold
+  owners wait for first use. Import requires matching receiving routes
+  and preserves existing tickets on failure.
 
 - Add native session-store transfer preparation with bounded exports and
   nonblocking policy guards. Expose encoded record lengths for snapshot byte

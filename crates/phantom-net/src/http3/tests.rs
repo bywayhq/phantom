@@ -720,5 +720,6 @@ mod firefox;
 mod profile;
 mod qpack;
 mod quic;
+mod remembered_settings;
 mod request;
 mod resumption;

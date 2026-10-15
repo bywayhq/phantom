@@ -33,14 +33,14 @@ pub(super) struct ClientContext {
 }
 
 /// Shared origins retain normal and WebSocket offers in one cache policy.
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum TicketCacheLeg {
     Origin,
     HttpProxy,
     ConnectUdp,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum TicketCacheProtocol {
     Http1,
     Http2,
@@ -179,8 +179,8 @@ impl ClientContext {
 }
 
 impl PreparedTicketPolicy {
-    /// Installs only direct TCP policy. Other caches keep their local ticket behavior.
-    pub(in crate::session::tickets) fn bind_direct_tcp_transfer_policy(
+    /// Installs configured policy on the actual TCP or QUIC cache owner.
+    pub(in crate::session::tickets) fn bind_transfer_policy(
         &self,
         cache: &phantom_net::SessionTicketCacheOwner,
         descriptor: &PreparedCacheDescriptor,
@@ -189,42 +189,46 @@ impl PreparedTicketPolicy {
         protocol: TicketCacheProtocol,
         route: &Route,
     ) -> Result<btls::ssl::SessionPolicyBinding, PreparationError> {
-        let policy = self.configured_direct_tcp_policy(descriptor, leg, protocol, route)?;
+        let policy = self.configured_policy(descriptor, leg, protocol, route)?;
         cache
-            .bind_tcp_transfer_policy(server_name, policy)
-            .map_err(native_tcp_preparation_error)
-    }
-
-    /// Checks a record without consuming its slot or granting recipient authority.
-    /// The configured policy must come from this preparation's direct TCP builder.
-    pub(in crate::session::tickets) fn validate_configured_direct_tcp_record(
-        &self,
-        envelope: &btls::ssl::VerifiedSessionEnvelope,
-        index: usize,
-        configured: &btls::ssl::SessionTransferPolicy,
-        server_name: &str,
-    ) -> Result<(), btls::ssl::SessionTransferError> {
-        envelope.validate_record_policy(index, configured, server_name, self.tcp_early_data)
+            .bind_transfer_policy(server_name, policy)
+            .map_err(native_preparation_error)
     }
 
     /// Prepares configured native policy without installing a recipient binding.
-    pub(in crate::session::tickets) fn configured_direct_tcp_policy(
+    pub(in crate::session::tickets) fn configured_policy(
         &self,
         descriptor: &PreparedCacheDescriptor,
         leg: TicketCacheLeg,
         protocol: TicketCacheProtocol,
         route: &Route,
     ) -> Result<btls::ssl::SessionTransferPolicy, PreparationError> {
-        if !matches!(route, Route::Direct)
-            || !matches!(leg, TicketCacheLeg::Origin)
-            || !matches!(
-                protocol,
+        let supported = matches!(
+            (leg, protocol, route),
+            (
+                TicketCacheLeg::Origin,
+                TicketCacheProtocol::Http3,
+                Route::Direct | Route::Socks5(_) | Route::ConnectUdp(_),
+            ) | (
+                TicketCacheLeg::Origin,
                 TicketCacheProtocol::Http1
                     | TicketCacheProtocol::Http2
-                    | TicketCacheProtocol::Negotiated
+                    | TicketCacheProtocol::Negotiated,
+                Route::Direct | Route::HttpProxy(_) | Route::Socks4(_) | Route::Socks5(_),
+            ) | (
+                TicketCacheLeg::HttpProxy,
+                TicketCacheProtocol::Http1 | TicketCacheProtocol::Http2,
+                Route::HttpProxy(_),
+            ) | (
+                TicketCacheLeg::ConnectUdp,
+                TicketCacheProtocol::Http1
+                    | TicketCacheProtocol::Http2
+                    | TicketCacheProtocol::Http3,
+                Route::ConnectUdp(_),
             )
-        {
-            return Err(PreparationError::Unsupported("non-direct TCP transfer"));
+        );
+        if !supported {
+            return Err(PreparationError::Unsupported("ticket route and protocol"));
         }
 
         self.validate_source_witness(&descriptor.witness)?;
@@ -239,7 +243,35 @@ impl PreparedTicketPolicy {
             crate::route::transfer_credential(route)?,
             &context.credential_subkey,
         )
-        .map_err(native_tcp_preparation_error)
+        .map_err(native_preparation_error)
+    }
+
+    pub(in crate::session::tickets) fn allows_early_data(
+        &self,
+        leg: TicketCacheLeg,
+        protocol: TicketCacheProtocol,
+        route: &Route,
+    ) -> Result<bool, PreparationError> {
+        let context = self
+            .context
+            .as_ref()
+            .ok_or(PreparationError::Unsupported("missing client context"))?;
+        Ok(match (leg, protocol) {
+            (TicketCacheLeg::ConnectUdp, TicketCacheProtocol::Http3) => false,
+            (
+                _,
+                TicketCacheProtocol::Http1
+                | TicketCacheProtocol::Http2
+                | TicketCacheProtocol::Negotiated,
+            ) => {
+                matches!(leg, TicketCacheLeg::Origin)
+                    && matches!(route, Route::Direct)
+                    && self.tcp_early_data
+            }
+            (_, TicketCacheProtocol::Http3) => {
+                context.http3_early_data.unwrap_or(self.quic_early_data)
+            }
+        })
     }
 
     pub(crate) fn with_client_context(
@@ -291,22 +323,7 @@ impl PreparedTicketPolicy {
         };
         encoder.option(selected.as_ref(), |e, content| e.bytes(content))?;
         encoder.bytes(&context.source_binding)?;
-        let early_data = match (leg, protocol) {
-            (TicketCacheLeg::ConnectUdp, TicketCacheProtocol::Http3) => false,
-            (
-                _,
-                TicketCacheProtocol::Http1
-                | TicketCacheProtocol::Http2
-                | TicketCacheProtocol::Negotiated,
-            ) => {
-                matches!(leg, TicketCacheLeg::Origin)
-                    && matches!(route, Route::Direct)
-                    && self.tcp_early_data
-            }
-            (_, TicketCacheProtocol::Http3) => {
-                context.http3_early_data.unwrap_or(self.quic_early_data)
-            }
-        };
+        let early_data = self.allows_early_data(leg, protocol, route)?;
         encoder.bool(early_data)?;
         route::encode(&mut encoder, route)?;
         let mut witness = Encoder::new();
@@ -319,12 +336,12 @@ impl PreparedTicketPolicy {
     }
 }
 
-fn native_tcp_preparation_error(error: btls::ssl::SessionTransferError) -> PreparationError {
+fn native_preparation_error(error: btls::ssl::SessionTransferError) -> PreparationError {
     match error {
         btls::ssl::SessionTransferError::TooLarge => PreparationError::TooLarge,
         btls::ssl::SessionTransferError::Allocation => PreparationError::Allocation,
         btls::ssl::SessionTransferError::Policy => {
-            PreparationError::Unsupported("native TCP transfer policy")
+            PreparationError::Unsupported("native ticket transfer policy")
         }
         _ => PreparationError::Backend,
     }
@@ -476,7 +493,7 @@ mod tests {
         )?;
         let witness = std::mem::replace(&mut descriptor.witness, Zeroizing::new(vec![1]));
         assert!(matches!(
-            prepared.bind_direct_tcp_transfer_policy(
+            prepared.bind_transfer_policy(
                 &owner,
                 &descriptor,
                 origin.host(),
@@ -487,7 +504,7 @@ mod tests {
             Err(PreparationError::DrawMismatch)
         ));
         descriptor.witness = witness;
-        prepared.bind_direct_tcp_transfer_policy(
+        prepared.bind_transfer_policy(
             &owner,
             &descriptor,
             origin.host(),

@@ -317,14 +317,29 @@ leaves the tickets in place. Clearing also forgets saved QUIC RTTs and prevents
 older handshakes from restoring or publishing tickets. Existing connections
 and already offered sessions continue.
 
-`Client::export_session_tickets` and `import_session_tickets` currently
-transfer direct-origin TCP owners only. An unsupported proxy or QUIC owner
-rejects the entire operation. Snapshots contain at most 256 owners, 2,560
-records and 16 MiB of encrypted data. Import checks the selected default
-route and configured protocol for every owner before changing any cache.
-Unmatched owners wait for first use, and unmentioned owners keep their
-state. A stored snapshot and its key are sensitive resumption material.
-Snapshot formats require a compatible library and native TLS backend.
+`Client::export_session_tickets` and `import_session_tickets` transfer TCP
+TLS and QUIC tickets. Snapshots contain at most 256 owners, 2,560 records
+and 16 MiB of encrypted data. Export preserves source tickets. Unsupported
+or conflicting owners reject the complete export.
+
+Import authenticates every owner and checks its profile, peer identity,
+certificate settings, protocol and receiving route before changing any
+cache. Matching live owners are replaced together. Owners without a cache
+wait until first use; unmentioned owners keep their state. Failed imports
+preserve live and pending tickets. An empty owner clears its matching
+cache, but empty credentialed owners are rejected.
+
+The required third argument, `receiving_routes: &[Route]`, supplies explicit
+receiving routes. Pass `&[]` for direct connections. Import also considers
+the selected client route and matching live owner routes. At most 256 routes
+may be supplied. This list never changes request routing. A failure to
+install pending tickets before first use fails that request without sending
+it and retains the tickets for another attempt.
+
+A stored snapshot and its randomly generated 32-byte key are sensitive
+resumption material. Keep them separate. The `PHOWN003` format requires a
+compatible library and native TLS backend. Earlier snapshots are rejected;
+re-export tickets with the updated library.
 
 H3 field-section size is measured as RFC 9114 Section 4.2.2 defines it: each
 field line counts its name and value lengths plus 32 bytes. The 256 KiB

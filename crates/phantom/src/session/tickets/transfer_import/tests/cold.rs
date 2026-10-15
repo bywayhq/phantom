@@ -189,7 +189,7 @@ fn live_snapshot(owner: &TicketOwner, invalid: Option<InvalidLastOwner>) -> Test
             policy: &policies[index],
             source_witness: &witnesses[index],
             has_credentials: false,
-            header: headers[index],
+            header: SessionTicketStoreHeader::Tcp(headers[index]),
             slots: &all_slots[index],
         });
     }
@@ -209,7 +209,7 @@ pub(super) struct ColdSnapshot {
 #[derive(Debug, Eq, PartialEq)]
 struct ColdOwnerSnapshot {
     authority: String,
-    header: [u8; 22],
+    header: SessionTicketStoreHeader,
     original_index: u16,
     slots: Vec<RecordSlot>,
     policy: [u8; 32],
@@ -234,7 +234,7 @@ pub(super) fn cold_snapshot(owner: &TicketOwner) -> TestResult<ColdSnapshot> {
             .iter()
             .map(|owner| ColdOwnerSnapshot {
                 authority: owner.origin.authority().as_str().to_owned(),
-                header: owner.header.to_bytes(),
+                header: owner.header,
                 original_index: owner.record_owner_index,
                 slots: owner.slots.clone(),
                 policy: btls::sha::sha256(&owner.policy),
@@ -306,7 +306,10 @@ async fn mixed_import_applies_live_owner_and_retains_original_cold_record_indice
         let pending = &cold.owners[0];
         assert_eq!(pending.origin.port(), 444);
         assert_eq!(pending.record_owner_index, 1);
-        assert_eq!(pending.header, store_header(&second)?);
+        assert_eq!(
+            pending.header,
+            SessionTicketStoreHeader::Tcp(store_header(&second)?)
+        );
         assert!(!pending.slots.is_empty());
         assert_eq!(cold.native.record_count(), pending.slots.len());
         for (index, slot) in pending.slots.iter().enumerate() {
@@ -399,7 +402,10 @@ async fn empty_cold_intent_replaces_old_records_and_is_removed_when_applied_live
         let registry = recipient.registry();
         let cold = registry.cold.as_ref().ok_or("empty intent missing")?;
         assert_eq!(cold.owners.len(), 1);
-        assert_eq!(cold.owners[0].header, store_header(&empty)?);
+        assert_eq!(
+            cold.owners[0].header,
+            SessionTicketStoreHeader::Tcp(store_header(&empty)?)
+        );
         assert!(cold.owners[0].slots.is_empty());
         assert_eq!(cold.native.record_count(), 0);
     }

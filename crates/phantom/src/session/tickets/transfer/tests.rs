@@ -1,3 +1,5 @@
+use crate::Route;
+
 use std::sync::Arc;
 
 use btls::ssl::{PreparedSessionPolicyFreeze, SslConnector, SslMethod};
@@ -56,7 +58,7 @@ fn empty_fixture() -> TestResult<(TicketOwner, Http1TlsConnector, Endpoint)> {
 #[test]
 fn empty_live_owner_retains_authenticated_header_policy_witness_and_origin() -> TestResult {
     let (owner, _connector, endpoint) = empty_fixture()?;
-    let sealed = owner.export_tcp(&KEY)?;
+    let sealed = owner.export(&KEY)?;
     let opened = envelope::open_manifest(sealed.as_bytes(), &KEY)?;
     assert_eq!(opened.owner_count(), 1);
     assert_eq!(opened.record_count(), 0);
@@ -66,8 +68,11 @@ fn empty_live_owner_retains_authenticated_header_policy_witness_and_origin() -> 
     assert_eq!(incoming.origin_host, endpoint.host());
     assert_eq!(incoming.origin_port, endpoint.port());
     assert_eq!(incoming.server_name, endpoint.host());
-    assert_eq!(incoming.header.record_count(), 0);
-    assert_eq!(incoming.header.excluded_expired_count(), 0);
+    let SessionTicketStoreHeader::Tcp(header) = incoming.header else {
+        return Err("TCP owner exported a QUIC header".into());
+    };
+    assert_eq!(header.record_count(), 0);
+    assert_eq!(header.excluded_expired_count(), 0);
     assert_eq!(incoming.slots().len(), 0);
     let cache_registry = owner.registry();
     let registry = &cache_registry.caches;
@@ -93,7 +98,7 @@ fn many_exact_same_cache_aliases_export_one_owner_without_changing_registration(
     for _ in 0..MAX_OWNERS {
         register(&owner, &connector, &endpoint);
     }
-    let sealed = owner.export_tcp(&KEY)?;
+    let sealed = owner.export(&KEY)?;
     assert_eq!(
         envelope::open_manifest(sealed.as_bytes(), &KEY)?.owner_count(),
         1
@@ -109,8 +114,8 @@ fn same_cache_changed_original_authority_is_rejected_without_retiring_its_policy
     let omitted = origin("origin.example")?;
     register(&owner, &connector, &omitted);
     assert!(matches!(
-        owner.export_tcp(&KEY),
-        Err(TcpExportError::ConflictingOwner)
+        owner.export(&KEY),
+        Err(ExportError::ConflictingOwner)
     ));
     assert!(
         owner
@@ -142,8 +147,8 @@ fn distinct_stores_with_identical_logical_owner_are_rejected_before_capture() ->
         .clone();
     let frozen = PreparedSessionPolicyFreeze::new(&[&binding])?.try_freeze()?;
     assert!(matches!(
-        owner.export_tcp(&KEY),
-        Err(TcpExportError::ConflictingOwner)
+        owner.export(&KEY),
+        Err(ExportError::ConflictingOwner)
     ));
     assert!(
         owner
@@ -166,7 +171,8 @@ fn unsupported_live_owner_rejects_the_whole_export_instead_of_a_direct_subset() 
         .map_err(|error| *error)?
         .clone();
     let other = connector.with_isolated_session_cache();
-    let route = Route::http_proxy(crate::HttpProxy::new("https://proxy.example")?);
+    // A proxy leg on a direct route is still an unsupported combination.
+    let route = Route::Direct;
     owner.register(
         other.session_ticket_cache(),
         TicketCacheBinding {
@@ -179,9 +185,9 @@ fn unsupported_live_owner_rejects_the_whole_export_instead_of_a_direct_subset() 
     );
     let frozen = PreparedSessionPolicyFreeze::new(&[&binding])?.try_freeze()?;
     assert!(matches!(
-        owner.export_tcp(&KEY),
-        Err(TcpExportError::Preparation(PreparationError::Unsupported(
-            "non-direct TCP transfer"
+        owner.export(&KEY),
+        Err(ExportError::Preparation(PreparationError::Unsupported(
+            "ticket route and protocol"
         )))
     ));
     drop(frozen);
@@ -190,18 +196,53 @@ fn unsupported_live_owner_rejects_the_whole_export_instead_of_a_direct_subset() 
 }
 
 #[test]
+fn valid_proxy_live_owner_exports_alongside_the_direct_owner() -> TestResult {
+    let (owner, connector, endpoint) = empty_fixture()?;
+    let proxy_connector = connector.with_isolated_session_cache();
+    let route = Route::http_proxy(crate::HttpProxy::new("https://proxy.example")?);
+    owner.register(
+        proxy_connector.session_ticket_cache(),
+        TicketCacheBinding {
+            origin: &endpoint,
+            server_name: "proxy.example",
+            leg: TicketCacheLeg::HttpProxy,
+            protocol: Ok(TicketCacheProtocol::Http1),
+            route: &route,
+        },
+    );
+    assert!(
+        owner
+            .registry()
+            .caches
+            .iter()
+            .all(|entry| entry.native_binding.is_ok())
+    );
+    let sealed = owner.export(&KEY)?;
+    let manifest = envelope::open_manifest(sealed.as_bytes(), &KEY)?;
+    let owners = manifest.owners().collect::<Result<Vec<_>, _>>()?;
+    assert_eq!(owners.len(), 2);
+    assert_eq!(manifest.record_count(), 0);
+    assert_eq!(owners[0].leg, TicketCacheLeg::Origin);
+    assert_eq!(owners[1].leg, TicketCacheLeg::HttpProxy);
+    assert_eq!(owners[1].server_name, "proxy.example");
+    assert!(matches!(owners[1].header, SessionTicketStoreHeader::Tcp(_)));
+    assert_eq!(owner.clear()?, 0);
+    Ok(())
+}
+
+#[test]
 fn missing_preparation_and_unbound_live_registration_fail_without_sealing() -> TestResult {
     let owner = TicketOwner::default();
     assert!(matches!(
-        owner.export_tcp(&KEY),
-        Err(TcpExportError::Preparation(_))
+        owner.export(&KEY),
+        Err(ExportError::Preparation(_))
     ));
     let (owner, _connector, _) = empty_fixture()?;
     owner.registry().caches[0].native_binding =
         Err(PreparationError::Unsupported("unbound test registration"));
     assert!(matches!(
-        owner.export_tcp(&KEY),
-        Err(TcpExportError::Preparation(_))
+        owner.export(&KEY),
+        Err(ExportError::Preparation(_))
     ));
     Ok(())
 }
@@ -210,7 +251,7 @@ fn missing_preparation_and_unbound_live_registration_fail_without_sealing() -> T
 fn dead_registration_is_not_exported_or_retained_by_the_snapshot() -> TestResult {
     let (owner, connector, _) = empty_fixture()?;
     drop(connector);
-    let sealed = owner.export_tcp(&KEY)?;
+    let sealed = owner.export(&KEY)?;
     let opened = envelope::open_manifest(sealed.as_bytes(), &KEY)?;
     assert_eq!(opened.owner_count(), 0);
     assert_eq!(opened.record_count(), 0);
@@ -229,12 +270,12 @@ fn a_busy_native_policy_fails_without_capture_and_releases_the_registry() -> Tes
         .clone();
     let frozen = PreparedSessionPolicyFreeze::new(&[&binding])?.try_freeze()?;
     assert!(matches!(
-        owner.export_tcp(&KEY),
-        Err(TcpExportError::Native(SessionTransferError::Busy))
+        owner.export(&KEY),
+        Err(ExportError::Native(SessionTransferError::Busy))
     ));
     assert_eq!(owner.registry().caches.len(), 1);
     drop(frozen);
-    let sealed = owner.export_tcp(&KEY)?;
+    let sealed = owner.export(&KEY)?;
     assert_eq!(
         envelope::open_manifest(sealed.as_bytes(), &KEY)?.owner_count(),
         1
@@ -254,8 +295,8 @@ fn poisoned_registry_fails_closed_instead_of_recovering_its_state() -> TestResul
     }));
     assert!(panic.is_err());
     assert!(matches!(
-        owner.export_tcp(&KEY),
-        Err(TcpExportError::RegistryPoisoned)
+        owner.export(&KEY),
+        Err(ExportError::RegistryPoisoned)
     ));
     Ok(())
 }
@@ -272,10 +313,7 @@ fn more_than_256_distinct_owners_fail_before_capture() -> TestResult {
         register(&owner, &connector, &endpoint);
         connectors.push(connector);
     }
-    assert!(matches!(
-        owner.export_tcp(&KEY),
-        Err(TcpExportError::TooLarge)
-    ));
+    assert!(matches!(owner.export(&KEY), Err(ExportError::TooLarge)));
     assert_eq!(owner.registry().caches.len(), MAX_OWNERS + 1);
     assert_eq!(owner.clear()?, 0);
     Ok(())

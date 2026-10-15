@@ -154,13 +154,21 @@ If preparation fails, the error leaves those tickets in place.
 Open connections keep working. A ticket already offered to a handshake
 stays with that handshake.
 
-To transfer direct TCP tickets, call `export_session_tickets(&key)` on the
-source and `import_session_tickets(&snapshot, &key)` on the recipient. Supply
-a secret, randomly generated 32-byte key. Both clients need matching
-settings. Keep the key separate from `snapshot.as_bytes()` when storing it.
-Rebuild a stored snapshot with `SessionTicketSnapshot::from_bytes(&bytes)?`.
-Export rejects the whole operation if any live cache belongs to a proxy or
-QUIC connection. Import also rejects snapshots containing those owners.
+To transfer TCP TLS and QUIC tickets, call `export_session_tickets(&key)`
+on the source. Call `import_session_tickets(&snapshot, &key, &[])` on the
+recipient for direct connections. Supply matching proxy routes in the
+third argument when needed. These routes authorize the import without
+changing how later requests are routed.
+
+Both clients need matching settings and peer identities. Imported tickets
+without a cache wait until the matching connection's first use. Existing
+connections keep working.
+
+Supply a secret, randomly generated 32-byte key. Keep it separate from
+`snapshot.as_bytes()` when storing it. Rebuild a stored snapshot with
+`SessionTicketSnapshot::from_bytes(&bytes)?`. See
+[Defaults and limits](../reference/limits.md#connection-pools) for transfer
+bounds and rejected inputs.
 
 ## Limits
 

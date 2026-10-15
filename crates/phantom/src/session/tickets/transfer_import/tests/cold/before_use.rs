@@ -20,7 +20,7 @@ fn before_use(
     origin: &Endpoint,
     name: &str,
 ) -> Result<(), crate::session::tickets::TicketUseError> {
-    owner.register_tcp_before_use(
+    owner.register_before_use(
         connector.session_ticket_cache(),
         TicketCacheBinding {
             origin,
@@ -176,7 +176,7 @@ async fn actual_shared_context_busy_keeps_custody_then_retry_materializes_and_re
                 .ok_or("preparation missing")?
                 .as_ref()
                 .map_err(|error| *error)?;
-            preparation.configured_direct_tcp_policy(
+            preparation.configured_policy(
                 &registration.descriptor,
                 registration.leg,
                 registration.protocol,
@@ -184,7 +184,7 @@ async fn actual_shared_context_busy_keeps_custody_then_retry_materializes_and_re
             )?
         };
         assert!(matches!(
-            target_cache.bind_tcp_transfer_policy(NAME, policy),
+            target_cache.bind_transfer_policy(NAME, policy),
             Err(SessionTransferError::Busy)
         ));
         drop(frozen);

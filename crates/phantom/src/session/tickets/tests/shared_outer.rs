@@ -83,7 +83,7 @@ async fn shared_h2_and_h3_register_one_actual_proxy_cache_across_inner_origins()
                 owner.register_shared_outer_before_use(
                     token.session_ticket_cache(),
                     outer(&endpoint, &route, protocol),
-                );
+                )?;
             }
             prepared.push(token);
         }
@@ -108,12 +108,7 @@ async fn shared_h2_and_h3_register_one_actual_proxy_cache_across_inner_origins()
             assert_eq!(binding.route, route);
             let actual = registered.cache.upgrade().ok_or("weak cache absent")?;
             assert!(first.same_cache(&actual));
-            assert!(matches!(
-                registered.native_binding,
-                Err(binding::PreparationError::Unsupported(
-                    "non-direct TCP transfer"
-                ))
-            ));
+            assert!(registered.native_binding.is_ok());
         }
         // Clear sees one actual cache; no socket or handshake was started here.
         assert_eq!(owner.clear()?, 0);
@@ -141,30 +136,26 @@ async fn changed_shared_outer_descriptor_stays_ineligible_without_alias_growth_o
         None,
     )?;
     let cache = token.session_ticket_cache().ok_or("missing actual cache")?;
-    let native = cache.upgrade().ok_or("dead actual cache")?;
-    let policy = || {
-        btls::ssl::SessionTransferPolicy::new(
-            b"existing shared outer policy",
-            &[0, 0],
-            None,
-            &[7; 32],
-        )
-    };
-    native.bind_tcp_transfer_policy(proxy.host(), policy()?)?;
+    assert!(cache.is_live());
     let owner = prepared_owner()?;
     owner.register_shared_outer_before_use(
         Some(cache.clone()),
         outer(&endpoint, &route, TicketCacheProtocol::Http2),
-    );
+    )?;
+    let original_binding = owner.registry().caches[0]
+        .native_binding
+        .as_ref()
+        .map_err(|error| *error)?
+        .clone();
     for _ in 0..32 {
         owner.register_shared_outer_before_use(
             Some(cache.clone()),
             outer(&endpoint, &changed, TicketCacheProtocol::Http2),
-        );
+        )?;
         owner.register_shared_outer_before_use(
             Some(cache.clone()),
             outer(&endpoint, &route, TicketCacheProtocol::Http2),
-        );
+        )?;
     }
     {
         let registry = owner.registry();
@@ -184,9 +175,11 @@ async fn changed_shared_outer_descriptor_stays_ineligible_without_alias_growth_o
         ));
         assert!(registered.cache.is_live());
     }
-    assert!(owner.export_tcp(&[1; 32]).is_err());
+    assert!(owner.export(&[1; 32]).is_err());
     // A changed native rebind would permanently revoke the installed scope.
-    native.bind_tcp_transfer_policy(proxy.host(), policy()?)?;
+    let frozen = btls::ssl::PreparedSessionPolicyFreeze::new(&[&original_binding])?.try_freeze()?;
+    frozen.validate_binding(&original_binding, proxy.host())?;
+    drop(frozen);
     assert_eq!(owner.clear()?, 0);
     assert_eq!(owner.registry().caches.len(), 1);
     Ok(())
@@ -215,17 +208,24 @@ async fn unsupported_shared_outer_metadata_retains_clear_handles_across_pool_cle
     owner.register_shared_outer_before_use(
         None,
         outer(&endpoint, &route, TicketCacheProtocol::Http2),
-    );
+    )?;
     assert!(owner.registry().caches.is_empty());
     let old = prepare()?;
     for _ in 0..32 {
         let mut invalid = outer(&endpoint, &route, TicketCacheProtocol::Http2);
         invalid.protocol = Err(binding::PreparationError::Unsupported("test protocol"));
-        owner.register_shared_outer_before_use(old.session_ticket_cache(), invalid);
+        let error = owner
+            .register_shared_outer_before_use(old.session_ticket_cache(), invalid)
+            .err()
+            .ok_or("unsupported protocol accepted")?;
+        assert!(matches!(
+            error.0,
+            super::super::transfer_import::ImportError::UnsupportedRoute
+        ));
         owner.register_shared_outer_before_use(
             old.session_ticket_cache(),
             outer(&endpoint, &route, TicketCacheProtocol::Http2),
-        );
+        )?;
     }
     assert_eq!(owner.registry().caches.len(), 1);
     assert!(owner.registry().caches[0].binding.is_err());
@@ -245,7 +245,7 @@ async fn unsupported_shared_outer_metadata_retains_clear_handles_across_pool_cle
     owner.register_shared_outer_before_use(
         new.session_ticket_cache(),
         outer(&endpoint, &route, TicketCacheProtocol::Http2),
-    );
+    )?;
     assert_eq!(owner.registry().caches.len(), 2);
     assert_eq!(owner.clear()?, 0);
     assert!(
@@ -255,7 +255,7 @@ async fn unsupported_shared_outer_metadata_retains_clear_handles_across_pool_cle
             .iter()
             .all(|cache| cache.cache.is_live())
     );
-    assert!(owner.export_tcp(&[1; 32]).is_err());
+    assert!(owner.export(&[1; 32]).is_err());
     // The registry retains neither old token nor current pool slot strongly.
     proxy.pool().clear();
     drop(old);

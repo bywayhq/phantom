@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn empty_owner_export_matches_the_complete_frame_admission_budget() -> TestResult {
     let (owner, _connector, _) = empty_fixture()?;
-    let sealed = owner.export_tcp(&KEY)?;
+    let sealed = owner.export(&KEY)?;
     let cache_registry = owner.registry();
     let registry = &cache_registry.caches;
     let registered = &registry[0];
@@ -25,12 +25,12 @@ fn aggregate_record_budget_rejects_overflow_without_admitting_the_record() -> Te
     assert_eq!(budget, MAX_FRAME);
     assert!(matches!(
         charge_frame(&mut budget, 1),
-        Err(TcpExportError::TooLarge)
+        Err(ExportError::TooLarge)
     ));
     assert_eq!(budget, MAX_FRAME);
     assert!(matches!(
         charge_frame(&mut budget, usize::MAX),
-        Err(TcpExportError::TooLarge)
+        Err(ExportError::TooLarge)
     ));
     assert_eq!(budget, MAX_FRAME);
     Ok(())

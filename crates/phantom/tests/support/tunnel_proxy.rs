@@ -237,6 +237,15 @@ pub(crate) async fn https1_challenge_then_connect(
     acceptor: SslAcceptor,
     origin: SocketAddr,
 ) -> TestResult<EstablishedTunnel<(Vec<u8>, Vec<u8>, bool)>> {
+    https1_challenge_then_connect_on(&listener, acceptor, origin).await
+}
+
+/// Challenges a CONNECT on a retained TLS listener before opening the tunnel.
+pub(crate) async fn https1_challenge_then_connect_on(
+    listener: &TcpListener,
+    acceptor: SslAcceptor,
+    origin: SocketAddr,
+) -> TestResult<EstablishedTunnel<(Vec<u8>, Vec<u8>, bool)>> {
     let (first, _) = listener.accept().await?;
     let mut first = accept_tls_stream(first, acceptor.clone()).await?;
     let anonymous = read_head(&mut first).await?;

@@ -389,7 +389,7 @@ impl Http2Pool {
             .get_or_init(|| base.with_isolated_session_cache());
         entry
             .tickets
-            .register_tcp_before_use(
+            .register_before_use(
                 connector.session_ticket_cache(),
                 TicketCacheBinding {
                     origin: endpoint,
@@ -688,7 +688,7 @@ impl PoolEntry {
             .connector
             .get_or_init(|| connector.with_isolated_session_cache());
         self.tickets
-            .register_tcp_before_use(
+            .register_before_use(
                 connector.session_ticket_cache(),
                 TicketCacheBinding {
                     origin: endpoint,
@@ -706,20 +706,23 @@ impl PoolEntry {
             Route::HttpProxy(proxy) if mode == Http2ConnectionMode::Forward => {
                 let base = https_proxy
                     .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
-                let proxy_connector = self.https_proxy.get_or_init(|| {
-                    let connector = proxy.https_connector(&base.with_isolated_session_cache());
-                    self.tickets.register(
-                        connector.session_ticket_cache(),
+                let proxy_connector = self
+                    .https_proxy
+                    .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
+                self.tickets
+                    .register_before_use(
+                        proxy_connector.session_ticket_cache(),
                         TicketCacheBinding {
                             origin: endpoint,
                             server_name: proxy.host(),
                             leg: TicketCacheLeg::HttpProxy,
-                            protocol: TicketCacheBinding::proxy_protocol(connector.protocol()),
+                            protocol: TicketCacheBinding::proxy_protocol(
+                                proxy_connector.protocol(),
+                            ),
                             route,
                         },
-                    );
-                    connector
-                });
+                    )
+                    .map_err(RequestError::session_tickets)?;
                 super::box_send(connector.connect(phantom_net::route::Http2Route::Forward {
                     proxy: phantom_net::route::ProxyTransport::Tls {
                         endpoint: phantom_net::route::Endpoint {
@@ -755,20 +758,23 @@ impl PoolEntry {
                 let transport = if proxy.uses_tls() {
                     let base = https_proxy
                         .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
-                    let proxy_connector = self.https_proxy.get_or_init(|| {
-                        let connector = proxy.https_connector(&base.with_isolated_session_cache());
-                        self.tickets.register(
-                            connector.session_ticket_cache(),
+                    let proxy_connector = self
+                        .https_proxy
+                        .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
+                    self.tickets
+                        .register_before_use(
+                            proxy_connector.session_ticket_cache(),
                             TicketCacheBinding {
                                 origin: endpoint,
                                 server_name: proxy.host(),
                                 leg: TicketCacheLeg::HttpProxy,
-                                protocol: TicketCacheBinding::proxy_protocol(connector.protocol()),
+                                protocol: TicketCacheBinding::proxy_protocol(
+                                    proxy_connector.protocol(),
+                                ),
                                 route,
                             },
-                        );
-                        connector
-                    });
+                        )
+                        .map_err(RequestError::session_tickets)?;
                     phantom_net::route::ProxyTransport::Tls {
                         endpoint: proxy_endpoint,
                         server_name: proxy.host(),

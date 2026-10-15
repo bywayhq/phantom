@@ -1,7 +1,8 @@
-//! Opaque cold TCP custody. This module never grants recipient authority.
+//! Opaque cold TCP and QUIC custody. This module never grants recipient authority.
 //!
 //! Capture requires the caller to validate configured route, policy, credentials
 //! and allowed source witnesses, and to open `native` from this exact manifest.
+//! The caller must also validate H3 application state with its actual consumer.
 //! Whole-owner consumption is private preparation, never a published partial state.
 
 use std::fmt;
@@ -9,7 +10,7 @@ use std::fmt;
 use btls::ssl::{
     AuthenticatedSessionRecord, SessionTransferError, SslContextRef, VerifiedSessionEnvelope,
 };
-use phantom_net::{TcpSessionRecordMetadata, TcpSessionStoreHeader};
+use phantom_net::{QuicSessionRecordMetadata, SessionTicketStoreHeader, TcpSessionRecordMetadata};
 use zeroize::Zeroizing;
 
 use super::{
@@ -22,9 +23,9 @@ const MAX_OWNERS: usize = 256;
 const MAX_RECORDS: usize = 2560;
 const MAX_ENVELOPE: usize = 16 * 1024 * 1024;
 const MAX_POLICY: usize = 1024 * 1024;
-// PHOWN002 header/tag, owner/count framing, nested native header/count/tag.
+// PHOWN003 header/tag, owner/count framing, nested native header/count/tag.
 const ENVELOPE_FRAME: usize = 90 + 16 + 4 + 4 + 56 + 16 + 4;
-const OWNER_FRAME: usize = 2 + 2 + 2 + 1 + 1 + 1 + 22 + 1 + 20;
+const OWNER_FRAME: usize = 2 + 2 + 2 + 1 + 1 + 1 + 1 + 4 + 1 + 20;
 const NATIVE_FRAME: usize = 56 + 16 + 4;
 
 #[derive(Debug)]
@@ -43,7 +44,7 @@ impl fmt::Display for ColdError {
             Self::Allocation => "cold ticket custody allocation failed",
             Self::TooLarge => "cold ticket custody exceeds its resource bound",
             Self::Mapping => "cold ticket owner mapping is inconsistent",
-            Self::UnsupportedOwner => "cold ticket union requires direct uncredentialed TCP owners",
+            Self::UnsupportedOwner => "cold ticket owner shape is unsupported",
             Self::Manifest(_) => "cold ticket manifest failed validation",
             Self::Native(_) => "cold native ticket validation failed",
         })
@@ -83,7 +84,7 @@ pub(super) struct ColdOwner {
     pub(super) source_witness: Zeroizing<Vec<u8>>,
     pub(super) has_credentials: bool,
     pub(super) record_owner_index: u16,
-    pub(super) header: TcpSessionStoreHeader,
+    pub(super) header: SessionTicketStoreHeader,
     pub(super) slots: Vec<RecordSlot>,
 }
 
@@ -201,6 +202,7 @@ impl ColdState {
                     owner.source_witness.len(),
                 ],
                 owner.slots().len(),
+                owner.header,
             )?;
         }
         bounded_add(framing, encoded_records_bound, MAX_ENVELOPE)?;
@@ -268,7 +270,8 @@ impl ColdState {
     /// contain the full original incoming manifest, including owners already
     /// consumed into live stores. Root validates configured policies, allowed
     /// source witnesses and direct routes before calling. No authority follows
-    /// from these metadata views. Credentialed union is unsupported here.
+    /// from these metadata views. The caller validates actual configured routes
+    /// and native credential policy before preparing this union.
     ///
     /// Already-applied empty owners must be removed from `incoming.owners` by
     /// the caller; a remaining empty owner is explicit pending clear intent.
@@ -319,6 +322,7 @@ impl ColdState {
                             owner.source_witness.len(),
                         ],
                         owner.slots.len(),
+                        owner.header,
                     )
                 })?;
         let available = MAX_ENVELOPE
@@ -382,11 +386,17 @@ impl ColdState {
         let mut selected = [false; MAX_RECORDS];
         let mut owners = reserved(self.owners.len())?;
         for (owner_index, owner) in self.owners.iter().enumerate() {
-            direct_owner(owner.leg, owner.protocol, owner.has_credentials)?;
+            owner_shape(
+                owner.leg,
+                owner.protocol,
+                owner.has_credentials,
+                owner.header,
+            )?;
+            let (records, physical) = store_shape(owner.protocol, owner.header)?;
             if self.owners[..owner_index]
                 .iter()
                 .any(|old| same_owner(old, owner))
-                || owner.header.record_count() != owner.slots.len()
+                || records != owner.slots.len()
                 || usize::from(owner.record_owner_index) >= MAX_OWNERS
             {
                 return Err(ColdError::Mapping);
@@ -398,8 +408,7 @@ impl ColdState {
                 let index = usize::from(slot.native_slot);
                 if index >= count
                     || seen[index]
-                    || usize::from(slot.physical_ordinal)
-                        >= owner.header.record_count() + owner.header.excluded_expired_count()
+                    || usize::from(slot.physical_ordinal) >= physical
                     || previous.is_some_and(|old| slot.physical_ordinal <= old)
                 {
                     return Err(ColdError::Mapping);
@@ -468,9 +477,8 @@ impl ColdState {
         let mut seen = [false; MAX_RECORDS];
         let mut owners = reserved(self.owners.len())?;
         for owner in &self.owners {
-            if owner.header.record_count() != owner.slots.len()
-                || usize::from(owner.record_owner_index) >= MAX_OWNERS
-            {
+            let (records, physical) = store_shape(owner.protocol, owner.header)?;
+            if records != owner.slots.len() || usize::from(owner.record_owner_index) >= MAX_OWNERS {
                 return Err(ColdError::Mapping);
             }
             let mut live = 0;
@@ -479,8 +487,7 @@ impl ColdState {
                 let index = usize::from(slot.native_slot);
                 if index >= count
                     || seen[index]
-                    || usize::from(slot.physical_ordinal)
-                        >= owner.header.record_count() + owner.header.excluded_expired_count()
+                    || usize::from(slot.physical_ordinal) >= physical
                     || previous.is_some_and(|value| slot.physical_ordinal <= value)
                 {
                     return Err(ColdError::Mapping);
@@ -512,16 +519,57 @@ fn validate_record(
     slot: RecordSlot,
 ) -> Result<(), ColdError> {
     let index = usize::from(slot.native_slot);
-    let metadata = TcpSessionRecordMetadata::parse(native.owner_metadata(index)?)?;
-    let payload = metadata.payload();
-    if native.source_witness(index)? != owner.source_witness.as_slice()
-        || metadata.header() != owner.header
-        || metadata.hostname() != owner.server_name.as_str()
-        || metadata.ordinal() != usize::from(slot.physical_ordinal)
+    validate_metadata(
+        owner.header,
+        &owner.server_name,
+        &owner.source_witness,
+        owner.record_owner_index,
+        slot,
+        native.owner_metadata(index)?,
+        native.source_witness(index)?,
+    )
+}
+
+// Structural validation only. Neither parsing nor this function grants a permit.
+fn validate_metadata(
+    header: SessionTicketStoreHeader,
+    server_name: &str,
+    source_witness: &[u8],
+    record_owner_index: u16,
+    slot: RecordSlot,
+    bytes: &[u8],
+    native_witness: &[u8],
+) -> Result<(), ColdError> {
+    let (actual_header, hostname, ordinal, payload) = match header {
+        SessionTicketStoreHeader::Tcp(_) => {
+            let metadata = TcpSessionRecordMetadata::parse(bytes)?;
+            (
+                SessionTicketStoreHeader::Tcp(metadata.header()),
+                metadata.hostname(),
+                metadata.ordinal(),
+                metadata.payload(),
+            )
+        }
+        SessionTicketStoreHeader::Quic(_) => {
+            let metadata = QuicSessionRecordMetadata::parse(bytes)?;
+            metadata.validate_transport_parameters()?;
+            // H3 application-state semantics are validated by the caller.
+            (
+                SessionTicketStoreHeader::Quic(metadata.header()),
+                metadata.hostname(),
+                metadata.ordinal(),
+                metadata.payload(),
+            )
+        }
+    };
+    if native_witness != source_witness
+        || actual_header != header
+        || hostname != server_name
+        || ordinal != usize::from(slot.physical_ordinal)
         || payload.len() != 12
         || payload[..8] != *b"PHTOW001"
         || payload[8..10] != 1_u16.to_be_bytes()
-        || payload[10..12] != owner.record_owner_index.to_be_bytes()
+        || payload[10..12] != record_owner_index.to_be_bytes()
     {
         return Err(ColdError::Mapping);
     }
@@ -540,12 +588,23 @@ fn owner_framing(owners: &[ColdOwner]) -> Result<usize, ColdError> {
                 owner.source_witness.len(),
             ],
             owner.slots.len(),
+            owner.header,
         )
     })
 }
 
-fn add_owner_size(size: usize, fields: [usize; 5], slots: usize) -> Result<usize, ColdError> {
+fn add_owner_size(
+    size: usize,
+    fields: [usize; 5],
+    slots: usize,
+    header: SessionTicketStoreHeader,
+) -> Result<usize, ColdError> {
     let size = bounded_add(size, OWNER_FRAME, MAX_ENVELOPE)?;
+    let header_len = match header {
+        SessionTicketStoreHeader::Tcp(header) => header.to_bytes().len(),
+        SessionTicketStoreHeader::Quic(header) => header.to_bytes().len(),
+    };
+    let size = bounded_add(size, header_len, MAX_ENVELOPE)?;
     let size = fields
         .into_iter()
         .try_fold(size, |size, field| bounded_add(size, field, MAX_ENVELOPE))?;
@@ -614,23 +673,42 @@ struct OwnerSelection<'a> {
     map: [Option<u16>; MAX_RECORDS],
 }
 
-fn direct_owner(
+fn owner_shape(
     leg: TicketCacheLeg,
     protocol: TicketCacheProtocol,
     credentials: bool,
+    header: SessionTicketStoreHeader,
 ) -> Result<(), ColdError> {
-    if leg != TicketCacheLeg::Origin
-        || credentials
-        || !matches!(
-            protocol,
-            TicketCacheProtocol::Http1
-                | TicketCacheProtocol::Http2
-                | TicketCacheProtocol::Negotiated
-        )
+    let (records, _) = store_shape(protocol, header)?;
+    if (credentials && records == 0)
+        || (leg == TicketCacheLeg::HttpProxy && protocol == TicketCacheProtocol::Http3)
+        || (leg == TicketCacheLeg::ConnectUdp && protocol == TicketCacheProtocol::Negotiated)
     {
         return Err(ColdError::UnsupportedOwner);
     }
     Ok(())
+}
+
+fn store_shape(
+    protocol: TicketCacheProtocol,
+    header: SessionTicketStoreHeader,
+) -> Result<(usize, usize), ColdError> {
+    match (protocol, header) {
+        (
+            TicketCacheProtocol::Http1
+            | TicketCacheProtocol::Http2
+            | TicketCacheProtocol::Negotiated,
+            SessionTicketStoreHeader::Tcp(header),
+        ) => Ok((
+            header.record_count(),
+            header.record_count() + header.excluded_expired_count(),
+        )),
+        (TicketCacheProtocol::Http3, SessionTicketStoreHeader::Quic(header)) => Ok((
+            header.record_count(),
+            header.record_count() + header.excluded_expired_count(),
+        )),
+        _ => Err(ColdError::Mapping),
+    }
 }
 
 fn same_owner(left: &ColdOwner, right: &ColdOwner) -> bool {
@@ -668,7 +746,12 @@ fn validate_replacements(replacements: &[OwnerView<'_>]) -> Result<(), ColdError
         return Err(ColdError::TooLarge);
     }
     for (index, owner) in replacements.iter().enumerate() {
-        direct_owner(owner.leg, owner.protocol, owner.has_credentials)?;
+        owner_shape(
+            owner.leg,
+            owner.protocol,
+            owner.has_credentials,
+            owner.header,
+        )?;
         if usize::from(owner.index) != index
             || replacements[..index]
                 .iter()

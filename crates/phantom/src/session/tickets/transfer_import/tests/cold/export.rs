@@ -1,7 +1,7 @@
 use btls::ssl::{PreparedSessionPolicyFreeze, SessionTransferError};
 
 use super::*;
-use crate::session::tickets::transfer::TcpExportError;
+use crate::session::tickets::transfer::ExportError;
 
 const EXPORT_KEY: [u8; 32] = [43; 32];
 
@@ -16,7 +16,7 @@ fn materialize(
     )?
     .with_isolated_session_cache();
     let origin = Endpoint::new(format!("{NAME}:{port}").parse()?, 443)?;
-    owner.register_tcp_before_use(
+    owner.register_before_use(
         connector.session_ticket_cache(),
         TicketCacheBinding {
             origin: &origin,
@@ -57,7 +57,10 @@ async fn mixed_export_preserves_original_cold_provenance_and_resumes_after_busy_
         assert_eq!(cold_before.owners.len(), 1);
         assert_eq!(cold_before.owners[0].authority, "127.0.0.1:443");
         assert_eq!(cold_before.owners[0].original_index, 0);
-        assert_eq!(cold_before.owners[0].header, source_headers.0.to_bytes());
+        assert_eq!(
+            cold_before.owners[0].header,
+            SessionTicketStoreHeader::Tcp(source_headers.0)
+        );
         assert!(!cold_before.owners[0].slots.is_empty());
 
         let binding = {
@@ -70,8 +73,8 @@ async fn mixed_export_preserves_original_cold_provenance_and_resumes_after_busy_
         };
         let frozen = PreparedSessionPolicyFreeze::new(&[&binding])?.try_freeze()?;
         assert!(matches!(
-            mixed.export_tcp(&EXPORT_KEY),
-            Err(TcpExportError::Native(SessionTransferError::Busy))
+            mixed.export(&EXPORT_KEY),
+            Err(ExportError::Native(SessionTransferError::Busy))
         ));
         assert_eq!(cold_snapshot(&mixed)?, cold_before);
         drop(frozen);
@@ -81,18 +84,24 @@ async fn mixed_export_preserves_original_cold_provenance_and_resumes_after_busy_
             source_headers
         );
 
-        let sealed = mixed.export_tcp(&EXPORT_KEY)?;
+        let sealed = mixed.export(&EXPORT_KEY)?;
         assert_eq!(store_header(&live)?, live_before);
         assert_eq!(cold_snapshot(&mixed)?, cold_before);
         let opened = envelope::open_manifest(sealed.as_bytes(), &EXPORT_KEY)?;
         let owners = opened.owners().collect::<Result<Vec<_>, _>>()?;
         assert_eq!(owners.len(), 2);
         assert_eq!(owners[0].origin_port, 444);
-        assert_eq!(owners[0].header, source_headers.1);
+        assert_eq!(
+            owners[0].header,
+            SessionTicketStoreHeader::Tcp(source_headers.1)
+        );
         assert_eq!(owners[1].origin_port, 443);
         assert_eq!(owners[1].index, 1);
         assert_eq!(owners[1].record_owner_index, 0);
-        assert_eq!(owners[1].header, source_headers.0);
+        assert_eq!(
+            owners[1].header,
+            SessionTicketStoreHeader::Tcp(source_headers.0)
+        );
         assert_eq!(
             opened.record_count(),
             source_headers.0.record_count() + source_headers.1.record_count()
@@ -133,7 +142,10 @@ async fn mixed_export_preserves_original_cold_provenance_and_resumes_after_busy_
         let recipient_cold = cold_snapshot(&recipient)?;
         assert_eq!(recipient_cold.owners.len(), 2);
         assert_eq!(recipient_cold.owners[1].original_index, 0);
-        assert_eq!(recipient_cold.owners[1].header, source_headers.0.to_bytes());
+        assert_eq!(
+            recipient_cold.owners[1].header,
+            SessionTicketStoreHeader::Tcp(source_headers.0)
+        );
         let imported_first = materialize(&fixture, &recipient, 443)?;
         assert_eq!(store_header(&imported_first)?, source_headers.0);
         let remaining = cold_snapshot(&recipient)?;

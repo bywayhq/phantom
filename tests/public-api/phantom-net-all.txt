@@ -910,6 +910,7 @@ pub async fn phantom_net::http3::QlogCapture::wait_complete(&self)
 impl core::fmt::Debug for phantom_net::http3::QlogCapture
 pub fn phantom_net::http3::QlogCapture::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub async fn phantom_net::http3::send_with_config(core::net::socket_addr::SocketAddr, &str, alloc::sync::Arc<phantom_quic_btls::backend::client::QuicClientConfig>, &phantom_profile::http3::Http3Settings, &phantom_profile::http3::Http3RequestSettings, http::method::Method, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, phantom_net::http3::Http3SendOptions) -> core::result::Result<http::response::Response<phantom_net::http3::Http3Body>, phantom_net::http3::Http3Error>
+pub fn phantom_net::http3::validate_remembered_peer_settings(&[u8]) -> core::result::Result<(), phantom_net::http3::Http3Error>
 pub mod phantom_net::proxy
 #[non_exhaustive] pub enum phantom_net::proxy::DigestAuthError
 pub phantom_net::proxy::DigestAuthError::AuthenticationRejected

@@ -5,8 +5,10 @@ mod clear;
 mod native;
 mod pressure;
 mod python_peer;
+mod quic_ticket_transfer;
 mod stream_limit;
 mod ticket_clear;
+mod ticket_transfer;
 
 async fn checked<F>(future: F) -> super::TestResult<()>
 where

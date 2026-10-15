@@ -4,8 +4,8 @@ use btls::ssl::{SessionTransferError, SslConnector, SslMethod};
 use zeroize::Zeroizing;
 
 use super::{
-    binding::PreparationError, envelope::EnvelopeError, staging::ColdError,
-    transfer::TcpExportError, transfer_import::ImportError,
+    binding::PreparationError, envelope::EnvelopeError, staging::ColdError, transfer::ExportError,
+    transfer_import::ImportError,
 };
 use crate::Client;
 
@@ -190,14 +190,15 @@ fn classify(error: &(dyn StdError + 'static)) -> SessionTicketErrorKind {
                 ImportError::TooLarge => Kind::TooLarge,
                 ImportError::Allocation => Kind::Allocation,
                 ImportError::OwnerMapping => Kind::Policy,
+                ImportError::Application(_) => Kind::InvalidSnapshot,
                 ImportError::UnsupportedRoute | ImportError::EmptyCredentials => Kind::Unsupported,
                 _ => kind,
             };
-        } else if let Some(error) = error.downcast_ref::<TcpExportError>() {
+        } else if let Some(error) = error.downcast_ref::<ExportError>() {
             kind = match error {
-                TcpExportError::TooLarge => Kind::TooLarge,
-                TcpExportError::Allocation => Kind::Allocation,
-                TcpExportError::ConflictingOwner | TcpExportError::InvalidCapture => Kind::Policy,
+                ExportError::TooLarge => Kind::TooLarge,
+                ExportError::Allocation => Kind::Allocation,
+                ExportError::ConflictingOwner | ExportError::InvalidCapture => Kind::Policy,
                 _ => kind,
             };
         } else if let Some(error) = error.downcast_ref::<ColdError>() {
@@ -215,7 +216,7 @@ fn classify(error: &(dyn StdError + 'static)) -> SessionTicketErrorKind {
 }
 
 impl Client {
-    /// Exports this client's retained direct TCP TLS session tickets.
+    /// Exports this client's retained TCP TLS and QUIC session tickets.
     ///
     /// Supply a secret, randomly generated 32-byte key. Keep it separate from
     /// the returned snapshot. Export preserves the source caches and pending
@@ -230,14 +231,14 @@ impl Client {
     ///     -> Result<(), SessionTicketError>
     /// {
     ///     let snapshot = source.export_session_tickets(key)?;
-    ///     recipient.import_session_tickets(&snapshot, key)
+    ///     recipient.import_session_tickets(&snapshot, key, &[])
     /// }
     /// ```
     ///
     /// # Errors
     ///
-    /// Rejects the complete export if any live owner uses a proxy or QUIC,
-    /// lacks supported policy, or exceeds the 256-owner, 2,560-record or
+    /// Rejects the complete export if any live owner lacks supported policy
+    /// or exceeds the 256-owner, 2,560-record or
     /// 16 MiB bounds. Already-expired live entries are excluded. Expired records
     /// retained in cold custody, and records that expire during preparation,
     /// return an expiry error.
@@ -248,16 +249,19 @@ impl Client {
     ) -> Result<SessionTicketSnapshot, SessionTicketError> {
         self.state
             .tickets
-            .export_tcp(key)
+            .export(key)
             .map(|sealed| SessionTicketSnapshot(sealed.into_bytes()))
             .map_err(SessionTicketError::with_source)
     }
 
-    /// Imports matching direct TCP TLS session tickets without network I/O.
+    /// Imports matching TCP TLS and QUIC session tickets without network I/O.
     ///
     /// The key must match the export key. Every owner must match this client's
-    /// profile, peer identity, certificate settings and default selected route.
-    /// Its exact or negotiated TCP protocol must be configured. Owners without
+    /// profile, peer identity, certificate settings and receiving route.
+    /// Supply request-only proxy routes in `receiving_routes`. The selected
+    /// client route and actual live owner routes are considered too. This list
+    /// does not change how later requests are routed. At most 256 routes may
+    /// be supplied. The owner's protocol must be configured. Owners without
     /// a cache stay private until first use. An empty owner clears its matching
     /// cache. Unmentioned owners keep their tickets. Import replaces caches;
     /// existing connections continue working.
@@ -268,13 +272,14 @@ impl Client {
     /// # Errors
     ///
     /// Authenticates and validates every owner before replacing any cache.
-    /// Rejects malformed, incompatible or expired snapshots and unsupported
-    /// proxy or QUIC owners. Failure preserves retained live and pending
+    /// Rejects malformed, incompatible or expired snapshots, unsupported
+    /// settings and empty credentialed owners. Failure preserves live and pending
     /// tickets. Native policy contention can be retried by the caller.
     pub fn import_session_tickets(
         &self,
         snapshot: &SessionTicketSnapshot,
         key: &[u8; 32],
+        receiving_routes: &[crate::Route],
     ) -> Result<(), SessionTicketError> {
         let context = SslConnector::builder(SslMethod::tls())
             .map_err(SessionTicketError::with_source)?
@@ -283,7 +288,13 @@ impl Client {
         let _ = self
             .state
             .tickets
-            .import_tcp_for_client(snapshot.as_bytes(), key, &context, &self.inner)
+            .import_for_client(
+                snapshot.as_bytes(),
+                key,
+                &context,
+                &self.inner,
+                receiving_routes,
+            )
             .map_err(SessionTicketError::with_source)?;
         Ok(())
     }

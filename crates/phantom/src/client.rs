@@ -225,6 +225,23 @@ impl ClientInner {
         )
     }
 
+    /// Shared outer owners use the configured proxy route, not NO_PROXY for
+    /// the proxy's own address. Request-only routes are supplied at import.
+    pub(crate) fn ticket_import_route(
+        &self,
+        endpoint: &Endpoint,
+        shared_outer: bool,
+    ) -> Option<Route> {
+        if shared_outer {
+            self.route
+                .as_ref()
+                .filter(|route| matches!(route, Route::ConnectUdp(_)))
+                .cloned()
+        } else {
+            Some(self.selected_route(None, "https", endpoint))
+        }
+    }
+
     /// Returns the origin connectors for `endpoint`'s host and port: those
     /// with the certificate [`ClientBuilder::client_certificate_for`] mapped
     /// to it, or otherwise the client-wide ones.

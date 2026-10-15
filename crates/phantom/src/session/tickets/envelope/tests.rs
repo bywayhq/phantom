@@ -1,5 +1,7 @@
 use super::*;
 
+const TCP_HEADER_LEN: usize = 22;
+
 const KEY: [u8; 32] = [7; 32];
 
 fn fixture_failure<T>(error: impl std::fmt::Display) -> T {
@@ -14,8 +16,8 @@ fn origin() -> Endpoint {
     .unwrap_or_else(fixture_failure)
 }
 
-fn header(physical: u8, records: u8, next_batch: u64) -> TcpSessionStoreHeader {
-    let mut bytes = [0; STORE_HEADER];
+fn header(physical: u8, records: u8, next_batch: u64) -> SessionTicketStoreHeader {
+    let mut bytes = [0; TCP_HEADER_LEN];
     bytes[..8].copy_from_slice(b"PHTCP001");
     bytes[9] = 1;
     bytes[10] = 1;
@@ -23,7 +25,9 @@ fn header(physical: u8, records: u8, next_batch: u64) -> TcpSessionStoreHeader {
     bytes[12] = physical;
     bytes[13] = records;
     bytes[14..].copy_from_slice(&next_batch.to_be_bytes());
-    TcpSessionStoreHeader::parse(&bytes).unwrap_or_else(fixture_failure)
+    SessionTicketStoreHeader::Tcp(
+        TcpSessionStoreHeader::parse(&bytes).unwrap_or_else(fixture_failure),
+    )
 }
 
 fn empty<'a>(origin: &'a Endpoint, witness: &'a [u8]) -> OwnerInput<'a> {
@@ -80,7 +84,7 @@ fn empty_owner_intent_header_and_original_witness_survive_authenticated_roundtri
     assert_eq!(owner.server_name, "origin.test");
     assert_eq!(owner.policy, b"stable configured policy");
     assert_eq!(owner.source_witness, b"source draw");
-    assert_eq!(owner.header.to_bytes(), header(0, 0, u64::MAX).to_bytes());
+    assert_eq!(owner.header, header(0, 0, u64::MAX));
     assert_eq!(owner.slots().len(), 0);
     assert!(!owner.has_credentials);
 }
@@ -265,7 +269,7 @@ fn combined_owner_fields_cannot_exceed_the_whole_envelope_bound() {
 }
 
 #[test]
-fn tcp_manifest_rejects_http3_owner_without_claiming_quic_authority() {
+fn tcp_header_rejects_http3_owner_without_claiming_quic_authority() {
     let endpoint = origin();
     let mut owner = empty(&endpoint, b"draw");
     owner.protocol = TicketCacheProtocol::Http3;
@@ -448,7 +452,7 @@ fn unknown_tags_indices_invalid_names_and_store_frames_are_rejected() {
         assert!(!authority_valid(authority));
     }
     assert!(!authority_valid(&"a".repeat(MAX_AUTHORITY + 1)));
-    assert!(TcpSessionStoreHeader::parse(&[0; STORE_HEADER]).is_err());
+    assert!(TcpSessionStoreHeader::parse(&[0; TCP_HEADER_LEN]).is_err());
 }
 
 #[test]
@@ -612,7 +616,7 @@ fn original_index_bounds_and_old_private_format_are_rejected() {
         validate_plaintext(&plaintext, opened.native_backend()),
         Err(EnvelopeError::Malformed)
     ));
-    // The outer header stays fixed-size; the new field adds two bytes per owner.
+    // The outer header stays fixed-size; the store adds its tag and length prefix.
     assert_eq!(
         sealed.as_bytes().len(),
         HEADER
@@ -624,7 +628,9 @@ fn original_index_bounds_and_old_private_format_are_rejected() {
             + 1
             + 1
             + 1
-            + STORE_HEADER
+            + 1
+            + 4
+            + TCP_HEADER_LEN
             + 1
             + 20
             + endpoint.authority().as_str().len()
@@ -643,3 +649,5 @@ fn original_index_bounds_and_old_private_format_are_rejected() {
         Err(EnvelopeError::Malformed)
     ));
 }
+
+mod mixed;

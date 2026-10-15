@@ -400,7 +400,7 @@ impl Http1Pool {
             .get_or_init(|| base.with_isolated_session_cache());
         entry
             .tickets
-            .register_tcp_before_use(
+            .register_before_use(
                 connector.session_ticket_cache(),
                 TicketCacheBinding {
                     origin: endpoint,
@@ -721,7 +721,7 @@ impl PoolEntry {
         };
         if mode == Http1ConnectionMode::TlsOrigin {
             self.tickets
-                .register_tcp_before_use(
+                .register_before_use(
                     connector.session_ticket_cache(),
                     TicketCacheBinding {
                         origin: endpoint,
@@ -772,20 +772,23 @@ impl PoolEntry {
                 let transport = if proxy.uses_tls() {
                     let base = https_proxy
                         .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http1))?;
-                    let proxy_connector = self.https_proxy.get_or_init(|| {
-                        let connector = proxy.https_connector(&base.with_isolated_session_cache());
-                        self.tickets.register(
-                            connector.session_ticket_cache(),
+                    let proxy_connector = self
+                        .https_proxy
+                        .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
+                    self.tickets
+                        .register_before_use(
+                            proxy_connector.session_ticket_cache(),
                             TicketCacheBinding {
                                 origin: origin_endpoint,
                                 server_name: proxy.host(),
                                 leg: TicketCacheLeg::HttpProxy,
-                                protocol: TicketCacheBinding::proxy_protocol(connector.protocol()),
+                                protocol: TicketCacheBinding::proxy_protocol(
+                                    proxy_connector.protocol(),
+                                ),
                                 route,
                             },
-                        );
-                        connector
-                    });
+                        )
+                        .map_err(RequestError::session_tickets)?;
                     ProxyTransport::Tls {
                         endpoint,
                         server_name: proxy.host(),

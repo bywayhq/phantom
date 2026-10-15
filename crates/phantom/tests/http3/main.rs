@@ -29,3 +29,5 @@ mod https_record_ech_exact;
 mod https_record_ech_http3;
 #[cfg(feature = "https-records")]
 mod https_records;
+mod session_ticket_early_data;
+mod session_ticket_transfer;

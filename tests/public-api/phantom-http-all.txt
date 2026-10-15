@@ -572,7 +572,7 @@ pub fn phantom::Client::request_timeouts(&self) -> phantom::RequestTimeouts
 pub fn phantom::Client::retry_policy(&self) -> phantom::RetryPolicy
 impl phantom::Client
 pub fn phantom::Client::export_session_tickets(&self, &[u8; 32]) -> core::result::Result<phantom::SessionTicketSnapshot, phantom::SessionTicketError>
-pub fn phantom::Client::import_session_tickets(&self, &phantom::SessionTicketSnapshot, &[u8; 32]) -> core::result::Result<(), phantom::SessionTicketError>
+pub fn phantom::Client::import_session_tickets(&self, &phantom::SessionTicketSnapshot, &[u8; 32], &[phantom::Route]) -> core::result::Result<(), phantom::SessionTicketError>
 impl core::fmt::Debug for phantom::Client
 pub fn phantom::Client::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom::ClientBuilder

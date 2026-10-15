@@ -873,7 +873,7 @@ async fn send_with(
 /// Forwards client datagrams to `server` at once, and server datagrams only
 /// while `open` holds `true`; datagrams held while it is `false` follow in
 /// order once it opens.
-async fn gated_relay(
+pub(super) async fn gated_relay(
     server: SocketAddr,
     open: tokio::sync::watch::Receiver<bool>,
 ) -> TestResult<(SocketAddr, RelayPeer)> {

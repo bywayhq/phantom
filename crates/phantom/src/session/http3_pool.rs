@@ -798,10 +798,6 @@ impl PoolEntry {
         early_data: bool,
     ) -> Result<Http3Connection, RequestError> {
         debug!(outcome = "connect", "HTTP/3 client pool opening connection");
-        // Fix destination metadata once, before any ClientHello or ticket
-        // retry. `open` also bounds this wait with the whole setup budget.
-        #[cfg(feature = "https-records")]
-        let destination = self.destination_plan(connector, route, transport).await?;
         let early_origin = self.origin_early.get_or_init(|| {
             connector
                 .sends_early_data()
@@ -810,12 +806,14 @@ impl PoolEntry {
         let origin = self.origin.get_or_init(|| {
             // Derive suppression from the enabled owner so both offers share
             // one cache without enabling early data on an already bound alias.
-            let connector = early_origin.as_ref().map_or_else(
+            early_origin.as_ref().map_or_else(
                 || connector.without_early_data().with_isolated_session_cache(),
                 Http3Connector::without_early_data,
-            );
-            self.tickets.register(
-                connector.session_ticket_cache(),
+            )
+        });
+        self.tickets
+            .register_before_use(
+                origin.session_ticket_cache(),
                 TicketCacheBinding {
                     origin: endpoint,
                     server_name: endpoint.host(),
@@ -823,9 +821,12 @@ impl PoolEntry {
                     protocol: Ok(TicketCacheProtocol::Http3),
                     route,
                 },
-            );
-            connector
-        });
+            )
+            .map_err(RequestError::session_tickets)?;
+        // Fix destination metadata after cold installation, before any
+        // ClientHello or ticket retry. `open` bounds the whole setup budget.
+        #[cfg(feature = "https-records")]
+        let destination = self.destination_plan(connector, route, transport).await?;
         let early_origin = early_origin.as_ref().filter(|_| early_data);
         let http3_proxy = match route {
             Route::ConnectUdp(proxy) if proxy.tcp_protocol().is_none() => {
@@ -1022,20 +1023,8 @@ impl PoolEntry {
                         // dedicated origin-and-route-scoped cache.
                         let connector = if protocol == phantom_net::proxy::HttpsProxyProtocol::Http1
                         {
-                            self.tcp_proxy.get_or_init(|| {
-                                let connector = base.with_isolated_session_cache();
-                                self.tickets.register(
-                                    connector.session_ticket_cache(),
-                                    TicketCacheBinding {
-                                        origin: endpoint,
-                                        server_name: proxy.host(),
-                                        leg: TicketCacheLeg::ConnectUdp,
-                                        protocol: TicketCacheBinding::proxy_protocol(protocol),
-                                        route,
-                                    },
-                                );
-                                connector
-                            })
+                            self.tcp_proxy
+                                .get_or_init(|| base.with_isolated_session_cache())
                         } else {
                             // The client base also serves H1 proxies. Select the
                             // route's H2 policy before preparing its shared cache.
@@ -1059,6 +1048,22 @@ impl PoolEntry {
                             );
                             shared
                         };
+                        if protocol == phantom_net::proxy::HttpsProxyProtocol::Http1 {
+                            self.tickets
+                                .register_before_use(
+                                    connector.session_ticket_cache(),
+                                    TicketCacheBinding {
+                                        origin: endpoint,
+                                        server_name: proxy.host(),
+                                        leg: TicketCacheLeg::ConnectUdp,
+                                        protocol: TicketCacheBinding::proxy_protocol(protocol),
+                                        route,
+                                    },
+                                )
+                                .map_err(|error| {
+                                    SetupFailure::Other(RequestError::session_tickets(error))
+                                })?;
+                        }
                         ConnectUdpTransport::Tls {
                             connector,
                             protocol,
@@ -1079,19 +1084,23 @@ impl PoolEntry {
                     .map_err(|error| {
                         SetupFailure::Other(RequestError::invalid_authority(error.message()))
                     })?;
-                    self.tickets.register_shared_outer_before_use(
-                        prepared.session_ticket_cache(),
-                        TicketCacheBinding {
-                            origin: &proxy_endpoint,
-                            server_name: proxy.host(),
-                            leg: TicketCacheLeg::ConnectUdp,
-                            protocol: match proxy.tcp_protocol() {
-                                Some(protocol) => TicketCacheBinding::proxy_protocol(protocol),
-                                None => Ok(TicketCacheProtocol::Http3),
+                    self.tickets
+                        .register_shared_outer_before_use(
+                            prepared.session_ticket_cache(),
+                            TicketCacheBinding {
+                                origin: &proxy_endpoint,
+                                server_name: proxy.host(),
+                                leg: TicketCacheLeg::ConnectUdp,
+                                protocol: match proxy.tcp_protocol() {
+                                    Some(protocol) => TicketCacheBinding::proxy_protocol(protocol),
+                                    None => Ok(TicketCacheProtocol::Http3),
+                                },
+                                route,
                             },
-                            route,
-                        },
-                    );
+                        )
+                        .map_err(|error| {
+                            SetupFailure::Other(RequestError::session_tickets(error))
+                        })?;
                 }
                 DatagramRoute::ConnectUdp(ConnectUdpRoute {
                     proxy: DialEndpoint {

@@ -61,6 +61,30 @@ const H3_SETTINGS_ERROR: quinn::VarInt = quinn::VarInt::from_u32(0x0109);
 /// Matches the HTTP CONNECT proxy's bound on interim responses per request.
 const MAX_INFORMATIONAL_RESPONSES: usize = 8;
 
+/// Validates remembered peer HTTP/3 settings with the transport parser.
+///
+/// Empty payloads are accepted, and permitted unknown frames are skipped.
+/// This checks framing and settings semantics, not authenticity or
+/// compatibility with a later peer.
+///
+/// # Errors
+///
+/// Returns [`Http3ErrorKind::Protocol`] for invalid input, with the parser
+/// error available through [`std::error::Error::source`].
+pub fn validate_remembered_peer_settings(payload: &[u8]) -> Result<(), Http3Error> {
+    let mut builder = h3::client::builder();
+    builder
+        .remembered_peer_settings(payload)
+        .map(|_| ())
+        .map_err(|error| {
+            Http3Error::with_source(
+                Http3ErrorKind::Protocol,
+                "remembered HTTP/3 SETTINGS are invalid",
+                error,
+            )
+        })
+}
+
 /// Body, trailers, and diagnostics for one raw HTTP/3 request.
 ///
 /// Start with [`Self::default`] and set the fields needed for this call.

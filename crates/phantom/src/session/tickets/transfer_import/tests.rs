@@ -98,7 +98,7 @@ fn empty_snapshot(owner: &TicketOwner, header: TcpSessionStoreHeader) -> TestRes
         policy: binding.descriptor.policy(),
         source_witness: binding.descriptor.source_witness(),
         has_credentials: false,
-        header,
+        header: SessionTicketStoreHeader::Tcp(header),
         slots: &[],
     };
     let native = btls::ssl::seal_envelope(&[], &KEY)?;
@@ -205,7 +205,7 @@ fn second_invalid_replacement_does_not_swap_the_first_valid_store() -> TestResul
             policy: binding.descriptor.policy(),
             source_witness: binding.descriptor.source_witness(),
             has_credentials: false,
-            header,
+            header: SessionTicketStoreHeader::Tcp(header),
             slots: &[],
         });
     }
@@ -246,7 +246,10 @@ fn unmatched_valid_empty_owner_is_retained_as_cold_intent() -> TestResult {
     let cold = registry.cold.as_ref().ok_or("cold intent missing")?;
     assert_eq!(cold.owners.len(), 1);
     assert_eq!(cold.owners[0].origin, endpoint);
-    assert_eq!(cold.owners[0].header, header(0)?);
+    assert_eq!(
+        cold.owners[0].header,
+        SessionTicketStoreHeader::Tcp(header(0)?)
+    );
     assert!(cold.owners[0].slots.is_empty());
     assert_eq!(cold.native.record_count(), 0);
     drop(registry);
@@ -333,7 +336,7 @@ fn empty_actual_credentials_reject_a_falsely_uncredentialed_source_flag() -> Tes
 }
 
 #[test]
-fn non_direct_route_and_whole_envelope_bound_are_explicit() -> TestResult {
+fn direct_only_fixture_rejects_proxy_mapping_and_whole_envelope_overflow() -> TestResult {
     let decoding = decoding_context()?;
     let profile = profile(TlsVersion::Tls13);
     let owner = owner(&profile, &[])?;
@@ -344,7 +347,7 @@ fn non_direct_route_and_whole_envelope_bound_are_explicit() -> TestResult {
     let snapshot = empty_snapshot(&owner, header(0)?)?;
     assert!(matches!(
         owner.import_tcp(&snapshot, &KEY, &decoding),
-        Err(ImportError::UnsupportedRoute)
+        Err(ImportError::OwnerMapping)
     ));
     assert!(matches!(
         owner.import_tcp(&vec![0; MAX_ENVELOPE + 1], &KEY, &decoding),
@@ -369,7 +372,7 @@ fn record_mapping_checks_every_header_ordinal_name_payload_and_original_witness(
         policy: b"policy",
         source_witness: &[0, 0],
         has_credentials: false,
-        header: header(1)?,
+        header: SessionTicketStoreHeader::Tcp(header(1)?),
         slots: &slots,
     };
     // This is a structural metadata control only. It creates no native permit.
@@ -531,7 +534,7 @@ async fn genuine_tcp_tls12_and_tls13_import_resume_and_failed_mapping_keeps_tick
                     policy: binding.descriptor.policy(),
                     source_witness: binding.descriptor.source_witness(),
                     has_credentials: false,
-                    header,
+                    header: SessionTicketStoreHeader::Tcp(header),
                     slots: &slots,
                 };
                 let native = btls::ssl::seal_envelope(&records, &KEY)?;
@@ -545,7 +548,7 @@ async fn genuine_tcp_tls12_and_tls13_import_resume_and_failed_mapping_keeps_tick
                     policy: binding.descriptor.policy(),
                     source_witness: &[0, 1],
                     has_credentials: false,
-                    header,
+                    header: SessionTicketStoreHeader::Tcp(header),
                     slots: &slots,
                 };
                 let bad = envelope::seal_manifest(&KEY, &[bad_input], &native)?;

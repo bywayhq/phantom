@@ -7,7 +7,7 @@ use btls::{
     hash::{Hasher, MessageDigest, hash, hmac_sha256},
     ssl::SessionTransferEnvelope,
 };
-use phantom_net::TcpSessionStoreHeader;
+use phantom_net::{QuicSessionStoreHeader, SessionTicketStoreHeader, TcpSessionStoreHeader};
 use zeroize::Zeroizing;
 
 use super::binding::{TicketCacheLeg, TicketCacheProtocol};
@@ -19,14 +19,18 @@ const MAX_RECORDS: usize = 2560;
 const MAX_POLICY: usize = 1024 * 1024;
 const MAX_NAME: usize = 253;
 const MAX_AUTHORITY: usize = 1024;
-const MAGIC: &[u8; 8] = b"PHOWN002";
+const MAGIC: &[u8; 8] = b"PHOWN003";
 const HEADER: usize = 90;
 const TAG: usize = 16;
-const STORE_HEADER: usize = 22;
+const MAX_STORE_HEADER: usize = 26;
 const NATIVE_HEADER: usize = 56;
 const NATIVE_MAGIC: &[u8; 8] = b"PHTKT001";
-const FORMAT: &[u8] = concat!(env!("CARGO_PKG_VERSION"), ":owner-manifest2:tcp-store1").as_bytes();
-const KEY_DOMAIN: &[u8] = b"phantom-ticket-facade-owner-envelope-v2";
+const FORMAT: &[u8] = concat!(
+    env!("CARGO_PKG_VERSION"),
+    ":owner-manifest3:tcp-store1:quic-store1"
+)
+.as_bytes();
+const KEY_DOMAIN: &[u8] = b"phantom-ticket-facade-owner-envelope-v3";
 
 #[derive(Debug)]
 pub(super) enum EnvelopeError {
@@ -51,7 +55,7 @@ impl fmt::Display for EnvelopeError {
             Self::UnsupportedEmptyCredentials => {
                 "empty credentialed ticket transfer is unsupported"
             }
-            Self::UnsupportedProtocol => "ticket manifest requires a TCP store",
+            Self::UnsupportedProtocol => "ticket manifest store does not match its protocol",
             Self::Backend(_) => "ticket manifest backend failed",
         })
     }
@@ -78,7 +82,7 @@ pub(super) struct RecordSlot {
     pub(super) physical_ordinal: u8,
 }
 
-/// Inputs supplied only by the actual source registry and captured TCP stores.
+/// Inputs supplied only by the actual source registry and captured TCP or QUIC stores.
 pub(super) struct OwnerInput<'a> {
     pub(super) record_owner_index: u16,
     pub(super) origin: &'a Endpoint,
@@ -88,7 +92,7 @@ pub(super) struct OwnerInput<'a> {
     pub(super) policy: &'a [u8],
     pub(super) source_witness: &'a [u8],
     pub(super) has_credentials: bool,
-    pub(super) header: TcpSessionStoreHeader,
+    pub(super) header: SessionTicketStoreHeader,
     pub(super) slots: &'a [RecordSlot],
 }
 
@@ -117,7 +121,7 @@ pub(super) struct OwnerView<'a> {
     pub(super) policy: &'a [u8],
     pub(super) source_witness: &'a [u8],
     pub(super) has_credentials: bool,
-    pub(super) header: TcpSessionStoreHeader,
+    pub(super) header: SessionTicketStoreHeader,
     slots: &'a [u8],
 }
 
@@ -265,7 +269,13 @@ pub(super) fn seal_manifest(
             owner.slots.iter().copied(),
         )?;
         size = size
-            .checked_add(2 + 2 + 2 + 1 + 1 + 1 + STORE_HEADER + 1 + 20)
+            .checked_add(2 + 2 + 2 + 1 + 1 + 1 + 1 + 4 + 1 + 20)
+            .and_then(|n| {
+                n.checked_add(match owner.header {
+                    SessionTicketStoreHeader::Tcp(header) => header.to_bytes().len(),
+                    SessionTicketStoreHeader::Quic(header) => header.to_bytes().len(),
+                })
+            })
             .and_then(|n| n.checked_add(owner.origin.authority().as_str().len()))
             .and_then(|n| n.checked_add(owner.origin.host().len()))
             .and_then(|n| n.checked_add(owner.server_name.len()))
@@ -301,7 +311,16 @@ pub(super) fn seal_manifest(
         ])?;
         plaintext.field(owner.policy)?;
         plaintext.field(owner.source_witness)?;
-        plaintext.raw(&owner.header.to_bytes())?;
+        match owner.header {
+            SessionTicketStoreHeader::Tcp(header) => {
+                plaintext.raw(&[0])?;
+                plaintext.field(&header.to_bytes())?;
+            }
+            SessionTicketStoreHeader::Quic(header) => {
+                plaintext.raw(&[1])?;
+                plaintext.field(&header.to_bytes())?;
+            }
+        }
         plaintext.raw(&[owner.slots.len() as u8])?;
         for slot in owner.slots {
             plaintext.u16(slot.native_slot)?;
@@ -315,7 +334,7 @@ pub(super) fn seal_manifest(
     let format = format_identity()?;
     let mut output = Writer::new(total)?;
     output.raw(MAGIC)?;
-    output.u16(2)?;
+    output.u16(3)?;
     output.raw(&format)?;
     output.raw(backend)?;
     let mut nonce = [0; 12];
@@ -337,7 +356,7 @@ pub(super) fn open_manifest(
     if snapshot.len() > MAX_ENVELOPE {
         return Err(EnvelopeError::TooLarge);
     }
-    if snapshot.len() < HEADER + TAG || &snapshot[..8] != MAGIC || snapshot[8..10] != [0, 2] {
+    if snapshot.len() < HEADER + TAG || &snapshot[..8] != MAGIC || snapshot[8..10] != [0, 3] {
         return Err(EnvelopeError::Malformed);
     }
     let format: &[u8; 32] = snapshot[10..42]
@@ -438,7 +457,7 @@ fn parse_owner<'a>(reader: &mut Reader<'a>, expected: u16) -> Result<OwnerView<'
         0 => TicketCacheProtocol::Http1,
         1 => TicketCacheProtocol::Http2,
         2 => TicketCacheProtocol::Negotiated,
-        3 => return Err(EnvelopeError::UnsupportedProtocol),
+        3 => TicketCacheProtocol::Http3,
         _ => return Err(EnvelopeError::Malformed),
     };
     let has_credentials = match reader.u8()? {
@@ -448,10 +467,19 @@ fn parse_owner<'a>(reader: &mut Reader<'a>, expected: u16) -> Result<OwnerView<'
     };
     let policy = reader.field(MAX_POLICY)?;
     let source_witness = reader.field(MAX_POLICY)?;
-    let header = TcpSessionStoreHeader::parse(reader.take(STORE_HEADER)?)
-        .map_err(|_| EnvelopeError::Malformed)?;
+    let transport = reader.u8()?;
+    let bytes = reader.field(MAX_STORE_HEADER)?;
+    let header = match transport {
+        0 => SessionTicketStoreHeader::Tcp(
+            TcpSessionStoreHeader::parse(bytes).map_err(|_| EnvelopeError::Malformed)?,
+        ),
+        1 => SessionTicketStoreHeader::Quic(
+            QuicSessionStoreHeader::parse(bytes).map_err(|_| EnvelopeError::Malformed)?,
+        ),
+        _ => return Err(EnvelopeError::Malformed),
+    };
     let count = usize::from(reader.u8()?);
-    if count != header.record_count() {
+    if count != store_counts(header).0 {
         return Err(EnvelopeError::Malformed);
     }
     let slots = reader.take(count * 3)?;
@@ -470,6 +498,19 @@ fn parse_owner<'a>(reader: &mut Reader<'a>, expected: u16) -> Result<OwnerView<'
         header,
         slots,
     })
+}
+
+pub(super) fn store_counts(header: SessionTicketStoreHeader) -> (usize, usize) {
+    match header {
+        SessionTicketStoreHeader::Tcp(header) => (
+            header.record_count(),
+            header.record_count() + header.excluded_expired_count(),
+        ),
+        SessionTicketStoreHeader::Quic(header) => (
+            header.record_count(),
+            header.record_count() + header.excluded_expired_count(),
+        ),
+    }
 }
 
 fn leg_tag(leg: TicketCacheLeg) -> u8 {
@@ -533,7 +574,7 @@ impl Validation {
         policy: &[u8],
         witness: &[u8],
         has_credentials: bool,
-        header: TcpSessionStoreHeader,
+        header: SessionTicketStoreHeader,
         slots: impl ExactSizeIterator<Item = RecordSlot>,
     ) -> Result<(), EnvelopeError> {
         if !authority_valid(authority)
@@ -547,10 +588,22 @@ impl Validation {
         {
             return Err(EnvelopeError::TooLarge);
         }
-        if matches!(protocol, TicketCacheProtocol::Http3) {
+        if !matches!(
+            (header, protocol),
+            (
+                SessionTicketStoreHeader::Tcp(_),
+                TicketCacheProtocol::Http1
+                    | TicketCacheProtocol::Http2
+                    | TicketCacheProtocol::Negotiated
+            ) | (
+                SessionTicketStoreHeader::Quic(_),
+                TicketCacheProtocol::Http3
+            )
+        ) {
             return Err(EnvelopeError::UnsupportedProtocol);
         }
-        if header.record_count() != slots.len() {
+        let (records, physical) = store_counts(header);
+        if records != slots.len() {
             return Err(EnvelopeError::Malformed);
         }
         if has_credentials && slots.len() == 0 {
@@ -579,12 +632,11 @@ impl Validation {
         }
         self.owners[self.owner_count] = identity;
         self.owner_count += 1;
-        let physical = header.to_bytes()[12];
         let mut previous = None;
         for slot in slots {
             let index = usize::from(slot.native_slot);
             if index >= self.records
-                || slot.physical_ordinal >= physical
+                || usize::from(slot.physical_ordinal) >= physical
                 || previous.is_some_and(|value| slot.physical_ordinal <= value)
             {
                 return Err(EnvelopeError::Malformed);

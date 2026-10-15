@@ -72,7 +72,7 @@ async fn public_request_export_and_cold_import_resume_the_first_request() -> Tes
         assert_eq!(restored.as_bytes(), snapshot.as_bytes());
 
         let recipient = builder(&fixture).route(Route::Direct).build()?;
-        recipient.import_session_tickets(&restored, &KEY)?;
+        recipient.import_session_tickets(&restored, &KEY, &[])?;
         assert!(recipient.state.tickets.registry().caches.is_empty());
         let cold = cold_snapshot(&recipient.state.tickets)?;
         assert_eq!(cold.owners.len(), 1);
@@ -103,7 +103,7 @@ async fn configured_environment_route_rejects_last_owner_without_replacing_live_
     let prior_store = fixture.store(&prior, 445)?;
     fixture.exchange(&prior_store, false).await?;
     let prior_snapshot = SessionTicketSnapshot::from_bytes(&live_snapshot(&prior, None)?)?;
-    recipient.import_session_tickets(&prior_snapshot, &KEY)?;
+    recipient.import_session_tickets(&prior_snapshot, &KEY, &[])?;
 
     let source = fixture.owner()?;
     let first = fixture.store(&source, 443)?;
@@ -112,7 +112,7 @@ async fn configured_environment_route_rejects_last_owner_without_replacing_live_
     let first_control = builder(&fixture)
         .environment_proxies(proxies.clone())
         .build()?;
-    first_control.import_session_tickets(&first_snapshot, &KEY)?;
+    first_control.import_session_tickets(&first_snapshot, &KEY, &[])?;
     assert_eq!(cold_snapshot(&first_control.state.tickets)?.owners.len(), 1);
     let last = fixture.store(&source, 444)?;
     fixture.exchange(&last, false).await?;
@@ -125,15 +125,15 @@ async fn configured_environment_route_rejects_last_owner_without_replacing_live_
     assert_eq!(before_cold.owners[0].authority, "127.0.0.1:445");
 
     let error = recipient
-        .import_session_tickets(&snapshot, &KEY)
+        .import_session_tickets(&snapshot, &KEY, &[])
         .err()
         .ok_or("accepted last owner selected for a proxy")?;
-    assert_eq!(error.kind(), SessionTicketErrorKind::Unsupported);
+    assert_eq!(error.kind(), SessionTicketErrorKind::Policy);
     assert!(matches!(
         error
             .source()
             .and_then(|source| source.downcast_ref::<ImportError>()),
-        Some(ImportError::UnsupportedRoute)
+        Some(ImportError::OwnerMapping)
     ));
     assert_eq!(store_header(&live)?, before_live);
     assert_eq!(cold_snapshot(&recipient.state.tickets)?, before_cold);
@@ -143,7 +143,7 @@ async fn configured_environment_route_rejects_last_owner_without_replacing_live_
         .environment_proxies(proxies)
         .route(Route::Direct)
         .build()?;
-    direct.import_session_tickets(&snapshot, &KEY)?;
+    direct.import_session_tickets(&snapshot, &KEY, &[])?;
     assert_eq!(cold_snapshot(&direct.state.tickets)?.owners.len(), 2);
     Ok(())
 }
@@ -162,6 +162,7 @@ async fn public_import_rejects_unconfigured_http2_intent_and_preserves_prior_tic
     recipient.import_session_tickets(
         &SessionTicketSnapshot::from_bytes(&live_snapshot(&prior, None)?)?,
         &KEY,
+        &[],
     )?;
     let before_live = store_header(&live)?;
     let before_cold = cold_snapshot(&recipient.state.tickets)?;
@@ -193,14 +194,14 @@ async fn public_import_rejects_unconfigured_http2_intent_and_preserves_prior_tic
     let snapshot = SessionTicketSnapshot::from_bytes(&live_snapshot(&source, None)?)?;
     let matching = builder(&h2_fixture).route(Route::Direct).build()?;
     assert!(matching.inner.http2.is_some());
-    matching.import_session_tickets(&snapshot, &KEY)?;
+    matching.import_session_tickets(&snapshot, &KEY, &[])?;
     let accepted = cold_snapshot(&matching.state.tickets)?;
     assert_eq!(accepted.owners.len(), 1);
     assert!(accepted.owners[0].slots.is_empty());
     assert!(accepted.native.is_empty());
 
     let error = recipient
-        .import_session_tickets(&snapshot, &KEY)
+        .import_session_tickets(&snapshot, &KEY, &[])
         .err()
         .ok_or("accepted H2 intent without an H2 connector")?;
     assert_eq!(error.kind(), SessionTicketErrorKind::Policy);
@@ -229,7 +230,7 @@ fn snapshot_bounds_redaction_and_public_failure_sources_are_preserved() -> TestR
         assert!(!rendered.contains(&canary));
     }
     let error = client
-        .import_session_tickets(&malformed, &KEY)
+        .import_session_tickets(&malformed, &KEY, &[])
         .err()
         .ok_or("accepted malformed snapshot")?;
     assert_eq!(error.kind(), SessionTicketErrorKind::InvalidSnapshot);
@@ -245,7 +246,7 @@ fn snapshot_bounds_redaction_and_public_failure_sources_are_preserved() -> TestR
     let mut wrong_key = KEY;
     wrong_key[0] ^= 1;
     let error = client
-        .import_session_tickets(&snapshot, &wrong_key)
+        .import_session_tickets(&snapshot, &wrong_key, &[])
         .err()
         .ok_or("accepted wrong snapshot key")?;
     assert_eq!(error.kind(), SessionTicketErrorKind::Authentication);
