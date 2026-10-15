@@ -1,8 +1,11 @@
 //! Actual outer TLS; forwarding never creates a CONNECT or origin TLS layer.
 use super::{read_plaintext_head, test_connector, test_proxy_connector};
 use crate::{
-    http1::{Http1TlsError, proxy_opening::ProxyBinding},
-    proxy::{HttpConnectHeader, HttpsProxyConnector, HttpsProxyProtocol, ProxyCredentialCache},
+    http1::Http1TlsError,
+    proxy::{
+        HttpConnectHeader, HttpsProxyConnector, HttpsProxyProtocol, ProxyCredentialCache,
+        http1_opening::ProxyBinding,
+    },
     request::{AbsoluteForm, RequestHeader},
     route::{Endpoint, HttpConnectRoute, ProxyTransport},
     tcp::{AddressFamily, AddressFamilyMemory, SlowerAttempt},
@@ -101,7 +104,7 @@ async fn forward_slower_owner_finishes_outer_tls_then_claim_sends_current_reques
         let (address, listener) = loopback_listener().await?;
         let transport = transport(address.port(), &proxy);
         let attempt = SlowerAttempt::scripted(async move { TcpStream::connect(address).await }, Duration::ZERO, None);
-        let slower = connector.slower_proxy_opening(attempt, ProxyBinding::forward(transport)?);
+        let slower = connector.slower_proxy_opening(attempt, ProxyBinding::forward(transport).map_err(Http1TlsError::from)?);
         let progress = slower.progress();
         let (quiet, checked) = tokio::sync::oneshot::channel();
         let client = async {
@@ -241,7 +244,8 @@ async fn unused_forward_spare_closes_verified_outer_tls_without_application_byte
         );
         let slower = connector.slower_proxy_opening(
             attempt,
-            ProxyBinding::forward(transport(address.port(), &proxy))?,
+            ProxyBinding::forward(transport(address.port(), &proxy))
+                .map_err(Http1TlsError::from)?,
         );
         let client = async {
             let opening = slower.finish().await.ok_or("outer TLS spare failed")?;

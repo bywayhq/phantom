@@ -12,10 +12,10 @@ use tokio_btls::SslStream;
 
 use super::{fields, read_plaintext_head};
 use crate::{
-    http1::{Http1TlsError, proxy_opening::ProxyBinding},
+    http1::Http1TlsError,
     proxy::{
         HttpBasicCredentials, HttpDigestCredentials, HttpProxyAuthentication, HttpsProxyConnector,
-        HttpsProxyProtocol, ProxyCredentialCache,
+        HttpsProxyProtocol, ProxyCredentialCache, http1_opening::ProxyBinding,
     },
     request::{OriginForm, RequestHeader},
     route::{Endpoint, HttpConnectRoute, ProxyTransport},
@@ -127,7 +127,7 @@ async fn slower_https_setup_finishes_verified_outer_tls_without_connect_or_origi
             &fields,
             Some(HttpProxyAuthentication::Basic(&credentials)),
         );
-        let binding = ProxyBinding::new(route, TEST_SERVER_NAME)?;
+        let binding = ProxyBinding::new(route, TEST_SERVER_NAME).map_err(Http1TlsError::from)?;
         let attempt = SlowerAttempt::scripted(
             async move { TcpStream::connect(address).await },
             std::time::Duration::ZERO,

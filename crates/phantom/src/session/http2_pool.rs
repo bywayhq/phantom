@@ -11,8 +11,8 @@ use phantom_net::proxy::HttpsProxyConnector;
 use phantom_net::request::RequestBody;
 use phantom_net::{
     http2::{
-        Http2Body, Http2Connection, Http2Error, Http2ProtocolErrorKind, Http2TlsConnector,
-        Http2TlsError, validate_request_body_source_with_trailers,
+        Http2Body, Http2Connection, Http2Error, Http2ProtocolErrorKind, Http2ProxyOpening,
+        Http2TlsConnector, Http2TlsError, validate_request_body_source_with_trailers,
     },
     request::{OriginForm, RequestHeader},
     tcp::{AddressFamilyMemory, SlowerConnection},
@@ -90,6 +90,8 @@ pub(crate) struct Http2Pool {
     max_active: NonZeroUsize,
     max_pending: NonZeroUsize,
     max_connections: NonZeroUsize,
+    /// Reuse limit of a quiet HTTP/1 CONNECT proxy socket.
+    http1_used_idle_timeout: Option<Duration>,
     /// The client's prune timer, when the profile closes idle connections on
     /// one.
     prune_timer: Option<Arc<PruneTimer>>,
@@ -110,6 +112,7 @@ impl Http2Pool {
             max_active,
             max_pending,
             max_connections: NonZeroUsize::MIN,
+            http1_used_idle_timeout: None,
             prune_timer: None,
             state: Mutex::new(PoolState::default()),
             #[cfg(feature = "https-records")]
@@ -119,6 +122,12 @@ impl Http2Pool {
 
     pub(super) fn with_ticket_owner(mut self, tickets: Arc<super::tickets::TicketOwner>) -> Self {
         self.tickets = tickets;
+        self
+    }
+
+    /// Applies the profile's idle reuse limit to quiet CONNECT proxy sockets.
+    pub(super) const fn with_http1_used_idle_timeout(mut self, timeout: Option<Duration>) -> Self {
+        self.http1_used_idle_timeout = timeout;
         self
     }
 
@@ -428,6 +437,7 @@ impl Http2Pool {
             Http2Spread::new(self.max_connections, self.max_active),
         );
         entry.prune.clone_from(&self.prune_timer);
+        entry.http1_used_idle_timeout = self.http1_used_idle_timeout;
         entry.family = state.families.get(&key.origin());
         // HTTPS records are looked up on the direct route only: Chromium sends
         // no HTTPS query for a proxied request.
@@ -519,6 +529,7 @@ struct PoolEntry {
     /// The client's prune timer, when the profile closes idle connections on
     /// one.
     prune: Option<Arc<PruneTimer>>,
+    http1_used_idle_timeout: Option<Duration>,
     #[cfg(feature = "https-records")]
     https_records: Option<super::alt_svc::HttpsRecordDiscovery>,
 }
@@ -542,6 +553,7 @@ impl PoolEntry {
             connector: OnceLock::new(),
             https_proxy: OnceLock::new(),
             prune: None,
+            http1_used_idle_timeout: None,
             #[cfg(feature = "https-records")]
             https_records: None,
         }
@@ -642,7 +654,11 @@ impl PoolEntry {
                 let mut connections = self.lock();
                 connections.retain_reusable();
                 if connections.slots.is_empty() {
-                    if !connections.connecting && connections.spares.is_empty() {
+                    // A quiet proxy opening cannot publish H2 until an
+                    // ordinary request claims it and owns `connecting`.
+                    if !connections.connecting
+                        && !connections.spares.iter().any(|spare| !spare.proxy)
+                    {
                         return None;
                     }
                 } else {
@@ -673,7 +689,15 @@ impl PoolEntry {
         // or a stream ends, as the single-connection pool did, and choose
         // again. Waiters are woken together, not in arrival order: after a
         // failed setup, whichever runs first makes the next attempt.
-        let reservation = loop {
+        let (reservation, proxy_opening) = loop {
+            let expired = self
+                .lock()
+                .take_expired_proxy_spares(Instant::now(), self.http1_used_idle_timeout);
+            let removed = !expired.is_empty();
+            close_proxy_spares(expired);
+            if removed {
+                self.setup_done.notify_waiters();
+            }
             let mut setup_done = pin!(self.setup_done.notified());
             // Registered before the check, so a setup finishing in between
             // still wakes this request.
@@ -690,17 +714,51 @@ impl PoolEntry {
                     );
                     return Ok(slot.lease());
                 }
-                if !connections.connecting && connections.spares.is_empty() {
-                    self.family.mark_active();
-                    connections.connecting = true;
-                    break SetupReservation {
-                        entry: self,
-                        finished: false,
-                    };
+                if !connections.connecting {
+                    if let Some(index) = connections
+                        .spares
+                        .iter()
+                        .position(|spare| spare.ready.is_some())
+                    {
+                        let mut spare = connections.spares.swap_remove(index);
+                        let opening = spare.ready.take();
+                        connections.connecting = true;
+                        break (
+                            SetupReservation {
+                                entry: self,
+                                finished: false,
+                            },
+                            opening.map(|opening| {
+                                (opening, spare.idle_since.unwrap_or_else(Instant::now))
+                            }),
+                        );
+                    }
+                    if connections.spares.is_empty() {
+                        self.family.mark_active();
+                        connections.connecting = true;
+                        break (
+                            SetupReservation {
+                                entry: self,
+                                finished: false,
+                            },
+                            None,
+                        );
+                    }
                 }
             }
             setup_done.await;
         };
+
+        if let Some((opening, since)) = proxy_opening {
+            let claim = ProxyClaim {
+                reservation: Some(reservation),
+                opening: Some(opening),
+                since,
+            };
+            // A proxy claim is connection setup too; keep its CONNECT/TLS
+            // future out of acquire, including when a request reuses H2.
+            return super::box_send(self.finish_proxy_claim(claim, endpoint, route)).await;
+        }
 
         debug!(outcome = "connect", "HTTP/2 client pool opening connection");
         // Boxed: opening a connection awaits the largest connector futures,
@@ -711,9 +769,111 @@ impl PoolEntry {
         Ok(reservation.finish(connection, slower))
     }
 
+    async fn finish_proxy_claim(
+        &self,
+        claim: ProxyClaim<'_>,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Result<ConnectionLease, RequestError> {
+        let Some(proxy) = route.as_http_proxy() else {
+            return Err(RequestError::unsupported_route(HttpProtocol::Http2));
+        };
+        let authority = endpoint.tunnel_authority();
+        let endpoint = phantom_net::route::Endpoint {
+            host: proxy.host(),
+            port: proxy.port(),
+        };
+        let transport = if proxy.uses_tls() {
+            let connector = self
+                .https_proxy
+                .get()
+                .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
+            phantom_net::route::ProxyTransport::Tls {
+                endpoint,
+                server_name: proxy.host(),
+                connector,
+            }
+        } else {
+            phantom_net::route::ProxyTransport::Tcp(endpoint)
+        };
+        claim
+            .finish(phantom_net::route::HttpConnectRoute {
+                proxy: transport,
+                authority: &authority,
+                headers: proxy.ordered_connect_headers(),
+                credentials: proxy.authentication(),
+            })
+            .await
+    }
+
+    fn adopt_proxy(self: &Arc<Self>, slower: SlowerConnection<Http2ProxyOpening>) {
+        let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+            return;
+        };
+        let id = {
+            let mut state = self.lock();
+            self.family.mark_active();
+            let id = state.register_spare();
+            if let Some(spare) = state.spares.iter_mut().find(|spare| spare.id == id) {
+                spare.proxy = true;
+            }
+            id
+        };
+        let report = ProxySpareReport {
+            entry: Some(Arc::downgrade(self)),
+            id,
+        };
+        let task = runtime.spawn(async move {
+            report.finish(slower.finish().await);
+        });
+        let installed = {
+            let mut state = self.lock();
+            if let Some(spare) = state.spares.iter_mut().find(|spare| spare.id == id) {
+                spare.task = Some(task.abort_handle());
+                true
+            } else {
+                false
+            }
+        };
+        if !installed {
+            task.abort();
+        }
+    }
+
+    fn proxy_spare_finished(&self, id: u64, opening: Option<Http2ProxyOpening>) {
+        let mut state = self.lock();
+        let retired = if let Some(opening) = opening {
+            if let Some(spare) = state.spares.iter_mut().find(|spare| spare.id == id) {
+                spare.ready = Some(opening);
+                spare.idle_since = Some(Instant::now());
+                spare.task = None;
+                None
+            } else {
+                Some(opening)
+            }
+        } else {
+            let removed = state
+                .spares
+                .iter()
+                .position(|spare| spare.id == id)
+                .map(|index| state.spares.swap_remove(index));
+            drop(state);
+            drop(removed);
+            self.prune_empty_family();
+            self.setup_done.notify_waiters();
+            return;
+        };
+        drop(state);
+        drop(retired);
+        if let Some(timer) = &self.prune {
+            timer.http1_idle_added();
+        }
+        self.setup_done.notify_waiters();
+    }
+
     /// Opens a connection for [`Self::acquire`] in `mode` over `route`.
     async fn open(
-        &self,
+        self: &Arc<Self>,
         connector: &Http2TlsConnector,
         https_proxy: Option<&HttpsProxyConnector>,
         endpoint: &Endpoint,
@@ -821,16 +981,46 @@ impl PoolEntry {
                 } else {
                     phantom_net::route::ProxyTransport::Tcp(proxy_endpoint)
                 };
+                let connect = phantom_net::route::HttpConnectRoute {
+                    proxy: transport,
+                    authority: &connect_authority,
+                    headers: proxy.ordered_connect_headers(),
+                    credentials: proxy.authentication(),
+                };
+                if match transport {
+                    phantom_net::route::ProxyTransport::Tcp(_) => connector.tcp_settings(),
+                    phantom_net::route::ProxyTransport::Tls { connector, .. }
+                        if connector.protocol()
+                            == phantom_net::proxy::HttpsProxyProtocol::Http1 =>
+                    {
+                        connector.tcp_settings()
+                    }
+                    _ => None,
+                }
+                .is_some_and(|settings| {
+                    matches!(
+                        settings.address_selection,
+                        phantom_profile::TcpAddressSelection::Backup(_)
+                    )
+                }) {
+                    let (opening, slower) = connector
+                        .open_http_connect_retaining(connect, endpoint.host(), &self.family)
+                        .await
+                        .map_err(RequestError::http2_connection_setup)?;
+                    if let Some(slower) = slower {
+                        self.adopt_proxy(slower);
+                    }
+                    return Ok((
+                        opening
+                            .finish(connect)
+                            .await
+                            .map_err(RequestError::http2_connection_setup)?,
+                        None,
+                    ));
+                }
                 super::box_send(connector.connect(phantom_net::route::Http2Route::Origin(
                     phantom_net::route::OriginRoute::Tls {
-                        tcp: phantom_net::route::TcpRoute::HttpConnect(
-                            phantom_net::route::HttpConnectRoute {
-                                proxy: transport,
-                                authority: &connect_authority,
-                                headers: proxy.ordered_connect_headers(),
-                                credentials: proxy.authentication(),
-                            },
-                        ),
+                        tcp: phantom_net::route::TcpRoute::HttpConnect(connect),
                         server_name: endpoint.host(),
                         setup: phantom_net::route::DirectTlsSetup::Default,
                     },
@@ -1115,6 +1305,85 @@ impl Drop for PoolEntry {
 struct Spare {
     id: u64,
     task: Option<AbortHandle>,
+    proxy: bool,
+    ready: Option<Http2ProxyOpening>,
+    idle_since: Option<Instant>,
+}
+
+struct ProxySpareReport {
+    entry: Option<Weak<PoolEntry>>,
+    id: u64,
+}
+
+impl ProxySpareReport {
+    fn finish(mut self, opening: Option<Http2ProxyOpening>) {
+        if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
+            entry.proxy_spare_finished(self.id, opening);
+        }
+    }
+}
+
+impl Drop for ProxySpareReport {
+    fn drop(&mut self) {
+        if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
+            entry.proxy_spare_finished(self.id, None);
+        }
+    }
+}
+
+struct ProxyClaim<'a> {
+    reservation: Option<SetupReservation<'a>>,
+    opening: Option<Http2ProxyOpening>,
+    since: Instant,
+}
+
+impl ProxyClaim<'_> {
+    async fn finish(
+        mut self,
+        route: phantom_net::route::HttpConnectRoute<'_>,
+    ) -> Result<ConnectionLease, RequestError> {
+        let opening = self
+            .opening
+            .take()
+            .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
+        let connection = opening
+            .finish(route)
+            .await
+            .map_err(RequestError::http2_connection_setup)?;
+        let reservation = self
+            .reservation
+            .take()
+            .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
+        Ok(reservation.finish(connection, None))
+    }
+}
+
+impl Drop for ProxyClaim<'_> {
+    fn drop(&mut self) {
+        if let (Some(opening), Some(reservation)) = (self.opening.take(), self.reservation.as_ref())
+        {
+            let mut state = reservation.entry.lock();
+            let id = state.register_spare();
+            if let Some(spare) = state.spares.iter_mut().find(|spare| spare.id == id) {
+                spare.proxy = true;
+                spare.ready = Some(opening);
+                spare.idle_since = Some(self.since);
+            }
+            drop(state);
+            if let Some(timer) = &reservation.entry.prune {
+                timer.http1_idle_added();
+            }
+        }
+    }
+}
+
+fn close_proxy_spares(spares: Vec<Spare>) {
+    for spare in spares {
+        if let Some(task) = &spare.task {
+            task.abort();
+        }
+        drop(spare);
+    }
 }
 
 struct SpareReport {
@@ -1141,17 +1410,37 @@ impl Drop for SpareReport {
 impl PrunedEntry for PoolEntry {
     /// Gives up the key's connections past their idle limit, which close
     /// once no stream is open, and those the server closed.
-    fn prune(&self, _now: Instant, _http1_limit: Option<Duration>) -> Pruned {
+    fn prune(&self, now: Instant, http1_limit: Option<Duration>) -> Pruned {
         let mut connections = self.lock();
         connections.retain_reusable();
-        Pruned {
+        let expired = connections.take_expired_proxy_spares(now, http1_limit);
+        let removed = !expired.is_empty();
+        let proxy_next = http1_limit.and_then(|limit| {
+            connections
+                .spares
+                .iter()
+                .filter_map(|spare| {
+                    spare
+                        .idle_since
+                        .map(|since| limit.saturating_sub(now.saturating_duration_since(since)))
+                })
+                .min()
+        });
+        let result = Pruned {
             next: connections
                 .slots
                 .iter()
                 .filter_map(|slot| slot.connection.idle_time_left())
+                .chain(proxy_next)
                 .min(),
             empty: connections.is_empty(),
+        };
+        drop(connections);
+        close_proxy_spares(expired);
+        if removed {
+            self.setup_done.notify_waiters();
         }
+        result
     }
 
     fn address_family(&self) -> Option<&Arc<AddressFamilyMemory>> {
@@ -1202,6 +1491,7 @@ impl SetupReservation<'_> {
         let lease = slot.lease();
         let mut connections = self.entry.lock();
         connections.slots.push(slot);
+        let retired_proxy = connections.take_proxy_spares();
         let spare = spare.map(|(runtime, slower)| {
             self.entry.family.mark_active();
             (runtime, connections.register_spare(), slower)
@@ -1210,6 +1500,7 @@ impl SetupReservation<'_> {
         connections.connecting = false;
         self.finished = true;
         drop(connections);
+        close_proxy_spares(retired_proxy);
         if let Some((runtime, id, slower)) = spare {
             self.entry.spawn_spare(runtime, id, slower);
         }
@@ -1237,8 +1528,39 @@ impl Connections {
     fn register_spare(&mut self) -> u64 {
         let id = self.next_spare;
         self.next_spare = self.next_spare.wrapping_add(1);
-        self.spares.push(Spare { id, task: None });
+        self.spares.push(Spare {
+            id,
+            task: None,
+            proxy: false,
+            ready: None,
+            idle_since: None,
+        });
         id
+    }
+
+    fn take_expired_proxy_spares(&mut self, now: Instant, limit: Option<Duration>) -> Vec<Spare> {
+        let mut removed = Vec::new();
+        for index in (0..self.spares.len()).rev() {
+            let spare = &self.spares[index];
+            if spare.ready.is_some()
+                && spare.idle_since.is_some_and(|since| {
+                    limit.is_some_and(|limit| now.saturating_duration_since(since) >= limit)
+                })
+            {
+                removed.push(self.spares.swap_remove(index));
+            }
+        }
+        removed
+    }
+
+    fn take_proxy_spares(&mut self) -> Vec<Spare> {
+        let mut removed = Vec::new();
+        for index in (0..self.spares.len()).rev() {
+            if self.spares[index].proxy {
+                removed.push(self.spares.swap_remove(index));
+            }
+        }
+        removed
     }
 
     fn is_empty(&self) -> bool {
@@ -1288,6 +1610,7 @@ struct ConnectionLease {
 
 #[cfg(test)]
 mod tests {
+    mod proxy_retention;
     mod retention;
     #[cfg(feature = "websocket")]
     mod websocket_retention;

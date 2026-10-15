@@ -13,17 +13,18 @@ use tracing::{Instrument, Span, debug, debug_span, field};
 
 use super::{
     Http1Body, Http1Connection, Http1Error, Http1UpgradeOpening, Http1UpgradeOutcome,
-    OperationOutcome, PreparedGet, PreparedRequest, RequestHeader,
-    connection::early_data_error,
-    proxy_opening::{Http1ProxyOpening, ProxyBinding},
-    send_prepared_upgrade,
+    OperationOutcome, PreparedGet, PreparedRequest, RequestHeader, connection::early_data_error,
+    proxy_opening::Http1ProxyOpening, send_prepared_upgrade,
 };
 use crate::{
     SourceBinding,
     connection_leg::{self, ConnectionLegError},
     direct::{Dialer, DirectConnectError, connect_tcp, connect_tcp_keeping_slower},
     host_resolver::HostResolver,
-    proxy::ProxyCredentialCache,
+    proxy::{
+        ProxyCredentialCache,
+        http1_opening::{self, ProxyBinding, ProxyStream},
+    },
     route::{
         DirectTlsSetup, Http1Route, Http1Target, HttpConnectRoute, OriginRoute, ProxyTransport,
         Socks5Target, TcpRoute,
@@ -173,39 +174,13 @@ impl Http1TlsConnector {
         ),
         Http1TlsError,
     > {
-        let binding = ProxyBinding::new(route, origin_server_name)?;
-        let slower_binding = ProxyBinding::new(route, origin_server_name)?;
-        let (stream, slower) = match route.proxy {
-            ProxyTransport::Tcp(endpoint) => connect_tcp_keeping_slower(
-                endpoint.host,
-                endpoint.port,
-                self.dialer(),
-                Some(family),
-            )
-            .await
-            .map_err(|error| {
-                Http1TlsError::Proxy(match error {
-                    DirectConnectError::RuntimeUnavailable => {
-                        crate::proxy::HttpConnectError::RuntimeUnavailable
-                    }
-                    DirectConnectError::Connect(error) => {
-                        crate::proxy::HttpConnectError::Connect(error)
-                    }
-                })
-            })?,
-            ProxyTransport::Tls {
-                endpoint,
-                connector,
-                ..
-            } => {
-                connector
-                    .open_http1_proxy_retaining(endpoint.host, endpoint.port, family)
-                    .await?
-            }
-        };
-        let slower = slower.map(|attempt| self.slower_proxy_opening(attempt, slower_binding));
+        let opened =
+            http1_opening::open_connect(route, origin_server_name, self.dialer(), family).await?;
+        let slower = opened
+            .slower
+            .map(|(attempt, binding)| self.slower_proxy_opening(attempt, binding));
         Ok((
-            Http1ProxyOpening::new(stream, self.clone(), binding),
+            Http1ProxyOpening::new(opened.stream, self.clone(), opened.binding),
             slower,
         ))
     }
@@ -229,74 +204,29 @@ impl Http1TlsConnector {
         })
     }
 
-    pub(super) async fn finish_http_connect(
+    pub(super) async fn finish_proxy_opening(
         &self,
-        stream: crate::tcp::ProfileTcpStream,
+        stream: ProxyStream,
+        binding: ProxyBinding,
         route: HttpConnectRoute<'_>,
-        server_name: &str,
     ) -> Result<Http1Connection, Http1TlsError> {
         let span = connection_span(&Http1Route::Origin(OriginRoute::Tls {
             tcp: TcpRoute::HttpConnect(route),
-            server_name,
+            server_name: binding.server_name()?,
             setup: DirectTlsSetup::Default,
         }));
         self.trace_connect(
             span,
             pin!(async {
-                let ProxyTransport::Tcp(endpoint) = route.proxy else {
-                    return Err(invalid_route("retained CONNECT requires a plaintext proxy"));
-                };
-                let tunnel = crate::proxy::connect_http_tunnel_from_stream(
-                    stream,
-                    self.dialer(),
-                    self.proxy_credentials.as_ref(),
-                    endpoint.host,
-                    endpoint.port,
-                    route.authority,
-                    route.headers,
-                    route.credentials,
-                )
-                .await?;
-                let stream = self.tls.connect(server_name, tunnel).await?;
-                connect_over_tls(stream).await
-            }),
-        )
-        .await
-    }
-
-    pub(super) async fn finish_https_connect(
-        &self,
-        stream: TlsStream<crate::tcp::ProfileTcpStream>,
-        proxy: &crate::proxy::HttpsProxyConnector,
-        proxy_server_name: &str,
-        route: HttpConnectRoute<'_>,
-        server_name: &str,
-    ) -> Result<Http1Connection, Http1TlsError> {
-        let span = connection_span(&Http1Route::Origin(OriginRoute::Tls {
-            tcp: TcpRoute::HttpConnect(route),
-            server_name,
-            setup: DirectTlsSetup::Default,
-        }));
-        self.trace_connect(
-            span,
-            pin!(async {
-                let ProxyTransport::Tls { endpoint, .. } = route.proxy else {
-                    return Err(invalid_route(
-                        "retained HTTPS CONNECT requires its original route",
-                    ));
-                };
-                let tunnel = proxy
-                    .connect_http1_tunnel_from_stream(
+                let (leg, server_name) = binding
+                    .finish_connect(
                         stream,
-                        endpoint.host,
-                        endpoint.port,
-                        proxy_server_name,
-                        route.authority,
-                        route.headers,
-                        route.credentials,
+                        route,
+                        self.dialer(),
+                        self.proxy_credentials.as_ref(),
                     )
                     .await?;
-                let stream = self.tls.connect(server_name, tunnel).await?;
+                let stream = self.tls.connect(&server_name, leg).await?;
                 connect_over_tls(stream).await
             }),
         )

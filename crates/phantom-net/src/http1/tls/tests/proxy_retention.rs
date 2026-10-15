@@ -250,9 +250,9 @@ async fn finishing_the_slower_tcp_result_does_not_start_connect_or_origin_tls() 
         let connector = test_connector(&identity)?;
         let (address, listener) = loopback_listener().await?;
         let fields = fields("unused", false);
-        let binding = crate::http1::proxy_opening::ProxyBinding::new(
+        let binding = crate::proxy::http1_opening::ProxyBinding::new(
             route("127.0.0.1", address.port(), &fields, None), TEST_SERVER_NAME,
-        )?;
+        ).map_err(crate::http1::Http1TlsError::from)?;
         let attempt = crate::tcp::SlowerAttempt::scripted(
             async move { tokio::net::TcpStream::connect(address).await },
             std::time::Duration::ZERO, None,

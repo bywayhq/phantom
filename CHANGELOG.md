@@ -1157,6 +1157,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Retain Firefox proxy backups for negotiated HTTP/1 or HTTP/2 and exact
+  HTTP/2 HTTPS requests through HTTP/1 CONNECT proxies. A spare keeps its
+  proxy TLS and credential context. Its claimant supplies current CONNECT
+  headers before authentication and origin TLS. Quiet spares respect the
+  pool's idle policy, including custom checked-on-request limits. This is
+  HTTP/2 to the origin inside an HTTP/1 CONNECT tunnel; it does not retain
+  a backup HTTP/2 connection to the proxy itself.
+
 - Retain Firefox exact HTTP/1 CONNECT backups through an HTTPS proxy.
   A spare verifies proxy TLS before claim. Its claimant supplies the current
   CONNECT fields and authentication, then verifies origin TLS separately.

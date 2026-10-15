@@ -10,6 +10,7 @@ mod credential_frame;
 mod credentials;
 mod digest;
 mod error;
+pub(crate) mod http1_opening;
 mod http2_connect;
 mod http2_pool;
 mod http_connect;

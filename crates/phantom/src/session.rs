@@ -501,6 +501,7 @@ impl ClientOptions {
             self.max_pending_http2_requests_per_origin,
         )
         .with_max_connections(self.max_http2_connections_per_origin)
+        .with_http1_used_idle_timeout(inner.http1_used_idle_timeout)
         .with_prune_timer(prune_timer)
         .with_ticket_owner(Arc::clone(&tickets));
         #[cfg(feature = "https-records")]

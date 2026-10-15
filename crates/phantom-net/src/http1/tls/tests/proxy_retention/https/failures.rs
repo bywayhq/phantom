@@ -169,7 +169,8 @@ async fn failed_slower_outer_tls_returns_no_opening_and_closes_its_owned_socket(
         let binding = ProxyBinding::new(
             route(address.port(), &proxy, &fields, None),
             TEST_SERVER_NAME,
-        )?;
+        )
+        .map_err(Http1TlsError::from)?;
         let attempt = SlowerAttempt::scripted(
             async move { TcpStream::connect(address).await },
             std::time::Duration::ZERO,

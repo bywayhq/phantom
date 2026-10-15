@@ -297,15 +297,23 @@ resolved addresses.
   response body keeps that ownership until it ends. A connected backup finishes
   without CONNECT. It closes while the dedicated winner is usable, or becomes
   an ordinary pooled connection after that winner retires.
-- Exact HTTP/1 HTTPS requests through an H1 CONNECT proxy retain a backup
-  before primary proxy TLS or CONNECT. A plaintext spare stays quiet until claim.
-  An HTTPS proxy spare verifies outer TLS before CONNECT. Its claimant sends
-  current CONNECT fields, authenticates and verifies origin TLS. Exact HTTP/1
+- HTTPS requests using exact H1, exact H2 or negotiated H1/H2 retain a backup
+  through an H1 CONNECT proxy before primary proxy TLS or CONNECT. The spare
+  sends no CONNECT or origin TLS before claim. An HTTPS spare may finish
+  outer TLS. Its claimant supplies current CONNECT headers, authenticates
+  and verifies origin TLS. Negotiated setup uses the origin's actual ALPN.
+  Exact H2 rejects an origin that does not select H2. Exact HTTP/1
   forwarding of plaintext origins through HTTP and HTTPS proxies also keeps
   a quiet backup. An HTTPS spare may complete outer TLS. Its claimant
   supplies current ordered headers, cookies and credentials. Both paths learn
-  the proxy address family and expire unused spares on the pool idle timer.
+  the proxy address family. Quiet spares follow the pool idle policy.
   Connections retain their origin, route, runtime and credential partitions.
+  A negotiated H2 winner closes redundant quiet proxy backups. Exact H2
+  keeps one setup active per key; another request can claim its quiet spare
+  after primary failure or cancellation. Unpolled claims retain their idle
+  age. A polled claim closes on cancellation. These H2 connections reach
+  the origin through H1 CONNECT. An outer H2 proxy connection is separate:
+  Firefox closes redundant raw backups when it activates H2 to the proxy.
 - `TcpAddressSelection::Sequential` takes a `TcpAddressAdvance`:
   `AfterAnyFailure`, the default, moves to the next address after any
   failure, and `AfterRefusalOrTimeout`, which `firefox::v157_tcp` sets,
@@ -314,9 +322,9 @@ resolved addresses.
 - Firefox sets `SO_SNDBUF` on Windows only. The macOS, Linux and Android
   factories leave the send buffer unchanged.
 - Not modeled for Firefox: keeping the slower connection, and remembering
-  the address family, on SOCKS, negotiated and HTTP/2 proxy paths,
-  proxy WebSockets and proxy setup with early data; sharing a forwarding
-  connection between origins; skipping an address that failed before on the
+  the address family, on SOCKS, proxy WebSockets and proxy setup with early
+  data; physical proxy family learning for outer HTTP/2 connections; sharing a
+  forwarding connection between origins; skipping an address that failed before on the
   same cached DNS record; its
   `SO_LINGER` of `{1, 0}` (its close is still a FIN, as Phantom's is).
 - Brave 1.96.59 builds the Chromium tag behind `chrome::v154_tcp` and

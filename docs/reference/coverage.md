@@ -172,13 +172,14 @@ Supported:
   Firefox Windows, macOS, Linux and Android. The Android Chrome and Firefox
   profiles include their respective TCP policies. macOS/Linux TCP factories
   are standalone components, not complete platform profiles.
-- Exact HTTP/1 HTTPS requests through plaintext CONNECT proxies retain a
-  quiet slower TCP connection and remember the proxy's address family.
-  A later request claims the socket before sending its current CONNECT
-  fields, authenticating to the proxy, and verifying origin TLS. Unused
-  spares expire with the request pool's idle timer. HTTPS-proxy H1 CONNECT
-  backups verify outer TLS before CONNECT; CONNECT and origin TLS wait for
-  the claimant. This completion policy has no browser timing capture.
+- HTTPS requests using exact H1, exact H2 or negotiated H1/H2 retain quiet
+  backups through HTTP/1 CONNECT proxies, plaintext or TLS. The pool adopts
+  the spare before primary CONNECT or proxy TLS. Its claimant supplies
+  current CONNECT headers, authenticates and verifies origin TLS. An HTTPS
+  spare may complete outer TLS before claim. Quiet spares follow the pool's
+  idle policy. H2 here is the origin protocol inside an H1 CONNECT tunnel,
+  not the protocol of the proxy connection. This completion policy has no
+  browser timing capture.
 
 - Exact HTTP/1 forwarding of plaintext origins through HTTP and HTTPS
   proxies retains a quiet backup. An HTTPS spare may complete outer TLS
@@ -189,8 +190,9 @@ Supported:
 Not modeled:
 
 - Parts of Firefox's address selection: keeping the slower connection, and
-  remembering the address family, on SOCKS, negotiated and HTTP/2 proxy
-  requests, proxy WebSockets and proxy setup with early data; sharing a
+  remembering the address family, on SOCKS, proxy WebSockets and proxy
+  setup with early data; physical proxy family learning for outer HTTP/2
+  connections; sharing a
   forwarding connection between origins; skipping an address that failed
   before on the same cached DNS record; and noticing at once that a server
   closed an idle connection, which can make Firefox remember a family longer.

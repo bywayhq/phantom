@@ -28,3 +28,5 @@ fn negotiation_requires_both_alpn_protocols() {
     };
     assert_eq!(error.kind(), Http1Or2TlsErrorKind::InvalidConfiguration);
 }
+
+mod proxy_retention;

@@ -148,3 +148,6 @@ async fn a_rejected_connect_keeps_its_typed_cause_without_tls_or_a_fallback_dial
 }
 
 mod https;
+
+#[cfg(windows)]
+mod protocols;

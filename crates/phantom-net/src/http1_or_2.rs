@@ -21,6 +21,7 @@ use crate::{
         Http2Builder, Http2Connection, Http2TlsConnector, Http2TlsError, connect_selected,
         translate_settings, validate_http2,
     },
+    proxy::http1_opening::{self, ProxyBinding, ProxyStream},
     proxy::{HttpConnectError, ProxyCredentialCache, Socks4Error, Socks5Error},
     route::{DirectTlsSetup, OriginRoute, TcpRoute},
     tcp::{SlowerAttempt, SlowerConnection, SlowerKeepalive, TcpKeepaliveSource},
@@ -28,6 +29,9 @@ use crate::{
 };
 
 use crate::tls::EchFailure;
+
+pub use proxy_opening::Http1Or2ProxyOpening;
+mod proxy_opening;
 
 /// An established connection selected from one TLS ALPN negotiation.
 #[derive(Debug)]
@@ -254,6 +258,73 @@ pub struct Http1Or2TlsConnector {
 }
 
 impl Http1Or2TlsConnector {
+    /// Opens a quiet CONNECT proxy socket and retains its slower backup.
+    ///
+    /// Adopt the backup before finishing the primary. Both retain this origin
+    /// connector and the original proxy TLS and credential-cache context.
+    /// Only TCP or HTTPS with outer HTTP/1 is supported here.
+    ///
+    /// # Errors
+    ///
+    /// Rejects invalid settings, CONNECT fields or outer protocol before I/O,
+    /// and returns the existing proxy connection errors.
+    pub async fn open_http_connect_retaining(
+        &self,
+        route: crate::route::HttpConnectRoute<'_>,
+        origin_server_name: &str,
+        family: &crate::tcp::AddressFamilyMemory,
+    ) -> Result<
+        (
+            Http1Or2ProxyOpening,
+            Option<SlowerConnection<Http1Or2ProxyOpening>>,
+        ),
+        Http1Or2TlsError,
+    > {
+        translate_settings(&self.http2).map_err(Http2TlsError::from)?;
+        let opened =
+            http1_opening::open_connect(route, origin_server_name, self.dialer(), family).await?;
+        let slower = opened.slower.map(|(attempt, binding)| {
+            let connector = self.clone();
+            SlowerConnection::new(attempt.progress(), async move {
+                let stream = attempt
+                    .connect()
+                    .await
+                    .ok()?
+                    .into_stream(SlowerKeepalive::OnFirstRequest);
+                Http1Or2ProxyOpening::new(stream, connector, binding)
+                    .complete_proxy_tls()
+                    .await
+                    .ok()
+            })
+        });
+        Ok((
+            Http1Or2ProxyOpening::new(opened.stream, self.clone(), opened.binding),
+            slower,
+        ))
+    }
+
+    pub(super) async fn finish_proxy_opening(
+        &self,
+        stream: ProxyStream,
+        binding: ProxyBinding,
+        route: crate::route::HttpConnectRoute<'_>,
+    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
+        self.trace_connect(pin!(async {
+            let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
+            let (leg, server_name) = binding
+                .finish_connect(
+                    stream,
+                    route,
+                    self.dialer(),
+                    self.proxy_credentials.as_ref(),
+                )
+                .await?;
+            let stream = self.tls.connect(&server_name, leg).await?;
+            select_connection(stream, client).await
+        }))
+        .await
+    }
+
     /// Builds a connector using bundled public roots.
     ///
     /// Both `h2` and `http/1.1` must be present in the TLS ALPN offer.

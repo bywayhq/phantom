@@ -1995,11 +1995,20 @@ Differences from the browsers:
   cookies and credentials. An HTTPS H1 CONNECT proxy backup also completes
   verified outer TLS before CONNECT. It retains the original proxy TLS and
   authentication-cache owners. CONNECT, current credentials and origin TLS
-  remain claim-owned. Forwarding sends no CONNECT or origin TLS. Other
-  proxy paths still close the slower attempt and neither use nor learn the
-  family; Firefox keeps both on every entry.
+  remain claim-owned. Forwarding sends no CONNECT or origin TLS. Negotiated
+  H1/H2 and exact H2 HTTPS requests now use the same quiet HTTP/1 CONNECT
+  opening. They retain the physical proxy family and adopt the backup before
+  primary proxy TLS or CONNECT. The claimant supplies current CONNECT
+  fields. Actual origin ALPN selects the negotiated protocol; exact H2
+  rejects another selection. These H2 connections reach the origin inside
+  an H1 CONNECT tunnel. An outer H2 proxy connection is a different path:
+  Firefox reports H2 activation before proxy authentication or CONNECT and
+  closes redundant raw attempts (`nsHttpConnection.cpp:307-395` and
+  `ConnectionEntry.cpp:627-649` at `FIREFOX_157_0_RELEASE`). Physical proxy
+  family learning on that path, SOCKS and proxy WebSocket backups remain
+  outside this extension.
 - A direct connection's slower attempt becomes claimable once the first
-  connection's handshake has finished. The retained H1 HTTP-proxy paths
+  connection's handshake has finished. The retained HTTP/1 proxy paths
   above register the spare after physical selection, before primary proxy
   TLS, CONNECT or a forwarded request. Firefox lets a request claim the
   slower attempt as soon as the first connection takes its request.
@@ -2038,9 +2047,24 @@ checks that TLS starts before an early claim and uses the same socket.
 Separate controls cover current Basic/Digest fields and cookies, header
 order, deadlines, trust and ALPN errors, original cache ownership, issued
 proxy/origin tickets, cancellation, idle pruning and admission.
-Facade controls gate real sockets into the existing backup owner; they
-do not establish an operating-system two-address race. Single-address
-public peers verify consumer and authentication paths.
+The exact-H1 facade controls gate real sockets into the existing backup
+owner. They do not establish an operating-system two-address race. Their
+single-address public peers verify consumer and authentication paths.
+
+The negotiated/exact-H2 CONNECT extension has 21 new source-reviewed
+controls: eight NET controls, nine pool controls and four Windows public
+controls. Their assertions
+cover current CONNECT fields, original contexts, ALPN, cancellation, idle age
+and checked-on-request expiry. Public peers exercise real two-address proxy
+selection and retained socket use. One pool control prevents WebSocket reuse
+from waiting on a quiet spare that cannot publish H2 without a claimant.
+
+Retained unchanged-source runs passed 31 NET tests, 133 pool tests and two
+future-budget checks; these were not rerun after the public fixture repair.
+The repaired public run passed all 11 selected tests, including the four new
+controls. Strict three-crate Clippy passed. The full gate and platform CI
+remain pending; these results do not establish browser timing, ECH or proxy
+early-data parity.
 
 Tests in `phantom-net` read the options back from connected sockets with
 `socket2` getters:

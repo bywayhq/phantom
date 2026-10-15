@@ -66,7 +66,8 @@ async fn unused_https_spare_resumes_original_proxy_cache_and_preserves_origin_ti
             let binding = ProxyBinding::new(
                 route(proxy_address.port(), &proxy, &fields, None),
                 TEST_SERVER_NAME,
-            )?;
+            )
+            .map_err(Http1TlsError::from)?;
             let attempt = SlowerAttempt::scripted(
                 async move { TcpStream::connect(proxy_address).await },
                 std::time::Duration::ZERO,

@@ -17,6 +17,7 @@ use crate::{
 };
 
 mod early_data;
+mod proxy_retention;
 mod slower_connection;
 #[cfg(feature = "websocket")]
 mod websocket_retention;
@@ -76,7 +77,9 @@ fn current_token(connections: &EntryConnections) -> Result<Arc<()>, Box<dyn std:
 fn reserve(connections: &Arc<EntryConnections>) -> Result<Reservation, Box<dyn std::error::Error>> {
     match connections.checkout(false, false) {
         Checkout::Reserved(reservation) => Ok(reservation),
-        Checkout::Found(_) => Err("a pool key without a free connection found one".into()),
+        Checkout::Found(_) | Checkout::Proxy(_) => {
+            Err("a pool key without a free connection found one".into())
+        }
     }
 }
 

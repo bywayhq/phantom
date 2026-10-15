@@ -222,14 +222,24 @@ Direct H2 WebSocket openings share these rules. Their dedicated winner is
 not an ordinary pool slot. An accepted stream or rejected body keeps its
 family owner; a redundant backup closes without CONNECT or other requests.
 
-An exact HTTP/1 HTTPS request through a plaintext CONNECT proxy retains
-only the slower TCP opening. Its first claimant sends CONNECT and starts
-origin TLS. Cancellation after claim closes the socket. Returning an
-unpolled claim preserves the spare's original idle age. A spare remains
+HTTPS requests using exact H1, exact H2 or negotiated H1/H2 retain quiet
+backups through HTTP/1 CONNECT proxies, plaintext or TLS. The spare remains
 bound to its proxy endpoint, origin authority, credentials and TLS context.
-An HTTPS-proxy H1 spare verifies outer TLS before CONNECT. It retains the
-original proxy server name, TLS cache and authentication-cache scope.
-CONNECT and origin TLS still wait for its claimant.
+An HTTPS spare may finish outer TLS before claim. Its original proxy server
+name, TLS cache and authentication-cache scope remain bound. The claimant
+supplies current CONNECT headers before authentication and origin TLS.
+Returning an unpolled claim preserves its original idle age. Cancelling a
+polled claim closes its socket. Quiet spares use the HTTP/1 idle policy:
+`ClosedOnTimer` prunes them, and `CheckedOnRequest` rejects expired spares
+before claim. An active claim is no longer an idle spare.
+
+Negotiated setup follows actual origin ALPN. When H2 wins, redundant quiet
+proxy backups close. Exact H2 keeps its existing single setup per key; a
+quiet backup becomes claimable after primary failure or cancellation.
+Neither path sends speculative CONNECT or origin TLS on a quiet spare.
+H2 in these paths is the inner origin protocol. Physical selection for an
+outer H2 proxy connection is separate; Firefox closes its raw backup when
+H2 activates, before proxy authentication or CONNECT.
 
 Exact HTTP/1 forwarding of plaintext origins through HTTP and HTTPS proxies
 also retains a quiet backup. An HTTPS spare may finish outer TLS without
@@ -238,8 +248,10 @@ and credentials. A request that claims an unfinished spare waits for its
 outer TLS. Connections keep their existing origin, route, runtime and
 credential bounds. Family memory remains per origin and route. Firefox can
 share a forwarding connection between origins on one proxy; Phantom keeps
-those origins separate. Retention on H2 proxy paths, proxy WebSockets and
-proxy early-data setup paths remains outside these additions.
+those origins separate. Outer H2 proxy family learning, SOCKS and proxy
+WebSocket backups, and proxy early-data setup remain outside these
+additions. These CONNECT paths do not add ECH or failed-address
+suppression.
 
 ### RTT-based racing
 
