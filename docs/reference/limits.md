@@ -52,8 +52,9 @@ connection closed on an unanswered PING is sent again, any method, up to
 twice per redirect hop, unless its body cannot be sent again; set
 `Http2Settings::ping_failure_retries` to 0 to turn it off. A profile with
 client hints repeats a safe request once when a `Critical-CH` response
-names a hint it lacked. `chrome::v154_websocket` reopens a refused
-extended CONNECT stream once on the same session
+names a hint it lacked. Chromium-family WebSocket recipes restart a
+refused extended CONNECT opening through profile selection at most twice.
+The original handshake timeout covers all attempts
 ([WebSocket recipes](websocket.md#browser-recipes)).
 
 ## Timeouts

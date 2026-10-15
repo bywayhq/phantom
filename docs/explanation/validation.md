@@ -34,7 +34,7 @@ Phantom's claims rest on five kinds of evidence:
 | [Firefox for Android 156 recipe](#firefox-for-android-156-recipe) | Android 15 emulator captures of the TLS ClientHello | No certificate trust on Android, so no other layer |
 | [Chrome for Android 154 recipes](#chrome-for-android-154-recipes) | Android 17 emulator captures, reporting a Pixel 7, of TLS, H2, QUIC, H3, QUIC resumption, client hints, WebSocket openings, plaintext trust, and templates, replayed by recipe tests; one Chrome 153 cellular startup on an Android 15 emulator | An emulator, not a phone; no TCP layer; one process per transport layer |
 | [Brave for Android 153 recipes](#brave-for-android-153-recipes) | Android 17 and Android 15 emulator captures of the same layers, replayed by recipe tests | As for Chrome for Android |
-| [Edge for Android 153 recipes](#edge-for-android-153-recipes) | arm64 Android 17 emulator captures, reporting a Pixel 7, of TLS, H2, QUIC, H3, client hints, and templates, replayed by recipe tests | As for Chrome for Android; no WebSocket opening recipe, and no resumption or proxy capture |
+| [Edge for Android 153 recipes](#edge-for-android-153-recipes) | arm64 Android 17 emulator captures, reporting a Pixel 7, of TLS, H2, QUIC, H3, client hints, templates, and H1/H2 WebSocket openings | As for Chrome for Android; unobserved WebSocket policies reuse Chromium source; no resumption or proxy capture |
 | [TCP socket options and address racing](#tcp-socket-option-evidence) | Browser source at one tag per browser, Brave's included, plus socket read-back tests | No wire capture confirms the options; field trials cannot be ruled out |
 | [UDP socket options](#udp-socket-option-evidence) | Browser source at Chromium's tags, hook logs of Chrome 154, Edge 154, and Opera 136, plus socket read-back tests | Firefox's hook logs hold no QUIC socket; its absence rests on source |
 | [Socket hooks](#socket-hook-evidence) | Hook logs of Chrome 154, Edge 154, and Opera 136 on Windows: socket options, address racing, connections per origin, idle reuse, and lookups, replayed against the Chromium recipes | One run per scenario on one Windows host; loopback origins only |
@@ -1523,7 +1523,7 @@ wall-clock time there.
 | HTTP/2 startup | 1 intent process | Byte-identical to the Chrome 154 startup |
 | QUIC ClientHello, QUIC and H3 startup | 1 intent process | Equal to `edge::v154_quic_tls`, `chrome::v154_quic`, `chrome::v154_http3`, and `chrome::v154_http3_request`. The request fields are as for Chrome for Android opened by intent: no `Sec-Fetch-User`, and `Sec-Fetch-Site: cross-site` |
 | Client hints | 3 typed runs | The Chromium names, order, and delivery; desktop Edge 153's brand list, `"Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153"`, full version `"153.0.4234.49"`, and a full version list with Chromium `153.0.8010.53`; `?1`, `"Android"`, platform version `"17.0.0"`, model `"Pixel 7"`, an empty architecture and bitness, and form factor `"Mobile"` |
-| WebSocket `accept` and `h1-accept` | 3 typed runs each | Every page load and no-store `fetch()` equals the Edge for Android templates |
+| WebSocket `accept` and `h1-accept` | 3 typed runs each | H1/H2 opening field values and order, H2 pseudo-header order and CONNECT priority back `v153_android_websocket`; page loads and no-store `fetch()` back the templates |
 
 `User-Agent` is `Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36
 (KHTML, like Gecko) Chrome/153.0.0.0 Mobile Safari/537.36 EdgA/153.0.0.0` on
@@ -1570,9 +1570,12 @@ Retained fixtures under
 Limits: those of Chrome for Android, on an arm64 emulator rather than an
 x86_64 one, and:
 
-- No TCP, HTTP/1.1 connection, address-cache, proxy CONNECT, WebSocket, or
-  cookie-placement recipe. The `accept` and `h1-accept` captures back only
-  the page and `fetch()` templates.
+- No TCP, HTTP/1.1 connection, address-cache, proxy CONNECT, or
+  cookie-placement recipe.
+- WebSocket refusals, cookies, subprotocols, fresh-connection selection and
+  compressed empty messages were not captured. These settings reuse
+  Chromium `153.0.8010.53` source. Edge overrides remain unknown; H3
+  WebSockets are disabled in the recipe.
 - No QUIC resumption, plaintext trust, or proxy capture.
 
 ### Opera for Android 102 recipes
@@ -3548,6 +3551,31 @@ Further observations:
   socket opened, so that run used the `http/1.1`-only path instead of a
   refused stream.
 - Firefox 157.0 is the build the machine had updated to.
+
+The retained refusal captures exercise one restart; they do not establish
+its maximum count. Chromium 153 and 154 source share a two-restart limit:
+`HttpNetworkTransaction::HandleIOError` handles a remote `REFUSED_STREAM`,
+closes the failed stream, and returns to stream creation. It can select the
+same capable session again, but does not require it. The WebSocket
+handshake closes its stream without closing the containing session.
+
+The source pins are Chromium 153 commit
+`792bf6722e73a45aa9e47c163b9901bdc17f3230` and Chromium 154 commit
+`a654841425914cbb703a2931e07b70a83aedbafd`. Their transaction and WebSocket
+H2 handshake files are byte-identical. See
+[`http_network_transaction.cc`](https://chromium.googlesource.com/chromium/src/+/792bf6722e73a45aa9e47c163b9901bdc17f3230/net/http/http_network_transaction.cc),
+lines 108, 2222–2233 and 2330–2357, and
+[`websocket_http2_handshake_stream.cc`](https://chromium.googlesource.com/chromium/src/+/792bf6722e73a45aa9e47c163b9901bdc17f3230/net/websockets/websocket_http2_handshake_stream.cc),
+lines 177–185 and 325–330. `URLRequestHttpJob` prepares cookies outside
+transaction restarts (`net/url_request/url_request_http_job.cc:761,870`).
+Phantom therefore retains the first cookie lookup, including absence,
+through these restarts. This is a source-backed choice, not an observed
+Edge Android retry.
+
+Loopback controls cover two refusals followed by success, a terminal third
+refusal, other resets, cancellation, session retirement and cookie changes
+between attempts. Edge Android controls compare each of the three retained
+H1 and H2 opening runs. They do not establish physical-device behavior.
 
 `crates/phantom/tests/streams/websocket_profile.rs` drives
 `Client::websocket_with_profile_policy` against a loopback origin and compares

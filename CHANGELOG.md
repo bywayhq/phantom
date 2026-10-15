@@ -30,6 +30,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   snapshots with the updated library: profile-policy binding version 4
   rejects earlier bindings, including those inside `PHOWN003` snapshots.
 
+- Restart Chromium-family WebSocket openings after a remote HTTP/2
+  `REFUSED_STREAM` at most twice through the profile's connection selection.
+  The opening keeps its first cookie lookup and original handshake timeout.
+  Migrate: select `WebSocketRefusedStreamRetry::SameSessionOnce` explicitly
+  for the previous one-retry, same-session rule. Re-export ticket snapshots
+  after the profile-policy binding update.
+
 - Return the connected slower attempt from exact HTTP/2 setup. Migrate:
   replace `let connection = connector.connect(route).await?` with
   `let (connection, slower) = connector.connect(route).await?` for
@@ -1198,6 +1205,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   watched nameservers, suffix search and shared address/HTTPS cache
   invalidation. Fixed-server, callback and DoH resolvers keep their
   existing behavior.
+
+- Add `edge::v153_android_websocket()` with H1/H2 opening fields from the
+  retained Edge 153 Android emulator runs. Unobserved policies reuse
+  Chromium source; the recipe leaves H3 WebSockets disabled.
 
 - Keep Firefox's slower proxy connection for exact HTTP/1 HTTPS requests
   through a plaintext CONNECT proxy. The spare stays quiet until a request

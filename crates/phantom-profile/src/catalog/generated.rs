@@ -1477,11 +1477,31 @@ pub(super) static PROFILES: &[ProfileDefinition] = &[
             },
             LayerEvidence {
                 layer: ProfileLayer::WebSocket,
-                support: LayerSupport::Unavailable,
+                support: LayerSupport::Configured,
                 references: &[
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/websocket/edge-android/153.0.4234.49/android-17-pixel7-emulator/accept.txt",
+                        build: "153.0.4234.49",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Capture,
+                        location: "fixtures/websocket/edge-android/153.0.4234.49/android-17-pixel7-emulator/h1-accept.txt",
+                        build: "153.0.4234.49",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Recipe,
+                        location: "crates/phantom-profile/src/browser/edge/android.rs",
+                        build: "153.0.4234.49",
+                    },
+                    EvidenceReference {
+                        kind: EvidenceKind::Source,
+                        location: "https://chromium.googlesource.com/chromium/src/+/792bf6722e73a45aa9e47c163b9901bdc17f3230/net/websockets/websocket_http2_handshake_stream.cc",
+                        build: "153.0.8010.53",
+                    },
                 ],
-                verified_fields: &[],
-                limitations: &["No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."],
+                verified_fields: &["HTTP/1.1 opening headers", "HTTP/2 opening headers and priority"],
+                limitations: &["Three emulator runs of each opening scenario; no physical-device observation.", "Retry, cookie, subprotocol, compression and connection-selection policies reuse pinned Chromium source, not an observed Edge override or refused-stream capture.", "HTTP/3 WebSockets and Android data-pipe sizing are outside this recipe."],
             },
             LayerEvidence {
                 layer: ProfileLayer::ProxyConnect,

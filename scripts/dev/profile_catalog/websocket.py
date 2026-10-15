@@ -42,7 +42,7 @@ CONNECTION_ENUMS = {
     ),
     "refused_stream_retry": (
         "WebSocketRefusedStreamRetry",
-        ("None", "SameSessionOnce"),
+        ("None", "SameSessionOnce", "ReacquireTwice"),
     ),
     "proxied_http2_session": ("WebSocketProxiedSession", ("Reuse", "Ignore")),
 }

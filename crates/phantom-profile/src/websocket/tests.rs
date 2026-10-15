@@ -360,10 +360,17 @@ fn assert_recipe_matches(
                 summary.empty_messages += 1;
             }
             if let Some(observed) = capture.refused_stream_retry(run)? {
-                assert_eq!(
-                    observed, recipe.connection.refused_stream_retry,
-                    "{client} {scenario} run {run}"
-                );
+                // The capture demonstrates one reopening, not the maximum
+                // restart count or a guarantee to reuse a retired session.
+                let compatible = match observed {
+                    WebSocketRefusedStreamRetry::SameSessionOnce => matches!(
+                        recipe.connection.refused_stream_retry,
+                        WebSocketRefusedStreamRetry::SameSessionOnce
+                            | WebSocketRefusedStreamRetry::ReacquireTwice
+                    ),
+                    _ => observed == recipe.connection.refused_stream_retry,
+                };
+                assert!(compatible, "{client} {scenario} run {run}");
                 // The rule decides how the page's socket ended: a reopening
                 // that the peer accepts closes cleanly, and a refusal that is
                 // not reopened fails the socket abnormally.

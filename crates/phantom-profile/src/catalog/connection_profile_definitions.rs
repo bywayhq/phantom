@@ -223,6 +223,7 @@ impl ClientHintsComponent {
 #[rustfmt::skip]
 pub(super) enum WebSocketComponent {
     Chromium154,
+    EdgeAndroid153,
     Firefox157,
 }
 
@@ -231,6 +232,7 @@ impl WebSocketComponent {
     pub(super) fn create(self) -> crate::WebSocketSettings {
         match self {
             Self::Chromium154 => super::websocket_components::chromium_154_websocket(),
+            Self::EdgeAndroid153 => super::websocket_components::edge_android_153_websocket(),
             Self::Firefox157 => super::websocket_components::firefox_157_websocket(),
         }
     }
@@ -385,7 +387,7 @@ pub(super) static EDGEANDROID153: ConnectionProfileDefinition = ConnectionProfil
         request: Http3RequestComponent::Chromium154,
     }),
     client_hints: Some(ClientHintsComponent::EdgeAndroid153),
-    websocket: None,
+    websocket: Some(WebSocketComponent::EdgeAndroid153),
     proxy_connect: None,
     cookie_placement: None,
 };

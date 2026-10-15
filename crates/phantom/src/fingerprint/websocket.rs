@@ -74,6 +74,7 @@ fn refused_stream_retry(v: &Value) -> Result<WebSocketRefusedStreamRetry> {
     match v.text("websocket.connection.refused_stream_retry")? {
         "None" => Ok(WebSocketRefusedStreamRetry::None),
         "SameSessionOnce" => Ok(WebSocketRefusedStreamRetry::SameSessionOnce),
+        "ReacquireTwice" => Ok(WebSocketRefusedStreamRetry::ReacquireTwice),
         _ => Err(json::unsupported(
             "websocket.connection.refused_stream_retry",
         )),

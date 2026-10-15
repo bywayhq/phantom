@@ -240,6 +240,8 @@ impl WebSocketRequestBuilder {
             permessage_deflate,
             handshake_timeout: _,
             retry_policy: _,
+            #[cfg(feature = "cookies")]
+            retry_cookies,
         } = self;
         let selected_route = request.selected_route(&client, route.as_ref());
         let route = &selected_route;
@@ -251,9 +253,15 @@ impl WebSocketRequestBuilder {
         // read counts as a use for eviction.
         #[cfg(feature = "cookies")]
         let cookie_value = || {
-            cookie_jar
-                .as_deref()
-                .and_then(|jar| jar.request_value_for_url(&request.cookie_url))
+            let read = || {
+                cookie_jar
+                    .as_deref()
+                    .and_then(|jar| jar.request_value_for_url(&request.cookie_url))
+            };
+            match retry_cookies.as_ref() {
+                Some(snapshot) => snapshot.get_or_init(read).clone(),
+                None => read(),
+            }
         };
         #[cfg(not(feature = "cookies"))]
         let cookie_value = || None;

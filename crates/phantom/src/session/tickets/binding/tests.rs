@@ -1215,3 +1215,23 @@ fn opening_stream_target_values_change_ticket_policy_identity() -> TestResult {
     assert_ne!(equal, higher);
     Ok(())
 }
+
+#[test]
+fn ticket_policy_distinguishes_each_websocket_refusal_rule() -> TestResult {
+    use phantom_profile::WebSocketRefusedStreamRetry;
+    let mut encoded = Vec::new();
+    for rule in [
+        WebSocketRefusedStreamRetry::None,
+        WebSocketRefusedStreamRetry::SameSessionOnce,
+        WebSocketRefusedStreamRetry::ReacquireTwice,
+    ] {
+        let mut settings = chrome::v154_websocket();
+        settings.connection.refused_stream_retry = rule;
+        let profile = chrome::v154_windows().with_websocket(settings);
+        encoded.push(profile::encode(&profile, None, None)?);
+    }
+    assert_ne!(encoded[0], encoded[1]);
+    assert_ne!(encoded[0], encoded[2]);
+    assert_ne!(encoded[1], encoded[2]);
+    Ok(())
+}

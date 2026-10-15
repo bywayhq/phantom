@@ -137,6 +137,8 @@ impl WebSocketRequestBuilder {
             permessage_deflate,
             handshake_timeout: _,
             retry_policy: _,
+            #[cfg(feature = "cookies")]
+            retry_cookies,
         } = self;
         let selected_route = request.selected_route(&client, route.as_ref());
         let route = &selected_route;
@@ -155,9 +157,15 @@ impl WebSocketRequestBuilder {
         // read counts as a use for eviction.
         #[cfg(feature = "cookies")]
         let cookie_value = || {
-            cookie_jar
-                .as_deref()
-                .and_then(|jar| jar.request_value_for_url(&request.cookie_url))
+            let read = || {
+                cookie_jar
+                    .as_deref()
+                    .and_then(|jar| jar.request_value_for_url(&request.cookie_url))
+            };
+            match retry_cookies.as_ref() {
+                Some(snapshot) => snapshot.get_or_init(read).clone(),
+                None => read(),
+            }
         };
         #[cfg(not(feature = "cookies"))]
         let cookie_value = || None;
@@ -241,16 +249,18 @@ impl WebSocketRequestBuilder {
         let host = request.endpoint.host();
         let port = request.endpoint.port();
         let authority = request.endpoint.authority().as_str();
-        // A pooled session already carries its route; a stream failure there
-        // is terminal and never retried on another connection. The one
-        // exception is a refused stream, which the profile may reopen on this
-        // same session.
+        // SameSessionOnce reopens a refused stream here. ReacquireTwice
+        // returns the refusal to the outer profile selector, which releases
+        // this admission before selecting another opening. Other stream
+        // failures remain terminal.
         if let Http2Target::Session(session, admission, refused_stream_retry) = target {
             // Kept only for the one reopening the profile allows, so the
             // ordinary path still moves the fields into the first attempt.
             let retry_headers = match refused_stream_retry {
                 WebSocketRefusedStreamRetry::SameSessionOnce => Some(prepared.headers.clone()),
-                WebSocketRefusedStreamRetry::None => None,
+                WebSocketRefusedStreamRetry::None | WebSocketRefusedStreamRetry::ReacquireTwice => {
+                    None
+                }
                 // Both profile enums are `non_exhaustive`, so an unknown
                 // variant is a profile this build cannot honour, not a
                 // silent "do nothing".

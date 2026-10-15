@@ -68,6 +68,7 @@ pub fn phantom_profile::browser::edge::v153_android_navigation_template() -> pha
 pub fn phantom_profile::browser::edge::v153_android_quic() -> phantom_profile::QuicTransportSettings
 pub fn phantom_profile::browser::edge::v153_android_quic_tls() -> phantom_profile::TlsSettings
 pub fn phantom_profile::browser::edge::v153_android_tcp_tls() -> phantom_profile::TlsSettings
+pub fn phantom_profile::browser::edge::v153_android_websocket() -> phantom_profile::WebSocketSettings
 pub fn phantom_profile::browser::edge::v153_http2() -> phantom_profile::Http2Settings
 pub fn phantom_profile::browser::edge::v153_http3() -> phantom_profile::Http3Settings
 pub fn phantom_profile::browser::edge::v153_http3_request() -> phantom_profile::Http3RequestSettings
@@ -640,6 +641,7 @@ pub phantom_profile::WebSocketProxiedSession::Ignore
 pub phantom_profile::WebSocketProxiedSession::Reuse
 #[non_exhaustive] pub enum phantom_profile::WebSocketRefusedStreamRetry
 pub phantom_profile::WebSocketRefusedStreamRetry::None
+pub phantom_profile::WebSocketRefusedStreamRetry::ReacquireTwice
 pub phantom_profile::WebSocketRefusedStreamRetry::SameSessionOnce
 pub struct phantom_profile::AlpsSettings
 pub phantom_profile::AlpsSettings::protocol: alloc::boxed::Box<[u8]>

@@ -1821,11 +1821,37 @@
         },
         {
           "layer": "WebSocket",
-          "support": "Unavailable",
-          "references": [],
-          "verified_fields": [],
+          "support": "Configured",
+          "references": [
+            {
+              "kind": "Capture",
+              "location": "fixtures/websocket/edge-android/153.0.4234.49/android-17-pixel7-emulator/accept.txt",
+              "build": "153.0.4234.49"
+            },
+            {
+              "kind": "Capture",
+              "location": "fixtures/websocket/edge-android/153.0.4234.49/android-17-pixel7-emulator/h1-accept.txt",
+              "build": "153.0.4234.49"
+            },
+            {
+              "kind": "Recipe",
+              "location": "crates/phantom-profile/src/browser/edge/android.rs",
+              "build": "153.0.4234.49"
+            },
+            {
+              "kind": "Source",
+              "location": "https://chromium.googlesource.com/chromium/src/+/792bf6722e73a45aa9e47c163b9901bdc17f3230/net/websockets/websocket_http2_handshake_stream.cc",
+              "build": "153.0.8010.53"
+            }
+          ],
+          "verified_fields": [
+            "HTTP/1.1 opening headers",
+            "HTTP/2 opening headers and priority"
+          ],
           "limitations": [
-            "No browser recipe is configured for this layer; ordinary ClientProfile defaults may still apply."
+            "Three emulator runs of each opening scenario; no physical-device observation.",
+            "Retry, cookie, subprotocol, compression and connection-selection policies reuse pinned Chromium source, not an observed Edge override or refused-stream capture.",
+            "HTTP/3 WebSockets and Android data-pipe sizing are outside this recipe."
           ]
         },
         {
@@ -1864,7 +1890,7 @@
         "Http3": "chromium_154_http3",
         "Http3Request": "chromium_154_http3_request",
         "ClientHints": "edge_android_153_client_hints",
-        "WebSocket": null,
+        "WebSocket": "edge_android_153_websocket",
         "ProxyConnect": null,
         "CookiePlacement": null
       }

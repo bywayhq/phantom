@@ -6,6 +6,7 @@
 //! record the opening request line and fields.
 
 use std::{
+    future::Future,
     io,
     net::{Ipv4Addr, SocketAddr},
     pin::Pin,
@@ -60,6 +61,13 @@ pub(crate) enum Reply {
     /// Refuses the first extended CONNECT stream and accepts the rest, as the
     /// retained `refused-stream` captures' server does.
     RefuseFirstStream,
+    /// Refuses two openings, then accepts the third on this session.
+    RefuseFirstTwoStreams,
+    /// Keeps the third opening unanswered so cancellation owns its admission.
+    RefuseTwoThenHold,
+    /// Retires the initial session before refusing its opening. Later
+    /// connections accept normally, allowing profile selection to be checked.
+    RefuseThenGoAway,
     /// Resets the extended CONNECT stream with `INTERNAL_ERROR`, a peer reset
     /// that is not `REFUSED_STREAM`, leaving the session usable.
     ResetStream,
@@ -127,6 +135,7 @@ pub(crate) struct H1Request {
 }
 
 type Log = Arc<Mutex<Vec<ConnectionLog>>>;
+type BeforeFirstRefusal = Option<Arc<dyn Fn() -> TestResult<()> + Send + Sync>>;
 type ServingFailure = Arc<Mutex<Option<Box<dyn std::error::Error + Send + Sync>>>>;
 /// RFC 7540 HEADERS priority as (exclusive, dependency, weight).
 pub(crate) type Priority = (bool, u32, u16);
@@ -155,6 +164,7 @@ impl TestServer {
             log,
             Some(identity),
             behavior,
+            None,
         ))
     }
 
@@ -163,7 +173,29 @@ impl TestServer {
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let log = Log::default();
-        Ok(Self::listening(listener, address, log, None, behavior))
+        Ok(Self::listening(
+            listener, address, log, None, behavior, None,
+        ))
+    }
+
+    #[cfg(feature = "cookies")]
+    pub(crate) async fn start_with_first_refusal(
+        identity: Arc<TestIdentity>,
+        before_first_refusal: Arc<dyn Fn() -> TestResult<()> + Send + Sync>,
+    ) -> TestResult<Self> {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        Ok(Self::listening(
+            listener,
+            address,
+            Log::default(),
+            Some(identity),
+            Behavior {
+                connect: Reply::RefuseFirstTwoStreams,
+                ..Behavior::ACCEPT
+            },
+            Some(before_first_refusal),
+        ))
     }
 
     fn listening(
@@ -172,6 +204,7 @@ impl TestServer {
         log: Log,
         identity: Option<Arc<TestIdentity>>,
         behavior: Behavior,
+        before_first_refusal: BeforeFirstRefusal,
     ) -> Self {
         let (stop, stopped) = watch::channel(false);
         let serving_failure = ServingFailure::default();
@@ -179,7 +212,7 @@ impl TestServer {
             listener,
             Arc::clone(&log),
             identity,
-            behavior,
+            (behavior, before_first_refusal),
             stop.clone(),
             stopped,
             Arc::clone(&serving_failure),
@@ -325,11 +358,12 @@ async fn serve_listener(
     listener: TcpListener,
     log: Log,
     identity: Option<Arc<TestIdentity>>,
-    behavior: Behavior,
+    behavior: (Behavior, BeforeFirstRefusal),
     stop: watch::Sender<bool>,
     mut stopped: watch::Receiver<bool>,
     failure: ServingFailure,
 ) -> TestResult<()> {
+    let (behavior, before_first_refusal) = behavior;
     let mut children = JoinSet::new();
     loop {
         tokio::select! {
@@ -361,7 +395,8 @@ async fn serve_listener(
                 let stopped = stopped.clone();
                 if let Some(identity) = &identity {
                     let identity = Arc::clone(identity);
-                    children.spawn(async move { serve(tcp, &identity, index, &log, behavior, stopped).await });
+                    let before_first_refusal = before_first_refusal.clone();
+                    children.spawn(async move { serve(tcp, &identity, index, &log, behavior, before_first_refusal, stopped).await });
                 } else {
                     children.spawn(async move { serve_h1(tcp, index, &log, behavior, stopped).await });
                 }
@@ -397,6 +432,7 @@ async fn serve(
     index: usize,
     log: &Log,
     behavior: Behavior,
+    before_first_refusal: BeforeFirstRefusal,
     mut stopped: watch::Receiver<bool>,
 ) -> TestResult<()> {
     let offer = Arc::new(Mutex::new(Vec::new()));
@@ -423,7 +459,7 @@ async fn serve(
         connection.protocol.clone_from(&protocol);
     })?;
     match protocol.as_deref() {
-        Some("h2") => serve_h2(stream, index, log, behavior, stopped).await,
+        Some("h2") => serve_h2(stream, index, log, behavior, before_first_refusal, stopped).await,
         _ => serve_h1(stream, index, log, behavior, stopped).await,
     }
 }
@@ -433,6 +469,7 @@ async fn serve_h2<T>(
     index: usize,
     log: &Log,
     behavior: Behavior,
+    before_first_refusal: BeforeFirstRefusal,
     mut stopped: watch::Receiver<bool>,
 ) -> TestResult<()>
 where
@@ -456,7 +493,15 @@ where
         result = stop_requested(&mut stopped) => return result,
     };
     let mut wire = WireDecoder::default();
+    let mut retirement_ping = connection.ping_pong();
+    let mut retirement: Option<Pin<Box<dyn Future<Output = TestResult<()>> + Send>>> = None;
+    let mut pending_refusal: Option<(
+        http::Request<::http2::RecvStream>,
+        ::http2::server::SendResponse<Bytes>,
+    )> = None;
     let mut refused_any = false;
+    let mut refused_count = 0;
+    let mut held_openings = Vec::new();
     let mut echoes = FuturesUnordered::new();
     let (echo_stop, echo_stopped) = watch::channel(false);
     let result: TestResult<()> = async {
@@ -465,6 +510,13 @@ where
             biased;
             result = echoes.next(), if !echoes.is_empty() => {
                 result.ok_or("echo outcome disappeared")??;
+                continue;
+            }
+            retired = async { retirement.as_mut().ok_or("retirement fence disappeared")?.await }, if retirement.is_some() => {
+                retired?;
+                retirement = None;
+                let (_request, mut respond) = pending_refusal.take().ok_or("retiring refusal disappeared")?;
+                respond.send_reset(::http2::Reason::REFUSED_STREAM);
                 continue;
             }
             accepted = connection.accept() => match accepted {
@@ -528,6 +580,36 @@ where
                     respond.send_reset(::http2::Reason::REFUSED_STREAM);
                 }
                 Reply::RefuseFirstStream => {
+                    echoes.push(accept_connect(request, respond, behavior, log, index, echo_stopped.clone())?);
+                }
+                Reply::RefuseFirstTwoStreams | Reply::RefuseTwoThenHold
+                    if refused_count < 2 => {
+                    if refused_count == 0
+                        && let Some(before_first_refusal) = &before_first_refusal
+                    {
+                        before_first_refusal()?;
+                    }
+                    refused_count += 1;
+                    respond.send_reset(::http2::Reason::REFUSED_STREAM);
+                }
+                Reply::RefuseTwoThenHold => held_openings.push((request, respond)),
+                Reply::RefuseFirstTwoStreams => {
+                    echoes.push(accept_connect(request, respond, behavior, log, index, echo_stopped.clone())?);
+                }
+                Reply::RefuseThenGoAway if index == 0 && !refused_any => {
+                    refused_any = true;
+                    connection.graceful_shutdown();
+                    let mut ping = retirement_ping.take().ok_or("retirement ping was already taken")?;
+                    // GOAWAY and then this PING travel on the same connection.
+                    // Its ACK fences client processing before REFUSED_STREAM
+                    // triggers selection; merely queuing GOAWAY is not enough.
+                    retirement = Some(Box::pin(async move {
+                        ping.ping(::http2::Ping::opaque()).await?;
+                        Ok(())
+                    }));
+                    pending_refusal = Some((request, respond));
+                }
+                Reply::RefuseThenGoAway => {
                     echoes.push(accept_connect(request, respond, behavior, log, index, echo_stopped.clone())?);
                 }
             }

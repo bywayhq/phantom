@@ -277,7 +277,7 @@ async fn one_http2_data_chunk_echoes_both_coalesced_websocket_frames() -> TestRe
         let (stop, stopped) = tokio::sync::watch::channel(false);
         let serving = async {
             let (stream, _) = listener.accept().await?;
-            serve_h2(stream, 0, &log, Behavior::ACCEPT, stopped).await
+            serve_h2(stream, 0, &log, Behavior::ACCEPT, None, stopped).await
         };
         let client = async {
             let result: TestResult<()> = async {

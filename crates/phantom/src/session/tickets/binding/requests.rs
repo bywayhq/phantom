@@ -84,6 +84,7 @@ fn web_socket_refused_stream_retry(
     e.u8(match value {
         WebSocketRefusedStreamRetry::None => 0,
         WebSocketRefusedStreamRetry::SameSessionOnce => 1,
+        WebSocketRefusedStreamRetry::ReacquireTwice => 2,
         _ => return Err(PreparationError::Unsupported("WebSocketRefusedStreamRetry")),
     })
 }

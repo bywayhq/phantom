@@ -4,10 +4,12 @@
 //! origin and compares what the origin observed with a retained Chrome 154,
 //! Edge 154, or Firefox 157 capture from `fixtures/websocket/`.
 
+mod edge_android;
 #[path = "websocket_profile/fixture.rs"]
 pub(crate) mod fixture;
 pub(crate) mod forward_proxy;
 mod proxy;
+mod reacquire;
 pub(crate) mod server;
 use crate::support::tls as tls_support;
 use crate::support::tracing as tracing_support;
@@ -570,9 +572,9 @@ async fn reset_other_than_refused_stream_is_not_reopened() -> TestResult<()> {
     Ok(())
 }
 
-/// A second refusal is reported: the profile allows one reopening, not a loop.
+/// The explicit SameSessionOnce policy retains its one-reopening limit.
 #[tokio::test]
-async fn twice_refused_connect_stream_fails_without_a_third_attempt() -> TestResult<()> {
+async fn same_session_once_policy_stops_after_the_second_refusal() -> TestResult<()> {
     let identity = Arc::new(TestIdentity::generate()?);
     let behavior = Behavior {
         connect: Reply::RefuseStream,
@@ -580,7 +582,10 @@ async fn twice_refused_connect_stream_fails_without_a_third_attempt() -> TestRes
     };
     let mut server = TestServer::start(Arc::clone(&identity), behavior).await?;
     let caller = bounded(async {
-        let client = profile_client(&identity, chrome::v154_http2(), chrome::v154_websocket())?;
+        let mut settings = chrome::v154_websocket();
+        settings.connection.refused_stream_retry =
+            phantom::profile::WebSocketRefusedStreamRetry::SameSessionOnce;
+        let client = profile_client(&identity, chrome::v154_http2(), settings)?;
         ordinary_get(&client, &server).await?;
 
         let error = match websocket(&client, &server)?.connect().await {

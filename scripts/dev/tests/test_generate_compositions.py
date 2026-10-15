@@ -72,8 +72,23 @@ class CompositionDeclarationTests(unittest.TestCase):
         self.assertEqual(len(original), 10)
         pairs = [value for entry in original for value in entry["composition"].values()]
         self.assertEqual(len(pairs), 140)
-        self.assertEqual(sum(value is not None for value in pairs), 96)
-        self.assertEqual(sum(value is None for value in pairs), 44)
+        self.assertEqual(sum(value is not None for value in pairs), 97)
+        self.assertEqual(sum(value is None for value in pairs), 43)
+        before_edge_websocket = copy.deepcopy(original)
+        edge = next(
+            entry
+            for entry in before_edge_websocket
+            if entry["target"] == "EdgeAndroid153"
+        )
+        self.assertEqual(edge["composition"]["WebSocket"], "edge_android_153_websocket")
+        edge["composition"]["WebSocket"] = None
+        prior_pairs = [
+            value
+            for entry in before_edge_websocket
+            for value in entry["composition"].values()
+        ]
+        self.assertEqual(sum(value is not None for value in prior_pairs), 96)
+        self.assertEqual(sum(value is None for value in prior_pairs), 44)
         self.assertEqual(
             cli.COMPOSITION_OUTPUT.read_text(encoding="utf-8"),
             composition.generate_compositions(profiles),

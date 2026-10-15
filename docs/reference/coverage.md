@@ -30,7 +30,7 @@ requires verification of the outer proxy certificate.
 | Opera 102 for Android | Not covered | Captured | Not covered | Not covered | Not covered | Not covered | Captured | Not covered | Not covered |
 | Brave 153 for Android | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 | Chrome 154 for Android | Browser source | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
-| Edge 153 for Android | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Not covered |
+| Edge 153 for Android | Not covered | Captured | Captured | Captured | Captured | Captured | Captured | Captured | Captured |
 
 - **Captured**: retained traffic for the named build.
 - **Browser source**: settings defined by source at the release tag.
@@ -58,9 +58,9 @@ Read the matrix with these conditions:
 - Edge's, Brave's, and Opera's H2, QUIC, H3, and WebSocket layers use the
   Chromium recipes, which equal their captures on every compared field.
   Opera 136 is built on Chromium 152 and is compared with the Chrome 154
-  recipes, the only Chromium version Phantom carries. So do Chrome's,
-  Edge's, and Brave's for Android, except that Edge for Android has no
-  WebSocket recipe.
+  recipes, the only Chromium version Phantom carries. Chrome and Brave
+  for Android reuse those layers too. Edge for Android has its own
+  WebSocket opening fields; its unobserved policies reuse Chromium source.
 - Android TCP policies are available for Chrome 154 and Firefox 156.
   The emulator hides device TCP connections, so these policies have no
   device socket observations. Android HTTP/1.1 connection and address-cache
@@ -1170,7 +1170,10 @@ How the recipes differ:
   `v153_android_client_hints()` with desktop Edge 153's brand list and the
   `"Pixel 7"` model, `v153_android_client_hints_for_model`,
   and navigation and fetch templates with Edge for Android's `User-Agent`.
-  It has no WebSocket recipe.
+  `v153_android_websocket()` adds H1/H2 opening fields from the retained
+  emulator runs. Refusal restarts, cookies, subprotocols, fresh-connection
+  selection and compressed empty messages reuse Chromium source. Those
+  behaviors have no Edge Android capture; physical-device parity is unknown.
 - `firefox::v157_*` covers TLS, TCP, H1, H2, QUIC, H3, WebSocket, cookie
   placement, and the request templates. Firefox sends no user-agent client
   hints, so it has no client-hint recipe.

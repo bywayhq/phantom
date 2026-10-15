@@ -251,9 +251,9 @@ pub enum WebSocketNewConnection {
 ///
 /// RFC 9113, section 8.7 says such a stream was closed before the peer
 /// processed anything on it, so only the HEADERS the client already sent can
-/// be sent again. This describes captured client behavior, not caller policy:
-/// a client's retry policy stays a caller concern and never applies to a
-/// WebSocket opening.
+/// be sent again. Browser profiles use captured and source-derived behavior.
+/// The client's ordinary request retry policy does not apply to a WebSocket
+/// opening.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum WebSocketRefusedStreamRetry {
@@ -269,6 +269,15 @@ pub enum WebSocketRefusedStreamRetry {
     /// does then is unobserved. Phantom reports it to the caller; that bound
     /// is a choice, not capture evidence.
     SameSessionOnce,
+    /// Restart a refused opening through this profile's connection selection,
+    /// at most twice (three total attempts).
+    ///
+    /// An available capable HTTP/2 session may be selected again. If it has
+    /// retired, the profile's new-connection policy applies. Only a remote
+    /// `REFUSED_STREAM` before the handshake response permits a restart;
+    /// other errors are returned. The original handshake timeout covers all
+    /// attempts, and each failed attempt releases its admission first.
+    ReacquireTwice,
 }
 
 /// Whether a `wss://` WebSocket on a proxy route may open on a pooled HTTP/2
@@ -317,8 +326,9 @@ pub struct WebSocketConnectionPolicy {
     pub http1_alpn_protocols: Vec<Box<[u8]>>,
     /// What happens when the peer refuses the extended CONNECT stream.
     ///
-    /// It applies only to an extended CONNECT on a pooled HTTP/2 session,
-    /// which is the only case the captures cover.
+    /// Profile-policy openings apply this to pooled or newly selected HTTP/2
+    /// sessions. `SameSessionOnce` applies only to pooled sessions. Explicit
+    /// protocol openings bypass profile connection selection and its restarts.
     pub refused_stream_retry: WebSocketRefusedStreamRetry,
     /// Whether a pooled HTTP/2 session carries the WebSocket on a proxy route.
     pub proxied_http2_session: WebSocketProxiedSession,

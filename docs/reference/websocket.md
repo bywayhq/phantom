@@ -117,17 +117,22 @@ to join.
 
 | Recipe | Pooled capable H2 session | No H2 session | Session without the setting | Pooled session on a proxy route |
 | --- | --- | --- | --- | --- |
-| `chrome::v154_websocket` (Chrome 154, Edge 154, Brave 154, Opera 136, and Chrome 154 and Brave 153 for Android) | Extended CONNECT on it | New TLS connection offering only `http/1.1`; H1 Upgrade | Same as no session | Extended CONNECT on it, inside its tunnel (`Reuse`) |
+| Chromium-family recipes, including `edge::v153_android_websocket` | Extended CONNECT on it | New TLS connection offering only `http/1.1`; H1 Upgrade | Same as no session | Extended CONNECT on it, inside its tunnel (`Reuse`) |
 | `firefox::v157_websocket` | Extended CONNECT on it | New connection offering `h2,http/1.1`; extended CONNECT | New TLS connection offering only `http/1.1`; H1 Upgrade | Extended CONNECT on it, inside its tunnel (`Reuse`) |
 
 | Recipe | Refused CONNECT stream | Empty message with deflate | Handshake timeout |
 | --- | --- | --- | --- |
-| `chrome::v154_websocket` | Reopen once on the same session | Compressed, RSV1 set | 240 seconds |
+| Chromium-family recipes | Restart through profile selection at most twice | Compressed, RSV1 set | 240 seconds |
 | `firefox::v157_websocket` | Reported to the caller | Uncompressed, RSV1 clear | 20 seconds |
 
-Both recipes reuse capable H2 sessions on proxy routes. This policy and
-the handshake timers are source-defined; tunnelled `wss://` openings remain
-uncaptured.
+These recipes reuse capable H2 sessions on proxy routes. A refused stream
+releases its admission before Chromium recipes select another opening. A
+still-capable session can be reused. A retired session gives way to the
+profile's new-connection policy. The original handshake timer covers all
+three attempts. Other stream errors return to the caller.
+
+The proxy reuse policy and handshake timers are source-defined; tunnelled
+`wss://` openings remain uncaptured.
 
 `WebSocketSettings::handshake_timeout` limits the whole opening. You can
 replace it for one connection with

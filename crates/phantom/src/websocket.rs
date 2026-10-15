@@ -77,6 +77,8 @@ pub struct WebSocketRequestBuilder {
     permessage_deflate: Option<PerMessageDeflate>,
     handshake_timeout: Option<Duration>,
     retry_policy: WebSocketRetryPolicy,
+    #[cfg(feature = "cookies")]
+    retry_cookies: Option<std::sync::Arc<std::sync::OnceLock<Option<String>>>>,
 }
 
 /// How the connect step chooses the protocol and connection.
@@ -165,6 +167,8 @@ impl WebSocketRequestBuilder {
             permessage_deflate: None,
             handshake_timeout,
             retry_policy: WebSocketRetryPolicy::none(),
+            #[cfg(feature = "cookies")]
+            retry_cookies: None,
         })
     }
 
@@ -211,6 +215,8 @@ impl WebSocketRequestBuilder {
             permessage_deflate: None,
             handshake_timeout,
             retry_policy: WebSocketRetryPolicy::none(),
+            #[cfg(feature = "cookies")]
+            retry_cookies: None,
         })
     }
 
@@ -485,6 +491,8 @@ impl WebSocketRequestBuilder {
             permessage_deflate: self.permessage_deflate.clone(),
             handshake_timeout: self.handshake_timeout,
             retry_policy: self.retry_policy,
+            #[cfg(feature = "cookies")]
+            retry_cookies: self.retry_cookies.clone(),
         }
     }
 
@@ -523,11 +531,57 @@ impl WebSocketRequestBuilder {
         }
     }
 
-    /// Chooses the connection from pooled session state and profile policy.
-    ///
-    /// The choice is final: a failure on the chosen connection is returned
-    /// without trying another connection or protocol.
+    /// Selects a connection, including the profile's bounded refusal restarts.
+    /// The caller's single handshake timeout encloses this entire operation.
     async fn connect_by_profile_policy(
+        self,
+        request_span: &Span,
+    ) -> Result<WebSocket, WebSocketError> {
+        let reacquire = self
+            .client
+            .inner
+            .websocket
+            .as_ref()
+            .is_some_and(|settings| {
+                settings.connection.refused_stream_retry
+                    == WebSocketRefusedStreamRetry::ReacquireTwice
+            });
+        if !reacquire {
+            return crate::session::box_send(self.connect_by_profile_policy_once(request_span))
+                .await;
+        }
+        let mut current = self;
+        // A refusal restarts the same opening, including its first lazy jar
+        // read. Setup retries outside this operation get a fresh snapshot.
+        #[cfg(feature = "cookies")]
+        {
+            current.retry_cookies = Some(std::sync::Arc::new(std::sync::OnceLock::new()));
+        }
+        let mut restarts = 2;
+        loop {
+            let next = (restarts > 0).then(|| current.copy_for_retry());
+            let result =
+                crate::session::box_send(current.connect_by_profile_policy_once(request_span))
+                    .await;
+            let Err(error) = result else {
+                return result;
+            };
+            if !refused_profile_opening(&error) {
+                return Err(error);
+            }
+            let Some(next) = next else {
+                return Err(error);
+            };
+            // The failed opening future (and its admission guard) has ended
+            // before the next selection can wait for another admission.
+            request_span.record("refused_stream_retry", true);
+            current = next;
+            restarts -= 1;
+        }
+    }
+
+    /// Makes one selection without falling back after a failed exchange.
+    async fn connect_by_profile_policy_once(
         mut self,
         request_span: &Span,
     ) -> Result<WebSocket, WebSocketError> {
@@ -620,6 +674,19 @@ impl WebSocketRequestBuilder {
         let compression = false;
         handshake::validate_policy_templates(&self.headers, &self.http2_headers, compression)
     }
+}
+
+/// Matches only the original typed extended-CONNECT refusal error chain.
+fn refused_profile_opening(error: &WebSocketError) -> bool {
+    use std::error::Error;
+
+    error.kind() == WebSocketErrorKind::Http2
+        && error
+            .source()
+            .and_then(|cause| cause.downcast_ref::<RequestError>())
+            .and_then(Error::source)
+            .and_then(|cause| cause.downcast_ref::<phantom_net::http2::Http2TlsError>())
+            .is_some_and(error::refused_extended_connect_stream)
 }
 
 /// Returns the opening field `name`, from the caller or the profile recipe,

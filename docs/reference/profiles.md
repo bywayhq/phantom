@@ -88,7 +88,7 @@ to the emulator by the Play Store, which can trail stable.
 | Opera 102 for Android | `opera::v102_android_*` | Yes | No | No | `v102_android_client_hints` | No | Android emulator |
 | Brave 153 for Android | `brave::v153_android_*` | Brave | Chromium | Chromium QUIC and H3; Brave H3 TLS | `v153_android_client_hints` | Chromium | Android emulator |
 | Chrome 154 for Android | `chrome::v154_android_*` | Chromium | Chromium | Chromium | `v154_android_client_hints` | Chromium | Android emulator |
-| Edge 153 for Android | `edge::v153_android_*` | Edge | Chromium | Chromium QUIC and H3; Edge H3 TLS | `v153_android_client_hints` | No | Android emulator (arm64) |
+| Edge 153 for Android | `edge::v153_android_*` | Edge | Chromium | Chromium QUIC and H3; Edge H3 TLS | `v153_android_client_hints` | `v153_android_websocket` | Android emulator (arm64) |
 
 - "Captured on" lists the platforms whose retained captures back the recipe.
   "Android emulator" is an emulator, not a phone. On the Windows capture

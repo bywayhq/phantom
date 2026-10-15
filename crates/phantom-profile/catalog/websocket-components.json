@@ -21,7 +21,7 @@
               49
             ]
           ],
-          "refused_stream_retry": "SameSessionOnce",
+          "refused_stream_retry": "ReacquireTwice",
           "proxied_http2_session": "Reuse"
         },
         "http1_fields": [
@@ -322,6 +322,154 @@
         "empty_message_compression": "Uncompressed",
         "handshake_timeout": {
           "seconds": 20,
+          "nanoseconds": 0
+        }
+      }
+    },
+    {
+      "id": "edge_android_153_websocket",
+      "kind": "WebSocketSettings",
+      "base": null,
+      "values": {
+        "connection": {
+          "without_http2_session": "Http1Upgrade",
+          "with_incapable_http2_session": "Http1Upgrade",
+          "http1_alpn_protocols": [
+            [
+              104,
+              116,
+              116,
+              112,
+              47,
+              49,
+              46,
+              49
+            ]
+          ],
+          "refused_stream_retry": "ReacquireTwice",
+          "proxied_http2_session": "Reuse"
+        },
+        "http1_fields": [
+          {
+            "kind": "Authority",
+            "name": "Host"
+          },
+          {
+            "kind": "Literal",
+            "name": "Connection",
+            "value": "Upgrade"
+          },
+          {
+            "kind": "Literal",
+            "name": "Pragma",
+            "value": "no-cache"
+          },
+          {
+            "kind": "Literal",
+            "name": "Cache-Control",
+            "value": "no-cache"
+          },
+          {
+            "kind": "Caller",
+            "name": "User-Agent"
+          },
+          {
+            "kind": "Literal",
+            "name": "Upgrade",
+            "value": "websocket"
+          },
+          {
+            "kind": "Caller",
+            "name": "Origin"
+          },
+          {
+            "kind": "Literal",
+            "name": "Sec-WebSocket-Version",
+            "value": "13"
+          },
+          {
+            "kind": "ByTrust",
+            "name": "Accept-Encoding",
+            "trustworthy": "gzip, deflate, br, zstd",
+            "untrustworthy": "gzip, deflate"
+          },
+          {
+            "kind": "Caller",
+            "name": "Accept-Language"
+          },
+          {
+            "kind": "ClientCookies",
+            "name": "Cookie"
+          },
+          {
+            "kind": "Key",
+            "name": "Sec-WebSocket-Key"
+          },
+          {
+            "kind": "PerMessageDeflate",
+            "name": "Sec-WebSocket-Extensions"
+          },
+          {
+            "kind": "Caller",
+            "name": "Sec-WebSocket-Protocol"
+          }
+        ],
+        "http2_fields": [
+          {
+            "kind": "Literal",
+            "name": "pragma",
+            "value": "no-cache"
+          },
+          {
+            "kind": "Literal",
+            "name": "cache-control",
+            "value": "no-cache"
+          },
+          {
+            "kind": "Caller",
+            "name": "user-agent"
+          },
+          {
+            "kind": "Caller",
+            "name": "origin"
+          },
+          {
+            "kind": "Literal",
+            "name": "sec-websocket-version",
+            "value": "13"
+          },
+          {
+            "kind": "ByTrust",
+            "name": "accept-encoding",
+            "trustworthy": "gzip, deflate, br, zstd",
+            "untrustworthy": "gzip, deflate"
+          },
+          {
+            "kind": "Caller",
+            "name": "accept-language"
+          },
+          {
+            "kind": "ClientCookies",
+            "name": "cookie"
+          },
+          {
+            "kind": "PerMessageDeflate",
+            "name": "sec-websocket-extensions"
+          },
+          {
+            "kind": "Caller",
+            "name": "sec-websocket-protocol"
+          }
+        ],
+        "permessage_deflate_offer": [
+          {
+            "kind": "ClientMaxWindowBits",
+            "bits": null
+          }
+        ],
+        "empty_message_compression": "Compressed",
+        "handshake_timeout": {
+          "seconds": 240,
           "nanoseconds": 0
         }
       }

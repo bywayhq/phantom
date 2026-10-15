@@ -449,7 +449,13 @@ pub fn v154_http2() -> Http2Settings {
 /// The `refused-stream` captures show Chrome answering
 /// `RST_STREAM(REFUSED_STREAM)` with one further extended CONNECT on the same
 /// H2 session and the next client stream id, which the peer then accepted; no
-/// data frame had been sent on the refused stream. The `accept-deflate`
+/// data frame had been sent on the refused stream. The two-restart ceiling is
+/// source-backed: at tag `154.0.8037.58`, `HttpNetworkTransaction::HandleIOError`
+/// restarts `ERR_HTTP2_SERVER_REFUSED_STREAM` through `STATE_CREATE_STREAM`
+/// until `kMaxRetryAttempts` (2), retaining the request. Session selection may
+/// reuse an available capable H2 session; it is not pinned to the old one.
+/// The retained capture demonstrates only the first successful reopening.
+/// The `accept-deflate`
 /// captures show a zero-length text message compressed into one byte with RSV1
 /// set.
 ///

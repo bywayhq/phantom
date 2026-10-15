@@ -34,7 +34,7 @@ class WebSocketComponentTests(unittest.TestCase):
                 ]
                 for item in resolved
             ],
-            [[13, 9], [17, 14]],
+            [[13, 9], [14, 10], [17, 14]],
         )
         actual = generator.generate_components(resolved, "websocket-components.json")
         self.assertEqual(generator.WEBSOCKET_COMPONENT_OUTPUT.read_text(), actual)
@@ -69,7 +69,7 @@ class WebSocketComponentTests(unittest.TestCase):
     def test_unknown_refs_cycles_kinds_and_top_level_fields_fail(self):
         for mode in ("unknown", "cycle", "duplicate", "missing", "extra", "kind"):
             document = copy.deepcopy(self.document)
-            first, second = document["components"]
+            first, second = document["components"][:2]
             if mode == "unknown":
                 first["base"] = "unknown_websocket"
             elif mode == "cycle":
@@ -132,6 +132,23 @@ class WebSocketComponentTests(unittest.TestCase):
         )
         for name in ("Http2ExtendedConnect", "None", "Ignore", "Uncompressed"):
             self.assertIn("::" + name, generated)
+
+    def test_reacquire_twice_is_explicit_and_preserves_existing_rules(self):
+        self.values["connection"]["refused_stream_retry"] = "ReacquireTwice"
+        resolved = self.resolve()
+        self.assertEqual(
+            resolved[0]["values"]["connection"]["refused_stream_retry"],
+            "ReacquireTwice",
+        )
+        self.assertIn(
+            "crate::WebSocketRefusedStreamRetry::ReacquireTwice",
+            generator.generate_components(resolved, "websocket-components.json"),
+        )
+        for invalid in ("ReacquireOnce", "ReacquireThreeTimes", 2):
+            self.reject(
+                "connection",
+                {**self.values["connection"], "refused_stream_retry": invalid},
+            )
 
     def test_upgrade_alpn_requires_http1_and_excludes_http2(self):
         for invalid in (
@@ -315,6 +332,57 @@ class WebSocketComponentTests(unittest.TestCase):
             {"seconds": 1, "nanoseconds": 0, "extra": False},
         ):
             self.reject("handshake_timeout", timeout)
+
+    def test_edge_android_keeps_source_slot_order_and_explicit_retry_policy(self):
+        edge = next(
+            item["values"]
+            for item in self.resolve()
+            if item["id"] == "edge_android_153_websocket"
+        )
+        self.assertEqual(
+            edge["connection"],
+            {
+                "without_http2_session": "Http1Upgrade",
+                "with_incapable_http2_session": "Http1Upgrade",
+                "http1_alpn_protocols": [list(b"http/1.1")],
+                "refused_stream_retry": "ReacquireTwice",
+                "proxied_http2_session": "Reuse",
+            },
+        )
+        self.assertEqual(
+            [field["name"] for field in edge["http1_fields"]],
+            [
+                "Host",
+                "Connection",
+                "Pragma",
+                "Cache-Control",
+                "User-Agent",
+                "Upgrade",
+                "Origin",
+                "Sec-WebSocket-Version",
+                "Accept-Encoding",
+                "Accept-Language",
+                "Cookie",
+                "Sec-WebSocket-Key",
+                "Sec-WebSocket-Extensions",
+                "Sec-WebSocket-Protocol",
+            ],
+        )
+        self.assertEqual(
+            [field["name"] for field in edge["http2_fields"]],
+            [
+                "pragma",
+                "cache-control",
+                "user-agent",
+                "origin",
+                "sec-websocket-version",
+                "accept-encoding",
+                "accept-language",
+                "cookie",
+                "sec-websocket-extensions",
+                "sec-websocket-protocol",
+            ],
+        )
 
 
 if __name__ == "__main__":

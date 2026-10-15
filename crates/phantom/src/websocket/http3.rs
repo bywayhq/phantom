@@ -49,6 +49,8 @@ impl WebSocketRequestBuilder {
             permessage_deflate,
             handshake_timeout: _,
             retry_policy: _,
+            #[cfg(feature = "cookies")]
+                retry_cookies: _,
         } = self;
         let selected_route = request.selected_route(&client, route.as_ref());
         let route = &selected_route;

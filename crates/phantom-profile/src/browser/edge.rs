@@ -46,14 +46,13 @@
 //! The TLS and QUIC ClientHellos equal desktop Edge's, which Edge 153 and 154
 //! send alike: the Chromium offers without trust-anchor IDs. The H2 startup,
 //! QUIC transport parameters, H3 SETTINGS, and request field orders equal the
-//! Chromium recipes. Only the client hints and `User-Agent` carry Edge for
-//! Android data.
+//! Chromium recipes. The client hints, `User-Agent`, and WebSocket opening
+//! settings carry Edge for Android data.
 //!
-//! There is no TCP, HTTP/1.1 connection, address-cache, proxy CONNECT,
-//! WebSocket, or cookie-placement recipe: the emulator hides socket options,
-//! as [`crate::browser::chrome`] explains, and only the `accept` and
-//! `h1-accept` WebSocket scenarios were captured, for their page and `fetch`
-//! requests.
+//! HTTP/1.1 and HTTP/2 WebSocket openings are retained; the unobserved
+//! policies reuse pinned Chromium source. TCP socket options, HTTP/1.1
+//! connection policy, address caching, proxy CONNECT and cookie placement
+//! remain unavailable.
 
 use crate::{ClientProfile, Http3ClientSettings};
 
@@ -70,7 +69,7 @@ pub use android::{
     v153_android_client_hints, v153_android_client_hints_for_model,
     v153_android_fetch_no_store_template, v153_android_http2, v153_android_http3,
     v153_android_http3_request, v153_android_navigation_template, v153_android_quic,
-    v153_android_quic_tls, v153_android_tcp_tls,
+    v153_android_quic_tls, v153_android_tcp_tls, v153_android_websocket,
 };
 
 use crate::{
@@ -214,8 +213,7 @@ pub fn v154_windows() -> ClientProfile {
 
 /// Returns the captured Android layers for Edge 153.
 ///
-/// Supplies TCP TLS, HTTP/2, HTTP/3, and client hints.
-/// No WebSocket recipe is supplied.
+/// Supplies TCP TLS, HTTP/2, HTTP/3, client hints, and WebSocket openings.
 /// TCP socket, UDP socket, HTTP/1.1 policy, address-cache, proxy CONNECT,
 /// and cookie-placement recipes are absent. Their generic defaults remain.
 /// No request template is selected. These captures came from emulators.
@@ -230,6 +228,7 @@ pub fn v153_android() -> ClientProfile {
             v153_android_http3_request(),
         ))
         .with_client_hints(v153_android_client_hints())
+        .with_websocket(v153_android_websocket())
 }
 
 #[cfg(test)]

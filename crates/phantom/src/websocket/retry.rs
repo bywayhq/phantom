@@ -13,8 +13,9 @@ use crate::RequestError;
 /// The default, [`WebSocketRetryPolicy::none`], does not retry connection
 /// setup. These retries are caller policy. Set it for one connect with
 /// [`WebSocketRequestBuilder::retry_policy`](super::WebSocketRequestBuilder::retry_policy).
-/// Separately, the Chromium profile can retry a refused HTTP/2 CONNECT
-/// stream once on the same session. That retry does not use this policy.
+/// Separately, Chromium profiles restart a refused HTTP/2 CONNECT opening
+/// through their connection selection, at most twice. The original handshake
+/// timeout covers those attempts. That rule does not use this policy.
 ///
 /// Only a failure that happened before any byte of the opening reached the
 /// origin is retried: a failed name lookup, a refused or failed TCP connect

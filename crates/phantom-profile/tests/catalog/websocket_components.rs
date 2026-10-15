@@ -1,16 +1,29 @@
-//! Original WebSocket values and unchanged composition at ff638d49.
+//! Original fields with explicit source-backed policy and layer additions.
 
 use phantom_profile::{UrlTrust, WebSocketField, browser};
 
+mod edge_android;
 mod originals;
+pub(super) use edge_android::original as edge_android_original;
 use originals::{chrome_original, firefox_original};
+
+pub(super) fn chromium_expected() -> phantom_profile::WebSocketSettings {
+    let mut expected = chrome_original();
+    assert_eq!(
+        expected.connection.refused_stream_retry,
+        phantom_profile::WebSocketRefusedStreamRetry::SameSessionOnce
+    );
+    expected.connection.refused_stream_retry =
+        phantom_profile::WebSocketRefusedStreamRetry::ReacquireTwice;
+    expected
+}
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 #[test]
 fn browser_websocket_factories_preserve_every_ordered_field_and_policy() -> TestResult {
     for (actual, original) in [
-        (browser::chrome::v154_websocket(), chrome_original()),
+        (browser::chrome::v154_websocket(), chromium_expected()),
         (browser::firefox::v157_websocket(), firefox_original()),
     ] {
         actual.validate()?;
@@ -19,13 +32,19 @@ fn browser_websocket_factories_preserve_every_ordered_field_and_policy() -> Test
     }
     assert_eq!(chrome_original().http1_fields.len(), 13);
     assert_eq!(chrome_original().http2_fields.len(), 9);
+    assert_eq!(
+        browser::firefox::v157_websocket()
+            .connection
+            .refused_stream_retry,
+        phantom_profile::WebSocketRefusedStreamRetry::None
+    );
     assert_eq!(firefox_original().http1_fields.len(), 17);
     assert_eq!(firefox_original().http2_fields.len(), 14);
     Ok(())
 }
 
 #[test]
-fn seven_composed_profiles_keep_websocket_and_three_android_profiles_keep_absence() -> TestResult {
+fn eight_composed_profiles_keep_websocket_and_two_android_profiles_keep_absence() -> TestResult {
     for profile in [
         browser::chrome::v154_windows(),
         browser::chrome::v154_android(),
@@ -35,8 +54,16 @@ fn seven_composed_profiles_keep_websocket_and_three_android_profiles_keep_absenc
         browser::opera::v136_windows(),
     ] {
         assert_eq!(
+            profile
+                .websocket()
+                .ok_or("lost WebSocket settings")?
+                .connection
+                .refused_stream_retry,
+            phantom_profile::WebSocketRefusedStreamRetry::ReacquireTwice
+        );
+        assert_eq!(
             profile.websocket().ok_or("lost WebSocket settings")?,
-            &chrome_original()
+            &chromium_expected()
         );
     }
     assert_eq!(
@@ -45,22 +72,31 @@ fn seven_composed_profiles_keep_websocket_and_three_android_profiles_keep_absenc
             .ok_or("lost Firefox WebSocket")?,
         &firefox_original()
     );
-    assert_eq!(browser::chrome::v154_android_websocket(), chrome_original());
-    assert_eq!(browser::brave::v153_android_websocket(), chrome_original());
+    assert_eq!(
+        browser::chrome::v154_android_websocket(),
+        chromium_expected()
+    );
+    assert_eq!(
+        browser::brave::v153_android_websocket(),
+        chromium_expected()
+    );
     for profile in [
-        browser::edge::v153_android(),
         browser::opera::v102_android(),
         browser::firefox::v156_android(),
     ] {
         assert!(profile.websocket().is_none());
     }
+    assert_eq!(
+        browser::edge::v153_android().websocket(),
+        Some(&edge_android_original())
+    );
     Ok(())
 }
 
 #[test]
 fn generated_websocket_fields_keep_both_trust_defaults_and_absence() {
     for (actual, original) in [
-        (browser::chrome::v154_websocket(), chrome_original()),
+        (browser::chrome::v154_websocket(), chromium_expected()),
         (browser::firefox::v157_websocket(), firefox_original()),
     ] {
         for (fields, original_fields) in [
@@ -113,7 +149,7 @@ fn customized_websocket_values_remain_owned_and_keep_native_input_ranges() -> Te
         custom.connection.http1_alpn_protocols[0][0] = 0;
         custom.permessage_deflate_offer.clear();
     }
-    assert_eq!(browser::chrome::v154_websocket(), chrome_original());
+    assert_eq!(browser::chrome::v154_websocket(), chromium_expected());
     assert_eq!(browser::firefox::v157_websocket(), firefox_original());
     Ok(())
 }

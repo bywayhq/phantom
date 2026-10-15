@@ -8,14 +8,13 @@
 //! The TLS and QUIC ClientHellos equal desktop Edge's, which Edge 153 and 154
 //! send alike: the Chromium offers without trust-anchor IDs. The H2 startup,
 //! QUIC transport parameters, H3 SETTINGS, and request field orders equal the
-//! Chromium recipes. Only the client hints and `User-Agent` carry Edge for
-//! Android data.
+//! Chromium recipes. The client hints, `User-Agent`, and WebSocket opening
+//! settings carry Edge for Android data.
 //!
-//! There is no TCP, HTTP/1.1 connection, address-cache, proxy CONNECT,
-//! WebSocket, or cookie-placement recipe: the emulator hides socket options,
-//! as [`crate::browser::chrome`] explains, and only the `accept` and
-//! `h1-accept` WebSocket scenarios were captured, for their page and `fetch`
-//! requests.
+//! WebSocket HTTP/1.1 and HTTP/2 openings are retained. Uncaptured WebSocket
+//! policies reuse pinned Chromium source; see [`v153_android_websocket`].
+//! TCP socket options, HTTP/1.1 connection policy, address caching, proxy
+//! CONNECT, and cookie placement remain unavailable.
 
 use crate::{
     browser::chrome,
@@ -25,6 +24,7 @@ use crate::{
     quic::QuicTransportSettings,
     request_template::RequestTemplate,
     tls::TlsSettings,
+    websocket::WebSocketSettings,
 };
 
 /// The `User-Agent` Edge 153 for Android sent on every captured request:
@@ -147,6 +147,24 @@ pub fn v153_android_navigation_template() -> RequestTemplate {
 #[must_use]
 pub fn v153_android_fetch_no_store_template() -> RequestTemplate {
     chrome::v154_fetch_no_store_template(Some(V153_ANDROID_USER_AGENT))
+}
+
+/// Returns Edge 153 Android WebSocket openings and reused Chromium policies.
+///
+/// Three emulator runs each of `accept` and `h1-accept` back the field order,
+/// values, HTTP/2 priority and pseudo-field order. Caller slots supply the
+/// captured User-Agent and Origin. No physical-device capture is claimed.
+///
+/// Unobserved policies reuse Chromium `153.0.8010.53` at commit
+/// `792bf6722e73a45aa9e47c163b9901bdc17f3230`: WebSocket handshake creation,
+/// deflate, the 240-second opening timer, existing-session selection, and
+/// transaction-level refusal restarts. Edge overrides are not established.
+/// Cookie and optional subprotocol slots follow the source insertion order;
+/// neither appears in these two captures. HTTP/3 and Android data-pipe sizing
+/// are outside this recipe.
+#[must_use]
+pub fn v153_android_websocket() -> WebSocketSettings {
+    crate::catalog::websocket_components::edge_android_153_websocket()
 }
 
 #[cfg(test)]

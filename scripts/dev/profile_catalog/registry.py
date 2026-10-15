@@ -73,7 +73,7 @@ TARGET_CONTRACTS = {
             "ClientHints",
         },
     ),
-    "EdgeAndroid153": ("Edge", "Android", ANDROID - {"WebSocket"}),
+    "EdgeAndroid153": ("Edge", "Android", ANDROID),
     "BraveWindows154": ("Brave", "Windows", WINDOWS),
     "BraveAndroid153": ("Brave", "Android", ANDROID),
     "FirefoxWindows157": ("Firefox", "Windows", WINDOWS - {"Udp", "ClientHints"}),
