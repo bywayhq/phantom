@@ -1,6 +1,6 @@
 # Connection fixtures and shared listener ports
 
-These repairs address two failures that blocked campaign integration. Keep
+These repairs address failures that blocked campaign integration. Keep
 their controlled reproductions separate from the original host conditions.
 
 ## Cookie connection closure
@@ -37,6 +37,23 @@ Both reservation controls and all 47 snapshot controls passed. The original
 failed allocation sequence was not retained, so the simulated exclusion is
 mechanism evidence rather than an exact reconstruction of that run.
 
+## Alternative destination port ownership
+
+Main `f307150d` failed its macOS alternative-host ECH test before the client
+request. Separate UDP and TCP binds to port zero both received port 49683.
+The fixture asserted that those port numbers differed, although the operating
+system allows independent protocols to share a number.
+
+The destination now reserves both protocols through the existing bounded
+shared-port allocator. It keeps the TCP listener until its QUIC peer finishes.
+The advertisement therefore cannot take that destination port. All six
+original scenarios, assertions and deadlines stay unchanged.
+
+A socket control added to the original fixture failed because another TCP
+listener could bind the destination port. The same control and all six
+scenarios passed with the reservation. This verifies the missing ownership
+constraint. The original CI log separately records the observed collision.
+
 ## Retained evidence
 
 The integration owner's local archive is
@@ -45,6 +62,15 @@ contains original and controlled sources, complete logs, source and binary
 hashes, and independent review. `snapshot-shared-port-reviewed/` contains the
 original source, failure control, repaired controls, host exclusion lists,
 and independent review.
+
+`firefox-alt-used-mapping-f307150d-gate/main-ci-failed.log` preserves the
+original macOS failure. `alternative-port-root-review-v1/` binds the original,
+control and repaired source. `alternative-port-baseline-v1/` and
+`alternative-port-focused-v2/` contain their complete execution logs. An
+earlier fixed-source check reused the baseline binary because copying the
+source preserved an older timestamp; its failed log remains in
+`alternative-port-focused-v1/`. Writing the reviewed bytes with a current
+timestamp forced compilation before the successful check.
 
 The cookie packet also preserves a compiler allocation failure before any
 test ran. An unchanged retry with one build job reached the behavioral

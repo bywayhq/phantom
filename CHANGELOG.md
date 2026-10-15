@@ -2661,6 +2661,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Reserve both TCP and UDP in the alternative-host test origin so its
+  advertisement listener cannot receive the destination port.
+
 - Keep HTTP/3 origin-ticket retries separate from CONNECT-UDP proxy
   handshake failures. Each TLS leg retains its own retry budget.
 - Place generated HTTP/3 `Alt-Used` at an optional `RequestField::AltUsed`

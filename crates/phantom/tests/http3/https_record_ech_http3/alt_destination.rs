@@ -13,14 +13,15 @@ type HandshakeObservations = Vec<(Observed, Option<String>)>;
 
 struct DestinationOrigin {
     port: u16,
+    tcp_reservation: TcpListener,
     stop: oneshot::Sender<()>,
     task: ConnectionPeer<TestResult<HandshakeObservations>>,
 }
 
 impl DestinationOrigin {
-    fn spawn(identity: &TestIdentity) -> TestResult<Self> {
+    async fn spawn(identity: &TestIdentity) -> TestResult<Self> {
         let context = QuicOrigin::context(identity, 1, &TEST_ECH_KEYS[0])?;
-        let endpoint = QuicOrigin::endpoint(&context, 0)?;
+        let (endpoint, tcp_reservation) = Self::bind(&context).await?;
         let port = endpoint.local_addr()?.port();
         let (stop, mut stopped) = oneshot::channel();
         let task = ConnectionPeer::spawn(async move {
@@ -56,10 +57,42 @@ impl DestinationOrigin {
             finish_with_cleanup(result, cleanup)?;
             Ok(observed)
         });
-        Ok(Self { port, stop, task })
+        Ok(Self {
+            port,
+            tcp_reservation,
+            stop,
+            task,
+        })
+    }
+
+    async fn bind(context: &SslContext) -> TestResult<(quinn::Endpoint, TcpListener)> {
+        let mut last_error = None;
+        for port in shared_port::candidates() {
+            let endpoint = match QuicOrigin::endpoint(context, port) {
+                Ok(endpoint) => endpoint,
+                Err(error) if shared_port::is_unavailable_boxed(error.as_ref()) => {
+                    last_error = Some(error.to_string());
+                    continue;
+                }
+                Err(error) => return Err(error),
+            };
+            match TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await {
+                Ok(listener) => return Ok((endpoint, listener)),
+                Err(error) if shared_port::is_unavailable(&error) => {
+                    last_error = Some(error.to_string());
+                }
+                Err(error) => return Err(error.into()),
+            }
+        }
+        Err(format!(
+            "no loopback port was free for both UDP and TCP; last error: {}",
+            last_error.as_deref().unwrap_or("none")
+        )
+        .into())
     }
 
     async fn finish(self) -> TestResult<HandshakeObservations> {
+        let _reservation = self.tcp_reservation;
         let _ = self.stop.send(());
         timeout(TEST_TIMEOUT, self.task).await??
     }
@@ -139,7 +172,7 @@ enum Reply {
 
 async fn exchange(reply: Reply, requests: usize, destination_policy: bool) -> TestResult<()> {
     let identity = origin_identity()?;
-    let origin = DestinationOrigin::spawn(&identity)?;
+    let origin = DestinationOrigin::spawn(&identity).await?;
     let destination_port = origin.port;
     let advertisement = Advertisement::spawn(&identity, origin.port).await?;
     assert_ne!(advertisement.port, destination_port);
@@ -292,6 +325,27 @@ async fn exchange(reply: Reply, requests: usize, destination_policy: bool) -> Te
     };
     assert_eq!(destinations, expected);
     Ok(())
+}
+
+#[tokio::test]
+async fn destination_keeps_its_tcp_port_reserved() -> TestResult<()> {
+    bounded(async {
+        let identity = origin_identity()?;
+        let origin = DestinationOrigin::spawn(&identity).await?;
+        let port = origin.port;
+        let duplicate = TcpListener::bind((Ipv4Addr::LOCALHOST, port)).await;
+        let advertisement = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await;
+        let cleanup = origin.finish().await;
+        let advertisement = advertisement?;
+        let error = duplicate
+            .err()
+            .ok_or("destination TCP port was not reserved")?;
+        assert!(shared_port::is_unavailable(&error), "{error}");
+        assert_ne!(advertisement.local_addr()?.port(), port);
+        cleanup?;
+        Ok(())
+    })
+    .await
 }
 
 #[tokio::test]
