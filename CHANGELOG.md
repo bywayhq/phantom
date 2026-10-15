@@ -1153,7 +1153,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Add native session-store transfer preparation with bounded exports and
   nonblocking policy guards. Expose encoded record lengths for snapshot byte
   budgets. Validate cold records against configured policy and credentials,
-  and rekey bounded opaque records for mixed exports.
+  and rekey bounded opaque records for mixed exports. Select whole owners
+  explicitly when replacing cold records, without consuming retained source
+  slots or granting recipient authority.
 
 - Add explicit SOCKS4 and SOCKS4a routes with local or proxy DNS, optional
   user identification, and HTTP/1.1, HTTP/2, and WebSocket TCP tunnels.

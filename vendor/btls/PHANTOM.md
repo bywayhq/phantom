@@ -37,7 +37,7 @@ size limit, and delegated-credential patches.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.13`), keeps
+renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.14`), keeps
 the upstream library name so source, tests, and examples are unchanged, and
 points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -54,6 +54,12 @@ content changes without an upstream version change, and update the exact pins
 in the root `Cargo.toml` and in every renamed dependent.
 
 ## Why this patch exists
+
+`session-transfer-selected-custody.patch` rekeys explicitly selected opaque
+records without consuming their source slots. An owner being replaced may be
+omitted after its record expires, while unrelated selected records still
+require native expiry and installed-recipient checks. It grants no new
+attachment authority or replay protection.
 
 `session-transfer-cold-custody.patch` checks configured policy and actual
 credentials before retaining cold records, without issuing import permits.

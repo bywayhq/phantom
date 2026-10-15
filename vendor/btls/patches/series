@@ -22,4 +22,5 @@ session-transfer-store-freeze.patch
 session-transfer-record-size.patch
 session-transfer-cold-custody.patch
 session-transfer-dependency.patch
+session-transfer-selected-custody.patch
 publish-identity.patch

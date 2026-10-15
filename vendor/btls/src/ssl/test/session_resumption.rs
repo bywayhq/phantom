@@ -2585,3 +2585,284 @@ fn authenticated_transfer_cold_policy_preserves_real_tls13_true_early_data_mode(
     drop(stream);
     drop(server);
 }
+
+#[test]
+fn authenticated_transfer_selected_records_preserve_real_tls12_and_tls13_identity() {
+    use crate::ssl::SessionTransferError as Error;
+    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
+        let (session, source, client, _) = transfer_test_fixture(version, b"credential", &[1; 32]);
+        let records = [
+            source
+                .seal_session(&session, b"first owner", &[7; 32])
+                .unwrap(),
+            source
+                .seal_session(&session, b"omitted middle owner", &[7; 32])
+                .unwrap(),
+            source
+                .seal_session(&session, b"last owner", &[7; 32])
+                .unwrap(),
+        ];
+        let selected_bytes = records[0].encoded_len() + records[2].encoded_len();
+        let envelope = crate::ssl::seal_envelope(&records, &[7; 32]).unwrap();
+        let mut opened =
+            crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], client.context()).unwrap();
+        let recipient = transfer_test_client(version);
+        let scope = SslSessionScope::default();
+        let binding = transfer_test_binding(&recipient, &scope, b"credential", &[2; 32]);
+        for key in [[7; 32], [9; 32]] {
+            let selected = opened
+                .prepare_selected_records(&[0, 2], &key, selected_bytes)
+                .unwrap();
+            assert_eq!(selected.len(), 2);
+            assert_eq!(selected[0].encoded_len(), records[0].encoded_len());
+            assert_eq!(selected[1].encoded_len(), records[2].encoded_len());
+            let sealed = crate::ssl::seal_envelope(&selected, &key).unwrap();
+            assert_eq!(sealed.as_bytes().len(), 56 + 16 + 4 + selected_bytes);
+            if key != [7; 32] {
+                assert!(matches!(
+                    crate::ssl::open_envelope(sealed.as_bytes(), &[7; 32], recipient.context()),
+                    Err(Error::Authentication)
+                ));
+            }
+            let mut compact =
+                crate::ssl::open_envelope(sealed.as_bytes(), &key, recipient.context()).unwrap();
+            assert_eq!(compact.record_count(), 2);
+            for (index, metadata) in [b"first owner".as_slice(), b"last owner".as_slice()]
+                .into_iter()
+                .enumerate()
+            {
+                assert_eq!(compact.owner_metadata(index).unwrap(), metadata);
+                assert_eq!(
+                    compact.source_witness(index).unwrap(),
+                    b"fixed validated witness"
+                );
+                let imported = compact
+                    .authorize_record(index, &binding)
+                    .unwrap()
+                    .into_scoped_session()
+                    .unwrap();
+                assert!(imported.is_authenticated());
+                assert!(imported.matches(&scope, recipient.context(), "foobar.com"));
+                assert!(imported.session().id() == session.session().id());
+                assert_eq!(imported.protocol_version(), session.protocol_version());
+                assert_eq!(imported.time(), session.time());
+                assert_eq!(imported.timeout(), session.timeout());
+                assert_eq!(
+                    imported.should_be_single_use(),
+                    session.should_be_single_use()
+                );
+            }
+        }
+        assert_eq!(opened.record_count(), 3);
+        for (index, metadata) in [
+            b"first owner".as_slice(),
+            b"omitted middle owner".as_slice(),
+            b"last owner".as_slice(),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            assert_eq!(opened.owner_metadata(index).unwrap(), metadata);
+            assert_eq!(
+                opened.source_witness(index).unwrap(),
+                b"fixed validated witness"
+            );
+            assert!(opened
+                .authorize_record(index, &binding)
+                .unwrap()
+                .into_scoped_session()
+                .unwrap()
+                .is_authenticated());
+        }
+    }
+}
+
+#[test]
+fn authenticated_transfer_selected_records_reject_bad_slots_and_budgets_without_consuming() {
+    use crate::ssl::SessionTransferError as Error;
+    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
+        let (session, source, client, _) = transfer_test_fixture(version, b"credential", &[1; 32]);
+        let records = [
+            source.seal_session(&session, b"first", &[7; 32]).unwrap(),
+            source
+                .seal_session(&session, b"consumed middle", &[7; 32])
+                .unwrap(),
+            source.seal_session(&session, b"last", &[7; 32]).unwrap(),
+        ];
+        let selected_bytes = records[0].encoded_len() + records[2].encoded_len();
+        let envelope = crate::ssl::seal_envelope(&records, &[7; 32]).unwrap();
+        let mut opened =
+            crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], client.context()).unwrap();
+        for indices in [vec![0, 0], vec![2, 0], vec![3], vec![usize::MAX]] {
+            assert!(matches!(
+                opened.prepare_selected_records(&indices, &[9; 32], usize::MAX),
+                Err(Error::Malformed)
+            ));
+        }
+        assert!(matches!(
+            opened.prepare_selected_records(&vec![0; 2561], &[9; 32], usize::MAX),
+            Err(Error::TooLarge)
+        ));
+        assert!(matches!(
+            opened.prepare_selected_records(&[0, 2], &[9; 32], selected_bytes - 1),
+            Err(Error::TooLarge)
+        ));
+        assert!(matches!(
+            opened.prepare_selected_records(&[0], &[9; 32], 0),
+            Err(Error::TooLarge)
+        ));
+        let empty = opened.prepare_selected_records(&[], &[9; 32], 0).unwrap();
+        assert!(empty.is_empty());
+        let empty = crate::ssl::seal_envelope(&empty, &[9; 32]).unwrap();
+        assert_eq!(
+            crate::ssl::open_envelope(empty.as_bytes(), &[9; 32], client.context())
+                .unwrap()
+                .record_count(),
+            0
+        );
+        let recipient = transfer_test_client(version);
+        let scope = SslSessionScope::default();
+        let binding = transfer_test_binding(&recipient, &scope, b"credential", &[2; 32]);
+        let imported = opened
+            .authorize_record(1, &binding)
+            .unwrap()
+            .into_scoped_session()
+            .unwrap();
+        assert!(imported.is_authenticated());
+        for indices in [vec![1], vec![0, 1]] {
+            assert!(matches!(
+                opened.prepare_selected_records(&indices, &[9; 32], usize::MAX),
+                Err(Error::Consumed)
+            ));
+        }
+        let selected = opened
+            .prepare_selected_records(&[0, 2], &[9; 32], selected_bytes)
+            .unwrap();
+        let selected = crate::ssl::seal_envelope(&selected, &[9; 32]).unwrap();
+        let mut compact =
+            crate::ssl::open_envelope(selected.as_bytes(), &[9; 32], recipient.context()).unwrap();
+        for (index, metadata) in [b"first".as_slice(), b"last".as_slice()]
+            .into_iter()
+            .enumerate()
+        {
+            assert_eq!(compact.owner_metadata(index).unwrap(), metadata);
+            assert!(compact
+                .authorize_record(index, &binding)
+                .unwrap()
+                .into_scoped_session()
+                .unwrap()
+                .is_authenticated());
+        }
+        assert_eq!(opened.record_count(), 3);
+        assert!(matches!(opened.owner_metadata(1), Err(Error::Consumed)));
+        for (index, metadata) in [(0, b"first".as_slice()), (2, b"last".as_slice())] {
+            assert_eq!(opened.owner_metadata(index).unwrap(), metadata);
+            assert!(opened
+                .authorize_record(index, &binding)
+                .unwrap()
+                .into_scoped_session()
+                .unwrap()
+                .is_authenticated());
+        }
+    }
+}
+
+#[test]
+fn authenticated_transfer_selected_records_omit_expired_owner_and_preserve_real_valid_owner() {
+    use crate::ssl::SessionTransferError as Error;
+    for version in [SslVersion::TLS1_2, SslVersion::TLS1_3] {
+        let (short, short_source, client, _) =
+            transfer_test_fixture(version, b"credential", &[1; 32]);
+        let (long, long_source, _, _) = transfer_test_fixture(version, b"credential", &[3; 32]);
+        let recipient = transfer_test_client(version);
+        let scope = SslSessionScope::default();
+        let binding = transfer_test_binding(&recipient, &scope, b"credential", &[2; 32]);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        // SAFETY: this test owns the real callback session without a live
+        // connection. The pinned native setters support session expiry tests.
+        unsafe {
+            ffi::SSL_SESSION_set_time(short.session().as_ptr(), now);
+            ffi::SSL_SESSION_set_timeout(short.session().as_ptr(), 5);
+        }
+        let records = [
+            short_source
+                .seal_session(&short, b"explicitly replaced expired owner", &[7; 32])
+                .unwrap(),
+            long_source
+                .seal_session(&long, b"preserved valid owner", &[7; 32])
+                .unwrap(),
+        ];
+        let valid_bytes = records[1].encoded_len();
+        let envelope = crate::ssl::seal_envelope(&records, &[7; 32]).unwrap();
+        let mut opened =
+            crate::ssl::open_envelope(envelope.as_bytes(), &[7; 32], client.context()).unwrap();
+        assert_eq!(
+            opened
+                .prepare_selected_records(&[0, 1], &[9; 32], usize::MAX)
+                .unwrap()
+                .len(),
+            2
+        );
+        let expires = std::time::UNIX_EPOCH + std::time::Duration::from_secs(now + 5);
+        if let Ok(remaining) = expires.duration_since(std::time::SystemTime::now()) {
+            std::thread::sleep(remaining + std::time::Duration::from_millis(50));
+        }
+        assert!(matches!(
+            opened.prepare_remaining_records(&[9; 32], usize::MAX),
+            Err(Error::Expired)
+        ));
+        for indices in [vec![0], vec![0, 1]] {
+            assert!(matches!(
+                opened.prepare_selected_records(&indices, &[9; 32], usize::MAX),
+                Err(Error::Expired)
+            ));
+        }
+        assert!(opened
+            .prepare_selected_records(&[], &[9; 32], 0)
+            .unwrap()
+            .is_empty());
+        let selected = opened
+            .prepare_selected_records(&[1], &[9; 32], valid_bytes)
+            .unwrap();
+        assert_eq!(selected.len(), 1);
+        let selected = crate::ssl::seal_envelope(&selected, &[9; 32]).unwrap();
+        let mut compact =
+            crate::ssl::open_envelope(selected.as_bytes(), &[9; 32], recipient.context()).unwrap();
+        assert_eq!(compact.record_count(), 1);
+        assert_eq!(compact.owner_metadata(0).unwrap(), b"preserved valid owner");
+        assert_eq!(
+            compact.source_witness(0).unwrap(),
+            b"fixed validated witness"
+        );
+        let imported = compact
+            .authorize_record(0, &binding)
+            .unwrap()
+            .into_scoped_session()
+            .unwrap();
+        assert!(imported.is_authenticated());
+        assert!(imported.matches(&scope, recipient.context(), "foobar.com"));
+        assert!(imported.session().id() == long.session().id());
+        assert_eq!(imported.protocol_version(), long.protocol_version());
+        assert_eq!(imported.time(), long.time());
+        assert_eq!(imported.timeout(), long.timeout());
+        assert_eq!(opened.record_count(), 2);
+        assert_eq!(
+            opened.owner_metadata(0).unwrap(),
+            b"explicitly replaced expired owner"
+        );
+        assert_eq!(opened.owner_metadata(1).unwrap(), b"preserved valid owner");
+        assert!(matches!(
+            opened.authorize_record(0, &binding),
+            Err(Error::Expired)
+        ));
+        assert!(opened
+            .authorize_record(1, &binding)
+            .unwrap()
+            .into_scoped_session()
+            .unwrap()
+            .is_authenticated());
+    }
+}

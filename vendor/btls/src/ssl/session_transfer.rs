@@ -1111,6 +1111,82 @@ impl VerifiedSessionEnvelope {
         Ok(records)
     }
 
+    /// Rekeys exactly the selected opaque records without consuming source slots.
+    ///
+    /// Indices must be strictly ascending, unique, present and unconsumed. Only
+    /// selected records are decoded, checked for TLS version and expiry, or
+    /// copied. An empty selection is valid. The caller chooses whole owners;
+    /// this method does not prune expired records or preserve unselected ones.
+    /// `max_encoded_len` bounds summed record lengths, excluding envelope header,
+    /// count and tag. The native whole-envelope bound also applies before copies.
+    /// Source witnesses, credential custody and owner metadata remain unchanged.
+    /// No recipient permit, native session or key getter is provided. Snapshot
+    /// key holders retain their existing ability to forge, copy or replay data.
+    pub fn prepare_selected_records(
+        &self,
+        indices: &[usize],
+        new_key: &[u8; 32],
+        max_encoded_len: usize,
+    ) -> Result<Vec<AuthenticatedSessionRecord>, SessionTransferError> {
+        if indices.len() > MAX_RECORDS {
+            return Err(SessionTransferError::TooLarge);
+        }
+        let mut previous = None;
+        for &index in indices {
+            if previous.is_some_and(|old| index <= old) {
+                return Err(SessionTransferError::Malformed);
+            }
+            self.records
+                .get(index)
+                .ok_or(SessionTransferError::Malformed)?
+                .as_ref()
+                .ok_or(SessionTransferError::Consumed)?;
+            previous = Some(index);
+        }
+        if indices.is_empty() {
+            return Ok(Vec::new());
+        }
+        let bound = max_encoded_len.min(MAX_ENVELOPE - HEADER - TAG - 4);
+        let mut total = 0_usize;
+        for &index in indices {
+            let record = self
+                .records
+                .get(index)
+                .ok_or(SessionTransferError::Malformed)?
+                .as_ref()
+                .ok_or(SessionTransferError::Consumed)?;
+            let parsed = Record::parse(&record.body)?;
+            let session = SslSession::from_bytes(parsed.native, &self.decoding_context)?;
+            check_session(&session)?;
+            total = total
+                .checked_add(record.encoded_len())
+                .filter(|size| *size <= bound)
+                .ok_or(SessionTransferError::TooLarge)?;
+        }
+        let record_key = key(new_key, b"phantom-ticket-record-v1")?;
+        let mut records = Vec::new();
+        records
+            .try_reserve_exact(indices.len())
+            .map_err(|_| SessionTransferError::Allocation)?;
+        for &index in indices {
+            let record = self
+                .records
+                .get(index)
+                .ok_or(SessionTransferError::Malformed)?
+                .as_ref()
+                .ok_or(SessionTransferError::Consumed)?;
+            check_expiry(record.expires_at)?;
+            let body = copy(&record.body, MAX_ENVELOPE)?;
+            let mac = hmac_sha256(&*record_key, &body)?;
+            records.push(AuthenticatedSessionRecord {
+                body,
+                mac,
+                expires_at: record.expires_at,
+            });
+        }
+        Ok(records)
+    }
+
     /// Copies only remaining authenticated records into a compact new transaction.
     ///
     /// All records are strict-decoded and checked for expiry before any body is
