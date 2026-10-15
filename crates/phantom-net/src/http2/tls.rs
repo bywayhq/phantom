@@ -375,14 +375,16 @@ impl Http2TlsConnector {
     ) -> Result<(Http2Connection, Option<SlowerConnection<Http2Connection>>), Http2TlsError> {
         match route {
             Http2Route::Origin(origin) => {
-                self.trace_connect(pin!(async {
+                // End downstream Send proofs before the concrete TLS setup and
+                // its tracing wrapper become part of the caller's future.
+                let mut operation: Pin<Box<dyn Future<Output = _> + Send + '_>> = Box::pin(async {
                     origin
                         .validate(false, true)
                         .map_err(Http2TlsError::Connect)?;
                     let client = translate_settings(&self.http2)?;
                     self.connect_retaining_origin(origin, client).await
-                }))
-                .await
+                });
+                self.trace_connect(operation.as_mut()).await
             }
             Http2Route::Forward { proxy, credentials } => {
                 let ProxyTransport::Tls {
@@ -778,7 +780,7 @@ impl Http2TlsConnector {
     /// future, so outside the span and after the span records cancellation.
     async fn trace_connect<F, T>(&self, operation: Pin<&mut F>) -> Result<T, Http2TlsError>
     where
-        F: Future<Output = Result<T, Http2TlsError>>,
+        F: Future<Output = Result<T, Http2TlsError>> + ?Sized,
     {
         let span = debug_span!(
             "http2.tls.connect",
