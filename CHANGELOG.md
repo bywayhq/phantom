@@ -1181,6 +1181,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Keep a configured HTTPS proxy TCP backup progressing through proxy TLS,
+  then close it when pooled HTTP/2 activates, before authentication or
+  CONNECT. The pool remembers the physical proxy address family.
+
 - Retain Firefox proxy backups for negotiated HTTP/1 or HTTP/2 and exact
   HTTP/2 HTTPS requests through HTTP/1 CONNECT proxies. A spare keeps its
   proxy TLS and credential context. Its claimant supplies current CONNECT

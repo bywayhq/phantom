@@ -239,8 +239,14 @@ proxy backups close. Exact H2 keeps its existing single setup per key; a
 quiet backup becomes claimable after primary failure or cancellation.
 Neither path sends speculative CONNECT or origin TLS on a quiet spare.
 H2 in these paths is the inner origin protocol. Physical selection for an
-outer H2 proxy connection is separate; Firefox closes its raw backup when
-H2 activates, before proxy authentication or CONNECT.
+outer H2 proxy connection is separate. Its pooled setup uses the configured
+TCP selection, progresses a retained raw backup through proxy TLS, and closes
+it after verified H2 negotiation, before authentication or CONNECT. The backup
+sends no TLS or application bytes. The bounded pool route remembers the
+physical proxy family per endpoint, server name, credentials, connector
+settings and runtime. That memory survives slot retirement because forwarding
+handles can outlive slots. Route eviction gives a new route fresh memory,
+even while an old caller-owned connection survives.
 
 Exact HTTP/1 forwarding of plaintext origins through HTTP and HTTPS proxies
 also retains a quiet backup. An HTTPS spare may finish outer TLS without
@@ -249,10 +255,10 @@ and credentials. A request that claims an unfinished spare waits for its
 outer TLS. Connections keep their existing origin, route, runtime and
 credential bounds. Family memory remains per origin and route. Firefox can
 share a forwarding connection between origins on one proxy; Phantom keeps
-those origins separate. Outer H2 proxy family learning, SOCKS and proxy
-WebSocket backups, and proxy early-data setup remain outside these
-additions. These CONNECT paths do not add ECH or failed-address
-suppression.
+those origins separate. SOCKS and proxy WebSocket backups, and proxy
+early-data setup remain outside these additions. Dedicated nonpooled outer
+H2 and CONNECT-UDP setup keep their existing behavior. These CONNECT paths
+do not add ECH or failed-address suppression.
 
 ### RTT-based racing
 

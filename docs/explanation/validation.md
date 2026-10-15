@@ -2007,9 +2007,11 @@ Differences from the browsers:
   an H1 CONNECT tunnel. An outer H2 proxy connection is a different path:
   Firefox reports H2 activation before proxy authentication or CONNECT and
   closes redundant raw attempts (`nsHttpConnection.cpp:307-395` and
-  `ConnectionEntry.cpp:627-649` at `FIREFOX_157_0_RELEASE`). Physical proxy
-  family learning on that path, SOCKS and proxy WebSocket backups remain
-  outside this extension.
+  `ConnectionEntry.cpp:627-649` at `FIREFOX_157_0_RELEASE`). Phantom's pooled
+  outer H2 setup now progresses a raw backup during proxy TLS and drops it
+  after certificate verification and H2 ALPN, before authentication or CONNECT.
+  The backup sends no TLS or application bytes. SOCKS, proxy WebSocket backups
+  and proxy early-data setup remain outside this extension.
 - A direct connection's slower attempt becomes claimable once the first
   connection's handshake has finished. The retained HTTP/1 proxy paths
   above register the spare after physical selection, before primary proxy
@@ -2068,6 +2070,24 @@ The repaired public run passed all 11 selected tests, including the four new
 controls. Strict three-crate Clippy passed. The full gate and platform CI
 remain pending; these results do not establish browser timing, ECH or proxy
 early-data parity.
+
+The pooled outer-H2 extension remembers the physical proxy family within the
+existing bounded pool route: proxy host, port and server name, actual
+credentials, connector settings and runtime. It keeps that memory through
+slot retirement because caller-owned forwarding handles can outlive slots.
+A route recreated after LRU eviction starts fresh even if an old caller-owned
+connection survives. This conservative lifetime does not reproduce an earlier
+Firefox connection-entry reset. Dedicated nonpooled H2 and CONNECT-UDP setup
+are unchanged.
+
+Eleven new source-reviewed controls and 18 existing pool controls are selected
+for focused verification; all 29 are currently uncompiled and unexecuted on
+this checkpoint. The new controls use loopback sockets and TLS gates to check
+raw-backup progress, retirement before CONNECT, cancellation, ALPN and
+certificate errors. They also cover family learning without target resolution,
+route and runtime isolation, slot retirement and bounded eviction. This is a
+source-backed implementation and a verification plan, without browser timing
+capture or platform parity evidence.
 
 Tests in `phantom-net` read the options back from connected sockets with
 `socket2` getters:

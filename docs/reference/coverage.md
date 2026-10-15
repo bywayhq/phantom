@@ -187,14 +187,21 @@ Supported:
   credentials. Family memory stays per origin and route. Connection ownership
   keeps its origin, route, runtime and credential bounds.
 
+- Pooled outer HTTP/2 connections to HTTPS proxies use the configured TCP
+  selection and remember the physical proxy family within their bounded route.
+  A retained raw backup progresses during proxy TLS, sends no TLS or application
+  bytes, and closes after verified H2 negotiation, before authentication or
+  CONNECT. Family memory survives slot retirement; a route recreated after
+  eviction starts fresh. Dedicated nonpooled H2 and CONNECT-UDP setup are
+  unchanged.
+
 Not modeled:
 
 - Parts of Firefox's address selection: keeping the slower connection, and
   remembering the address family, on SOCKS, proxy WebSockets and proxy
-  setup with early data; physical proxy family learning for outer HTTP/2
-  connections; sharing a
-  forwarding connection between origins; skipping an address that failed
-  before on the same cached DNS record; and noticing at once that a server
+  setup with early data; sharing a forwarding connection between origins;
+  skipping an address that failed before on the same cached DNS record; and
+  noticing at once that a server
   closed an idle connection, which can make Firefox remember a family longer.
 - Chromium's resolver behavior before racing: its own address sorting,
   partial DNS results, and HTTPS records fetched with the address queries.

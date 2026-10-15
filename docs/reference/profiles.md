@@ -313,7 +313,13 @@ resolved addresses.
   after primary failure or cancellation. Unpolled claims retain their idle
   age. A polled claim closes on cancellation. These H2 connections reach
   the origin through H1 CONNECT. An outer H2 proxy connection is separate:
-  Firefox closes redundant raw backups when it activates H2 to the proxy.
+  its pool uses the configured TCP selection and remembers the physical
+  proxy's address family. A retained raw backup progresses through proxy TLS
+  and closes after verified H2 negotiation, before authentication or CONNECT.
+  It sends no TLS or application bytes. Family memory stays with the bounded
+  pool route, partitioned by proxy endpoint, server name, credentials,
+  connector settings and runtime. It survives connection-slot retirement;
+  eviction gives a newly created route fresh memory.
 - `TcpAddressSelection::Sequential` takes a `TcpAddressAdvance`:
   `AfterAnyFailure`, the default, moves to the next address after any
   failure, and `AfterRefusalOrTimeout`, which `firefox::v157_tcp` sets,
@@ -323,9 +329,8 @@ resolved addresses.
   factories leave the send buffer unchanged.
 - Not modeled for Firefox: keeping the slower connection, and remembering
   the address family, on SOCKS, proxy WebSockets and proxy setup with early
-  data; physical proxy family learning for outer HTTP/2 connections; sharing a
-  forwarding connection between origins; skipping an address that failed before on the
-  same cached DNS record; its
+  data; sharing a forwarding connection between origins; skipping an address
+  that failed before on the same cached DNS record; its
   `SO_LINGER` of `{1, 0}` (its close is still a FIN, as Phantom's is).
 - Brave 1.96.59 builds the Chromium tag behind `chrome::v154_tcp` and
   changes none of the values it cites, so Brave uses that recipe.
