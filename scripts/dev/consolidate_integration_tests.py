@@ -147,6 +147,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "websocket_http2_proxy",
                 "websocket_http3",
                 "websocket_profile",
+                "websocket_retention",
                 "websocket_trust",
             ],
         ),
