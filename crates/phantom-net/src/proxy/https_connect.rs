@@ -860,6 +860,155 @@ impl HttpsProxyConnector {
         }
     }
 
+    /// An opening must retain its actual TLS cache, not just H2 pool settings.
+    pub(crate) fn same_http1_opening_context(&self, other: &Self) -> bool {
+        self.protocol == HttpsProxyProtocol::Http1
+            && other.protocol == HttpsProxyProtocol::Http1
+            && self.connection_settings == other.connection_settings
+            && match (&self.proxy_credentials, &other.proxy_credentials) {
+                (None, None) => true,
+                (Some(left), Some(right)) => left.same_scope(right),
+                _ => false,
+            }
+            && match (self.session_ticket_cache(), other.session_ticket_cache()) {
+                (None, None) => true,
+                (Some(left), Some(right)) => match (left.upgrade(), right.upgrade()) {
+                    (Some(left), Some(right)) => left.same_cache(&right),
+                    _ => false,
+                },
+                _ => false,
+            }
+    }
+
+    pub(crate) async fn open_http1_proxy_retaining(
+        &self,
+        proxy_host: &str,
+        proxy_port: u16,
+        family: &crate::tcp::AddressFamilyMemory,
+    ) -> Result<
+        (
+            crate::tcp::ProfileTcpStream,
+            Option<crate::tcp::SlowerAttempt>,
+        ),
+        HttpConnectError,
+    > {
+        if self.protocol != HttpsProxyProtocol::Http1 {
+            return Err(HttpConnectError::Connect(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "retained HTTPS CONNECT requires an HTTP/1 proxy",
+            )));
+        }
+        crate::direct::connect_tcp_keeping_slower(
+            proxy_host,
+            proxy_port,
+            self.dialer(),
+            Some(family),
+        )
+        .await
+        .map_err(|error| match error {
+            DirectConnectError::RuntimeUnavailable => HttpConnectError::RuntimeUnavailable,
+            DirectConnectError::Connect(error) => HttpConnectError::Connect(error),
+        })
+    }
+
+    pub(crate) async fn finish_http1_proxy_tls(
+        &self,
+        stream: crate::tcp::ProfileTcpStream,
+        server_name: &str,
+    ) -> Result<TlsStream<crate::tcp::ProfileTcpStream>, HttpConnectError> {
+        let stream = self
+            .tls
+            .connect(server_name, stream)
+            .await
+            .map_err(HttpConnectError::ProxyTls)?;
+        if let Some(selected) = stream.negotiated_alpn()
+            && selected != b"http/1.1"
+        {
+            return Err(HttpConnectError::UnsupportedAlpn {
+                selected: selected.into(),
+            });
+        }
+        Ok(stream)
+    }
+
+    /// CONNECT belongs to the claimant; the supplied TLS stream is used first.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn connect_http1_tunnel_from_stream(
+        &self,
+        stream: TlsStream<crate::tcp::ProfileTcpStream>,
+        proxy_host: &str,
+        proxy_port: u16,
+        proxy_server_name: &str,
+        authority: &str,
+        headers: &[HttpConnectHeader],
+        credentials: Option<HttpProxyAuthentication<'_>>,
+    ) -> Result<HttpsProxyTunnel, HttpConnectError> {
+        super::validate_http_tunnel(authority, headers, credentials)?;
+        if let Some(keepalive) = crate::tcp::TcpKeepaliveSource::tcp_keepalive(&stream) {
+            keepalive.request_dispatched();
+        }
+        let first = Mutex::new(Some(stream));
+        let open = || async {
+            let stream = first.lock().unwrap_or_else(PoisonError::into_inner).take();
+            match stream {
+                Some(stream) => Ok(stream),
+                None => {
+                    self.connect_http1_proxy(proxy_host, proxy_port, proxy_server_name)
+                        .await
+                }
+            }
+        };
+        type Http1ConnectExchange<'a> = Pin<
+            Box<
+                dyn Future<
+                        Output = Result<
+                            TunnelStream<TlsStream<crate::tcp::ProfileTcpStream>>,
+                            HttpConnectError,
+                        >,
+                    > + Send
+                    + 'a,
+            >,
+        >;
+        let exchange: Http1ConnectExchange<'_> = Box::pin(async {
+            match credentials {
+                None => establish(open().await?, PreparedConnect::new(authority, headers)?).await,
+                Some(HttpProxyAuthentication::Basic(credentials)) => {
+                    let requests = PreparedBasicConnect::new(authority, headers, credentials)?;
+                    let plan = BasicAuthPlan::new(
+                        self.proxy_credentials.as_ref(),
+                        ProxyScheme::Https,
+                        proxy_host,
+                        proxy_port,
+                        credentials,
+                    );
+                    basic_auth_exchange(&plan, &requests, open).await
+                }
+                Some(HttpProxyAuthentication::Digest(credentials)) => {
+                    let scope = super::digest::cache::DigestCacheKey::new(
+                        ProxyScheme::Https,
+                        proxy_host,
+                        proxy_port,
+                        Some(&self.connection_settings),
+                        credentials.policy(),
+                    )
+                    .with_server_name(proxy_server_name);
+                    super::digest::http1::connect(
+                        &scope,
+                        credentials,
+                        self.proxy_credentials.is_some(),
+                        authority,
+                        headers,
+                        open,
+                    )
+                    .await
+                }
+            }
+        });
+        trace_connect("https", pin!(exchange))
+            .await
+            .map(HttpsProxyTunnel::http1)
+    }
+
     async fn connect_proxy_tls(
         &self,
         proxy_host: &str,

@@ -76,6 +76,10 @@ impl Entry {
 }
 
 impl ProxyCredentialCache {
+    pub(super) fn same_scope(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.entries, &other.entries)
+    }
+
     /// Creates an empty record.
     #[must_use]
     pub fn new() -> Self {
@@ -322,4 +326,16 @@ pub(crate) enum AuthStep<T> {
     Done(T),
     /// A first request received a `407` with a valid Basic challenge.
     Challenged,
+}
+
+#[cfg(test)]
+mod opening_scope_tests {
+    use super::ProxyCredentialCache;
+
+    #[test]
+    fn an_auth_scope_is_shared_by_exact_clones_and_not_another_cache() {
+        let cache = ProxyCredentialCache::new();
+        assert!(cache.same_scope(&cache.clone()));
+        assert!(!cache.same_scope(&ProxyCredentialCache::new()));
+    }
 }

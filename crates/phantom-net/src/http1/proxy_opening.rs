@@ -1,4 +1,4 @@
-//! A quiet proxy TCP socket whose CONNECT belongs to its claimant.
+//! A proxy opening whose application protocol belongs to its claimant.
 
 use std::{fmt, io};
 
@@ -9,27 +9,44 @@ use crate::{
     tcp::ProfileTcpStream,
 };
 
-/// A connected plaintext proxy socket with no CONNECT or origin TLS sent.
+/// A connected proxy opening with no CONNECT, origin TLS or request sent.
 ///
-/// Drop closes the socket. The claiming request supplies its current CONNECT
-/// fields to [`Self::finish`]; endpoint, authority and credentials stay bound
-/// to the route that opened it. The origin TLS connector is retained internally.
+/// Drop closes the socket. CONNECT openings retain their authority, credentials
+/// and origin TLS connector. Their claimant supplies current CONNECT fields to
+/// [`Self::finish`]. Forward openings use [`Self::finish_forward`] and receive
+/// each request only after setup. The two purposes cannot be interchanged.
+/// An HTTPS spare may finish proxy TLS before claim. Its original proxy TLS
+/// context and ticket cache are retained; application early data is not offered.
 pub struct Http1ProxyOpening {
     state: Box<ProxyOpeningState>,
 }
 
 struct ProxyOpeningState {
-    stream: ProfileTcpStream,
+    stream: ProxyStream,
     connector: Http1TlsConnector,
     binding: ProxyBinding,
+}
+
+enum ProxyStream {
+    Tcp(ProfileTcpStream),
+    HttpsPending(ProfileTcpStream),
+    HttpsReady(crate::tls::TlsStream<ProfileTcpStream>),
 }
 
 pub(super) struct ProxyBinding {
     host: Box<str>,
     port: u16,
-    authority: Box<str>,
-    server_name: Box<str>,
-    credentials: Option<HttpProxyCredentials>,
+    proxy_tls: Option<(Box<str>, crate::proxy::HttpsProxyConnector)>,
+    purpose: ProxyPurpose,
+}
+
+enum ProxyPurpose {
+    Connect {
+        authority: Box<str>,
+        server_name: Box<str>,
+        credentials: Option<HttpProxyCredentials>,
+    },
+    Forward,
 }
 
 impl fmt::Debug for Http1ProxyOpening {
@@ -45,8 +62,16 @@ impl ProxyBinding {
         route: HttpConnectRoute<'_>,
         server_name: &str,
     ) -> Result<Self, Http1TlsError> {
-        let ProxyTransport::Tcp(endpoint) = route.proxy else {
-            return Err(binding_error());
+        let (endpoint, proxy_tls) = match route.proxy {
+            ProxyTransport::Tcp(endpoint) => (endpoint, None),
+            ProxyTransport::Tls {
+                endpoint,
+                server_name,
+                connector,
+            } if connector.protocol() == crate::proxy::HttpsProxyProtocol::Http1 => {
+                (endpoint, Some((server_name.into(), connector.clone())))
+            }
+            ProxyTransport::Tls { .. } => return Err(binding_error()),
         };
         crate::proxy::validate_http_tunnel(route.authority, route.headers, route.credentials)?;
         let credentials = route.credentials.map(|credentials| match credentials {
@@ -56,21 +81,101 @@ impl ProxyBinding {
         Ok(Self {
             host: endpoint.host.into(),
             port: endpoint.port,
-            authority: route.authority.into(),
-            server_name: server_name.into(),
-            credentials,
+            proxy_tls,
+            purpose: ProxyPurpose::Connect {
+                authority: route.authority.into(),
+                server_name: server_name.into(),
+                credentials,
+            },
         })
     }
 
+    pub(super) fn forward(transport: ProxyTransport<'_>) -> Result<Self, Http1TlsError> {
+        let ProxyTransport::Tls {
+            endpoint,
+            server_name,
+            connector,
+        } = transport
+        else {
+            return Err(binding_error());
+        };
+        if connector.protocol() != crate::proxy::HttpsProxyProtocol::Http1 {
+            return Err(crate::proxy::HttpConnectError::ForwardingRequiresHttp1.into());
+        }
+        Ok(Self {
+            host: endpoint.host.into(),
+            port: endpoint.port,
+            proxy_tls: Some((server_name.into(), connector.clone())),
+            purpose: ProxyPurpose::Forward,
+        })
+    }
+
+    fn matches_transport(&self, transport: ProxyTransport<'_>) -> bool {
+        match (transport, &self.proxy_tls) {
+            (ProxyTransport::Tcp(endpoint), None) => {
+                endpoint.host.eq_ignore_ascii_case(&self.host) && endpoint.port == self.port
+            }
+            (
+                ProxyTransport::Tls {
+                    endpoint,
+                    server_name,
+                    connector,
+                },
+                Some((name, original)),
+            ) => {
+                endpoint.host.eq_ignore_ascii_case(&self.host)
+                    && endpoint.port == self.port
+                    && server_name.eq_ignore_ascii_case(name)
+                    && original.same_http1_opening_context(connector)
+            }
+            _ => false,
+        }
+    }
+
     fn matches(&self, route: HttpConnectRoute<'_>) -> bool {
-        matches!(route.proxy, ProxyTransport::Tcp(endpoint)
-            if endpoint.host.eq_ignore_ascii_case(&self.host) && endpoint.port == self.port)
-            && route.authority == self.authority.as_ref()
-            && route.credentials == self.credentials.as_ref().map(HttpProxyCredentials::as_ref)
+        let ProxyPurpose::Connect {
+            authority,
+            credentials,
+            ..
+        } = &self.purpose
+        else {
+            return false;
+        };
+        self.matches_transport(route.proxy)
+            && route.authority == authority.as_ref()
+            && route.credentials == credentials.as_ref().map(HttpProxyCredentials::as_ref)
     }
 }
 
 impl Http1ProxyOpening {
+    /// Completes only outer TLS and starts HTTP/1 absolute-form forwarding.
+    ///
+    /// The original proxy endpoint, SNI, TLS cache and credential-cache scope
+    /// must match. No CONNECT or origin TLS is sent. The caller supplies each
+    /// request's current ordered headers and credentials after this returns.
+    ///
+    /// # Errors
+    ///
+    /// Rejects another opening purpose or proxy context before TLS, and returns
+    /// the existing proxy TLS and HTTP/1 setup errors.
+    pub async fn finish_forward(
+        self,
+        transport: ProxyTransport<'_>,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        if !matches!(&self.state.binding.purpose, ProxyPurpose::Forward)
+            || !self.state.binding.matches_transport(transport)
+        {
+            return Err(binding_error());
+        }
+        let opening = self.complete_proxy_tls().await?;
+        match opening.state.stream {
+            ProxyStream::HttpsReady(stream) => super::tls::connect_plaintext(stream)
+                .await
+                .map_err(Into::into),
+            ProxyStream::Tcp(_) | ProxyStream::HttpsPending(_) => Err(binding_error()),
+        }
+    }
+
     pub(super) fn new(
         stream: ProfileTcpStream,
         connector: Http1TlsConnector,
@@ -78,11 +183,29 @@ impl Http1ProxyOpening {
     ) -> Self {
         Self {
             state: Box::new(ProxyOpeningState {
-                stream,
+                stream: if binding.proxy_tls.is_some() {
+                    ProxyStream::HttpsPending(stream)
+                } else {
+                    ProxyStream::Tcp(stream)
+                },
                 connector,
                 binding,
             }),
         }
+    }
+
+    /// Completes only outer TLS. The existing slower owner calls this before claim.
+    pub(super) async fn complete_proxy_tls(mut self) -> Result<Self, Http1TlsError> {
+        self.state.stream = match self.state.stream {
+            ProxyStream::HttpsPending(stream) => {
+                let Some((server_name, proxy)) = &self.state.binding.proxy_tls else {
+                    return Err(binding_error());
+                };
+                ProxyStream::HttpsReady(proxy.finish_http1_proxy_tls(stream, server_name).await?)
+            }
+            stream => stream,
+        };
+        Ok(self)
     }
 
     /// Sends this request's CONNECT, authenticates the origin and starts HTTP/1.
@@ -102,20 +225,38 @@ impl Http1ProxyOpening {
         if !self.state.binding.matches(route) {
             return Err(binding_error());
         }
+        crate::proxy::validate_http_tunnel(route.authority, route.headers, route.credentials)?;
+        let opening = self.complete_proxy_tls().await?;
         let ProxyOpeningState {
             stream,
             connector,
             binding,
-        } = *self.state;
-        connector
-            .finish_http_connect(stream, route, &binding.server_name)
-            .await
+        } = *opening.state;
+        let ProxyPurpose::Connect { server_name, .. } = binding.purpose else {
+            return Err(binding_error());
+        };
+        match stream {
+            ProxyStream::Tcp(stream) => {
+                connector
+                    .finish_http_connect(stream, route, &server_name)
+                    .await
+            }
+            ProxyStream::HttpsReady(stream) => {
+                let Some((proxy_server_name, proxy)) = binding.proxy_tls else {
+                    return Err(binding_error());
+                };
+                connector
+                    .finish_https_connect(stream, &proxy, &proxy_server_name, route, &server_name)
+                    .await
+            }
+            ProxyStream::HttpsPending(_) => Err(binding_error()),
+        }
     }
 }
 
 fn binding_error() -> Http1TlsError {
     Http1TlsError::Connect(io::Error::new(
         io::ErrorKind::InvalidInput,
-        "retained HTTP CONNECT opening requires its original plaintext proxy route",
+        "retained HTTP proxy opening requires its original purpose, route and TLS context",
     ))
 }

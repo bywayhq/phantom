@@ -751,7 +751,7 @@ impl PoolEntry {
                     // A slower attempt that fails drops the claim, and the
                     // request chooses again.
                     if let Some(delivery) = claim.wait_delivery().await {
-                        let lease = self.finish_spare(delivery, endpoint, route).await?;
+                        let lease = self.finish_spare(delivery, endpoint, route, mode).await?;
                         debug!(
                             outcome = "claimed",
                             "HTTP/1 slower backup connection acquired"
@@ -760,8 +760,9 @@ impl PoolEntry {
                     }
                 }
                 Checkout::Proxy(claim) => {
-                    // A claimed proxy still needs CONNECT and origin TLS setup.
-                    return super::box_send(self.finish_proxy_claim(claim, endpoint, route)).await;
+                    // A claimed proxy still needs its purpose-specific setup.
+                    return super::box_send(self.finish_proxy_claim(claim, endpoint, route, mode))
+                        .await;
                 }
                 Checkout::Reserved(reservation) => break reservation,
             }
@@ -785,7 +786,7 @@ impl PoolEntry {
         slower: Option<SlowerConnection<Http1ProxyOpening>>,
         route: HttpConnectRoute<'_>,
     ) -> Result<Http1Connection, RequestError> {
-        // Adoption precedes the primary's first CONNECT/authentication/TLS byte.
+        // Adoption precedes the primary's proxy TLS, CONNECT and origin TLS.
         if let Some(slower) = slower {
             self.connections.adopt_proxy(slower);
         }
@@ -795,16 +796,32 @@ impl PoolEntry {
             .map_err(RequestError::http1_connection_setup)
     }
 
+    async fn finish_forward_opening(
+        &self,
+        opening: Http1ProxyOpening,
+        slower: Option<SlowerConnection<Http1ProxyOpening>>,
+        transport: ProxyTransport<'_>,
+    ) -> Result<Http1Connection, RequestError> {
+        if let Some(slower) = slower {
+            self.connections.adopt_proxy(slower);
+        }
+        opening
+            .finish_forward(transport)
+            .await
+            .map_err(RequestError::http1_connection_setup)
+    }
+
     async fn finish_spare(
         &self,
         delivery: SpareDelivery,
         endpoint: &Endpoint,
         route: &Route,
+        mode: Http1ConnectionMode,
     ) -> Result<ConnectionLease, RequestError> {
         match delivery {
             SpareDelivery::Ready(lease) => Ok(lease),
             SpareDelivery::Proxy(claim) => {
-                super::box_send(self.finish_proxy_claim(claim, endpoint, route)).await
+                super::box_send(self.finish_proxy_claim(claim, endpoint, route, mode)).await
             }
         }
     }
@@ -814,17 +831,41 @@ impl PoolEntry {
         claim: ProxyClaim,
         endpoint: &Endpoint,
         route: &Route,
+        mode: Http1ConnectionMode,
     ) -> Result<ConnectionLease, RequestError> {
-        let Some(proxy) = route.as_http_proxy().filter(|proxy| !proxy.uses_tls()) else {
+        let Some(proxy) = route.as_http_proxy() else {
             return Err(RequestError::unsupported_route(HttpProtocol::Http1));
         };
         let authority = endpoint.tunnel_authority();
+        let proxy_endpoint = phantom_net::route::Endpoint {
+            host: proxy.host(),
+            port: proxy.port(),
+        };
+        let transport = if proxy.uses_tls() {
+            let connector = self
+                .https_proxy
+                .get()
+                .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http1))?;
+            ProxyTransport::Tls {
+                endpoint: proxy_endpoint,
+                server_name: proxy.host(),
+                connector,
+            }
+        } else {
+            ProxyTransport::Tcp(proxy_endpoint)
+        };
+        if mode == Http1ConnectionMode::Forward {
+            return claim
+                .finish_forward(transport)
+                .await
+                .map_err(RequestError::http1_connection_setup);
+        }
+        if mode != Http1ConnectionMode::TlsOrigin {
+            return Err(RequestError::unsupported_route(HttpProtocol::Http1));
+        }
         claim
             .finish(HttpConnectRoute {
-                proxy: ProxyTransport::Tcp(phantom_net::route::Endpoint {
-                    host: proxy.host(),
-                    port: proxy.port(),
-                }),
+                proxy: transport,
                 authority: &authority,
                 headers: proxy.ordered_connect_headers(),
                 credentials: proxy.authentication(),
@@ -928,11 +969,28 @@ impl PoolEntry {
                     ProxyTransport::Tcp(endpoint)
                 };
                 if mode == Http1ConnectionMode::Forward {
-                    return super::box_send(connector.connect(Http1Route::Forward(transport)))
+                    if !proxy.uses_tls() {
+                        return super::box_send(
+                            connector.connect_forward_retaining(endpoint, &self.connections.family),
+                        )
                         .await
                         .map_err(RequestError::http1_connection_setup);
+                    }
+                    let (opening, slower) = super::box_send(
+                        connector.open_https_forward_retaining(transport, &self.connections.family),
+                    )
+                    .await
+                    .map_err(RequestError::http1_connection_setup)?;
+                    let connection =
+                        super::box_send(self.finish_forward_opening(opening, slower, transport))
+                            .await?;
+                    return Ok((connection, None));
                 }
-                if mode == Http1ConnectionMode::TlsOrigin && !proxy.uses_tls() {
+                if mode == Http1ConnectionMode::TlsOrigin
+                    && (!proxy.uses_tls()
+                        || matches!(transport, ProxyTransport::Tls { connector, .. }
+                        if connector.protocol() == phantom_net::proxy::HttpsProxyProtocol::Http1))
+                {
                     let connect_route = HttpConnectRoute {
                         proxy: transport,
                         authority: &authority,
@@ -1186,6 +1244,25 @@ struct ProxyClaim {
 }
 
 impl ProxyClaim {
+    async fn finish_forward(
+        mut self,
+        transport: ProxyTransport<'_>,
+    ) -> Result<ConnectionLease, Http1TlsError> {
+        let Some(opening) = self.opening.take() else {
+            return Err(Http1TlsError::Connect(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "proxy opening was already consumed",
+            )));
+        };
+        let connection = opening.finish_forward(transport).await?;
+        self.reservation.released = true;
+        Ok(Reservation {
+            connections: Arc::clone(&self.reservation.connections),
+            released: false,
+        }
+        .into_lease(connection))
+    }
+
     async fn finish(
         mut self,
         route: HttpConnectRoute<'_>,

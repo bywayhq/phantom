@@ -1988,13 +1988,21 @@ Differences from the browsers:
   also retain the slower TCP opening and learn the proxy's address family.
   That spare sends no CONNECT or origin TLS until claimed. Its claimant
   supplies the current ordered CONNECT fields and performs authentication.
-  Other proxy paths still close the slower attempt and neither use nor
-  learn the family; Firefox keeps both on every entry.
+  Exact HTTP/1 forwarding of plaintext origins through HTTP and HTTPS
+  proxies also retains a quiet backup. An HTTPS H1 spare may complete
+  verified outer TLS before claim. A request may claim it earlier and wait
+  for that TLS handshake. Its claimant supplies current ordered headers,
+  cookies and credentials. An HTTPS H1 CONNECT proxy backup also completes
+  verified outer TLS before CONNECT. It retains the original proxy TLS and
+  authentication-cache owners. CONNECT, current credentials and origin TLS
+  remain claim-owned. Forwarding sends no CONNECT or origin TLS. Other
+  proxy paths still close the slower attempt and neither use nor learn the
+  family; Firefox keeps both on every entry.
 - A direct connection's slower attempt becomes claimable once the first
-  connection's handshake has finished. The plaintext CONNECT proxy path
-  above registers its spare before the primary sends CONNECT or starts
-  origin TLS. Firefox lets a request claim the slower attempt as soon as
-  the first connection takes its request.
+  connection's handshake has finished. The retained H1 HTTP-proxy paths
+  above register the spare after physical selection, before primary proxy
+  TLS, CONNECT or a forwarded request. Firefox lets a request claim the
+  slower attempt as soon as the first connection takes its request.
 - Phantom keeps one memory of an origin's address family per pool for the
   origin and route, shared by the origin's pool entries on every runtime,
   as per-origin admission is. A prune of the client's timer forgets it when
@@ -2008,7 +2016,31 @@ Differences from the browsers:
   only when the timer fires; so Phantom may forget a family sooner. The
   HTTP/1.1, negotiated, and exact HTTP/2 pools of one client keep separate
   memories. A memory ends when the pool has evicted every entry that held it.
+  Forwarding retains the existing origin and route partition, including
+  credentials and runtime ownership. Firefox instead keys non-CONNECT
+  forwarding by the physical proxy, with isolation and protocol fields
+  (`nsHttpConnectionInfo.cpp:145–151` at `FIREFOX_157_0_RELEASE`). Cross-origin
+  connection sharing remains unimplemented.
   ([Firefox socket hook evidence](#firefox-socket-hook-evidence)).
+
+Firefox's HTTPS-proxy spare can progress outer TLS before a request
+claims it. At `FIREFOX_157_0_RELEASE`, `CanReuse` calls `IsAlive`, which
+activates proxy TLS and peeks through NSS (`nsHttpConnection.cpp:938–945,
+1027–1035`; `TlsHandshaker.cpp:106–148`; `nsSocketTransport2.cpp:2589–2605`).
+The idle read callback can repeat that check. This does not establish when
+the handshake completes. Phantom completes it on the existing owned backup
+task; this is an engineering choice, not observed Firefox timing. Proxy
+application early data is disabled in Firefox (`TlsHandshaker.cpp:134–137`).
+
+The slower-mapper controls check proxy TLS and that no CONNECT,
+origin TLS or forwarded request precedes claim. The forwarding control
+checks that TLS starts before an early claim and uses the same socket.
+Separate controls cover current Basic/Digest fields and cookies, header
+order, deadlines, trust and ALPN errors, original cache ownership, issued
+proxy/origin tickets, cancellation, idle pruning and admission.
+Facade controls gate real sockets into the existing backup owner; they
+do not establish an operating-system two-address race. Single-address
+public peers verify consumer and authentication paths.
 
 Tests in `phantom-net` read the options back from connected sockets with
 `socket2` getters:

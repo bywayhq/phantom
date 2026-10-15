@@ -2353,3 +2353,7 @@ async fn read_closed_remainder(stream: &mut (impl AsyncRead + Unpin)) -> TestRes
     stream.read_to_end(&mut rest).await?;
     Ok(rest)
 }
+
+mod retention;
+
+mod https_retention;

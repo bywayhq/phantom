@@ -1157,6 +1157,18 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Retain Firefox exact HTTP/1 CONNECT backups through an HTTPS proxy.
+  A spare verifies proxy TLS before claim. Its claimant supplies the current
+  CONNECT fields and authentication, then verifies origin TLS separately.
+  Route, credentials, proxy TLS cache and original idle age remain bound.
+
+- Retain Firefox backup connections for exact HTTP/1 forwarding through
+  HTTP and HTTPS proxies using HTTP/1. An HTTPS spare may complete proxy TLS
+  but sends no request before claim. Its claimant supplies current ordered
+  headers, cookies and credentials. The pool remembers the proxy address
+  family and expires unused spares on its idle timer. Existing origin, route,
+  runtime and credential partitions remain in place.
+
 - Keep Firefox's slower proxy connection for exact HTTP/1 HTTPS requests
   through a plaintext CONNECT proxy. The spare stays quiet until a request
   claims it, then sends that request's ordered CONNECT fields and performs

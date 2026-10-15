@@ -270,3 +270,5 @@ async fn finishing_the_slower_tcp_result_does_not_start_connect_or_origin_tls() 
         Ok(())
     }).await?
 }
+
+mod https;

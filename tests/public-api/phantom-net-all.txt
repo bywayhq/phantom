@@ -388,6 +388,7 @@ pub fn phantom_net::http1::Http1ProtocolError::fmt(&self, &mut core::fmt::Format
 pub struct phantom_net::http1::Http1ProxyOpening
 impl phantom_net::http1::Http1ProxyOpening
 pub async fn phantom_net::http1::Http1ProxyOpening::finish(self, phantom_net::route::HttpConnectRoute<'_>) -> core::result::Result<phantom_net::http1::Http1Connection, phantom_net::http1::Http1TlsError>
+pub async fn phantom_net::http1::Http1ProxyOpening::finish_forward(self, phantom_net::route::ProxyTransport<'_>) -> core::result::Result<phantom_net::http1::Http1Connection, phantom_net::http1::Http1TlsError>
 impl core::fmt::Debug for phantom_net::http1::Http1ProxyOpening
 pub fn phantom_net::http1::Http1ProxyOpening::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::http1::Http1TlsConnector
@@ -395,12 +396,14 @@ impl phantom_net::http1::Http1TlsConnector
 pub fn phantom_net::http1::Http1TlsConnector::alpn_protocols(&self) -> alloc::vec::Vec<alloc::boxed::Box<[u8]>>
 pub fn phantom_net::http1::Http1TlsConnector::attach_key_log(&self, &phantom_quic_btls::key_log::NssKeyLogSender)
 pub async fn phantom_net::http1::Http1TlsConnector::connect(&self, phantom_net::route::Http1Route<'_>) -> core::result::Result<(phantom_net::http1::Http1Connection, core::option::Option<SlowerConnection<phantom_net::http1::Http1Connection>>), phantom_net::http1::Http1TlsError>
+pub async fn phantom_net::http1::Http1TlsConnector::connect_forward_retaining(&self, phantom_net::route::Endpoint<'_>, &crate::tcp::AddressFamilyMemory) -> core::result::Result<(phantom_net::http1::Http1Connection, core::option::Option<SlowerConnection<phantom_net::http1::Http1Connection>>), phantom_net::http1::Http1TlsError>
 pub fn phantom_net::http1::Http1TlsConnector::ech_from_https_records(&self) -> bool
 pub fn phantom_net::http1::Http1TlsConnector::host_resolver(&self) -> core::option::Option<&phantom_net::host_resolver::HostResolver>
 pub fn phantom_net::http1::Http1TlsConnector::new(&phantom_profile::tls::TlsSettings) -> core::result::Result<Self, phantom_net::http1::Http1TlsError>
 pub fn phantom_net::http1::Http1TlsConnector::new_with_additional_roots<'a>(&phantom_profile::tls::TlsSettings, impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>) -> core::result::Result<Self, phantom_net::http1::Http1TlsError>
 pub fn phantom_net::http1::Http1TlsConnector::new_with_server_authentication(&phantom_profile::tls::TlsSettings, phantom_net::ServerAuthentication) -> core::result::Result<Self, phantom_net::http1::Http1TlsError>
 pub async fn phantom_net::http1::Http1TlsConnector::open_http_connect_retaining(&self, phantom_net::route::HttpConnectRoute<'_>, &str, &crate::tcp::AddressFamilyMemory) -> core::result::Result<(phantom_net::http1::Http1ProxyOpening, core::option::Option<SlowerConnection<phantom_net::http1::Http1ProxyOpening>>), phantom_net::http1::Http1TlsError>
+pub async fn phantom_net::http1::Http1TlsConnector::open_https_forward_retaining(&self, phantom_net::route::ProxyTransport<'_>, &crate::tcp::AddressFamilyMemory) -> core::result::Result<(phantom_net::http1::Http1ProxyOpening, core::option::Option<SlowerConnection<phantom_net::http1::Http1ProxyOpening>>), phantom_net::http1::Http1TlsError>
 pub async fn phantom_net::http1::Http1TlsConnector::open_upgrade(&self, phantom_net::route::OriginRoute<'_>, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<(phantom_net::http1::Http1UpgradeOpening, core::option::Option<SlowerConnection<phantom_net::http1::Http1Connection>>), phantom_net::http1::Http1TlsError>
 pub async fn phantom_net::http1::Http1TlsConnector::send(&self, phantom_net::route::Http1Route<'_>, http::method::Method, phantom_net::route::Http1Target, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<bytes::bytes::Bytes>) -> core::result::Result<http::response::Response<phantom_net::http1::Http1Body>, phantom_net::http1::Http1TlsError>
 pub fn phantom_net::http1::Http1TlsConnector::session_ticket_cache(&self) -> core::option::Option<phantom_net::SessionTicketCache>

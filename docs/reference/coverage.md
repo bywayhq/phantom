@@ -176,17 +176,24 @@ Supported:
   quiet slower TCP connection and remember the proxy's address family.
   A later request claims the socket before sending its current CONNECT
   fields, authenticating to the proxy, and verifying origin TLS. Unused
-  spares expire with the request pool's idle timer.
+  spares expire with the request pool's idle timer. HTTPS-proxy H1 CONNECT
+  backups verify outer TLS before CONNECT; CONNECT and origin TLS wait for
+  the claimant. This completion policy has no browser timing capture.
+
+- Exact HTTP/1 forwarding of plaintext origins through HTTP and HTTPS
+  proxies retains a quiet backup. An HTTPS spare may complete outer TLS
+  before claim. Its claimant supplies current ordered headers, cookies and
+  credentials. Family memory stays per origin and route. Connection ownership
+  keeps its origin, route, runtime and credential bounds.
 
 Not modeled:
 
 - Parts of Firefox's address selection: keeping the slower connection, and
-  remembering the address family, on forwarded, TLS-proxy, SOCKS, negotiated
-  and HTTP/2 proxy requests, and proxy WebSockets; skipping an address that
-  failed before on the same cached DNS
-  record; and
-  noticing at once that a server closed an idle connection, which can make
-  Firefox remember a family longer.
+  remembering the address family, on SOCKS, negotiated and HTTP/2 proxy
+  requests, proxy WebSockets and proxy setup with early data; sharing a
+  forwarding connection between origins; skipping an address that failed
+  before on the same cached DNS record; and noticing at once that a server
+  closed an idle connection, which can make Firefox remember a family longer.
 - Chromium's resolver behavior before racing: its own address sorting,
   partial DNS results, and HTTPS records fetched with the address queries.
   Phantom races the resolver's complete answer.

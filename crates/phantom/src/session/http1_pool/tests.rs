@@ -369,3 +369,5 @@ fn challenge_drain_without_a_time_driver_is_runtime_unavailable() -> TestResult 
 mod websocket_opening;
 
 mod proxy_retention;
+
+mod forward_retention;

@@ -73,14 +73,93 @@ pub struct Http1TlsConnector {
 }
 
 impl Http1TlsConnector {
-    /// Opens a plaintext proxy TCP socket without sending CONNECT or origin TLS.
+    /// Opens the physical HTTPS forwarding socket and retains its slower attempt.
+    ///
+    /// Only an outer HTTP/1 proxy is accepted. Adopt the spare before calling
+    /// [`Http1ProxyOpening::finish_forward`] on the primary. The spare may finish
+    /// outer TLS, but sends no CONNECT, origin TLS or request until claimed.
+    ///
+    /// # Errors
+    ///
+    /// Rejects other transports/proxy protocols before I/O and returns the
+    /// existing proxy connection errors.
+    pub async fn open_https_forward_retaining(
+        &self,
+        transport: ProxyTransport<'_>,
+        family: &crate::tcp::AddressFamilyMemory,
+    ) -> Result<
+        (
+            Http1ProxyOpening,
+            Option<SlowerConnection<Http1ProxyOpening>>,
+        ),
+        Http1TlsError,
+    > {
+        let binding = ProxyBinding::forward(transport)?;
+        let slower_binding = ProxyBinding::forward(transport)?;
+        let ProxyTransport::Tls {
+            endpoint,
+            connector,
+            ..
+        } = transport
+        else {
+            return Err(invalid_route(
+                "retained HTTPS forwarding requires proxy TLS",
+            ));
+        };
+        let (stream, slower) = connector
+            .open_http1_proxy_retaining(endpoint.host, endpoint.port, family)
+            .await?;
+        Ok((
+            Http1ProxyOpening::new(stream, self.clone(), binding),
+            slower.map(|attempt| self.slower_proxy_opening(attempt, slower_binding)),
+        ))
+    }
+
+    /// Opens plaintext HTTP/1.1 to a proxy and retains its slower TCP attempt.
+    ///
+    /// Both connections remain quiet until a caller sends a forward request.
+    /// The caller owns their route and credential partition and supplies each
+    /// request's current ordered headers. Adopt the spare before sending.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same runtime, proxy connection and HTTP/1 setup errors as
+    /// [`Self::connect`] on a plaintext forwarding route.
+    pub async fn connect_forward_retaining(
+        &self,
+        proxy: crate::route::Endpoint<'_>,
+        family: &crate::tcp::AddressFamilyMemory,
+    ) -> Result<(Http1Connection, Option<SlowerConnection<Http1Connection>>), Http1TlsError> {
+        let span = connection_span(&Http1Route::Forward(ProxyTransport::Tcp(proxy)));
+        let mut slower = None;
+        let connection = self
+            .trace_connect(
+                span,
+                pin!(async {
+                    let (stream, attempt) = connect_tcp_keeping_slower(
+                        proxy.host,
+                        proxy.port,
+                        self.dialer(),
+                        Some(family),
+                    )
+                    .await
+                    .map_err(forward_connect_error)?;
+                    slower = attempt;
+                    connect_plaintext(stream).await.map_err(Into::into)
+                }),
+            )
+            .await?;
+        Ok((connection, slower.map(slower_plaintext)))
+    }
+
+    /// Opens a proxy TCP socket without sending CONNECT or origin TLS.
     ///
     /// Retain the returned slower opening before finishing the primary. Both
     /// use this connector's origin TLS context and immutable route binding.
     ///
     /// # Errors
     ///
-    /// Rejects another proxy transport or invalid CONNECT fields before I/O,
+    /// Rejects an H2 proxy or invalid CONNECT fields before I/O,
     /// and returns TCP connection errors through the HTTP proxy error category.
     pub async fn open_http_connect_retaining(
         &self,
@@ -96,22 +175,34 @@ impl Http1TlsConnector {
     > {
         let binding = ProxyBinding::new(route, origin_server_name)?;
         let slower_binding = ProxyBinding::new(route, origin_server_name)?;
-        let ProxyTransport::Tcp(endpoint) = route.proxy else {
-            return Err(invalid_route("retained CONNECT requires a plaintext proxy"));
+        let (stream, slower) = match route.proxy {
+            ProxyTransport::Tcp(endpoint) => connect_tcp_keeping_slower(
+                endpoint.host,
+                endpoint.port,
+                self.dialer(),
+                Some(family),
+            )
+            .await
+            .map_err(|error| {
+                Http1TlsError::Proxy(match error {
+                    DirectConnectError::RuntimeUnavailable => {
+                        crate::proxy::HttpConnectError::RuntimeUnavailable
+                    }
+                    DirectConnectError::Connect(error) => {
+                        crate::proxy::HttpConnectError::Connect(error)
+                    }
+                })
+            })?,
+            ProxyTransport::Tls {
+                endpoint,
+                connector,
+                ..
+            } => {
+                connector
+                    .open_http1_proxy_retaining(endpoint.host, endpoint.port, family)
+                    .await?
+            }
         };
-        let (stream, slower) =
-            connect_tcp_keeping_slower(endpoint.host, endpoint.port, self.dialer(), Some(family))
-                .await
-                .map_err(|error| {
-                    Http1TlsError::Proxy(match error {
-                        DirectConnectError::RuntimeUnavailable => {
-                            crate::proxy::HttpConnectError::RuntimeUnavailable
-                        }
-                        DirectConnectError::Connect(error) => {
-                            crate::proxy::HttpConnectError::Connect(error)
-                        }
-                    })
-                })?;
         let slower = slower.map(|attempt| self.slower_proxy_opening(attempt, slower_binding));
         Ok((
             Http1ProxyOpening::new(stream, self.clone(), binding),
@@ -131,7 +222,10 @@ impl Http1TlsConnector {
                 .await
                 .ok()?
                 .into_stream(SlowerKeepalive::OnFirstRequest);
-            Some(Http1ProxyOpening::new(stream, connector, binding))
+            Http1ProxyOpening::new(stream, connector, binding)
+                .complete_proxy_tls()
+                .await
+                .ok()
         })
     }
 
@@ -163,6 +257,45 @@ impl Http1TlsConnector {
                     route.credentials,
                 )
                 .await?;
+                let stream = self.tls.connect(server_name, tunnel).await?;
+                connect_over_tls(stream).await
+            }),
+        )
+        .await
+    }
+
+    pub(super) async fn finish_https_connect(
+        &self,
+        stream: TlsStream<crate::tcp::ProfileTcpStream>,
+        proxy: &crate::proxy::HttpsProxyConnector,
+        proxy_server_name: &str,
+        route: HttpConnectRoute<'_>,
+        server_name: &str,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        let span = connection_span(&Http1Route::Origin(OriginRoute::Tls {
+            tcp: TcpRoute::HttpConnect(route),
+            server_name,
+            setup: DirectTlsSetup::Default,
+        }));
+        self.trace_connect(
+            span,
+            pin!(async {
+                let ProxyTransport::Tls { endpoint, .. } = route.proxy else {
+                    return Err(invalid_route(
+                        "retained HTTPS CONNECT requires its original route",
+                    ));
+                };
+                let tunnel = proxy
+                    .connect_http1_tunnel_from_stream(
+                        stream,
+                        endpoint.host,
+                        endpoint.port,
+                        proxy_server_name,
+                        route.authority,
+                        route.headers,
+                        route.credentials,
+                    )
+                    .await?;
                 let stream = self.tls.connect(server_name, tunnel).await?;
                 connect_over_tls(stream).await
             }),
@@ -1381,7 +1514,7 @@ pub(crate) fn slower_plaintext(attempt: SlowerAttempt) -> SlowerConnection<Http1
 }
 
 /// Starts plaintext HTTP/1.1 on a profile connection.
-async fn connect_plaintext<S>(stream: S) -> Result<Http1Connection, Http1Error>
+pub(super) async fn connect_plaintext<S>(stream: S) -> Result<Http1Connection, Http1Error>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
 {

@@ -297,6 +297,15 @@ resolved addresses.
   response body keeps that ownership until it ends. A connected backup finishes
   without CONNECT. It closes while the dedicated winner is usable, or becomes
   an ordinary pooled connection after that winner retires.
+- Exact HTTP/1 HTTPS requests through an H1 CONNECT proxy retain a backup
+  before primary proxy TLS or CONNECT. A plaintext spare stays quiet until claim.
+  An HTTPS proxy spare verifies outer TLS before CONNECT. Its claimant sends
+  current CONNECT fields, authenticates and verifies origin TLS. Exact HTTP/1
+  forwarding of plaintext origins through HTTP and HTTPS proxies also keeps
+  a quiet backup. An HTTPS spare may complete outer TLS. Its claimant
+  supplies current ordered headers, cookies and credentials. Both paths learn
+  the proxy address family and expire unused spares on the pool idle timer.
+  Connections retain their origin, route, runtime and credential partitions.
 - `TcpAddressSelection::Sequential` takes a `TcpAddressAdvance`:
   `AfterAnyFailure`, the default, moves to the next address after any
   failure, and `AfterRefusalOrTimeout`, which `firefox::v157_tcp` sets,
@@ -305,8 +314,10 @@ resolved addresses.
 - Firefox sets `SO_SNDBUF` on Windows only. The macOS, Linux and Android
   factories leave the send buffer unchanged.
 - Not modeled for Firefox: keeping the slower connection, and remembering
-  the address family, on proxy routes;
-  skipping an address that failed before on the same cached DNS record; its
+  the address family, on SOCKS, negotiated and HTTP/2 proxy paths,
+  proxy WebSockets and proxy setup with early data; sharing a forwarding
+  connection between origins; skipping an address that failed before on the
+  same cached DNS record; its
   `SO_LINGER` of `{1, 0}` (its close is still a FIN, as Phantom's is).
 - Brave 1.96.59 builds the Chromium tag behind `chrome::v154_tcp` and
   changes none of the values it cites, so Brave uses that recipe.

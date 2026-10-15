@@ -227,6 +227,19 @@ only the slower TCP opening. Its first claimant sends CONNECT and starts
 origin TLS. Cancellation after claim closes the socket. Returning an
 unpolled claim preserves the spare's original idle age. A spare remains
 bound to its proxy endpoint, origin authority, credentials and TLS context.
+An HTTPS-proxy H1 spare verifies outer TLS before CONNECT. It retains the
+original proxy server name, TLS cache and authentication-cache scope.
+CONNECT and origin TLS still wait for its claimant.
+
+Exact HTTP/1 forwarding of plaintext origins through HTTP and HTTPS proxies
+also retains a quiet backup. An HTTPS spare may finish outer TLS without
+sending a request. Its claimant supplies current ordered headers, cookies
+and credentials. A request that claims an unfinished spare waits for its
+outer TLS. Connections keep their existing origin, route, runtime and
+credential bounds. Family memory remains per origin and route. Firefox can
+share a forwarding connection between origins on one proxy; Phantom keeps
+those origins separate. Retention on H2 proxy paths, proxy WebSockets and
+proxy early-data setup paths remains outside these additions.
 
 ### RTT-based racing
 
