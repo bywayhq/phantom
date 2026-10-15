@@ -369,17 +369,32 @@ impl Http1TlsConnector {
             _ => None,
         };
         let mut slower = None;
+        #[cfg(feature = "https-records")]
+        let mut selected_ech = None;
         let connection = self
             .trace_connect(
                 span,
                 pin!(async {
                     validate_route(&route, true)?;
-                    self.open_connection(route, true, &mut slower).await
+                    self.open_connection(
+                        route,
+                        true,
+                        &mut slower,
+                        #[cfg(feature = "https-records")]
+                        &mut selected_ech,
+                    )
+                    .await
                 }),
             )
             .await?;
         let slower = slower.map(|attempt| match server_name {
-            Some(server_name) => self.slower_tls(attempt, server_name),
+            Some(server_name) => {
+                #[cfg(feature = "https-records")]
+                if let Some(selected) = selected_ech {
+                    return self.slower_tls_with_ech(attempt, server_name, selected);
+                }
+                self.slower_tls(attempt, server_name)
+            }
             None => slower_plaintext(attempt),
         });
         Ok((connection, slower))
@@ -421,7 +436,14 @@ impl Http1TlsConnector {
                 let connection = if matches!(route, Http1Route::Forward(_)) {
                     self.connect(route).await?.0
                 } else {
-                    self.open_connection(route, false, &mut None).await?
+                    self.open_connection(
+                        route,
+                        false,
+                        &mut None,
+                        #[cfg(feature = "https-records")]
+                        &mut None,
+                    )
+                    .await?
                 };
                 self.send_prepared_request(&connection, prepared).await
             }),
@@ -534,6 +556,7 @@ impl Http1TlsConnector {
         route: Http1Route<'_>,
         offer_early_data: bool,
         slower: &mut Option<SlowerAttempt>,
+        #[cfg(feature = "https-records")] selected_ech: &mut Option<crate::direct::SelectedEch>,
     ) -> Result<Http1Connection, Http1TlsError> {
         match route {
             Http1Route::Forward(ProxyTransport::Tcp(endpoint)) => {
@@ -597,6 +620,30 @@ impl Http1TlsConnector {
                     }
                 }
                 #[cfg(feature = "https-records")]
+                (
+                    TcpRoute::Direct(endpoint),
+                    DirectTlsSetup::EchKeepingSlower { lookup, family },
+                ) => {
+                    let (stream, attempt, selected) =
+                        crate::direct::connect_tls_with_ech_retaining(
+                            &self.tls,
+                            self.dialer(),
+                            endpoint,
+                            server_name,
+                            lookup,
+                            offer_early_data,
+                            Some(family),
+                        )
+                        .await?;
+                    *slower = attempt;
+                    *selected_ech = Some(selected);
+                    let protocol = connect_over_tls(stream);
+                    match slower.as_mut() {
+                        Some(attempt) => attempt.alongside(protocol).await,
+                        None => protocol.await,
+                    }
+                }
+                #[cfg(feature = "https-records")]
                 (TcpRoute::Direct(endpoint), DirectTlsSetup::Ech(ech)) => {
                     let stream = crate::direct::connect_tls_with_ech(
                         &self.tls,
@@ -647,7 +694,33 @@ impl Http1TlsConnector {
         attempt: SlowerAttempt,
         server_name: &str,
     ) -> SlowerConnection<Http1Connection> {
+        self.slower_tls_setup(
+            attempt,
+            server_name,
+            #[cfg(feature = "https-records")]
+            None,
+        )
+    }
+
+    #[cfg(feature = "https-records")]
+    pub(crate) fn slower_tls_with_ech(
+        &self,
+        attempt: SlowerAttempt,
+        server_name: &str,
+        selected: crate::direct::SelectedEch,
+    ) -> SlowerConnection<Http1Connection> {
+        self.slower_tls_setup(attempt, server_name, Some(selected))
+    }
+
+    fn slower_tls_setup(
+        &self,
+        attempt: SlowerAttempt,
+        server_name: &str,
+        #[cfg(feature = "https-records")] selected: Option<crate::direct::SelectedEch>,
+    ) -> SlowerConnection<Http1Connection> {
         let tls = self.tls.clone();
+        #[cfg(feature = "https-records")]
+        let (tcp, source, resolver) = (self.tcp, self.source.clone(), self.host_resolver.clone());
         let server_name = server_name.to_owned();
         SlowerConnection::new(attempt.progress(), async move {
             let stream = attempt
@@ -655,8 +728,30 @@ impl Http1TlsConnector {
                 .await
                 .ok()?
                 .into_stream(SlowerKeepalive::BeforeTls);
-            let stream = tls
-                .connect_offering_early_data(&server_name, stream)
+            let handshake = async {
+                #[cfg(feature = "https-records")]
+                if let Some(selected) = selected {
+                    return selected
+                        .connect(
+                            &tls,
+                            Dialer {
+                                tcp,
+                                udp: None,
+                                source: source.as_ref(),
+                                resolver: resolver.as_ref(),
+                            },
+                            &server_name,
+                            stream,
+                            true,
+                        )
+                        .await
+                        .map_err(Http1TlsError::from);
+                }
+                tls.connect_offering_early_data(&server_name, stream)
+                    .await
+                    .map_err(Http1TlsError::from)
+            };
+            let stream = handshake
                 .await
                 .inspect_err(|error| debug!(error = %error, "slower connection handshake failed"))
                 .ok()?;

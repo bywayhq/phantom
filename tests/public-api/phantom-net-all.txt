@@ -1304,6 +1304,9 @@ pub fn phantom_net::route::DatagramRoute<'_>::fmt(&self, &mut core::fmt::Formatt
 #[non_exhaustive] pub enum phantom_net::route::DirectTlsSetup<'a>
 pub phantom_net::route::DirectTlsSetup::Default
 pub phantom_net::route::DirectTlsSetup::Ech(phantom_net::route::EchLookup<'a>)
+pub phantom_net::route::DirectTlsSetup::EchKeepingSlower
+pub phantom_net::route::DirectTlsSetup::EchKeepingSlower::family: &'a crate::tcp::AddressFamilyMemory
+pub phantom_net::route::DirectTlsSetup::EchKeepingSlower::lookup: phantom_net::route::EchLookup<'a>
 pub phantom_net::route::DirectTlsSetup::KeepSlower(&'a crate::tcp::AddressFamilyMemory)
 impl core::fmt::Debug for phantom_net::route::DirectTlsSetup<'_>
 pub fn phantom_net::route::DirectTlsSetup<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result

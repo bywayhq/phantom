@@ -263,7 +263,9 @@ resolved addresses.
   unreachable, or timed-out connect; after the delay, while it has not
   connected, a backup attempt tries the IPv4 addresses. The first
   connection carries the request. On the direct route of the HTTP/1.1 and
-  negotiated pools the slower attempt keeps connecting, and its connection
+  negotiated pools the slower attempt keeps connecting, including when
+  HTTPS records supply ECH. Both connections initially offer the same ECH
+  configuration and use the same TLS context. The slower connection
   finishes any TLS handshake and waits idle, or goes to a request that
   claimed it, unless the first connection selected H2. Each pool remembers,
   for each origin and route, the family of its first connection, shared by
@@ -280,8 +282,8 @@ resolved addresses.
   turns off the kernel's send buffer autotuning, so clear
   `send_buffer_size` for a profile used off Windows.
 - Not modeled for Firefox: keeping the slower connection, and remembering
-  the address family, on proxy routes, WebSocket connections, exact HTTP/2
-  requests, and with ECH from HTTPS records, where Phantom starts the backup
+  the address family, on proxy routes, WebSocket connections, and exact
+  HTTP/2 requests, where Phantom starts the backup
   and closes the slower attempt; skipping an address that failed before on
   the same cached DNS record; its `SO_LINGER` of `{1, 0}` (its close is
   still a FIN, as Phantom's is); and the probe

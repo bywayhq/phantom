@@ -743,7 +743,7 @@ impl PoolEntry {
     /// HTTPS record when the profile does, as Chrome 154 does.
     ///
     /// The slower attempt of a backup connection comes back for the key to
-    /// keep; the ECH path closes it.
+    /// keep, including when the handshake offers ECH.
     async fn connect_direct(
         &self,
         connector: &Http1Or2TlsConnector,
@@ -763,7 +763,10 @@ impl PoolEntry {
             return super::box_send(connector.connect(OriginRoute::Tls {
                 tcp: tcp(),
                 server_name: endpoint.host(),
-                setup: DirectTlsSetup::Ech(ech.as_mut()),
+                setup: DirectTlsSetup::EchKeepingSlower {
+                    lookup: ech.as_mut(),
+                    family: &self.connections.family,
+                },
             }))
             .await;
         }

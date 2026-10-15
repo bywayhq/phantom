@@ -122,7 +122,7 @@ pub enum TcpRoute<'a> {
 
 /// Setup policy for a new direct origin TLS connection.
 ///
-/// ECH and retaining a slower address attempt are separate policies. Both
+/// ECH and retaining a slower address attempt can be used together. Both
 /// require a direct route. Retaining a slower attempt is supported only by
 /// HTTP/1.1 and negotiated connection openings.
 #[non_exhaustive]
@@ -132,6 +132,16 @@ pub enum DirectTlsSetup<'a> {
     /// Overlap TCP setup with an HTTPS-record lookup, then apply its bounded wait.
     #[cfg(feature = "https-records")]
     Ech(EchLookup<'a>),
+    /// Offer the selected HTTPS-record ECH configuration on both address attempts.
+    ///
+    /// Retain the slower attempt and update the origin's address family.
+    #[cfg(feature = "https-records")]
+    EchKeepingSlower {
+        /// Pinned lookup shared with this connection's discovery operation.
+        lookup: EchLookup<'a>,
+        /// Origin family memory owned by the connection pool.
+        family: &'a AddressFamilyMemory,
+    },
     /// Retain the slower address attempt and update the origin's address family.
     KeepSlower(&'a AddressFamilyMemory),
 }
@@ -142,6 +152,8 @@ impl std::fmt::Debug for DirectTlsSetup<'_> {
             Self::Default => formatter.write_str("Default"),
             #[cfg(feature = "https-records")]
             Self::Ech(_) => formatter.write_str("Ech(..)"),
+            #[cfg(feature = "https-records")]
+            Self::EchKeepingSlower { .. } => formatter.write_str("EchKeepingSlower(..)"),
             Self::KeepSlower(_) => formatter.write_str("KeepSlower(..)"),
         }
     }
@@ -191,7 +203,11 @@ impl OriginRoute<'_> {
                     return Err(invalid("direct TLS setup requires a direct TCP route"));
                 }
 
-                if matches!(setup, DirectTlsSetup::KeepSlower(_)) && !slower {
+                let retains_slower = matches!(setup, DirectTlsSetup::KeepSlower(_));
+                #[cfg(feature = "https-records")]
+                let retains_slower =
+                    retains_slower || matches!(setup, DirectTlsSetup::EchKeepingSlower { .. });
+                if retains_slower && !slower {
                     return Err(invalid("this operation cannot retain a slower connection"));
                 }
             }
@@ -280,5 +296,58 @@ mod tests {
         assert!(!debug.contains("private-user"));
         assert!(!debug.contains("private-password"));
         assert!(debug.contains("redacted"));
+    }
+
+    #[cfg(feature = "https-records")]
+    #[test]
+    fn ech_retention_requires_a_direct_opening_without_polling_the_lookup() {
+        let family = AddressFamilyMemory::new();
+        let polled = std::sync::atomic::AtomicBool::new(false);
+        let mut lookup = std::pin::pin!(std::future::poll_fn(|_| {
+            polled.store(true, std::sync::atomic::Ordering::Relaxed);
+            std::task::Poll::Ready(None)
+        }));
+        {
+            let route = OriginRoute::Tls {
+                tcp: TcpRoute::Direct(Endpoint {
+                    host: "origin.test",
+                    port: 443,
+                }),
+                server_name: "origin.test",
+                setup: DirectTlsSetup::EchKeepingSlower {
+                    lookup: lookup.as_mut(),
+                    family: &family,
+                },
+            };
+            assert!(route.validate(false, true).is_ok());
+            assert_eq!(
+                route.validate(false, false).err().map(|error| error.kind()),
+                Some(std::io::ErrorKind::InvalidInput)
+            );
+            assert!(format!("{route:?}").contains("EchKeepingSlower(..)"));
+        }
+        let route = OriginRoute::Tls {
+            tcp: TcpRoute::Socks5 {
+                proxy: Endpoint {
+                    host: "proxy.test",
+                    port: 1080,
+                },
+                target: Socks5Target::RemoteDns(Endpoint {
+                    host: "origin.test",
+                    port: 443,
+                }),
+                auth: Socks5Auth::None,
+            },
+            server_name: "origin.test",
+            setup: DirectTlsSetup::EchKeepingSlower {
+                lookup: lookup.as_mut(),
+                family: &family,
+            },
+        };
+        assert_eq!(
+            route.validate(false, true).err().map(|error| error.kind()),
+            Some(std::io::ErrorKind::InvalidInput)
+        );
+        assert!(!polled.load(std::sync::atomic::Ordering::Relaxed));
     }
 }

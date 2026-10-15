@@ -159,12 +159,13 @@ features or blockers for the Phase 2 API work.
   ([HTTP/2 idle close evidence](explanation/validation.md#http2-idle-close-evidence)).
 - Firefox's address selection in `firefox::v157_tcp`: an IPv4 backup
   attempt 250 ms after a slow first attempt; the slower connection kept
-  idle by the HTTP/1.1 and negotiated pools on the direct route, counted
-  against the bound of the pool key of the runtime that opened it,
-  finished with its TLS handshake, claimable by a request, and closed once
-  the first connection selects HTTP/2; and the
-  address family of an origin, which later connections try alone until a
-  prune of the idle timer finds the origin without a connection. Five
+  idle by the HTTP/1.1 and negotiated pools on the direct route, including
+  when HTTPS records supply ECH. Both connections initially offer the same
+  selected ECH configuration. The slower connection counts against its
+  runtime pool key's bound, finishes TLS, and waits for a request to claim
+  it. HTTP/2 selection closes redundant slower attempts. Each origin keeps
+  its address family, which later connections try alone until a prune of
+  the idle timer finds the origin without a connection. Five
   Firefox 157 runs show the backup timing, the kept connection, and the
   remembered family; the TLS handshake and the HTTP/2 close follow Firefox
   source
@@ -360,8 +361,8 @@ completed phase scope.
   family, and tries a failed address again
   ([TCP socket option evidence](explanation/validation.md#tcp-socket-option-evidence)).
   Blocker: none recorded; the work is to give the proxy, WebSocket, exact
-  HTTP/2, and ECH connectors a family and a second connection, and to
-  record connect failures in the address cache.
+  HTTP/2 connectors a family and a second connection, and to record
+  connect failures in the address cache.
 
 #### Wire fidelity
 

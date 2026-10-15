@@ -571,6 +571,10 @@ impl Http2TlsConnector {
                 let keepalive = stream.tcp_keepalive();
                 connect_over_tls(stream, client, extended_connect, keepalive).await
             }
+            #[cfg(feature = "https-records")]
+            DirectTlsSetup::EchKeepingSlower { .. } => {
+                Err(invalid_route("HTTP/2 cannot retain a slower connection"))
+            }
             DirectTlsSetup::KeepSlower(_) => {
                 Err(invalid_route("HTTP/2 cannot retain a slower connection"))
             }

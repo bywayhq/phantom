@@ -27,6 +27,8 @@ use crate::support::{
 };
 use tls_support::{H1_ALPN, TestIdentity, client_builder, read_head, tls_settings};
 
+#[cfg(all(windows, feature = "https-records"))]
+mod ech_retention;
 mod owner_contract;
 mod request_ownership;
 

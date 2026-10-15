@@ -1933,10 +1933,13 @@ Differences from the browsers:
   record (`netwerk/base/nsSocketTransport2.cpp:1742-1745`); Phantom tries it
   again.
 - Phantom keeps the slower attempt's connection, and remembers the address
-  family, only on the direct route of the HTTP/1.1 and negotiated pools.
-  Connections to a proxy, WebSocket connections, exact HTTP/2 requests, and
-  connections that offer ECH from HTTPS records start the backup, close the
-  slower attempt, and neither use nor learn the family; Firefox keeps the
+  family, on the direct route of the HTTP/1.1 and negotiated pools,
+  including connections that offer ECH from HTTPS records. Both attempts
+  initially use the same selected ECH configuration and TLS context. Each
+  attempt permits one retry after authenticated rejection, at its selected
+  address. Connections to a proxy, WebSocket connections, and exact HTTP/2
+  requests start the backup, close the slower attempt, and neither use nor
+  learn the family; Firefox keeps the
   connection and the family on every connection entry.
 - The slower attempt reaches the pool, and becomes claimable, once the
   first connection's handshake has finished. Firefox lets a request claim
@@ -1975,6 +1978,8 @@ Tests in `phantom-net` read the options back from connected sockets with
 | `tcp::tests::slower_connection` | With a scripted slower attempt that connects to a loopback origin when the test lets it: a plaintext slower connection sets no keepalive until its first request, then short-lived keepalive with the interval of its setup time; a TLS one finishes its handshake with no request and waits idle; a negotiated one enters the protocol ALPN selects; and a first connection that selected HTTP/2 keeps the slower attempt only once it has connected |
 | `session::http1_pool::tests::slower_connection` and `session::http1_or_2_pool::tests::slower_connection` (facade) | With a slower connection whose setup the test ends: it waits idle, counts toward the bound once connected, goes to the one request that claimed it, lets that request open a connection when it fails, returns to idle when the claimant leaves, and is skipped by a fresh-connection request; in the negotiated pool it closes when the key has HTTP/2, an HTTP/2 one closes in favor of the current connection, and one becomes the key's HTTP/2 connection when the key has none; a prune forgets the address family only of a key with no connection, setup, or slower attempt |
 | `a_firefox_profile_keeps_the_slower_backup_connection_for_later_requests` (facade, Windows) | Over loopback, with `[::1]` refused slowly: the IPv4 backup carries the first request, the slower attempt's `127.0.0.1` connection opens with no request, and the next two requests use the two connections without a third |
+| `http1_or_2::tests::ech::retention` | Real loopback TLS verifies the selected family, authenticated idle spare, reuse, and one retry at the selected address after authenticated ECH rejection, on exact H1 and negotiated openings |
+| `client_adopts_an_authenticated_ech_backup_without_sending_a_request_until_claimed` (facade, Windows) | A public client authenticates both actual connections, leaves the spare application-quiet, then uses it for an ordinary request without a third TCP connection |
 | `profile_tcp_settings_reach_every_tcp_connector` (facade) | A profile's settings reach each TCP connector the client builds, including the WebSocket HTTP/1.1 connector |
 
 Reproduce: read the cited files at the tags above, and run the listed tests.

@@ -104,7 +104,7 @@ combinations and limits listed here.
 
 | Layer | Summary | Main gaps |
 | --- | --- | --- |
-| TCP | Profile `TCP_NODELAY`, send buffer, fixed or scheduled keepalive, Windows port randomization, Chromium Happy Eyeballs, and Firefox's backup connection, on every TCP path | Firefox's kept slower connection and remembered address family on proxy, WebSocket, exact H2, and ECH connections |
+| TCP | Profile `TCP_NODELAY`, send buffer, fixed or scheduled keepalive, Windows port randomization, Chromium Happy Eyeballs, and Firefox's backup connection, on every TCP path | Firefox's kept slower connection and remembered address family on proxy, WebSocket, and exact H2 connections |
 | TLS over TCP | Typed ordered ClientHellos from retained captures | More versions and platforms |
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse, browser per-host connection bounds | Broader retry classes |
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity and stream numbering | Firefox stream `WINDOW_UPDATE` |
@@ -143,9 +143,11 @@ Supported:
 - Firefox's backup connection (`TcpBackupConnection`), which
   `firefox::v157_tcp` uses: an IPv4 attempt 250 ms after a first attempt in
   resolver order that has not connected. On the direct route the HTTP/1.1
-  and negotiated pools keep the slower attempt's connection without a
-  request: it counts toward the bound of the pool key of the runtime that
-  opened it once connected, finishes its TLS handshake, and waits idle or
+  and negotiated pools keep the slower attempt's connection, including
+  when HTTPS records supply ECH. Both connections initially offer the same
+  selected ECH configuration and use the same TLS context. The slower connection sends no request.
+  Once connected, it counts toward its runtime pool key's bound, finishes
+  its TLS handshake, and waits idle or
   goes to a request that claimed it. Once the first connection selects H2,
   the slower one is closed. Each pool remembers, for each origin and route,
   the address family of its first connection, shared by every runtime's
@@ -159,8 +161,8 @@ Not modeled:
 
 - Parts of Firefox's address selection: keeping the slower connection, and
   remembering the address family, on proxy routes, on WebSocket
-  connections, on exact HTTP/2 requests, and with ECH from HTTPS records,
-  where Phantom starts the backup and closes the slower attempt;
+  connections, and on exact HTTP/2 requests, where Phantom starts the
+  backup and closes the slower attempt;
   skipping an address that failed before on the same cached DNS record; and
   noticing at once that a server closed an idle connection, which can make
   Firefox remember a family longer.

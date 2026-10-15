@@ -1139,6 +1139,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Keep and authenticate the slower direct ECH connection in HTTP/1.1 and
+  negotiated pools. A later request can claim it without another connection
+  or ECH lookup. Native callers can combine the policies with
+  `DirectTlsSetup::EchKeepingSlower`.
+
 - Add mixed TCP TLS and QUIC ticket transactions to `phantom-net`. Capture
   preserves source tickets. Replacement validates all destinations before
   changing any store and defers old-ticket cleanup until locks are released.
