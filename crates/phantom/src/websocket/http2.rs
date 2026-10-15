@@ -322,23 +322,26 @@ impl WebSocketRequestBuilder {
                         RequestError::unsupported_transport_outcome(),
                     ));
                 };
-                let (opening, slower) = extended_connect_direct(
-                    &client,
-                    &connector,
-                    owner.family(),
-                    &request.endpoint,
-                    request.target.clone(),
-                    prepared.headers,
-                )
-                .await
-                .map_err(RequestError::http2_connection_setup)
-                .map_err(WebSocketError::request)?;
-                let owner = owner.connected(opening.connection(), slower);
-                let mut outcome = opening.send().await;
-                if let Ok(outcome) = &mut outcome {
-                    retain_opening_owner(outcome, owner);
-                }
-                outcome
+                crate::session::box_send(async {
+                    let (opening, slower) = extended_connect_direct(
+                        &client,
+                        &connector,
+                        owner.family(),
+                        &request.endpoint,
+                        request.target.clone(),
+                        prepared.headers,
+                    )
+                    .await
+                    .map_err(RequestError::http2_connection_setup)
+                    .map_err(WebSocketError::request)?;
+                    let owner = owner.connected(opening.connection(), slower);
+                    let mut outcome = opening.send().await;
+                    if let Ok(outcome) = &mut outcome {
+                        retain_opening_owner(outcome, owner);
+                    }
+                    Ok::<_, WebSocketError>(outcome)
+                })
+                .await?
             }
             Route::HttpProxy(proxy) => {
                 let connect_authority = request.endpoint.tunnel_authority();
