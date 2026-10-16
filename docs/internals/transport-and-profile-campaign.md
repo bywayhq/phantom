@@ -46,6 +46,29 @@ copying execution journals into this page.
 
 ## Current work
 
+### Closeout order
+
+The implementation audit is closed. Finish the remaining deliveries in this
+order without reopening completed audits or repeating healthy timing runs:
+
+1. Integrate the reviewed runtime and macOS DNS changes after their exact
+   gates and applicable CI. Runtime PR #259 is merged at `616f498f`.
+   macOS DNS PR #260 still needs its final gate and integration.
+2. Publish the completed headed Chrome Mac observations and the six clean
+   H3 follow-ups. Retain failed Safari attempts and remaining browser
+   differences as explicit limitations.
+3. Run isolated Playground/Solve checks against the final library revision
+   and one named consumer snapshot. Preserve active primary work and the
+   unlanded migration.
+4. Reconcile this ledger, roadmap and support pages. Archive retained
+   evidence before removing integrated lanes. Report delivered work,
+   unavailable captures and unresolved historical attribution separately.
+
+Missing Safari/Android layers and the original T1/T2 causes remain open.
+Completed engineering and later passing runs do not close those requirements.
+
+### Delivery record
+
 PR #247 merged at `4dbe270b` after all 23 gate steps, 5,384 runtime tests
 and 29 PR checks; both applicable main push workflows passed. PR #248 then
 merged at `5c11188a` with all eight main push workflows passing. PR #249
@@ -90,11 +113,11 @@ Both applicable main push workflows passed.
 | B1 proxy WebSocket | `firefox-proxy-ws-delivery` | Delivered in PR #252 at `41483d5a`. All 23 gate steps, 5,721 runtime tests and 43 current PR checks passed, followed by all eight main workflows. All 150 selected controls passed. Actual NET API inventory has 1,647 lines; profile and facade inventories are unchanged. Proxy ECH and proxy early data remain unsupported. |
 | B2 | `firefox-h2-window-delivery` | Proxy idle closure and Alt-Used placement/mapping merged in PRs #222, #230 and #237; the alternative-port fixture repair merged in PR #239 with green main CI. Ordinary H2 stream-window behavior merged with the reviewed union in PR #250 after its exact-head gate and 43 current PR checks. All nine applicable main push workflows passed. |
 | B3 | `platform-tcp-integration` | TCP/keepalive policies merged in PR #244 at `4d6c13cd` after independent review, all 23 gate steps, 5,363 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. The generated API inventory records five recipe functions and two policy fields. |
-| B4 | `chromium-linux-dns-integration` | Windows DNS TTL and configuration support merged in PR #250. All nine applicable main push workflows passed. Linux paired wiring at `e2d516aa` passed independent source review, strict all-target/all-feature NET Clippy, 142 production DNS tests and 17 production native FFI/watch tests. The intermediate-symlink watch repair and owned-directory regression passed. Native Linux API generation passed; its 1,647 lines differ only in the platform constructor. Full integration and MSRV checks remain pending. macOS native, safe-intake and paired wiring source passed independent review. Apple SDK/runtime, MSRV, API and full integration checks remain pending. Native probes do not establish browser parity or induced adapter/VPN changes. |
+| B4 | `chromium-linux-dns-integration` | Windows DNS TTL and configuration support merged in PR #250. Linux support merged in PR #254 at `82f146bc` after independent review, all 23 gate steps and 43 successful PR checks; all eight main push workflows passed. Native Linux controls comprise 142 DNS and 17 FFI/watch tests. macOS PR #260 has passed independent source review; its final exact-head gate and integration remain pending. Native probes do not establish browser parity or induced adapter/VPN changes. |
 | B5 | `edge-android-websocket-integration` | The emulator-backed Edge Android H1/H2 WebSocket layer and source-backed bounded Chromium restarts merged in PR #250 after its exact-head gate and current PR checks. All nine applicable main push workflows passed. No physical Android or browser H3 parity is claimed; missing Safari and Android layers remain open. |
-| E1/E2 | `capture-delivery` | Original Windows matrix: 60 successes, 14 failures, one interruption; twelve corrected tunnel follow-ups succeeded separately. The branch retains 60 SSE and 12 tunnel files. Actual Phantom controls observed all eight SSE trials (six H3 cleanup failures) and thirteen WebSocket trials (twelve successful exchanges, one explicit policy error). Independent comparison and integration are recorded separately. |
-| E1/E4 Safari | `safari-hosted-capture` | Hosted macOS tooling prepares independent headed WebDriver HTTP and loopback H2 `reconnect-204` attempts, with no capture retries. Independent source review and twenty focused Python controls passed. H2 requires the returned session-only certificate-bypass capability and actual negotiated H2 observations. The workflows have not run Safari. Raw ClientHello/SETTINGS and ordinary domain SNI remain outside this slice; no complete Safari recipe or browser parity is claimed. Physical Android is unavailable. |
-| E3/E4 macOS | `safari-hosted-capture` | Dispatch-only tooling prepares one headed Chrome HTTP `reconnect-204` attempt on each of `macos-latest` arm64 and `macos-15-intel` x86_64. The installed browser build, OS, architecture, launch mode and raw `User-Agent` bytes are retained without an override. Source review passed; neither hosted job has run. Actual observations and cleanup outcomes remain required. Physical Android is unavailable. |
+| E1/E2 | `capture-delivery` | Original Windows matrix: 60 successes, 14 failures, one interruption; twelve corrected tunnel follow-ups succeeded separately. The eight original public SSE trials retain six H3 cleanup failures. Those six H3 cells each completed once with clean teardown and full post-terminal observation on CPython 3.12.10, peer source `616f498f` and retained Rust binary `41483d5a`. Independent review passed. The thirteen WebSocket trials retain twelve successful exchanges and one explicit policy error. Browser differences and original failures remain recorded separately. |
+| E1/E4 Safari | `safari-hosted-capture` | Two hosted runs attempted both protocols with Safari 26.6.2 on macOS 26.6.2 ARM. The first H2 attempt exposed a repaired adapter identity bug. Both corrected follow-ups timed out creating a WebDriver session before capabilities/navigation, with clean driver exits. No browser request fixture, complete Safari recipe or browser parity is established. |
+| E3/E4 macOS | `hosted-capture-results` | Headed Chrome 151.0.7922.174 on macOS 15.7.9 Intel and Chrome 155.0.8059.40 on macOS 26.6.2 ARM each completed one HTTP/1.1 `reconnect-204` capture without retry. Exact source, runner, browser, fixture hashes and raw UA/hints are retained. These are hosted VM plaintext H1 observations. Physical Android remains unavailable. |
 
 The B2/B4/B5 union and pooled outer-H2 extension are delivered in PR #250.
 Its exact `c934f82a` head passed the complete Windows/Linux gate and all 43
@@ -296,8 +319,8 @@ uncertainty. Research must lead to a decision, bounded experiment, or repair.
   and Chromium per-platform DNS configuration. Cover adapter/VPN/name-policy
   choices and address/HTTPS-query interaction without claiming uncaptured
   browser parity. Windows TTL and configuration support merged in PR #250.
-  Linux/macOS
-  Chromium eligibility and search configuration remain required engineering.
+  Linux support merged in PR #254. macOS Chromium eligibility and search
+  configuration are implemented in PR #260, pending final integration.
   Actual adapter or VPN changes remain unobserved. Coordinate with F5.
 - [ ] B5: Expand recipes to Safari and missing Firefox/Opera Android layers,
   including Edge Android WebSocket coverage. Define each exact build and
@@ -308,16 +331,21 @@ uncertainty. Research must lead to a decision, bounded experiment, or repair.
 ## Evidence expansion
 
 On 2026-10-15, the user confirmed that neither a local Mac nor a physical
-Android device is available. Hosted macOS workflows prepare the selected
-Safari HTTP/H2 and headed Chrome attempts. Those jobs have not run; a local
-Mac is not required for these bounded hosted attempts. Physical Android
-remains unavailable. Continue Windows and Linux work alongside them.
+Android device is available. Hosted Mac attempts have now run. Headed
+Chrome H1 captures succeeded on Intel and ARM. Corrected Safari HTTP/H2
+attempts timed out during session creation before navigation. Physical
+Android remains unavailable. These limits do not establish missing recipe
+layers or physical-device parity.
 
 - [ ] E1: Compare the retained Windows H3 SSE captures and Firefox H2
   `retry-0` capture with Phantom. Resolve the three unsuccessful Chrome SSE
   rows and expand H2 and platform/build coverage, including macOS and Safari.
   Tracked `sse_reconnect --protocol h2|h3` modes are available; fresh
-  integration checks of the composed capture tools remain pending.
+  integration checks of the composed tools passed in PR #259. The six
+  original H3 cells completed cleanly on the selected supported runtime.
+  Chrome's `non-ascii-id`, `reconnect-404` and interrupted
+  `reset-before-head` browser rows remain unresolved. Safari remains blocked
+  before navigation; hosted Chrome adds the named Mac H1 coverage.
 - [x] E2: Compare the twelve retained Windows tunnelled `wss://` openings
   with Phantom, keeping proxy and origin handshakes distinct. Expand the
   selected builds and platforms without inferring browser H3 WebSocket or
@@ -330,10 +358,14 @@ remains unavailable. Continue Windows and Linux work alongside them.
   selected comparisons and captures without claiming whole-build parity.
 - [ ] E3: Capture headful Chromium-family macOS `User-Agent` values and
   compare the retained emulator recipes with a physical Android device.
-- [ ] E4: Establish a bounded capture matrix for Intel Macs, Linux, and
+  Headed Intel/ARM Chrome observations are complete. Physical Android is
+  unavailable, so that comparison remains blocked.
+- [x] E4: Establish a bounded capture matrix for Intel Macs, Linux, and
   additional OS/build variants. Record the selected targets before running
   captures. Keep inaccessible targets explicit; do not generalize results
-  to unobserved platforms or versions.
+  to unobserved platforms or versions. Five Firefox Ubuntu WSL files and
+  both headed Chrome Mac targets are observed. Safari attempts and physical
+  Android limitations remain explicit.
 
 For B5 and E1 through E4, attempt supported capture paths using available
 hosts. Missing hardware, browser access, or certificate trust can produce a
