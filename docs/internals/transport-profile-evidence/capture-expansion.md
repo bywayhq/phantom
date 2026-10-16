@@ -116,6 +116,7 @@ receipts. Archive them before removing delivered worktrees.
 | `capture-delivery/E1-public-actual-observations-v1/receipt.json` | `14fc61df8e58698457d4a6f2441ff5c9ab36e667d0d25c1e88ab5f34082558ad` |
 | `h3-drain-diagnosis/E1-actual-runtime-independent-v1/review.json` | `0285011067e8f47de429d3519b266db1e69ea739d413748e1573b69ee37df087` |
 | `h3-drain-diagnosis/E2-actual-runtime-independent-v1/review.json` | `53d3fa5117b6d99b9055ed80abfbc3e3d8da740ad429f0e89c7ce4930eab0899` |
+| `macos-headful-capture/E2-acceptance-reconciliation-v1/receipt.json` | `08bbe18018b5ab7a032b7dabdbe816303232dc0100ae584b05f348f7e5fb80ae` |
 | `firefox-socks-eligibility/E1-upstream-eventsource-policy-v1/receipt.json` | `fb75bc7baf9b7c44f4a93e3f73a59ad4b41f3c2c768632abf03931250ce9510f` |
 | `h3-drain-diagnosis/capture-rebase-composition-independent-v1/review.json` | `aa55e0908edf2ecaa989a4019eca856ef2cb531d70501d7d4c8d629c89a93a40` |
 
