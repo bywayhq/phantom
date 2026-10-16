@@ -43,6 +43,7 @@ pub(crate) enum WatchCause {
     WorkerPanicked,
     StatePoisoned,
     GenerationExhausted,
+    #[cfg(test)]
     ForeignGeneration,
     Stopped,
 }
@@ -194,6 +195,7 @@ impl ConfigurationObserver {
     }
 
     /// Waits for observed invalidation, not synchronous OS-wide linearization.
+    #[cfg(test)]
     pub(crate) async fn changed_since(
         &self,
         previous: &ConfigurationGeneration,

@@ -160,9 +160,11 @@ fn generation_token(
 }
 
 fn snapshot() -> std::sync::Arc<super::Snapshot> {
-    std::sync::Arc::new(super::Snapshot::SystemOnly(
-        super::ConfigurationIneligibility::default(),
-    ))
+    #[cfg(target_os = "macos")]
+    let reason = super::ConfigurationIneligibility::WitnessUnavailable;
+    #[cfg(any(windows, target_os = "linux"))]
+    let reason = super::ConfigurationIneligibility::default();
+    std::sync::Arc::new(super::Snapshot::SystemOnly(reason))
 }
 
 #[tokio::test]
