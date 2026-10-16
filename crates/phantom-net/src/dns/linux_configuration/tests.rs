@@ -394,7 +394,8 @@ fn debug_reports_shape_without_host_configuration_or_override_values() -> TestRe
     };
     let result =
         chromium_linux_with_overrides(b"nameserver 192.0.2.77\noptions use-vc\n", b"", &overrides)?;
-    let debug = format!("{overrides:?} {result:?}");
+    let eligible = chromium_linux_with_overrides(b"nameserver 192.0.2.77\n", b"", &overrides)?;
+    let debug = format!("{overrides:?} {result:?} {eligible:?}");
     assert!(!debug.contains(&marker));
     assert!(!debug.contains("192.0.2.77"));
     assert!(!debug.contains("eth0"));
@@ -416,21 +417,24 @@ fn boolean_negation_depends_on_the_supplied_actual_libc_syntax() -> TestResult {
             &overrides,
         )?;
         match (syntax, result) {
-            (
-                LibcOptionSyntax::Legacy,
-                LinuxDnsEligibility::SystemOnly {
-                    configuration,
-                    reasons,
-                },
-            ) => {
+            (LibcOptionSyntax::Legacy, LinuxDnsEligibility::SystemOnly { reasons }) => {
                 assert!(reasons.use_vc);
-                assert!(configuration.rotate);
             }
             (LibcOptionSyntax::Negation, LinuxDnsEligibility::BuiltIn(configuration)) => {
                 assert!(!configuration.rotate)
             }
             _ => return Err("libc option syntax was ignored".into()),
         }
+        // Rotation is observable only for built-in configurations. Check its
+        // legacy/negated forms separately from the TCP-only eligibility rule.
+        let rotation = chromium_linux_with_overrides(b"options rotate -rotate\n", b"", &overrides)?;
+        let LinuxDnsEligibility::BuiltIn(configuration) = rotation else {
+            return Err("rotation selected OS-only resolution".into());
+        };
+        assert_eq!(
+            configuration.rotate,
+            matches!(syntax, LibcOptionSyntax::Legacy)
+        );
     }
     Ok(())
 }
