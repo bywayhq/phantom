@@ -2763,7 +2763,11 @@ configured suffix and server order, rotation, UDP-setting clones, OS-only
 eligibility, symlink replacement, lost watches and joined shutdown. The
 same binary's SHA-256 is
 `39dba28dac6a849953a3d60307f747c6d3d5b33340cd68db46d302f221365612`.
-Full integration, MSRV and API checks remain pending. No browser capture
+Native Linux API generation at `d3eb9d9f` used
+`nightly-2026-09-01` and `cargo-public-api` 0.52.0. Its 1,647 lines match
+the Windows inventory except for the target-specific constructor:
+`chromium_linux_resolvers` replaces `chromium_windows_resolvers`.
+Full integration and MSRV checks remain pending. No browser capture
 establishes Linux DNS selection or refresh parity.
 
 ### Chromium's built-in DNS client

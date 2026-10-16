@@ -18,6 +18,16 @@ Replace the package name for each library. The QUIC provider also has
 snapshots for default features, `--features keylog`, and `--features server`.
 Check feature-gated documentation links with default and all-feature builds.
 
+The paired system resolver constructor depends on the target:
+
+| Target | Constructor |
+| --- | --- |
+| Windows | `phantom_net::dns::chromium_windows_resolvers` |
+| Linux | `phantom_net::dns::chromium_linux_resolvers` |
+
+Generate on each native target to include its constructor. The checked-in
+inventory uses the Windows name.
+
 | Package | All-feature lines | Interface |
 | --- | ---: | --- |
 | `phantom-http` | 1,199 | Application client, ordered requests, responses, state, custom profile import |
