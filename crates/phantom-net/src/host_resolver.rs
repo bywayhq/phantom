@@ -334,7 +334,7 @@ impl AddressResolver {
         }
     }
 
-    #[cfg(all(any(windows, test), feature = "https-records"))]
+    #[cfg(all(any(windows, target_os = "linux", test), feature = "https-records"))]
     pub(crate) fn from_dns_backend(lookup: Arc<dyn DnsLookup>) -> Self {
         Self {
             backend: Backend::Dns(lookup),
