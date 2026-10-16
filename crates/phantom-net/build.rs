@@ -1,3 +1,5 @@
+//! Build the macOS DNS configuration bridge when HTTPS records are enabled.
+
 fn main() {
     println!("cargo:rerun-if-changed=native/macos_dns.c");
     println!("cargo:rerun-if-changed=native/macos_dns.h");
