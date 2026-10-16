@@ -1,6 +1,9 @@
 //! HTTP/2 WebSocket extended CONNECT carried through proxy routes, plus the
 //! HTTP/1 WebSocket over an HTTP/2 proxy transport.
 
+#[cfg(windows)]
+mod retention;
+
 use crate::support::tls;
 use crate::support::tunnel_proxy;
 use crate::support::websocket_origin;
