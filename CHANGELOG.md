@@ -1195,8 +1195,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Unsupported configurations use OS address resolution and reject raw
   HTTPS queries. The constructor requires `https-records` and is opt-in.
 
-- Add hosted macOS capture workflows for Safari and headed Chrome HTTP
-  EventSource reconnects. Chrome attempts both arm64 and Intel runners.
+- Add hosted macOS capture workflows for Safari HTTP/H2 and headed Chrome
+  HTTP EventSource reconnects. Chrome attempts arm64 and Intel runners.
+  Safari H2 uses an explicit session-only certificate bypass on loopback.
   Each attempt retains browser identity, request bytes and cleanup results.
 
 - Retain a headless Firefox 157 Ubuntu WSL sample covering H2/H3 requests,
