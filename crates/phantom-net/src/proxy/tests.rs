@@ -16,6 +16,7 @@ use crate::{
 mod authentication;
 mod challenged_connection;
 mod credential_cache;
+mod http1_opening;
 mod http2_challenge;
 mod http2_challenge_frames;
 mod http2_connect;
