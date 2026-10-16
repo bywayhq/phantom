@@ -31,6 +31,20 @@ from the twelve original failed tunnel rows. Nine early SSE files retain
 18 UDP cleanup diagnostics. Four successful SOCKS tunnel files retain nine
 Windows reset callback log entries. These do not diagnose all earlier failures.
 
+The three unsuccessful Chrome H3 SSE rows each ran once at `b5dd5b42`:
+`non-ascii-id`, `reconnect-404` and `reset-before-head`. Chrome remained
+155.0.8059.40. The peer used CPython 3.12.10 and the exact tracked Python
+requirements, including cryptography 50.0.1. An offline dependency preflight
+failed before browser launch; its output is retained separately.
+
+All three attempts failed without capture retries, in 40.551 seconds total.
+Their logs show synchronous `WSARecvFrom` error 10054 while starting the
+next receive. No fixture or partial output was written, and no cleanup
+exception was reported. These results do not prove the intended two-repeat
+contract or independent OS-level cleanup. They differ from the original
+cleanup-deadline failures and interruption. The responsible peer and
+underlying ICMP cause are not established. No further browser sweep ran.
+
 The Linux package is Firefox 157.0, build ID `20260924084938`. Its official
 archive SHA256 is
 `42f2c62a562316982ef5a796738c57602bf84a984f5c616e80bcff4627f78fff`.
@@ -162,6 +176,7 @@ receipts. Archive them before removing delivered worktrees.
 
 | Lane and receipt | SHA256 |
 | --- | --- |
+| `hosted-capture-results/E1-three-chrome-final-prep-v1/run/results.json` | `eb227654840f030ff7fbf2921e00da21aaf8638977652fa8361bcddd97aa2e05` |
 | `capture-delivery/E4-linux-snapshot-observed-v1/review.json` | `65ae00da1a0151855741630860ba621339debcd6193f82165dc06e8a3505c1c0` |
 | `capture-delivery/E4-linux-remaining-observed-v1/review.json` | `4822e49fb0d29714c741c6139abc7cc2408a8e1e45c2497cafaa32161aea6758` |
 | `capture-delivery/E4-linux-fixture-install-v1/result.json` | `8f44b1730c9b330f545866d72e33fd8e3c27195909cad0c4c1a277490c8c912b` |

@@ -773,8 +773,10 @@ identities, resets and closes. They do not retain compressed HPACK or QPACK
 representations. Ending a stream replaces the H1 FIN stimulus; resetting a
 stream replaces the H1 reset stimulus.
 
-On Windows, HTTP/3 requires CPython 3.12.3 or later so a closed UDP peer
-does not stop the listener's receive loop. The tool rejects older runtimes.
+On Windows, HTTP/3 requires CPython 3.12.3 or later. The tool rejects older
+runtimes, whose asynchronous ICMP completion can stop the receive loop.
+The pinned runtime can still fail while starting a receive after a peer
+closes. The three retained Chrome H3 follow-ups hit this separate error.
 Use the same pinned interpreter as the Windows capture tests:
 
 ```sh

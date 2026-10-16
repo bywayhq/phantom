@@ -48,12 +48,17 @@ copying execution journals into this page.
 
 ### Closeout order
 
+Linux DNS PR #254, hosted capture tooling PR #258 and Windows runtime
+PR #259 are merged. Their exact-head gates and applicable PR checks passed.
+The two main push workflows for `616f498f` also passed. The runtime lane
+has been removed after archiving and hash-checking its 77 ignored files.
+
 The implementation audit is closed. Finish the remaining deliveries in this
 order without reopening completed audits or repeating healthy timing runs:
 
-1. Integrate the reviewed runtime and macOS DNS changes after their exact
-   gates and applicable CI. Runtime PR #259 is merged at `616f498f`.
-   macOS DNS PR #260 still needs its final gate and integration.
+1. Runtime PR #259 is merged at `616f498f`. macOS DNS PR #260 is merged at
+   `b5dd5b42` after independent review, all 23 Windows/Linux gate steps and
+   38 successful PR checks, including both platforms. Watch its main CI.
 2. Publish the completed headed Chrome Mac observations and the six clean
    H3 follow-ups. Retain failed Safari attempts and remaining browser
    differences as explicit limitations.
@@ -113,7 +118,7 @@ Both applicable main push workflows passed.
 | B1 proxy WebSocket | `firefox-proxy-ws-delivery` | Delivered in PR #252 at `41483d5a`. All 23 gate steps, 5,721 runtime tests and 43 current PR checks passed, followed by all eight main workflows. All 150 selected controls passed. Actual NET API inventory has 1,647 lines; profile and facade inventories are unchanged. Proxy ECH and proxy early data remain unsupported. |
 | B2 | `firefox-h2-window-delivery` | Proxy idle closure and Alt-Used placement/mapping merged in PRs #222, #230 and #237; the alternative-port fixture repair merged in PR #239 with green main CI. Ordinary H2 stream-window behavior merged with the reviewed union in PR #250 after its exact-head gate and 43 current PR checks. All nine applicable main push workflows passed. |
 | B3 | `platform-tcp-integration` | TCP/keepalive policies merged in PR #244 at `4d6c13cd` after independent review, all 23 gate steps, 5,363 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. The generated API inventory records five recipe functions and two policy fields. |
-| B4 | `chromium-linux-dns-integration` | Windows DNS TTL and configuration support merged in PR #250. Linux support merged in PR #254 at `82f146bc` after independent review, all 23 gate steps and 43 successful PR checks; all eight main push workflows passed. Native Linux controls comprise 142 DNS and 17 FFI/watch tests. macOS PR #260 has passed independent source review; its final exact-head gate and integration remain pending. Native probes do not establish browser parity or induced adapter/VPN changes. |
+| B4 | `chromium-macos-dns-integration` | Windows DNS TTL and configuration support merged in PR #250. Linux support merged in PR #254 at `82f146bc`; all eight main push workflows passed. Native Linux controls comprise 142 DNS and 17 FFI/watch tests. macOS support merged in PR #260 at `b5dd5b42` after independent review, all 23 Windows/Linux gate steps and 38 successful PR checks, including both platforms. Native probes do not establish browser parity or induced adapter/VPN changes. |
 | B5 | `edge-android-websocket-integration` | The emulator-backed Edge Android H1/H2 WebSocket layer and source-backed bounded Chromium restarts merged in PR #250 after its exact-head gate and current PR checks. All nine applicable main push workflows passed. No physical Android or browser H3 parity is claimed; missing Safari and Android layers remain open. |
 | E1/E2 | `capture-delivery` | Original Windows matrix: 60 successes, 14 failures, one interruption; twelve corrected tunnel follow-ups succeeded separately. The eight original public SSE trials retain six H3 cleanup failures. Those six H3 cells each completed once with clean teardown and full post-terminal observation on CPython 3.12.10, peer source `616f498f` and retained Rust binary `41483d5a`. Independent review passed. The thirteen WebSocket trials retain twelve successful exchanges and one explicit policy error. Browser differences and original failures remain recorded separately. |
 | E1/E4 Safari | `safari-hosted-capture` | Two hosted runs attempted both protocols with Safari 26.6.2 on macOS 26.6.2 ARM. The first H2 attempt exposed a repaired adapter identity bug. Both corrected follow-ups timed out creating a WebDriver session before capabilities/navigation, with clean driver exits. No browser request fixture, complete Safari recipe or browser parity is established. |
@@ -315,12 +320,13 @@ uncertainty. Research must lead to a decision, bounded experiment, or repair.
 - [x] B3: Add Chromium macOS idle-only keepalive and Android TCP recipes.
   Add verified source-backed Firefox macOS, Linux, and Android keepalive
   recipes. Source-backed support and observed socket behavior remain distinct.
-- [ ] B4: Add Firefox Windows DNS record TTL through an audited FFI boundary
+- [x] B4: Add Firefox Windows DNS record TTL through an audited FFI boundary
   and Chromium per-platform DNS configuration. Cover adapter/VPN/name-policy
   choices and address/HTTPS-query interaction without claiming uncaptured
   browser parity. Windows TTL and configuration support merged in PR #250.
   Linux support merged in PR #254. macOS Chromium eligibility and search
-  configuration are implemented in PR #260, pending final integration.
+  configuration merged in PR #260 at `b5dd5b42` after the full gate and
+  current platform checks.
   Actual adapter or VPN changes remain unobserved. Coordinate with F5.
 - [ ] B5: Expand recipes to Safari and missing Firefox/Opera Android layers,
   including Edge Android WebSocket coverage. Define each exact build and
@@ -343,8 +349,12 @@ layers or physical-device parity.
   Tracked `sse_reconnect --protocol h2|h3` modes are available; fresh
   integration checks of the composed tools passed in PR #259. The six
   original H3 cells completed cleanly on the selected supported runtime.
-  Chrome's `non-ascii-id`, `reconnect-404` and interrupted
-  `reset-before-head` browser rows remain unresolved. Safari remains blocked
+  Chrome's `non-ascii-id`, `reconnect-404` and previously interrupted
+  `reset-before-head` rows each ran once on CPython 3.12.10 at `b5dd5b42`.
+  All three failed with synchronous `WSARecvFrom` error 10054; no fixtures
+  were written. There were no capture retries or cleanup error chains.
+  This is a separate blocker from the original cleanup failures.
+  Safari remains blocked
   before navigation; hosted Chrome adds the named Mac H1 coverage.
 - [x] E2: Compare the twelve retained Windows tunnelled `wss://` openings
   with Phantom, keeping proxy and origin handshakes distinct. Expand the

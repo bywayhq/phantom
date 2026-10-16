@@ -2812,6 +2812,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Correct the Windows HTTP/3 capture runtime guarantee: the required Python
+  version still permits a synchronous UDP receive error after a peer closes.
+
 - Accept Safari's returned WebDriver browser name when starting captures.
 
 - Retain headed Chrome HTTP reconnect captures for both hosted Mac

@@ -14,9 +14,9 @@ The [transport and profile campaign](internals/transport-and-profile-campaign.md
 tracks the next timing investigations, corpus management, and named feature
 and browser-coverage additions. Its five catalog tasks and eight client
 features are delivered. Firefox address-selection work is delivered through
-PR #252. Windows/Linux DNS and the first capture set are delivered. macOS
-DNS integration, final consumer checks, missing browser layers and the
-original timing causes remain open. Its completion criteria are separate from the
+PR #252. Windows, Linux and macOS DNS support and the first capture set are
+delivered. Final consumer checks, missing browser layers and the original
+timing causes remain open. Its completion criteria are separate from the
 completed phase scopes below.
 
 > For builders planning around Phantom and contributors choosing work.
