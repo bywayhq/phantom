@@ -69,14 +69,14 @@ impl Socks5Error {
         }
     }
 
-    fn connect(source: std::io::Error) -> Self {
+    pub(super) fn connect(source: std::io::Error) -> Self {
         Self {
             kind: Socks5ErrorKind::Connect,
             source: Some(Socks5ErrorSource::Io(source)),
         }
     }
 
-    fn resolve(source: std::io::Error) -> Self {
+    pub(super) fn resolve(source: std::io::Error) -> Self {
         Self {
             kind: Socks5ErrorKind::Resolve,
             source: Some(Socks5ErrorSource::Io(source)),
@@ -291,7 +291,7 @@ where
     .await
 }
 
-fn prepare_target(host: &str, port: u16) -> Result<TargetAddr<'_>, Socks5Error> {
+pub(super) fn prepare_target(host: &str, port: u16) -> Result<TargetAddr<'_>, Socks5Error> {
     if host.is_empty() {
         return Err(Socks5Error::without_source(Socks5ErrorKind::InvalidTarget));
     }
@@ -300,7 +300,7 @@ fn prepare_target(host: &str, port: u16) -> Result<TargetAddr<'_>, Socks5Error> 
         .map_err(Socks5Error::invalid_target)
 }
 
-async fn establish<S>(
+pub(super) async fn establish<S>(
     stream: S,
     target: TargetAddr<'_>,
     auth: Socks5Auth<'_>,
@@ -358,7 +358,7 @@ pub(super) async fn connect_local_to_addresses_with_auth(
 }
 
 impl Socks5Error {
-    fn is_target_specific_rejection(&self) -> bool {
+    pub(super) fn is_target_specific_rejection(&self) -> bool {
         matches!(
             self.source,
             Some(Socks5ErrorSource::Protocol(

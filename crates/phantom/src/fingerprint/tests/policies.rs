@@ -55,10 +55,11 @@ fn cookie_names_and_resolved_hint_bytes_are_kept_without_offline_normalization()
 fn host_sized_custom_limits_and_fractional_durations_are_not_offline_capped() -> TestResult {
     let mut value = document(0)?;
     let limit = usize::MAX;
-    value["profile"]["dns_cache"] = json!({"system_ttl":"Ignore","max_entries":limit,"ttl":{"seconds":7,"nanoseconds":3},"min_record_ttl":{"seconds":0,"nanoseconds":1},"negative_ttl":null});
+    value["profile"]["dns_cache"] = json!({"address_failure_policy":{"kind":"Ignore","max_unusable_addresses":null},"system_ttl":"Ignore","max_entries":limit,"ttl":{"seconds":7,"nanoseconds":3},"min_record_ttl":{"seconds":0,"nanoseconds":1},"negative_ttl":null});
     let expected = phantom_profile::catalog::profile(PROFILES[0].0)?
         .instantiate(&[])?
         .with_dns_cache(phantom_profile::DnsCacheSettings {
+            address_failure_policy: phantom_profile::DnsAddressFailurePolicy::Ignore,
             max_entries: NonZeroUsize::new(limit).ok_or("zero host size")?,
             ttl: std::time::Duration::new(7, 3),
             min_record_ttl: std::time::Duration::new(0, 1),

@@ -436,6 +436,7 @@ async fn the_address_cache_keeps_a_dns_answer_for_its_record_ttl() -> TestResult
     let mut server = DnsServer::spawn(records(1, 1)).await?;
     let resolver = AddressResolver::from_dns(lookup(&server, false)?);
     let settings = DnsCacheSettings {
+        address_failure_policy: phantom_profile::DnsAddressFailurePolicy::Ignore,
         system_ttl: phantom_profile::SystemDnsTtlPolicy::Ignore,
         max_entries: NonZeroUsize::MIN,
         ttl: Duration::ZERO,

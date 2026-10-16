@@ -279,6 +279,94 @@ class ConnectionComponentTests(unittest.TestCase):
                 all(path.read_text() == "sentinel" for path in paths.values())
             )
 
+    def test_address_failure_policy_records_require_exact_payloads(self):
+        invalid = (
+            None,
+            True,
+            "Ignore",
+            [],
+            {},
+            {"kind": "Ignore"},
+            {"max_unusable_addresses": 1},
+            {"kind": None, "max_unusable_addresses": None},
+            {"kind": "Future", "max_unusable_addresses": None},
+            {"kind": "Ignore", "max_unusable_addresses": 1},
+            {"kind": "Ignore", "max_unusable_addresses": None, "extra": 0},
+            *(
+                {"kind": "Record", "max_unusable_addresses": cap}
+                for cap in (None, 0, -1, True, False, "1", 1.0, 1 << 32)
+            ),
+            {"kind": "Record", "max_unusable_addresses": 1, "extra": 0},
+        )
+        for policy in invalid:
+            document = copy.deepcopy(self.dns)
+            document["components"][0]["values"]["address_failure_policy"] = policy
+            self.reject(document, "DnsCacheSettings")
+        document = copy.deepcopy(self.dns)
+        del document["components"][0]["values"]["address_failure_policy"]
+        self.reject(document, "DnsCacheSettings")
+
+    def test_address_failure_caps_preserve_portable_catalog_range_and_typed_values(
+        self,
+    ):
+        values = self.dns["components"][0]["values"]
+        values["address_failure_policy"] = {
+            "kind": "Ignore",
+            "max_unusable_addresses": None,
+        }
+        generated = generator.generate_components(
+            generator.validate_components(self.dns), "dns-components.json"
+        )
+        self.assertIn(
+            "address_failure_policy: crate::DnsAddressFailurePolicy::Ignore", generated
+        )
+        for cap in (1, (1 << 32) - 1):
+            values["address_failure_policy"] = {
+                "kind": "Record",
+                "max_unusable_addresses": cap,
+            }
+            generated = generator.generate_components(
+                generator.validate_components(self.dns), "dns-components.json"
+            )
+            self.assertIn("crate::DnsAddressFailurePolicy::Record", generated)
+            self.assertIn(f"NonZeroUsize::new({cap})", generated)
+
+    def test_invalid_address_failure_policy_cannot_write_any_generated_output(self):
+        names = tuple(
+            name
+            for name in vars(generator)
+            if name == "OUTPUT" or name.endswith("_OUTPUT")
+        )
+        self.assertEqual(len(names), 15)
+        invalid = copy.deepcopy(self.dns)
+        invalid["components"][0]["values"]["address_failure_policy"] = {
+            "kind": "Record",
+            "max_unusable_addresses": 0,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            paths = {name: Path(directory) / (name + ".rs") for name in names}
+            for path in paths.values():
+                path.write_text("sentinel", encoding="utf-8")
+            with (
+                mock.patch.multiple(generator, **paths),
+                mock.patch.object(sys, "argv", ["generate_profiles.py"]),
+                mock.patch.object(generator.sys, "stderr"),
+                mock.patch.object(
+                    generator,
+                    "load_dns_components",
+                    side_effect=lambda: generator.validate_components(
+                        invalid, ("DnsCacheSettings",)
+                    ),
+                ),
+            ):
+                self.assertEqual(generator.main(), 1)
+            self.assertTrue(
+                all(
+                    path.read_text(encoding="utf-8") == "sentinel"
+                    for path in paths.values()
+                )
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

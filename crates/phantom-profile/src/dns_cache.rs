@@ -16,6 +16,32 @@ pub enum SystemDnsTtlPolicy {
     FirefoxWindows,
 }
 
+/// Whether locally resolved DNS records remember failed connection addresses.
+///
+/// This policy is independent of TCP family selection and native DNS TTLs.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DnsAddressFailurePolicy {
+    /// Leave the resolver's address order unchanged after a connection failure.
+    Ignore,
+    /// Skip failed IP addresses retained by the same DNS record.
+    ///
+    /// Refreshing an answer preserves its history. A fresh traversal of an
+    /// entirely blocked answer clears history and selects its first eligible
+    /// address. A traversal with no eligible address leaves history intact.
+    /// Clear, eviction and configuration invalidation retire that
+    /// record; stale connection reports cannot modify its replacement.
+    Record {
+        /// Most distinct failed IP addresses retained by one record.
+        ///
+        /// This is a Phantom resource limit, separate from the number of DNS
+        /// cache entries. Reaching it returns a resource error without dropping
+        /// history or authorizing a retry. Firefox's source does not impose this
+        /// per-record limit. The Firefox recipe chooses 1600 at the existing
+        /// cache resource scale; it is not a browser-observed address bound.
+        max_unusable_addresses: NonZeroUsize,
+    },
+}
+
 /// How a client reuses the addresses it resolves for its own connections.
 ///
 /// A client that caches addresses resolves a host name once and reuses the
@@ -36,6 +62,11 @@ pub enum SystemDnsTtlPolicy {
 /// supplies a remaining DNS lifetime, which the cache never extends.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DnsCacheSettings {
+    /// Failed-address history for locally resolved, cached DNS records.
+    ///
+    /// Overrides and IP literals do not create history. Without an address
+    /// cache, this setting creates no cross-request DNS record.
+    pub address_failure_policy: DnsAddressFailurePolicy,
     /// Native TTL handling for successful system-resolver address lookups.
     pub system_ttl: SystemDnsTtlPolicy,
     /// Most host names kept at once.
@@ -66,8 +97,9 @@ pub struct DnsCacheSettings {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::{num::NonZeroUsize, time::Duration};
 
+    use super::DnsAddressFailurePolicy;
     use crate::{SystemDnsTtlPolicy, browser::chrome, browser::firefox};
 
     #[test]
@@ -78,6 +110,10 @@ mod tests {
         let settings = chrome::v154_dns_cache();
 
         assert_eq!(settings.system_ttl, SystemDnsTtlPolicy::Ignore);
+        assert_eq!(
+            settings.address_failure_policy,
+            DnsAddressFailurePolicy::Ignore
+        );
 
         assert_eq!(settings.max_entries.get(), 1000);
         assert_eq!(settings.ttl, Duration::from_secs(60));
@@ -96,10 +132,34 @@ mod tests {
         let settings = firefox::v157_dns_cache();
 
         assert_eq!(settings.system_ttl, SystemDnsTtlPolicy::FirefoxWindows);
+        assert!(matches!(
+            settings.address_failure_policy,
+            DnsAddressFailurePolicy::Record { max_unusable_addresses }
+                if max_unusable_addresses.get() == 1600
+        ));
 
         assert_eq!(settings.max_entries.get(), 1600);
         assert_eq!(settings.ttl, Duration::from_secs(60));
         assert_eq!(settings.min_record_ttl, Duration::ZERO);
         assert_eq!(settings.negative_ttl, Some(Duration::from_secs(60)));
+    }
+
+    #[test]
+    fn changing_cache_entry_limit_does_not_change_the_record_history_bound()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut settings = firefox::v157_dns_cache();
+        let original_history = settings.address_failure_policy;
+        settings.max_entries = NonZeroUsize::new(3).ok_or("nonzero test cache limit")?;
+        assert_eq!(settings.address_failure_policy, original_history);
+        settings.address_failure_policy = DnsAddressFailurePolicy::Record {
+            max_unusable_addresses: NonZeroUsize::new(7).ok_or("nonzero test history limit")?,
+        };
+        assert_eq!(settings.max_entries.get(), 3);
+        assert!(matches!(
+            settings.address_failure_policy,
+            DnsAddressFailurePolicy::Record { max_unusable_addresses }
+                if max_unusable_addresses.get() == 7
+        ));
+        Ok(())
     }
 }

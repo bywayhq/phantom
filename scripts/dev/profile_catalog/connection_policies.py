@@ -40,6 +40,18 @@ def validate_http1_values(values):
 
 
 def validate_dns_values(values):
+    policy = values["address_failure_policy"]
+    keys(policy, ("kind", "max_unusable_addresses"), "DNS address failure policy")
+    kind = choice(policy["kind"], ("Ignore", "Record"), "DNS address failure policy")
+    if kind == "Ignore":
+        if policy["max_unusable_addresses"] is not None:
+            raise DeclarationError(
+                "Ignore address failure policy requires a null limit"
+            )
+    else:
+        bounded_integer(
+            policy["max_unusable_addresses"], 1, MAX_U32, "unusable address limit"
+        )
     choice(values["system_ttl"], ("Ignore", "FirefoxWindows"), "system DNS TTL policy")
     bounded_integer(values["max_entries"], 1, MAX_U32, "DNS cache entry limit")
     for field in ("ttl", "min_record_ttl"):

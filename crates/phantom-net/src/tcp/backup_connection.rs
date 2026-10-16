@@ -4,7 +4,6 @@
 //! describes.
 
 use std::{
-    collections::VecDeque,
     fmt,
     future::Future,
     io,
@@ -18,10 +17,14 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::host_resolver::tcp_addresses::{TcpAddressCursor, TcpAddresses, TcpCandidate};
 use phantom_profile::TcpKeepaliveSchedule;
 use tokio::net::TcpStream;
 
-use super::{ProfileTcpStream, TcpKeepaliveControl, is_refusal_or_timeout, no_addresses};
+use super::{
+    ProfileTcpStream, TcpKeepaliveControl, is_feedback_resource_error, is_refusal_or_timeout,
+    no_addresses,
+};
 
 /// An IP address family.
 ///
@@ -139,7 +142,7 @@ impl AddressFamilyMemory {
 
     /// Records the family of a connection to `address` that just
     /// succeeded.
-    pub(super) fn record_connection(&self, address: &SocketAddr, switched_family: bool) {
+    pub(crate) fn record_connection(&self, address: &SocketAddr, switched_family: bool) {
         self.record(AddressFamily::of(address), switched_family);
     }
 
@@ -217,32 +220,51 @@ pub(super) struct Won<Stream, Attempt, Dial> {
 /// `dial` gets each address and the timeout for that connect. `started` is
 /// when the host lookup began: the primary attempt began then, and the
 /// backup when `delay` ended.
+#[cfg(test)]
 pub(super) async fn connect<Dial, Attempt, Stream, Delay>(
     addresses: Vec<SocketAddr>,
     plan: Plan,
     delay: Delay,
     mut dial: Dial,
     started: Instant,
-) -> io::Result<Won<Stream, Attempt, Dial>>
+) -> io::Result<Won<Stream, Attempt, impl FnMut(TcpCandidate, Option<Duration>) -> Attempt>>
 where
     Dial: FnMut(SocketAddr, Option<Duration>) -> Attempt,
+    Attempt: Future<Output = io::Result<Stream>>,
+    Delay: Future<Output = ()>,
+{
+    connect_candidates(
+        addresses.into(),
+        plan,
+        delay,
+        move |candidate, timeout| dial(candidate.address(), timeout),
+        started,
+    )
+    .await
+}
+
+pub(super) async fn connect_candidates<Dial, Attempt, Stream, Delay>(
+    addresses: TcpAddresses,
+    plan: Plan,
+    delay: Delay,
+    mut dial: Dial,
+    started: Instant,
+) -> io::Result<Won<Stream, Attempt, Dial>>
+where
+    Dial: FnMut(TcpCandidate, Option<Duration>) -> Attempt,
     Attempt: Future<Output = io::Result<Stream>>,
     Delay: Future<Output = ()>,
 {
     let (primary_addresses, backup_addresses) = match plan.family {
         None => {
             let ipv4 = Addresses {
-                family: addresses
-                    .iter()
-                    .copied()
-                    .filter(SocketAddr::is_ipv4)
-                    .collect(),
+                family: (addresses.cursor(), Some(false)),
                 other_family: None,
                 timeout: None,
                 switched: false,
             };
             let all = Addresses {
-                family: addresses.into(),
+                family: (addresses.cursor(), None),
                 other_family: None,
                 timeout: None,
                 switched: false,
@@ -250,12 +272,10 @@ where
             (all, ipv4)
         }
         Some(family) => {
-            let (known, other): (VecDeque<_>, VecDeque<_>) = addresses
-                .into_iter()
-                .partition(|address| AddressFamily::of(address) == family);
+            let ipv6 = matches!(family, AddressFamily::Ipv6);
             let primary = Addresses {
-                family: known,
-                other_family: Some(other),
+                family: (addresses.cursor(), Some(ipv6)),
+                other_family: Some((addresses.cursor(), Some(!ipv6))),
                 timeout: None,
                 switched: false,
             };
@@ -288,6 +308,7 @@ where
                         });
                     }
                     Err(error) => {
+                        if is_feedback_resource_error(&error) { return Err(error); }
                         primary = walk.next(&error, &mut dial);
                         last_error = Some(error);
                     }
@@ -307,6 +328,7 @@ where
                         });
                     }
                     Err(error) => {
+                        if is_feedback_resource_error(&error) { return Err(error); }
                         backup = walk.next(&error, &mut dial);
                         last_error = Some(error);
                     }
@@ -326,10 +348,10 @@ where
 struct Addresses {
     /// The remembered family's addresses, or every address it may try when
     /// no family is remembered.
-    family: VecDeque<SocketAddr>,
+    family: (TcpAddressCursor, Option<bool>),
     /// The other family's addresses, tried once `family` runs out, when a
     /// family is remembered.
-    other_family: Option<VecDeque<SocketAddr>>,
+    other_family: Option<(TcpAddressCursor, Option<bool>)>,
     /// Longest wait for each connect to `family`.
     timeout: Option<Duration>,
     /// Whether `family` now holds the other family's addresses.
@@ -339,8 +361,8 @@ struct Addresses {
 impl Addresses {
     /// The next address and its timeout, moving to the other family when
     /// this one has none left.
-    fn pop(&mut self) -> Option<(SocketAddr, Option<Duration>)> {
-        if let Some(address) = self.family.pop_front() {
+    fn pop(&mut self) -> Option<(TcpCandidate, Option<Duration>)> {
+        if let Some(address) = self.family.0.next_matching(self.family.1) {
             return Some((address, self.timeout));
         }
         // The other family is tried without the shorter timeout: Firefox
@@ -349,7 +371,10 @@ impl Addresses {
         self.family = self.other_family.take()?;
         self.timeout = None;
         self.switched = true;
-        self.family.pop_front().map(|address| (address, None))
+        self.family
+            .0
+            .next_matching(self.family.1)
+            .map(|address| (address, None))
     }
 }
 
@@ -364,12 +389,12 @@ struct Walk<Attempt> {
 impl<Attempt> Walk<Attempt> {
     fn start<Dial>(mut addresses: Addresses, dial: &mut Dial, started: Instant) -> Option<Self>
     where
-        Dial: FnMut(SocketAddr, Option<Duration>) -> Attempt,
+        Dial: FnMut(TcpCandidate, Option<Duration>) -> Attempt,
     {
         let (address, timeout) = addresses.pop()?;
         Some(Self {
+            address: address.address(),
             connecting: Box::pin(dial(address, timeout)),
-            address,
             addresses,
             started,
         })
@@ -378,7 +403,7 @@ impl<Attempt> Walk<Attempt> {
     /// The same attempt on its next address, when `error` lets it move on.
     fn next<Dial>(self, error: &io::Error, dial: &mut Dial) -> Option<Self>
     where
-        Dial: FnMut(SocketAddr, Option<Duration>) -> Attempt,
+        Dial: FnMut(TcpCandidate, Option<Duration>) -> Attempt,
     {
         if !is_refusal_or_timeout(error) {
             return None;
@@ -417,7 +442,7 @@ pub(super) struct Slower<Attempt, Dial> {
 
 impl<Attempt, Dial, Stream> Slower<Attempt, Dial>
 where
-    Dial: FnMut(SocketAddr, Option<Duration>) -> Attempt,
+    Dial: FnMut(TcpCandidate, Option<Duration>) -> Attempt,
     Attempt: Future<Output = io::Result<Stream>>,
 {
     /// Connects the attempt, moving through its addresses as the race did.
@@ -583,7 +608,7 @@ impl SlowerAttempt {
         schedule: Option<TcpKeepaliveSchedule>,
     ) -> Self
     where
-        Dial: FnMut(SocketAddr, Option<Duration>) -> Attempt + Send + 'static,
+        Dial: FnMut(TcpCandidate, Option<Duration>) -> Attempt + Send + 'static,
         Attempt: Future<Output = io::Result<TcpStream>> + Send + 'static,
     {
         Self::from_future(async move {

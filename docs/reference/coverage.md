@@ -106,7 +106,7 @@ combinations and limits listed here.
 
 | Layer | Summary | Main gaps |
 | --- | --- | --- |
-| TCP | Profile `TCP_NODELAY`, send buffer, fixed or scheduled keepalive, Windows port randomization, Chromium Happy Eyeballs, and Firefox's backup connection, on every TCP path | Firefox's retained backups on remaining proxy routes; failed-address suppression |
+| TCP | Profile `TCP_NODELAY`, send buffer, fixed or scheduled keepalive, Windows port randomization, Chromium Happy Eyeballs, and Firefox's backup connection, on every TCP path | Firefox's retained backups on remaining proxy routes |
 | TLS over TCP | Typed ordered ClientHellos from retained captures | More versions and platforms |
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse, browser per-host connection bounds | Broader retry classes |
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity, stream numbering and opening stream receive credit | Firefox continuing DATA acknowledgment thresholds |
@@ -194,13 +194,18 @@ Supported:
   CONNECT. Family memory survives slot retirement; a route recreated after
   eviction starts fresh. Dedicated nonpooled H2 and CONNECT-UDP setup are
   unchanged.
+- Ordinary H1 and exact or negotiated H2 requests through SOCKS4/4a and
+  SOCKS5 retain a complete-negotiation backup. Local target family memory
+  starts after SOCKS succeeds; remote DNS supplies no local target family.
+  H1 may retain pending work, while H2 keeps only completed SOCKS siblings.
+  Origin TLS uses the original connector. Only the claimant sends its
+  current application headers and body.
 
 Not modeled:
 
 - Parts of Firefox's address selection: keeping the slower connection, and
-  remembering the address family, on SOCKS, proxy WebSockets and proxy
-  setup with early data; sharing a forwarding connection between origins;
-  skipping an address that failed before on the same cached DNS record; and
+  remembering the address family, on proxy WebSockets and proxy setup
+  with early data; sharing a forwarding connection between origins; and
   noticing at once that a server
   closed an idle connection, which can make Firefox remember a family longer.
 - Chromium's resolver behavior before racing: its own address sorting,
@@ -736,6 +741,12 @@ Supported:
   keeps the resolver's address order. The recipes `chrome::v154_dns_cache`
   and `firefox::v157_dns_cache` set source-defined policies.
   Proxy-resolved targets never reach it.
+- Failed-IP suppression on locally cached DNS records under
+  `DnsAddressFailurePolicy::Record`, selected by Firefox desktop. Only failed
+  TCP connects report an IP; QUIC, uncached answers, overrides and IP literals
+  do not use this history. Refresh preserves history while retiring stale
+  reports. See [Address cache](profiles.md#address-cache) for reset and
+  resource-limit behavior.
 - With the `https-records` feature, an opt-in address resolver,
   `AddressResolver::system_nameservers`, that sends Phantom's own A and AAAA
   queries to the host's nameservers as Chromium's built-in DNS client does:

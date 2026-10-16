@@ -43,7 +43,7 @@ pub struct Socks4Error {
 }
 
 impl Socks4Error {
-    fn new(kind: Socks4ErrorKind) -> Self {
+    pub(super) fn new(kind: Socks4ErrorKind) -> Self {
         Self {
             kind,
             source: None,
@@ -52,7 +52,7 @@ impl Socks4Error {
         }
     }
 
-    fn io(kind: Socks4ErrorKind, source: io::Error) -> Self {
+    pub(super) fn io(kind: Socks4ErrorKind, source: io::Error) -> Self {
         Self {
             kind,
             source: Some(source),
@@ -112,6 +112,10 @@ impl Error for Socks4Error {
 pub struct Socks4UserId<'a>(&'a str);
 
 impl<'a> Socks4UserId<'a> {
+    pub(super) const fn as_str(self) -> &'a str {
+        self.0
+    }
+
     /// Validates a user ID before any connection or request write.
     pub fn new(value: &'a str) -> Result<Self, Socks4Error> {
         if value.len() > 255 || value.as_bytes().contains(&0) {
@@ -176,7 +180,7 @@ pub(crate) async fn socks4_tunnel(
     establish(stream, endpoint.port, address, user_id).await
 }
 
-fn validate_target(endpoint: Endpoint<'_>) -> Result<(), Socks4Error> {
+pub(super) fn validate_target(endpoint: Endpoint<'_>) -> Result<(), Socks4Error> {
     if endpoint.host.is_empty()
         || !endpoint.host.is_ascii()
         || endpoint.host.len() > 253
@@ -200,7 +204,7 @@ fn validate_target(endpoint: Endpoint<'_>) -> Result<(), Socks4Error> {
     Ok(())
 }
 
-fn validate_ipv4(address: [u8; 4]) -> Result<(), Socks4Error> {
+pub(super) fn validate_ipv4(address: [u8; 4]) -> Result<(), Socks4Error> {
     // A SOCKS4a proxy interprets this range as a domain extension marker.
     if address[..3] == [0, 0, 0] && address[3] != 0 {
         return Err(Socks4Error::new(Socks4ErrorKind::InvalidTarget));
@@ -208,7 +212,9 @@ fn validate_ipv4(address: [u8; 4]) -> Result<(), Socks4Error> {
     Ok(())
 }
 
-fn encoded_address(endpoint: Endpoint<'_>) -> Result<([u8; 4], Option<&str>), Socks4Error> {
+pub(super) fn encoded_address(
+    endpoint: Endpoint<'_>,
+) -> Result<([u8; 4], Option<&str>), Socks4Error> {
     validate_target(endpoint)?;
     match endpoint.host.parse::<IpAddr>() {
         Ok(IpAddr::V4(address)) => Ok((address.octets(), None)),
@@ -217,7 +223,7 @@ fn encoded_address(endpoint: Endpoint<'_>) -> Result<([u8; 4], Option<&str>), So
     }
 }
 
-async fn establish<S: AsyncRead + AsyncWrite + Unpin>(
+pub(super) async fn establish<S: AsyncRead + AsyncWrite + Unpin>(
     mut stream: S,
     port: u16,
     (address, domain): ([u8; 4], Option<&str>),

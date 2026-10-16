@@ -12,10 +12,13 @@ use std::{
     time::Instant,
 };
 
-use phantom_profile::DnsCacheSettings;
+use phantom_profile::{DnsAddressFailurePolicy, DnsCacheSettings};
 use tokio::sync::watch;
 
-use crate::host_resolver::{AddressResolver, CacheLifetime, DnsConfigurationToken, Resolved};
+use crate::host_resolver::{
+    AddressResolver, CacheLifetime, DnsConfigurationToken, Resolved,
+    address_feedback::AddressRecord, tcp_addresses::TcpAddresses,
+};
 
 #[cfg(test)]
 type LookupFuture = Pin<Box<dyn Future<Output = io::Result<Vec<SocketAddr>>> + Send>>;
@@ -133,8 +136,13 @@ impl Entry {
 enum Outcome {
     /// The resolver's answer, possibly empty; each connection path reports an
     /// empty answer as it would without the cache.
-    Resolved(Arc<[SocketAddr]>),
+    Resolved(Arc<CachedAddresses>),
     Failed(SharedResolverError),
+}
+
+struct CachedAddresses {
+    addresses: Arc<[SocketAddr]>,
+    record: Option<Arc<AddressRecord>>,
 }
 
 /// Shares one original resolver failure across waiters and stored outcomes.
@@ -176,7 +184,10 @@ impl Outcome {
 
     fn from_result(result: io::Result<Vec<SocketAddr>>) -> Self {
         match result {
-            Ok(addresses) => Self::Resolved(addresses.into()),
+            Ok(addresses) => Self::Resolved(Arc::new(CachedAddresses {
+                addresses: addresses.into(),
+                record: None,
+            })),
             Err(error) => Self::Failed(SharedResolverError {
                 original: Arc::new(error),
             }),
@@ -186,14 +197,28 @@ impl Outcome {
     /// Whether this outcome is kept for the negative lifetime.
     fn is_negative(&self) -> bool {
         match self {
-            Self::Resolved(addresses) => addresses.is_empty(),
+            Self::Resolved(addresses) => addresses.addresses.is_empty(),
             Self::Failed(_) => true,
         }
+    }
+
+    fn tcp_addresses(
+        &self,
+        port: u16,
+        configuration: Option<DnsConfigurationToken>,
+    ) -> io::Result<TcpAddresses> {
+        let addresses = self.addresses(port)?;
+        let record = match self {
+            Self::Resolved(answer) => answer.record.clone(),
+            Self::Failed(_) => None,
+        };
+        Ok(TcpAddresses::cached(addresses, record, port, configuration))
     }
 
     fn addresses(&self, port: u16) -> io::Result<Vec<SocketAddr>> {
         match self {
             Self::Resolved(addresses) => Ok(addresses
+                .addresses
                 .iter()
                 .map(|address| {
                     let mut address = *address;
@@ -328,29 +353,65 @@ impl AddressCache {
         host: &str,
         port: u16,
     ) -> io::Result<(Vec<SocketAddr>, bool)> {
-        if let Ok(address) = host.parse::<IpAddr>() {
-            return Ok((vec![SocketAddr::new(address, port)], false));
-        }
+        self.lookup_outcome(host)
+            .await
+            .and_then(|(outcome, stored, configuration)| {
+                Self::check_configuration(&configuration)?;
+                outcome.addresses(port).map(|addresses| (addresses, stored))
+            })
+    }
 
+    pub(crate) async fn lookup_tcp_noting_cache(
+        &self,
+        host: &str,
+        port: u16,
+    ) -> io::Result<(TcpAddresses, bool)> {
+        let (outcome, stored, configuration) = self.lookup_outcome(host).await?;
+        Self::check_configuration(&configuration)?;
+        outcome
+            .tcp_addresses(port, configuration)
+            .map(|addresses| (addresses, stored))
+    }
+
+    async fn lookup_outcome(
+        &self,
+        host: &str,
+    ) -> io::Result<(Outcome, bool, Option<DnsConfigurationToken>)> {
+        if let Ok(address) = host.parse::<IpAddr>() {
+            return Ok((
+                Outcome::from_result(Ok(vec![SocketAddr::new(address, 0)])),
+                false,
+                None,
+            ));
+        }
         let configuration = self.configuration_token()?;
         let answer = self.cached_or_pending_with_configuration(
             host.to_ascii_lowercase().into_boxed_str(),
             configuration.clone(),
         )?;
-        let result = self.consume_answer(answer, port).await;
+        let result = self.consume_outcome(answer).await;
         Self::check_configuration(&configuration)?;
-        result
+        result.map(|(outcome, stored)| (outcome, stored, configuration))
     }
 
-    /// Waits for the selected answer and gives its addresses the caller's port.
+    #[cfg(test)]
     async fn consume_answer(
         &self,
         answer: Answer,
         port: u16,
     ) -> io::Result<(Vec<SocketAddr>, bool)> {
+        self.consume_outcome(answer)
+            .await
+            .and_then(|(outcome, stored)| {
+                outcome.addresses(port).map(|addresses| (addresses, stored))
+            })
+    }
+
+    /// Waits for the selected answer and gives its addresses the caller's port.
+    async fn consume_outcome(&self, answer: Answer) -> io::Result<(Outcome, bool)> {
         let mut receiver = match answer {
             Answer::Stored(outcome) => {
-                return outcome.addresses(port).map(|addresses| (addresses, true));
+                return Ok((outcome, true));
             }
             Answer::Wait(receiver) => receiver,
             Answer::Inline {
@@ -364,8 +425,9 @@ impl AddressCache {
                     result = Err(error);
                 }
                 let (outcome, lifetime) = Outcome::from_resolution(result, self.cache_errors());
-                self.complete(&host, None, generation, &configuration, &outcome, lifetime);
-                return outcome.addresses(port).map(|addresses| (addresses, false));
+                let outcome =
+                    self.complete(&host, None, generation, &configuration, &outcome, lifetime);
+                return Ok((outcome, false));
             }
         };
 
@@ -375,7 +437,7 @@ impl AddressCache {
         };
 
         match outcome {
-            Some(outcome) => outcome.addresses(port).map(|addresses| (addresses, false)),
+            Some(outcome) => Ok((outcome, false)),
             None => Err(io::Error::other(
                 "the address lookup ended without an answer",
             )),
@@ -411,7 +473,12 @@ impl AddressCache {
                 return Ok(Answer::Stored(entry.outcome.clone()));
             }
             Some(_) => {
-                state.entries.remove(&host);
+                if matches!(
+                    self.inner.settings.address_failure_policy,
+                    DnsAddressFailurePolicy::Ignore
+                ) {
+                    state.entries.remove(&host);
+                }
             }
             None => {}
         }
@@ -496,13 +563,13 @@ impl AddressCache {
         configuration: &Option<DnsConfigurationToken>,
         outcome: &Outcome,
         lifetime: CacheLifetime,
-    ) {
+    ) -> Outcome {
         let mut state = self.lock();
         if state.generation != generation
             || state.configuration != *configuration
             || Self::check_configuration(configuration).is_err()
         {
-            return;
+            return outcome.clone();
         }
 
         if let Some(key) = pending {
@@ -525,27 +592,60 @@ impl AddressCache {
                     .filter(|ttl| !ttl.is_zero())
                     .map(|ttl| now.checked_add(ttl))
                 else {
-                    return;
+                    return outcome.clone();
                 };
                 expires_at
             }
             CacheLifetime::Dns(lifetime) => {
                 let Some(expires_at) = lifetime.expires_at(settings.negative_ttl) else {
-                    return;
+                    return outcome.clone();
                 };
                 if expires_at <= now {
-                    return;
+                    return outcome.clone();
                 }
                 Some(expires_at)
             }
-            CacheLifetime::Never => return,
+            CacheLifetime::Never => return outcome.clone(),
             #[cfg(any(windows, test))]
             CacheLifetime::System(expiry) => {
                 let Some(expiry) = expiry.filter(|expiry| *expiry > now) else {
-                    return;
+                    return outcome.clone();
                 };
                 Some(expiry)
             }
+        };
+        let outcome = match (outcome, settings.address_failure_policy) {
+            (
+                Outcome::Resolved(answer),
+                DnsAddressFailurePolicy::Record {
+                    max_unusable_addresses,
+                },
+            ) if !answer.addresses.is_empty() => {
+                let record = state
+                    .entries
+                    .get(host)
+                    .and_then(|entry| match &entry.outcome {
+                        Outcome::Resolved(previous) => previous.record.clone(),
+                        Outcome::Failed(_) => None,
+                    });
+                let record = match record {
+                    Some(record) => {
+                        if let Err(error) = record.refresh(answer.addresses.to_vec()) {
+                            return Outcome::from_result(Err(io::Error::other(error)));
+                        }
+                        record
+                    }
+                    None => Arc::new(AddressRecord::new(
+                        answer.addresses.to_vec(),
+                        max_unusable_addresses,
+                    )),
+                };
+                Outcome::Resolved(Arc::new(CachedAddresses {
+                    addresses: Arc::clone(&answer.addresses),
+                    record: Some(record),
+                }))
+            }
+            _ => outcome.clone(),
         };
         if !state.entries.contains_key(host)
             && state.entries.len() >= self.inner.settings.max_entries.get()
@@ -571,6 +671,7 @@ impl AddressCache {
                 expires_at,
             },
         );
+        outcome
     }
 
     fn lock(&self) -> MutexGuard<'_, State> {
@@ -626,7 +727,7 @@ impl Publisher {
         }
         let (outcome, lifetime) = Outcome::from_resolution(result, self.cache.cache_errors());
         let pending = self.shared.then_some(&self.key);
-        self.cache.complete(
+        let outcome = self.cache.complete(
             &self.key.0,
             pending,
             self.generation,

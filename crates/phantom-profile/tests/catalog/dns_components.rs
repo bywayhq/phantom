@@ -37,6 +37,7 @@ fn composed_profiles_keep_address_cache_lifetimes() -> Result<(), Box<dyn std::e
 }
 fn chrome_original() -> DnsCacheSettings {
     DnsCacheSettings {
+        address_failure_policy: phantom_profile::DnsAddressFailurePolicy::Ignore,
         system_ttl: SystemDnsTtlPolicy::Ignore,
         max_entries: NonZeroUsize::new(1000).unwrap_or(NonZeroUsize::MIN),
         ttl: Duration::from_secs(60),
@@ -47,6 +48,9 @@ fn chrome_original() -> DnsCacheSettings {
 
 fn firefox_original() -> DnsCacheSettings {
     DnsCacheSettings {
+        address_failure_policy: phantom_profile::DnsAddressFailurePolicy::Record {
+            max_unusable_addresses: NonZeroUsize::new(1600).unwrap_or(NonZeroUsize::MIN),
+        },
         system_ttl: SystemDnsTtlPolicy::FirefoxWindows,
         max_entries: NonZeroUsize::new(1600).unwrap_or(NonZeroUsize::MIN),
         ttl: Duration::from_secs(60),

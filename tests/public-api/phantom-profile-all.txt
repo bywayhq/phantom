@@ -280,6 +280,10 @@ pub phantom_profile::ClientHelloExtensionOrder::PermutedWithTail(alloc::vec::Vec
 #[non_exhaustive] pub enum phantom_profile::ClientHintDelivery
 pub phantom_profile::ClientHintDelivery::AcceptCh
 pub phantom_profile::ClientHintDelivery::Default
+pub enum phantom_profile::DnsAddressFailurePolicy
+pub phantom_profile::DnsAddressFailurePolicy::Ignore
+pub phantom_profile::DnsAddressFailurePolicy::Record
+pub phantom_profile::DnsAddressFailurePolicy::Record::max_unusable_addresses: core::num::nonzero::NonZeroUsize
 #[non_exhaustive] pub enum phantom_profile::EchGreaseAead
 pub phantom_profile::EchGreaseAead::Aes128Gcm
 pub phantom_profile::EchGreaseAead::Aes256Gcm
@@ -695,6 +699,7 @@ pub fn phantom_profile::CookiePlacement::before_fields<I, S>(I) -> Self where I:
 pub fn phantom_profile::CookiePlacement::insertion_index<'a>(&self, impl core::iter::traits::collect::IntoIterator<Item = &'a str>) -> core::option::Option<usize>
 pub fn phantom_profile::CookiePlacement::last() -> Self
 pub struct phantom_profile::DnsCacheSettings
+pub phantom_profile::DnsCacheSettings::address_failure_policy: phantom_profile::DnsAddressFailurePolicy
 pub phantom_profile::DnsCacheSettings::max_entries: core::num::nonzero::NonZeroUsize
 pub phantom_profile::DnsCacheSettings::min_record_ttl: core::time::Duration
 pub phantom_profile::DnsCacheSettings::negative_ttl: core::option::Option<core::time::Duration>

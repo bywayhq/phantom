@@ -20,6 +20,7 @@ use tokio::sync::watch;
 use super::{AddressCache, Answer};
 use crate::host_resolver::{AddressResolver, Resolved};
 
+mod address_feedback;
 #[cfg(feature = "https-records")]
 mod configuration_generation;
 mod dns_answers;
@@ -34,6 +35,7 @@ const V4_OTHER: IpAddr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2));
 
 fn settings(max_entries: usize, ttl: Duration, negative_ttl: Option<Duration>) -> DnsCacheSettings {
     DnsCacheSettings {
+        address_failure_policy: phantom_profile::DnsAddressFailurePolicy::Ignore,
         system_ttl: phantom_profile::SystemDnsTtlPolicy::Ignore,
         max_entries: NonZeroUsize::new(max_entries).unwrap_or(NonZeroUsize::MIN),
         ttl,

@@ -6,6 +6,10 @@
       "kind": "DnsCacheSettings",
       "base": null,
       "values": {
+        "address_failure_policy": {
+          "kind": "Ignore",
+          "max_unusable_addresses": null
+        },
         "system_ttl": "Ignore",
         "max_entries": 1000,
         "ttl": {
@@ -24,6 +28,10 @@
       "kind": "DnsCacheSettings",
       "base": null,
       "values": {
+        "address_failure_policy": {
+          "kind": "Record",
+          "max_unusable_addresses": 1600
+        },
         "system_ttl": "FirefoxWindows",
         "max_entries": 1600,
         "ttl": {

@@ -522,6 +522,7 @@ fn counting_resolver(calls: &Arc<AtomicUsize>) -> AddressResolver {
 
 fn cache_for(ttl: Duration) -> DnsCacheSettings {
     DnsCacheSettings {
+        address_failure_policy: phantom_profile::DnsAddressFailurePolicy::Ignore,
         system_ttl: phantom_profile::SystemDnsTtlPolicy::Ignore,
         max_entries: NonZeroUsize::new(16).unwrap_or(NonZeroUsize::MIN),
         ttl,

@@ -1,9 +1,10 @@
 use phantom_profile::{
-    Http2CookieCrumbs, Http2FieldIndexing, Http2HuffmanCoding, Http2IndexingLimit,
-    Http2NameReference, Http2PseudoHeader, Http2SensitiveProxyAuthorization, Http2StaticNameIndex,
-    Http2TableSizeUpdates, Http2UnindexedMatch, Http3AltUsed, Http3CookieCrumbs, Http3PseudoHeader,
-    Http3QpackDecoderStream, Http3QpackEncoderStream, Http3QpackEncoding, Http3QpackStreamOrder,
-    Http3SettingOrder, SystemDnsTtlPolicy, TcpAddressAdvance,
+    DnsAddressFailurePolicy, Http2CookieCrumbs, Http2FieldIndexing, Http2HuffmanCoding,
+    Http2IndexingLimit, Http2NameReference, Http2PseudoHeader, Http2SensitiveProxyAuthorization,
+    Http2StaticNameIndex, Http2TableSizeUpdates, Http2UnindexedMatch, Http3AltUsed,
+    Http3CookieCrumbs, Http3PseudoHeader, Http3QpackDecoderStream, Http3QpackEncoderStream,
+    Http3QpackEncoding, Http3QpackStreamOrder, Http3SettingOrder, SystemDnsTtlPolicy,
+    TcpAddressAdvance,
 };
 
 use super::{PreparationError, encoding::Encoder};
@@ -298,12 +299,22 @@ pub(super) fn udp(e: &mut Encoder, value: &UdpSettings) -> Result<(), Preparatio
 
 pub(super) fn dns(e: &mut Encoder, value: &DnsCacheSettings) -> Result<(), PreparationError> {
     let DnsCacheSettings {
+        address_failure_policy,
         max_entries,
         ttl,
         min_record_ttl,
         negative_ttl,
         system_ttl,
     } = value;
+    match address_failure_policy {
+        DnsAddressFailurePolicy::Ignore => e.u8(0)?,
+        DnsAddressFailurePolicy::Record {
+            max_unusable_addresses,
+        } => {
+            e.u8(1)?;
+            e.usize(max_unusable_addresses.get())?;
+        }
+    }
     e.u8(match system_ttl {
         SystemDnsTtlPolicy::Ignore => 0,
         SystemDnsTtlPolicy::FirefoxWindows => 1,

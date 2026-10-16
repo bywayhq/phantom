@@ -13,6 +13,14 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Remember failed TCP addresses on Firefox desktop's cached DNS records.
+  Migrate: add `address_failure_policy: DnsAddressFailurePolicy::Ignore` to
+  `DnsCacheSettings` literals to retain the previous behavior. Strict
+  resolved-profile JSON now requires `"address_failure_policy":
+  {"kind":"Ignore","max_unusable_addresses":null}` in each DNS-cache
+  object. Re-export ticket snapshots: profile-policy binding version 5
+  rejects older bindings; the `PHOWN003` snapshot format is unchanged.
+
 - Add `Http2Settings::initial_stream_window_target` for the receive credit
   sent after each request's opening headers. Firefox 157 now advertises
   131,072 bytes and raises each request stream to 12,582,912 bytes with a
@@ -1184,6 +1192,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Keep a configured HTTPS proxy TCP backup progressing through proxy TLS,
   then close it when pooled HTTP/2 activates, before authentication or
   CONNECT. The pool remembers the physical proxy address family.
+- Retain Firefox backup connections through SOCKS4/4a and SOCKS5 for
+  ordinary H1 and exact or negotiated H2 requests. Locally resolved target
+  families are remembered after SOCKS succeeds. Spares keep their route,
+  credentials and origin TLS context; only the claiming request sends its
+  current headers and body.
 
 - Retain Firefox proxy backups for negotiated HTTP/1 or HTTP/2 and exact
   HTTP/2 HTTPS requests through HTTP/1 CONNECT proxies. A spare keeps its

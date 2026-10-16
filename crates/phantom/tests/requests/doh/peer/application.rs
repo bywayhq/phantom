@@ -70,6 +70,7 @@ impl Application {
             .dns_resolver(doh.address_resolver());
         if cache {
             builder = builder.dns_cache(DnsCacheSettings {
+                address_failure_policy: phantom_profile::DnsAddressFailurePolicy::Ignore,
                 system_ttl: phantom_profile::SystemDnsTtlPolicy::Ignore,
                 max_entries: NonZeroUsize::MIN,
                 ttl: Duration::from_secs(60),

@@ -13,6 +13,7 @@ use super::{
 };
 
 mod address_selection;
+mod feedback;
 mod keepalive_paths;
 mod paths;
 mod port_randomization;

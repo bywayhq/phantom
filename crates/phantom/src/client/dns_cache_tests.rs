@@ -75,6 +75,7 @@ impl Drop for ClosingOrigin {
 
 fn settings() -> DnsCacheSettings {
     DnsCacheSettings {
+        address_failure_policy: phantom_profile::DnsAddressFailurePolicy::Ignore,
         system_ttl: phantom_profile::SystemDnsTtlPolicy::Ignore,
         max_entries: NonZeroUsize::new(16).unwrap_or(NonZeroUsize::MIN),
         ttl: Duration::from_secs(600),

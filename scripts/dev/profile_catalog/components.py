@@ -80,6 +80,7 @@ COMPONENT_FIELDS = {
     ),
     "Http1Settings": ("max_connections_per_origin", "idle_timeout"),
     "DnsCacheSettings": (
+        "address_failure_policy",
         "system_ttl",
         "max_entries",
         "ttl",
@@ -297,6 +298,14 @@ def rust_component_value(field, value, kind="Http3Settings"):
             expression += f"({rust_duration(value['duration'])})"
         return expression
     if kind == "DnsCacheSettings":
+        if field == "address_failure_policy":
+            if value["kind"] == "Ignore":
+                return "crate::DnsAddressFailurePolicy::Ignore"
+            return (
+                "crate::DnsAddressFailurePolicy::Record { max_unusable_addresses: "
+                + rust_nonzero_usize(value["max_unusable_addresses"])
+                + " }"
+            )
         if field == "system_ttl":
             return f"crate::SystemDnsTtlPolicy::{value}"
         if field == "max_entries":

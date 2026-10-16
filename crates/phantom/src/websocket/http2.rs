@@ -449,37 +449,36 @@ impl WebSocketRequestBuilder {
                     ))
                     .await
                 } else {
-                    connector
-                        .extended_connect(
-                            phantom_net::route::Http2Route::Origin(
-                                phantom_net::route::OriginRoute::Tls {
-                                    tcp: phantom_net::route::TcpRoute::HttpConnect(
-                                        phantom_net::route::HttpConnectRoute {
-                                            proxy: phantom_net::route::ProxyTransport::Tcp(
-                                                phantom_net::route::Endpoint {
-                                                    host: proxy.host(),
-                                                    port: proxy.port(),
-                                                },
-                                            ),
-                                            authority: &connect_authority,
-                                            headers: proxy.ordered_connect_headers(),
-                                            credentials: None,
-                                        },
-                                    ),
-                                    server_name: host,
-                                    setup: phantom_net::route::DirectTlsSetup::Default,
-                                },
-                            ),
-                            authority,
-                            request.target.clone(),
-                            prepared.headers,
-                        )
-                        .await
+                    crate::session::box_send(connector.extended_connect(
+                        phantom_net::route::Http2Route::Origin(
+                            phantom_net::route::OriginRoute::Tls {
+                                tcp: phantom_net::route::TcpRoute::HttpConnect(
+                                    phantom_net::route::HttpConnectRoute {
+                                        proxy: phantom_net::route::ProxyTransport::Tcp(
+                                            phantom_net::route::Endpoint {
+                                                host: proxy.host(),
+                                                port: proxy.port(),
+                                            },
+                                        ),
+                                        authority: &connect_authority,
+                                        headers: proxy.ordered_connect_headers(),
+                                        credentials: None,
+                                    },
+                                ),
+                                server_name: host,
+                                setup: phantom_net::route::DirectTlsSetup::Default,
+                            },
+                        ),
+                        authority,
+                        request.target.clone(),
+                        prepared.headers,
+                    ))
+                    .await
                 }
             }
             Route::Socks4(proxy) => {
-                connector
-                    .extended_connect(
+                crate::session::box_send(
+                    connector.extended_connect(
                         phantom_net::route::Http2Route::Origin(
                             phantom_net::route::OriginRoute::Tls {
                                 tcp: proxy
@@ -496,59 +495,58 @@ impl WebSocketRequestBuilder {
                         authority,
                         request.target.clone(),
                         prepared.headers,
-                    )
-                    .await
+                    ),
+                )
+                .await
             }
             Route::Socks5(proxy) => match proxy.dns_mode() {
                 Socks5DnsMode::Local => {
-                    connector
-                        .extended_connect(
-                            phantom_net::route::Http2Route::Origin(
-                                phantom_net::route::OriginRoute::Tls {
-                                    tcp: phantom_net::route::TcpRoute::Socks5 {
-                                        proxy: phantom_net::route::Endpoint {
-                                            host: proxy.host(),
-                                            port: proxy.port(),
-                                        },
-                                        target: phantom_net::route::Socks5Target::LocalDns(
-                                            phantom_net::route::Endpoint { host, port },
-                                        ),
-                                        auth: proxy.auth(),
+                    crate::session::box_send(connector.extended_connect(
+                        phantom_net::route::Http2Route::Origin(
+                            phantom_net::route::OriginRoute::Tls {
+                                tcp: phantom_net::route::TcpRoute::Socks5 {
+                                    proxy: phantom_net::route::Endpoint {
+                                        host: proxy.host(),
+                                        port: proxy.port(),
                                     },
-                                    server_name: host,
-                                    setup: phantom_net::route::DirectTlsSetup::Default,
+                                    target: phantom_net::route::Socks5Target::LocalDns(
+                                        phantom_net::route::Endpoint { host, port },
+                                    ),
+                                    auth: proxy.auth(),
                                 },
-                            ),
-                            authority,
-                            request.target.clone(),
-                            prepared.headers,
-                        )
-                        .await
+                                server_name: host,
+                                setup: phantom_net::route::DirectTlsSetup::Default,
+                            },
+                        ),
+                        authority,
+                        request.target.clone(),
+                        prepared.headers,
+                    ))
+                    .await
                 }
                 Socks5DnsMode::Remote => {
-                    connector
-                        .extended_connect(
-                            phantom_net::route::Http2Route::Origin(
-                                phantom_net::route::OriginRoute::Tls {
-                                    tcp: phantom_net::route::TcpRoute::Socks5 {
-                                        proxy: phantom_net::route::Endpoint {
-                                            host: proxy.host(),
-                                            port: proxy.port(),
-                                        },
-                                        target: phantom_net::route::Socks5Target::RemoteDns(
-                                            phantom_net::route::Endpoint { host, port },
-                                        ),
-                                        auth: proxy.auth(),
+                    crate::session::box_send(connector.extended_connect(
+                        phantom_net::route::Http2Route::Origin(
+                            phantom_net::route::OriginRoute::Tls {
+                                tcp: phantom_net::route::TcpRoute::Socks5 {
+                                    proxy: phantom_net::route::Endpoint {
+                                        host: proxy.host(),
+                                        port: proxy.port(),
                                     },
-                                    server_name: host,
-                                    setup: phantom_net::route::DirectTlsSetup::Default,
+                                    target: phantom_net::route::Socks5Target::RemoteDns(
+                                        phantom_net::route::Endpoint { host, port },
+                                    ),
+                                    auth: proxy.auth(),
                                 },
-                            ),
-                            authority,
-                            request.target.clone(),
-                            prepared.headers,
-                        )
-                        .await
+                                server_name: host,
+                                setup: phantom_net::route::DirectTlsSetup::Default,
+                            },
+                        ),
+                        authority,
+                        request.target.clone(),
+                        prepared.headers,
+                    ))
+                    .await
                 }
             },
         }

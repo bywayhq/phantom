@@ -18,6 +18,7 @@ mod https_connect;
 mod socks4;
 mod socks5;
 mod socks5_udp;
+pub(crate) mod socks_connection;
 mod tunnel;
 
 pub use authentication::{HttpBasicCredentials, validate_basic_proxy_challenge};

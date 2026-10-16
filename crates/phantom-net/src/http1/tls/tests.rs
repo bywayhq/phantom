@@ -1158,3 +1158,5 @@ mod proxy_retention;
 mod forward_retention;
 
 mod https_forward_retention;
+
+mod socks_retention;

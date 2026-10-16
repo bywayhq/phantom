@@ -2,7 +2,8 @@
 
 use std::{future::Future, io, net::SocketAddr, pin::Pin};
 
-use super::no_addresses;
+use super::{is_feedback_resource_error, no_addresses};
+use crate::host_resolver::tcp_addresses::{TcpAddressCursor, TcpAddresses, TcpCandidate};
 
 /// Connects to one of `addresses` the way Chromium 153's `TcpConnectJob`
 /// does with complete DNS results.
@@ -29,6 +30,7 @@ use super::no_addresses;
 ///   failure is returned (`net/socket/tcp_connect_job.cc:406-431`, `:946-958`).
 ///
 /// `dial` opens one attempt; `fallback` is the delay before the second one.
+#[cfg(test)]
 pub(super) async fn race<Dial, Attempt, Stream, Fallback>(
     addresses: Vec<SocketAddr>,
     fallback: Fallback,
@@ -36,6 +38,22 @@ pub(super) async fn race<Dial, Attempt, Stream, Fallback>(
 ) -> io::Result<Stream>
 where
     Dial: FnMut(SocketAddr) -> Attempt,
+    Attempt: Future<Output = io::Result<Stream>>,
+    Fallback: Future<Output = ()>,
+{
+    race_candidates(addresses.into(), fallback, move |candidate| {
+        dial(candidate.address())
+    })
+    .await
+}
+
+pub(super) async fn race_candidates<Dial, Attempt, Stream, Fallback>(
+    addresses: TcpAddresses,
+    fallback: Fallback,
+    mut dial: Dial,
+) -> io::Result<Stream>
+where
+    Dial: FnMut(TcpCandidate) -> Attempt,
     Attempt: Future<Output = io::Result<Stream>>,
     Fallback: Future<Output = ()>,
 {
@@ -58,7 +76,10 @@ where
             (address, result) = Running::finish(&mut primary), if primary.is_some() => {
                 match result {
                     Ok(stream) => return Ok(stream),
-                    Err(error) => last_error = Some(error),
+                    Err(error) => {
+                        if is_feedback_resource_error(&error) { return Err(error); }
+                        last_error = Some(error);
+                    }
                 }
                 prefer_ipv6 = !address.is_ipv6();
                 let preference = if two_attempts { true } else { prefer_ipv6 };
@@ -69,7 +90,10 @@ where
             (_, result) = Running::finish(&mut secondary), if secondary.is_some() => {
                 match result {
                     Ok(stream) => return Ok(stream),
-                    Err(error) => last_error = Some(error),
+                    Err(error) => {
+                        if is_feedback_resource_error(&error) { return Err(error); }
+                        last_error = Some(error);
+                    }
                 }
                 secondary = addresses
                     .take(false)
@@ -99,12 +123,12 @@ struct Running<Attempt> {
 }
 
 impl<Attempt: Future> Running<Attempt> {
-    fn start<Dial>(address: SocketAddr, dial: &mut Dial) -> Self
+    fn start<Dial>(address: TcpCandidate, dial: &mut Dial) -> Self
     where
-        Dial: FnMut(SocketAddr) -> Attempt,
+        Dial: FnMut(TcpCandidate) -> Attempt,
     {
         Self {
-            address,
+            address: address.address(),
             attempt: Box::pin(dial(address)),
         }
     }
@@ -120,35 +144,33 @@ impl<Attempt: Future> Running<Attempt> {
 
 /// Resolved addresses split by family, keeping resolver order in each.
 struct Untried {
-    ipv6: Vec<SocketAddr>,
-    ipv4: Vec<SocketAddr>,
+    ipv6: TcpAddressCursor,
+    ipv4: TcpAddressCursor,
     tried: Vec<SocketAddr>,
 }
 
 impl Untried {
-    fn new(addresses: Vec<SocketAddr>) -> Self {
-        let (ipv6, ipv4) = addresses.into_iter().partition(SocketAddr::is_ipv6);
+    fn new(addresses: TcpAddresses) -> Self {
         Self {
-            ipv6,
-            ipv4,
+            ipv6: addresses.cursor(),
+            ipv4: addresses.cursor(),
             tried: Vec::new(),
         }
     }
 
-    /// Takes the first untried address of the preferred family, then of the other.
-    fn take(&mut self, prefer_ipv6: bool) -> Option<SocketAddr> {
-        let (preferred, other) = if prefer_ipv6 {
-            (&self.ipv6, &self.ipv4)
-        } else {
-            (&self.ipv4, &self.ipv6)
-        };
-        let address = preferred
-            .iter()
-            .chain(other)
-            .copied()
-            .find(|address| !self.tried.contains(address))?;
-        self.tried.push(address);
-        Some(address)
+    /// Takes the first untried address of the preferred family, then the other.
+    fn take(&mut self, prefer_ipv6: bool) -> Option<TcpCandidate> {
+        for ipv6 in [prefer_ipv6, !prefer_ipv6] {
+            let cursor = if ipv6 { &mut self.ipv6 } else { &mut self.ipv4 };
+            while let Some(candidate) = cursor.next_matching(Some(ipv6)) {
+                let address = candidate.address();
+                if !self.tried.contains(&address) {
+                    self.tried.push(address);
+                    return Some(candidate);
+                }
+            }
+        }
+        None
     }
 }
 

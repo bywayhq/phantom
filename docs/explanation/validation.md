@@ -1966,8 +1966,9 @@ Differences from the browsers:
   applied to HTTP/3, and Phantom's H3 connector keeps trying later addresses
   after a connection failure.
 - Firefox skips an address that failed before on the same cached DNS
-  record (`netwerk/base/nsSocketTransport2.cpp:1742-1745`); Phantom tries it
-  again.
+  record (`netwerk/base/nsSocketTransport2.cpp:1742-1745`). Phantom applies
+  this policy to locally cached TCP addresses; see
+  [Record-scoped failed addresses](#record-scoped-failed-addresses).
 - Phantom keeps the slower attempt's connection, and remembers the address
   family, on the direct route of the HTTP/1.1 and negotiated pools,
   including connections that offer ECH from HTTPS records. Both attempts
@@ -2010,8 +2011,9 @@ Differences from the browsers:
   `ConnectionEntry.cpp:627-649` at `FIREFOX_157_0_RELEASE`). Phantom's pooled
   outer H2 setup now progresses a raw backup during proxy TLS and drops it
   after certificate verification and H2 ALPN, before authentication or CONNECT.
-  The backup sends no TLS or application bytes. SOCKS, proxy WebSocket backups
-  and proxy early-data setup remain outside this extension.
+  The backup sends no TLS or application bytes. Proxy WebSocket backups and
+  proxy early-data setup remain outside this extension. Ordinary SOCKS
+  request backups have separate source controls below.
 - A direct connection's slower attempt becomes claimable once the first
   connection's handshake has finished. The retained HTTP/1 proxy paths
   above register the spare after physical selection, before primary proxy
@@ -2546,6 +2548,65 @@ Limits:
   source alone.
 - The source was read at one tag per browser, so field-trial changes would
   not be seen.
+
+### Record-scoped failed addresses
+
+Checked against Firefox revision `fdd757a2e09c` on 2026-10-15.
+`AddrHostRecord` retains unusable IPs with its DNS record
+(`netwerk/dns/nsHostRecord.cpp:201-246`), and `nsDNSService2.cpp:163-218` skips them
+when traversing an answer. A fresh traversal of an entirely unusable answer
+resets the list; exhaustion of an existing traversal does not restart it.
+`netwerk/dns/DNS.cpp:95-112` formats IP bytes without port, IPv6 scope or
+flow label for this list. Phantom retains the original socket address for
+the dial and compares only its IP for suppression.
+
+`DnsAddressFailurePolicy::Record` connects this history to actual failed
+TCP connects. Cache refresh retains history and advances the answer
+generation. A weak witness ties each report to its selected record and
+generation; refresh, clear, eviction and configuration invalidation prevent
+stale reports from modifying the replacement. A traversal with no eligible
+address preserves history. Resolver, local setup, TLS, proxy negotiation,
+authentication and cancellation errors do not mark an address. This history
+is separate from pool family memory and does not apply to QUIC.
+
+Firefox's inspected source defines no fixed per-record unusable-IP cap.
+The desktop recipe's 1,600-IP cap is a Phantom resource bound chosen at the
+existing cache resource scale, separate from the 1,600-name cache bound.
+Overflow returns a resource error without eviction of history or an extra
+retry. Chromium keeps `Ignore`; absent Android DNS layers remain absent.
+
+All 47 record-feedback controls passed on Windows in the combined SOCKS
+checkpoint. They cover record traversal, cache publication, TCP failure
+reporting, policy import and ticket binding. These controlled tests do not
+establish Firefox capture parity.
+
+### SOCKS request backup source controls
+
+The complete SOCKS negotiation owns physical proxy dialing, authentication
+and the target reply. A locally resolved target family is recorded after
+that reply succeeds. It is separate from the proxy's physical IP and DNS
+failure witness. Remote DNS has no local target record. Only an actual
+failed proxy TCP connect reports that physical address as unusable;
+authentication, target replies, origin TLS and cancellation cannot report
+the logical target as a failed TCP address.
+
+The combined Windows checkpoint passed all 104 selected tests: 47 record
+feedback controls, 29 H1 controls, 19 negotiated or exact H2 controls, and
+nine existing future-size controls. Strict Clippy and all three API
+generations passed. The WebSocket H2 setup future measured 6,608 bytes
+against the unchanged 12,288-byte budget.
+
+The original run passed 100 tests and failed four. Its log remains retained.
+The repair boxes four cold setup branches, corrects a negotiated fixture's
+header spelling, and adds an acknowledgement before claimed TLS starts.
+It preserves the quiet-socket assertions and original deadlines.
+
+Owned loopback peers check crossed negotiations, quiet spares, current
+credentials and fields, origin verification, ALPN, cancellation and remote
+DNS. H2 keeps completed SOCKS siblings and closes unfinished work. Early
+data keeps its original path; these retained paths add no ECH. Combined
+integration checks remain pending. No browser capture parity or live proxy
+acceptance is claimed.
 
 ### Windows resolver configuration and native lifetimes
 

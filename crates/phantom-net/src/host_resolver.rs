@@ -16,9 +16,11 @@ use phantom_profile::{DnsCacheSettings, UdpSettings};
 
 use crate::address_cache::AddressCache;
 
+pub(crate) mod address_feedback;
 mod answer;
 #[cfg(any(windows, test))]
 pub(crate) mod system_ttl;
+pub(crate) mod tcp_addresses;
 use answer::AnswerLifetime;
 pub use answer::{AddressAnswer, AddressNegative, AddressNegativeKind};
 
@@ -601,6 +603,51 @@ impl HostResolver {
             None => tokio::net::lookup_host((host, port)).await?.collect(),
         };
         Ok((addresses, false))
+    }
+}
+
+impl HostResolver {
+    async fn lookup_tcp(
+        &self,
+        host: &str,
+        port: u16,
+    ) -> io::Result<(tcp_addresses::TcpAddresses, bool)> {
+        if host.parse::<IpAddr>().is_err()
+            && self.override_for(host).is_none()
+            && let Some(cache) = &self.cache
+        {
+            return cache.lookup_tcp_noting_cache(host, port).await;
+        }
+        self.lookup(host, port)
+            .await
+            .map(|(addresses, stored)| (addresses.into(), stored))
+    }
+}
+
+pub(crate) async fn resolve_tcp(
+    resolver: Option<&HostResolver>,
+    host: &str,
+    port: u16,
+) -> io::Result<tcp_addresses::TcpAddresses> {
+    resolve_tcp_noting_cache(resolver, host, port)
+        .await
+        .map(|(addresses, _)| addresses)
+}
+
+pub(crate) async fn resolve_tcp_noting_cache(
+    resolver: Option<&HostResolver>,
+    host: &str,
+    port: u16,
+) -> io::Result<(tcp_addresses::TcpAddresses, bool)> {
+    match resolver {
+        Some(resolver) => resolver.lookup_tcp(host, port).await,
+        None => Ok((
+            tokio::net::lookup_host((host, port))
+                .await?
+                .collect::<Vec<_>>()
+                .into(),
+            false,
+        )),
     }
 }
 

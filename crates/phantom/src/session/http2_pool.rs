@@ -1029,7 +1029,7 @@ impl PoolEntry {
                 .map_err(RequestError::http2_connection_setup)?
             }
             Route::Socks4(proxy) => super::box_send(
-                connector.connect(phantom_net::route::Http2Route::Origin(
+                connector.connect_socks_retaining(
                     phantom_net::route::OriginRoute::Tls {
                         tcp: proxy
                             .tcp_route(phantom_net::route::Endpoint {
@@ -1042,13 +1042,14 @@ impl PoolEntry {
                         server_name: endpoint.host(),
                         setup: phantom_net::route::DirectTlsSetup::Default,
                     },
-                )),
+                    &self.family,
+                ),
             )
             .await
             .map_err(RequestError::http2_connection_setup)?,
             Route::Socks5(proxy) => match proxy.dns_mode() {
-                crate::Socks5DnsMode::Local => super::box_send(connector.connect(
-                    phantom_net::route::Http2Route::Origin(phantom_net::route::OriginRoute::Tls {
+                crate::Socks5DnsMode::Local => super::box_send(connector.connect_socks_retaining(
+                    phantom_net::route::OriginRoute::Tls {
                         tcp: phantom_net::route::TcpRoute::Socks5 {
                             proxy: phantom_net::route::Endpoint {
                                 host: proxy.host(),
@@ -1064,12 +1065,13 @@ impl PoolEntry {
                         },
                         server_name: endpoint.host(),
                         setup: phantom_net::route::DirectTlsSetup::Default,
-                    }),
+                    },
+                    &self.family,
                 ))
                 .await
                 .map_err(RequestError::http2_connection_setup)?,
-                crate::Socks5DnsMode::Remote => super::box_send(connector.connect(
-                    phantom_net::route::Http2Route::Origin(phantom_net::route::OriginRoute::Tls {
+                crate::Socks5DnsMode::Remote => super::box_send(connector.connect_socks_retaining(
+                    phantom_net::route::OriginRoute::Tls {
                         tcp: phantom_net::route::TcpRoute::Socks5 {
                             proxy: phantom_net::route::Endpoint {
                                 host: proxy.host(),
@@ -1085,7 +1087,8 @@ impl PoolEntry {
                         },
                         server_name: endpoint.host(),
                         setup: phantom_net::route::DirectTlsSetup::Default,
-                    }),
+                    },
+                    &self.family,
                 ))
                 .await
                 .map_err(RequestError::http2_connection_setup)?,

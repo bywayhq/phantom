@@ -74,6 +74,118 @@ pub struct Http1TlsConnector {
 }
 
 impl Http1TlsConnector {
+    /// Opens an exact HTTP/1 origin over SOCKS, keeping a completed backup.
+    ///
+    /// Backup profiles race complete SOCKS connections, including authentication.
+    /// The retained connection finishes ordinary origin TLS without a request.
+    /// Family memory describes a locally known target, never the proxy or a
+    /// remote DNS answer. Other address policies use the existing connector path.
+    /// A connector offering TCP early data also keeps its existing path, without
+    /// SOCKS backup retention. ECH and direct-only setup remain unsupported here.
+    ///
+    /// # Errors
+    ///
+    /// Rejects other routes or setup policies before I/O. Otherwise returns the
+    /// existing typed SOCKS, TLS and HTTP/1 setup errors without route fallback.
+    pub async fn connect_socks_retaining(
+        &self,
+        origin: OriginRoute<'_>,
+        family: &crate::tcp::AddressFamilyMemory,
+    ) -> Result<(Http1Connection, Option<SlowerConnection<Http1Connection>>), Http1TlsError> {
+        origin
+            .validate(true, false)
+            .map_err(Http1TlsError::Connect)?;
+        let route = Http1Route::Origin(origin);
+        let span = connection_span(&route);
+        let Http1Route::Origin(origin) = route else {
+            return Err(invalid_route("retained SOCKS requires an origin"));
+        };
+        let (tcp, name) = match &origin {
+            OriginRoute::Plaintext { tcp, family: None } => (tcp, None),
+            OriginRoute::Tls {
+                tcp,
+                server_name,
+                setup: DirectTlsSetup::Default,
+            } => (tcp, Some(*server_name)),
+            _ => {
+                return Err(invalid_route(
+                    "retained SOCKS requires ordinary origin setup",
+                ));
+            }
+        };
+        if !matches!(tcp, TcpRoute::Socks4 { .. } | TcpRoute::Socks5 { .. }) {
+            return Err(invalid_route(
+                "retained SOCKS requires a SOCKS4 or SOCKS5 route",
+            ));
+        }
+        let backup = match self.tcp.map(|s| s.address_selection) {
+            Some(phantom_profile::TcpAddressSelection::Backup(backup))
+                if !self.tls.offers_early_data() =>
+            {
+                backup
+            }
+            _ => return self.connect(Http1Route::Origin(origin)).await,
+        };
+        let tcp = match origin {
+            OriginRoute::Plaintext { tcp, .. } | OriginRoute::Tls { tcp, .. } => tcp,
+        };
+        let opening =
+            crate::proxy::socks_connection::connect_retaining(self.dialer(), tcp, family, backup);
+        let mut slower = None;
+        let connection = self
+            .trace_connect(
+                span,
+                pin!(async {
+                    let (stream, pending) = opening
+                        .await
+                        .map_err(|e| Http1TlsError::from(e.into_leg()))?;
+                    slower = pending;
+                    let primary = async {
+                        match name {
+                            None => connect_plaintext(stream).await.map_err(Into::into),
+                            Some(name) => {
+                                if let Some(keepalive) = stream.tcp_keepalive() {
+                                    keepalive.request_dispatched();
+                                }
+                                let tls = self.tls.connect(name, stream).await?;
+                                connect_over_tls(tls).await
+                            }
+                        }
+                    };
+                    let connection = match slower.as_mut() {
+                        Some(slower) => slower.alongside(primary).await?,
+                        None => primary.await?,
+                    };
+                    Ok(connection)
+                }),
+            )
+            .await?;
+        let slower = slower.map(|slower| {
+            let progress = slower.progress();
+            let connector = self.clone();
+            let name = name.map(str::to_owned);
+            SlowerConnection::new(progress, async move {
+                let stream = slower.finish().await?;
+                let connection = match name {
+                    None => connect_plaintext(stream).await.ok()?,
+                    Some(name) => {
+                        if let Some(keepalive) = stream.tcp_keepalive() {
+                            keepalive.request_dispatched();
+                        }
+                        let stream = connector.tls.connect(&name, stream).await.ok()?;
+                        connect_over_tls(stream).await.ok()?
+                    }
+                };
+                if !connection.is_reusable() {
+                    return None;
+                }
+                connection.report_idle();
+                Some(connection)
+            })
+        });
+        Ok((connection, slower))
+    }
+
     /// Opens the physical HTTPS forwarding socket and retains its slower attempt.
     ///
     /// Only an outer HTTP/1 proxy is accepted. Adopt the spare before calling

@@ -77,6 +77,92 @@ pub struct Http2TlsConnector {
 }
 
 impl Http2TlsConnector {
+    /// Opens exact HTTP/2 over SOCKS, retaining only completed SOCKS backups.
+    ///
+    /// Backup address policies race complete SOCKS negotiations. Once HTTP/2
+    /// is selected, an unfinished negotiation is canceled. A completed backup
+    /// can finish ordinary TLS and HTTP/2 setup without sending a request.
+    /// Target family memory never records the proxy's address family.
+    /// TCP early-data and non-backup policies keep the existing opening path.
+    ///
+    /// # Errors
+    ///
+    /// Rejects non-SOCKS routes and direct-only TLS setup before I/O. Otherwise
+    /// returns the existing typed SOCKS, TLS, ALPN or HTTP/2 setup error.
+    pub async fn connect_socks_retaining(
+        &self,
+        origin: OriginRoute<'_>,
+        family: &crate::tcp::AddressFamilyMemory,
+    ) -> Result<(Http2Connection, Option<SlowerConnection<Http2Connection>>), Http2TlsError> {
+        origin
+            .validate(false, true)
+            .map_err(Http2TlsError::Connect)?;
+        let OriginRoute::Tls {
+            tcp,
+            server_name,
+            setup: DirectTlsSetup::Default,
+        } = &origin
+        else {
+            return Err(invalid_route("retained SOCKS requires ordinary origin TLS"));
+        };
+        if !matches!(tcp, TcpRoute::Socks4 { .. } | TcpRoute::Socks5 { .. }) {
+            return Err(invalid_route(
+                "retained SOCKS requires a SOCKS4 or SOCKS5 route",
+            ));
+        }
+        let backup = match self.tcp.map(|settings| settings.address_selection) {
+            Some(phantom_profile::TcpAddressSelection::Backup(backup))
+                if !self.tls.offers_early_data() =>
+            {
+                backup
+            }
+            _ => return self.connect(Http2Route::Origin(origin)).await,
+        };
+        let client = translate_settings(&self.http2)?;
+        let server_name = *server_name;
+        let tcp = match origin {
+            OriginRoute::Plaintext { tcp, .. } | OriginRoute::Tls { tcp, .. } => tcp,
+        };
+        let opening =
+            crate::proxy::socks_connection::connect_retaining(self.dialer(), tcp, family, backup);
+        let mut slower = None;
+        let mut operation: Pin<Box<dyn Future<Output = _> + Send + '_>> = Box::pin(async {
+            let (stream, pending) = opening
+                .await
+                .map_err(|error| Http2TlsError::from(error.into_leg()))?;
+            slower = pending;
+            let handshake = async {
+                let stream = self.tls.connect(server_name, stream).await?;
+                let keepalive = stream.tcp_keepalive();
+                connect_over_tls(stream, client, false, keepalive).await
+            };
+            match slower.as_mut() {
+                Some(attempt) => attempt.alongside(handshake).await,
+                None => handshake.await,
+            }
+        });
+        let connection = self.trace_connect(operation.as_mut()).await?;
+        drop(operation);
+        let slower = slower
+            .filter(|attempt| attempt.progress().has_connected())
+            .map(|attempt| {
+                let progress = attempt.progress();
+                let connector = self.clone();
+                let server_name = server_name.to_owned();
+                SlowerConnection::new(progress, async move {
+                    let client = translate_settings(&connector.http2).ok()?;
+                    let stream = attempt.finish().await?;
+                    let stream = connector.tls.connect(&server_name, stream).await.ok()?;
+                    let keepalive = stream.tcp_keepalive();
+                    let connection = connect_over_tls(stream, client, false, keepalive)
+                        .await
+                        .ok()?;
+                    connection.is_reusable().then_some(connection)
+                })
+            });
+        Ok((connection, slower))
+    }
+
     /// Opens a quiet CONNECT proxy socket and retains its slower backup.
     ///
     /// Adopt the backup before finishing the primary. Both retain this origin

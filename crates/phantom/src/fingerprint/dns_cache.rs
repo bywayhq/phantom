@@ -4,11 +4,12 @@ use super::{
     Result,
     json::{self, Value},
 };
-use phantom_profile::{DnsCacheSettings, SystemDnsTtlPolicy};
+use phantom_profile::{DnsAddressFailurePolicy, DnsCacheSettings, SystemDnsTtlPolicy};
 
 pub(super) fn parse(v: &Value) -> Result<DnsCacheSettings> {
     v.record(
         &[
+            "address_failure_policy",
             "max_entries",
             "ttl",
             "min_record_ttl",
@@ -18,6 +19,9 @@ pub(super) fn parse(v: &Value) -> Result<DnsCacheSettings> {
         "dns_cache",
     )?;
     let settings = DnsCacheSettings {
+        address_failure_policy: address_failure_policy(
+            v.member("address_failure_policy", "dns_cache.address_failure_policy")?,
+        )?,
         system_ttl: match v
             .member("system_ttl", "dns_cache.system_ttl")?
             .text("dns_cache.system_ttl")?
@@ -40,4 +44,29 @@ pub(super) fn parse(v: &Value) -> Result<DnsCacheSettings> {
             .optional(|v| v.duration("dns_cache.negative_ttl"))?,
     };
     Ok(settings)
+}
+
+fn address_failure_policy(v: &Value) -> Result<DnsAddressFailurePolicy> {
+    v.record(
+        &["kind", "max_unusable_addresses"],
+        "dns_cache.address_failure_policy",
+    )?;
+    let limit = v.member(
+        "max_unusable_addresses",
+        "dns_cache.address_failure_policy.max_unusable_addresses",
+    )?;
+    match v
+        .member("kind", "dns_cache.address_failure_policy.kind")?
+        .text("dns_cache.address_failure_policy.kind")?
+    {
+        "Ignore" => {
+            limit.null("dns_cache.address_failure_policy.max_unusable_addresses")?;
+            Ok(DnsAddressFailurePolicy::Ignore)
+        }
+        "Record" => Ok(DnsAddressFailurePolicy::Record {
+            max_unusable_addresses: limit
+                .nonzero_usize("dns_cache.address_failure_policy.max_unusable_addresses")?,
+        }),
+        _ => Err(json::unsupported("dns_cache.address_failure_policy.kind")),
+    }
 }

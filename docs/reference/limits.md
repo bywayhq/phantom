@@ -255,10 +255,22 @@ and credentials. A request that claims an unfinished spare waits for its
 outer TLS. Connections keep their existing origin, route, runtime and
 credential bounds. Family memory remains per origin and route. Firefox can
 share a forwarding connection between origins on one proxy; Phantom keeps
-those origins separate. SOCKS and proxy WebSocket backups, and proxy
-early-data setup remain outside these additions. Dedicated nonpooled outer
-H2 and CONNECT-UDP setup keep their existing behavior. These CONNECT paths
-do not add ECH or failed-address suppression.
+those origins separate. Proxy WebSocket backups and proxy early-data setup
+remain outside these additions. Dedicated nonpooled outer H2 and CONNECT-UDP
+setup keep their existing behavior. These CONNECT paths do not add ECH.
+Failed-address history follows the locally cached DNS record, independently
+of CONNECT setup.
+
+Ordinary H1 and exact or negotiated H2 requests through SOCKS use complete
+SOCKS negotiations as backup attempts. H1 may retain an unfinished sibling;
+H2 retains only a completed negotiation. The spare keeps its original
+credentials and origin TLS context. It sends application headers and a body
+only for its claiming request. Local DNS learns the selected target family
+after SOCKS succeeds; remote DNS learns no local target family. Physical
+proxy TCP failures may update that proxy's cached DNS record. SOCKS replies,
+authentication, origin TLS and cancellation do not mark a target IP failed.
+Early-data settings retain the original single-opening path. These retained
+SOCKS paths do not add ECH.
 
 ### RTT-based racing
 
@@ -347,6 +359,7 @@ from Chromium.
 | `407` body read so the replay can use the challenged HTTP/1.1 proxy connection | 64 KiB, `phantom_net::proxy::MAX_CHALLENGE_BODY_BYTES`, chunk framing included on CONNECT; a longer body gets a new connection |
 | Host names with cached addresses, per client | `DnsCacheSettings::max_entries`: 1,000 in `chrome::v154_dns_cache`, 1,600 in `firefox::v157_dns_cache`; an expired name, then the one that expires soonest, evicted |
 | Lifetime of cached addresses | Without a lifetime, `DnsCacheSettings::ttl`: 60 seconds in both recipes. Raw DNS record TTLs use `min_record_ttl`; native or caller-supplied remaining lifetimes are never extended |
+| Failed IPs per cached DNS record | `DnsCacheSettings::address_failure_policy`: Firefox desktop uses `Record` with a Phantom cap of 1,600 distinct IPs; Chromium uses `Ignore`. Capacity or allocation failure returns a resource error without discarding history or granting a retry |
 | Lifetime of a cached failed lookup or empty answer | `DnsCacheSettings::negative_ttl`: not kept in `chrome::v154_dns_cache`, 60 seconds in `firefox::v157_dns_cache` |
 | Caller-reported DNS lifetime | `AddressResolver::from_answer_fn`: remaining lifetime from answer construction, without a profile floor; zero, expired or unrepresentable lifetimes are not stored |
 | Caller-reported negative DNS answer | Lesser of its remaining lifetime and `negative_ttl`, both aged from construction; callback errors are never stored |
@@ -409,9 +422,10 @@ it and retains the tickets for another attempt.
 A stored snapshot and its randomly generated 32-byte key are sensitive
 resumption material. Keep them separate. The `PHOWN003` format requires a
 compatible library and native TLS backend. Earlier snapshots are rejected;
-re-export tickets with the updated library. Profile-policy binding version 4
-also rejects snapshots made before `DnsCacheSettings::system_ttl` was added,
-even when their outer format is `PHOWN003`.
+re-export tickets with the updated library. Profile-policy binding version 5
+also rejects older profile bindings, including those without
+`DnsCacheSettings::address_failure_policy`, even when their outer format is
+`PHOWN003`.
 
 H3 field-section size is measured as RFC 9114 Section 4.2.2 defines it: each
 field line counts its name and value lengths plus 32 bytes. The 256 KiB

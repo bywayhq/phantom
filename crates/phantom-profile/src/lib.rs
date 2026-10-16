@@ -25,7 +25,7 @@ pub use client_hints::{
     ClientHint, ClientHintDelivery, ClientHintSettings, InvalidClientHintSettings,
 };
 pub use cookie::CookiePlacement;
-pub use dns_cache::{DnsCacheSettings, SystemDnsTtlPolicy};
+pub use dns_cache::{DnsAddressFailurePolicy, DnsCacheSettings, SystemDnsTtlPolicy};
 pub use http1::{Http1IdleTimeout, Http1Settings, InvalidHttp1Settings};
 pub use http2::{
     Http2CookieCrumbs, Http2FieldIndexing, Http2HpackSettings, Http2HuffmanCoding,

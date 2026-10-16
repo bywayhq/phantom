@@ -258,6 +258,116 @@ pub struct Http1Or2TlsConnector {
 }
 
 impl Http1Or2TlsConnector {
+    /// Opens origin TLS over SOCKS, retaining an eligible complete backup.
+    ///
+    /// Backup address policies race complete SOCKS negotiations. HTTP/1.1 can
+    /// keep an unfinished backup; HTTP/2 cancels it unless SOCKS negotiation
+    /// already completed. Retained connections send no application request.
+    /// Target family memory never records the proxy's address family.
+    ///
+    /// TCP early-data and non-backup policies keep the existing single-opening
+    /// path. ECH and other direct-only setup policies are rejected before I/O.
+    ///
+    /// # Errors
+    ///
+    /// Returns the existing route, SOCKS, TLS, ALPN or protocol setup error.
+    pub async fn connect_socks_retaining(
+        &self,
+        origin: OriginRoute<'_>,
+        family: &crate::tcp::AddressFamilyMemory,
+    ) -> Result<
+        (
+            Http1Or2Connection,
+            Option<SlowerConnection<Http1Or2Connection>>,
+        ),
+        Http1Or2TlsError,
+    > {
+        origin
+            .validate(false, true)
+            .map_err(|error| Http1Or2TlsError::from_direct(DirectConnectError::Connect(error)))?;
+        let OriginRoute::Tls {
+            tcp,
+            server_name,
+            setup: DirectTlsSetup::Default,
+        } = &origin
+        else {
+            return Err(Http1Or2TlsError::from_direct(DirectConnectError::Connect(
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "retained SOCKS requires ordinary origin TLS",
+                ),
+            )));
+        };
+        if !matches!(tcp, TcpRoute::Socks4 { .. } | TcpRoute::Socks5 { .. }) {
+            return Err(Http1Or2TlsError::from_direct(DirectConnectError::Connect(
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "retained SOCKS requires a SOCKS4 or SOCKS5 route",
+                ),
+            )));
+        }
+        let backup = match self.tcp.map(|settings| settings.address_selection) {
+            Some(phantom_profile::TcpAddressSelection::Backup(backup))
+                if !self.tls.offers_early_data() =>
+            {
+                backup
+            }
+            _ => return self.connect(origin).await,
+        };
+        let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
+        let server_name = *server_name;
+        let tcp = match origin {
+            OriginRoute::Plaintext { tcp, .. } | OriginRoute::Tls { tcp, .. } => tcp,
+        };
+        let opening =
+            crate::proxy::socks_connection::connect_retaining(self.dialer(), tcp, family, backup);
+        let mut slower = None;
+        let connection = self
+            .trace_connect(pin!(async {
+                let (stream, pending) = opening
+                    .await
+                    .map_err(|error| Http1Or2TlsError::from(error.into_leg()))?;
+                slower = pending;
+                let handshake = async {
+                    let stream = self.tls.connect(server_name, stream).await?;
+                    select_connection(stream, client).await
+                };
+                match slower.as_mut() {
+                    Some(attempt) => attempt.alongside(handshake).await,
+                    None => handshake.await,
+                }
+            }))
+            .await?;
+        let slower = slower
+            .filter(|attempt| {
+                !matches!(connection, Http1Or2Connection::Http2(_))
+                    || attempt.progress().has_connected()
+            })
+            .map(|attempt| {
+                let progress = attempt.progress();
+                let connector = self.clone();
+                let server_name = server_name.to_owned();
+                SlowerConnection::new(progress, async move {
+                    let client = translate_settings(&connector.http2).ok()?;
+                    let stream = attempt.finish().await?;
+                    let stream = connector.tls.connect(&server_name, stream).await.ok()?;
+                    match select_connection(stream, client).await.ok()? {
+                        Http1Or2Connection::Http1(connection) => {
+                            if !connection.is_reusable() {
+                                return None;
+                            }
+                            connection.report_idle();
+                            Some(Http1Or2Connection::Http1(connection))
+                        }
+                        Http1Or2Connection::Http2(connection) => connection
+                            .is_reusable()
+                            .then_some(Http1Or2Connection::Http2(connection)),
+                    }
+                })
+            });
+        Ok((connection, slower))
+    }
+
     /// Opens a quiet CONNECT proxy socket and retains its slower backup.
     ///
     /// Adopt the backup before finishing the primary. Both retain this origin

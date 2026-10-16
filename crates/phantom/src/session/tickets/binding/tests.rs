@@ -1184,6 +1184,7 @@ fn opaque_socks_framing_rejects_oversized_input_without_secret_diagnostics() -> 
     Ok(())
 }
 
+mod address_failure;
 mod dns_ttl;
 mod tcp_schedule;
 

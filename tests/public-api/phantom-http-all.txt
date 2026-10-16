@@ -117,6 +117,7 @@ pub use phantom::profile::ClientHintDelivery
 pub use phantom::profile::ClientHintSettings
 pub use phantom::profile::ClientProfile
 pub use phantom::profile::CookiePlacement
+pub use phantom::profile::DnsAddressFailurePolicy
 pub use phantom::profile::DnsCacheSettings
 pub use phantom::profile::EchGreaseAead
 pub use phantom::profile::EchGreasePayloadLength

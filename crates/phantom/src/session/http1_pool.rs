@@ -1034,6 +1034,13 @@ impl PoolEntry {
                 return Err(RequestError::unsupported_route(HttpProtocol::Http1));
             }
         };
+        if matches!(route, Route::Socks4(_) | Route::Socks5(_)) {
+            return super::box_send(
+                connector.connect_socks_retaining(origin, &self.connections.family),
+            )
+            .await
+            .map_err(RequestError::http1_connection_setup);
+        }
         let operation = connector.connect(Http1Route::Origin(origin));
         super::box_send(operation)
             .await

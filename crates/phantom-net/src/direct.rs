@@ -5,13 +5,15 @@ use std::{
 };
 
 use phantom_profile::{TcpSettings, UdpSettings};
-use tokio::net::TcpStream;
 
 use crate::{
     SourceBinding,
-    host_resolver::{HostResolver, resolve},
+    host_resolver::HostResolver,
     tcp::{AddressFamilyMemory, ProfileTcpStream, SlowerAttempt},
 };
+
+#[cfg(feature = "https-records")]
+use crate::host_resolver::tcp_addresses::TcpAddresses;
 
 #[derive(Debug)]
 pub(crate) struct RuntimeUnavailable;
@@ -60,23 +62,17 @@ pub(crate) async fn connect_tcp_keeping_slower(
     family: Option<&AddressFamilyMemory>,
 ) -> Result<(ProfileTcpStream, Option<SlowerAttempt>), DirectConnectError> {
     tokio::runtime::Handle::try_current().map_err(|_| DirectConnectError::RuntimeUnavailable)?;
-    let (stream, slower) = match (dialer.tcp, dialer.source) {
-        (None, None) => {
-            poll_tokio_io(|| async {
-                let addresses = resolve(dialer.resolver, host, port).await?;
-                TcpStream::connect(&*addresses)
-                    .await
-                    .map(|stream| (ProfileTcpStream::new(stream), None))
-            })
-            .await
-        }
-        (tcp, source) => {
-            poll_tokio_io(|| {
-                crate::tcp::connect_keeping_slower(host, port, tcp, source, dialer.resolver, family)
-            })
-            .await
-        }
-    }
+    let (stream, slower) = poll_tokio_io(|| {
+        crate::tcp::connect_keeping_slower(
+            host,
+            port,
+            dialer.tcp,
+            dialer.source,
+            dialer.resolver,
+            family,
+        )
+    })
+    .await
     .map_err(|RuntimeUnavailable| DirectConnectError::RuntimeUnavailable)?
     .map_err(DirectConnectError::Connect)?;
     #[cfg(test)]
@@ -132,11 +128,12 @@ pub(crate) async fn connect_tcp_with_lookup<T>(
 ) -> Result<(ProfileTcpStream, Option<SlowerAttempt>, Option<T>), DirectConnectError> {
     tokio::runtime::Handle::try_current().map_err(|_| DirectConnectError::RuntimeUnavailable)?;
     let started = std::time::Instant::now();
-    let (addresses, stored) =
-        poll_tokio_io(|| crate::host_resolver::resolve_noting_cache(dialer.resolver, host, port))
-            .await
-            .map_err(|RuntimeUnavailable| DirectConnectError::RuntimeUnavailable)?
-            .map_err(DirectConnectError::Connect)?;
+    let (addresses, stored) = poll_tokio_io(|| {
+        crate::host_resolver::resolve_tcp_noting_cache(dialer.resolver, host, port)
+    })
+    .await
+    .map_err(|RuntimeUnavailable| DirectConnectError::RuntimeUnavailable)?
+    .map_err(DirectConnectError::Connect)?;
     let extra_time = if stored {
         std::time::Duration::ZERO
     } else {
@@ -170,7 +167,7 @@ pub(crate) async fn connect_tcp_address(
     dialer: Dialer<'_>,
 ) -> Result<ProfileTcpStream, DirectConnectError> {
     tokio::runtime::Handle::try_current().map_err(|_| DirectConnectError::RuntimeUnavailable)?;
-    connect_addresses(vec![address], dialer, std::time::Instant::now()).await
+    connect_addresses(vec![address].into(), dialer, std::time::Instant::now()).await
 }
 
 /// Why a direct TLS connection that could offer Encrypted Client Hello failed.
@@ -306,7 +303,7 @@ pub(crate) async fn connect_tls_with_ech_retaining(
 /// The ECH path shares ordinary dialing unless a caller owns slower attempts.
 #[cfg(feature = "https-records")]
 async fn connect_addresses_keeping_slower(
-    addresses: Vec<std::net::SocketAddr>,
+    addresses: TcpAddresses,
     dialer: Dialer<'_>,
     started: std::time::Instant,
     family: Option<&AddressFamilyMemory>,
@@ -335,23 +332,21 @@ async fn connect_addresses_keeping_slower(
 
 #[cfg(feature = "https-records")]
 async fn connect_addresses(
-    addresses: Vec<std::net::SocketAddr>,
+    addresses: TcpAddresses,
     dialer: Dialer<'_>,
     started: std::time::Instant,
 ) -> Result<ProfileTcpStream, DirectConnectError> {
-    let stream = match (dialer.tcp, dialer.source) {
-        (None, None) => {
-            poll_tokio_io(|| async move {
-                TcpStream::connect(&addresses[..])
-                    .await
-                    .map(ProfileTcpStream::new)
-            })
-            .await
-        }
-        (tcp, source) => {
-            poll_tokio_io(|| crate::tcp::connect_resolved(addresses, tcp, source, started)).await
-        }
-    }
+    let stream = poll_tokio_io(|| {
+        crate::tcp::connect_resolved_keeping_slower(
+            addresses,
+            dialer.tcp,
+            dialer.source,
+            started,
+            None,
+        )
+    })
+    .await
+    .map(|result| result.map(|(stream, _)| stream))
     .map_err(|RuntimeUnavailable| DirectConnectError::RuntimeUnavailable)?
     .map_err(DirectConnectError::Connect)?;
     #[cfg(test)]

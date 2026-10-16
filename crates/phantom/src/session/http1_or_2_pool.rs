@@ -1607,12 +1607,19 @@ impl PoolEntry {
             }
             Route::ConnectUdp(_) => return Err(RequestError::unsupported_negotiated_route()),
         };
-        let operation = connector.connect(OriginRoute::Tls {
+        let origin = OriginRoute::Tls {
             tcp,
             server_name: endpoint.host(),
             setup: DirectTlsSetup::Default,
-        });
-        super::box_send(operation)
+        };
+        if matches!(route, Route::Socks4(_) | Route::Socks5(_)) {
+            return super::box_send(
+                connector.connect_socks_retaining(origin, &self.connections.family),
+            )
+            .await
+            .map_err(RequestError::http1_or_2_connection_setup);
+        }
+        super::box_send(connector.connect(origin))
             .await
             .map_err(RequestError::http1_or_2_connection_setup)
     }

@@ -320,6 +320,16 @@ resolved addresses.
   pool route, partitioned by proxy endpoint, server name, credentials,
   connector settings and runtime. It survives connection-slot retirement;
   eviction gives a newly created route fresh memory.
+- Ordinary H1 and exact or negotiated H2 requests through SOCKS4/4a and
+  SOCKS5 use the same backup policy for complete SOCKS negotiations. Local
+  DNS remembers the target's family only after SOCKS succeeds, separately
+  from the physical proxy's address. Remote DNS learns no local target
+  family. H1 may keep an unfinished sibling. H2 closes unfinished siblings;
+  an already-completed SOCKS sibling may finish origin TLS and H2 setup
+  within the pool limits. Spares retain the original route, credentials
+  and origin TLS context, and send no application headers or body before
+  claim. Proxy WebSockets, retained early-data setup and ECH through these
+  SOCKS paths remain outside this behavior.
 - `TcpAddressSelection::Sequential` takes a `TcpAddressAdvance`:
   `AfterAnyFailure`, the default, moves to the next address after any
   failure, and `AfterRefusalOrTimeout`, which `firefox::v157_tcp` sets,
@@ -328,9 +338,8 @@ resolved addresses.
 - Firefox sets `SO_SNDBUF` on Windows only. The macOS, Linux and Android
   factories leave the send buffer unchanged.
 - Not modeled for Firefox: keeping the slower connection, and remembering
-  the address family, on SOCKS, proxy WebSockets and proxy setup with early
-  data; sharing a forwarding connection between origins; skipping an address
-  that failed before on the same cached DNS record; its
+  the address family, on proxy WebSockets and proxy setup with early data;
+  sharing a forwarding connection between origins; its
   `SO_LINGER` of `{1, 0}` (its close is still a FIN, as Phantom's is).
 - Brave 1.96.59 builds the Chromium tag behind `chrome::v154_tcp` and
   changes none of the values it cites, so Brave uses that recipe.
@@ -515,6 +524,28 @@ never reaches the cache ([Resolve host names](../guides/name-resolution.md)).
 | Brave | 1,000, from `chrome::v154_dns_cache` | 60 s | The TTL, at least 60 s | Not kept |
 | Edge, Opera | 1,000, from `chrome::v154_dns_cache` | 60 s, as hook logs show through the system resolver | The TTL, at least 60 s | Not kept |
 | Android browsers | Not covered | Not covered | Not covered | Not covered |
+
+`DnsCacheSettings::address_failure_policy` controls failed-IP history on
+locally cached DNS records. Firefox desktop selects
+`DnsAddressFailurePolicy::Record` with `max_unusable_addresses` of 1,600;
+Chromium selects `Ignore`. Android profiles without a DNS layer remain
+without one. The history limit is a Phantom resource bound, separate from
+`max_entries`; Firefox defines no corresponding per-record cap.
+
+Only an actual failed TCP connect marks its selected IP. Resolver, socket
+options, source binding, TLS, proxy negotiation, authentication and
+cancellation failures do not mark addresses. Refresh keeps history and
+retires reports from the previous answer. Clear, eviction and configuration
+invalidation retire the record. A fresh traversal of an entirely blocked
+answer clears history if an address is eligible; a traversal with no eligible
+address preserves history. An exhausted traversal stays exhausted. Capacity
+or allocation failure returns a resource error without forgetting history
+or granting another retry.
+
+QUIC does not read or update this history. IP literals, address overrides,
+uncached lookups and proxy-resolved targets create no shared DNS history.
+Locally resolved proxy hosts use their own records. A custom resolver's
+cacheable answers follow the same policy.
 
 `DnsCacheSettings::system_ttl` controls native TTL handling. Use
 `SystemDnsTtlPolicy::Ignore` for the fallback `ttl`, or `FirefoxWindows` to

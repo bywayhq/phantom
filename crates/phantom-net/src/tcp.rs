@@ -24,7 +24,13 @@ use tokio::{
     net::{TcpSocket, TcpStream},
 };
 
-use crate::{SourceBinding, host_resolver::HostResolver};
+use crate::{
+    SourceBinding,
+    host_resolver::{
+        HostResolver,
+        tcp_addresses::{TcpAddresses, TcpCandidate},
+    },
+};
 
 pub use backup_connection::{
     AddressFamily, AddressFamilyMemory, AddressFamilySnapshot, SlowerConnection, SlowerProgress,
@@ -48,14 +54,6 @@ pub(crate) struct ProfileTcpStream {
 }
 
 impl ProfileTcpStream {
-    /// A stream without a keepalive schedule.
-    pub(crate) fn new(stream: TcpStream) -> Self {
-        Self {
-            stream,
-            keepalive: None,
-        }
-    }
-
     /// Returns the remote address of the connection.
     ///
     /// # Errors
@@ -204,7 +202,7 @@ pub(crate) async fn connect_keeping_slower(
 ) -> io::Result<(ProfileTcpStream, Option<SlowerAttempt>)> {
     check_settings(settings.as_ref(), source)?;
     let started = Instant::now();
-    let addresses = crate::host_resolver::resolve(resolver, host, port).await?;
+    let addresses = crate::host_resolver::resolve_tcp(resolver, host, port).await?;
     connect_resolved_keeping_slower(addresses, settings, source, started, family).await
 }
 
@@ -223,7 +221,7 @@ pub(crate) async fn connect(
         .map(|(stream, _)| stream)
 }
 
-fn check_settings(
+pub(crate) fn check_settings(
     settings: Option<&TcpSettings>,
     source: Option<&SourceBinding>,
 ) -> io::Result<()> {
@@ -249,7 +247,7 @@ fn check_settings(
 ///
 /// `started` is when the host lookup began; a keepalive schedule takes its
 /// probe interval from the time since then.
-#[cfg(any(test, feature = "https-records"))]
+#[cfg(test)]
 pub(crate) async fn connect_resolved(
     addresses: Vec<SocketAddr>,
     settings: Option<TcpSettings>,
@@ -267,7 +265,7 @@ pub(crate) async fn connect_resolved(
 /// `started` is when the host lookup began; a keepalive schedule takes its
 /// probe interval from the time since then.
 pub(crate) async fn connect_resolved_keeping_slower(
-    addresses: Vec<SocketAddr>,
+    addresses: impl Into<TcpAddresses>,
     settings: Option<TcpSettings>,
     source: Option<&SourceBinding>,
     started: Instant,
@@ -285,13 +283,13 @@ pub(crate) async fn connect_resolved_keeping_slower(
         ));
     }
     let addresses = match source {
-        Some(source) => source.usable_addresses(addresses)?,
-        None => addresses,
+        Some(source) => addresses.into().with_source(Some(source))?,
+        None => addresses.into(),
     };
     let selection = settings.map_or_else(TcpAddressSelection::default, |settings| {
         settings.address_selection
     });
-    let dial = |address| connect_address(address, settings, source);
+    let dial = |candidate| connect_candidate_within(candidate, settings, source, None);
     let schedule = match settings.map(|settings| settings.keepalive) {
         Some(TcpKeepalivePolicy::Schedule(schedule)) => Some(schedule),
         Some(TcpKeepalivePolicy::Unchanged | TcpKeepalivePolicy::Fixed(_)) | None => None,
@@ -304,13 +302,13 @@ pub(crate) async fn connect_resolved_keeping_slower(
     };
     let (stream, attempt_started, slower) = match selection {
         TcpAddressSelection::Sequential(advance) => (
-            connect_sequentially(addresses, advance, dial).await?,
+            connect_candidates_sequentially(addresses, advance, dial).await?,
             started,
             None,
         ),
         TcpAddressSelection::Racing(racing) => {
             let fallback = deadline(racing.fallback_delay)?;
-            let stream = address_racing::race(addresses, fallback, dial).await?;
+            let stream = address_racing::race_candidates(addresses, fallback, dial).await?;
             (stream, started, None)
         }
         TcpAddressSelection::Backup(backup) => {
@@ -324,9 +322,12 @@ pub(crate) async fn connect_resolved_keeping_slower(
             let source = source.cloned();
             let dial = move |address, timeout| {
                 let source = source.clone();
-                async move { connect_address_within(address, settings, source.as_ref(), timeout).await }
+                async move {
+                    connect_candidate_within(address, settings, source.as_ref(), timeout).await
+                }
             };
-            let won = backup_connection::connect(addresses, plan, delay, dial, started).await?;
+            let won = backup_connection::connect_candidates(addresses, plan, delay, dial, started)
+                .await?;
             let connected = won.connected;
             let slower = family.and_then(|memory| {
                 memory.record_connection(&connected.address, connected.switched_family);
@@ -347,8 +348,75 @@ pub(crate) async fn connect_resolved_keeping_slower(
     Ok((ProfileTcpStream { stream, keepalive }, slower))
 }
 
+/// Physical proxy addresses are sequential inside one complete SOCKS attempt.
+/// Only an actual socket-connect failure consumes the proxy DNS witness.
+#[derive(Debug)]
+pub(crate) enum SocksProxyConnectError {
+    BeforeConnect(io::Error),
+    Connect(io::Error),
+}
+
+pub(crate) async fn connect_socks_proxy_sequential(
+    host: &str,
+    port: u16,
+    dialer: crate::direct::Dialer<'_>,
+    started: Instant,
+) -> Result<ProfileTcpStream, SocksProxyConnectError> {
+    use SocksProxyConnectError::{BeforeConnect, Connect};
+    check_settings(dialer.tcp.as_ref(), dialer.source).map_err(BeforeConnect)?;
+    if dialer
+        .tcp
+        .is_some_and(|s| matches!(s.keepalive, TcpKeepalivePolicy::Schedule(_)))
+        && !crate::shutdown_timer::is_available()
+    {
+        return Err(BeforeConnect(io::Error::other(
+            "could not start the keepalive schedule's timer",
+        )));
+    }
+    let addresses = crate::host_resolver::resolve_tcp(dialer.resolver, host, port)
+        .await
+        .map_err(BeforeConnect)?
+        .with_source(dialer.source)
+        .map_err(BeforeConnect)?;
+    // Keep preparation separate: a bind/options error may have the same
+    // error kind as a refused connect, but cannot leave a sibling alive.
+    let mut cursor = addresses.cursor();
+    let mut last = None;
+    let stream = loop {
+        let Some(candidate) = cursor.next() else {
+            return Err(last.map_or_else(|| BeforeConnect(no_addresses()), Connect));
+        };
+        let address = candidate.address();
+        let socket = prepare_socket(address, dialer.tcp, dialer.source).map_err(BeforeConnect)?;
+        match socket.connect(address).await {
+            Ok(stream) => break stream,
+            Err(connect) => {
+                if let Err(feedback) = candidate.failed_connect() {
+                    return Err(Connect(io::Error::other(ConnectFeedbackError {
+                        connect,
+                        feedback,
+                    })));
+                }
+                if !is_refusal_or_timeout(&connect) {
+                    return Err(Connect(connect));
+                }
+                last = Some(connect);
+            }
+        }
+    };
+    let keepalive = match dialer.tcp.map(|s| s.keepalive) {
+        Some(TcpKeepalivePolicy::Schedule(schedule)) => Some(TcpKeepaliveControl::opened_idle(
+            schedule,
+            started.elapsed(),
+        )),
+        _ => None,
+    };
+    Ok(ProfileTcpStream { stream, keepalive })
+}
+
 /// Tries `addresses` one at a time in resolver order, moving on after the
 /// failures `advance` names and returning any other failure at once.
+#[cfg(test)]
 async fn connect_sequentially<Dial, Attempt, Stream>(
     addresses: Vec<SocketAddr>,
     advance: TcpAddressAdvance,
@@ -356,6 +424,21 @@ async fn connect_sequentially<Dial, Attempt, Stream>(
 ) -> io::Result<Stream>
 where
     Dial: FnMut(SocketAddr) -> Attempt,
+    Attempt: std::future::Future<Output = io::Result<Stream>>,
+{
+    connect_candidates_sequentially(addresses.into(), advance, move |candidate| {
+        dial(candidate.address())
+    })
+    .await
+}
+
+async fn connect_candidates_sequentially<Dial, Attempt, Stream>(
+    addresses: TcpAddresses,
+    advance: TcpAddressAdvance,
+    mut dial: Dial,
+) -> io::Result<Stream>
+where
+    Dial: FnMut(TcpCandidate) -> Attempt,
     Attempt: std::future::Future<Output = io::Result<Stream>>,
 {
     let stop_on_other_failure = match advance {
@@ -369,11 +452,14 @@ where
         }
     };
     let mut last_error = None;
-    for address in addresses {
+    let mut addresses = addresses.cursor();
+    while let Some(address) = addresses.next() {
         match dial(address).await {
             Ok(stream) => return Ok(stream),
             Err(error) => {
-                if stop_on_other_failure && !is_refusal_or_timeout(&error) {
+                if is_feedback_resource_error(&error)
+                    || (stop_on_other_failure && !is_refusal_or_timeout(&error))
+                {
                     return Err(error);
                 }
                 last_error = Some(error);
@@ -388,7 +474,7 @@ where
 /// unavailable address, and a denied connect, or a timeout
 /// (`netwerk/base/nsSocketTransport2.cpp:169-200` at tag
 /// `FIREFOX_157_0_RELEASE`).
-fn is_refusal_or_timeout(error: &io::Error) -> bool {
+pub(crate) fn is_refusal_or_timeout(error: &io::Error) -> bool {
     matches!(
         error.kind(),
         io::ErrorKind::ConnectionRefused
@@ -401,7 +487,7 @@ fn is_refusal_or_timeout(error: &io::Error) -> bool {
 }
 
 /// A delay from the deadline service.
-fn deadline(delay: Duration) -> io::Result<impl std::future::Future<Output = ()>> {
+pub(crate) fn deadline(delay: Duration) -> io::Result<impl std::future::Future<Output = ()>> {
     let deadline = crate::shutdown_timer::after(delay)
         .map_err(|_| io::Error::other("could not schedule the connection fallback timer"))?;
     // The deadline service never drops a pending deadline, so a receive
@@ -419,19 +505,9 @@ fn no_addresses() -> io::Error {
     )
 }
 
-/// Connects as [`connect_address`] does, failing with
-/// [`io::ErrorKind::TimedOut`] once `timeout` passes.
-async fn connect_address_within(
-    address: SocketAddr,
-    settings: Option<TcpSettings>,
-    source: Option<&SourceBinding>,
-    timeout: Option<Duration>,
-) -> io::Result<TcpStream> {
-    within_connect_timeout(timeout, connect_address(address, settings, source)).await
-}
-
 /// Runs `connect`, failing with [`io::ErrorKind::TimedOut`] once `timeout`
 /// passes, which moves a backup attempt to its next address.
+#[cfg(test)]
 async fn within_connect_timeout<T>(
     timeout: Option<Duration>,
     connect: impl std::future::Future<Output = io::Result<T>>,
@@ -450,11 +526,38 @@ async fn within_connect_timeout<T>(
     }
 }
 
-async fn connect_address(
+#[derive(Debug)]
+struct ConnectFeedbackError {
+    connect: io::Error,
+    feedback: io::Error,
+}
+impl fmt::Display for ConnectFeedbackError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "{}; could not retain address failure: {}",
+            self.connect, self.feedback
+        )
+    }
+}
+fn is_feedback_resource_error(error: &io::Error) -> bool {
+    error
+        .get_ref()
+        .is_some_and(|source| source.is::<ConnectFeedbackError>())
+}
+
+impl Error for ConnectFeedbackError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.feedback)
+    }
+}
+
+/// Setup failures precede the dial and must not poison a DNS record.
+fn prepare_socket(
     address: SocketAddr,
     settings: Option<TcpSettings>,
     source: Option<&SourceBinding>,
-) -> io::Result<TcpStream> {
+) -> io::Result<TcpSocket> {
     if let Some(settings) = settings {
         check_policy_support(&settings)
             .map_err(|error| io::Error::new(io::ErrorKind::Unsupported, error))?;
@@ -469,7 +572,46 @@ async fn connect_address(
     if let Some(source) = source {
         source.bind_tcp(&socket, address)?;
     }
-    socket.connect(address).await
+    Ok(socket)
+}
+
+#[cfg(test)]
+async fn connect_address(
+    address: SocketAddr,
+    settings: Option<TcpSettings>,
+    source: Option<&SourceBinding>,
+) -> io::Result<TcpStream> {
+    prepare_socket(address, settings, source)?
+        .connect(address)
+        .await
+}
+
+async fn connect_candidate_within(
+    candidate: TcpCandidate,
+    settings: Option<TcpSettings>,
+    source: Option<&SourceBinding>,
+    timeout: Option<Duration>,
+) -> io::Result<TcpStream> {
+    let address = candidate.address();
+    let expired = timeout.map(deadline).transpose()?;
+    let socket = prepare_socket(address, settings, source)?;
+    let result = match expired {
+        None => socket.connect(address).await,
+        Some(expired) => {
+            tokio::select! {
+                biased;
+                result = socket.connect(address) => result,
+                () = expired => Err(io::Error::new(io::ErrorKind::TimedOut, "the backup connect timed out")),
+            }
+        }
+    };
+    match result {
+        Ok(stream) => Ok(stream),
+        Err(connect) => match candidate.failed_connect() {
+            Ok(()) => Err(connect),
+            Err(feedback) => Err(io::Error::other(ConnectFeedbackError { connect, feedback })),
+        },
+    }
 }
 
 /// Applies every option `settings` sets before `connect`, failing on the

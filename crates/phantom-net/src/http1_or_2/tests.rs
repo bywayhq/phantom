@@ -5,6 +5,7 @@ use super::{Http1Or2TlsErrorKind, validate_settings};
 mod early_data;
 #[cfg(feature = "https-records")]
 mod ech;
+mod socks_retention;
 
 #[test]
 fn negotiation_requires_both_alpn_protocols() {
