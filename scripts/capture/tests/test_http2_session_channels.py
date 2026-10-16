@@ -71,6 +71,38 @@ class ChannelFailuresTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(await channel.read(), b"")
             self.assertEqual(record.client_eof, 1.0)
 
+    async def test_windows_netname_deleted_reset_is_raw_eof(self) -> None:
+        failure = ConnectionResetError(errno.EINVAL, "network name deleted")
+        failure.winerror = 64
+        reader = asyncio.StreamReader()
+        reader.set_exception(failure)
+        record = self.record()
+        channel = PlainChannel(reader, None, record, lambda: 1.0)
+        self.assertEqual(await channel.read(), b"")
+        self.assertEqual(record.client_eof, 1.0)
+
+    async def test_windows_non_peer_errors_retain_their_original_cause(self) -> None:
+        ordinary = OSError(errno.EINVAL, "local invalid operation")
+        ordinary.winerror = 64
+        cancelled = ConnectionResetError(errno.EINVAL, "local cancelled operation")
+        cancelled.winerror = 995
+        for failure in (
+            ordinary,
+            ConnectionResetError(errno.EINVAL, "local invalid reset"),
+            cancelled,
+            ConnectionResetError(errno.EIO, "local I/O failure"),
+            ConnectionResetError(errno.EBADF, "local descriptor failure"),
+        ):
+            with self.subTest(failure=failure):
+                reader = asyncio.StreamReader()
+                reader.set_exception(failure)
+                record = self.record()
+                channel = PlainChannel(reader, None, record, lambda: 1.0)
+                with self.assertRaises(type(failure)) as caught:
+                    await channel.read()
+                self.assertIs(caught.exception, failure)
+                self.assertIsNone(record.client_eof)
+
     async def test_unrelated_original_raw_read_errors_are_not_eof(self) -> None:
         for failure in (
             ConnectionError("other"),

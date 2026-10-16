@@ -2792,6 +2792,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 - Apply configured TCP backup ownership to dedicated ordinary H2 and
   CONNECT-UDP H2 proxy setup. Raw backups close at verified H2 activation,
   before proxy authentication or CONNECT.
+- Treat Windows network-name-deleted connection resets as peer closure in
+  capture channels and closed-writer cleanup. Keep other local errors visible.
+
 - Print each underlying capture cleanup error, including nested failures,
   so WebSocket capture logs retain the error type and operating-system code.
 

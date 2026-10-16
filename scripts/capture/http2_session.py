@@ -71,6 +71,10 @@ def peer_disconnected(error: BaseException) -> bool:
     return isinstance(error, OSError) and (
         error.errno in PEER_ERRNOS
         or getattr(error, "winerror", None) in (10053, 10054, 232)
+        or (
+            isinstance(error, ConnectionResetError)
+            and getattr(error, "winerror", None) == 64
+        )
     )
 
 

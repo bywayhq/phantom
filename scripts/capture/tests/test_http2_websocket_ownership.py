@@ -517,6 +517,55 @@ class WebSocketCaptureOwnershipTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(entry.task.done() for entry in self.server.connections))
         self.assertFalse((Path(self.directory.name) / "h1-accept.txt").exists())
 
+    async def test_closed_accepted_writer_netname_reset_allows_publication(self):
+        failure = ConnectionResetError(errno.EINVAL, "network name deleted")
+        failure.winerror = 64
+        waited = []
+        original_wait = asyncio.StreamWriter.wait_closed
+
+        async def wait_closed(writer):
+            await original_wait(writer)
+            if any(writer is entry.writer for entry in self.server.connections):
+                self.assertTrue(writer.is_closing())
+                waited.append(writer)
+                raise failure
+
+        with patch.object(asyncio.StreamWriter, "wait_closed", wait_closed):
+            await self.publish(self.driver(close_client=True))
+
+        self.assertEqual(waited, [self.server.connections[0].writer])
+        self.assertTrue(all(entry.task.done() for entry in self.server.connections))
+        self.assertEqual(self.server.writers, set())
+        self.assertEqual(self.server.writer_waits, {})
+        self.assertEqual(self.server.handlers, {})
+        self.assertEqual(self.server.protocols, set())
+        self.assertEqual(self.server.protocol_waits, {})
+        text = (Path(self.directory.name) / "h1-accept.txt").read_text(encoding="utf-8")
+        self.assertIn("run_0_result_0=code=1000\n", text)
+
+    async def test_plain_oserror_netname_code_keeps_accepted_writer_failure(self):
+        failure = OSError(errno.EINVAL, "local invalid operation")
+        failure.winerror = 64
+        waited = asyncio.Event()
+        original_wait = asyncio.StreamWriter.wait_closed
+
+        async def wait_closed(writer):
+            await original_wait(writer)
+            if any(writer is entry.writer for entry in self.server.connections):
+                waited.set()
+                raise failure
+
+        error = None
+        with patch.object(asyncio.StreamWriter, "wait_closed", wait_closed):
+            try:
+                await self.publish(self.driver(close_client=True))
+            except BaseException as caught:
+                error = caught
+
+        self.assertTrue(waited.is_set())
+        self.assert_causes(error, failure)
+        self.assertFalse((Path(self.directory.name) / "h1-accept.txt").exists())
+
     async def test_healthy_peer_shutdown_keeps_ordinary_fixture_contract(self):
         await self.publish(self.driver(close_client=True))
 
