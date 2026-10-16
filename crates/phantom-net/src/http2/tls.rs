@@ -80,7 +80,8 @@ impl Http2TlsConnector {
     /// Opens a quiet complete SOCKS tunnel and its already-started backup.
     ///
     /// Adopt the backup before the winner starts origin TLS. Only Backup
-    /// policies without TCP early data are supported; no route is substituted.
+    /// policies are supported; no route is substituted. SOCKS origin TLS never
+    /// offers early data.
     ///
     /// # Errors
     ///
@@ -116,9 +117,6 @@ impl Http2TlsConnector {
         else {
             return Err(invalid_route("quiet SOCKS requires a backup policy"));
         };
-        if self.tls.offers_early_data() {
-            return Err(invalid_route("quiet SOCKS does not offer early data"));
-        }
         translate_settings(&self.http2).map_err(Http2TlsError::from)?;
         let name = Box::<str>::from(server_name);
         let (stream, slower) =
@@ -180,7 +178,8 @@ impl Http2TlsConnector {
     /// is selected, an unfinished negotiation is canceled. A completed backup
     /// can finish ordinary TLS and HTTP/2 setup without sending a request.
     /// Target family memory never records the proxy's address family.
-    /// TCP early-data and non-backup policies keep the existing opening path.
+    /// Non-backup policies keep the existing opening path. SOCKS origin TLS
+    /// never offers early data.
     ///
     /// # Errors
     ///
@@ -208,11 +207,7 @@ impl Http2TlsConnector {
             ));
         }
         let backup = match self.tcp.map(|settings| settings.address_selection) {
-            Some(phantom_profile::TcpAddressSelection::Backup(backup))
-                if !self.tls.offers_early_data() =>
-            {
-                backup
-            }
+            Some(phantom_profile::TcpAddressSelection::Backup(backup)) => backup,
             _ => return self.connect(Http2Route::Origin(origin)).await,
         };
         let client = translate_settings(&self.http2)?;
@@ -546,12 +541,6 @@ impl Http2TlsConnector {
             host_resolver,
             proxy_credentials,
         }
-    }
-
-    /// Whether this connector offers TLS early data on TCP.
-    #[must_use]
-    pub fn offers_early_data(&self) -> bool {
-        self.tls.offers_early_data()
     }
 
     /// Returns the TCP socket options applied to new connections, if any.

@@ -34,7 +34,8 @@ async fn quiet_opening(mode: usize) -> TestResult<()> {
         TestServerAlpn::H2
     };
     let acceptor = identity.acceptor(alpn)?;
-    let connectors = Connectors::new(&identity, false)?;
+    let connectors = Connectors::new(&identity, true)?;
+    assert!(connectors.negotiated.offers_early_data());
     let h1 = connectors
         .negotiated
         .http1_connector(&[Box::from(&b"http/1.1"[..])])?;
@@ -140,8 +141,8 @@ async fn quiet_opening(mode: usize) -> TestResult<()> {
 }
 
 #[tokio::test]
-async fn quiet_socks_openings_reject_direct_routes_and_early_data_before_connecting()
--> TestResult<()> {
+async fn quiet_socks_openings_reject_direct_routes_with_either_early_data_policy() -> TestResult<()>
+{
     let identity = TestIdentity::generate()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
@@ -152,19 +153,13 @@ async fn quiet_socks_openings_reject_direct_routes_and_early_data_before_connect
         let h1 = connectors
             .negotiated
             .http1_connector(&[Box::from(&b"http/1.1"[..])])?;
-        let route = || {
-            if early {
-                origin(&host, address.port(), false)
-            } else {
-                crate::route::OriginRoute::Tls {
-                    tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
-                        host: &host,
-                        port: address.port(),
-                    }),
-                    server_name: crate::tls::test_support::TEST_SERVER_NAME,
-                    setup: crate::route::DirectTlsSetup::Default,
-                }
-            }
+        let route = || crate::route::OriginRoute::Tls {
+            tcp: crate::route::TcpRoute::Direct(crate::route::Endpoint {
+                host: &host,
+                port: address.port(),
+            }),
+            server_name: crate::tls::test_support::TEST_SERVER_NAME,
+            setup: crate::route::DirectTlsSetup::Default,
         };
         assert!(h1.open_socks_retaining(route(), &family).await.is_err());
         assert!(

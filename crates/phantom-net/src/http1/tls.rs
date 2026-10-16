@@ -78,7 +78,8 @@ impl Http1TlsConnector {
     ///
     /// Adopt the backup before finishing origin TLS on the winner. Neither
     /// opening sends origin TLS or a request until its claimant finishes it.
-    /// Only Backup policies without TCP early data enter this operation.
+    /// Only Backup policies enter this operation. SOCKS origin TLS never offers
+    /// early data.
     ///
     /// # Errors
     ///
@@ -115,9 +116,6 @@ impl Http1TlsConnector {
         else {
             return Err(invalid_route("quiet SOCKS requires a backup policy"));
         };
-        if self.tls.offers_early_data() {
-            return Err(invalid_route("quiet SOCKS does not offer early data"));
-        }
         let (stream, slower) =
             crate::proxy::socks_connection::connect_retaining(self.dialer(), tcp, family, backup)
                 .await
@@ -193,8 +191,9 @@ impl Http1TlsConnector {
     /// The retained connection finishes ordinary origin TLS without a request.
     /// Family memory describes a locally known target, never the proxy or a
     /// remote DNS answer. Other address policies use the existing connector path.
-    /// A connector offering TCP early data also keeps its existing path, without
-    /// SOCKS backup retention. ECH and direct-only setup remain unsupported here.
+    /// Direct early-data settings do not change SOCKS retention. Origin TLS
+    /// over SOCKS never offers early data. ECH and direct-only setup remain
+    /// unsupported here.
     ///
     /// # Errors
     ///
@@ -232,11 +231,7 @@ impl Http1TlsConnector {
             ));
         }
         let backup = match self.tcp.map(|s| s.address_selection) {
-            Some(phantom_profile::TcpAddressSelection::Backup(backup))
-                if !self.tls.offers_early_data() =>
-            {
-                backup
-            }
+            Some(phantom_profile::TcpAddressSelection::Backup(backup)) => backup,
             _ => return self.connect(Http1Route::Origin(origin)).await,
         };
         let tcp = match origin {
@@ -700,12 +695,6 @@ impl Http1TlsConnector {
     pub fn with_proxy_credential_cache(mut self, cache: ProxyCredentialCache) -> Self {
         self.proxy_credentials = Some(cache);
         self
-    }
-
-    /// Whether this connector offers TLS early data on TCP.
-    #[must_use]
-    pub fn offers_early_data(&self) -> bool {
-        self.tls.offers_early_data()
     }
 
     /// Returns the TCP socket options applied to new connections, if any.

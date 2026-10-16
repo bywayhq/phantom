@@ -220,13 +220,12 @@ async fn extended_connect_proxy(
 }
 
 fn keeps_socks_backup(connector: &Http2TlsConnector) -> bool {
-    !connector.offers_early_data()
-        && connector.tcp_settings().is_some_and(|settings| {
-            matches!(
-                settings.address_selection,
-                phantom_profile::TcpAddressSelection::Backup(_)
-            )
-        })
+    connector.tcp_settings().is_some_and(|settings| {
+        matches!(
+            settings.address_selection,
+            phantom_profile::TcpAddressSelection::Backup(_)
+        )
+    })
 }
 
 async fn extended_connect_socks(

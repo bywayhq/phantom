@@ -1,5 +1,5 @@
 //! Complete authenticated SOCKS tunnels stay quiet until their pool claimant.
-use crate::support::tls::{TestIdentity, TestResult, tls_settings};
+use crate::support::tls::{TestIdentity, TestResult};
 use phantom::{
     AddressResolver, Client, HttpProtocol, RequestHeader, Route, Socks4Proxy, Socks5Proxy,
     profile::{
@@ -72,7 +72,9 @@ fn client(
         WebSocketField::literal("sec-websocket-version", "13"),
         WebSocketField::caller("x-claim"),
     ];
-    let profile = ClientProfile::new(tls_settings())
+    let tls = firefox::v157_tcp_tls();
+    assert!(tls.tcp_early_data);
+    let profile = ClientProfile::new(tls)
         .with_tcp(tcp)
         .with_http1(firefox::v157_http1())
         .with_http2(firefox::v157_http2())

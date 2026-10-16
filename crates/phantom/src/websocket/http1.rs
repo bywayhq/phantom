@@ -367,7 +367,6 @@ async fn upgrade_proxy(
 
 fn retains_socks(connector: &Http1TlsConnector, route: &Route) -> bool {
     matches!(route, Route::Socks4(_) | Route::Socks5(_))
-        && !connector.offers_early_data()
         && connector.tcp_settings().is_some_and(|settings| {
             matches!(
                 settings.address_selection,

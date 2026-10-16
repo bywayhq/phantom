@@ -28,6 +28,15 @@ fn settings() -> phantom_profile::TcpSettings {
         });
     settings
 }
+fn early_data_connector(identity: &TestIdentity) -> TestResult<super::Http1TlsConnector> {
+    let mut tls = phantom_profile::browser::firefox::v157_tcp_tls();
+    assert!(tls.tcp_early_data);
+    tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
+    let connector = super::Http1TlsConnector::new_with_roots(&tls, [identity.root_der()])?
+        .with_tcp_settings(&settings());
+    assert!(connector.tls.offers_early_data());
+    Ok(connector)
+}
 async fn negotiate(listener: &TcpListener) -> TestResult<TcpStream> {
     let (mut stream, _) = listener.accept().await?;
     let mut greeting = [0; 3];
@@ -96,7 +105,7 @@ async fn respond<S: AsyncRead + AsyncWrite + Unpin>(stream: &mut S, path: &str) 
 #[tokio::test]
 async fn the_spare_finishes_verified_tls_but_sends_no_request_until_claimed() -> TestResult<()> {
     bounded(async {
-        let identity=TestIdentity::generate()?;let acceptor=identity.acceptor(TestServerAlpn::Http1)?;let connector=test_connector(&identity)?.with_tcp_settings(&settings());
+        let identity=TestIdentity::generate()?;let acceptor=identity.acceptor(TestServerAlpn::Http1)?;let connector=early_data_connector(&identity)?;
         let listener=TcpListener::bind((Ipv4Addr::LOCALHOST,0)).await?;let address=listener.local_addr()?;let host=address.ip().to_string();let family=AddressFamilyMemory::default();
         let (release_tx,release_rx)=oneshot::channel();let (ready_tx,ready_rx)=oneshot::channel();let (quiet_tx,quiet_rx)=oneshot::channel();
         let peer=async {
@@ -192,15 +201,12 @@ async fn non_backup_policy_keeps_the_existing_single_tunnel_path() -> TestResult
 }
 
 #[tokio::test]
-async fn enabled_tcp_early_data_keeps_its_existing_single_socks_path() -> TestResult<()> {
+async fn non_backup_policy_keeps_the_early_data_connector_on_one_socks_tunnel() -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
-        let mut tls = phantom_profile::browser::firefox::v157_tcp_tls();
-        tls.tcp_early_data = true;
-        tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
-        let connector = super::Http1TlsConnector::new_with_roots(&tls, [identity.root_der()])?
-            .with_tcp_settings(&settings());
-        assert!(connector.tls.offers_early_data());
+        let mut tcp = settings();
+        tcp.address_selection = phantom_profile::TcpAddressSelection::default();
+        let connector = early_data_connector(&identity)?.with_tcp_settings(&tcp);
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let host = address.ip().to_string();

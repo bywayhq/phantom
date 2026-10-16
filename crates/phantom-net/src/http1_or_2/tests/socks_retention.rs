@@ -34,7 +34,7 @@ async fn negotiated_h1_retains_the_crossed_socks_backup_and_uses_only_the_claimi
     timeout(WAIT, async {
         let identity = TestIdentity::generate()?;
         let acceptor = identity.acceptor(TestServerAlpn::Http1)?;
-        let connectors = Connectors::new(&identity, false)?;
+        let connectors = Connectors::new(&identity, true)?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let host = address.ip().to_string();
@@ -99,7 +99,7 @@ async fn h2_pending_canceled(exact: bool) -> TestResult<()> {
     timeout(WAIT, async {
         let identity = TestIdentity::generate()?;
         let acceptor = identity.acceptor(TestServerAlpn::H2)?;
-        let connectors = Connectors::new(&identity, false)?;
+        let connectors = Connectors::new(&identity, true)?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let host = address.ip().to_string();
@@ -176,13 +176,17 @@ async fn both_h2_connectors_keep_remote_dns_out_of_family_memory_and_local_looku
 }
 
 #[tokio::test]
-async fn enabled_tcp_early_data_keeps_both_connectors_on_the_original_single_socks_path()
--> TestResult<()> {
+async fn non_backup_policy_keeps_both_early_data_connectors_on_one_socks_tunnel() -> TestResult<()>
+{
     for exact in [false, true] {
         timeout(WAIT, async {
             let identity = TestIdentity::generate()?;
             let acceptor = identity.acceptor(TestServerAlpn::H2)?;
-            let connectors = Connectors::new(&identity, true)?;
+            let mut connectors = Connectors::new(&identity, true)?;
+            let mut tcp = phantom_profile::browser::firefox::v157_tcp();
+            tcp.address_selection = phantom_profile::TcpAddressSelection::default();
+            connectors.exact = connectors.exact.with_tcp_settings(&tcp);
+            connectors.negotiated = connectors.negotiated.with_tcp_settings(&tcp);
             assert!(connectors.negotiated.offers_early_data());
             let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
             let address = listener.local_addr()?;

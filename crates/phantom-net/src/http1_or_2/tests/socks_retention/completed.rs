@@ -29,7 +29,7 @@ async fn completed_h2(exact: bool) -> TestResult<()> {
     timeout(WAIT, async {
         let identity = TestIdentity::generate()?;
         let acceptor = identity.acceptor(TestServerAlpn::H2)?;
-        let connectors = Connectors::new(&identity, false)?;
+        let connectors = Connectors::new(&identity, true)?;
         let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
         let address = listener.local_addr()?;
         let host = address.ip().to_string();

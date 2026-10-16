@@ -263,7 +263,8 @@ impl Http1Or2TlsConnector {
     /// Opens a quiet complete SOCKS tunnel and its already-started backup.
     ///
     /// Adopt the backup before the winner starts origin TLS. Only Backup
-    /// policies without TCP early data are supported; no route is substituted.
+    /// policies are supported; no route is substituted. SOCKS origin TLS never
+    /// offers early data.
     ///
     /// # Errors
     ///
@@ -305,11 +306,6 @@ impl Http1Or2TlsConnector {
                 "quiet SOCKS requires a backup policy",
             ));
         };
-        if self.tls.offers_early_data() {
-            return Err(quiet_socks_invalid_route(
-                "quiet SOCKS does not offer early data",
-            ));
-        }
         translate_settings(&self.http2).map_err(Http2TlsError::from)?;
         let name = Box::<str>::from(server_name);
         let (stream, slower) =
@@ -350,8 +346,9 @@ impl Http1Or2TlsConnector {
     /// already completed. Retained connections send no application request.
     /// Target family memory never records the proxy's address family.
     ///
-    /// TCP early-data and non-backup policies keep the existing single-opening
-    /// path. ECH and other direct-only setup policies are rejected before I/O.
+    /// Non-backup policies keep the existing single-opening path. Origin TLS
+    /// over SOCKS never offers early data. ECH and other direct-only setup
+    /// policies are rejected before I/O.
     ///
     /// # Errors
     ///
@@ -392,11 +389,7 @@ impl Http1Or2TlsConnector {
             )));
         }
         let backup = match self.tcp.map(|settings| settings.address_selection) {
-            Some(phantom_profile::TcpAddressSelection::Backup(backup))
-                if !self.tls.offers_early_data() =>
-            {
-                backup
-            }
+            Some(phantom_profile::TcpAddressSelection::Backup(backup)) => backup,
             _ => return self.connect(origin).await,
         };
         let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
