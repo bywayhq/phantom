@@ -196,13 +196,15 @@ Supported:
   retries and pool clears. Eviction starts fresh; dedicated operations retain
   family only through their own authentication retries. Ordinary and extended
   CONNECT keep their separate framing. This applies the transport policy to
-  CONNECT-UDP; it does not establish Firefox MASQUE behavior.
+  CONNECT-UDP; it does not establish Firefox MASQUE behavior. WSS using
+  outer H2 follows the same physical proxy retirement boundary.
 - Ordinary H1 and exact or negotiated H2 requests through SOCKS4/4a and
   SOCKS5 retain a complete-negotiation backup. Local target family memory
   starts after SOCKS succeeds; remote DNS supplies no local target family.
   H1 may retain pending work, while H2 keeps only completed SOCKS siblings.
   Origin TLS uses the original connector. Only the claimant sends its
-  current application headers and body.
+  current application headers and body. Direct early-data settings do
+  not disable retention; origin TLS over SOCKS uses an ordinary handshake.
 
 - With the configured backup TCP policy, exact and profile-policy
   `wss://` openings use quiet spares through plaintext CONNECT or HTTPS
@@ -220,10 +222,9 @@ Supported:
 
 Not modeled:
 
-- Parts of Firefox's address selection: keeping the slower connection, and
-  remembering the address family, on WebSocket paths using outer H2 proxies
-  and proxy setup with early data; sharing a forwarding connection between
-  origins; and noticing at once that a server closed an idle connection, which
+- Parts of Firefox's address selection: proxy setup with early data;
+  sharing a forwarding connection between origins; and noticing at once
+  that a server closed an idle connection, which
   can make Firefox remember a family longer.
 - Chromium's resolver behavior before racing: its own address sorting,
   partial DNS results, and HTTPS records fetched with the address queries.

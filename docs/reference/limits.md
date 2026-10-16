@@ -266,7 +266,8 @@ Claims validate the original route and credentials, then apply current
 CONNECT authentication, cookies and ordered WebSocket fields. A quiet spare
 sends no CONNECT, origin TLS, H2 preface or WebSocket request. An HTTPS
 spare may finish outer H1 TLS before claim. This retention extension
-excludes plaintext `ws://`, outer H2, ECH and early-data setup.
+excludes plaintext `ws://` and ECH. Outer H2 uses the physical proxy
+retirement boundary above, before CONNECT or WebSocket headers.
 SOCKS retention has the separate behavior below.
 
 Exact HTTP/1 forwarding of plaintext origins through HTTP and HTTPS proxies
@@ -276,8 +277,8 @@ and credentials. A request that claims an unfinished spare waits for its
 outer TLS. Connections keep their existing origin, route, runtime and
 credential bounds. Family memory remains per origin and route. Firefox can
 share a forwarding connection between origins on one proxy; Phantom keeps
-those origins separate. Other proxy WebSocket backups and proxy early-data
-setup remain outside these additions. These CONNECT paths do not add ECH.
+those origins separate. Proxy TLS uses ordinary handshakes. These CONNECT
+paths do not add ECH.
 Applying TCP backup policy to CONNECT-UDP does not claim Firefox MASQUE parity.
 Failed-address history follows the locally cached DNS record, independently
 of CONNECT setup.
@@ -290,8 +291,8 @@ only for its claiming request. Local DNS learns the selected target family
 after SOCKS succeeds; remote DNS learns no local target family. Physical
 proxy TCP failures may update that proxy's cached DNS record. SOCKS replies,
 authentication, origin TLS and cancellation do not mark a target IP failed.
-Early-data settings retain the original single-opening path. These retained
-SOCKS paths do not add ECH.
+Direct early-data settings do not disable SOCKS backup retention. Origin
+TLS over SOCKS uses an ordinary handshake. These paths do not add ECH.
 
 H1 WebSocket openings can claim those quiet SOCKS tunnels through the request
 pool. A quiet tunnel completes SOCKS negotiation but sends no origin TLS or
@@ -301,7 +302,8 @@ opening owner. Current cookies and ordered WebSocket fields belong to the
 claiming handshake. SOCKS authentication keeps the opening's original
 credentials. Route checks, configured retries, admission and the
 single handshake deadline still apply. These paths preserve local versus
-remote target-family rules and do not add ECH or early-data retention.
+remote target-family rules. Origin TLS uses an ordinary handshake even
+when the profile enables direct early data. These paths do not add ECH.
 
 ### RTT-based racing
 

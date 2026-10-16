@@ -2011,8 +2011,8 @@ Differences from the browsers:
   `ConnectionEntry.cpp:627-649` at `FIREFOX_157_0_RELEASE`). Phantom's pooled
   outer H2 setup now progresses a raw backup during proxy TLS and drops it
   after certificate verification and H2 ALPN, before authentication or CONNECT.
-  The backup sends no TLS or application bytes. Other proxy WebSocket backups
-  and proxy early-data setup remain outside this extension. Ordinary SOCKS
+  The backup sends no TLS or application bytes. Proxy application early
+  data remains unsupported. Ordinary SOCKS
   request backups have separate source controls below.
 - A direct connection's slower attempt becomes claimable once the first
   connection's handshake has finished. The retained HTTP/1 proxy paths
@@ -2069,9 +2069,9 @@ from waiting on a quiet spare that cannot publish H2 without a claimant.
 Retained unchanged-source runs passed 31 NET tests, 133 pool tests and two
 future-budget checks; these were not rerun after the public fixture repair.
 The repaired public run passed all 11 selected tests, including the four new
-controls. Strict three-crate Clippy passed. The full gate and platform CI
-remain pending; these results do not establish browser timing, ECH or proxy
-early-data parity.
+controls. Strict three-crate Clippy passed. This CONNECT slice later shipped in PR #249 after its exact-head gate
+and platform checks. These results do not establish browser timing, ECH or
+proxy early-data parity.
 
 The pooled outer-H2 extension remembers the physical proxy family within the
 existing bounded pool route: proxy host, port and server name, actual
@@ -2110,9 +2110,9 @@ bounded eviction.
 The first run passed 28 controls and failed with Windows `ConnectionAborted`
 in the pending-backup fixture. The repaired fixture waits for the peer's H2
 handshake before intentional shutdown; its original deadline and cancellation
-assertions are unchanged. The failure and repaired run are retained. Combined
-integration and platform CI remain pending. These controls do not establish
-browser timing or platform parity.
+assertions are unchanged. The failure and repaired run are retained. This pooled outer-H2 slice
+later shipped in PR #250 after its exact-head gate and platform checks.
+These controls do not establish browser timing or platform parity.
 
 The proxied WebSocket candidates have independent source reviews. Their
 17 new controls remain uncompiled: eight for H1 Upgrade and nine for inner
@@ -2131,14 +2131,31 @@ current claimant fields and rejected bodies. They preserve route and original
 TLS-owner checks, local versus remote target-family handling, cookie policy,
 configured retries and the single opening deadline.
 
-The combined source defines 148 selected controls: 104 inherited feedback and
-SOCKS controls, 17 HTTP-proxy WebSocket controls, 11 dedicated outer-H2 controls,
-five existing TLS-boundary controls and 11 SOCKS WebSocket controls. Compilation,
-API generation, future-size and nightly checks, runtime and the full gate have
-not run on this combined head. Earlier passes apply only to their recorded
-parents. These written controls establish no browser timing or capture parity.
-HTTP-proxy retention still excludes plaintext `ws://` and outer H2 WebSocket
-tunnels. The new SOCKS paths do not add ECH or early-data retention.
+The combined source defines 148 cross-platform selected controls: 104 inherited
+feedback and SOCKS controls, 17 HTTP-proxy WebSocket controls, 11 dedicated
+outer-H2 controls, five existing TLS-boundary controls and 11 SOCKS WebSocket
+controls. Two further Windows-only controls make 150 on Windows. Runtime,
+future-size checks and the full gate remain pending on the fixed source.
+Pinned nightly API generation passed on its source checkpoint: 26 NET
+inventory insertions, 1,647 NET lines, and unchanged full profile and facade
+inventories. Earlier runtime passes apply only to their recorded parents.
+These controls establish no browser timing or capture parity.
+HTTP-proxy retention still excludes plaintext `ws://` and ECH. Outer-H2
+WebSocket openings share the physical proxy TLS retirement boundary. Two
+new public controls use real Windows delayed refusal to check raw-backup
+closure before CONNECT and actual H1 or inner H2 WebSocket echo. They are
+Windows-only: the current public fixture cannot force the same refusal
+sequence on other platforms. Compilation and runtime checks remain pending.
+
+The SOCKS eligibility repair removes direct early-data capability as a
+retention guard. Its fixtures use valid Firefox TLS settings with
+`tcp_early_data` enabled. SOCKS still uses the ordinary TLS handshake; this
+adds no proxy 0-RTT or ECH. All three valid-fixture baseline tests failed on
+the unfixed source: the NET opening rejected early-data capability with
+`InvalidInput`, while the public H1 and H2 controls reached their unchanged
+ten-second deadlines. Fixed-source runtime checks remain pending. The earlier
+public fixture failed profile validation
+before I/O and did not reproduce the eligibility defect.
 
 Tests in `phantom-net` read the options back from connected sockets with
 `socket2` getters:
@@ -2647,10 +2664,12 @@ It preserves the quiet-socket assertions and original deadlines.
 
 Owned loopback peers check crossed negotiations, quiet spares, current
 credentials and fields, origin verification, ALPN, cancellation and remote
-DNS. H2 keeps completed SOCKS siblings and closes unfinished work. Early
-data keeps its original path; these retained paths add no ECH. Combined
-integration checks remain pending. No browser capture parity or live proxy
-acceptance is claimed.
+DNS. H2 keeps completed SOCKS siblings and closes unfinished work. Direct
+early-data capability does not disable retention, and proxied origin TLS
+uses an ordinary handshake. These retained paths add no ECH. The
+request/feedback slice shipped in PR #251. The later SOCKS eligibility and
+WebSocket composition still need their combined gate. No browser capture
+parity or live proxy acceptance is claimed.
 
 ### Windows resolver configuration and native lifetimes
 

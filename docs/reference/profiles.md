@@ -328,8 +328,10 @@ resolved addresses.
   an already-completed SOCKS sibling may finish origin TLS and H2 setup
   within the pool limits. Spares retain the original route, credentials
   and origin TLS context, and send no application headers or body before
-  claim. Proxy WebSockets, retained early-data setup and ECH through these
-  SOCKS paths remain outside this behavior.
+  claim. H1 WebSocket openings claim quiet tunnels from their request
+  pool; inner H2 openings retire redundant tunnels before HEADERS. Direct
+  early-data settings do not disable retention. SOCKS origin TLS uses an
+  ordinary handshake; ECH remains unsupported on these paths.
 - `TcpAddressSelection::Sequential` takes a `TcpAddressAdvance`:
   `AfterAnyFailure`, the default, moves to the next address after any
   failure, and `AfterRefusalOrTimeout`, which `firefox::v157_tcp` sets,
@@ -337,9 +339,8 @@ resolved addresses.
   any other failure, such as a reset, ends the connect.
 - Firefox sets `SO_SNDBUF` on Windows only. The macOS, Linux and Android
   factories leave the send buffer unchanged.
-- Not modeled for Firefox: keeping the slower connection, and remembering
-  the address family, on proxy WebSockets and proxy setup with early data;
-  sharing a forwarding connection between origins; its
+- Not modeled for Firefox: early data through proxies; sharing a
+  forwarding connection between origins; its
   `SO_LINGER` of `{1, 0}` (its close is still a FIN, as Phantom's is).
 - Brave 1.96.59 builds the Chromium tag behind `chrome::v154_tcp` and
   changes none of the values it cites, so Brave uses that recipe.

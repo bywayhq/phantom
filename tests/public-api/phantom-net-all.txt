@@ -402,8 +402,15 @@ pub struct phantom_net::http1::Http1ProxyOpening
 impl phantom_net::http1::Http1ProxyOpening
 pub async fn phantom_net::http1::Http1ProxyOpening::finish(self, phantom_net::route::HttpConnectRoute<'_>) -> core::result::Result<phantom_net::http1::Http1Connection, phantom_net::http1::Http1TlsError>
 pub async fn phantom_net::http1::Http1ProxyOpening::finish_forward(self, phantom_net::route::ProxyTransport<'_>) -> core::result::Result<phantom_net::http1::Http1Connection, phantom_net::http1::Http1TlsError>
+pub async fn phantom_net::http1::Http1ProxyOpening::finish_upgrade(self, phantom_net::route::HttpConnectRoute<'_>, &[alloc::boxed::Box<[u8]>], phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<phantom_net::http1::Http1UpgradeOpening, phantom_net::http1::Http1TlsError>
 impl core::fmt::Debug for phantom_net::http1::Http1ProxyOpening
 pub fn phantom_net::http1::Http1ProxyOpening::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::http1::Http1SocksOpening
+impl phantom_net::http1::Http1SocksOpening
+pub async fn phantom_net::http1::Http1SocksOpening::finish(self) -> core::result::Result<phantom_net::http1::Http1Connection, phantom_net::http1::Http1TlsError>
+pub async fn phantom_net::http1::Http1SocksOpening::finish_upgrade(self, &[alloc::boxed::Box<[u8]>], phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<phantom_net::http1::Http1UpgradeOpening, phantom_net::http1::Http1TlsError>
+impl core::fmt::Debug for phantom_net::http1::Http1SocksOpening
+pub fn phantom_net::http1::Http1SocksOpening::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::http1::Http1TlsConnector
 impl phantom_net::http1::Http1TlsConnector
 pub fn phantom_net::http1::Http1TlsConnector::alpn_protocols(&self) -> alloc::vec::Vec<alloc::boxed::Box<[u8]>>
@@ -418,6 +425,7 @@ pub fn phantom_net::http1::Http1TlsConnector::new_with_additional_roots<'a>(&pha
 pub fn phantom_net::http1::Http1TlsConnector::new_with_server_authentication(&phantom_profile::tls::TlsSettings, phantom_net::ServerAuthentication) -> core::result::Result<Self, phantom_net::http1::Http1TlsError>
 pub async fn phantom_net::http1::Http1TlsConnector::open_http_connect_retaining(&self, phantom_net::route::HttpConnectRoute<'_>, &str, &crate::tcp::AddressFamilyMemory) -> core::result::Result<(phantom_net::http1::Http1ProxyOpening, core::option::Option<SlowerConnection<phantom_net::http1::Http1ProxyOpening>>), phantom_net::http1::Http1TlsError>
 pub async fn phantom_net::http1::Http1TlsConnector::open_https_forward_retaining(&self, phantom_net::route::ProxyTransport<'_>, &crate::tcp::AddressFamilyMemory) -> core::result::Result<(phantom_net::http1::Http1ProxyOpening, core::option::Option<SlowerConnection<phantom_net::http1::Http1ProxyOpening>>), phantom_net::http1::Http1TlsError>
+pub async fn phantom_net::http1::Http1TlsConnector::open_socks_retaining(&self, phantom_net::route::OriginRoute<'_>, &crate::tcp::AddressFamilyMemory) -> core::result::Result<(phantom_net::http1::Http1SocksOpening, core::option::Option<SlowerConnection<phantom_net::http1::Http1SocksOpening>>), phantom_net::http1::Http1TlsError>
 pub async fn phantom_net::http1::Http1TlsConnector::open_upgrade(&self, phantom_net::route::OriginRoute<'_>, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<(phantom_net::http1::Http1UpgradeOpening, core::option::Option<SlowerConnection<phantom_net::http1::Http1Connection>>), phantom_net::http1::Http1TlsError>
 pub async fn phantom_net::http1::Http1TlsConnector::send(&self, phantom_net::route::Http1Route<'_>, http::method::Method, phantom_net::route::Http1Target, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<bytes::bytes::Bytes>) -> core::result::Result<http::response::Response<phantom_net::http1::Http1Body>, phantom_net::http1::Http1TlsError>
 pub fn phantom_net::http1::Http1TlsConnector::session_ticket_cache(&self) -> core::option::Option<phantom_net::SessionTicketCache>
@@ -501,8 +509,17 @@ pub phantom_net::http1_or_2::Http1Or2TlsErrorKind::UnsupportedAlpn
 pub struct phantom_net::http1_or_2::Http1Or2ProxyOpening
 impl phantom_net::http1_or_2::Http1Or2ProxyOpening
 pub async fn phantom_net::http1_or_2::Http1Or2ProxyOpening::finish(self, phantom_net::route::HttpConnectRoute<'_>) -> core::result::Result<phantom_net::http1_or_2::Http1Or2Connection, phantom_net::http1_or_2::Http1Or2TlsError>
+pub async fn phantom_net::http1_or_2::Http1Or2ProxyOpening::finish_extended_connect(self, phantom_net::route::HttpConnectRoute<'_>, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<phantom_net::http2::Http2ExtendedConnectOpening, phantom_net::http2::Http2TlsError>
+pub async fn phantom_net::http1_or_2::Http1Or2ProxyOpening::finish_upgrade(self, phantom_net::route::HttpConnectRoute<'_>, &[alloc::boxed::Box<[u8]>], phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<phantom_net::http1::Http1UpgradeOpening, phantom_net::http1::Http1TlsError>
 impl core::fmt::Debug for phantom_net::http1_or_2::Http1Or2ProxyOpening
 pub fn phantom_net::http1_or_2::Http1Or2ProxyOpening::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::http1_or_2::Http1Or2SocksOpening
+impl phantom_net::http1_or_2::Http1Or2SocksOpening
+pub async fn phantom_net::http1_or_2::Http1Or2SocksOpening::finish(self) -> core::result::Result<phantom_net::http1_or_2::Http1Or2Connection, phantom_net::http1_or_2::Http1Or2TlsError>
+pub async fn phantom_net::http1_or_2::Http1Or2SocksOpening::finish_extended_connect(self, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<phantom_net::http2::Http2ExtendedConnectOpening, phantom_net::http2::Http2TlsError>
+pub async fn phantom_net::http1_or_2::Http1Or2SocksOpening::finish_upgrade(self, &[alloc::boxed::Box<[u8]>], phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<phantom_net::http1::Http1UpgradeOpening, phantom_net::http1::Http1TlsError>
+impl core::fmt::Debug for phantom_net::http1_or_2::Http1Or2SocksOpening
+pub fn phantom_net::http1_or_2::Http1Or2SocksOpening::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::http1_or_2::Http1Or2TlsConnector
 impl phantom_net::http1_or_2::Http1Or2TlsConnector
 pub fn phantom_net::http1_or_2::Http1Or2TlsConnector::alpn_protocols(&self) -> alloc::vec::Vec<alloc::boxed::Box<[u8]>>
@@ -518,6 +535,7 @@ pub fn phantom_net::http1_or_2::Http1Or2TlsConnector::new(&phantom_profile::tls:
 pub fn phantom_net::http1_or_2::Http1Or2TlsConnector::new_with_additional_roots<'a>(&phantom_profile::tls::TlsSettings, &phantom_profile::http2::Http2Settings, impl core::iter::traits::collect::IntoIterator<Item = &'a [u8]>) -> core::result::Result<Self, phantom_net::http1_or_2::Http1Or2TlsError>
 pub const fn phantom_net::http1_or_2::Http1Or2TlsConnector::offers_early_data(&self) -> bool
 pub async fn phantom_net::http1_or_2::Http1Or2TlsConnector::open_http_connect_retaining(&self, phantom_net::route::HttpConnectRoute<'_>, &str, &crate::tcp::AddressFamilyMemory) -> core::result::Result<(phantom_net::http1_or_2::Http1Or2ProxyOpening, core::option::Option<SlowerConnection<phantom_net::http1_or_2::Http1Or2ProxyOpening>>), phantom_net::http1_or_2::Http1Or2TlsError>
+pub async fn phantom_net::http1_or_2::Http1Or2TlsConnector::open_socks_retaining(&self, phantom_net::route::OriginRoute<'_>, &crate::tcp::AddressFamilyMemory) -> core::result::Result<(phantom_net::http1_or_2::Http1Or2SocksOpening, core::option::Option<SlowerConnection<phantom_net::http1_or_2::Http1Or2SocksOpening>>), phantom_net::http1_or_2::Http1Or2TlsError>
 pub fn phantom_net::http1_or_2::Http1Or2TlsConnector::session_ticket_cache(&self) -> core::option::Option<phantom_net::SessionTicketCache>
 pub fn phantom_net::http1_or_2::Http1Or2TlsConnector::source_binding(&self) -> core::option::Option<&phantom_net::SourceBinding>
 pub fn phantom_net::http1_or_2::Http1Or2TlsConnector::tcp_settings(&self) -> core::option::Option<&phantom_profile::tcp::TcpSettings>
@@ -744,8 +762,15 @@ pub fn phantom_net::http2::Http2ProtocolError::fmt(&self, &mut core::fmt::Format
 pub struct phantom_net::http2::Http2ProxyOpening
 impl phantom_net::http2::Http2ProxyOpening
 pub async fn phantom_net::http2::Http2ProxyOpening::finish(self, phantom_net::route::HttpConnectRoute<'_>) -> core::result::Result<phantom_net::http2::Http2Connection, phantom_net::http2::Http2TlsError>
+pub async fn phantom_net::http2::Http2ProxyOpening::finish_extended_connect(self, phantom_net::route::HttpConnectRoute<'_>, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<phantom_net::http2::Http2ExtendedConnectOpening, phantom_net::http2::Http2TlsError>
 impl core::fmt::Debug for phantom_net::http2::Http2ProxyOpening
 pub fn phantom_net::http2::Http2ProxyOpening::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub struct phantom_net::http2::Http2SocksOpening
+impl phantom_net::http2::Http2SocksOpening
+pub async fn phantom_net::http2::Http2SocksOpening::finish(self) -> core::result::Result<phantom_net::http2::Http2Connection, phantom_net::http2::Http2TlsError>
+pub async fn phantom_net::http2::Http2SocksOpening::finish_extended_connect(self, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<phantom_net::http2::Http2ExtendedConnectOpening, phantom_net::http2::Http2TlsError>
+impl core::fmt::Debug for phantom_net::http2::Http2SocksOpening
+pub fn phantom_net::http2::Http2SocksOpening::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub struct phantom_net::http2::Http2TlsConnector
 impl phantom_net::http2::Http2TlsConnector
 pub fn phantom_net::http2::Http2TlsConnector::alpn_protocols(&self) -> alloc::vec::Vec<alloc::boxed::Box<[u8]>>
@@ -760,6 +785,7 @@ pub fn phantom_net::http2::Http2TlsConnector::new_with_additional_roots<'a>(&pha
 pub fn phantom_net::http2::Http2TlsConnector::new_with_server_authentication(&phantom_profile::tls::TlsSettings, &phantom_profile::http2::Http2Settings, phantom_net::ServerAuthentication) -> core::result::Result<Self, phantom_net::http2::Http2TlsError>
 pub async fn phantom_net::http2::Http2TlsConnector::open_extended_connect(&self, phantom_net::route::Http2Route<'_>, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<(phantom_net::http2::Http2ExtendedConnectOpening, core::option::Option<SlowerConnection<phantom_net::http2::Http2Connection>>), phantom_net::http2::Http2TlsError>
 pub async fn phantom_net::http2::Http2TlsConnector::open_http_connect_retaining(&self, phantom_net::route::HttpConnectRoute<'_>, &str, &crate::tcp::AddressFamilyMemory) -> core::result::Result<(phantom_net::http2::Http2ProxyOpening, core::option::Option<SlowerConnection<phantom_net::http2::Http2ProxyOpening>>), phantom_net::http2::Http2TlsError>
+pub async fn phantom_net::http2::Http2TlsConnector::open_socks_retaining(&self, phantom_net::route::OriginRoute<'_>, &crate::tcp::AddressFamilyMemory) -> core::result::Result<(phantom_net::http2::Http2SocksOpening, core::option::Option<SlowerConnection<phantom_net::http2::Http2SocksOpening>>), phantom_net::http2::Http2TlsError>
 pub async fn phantom_net::http2::Http2TlsConnector::send(&self, phantom_net::route::Http2Route<'_>, http::method::Method, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>, core::option::Option<bytes::bytes::Bytes>) -> core::result::Result<http::response::Response<phantom_net::http2::Http2Body>, phantom_net::http2::Http2TlsError>
 pub async fn phantom_net::http2::Http2TlsConnector::send_extended_connect_on(&self, &phantom_net::http2::Http2Connection, &str, phantom_net::request::OriginForm, alloc::vec::Vec<phantom_net::request::RequestHeader>) -> core::result::Result<phantom_net::http2::Http2ExtendedConnectOutcome, phantom_net::http2::Http2TlsError>
 pub fn phantom_net::http2::Http2TlsConnector::session_ticket_cache(&self) -> core::option::Option<phantom_net::SessionTicketCache>
