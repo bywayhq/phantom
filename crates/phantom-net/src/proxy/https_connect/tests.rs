@@ -17,6 +17,7 @@ use phantom_profile::{Http2RejectedConnect, browser::firefox};
 use tokio::{
     io::{AsyncRead, AsyncReadExt},
     net::{TcpListener, TcpStream},
+    sync::oneshot,
     time::timeout,
 };
 use tokio_btls::SslStream;
@@ -76,12 +77,29 @@ async fn closed_without_bytes(stream: &mut (impl AsyncRead + Unpin)) -> TestResu
     }
 }
 
-async fn quiet_h2(server: SslStream<TcpStream>) -> TestResult<()> {
-    let mut connection = ::http2::server::handshake::<_, Bytes>(server).await?;
-    if connection.accept().await.is_some() {
-        return Err("a setup-only connection sent an application request".into());
+async fn quiet_h2(server: SslStream<TcpStream>, ready: oneshot::Sender<()>) -> TestResult<()> {
+    let mut connection = ::http2::server::handshake(server).await?;
+    // Keep the client alive until the peer has flushed its initial SETTINGS.
+    ready
+        .send(())
+        .map_err(|_| "the H2 client stopped before peer readiness")?;
+    match connection.accept().await {
+        None => Ok(()),
+        Some(Err(error))
+            if error.get_io().is_some_and(|error| {
+                matches!(
+                    error.kind(),
+                    io::ErrorKind::ConnectionReset
+                        | io::ErrorKind::ConnectionAborted
+                        | io::ErrorKind::BrokenPipe
+                )
+            }) =>
+        {
+            Ok(())
+        }
+        Some(Err(error)) => Err(error.into()),
+        Some(Ok(_)) => Err("a setup-only connection sent an application request".into()),
     }
-    Ok(())
 }
 
 #[tokio::test]
@@ -109,7 +127,7 @@ async fn verified_h2_retires_the_connected_raw_backup_before_connect() -> TestRe
             let server = tls(server, &identity, TestServerAlpn::H2).await?;
             // No authentication response or CONNECT success has been sent.
             closed_without_bytes(&mut backup).await?;
-            let mut connection = ::http2::server::handshake::<_, Bytes>(server).await?;
+            let mut connection = ::http2::server::handshake(server).await?;
             let (request, mut respond) = connection.accept().await.ok_or("no CONNECT")??;
             assert_eq!(request.method(), Method::CONNECT);
             assert_eq!(request.uri().authority().map(|value| value.as_str()), Some("origin.invalid:443"));
@@ -149,6 +167,7 @@ async fn verified_h2_cancels_a_still_pending_backup() -> TestResult<()> {
             Duration::ZERO,
             None,
         );
+        let (ready, peer_ready) = oneshot::channel();
         let client = async {
             let connection = connector
                 .finish_pooled_http2_proxy(
@@ -159,10 +178,12 @@ async fn verified_h2_cancels_a_still_pending_backup() -> TestResult<()> {
                 )
                 .await?;
             assert!(dropped.load(Ordering::Acquire));
+            peer_ready.await?;
             drop(connection);
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         };
-        let peer = async { quiet_h2(tls(server, &identity, TestServerAlpn::H2).await?).await };
+        let peer =
+            async { quiet_h2(tls(server, &identity, TestServerAlpn::H2).await?, ready).await };
         tokio::try_join!(client, peer)?;
         Ok(())
     })

@@ -172,8 +172,8 @@ async fn eviction_resets_new_route_memory_without_changing_an_active_lease() -> 
 }
 
 #[tokio::test]
-async fn the_actual_pooled_dial_learns_the_proxy_family_without_resolving_the_target() -> TestResult
-{
+async fn the_actual_pooled_dial_learns_the_proxy_family_without_resolving_the_target()
+-> crate::tls::test_support::TestResult<()> {
     timeout(TEST_TIMEOUT, async {
         let identity = TestIdentity::generate()?;
         let (address, listener) = loopback_listener().await?;
@@ -201,11 +201,11 @@ async fn the_actual_pooled_dial_learns_the_proxy_family_without_resolving_the_ta
             assert_eq!(route.family.family(), Some(AddressFamily::Ipv4));
             drop(tunnel);
             done.send(()).map_err(|_| "proxy peer stopped early")?;
-            Ok::<_, Box<dyn std::error::Error>>(())
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         };
         let peer = async {
             let (stream, _) = accept_tls(listener, acceptor).await?;
-            let mut connection = ::http2::server::handshake::<_, Bytes>(stream).await?;
+            let mut connection = ::http2::server::handshake(stream).await?;
             let (request, mut respond) = connection.accept().await.ok_or("no proxy CONNECT")??;
             assert_eq!(request.method(), Method::CONNECT);
             assert_eq!(request.uri().authority().map(|value| value.as_str()), Some("unresolvable.invalid:443"));
@@ -215,7 +215,7 @@ async fn the_actual_pooled_dial_learns_the_proxy_family_without_resolving_the_ta
                 result = finished => result.map_err(|_| "client failed before its response")?,
                 extra = connection.accept() => return Err(format!("unexpected proxy request or closure: {}", extra.is_some()).into()),
             }
-            Ok::<_, Box<dyn std::error::Error>>(())
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         };
         tokio::try_join!(client, peer)?;
         Ok(())

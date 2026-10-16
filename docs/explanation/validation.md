@@ -2080,14 +2080,19 @@ connection survives. This conservative lifetime does not reproduce an earlier
 Firefox connection-entry reset. Dedicated nonpooled H2 and CONNECT-UDP setup
 are unchanged.
 
-Eleven new source-reviewed controls and 18 existing pool controls are selected
-for focused verification; all 29 are currently uncompiled and unexecuted on
-this checkpoint. The new controls use loopback sockets and TLS gates to check
-raw-backup progress, retirement before CONNECT, cancellation, ALPN and
-certificate errors. They also cover family learning without target resolution,
-route and runtime isolation, slot retirement and bounded eviction. This is a
-source-backed implementation and a verification plan, without browser timing
-capture or platform parity evidence.
+All 29 selected controls passed on Windows: 11 new controls and 18 existing
+pool controls. Strict Clippy passed too. The controls use loopback sockets
+and TLS gates to check raw-backup progress, retirement before CONNECT,
+cancellation, ALPN and certificate errors. They also cover family learning
+without target resolution, route and runtime isolation, slot retirement and
+bounded eviction.
+
+The first run passed 28 controls and failed with Windows `ConnectionAborted`
+in the pending-backup fixture. The repaired fixture waits for the peer's H2
+handshake before intentional shutdown; its original deadline and cancellation
+assertions are unchanged. The failure and repaired run are retained. Combined
+integration and platform CI remain pending. These controls do not establish
+browser timing or platform parity.
 
 Tests in `phantom-net` read the options back from connected sockets with
 `socket2` getters:

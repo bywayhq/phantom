@@ -48,10 +48,12 @@ copying execution journals into this page.
 
 PR #247 merged at `4dbe270b` after all 23 gate steps, 5,384 runtime tests
 and 29 PR checks; both applicable main push workflows passed. PR #248 then
-fast-forwarded main to `5c11188a` on 2026-10-15 at 23:15:35 UTC. Its eight
-applicable main push workflows are still pending at this status observation.
-Signed candidates below remain unmerged; their earlier focused results do
-not establish the later combined source or final delivery.
+merged at `5c11188a` with all eight main push workflows passing. PR #249
+fast-forwarded main to `8e22f319` on 2026-10-16 at 00:34:07 UTC after
+independent review, all 23 Windows/Linux gate steps, 5,456 runtime passes
+with two skips, and 43 successful current PR checks. Its main push workflows
+are still running at this observation. The candidates below remain unmerged.
+Their focused results do not establish final combined integration.
 
 | Task | Owner lane | State and next check |
 | --- | --- | --- |
@@ -67,20 +69,22 @@ not establish the later combined source or final delivery.
 | F6 | `connect-udp-sharing` | Merged in PR #229 at `0f404ab2` after independent review, all 22 gate steps, 4,982 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. Both named peer implementations passed their explicit controls. |
 | F7 | `rtt-racing` | Merged in PR #228 at `3973d41c` after independent review, all 22 gate steps, 4,943 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. No browser timing parity or performance benefit is claimed. |
 | F8 | `http3-debug-auth` | Origin opt-in merged in PR #219 after independent review, all 22 gate steps, 4,643 Rust tests, and 43 green PR checks at `6f6426f4`. |
-| B1 | `firefox-forward-proxy-retention` | Direct ECH, direct H1/H2 WebSocket and exact H2 retention are merged through PR #243. Plaintext CONNECT retention merged in PR #245 with green main CI. Combined H1 proxy retention merged in PR #248 at `5c11188a` after independent review, all 23 gate steps, 5,435 runtime passes with two skips, and 43 current PR checks passed. All eight applicable main push workflows are pending. Other proxy paths and failed-address feedback remain open. |
-| B1 CONNECT | `firefox-h2-connect` | Clean signed checkpoint `6e50b62a` passes all seven focused checks, including pinned nightly, strict Clippy and 175 distinct runtime controls. All 21 required controls passed without increasing either future-size budget. The 23-step Windows/Linux gate is running; integration and remote checks remain pending. |
-| B1 outer H2 | `firefox-h2-proxy-owner` | Clean signed candidate `fc8d8b63` preserves the six reviewed source blobs. Raw backup progress ends at verified outer H2 activation, before authentication or CONNECT. Its 29 selected controls remain uncompiled; focused verification and integration are pending. |
+| B1 | `firefox-forward-proxy-retention` | Direct ECH, direct H1/H2 WebSocket and exact H2 retention are merged through PR #243. Plaintext CONNECT retention merged in PR #245 with green main CI. H1 proxy retention merged in PR #248 at `5c11188a` after independent review, all 23 gate steps, 5,435 runtime passes with two skips, and 43 current PR checks. All eight applicable main push workflows passed. Other proxy paths and failed-address feedback remain open. |
+| B1 CONNECT | `firefox-h2-connect` | Merged in PR #249 at `8e22f319` after the exact-head full gate, 5,456 runtime passes with two skips, and 43 current PR checks. The unchanged future-size limits passed. Main push CI remains pending. |
+| B1 outer H2 | `firefox-h2-proxy-owner` | The candidate on `502f027a` includes independently reviewed fixture repairs. Strict Clippy and all 29 selected runtime controls passed on Windows. Both touched vendor checks passed. Raw backup progress ends at verified outer H2 activation, before authentication or CONNECT. Commit, rebase and the combined full gate remain pending. |
+| B1 feedback/SOCKS | `firefox-socks-h1-feedback` | Feedback and SOCKS H1/H2 source have independent reviews, including the test-suite registration. The first combined compile found a Send ownership error before discovery. A narrow owned-route repair is in progress. All 95 source controls remain unexecuted in this composition. The separate feedback-only API generation passed for all three crates. |
 | B2 | `firefox-h2-window-delivery` | Proxy idle closure and Alt-Used placement/mapping merged in PRs #222, #230 and #237; the alternative-port fixture repair merged in PR #239 with green main CI. The ordinary H2 stream-window candidate passed its focused backend/profile/catalog/facade, NET and stream controls, strict Clippy and API generation. Its reviewed source is now in the shared rebased candidate below; combined checks remain pending. |
 | B3 | `platform-tcp-integration` | TCP/keepalive policies merged in PR #244 at `4d6c13cd` after independent review, all 23 gate steps, 5,363 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. The generated API inventory records five recipe functions and two policy fields. |
 | B4 | `windows-dns-integration` | Windows DNS has passing focused resolver/cache controls, strict Clippy and minimal DNS-owner type-erasure nightly proof. Its reviewed source is now in the shared rebased candidate below. Actual native configuration-change behavior, combined integration and platform CI remain unverified. |
 | B5 | `edge-android-websocket-integration` | The emulator-backed Edge Android H1/H2 WebSocket layer and source-backed bounded Chromium restarts passed focused profile/catalog/facade controls, all 94 selected stream controls and strict Clippy. Their reviewed source is now in the shared rebased candidate below. No physical Android or browser H3 parity is claimed. |
-| E1/E2 | `browser-profile-release` | Windows batch02 refused during preflight before uv or browser launch because PID428 had no psutil image name. No new capture is claimed. A bounded missing-image classifier candidate passed focused source controls and independent review. A fresh reviewed schedule and quiet window are required for another attempt. |
+| E1/E2 | `browser-profile-release` | The Windows matrix has 14 attempted rows: 11 successful captures, two failures and one interrupted row; 61 remain unattempted. Batch04 retained two successful Chrome H3 SSE captures. Its final guard rejected differing temporary Python launcher paths; independent review verified identical runtime bytes and both captures. A separately reviewed prospective comparison fix is ready. No Phantom parity or capture delivery is claimed. |
 
-The six-commit B2/B4/B5 union is clean at `9e3e4de1` on `6e50b62a` after
-independent source-composition review of 138 paths. Its API inventories have
-1,198 facade, 1,618 NET and 1,036 profile entries. Combined runtime checks and
-the full gate remain pending. Earlier individual results remain evidence for
-their original sources.
+The reviewed B2/B4/B5 union and pooled outer-H2 extension are composed on
+`6e50b62a`. The parent has independent source review of 138 paths and API
+inventories of 1,198 facade, 1,618 NET and 1,036 profile entries. The owner
+extension passed its focused checks and both vendor checks. Rebase onto the
+new main, combined full-gate verification and delivery remain pending.
+Earlier individual results remain evidence for their original sources.
 
 The Windows DNS watch and configuration probes retain separate native
 read-only evidence. Actual adapter or VPN changes and browser parity remain
