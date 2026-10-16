@@ -330,9 +330,12 @@ class SafariSession:
             raise ValueError("Safari driver returned an invalid session identity")
         capabilities = value.get("capabilities")
         self.provenance["capabilities"] = capabilities
-        if (
-            not isinstance(capabilities, dict)
-            or capabilities.get("browserName") != "safari"
+        browser_name = (
+            capabilities.get("browserName") if isinstance(capabilities, dict) else None
+        )
+        if not isinstance(browser_name, str) or browser_name not in (
+            "safari",
+            "Safari",
         ):
             raise ValueError("WebDriver did not select Safari")
         if capabilities.get("browserVersion") != self.provenance["safari_version"]:

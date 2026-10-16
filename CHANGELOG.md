@@ -2807,6 +2807,8 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Accept Safari's returned WebDriver browser name when starting captures.
+
 - Preserve active Windows TLS read resets as SSE capture failures. Record
   terminal resets only after observation ends and `writer.close()` succeeds.
 

@@ -1,4 +1,6 @@
 import asyncio
+import contextlib
+import contextvars
 import http.client
 import json
 import tempfile
@@ -213,6 +215,18 @@ class RestTests(unittest.IsolatedAsyncioTestCase):
     async def test_total_response_deadline_closes_peer_without_blocking_loop(self):
         entered = asyncio.Event()
         closed = asyncio.Event()
+        expired = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        actual_call_at = loop.call_at
+        timeout_callback = []
+        operation = None
+
+        def call_at(when, callback, *args, context=None):
+            if asyncio.current_task() is operation and not timeout_callback:
+                context = context if context is not None else contextvars.copy_context()
+                timeout_callback.append((callback, args, context))
+                return actual_call_at(when, expired.set, context=context)
+            return actual_call_at(when, callback, *args, context=context)
 
         async def peer(reader, writer):
             try:
@@ -226,12 +240,26 @@ class RestTests(unittest.IsolatedAsyncioTestCase):
 
         async with await asyncio.start_server(peer, "127.0.0.1", 0) as server:
             port = server.sockets[0].getsockname()[1]
-            with mock.patch.object(safari, "COMMAND_SECONDS", 0.05):
+            with (
+                mock.patch.object(safari, "COMMAND_SECONDS", 0.05),
+                mock.patch.object(loop, "call_at", call_at),
+            ):
                 operation = asyncio.create_task(safari.request(port, "GET", "/status"))
-                await asyncio.wait_for(entered.wait(), 1)
-                self.assertFalse(operation.done())
-                with self.assertRaises(asyncio.TimeoutError):
-                    await operation
+                try:
+                    await asyncio.wait_for(entered.wait(), 1)
+                    self.assertFalse(operation.done())
+                    # Control timer dispatch so connection setup cannot consume
+                    # the response-deadline oracle; keep the original due time.
+                    await asyncio.wait_for(expired.wait(), 1)
+                    [(callback, args, context)] = timeout_callback
+                    loop.call_soon(callback, *args, context=context)
+                    with self.assertRaises(asyncio.TimeoutError):
+                        await operation
+                finally:
+                    if not operation.done():
+                        operation.cancel()
+                        with contextlib.suppress(asyncio.CancelledError):
+                            await operation
             await asyncio.wait_for(closed.wait(), 1)
 
 
@@ -319,7 +347,7 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
     async def test_h2_requests_and_confirms_certificate_bypass_before_navigation(self):
         owner = safari.SafariSession(
             "https://127.0.0.1:1234/run/probe",
-            {"safari_version": "26.0"},
+            {"safari_version": "26.6.2"},
             protocol="h2",
         )
         owner.process = OwnedProcess()
@@ -331,8 +359,8 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
                 {
                     "sessionId": "tls-session",
                     "capabilities": {
-                        "browserName": "safari",
-                        "browserVersion": "26.0",
+                        "browserName": "Safari",
+                        "browserVersion": "26.6.2",
                         "acceptInsecureCerts": True,
                     },
                 },
@@ -354,6 +382,45 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
             mock.call("POST", "/session/tls-session/url", {"url": owner.url}),
         )
         self.assertTrue(owner.provenance["session_delete_acknowledged"])
+
+    async def test_missing_wrong_and_non_string_browser_names_fail_and_delete(self):
+        for returned in (
+            mock.sentinel.missing,
+            None,
+            "",
+            "chrome",
+            "Safari Technology Preview",
+            1,
+            ["Safari"],
+            {},
+        ):
+            with self.subTest(returned=returned):
+                owner = self.owner()
+                owner.process = OwnedProcess()
+                caps = {"browserVersion": "26.0", "acceptInsecureCerts": False}
+                if returned is not mock.sentinel.missing:
+                    caps["browserName"] = returned
+                with (
+                    mock.patch.object(
+                        owner,
+                        "command",
+                        side_effect=[
+                            {"ready": True},
+                            {"sessionId": "rejected-browser", "capabilities": caps},
+                            None,
+                        ],
+                    ) as rest,
+                    self.assertRaisesRegex(ValueError, "did not select Safari"),
+                ):
+                    await self.open_with_owned_listener(owner)
+                self.assertEqual(rest.call_count, 3)
+                self.assertEqual(
+                    rest.call_args_list[-1],
+                    mock.call("DELETE", "/session/rejected-browser"),
+                )
+                self.assertTrue(owner.provenance["session_delete_acknowledged"])
+                self.assertTrue(owner.process.terminated)
+                self.assertEqual(owner.provenance["capabilities"], caps)
 
     async def open_with_owned_listener(self, owner):
         process = owner.process
