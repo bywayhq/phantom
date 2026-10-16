@@ -2756,10 +2756,15 @@ see processed generations without native I/O. This does not make an OS
 snapshot atomic. Lost watches, overflow, malformed events and exhausted
 work bounds retain terminal errors. Final resolver drop joins its workers.
 
-Source and independent-review packets are retained in the Linux lane.
-Compilation, loopback query controls and native lifecycle checks remain
-pending. No browser capture establishes Linux DNS selection or refresh
-parity.
+At `e2d516aa`, strict Linux Clippy passed for all `phantom-net` targets and
+features. The linked production test binary passed 142 DNS tests and 17
+native FFI/watch tests, with no failures or ignored tests. These include
+configured suffix and server order, rotation, UDP-setting clones, OS-only
+eligibility, symlink replacement, lost watches and joined shutdown. The
+same binary's SHA-256 is
+`39dba28dac6a849953a3d60307f747c6d3d5b33340cd68db46d302f221365612`.
+Full integration, MSRV and API checks remain pending. No browser capture
+establishes Linux DNS selection or refresh parity.
 
 ### Chromium's built-in DNS client
 
