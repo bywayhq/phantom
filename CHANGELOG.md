@@ -2814,6 +2814,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Accept Safari's returned WebDriver browser name when starting captures.
 
+- Retain headed Chrome HTTP reconnect captures for both hosted Mac
+  architectures under their actual browser and operating-system versions.
+
 - Preserve active Windows TLS read resets as SSE capture failures. Record
   terminal resets only after observation ends and `writer.close()` succeeds.
 

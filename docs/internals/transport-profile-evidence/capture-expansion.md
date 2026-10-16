@@ -39,6 +39,35 @@ WSL2 x86_64, headless with WSLg available and UID 0. Exact host metadata is
 inside each fixture. The files do not establish native hardware or headful
 behavior. No Mac or physical Android device was available.
 
+## Hosted macOS observations
+
+The [headed Chrome run](https://github.com/bywayhq/phantom/actions/runs/38888050279)
+used `ff0dabc2` on 2026-10-16. Both jobs completed one HTTP/1.1
+`reconnect-204` capture without a retry. Each retained a real page request,
+two SSE requests, the terminal 204 stimulus and three seconds without an
+extra SSE request. Raw headers, timings and launch flags remain in the files.
+
+| Browser | Host | Fixture |
+| --- | --- | --- |
+| Chrome 151.0.7922.174 | macOS 15.7.9, x86_64 | [reconnect](../../../fixtures/sse/chrome/151.0.7922.174/macos-15.7.9-x86_64/reconnect-204.txt) |
+| Chrome 155.0.8059.40 | macOS 26.6.2, arm64 | [reconnect](../../../fixtures/sse/chrome/155.0.8059.40/macos-26.6.2-arm64/reconnect-204.txt) |
+
+Each adjacent `reconnect-204.provenance.json` retains the source, runner,
+browser and fixture hashes. Source and browser hashes agreed before and
+after each attempt. The browser supplied its own `User-Agent` and hints.
+These hosted VM observations cover plaintext loopback HTTP only. They do
+not establish TLS, HTTP/2, HTTP/3 or Phantom parity. Keep Chrome 151 separate
+from newer recipes, and both hosted OS builds separate from physical Macs.
+
+The [first Safari run](https://github.com/bywayhq/phantom/actions/runs/38888044114)
+retains two failed attempts with Safari 26.6.2 on macOS 26.6.2 arm64. HTTP/1
+timed out during startup. HTTP/2 acquired a session with the requested
+certificate capability, then the adapter rejected the returned name
+`Safari` because it expected lowercase. Session deletion was acknowledged
+for that attempt. Both drivers exited with no recorded cleanup failures.
+Neither attempt produced a browser request fixture. The HTTP/1 timeout's
+cause remains unresolved; the HTTP/2 result demonstrates an adapter bug.
+
 ## Public SSE observations
 
 Four cases ran twice: Firefox H3 empty-ID reset, Firefox H2 retry zero,
