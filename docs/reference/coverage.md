@@ -211,14 +211,20 @@ Supported:
   supply current authentication and WebSocket fields. A quiet spare sends
   no CONNECT, origin TLS or WebSocket request. Verified inner H2 activation
   closes redundant spares before WebSocket HEADERS.
+- With the configured backup TCP policy, H1 WebSocket openings through
+  SOCKS4/4a and SOCKS5 can claim quiet tunnels from their request pool before
+  Upgrade completes. Origin TLS begins after claim. Inner H2 openings retire redundant SOCKS tunnels before HEADERS.
+  Claims preserve the route, original credentials and origin TLS context,
+  while applying current WebSocket fields and cookies. Local target family
+  memory begins after SOCKS succeeds; remote DNS supplies no local family.
 
 Not modeled:
 
 - Parts of Firefox's address selection: keeping the slower connection, and
-  remembering the address family, on other proxy WebSocket paths and proxy
-  setup with early data; sharing a forwarding connection between origins; and
-  noticing at once that a server
-  closed an idle connection, which can make Firefox remember a family longer.
+  remembering the address family, on WebSocket paths using outer H2 proxies
+  and proxy setup with early data; sharing a forwarding connection between
+  origins; and noticing at once that a server closed an idle connection, which
+  can make Firefox remember a family longer.
 - Chromium's resolver behavior before racing: its own address sorting,
   partial DNS results, and HTTPS records fetched with the address queries.
   Phantom races the resolver's complete answer.

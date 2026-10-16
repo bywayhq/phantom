@@ -77,13 +77,13 @@ below remain unmerged. Earlier checks apply to their recorded source.
 | B1 CONNECT | `firefox-h2-connect` | Merged in PR #249 at `8e22f319` after the exact-head full gate, 5,456 runtime passes with two skips, and 43 current PR checks. The unchanged future-size limits passed. All eight applicable main push workflows passed. |
 | B1 outer H2 | `firefox-h2-proxy-owner` | Merged in PR #250 at `c934f82a` after independent review, all 23 Windows/Linux gate steps, 5,585 runtime passes with three skips, and 43 current PR checks. All nine applicable main push workflows passed. Raw backup progress ends at verified outer H2 activation, before authentication or CONNECT. |
 | B1 dedicated outer H2 | `firefox-dedicated-h2-owner` | Source extends the configured physical TCP backup lifetime to dedicated ordinary H2 and dedicated/shared CONNECT-UDP H2 setup. Eleven new controls are uncompiled; focused execution, integration and delivery remain pending. This is transport-policy consistency, not Firefox MASQUE evidence. |
-| B1 feedback/SOCKS | `firefox-feedback-socks-delivery` | Recovery source `ae2367e6` passed all 104 selected controls: 47 feedback, 29 SOCKS H1, 19 SOCKS H2 and nine existing future-size controls. Strict all-target Clippy and API generation passed for all three crates on that parent. The reviewed 83-path composition was signed at `84b35f59`. Its gate encountered a missing test-only TCP constructor and was stopped with exit 143 before Rust runtime tests ran. The independently reviewed nine-line repair is signed at `370b6637`, the current draft PR #251 head. NET all-target/all-feature strict Clippy passed there at 03:21:57 UTC; a fresh full gate is running and API regeneration remains pending. Earlier failed attempts and all logs are retained. |
-| B1 proxy WebSocket | `firefox-proxy-ws-delivery` | WSS H1 Upgrade and inner H2 extended CONNECT through plaintext CONNECT and HTTPS outer H1 have passed independent source-composition review. The 27-path candidate is preserved on parent `370b6637`; that parent change adds only the test-only TCP constructor. All 17 new controls remain uncompiled; inventory verification for four additive finalizers is pending. Outer H2, SOCKS, ECH and early-data retention remain open. |
+| B1 feedback/SOCKS | `firefox-feedback-socks-delivery` | PR #251 remains unmerged at `28e08108`; its fresh gate and platform checks are pending. The earlier `e08790ac` head passed all 23 local gate steps and 5,680 runtime tests, but macOS retained one causal-refusal fixture failure. The new test-only barrier repair has source approval; no runtime pass is claimed for the new head. Earlier 104-control and API results remain bound to their recorded parents. |
+| B1 proxy WebSocket | `firefox-proxy-ws-delivery` | Combined source at `212b0a48` includes HTTP-proxy H1/inner-H2 WSS, SOCKS H1/H2 WebSocket retention and dedicated outer-H2 setup. Its 148 selected controls are source-defined only; compilation, API generation and the full gate have not run on this head. Outer-H2 WebSocket, ECH and early-data retention remain open. |
 | B2 | `firefox-h2-window-delivery` | Proxy idle closure and Alt-Used placement/mapping merged in PRs #222, #230 and #237; the alternative-port fixture repair merged in PR #239 with green main CI. Ordinary H2 stream-window behavior merged with the reviewed union in PR #250 after its exact-head gate and 43 current PR checks. All nine applicable main push workflows passed. |
 | B3 | `platform-tcp-integration` | TCP/keepalive policies merged in PR #244 at `4d6c13cd` after independent review, all 23 gate steps, 5,363 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. The generated API inventory records five recipe functions and two policy fields. |
 | B4 | `windows-dns-integration` | Windows DNS TTL and configuration support merged in PR #250 after the exact-head gate and current platform checks. Native read-only watch/configuration probes remain separate evidence. Actual adapter or VPN changes and browser parity remain unverified; all nine applicable main push workflows passed. |
 | B5 | `edge-android-websocket-integration` | The emulator-backed Edge Android H1/H2 WebSocket layer and source-backed bounded Chromium restarts merged in PR #250 after its exact-head gate and current PR checks. All nine applicable main push workflows passed. No physical Android or browser H3 parity is claimed; missing Safari and Android layers remain open. |
-| E1/E2 | `browser-profile-release` | The 75-row Windows matrix has 38 attempted rows: 35 runner successes, two preserved failures and one interruption; 37 remain unattempted. Batches05, 06v2 and07 each completed eight new rows, once with repeat2, with independent raw-evidence approval. Batch07 covers 16 Firefox 157 H3 runs; its nine request-free H3 closes with code 256 and ten stream cancellations with code 268 are retained observations. Batch08 has source approval and has not executed. Batch06v1 failed preflight before runtime or browser launch and attempted zero rows. Earlier failures, the interruption and Batch04 temporary-launcher guard failure remain retained. No Phantom parity, macOS or physical Android coverage, or capture delivery is claimed. |
+| E1/E2 | `browser-profile-release` | All 75 Windows rows were attempted: 60 succeeded, 14 failed and one was interrupted; none remain unattempted. Independent raw review covers batches09 and10, including the final batch's nine successes and 12 failures. Earlier failures, extra QUIC closures/cancellations and preflight refusals remain retained. Attempt completion does not establish Phantom parity or capture delivery. |
 
 The B2/B4/B5 union and pooled outer-H2 extension are delivered in PR #250.
 Its exact `c934f82a` head passed the complete Windows/Linux gate and all 43
@@ -91,16 +91,10 @@ current PR checks. All nine main push workflows passed. The manifest changes als
 BoringSSL native. Native adapter changes, physical Android and browser H3 parity
 remain outside that delivery evidence.
 
-Draft PR #251 now points to `370b6637`. Its fresh 23-step gate is running;
-its successful NET Clippy precheck does not establish a full gate pass.
-The proxy WebSocket source composition has independent approval on that
-parent, with its own API generation and 17 new controls still pending.
-
-The feedback/SOCKS delta preserves the current browser-owner behavior and
-Windows DNS FFI repair. Its API inventories contain 1,199 facade, 1,621 NET
-and 1,041 profile entries. These inventories were generated on the recovery
-parent; this composition has not regenerated them. The 104 focused controls
-and strict checks above apply to that recovery source, not this new parent.
+PR #251's repaired head still needs its own gate and platform results. The
+combined WebSocket and dedicated outer-H2 source has 148 selected controls;
+prior focused results do not establish a pass on that combined head. Its
+additive NET API inventory also remains pending.
 
 The Windows DNS watch and configuration probes retain separate native
 read-only evidence. Actual adapter or VPN changes and browser parity remain
@@ -245,10 +239,11 @@ uncertainty. Research must lead to a decision, bounded experiment, or repair.
   size budget. All eight applicable main push workflows passed.
   Plaintext CONNECT retention merged in PR #245 with green main CI.
   Pooled outer H2 retention merged in PR #250 after its exact-head gate and
-  all 43 current PR checks; all nine applicable main push workflows passed. Proxied WSS H1
-  and inner H2 through outer H1 have passed source-composition review;
-  API inventories and all 17 new controls remain pending. Other proxy
-  ownership and failed-address feedback remain open.
+  all 43 current PR checks; all nine applicable main push workflows passed.
+  Proxied WSS H1 and inner H2 through outer H1, SOCKS WebSocket retention and
+  dedicated outer-H2 setup are composed as source; their combined checks and
+  API inventory remain pending. Failed-address feedback awaits PR #251.
+  Outer-H2 WebSocket, ECH and early-data retention remain open.
 - [x] B2: Correct Firefox `Alt-Used` placement and mapping-time omission,
   ordinary H2 stream `WINDOW_UPDATE` shape, and HTTPS-proxy H2 idle closure.
   Record and verify these as separate changes with their own wire controls.

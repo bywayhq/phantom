@@ -266,7 +266,8 @@ Claims validate the original route and credentials, then apply current
 CONNECT authentication, cookies and ordered WebSocket fields. A quiet spare
 sends no CONNECT, origin TLS, H2 preface or WebSocket request. An HTTPS
 spare may finish outer H1 TLS before claim. This retention extension
-excludes plaintext `ws://`, outer H2, SOCKS, ECH and early-data setup.
+excludes plaintext `ws://`, outer H2, ECH and early-data setup.
+SOCKS retention has the separate behavior below.
 
 Exact HTTP/1 forwarding of plaintext origins through HTTP and HTTPS proxies
 also retains a quiet backup. An HTTPS spare may finish outer TLS without
@@ -291,6 +292,16 @@ proxy TCP failures may update that proxy's cached DNS record. SOCKS replies,
 authentication, origin TLS and cancellation do not mark a target IP failed.
 Early-data settings retain the original single-opening path. These retained
 SOCKS paths do not add ECH.
+
+H1 WebSocket openings can claim those quiet SOCKS tunnels through the request
+pool. A quiet tunnel completes SOCKS negotiation but sends no origin TLS or
+Upgrade request until claim. H2 WebSocket setup retires redundant tunnels
+before HEADERS; accepted streams and rejected bodies retain the dedicated
+opening owner. Current cookies and ordered WebSocket fields belong to the
+claiming handshake. SOCKS authentication keeps the opening's original
+credentials. Route checks, configured retries, admission and the
+single handshake deadline still apply. These paths preserve local versus
+remote target-family rules and do not add ECH or early-data retention.
 
 ### RTT-based racing
 

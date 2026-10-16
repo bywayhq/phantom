@@ -2125,12 +2125,20 @@ current fields. Pool and public controls cover dedicated ownership, raw
 spare retirement before WebSocket HEADERS, and reuse of an available
 ordinary negotiated H2 session.
 
-These are written loopback controls, not runtime or browser observations.
-The source is composed onto the signed feedback/SOCKS parent. Composition
-review, API inventories, compilation, future-size and nightly checks, runtime
-regressions and the full gate remain pending. They establish no browser
-timing or capture parity. Plaintext `ws://`, outer H2, SOCKS,
-ECH and early-data retention expansion are excluded.
+Eleven further SOCKS WebSocket source controls cover quiet H1 pool claims,
+origin TLS after claim, H2 spare retirement before HEADERS, cancellation,
+current claimant fields and rejected bodies. They preserve route and original
+TLS-owner checks, local versus remote target-family handling, cookie policy,
+configured retries and the single opening deadline.
+
+The combined source defines 148 selected controls: 104 inherited feedback and
+SOCKS controls, 17 HTTP-proxy WebSocket controls, 11 dedicated outer-H2 controls,
+five existing TLS-boundary controls and 11 SOCKS WebSocket controls. Compilation,
+API generation, future-size and nightly checks, runtime and the full gate have
+not run on this combined head. Earlier passes apply only to their recorded
+parents. These written controls establish no browser timing or capture parity.
+HTTP-proxy retention still excludes plaintext `ws://` and outer H2 WebSocket
+tunnels. The new SOCKS paths do not add ECH or early-data retention.
 
 Tests in `phantom-net` read the options back from connected sockets with
 `socket2` getters:
