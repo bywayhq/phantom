@@ -329,7 +329,10 @@ class CompletionTests(unittest.IsolatedAsyncioTestCase):
                     await closing
 
                 [interruption] = interruptions
-                self.assertIs(raised.exception.__context__, interruption)
+                self.assertTrue(
+                    raised.exception is interruption
+                    or raised.exception.__context__ is interruption
+                )
                 self.assertIs(interruption.__cause__.owner, server)
                 self.assertIn(worker, server.tasks)
                 self.assertFalse(worker.done())

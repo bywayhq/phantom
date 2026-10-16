@@ -47,6 +47,12 @@ class H2EventSource(ScriptedEventSource):
         await self.writer.drain()
 
     async def close(self):
+        if not self.reader.at_eof():
+            # Stop H2 responses and consume queued data before TLS close_notify.
+            self.engine.close_connection()
+            self.writer.write(self.engine.data_to_send())
+            await self.writer.drain()
+            await asyncio.wait_for(self.reader.read(), 2)
         self.writer.close()
         await asyncio.wait_for(self.writer.wait_closed(), 2)
 

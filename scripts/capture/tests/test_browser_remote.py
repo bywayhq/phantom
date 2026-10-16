@@ -350,7 +350,6 @@ class FakeRemote:
         if self.server is not None:
             try:
                 self.server.close()
-                await asyncio.wait_for(self.server.wait_closed(), TIMEOUT)
             except BaseException as error:
                 errors.append(error)
 
@@ -392,6 +391,12 @@ class FakeRemote:
 
             try:
                 await asyncio.wait_for(writer.wait_closed(), TIMEOUT)
+            except BaseException as error:
+                errors.append(error)
+
+        if self.server is not None:
+            try:
+                await asyncio.wait_for(self.server.wait_closed(), TIMEOUT)
             except BaseException as error:
                 errors.append(error)
 
@@ -615,10 +620,6 @@ async def remote_backup(
 
     if remote.server is not None:
         remote.server.close()
-        try:
-            await asyncio.wait_for(remote.server.wait_closed(), TIMEOUT)
-        except BaseException as error:
-            errors.append(error)
 
     writers = [writer for writer, _ in remote.connections]
     if socket is not None:
@@ -641,6 +642,11 @@ async def remote_backup(
         except asyncio.CancelledError:
             # This backup deliberately cancels only the actual retained handler.
             pass
+        except BaseException as error:
+            errors.append(error)
+    if remote.server is not None:
+        try:
+            await asyncio.wait_for(remote.server.wait_closed(), TIMEOUT)
         except BaseException as error:
             errors.append(error)
     return tuple(errors)
