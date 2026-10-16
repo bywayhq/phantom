@@ -190,7 +190,11 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
             None,
         ]
         with (
-            mock.patch.object(safari.socket, "socket", return_value=port_socket),
+            mock.patch.object(
+                safari,
+                "socket",
+                SimpleNamespace(socket=mock.Mock(return_value=port_socket)),
+            ),
             mock.patch.object(
                 safari.asyncio, "create_subprocess_exec", return_value=process
             ),
@@ -225,7 +229,11 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
             4567,
         )
         with (
-            mock.patch.object(safari.socket, "socket", return_value=port_socket),
+            mock.patch.object(
+                safari,
+                "socket",
+                SimpleNamespace(socket=mock.Mock(return_value=port_socket)),
+            ),
             mock.patch.object(
                 safari.asyncio, "create_subprocess_exec", return_value=process
             ),
