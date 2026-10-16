@@ -66,7 +66,7 @@ with three skips, and all 43 current PR checks. All eight applicable main
 push workflows passed. PR #253 fast-forwarded main to `61685a6d` on
 2026-10-16 at 08:29:36 UTC after independent review, all 23 Windows/Linux
 gate steps and all 29 current PR checks, including both platform jobs.
-Main push CI is running.
+Both applicable main push workflows passed.
 
 | Task | Owner lane | State and next check |
 | --- | --- | --- |
