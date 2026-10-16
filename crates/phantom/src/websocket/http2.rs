@@ -118,6 +118,107 @@ impl OpeningOwner {
     }
 }
 
+// Only the physical proxy's applied Backup policy selects staged ownership.
+fn keeps_proxy_backup(
+    client: &Client,
+    proxy: &crate::HttpProxy,
+    connector: &Http2TlsConnector,
+) -> bool {
+    let settings = if proxy.uses_tls() {
+        if proxy.uses_http2() {
+            return false;
+        }
+        client
+            .inner
+            .websocket_https_proxy
+            .as_ref()
+            .map(|base| proxy.https_connector(base))
+            .and_then(|connector| connector.tcp_settings().cloned())
+    } else {
+        connector.tcp_settings().cloned()
+    };
+    settings.is_some_and(|settings| {
+        matches!(
+            settings.address_selection,
+            phantom_profile::TcpAddressSelection::Backup(_)
+        )
+    })
+}
+
+async fn extended_connect_proxy(
+    client: &Client,
+    owner: &OpeningOwner,
+    endpoint: &Endpoint,
+    route: &Route,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+) -> Result<Http2ExtendedConnectOpening, WebSocketError> {
+    let proxy = route.as_http_proxy().ok_or_else(|| {
+        WebSocketError::request(RequestError::unsupported_route(HttpProtocol::Http2))
+    })?;
+    let proxy_connector = if proxy.uses_tls() {
+        let base = client
+            .inner
+            .websocket_https_proxy
+            .as_ref()
+            .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http2))?;
+        Some(
+            match owner {
+                OpeningOwner::Exact(owner) => owner.proxy_connector(base, endpoint, route),
+                OpeningOwner::Negotiated(owner) => owner.proxy_connector(base, endpoint, route),
+            }
+            .map_err(WebSocketError::request)?,
+        )
+    } else {
+        None
+    };
+    let proxy_endpoint = phantom_net::route::Endpoint {
+        host: proxy.host(),
+        port: proxy.port(),
+    };
+    let transport = match &proxy_connector {
+        Some(connector) => phantom_net::route::ProxyTransport::Tls {
+            endpoint: proxy_endpoint,
+            server_name: proxy.host(),
+            connector,
+        },
+        None => phantom_net::route::ProxyTransport::Tcp(proxy_endpoint),
+    };
+    let authority = endpoint.tunnel_authority();
+    let connect = phantom_net::route::HttpConnectRoute {
+        proxy: transport,
+        authority: &authority,
+        headers: proxy.ordered_connect_headers(),
+        credentials: proxy.authentication(),
+    };
+    let connectors = client.inner.connectors_for(endpoint);
+    let result = match owner {
+        OpeningOwner::Exact(owner) => {
+            let base = connectors
+                .http2
+                .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http2))?;
+            let connector = owner
+                .proxy_origin_connector(base, endpoint, route)
+                .map_err(WebSocketError::request)?;
+            owner
+                .open_proxy_extended_connect(&connector, connect, endpoint, target, headers)
+                .await
+        }
+        OpeningOwner::Negotiated(owner) => {
+            let base = connectors
+                .http1_or_2
+                .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http2))?;
+            let connector = owner
+                .proxy_origin_connector(base, endpoint, route)
+                .map_err(WebSocketError::request)?;
+            owner
+                .open_proxy_extended_connect(&connector, connect, endpoint, target, headers)
+                .await
+        }
+    };
+    result.map_err(WebSocketError::request)
+}
+
 impl WebSocketRequestBuilder {
     pub(super) async fn connect_http2(
         self,
@@ -345,6 +446,43 @@ impl WebSocketRequestBuilder {
                     .map_err(RequestError::http2_connection_setup)
                     .map_err(WebSocketError::request)?;
                     let owner = owner.connected(opening.connection(), slower);
+                    let mut outcome = opening.send().await;
+                    if let Ok(outcome) = &mut outcome {
+                        retain_opening_owner(outcome, owner);
+                    }
+                    Ok::<_, WebSocketError>(outcome)
+                })
+                .await?
+            }
+            Route::HttpProxy(proxy) if keeps_proxy_backup(&client, proxy, connector) => {
+                let owner = match (selection, connectors.http1_or_2) {
+                    (WebSocketSelection::ProfilePolicy, Some(_)) => OpeningOwner::Negotiated(
+                        client
+                            .state
+                            .http1_or_2
+                            .proxy_http2_opening(&request.endpoint, route)
+                            .await,
+                    ),
+                    _ => OpeningOwner::Exact(
+                        client
+                            .state
+                            .http2
+                            .proxy_http2_opening(&request.endpoint, route)
+                            .await,
+                    ),
+                };
+                crate::session::box_send(async {
+                    let opening = extended_connect_proxy(
+                        &client,
+                        &owner,
+                        &request.endpoint,
+                        route,
+                        request.target.clone(),
+                        prepared.headers,
+                    )
+                    .await?;
+                    // Publish the dedicated H2 owner and retire raw backups before HEADERS.
+                    let owner = owner.connected(opening.connection(), None);
                     let mut outcome = opening.send().await;
                     if let Ok(outcome) = &mut outcome {
                         retain_opening_owner(outcome, owner);

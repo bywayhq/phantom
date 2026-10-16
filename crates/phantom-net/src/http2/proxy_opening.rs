@@ -93,6 +93,32 @@ impl Http2ProxyOpening {
         } = *opening.state.into_state();
         connector.finish_proxy_opening(stream, binding, route).await
     }
+
+    /// Finishes this claimant's tunnel and verified origin H2 setup without
+    /// emitting WebSocket HEADERS. Uses the extended-CONNECT settings and
+    /// retains the original origin TLS, proxy TLS and credential contexts.
+    ///
+    /// # Errors
+    ///
+    /// Rejects a changed binding or invalid extended-CONNECT fields before
+    /// I/O, and returns the existing proxy, authentication and TLS errors.
+    pub async fn finish_extended_connect(
+        self,
+        route: HttpConnectRoute<'_>,
+        authority: &str,
+        target: crate::request::OriginForm,
+        headers: Vec<crate::request::RequestHeader>,
+    ) -> Result<crate::http2::Http2ExtendedConnectOpening, crate::http2::Http2TlsError> {
+        self.state.state().binding.validate_connect(route)?;
+        let ProxyOpeningState {
+            stream,
+            connector,
+            binding,
+        } = *self.state.into_state();
+        connector
+            .finish_proxy_extended_connect(stream, binding, route, authority, target, headers)
+            .await
+    }
 }
 
 impl From<ProxyOpeningError> for Http2TlsError {

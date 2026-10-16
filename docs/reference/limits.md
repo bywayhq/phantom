@@ -248,6 +248,22 @@ settings and runtime. That memory survives slot retirement because forwarding
 handles can outlive slots. Route eviction gives a new route fresh memory,
 even while an old caller-owned connection survives.
 
+Exact and profile-policy `wss://` openings use quiet spares through
+plaintext CONNECT or an HTTPS proxy using outer H1. H1 Upgrade shares its
+request pool's spare and retains the original origin TLS ticket cache while
+applying the WebSocket ALPN offer. Inner H2 extended CONNECT retains the
+original connector's TLS context, cache and ALPN offer. A new inner H2
+opening has a dedicated owner outside ordinary pool slots; an accepted
+stream or rejected body keeps that owner. Profile-policy reuse of an
+available ordinary origin H2 session remains unchanged. Verified inner H2
+activation closes redundant quiet spares before WebSocket HEADERS.
+
+Claims validate the original route and credentials, then apply current
+CONNECT authentication, cookies and ordered WebSocket fields. A quiet spare
+sends no CONNECT, origin TLS, H2 preface or WebSocket request. An HTTPS
+spare may finish outer H1 TLS before claim. This retention extension
+excludes plaintext `ws://`, outer H2, SOCKS, ECH and early-data setup.
+
 Exact HTTP/1 forwarding of plaintext origins through HTTP and HTTPS proxies
 also retains a quiet backup. An HTTPS spare may finish outer TLS without
 sending a request. Its claimant supplies current ordered headers, cookies
@@ -255,8 +271,8 @@ and credentials. A request that claims an unfinished spare waits for its
 outer TLS. Connections keep their existing origin, route, runtime and
 credential bounds. Family memory remains per origin and route. Firefox can
 share a forwarding connection between origins on one proxy; Phantom keeps
-those origins separate. Proxy WebSocket backups and proxy early-data setup
-remain outside these additions. Dedicated nonpooled outer H2 and CONNECT-UDP
+those origins separate. Other proxy WebSocket backups and proxy early-data
+setup remain outside these additions. Dedicated nonpooled outer H2 and CONNECT-UDP
 setup keep their existing behavior. These CONNECT paths do not add ECH.
 Failed-address history follows the locally cached DNS record, independently
 of CONNECT setup.

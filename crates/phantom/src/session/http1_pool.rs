@@ -421,6 +421,27 @@ impl Http1Pool {
         OriginOpening { entry }
     }
 
+    #[cfg(feature = "websocket")]
+    pub(crate) async fn proxy_upgrade_opening(
+        &self,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> OriginOpening {
+        let entry = self
+            .entry(PoolKey::new(
+                endpoint,
+                route,
+                Http1ConnectionMode::TlsOrigin,
+            ))
+            .await;
+        {
+            let mut state = entry.connections.lock();
+            entry.connections.family.mark_active();
+            state.openings += 1;
+        }
+        OriginOpening { entry }
+    }
+
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
         let mut state = self.state.lock().await;
         if let Some(position) = state
@@ -583,6 +604,85 @@ impl OriginOpening {
 
     pub(crate) fn adopt(&self, slower: SlowerConnection<phantom_net::http1::Http1Connection>) {
         self.entry.connections.adopt(slower);
+    }
+
+    pub(crate) fn proxy_origin_connector(
+        &self,
+        base: &Http1TlsConnector,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Result<Http1TlsConnector, RequestError> {
+        self.entry.origin_connector(base, endpoint, route)
+    }
+
+    pub(crate) fn proxy_connector(
+        &self,
+        base: &HttpsProxyConnector,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Result<HttpsProxyConnector, RequestError> {
+        let proxy = route
+            .as_http_proxy()
+            .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http1))?;
+        let connector = self
+            .entry
+            .https_proxy
+            .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
+        self.entry
+            .tickets
+            .register_before_use(
+                connector.session_ticket_cache(),
+                TicketCacheBinding {
+                    origin: endpoint,
+                    server_name: proxy.host(),
+                    leg: TicketCacheLeg::HttpProxy,
+                    protocol: TicketCacheBinding::proxy_protocol(connector.protocol()),
+                    route,
+                },
+            )
+            .map_err(RequestError::session_tickets)?;
+        Ok(connector.clone())
+    }
+
+    pub(crate) async fn open_proxy_upgrade(
+        &self,
+        connector: &Http1TlsConnector,
+        route: HttpConnectRoute<'_>,
+        protocols: &[Box<[u8]>],
+        endpoint: &Endpoint,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<phantom_net::http1::Http1UpgradeOpening, RequestError> {
+        let claim = match self.entry.connections.checkout(false) {
+            Checkout::Proxy(claim) => Some(claim),
+            Checkout::Spare(claim) => match claim.wait_delivery().await {
+                Some(SpareDelivery::Proxy(claim)) => Some(claim),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some(mut claim) = claim
+            && let Some(opening) = claim.opening.take()
+        {
+            // Taking the quiet socket commits this claim; later cancellation
+            // closes it rather than returning a partial CONNECT to the pool.
+            drop(claim);
+            return opening
+                .finish_upgrade(route, protocols, target, headers)
+                .await
+                .map_err(RequestError::http1_connection_setup);
+        }
+        let (opening, slower) = connector
+            .open_http_connect_retaining(route, endpoint.host(), self.family())
+            .await
+            .map_err(RequestError::http1_connection_setup)?;
+        if let Some(slower) = slower {
+            self.entry.connections.adopt_proxy(slower);
+        }
+        opening
+            .finish_upgrade(route, protocols, target, headers)
+            .await
+            .map_err(RequestError::http1_connection_setup)
     }
 }
 

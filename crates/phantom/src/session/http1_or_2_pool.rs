@@ -554,6 +554,35 @@ impl Http1Or2Pool {
         }
     }
 
+    #[cfg(feature = "websocket")]
+    pub(crate) async fn proxy_upgrade_opening(
+        &self,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> OriginOpening {
+        let entry = self.entry(PoolKey::new(endpoint, route)).await;
+        {
+            let mut state = entry.connections.lock();
+            entry.connections.family.mark_active();
+            state.openings += 1;
+        }
+        OriginOpening { entry }
+    }
+
+    #[cfg(feature = "websocket")]
+    pub(crate) async fn proxy_http2_opening(
+        &self,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> OriginHttp2Opening {
+        let entry = self.entry(PoolKey::new(endpoint, route)).await;
+        entry.connections.begin_http2_opening();
+        OriginHttp2Opening {
+            entry,
+            pending: true,
+        }
+    }
+
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
         let mut state = self.state.lock().await;
         if let Some(position) = state
@@ -617,7 +646,7 @@ impl Http1Or2Pool {
     }
 }
 
-/// A dedicated direct H2 setup or connected stream, separate from pooled slots.
+/// A dedicated H2 setup or connected stream, separate from pooled slots.
 #[cfg(feature = "websocket")]
 pub(crate) struct OriginHttp2Opening {
     entry: Arc<PoolEntry>,
@@ -638,6 +667,106 @@ impl OriginHttp2Opening {
         self.entry
             .origin_connector(base, endpoint, &Route::Direct)
             .map(|connector| connector.http2_connector())
+    }
+
+    pub(crate) fn proxy_origin_connector(
+        &self,
+        base: &Http1Or2TlsConnector,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Result<Http1Or2TlsConnector, RequestError> {
+        self.entry.origin_connector(base, endpoint, route)
+    }
+
+    pub(crate) fn proxy_connector(
+        &self,
+        base: &HttpsProxyConnector,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Result<HttpsProxyConnector, RequestError> {
+        let proxy = route
+            .as_http_proxy()
+            .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
+        let connector = self
+            .entry
+            .https_proxy
+            .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
+        self.entry
+            .tickets
+            .register_before_use(
+                connector.session_ticket_cache(),
+                TicketCacheBinding {
+                    origin: endpoint,
+                    server_name: proxy.host(),
+                    leg: TicketCacheLeg::HttpProxy,
+                    protocol: TicketCacheBinding::proxy_protocol(connector.protocol()),
+                    route,
+                },
+            )
+            .map_err(RequestError::session_tickets)?;
+        Ok(connector.clone())
+    }
+
+    pub(crate) async fn open_proxy_extended_connect(
+        &self,
+        connector: &Http1Or2TlsConnector,
+        route: phantom_net::route::HttpConnectRoute<'_>,
+        endpoint: &Endpoint,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<phantom_net::http2::Http2ExtendedConnectOpening, RequestError> {
+        let opening = self.take_proxy_opening().await;
+        let opening = match opening {
+            Some(opening) => opening,
+            None => {
+                let (opening, slower) = connector
+                    .open_http_connect_retaining(
+                        route,
+                        endpoint.host(),
+                        &self.entry.connections.family,
+                    )
+                    .await
+                    .map_err(RequestError::http1_or_2_connection_setup)?;
+                // The pool owns the quiet physical backup before CONNECT or origin TLS.
+                if let Some(slower) = slower {
+                    self.entry.connections.adopt_proxy(slower);
+                }
+                opening
+            }
+        };
+        opening
+            .finish_extended_connect(route, endpoint.authority().as_str(), target, headers)
+            .await
+            .map_err(RequestError::http2_connection_setup)
+    }
+
+    async fn take_proxy_opening(&self) -> Option<Http1Or2ProxyOpening> {
+        loop {
+            let mut notified = pin!(self.entry.connections.setup_done.notified());
+            notified.as_mut().enable();
+            let (opening, pending, expired) = {
+                let mut state = self.entry.connections.lock();
+                let expired = state.take_expired_proxy_spares(
+                    Instant::now(),
+                    self.entry.connections.http1_used_idle_timeout,
+                );
+                let opening = state
+                    .spares
+                    .iter()
+                    .position(|spare| spare.proxy && !spare.is_claimed() && spare.ready.is_some())
+                    .and_then(|index| state.spares.swap_remove(index).ready);
+                let pending = state
+                    .spares
+                    .iter()
+                    .any(|spare| spare.proxy && !spare.is_claimed() && spare.task.is_some());
+                (opening, pending, expired)
+            };
+            close_proxy_spares(expired);
+            if opening.is_some() || !pending {
+                return opening;
+            }
+            notified.await;
+        }
     }
 
     pub(crate) fn connected(
@@ -752,6 +881,85 @@ impl OriginOpening {
             .adopt(SlowerConnection::new(progress, async move {
                 slower.finish().await.map(Http1Or2Connection::Http1)
             }));
+    }
+
+    pub(crate) fn proxy_origin_connector(
+        &self,
+        base: &Http1Or2TlsConnector,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Result<Http1Or2TlsConnector, RequestError> {
+        self.entry.origin_connector(base, endpoint, route)
+    }
+
+    pub(crate) fn proxy_connector(
+        &self,
+        base: &HttpsProxyConnector,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Result<HttpsProxyConnector, RequestError> {
+        let proxy = route
+            .as_http_proxy()
+            .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http1))?;
+        let connector = self
+            .entry
+            .https_proxy
+            .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
+        self.entry
+            .tickets
+            .register_before_use(
+                connector.session_ticket_cache(),
+                TicketCacheBinding {
+                    origin: endpoint,
+                    server_name: proxy.host(),
+                    leg: TicketCacheLeg::HttpProxy,
+                    protocol: TicketCacheBinding::proxy_protocol(connector.protocol()),
+                    route,
+                },
+            )
+            .map_err(RequestError::session_tickets)?;
+        Ok(connector.clone())
+    }
+
+    pub(crate) async fn open_proxy_upgrade(
+        &self,
+        connector: &Http1Or2TlsConnector,
+        route: HttpConnectRoute<'_>,
+        protocols: &[Box<[u8]>],
+        endpoint: &Endpoint,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<phantom_net::http1::Http1UpgradeOpening, RequestError> {
+        let claim = match self.entry.connections.checkout(false, true) {
+            Checkout::Proxy(claim) => Some(claim),
+            Checkout::Found(Acquired::Spare(claim)) => match claim.wait_delivery().await {
+                Some(SpareDelivery::Proxy(claim)) => Some(claim),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some(mut claim) = claim
+            && let Some(opening) = claim.opening.take()
+        {
+            // A dedicated H1 opening leaves the ordinary protocol selector.
+            // Dropping its reservation removes the raw slot before TLS/GET.
+            drop(claim);
+            return opening
+                .finish_upgrade(route, protocols, target, headers)
+                .await
+                .map_err(RequestError::http1_connection_setup);
+        }
+        let (opening, slower) = connector
+            .open_http_connect_retaining(route, endpoint.host(), self.family())
+            .await
+            .map_err(RequestError::http1_or_2_connection_setup)?;
+        if let Some(slower) = slower {
+            self.entry.connections.adopt_proxy(slower);
+        }
+        opening
+            .finish_upgrade(route, protocols, target, headers)
+            .await
+            .map_err(RequestError::http1_connection_setup)
     }
 }
 

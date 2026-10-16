@@ -1189,6 +1189,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Retain Firefox backup connections for `wss://` H1 Upgrade and inner H2
+  extended CONNECT through plaintext CONNECT and HTTPS proxies using outer
+  H1. Claims use current authentication and WebSocket fields; verified
+  inner H2 activation closes redundant spares before WebSocket HEADERS.
+
 - Keep a configured HTTPS proxy TCP backup progressing through proxy TLS,
   then close it when pooled HTTP/2 activates, before authentication or
   CONNECT. The pool remembers the physical proxy address family.

@@ -98,6 +98,36 @@ impl Http1ProxyOpening {
         Ok(Self { state })
     }
 
+    /// Finishes this claimant's CONNECT and origin TLS without sending its GET.
+    ///
+    /// `protocols` is this claimant's ALPN offer, with the original ticket cache.
+    /// Route and Upgrade fields are validated before proxy TLS or CONNECT.
+    /// The returned opening owns the tunnel until `send` or drop; cancellation
+    /// after polling closes it. Current CONNECT and Upgrade fields are used.
+    ///
+    /// # Errors
+    ///
+    /// Returns invalid input for changed bindings or invalid fields, and the
+    /// existing proxy, authentication, TLS and ALPN errors.
+    pub async fn finish_upgrade(
+        self,
+        route: HttpConnectRoute<'_>,
+        protocols: &[Box<[u8]>],
+        target: crate::request::OriginForm,
+        headers: Vec<crate::request::RequestHeader>,
+    ) -> Result<super::Http1UpgradeOpening, Http1TlsError> {
+        self.state.state().binding.validate_connect(route)?;
+        let ProxyOpeningState {
+            stream,
+            connector,
+            binding,
+        } = *self.state.into_state();
+        let connector = connector.with_alpn_protocols(protocols)?;
+        connector
+            .finish_proxy_upgrade(stream, binding, route, target, headers)
+            .await
+    }
+
     /// Sends this request's CONNECT, authenticates the origin and starts HTTP/1.
     ///
     /// Headers may differ from the opening request's profile-derived fields.

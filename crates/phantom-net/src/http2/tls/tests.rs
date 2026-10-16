@@ -919,3 +919,5 @@ where
 }
 
 mod proxy_retention;
+
+mod proxy_extended_connect;

@@ -412,6 +412,22 @@ impl Http2Pool {
         entry.begin_http2_opening()
     }
 
+    #[cfg(feature = "websocket")]
+    pub(crate) async fn proxy_http2_opening(
+        &self,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> OriginHttp2Opening {
+        let entry = self
+            .entry(PoolKey::new(
+                endpoint,
+                route,
+                Http2ConnectionMode::TlsOrigin,
+            ))
+            .await;
+        entry.begin_http2_opening()
+    }
+
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
         let mut state = self.state.lock().await;
         if let Some(position) = state
@@ -1193,7 +1209,7 @@ impl PoolEntry {
     }
 }
 
-/// A direct dedicated H2 setup that still owns its origin family.
+/// A dedicated H2 setup that still owns its route entry and family.
 #[cfg(feature = "websocket")]
 pub(crate) struct OriginHttp2Opening {
     entry: Arc<PoolEntry>,
@@ -1229,6 +1245,100 @@ impl OriginHttp2Opening {
         self.entry.origin_connector(base, endpoint, &Route::Direct)
     }
 
+    pub(crate) fn proxy_origin_connector(
+        &self,
+        base: &Http2TlsConnector,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Result<Http2TlsConnector, RequestError> {
+        self.entry.origin_connector(base, endpoint, route)
+    }
+
+    pub(crate) fn proxy_connector(
+        &self,
+        base: &HttpsProxyConnector,
+        endpoint: &Endpoint,
+        route: &Route,
+    ) -> Result<HttpsProxyConnector, RequestError> {
+        let proxy = route
+            .as_http_proxy()
+            .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
+        let connector = self
+            .entry
+            .https_proxy
+            .get_or_init(|| proxy.https_connector(&base.with_isolated_session_cache()));
+        self.entry
+            .tickets
+            .register_before_use(
+                connector.session_ticket_cache(),
+                TicketCacheBinding {
+                    origin: endpoint,
+                    server_name: proxy.host(),
+                    leg: TicketCacheLeg::HttpProxy,
+                    protocol: TicketCacheBinding::proxy_protocol(connector.protocol()),
+                    route,
+                },
+            )
+            .map_err(RequestError::session_tickets)?;
+        Ok(connector.clone())
+    }
+
+    pub(crate) async fn open_proxy_extended_connect(
+        &self,
+        connector: &Http2TlsConnector,
+        route: phantom_net::route::HttpConnectRoute<'_>,
+        endpoint: &Endpoint,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<phantom_net::http2::Http2ExtendedConnectOpening, RequestError> {
+        let opening = self.take_proxy_opening().await;
+        let opening = match opening {
+            Some(opening) => opening,
+            None => {
+                let (opening, slower) = connector
+                    .open_http_connect_retaining(route, endpoint.host(), &self.entry.family)
+                    .await
+                    .map_err(RequestError::http2_connection_setup)?;
+                // The pool owns the quiet physical backup before CONNECT or origin TLS.
+                if let Some(slower) = slower {
+                    self.entry.adopt_proxy(slower);
+                }
+                opening
+            }
+        };
+        opening
+            .finish_extended_connect(route, endpoint.authority().as_str(), target, headers)
+            .await
+            .map_err(RequestError::http2_connection_setup)
+    }
+
+    async fn take_proxy_opening(&self) -> Option<Http2ProxyOpening> {
+        loop {
+            let mut notified = pin!(self.entry.setup_done.notified());
+            notified.as_mut().enable();
+            let (opening, pending, expired) = {
+                let mut state = self.entry.lock();
+                let expired = state
+                    .take_expired_proxy_spares(Instant::now(), self.entry.http1_used_idle_timeout);
+                let opening = state
+                    .spares
+                    .iter()
+                    .position(|spare| spare.ready.is_some())
+                    .and_then(|index| state.spares.swap_remove(index).ready);
+                let pending = state
+                    .spares
+                    .iter()
+                    .any(|spare| spare.proxy && spare.task.is_some());
+                (opening, pending, expired)
+            };
+            close_proxy_spares(expired);
+            if opening.is_some() || !pending {
+                return opening;
+            }
+            notified.await;
+        }
+    }
+
     /// Publishes the actual winner and spare before either can notify waiters.
     pub(crate) fn connected(
         mut self,
@@ -1244,7 +1354,7 @@ impl OriginHttp2Opening {
                 .ok()
                 .map(|runtime| (runtime, slower))
         });
-        let spare = {
+        let (spare, retired_proxy) = {
             let mut state = self.entry.lock();
             state.openings -= 1;
             state.dedicated.retain(|owner| owner.strong_count() != 0);
@@ -1253,8 +1363,9 @@ impl OriginHttp2Opening {
             }
             let spare = spare.map(|(runtime, slower)| (runtime, state.register_spare(), slower));
             self.pending = false;
-            spare
+            (spare, state.take_proxy_spares())
         };
+        close_proxy_spares(retired_proxy);
         if let Some((runtime, id, slower)) = spare {
             self.entry.spawn_spare(runtime, id, slower);
         }

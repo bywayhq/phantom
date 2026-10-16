@@ -2011,8 +2011,8 @@ Differences from the browsers:
   `ConnectionEntry.cpp:627-649` at `FIREFOX_157_0_RELEASE`). Phantom's pooled
   outer H2 setup now progresses a raw backup during proxy TLS and drops it
   after certificate verification and H2 ALPN, before authentication or CONNECT.
-  The backup sends no TLS or application bytes. Proxy WebSocket backups and
-  proxy early-data setup remain outside this extension. Ordinary SOCKS
+  The backup sends no TLS or application bytes. Other proxy WebSocket backups
+  and proxy early-data setup remain outside this extension. Ordinary SOCKS
   request backups have separate source controls below.
 - A direct connection's slower attempt becomes claimable once the first
   connection's handshake has finished. The retained HTTP/1 proxy paths
@@ -2095,6 +2095,24 @@ handshake before intentional shutdown; its original deadline and cancellation
 assertions are unchanged. The failure and repaired run are retained. Combined
 integration and platform CI remain pending. These controls do not establish
 browser timing or platform parity.
+
+The proxied WebSocket candidates have independent source reviews. Their
+17 new controls remain uncompiled: eight for H1 Upgrade and nine for inner
+H2 extended CONNECT, through plaintext CONNECT and HTTPS outer H1. The H1
+controls cover typed opening consumption, original origin ticket-cache
+ownership, current authentication and cookies, and rejected response bodies.
+The inner H2 controls cover original TLS context, ALPN and extended-CONNECT
+settings, validation before tunnel I/O, cancellation, ticket resumption and
+current fields. Pool and public controls cover dedicated ownership, raw
+spare retirement before WebSocket HEADERS, and reuse of an available
+ordinary negotiated H2 session.
+
+These are written loopback controls, not runtime or browser observations.
+The source is composed onto the signed feedback/SOCKS parent. Composition
+review, API inventories, compilation, future-size and nightly checks, runtime
+regressions and the full gate remain pending. They establish no browser
+timing or capture parity. Plaintext `ws://`, outer H2, SOCKS,
+ECH and early-data retention expansion are excluded.
 
 Tests in `phantom-net` read the options back from connected sockets with
 `socket2` getters:

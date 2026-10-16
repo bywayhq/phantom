@@ -223,3 +223,47 @@ async fn a_dedicated_backup_cannot_install_beside_another_reserved_setup() -> Te
     assert_eq!(entry.lock().connecting, 0);
     Ok(())
 }
+
+#[tokio::test]
+async fn negotiated_proxy_websocket_owner_shares_only_its_actual_route_entry_and_ticket_cache()
+-> TestResult {
+    let one = NonZeroUsize::MIN;
+    let capacity = one.saturating_add(3);
+    let pool = Http1Or2Pool::new(capacity, one, one, one, one, one);
+    let endpoint = Endpoint::new("origin.test:443".parse()?, 443)?;
+    let route = Route::http_proxy(crate::HttpProxy::new("http://proxy.test:8080")?);
+    let opening = pool.proxy_http2_opening(&endpoint, &route).await;
+    let entry = pool.entry(PoolKey::new(&endpoint, &route)).await;
+    assert!(Arc::ptr_eq(&opening.entry, &entry));
+    let base = phantom_net::http1_or_2::Http1Or2TlsConnector::new(
+        &phantom_profile::browser::firefox::v157_tcp_tls(),
+        &phantom_profile::browser::firefox::v157_http2(),
+    )?;
+    let ordinary = entry.origin_connector(&base, &endpoint, &route)?;
+    let dedicated = opening.proxy_origin_connector(&base, &endpoint, &route)?;
+    let ordinary_cache = ordinary
+        .session_ticket_cache()
+        .and_then(|cache| cache.upgrade())
+        .ok_or("missing ordinary ticket cache")?;
+    let dedicated_cache = dedicated
+        .session_ticket_cache()
+        .and_then(|cache| cache.upgrade())
+        .ok_or("missing opening ticket cache")?;
+    assert!(ordinary_cache.same_cache(&dedicated_cache));
+    let direct = pool.origin_http2_opening(&endpoint).await;
+    assert!(!Arc::ptr_eq(&opening.entry, &direct.entry));
+    let other_route = Route::http_proxy(crate::HttpProxy::new("http://proxy.test:8081")?);
+    let other = pool.proxy_http2_opening(&endpoint, &other_route).await;
+    assert!(!Arc::ptr_eq(&opening.entry, &other.entry));
+    assert_eq!(entry.connections.lock().openings, 1);
+    let notified = entry.connections.setup_done.notified();
+    tokio::pin!(notified);
+    notified.as_mut().enable();
+    drop(opening);
+    timeout(Duration::from_secs(1), notified).await?;
+    assert_eq!(entry.connections.lock().openings, 0);
+    assert_eq!(entry.connections.lock().connecting, 0);
+    assert!(ordinary_cache.same_cache(&dedicated_cache));
+    drop((direct, other));
+    Ok(())
+}

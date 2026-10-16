@@ -7,7 +7,7 @@ use tracing::{Instrument, Span};
 use super::{Http1TlsError, Http1UpgradeOutcome, OperationOutcome, PreparedGet};
 use crate::{tcp::ProfileTcpStream, tls::TlsStream};
 
-/// A validated Upgrade GET and its connected direct-origin transport.
+/// A validated Upgrade GET and its connected origin transport.
 ///
 /// Dropping this opening closes its transport without sending the GET.
 /// Use [`Self::send`] after separately retaining any slower connection.
@@ -21,13 +21,20 @@ pub struct Http1UpgradeOpening {
 pub(super) enum OpeningStream {
     Plaintext(ProfileTcpStream),
     Tls(TlsStream<ProfileTcpStream>),
+    ProxyTls(TlsStream<crate::connection_leg::ConnectionLeg>),
 }
 
 impl fmt::Debug for Http1UpgradeOpening {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("Http1UpgradeOpening")
-            .field("encrypted", &matches!(self.stream, OpeningStream::Tls(_)))
+            .field(
+                "encrypted",
+                &matches!(
+                    self.stream,
+                    OpeningStream::Tls(_) | OpeningStream::ProxyTls(_)
+                ),
+            )
             .finish_non_exhaustive()
     }
 }
@@ -65,6 +72,9 @@ impl Http1UpgradeOpening {
                     super::tls::send_plaintext_tunnel_upgrade(stream, prepared).await
                 }
                 OpeningStream::Tls(stream) => super::tls::upgrade_over_tls(stream, prepared).await,
+                OpeningStream::ProxyTls(stream) => {
+                    super::tls::upgrade_over_tls(stream, prepared).await
+                }
             }
         }
         .instrument(span)

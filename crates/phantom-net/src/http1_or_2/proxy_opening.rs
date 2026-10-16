@@ -71,6 +71,35 @@ impl Http1Or2ProxyOpening {
         Ok(Self { state })
     }
 
+    /// Finishes CONNECT and origin TLS for a dedicated HTTP/1 Upgrade.
+    ///
+    /// `protocols` is the claimant's WebSocket ALPN offer. Conversion retains
+    /// the original origin TLS session cache and proxy TLS/authentication
+    /// binding. No GET is sent until the returned opening is consumed.
+    ///
+    /// # Errors
+    ///
+    /// Returns invalid input for a changed binding or invalid Upgrade fields,
+    /// and the existing proxy, TLS and HTTP/1 ALPN errors.
+    pub async fn finish_upgrade(
+        self,
+        route: HttpConnectRoute<'_>,
+        protocols: &[Box<[u8]>],
+        target: crate::request::OriginForm,
+        headers: Vec<crate::request::RequestHeader>,
+    ) -> Result<crate::http1::Http1UpgradeOpening, crate::http1::Http1TlsError> {
+        self.state.state().binding.validate_connect(route)?;
+        let ProxyOpeningState {
+            stream,
+            connector,
+            binding,
+        } = *self.state.into_state();
+        let connector = connector.http1_connector(protocols)?;
+        connector
+            .finish_proxy_upgrade(stream, binding, route, target, headers)
+            .await
+    }
+
     /// Sends this claimant's CONNECT and starts the actual origin protocol.
     ///
     /// Binding validation precedes proxy TLS or CONNECT. Once polled,
@@ -92,6 +121,33 @@ impl Http1Or2ProxyOpening {
             binding,
         } = *opening.state.into_state();
         connector.finish_proxy_opening(stream, binding, route).await
+    }
+
+    /// Finishes this claimant's tunnel and verified origin H2 setup without
+    /// emitting WebSocket HEADERS. Uses the extended-CONNECT settings and
+    /// retains the original origin TLS, proxy TLS and credential contexts.
+    ///
+    /// # Errors
+    ///
+    /// Rejects a changed binding or invalid extended-CONNECT fields before
+    /// I/O, and returns the existing proxy, authentication and TLS errors.
+    pub async fn finish_extended_connect(
+        self,
+        route: HttpConnectRoute<'_>,
+        authority: &str,
+        target: crate::request::OriginForm,
+        headers: Vec<crate::request::RequestHeader>,
+    ) -> Result<crate::http2::Http2ExtendedConnectOpening, crate::http2::Http2TlsError> {
+        self.state.state().binding.validate_connect(route)?;
+        let ProxyOpeningState {
+            stream,
+            connector,
+            binding,
+        } = *self.state.into_state();
+        connector
+            .http2_connector()
+            .finish_proxy_extended_connect(stream, binding, route, authority, target, headers)
+            .await
     }
 }
 

@@ -297,6 +297,52 @@ impl Http1TlsConnector {
         ))
     }
 
+    pub(crate) async fn finish_proxy_upgrade(
+        &self,
+        stream: ProxyStream,
+        binding: ProxyBinding,
+        route: HttpConnectRoute<'_>,
+        target: crate::request::OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOpening, Http1TlsError> {
+        binding.validate_connect(route)?;
+        let prepared = PreparedGet::new(target, headers)?;
+        let span = upgrade_span(&Http1Route::Origin(OriginRoute::Tls {
+            tcp: TcpRoute::HttpConnect(route),
+            server_name: binding.server_name()?,
+            setup: DirectTlsSetup::Default,
+        }));
+        let outcome = OperationOutcome::new(&span);
+        let result = async {
+            let (leg, server_name) = binding
+                .finish_connect(
+                    stream,
+                    route,
+                    self.dialer(),
+                    self.proxy_credentials.as_ref(),
+                )
+                .await?;
+            let stream = self.tls.connect(&server_name, leg).await?;
+            require_http1_selected(&stream)?;
+            Ok::<_, Http1TlsError>(stream)
+        }
+        .instrument(span.clone())
+        .await;
+        let classified = connection_outcome(&result);
+        match result {
+            Ok(stream) => Ok(Http1UpgradeOpening::new(
+                super::upgrade_opening::OpeningStream::ProxyTls(stream),
+                prepared,
+                span,
+                outcome,
+            )),
+            Err(error) => {
+                outcome.finish(classified);
+                Err(error)
+            }
+        }
+    }
+
     fn slower_proxy_opening(
         &self,
         attempt: SlowerAttempt,

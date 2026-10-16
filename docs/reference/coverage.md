@@ -201,11 +201,19 @@ Supported:
   Origin TLS uses the original connector. Only the claimant sends its
   current application headers and body.
 
+- With the configured backup TCP policy, exact and profile-policy
+  `wss://` openings use quiet spares through plaintext CONNECT or HTTPS
+  proxies using outer H1. H1 uses Upgrade; inner H2 uses extended CONNECT.
+  Physical spare adoption precedes primary proxy TLS or CONNECT. Claims
+  supply current authentication and WebSocket fields. A quiet spare sends
+  no CONNECT, origin TLS or WebSocket request. Verified inner H2 activation
+  closes redundant spares before WebSocket HEADERS.
+
 Not modeled:
 
 - Parts of Firefox's address selection: keeping the slower connection, and
-  remembering the address family, on proxy WebSockets and proxy setup
-  with early data; sharing a forwarding connection between origins; and
+  remembering the address family, on other proxy WebSocket paths and proxy
+  setup with early data; sharing a forwarding connection between origins; and
   noticing at once that a server
   closed an idle connection, which can make Firefox remember a family longer.
 - Chromium's resolver behavior before racing: its own address sorting,

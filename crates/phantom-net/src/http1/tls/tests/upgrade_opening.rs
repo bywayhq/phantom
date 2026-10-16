@@ -131,3 +131,5 @@ async fn invalid_upgrade_fields_fail_before_connecting() -> TestResult<()> {
     })
     .await
 }
+
+mod proxy;

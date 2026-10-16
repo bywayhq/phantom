@@ -222,6 +222,149 @@ async fn pooled_tls_connector(
     }
 }
 
+// Only the physical proxy's configured backup selector enables staged setup.
+// Other routes retain their existing connector and protocol selection.
+fn retains_proxy(client: &Client, connector: &Http1TlsConnector, route: &Route) -> bool {
+    let Route::HttpProxy(proxy) = route else {
+        return false;
+    };
+    if proxy.uses_http2() {
+        return false;
+    }
+    let settings = if proxy.uses_tls() {
+        client
+            .inner
+            .websocket_https_proxy
+            .as_ref()
+            .and_then(|connector| connector.tcp_settings())
+    } else {
+        connector.tcp_settings()
+    };
+    settings.is_some_and(|settings| {
+        matches!(
+            settings.address_selection,
+            phantom_profile::TcpAddressSelection::Backup(_)
+        )
+    })
+}
+
+async fn upgrade_proxy(
+    client: &Client,
+    selection: Http1UpgradeConnector,
+    endpoint: &Endpoint,
+    route: &Route,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+) -> Result<(Http1UpgradeOpening, OpeningOwner), WebSocketError> {
+    let setup = |error| WebSocketError::request(RequestError::http1_connection_setup(error));
+    let proxy = route.as_http_proxy().ok_or_else(|| {
+        WebSocketError::request(RequestError::unsupported_route(HttpProtocol::Http1))
+    })?;
+    let connectors = client.inner.connectors_for(endpoint);
+    let owner = if matches!(selection, Http1UpgradeConnector::PolicyAlpn)
+        && connectors.http1_or_2.is_some()
+    {
+        OpeningOwner::Negotiated(
+            client
+                .state
+                .http1_or_2
+                .proxy_upgrade_opening(endpoint, route)
+                .await,
+        )
+    } else {
+        OpeningOwner::Exact(
+            client
+                .state
+                .http1
+                .proxy_upgrade_opening(endpoint, route)
+                .await,
+        )
+    };
+    let outer = if proxy.uses_tls() {
+        let base = client.inner.websocket_https_proxy.as_ref().ok_or_else(|| {
+            WebSocketError::request(RequestError::unsupported_route(HttpProtocol::Http1))
+        })?;
+        Some(
+            match &owner {
+                OpeningOwner::Exact(owner) => owner.proxy_connector(base, endpoint, route),
+                OpeningOwner::Negotiated(owner) => owner.proxy_connector(base, endpoint, route),
+            }
+            .map_err(WebSocketError::request)?,
+        )
+    } else {
+        None
+    };
+    let proxy_endpoint = phantom_net::route::Endpoint {
+        host: proxy.host(),
+        port: proxy.port(),
+    };
+    let transport = match &outer {
+        Some(connector) => ProxyTransport::Tls {
+            endpoint: proxy_endpoint,
+            server_name: proxy.host(),
+            connector,
+        },
+        None => ProxyTransport::Tcp(proxy_endpoint),
+    };
+    let authority = endpoint.tunnel_authority();
+    let connect = HttpConnectRoute {
+        proxy: transport,
+        authority: &authority,
+        headers: proxy.ordered_connect_headers(),
+        credentials: proxy.authentication(),
+    };
+    let opening = match &owner {
+        OpeningOwner::Exact(owner) => {
+            let base = connectors
+                .http1
+                .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
+            let mut connector = owner
+                .proxy_origin_connector(base, endpoint, route)
+                .map_err(WebSocketError::request)?;
+            if matches!(selection, Http1UpgradeConnector::PolicyAlpn) {
+                let websocket = client
+                    .inner
+                    .websocket
+                    .as_ref()
+                    .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
+                connector = connector
+                    .with_alpn_protocols(&websocket.connection.http1_alpn_protocols)
+                    .map_err(setup)?;
+            }
+            let protocols = connector.alpn_protocols();
+            crate::session::box_send(
+                owner
+                    .open_proxy_upgrade(&connector, connect, &protocols, endpoint, target, headers),
+            )
+            .await
+        }
+        OpeningOwner::Negotiated(owner) => {
+            let base = connectors
+                .http1_or_2
+                .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
+            let connector = owner
+                .proxy_origin_connector(base, endpoint, route)
+                .map_err(WebSocketError::request)?;
+            let websocket = client
+                .inner
+                .websocket
+                .as_ref()
+                .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
+            crate::session::box_send(owner.open_proxy_upgrade(
+                &connector,
+                connect,
+                &websocket.connection.http1_alpn_protocols,
+                endpoint,
+                target,
+                headers,
+            ))
+            .await
+        }
+    }
+    .map_err(WebSocketError::request)?;
+    Ok((opening, owner))
+}
+
 impl WebSocketRequestBuilder {
     pub(super) async fn connect_http1(
         self,
@@ -302,6 +445,8 @@ impl WebSocketRequestBuilder {
             None
         };
         let connector = pooled.as_ref().unwrap_or(base);
+        let retain_proxy = request.transport == WebSocketTransport::Tls
+            && retains_proxy(&client, connector, route);
         let mut opening_owner = None;
         let outcome = if matches!(route, Route::Direct) {
             let plaintext = request.transport == WebSocketTransport::Plaintext;
@@ -347,6 +492,18 @@ impl WebSocketRequestBuilder {
                 }
                 Err(error) => Err(error),
             }
+        } else if retain_proxy {
+            let (opening, owner) = upgrade_proxy(
+                &client,
+                upgrade_connector,
+                &request.endpoint,
+                route,
+                request.target,
+                prepared.headers,
+            )
+            .await?;
+            opening_owner = Some(owner);
+            opening.send().await
         } else {
             let authority = request.endpoint.tunnel_authority();
             let proxy_connector = if let Route::HttpProxy(proxy) = route

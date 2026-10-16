@@ -238,6 +238,41 @@ impl Http2TlsConnector {
         }
     }
 
+    pub(crate) async fn finish_proxy_extended_connect(
+        &self,
+        stream: ProxyStream,
+        binding: ProxyBinding,
+        route: crate::route::HttpConnectRoute<'_>,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http2ExtendedConnectOpening, Http2TlsError> {
+        // Validate the claimant's stream shape before proxy TLS or CONNECT.
+        let client = self.prepare_extended_connect(authority, &target, &headers)?;
+        let connection = self
+            .trace_connect(pin!(async {
+                let (leg, server_name) = binding
+                    .finish_connect(
+                        stream,
+                        route,
+                        self.dialer(),
+                        self.proxy_credentials.as_ref(),
+                    )
+                    .await?;
+                let stream = self.tls.connect(&server_name, leg).await?;
+                let keepalive = stream.tcp_keepalive();
+                connect_over_tls(stream, client, true, keepalive).await
+            }))
+            .await?;
+        Ok(Http2ExtendedConnectOpening::new(
+            connection,
+            self.http2.clone(),
+            authority.to_owned(),
+            target,
+            headers,
+        ))
+    }
+
     /// Builds a connector from validated TLS and HTTP/2 settings.
     ///
     /// # Errors
