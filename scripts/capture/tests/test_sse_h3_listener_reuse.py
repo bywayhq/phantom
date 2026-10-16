@@ -4,6 +4,7 @@ import asyncio
 import dataclasses
 import sys
 import unittest
+from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -17,9 +18,42 @@ from scripts.capture.sse_reconnect import (
 from scripts.capture.tests.test_sse_reconnect_h3 import H3EventSource
 
 
+@contextmanager
+def observe_native_closed_peer(transport):
+    """Observe the real Proactor completion without changing its result."""
+    proactor = asyncio.get_running_loop()._proactor
+    socket = transport._sock
+    original = proactor.recvfrom
+    observed = SimpleNamespace(ready=asyncio.Event(), completion=None, errors=[])
+
+    def completed(future):
+        if future.cancelled():
+            return
+        error = future.exception()
+        if error is not None:
+            observed.errors.append(error)
+        elif future.result() == (b"", None):
+            # CPython's _finish_recvfrom uses this result for the native
+            # ERROR_PORT_UNREACHABLE. A received UDP datagram has an address.
+            observed.completion = future
+            observed.ready.set()
+
+    def recvfrom(conn, *args, **kwargs):
+        future = original(conn, *args, **kwargs)
+        if conn is socket:
+            future.add_done_callback(completed)
+        return future
+
+    transport._read_fut.add_done_callback(completed)
+    with patch.object(proactor, "recvfrom", new=recvfrom):
+        yield observed
+
+
 class H3ListenerReuseTests(unittest.IsolatedAsyncioTestCase):
     @unittest.skipUnless(sys.platform == "win32", "Windows Proactor UDP ICMP delivery")
-    async def test_fresh_client_after_real_cleanup_error_receives_verified_h3(self):
+    async def test_original_listener_receives_h3_after_native_closed_peer_completion(
+        self,
+    ):
         server = H3ReconnectServer()
         await server.start("127.0.0.1", 0)
         scenario = dataclasses.replace(
@@ -30,18 +64,16 @@ class H3ListenerReuseTests(unittest.IsolatedAsyncioTestCase):
         client = H3EventSource(server.url(first))
         started = False
         cleanup = None
-        entered, release, observed = asyncio.Event(), asyncio.Event(), asyncio.Event()
+        entered, release = asyncio.Event(), asyncio.Event()
         old_transport, old_endpoint = server.transport, server.endpoint
         old_socket = old_transport.get_extra_info("socket")
         old_address = server.address
-        errors, receive_futures = [], []
+        errors = []
         original_error = server.udp_error
 
         def observe(error):
             errors.append(error)
-            receive_futures.append(old_transport._read_fut)
             original_error(error)
-            observed.set()
 
         server.udp_error = observe
         try:
@@ -79,16 +111,18 @@ class H3ListenerReuseTests(unittest.IsolatedAsyncioTestCase):
             protocol.wait_closed = held_wait
             cleanup = asyncio.create_task(server.finish_run())
             await asyncio.wait_for(entered.wait(), 2)
-            old_transport.sendto(b"closed-owned-peer", peer_address)
-            await asyncio.wait_for(observed.wait(), 2)
-            self.assertEqual([error.winerror for error in errors], [1234])
-            self.assertEqual(receive_futures, [None])
+            with observe_native_closed_peer(old_transport) as native:
+                old_transport.sendto(b"closed-owned-peer", peer_address)
+                await asyncio.wait_for(native.ready.wait(), 2)
+                self.assertFalse(native.errors)
+                self.assertIsNot(old_transport._read_fut, native.completion)
+                self.assertIsNotNone(old_transport._read_fut)
+                self.assertFalse(old_transport._read_fut.done())
+            self.assertFalse(errors)
             self.assertFalse(old_transport.is_closing())
-            self.assertIsNone(old_transport._read_fut)
             self.assertFalse(server.failures)
-            self.assertEqual(
-                [code for _, code in first.udp_cleanup_disconnects], [1234]
-            )
+            self.assertFalse(first.udp_cleanup_disconnects)
+            self.assertFalse(server.replace_listener)
             release.set()
             await asyncio.wait_for(cleanup, 2)
             server.udp_error = original_error
@@ -106,9 +140,11 @@ class H3ListenerReuseTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(second.connections[0].protocol, "h3")
             self.assertIsNot(second, first)
             self.assertEqual(server.address, old_address)
-            self.assertIsNot(server.endpoint, old_endpoint)
-            self.assertTrue(old_transport.is_closing())
-            self.assertEqual(old_socket.fileno(), -1)
+            self.assertIs(server.transport, old_transport)
+            self.assertIs(server.endpoint, old_endpoint)
+            self.assertIs(server.transport.get_extra_info("socket"), old_socket)
+            self.assertFalse(old_transport.is_closing())
+            self.assertNotEqual(old_socket.fileno(), -1)
             self.assertFalse(server.failures)
         finally:
             release.set()

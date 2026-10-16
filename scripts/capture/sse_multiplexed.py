@@ -8,6 +8,7 @@ a stream reset before response headers is the reset stimulus on these protocols.
 from __future__ import annotations
 
 import asyncio
+import sys
 from dataclasses import replace
 from urllib.parse import parse_qs, urlsplit
 
@@ -370,6 +371,13 @@ class H3ReconnectServer(MultiplexedServer):
             self.failed(error, self.run)
 
     async def start(self, host, port):
+        if sys.platform == "win32" and (
+            sys.implementation.name != "cpython" or sys.version_info[:3] < (3, 12, 3)
+        ):
+            raise RuntimeError(
+                "Windows SSE H3 capture requires CPython 3.12.3 or later"
+            )
+
         from aioquic.asyncio import QuicConnectionProtocol
         from aioquic.asyncio.server import QuicServer
         from aioquic.buffer import Buffer, BufferReadError

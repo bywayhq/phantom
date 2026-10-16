@@ -1,6 +1,7 @@
 """Owned SSE teardown classifies only known, terminal peer disconnects."""
 
 import asyncio
+import builtins
 import dataclasses
 import errno
 import socket
@@ -10,7 +11,9 @@ import sys
 import threading
 import unittest
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
+from scripts.capture import sse_multiplexed
 from scripts.capture.sse_multiplexed import (
     MAX_CONNECTIONS,
     H2ReconnectServer,
@@ -22,6 +25,7 @@ from scripts.capture.sse_reconnect import (
     ReconnectServer,
     ScenarioRun,
 )
+from scripts.capture.tests.test_sse_h3_listener_reuse import observe_native_closed_peer
 from scripts.capture.tests.test_sse_reconnect_h2 import H2EventSource
 from scripts.capture.tests.test_sse_reconnect_h3 import H3EventSource
 
@@ -365,6 +369,92 @@ class H2CleanupTests(unittest.IsolatedAsyncioTestCase):
 
 
 class H3CleanupBoundaryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_windows_runtime_preflight_precedes_h3_imports_and_sockets(self):
+        cases = (
+            ("win32", "cpython", (3, 10, 20), False),
+            ("win32", "cpython", (3, 11, 8), False),
+            ("win32", "cpython", (3, 11, 9), False),
+            ("win32", "cpython", (3, 12, 0), False),
+            ("win32", "cpython", (3, 12, 1), False),
+            ("win32", "cpython", (3, 12, 2), False),
+            ("win32", "cpython", (3, 12, 3), True),
+            ("win32", "cpython", (3, 12, 4), True),
+            ("win32", "cpython", (3, 13, 0), True),
+            ("win32", "pypy", (3, 12, 4), False),
+            ("linux", "cpython", (3, 10, 20), True),
+            ("darwin", "cpython", (3, 10, 20), True),
+        )
+        original_import = builtins.__import__
+        for platform, implementation, version, allowed in cases:
+            with self.subTest(
+                platform=platform, implementation=implementation, version=version
+            ):
+                server = H3ReconnectServer()
+                reached_import = ImportError("H3 import boundary reached")
+                imports = []
+
+                def import_boundary(
+                    name,
+                    *args,
+                    imports=imports,
+                    reached_import=reached_import,
+                    **kwargs,
+                ):
+                    if name.startswith("aioquic"):
+                        imports.append(name)
+                        raise reached_import
+                    return original_import(name, *args, **kwargs)
+
+                runtime = SimpleNamespace(
+                    platform=platform,
+                    implementation=SimpleNamespace(name=implementation),
+                    version_info=version,
+                )
+                with (
+                    patch.object(sse_multiplexed, "sys", runtime),
+                    patch("builtins.__import__", side_effect=import_boundary),
+                    patch.object(
+                        asyncio.get_running_loop(),
+                        "create_datagram_endpoint",
+                        new=AsyncMock(),
+                    ) as bind,
+                ):
+                    if allowed:
+                        with self.assertRaises(ImportError) as raised:
+                            await server.start("127.0.0.1", 0)
+                        self.assertIs(raised.exception, reached_import)
+                        self.assertEqual(imports, ["aioquic.asyncio"])
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, "CPython 3.12.3"):
+                            await server.start("127.0.0.1", 0)
+                        self.assertFalse(imports)
+                    bind.assert_not_awaited()
+                self.assertIsNone(server.transport)
+                self.assertIsNone(server.endpoint)
+
+    async def test_h1_and_h2_do_not_apply_the_windows_h3_runtime_floor(self):
+        runtime = SimpleNamespace(
+            platform="win32",
+            implementation=SimpleNamespace(name="pypy"),
+            version_info=(3, 10, 20),
+        )
+        for server_type in (ReconnectServer, H2ReconnectServer):
+            with self.subTest(server=server_type.__name__):
+                server = server_type()
+                listener = SimpleNamespace(
+                    sockets=[SimpleNamespace(getsockname=lambda: ("127.0.0.1", 1234))]
+                )
+                with (
+                    patch.object(sse_multiplexed, "sys", runtime),
+                    patch.object(
+                        asyncio, "start_server", new=AsyncMock(return_value=listener)
+                    ) as bind,
+                ):
+                    await server.start("127.0.0.1", 0)
+                    bind.assert_awaited_once()
+                self.assertIs(server.server, listener)
+                self.assertEqual(server.address, ("127.0.0.1", 1234))
+
     def state(self):
         server = H3ReconnectServer()
         run = ScenarioRun(CATALOG[0], "udp-cleanup")
@@ -452,7 +542,7 @@ class H3CleanupBoundaryTests(unittest.IsolatedAsyncioTestCase):
         server.cleanup.cancel()
 
     @unittest.skipUnless(sys.platform == "win32", "Windows Proactor UDP ICMP delivery")
-    async def test_actual_closed_udp_peer_is_observed_during_owned_h3_cleanup(self):
+    async def test_native_closed_peer_keeps_original_h3_listener_receiving(self):
         server = H3ReconnectServer()
         await server.start("127.0.0.1", 0)
         scenario = dataclasses.replace(
@@ -463,16 +553,15 @@ class H3CleanupBoundaryTests(unittest.IsolatedAsyncioTestCase):
         client = H3EventSource(server.url(run))
         started = False
         cleanup = None
-        entered, release, disconnected = (
-            asyncio.Event(),
-            asyncio.Event(),
-            asyncio.Event(),
-        )
+        entered, release = asyncio.Event(), asyncio.Event()
+        original_transport, original_endpoint = server.transport, server.endpoint
+        original_socket = original_transport.get_extra_info("socket")
         original_udp_error = server.udp_error
+        errors = []
 
         def observe(error):
+            errors.append(error)
             original_udp_error(error)
-            disconnected.set()
 
         server.udp_error = observe
         try:
@@ -517,13 +606,19 @@ class H3CleanupBoundaryTests(unittest.IsolatedAsyncioTestCase):
             self.assertIsNone(server.run)
             self.assertIsNotNone(server.cleanup)
             self.assertFalse(server.cleanup.done())
-            # One actual datagram to the now-closed owned client endpoint asks
-            # Windows to deliver ICMP through the server's real UDP transport.
-            # error_received does not identify that endpoint in its observation.
-            server.transport.sendto(b"closed-peer-probe", peer_address)
-            await asyncio.wait_for(disconnected.wait(), 2)
+            # Require the fixed native receive completion, not just absence
+            # of error_received after sending to this closed owned endpoint.
+            with observe_native_closed_peer(original_transport) as native:
+                server.transport.sendto(b"closed-peer-probe", peer_address)
+                await asyncio.wait_for(native.ready.wait(), 2)
+                self.assertFalse(native.errors)
+                self.assertIsNot(original_transport._read_fut, native.completion)
+                self.assertIsNotNone(original_transport._read_fut)
+                self.assertFalse(original_transport._read_fut.done())
+            self.assertFalse(errors)
             self.assertFalse(server.failures)
-            self.assertEqual([code for _, code in run.udp_cleanup_disconnects], [1234])
+            self.assertFalse(run.udp_cleanup_disconnects)
+            self.assertFalse(server.replace_listener)
             release.set()
             await asyncio.wait_for(cleanup, 2)
             self.assertFalse(server.protocols)
@@ -534,9 +629,30 @@ class H3CleanupBoundaryTests(unittest.IsolatedAsyncioTestCase):
             text = fixture(
                 scenario, [run], dataclasses.replace(METADATA, protocol="h3")
             )
-            self.assertIn("_udp_cleanup_disconnect_count=1", text)
-            self.assertIn("winerror:1234", text)
+            self.assertIn("_udp_cleanup_disconnect_count=0", text)
+            self.assertNotIn("winerror:1234", text)
             self.assertNotIn("_close_code=1234", text)
+
+            following = ScenarioRun(scenario, "same-native-listener")
+            server.run = following
+            client = H3EventSource(server.url(following))
+            await asyncio.wait_for(client.start(server), 2)
+            started = True
+            status, _, _ = await client.fetch(
+                server.url(following).replace(
+                    following.page_path(), following.stream_path()
+                ),
+                (),
+            )
+            self.assertEqual(status, 204)
+            await asyncio.wait_for(following.done.wait(), 2)
+            self.assertEqual(following.connections[0].protocol, "h3")
+            self.assertIs(server.transport, original_transport)
+            self.assertIs(server.endpoint, original_endpoint)
+            self.assertIs(server.transport.get_extra_info("socket"), original_socket)
+            self.assertFalse(original_transport.is_closing())
+            self.assertNotEqual(original_socket.fileno(), -1)
+            self.assertFalse(server.failures)
         finally:
             release.set()
             try:
