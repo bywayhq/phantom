@@ -68,7 +68,7 @@ async fn an_actual_physical_refusal_leaves_an_already_started_complete_sibling_a
             let first = count.fetch_add(1, Ordering::Relaxed) == 0;
             async move {
                 Ok(vec![if first {
-                    Ipv4Addr::new(127, 0, 0, 2).into()
+                    Ipv6Addr::LOCALHOST.into()
                 } else {
                     Ipv4Addr::LOCALHOST.into()
                 }])

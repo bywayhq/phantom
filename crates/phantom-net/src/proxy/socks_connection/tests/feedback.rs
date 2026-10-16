@@ -2,7 +2,7 @@ use super::*;
 use phantom_profile::{DnsAddressFailurePolicy, browser::chrome};
 use std::{num::NonZeroUsize, sync::Mutex};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-const REFUSED: IpAddr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2));
+const REFUSED: IpAddr = IpAddr::V6(Ipv6Addr::LOCALHOST);
 const REACHED: IpAddr = IpAddr::V4(Ipv4Addr::LOCALHOST);
 const TARGET: IpAddr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 3));
 async fn first(resolver: &HostResolver, host: &str, port: u16) -> TestResult<SocketAddr> {

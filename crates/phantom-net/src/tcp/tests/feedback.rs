@@ -7,7 +7,7 @@ use crate::{
 use phantom_profile::{DnsAddressFailurePolicy, browser::chrome};
 use std::{
     io,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     num::NonZeroUsize,
     sync::{Arc, Mutex},
     time::Duration,
@@ -18,7 +18,7 @@ use tokio::{
 };
 
 const WAIT: Duration = Duration::from_secs(5);
-const REFUSED: IpAddr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 2));
+const REFUSED: IpAddr = IpAddr::V6(Ipv6Addr::LOCALHOST);
 const REACHED: IpAddr = IpAddr::V4(Ipv4Addr::LOCALHOST);
 const TARGET: IpAddr = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 3));
 
