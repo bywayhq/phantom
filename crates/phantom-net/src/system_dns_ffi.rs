@@ -11,7 +11,7 @@ pub(crate) mod configuration_watch;
 use std::{
     ffi::{CStr, CString},
     io,
-    mem::size_of,
+    mem::{MaybeUninit, size_of},
     net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
     ptr,
     time::Instant,
@@ -62,14 +62,17 @@ pub(crate) fn resolve(host: &str) -> io::Result<(Vec<SocketAddr>, SystemTtl)> {
         ai_socktype: SOCK_STREAM,
         ..ADDRINFOA::default()
     };
-    let mut head = ptr::null_mut();
+    let mut head = MaybeUninit::<*mut ADDRINFOA>::uninit();
     // SAFETY: name/hints/output remain live for this synchronous call. The
     // lease initialized Winsock; all unused hint fields and service are null.
-    let status = unsafe { getaddrinfo(name.as_ptr().cast(), ptr::null(), &hints, &mut head) };
+    let status =
+        unsafe { getaddrinfo(name.as_ptr().cast(), ptr::null(), &hints, head.as_mut_ptr()) };
     if status != 0 {
         return Err(io::Error::from_raw_os_error(status));
     }
-    let list = AddressList(head);
+    // SAFETY: getaddrinfo initializes its output pointer on success. The
+    // returned list is adopted immediately and freed exactly once by its owner.
+    let list = AddressList(unsafe { head.assume_init() });
 
     let addresses = list.addresses()?;
     let ttl = if addresses.is_empty() {
