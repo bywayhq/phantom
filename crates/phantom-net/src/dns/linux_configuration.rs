@@ -104,10 +104,7 @@ pub(crate) struct LinuxDnsIneligibility {
 #[derive(Debug)]
 pub(crate) enum LinuxDnsEligibility {
     BuiltIn(LinuxDnsConfiguration),
-    SystemOnly {
-        configuration: LinuxDnsConfiguration,
-        reasons: LinuxDnsIneligibility,
-    },
+    SystemOnly { reasons: LinuxDnsIneligibility },
 }
 
 /// File-only legacy-syntax projection; not an effective native configuration.
@@ -215,10 +212,7 @@ pub(crate) fn chromium_linux_with_overrides(
         nsswitch: !nsswitch_compatible(nsswitch, &configuration.servers)?,
     };
     if reasons.use_vc || reasons.nsswitch {
-        Ok(LinuxDnsEligibility::SystemOnly {
-            configuration,
-            reasons,
-        })
+        Ok(LinuxDnsEligibility::SystemOnly { reasons })
     } else {
         Ok(LinuxDnsEligibility::BuiltIn(configuration))
     }
