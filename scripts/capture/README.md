@@ -192,6 +192,7 @@ Android as an arm64 build only; run it on an arm64 emulator.
 | WebSocket openings over HTTP/2 and HTTP/1.1 | [`http2_websocket.py`](#websocket-openings) | `fixtures/websocket/` |
 | EventSource reconnects over HTTP/1.1, HTTP/2 or HTTP/3 | [`sse_reconnect.py`](#eventsource-reconnects) | `fixtures/sse/` |
 | Safari HTTP EventSource reconnects on hosted macOS | [Safari capture](SAFARI.md) | Reviewed workflow artifacts |
+| Headed Chrome HTTP reconnects on arm64 and Intel Macs | [macOS capture](MACOS.md) | Installed identity and request bytes |
 | Decrypted `wss://` openings through HTTP, HTTPS or SOCKS5 proxies | [`tunnelled_websocket.py`](#tunnelled-websocket-openings) | `fixtures/tunnelled-websocket/` |
 | Alt-Svc racing between QUIC and TCP | [`alt_svc_race.py`](#alt-svc-racing) | `fixtures/alt-svc/` |
 | Plaintext requests and `ws://` openings through HTTP proxies | [`proxy_route.py`](#proxy-routes) | `fixtures/proxy/` |
