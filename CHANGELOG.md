@@ -2781,6 +2781,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Allow Windows capture cleanup to collect a job after a snapshotted process
+  exits before its handle can be opened. Check that the process has left the
+  owned job before accepting its absence; retain other collection failures.
+
 - Keep Firefox SOCKS request and WebSocket backup retention enabled when
   the profile permits direct TLS early data. Origin TLS over SOCKS uses
   an ordinary handshake.

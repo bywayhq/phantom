@@ -480,7 +480,16 @@ class ProcessContainer:
                         raise TimeoutError(
                             "capture job collection exceeded cleanup deadline"
                         )
-                    handle = _windows_open_process(pid)
+                    try:
+                        handle = _windows_open_process(pid)
+                    except OSError as error:
+                        # A snapshot member may exit before OpenProcess. Only a
+                        # fresh query of this owned job can establish absence.
+                        if getattr(
+                            error, "winerror", None
+                        ) == 87 and pid not in _windows_process_ids(self.job, deadline):
+                            continue
+                        raise
                     self._native_handles.append(handle)
                     try:
                         member = _windows_in_job(handle, self.job)
