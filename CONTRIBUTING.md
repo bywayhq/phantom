@@ -181,6 +181,12 @@ uv run --no-project --python 3.10 \
 uv run --no-project --python 3.10 python scripts/docs/check_docs.py
 ```
 
+On Windows, replace `--python 3.10` in the capture-test command with
+`--python "$(cat scripts/capture/windows-python-version.txt)"`. The gate
+selects this interpreter automatically. Other Python checks keep Python 3.10.
+Windows SSE over HTTP/3 requires CPython 3.12.3 or later because older
+receive loops can stop when a UDP peer closes.
+
 - Never run `cargo fmt --all`: it also formats path dependencies and rewrites
   the vendored forks.
 - Read the output of every command. A list joined with `;` or piped through

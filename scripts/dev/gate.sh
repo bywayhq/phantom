@@ -376,6 +376,13 @@ if [[ $quick == true ]]; then
 fi
 clippy=(cargo clippy -j "$jobs" --workspace --all-targets --all-features --locked -- -D warnings)
 python=(uv run --no-project --python 3.10)
+capture_python=("${python[@]}")
+case "$(uname -s)" in
+  MINGW* | MSYS* | CYGWIN*)
+    capture_version=$(tr -d '\r\n' <scripts/capture/windows-python-version.txt)
+    capture_python=(uv run --no-project --python "$capture_version")
+    ;;
+esac
 
 # Each chain runs in the background, its steps in order. The full gate has
 # four Cargo chains, one per default slot, so it does not queue behind itself.
@@ -418,7 +425,7 @@ chain_python() {
   local ruff=(uvx ruff@0.16.9) paths=(scripts/capture scripts/conformance scripts/dev scripts/docs)
   run_step ruff-check - "${ruff[@]}" check "${paths[@]}"
   run_step ruff-format - "${ruff[@]}" format --check "${paths[@]}"
-  run_step capture-tests - "${python[@]}" --with aioquic==1.3.0 --with h2==4.4.1 \
+  run_step capture-tests - "${capture_python[@]}" --with aioquic==1.3.0 --with h2==4.4.1 \
     --with hpack==4.2.0 python -m unittest discover -s scripts/capture/tests -p 'test_*.py'
   run_step conformance-tests - "${python[@]}" --with aioquic==1.3.0 \
     python -m unittest discover -s scripts/conformance/tests -p 'test_*.py'

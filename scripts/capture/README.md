@@ -13,7 +13,8 @@ A fixture is raw evidence recorded on the capture machine, not a report from a
 third-party fingerprinting service. Why each retained capture exists, and what
 it proves, belongs in [Validation](../../docs/explanation/validation.md).
 Run every command from the repository root; the Python tools need Python
-3.10. Every listener refuses a non-loopback address.
+3.10 or later. Windows SSE captures over HTTP/3 require CPython 3.12.3 or
+later. Every listener refuses a non-loopback address.
 
 ## Quick fingerprint snapshot
 
@@ -771,6 +772,17 @@ require the requested protocol on every recorded connection. Their
 identities, resets and closes. They do not retain compressed HPACK or QPACK
 representations. Ending a stream replaces the H1 FIN stimulus; resetting a
 stream replaces the H1 reset stimulus.
+
+On Windows, HTTP/3 requires CPython 3.12.3 or later so a closed UDP peer
+does not stop the listener's receive loop. The tool rejects older runtimes.
+Use the same pinned interpreter as the Windows capture tests:
+
+```sh
+uv run --no-project \
+  --python "$(cat scripts/capture/windows-python-version.txt)" \
+  --with-requirements scripts/requirements.txt \
+  python -m scripts.capture.sse_reconnect --protocol h3 <browser-options>
+```
 
 Pass `args: ["--protocol", "h3"]` in a `sse_reconnect` manifest entry. The
 runner appends the protocol to its job ID. Files still use `<scenario>.txt`,

@@ -194,6 +194,12 @@ uv run --no-project --python 3.10 \
 uv run --no-project --python 3.10 python scripts/docs/check_docs.py
 ```
 
+On Windows, the capture-test command uses the interpreter pinned in
+`scripts/capture/windows-python-version.txt` instead of Python 3.10. The
+gate selects it automatically; the other Python commands keep Python 3.10.
+Windows SSE over HTTP/3 requires CPython 3.12.3 or later to keep receiving
+after a closed UDP peer reports an ICMP error.
+
 nextest runs each test in its own process and does not run doctests, hence
 the separate `cargo test --doc`; without nextest, `cargo test --workspace
 --all-targets --all-features --locked` runs the same tests. The script also

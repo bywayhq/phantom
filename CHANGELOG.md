@@ -2801,6 +2801,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Keep Windows SSE HTTP/3 capture listeners receiving after a UDP peer
+  closes by requiring CPython 3.12.3 or later. The Windows gate and CI now
+  run the capture tests with the same pinned interpreter.
+
 - Preserve active Windows TLS read resets as SSE capture failures. Record
   terminal resets only after observation ends and `writer.close()` succeeds.
 
