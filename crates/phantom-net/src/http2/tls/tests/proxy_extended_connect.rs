@@ -88,13 +88,11 @@ async fn proxy_finish_installs_extended_connect_settings_with_original_tls_and_f
                     assert_eq!(request.extensions().get::<::http2::ext::Protocol>().map(|p| p.as_str()), Some("websocket"));
                     assert_eq!(request.headers().get("x-claim").ok_or("missing claimant field")?, "current");
                     let _send = respond.send_response(Response::new(()), false)?;
-                    loop {
-                        match connection.accept().await {
-                            None => break,
-                            Some(Err(error)) if error.get_io().is_some_and(|e| matches!(e.kind(), std::io::ErrorKind::ConnectionAborted | std::io::ErrorKind::ConnectionReset | std::io::ErrorKind::BrokenPipe)) => break,
-                            Some(Err(error)) => return Err(error.into()),
-                            Some(Ok(_)) => return Err("duplicate application HEADERS".into()),
-                        }
+                    match connection.accept().await {
+                        None => {},
+                        Some(Err(error)) if error.get_io().is_some_and(|e| matches!(e.kind(), std::io::ErrorKind::ConnectionAborted | std::io::ErrorKind::ConnectionReset | std::io::ErrorKind::BrokenPipe)) => {},
+                        Some(Err(error)) => return Err(error.into()),
+                        Some(Ok(_)) => return Err("duplicate application HEADERS".into()),
                     }
                     TestResult::Ok(())
                 };
@@ -181,6 +179,7 @@ async fn proxy_extended_connect_resumes_the_original_origin_ticket_context() -> 
                 credentials: None,
             };
             let family = AddressFamilyMemory::new();
+            let (peer_ready, peer_handshake) = oneshot::channel();
             let caller = async {
                 let mut seed = original
                     .tls
@@ -214,6 +213,7 @@ async fn proxy_extended_connect_resumes_the_original_origin_ticket_context() -> 
                         )
                         .await?
                 };
+                peer_handshake.await?;
                 drop(opening);
                 TestResult::Ok(())
             };
@@ -242,6 +242,9 @@ async fn proxy_extended_connect_resumes_the_original_origin_ticket_context() -> 
                 let mut builder = ::http2::server::Builder::new();
                 builder.enable_connect_protocol();
                 let mut connection = builder.handshake::<_, Bytes>(tls).await?;
+                peer_ready
+                    .send(())
+                    .map_err(|_| "caller ended before peer handshake")?;
                 match connection.accept().await {
                     None => {}
                     Some(Err(error))

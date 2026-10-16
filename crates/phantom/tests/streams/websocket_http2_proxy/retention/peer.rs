@@ -50,27 +50,23 @@ pub(super) async fn serve(
     // The peer cannot send SETTINGS or accept authenticated CONNECT until
     // verified outer TLS selected h2 and the real raw backup reached EOF.
     let mut connection = ::http2::server::handshake(stream).await?;
-    let (request, mut respond) = connection
+    let (anonymous, mut challenge) = connection
         .accept()
         .await
         .ok_or("no CONNECT after backup retirement")??;
-    assert_eq!(request.method(), http::Method::CONNECT);
-    assert_eq!(
-        request.uri().authority().map(|a| a.as_str()),
-        Some(origin.to_string().as_str())
-    );
-    assert!(request.uri().scheme().is_none());
-    assert!(
-        request
-            .extensions()
-            .get::<::http2::ext::Protocol>()
-            .is_none()
-    );
-    assert_eq!(
-        request.headers()["proxy-authorization"],
-        "Basic YWxpY2U6c2VjcmV0"
-    );
-    assert_eq!(request.headers()["user-agent"], "current");
+    check_connect(&anonymous, origin, false);
+    challenge.send_response(
+        http::Response::builder()
+            .status(407)
+            .header("proxy-authenticate", "Basic realm=\"proxy\"")
+            .body(())?,
+        true,
+    )?;
+    let (request, mut respond) = connection
+        .accept()
+        .await
+        .ok_or("no authenticated CONNECT after challenge")??;
+    check_connect(&request, origin, true);
     let send = respond.send_response(http::Response::new(()), false)?;
     let upstream = TcpStream::connect(origin).await?;
     let relay = relay(request.into_body(), send, upstream);
@@ -88,10 +84,38 @@ pub(super) async fn serve(
         }
         next = connection.accept() => return unexpected_connect(next),
     }
-    // Neither another CONNECT nor a third physical proxy TCP connection is
-    // needed for the completed echo. The connection was driven until `done`.
+    // Only the challenge and its authenticated retry are permitted. Neither
+    // another CONNECT nor a third physical proxy connection is needed.
     assert!(tunnel_proxy::no_connection_arrives(&listener).await);
     Ok(())
+}
+
+fn check_connect(
+    request: &http::Request<::http2::RecvStream>,
+    origin: SocketAddr,
+    authenticated: bool,
+) {
+    assert_eq!(request.method(), http::Method::CONNECT);
+    assert_eq!(
+        request.uri().authority().map(|a| a.as_str()),
+        Some(origin.to_string().as_str())
+    );
+    assert!(request.uri().scheme().is_none());
+    assert!(
+        request
+            .extensions()
+            .get::<::http2::ext::Protocol>()
+            .is_none()
+    );
+    if authenticated {
+        assert_eq!(
+            request.headers()["proxy-authorization"],
+            "Basic YWxpY2U6c2VjcmV0"
+        );
+    } else {
+        assert!(!request.headers().contains_key("proxy-authorization"));
+    }
+    assert_eq!(request.headers()["user-agent"], "current");
 }
 
 fn unexpected_connect<T>(accepted: Option<Result<T, ::http2::Error>>) -> TestResult<()> {

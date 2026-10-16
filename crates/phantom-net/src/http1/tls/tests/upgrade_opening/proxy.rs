@@ -75,14 +75,15 @@ async fn verified(negotiated: bool) -> TestResult<()> {
         let identity = TestIdentity::generate()?;
         let acceptor = identity.acceptor(TestServerAlpn::Http1)?;
         let negotiated_connector = Http1Or2TlsConnector::new_with_additional_roots(
-            &tls_settings(), &phantom_profile::browser::firefox::v157_http2(), [identity.root_der()])?;
+            &tls_settings(), &phantom_profile::browser::firefox::v157_http2(), [identity.root_der()])?
+            .with_isolated_session_cache();
         let exact = if negotiated {
             let derived = negotiated_connector.http1_connector(&tls_settings().alpn_protocols)?;
             let original = negotiated_connector.session_ticket_cache().and_then(|cache| cache.upgrade()).ok_or("no negotiated ticket owner")?;
             let derived_owner = derived.session_ticket_cache().and_then(|cache| cache.upgrade()).ok_or("no derived ticket owner")?;
             assert!(original.same_cache(&derived_owner));
             derived
-        } else { test_connector(&identity)? };
+        } else { test_connector(&identity)?.with_isolated_session_cache() };
         let (warm_address, warm_listener) = loopback_listener().await?;
         tokio::try_join!(async {
             let response = exact.send(Http1Route::Origin(OriginRoute::Tls {

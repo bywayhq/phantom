@@ -51,11 +51,19 @@ async fn closed(stream: &mut (impl AsyncRead + Unpin)) -> TestResult<()> {
         }
     }
 }
-fn check_connect(head: &[u8], claimant: &str) -> TestResult<()> {
+fn check_connect(head: &[u8], claimant: &str, authenticated: bool) -> TestResult<()> {
     let head = std::str::from_utf8(head)?;
     assert!(head.starts_with("CONNECT 127.0.0.1:443 HTTP/1.1\r\n"));
     assert!(head.contains("\r\nHost: 127.0.0.1:443\r\n"));
-    assert!(head.contains("\r\nProxy-Authorization: Basic YWxpY2U6c2VjcmV0\r\n"));
+    if authenticated {
+        assert!(head.contains("\r\nProxy-Authorization: Basic YWxpY2U6c2VjcmV0\r\n"));
+    } else {
+        assert!(
+            !head
+                .to_ascii_lowercase()
+                .contains("\r\nproxy-authorization:")
+        );
+    }
     if !claimant.is_empty() {
         assert!(head.contains(&format!("\r\nUser-Agent: {claimant}\r\n")));
     }
@@ -78,15 +86,15 @@ pub(super) async fn serve(
         tokio::try_join!(outer(winner, proxy, https), outer(spare, proxy, https))?;
     let mut spare = Some(spare);
     let head = read_head(&mut winner).await?;
+    let claimant = if mode == Mode::Reuse { "" } else { "current" };
     check_connect(
         &head,
         if mode == Mode::Cancel {
             "first"
-        } else if mode == Mode::Reuse {
-            ""
         } else {
-            "current"
+            claimant
         },
+        false,
     )?;
     assert!(
         timeout(QUIET, spare.as_mut().ok_or("missing raw backup")?.read_u8())
@@ -105,11 +113,17 @@ pub(super) async fn serve(
         drop(winner);
         let mut spare = spare.take().ok_or("missing claimant backup")?;
         let head = read_head(&mut spare).await?;
-        check_connect(&head, "current")?;
+        check_connect(&head, claimant, false)?;
         spare
     } else {
         winner
     };
+    // This fresh client has no accepted credential record. A challenge must
+    // precede the single authenticated retry on the same physical stream.
+    stream
+        .write_all(b"HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm=\"proxy\"\r\nContent-Length: 0\r\n\r\n")
+        .await?;
+    check_connect(&read_head(&mut stream).await?, claimant, true)?;
     stream
         .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
         .await?;
