@@ -307,10 +307,11 @@ uncertainty. Research must lead to a decision, bounded experiment, or repair.
 
 ## Evidence expansion
 
-On 2026-10-15, the user confirmed that neither a Mac nor a physical Android
-device is available. The macOS and physical Android targets below remain
-unverified and need those hosts. Continue the Windows and Linux captures,
-including E1 and E2, with the available hosts.
+On 2026-10-15, the user confirmed that neither a local Mac nor a physical
+Android device is available. Hosted macOS workflows prepare the selected
+Safari HTTP and headed Chrome attempts. Those jobs have not run; a local
+Mac is not required for these bounded hosted attempts. Physical Android
+remains unavailable. Continue Windows and Linux work alongside them.
 
 - [ ] E1: Compare the retained Windows H3 SSE captures and Firefox H2
   `retry-0` capture with Phantom. Resolve the three unsuccessful Chrome SSE
