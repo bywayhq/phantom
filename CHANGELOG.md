@@ -13,6 +13,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Breaking
 
+- Require CPython 3.12.3 or later for Windows SSE captures over HTTP/3.
+  Migrate: replace Python 3.10 or 3.11 in those capture commands with the
+  interpreter pinned in `scripts/capture/windows-python-version.txt`, or
+  another supported CPython version. HTTP/1 and HTTP/2 captures keep their
+  existing runtime requirements.
+
 - Remember failed TCP addresses on Firefox desktop's cached DNS records.
   Migrate: add `address_failure_policy: DnsAddressFailurePolicy::Ignore` to
   `DnsCacheSettings` literals to retain the previous behavior. Strict
@@ -2800,10 +2806,6 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   rejected early data each make one for their retry.
 
 ### Fixed
-
-- Keep Windows SSE HTTP/3 capture listeners receiving after a UDP peer
-  closes by requiring CPython 3.12.3 or later. The Windows gate and CI now
-  run the capture tests with the same pinned interpreter.
 
 - Preserve active Windows TLS read resets as SSE capture failures. Record
   terminal resets only after observation ends and `writer.close()` succeeds.
