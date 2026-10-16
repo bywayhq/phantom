@@ -2,6 +2,7 @@
 
 import asyncio
 import ssl
+import traceback
 import unittest
 from unittest.mock import patch
 
@@ -37,6 +38,7 @@ class ClassificationPeer:
         self.connections = {}
         self.exchanges = []
         self.failure = None
+        self.capture_failure_traceback = ()
         self.reset = None
         self.closed_response = None
         self.reset_received = asyncio.Event()
@@ -227,6 +229,10 @@ class ClassificationPeer:
             result = await asyncio.wait_for(self.resources.capture, 15)
         except BaseException as error:
             observed = error
+            # A later backup await can replace the task exception's traceback.
+            self.capture_failure_traceback = tuple(
+                traceback.format_exception(type(error), error, error.__traceback__)
+            )
         closed = await self.resources.closed_before_backup()
         return result, observed, closed
 
@@ -288,6 +294,7 @@ class ErrorClassificationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             controls.resources.h2_exchanges,
             [("/r/startup", b"200", b"ok"), ("/done?results=%5B%5D", b"204", b"")],
+            "".join(controls.capture_failure_traceback),
         )
         self.assertEqual(
             controls.resources.received,

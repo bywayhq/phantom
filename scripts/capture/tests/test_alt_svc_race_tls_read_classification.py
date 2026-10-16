@@ -109,6 +109,7 @@ class TlsReadClassificationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(
             peer.resources.h2_exchanges,
             [("/r/startup", b"200", b"ok"), ("/done?results=%5B%5D", b"204", b"")],
+            "".join(peer.capture_failure_traceback),
         )
         self.assertEqual(
             peer.resources.received,
