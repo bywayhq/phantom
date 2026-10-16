@@ -775,8 +775,11 @@ stream replaces the H1 reset stimulus.
 
 On Windows, HTTP/3 requires CPython 3.12.3 or later. The tool rejects older
 runtimes, whose asynchronous ICMP completion can stop the receive loop.
-The pinned runtime can still fail while starting a receive after a peer
-closes. The three retained Chrome H3 follow-ups hit this separate error.
+The pinned runtime can still report a synchronous receive reset after a peer
+closes. During verified completed-run cleanup, the tool records that reset
+and replaces the stopped listener within the original cleanup deadline.
+Active-run errors still fail the capture. The original failed attempts remain
+retained.
 Use the same pinned interpreter as the Windows capture tests:
 
 ```sh

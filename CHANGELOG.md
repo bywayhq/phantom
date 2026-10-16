@@ -2812,6 +2812,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Replace a stopped Windows SSE HTTP/3 listener after a synchronous receive
+  reset during completed-run cleanup. Record the actual Windows error code;
+  active-run errors and unrelated failures still stop the capture.
+
 - Correct the Windows HTTP/3 capture runtime guarantee: the required Python
   version still permits a synchronous UDP receive error after a peer closes.
 

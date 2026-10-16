@@ -349,9 +349,13 @@ class H3ReconnectServer(MultiplexedServer):
         # observation, never a QUIC close code or a per-connection attribution.
         protocols = self.protocols
         run = protocols[0].run if protocols else None
+        code = getattr(error, "winerror", None)
         if (
             isinstance(error, OSError)
-            and getattr(error, "winerror", None) == 1234
+            and (
+                code == 1234
+                or (isinstance(error, ConnectionResetError) and code == 10054)
+            )
             and self.run is None
             and self.cleanup is not None
             and not self.cleanup.done()
@@ -365,7 +369,7 @@ class H3ReconnectServer(MultiplexedServer):
             )
             and len(run.udp_cleanup_disconnects) < MAX_CONNECTIONS
         ):
-            run.udp_cleanup_disconnects.append((run.now(), 1234))
+            run.udp_cleanup_disconnects.append((run.now(), code))
             self.replace_listener = True
         else:
             self.failed(error, self.run)
@@ -595,7 +599,7 @@ class H3ReconnectServer(MultiplexedServer):
                 self.protocols.clear()
 
         if self.replace_listener and not self.stopping and not self.failures:
-            # CPython 3.10's Proactor UDP receive loop does not rearm after an
+            # CPython's Proactor UDP receive loop does not rearm after an
             # OSError. Retire that endpoint before the next fresh client runs.
             address = self.address
             await self.retire_listener(deadline)

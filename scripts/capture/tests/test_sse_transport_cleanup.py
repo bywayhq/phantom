@@ -465,16 +465,21 @@ class H3CleanupBoundaryTests(unittest.IsolatedAsyncioTestCase):
         return server, run
 
     async def test_known_udp_error_is_a_run_observation_only_during_cleanup(self):
-        server, run = self.state()
-        error = windows_error(OSError, 1234)
-        server.udp_error(error)
-        self.assertFalse(server.failures)
-        self.assertEqual(len(run.udp_cleanup_disconnects), 1)
-        received, code = run.udp_cleanup_disconnects[0]
-        self.assertGreaterEqual(received, run.terminated)
-        self.assertEqual(code, 1234)
-        self.assertFalse(hasattr(server.protocols[0], "close_code"))
-        server.cleanup.cancel()
+        for kind, code in ((OSError, 1234), (ConnectionResetError, 10054)):
+            with self.subTest(kind=kind.__name__, code=code):
+                server, run = self.state()
+                try:
+                    error = windows_error(kind, code)
+                    server.udp_error(error)
+                    self.assertFalse(server.failures)
+                    self.assertEqual(len(run.udp_cleanup_disconnects), 1)
+                    received, observed_code = run.udp_cleanup_disconnects[0]
+                    self.assertGreaterEqual(received, run.terminated)
+                    self.assertEqual(observed_code, code)
+                    self.assertTrue(server.replace_listener)
+                    self.assertFalse(hasattr(server.protocols[0], "close_code"))
+                finally:
+                    server.cleanup.cancel()
 
     async def test_active_preterminal_mixed_missing_and_unknown_errors_fail(self):
         def active(server, run):
@@ -507,7 +512,7 @@ class H3CleanupBoundaryTests(unittest.IsolatedAsyncioTestCase):
         def serving_failure(server, run):
             server.failures.append(RuntimeError("serving failure"))
 
-        for change in (
+        changes = (
             active,
             preterminal,
             observing,
@@ -517,29 +522,49 @@ class H3CleanupBoundaryTests(unittest.IsolatedAsyncioTestCase):
             finished,
             no_cleanup,
             serving_failure,
-            lambda *_: None,
+        )
+        for kind, code in ((OSError, 1234), (ConnectionResetError, 10054)):
+            for change in changes:
+                with self.subTest(
+                    kind=kind.__name__, code=code, change=change.__name__
+                ):
+                    server, run = self.state()
+                    change(server, run)
+                    error = windows_error(kind, code)
+                    server.udp_error(error)
+                    self.assertIs(server.failures[-1], error)
+                    self.assertFalse(run.udp_cleanup_disconnects)
+                    self.assertFalse(server.replace_listener)
+                    if server.cleanup is not None:
+                        server.cleanup.cancel()
+
+        for kind, code in (
+            (OSError, 5),
+            (OSError, 10054),
+            (ConnectionResetError, 10053),
         ):
-            with self.subTest(change=change.__name__):
+            with self.subTest(kind=kind.__name__, code=code):
                 server, run = self.state()
-                change(server, run)
-                error = windows_error(
-                    OSError, 1234 if change.__name__ != "<lambda>" else 5
-                )
+                error = windows_error(kind, code)
                 server.udp_error(error)
                 self.assertIs(server.failures[-1], error)
                 self.assertFalse(run.udp_cleanup_disconnects)
-                if server.cleanup is not None:
-                    server.cleanup.cancel()
+                self.assertFalse(server.replace_listener)
+                server.cleanup.cancel()
 
     async def test_udp_observations_remain_bounded(self):
-        server, run = self.state()
-        for _ in range(MAX_CONNECTIONS):
-            server.udp_error(windows_error(OSError, 1234))
-        error = windows_error(OSError, 1234)
-        server.udp_error(error)
-        self.assertEqual(len(run.udp_cleanup_disconnects), MAX_CONNECTIONS)
-        self.assertIs(server.failures[-1], error)
-        server.cleanup.cancel()
+        for kind, code in ((OSError, 1234), (ConnectionResetError, 10054)):
+            with self.subTest(kind=kind.__name__, code=code):
+                server, run = self.state()
+                try:
+                    for _ in range(MAX_CONNECTIONS):
+                        server.udp_error(windows_error(kind, code))
+                    error = windows_error(kind, code)
+                    server.udp_error(error)
+                    self.assertEqual(len(run.udp_cleanup_disconnects), MAX_CONNECTIONS)
+                    self.assertIs(server.failures[-1], error)
+                finally:
+                    server.cleanup.cancel()
 
     @unittest.skipUnless(sys.platform == "win32", "Windows Proactor UDP ICMP delivery")
     async def test_native_closed_peer_keeps_original_h3_listener_receiving(self):

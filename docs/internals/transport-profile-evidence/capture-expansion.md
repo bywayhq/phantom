@@ -43,7 +43,23 @@ next receive. No fixture or partial output was written, and no cleanup
 exception was reported. These results do not prove the intended two-repeat
 contract or independent OS-level cleanup. They differ from the original
 cleanup-deadline failures and interruption. The responsible peer and
-underlying ICMP cause are not established. No further browser sweep ran.
+underlying ICMP cause are not established.
+
+A single diagnostic `non-ascii-id` attempt reproduced the synchronous
+`ConnectionResetError` without changing error handling. The same exception
+reached the listener during pending cleanup of a completed, recorded run.
+That state met every existing cleanup condition except the error code.
+The repair accepts only that exception type with Windows code 10054 under
+the same conditions. It records the code and uses the existing bounded
+listener replacement. Active, unfinished, mixed and unrecorded runs still
+fail, as do other errors and an exhausted observation limit.
+
+Two new regression cases failed on the original source. All 19 selected
+cleanup and listener controls passed after the repair, including the native
+asynchronous completion, failed rebind and unchanged-deadline controls.
+The diagnostic and regression logs remain under this lane's
+`target/E1-synchronous-receive-observer/` and
+`target/E1-synchronous-receive-regression-v1/`.
 
 The Linux package is Firefox 157.0, build ID `20260924084938`. Its official
 archive SHA256 is
