@@ -53,7 +53,8 @@ class CiCheckTests(unittest.TestCase):
             "crates/phantom-net/src/lib.rs",
             "#[allow(unsafe_code)]\nmod socket_ffi;\n"
             "#[allow(unsafe_code)]\nmod system_dns_ffi;\n"
-            "#[allow(unsafe_code)]\nmod linux_dns_ffi;\n",
+            "#[allow(unsafe_code)]\nmod linux_dns_ffi;\n"
+            "#[allow(unsafe_code)]\nmod macos_dns_ffi;\n",
         )
         self.write("Cargo.toml", '[workspace.lints.rust]\nunsafe_code = "forbid"\n')
         subprocess.run(["git", "-C", str(self.root), "init", "-q"], check=True)
@@ -103,6 +104,7 @@ class CiCheckTests(unittest.TestCase):
             ("phantom-net", "socket_ffi"),
             ("phantom-net", "system_dns_ffi"),
             ("phantom-net", "linux_dns_ffi"),
+            ("phantom-net", "macos_dns_ffi"),
         ):
             with self.subTest(module=module):
                 path = f"crates/{package}/src/lib.rs"
@@ -128,6 +130,7 @@ class CiCheckTests(unittest.TestCase):
             ("phantom-net", "socket_ffi"),
             ("phantom-net", "system_dns_ffi"),
             ("phantom-net", "linux_dns_ffi"),
+            ("phantom-net", "macos_dns_ffi"),
         ):
             with self.subTest(module=module):
                 path = f"crates/{package}/src/lib.rs"
@@ -147,6 +150,7 @@ class CiCheckTests(unittest.TestCase):
             ("phantom-net", "socket_ffi"),
             ("phantom-net", "system_dns_ffi"),
             ("phantom-net", "linux_dns_ffi"),
+            ("phantom-net", "macos_dns_ffi"),
         ):
             with self.subTest(module=module):
                 path = f"crates/{package}/src/lib.rs"
