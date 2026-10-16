@@ -3537,6 +3537,41 @@ Limits:
 - The captures cover plaintext HTTP/1.1 only. H2, H3, macOS, and Safari
   behavior is not inferred from them.
 
+### Windows H2 and H3 SSE expansion
+
+The 2026-10-15–16 Windows captures add 60 SSE files with two fresh headless
+runs each. They use Windows 11 build 26200 and the exact browser builds below.
+The protocol subdirectories keep them separate from the older HTTP/1.1 set.
+
+| Browser | Build | H3 files | H2 files |
+| --- | --- | ---: | ---: |
+| Chrome | 155.0.8059.40 | 11 | 0 |
+| Edge | 155.0.4283.45 | 16 | 0 |
+| Brave | 155.1.97.57 | 16 | 0 |
+| Firefox | 157.0 | 16 | 1 |
+
+[`fixtures/sse/`](../../fixtures/sse/) records the selected retry, id,
+termination, redirect and cookie scenarios. The only H2 file is Firefox's
+`retry-0`; the other 59 files record H3 on their actual connections.
+Fixtures retain ordered decoded headers, connection reuse, stream resets,
+close outcomes and observed reconnect delays. The cookie scenario retains
+only the tool's `phantom_probe=1` cookie.
+
+The original 75-row matrix finished with 60 successful rows, 14 failures and
+one interruption. Its nine earliest successful SSE files retain 18 Windows
+UDP cleanup diagnostics (`winerror:1234`). Other recorded QUIC closes and
+client cancellations also remain in the evidence. Successful publication
+and process completion do not prove every native handle's destruction.
+Chrome's failed `non-ascii-id` and `reconnect-404` rows and interrupted
+`reset-before-head` row remain unresolved; their outputs are not installed.
+
+These files have independent raw-evidence reviews. They have not been
+replayed against Phantom and establish no reconnect timing parity. The
+retained composition uses `sse_multiplexed.py` with exact source and runner
+manifest hashes recorded in the capture-delivery receipt. Those modes are
+not available through the baseline tracked `sse_reconnect.py` command.
+Mac, physical Android and additional Linux captures remain outside this set.
+
 ### Cookie crumb evidence
 
 Over HTTP/2, the Chromium and Firefox recipes split the `cookie` field into
@@ -6537,6 +6572,34 @@ Limits:
 - Not covered: redirects, Basic authentication and request bodies on H2
   forwarding, other authentication schemes, forwarding an HTTPS origin, and
   H3 through an HTTP forward proxy.
+
+### Decrypted tunnelled WebSocket evidence
+
+[`fixtures/tunnelled-websocket/`](../../fixtures/tunnelled-websocket/)
+retains twelve Windows captures from headless Chrome 155.0.8059.40 and
+Firefox 157.0. Each browser used a fresh profile once for each combination
+of plaintext HTTP CONNECT, HTTPS CONNECT or unauthenticated SOCKS5, and an
+origin offering only H1 or offering H2 and H1.
+
+The H1-only origins selected `http/1.1` and returned `101`; the mixed offers
+selected `h2` and returned `200` to extended CONNECT. Every opening echoed
+all five probe messages and closed with code 1000. Proxy records and
+decrypted origin records remain separate, including the proxy TLS metadata,
+CONNECT or SOCKS exchange, origin ALPN and ordered WebSocket headers.
+Rejected browser background connections remain recorded.
+
+These twelve successful follow-ups used the corrected capture cleanup
+source. They do not rewrite the twelve original failed tunnel rows. Nine
+Windows `10054` callback log entries remain across the four SOCKS5 rows;
+they do not identify the cause of every earlier failure or prove a clean OS
+callback history. The independent review approved the raw observations
+with those diagnostics retained.
+
+Reproduction inputs are the retained `tunnelled_websocket.py` composition,
+its source hashes and its per-row manifests. The baseline tracked capture
+CLI does not yet expose these modes. These captures establish browser wire
+evidence only: no Phantom comparison, proxy authentication coverage, H3
+WebSocket use, MASQUE behavior or other-platform parity is claimed.
 
 ### Proxy route browser evidence
 

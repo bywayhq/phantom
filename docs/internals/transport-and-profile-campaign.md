@@ -86,7 +86,7 @@ proxy WebSocket composition remains unmerged.
 | B3 | `platform-tcp-integration` | TCP/keepalive policies merged in PR #244 at `4d6c13cd` after independent review, all 23 gate steps, 5,363 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. The generated API inventory records five recipe functions and two policy fields. |
 | B4 | `windows-dns-integration` | Windows DNS TTL and configuration support merged in PR #250 after the exact-head gate and current platform checks. Native read-only watch/configuration probes remain separate evidence. Actual adapter or VPN changes and browser parity remain unverified; all nine applicable main push workflows passed. |
 | B5 | `edge-android-websocket-integration` | The emulator-backed Edge Android H1/H2 WebSocket layer and source-backed bounded Chromium restarts merged in PR #250 after its exact-head gate and current PR checks. All nine applicable main push workflows passed. No physical Android or browser H3 parity is claimed; missing Safari and Android layers remain open. |
-| E1/E2 | `browser-profile-release` | All 75 Windows rows were attempted: 60 succeeded, 14 failed and one was interrupted; none remain unattempted. Independent raw review covers batches09 and10, including the final batch's nine successes and 12 failures. Earlier failures, extra QUIC closures/cancellations and preflight refusals remain retained. Attempt completion does not establish Phantom parity or capture delivery. |
+| E1/E2 | `capture-delivery` | All 75 original Windows rows were attempted: 60 succeeded, 14 failed and one was interrupted. Twelve corrected tunnel follow-ups succeeded separately. Delivery adds 60 SSE files (59 H3, one Firefox H2; two runs each) and 12 tunnel files (one run each), with independent raw reviews and original failures retained. Phantom comparison and additional platform/build coverage remain open. |
 
 The B2/B4/B5 union and pooled outer-H2 extension are delivered in PR #250.
 Its exact `c934f82a` head passed the complete Windows/Linux gate and all 43
@@ -293,12 +293,13 @@ device is available. The macOS and physical Android targets below remain
 unverified and need those hosts. Continue the Windows and Linux captures,
 including E1 and E2, with the available hosts.
 
-- [ ] E1: Capture SSE over H2 and H3. Existing transport support does not
-  establish browser evidence. Compare opening headers and lifecycle behavior
-  for the selected browsers and builds, including macOS and Safari.
-- [ ] E2: Capture decrypted tunnelled `wss://` openings. Keep proxy and origin
-  handshakes distinct. Compare the supported tunnel types without inferring
-  browser use of HTTP/3 WebSockets or MASQUE from Phantom's capabilities.
+- [ ] E1: Compare the retained Windows H3 SSE captures and Firefox H2
+  `retry-0` capture with Phantom. Resolve the three unsuccessful Chrome SSE
+  rows and expand H2 and platform/build coverage, including macOS and Safari.
+- [ ] E2: Compare the twelve retained Windows tunnelled `wss://` openings
+  with Phantom, keeping proxy and origin handshakes distinct. Expand the
+  selected builds and platforms without inferring browser H3 WebSocket or
+  MASQUE use from Phantom's capabilities.
 - [ ] E3: Capture headful Chromium-family macOS `User-Agent` values and
   compare the retained emulator recipes with a physical Android device.
 - [ ] E4: Establish a bounded capture matrix for Intel Macs, Linux, and
