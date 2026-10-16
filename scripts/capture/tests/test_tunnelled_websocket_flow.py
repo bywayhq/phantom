@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 from urllib.parse import urlencode, urlsplit
 
-from scripts.capture.http2_session import raise_capture_failures
+from scripts.capture.http2_session import PlainChannel, raise_capture_failures
 from scripts.capture.tests.test_http2_websocket import ScriptedBrowser
 from scripts.capture.tests.test_tunnelled_websocket_limits import failures
 from scripts.capture.tests.tunnelled_websocket_flow_peer import (
@@ -53,6 +53,7 @@ class TunnelFlowTests(unittest.IsolatedAsyncioTestCase):
     ):
         async with raw_tunnel(held=True) as (origin, proxy):
             original = asyncio.open_connection
+            original_read = PlainChannel.read
             paused, wrapped = asyncio.Event(), []
 
             async def tracked(*args, **kwargs):
@@ -62,8 +63,17 @@ class TunnelFlowTests(unittest.IsolatedAsyncioTestCase):
                     wrapped.append(writer)
                 return reader, writer
 
-            with patch(
-                "scripts.capture.websocket_tunnel.asyncio.open_connection", new=tracked
+            async def read(channel):
+                for upstream in wrapped:
+                    upstream.check_read()
+                return await original_read(channel)
+
+            with (
+                patch(
+                    "scripts.capture.websocket_tunnel.asyncio.open_connection",
+                    new=tracked,
+                ),
+                patch.object(PlainChannel, "read", new=read),
             ):
                 reader, writer = await connect(proxy)
                 sending = None
@@ -73,10 +83,12 @@ class TunnelFlowTests(unittest.IsolatedAsyncioTestCase):
                     writer.write(payload)
                     sending = asyncio.create_task(writer.drain())
                     await asyncio.wait_for(paused.wait(), TIMEOUT)
-                    self.assertGreater(
-                        wrapped[0].transport.get_write_buffer_size(), 1024
-                    )
-                    self.assertEqual(wrapped[0].writes, wrapped[0].paused_at)
+                    # The native buffer can drain before this observer runs.
+                    # The probe records a pending drain and checks every next
+                    # relay read, without holding that drain artificially.
+                    self.assertGreater(wrapped[0].buffered_at_pause, 1024)
+                    self.assertGreater(wrapped[0].pending_drains, 0)
+                    self.assertGreater(wrapped[0].read_checks, 0)
                     origin.release.set()
                     await asyncio.wait_for(sending, TIMEOUT)
                     writer.write_eof()
@@ -92,6 +104,8 @@ class TunnelFlowTests(unittest.IsolatedAsyncioTestCase):
                         await asyncio.wait_for(sending, TIMEOUT)
             await proxy.stop_connections()
             self.assertEqual(origin.received, payload)
+            self.assertFalse(wrapped[0].undrained_write)
+            self.assertGreater(wrapped[0].writes, 1)
             self.assertFalse(proxy.handlers)
             self.assertFalse(proxy.writers)
             self.assertFalse(proxy.protocols)

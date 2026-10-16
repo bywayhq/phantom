@@ -22,7 +22,10 @@ class NativeDrainWriter:
         self.writer, self.paused = writer, paused
         self.transport = writer.transport
         self.writes = 0
-        self.paused_at = None
+        self.buffered_at_pause = None
+        self.pending_drains = 0
+        self.read_checks = 0
+        self.undrained_write = False
         self.closed_error = None
         self.transport.set_write_buffer_limits(high=1024, low=512)
         writer.get_extra_info("socket").setsockopt(
@@ -31,13 +34,44 @@ class NativeDrainWriter:
 
     def write(self, data):
         self.writes += 1
+        self.undrained_write = True
         self.writer.write(data)
 
+    def check_read(self):
+        self.read_checks += 1
+        if self.undrained_write:
+            raise AssertionError("relay read before its native drain completed")
+
     async def drain(self):
-        if self.transport.get_write_buffer_size() > 1024:
-            self.paused_at = self.writes
-            self.paused.set()
-        await self.writer.drain()
+        buffered = self.transport.get_write_buffer_size()
+        if buffered <= 1024:
+            await self.writer.drain()
+        else:
+            draining = asyncio.create_task(self.writer.drain())
+            try:
+                # Poll the real drain once. A high buffer alone can disappear
+                # into the kernel before an observer gets its next loop turn.
+                await asyncio.wait((draining,), timeout=0)
+                if not draining.done():
+                    self.buffered_at_pause = buffered
+                    self.pending_drains += 1
+                    self.paused.set()
+                await draining
+            except BaseException as error:
+                if not draining.done():
+                    draining.cancel()
+                results = await asyncio.gather(draining, return_exceptions=True)
+                raise_capture_failures(
+                    error,
+                    tuple(
+                        result
+                        for result in results
+                        if isinstance(result, BaseException)
+                        and result is not error
+                        and not isinstance(result, asyncio.CancelledError)
+                    ),
+                )
+        self.undrained_write = False
 
     def get_extra_info(self, name):
         return self.writer.get_extra_info(name)
@@ -69,7 +103,18 @@ class RawOrigin:
         self.received = b""
 
     async def start(self):
-        self.server = await asyncio.start_server(self.accept, "127.0.0.1", 0)
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            if self.held:
+                # Bound the receive window before the handshake. Pausing the
+                # asyncio reader alone still leaves the kernel free to receive.
+                listener.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 65536)
+            listener.bind(("127.0.0.1", 0))
+            listener.setblocking(False)
+            self.server = await asyncio.start_server(self.accept, sock=listener)
+        except BaseException:
+            listener.close()
+            raise
         self.address = self.server.sockets[0].getsockname()[:2]
 
     def accept(self, reader, writer):
