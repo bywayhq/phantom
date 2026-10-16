@@ -111,7 +111,7 @@ fn android_factories_supply_captured_or_sourced_policies_and_keep_other_layers_a
             true,
             true,
             true,
-            false,
+            true,
         ),
         (
             "brave",
@@ -160,6 +160,13 @@ fn android_factories_supply_captured_or_sourced_policies_and_keep_other_layers_a
         assert_eq!(profile.http3().is_some(), has_http3, "{name}");
         assert_eq!(profile.client_hints().is_some(), has_hints, "{name}");
         assert_eq!(profile.websocket().is_some(), has_websocket, "{name}");
+        if name == "edge" {
+            assert_eq!(
+                profile.websocket(),
+                Some(&edge::v153_android_websocket()),
+                "{name}"
+            );
+        }
     }
     for (profile, tls) in [
         (chrome::v154_android(), chrome::v154_android_quic_tls()),
