@@ -1195,6 +1195,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   Unsupported configurations use OS address resolution and reject raw
   HTTPS queries. The constructor requires `https-records` and is opt-in.
 
+- Add a hosted macOS Safari capture workflow for one HTTP EventSource
+  reconnect sequence, with browser identity and owned-session cleanup results.
+
 - Retain a headless Firefox 157 Ubuntu WSL sample covering H2/H3 requests,
   SSE reconnects and decrypted HTTPS-proxy WebSocket openings.
 
