@@ -73,8 +73,9 @@ Read the matrix with these conditions:
   Android, the H1 and H2 lists are compared with typed captures; their H3
   list is the Chromium one, compared with H3 captures opened by intent.
   Fetch templates cover H1 and H2 for all eight.
-- Server-sent events (SSE) reconnects are captured for Chrome 154 and Firefox
-  157 over plaintext H1 only.
+- Server-sent events (SSE) reconnects have Windows H1 and H3 captures, one
+  Windows Firefox H2 case, and Firefox H2/H3 samples on Ubuntu WSL. Builds
+  and failed capture attempts are listed in Validation.
 
 [Validation](../explanation/validation.md) gives the recording and source
 details for the matrix.
@@ -106,14 +107,14 @@ combinations and limits listed here.
 
 | Layer | Summary | Main gaps |
 | --- | --- | --- |
-| TCP | Profile `TCP_NODELAY`, send buffer, fixed or scheduled keepalive, Windows port randomization, Chromium Happy Eyeballs, and Firefox's backup connection, on every TCP path | Firefox's retained backups on remaining proxy routes |
+| TCP | Profile `TCP_NODELAY`, send buffer, fixed or scheduled keepalive, Windows port randomization, Chromium Happy Eyeballs, and Firefox's backup connection | Proxy early data and cross-origin forwarding reuse |
 | TLS over TCP | Typed ordered ClientHellos from retained captures | More versions and platforms |
 | HTTP/1.1 | Ordered streaming requests and responses, keep-alive reuse, browser per-host connection bounds | Broader retry classes |
 | HTTP/2 | Ordered SETTINGS, fields, priority, multiplexing, extended CONNECT, profile HPACK encoder identity, stream numbering and opening stream receive credit | Firefox continuing DATA acknowledgment thresholds |
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
 | HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP, to the origin, or to a caller-pinned alternative directly or through CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5; client-local RTT racing on direct routes; opt-in H2 fallback for exact H3 | Browser timing evidence for RTT racing |
 | Routes | Direct, HTTP forward and CONNECT, SOCKS4/4a, SOCKS5, CONNECT-UDP | NTLM and Negotiate authentication |
-| SSE and WebSocket | Finite reconnects, message limits, Chrome/Firefox WebSocket recipes | H2/H3 SSE captures, tunnelled `wss://` opening captures |
+| SSE and WebSocket | Finite reconnects, message limits, Chrome/Firefox WebSocket recipes, H2/H3 SSE and decrypted tunnel captures | macOS/Safari SSE, browser lifecycle and framing differences |
 
 The [route matrix](route-matrix.md) lists every combination of scheme,
 protocol, and [route](glossary.md#route). H1, H2, and H3 mean HTTP/1.1,
@@ -918,8 +919,8 @@ Supported WebSocket (`websocket` feature):
   opens either an `http/1.1`-only Upgrade connection or a new H2 connection.
   It uses the captured CONNECT pseudo-header order, priority, field templates,
   and deflate offers. A recipe also carries what its client does when the peer
-  refuses the CONNECT stream: Chrome 154 and Edge 154 reopen once on the same
-  session, Firefox 157 reopens nothing. On a proxy route both recipes reuse
+  refuses the CONNECT stream: Chrome 154 and Edge 154 restart at most twice
+  through profile connection selection; Firefox 157 reopens nothing. On a proxy route both recipes reuse
   a pooled session through the same tunnel, as Chromium 154 and Firefox 157
   source do. See
   [Profile connection policy](websocket.md#profile-connection-policy).
@@ -929,7 +930,11 @@ Not supported or not captured:
 - Firefox-style transaction restarts on fresh connections. Chrome's single
   resend, after a reused H1 connection closes before a response, is already
   available as opt-in reused-connection replay.
-- SSE over H2 and H3, on macOS, and in Safari is not yet captured.
+- SSE on macOS and in Safari remains uncaptured. The retained H2/H3 samples
+  cover the named Windows builds and headless Firefox on Ubuntu WSL.
+- SSE reconnects use the original request URL after redirects. Chromium
+  EventSource retains the followed URL after a successful temporary redirect;
+  the current API does not select that browser lifecycle policy.
 - Other WebSocket extensions, named send policies beyond the empty-message
   rule, and automatic reconnect.
 - A named browser recipe for WebSocket over HTTP/3. No shipping browser opens
@@ -938,12 +943,11 @@ Not supported or not captured:
   explains why no recipe will emit one until a browser does.
 
 The Chromium recipe uses H2 WebSockets on a capable existing session.
-Firefox can also open a fresh H2 connection. Their header order, priority,
-compression offers, and HPACK settings differ. The remaining gaps are:
-
-| Gap | Why | What would close it |
-| --- | --- | --- |
-| `wss://` opening inside a proxy tunnel | The proxy route captures record the CONNECT of a `wss://` opening but not the opening inside its TLS tunnel. | A capture that decrypts the tunnelled `wss://` opening |
+Firefox can also open a fresh H2 connection. Decrypted Windows tunnel captures
+cover HTTP CONNECT, HTTPS CONNECT and SOCKS5. The selected public-client
+comparisons match ordered openings and proxy exchanges. The Chromium 154
+profile's large-message framing differs from captured Chrome 155. These
+comparisons do not establish whole-build or other-platform parity.
 
 ## Routes
 
@@ -1149,10 +1153,11 @@ Recipe evidence is specific to these builds and platforms:
   plaintext trust. Edge
   153 for Android (153.0.4234.49) recipes come from an arm64 Android 17
   emulator.
-- SSE browser captures are from Windows 11 (10.0.26200) only, and WebSocket
-  browser captures from that host and the Android emulators. The macOS
-  WebSocket captures back request fields only. Phantom does not assume macOS
-  parity for SSE or WebSocket behavior.
+- SSE browser captures include Windows 11 (10.0.26200) and a headless
+  Firefox 157 Ubuntu WSL sample. Decrypted tunnelled WebSocket captures cover
+  the named Windows builds and two Firefox Ubuntu WSL cases. Other WebSocket
+  captures include Android emulators. The macOS WebSocket captures back
+  request fields only. SSE and WebSocket macOS parity remains unverified.
 
 How the recipes differ:
 

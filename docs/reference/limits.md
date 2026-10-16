@@ -209,6 +209,11 @@ The last column shows which changes a server can observe.
 | H2 and H3 driver shutdown after the last handle drops | 1 second | Phantom | Not configurable | Yes: close timing |
 | Queued CONNECT-UDP datagram lifetime | 10 ms to 1 second | Phantom | Not configurable | No |
 
+SSE reconnects use the original request URL after redirects. Selecting a
+transport profile does not select a browser EventSource lifecycle policy.
+The [SSE comparison](../explanation/validation.md#windows-h2-and-h3-sse-expansion)
+records the observed redirect and timing differences.
+
 A request waits only for an admission slot, a connection another request
 is setting up, or the timers above. The one pool timer, which a profile
 with `Http1IdleTimeout::ClosedOnTimer` such as `firefox::v157_http1`

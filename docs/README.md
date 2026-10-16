@@ -83,6 +83,8 @@ Find the page you need below. If you're new, start at the top.
   together.
 - [Vendored forks](internals/vendoring.md): patched dependencies.
 - [Capture tools](../scripts/capture/README.md): record browser traffic.
+- [Capture comparison record](internals/transport-profile-evidence/capture-expansion.md): retained campaign observations.
+- [Consumer check record](internals/transport-profile-evidence/consumer-checks.md): isolated downstream verification.
 - [Development helpers](../scripts/dev/README.md): parallel work and the
   gate.
 - [Security policy](../SECURITY.md): report a vulnerability.

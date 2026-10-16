@@ -3565,15 +3565,44 @@ and process completion do not prove every native handle's destruction.
 Chrome's failed `non-ascii-id` and `reconnect-404` rows and interrupted
 `reset-before-head` row remain unresolved; their outputs are not installed.
 
-These files have independent raw-evidence reviews. They have not been
-replayed against Phantom and establish no reconnect timing parity. The
-retained composition used `sse_multiplexed.py` with exact source and runner
+Eight bounded public EventSource observations against `41483d5a` used four
+selected browser cases, twice each. Both H2 trials completed cleanly; all
+six H3 clients succeeded but their peers retained owned Windows UDP receive
+errors (`winerror:1234`) during cleanup. The six H3 trials remain failed,
+without a full post-terminal observation. Both external owners completed
+cleanup. The continuation ran only the seven previously unattempted cells,
+with no harness retry or suppression of the first failure.
+
+The eight Firefox H2 SSE openings match the normalized ordered browser
+headers. Firefox empty-ID handling agrees: no ID, `phantom-1`, then no ID.
+Exact-origin H3 omits the browser's `Alt-Used`; its absence remains a
+comparison difference. Firefox's temporary-redirect paths agree. Phantom's
+Chromium profile reconnects to the original URL after a followed 307, while
+both captured Chrome runs reconnect to the target. Chromium 154 and 155
+have identical EventSource and parser source at the reviewed seams:
+[`event_source.cc`](https://chromium.googlesource.com/chromium/src/+/refs/tags/154.0.8037.58/third_party/blink/renderer/modules/eventsource/event_source.cc)
+updates the reconnect destination from the final response URL. Firefox
+updates it only for permanent redirects. Phantom's documented original-URL
+policy remains a Chromium browser fidelity gap. This result does not change
+that API or select a browser lifecycle policy implicitly.
+
+The first Firefox H2 retry-zero gaps were 510.798/513.135 milliseconds in
+Phantom and 6129.284/6000.824 in the retained browser runs. The first response
+already carries `retry: 0`; the larger browser gaps cannot be assigned to
+the default five-second timer. Delivery, EOF recognition, scheduling and
+setup were not timed separately. H3 stream resets, user-agent/client-hint
+build differences and measured delays remain in the
+[capture comparison record](../internals/transport-profile-evidence/capture-expansion.md).
+No reconnect timing, compression or whole-browser parity follows.
+
+The retained composition used `sse_multiplexed.py` with exact source and runner
 manifest hashes recorded in the capture-delivery receipt. The tracked
 `sse_reconnect.py --protocol h2|h3` modes and manifest runner now expose
 those transports; [capture instructions](../../scripts/capture/README.md#eventsource-reconnects)
 use fresh work and output directories. Fresh integration tests of the
 composed tools remain pending.
-Mac, physical Android and additional Linux captures remain outside this set.
+Mac and physical Android captures remain unavailable. The bounded Ubuntu
+WSL sample below is separate from the Windows matrix.
 
 ### Firefox 157 Ubuntu WSL capture sample
 
@@ -6633,9 +6662,25 @@ its source hashes and its per-row manifests. The tracked
 [`tunnelled_websocket` capture tool](../../scripts/capture/README.md#tunnelled-websocket-openings)
 and manifest runner now expose these modes. New experiments use fresh paths;
 the historical manifests are not rerun. Fresh integration tests of the
-composed tools remain pending. These captures establish browser wire evidence
-only: no Phantom comparison, proxy authentication coverage, H3 WebSocket use,
-MASQUE behavior or other-platform parity is claimed.
+composed tools remain pending. Twelve public-client exchanges against
+`41483d5a` separately compare both profiles, the three tunnel types and H1/H2
+origins. Each echoed the same five messages and closed with code 1000.
+Ordered opening headers, normalized proxy openings and origin ALPN match
+all twelve browser cases. H2 priority matches all six H2 cases. All four
+HTTPS proxy cases match their proxy ALPN and server name.
+
+The comparison supplies caller UA, Origin and language explicitly, and the
+peer declines the offered compression. The Firefox message frame lengths
+match. Phantom's Chromium 154 profile sends the 1 MiB message in one frame;
+headless Chrome 155 splits it across 14–17 frames. A captured caller UA does
+not change the profile's transport build. A thirteenth Firefox policy trial
+returns the expected H2 ALPN error against an H1-only origin, without a
+fallback or WebSocket opening. Explicit H1 succeeds separately.
+
+The [comparison record](../internals/transport-profile-evidence/capture-expansion.md)
+binds the raw data and independent review. This does not cover proxy
+authentication, outer H2, SOCKS4, H3 WebSockets, MASQUE, whole TLS fingerprints
+or other-platform parity.
 
 ### Proxy route browser evidence
 

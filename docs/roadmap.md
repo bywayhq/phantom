@@ -12,8 +12,11 @@ support, see [Coverage](reference/coverage.md).
 
 The [transport and profile campaign](internals/transport-and-profile-campaign.md)
 tracks the next timing investigations, corpus management, and named feature
-and browser-coverage additions. Its completion criteria are separate from
-the completed phase scopes below.
+and browser-coverage additions. Its five catalog tasks and eight client
+features are delivered. Firefox address-selection work is delivered through
+PR #252. Capture integration, Linux/macOS DNS configuration and the original
+timing causes remain open. Its completion criteria are separate from the
+completed phase scopes below.
 
 > For builders planning around Phantom and contributors choosing work.
 
