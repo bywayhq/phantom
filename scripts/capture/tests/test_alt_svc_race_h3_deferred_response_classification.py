@@ -271,13 +271,24 @@ class H3DeferredPeer:
         actual_event = H3Connection.handle_event
         actual_request = race.Origin.request
         held_received = asyncio.Event()
+        pending_hold = []
 
         def observed_request(origin, transport, connection, target, respond, retire):
+            if case == "held-failure" and transport == "h3" and target == "/hold":
+                actual_respond = respond
+
+                def respond(response):
+                    pending_hold.append((actual_respond, response))
+
             result = actual_request(
                 origin, transport, connection, target, respond, retire
             )
             if transport == "h3" and target == "/hold":
                 held_received.set()
+            elif transport == "h3" and target == "/r/release-held":
+                [held] = pending_hold
+                pending_hold.clear()
+                held[0](held[1])
             return result
 
         def observed_data(http, stream_id, data, end_stream):
@@ -380,6 +391,9 @@ class H3DeferredPeer:
                             "actual H3 hold did not receive its literal body"
                         )
                 else:
+                    # Receive the real 204 before an authenticated request
+                    # invokes the held callback's intentional validator failure.
+                    controls.client.request(origin.port, "/r/release-held")
                     await asyncio.wait_for(
                         controls.h3_failure_received.wait(), DEADLINE
                     )

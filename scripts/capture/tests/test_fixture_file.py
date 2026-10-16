@@ -72,7 +72,7 @@ class FixtureFileTests(unittest.TestCase):
     def test_cleanup_failure_after_replacement_reports_completed_publication(self):
         cleanup = OSError("unlink failed")
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "fixture.txt"
+            path = Path(directory).resolve() / "fixture.txt"
             path.write_bytes(b"format=old\n")
 
             with (
@@ -93,7 +93,7 @@ class FixtureFileTests(unittest.TestCase):
     def check_failed_publication(self, primary, *, previous=None):
         cleanup = OSError("unlink failed")
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "fixture.txt"
+            path = Path(directory).resolve() / "fixture.txt"
             path.write_bytes(b"format=old\n")
             observed = None
 
@@ -106,7 +106,7 @@ class FixtureFileTests(unittest.TestCase):
                 except BaseException as error:
                     observed = error
 
-            retained = [entry for entry in Path(directory).iterdir() if entry != path]
+            retained = [entry for entry in path.parent.iterdir() if entry != path]
             try:
                 self.assertEqual(path.read_bytes(), b"format=old\n")
                 self.assertEqual(len(retained), 1)

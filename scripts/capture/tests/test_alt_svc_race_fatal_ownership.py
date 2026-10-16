@@ -159,13 +159,24 @@ class FailedHeldResponse(LimitedCapture):
         actual_data = H3Connection.send_data
         actual_request = race.Origin.request
         held_received = asyncio.Event()
+        pending_hold = []
 
         def observed_request(origin, transport, connection, target, respond, retire):
+            if transport == "h3" and target == "/hold":
+                actual_respond = respond
+
+                def respond(response):
+                    pending_hold.append((actual_respond, response))
+
             result = actual_request(
                 origin, transport, connection, target, respond, retire
             )
             if transport == "h3" and target == "/hold":
                 held_received.set()
+            elif transport == "h3" and target == "/r/release-held":
+                [held] = pending_hold
+                pending_hold.clear()
+                held[0](held[1])
             return result
 
         resources.stack.enter_context(
@@ -234,6 +245,9 @@ class FailedHeldResponse(LimitedCapture):
                     raise AssertionError(
                         "actual H3 /done did not receive its original 204"
                     )
+                # Observe /done on the wire before another authenticated request
+                # releases the original callback and closes this QUIC connection.
+                controls.client.request(origin.port, "/r/release-held")
                 await asyncio.wait_for(controls.failure_received.wait(), DEADLINE)
 
                 if controls.fatal_packet is None:
