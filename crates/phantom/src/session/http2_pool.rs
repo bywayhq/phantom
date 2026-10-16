@@ -1526,8 +1526,7 @@ impl QuietOpening {
     {
         match self {
             Self::Http(opening) => {
-                opening
-                    .finish_extended_connect(route, authority, target, headers)
+                super::box_send(opening.finish_extended_connect(route, authority, target, headers))
                     .await
             }
             #[cfg(feature = "websocket")]
