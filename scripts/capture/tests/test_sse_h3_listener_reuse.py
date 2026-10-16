@@ -4,6 +4,7 @@ import asyncio
 import dataclasses
 import sys
 import unittest
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from scripts.capture.sse_multiplexed import H3ReconnectServer
@@ -220,26 +221,39 @@ class H3ListenerReuseTests(unittest.IsolatedAsyncioTestCase):
         original_retire = server.retire_listener
         observed = []
         original_wait_for = asyncio.wait_for
+        clock = loop.time()
+        retirement_cost = 1.0
+        runtime = SimpleNamespace(**vars(asyncio))
+        runtime.get_running_loop = lambda: SimpleNamespace(
+            time=lambda: clock,
+            create_future=loop.create_future,
+            create_datagram_endpoint=loop.create_datagram_endpoint,
+        )
 
         async def retire(deadline):
+            nonlocal clock
             observed.append(deadline)
             await original_retire(deadline)
-            observed.append(loop.time())
+            # Charge known work without relying on a Windows clock tick.
+            clock += retirement_cost
+            observed.append(clock)
 
         async def wait_for(operation, timeout):
             if getattr(operation, "cr_code", None) is server.start.__code__:
                 observed.append(timeout)
             return await original_wait_for(operation, timeout)
 
+        runtime.wait_for = wait_for
         try:
             with (
                 patch.object(server, "retire_listener", side_effect=retire),
-                patch("scripts.capture.sse_multiplexed.asyncio.wait_for", wait_for),
+                patch("scripts.capture.sse_multiplexed.asyncio", runtime),
             ):
                 await server.finish_run()
             deadline, retired_at, remaining = observed
             self.assertLessEqual(remaining, deadline - retired_at)
             self.assertLess(remaining, CONNECTION_CLEANUP_SECONDS)
             self.assertGreater(remaining, 0)
+            self.assertEqual(remaining, CONNECTION_CLEANUP_SECONDS - retirement_cost)
         finally:
             await server.close()

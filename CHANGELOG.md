@@ -2790,6 +2790,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Preserve active Windows TLS read resets as SSE capture failures. Record
+  terminal resets only after observation ends and `writer.close()` succeeds.
+
 - Allow Windows capture cleanup to collect a job after a snapshotted process
   exits before its handle can be opened. Check that the process has left the
   owned job before accepting its absence; retain other collection failures.

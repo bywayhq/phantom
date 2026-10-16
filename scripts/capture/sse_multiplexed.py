@@ -283,16 +283,19 @@ class H2ReconnectServer(MultiplexedServer):
                 await writer.drain()
             connection.client_eof = run.now()
         except BaseException as error:
+            windows_read_reset = (
+                isinstance(error, ConnectionResetError)
+                and getattr(error, "winerror", None) == 64
+            )
             if not (
                 isinstance(error, asyncio.CancelledError)
                 and asyncio.current_task() in self.cancelled
-            ) and not peer_disconnected(error):
+            ) and (windows_read_reset or not peer_disconnected(error)):
                 primary = error
                 # Browser disposal may reset this accepted TLS socket after
                 # the terminal observation, before finish_run detaches run.
                 if (
-                    isinstance(error, ConnectionResetError)
-                    and getattr(error, "winerror", None) == 64
+                    windows_read_reset
                     and connection is not None
                     and run.terminated is not None
                     and run.done.is_set()
