@@ -97,8 +97,41 @@ and `complete.log` retain the command, failure and cleanup outcome.
 | `owned-once-v1/complete.log` | `201e5d40caf9864d11ebe0ec2ae8a2eebbafd3a01ae217e2960b6ce7453417a8` |
 | `observed-once.json` | `df1b6b2ade8c635eba120d70685a7995e1575c7edc4cb6f45b8cee11b7b593d5` |
 
-The next causal observation still needs to reach `/done` and associate its
-native receive, response completion and retirement timer with one connection.
+## 2026-10-16 owner-bound observation
+
+One original test passed in 0.341 seconds with owned cleanup complete. On
+Connection 3, the native client received the complete 110-byte `/done`
+response with its two-byte body, then waited for EOF. The same retirement
+TimerHandle, future and due time were observed at scheduling and dispatch.
+Dispatch began 12 milliseconds late; the callback took 641,800 nanoseconds
+of wall time. Its recorded thread CPU time was zero, which does not prove
+zero work without the CPU clock resolution. EOF and fixture transport
+retirement followed.
+
+The observation retained 51 loaded-file identities before execution and 53
+afterward; all 51 shared identities matched. These snapshots do not recover
+the unavailable historical native dependency closure or transient loads.
+Instrumentation also perturbs scheduling. This healthy run establishes the
+current connection and timer sequence, not the cause of the historical
+17.579-second pause. The earlier error 10048 attempt remains separate.
+
+Artifacts are retained under
+`C:/code/phantom-worktrees/h3-drain-diagnosis/target/transport-profile-campaign/T2-done-observation-readiness-v1/`.
+The independent result review is in the adjacent
+`T2-current-observation-independent-v1/review.json`.
+
+| Artifact | SHA256 |
+| --- | --- |
+| `owned-once-v1/result.json` | `87d54e3158730f455bd4610c41ad82e08dbf5fac77e09f0592a64e3d34422409` |
+| `owned-once-v1/complete.log` | `e2cdbde9fb8317b5d29c97dd162727d2b3b263a1cd76ecd52de8ac9f96061514` |
+| `observed-once.json` | `9ad223e669b29fa8c8602b7cf36f3a2217049a91dc2181a812cc90eeec50069b` |
+| `diagnose_tls_done_single.py` | `315bde4fab9603d29537ab2adecca191ec589e8b643b902b8481be34a021967c` |
+| Independent result review | `f4e49f614453bbb71f95ab84caf151ebc265c68d2b51304fc94ca4b90ddf52cf` |
+
+The original cause remains open. A natural failure needs contemporaneous
+connection, timer and thread provenance to locate the stalled stage.
+Repeating this healthy test or forcing another pause cannot recover that
+missing evidence.
 
 ## Next
 
