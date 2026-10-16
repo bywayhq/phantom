@@ -2091,14 +2091,15 @@ their existing distinct builders and pseudo-header ordering. The Firefox
 source above supports physical TCP selection and H2 activation, not Firefox
 RFC 9298 or MASQUE behavior.
 
-Eleven new source controls are uncompiled. They cover actual dedicated dials,
+Eleven new controls compiled in the first combined gate. They cover actual
+dedicated dials,
 ordinary versus extended request identity, shared and operation-local
 challenge redials, prepared-cache invalidation, family isolation and eviction.
 A scripted slower attempt uses a real loopback socket to check its closure
 before server SETTINGS or CONNECT. It does not reproduce an operating-system
 race. The five existing TLS, ALPN, certificate and cancellation controls now
 exercise the common TLS boundary; their assertions and deadlines are unchanged.
-These additions still require focused execution and the integration gate.
+These additions still require a clean final integration gate.
 
 All 29 selected controls passed on Windows: 11 new controls and 18 existing
 pool controls. Strict Clippy passed too. The controls use loopback sockets
@@ -2115,8 +2116,9 @@ later shipped in PR #250 after its exact-head gate and platform checks.
 These controls do not establish browser timing or platform parity.
 
 The proxied WebSocket candidates have independent source reviews. Their
-17 new controls remain uncompiled: eight for H1 Upgrade and nine for inner
-H2 extended CONNECT, through plaintext CONNECT and HTTPS outer H1. The H1
+17 new controls compiled in the first combined gate: eight for H1 Upgrade
+and nine for inner H2 extended CONNECT, through plaintext CONNECT and HTTPS
+outer H1. The H1
 controls cover typed opening consumption, original origin ticket-cache
 ownership, current authentication and cookies, and rejected response bodies.
 The inner H2 controls cover original TLS context, ALPN and extended-CONNECT
@@ -2134,8 +2136,13 @@ configured retries and the single opening deadline.
 The combined source defines 148 cross-platform selected controls: 104 inherited
 feedback and SOCKS controls, 17 HTTP-proxy WebSocket controls, 11 dedicated
 outer-H2 controls, five existing TLS-boundary controls and 11 SOCKS WebSocket
-controls. Two further Windows-only controls make 150 on Windows. Runtime,
-future-size checks and the full gate remain pending on the fixed source.
+controls. Two further Windows-only controls make 150 on Windows. The first
+combined gate ran 5,721 runtime tests: 5,712 passed and nine failed, with three
+skipped. Reviewed fixture repairs isolate ticket caches, perform the required
+proxy authentication challenge and wait for the peer handshake before shutdown.
+All nine failed controls passed at `112a2584`, without retries or wider
+deadlines. Two private boxed futures also cleared the pinned nightly library
+check's deep Send proof. The final full gate remains pending.
 Pinned nightly API generation passed on its source checkpoint: 26 NET
 inventory insertions, 1,647 NET lines, and unchanged full profile and facade
 inventories. Earlier runtime passes apply only to their recorded parents.
@@ -2145,7 +2152,7 @@ WebSocket openings share the physical proxy TLS retirement boundary. Two
 new public controls use real Windows delayed refusal to check raw-backup
 closure before CONNECT and actual H1 or inner H2 WebSocket echo. They are
 Windows-only: the current public fixture cannot force the same refusal
-sequence on other platforms. Compilation and runtime checks remain pending.
+sequence on other platforms. Both passed in the nine-control repaired run.
 
 The SOCKS eligibility repair removes direct early-data capability as a
 retention guard. Its fixtures use valid Firefox TLS settings with
@@ -2153,9 +2160,10 @@ retention guard. Its fixtures use valid Firefox TLS settings with
 adds no proxy 0-RTT or ECH. All three valid-fixture baseline tests failed on
 the unfixed source: the NET opening rejected early-data capability with
 `InvalidInput`, while the public H1 and H2 controls reached their unchanged
-ten-second deadlines. Fixed-source runtime checks remain pending. The earlier
-public fixture failed profile validation
-before I/O and did not reproduce the eligibility defect.
+ten-second deadlines. All three passed in the first combined gate at
+`0556f8f1`; the clean final gate remains pending. The earlier public fixture
+failed profile validation before I/O and did not reproduce the eligibility
+defect.
 
 Tests in `phantom-net` read the options back from connected sockets with
 `socket2` getters:

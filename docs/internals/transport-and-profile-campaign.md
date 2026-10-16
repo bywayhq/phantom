@@ -79,9 +79,9 @@ proxy WebSocket composition remains unmerged.
 | B1 | `firefox-forward-proxy-retention` | Direct ECH, direct H1/H2 WebSocket and exact H2 retention are merged through PR #243. Plaintext CONNECT retention merged in PR #245 with green main CI. H1 proxy retention merged in PR #248 at `5c11188a` after independent review, all 23 gate steps, 5,435 runtime passes with two skips, and 43 current PR checks. All eight applicable main push workflows passed. Other proxy paths and failed-address feedback remain open. |
 | B1 CONNECT | `firefox-h2-connect` | Merged in PR #249 at `8e22f319` after the exact-head full gate, 5,456 runtime passes with two skips, and 43 current PR checks. The unchanged future-size limits passed. All eight applicable main push workflows passed. |
 | B1 outer H2 | `firefox-h2-proxy-owner` | Merged in PR #250 at `c934f82a` after independent review, all 23 Windows/Linux gate steps, 5,585 runtime passes with three skips, and 43 current PR checks. All nine applicable main push workflows passed. Raw backup progress ends at verified outer H2 activation, before authentication or CONNECT. |
-| B1 dedicated outer H2 | `firefox-dedicated-h2-owner` | Source extends the configured physical TCP backup lifetime to dedicated ordinary H2 and dedicated/shared CONNECT-UDP H2 setup. Eleven new controls are uncompiled; focused execution, integration and delivery remain pending. This is transport-policy consistency, not Firefox MASQUE evidence. |
-| B1 feedback/SOCKS | `firefox-feedback-socks-delivery` | Merged in PR #251 at `28e08108` after the exact-head full gate, 104 selected controls, actual API generation and 43 current PR checks. All eight applicable main push workflows passed. Earlier compile, runtime and macOS fixture failures remain retained. A later correction removes the direct early-data capability guard from SOCKS retention; its three valid-fixture baseline tests fail on the unfixed source. Fixed-source execution is pending. |
-| B1 proxy WebSocket | `firefox-proxy-ws-delivery` | The reviewed composition is rebased onto `28e08108`. It includes HTTP-proxy H1/inner-H2 WSS, SOCKS H1/H2 WebSocket retention, dedicated outer-H2 setup and the SOCKS eligibility correction. Its selected roster has 150 Windows controls and 148 Linux controls; the two public outer-H2 controls depend on Windows refusal timing. Pinned nightly API generation passed on the fixed source: NET has 1,647 lines, with 26 additions and no old-line changes; profile and facade inventories are unchanged. Fixed-source runtime, the full gate and delivery remain pending. Proxy ECH and proxy early data remain unsupported. |
+| B1 dedicated outer H2 | `firefox-dedicated-h2-owner` | Source extends the configured physical TCP backup lifetime to dedicated ordinary H2 and dedicated/shared CONNECT-UDP H2 setup. The controls compiled in the first combined gate; a clean final gate and delivery remain pending. This is transport-policy consistency, not Firefox MASQUE evidence. |
+| B1 feedback/SOCKS | `firefox-feedback-socks-delivery` | Merged in PR #251 at `28e08108` after the exact-head full gate, 104 selected controls, actual API generation and 43 current PR checks. All eight applicable main push workflows passed. Earlier compile, runtime and macOS fixture failures remain retained. A later correction removes the direct early-data capability guard from SOCKS retention. Its three valid-fixture baseline tests fail on the unfixed source and passed in the first combined gate; the clean final gate remains pending. |
+| B1 proxy WebSocket | `firefox-proxy-ws-delivery` | The reviewed composition is rebased onto `28e08108`. It includes HTTP-proxy H1/inner-H2 WSS, SOCKS H1/H2 WebSocket retention, dedicated outer-H2 setup and the SOCKS eligibility correction. Its selected roster has 150 Windows controls and 148 Linux controls; the two public outer-H2 controls depend on Windows refusal timing. Actual API generation produced 1,647 NET lines, with 26 additions and no old-line changes; profile and facade inventories are unchanged. All nine failed runtime controls passed after reviewed fixture repairs. The pinned nightly library check passed after private Send-proof boundaries were added. The final full gate and delivery remain pending. Proxy ECH and proxy early data remain unsupported. |
 | B2 | `firefox-h2-window-delivery` | Proxy idle closure and Alt-Used placement/mapping merged in PRs #222, #230 and #237; the alternative-port fixture repair merged in PR #239 with green main CI. Ordinary H2 stream-window behavior merged with the reviewed union in PR #250 after its exact-head gate and 43 current PR checks. All nine applicable main push workflows passed. |
 | B3 | `platform-tcp-integration` | TCP/keepalive policies merged in PR #244 at `4d6c13cd` after independent review, all 23 gate steps, 5,363 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. The generated API inventory records five recipe functions and two policy fields. |
 | B4 | `windows-dns-integration` | Windows DNS TTL and configuration support merged in PR #250 after the exact-head gate and current platform checks. Native read-only watch/configuration probes remain separate evidence. Actual adapter or VPN changes and browser parity remain unverified; all nine applicable main push workflows passed. |
@@ -101,7 +101,12 @@ and facade outputs unchanged. The valid-fixture baseline executed all three sele
 the NET quiet opening rejected direct early-data capability, and both
 public WebSocket controls timed out without the required backup. The
 earlier TLS-1.2-only fixture failed validation before I/O and is retained
-as an invalid reproduction attempt. Fixed-source results remain pending.
+as an invalid reproduction attempt. The first combined gate ran 5,721 tests:
+5,712 passed and nine failed, with three skipped. It also exposed a test lint,
+a deep compiler Send proof and a Windows process-collection failure. Reviewed
+repairs preserve the assertions and deadlines. At `112a2584`, all nine failed
+runtime controls, eight cleanup checks and the pinned nightly library check
+passed. These focused results do not replace the final full gate.
 
 The Windows DNS watch and configuration probes retain separate native
 read-only evidence. Actual adapter or VPN changes and browser parity remain
@@ -248,10 +253,11 @@ uncertainty. Research must lead to a decision, bounded experiment, or repair.
   Pooled outer H2 retention merged in PR #250 after its exact-head gate and
   all 43 current PR checks; all nine applicable main push workflows passed.
   Proxied WSS H1 and inner H2 through outer H1, SOCKS WebSocket retention and
-  dedicated outer-H2 setup are composed as source; their combined runtime
-  checks remain pending. Their API inventory is generated and installed.
+  dedicated outer-H2 setup are composed and compiled. All nine failed
+  runtime controls passed after fixture repairs; the final gate remains
+  pending. Their API inventory is generated and installed.
   Failed-address feedback merged in PR #251.
-  SOCKS retention with direct early-data capability is being corrected;
+  Three controls passed for SOCKS retention with direct early-data capability;
   proxy TLS uses ordinary handshakes. ECH through proxies remains unsupported.
 - [x] B2: Correct Firefox `Alt-Used` placement and mapping-time omission,
   ordinary H2 stream `WINDOW_UPDATE` shape, and HTTPS-proxy H2 idle closure.
