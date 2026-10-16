@@ -1,7 +1,7 @@
 //! A real physical refusal gates a successful complete sibling, without sleeps.
 use super::*;
 use std::{fmt, sync::atomic::AtomicBool};
-use tokio::sync::Notify;
+use tokio::sync::{Barrier, Notify};
 use tracing::{
     Dispatch, Event, Metadata, Subscriber,
     field::{Field, Visit},
@@ -63,10 +63,16 @@ async fn an_actual_physical_refusal_leaves_an_already_started_complete_sibling_a
         let port = listener.local_addr()?.port();
         let calls = Arc::new(AtomicUsize::new(0));
         let count = Arc::clone(&calls);
+        let sibling_started = Arc::new(Barrier::new(2));
+        let resolver_barrier = Arc::clone(&sibling_started);
         let resolver = HostResolver::new().with_resolver(AddressResolver::from_fn(move |host| {
             assert_eq!(host, "proxy.test");
             let first = count.fetch_add(1, Ordering::Relaxed) == 0;
+            let resolver_barrier = Arc::clone(&resolver_barrier);
             async move {
+                if first {
+                    resolver_barrier.wait().await;
+                }
                 Ok(vec![if first {
                     Ipv6Addr::LOCALHOST.into()
                 } else {
@@ -116,6 +122,8 @@ async fn an_actual_physical_refusal_leaves_an_already_started_complete_sibling_a
             let (mut stream, _) = listener.accept().await?;
             let request = peer::five(&mut stream, None).await?;
             assert_eq!(request.host, Host::Ip(Ipv4Addr::LOCALHOST.into()));
+            // Release the primary only after the sibling sent its SOCKS request.
+            sibling_started.wait().await;
             // The real primary socket must fail before this sibling may win.
             timeout(WAIT, observed.wait()).await?;
             peer::reply(&mut stream, 0).await?;
