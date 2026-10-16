@@ -132,8 +132,8 @@ provenance are insufficient to attribute the Win1234 cause.
 The six original H3 cells each ran once again with Windows CPython 3.12.10
 and peer source `616f498f`. All six completed with clean driver exits,
 no primary or cleanup failures and zero remaining owned tasks, writers or
-protocols. Each retained a 3.080–3.130-second post-terminal window with no
-extra request. The actual Rust binary remains the retained `41483d5a`
+protocols. Each completed its configured three-second post-terminal window
+with no extra request. The actual Rust binary remains the retained `41483d5a`
 build, not a newly built library. All 139 native input identities agreed
 before and after. The earlier six failures remain retained separately.
 

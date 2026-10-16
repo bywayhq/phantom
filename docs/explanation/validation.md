@@ -3653,9 +3653,9 @@ cleanup. The continuation ran only the seven previously unattempted cells,
 with no harness retry or suppression of the first failure.
 
 The same six H3 cells each completed once with CPython 3.12.10 and peer
-source `616f498f`. They retained 3.080–3.130 seconds after the terminal
-response without extra requests, with clean driver exits and no owned
-cleanup failures. The binary is still the retained `41483d5a` build.
+source `616f498f`. They completed the configured three-second observation
+after the terminal response without extra requests. Driver exits were clean,
+with no owned cleanup failures. The binary is still the retained `41483d5a` build.
 Independent review approved these bounded results. The old failures remain
 retained; this follow-up does not establish their unique historical cause.
 
