@@ -1437,6 +1437,7 @@ version = "0.1.0"
 dependencies = [
  "brotli",
  "bytes",
+ "cc",
  "criterion",
  "flate2",
  "hickory-resolver",

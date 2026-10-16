@@ -60,6 +60,7 @@ impl fmt::Debug for MacDnsSettings {
         f.debug_struct("MacDnsSettings")
             .field("nameserver_count", &self.nameservers.len())
             .field("search_count", &self.search.len())
+            .field("native_retrans", &self.retrans)
             .finish_non_exhaustive()
     }
 }

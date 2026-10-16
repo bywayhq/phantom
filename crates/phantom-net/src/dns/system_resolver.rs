@@ -5,6 +5,12 @@ use super::linux_system_configuration::{
     ConfigurationEligibility, ConfigurationError, ConfigurationGeneration,
     ConfigurationIneligibility, ConfigurationObserver, ConfigurationWatch, WatchError,
 };
+#[cfg(target_os = "macos")]
+use super::macos_system_configuration::{
+    ConfigurationEligibility, ConfigurationError, ConfigurationGeneration,
+    ConfigurationIneligibility, ConfigurationObserver, ConfigurationWatch, WatchError,
+    read_configuration,
+};
 #[cfg(windows)]
 use super::system_configuration::{
     ConfigurationError, WindowsDnsEligibility as ConfigurationEligibility,
@@ -344,7 +350,7 @@ fn refresh(
     let observe = || {
         #[cfg(windows)]
         let result = watch.observer().observed();
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
         let result = watch.check();
         result.map_err(|error| failure(ConfigurationFailure::Watch(error)))
     };
@@ -355,13 +361,15 @@ fn refresh(
             let result = read_windows_settings();
             #[cfg(target_os = "linux")]
             let result = watch.read_configuration();
+            #[cfg(target_os = "macos")]
+            let result = read_configuration(watch, expected);
             result.map_err(|error| failure(ConfigurationFailure::Read(error)))
         },
         |settings| {
             #[cfg(windows)]
             let eligibility = chromium_windows(&settings)
                 .map_err(|error| failure(ConfigurationFailure::Read(error)))?;
-            #[cfg(target_os = "linux")]
+            #[cfg(any(target_os = "linux", target_os = "macos"))]
             let eligibility = settings;
             Snapshot::new(eligibility).map(Arc::new)
         },
@@ -399,6 +407,8 @@ impl Snapshot {
                 let base = Arc::new(AddressLookup::from_configuration(&configuration)?);
                 #[cfg(target_os = "linux")]
                 let base = Arc::new(AddressLookup::from_linux_configuration(&configuration)?);
+                #[cfg(target_os = "macos")]
+                let base = Arc::new(AddressLookup::from_macos_configuration(&configuration)?);
                 Ok(Self::BuiltIn([
                     Arc::clone(&base),
                     Arc::new(base.with_udp_settings(UdpSettings {
@@ -409,7 +419,10 @@ impl Snapshot {
                     })),
                 ]))
             }
+            #[cfg(not(target_os = "macos"))]
             ConfigurationEligibility::SystemOnly { reasons, .. } => Ok(Self::SystemOnly(reasons)),
+            #[cfg(target_os = "macos")]
+            ConfigurationEligibility::SystemOnly(reasons) => Ok(Self::SystemOnly(reasons)),
         }
     }
     async fn resolve_address(
@@ -437,7 +450,7 @@ impl Snapshot {
                 }],
             )),
             Self::SystemOnly(reasons) => {
-                #[cfg(windows)]
+                #[cfg(any(windows, target_os = "macos"))]
                 let reasons = *reasons;
                 #[cfg(target_os = "linux")]
                 let reasons = reasons.clone();
@@ -580,6 +593,34 @@ pub async fn chromium_windows_resolvers() -> io::Result<(AddressResolver, HttpsR
 /// Returns runtime, worker-startup or configuration-watch errors.
 #[cfg(target_os = "linux")]
 pub async fn chromium_linux_resolvers() -> io::Result<(AddressResolver, HttpsRecordResolver)> {
+    let owner = tokio::task::spawn_blocking(SystemDnsOwner::start)
+        .await
+        .map_err(io::Error::other)??;
+    let view = SystemDnsView { owner, udp: None };
+    Ok((
+        AddressResolver::from_dns_backend(Arc::new(view.clone())),
+        HttpsRecordResolver::from_system(view),
+    ))
+}
+
+/// Constructs paired macOS address and HTTPS resolvers from one watched configuration.
+///
+/// Native resolver settings preserve ordered servers, search suffixes, attempts
+/// and rotation. Chromium's one-second fallback period replaces the native
+/// retransmission interval. Unsupported resolver configurations use OS addresses
+/// and reject raw HTTPS queries before opening sockets.
+///
+/// DNS, hosts-file and observed hostname changes invalidate both views and their
+/// UDP clones. Callers must fence caches with the opaque token methods. Checks
+/// reject a changed generation without an automatic retry. Direct kernel hostname
+/// changes have a one-second observation backup. Final resolver drop joins its
+/// native worker and can block. Requires macOS and `https-records`.
+///
+/// # Errors
+///
+/// Returns runtime, worker-startup or native configuration-watch errors.
+#[cfg(target_os = "macos")]
+pub async fn chromium_macos_resolvers() -> io::Result<(AddressResolver, HttpsRecordResolver)> {
     let owner = tokio::task::spawn_blocking(SystemDnsOwner::start)
         .await
         .map_err(io::Error::other)??;

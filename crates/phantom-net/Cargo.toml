@@ -74,6 +74,9 @@ windows-sys = { version = "0.61.2", features = ["Wdk_System_SystemServices", "Wi
 [target.'cfg(target_os = "android")'.dev-dependencies]
 libc = "0.2.189"
 
+[build-dependencies]
+cc = "=1.4.6"
+
 [dev-dependencies]
 criterion = { version = "=0.8.2", default-features = false, features = ["async_tokio", "cargo_bench_support"] }
 h3 = { workspace = true, features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }

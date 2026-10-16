@@ -308,3 +308,44 @@ async fn completed_with_deadline(
         )
     })?
 }
+
+#[cfg(target_os = "macos")]
+#[tokio::test]
+async fn unsupported_macos_settings_use_os_addresses_without_raw_dns() -> TestResult {
+    use super::{ConfigurationFailure, ConfigurationIneligibility, Snapshot};
+    crate::udp::observed::take();
+    let snapshot = Snapshot::SystemOnly(ConfigurationIneligibility::WitnessUnavailable);
+    let resolved = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        snapshot.resolve_address("localhost", None),
+    )
+    .await??;
+    let (addresses, _) = resolved.into_parts();
+    let addresses = addresses?;
+    assert!(!addresses.is_empty());
+    assert!(addresses.iter().all(|address| address.ip().is_loopback()));
+    for setting in [
+        None,
+        Some(phantom_profile::UdpSettings {
+            port_randomization: false,
+        }),
+        Some(phantom_profile::UdpSettings {
+            port_randomization: true,
+        }),
+    ] {
+        let error = snapshot
+            .lookup(setting)
+            .err()
+            .ok_or("raw HTTPS was accepted")?;
+        let typed = error
+            .get_ref()
+            .and_then(|source| source.downcast_ref::<ConfigurationFailure>())
+            .ok_or("SystemOnly error source missing")?;
+        assert!(matches!(
+            typed,
+            ConfigurationFailure::SystemOnly(ConfigurationIneligibility::WitnessUnavailable)
+        ));
+    }
+    assert!(crate::udp::observed::take().is_empty());
+    Ok(())
+}

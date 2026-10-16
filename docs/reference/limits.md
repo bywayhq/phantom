@@ -386,6 +386,34 @@ Callers must check configuration tokens around their own caches. The query
 backend uses a one-second timeout and the configured retry count; its full
 retry schedule is not a browser timing guarantee.
 
+## macOS DNS configuration
+
+`dns::chromium_macos_resolvers` requires macOS and `https-records`. Apply
+both returned resolvers to share native configuration and invalidation.
+Profiles do not select this constructor automatically.
+
+| Policy | Behavior |
+| --- | --- |
+| Native intake | Selected SDK's libresolv state and optional libSystem dnsinfo witness; ordered servers, search suffixes, ndots, attempts and rotation |
+| Unsupported settings | OS address resolution; raw HTTPS queries fail before opening query sockets |
+| Change observation | DNS and hostname notifications, watched hosts path and full file contents, actual hostname samples |
+| Query interval | Chromium's one-second fallback period replaces native retransmission seconds; no full browser retry-timing guarantee |
+| Final resolver drop | Joins workers; native calls and cancellation can block |
+
+More than one native unscoped resolver with nameservers, excluding mDNS
+entries, or unsupported libresolv options selects OS-only mode. The witness
+does not inspect the separate scoped-resolver list. Missing native watch
+support fails pair construction. The
+boundary uses optional private libSystem symbols; public SDK declarations
+alone do not establish their availability or a distribution policy.
+
+Intake drains native events around reads and resolver preparation. Cache
+tokens observe processed generations, including terminal errors. They do
+not provide an atomic OS snapshot. Direct kernel hostname changes also have
+a one-second idle sampling cadence, subject to native work and scheduling.
+Notify cancellation failure can retain two registrations per failed owner;
+repeated failed owners have no global retention bound.
+
 ## Cookies
 
 The optional cookie jar (`CookieLimits`) defaults to:

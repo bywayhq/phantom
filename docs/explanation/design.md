@@ -302,7 +302,7 @@ Chromium's QUIC session retransmits as it was sent.
 A fingerprinting client works inside the TLS handshake and a native TLS
 library, where a mistake is a security bug. Phantom keeps that work inside
 three narrow boundaries: TLS verification stays on unless the caller turns it
-off, unsafe code lives in three private FFI modules, and vendored changes go
+off, unsafe code lives in five private FFI modules, and vendored changes go
 through a recorded patch series.
 
 Verification can be disabled for explicit H1, H2 and H3 conformance testing.
@@ -341,7 +341,7 @@ H3.
 ### Unsafe code
 
 The workspace forbids `unsafe_code`. Two crates make exceptions for
-four private modules:
+five private modules:
 
 | Crate | Module | Foreign calls |
 | --- | --- | --- |
@@ -349,6 +349,7 @@ four private modules:
 | `phantom-net` | `socket_ffi`, compiled on Apple platforms and Windows, and in Linux and Android tests | libc `if_nametoindex`; Winsock `setsockopt` and, in tests, `getsockopt`; IP Helper LUID conversions; ntdll `RtlGetVersion` |
 | `phantom-net` | `system_dns_ffi`, Windows only | Winsock address and DNS record lookup; adapter and registry reads; registry, interface and route notifications |
 | `phantom-net` | `linux_dns_ffi`, Linux with `https-records` | GNU libc version, hostname and interface index; owned inotify and route-netlink subscriptions |
+| `phantom-net` | `macos_dns_ffi`, macOS with `https-records` | SDK libresolv state, optional libSystem dnsinfo, owned notify registrations and vnode watches |
 
 Both crates follow the same rules:
 
@@ -366,7 +367,7 @@ Both crates follow the same rules:
   and typed errors. Native handles and callback contexts stay inside it.
 - `scripts/ci/check-unsafe-boundaries.sh` fails when an `allow(unsafe_code`
   or `expect(unsafe_code` attribute appears anywhere outside `vendor/` but
-  the four module declarations, in `crates/phantom-quic-btls/src/lib.rs` and
+  the five module declarations, in `crates/phantom-quic-btls/src/lib.rs` and
   `crates/phantom-net/src/lib.rs`, or when a manifest sets `unsafe_code` to
   `allow` or `warn`. CI's Quality job and `scripts/dev/gate.sh` run it.
 
@@ -477,6 +478,38 @@ No worker is detached. The owner retains terminal failures after shutdown.
 Nonblocking descriptors and bounded drain work do not guarantee a fixed OS
 syscall or join duration. Dropping the final paired resolver joins its blocking
 settings worker too.
+
+#### macOS system DNS audit
+
+`macos_dns_ffi` contains the Rust boundary and its SDK-compiled C projection.
+Rust owns only copied values or an opaque owner. The C side owns libresolv
+state, copied dnsinfo graphs, notify registrations and filesystem descriptors.
+Fixed-width projection sizes have assertions on both sides. Packed dnsinfo
+prefixes are copied with `memcpy`. Traversal bounds counts and relies on the
+OS-owned graph's allocation and lifetime contract.
+Native pointers never enter the safe resolver API.
+
+One joined worker owns DNS and hostname notifications, a vnode event queue
+and its hosts-file path graph. Descriptor-relative traversal watches existing
+ancestor directories and the final regular file before reading full bounded
+bytes. Parent watches and checked identities cover intermediate and final
+symlinks. New watches overlap the old set until preparation ends.
+Crossed preparation marks the generation dirty without publishing its sample.
+Resource exhaustion, malformed events and lost watches retain terminal errors.
+
+Native checks compare actual hostname bytes before and after hosts intake.
+Configd notifications share the same generation. A one-second idle sampling
+cadence also observes direct kernel hostname changes, subject to native work
+and scheduling delays. It is not a fixed delivery bound or an atomic snapshot.
+The paired owner drains notifications around settings and resolver preparation;
+cache observations read only shared generation and terminal state.
+
+Shutdown joins the worker and closes owned vnode and event-queue descriptors.
+The notify library owns its registration descriptors. Failed cancellation may
+retain two registrations/descriptors per failed owner, without callbacks or
+borrowed Rust storage. Repeated failed owners have no global retention bound.
+Native calls and final resolver drop can block. SDK compilation and macOS
+runtime checks remain required before delivering this boundary.
 
 #### Windows port randomization audit
 

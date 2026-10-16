@@ -1195,6 +1195,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Add `dns::chromium_macos_resolvers` for paired address and HTTPS lookups
+  from watched native macOS settings. DNS, hosts-file and observed hostname
+  changes invalidate both resolvers. Unsupported configurations use OS
+  addresses and reject raw HTTPS queries before opening sockets.
+
 - Add `dns::chromium_linux_resolvers` for paired address and HTTPS lookups
   with shared Linux configuration changes. Supported glibc/NSS settings
   supply search domains, server order, retries and IPv6 interface scopes.

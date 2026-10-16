@@ -2716,6 +2716,30 @@ No browser capture demonstrates nameserver choice, search order or refresh
 parity for this implementation. Native cancellation can block; failed
 callback cancellation retains its state to avoid use-after-free.
 
+### macOS resolver configuration
+
+The paired `dns::chromium_macos_resolvers` path uses SDK-owned libresolv
+state and an optional libSystem dnsinfo witness. Chromium 154 at
+`154.0.8037.58` reads the same two native sources in
+`dns_config_service_posix.cc`, `resolv_reader.cc` and
+`dns_config_watcher_mac.cc`. POSIX conversion copies `res.retrans`, but
+`ReadDnsConfig` replaces it with `kDnsDefaultFallbackPeriod` before returning.
+Phantom applies that one-second interval, native attempt count and rotation.
+This does not reproduce Chromium's entire retry scheduler.
+
+The private C projection copies SDK state into fixed-width owned values.
+Rust applies the paired settings through the existing address/HTTPS owner.
+Both views and UDP-setting clones share one generation. Native checks fence
+settings intake and resolver construction. Hosts path changes and actual
+hostname samples share that generation with DNS notifications. See the
+[macOS boundary audit](design.md#macos-system-dns-audit) for resource and
+shutdown constraints.
+
+Independent source reviews cover the native boundary and safe intake. The
+macOS boundary, intake and paired loopback controls still need compilation
+and execution with an Apple SDK. Windows/Linux checks cannot establish that
+result. No browser capture proves macOS DNS selection or refresh parity.
+
 ### Linux resolver configuration
 
 The paired `dns::chromium_linux_resolvers` path applies Chromium 154's Linux

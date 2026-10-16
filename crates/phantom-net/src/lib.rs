@@ -44,6 +44,9 @@ pub mod http3;
 #[cfg(all(feature = "https-records", target_os = "linux"))]
 #[allow(unsafe_code, reason = "private Linux system DNS FFI boundary")]
 mod linux_dns_ffi;
+#[cfg(all(feature = "https-records", target_os = "macos"))]
+#[allow(unsafe_code, reason = "private macOS system DNS FFI boundary")]
+mod macos_dns_ffi;
 /// HTTP proxy negotiation and tunneled byte streams.
 pub mod proxy;
 pub mod request;

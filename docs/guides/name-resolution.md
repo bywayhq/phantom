@@ -134,6 +134,8 @@ configuration disables raw HTTPS queries; see
 On Linux, use `dns::chromium_linux_resolvers().await?` with the same builder
 methods. See [Linux DNS configuration](../reference/limits.md#linux-dns-configuration)
 for supported host settings.
+On macOS, use `dns::chromium_macos_resolvers().await?`. See
+[macOS DNS configuration](../reference/limits.md#macos-dns-configuration).
 
 For fixed configuration on any supported platform, use
 `AddressResolver::system_nameservers()` or `with_nameservers` with servers

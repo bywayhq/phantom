@@ -47,12 +47,16 @@ mod address_lookup;
 mod linux_configuration;
 #[cfg(target_os = "linux")]
 mod linux_system_configuration;
+#[cfg(target_os = "macos")]
+mod macos_system_configuration;
 #[cfg(any(windows, test))]
 pub(crate) mod system_configuration;
-#[cfg(any(windows, target_os = "linux"))]
+#[cfg(any(windows, target_os = "linux", target_os = "macos"))]
 mod system_resolver;
 #[cfg(target_os = "linux")]
 pub use system_resolver::chromium_linux_resolvers;
+#[cfg(target_os = "macos")]
+pub use system_resolver::chromium_macos_resolvers;
 #[cfg(windows)]
 pub use system_resolver::chromium_windows_resolvers;
 mod ech_config;
@@ -87,7 +91,7 @@ type LookupFuture =
 #[derive(Clone)]
 enum Backend {
     Dns(Nameservers),
-    #[cfg(any(windows, target_os = "linux"))]
+    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
     System(system_resolver::SystemDnsView),
     Function(Arc<dyn Fn(String, u16) -> LookupFuture + Send + Sync>),
 }
@@ -107,7 +111,7 @@ struct Nameservers {
 
 #[derive(Clone, Copy, Debug)]
 struct QueryPolicy {
-    attempts: u8,
+    attempts: usize,
     rotate: bool,
 }
 
@@ -188,7 +192,21 @@ impl Nameservers {
         Self::with_address_policy(
             configuration.servers.iter().copied(),
             Some(QueryPolicy {
-                attempts: configuration.attempts,
+                attempts: usize::from(configuration.attempts),
+                rotate: configuration.rotate,
+            }),
+        )
+    }
+
+    #[cfg(target_os = "macos")]
+    fn from_macos(
+        configuration: &crate::macos_dns_ffi::configuration::MacDnsSettings,
+    ) -> Result<Self, NameserverConfigurationError> {
+        Self::with_address_policy(
+            configuration.nameservers.iter().copied(),
+            Some(QueryPolicy {
+                attempts: usize::try_from(configuration.attempts)
+                    .map_err(NameserverConfigurationError::system)?,
                 rotate: configuration.rotate,
             }),
         )
@@ -227,11 +245,12 @@ impl Nameservers {
         options.use_hosts_file = ResolveHosts::Never;
         options.os_port_selection = sockets.leaves_port_to_the_os();
         if let Some(policy) = self.policy {
-            // Chromium154 dns_config_service_linux.cc:475-477 replaces
-            // libc's retrans timeout with dns_config.h's one-second period.
+            // Chromium154 dns_config_service_linux.cc:475-477 and
+            // dns_config_service_posix.cc:115-116 replace libc's native
+            // retrans timeout with dns_config.h's one-second period.
             options.timeout = Duration::from_secs(1);
             // Hickory's RetryDnsHandle sends once before spending retries.
-            options.attempts = usize::from(policy.attempts.saturating_sub(1));
+            options.attempts = policy.attempts.saturating_sub(1);
             options.server_ordering_strategy = if policy.rotate {
                 ServerOrderingStrategy::RoundRobin
             } else {
@@ -371,7 +390,7 @@ impl HttpsRecordResolver {
             Backend::Dns(nameservers) => {
                 Self::from_nameservers(nameservers.with_udp_settings(settings))
             }
-            #[cfg(any(windows, target_os = "linux"))]
+            #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
             Backend::System(view) => Self::from_system(view.with_udp_settings(settings)),
             Backend::Function(_) => self,
         }
@@ -383,7 +402,7 @@ impl HttpsRecordResolver {
     pub fn udp_settings(&self) -> Option<UdpSettings> {
         match &self.backend {
             Backend::Dns(nameservers) => nameservers.udp,
-            #[cfg(any(windows, target_os = "linux"))]
+            #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
             Backend::System(view) => view.udp_settings(),
             Backend::Function(_) => None,
         }
@@ -429,7 +448,7 @@ impl HttpsRecordResolver {
         &self,
     ) -> std::io::Result<Option<crate::host_resolver::DnsConfigurationToken>> {
         match &self.backend {
-            #[cfg(any(windows, target_os = "linux"))]
+            #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
             Backend::System(view) => view.configuration_token().map(Some),
             Backend::Dns(_) | Backend::Function(_) => Ok(None),
         }
@@ -452,7 +471,7 @@ impl HttpsRecordResolver {
         token: Option<crate::host_resolver::DnsConfigurationToken>,
     ) -> Result<HttpsRecordLookup, HttpsLookupError> {
         match &self.backend {
-            #[cfg(any(windows, target_os = "linux"))]
+            #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
             Backend::System(view) => {
                 view.https(
                     host,
@@ -484,7 +503,7 @@ impl HttpsRecordResolver {
         }
     }
 
-    #[cfg(any(windows, target_os = "linux"))]
+    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
     fn from_system(view: system_resolver::SystemDnsView) -> Self {
         Self {
             backend: Backend::System(view),
@@ -607,7 +626,7 @@ impl fmt::Debug for HttpsRecordResolver {
             Backend::Dns(nameservers) => debug
                 .field("nameservers", &nameservers.len())
                 .field("udp", &nameservers.udp),
-            #[cfg(any(windows, target_os = "linux"))]
+            #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
             Backend::System(view) => debug.field("backend", view),
             Backend::Function(_) => debug.field("backend", &"function"),
         };

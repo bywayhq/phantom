@@ -356,6 +356,8 @@ pub mod dns {
     };
     #[cfg(target_os = "linux")]
     pub use phantom_net::dns::chromium_linux_resolvers;
+    #[cfg(target_os = "macos")]
+    pub use phantom_net::dns::chromium_macos_resolvers;
     #[cfg(windows)]
     pub use phantom_net::dns::chromium_windows_resolvers;
     pub use phantom_net::dns::{

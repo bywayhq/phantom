@@ -69,7 +69,10 @@ pub struct DnsConfigurationToken {
 }
 
 impl DnsConfigurationToken {
-    #[cfg(all(feature = "https-records", any(windows, target_os = "linux", test)))]
+    #[cfg(all(
+        feature = "https-records",
+        any(windows, target_os = "linux", target_os = "macos", test)
+    ))]
     pub(crate) fn new(check: impl Fn() -> io::Result<bool> + Send + Sync + 'static) -> Self {
         Self {
             identity: Arc::new(()),
@@ -334,7 +337,10 @@ impl AddressResolver {
         }
     }
 
-    #[cfg(all(any(windows, target_os = "linux", test), feature = "https-records"))]
+    #[cfg(all(
+        any(windows, target_os = "linux", target_os = "macos", test),
+        feature = "https-records"
+    ))]
     pub(crate) fn from_dns_backend(lookup: Arc<dyn DnsLookup>) -> Self {
         Self {
             backend: Backend::Dns(lookup),

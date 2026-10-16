@@ -36,7 +36,7 @@ search() {
 # path:count for each audited declaration.
 expected=(
   "crates/phantom-quic-btls/src/lib.rs:1"
-  "crates/phantom-net/src/lib.rs:3"
+  "crates/phantom-net/src/lib.rs:4"
 )
 
 attributes=$(search -c -E '(allow|expect)\(([^)]*,[[:space:]]*)?unsafe_code' -- '*.rs' ':!vendor')
@@ -86,7 +86,7 @@ check_modules() {
   fi
 }
 check_modules crates/phantom-quic-btls/src/lib.rs backend
-check_modules crates/phantom-net/src/lib.rs 'socket_ffi|system_dns_ffi|linux_dns_ffi'
+check_modules crates/phantom-net/src/lib.rs 'socket_ffi|system_dns_ffi|linux_dns_ffi|macos_dns_ffi'
 
 # Manifests may deny unsafe_code but never allow or warn on it.
 manifests=$(search -n -E '^[[:space:]]*unsafe_code[[:space:]]*=.*"(allow|warn)"' -- '*Cargo.toml' ':!vendor')

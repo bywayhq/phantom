@@ -782,6 +782,10 @@ Supported:
   `dns::chromium_linux_resolvers`, with supported glibc/NSS intake, watched
   generations, suffix search and scoped server addresses. See
   [Linux DNS configuration](limits.md#linux-dns-configuration).
+- An opt-in paired macOS address/HTTPS resolver,
+  `dns::chromium_macos_resolvers`, with native resolver eligibility, suffix
+  search and shared DNS, hosts-file and hostname invalidation. See
+  [macOS DNS configuration](limits.md#macos-dns-configuration).
 - Windows native address lifetimes under
   `DnsCacheSettings::system_ttl = SystemDnsTtlPolicy::FirefoxWindows`.
 - Caller host-to-address overrides and a caller-supplied async address

@@ -71,7 +71,8 @@ Use a sibling worktree only when independent work can proceed concurrently.
   panic for them.
 - Unsafe code is forbidden. The exceptions are the private `backend` FFI
   module of `phantom-quic-btls` and the private `socket_ffi`, Windows-only
-  `system_dns_ffi` and Linux-only `linux_dns_ffi` modules of `phantom-net`.
+  `system_dns_ffi`, Linux-only `linux_dns_ffi` and macOS-only
+  `macos_dns_ffi` modules of `phantom-net`.
   Each documents every unsafe block.
   See [Design](docs/explanation/design.md#unsafe-code), which also holds the
   `phantom-net` module's audit. `scripts/ci/check-unsafe-boundaries.sh`

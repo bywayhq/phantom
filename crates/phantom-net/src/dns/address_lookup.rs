@@ -125,12 +125,26 @@ impl AddressLookup {
         Ok(lookup)
     }
 
-    #[cfg(any(windows, target_os = "linux"))]
+    #[cfg(target_os = "macos")]
+    pub(super) fn from_macos_configuration(
+        configuration: &crate::macos_dns_ffi::configuration::MacDnsSettings,
+    ) -> io::Result<Self> {
+        let mut lookup =
+            Self::new(Nameservers::from_macos(configuration).map_err(configuration_error)?);
+        lookup.search = Some(Arc::new(SearchPolicy {
+            suffixes: configuration.search.clone(),
+            ndots: configuration.ndots,
+            append_to_multi_label: true,
+        }));
+        Ok(lookup)
+    }
+
+    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
     pub(super) fn nameservers(&self) -> Nameservers {
         self.nameservers.clone()
     }
 
-    #[cfg(any(windows, target_os = "linux"))]
+    #[cfg(any(windows, target_os = "linux", target_os = "macos"))]
     pub(super) async fn system_only(host: &str) -> io::Result<Resolved> {
         // This explicit mode delegates family and search decisions to the OS.
         // It opens no Phantom probe or raw DNS socket.
