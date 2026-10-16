@@ -1,7 +1,9 @@
 import asyncio
 import http.client
 import json
+import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
@@ -64,6 +66,96 @@ class ResponseTests(unittest.TestCase):
         ):
             with self.subTest(url=url), self.assertRaises(ValueError):
                 safari.SafariSession(url, {})
+
+    def test_h2_requires_an_explicit_https_loopback_url(self):
+        owner = safari.SafariSession(
+            "https://127.0.0.1:1234/run/probe", {}, protocol="h2"
+        )
+        self.assertTrue(owner.accept_insecure_certificates)
+        self.assertFalse(
+            safari.SafariSession(
+                "http://127.0.0.1:1234/", {}
+            ).accept_insecure_certificates
+        )
+        for url in (
+            "http://127.0.0.1:1234/",
+            "https://server.phantom.test:1234/",
+            "https://localhost:1234/",
+            "https://127.0.0.2:1234/",
+            "https://[::1]:1234/",
+            "https://127.0.0.1/",
+            "https://user@127.0.0.1:1234/",
+            "https://@127.0.0.1:1234/",
+            "https://127.0.0.1:1234/#fragment",
+        ):
+            with self.subTest(url=url), self.assertRaises(ValueError):
+                safari.SafariSession(url, {}, protocol="h2")
+        with self.assertRaises(ValueError):
+            safari.SafariSession("https://127.0.0.1:1234/", {}, protocol="h3")
+
+    def test_h2_success_requires_observed_alpn_and_decoded_streams(self):
+        run = SimpleNamespace(
+            requests=[
+                SimpleNamespace(
+                    kind="page", stream_id=1, decoded_headers=[(b":method", b"GET")]
+                ),
+                SimpleNamespace(
+                    kind="sse",
+                    attempt=0,
+                    extra=False,
+                    stream_id=3,
+                    decoded_headers=[(b":method", b"GET")],
+                ),
+                SimpleNamespace(
+                    kind="sse",
+                    attempt=1,
+                    extra=False,
+                    stream_id=5,
+                    decoded_headers=[(b":method", b"GET")],
+                ),
+            ],
+            terminated=1,
+            connections=[SimpleNamespace(protocol="h2")],
+        )
+        safari.check_run(run, "h2")
+        for protocol in (None, "http/1.1", "h3"):
+            run.connections[0].protocol = protocol
+            with (
+                self.subTest(protocol=protocol),
+                self.assertRaisesRegex(RuntimeError, "verified H2"),
+            ):
+                safari.check_run(run, "h2")
+        run.connections[0].protocol = "h2"
+        run.requests[-1].decoded_headers = []
+        with self.assertRaisesRegex(RuntimeError, "verified H2"):
+            safari.check_run(run, "h2")
+        run.requests[-1].decoded_headers = [(b":method", b"GET")]
+        run.requests[-1].stream_id = None
+        with self.assertRaisesRegex(RuntimeError, "verified H2"):
+            safari.check_run(run, "h2")
+        run.connections = []
+        with self.assertRaisesRegex(RuntimeError, "verified H2"):
+            safari.check_run(run, "h2")
+
+    def test_h2_url_override_preserves_the_existing_peer_and_certificate(self):
+        from scripts.capture.sse_multiplexed import H2ReconnectServer
+
+        server = safari.capture_server("h2")
+        self.assertIsInstance(server, H2ReconnectServer)
+        self.assertIs(type(server).start, H2ReconnectServer.start)
+        self.assertIs(type(server).handle, H2ReconnectServer.handle)
+        self.assertIs(type(server).close, H2ReconnectServer.close)
+        with self.assertRaises(RuntimeError):
+            server.url(SimpleNamespace(page_path=lambda: "/run/probe"))
+        server.address = ("127.0.0.1", 1234)
+        self.assertEqual(
+            server.url(SimpleNamespace(page_path=lambda: "/run/probe")),
+            "https://127.0.0.1:1234/run/probe",
+        )
+        self.assertTrue(server.certificate.der)
+        self.assertIs(type(safari.capture_server("h1")), safari.ReconnectServer)
+        with self.assertRaises(ValueError):
+            safari.capture_server("h3")
 
     def test_success_requires_page_both_attempts_and_terminal_observation(self):
         run = SimpleNamespace(
@@ -182,7 +274,11 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
             {"ready": True},
             {
                 "sessionId": "owned-session",
-                "capabilities": {"browserName": "safari", "browserVersion": "26.0"},
+                "capabilities": {
+                    "browserName": "safari",
+                    "browserVersion": "26.0",
+                    "acceptInsecureCerts": False,
+                },
             },
             None,
             "Safari test UA",
@@ -219,6 +315,145 @@ class OwnershipTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(owner.provenance["cleanup_failures"], [])
             await owner.close()
             self.assertEqual(rest.call_count, 6)
+
+    async def test_h2_requests_and_confirms_certificate_bypass_before_navigation(self):
+        owner = safari.SafariSession(
+            "https://127.0.0.1:1234/run/probe",
+            {"safari_version": "26.0"},
+            protocol="h2",
+        )
+        owner.process = OwnedProcess()
+        with mock.patch.object(
+            owner,
+            "command",
+            side_effect=[
+                {"ready": True},
+                {
+                    "sessionId": "tls-session",
+                    "capabilities": {
+                        "browserName": "safari",
+                        "browserVersion": "26.0",
+                        "acceptInsecureCerts": True,
+                    },
+                },
+                None,
+                "Safari TLS UA",
+                None,
+                None,
+            ],
+        ) as rest:
+            # Exercise the same post-listener sequence through the actual open.
+            await self.open_with_owned_listener(owner)
+        self.assertTrue(
+            rest.call_args_list[1].args[2]["capabilities"]["alwaysMatch"][
+                "acceptInsecureCerts"
+            ]
+        )
+        self.assertEqual(
+            rest.call_args_list[-2],
+            mock.call("POST", "/session/tls-session/url", {"url": owner.url}),
+        )
+        self.assertTrue(owner.provenance["session_delete_acknowledged"])
+
+    async def open_with_owned_listener(self, owner):
+        process = owner.process
+        reservation = mock.MagicMock()
+        reservation.__enter__.return_value.getsockname.return_value = (
+            "127.0.0.1",
+            4567,
+        )
+        with (
+            mock.patch.object(
+                safari,
+                "socket",
+                SimpleNamespace(socket=mock.Mock(return_value=reservation)),
+            ),
+            mock.patch.object(
+                safari.asyncio, "create_subprocess_exec", return_value=process
+            ),
+            mock.patch.object(
+                safari, "command", return_value=(0, "p54321\nn127.0.0.1:4567")
+            ),
+        ):
+            async with owner:
+                pass
+
+    async def test_missing_wrong_and_non_boolean_certificate_capabilities_fail_and_delete(
+        self,
+    ):
+        for protocol, returned in (
+            ("h2", None),
+            ("h2", False),
+            ("h2", 1),
+            ("h2", "true"),
+            ("h1", True),
+            ("h1", None),
+        ):
+            with self.subTest(protocol=protocol, returned=returned):
+                scheme = "https" if protocol == "h2" else "http"
+                owner = safari.SafariSession(
+                    f"{scheme}://127.0.0.1:1234/run/probe",
+                    {"safari_version": "26.0"},
+                    protocol=protocol,
+                )
+                owner.process = OwnedProcess()
+                caps = {"browserName": "safari", "browserVersion": "26.0"}
+                if returned is not None:
+                    caps["acceptInsecureCerts"] = returned
+                with (
+                    mock.patch.object(
+                        owner,
+                        "command",
+                        side_effect=[
+                            {"ready": True},
+                            {"sessionId": "rejected-capability", "capabilities": caps},
+                            None,
+                        ],
+                    ) as rest,
+                    self.assertRaisesRegex(ValueError, "certificate capability"),
+                ):
+                    await self.open_with_owned_listener(owner)
+                self.assertEqual(rest.call_count, 3)
+                self.assertEqual(
+                    rest.call_args_list[-1],
+                    mock.call("DELETE", "/session/rejected-capability"),
+                )
+                self.assertTrue(owner.process.terminated)
+                self.assertEqual(owner.provenance["capabilities"], caps)
+
+    async def test_h2_capture_cleanup_failure_keeps_protocol_certificate_and_primary(
+        self,
+    ):
+        server = SimpleNamespace(
+            certificate=SimpleNamespace(der=b"public test certificate"),
+            address=("127.0.0.1", 1234),
+            start=mock.AsyncMock(),
+            close=mock.AsyncMock(side_effect=OSError("peer close")),
+        )
+        primary = ValueError("H2 observation failed")
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "capture"
+            with (
+                mock.patch.object(
+                    safari, "provenance", return_value={"safari_version": "26.0"}
+                ),
+                mock.patch.object(safari, "capture_server", return_value=server),
+                mock.patch.object(safari, "capture_scenario", side_effect=primary),
+                self.assertRaises(safari.SafariFailure) as raised,
+            ):
+                await safari.run(output, "h2")
+            self.assertIs(raised.exception.primary, primary)
+            self.assertEqual(str(raised.exception.cleanup[0]), "peer close")
+            record = json.loads((output / "result.json").read_text(encoding="utf-8"))
+            self.assertEqual(record["requested_protocol"], "h2")
+            self.assertEqual(record["status"], "failed")
+            self.assertEqual(record["failure"]["message"], "H2 observation failed")
+            self.assertEqual(
+                record["final_cleanup_failures"][0]["message"], "peer close"
+            )
+            self.assertEqual(
+                (output / "peer-certificate.der").read_bytes(), server.certificate.der
+            )
 
     async def test_non_loopback_driver_listener_fails_before_rest_and_reaps_owner(self):
         owner = self.owner()

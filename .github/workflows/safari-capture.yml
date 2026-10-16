@@ -14,6 +14,10 @@ jobs:
   capture:
     runs-on: macos-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        protocol: [h1, h2]
     steps:
       - name: Check out capture source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -25,20 +29,36 @@ jobs:
         with:
           python-version: "3.10"
 
+      - name: Install pinned capture dependencies
+        run: python -m pip install --require-hashes -r scripts/requirements.txt
+
       - name: Test the Safari driver adapter
         run: python -m unittest scripts.capture.tests.test_safari_webdriver
 
-      # HTTP mode uses only the standard library. No trust or hosts changes.
-      - name: Attempt one Safari HTTP SSE reconnect capture
-        run: python -m scripts.capture.safari_webdriver --output-dir target/safari-capture
+      - name: Attempt one Safari SSE reconnect capture
+        shell: bash
+        env:
+          CAPTURE_PROTOCOL: ${{ matrix.protocol }}
+        run: |
+          mkdir -p target
+          set +e
+          python -m scripts.capture.safari_webdriver --protocol "$CAPTURE_PROTOCOL" \
+            --output-dir target/safari-capture > target/safari-attempt.log 2>&1
+          status=$?
+          printf '%s\n' "$status" > target/safari-attempt.exit
+          cat target/safari-attempt.log
+          exit "$status"
 
       - name: Retain capture and failures
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: safari-http-sse-${{ github.sha }}-${{ github.run_attempt }}
+          name: safari-${{ matrix.protocol }}-sse-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             target/safari-capture/result.json
             target/safari-capture/reconnect-204.txt
+            target/safari-capture/peer-certificate.der
+            target/safari-attempt.log
+            target/safari-attempt.exit
           if-no-files-found: warn
           retention-days: 14

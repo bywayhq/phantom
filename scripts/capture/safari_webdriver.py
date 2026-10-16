@@ -1,4 +1,4 @@
-"""Attempt one HTTP SSE capture with the Safari installed on a macOS runner."""
+"""Attempt one HTTP or H2 SSE capture with Safari on a macOS runner."""
 
 from __future__ import annotations
 
@@ -217,13 +217,17 @@ async def command(*arguments: str, allow_failure=False) -> tuple[int, str]:
 
 
 class SafariSession:
-    def __init__(self, url: str, provenance: dict) -> None:
+    def __init__(self, url: str, provenance: dict, *, protocol="h1") -> None:
+        scheme = {"h1": "http", "h2": "https"}.get(protocol)
+        if scheme is None:
+            raise ValueError("unsupported Safari capture protocol")
         parts = urlsplit(url)
-        if parts.scheme != "http" or parts.hostname != "127.0.0.1" or not parts.port:
-            raise ValueError("Safari capture requires a loopback HTTP URL")
-        if parts.username or parts.password or parts.fragment:
+        if parts.scheme != scheme or parts.hostname != "127.0.0.1" or not parts.port:
+            raise ValueError("Safari capture requires the selected loopback URL")
+        if parts.username is not None or parts.password is not None or parts.fragment:
             raise ValueError("Safari capture URL contains unsupported components")
         self.url = url
+        self.accept_insecure_certificates = protocol == "h2"
         self.provenance = provenance
         self.process = None
         self.port = None
@@ -313,7 +317,7 @@ class SafariSession:
                 "capabilities": {
                     "alwaysMatch": {
                         "browserName": "safari",
-                        "acceptInsecureCerts": False,
+                        "acceptInsecureCerts": self.accept_insecure_certificates,
                         "pageLoadStrategy": "normal",
                     }
                 }
@@ -333,6 +337,11 @@ class SafariSession:
             raise ValueError("WebDriver did not select Safari")
         if capabilities.get("browserVersion") != self.provenance["safari_version"]:
             raise ValueError("Safari capabilities and installed version differ")
+        if (
+            capabilities.get("acceptInsecureCerts")
+            is not self.accept_insecure_certificates
+        ):
+            raise ValueError("Safari did not confirm the certificate capability")
         await self.command(
             "POST",
             self.session_path("/timeouts"),
@@ -414,7 +423,7 @@ def file_hash(path: Path) -> str:
     return digest.hexdigest()
 
 
-async def provenance() -> dict:
+async def provenance(protocol="h1") -> dict:
     if sys.platform != "darwin":
         raise RuntimeError("Safari capture requires macOS and its installed driver")
     with (SAFARI / "Contents/Info.plist").open("rb") as stream:
@@ -428,7 +437,13 @@ async def provenance() -> dict:
         "scenario": "reconnect-204",
         "repeat": 1,
         "retries": 0,
-        "protocol": "http/1.1",
+        "protocol": "h2" if protocol == "h2" else "http/1.1",
+        "url_host": "127.0.0.1",
+        "certificate_validation": (
+            "WebDriver session acceptInsecureCerts=true; no trust-store change"
+            if protocol == "h2"
+            else "WebDriver session acceptInsecureCerts=false; plaintext HTTP"
+        ),
         "driver_sha256": file_hash(DRIVER),
         "safari_sha256": file_hash(SAFARI / "Contents/MacOS/Safari"),
         "image_os": os.environ.get("ImageOS"),  # noqa: SIM112 - runner's exact key
@@ -460,10 +475,38 @@ async def provenance() -> dict:
             ".github/workflows/safari-capture.yml",
         )
     }
+    if protocol == "h2":
+        from importlib.metadata import version
+
+        result["transport_libraries"] = {
+            name: version(name) for name in ("h2", "hpack", "cryptography")
+        }
+        for name in ("sse_multiplexed.py", "http2_session.py"):
+            source = Path("scripts/capture") / name
+            result["source_files"][str(source)] = file_hash(source)
     return result
 
 
-def check_run(run) -> None:
+def capture_server(protocol):
+    if protocol == "h1":
+        return ReconnectServer()
+    if protocol != "h2":
+        raise ValueError("unsupported Safari capture protocol")
+    from .sse_multiplexed import H2ReconnectServer, library_versions
+
+    library_versions("h2")
+
+    class LoopbackH2Server(H2ReconnectServer):
+        def url(self, run):
+            if self.address is None:
+                raise RuntimeError("server has not started")
+            # This attempt measures an IP target with explicit session bypass.
+            return f"https://127.0.0.1:{self.address[1]}{run.page_path()}"
+
+    return LoopbackH2Server()
+
+
+def check_run(run, protocol="h1") -> None:
     requests = [request for request in run.requests if request.kind == "sse"]
     if (
         not any(r.kind == "page" for r in run.requests)
@@ -474,19 +517,44 @@ def check_run(run) -> None:
         raise RuntimeError(
             "Safari did not complete the observed reconnect-204 sequence"
         )
+    if protocol == "h2" and (
+        not run.connections
+        or any(connection.protocol != "h2" for connection in run.connections)
+        or any(
+            request.stream_id is None or not request.decoded_headers
+            for request in run.requests
+        )
+    ):
+        raise RuntimeError("Safari capture has no verified H2 requests and ALPN")
 
 
-async def run(output: Path) -> None:
+async def run(output: Path, protocol="h1") -> None:
+    if protocol not in {"h1", "h2"}:
+        raise ValueError("unsupported Safari capture protocol")
     await asyncio.to_thread(output.mkdir, parents=True, exist_ok=False)
-    record = {"status": "failed", "launch_mode": "webdriver-headed"}
-    server = ReconnectServer()
+    record = {
+        "status": "failed",
+        "launch_mode": "webdriver-headed",
+        "requested_protocol": protocol,
+    }
+    server = None
     session = None
     observed = None
     metadata = None
     primary = None
     cleanup = []
     try:
-        record.update(await provenance())
+        record.update(await provenance(protocol))
+        server = capture_server(protocol)
+        if protocol == "h2":
+            certificate = server.certificate
+            (output / "peer-certificate.der").write_bytes(certificate.der)
+            record["peer_certificate"] = {
+                "file": "peer-certificate.der",
+                "sha256": hashlib.sha256(certificate.der).hexdigest(),
+                "san": "DNS:server.phantom.test; does not match IP target",
+                "identity_scope": "IP target; domain SNI and ClientHello not captured",
+            }
         await server.start("127.0.0.1", 0)
         metadata = CaptureMetadata(
             client="safari",
@@ -494,13 +562,19 @@ async def run(output: Path) -> None:
             operating_system=platform.platform(),
             listen_address=f"127.0.0.1:{server.address[1]}",
             launch_mode="webdriver-headed",
-            launch_arguments="safaridriver -p <port>; WebDriver navigate loopback HTTP",
+            launch_arguments=(
+                "safaridriver -p <port>; WebDriver navigate loopback HTTPS; "
+                "acceptInsecureCerts=true"
+                if protocol == "h2"
+                else "safaridriver -p <port>; WebDriver navigate loopback HTTP"
+            ),
+            protocol=protocol,
         )
 
         def drive(url):
             nonlocal session, observed
             observed = server.run
-            session = SafariSession(url, record)
+            session = SafariSession(url, record, protocol=protocol)
             return session
 
         runs = await capture_scenario(
@@ -510,7 +584,10 @@ async def run(output: Path) -> None:
             run_timeout=120.0,
             drive=drive,
         )
-        check_run(runs[0])
+        check_run(runs[0], protocol)
+        record["observed_connection_protocols"] = [
+            connection.protocol or "http/1.1" for connection in runs[0].connections
+        ]
         record["status"] = "success"
     except BaseException as error:
         primary = error
@@ -520,10 +597,11 @@ async def run(output: Path) -> None:
                 await session.close()
             except BaseException as error:
                 cleanup.append(error)
-        try:
-            await server.close()
-        except BaseException as error:
-            cleanup.append(error)
+        if server is not None:
+            try:
+                await server.close()
+            except BaseException as error:
+                cleanup.append(error)
         if observed is not None and metadata is not None:
             try:
                 write_text_fixture(
@@ -549,8 +627,9 @@ async def run(output: Path) -> None:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--protocol", choices=("h1", "h2"), default="h1")
     args = parser.parse_args()
-    asyncio.run(run(args.output_dir))
+    asyncio.run(run(args.output_dir, args.protocol))
 
 
 if __name__ == "__main__":
