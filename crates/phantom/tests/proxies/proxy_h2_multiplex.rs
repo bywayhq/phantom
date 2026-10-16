@@ -153,6 +153,7 @@ async fn spawn_proxy_fixture_with_faults(
 ) -> TestResult<ProxyFixture> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
+    let listener = peer_contract::OwnedListener::new(listener, probe.as_ref())?;
     let acceptor = identity.acceptor(H2_ALPN)?;
     let log = ProxyLog::default();
     let seen = Arc::clone(&log);
@@ -164,10 +165,11 @@ async fn spawn_proxy_fixture_with_faults(
     let task = async move {
         let mut index = 0;
         loop {
-            let (tcp, _) = match listener_contract::accept(&listener, accept_fault.as_ref()).await {
-                Ok(accepted) => accepted,
-                Err(error) => return TestResult::<()>::Err(error.into()),
-            };
+            let (tcp, _) =
+                match listener_contract::accept(listener.socket(), accept_fault.as_ref()).await {
+                    Ok(accepted) => accepted,
+                    Err(error) => return TestResult::<()>::Err(error.into()),
+                };
             let future = serve_proxy_connection(
                 tcp,
                 acceptor.clone(),
@@ -324,6 +326,7 @@ async fn spawn_origin_fixture_with_faults(
 ) -> TestResult<OriginFixture> {
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
+    let listener = peer_contract::OwnedListener::new(listener, probe.as_ref())?;
     let acceptor = identity.acceptor(H1_ALPN)?;
     let children = probe.clone();
     let handlers = AcceptedConnections::new();
@@ -332,11 +335,11 @@ async fn spawn_origin_fixture_with_faults(
     let observed = Arc::clone(&requests);
     let task = async move {
         loop {
-            let (tcp, _) = match listener_contract::accept(&listener, faults.accept.as_ref()).await
-            {
-                Ok(accepted) => accepted,
-                Err(error) => return TestResult::<()>::Err(error.into()),
-            };
+            let (tcp, _) =
+                match listener_contract::accept(listener.socket(), faults.accept.as_ref()).await {
+                    Ok(accepted) => accepted,
+                    Err(error) => return TestResult::<()>::Err(error.into()),
+                };
             let acceptor = acceptor.clone();
             let faults = faults.clone();
             let requests = Arc::clone(&observed);

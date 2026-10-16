@@ -2758,6 +2758,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Observe multiplexing fixtures' own listener destruction independently of
+  TCP port reuse. Keep their task and relay cleanup checks.
+
 - Wait for both relay socket owners to finish before testing port reuse after
   cancellation. Keep the original rebind assertions and deadlines.
 

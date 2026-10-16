@@ -1,6 +1,12 @@
+mod listener_owner;
+
+use listener_owner::ListenerWitness;
+pub(super) use listener_owner::OwnedListener;
+
 use std::{
     future::Future,
     io,
+    net::SocketAddr,
     sync::{
         Arc, Mutex,
         atomic::{AtomicBool, Ordering},
@@ -49,9 +55,31 @@ impl Drop for Lifetime {
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct TaskProbe(Arc<Mutex<Vec<ObservedTask>>>);
+pub(crate) struct TaskProbe(
+    Arc<Mutex<Vec<ObservedTask>>>,
+    Arc<Mutex<Vec<ListenerWitness>>>,
+);
 
 impl TaskProbe {
+    fn observe_listener(&self, witness: ListenerWitness) {
+        self.listener_registry().push(witness);
+    }
+
+    fn listener_registry(&self) -> std::sync::MutexGuard<'_, Vec<ListenerWitness>> {
+        match self.1.lock() {
+            Ok(registry) => registry,
+            Err(_) => panic!("listener lifetime registry poisoned"),
+        }
+    }
+
+    pub(crate) fn live_listeners(&self) -> Vec<SocketAddr> {
+        self.listener_registry()
+            .iter()
+            .filter(|listener| listener.is_live())
+            .map(|listener| listener.address())
+            .collect()
+    }
+
     fn registry(&self) -> std::sync::MutexGuard<'_, Vec<ObservedTask>> {
         match self.0.lock() {
             Ok(registry) => registry,
@@ -113,6 +141,7 @@ async fn cancellation(kind: Cancellation) -> TestResult<()> {
     let origin_probe = TaskProbe::default();
     let fixture = spawn_proxy_fixture(&proxy_identity, None, Some(proxy_probe.clone())).await?;
     let address = fixture.address;
+    assert_eq!(proxy_probe.live_listeners(), [address]);
     let origin = spawn_origin_fixture(&origin_identity, Some(origin_probe.clone())).await?;
     let client = client(
         chromium_profile(),
@@ -152,23 +181,21 @@ async fn cancellation(kind: Cancellation) -> TestResult<()> {
     }
     sleep(Duration::from_millis(150)).await;
     let remaining = proxy_probe.live();
-    let released = tokio::net::TcpListener::bind(address).await;
-    let address_released = released.is_ok();
+    let remaining_listeners = proxy_probe.live_listeners();
     // The live external client and origin precede finite backup destruction.
     let proxy_stop = proxy_probe.backup().await;
     let origin_stop = origin_probe.backup().await;
     crate::support::tunnel_proxy::finish_with_cleanup(proxy_stop, origin_stop)?;
     drop(origin);
     drop(client);
-    drop(released);
 
     assert!(
         remaining.is_empty(),
         "actual multiplex fixture left tasks live before backup: {remaining:?}"
     );
     assert!(
-        address_released,
-        "actual multiplex listener retained its address before backup"
+        remaining_listeners.is_empty(),
+        "actual multiplex listener remained owned before backup: {remaining_listeners:?}"
     );
     Ok(())
 }
@@ -205,6 +232,35 @@ async fn explicit_backup_observes_actual_fixture_destruction() -> TestResult<()>
     probe.backup().await?;
     assert!(probe.live().is_empty());
     drop(fixture);
+    drop(client);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_retained_fixture_listener_and_relay_do_not_satisfy_cleanup() -> TestResult<()> {
+    let identity = TestIdentity::generate()?;
+    let proxy_probe = TaskProbe::default();
+    let origin_probe = TaskProbe::default();
+    let proxy = spawn_proxy_fixture(&identity, None, Some(proxy_probe.clone())).await?;
+    let origin = spawn_origin_fixture(&identity, Some(origin_probe.clone())).await?;
+    let client = client(chromium_profile(), &identity, &identity, proxy.address)?;
+    timeout(Duration::from_secs(5), get_https(&client, origin.address)).await??;
+    let retained_tasks = proxy_probe.live();
+    let retained_listeners = proxy_probe.live_listeners();
+    for role in [TaskRole::RelayDownstream, TaskRole::RelayUpstream] {
+        assert!(retained_tasks.contains(&role));
+    }
+    assert_eq!(retained_listeners, [proxy.address]);
+    assert!(!retained_tasks.is_empty());
+    assert!(!retained_listeners.is_empty());
+
+    let proxy_stop = proxy.finish().await;
+    let origin_stop = origin.finish().await;
+    crate::support::tunnel_proxy::finish_with_cleanup(proxy_stop, origin_stop)?;
+    assert!(proxy_probe.live().is_empty());
+    assert!(proxy_probe.live_listeners().is_empty());
+    assert!(origin_probe.live().is_empty());
+    assert!(origin_probe.live_listeners().is_empty());
     drop(client);
     Ok(())
 }
@@ -263,6 +319,7 @@ async fn origin_cancellation(kind: Cancellation) -> TestResult<()> {
     let proxy = spawn_proxy_fixture(&proxy_identity, None, Some(proxy_probe.clone())).await?;
     let origin = spawn_origin_fixture(&origin_identity, Some(origin_probe.clone())).await?;
     let address = origin.address;
+    assert_eq!(origin_probe.live_listeners(), [address]);
     let client = client(
         chromium_profile(),
         &origin_identity,
@@ -284,21 +341,19 @@ async fn origin_cancellation(kind: Cancellation) -> TestResult<()> {
     }
     sleep(Duration::from_millis(150)).await;
     let remaining = origin_probe.live();
-    let rebound = tokio::net::TcpListener::bind(address).await;
-    let released = rebound.is_ok();
+    let remaining_listeners = origin_probe.live_listeners();
     let origin_stop = origin_probe.backup().await;
     let proxy_stop = proxy_probe.backup().await;
     crate::support::tunnel_proxy::finish_with_cleanup(origin_stop, proxy_stop)?;
     drop(proxy);
     drop(client);
-    drop(rebound);
     assert!(
         remaining.is_empty(),
         "actual multiplex origin fixture left tasks live before backup: {remaining:?}"
     );
     assert!(
-        released,
-        "actual multiplex origin retained its listener address before backup"
+        remaining_listeners.is_empty(),
+        "actual multiplex origin listener remained owned before backup: {remaining_listeners:?}"
     );
     Ok(())
 }

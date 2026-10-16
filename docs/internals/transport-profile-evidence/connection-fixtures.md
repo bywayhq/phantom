@@ -87,6 +87,28 @@ This demonstrates an ownership-readiness gap. The original run did not record
 the failing bind stage or port ownership, so it does not prove that this gap
 caused error 10048. Production relay behavior is unchanged.
 
+## Multiplexing listener lifetime
+
+The gate on `1459cd32` failed two listener rebind assertions after their task
+lifetime checks passed. The assertions discarded the bind errors, so the
+original port owners and failure causes remain unknown.
+
+A controlled Windows exchange closed its original listener and allowed a
+separate listener to claim that address. The old rebind check then failed
+with error 10048 despite the original listener's release. A separate close
+experiment did not reproduce a failed rebind without that reclaimer.
+
+The fixture now observes its exact `TcpListener`. Its witness reports release
+only after that listener's destructor returns. Existing task and relay checks,
+150 ms observation boundaries, five-second deadlines, and external client
+lifetimes remain unchanged. Controls retain an actual listener and relay,
+keep accepted connections alive after listener release, and release two
+listeners independently. Strict Clippy and all eleven focused cleanup tests
+passed on Windows. The fresh full gate remains pending.
+
+This observes fixture ownership. It does not prove kernel TCP state has
+disappeared or that another process can bind the address.
+
 ## Retained evidence
 
 The integration owner's local archive is
