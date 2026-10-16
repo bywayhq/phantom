@@ -54,6 +54,15 @@ pub(crate) struct ProfileTcpStream {
 }
 
 impl ProfileTcpStream {
+    /// A stream without a keepalive schedule.
+    #[cfg(test)]
+    pub(crate) fn new(stream: TcpStream) -> Self {
+        Self {
+            stream,
+            keepalive: None,
+        }
+    }
+
     /// Returns the remote address of the connection.
     ///
     /// # Errors
