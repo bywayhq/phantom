@@ -58,13 +58,14 @@ order without reopening completed audits or repeating healthy timing runs:
 
 1. Runtime PR #259 is merged at `616f498f`. macOS DNS PR #260 is merged at
    `b5dd5b42` after independent review, all 23 Windows/Linux gate steps and
-   38 successful PR checks, including both platforms. Watch its main CI.
+   38 successful PR checks, including both platforms. All nine main push
+   workflows passed.
 2. Publish the completed headed Chrome Mac observations and the six clean
    H3 follow-ups. Retain failed Safari attempts and remaining browser
    differences as explicit limitations.
-3. Run isolated Playground/Solve checks against the final library revision
-   and one named consumer snapshot. Preserve active primary work and the
-   unlanded migration.
+3. Final isolated Playground/Solve checks passed 831 selected tests against
+   the delivered library and one named consumer snapshot. Primary work and
+   the unlanded migration remain preserved.
 4. Reconcile this ledger, roadmap and support pages. Archive retained
    evidence before removing integrated lanes. Report delivered work,
    unavailable captures and unresolved historical attribution separately.
@@ -147,11 +148,14 @@ failure remains retained with its cause unresolved. The
 [capture comparison record](transport-profile-evidence/capture-expansion.md)
 binds these observations and their limits.
 
-The isolated Playground/Solve run passed 823 selected tests against delivered
-`41483d5a`: 657 types, 157 TLS egress and nine offline Solve controls, with
-no skips. Primary consumer work and Foundry were preserved. The migration
-remains unpublished and unlanded. This is local consumer compatibility, not
-live service acceptance; final documentation reconciliation remains open.
+The final isolated Playground/Solve run passed 831 selected tests against
+delivered `b5dd5b42`: 665 types, 157 TLS egress and nine offline Solve
+controls, with no skips or retries. Independent review approved the actual
+results, source and native bindings, and preservation checks. Primary work,
+all 89 dirty vendor files, the prepared migration and Foundry were preserved.
+The migration remains unpublished and unlanded. The
+[consumer record](transport-profile-evidence/consumer-checks.md) retains this
+result and the earlier 823-test run. Neither establishes live acceptance.
 
 The Windows DNS watch and configuration probes retain separate native
 read-only evidence. Actual adapter or VPN changes and browser parity remain
@@ -353,9 +357,12 @@ layers or physical-device parity.
   `reset-before-head` rows each ran once on CPython 3.12.10 at `b5dd5b42`.
   All three failed with synchronous `WSARecvFrom` error 10054; no fixtures
   were written. There were no capture retries or cleanup error chains.
-  This is a separate blocker from the original cleanup failures.
-  Safari remains blocked
-  before navigation; hosted Chrome adds the named Mac H1 coverage.
+  A diagnostic reproduced that error with every existing completed-run
+  cleanup condition met except its code. The narrow listener repair at
+  `a71ff24e` then let all three rows complete once, with two fresh-profile
+  runs each and no retries. Original failures remain retained.
+  Safari remains blocked before navigation; hosted Chrome adds the named
+  Mac H1 coverage.
 - [x] E2: Compare the twelve retained Windows tunnelled `wss://` openings
   with Phantom, keeping proxy and origin handshakes distinct. Expand the
   selected builds and platforms without inferring browser H3 WebSocket or
@@ -400,9 +407,13 @@ audit, speculative crate splits, and unrelated dependency updates.
 
 ## Delivery and completion
 
-- [ ] D1: Verify the integrated features against isolated Playground and
+- [x] D1: Verify the integrated features against isolated Playground and
   Solve consumer checks. Reconcile this plan, the roadmap, coverage, limits,
   examples, and migration notes. Preserve the unlanded migration and Foundry.
+  The final selected 831-test run and independent result review passed on
+  delivered `b5dd5b42`. Remaining capture-tool and documentation changes do
+  not change the checked Rust library or native dependencies. Final PR
+  integration still requires the exact-head gate and current CI below.
 
 Use subagents for bounded source research, independent implementations, and
 non-author reviews. Give each an owned file set, acceptance criteria, and

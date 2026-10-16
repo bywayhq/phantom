@@ -15,9 +15,9 @@ tracks the next timing investigations, corpus management, and named feature
 and browser-coverage additions. Its five catalog tasks and eight client
 features are delivered. Firefox address-selection work is delivered through
 PR #252. Windows, Linux and macOS DNS support and the first capture set are
-delivered. Final consumer checks, missing browser layers and the original
-timing causes remain open. Its completion criteria are separate from the
-completed phase scopes below.
+delivered. Final isolated consumer checks passed 831 selected tests. Missing
+browser layers and the original timing causes remain open. Its completion
+criteria are separate from the completed phase scopes below.
 
 > For builders planning around Phantom and contributors choosing work.
 
@@ -328,8 +328,9 @@ completed phase scope.
   `encrypted_client_hello` and its `record_size_limit`,
   `extended_master_secret`, and `renegotiation_info` extensions
   ([Validation](explanation/validation.md#firefox-157-http3-recipe)).
-  The optional `RequestField::AltUsed` HTTP/3 slot passed 21 focused
-  placement and omission tests. Its integration gate and delivery remain in the
+  The optional `RequestField::AltUsed` HTTP/3 slot and mapping-time omission
+  are delivered in PRs #230 and #237, with their full gates and platform
+  checks recorded in the
   [campaign](internals/transport-and-profile-campaign.md#browser-fidelity).
   Mapping-time omission uses `Http3AltUsed::ValidatedMapping`: each request
   hop samples learned eligibility before setup, and checked authenticated H3
@@ -357,21 +358,13 @@ completed phase scope.
   `chrome_android::v154_*`, and Play served that build to the emulator; no
   record compares it with the stable version Google lists. Blocker: a
   physical device, to check the emulator's CPU and network against a phone.
-- Firefox's address selection on the remaining proxy paths, plus
-  failed-address suppression. Evidence: Firefox keeps the slower backup
-  connection and address family on every connection entry, proxies,
-  WebSocket, and HTTP/2 included, and skips an address that failed to
-  connect on the same cached
-  DNS record (`netwerk/protocol/http/DnsAndConnectSocket.cpp:671-745`,
-  `netwerk/base/nsSocketTransport2.cpp:1742-1745`); no hook log covers
-  these routes. Exact HTTP/1 HTTPS requests through a plaintext CONNECT proxy
-  now retain a quiet TCP spare and remember the proxy address family.
-  Other proxy paths close the slower attempt and learn no family.
-  Phantom still tries a failed address again
-  ([TCP socket option evidence](explanation/validation.md#tcp-socket-option-evidence)).
-  Blocker: none recorded; the work is to give proxy connections a family
-  and a second connection, and to record
-  connect failures in the address cache.
+- Firefox address-selection observations. Proxy, WebSocket, SOCKS and
+  outer-H2 backup ownership, family memory and record-scoped failed-address
+  feedback are delivered through PRs #249–#252. Browser observations of
+  these paths remain separate from source-backed policy and loopback
+  controls. Cross-origin forwarding reuse and immediate detection of idle
+  peer closure remain different. Proxy ECH and proxy early data remain
+  unsupported. See [Connection limits](reference/limits.md#delays-and-timers).
 
 #### Wire fidelity
 
@@ -384,29 +377,14 @@ completed phase scope.
   Blocker: generating new orders needs the source set's order and the seed
   distribution, which no capture shows; the seed comes from a thread-local
   counter, and one seed served 5 of 29 processes.
-- Chromium's built-in DNS client as the default resolver of the
-  Chromium-family profiles. Evidence: with their default resolver, Chrome
-  154, Edge 154, and Opera 136 sent their own HTTPS and A queries and kept
-  the answer for the record's TTL
-  ([Socket hook evidence](explanation/validation.md#socket-hook-evidence));
-  `AddressResolver::system_nameservers` does the same when a caller passes
-  it. Blocker: Chromium's per-platform reading of the DNS configuration,
-  which takes the first adapter's servers on Windows and falls back to the
-  system resolver for a VPN adapter, a name resolution policy, a DNS proxy,
-  or different servers per adapter
-  (`net/dns/dns_config_service_win.cc:411-502`), with its own rules on macOS
-  and Linux; and the `https-records` feature, which the resolver needs and
-  the default build lacks
-  ([Chromium's built-in DNS client](explanation/validation.md#chromiums-built-in-dns-client)).
-- Firefox's record TTL on Windows. Evidence: Firefox 157 reads the record
-  TTL from the operating system's cache with `DnsQuery_A` after each lookup
-  and kept a 1,757-second answer
-  ([Firefox socket hook evidence](explanation/validation.md#firefox-socket-hook-evidence));
-  `firefox::v157_dns_cache` honors a record TTL, but Phantom's system
-  lookups report none. Blocker: `DnsQuery_A` needs an audited FFI
-  boundary of its own ([Design](explanation/design.md#unsafe-code)).
-  Phantom's own queries would not stand in for it: they leave from its
-  process, not the operating system's resolver as Firefox's do.
+- Chromium DNS default policy and browser observations. Paired address/HTTPS
+  resolvers are delivered for Windows, Linux and macOS through PRs #250,
+  #254 and #260. They remain opt-in, require `https-records`, and are not
+  selected automatically by profiles. Browser replay and induced adapter or
+  VPN-change observations remain absent. Query ordering, retry timing and
+  address sorting retain documented differences. Native controls do not
+  establish browser parity. See
+  [DNS configuration limits](reference/limits.md#windows-dns-configuration).
 - Early data on connections that offer ECH from HTTPS records. Evidence:
   NSS offers `early_data` in both ClientHellos of a resumed ECH connection,
   and Firefox 157 disables TCP early data only on proxy connections and

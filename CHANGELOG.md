@@ -2823,6 +2823,7 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 - Retain headed Chrome HTTP reconnect captures for both hosted Mac
   architectures under their actual browser and operating-system versions.
+  Add the three previously missing Chrome 155 Windows HTTP/3 SSE scenarios.
 
 - Preserve active Windows TLS read resets as SSE capture failures. Record
   terminal resets only after observation ends and `writer.close()` succeeds.

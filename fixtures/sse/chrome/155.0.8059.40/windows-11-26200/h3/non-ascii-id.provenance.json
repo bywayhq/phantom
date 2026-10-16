@@ -1,0 +1,66 @@
+{
+  "source_head": "a71ff24eb170ffe5c1bf33d1161154abdd9881ae",
+  "client": "Google Chrome",
+  "client_version": "155.0.8059.40",
+  "operating_system": "Windows-11-10.0.26200-SP0",
+  "launch_mode": "headless",
+  "protocol": "h3",
+  "scenario": "non-ascii-id",
+  "repeat": 2,
+  "matrix_attempts": 1,
+  "matrix_retries": 0,
+  "capture_exit": 0,
+  "fixture_sha256": "d89cdeb2955cf03caf454e4fae0c16618f147cf41674a406bd7c10865e54c083",
+  "results_sha256": "66c007cee6d75216434da01711c943a9b224b414b431a20de0820747b3f53917",
+  "independent_review_sha256": "5c58e054dcafa4698a6e169503542c580237cb42f85ab9c40500c8c44b13afb7",
+  "input_manifest_sha256": "a46b13cc41157e7cf6c39048b210f4a247c445a21b6edb5cf4b82dfa01f0f49f",
+  "packet": "hosted-capture-results/target/transport-profile-campaign/E1-three-chrome-fixed-a71ff24e-v1",
+  "input_identities": [
+    {
+      "path": "C:\\code\\phantom-worktrees\\hosted-capture-results\\scripts\\capture\\run_matrix.py",
+      "bytes": 51883,
+      "sha256": "25b6ff974a8c8e41b0b16547627220d7789b9bf490e80a1bb2f146322a4d6dd4"
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\hosted-capture-results\\scripts\\capture\\sse_multiplexed.py",
+      "bytes": 27239,
+      "sha256": "9b43cdef6858c476b1994c1453ca85659a533f91f0689d9bb859e1bd8820b921"
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\hosted-capture-results\\scripts\\capture\\sse_reconnect.py",
+      "bytes": 40445,
+      "sha256": "e0ca69660863db51adb079921b7996bd8d3e6ebc2ed6329c1520a968e55f9b5d"
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\hosted-capture-results\\scripts\\capture\\tests\\test_run_matrix.py",
+      "bytes": 76710,
+      "sha256": "aba93e698fb6de89058d74efc83924bd11c484e34214b5cc58f26a81dcb0f1fe"
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\hosted-capture-results\\scripts\\capture\\tests\\test_sse_reconnect.py",
+      "bytes": 13660,
+      "sha256": "a146fc3cf24068afce000cf5158811bbffcfcfb84a697c7d643d221fba80c967"
+    },
+    {
+      "path": "C:\\code\\phantom-worktrees\\hosted-capture-results\\scripts\\requirements.txt",
+      "bytes": 18763,
+      "sha256": "37624d6948ff326e9d0e4d2041c1a7c603f06d58e3c8b13f54960264f879271f"
+    },
+    {
+      "path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      "bytes": 4586648,
+      "sha256": "f76f0234efb271041dc84f9f38fb858e01859d5da6f775f5108668eb3ae80975"
+    },
+    {
+      "path": "C:\\Program Files\\Google\\Chrome\\Application\\155.0.8059.40\\chrome.dll",
+      "bytes": 304965272,
+      "sha256": "b3d501c2e9af53f3e9e5d44c006aa42ed137cfb2d1dc161e3eca77cfbd48ea21"
+    },
+    {
+      "path": "C:\\Users\\arya\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "bytes": 104952,
+      "sha256": "4d6f5f81a4bca11191c4c7c6b43632694d0a4ce74e068619d8fdc161d469859a"
+    }
+  ],
+  "scope": "Loopback browser observation; no Phantom parity, full recipe or original ICMP-cause attribution."
+}

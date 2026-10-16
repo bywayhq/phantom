@@ -862,11 +862,11 @@ Not modeled:
   literal can reach the difference, which for `http://` means a loopback
   address.
 - Chromium's built-in DNS client as the default resolver of its profiles.
-  The paired Windows and Linux constructors are opt-in. The older
+  The paired Windows, Linux and macOS constructors are opt-in. The older
   `AddressResolver::system_nameservers` keeps its fixed configuration.
 - Firefox's 600-second grace period for expired answers. Other platforms
   use the configured fallback lifetime for system answers.
-- Network-change invalidation outside the explicitly paired Windows/Linux
+- Network-change invalidation outside the explicitly paired Windows/Linux/macOS
   resolvers. Callers can clear the address cache themselves.
 
 Planned:

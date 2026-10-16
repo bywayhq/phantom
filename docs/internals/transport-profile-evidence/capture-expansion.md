@@ -22,6 +22,7 @@ rebuilt and reviewed before execution. Original source and binary remain.
 | Set | Files | Runs | Result |
 | --- | ---: | ---: | --- |
 | Windows SSE | 60 | 120 | 59 H3 files, one Firefox H2 file |
+| Windows Chrome H3 follow-ups | 3 | 6 | Original three missing SSE scenarios |
 | Windows tunnelled WebSocket | 12 | 12 | Corrected follow-ups, two browsers and three proxy types |
 | Firefox Ubuntu WSL | 5 | 7 | Snapshot, H2/H3 SSE and two HTTPS-proxy WebSocket cases |
 
@@ -60,6 +61,19 @@ asynchronous completion, failed rebind and unchanged-deadline controls.
 The diagnostic and regression logs remain under this lane's
 `target/E1-synchronous-receive-observer/` and
 `target/E1-synchronous-receive-regression-v1/`.
+
+The same three rows then succeeded at `a71ff24e`, once each without a
+capture retry. Each completed both requested fresh-profile runs and its
+configured observation window. The six runs retain three Windows 10054
+cleanup observations, including between the `reconnect-404` runs. The next
+run reached the replacement listener. No cleanup exception was reported.
+The final input check matched the capture source, Chrome and Python files.
+The matrix's owned temporary directory was empty afterward. This does not
+independently inspect every OS process or establish the original ICMP cause.
+
+The added files retain UTF-8 `Last-Event-ID` bytes, terminal 404 behavior and
+reconnects after resets before response headers. They do not establish
+Phantom parity or a complete Chrome 155 recipe.
 
 The Linux package is Firefox 157.0, build ID `20260924084938`. Its official
 archive SHA256 is
@@ -192,6 +206,8 @@ receipts. Archive them before removing delivered worktrees.
 
 | Lane and receipt | SHA256 |
 | --- | --- |
+| `hosted-capture-results/E1-three-chrome-fixed-a71ff24e-v1/run/results.json` | `66c007cee6d75216434da01711c943a9b224b414b431a20de0820747b3f53917` |
+| `hosted-capture-results/E1-three-chrome-fixed-a71ff24e-v1/result-review.json` | `5c58e054dcafa4698a6e169503542c580237cb42f85ab9c40500c8c44b13afb7` |
 | `hosted-capture-results/E1-three-chrome-final-prep-v1/run/results.json` | `eb227654840f030ff7fbf2921e00da21aaf8638977652fa8361bcddd97aa2e05` |
 | `capture-delivery/E4-linux-snapshot-observed-v1/review.json` | `65ae00da1a0151855741630860ba621339debcd6193f82165dc06e8a3505c1c0` |
 | `capture-delivery/E4-linux-remaining-observed-v1/review.json` | `4822e49fb0d29714c741c6139abc7cc2408a8e1e45c2497cafaa32161aea6758` |

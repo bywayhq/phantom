@@ -2839,9 +2839,10 @@ Differences from the browser:
   the host's servers. The paired Windows constructor instead applies the
   reviewed Windows eligibility and suffix-search projection described
   above. The Linux pair applies its separate supported glibc/NSS projection.
-  macOS has no equivalent paired constructor.
+  The macOS pair applies its native resolver eligibility and shared
+  DNS, hosts-file and hostname invalidation, as described above.
 - The fixed resolver sends single-label names to the system resolver. The
-  paired Windows and Linux resolvers use configured search suffixes.
+  paired Windows, Linux and macOS resolvers use configured search suffixes.
 - Retries follow hickory 0.26, as for HTTPS record queries: within each of
   two attempts, the query is sent again, from a new socket with the same
   message ID, after 1.2 times the server's smoothed round trip or 333 ms,
@@ -2856,8 +2857,8 @@ Differences from the browser:
   HTTPS records in their own cache.
 - Chromium sorts IPv6 and IPv4 addresses with the platform's address
   sorter; Phantom keeps IPv6 first, each family in response order.
-- The paired Windows resolver checks observed configuration generations.
-  The fixed resolver still reads its configuration once.
+- The paired Windows, Linux and macOS resolvers check observed configuration
+  generations. The fixed resolver still reads its configuration once.
 
 Reproduce: read the cited files at the tag above, and run `cargo test -p
 phantom-net --features https-records dns::address_lookup`.
@@ -3618,20 +3619,20 @@ Limits:
 
 ### Windows H2 and H3 SSE expansion
 
-The 2026-10-15–16 Windows captures add 60 SSE files with two fresh headless
+The 2026-10-15–16 Windows captures add 63 SSE files with two fresh headless
 runs each. They use Windows 11 build 26200 and the exact browser builds below.
 The protocol subdirectories keep them separate from the older HTTP/1.1 set.
 
 | Browser | Build | H3 files | H2 files |
 | --- | --- | ---: | ---: |
-| Chrome | 155.0.8059.40 | 11 | 0 |
+| Chrome | 155.0.8059.40 | 14 | 0 |
 | Edge | 155.0.4283.45 | 16 | 0 |
 | Brave | 155.1.97.57 | 16 | 0 |
 | Firefox | 157.0 | 16 | 1 |
 
 [`fixtures/sse/`](../../fixtures/sse/) records the selected retry, id,
 termination, redirect and cookie scenarios. The only H2 file is Firefox's
-`retry-0`; the other 59 files record H3 on their actual connections.
+`retry-0`; the other 62 files record H3 on their actual connections.
 Fixtures retain ordered decoded headers, connection reuse, stream resets,
 close outcomes and observed reconnect delays. The cookie scenario retains
 only the tool's `phantom_probe=1` cookie.
@@ -3642,7 +3643,8 @@ UDP cleanup diagnostics (`winerror:1234`). Other recorded QUIC closes and
 client cancellations also remain in the evidence. Successful publication
 and process completion do not prove every native handle's destruction.
 Chrome's failed `non-ascii-id` and `reconnect-404` rows and interrupted
-`reset-before-head` row remain unresolved; their outputs are not installed.
+`reset-before-head` row remain retained separately from the later successful
+follow-ups below. Their original host failures are not attributed.
 
 Eight bounded public EventSource observations against `41483d5a` used four
 selected browser cases, twice each. Both H2 trials completed cleanly; all
@@ -3690,6 +3692,16 @@ passed the full Windows/Linux gate, including 1,158 capture tests with four
 skips. Headed Chrome HTTP/1.1 observations on hosted Intel and ARM Macs are
 recorded separately in the capture comparison record. Safari session
 creation failed before navigation. Physical Android remains unavailable.
+
+Three later Chrome H3 files cover the original unsuccessful `non-ascii-id`,
+`reconnect-404` and `reset-before-head` rows. Their first CPython 3.12.10
+attempts reproduced a synchronous Windows receive reset. A separate
+`non-ascii-id` diagnostic observed the exact completed-run cleanup state.
+After the narrow listener repair, all three rows succeeded once, with two
+fresh-profile runs each and no capture retries. Three terminal cleanup
+observations retain Windows code 10054. The files preserve their configured
+observation windows and decoded ordered headers. They do not establish
+Phantom parity or explain the original host failures.
 The bounded Ubuntu WSL sample below is separate from the Windows matrix.
 
 ### Firefox 157 Ubuntu WSL capture sample
