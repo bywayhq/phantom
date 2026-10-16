@@ -341,13 +341,14 @@ H3.
 ### Unsafe code
 
 The workspace forbids `unsafe_code`. Two crates make exceptions for
-three private modules:
+four private modules:
 
 | Crate | Module | Foreign calls |
 | --- | --- | --- |
 | `phantom-quic-btls` | `backend` | BoringSSL's QUIC TLS API, for Quinn |
 | `phantom-net` | `socket_ffi`, compiled on Apple platforms and Windows, and in Linux and Android tests | libc `if_nametoindex`; Winsock `setsockopt` and, in tests, `getsockopt`; IP Helper LUID conversions; ntdll `RtlGetVersion` |
 | `phantom-net` | `system_dns_ffi`, Windows only | Winsock address and DNS record lookup; adapter and registry reads; registry, interface and route notifications |
+| `phantom-net` | `linux_dns_ffi`, Linux with `https-records` | GNU libc version, hostname and interface index; owned inotify and route-netlink subscriptions |
 
 Both crates follow the same rules:
 
@@ -365,7 +366,7 @@ Both crates follow the same rules:
   and typed errors. Native handles and callback contexts stay inside it.
 - `scripts/ci/check-unsafe-boundaries.sh` fails when an `allow(unsafe_code`
   or `expect(unsafe_code` attribute appears anywhere outside `vendor/` but
-  the three module declarations, in `crates/phantom-quic-btls/src/lib.rs` and
+  the four module declarations, in `crates/phantom-quic-btls/src/lib.rs` and
   `crates/phantom-net/src/lib.rs`, or when a manifest sets `unsafe_code` to
   `allow` or `warn`. CI's Quality job and `scripts/dev/gate.sh` run it.
 
@@ -442,6 +443,40 @@ tokens do not establish an OS-wide atomic snapshot. Configuration errors are
 separate from DNS negatives and operational retry backoff. Native resource
 checks, synthetic layout and generation controls, and browser evidence remain
 separate validation tasks.
+
+#### Linux system DNS audit
+
+`linux_dns_ffi` returns owned native witnesses and generation observations.
+The libc version pointer is a static terminated string. Hostname reads use a
+local writable buffer and reject truncation, invalid UTF-8 and controls.
+Interface names fit `IF_NAMESIZE`, include a final NUL, and exclude invalid
+native names. Native strings and pointers never escape the boundary.
+
+One worker owns nonblocking, close-on-exec inotify and route-netlink
+descriptors. Successful calls transfer each fresh descriptor into one RAII
+owner. Partial startup drops those owners. All foreign sockaddr arguments
+use their declared ABI and byte length. Netlink receives use writable local
+buffers and reject oversized datagrams, non-kernel senders and invalid framing.
+Neither subscription sends a network query or changes host settings.
+
+Inotify watches stable parents and resolved configuration targets. Added
+parents enter a bounded roster before their contents are sampled. Network
+subscriptions cover link and address changes. The same worker compares the
+native hostname on each poll and explicit drain. Overflow, lost watches,
+malformed notifications, exhausted counters and failed native calls become
+terminal errors. Drain work has a fixed bound rather than hiding event loss.
+
+The observer reads atomic generation and terminal state only. It owns no
+descriptor or worker. The blocking settings owner requests drain acknowledgments
+before and after intake and projection. Matching generations cover processed
+notifications; they do not establish an atomic OS-wide snapshot. Hostname
+polling also has an observation interval.
+
+Shutdown disconnects the bounded command channel and joins the native worker.
+No worker is detached. The owner retains terminal failures after shutdown.
+Nonblocking descriptors and bounded drain work do not guarantee a fixed OS
+syscall or join duration. Dropping the final paired resolver joins its blocking
+settings worker too.
 
 #### Windows port randomization audit
 

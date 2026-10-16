@@ -111,6 +111,7 @@ pub(crate) enum LinuxDnsEligibility {
 }
 
 /// File-only legacy-syntax projection; not an effective native configuration.
+#[cfg(test)]
 pub(crate) fn chromium_linux(
     resolv_conf: &[u8],
     nsswitch_conf: &[u8],

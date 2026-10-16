@@ -137,7 +137,9 @@ fn owned_watch_fences_writes_replacements_and_added_target_parents() -> TestResu
         fs::write(first.0.join("resolv.conf"), b"nameserver 127.0.0.1\n")?;
         let written = watch.check()?;
         assert_ne!(before, written);
-        assert_eq!(written, observer.observed()?);
+        // The worker may have processed another host notification since
+        // check returned. The observer must have passed the pre-write state.
+        assert_ne!(before, observer.observed()?);
         fs::write(first.0.join("replacement"), b"nameserver 127.0.0.2\n")?;
         fs::rename(first.0.join("replacement"), first.0.join("resolv.conf"))?;
         assert_ne!(written, watch.check()?);

@@ -1,20 +1,24 @@
-//! Paired Windows DNS snapshots. Native refresh and shutdown have one owner.
+//! Paired system DNS snapshots. Native refresh and shutdown have one owner.
 
-use super::{
-    AddressLookup, HttpsLookupError, HttpsRecordLookup, HttpsRecordResolver, Nameservers,
-    system_configuration::{
-        ConfigurationError, WindowsDnsEligibility, WindowsDnsIneligibility, chromium_windows,
-    },
+#[cfg(target_os = "linux")]
+use super::linux_system_configuration::{
+    ConfigurationEligibility, ConfigurationError, ConfigurationGeneration,
+    ConfigurationIneligibility, ConfigurationObserver, ConfigurationWatch, WatchError,
 };
-use crate::{
-    host_resolver::{
-        AddressResolver, DnsConfigurationToken, DnsLookup, ResolveFuture, configuration_changed,
-    },
-    system_dns_ffi::{
-        configuration::read_windows_settings,
-        configuration_watch::{
-            ConfigurationGeneration, ConfigurationObserver, ConfigurationWatch, WatchError,
-        },
+#[cfg(windows)]
+use super::system_configuration::{
+    ConfigurationError, WindowsDnsEligibility as ConfigurationEligibility,
+    WindowsDnsIneligibility as ConfigurationIneligibility, chromium_windows,
+};
+use super::{AddressLookup, HttpsLookupError, HttpsRecordLookup, HttpsRecordResolver, Nameservers};
+use crate::host_resolver::{
+    AddressResolver, DnsConfigurationToken, DnsLookup, ResolveFuture, configuration_changed,
+};
+#[cfg(windows)]
+use crate::system_dns_ffi::{
+    configuration::read_windows_settings,
+    configuration_watch::{
+        ConfigurationGeneration, ConfigurationObserver, ConfigurationWatch, WatchError,
     },
 };
 use phantom_profile::UdpSettings;
@@ -33,20 +37,20 @@ enum ConfigurationFailure {
     WorkerStopped,
     RefreshCapacity,
     StatePoisoned,
-    SystemOnly(WindowsDnsIneligibility),
+    SystemOnly(ConfigurationIneligibility),
 }
 impl fmt::Display for ConfigurationFailure {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Read(error) => fmt::Display::fmt(error, f),
             Self::Watch(error) => fmt::Display::fmt(error, f),
-            Self::ThreadStart(_) => f.write_str("cannot start Windows DNS owner"),
-            Self::WorkerStopped => f.write_str("Windows DNS owner stopped"),
-            Self::RefreshCapacity => f.write_str("Windows DNS refresh queue is full"),
-            Self::StatePoisoned => f.write_str("Windows DNS generation state poisoned"),
+            Self::ThreadStart(_) => f.write_str("cannot start system DNS owner"),
+            Self::WorkerStopped => f.write_str("system DNS owner stopped"),
+            Self::RefreshCapacity => f.write_str("system DNS refresh queue is full"),
+            Self::StatePoisoned => f.write_str("system DNS generation state poisoned"),
             Self::SystemOnly(reasons) => write!(
                 f,
-                "Windows DNS configuration requires the system resolver; raw HTTPS queries are unavailable ({reasons:?})"
+                "system DNS configuration requires the system resolver; raw HTTPS queries are unavailable ({reasons:?})"
             ),
         }
     }
@@ -185,8 +189,11 @@ impl SystemDnsOwner {
                 let watch = match ConfigurationWatch::start() {
                     Ok(watch) => watch,
                     Err(error) => {
-                        let _ = ready.send(Err(error));
-                        return Err(failure(ConfigurationFailure::Watch(error)));
+                        // Transfer the original failure to the constructor.
+                        // Linux I/O errors have one owner rather than Copy.
+                        return ready
+                            .send(Err(error))
+                            .map_err(|_| failure(ConfigurationFailure::WorkerStopped));
                     }
                 };
                 if ready.send(Ok(watch.observer())).is_err() {
@@ -195,7 +202,7 @@ impl SystemDnsOwner {
                         .map_err(|error| failure(ConfigurationFailure::Watch(error)));
                 }
                 while let Ok(request) = receive.recv() {
-                    let result = refresh(&watch.observer(), &request.generation);
+                    let result = refresh(&watch, &request.generation);
                     let outcome = match worker_snapshots.lock() {
                         Ok(mut snapshots) => snapshots.finish(&request.token, result),
                         Err(_) => Err(Arc::new(failure(ConfigurationFailure::StatePoisoned))),
@@ -331,20 +338,31 @@ impl Drop for SystemDnsOwner {
 }
 
 fn refresh(
-    observer: &ConfigurationObserver,
+    watch: &ConfigurationWatch,
     expected: &ConfigurationGeneration,
 ) -> io::Result<Arc<Snapshot>> {
     let observe = || {
-        observer
-            .observed()
-            .map_err(|error| failure(ConfigurationFailure::Watch(error)))
+        #[cfg(windows)]
+        let result = watch.observer().observed();
+        #[cfg(target_os = "linux")]
+        let result = watch.check();
+        result.map_err(|error| failure(ConfigurationFailure::Watch(error)))
     };
     read_current_snapshot(
         || observe().map(|generation| generation == *expected),
-        || read_windows_settings().map_err(|error| failure(ConfigurationFailure::Read(error))),
+        || {
+            #[cfg(windows)]
+            let result = read_windows_settings();
+            #[cfg(target_os = "linux")]
+            let result = watch.read_configuration();
+            result.map_err(|error| failure(ConfigurationFailure::Read(error)))
+        },
         |settings| {
+            #[cfg(windows)]
             let eligibility = chromium_windows(&settings)
                 .map_err(|error| failure(ConfigurationFailure::Read(error)))?;
+            #[cfg(target_os = "linux")]
+            let eligibility = settings;
             Snapshot::new(eligibility).map(Arc::new)
         },
     )
@@ -371,13 +389,16 @@ fn read_current_snapshot<R, S>(
 
 enum Snapshot {
     BuiltIn([Arc<AddressLookup>; 3]),
-    SystemOnly(WindowsDnsIneligibility),
+    SystemOnly(ConfigurationIneligibility),
 }
 impl Snapshot {
-    fn new(eligibility: WindowsDnsEligibility) -> io::Result<Self> {
+    fn new(eligibility: ConfigurationEligibility) -> io::Result<Self> {
         match eligibility {
-            WindowsDnsEligibility::BuiltIn(configuration) => {
+            ConfigurationEligibility::BuiltIn(configuration) => {
+                #[cfg(windows)]
                 let base = Arc::new(AddressLookup::from_configuration(&configuration)?);
+                #[cfg(target_os = "linux")]
+                let base = Arc::new(AddressLookup::from_linux_configuration(&configuration)?);
                 Ok(Self::BuiltIn([
                     Arc::clone(&base),
                     Arc::new(base.with_udp_settings(UdpSettings {
@@ -388,7 +409,7 @@ impl Snapshot {
                     })),
                 ]))
             }
-            WindowsDnsEligibility::SystemOnly { reasons, .. } => Ok(Self::SystemOnly(reasons)),
+            ConfigurationEligibility::SystemOnly { reasons, .. } => Ok(Self::SystemOnly(reasons)),
         }
     }
     async fn resolve_address(
@@ -415,7 +436,13 @@ impl Snapshot {
                     }) => 2,
                 }],
             )),
-            Self::SystemOnly(reasons) => Err(failure(ConfigurationFailure::SystemOnly(*reasons))),
+            Self::SystemOnly(reasons) => {
+                #[cfg(windows)]
+                let reasons = *reasons;
+                #[cfg(target_os = "linux")]
+                let reasons = reasons.clone();
+                Err(failure(ConfigurationFailure::SystemOnly(reasons)))
+            }
         }
     }
 }
@@ -523,7 +550,36 @@ impl DnsLookup for SystemDnsView {
 /// # Errors
 ///
 /// Returns runtime, worker-startup, or native configuration-watch errors.
+#[cfg(windows)]
 pub async fn chromium_windows_resolvers() -> io::Result<(AddressResolver, HttpsRecordResolver)> {
+    let owner = tokio::task::spawn_blocking(SystemDnsOwner::start)
+        .await
+        .map_err(io::Error::other)??;
+    let view = SystemDnsView { owner, udp: None };
+    Ok((
+        AddressResolver::from_dns_backend(Arc::new(view.clone())),
+        HttpsRecordResolver::from_system(view),
+    ))
+}
+
+/// Constructs paired Linux address and HTTPS resolvers from one watched configuration.
+///
+/// Search domains, NSS eligibility, ordered servers, retries and rotation come
+/// from the effective supported glibc configuration. Unsupported settings use
+/// the OS address resolver and reject raw HTTPS queries before opening sockets.
+/// Fixed nameservers and callback resolvers are unaffected.
+///
+/// Delivered file, network and hostname changes invalidate both views and
+/// their UDP clones. Callers must fence caches with the opaque token methods.
+/// A changed generation fails the lookup without an automatic retry. Dropping
+/// the final resolver joins its native watcher and can block the dropping thread.
+/// Requires Linux and `https-records`.
+///
+/// # Errors
+///
+/// Returns runtime, worker-startup or configuration-watch errors.
+#[cfg(target_os = "linux")]
+pub async fn chromium_linux_resolvers() -> io::Result<(AddressResolver, HttpsRecordResolver)> {
     let owner = tokio::task::spawn_blocking(SystemDnsOwner::start)
         .await
         .map_err(io::Error::other)??;

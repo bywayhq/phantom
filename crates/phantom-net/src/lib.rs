@@ -15,13 +15,14 @@
 //! `https-records` feature adds `dns`, HTTPS DNS record lookups, and the
 //! resolver dependency they need.
 //!
-//! Unsafe code stays in two private modules. `socket_ffi` sets Windows port
+//! Unsafe code stays in audited private modules. `socket_ffi` sets Windows port
 //! randomization and platform interface binding. `system_dns_ffi` owns Windows
 //! system resolution, DNS settings reads and configuration notifications.
 //! Its safe API returns owned data and generation observations. Native pointers,
 //! handles and callbacks stay private. Every unsafe block carries a `SAFETY`
 //! comment required by `clippy::undocumented_unsafe_blocks`; the rest of
 //! the crate denies `unsafe_code`.
+//! `linux_dns_ffi` reads Linux native witnesses and owns file/network watches.
 
 #![deny(unsafe_code)]
 
@@ -40,6 +41,9 @@ pub mod http2;
 /// HTTP/3 connections and transactions over the BoringSSL-backed QUIC provider,
 /// on direct UDP, SOCKS5 UDP ASSOCIATE, or CONNECT-UDP.
 pub mod http3;
+#[cfg(all(feature = "https-records", target_os = "linux"))]
+#[allow(unsafe_code, reason = "private Linux system DNS FFI boundary")]
+mod linux_dns_ffi;
 /// HTTP proxy negotiation and tunneled byte streams.
 pub mod proxy;
 pub mod request;

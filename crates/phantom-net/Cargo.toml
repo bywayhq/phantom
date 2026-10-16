@@ -61,13 +61,17 @@ tokio-btls = { workspace = true, features = ["prefix-symbols"] }
 [target.'cfg(target_vendor = "apple")'.dependencies]
 libc = "0.2.189"
 
+# The audited Linux DNS boundary reads native witnesses and owns inotify/netlink.
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2.189"
+
 # Winsock, IP Helper, ntdll, registry and event declarations for the private
 # socket and system DNS boundaries. socket2 and Tokio use this version too.
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = ["Wdk_System_SystemServices", "Win32_Foundation", "Win32_NetworkManagement_Dns", "Win32_NetworkManagement_IpHelper", "Win32_NetworkManagement_Ndis", "Win32_Networking_WinSock", "Win32_Security", "Win32_System_Environment", "Win32_System_Registry", "Win32_System_SystemInformation", "Win32_System_Threading"] }
 
 # Linux and Android tests run the Apple `if_nametoindex` lookup.
-[target.'cfg(any(target_os = "android", target_os = "linux"))'.dev-dependencies]
+[target.'cfg(target_os = "android")'.dev-dependencies]
 libc = "0.2.189"
 
 [dev-dependencies]
@@ -91,7 +95,7 @@ name = "tls_anvil_client"
 required-features = ["danger-disable-verification"]
 
 # The workspace lints, except that unsafe code is denied rather than forbidden
-# so the private `socket_ffi` and `system_dns_ffi` modules can allow it.
+# so the audited private socket and system DNS modules can allow it.
 [lints.rust]
 missing_debug_implementations = "warn"
 missing_docs = "warn"

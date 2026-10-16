@@ -354,6 +354,8 @@ pub mod dns {
         DnsOverHttps, DnsOverHttpsBuilder, DohAddressFamilies, DohBuildError, DohBuildErrorKind,
         DohConfiguration, DohMethod,
     };
+    #[cfg(target_os = "linux")]
+    pub use phantom_net::dns::chromium_linux_resolvers;
     #[cfg(windows)]
     pub use phantom_net::dns::chromium_windows_resolvers;
     pub use phantom_net::dns::{

@@ -359,6 +359,33 @@ it does not identify every VPN. Notifications are not an atomic view of all
 Windows settings. A configuration error is neither a negative DNS answer
 nor an operational HTTPS lookup backoff.
 
+## Linux DNS configuration
+
+`dns::chromium_linux_resolvers` requires Linux and `https-records`. Apply
+both returned resolvers to share watched settings. Profiles do not select
+this constructor automatically.
+
+| Policy | Behavior |
+| --- | --- |
+| Supported host intake | glibc 2.26–2.42; `/etc/resolv.conf`, `/etc/nsswitch.conf`, hostname, interface indices and owner-start environment overrides |
+| Built-in queries | Up to three servers, six complete search suffixes within 256 bytes, `ndots` up to 15, attempts up to five, ordered or rotating servers |
+| Unsupported intake | OS address resolution; raw HTTPS queries fail with `HttpsLookupErrorKind::Configuration` before query I/O |
+| Change observation | File-parent, network-interface/address and hostname notifications share one generation across paired resolvers and UDP clones |
+| Watch failure | Retained terminal error; affected work fails without an automatic lookup retry |
+| Final paired resolver drop | Joins native workers; cancellation and OS calls can block |
+
+`LOCALDOMAIN` and `RES_OPTIONS` are captured when the pair starts. TCP-only
+DNS, unsupported NSS ordering/actions, zero attempts, conflicting interface
+scopes, unknown libc versions and invalid or excessive input select OS-only
+mode. Missing configuration files use native defaults. Negated options are
+accepted from glibc 2.41.
+
+Native workers process notifications asynchronously. Intake fences drain
+pending changes, but do not provide an atomic snapshot of OS settings.
+Callers must check configuration tokens around their own caches. The query
+backend uses a one-second timeout and the configured retry count; its full
+retry schedule is not a browser timing guarantee.
+
 ## Cookies
 
 The optional cookie jar (`CookieLimits`) defaults to:

@@ -78,6 +78,7 @@ fn stable_generation_returns_one_fully_projected_snapshot() -> TestResult {
 }
 
 #[tokio::test]
+#[cfg(windows)]
 async fn system_only_selects_os_before_any_phantom_socket_or_https_lookup() -> TestResult {
     use super::{ConfigurationFailure, Snapshot};
     use crate::dns::system_configuration::WindowsDnsIneligibility;
@@ -108,6 +109,45 @@ async fn system_only_selects_os_before_any_phantom_socket_or_https_lookup() -> T
     Ok(())
 }
 
+#[tokio::test]
+#[cfg(target_os = "linux")]
+async fn unsupported_linux_configuration_uses_os_addresses_and_rejects_raw_https() -> TestResult {
+    use super::{ConfigurationFailure, ConfigurationIneligibility, Snapshot};
+    crate::udp::observed::take();
+    let snapshot = Snapshot::SystemOnly(ConfigurationIneligibility::default());
+    let addresses = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        snapshot.resolve_address("localhost", None),
+    )
+    .await??;
+    let (addresses, _) = addresses.into_parts();
+    let addresses = addresses?;
+    assert!(!addresses.is_empty());
+    assert!(addresses.iter().all(|address| address.ip().is_loopback()));
+    assert!(crate::udp::observed::take().is_empty());
+    for settings in [
+        None,
+        Some(phantom_profile::UdpSettings {
+            port_randomization: false,
+        }),
+        Some(phantom_profile::UdpSettings {
+            port_randomization: true,
+        }),
+    ] {
+        let error = snapshot
+            .lookup(settings)
+            .err()
+            .ok_or("raw HTTPS was accepted")?;
+        let typed = error
+            .get_ref()
+            .and_then(|source| source.downcast_ref::<ConfigurationFailure>())
+            .ok_or("typed SystemOnly failure missing")?;
+        assert!(matches!(typed, ConfigurationFailure::SystemOnly(_)));
+    }
+    assert!(crate::udp::observed::take().is_empty());
+    Ok(())
+}
+
 fn generation_token(
     generation: &std::sync::Arc<std::sync::atomic::AtomicUsize>,
 ) -> crate::host_resolver::DnsConfigurationToken {
@@ -121,7 +161,7 @@ fn generation_token(
 
 fn snapshot() -> std::sync::Arc<super::Snapshot> {
     std::sync::Arc::new(super::Snapshot::SystemOnly(
-        crate::dns::system_configuration::WindowsDnsIneligibility::default(),
+        super::ConfigurationIneligibility::default(),
     ))
 }
 

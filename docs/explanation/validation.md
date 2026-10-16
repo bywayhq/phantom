@@ -2716,6 +2716,51 @@ No browser capture demonstrates nameserver choice, search order or refresh
 parity for this implementation. Native cancellation can block; failed
 callback cancellation retains its state to avoid use-after-free.
 
+### Linux resolver configuration
+
+The paired `dns::chromium_linux_resolvers` path applies Chromium 154's Linux
+configuration selection before either raw address or HTTPS queries.
+`net/dns/dns_config_service_linux.cc` and `nsswitch_reader.cc` at
+`154.0.8037.58` define the supported NSS order and actions, `use-vc`
+exclusion, and the systemd-resolved loopback exception. An unsupported
+configuration delegates addresses to the OS and rejects raw HTTPS queries.
+
+The parser uses the effective glibc limits: three servers, six complete
+suffixes within the public 256-byte search storage, bounded `ndots` and
+attempts, and `rotate`. It preserves duplicate server order and IPv6 scopes.
+`LOCALDOMAIN` and `RES_OPTIONS` are read once for the paired owner. Hostname
+and named-interface witnesses come from native calls rather than guessed
+defaults. Invalid input selects OS-only mode instead of imitating libc's
+partial recovery from malformed lines.
+
+The inspected glibc release range is 2.26–2.42. Earlier releases truncate
+search text before splitting, which can retain a shortened suffix. glibc
+2.41 introduced negated boolean options in commit
+`95f61610f3e481d191b6184432342236fd59186d`; 2.40 lacks that behavior.
+Other libc versions select OS-only mode. These upstream version decisions
+do not establish the effect of downstream patches.
+
+Chromium's Linux intake replaces libc's retransmission interval with the
+one-second `kDnsDefaultFallbackPeriod`. Phantom maps attempts to Hickory's
+initial send plus retry count and selects configured order or round-robin
+rotation. Hickory still owns packet retransmission and server selection;
+the complete Chromium transaction timing is not reproduced. Native zero
+attempts and conflicting interfaces for one IP/port select OS-only mode.
+
+One native worker owns inotify file-parent watches, link/address netlink
+notifications and hostname comparisons. Path discovery retains intermediate
+and directory-symlink parents. Registration is followed by rediscovery
+before intake. The paired owner fences settings reads and snapshot
+construction with drained native notifications. Read-only cache observers
+see processed generations without native I/O. This does not make an OS
+snapshot atomic. Lost watches, overflow, malformed events and exhausted
+work bounds retain terminal errors. Final resolver drop joins its workers.
+
+Source and independent-review packets are retained in the Linux lane.
+Compilation, loopback query controls and native lifecycle checks remain
+pending. No browser capture establishes Linux DNS selection or refresh
+parity.
+
 ### Chromium's built-in DNS client
 
 `AddressResolver::system_nameservers` resolves a name as Chromium 154's
@@ -2760,9 +2805,10 @@ Differences from the browser:
 - `AddressResolver::system_nameservers` retains hickory's fixed reading of
   the host's servers. The paired Windows constructor instead applies the
   reviewed Windows eligibility and suffix-search projection described
-  above. macOS and Linux have no equivalent paired constructor.
+  above. The Linux pair applies its separate supported glibc/NSS projection.
+  macOS has no equivalent paired constructor.
 - The fixed resolver sends single-label names to the system resolver. The
-  paired Windows resolver uses configured search suffixes.
+  paired Windows and Linux resolvers use configured search suffixes.
 - Retries follow hickory 0.26, as for HTTPS record queries: within each of
   two attempts, the query is sent again, from a new socket with the same
   message ID, after 1.2 times the server's smoothed round trip or 333 ms,

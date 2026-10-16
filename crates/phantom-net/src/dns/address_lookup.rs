@@ -111,14 +111,28 @@ impl AddressLookup {
         Ok(lookup)
     }
 
-    #[cfg(windows)]
+    #[cfg(target_os = "linux")]
+    pub(super) fn from_linux_configuration(
+        configuration: &super::linux_configuration::LinuxDnsConfiguration,
+    ) -> io::Result<Self> {
+        let mut lookup =
+            Self::new(Nameservers::from_linux(configuration).map_err(configuration_error)?);
+        lookup.search = Some(Arc::new(SearchPolicy {
+            suffixes: configuration.search.clone(),
+            ndots: configuration.ndots,
+            append_to_multi_label: true,
+        }));
+        Ok(lookup)
+    }
+
+    #[cfg(any(windows, target_os = "linux"))]
     pub(super) fn nameservers(&self) -> Nameservers {
         self.nameservers.clone()
     }
 
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "linux"))]
     pub(super) async fn system_only(host: &str) -> io::Result<Resolved> {
-        // This explicit mode delegates family/search/NRPT decisions to Windows.
+        // This explicit mode delegates family and search decisions to the OS.
         // It opens no Phantom probe or raw DNS socket.
         Ok(Resolved::Legacy {
             addresses: SystemResolver::Os.resolve(host).await?,

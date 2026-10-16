@@ -70,8 +70,9 @@ Use a sibling worktree only when independent work can proceed concurrently.
 - Return recoverable input and network failures; runtime library code must not
   panic for them.
 - Unsafe code is forbidden. The exceptions are the private `backend` FFI
-  module of `phantom-quic-btls` and the private `socket_ffi` and Windows-only
-  `system_dns_ffi` modules of `phantom-net`. Each documents every unsafe block.
+  module of `phantom-quic-btls` and the private `socket_ffi`, Windows-only
+  `system_dns_ffi` and Linux-only `linux_dns_ffi` modules of `phantom-net`.
+  Each documents every unsafe block.
   See [Design](docs/explanation/design.md#unsafe-code), which also holds the
   `phantom-net` module's audit. `scripts/ci/check-unsafe-boundaries.sh`
   fails when unsafe code is allowed anywhere else. Adding unsafe code

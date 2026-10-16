@@ -778,6 +778,10 @@ Supported:
   `dns::chromium_windows_resolvers`, with shared watched configuration,
   nameserver eligibility, suffix search and cache generation checks.
   See [Windows DNS configuration](limits.md#windows-dns-configuration).
+- An opt-in paired Linux address/HTTPS resolver,
+  `dns::chromium_linux_resolvers`, with supported glibc/NSS intake, watched
+  generations, suffix search and scoped server addresses. See
+  [Linux DNS configuration](limits.md#linux-dns-configuration).
 - Windows native address lifetimes under
   `DnsCacheSettings::system_ttl = SystemDnsTtlPolicy::FirefoxWindows`.
 - Caller host-to-address overrides and a caller-supplied async address
@@ -854,11 +858,11 @@ Not modeled:
   literal can reach the difference, which for `http://` means a loopback
   address.
 - Chromium's built-in DNS client as the default resolver of its profiles.
-  The paired Windows constructor is opt-in. The older
+  The paired Windows and Linux constructors are opt-in. The older
   `AddressResolver::system_nameservers` keeps its fixed configuration.
 - Firefox's 600-second grace period for expired answers. Other platforms
   use the configured fallback lifetime for system answers.
-- Network-change invalidation outside the explicitly paired Windows
+- Network-change invalidation outside the explicitly paired Windows/Linux
   resolvers. Callers can clear the address cache themselves.
 
 Planned:

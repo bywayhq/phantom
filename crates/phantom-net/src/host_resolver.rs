@@ -69,7 +69,7 @@ pub struct DnsConfigurationToken {
 }
 
 impl DnsConfigurationToken {
-    #[cfg(all(feature = "https-records", any(windows, test)))]
+    #[cfg(all(feature = "https-records", any(windows, target_os = "linux", test)))]
     pub(crate) fn new(check: impl Fn() -> io::Result<bool> + Send + Sync + 'static) -> Self {
         Self {
             identity: Arc::new(()),

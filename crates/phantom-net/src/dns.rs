@@ -29,7 +29,10 @@ use std::{
 
 use hickory_resolver::{
     Resolver,
-    config::{ConnectionConfig, NameServerConfig, ResolveHosts, ResolverConfig, ResolverOpts},
+    config::{
+        ConnectionConfig, NameServerConfig, ResolveHosts, ResolverConfig, ResolverOpts,
+        ServerOrderingStrategy,
+    },
     net::{DnsError, NetError},
     proto::{
         op::Message,
@@ -40,10 +43,16 @@ use hickory_resolver::{
 use phantom_profile::UdpSettings;
 
 mod address_lookup;
+#[cfg(any(target_os = "linux", test))]
+mod linux_configuration;
+#[cfg(target_os = "linux")]
+mod linux_system_configuration;
 #[cfg(any(windows, test))]
 pub(crate) mod system_configuration;
-#[cfg(windows)]
+#[cfg(any(windows, target_os = "linux"))]
 mod system_resolver;
+#[cfg(target_os = "linux")]
+pub use system_resolver::chromium_linux_resolvers;
 #[cfg(windows)]
 pub use system_resolver::chromium_windows_resolvers;
 mod ech_config;
@@ -78,8 +87,8 @@ type LookupFuture =
 #[derive(Clone)]
 enum Backend {
     Dns(Nameservers),
-    #[cfg(windows)]
-    Windows(system_resolver::SystemDnsView),
+    #[cfg(any(windows, target_os = "linux"))]
+    System(system_resolver::SystemDnsView),
     Function(Arc<dyn Fn(String, u16) -> LookupFuture + Send + Sync>),
 }
 
@@ -88,10 +97,18 @@ enum Backend {
 #[derive(Clone)]
 struct Nameservers {
     configs: Arc<[NameServerConfig]>,
+    scopes: Arc<[(SocketAddr, SocketAddr)]>,
+    policy: Option<QueryPolicy>,
     udp: Option<UdpSettings>,
     /// Built on first use after [`Self::with_udp_settings`]; clones with the
     /// same settings share it.
     resolver: Arc<OnceLock<Resolver<QuerySockets>>>,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct QueryPolicy {
+    attempts: u8,
+    rotate: bool,
 }
 
 impl Nameservers {
@@ -108,16 +125,42 @@ impl Nameservers {
     fn with_addresses(
         nameservers: impl IntoIterator<Item = SocketAddr>,
     ) -> Result<Self, NameserverConfigurationError> {
-        Self::new(
-            nameservers
-                .into_iter()
-                .map(|address| nameserver(address.ip(), address.port()))
-                .collect(),
-        )
+        Self::with_address_policy(nameservers, None)
+    }
+
+    fn with_address_policy(
+        nameservers: impl IntoIterator<Item = SocketAddr>,
+        policy: Option<QueryPolicy>,
+    ) -> Result<Self, NameserverConfigurationError> {
+        let mut configs = Vec::new();
+        let mut scopes = Vec::new();
+        for address in nameservers {
+            let unscoped = SocketAddr::new(address.ip(), address.port());
+            if let Some((_, known)) = scopes.iter().find(|(key, _)| *key == unscoped)
+                && *known != address
+            {
+                return Err(NameserverConfigurationError::AmbiguousScope);
+            }
+            // Hickory stores only an IP and port. Its runtime restores the
+            // native IPv6 scope for both UDP and truncated-response TCP.
+            if !scopes.iter().any(|(key, _)| *key == unscoped) {
+                scopes.push((unscoped, address));
+            }
+            configs.push(nameserver(address.ip(), address.port()));
+        }
+        Self::configured(configs, scopes, policy)
     }
 
     /// Builds the resolver once, so a configuration it rejects fails here.
     fn new(nameservers: Vec<NameServerConfig>) -> Result<Self, NameserverConfigurationError> {
+        Self::configured(nameservers, Vec::new(), None)
+    }
+
+    fn configured(
+        nameservers: Vec<NameServerConfig>,
+        scopes: Vec<(SocketAddr, SocketAddr)>,
+        policy: Option<QueryPolicy>,
+    ) -> Result<Self, NameserverConfigurationError> {
         if nameservers.is_empty() {
             return Err(NameserverConfigurationError::MissingNameserver);
         }
@@ -127,6 +170,8 @@ impl Nameservers {
                 .into_iter()
                 .map(bind_loopback_nameserver)
                 .collect(),
+            scopes: scopes.into(),
+            policy,
             udp: None,
             resolver: Arc::default(),
         };
@@ -136,9 +181,24 @@ impl Nameservers {
         Ok(nameservers)
     }
 
+    #[cfg(target_os = "linux")]
+    fn from_linux(
+        configuration: &linux_configuration::LinuxDnsConfiguration,
+    ) -> Result<Self, NameserverConfigurationError> {
+        Self::with_address_policy(
+            configuration.servers.iter().copied(),
+            Some(QueryPolicy {
+                attempts: configuration.attempts,
+                rotate: configuration.rotate,
+            }),
+        )
+    }
+
     fn with_udp_settings(&self, settings: UdpSettings) -> Self {
         Self {
             configs: Arc::clone(&self.configs),
+            scopes: Arc::clone(&self.scopes),
+            policy: self.policy,
             udp: Some(settings),
             resolver: Arc::default(),
         }
@@ -153,7 +213,7 @@ impl Nameservers {
         if let Some(resolver) = self.resolver.get() {
             return Ok(resolver);
         }
-        let sockets = QuerySockets::new(self.udp);
+        let sockets = QuerySockets::new(self.udp).with_scopes(Arc::clone(&self.scopes));
         let mut options = ResolverOpts::default();
         // One question, recursion desired, no OPT record: see the module docs.
         options.edns0 = false;
@@ -166,6 +226,18 @@ impl Nameservers {
         // have no hosts entries.
         options.use_hosts_file = ResolveHosts::Never;
         options.os_port_selection = sockets.leaves_port_to_the_os();
+        if let Some(policy) = self.policy {
+            // Chromium154 dns_config_service_linux.cc:475-477 replaces
+            // libc's retrans timeout with dns_config.h's one-second period.
+            options.timeout = Duration::from_secs(1);
+            // Hickory's RetryDnsHandle sends once before spending retries.
+            options.attempts = usize::from(policy.attempts.saturating_sub(1));
+            options.server_ordering_strategy = if policy.rotate {
+                ServerOrderingStrategy::RoundRobin
+            } else {
+                ServerOrderingStrategy::UserProvidedOrder
+            };
+        }
         let resolver = Resolver::builder_with_config(
             ResolverConfig::from_name_servers(self.configs.to_vec()),
             sockets,
@@ -189,6 +261,7 @@ impl fmt::Debug for Nameservers {
 #[derive(Debug)]
 enum NameserverConfigurationError {
     MissingNameserver,
+    AmbiguousScope,
     System(Box<dyn StdError + Send + Sync>),
     Build(NetError),
 }
@@ -204,6 +277,9 @@ impl fmt::Display for NameserverConfigurationError {
         formatter.write_str("invalid DNS resolver configuration: ")?;
         match self {
             Self::MissingNameserver => formatter.write_str("no DNS nameserver is configured"),
+            Self::AmbiguousScope => {
+                formatter.write_str("one DNS endpoint has conflicting IPv6 scopes")
+            }
             Self::System(error) => fmt::Display::fmt(error, formatter),
             Self::Build(error) => fmt::Display::fmt(error, formatter),
         }
@@ -213,7 +289,7 @@ impl fmt::Display for NameserverConfigurationError {
 impl StdError for NameserverConfigurationError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
-            Self::MissingNameserver => None,
+            Self::MissingNameserver | Self::AmbiguousScope => None,
             Self::System(error) => Some(error.as_ref()),
             Self::Build(error) => Some(error),
         }
@@ -295,8 +371,8 @@ impl HttpsRecordResolver {
             Backend::Dns(nameservers) => {
                 Self::from_nameservers(nameservers.with_udp_settings(settings))
             }
-            #[cfg(windows)]
-            Backend::Windows(view) => Self::from_system(view.with_udp_settings(settings)),
+            #[cfg(any(windows, target_os = "linux"))]
+            Backend::System(view) => Self::from_system(view.with_udp_settings(settings)),
             Backend::Function(_) => self,
         }
     }
@@ -307,8 +383,8 @@ impl HttpsRecordResolver {
     pub fn udp_settings(&self) -> Option<UdpSettings> {
         match &self.backend {
             Backend::Dns(nameservers) => nameservers.udp,
-            #[cfg(windows)]
-            Backend::Windows(view) => view.udp_settings(),
+            #[cfg(any(windows, target_os = "linux"))]
+            Backend::System(view) => view.udp_settings(),
             Backend::Function(_) => None,
         }
     }
@@ -353,8 +429,8 @@ impl HttpsRecordResolver {
         &self,
     ) -> std::io::Result<Option<crate::host_resolver::DnsConfigurationToken>> {
         match &self.backend {
-            #[cfg(windows)]
-            Backend::Windows(view) => view.configuration_token().map(Some),
+            #[cfg(any(windows, target_os = "linux"))]
+            Backend::System(view) => view.configuration_token().map(Some),
             Backend::Dns(_) | Backend::Function(_) => Ok(None),
         }
     }
@@ -376,8 +452,8 @@ impl HttpsRecordResolver {
         token: Option<crate::host_resolver::DnsConfigurationToken>,
     ) -> Result<HttpsRecordLookup, HttpsLookupError> {
         match &self.backend {
-            #[cfg(windows)]
-            Backend::Windows(view) => {
+            #[cfg(any(windows, target_os = "linux"))]
+            Backend::System(view) => {
                 view.https(
                     host,
                     port,
@@ -408,10 +484,10 @@ impl HttpsRecordResolver {
         }
     }
 
-    #[cfg(windows)]
+    #[cfg(any(windows, target_os = "linux"))]
     fn from_system(view: system_resolver::SystemDnsView) -> Self {
         Self {
-            backend: Backend::Windows(view),
+            backend: Backend::System(view),
         }
     }
 }
@@ -531,8 +607,8 @@ impl fmt::Debug for HttpsRecordResolver {
             Backend::Dns(nameservers) => debug
                 .field("nameservers", &nameservers.len())
                 .field("udp", &nameservers.udp),
-            #[cfg(windows)]
-            Backend::Windows(view) => debug.field("backend", view),
+            #[cfg(any(windows, target_os = "linux"))]
+            Backend::System(view) => debug.field("backend", view),
             Backend::Function(_) => debug.field("backend", &"function"),
         };
         debug.finish_non_exhaustive()

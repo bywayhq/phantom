@@ -1189,6 +1189,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Add `dns::chromium_linux_resolvers` for paired address and HTTPS lookups
+  with shared Linux configuration changes. Supported glibc/NSS settings
+  supply search domains, server order, retries and IPv6 interface scopes.
+  Unsupported configurations use OS address resolution and reject raw
+  HTTPS queries. The constructor requires `https-records` and is opt-in.
+
 - Retain a headless Firefox 157 Ubuntu WSL sample covering H2/H3 requests,
   SSE reconnects and decrypted HTTPS-proxy WebSocket openings.
 

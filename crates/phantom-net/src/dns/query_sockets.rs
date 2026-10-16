@@ -45,6 +45,7 @@ pub(crate) async fn notify_sent_queries<F: Future>(sent: Arc<Notify>, lookup: F)
 pub(crate) struct QuerySockets {
     tokio: TokioRuntimeProvider,
     udp: Option<UdpSettings>,
+    scopes: Arc<[(SocketAddr, SocketAddr)]>,
 }
 
 impl QuerySockets {
@@ -52,7 +53,20 @@ impl QuerySockets {
         Self {
             tokio: TokioRuntimeProvider::default(),
             udp,
+            scopes: Arc::default(),
         }
+    }
+
+    pub(super) fn with_scopes(mut self, scopes: Arc<[(SocketAddr, SocketAddr)]>) -> Self {
+        self.scopes = scopes;
+        self
+    }
+
+    fn endpoint(&self, address: SocketAddr) -> SocketAddr {
+        self.scopes
+            .iter()
+            .find_map(|(key, native)| (*key == address).then_some(*native))
+            .unwrap_or(address)
     }
 
     /// Whether hickory should bind port 0 and leave the port to the
@@ -85,7 +99,8 @@ impl RuntimeProvider for QuerySockets {
         bind_addr: Option<SocketAddr>,
         timeout: Option<Duration>,
     ) -> Pin<Box<dyn Send + Future<Output = io::Result<Self::Tcp>>>> {
-        self.tokio.connect_tcp(server_addr, bind_addr, timeout)
+        self.tokio
+            .connect_tcp(self.endpoint(server_addr), bind_addr, timeout)
     }
 
     fn bind_udp(
@@ -94,11 +109,14 @@ impl RuntimeProvider for QuerySockets {
         server_addr: SocketAddr,
     ) -> Pin<Box<dyn Send + Future<Output = io::Result<Self::Udp>>>> {
         let udp = self.udp;
+        let native_addr = self.endpoint(server_addr);
         Box::pin(async move {
-            let socket = crate::udp::bind_socket(server_addr, local_addr, None, udp)?;
+            let socket = crate::udp::bind_socket(native_addr, local_addr, None, udp)?;
             socket.set_nonblocking(true)?;
             Ok(QuerySocket {
                 socket: tokio::net::UdpSocket::from_std(socket)?,
+                server_addr,
+                native_addr,
             })
         })
     }
@@ -107,6 +125,8 @@ impl RuntimeProvider for QuerySockets {
 /// A query socket that reports each sent datagram to a marked lookup.
 pub(crate) struct QuerySocket {
     socket: tokio::net::UdpSocket,
+    server_addr: SocketAddr,
+    native_addr: SocketAddr,
 }
 
 impl DnsUdpSocket for QuerySocket {
@@ -117,7 +137,18 @@ impl DnsUdpSocket for QuerySocket {
         cx: &mut Context<'_>,
         buf: &mut [u8],
     ) -> Poll<io::Result<(usize, SocketAddr)>> {
-        DnsUdpSocket::poll_recv_from(&self.socket, cx, buf)
+        match DnsUdpSocket::poll_recv_from(&self.socket, cx, buf) {
+            Poll::Ready(Ok((size, source))) if self.server_addr != self.native_addr => {
+                if !same_scoped_peer(source, self.native_addr) {
+                    return Poll::Ready(Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "DNS reply arrived from a different scoped endpoint",
+                    )));
+                }
+                Poll::Ready(Ok((size, self.server_addr)))
+            }
+            received => received,
+        }
     }
 
     fn poll_send_to(
@@ -126,10 +157,51 @@ impl DnsUdpSocket for QuerySocket {
         buf: &[u8],
         target: SocketAddr,
     ) -> Poll<io::Result<usize>> {
+        let target = if target == self.server_addr {
+            self.native_addr
+        } else {
+            target
+        };
         let sent = DnsUdpSocket::poll_send_to(&self.socket, cx, buf, target);
         if let Poll::Ready(Ok(_)) = sent {
             let _ = SENT.try_with(|notify| notify.notify_one());
         }
         sent
+    }
+}
+
+fn same_scoped_peer(source: SocketAddr, expected: SocketAddr) -> bool {
+    source.ip() == expected.ip()
+        && source.port() == expected.port()
+        && match (source, expected) {
+            (SocketAddr::V6(source), SocketAddr::V6(expected)) => {
+                source.scope_id() == expected.scope_id()
+            }
+            _ => true,
+        }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::{Ipv6Addr, SocketAddrV6};
+
+    #[test]
+    fn a_scoped_dns_endpoint_is_restored_without_accepting_another_interface() {
+        let ip = Ipv6Addr::new(0xfe80, 0, 0, 0, 0, 0, 0, 53);
+        let plain = SocketAddr::new(ip.into(), 53);
+        let scoped = SocketAddr::V6(SocketAddrV6::new(ip, 53, 0, 7));
+        let sockets = QuerySockets::new(None).with_scopes(Arc::from([(plain, scoped)]));
+        assert_eq!(sockets.endpoint(plain), scoped);
+        assert!(same_scoped_peer(scoped, scoped));
+        assert!(!same_scoped_peer(plain, scoped));
+        assert!(!same_scoped_peer(
+            SocketAddr::V6(SocketAddrV6::new(ip, 53, 0, 8)),
+            scoped,
+        ));
+        assert!(same_scoped_peer(
+            SocketAddr::V6(SocketAddrV6::new(ip, 53, 123, 7)),
+            scoped,
+        ));
     }
 }

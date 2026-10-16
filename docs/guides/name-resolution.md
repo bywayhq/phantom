@@ -131,6 +131,10 @@ Apply both returned resolvers to share their configuration. A system-only
 configuration disables raw HTTPS queries; see
 [Windows DNS configuration](../reference/limits.md#windows-dns-configuration).
 
+On Linux, use `dns::chromium_linux_resolvers().await?` with the same builder
+methods. See [Linux DNS configuration](../reference/limits.md#linux-dns-configuration)
+for supported host settings.
+
 For fixed configuration on any supported platform, use
 `AddressResolver::system_nameservers()` or `with_nameservers` with servers
 you choose. These resolvers read configuration once. `localhost` and hosts
