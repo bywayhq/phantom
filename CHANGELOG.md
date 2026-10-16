@@ -1198,6 +1198,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
   extended CONNECT through plaintext CONNECT and HTTPS proxies using outer
   H1. Claims use current authentication and WebSocket fields; verified
   inner H2 activation closes redundant spares before WebSocket HEADERS.
+- Add desktop HTTP/2 and HTTP/3 EventSource capture modes and decrypted
+  WebSocket capture through HTTP CONNECT, HTTPS CONNECT and SOCKS5.
+  Register both tools with the capture manifest runner.
+
 - Retain Windows H3 SSE, Firefox H2 SSE and decrypted tunnelled WebSocket
   browser wire fixtures, with exact build and capture provenance.
 

@@ -296,10 +296,14 @@ including E1 and E2, with the available hosts.
 - [ ] E1: Compare the retained Windows H3 SSE captures and Firefox H2
   `retry-0` capture with Phantom. Resolve the three unsuccessful Chrome SSE
   rows and expand H2 and platform/build coverage, including macOS and Safari.
+  Tracked `sse_reconnect --protocol h2|h3` modes are available; fresh
+  integration checks of the composed capture tools remain pending.
 - [ ] E2: Compare the twelve retained Windows tunnelled `wss://` openings
   with Phantom, keeping proxy and origin handshakes distinct. Expand the
   selected builds and platforms without inferring browser H3 WebSocket or
-  MASQUE use from Phantom's capabilities.
+  MASQUE use from Phantom's capabilities. The tracked `tunnelled_websocket`
+  tool and manifest runner expose the proxy/origin modes for new captures
+  with fresh paths; historical attempts and their outcomes remain unchanged.
 - [ ] E3: Capture headful Chromium-family macOS `User-Agent` values and
   compare the retained emulator recipes with a physical Android device.
 - [ ] E4: Establish a bounded capture matrix for Intel Macs, Linux, and

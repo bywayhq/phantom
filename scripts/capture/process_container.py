@@ -27,6 +27,7 @@ JOB_OBJECT_LIMIT_ACTIVE_PROCESS = 0x0008
 JOB_OBJECT_BASIC_PROCESS_ID_LIST_CLASS = 3
 MAX_SHUTDOWN_MEMBERS = 4096
 WINDOWS_CLEANUP_SECONDS = 20.0
+WINDOWS_START_SECONDS = 10.0
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 SYNCHRONIZE = 0x100000
 PROCESS_SET_QUOTA = 0x0100
@@ -71,6 +72,33 @@ sys.stdin.close()
 import subprocess
 code = subprocess.call(sys.argv[1:], stdin=subprocess.DEVNULL)
 # Preserve the full Windows DWORD exit status through Python's signed int.
+raise SystemExit(code if code < (1 << 31) else code - (1 << 32))
+"""
+
+
+# This optional status pipe reports CreateProcess failure before start returns.
+# The child cannot inherit the pipe, so a missing report is observable as EOF.
+_CONFIRMED_BOOTSTRAP = """import sys
+if sys.stdin.buffer.read(1) != b'G':
+    raise SystemExit(125)
+sys.stdin.close()
+import os, subprocess
+from multiprocessing.connection import PipeConnection
+status = PipeConnection(int(sys.argv[1]), readable=False)
+os.set_handle_inheritable(status.fileno(), False)
+try:
+    try:
+        tool = subprocess.Popen(sys.argv[2:], stdin=subprocess.DEVNULL, close_fds=True)
+    except OSError as error:
+        record = (b'E' + error.errno.to_bytes(4, 'big', signed=True)
+                  + (error.winerror or 0).to_bytes(4, 'big'))
+        status.send_bytes(record)
+        raise SystemExit(125)
+    else:
+        status.send_bytes(b'G' + tool.pid.to_bytes(4, 'big'))
+finally:
+    status.close()
+code = tool.wait()
 raise SystemExit(code if code < (1 << 31) else code - (1 << 32))
 """
 
@@ -146,6 +174,7 @@ class ProcessContainer:
         stdout: BinaryIO | int | None = None,
         stderr: BinaryIO | int | None = None,
         env: Mapping[str, str] | None = None,
+        confirm_start: bool = False,
     ) -> None:
         self._lock = threading.Lock()
         self._started = False
@@ -155,6 +184,9 @@ class ProcessContainer:
         self._group_lost = False
         self._lost_failures: list[tuple[str, BaseException]] = []
         self._gate: BinaryIO | None = None
+        self._launch_reader = None
+        self._launch_writer = None
+        self._tool_pid: int | None = None
         self._native_handles: list[int] = []
         self._windows_members: list[int] = []
         self._windows_snapshot_complete = False
@@ -176,6 +208,21 @@ class ProcessContainer:
             if windows:
                 launched = _bootstrap_command(command)
                 options = {}
+                if confirm_start:
+                    from multiprocessing import Pipe
+
+                    self._launch_reader, self._launch_writer = Pipe(duplex=False)
+                    writer = self._launch_writer.fileno()
+                    os.set_handle_inheritable(writer, True)
+                    startup = subprocess.STARTUPINFO()
+                    startup.lpAttributeList = {"handle_list": [writer]}
+                    options["startupinfo"] = startup
+                    launched = [
+                        *launched[:4],
+                        _CONFIRMED_BOOTSTRAP,
+                        str(writer),
+                        *command,
+                    ]
             else:
                 # A default SIGCHLD disposition leaves the owned leader
                 # waitable. Ignore/reaping handlers would release its PID.
@@ -208,6 +255,7 @@ class ProcessContainer:
             )
             self._gate = self._process.stdin
             if windows:
+                self._close_launch_pipe("_launch_writer")
                 self.job = _windows_job(self._process.pid)
             else:
                 self._close_status_pipe("_status_writer")
@@ -232,6 +280,16 @@ class ProcessContainer:
     def pid(self) -> int:
         """The owned group leader or Windows bootstrap PID."""
         return self._process.pid
+
+    @property
+    def tool_pid(self) -> int | None:
+        """The confirmed Windows tool PID, distinct from the owned bootstrap.
+
+        Available only after an opt-in successful start. It is an observation,
+        not a handle that can safely authorize later cleanup by PID.
+        """
+        with self._lock:
+            return self._tool_pid
 
     def poll(self) -> int | None:
         """Observe the tool's exit without releasing its process-tree owner.
@@ -305,8 +363,56 @@ class ProcessContainer:
         finally:
             setattr(self, attribute, None)
 
+    def _close_launch_pipe(self, attribute: str) -> None:
+        connection = getattr(self, attribute)
+        if connection is None:
+            return
+        try:
+            connection.close()
+        except BaseException as error:
+            # Connection.close may already have released the handle on failure.
+            self._lost_failures.append(("close launch status pipe", error))
+            raise
+        finally:
+            setattr(self, attribute, None)
+
+    def _confirm_launch(self) -> None:
+        reader = self._launch_reader
+        if reader is None:
+            return
+        try:
+            if not reader.poll(WINDOWS_START_SECONDS):
+                raise TimeoutError("capture tool launch acknowledgement timed out")
+            record = reader.recv_bytes(9)
+        except (EOFError, BrokenPipeError) as error:
+            raise OSError(
+                "capture tool launch acknowledgement was not published"
+            ) from error
+        self._close_launch_pipe("_launch_reader")
+        if len(record) == 5 and record[:1] == b"G":
+            pid = int.from_bytes(record[1:], "big")
+            if pid:
+                self._tool_pid = pid
+                return
+        if len(record) == 9 and record[:1] == b"E":
+            error_number = int.from_bytes(record[1:5], "big", signed=True)
+            windows_error = int.from_bytes(record[5:9], "big")
+            if error_number > 0:
+                raise OSError(
+                    error_number,
+                    os.strerror(error_number),
+                    None,
+                    windows_error or None,
+                )
+        raise OSError("capture tool launch acknowledgement was invalid")
+
     def start(self) -> bool:
-        """Release the assigned tool once; a closed container cannot start."""
+        """Release the assigned tool once; a closed container cannot start.
+
+        On Windows, confirm_start waits up to ten seconds for actual tool
+        creation and restores its OSError. The default only releases the gate.
+        POSIX startup and completion reporting are unchanged.
+        """
         with self._lock:
             try:
                 if self._closed:
@@ -320,6 +426,7 @@ class ProcessContainer:
                     gate.flush()
                     gate.close()
                     self._gate = None
+                self._confirm_launch()
                 self._started = True
                 return True
             except BaseException as error:
@@ -411,6 +518,12 @@ class ProcessContainer:
                     self._lost_failures.append(("process group identity lost", error))
             else:
                 self._group_stopped = True
+
+        for attribute in ("_launch_writer", "_launch_reader"):
+            try:
+                self._close_launch_pipe(attribute)
+            except BaseException as error:
+                failures.append(("close launch status pipe", error))
 
         for attribute in ("_status_writer", "_status_reader"):
             try:

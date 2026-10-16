@@ -34,6 +34,7 @@ from .android_device import (
     ENTRIES as ANDROID_ENTRIES,
 )
 from .browser_failures import raise_browser_failures
+from .process_container import ProcessContainer
 
 DESKTOP_CHROMIUM_BROWSERS = ("chrome", "edge", "brave", "opera")
 # Android Chromium browsers take the same switches through a command-line file.
@@ -329,7 +330,7 @@ class LaunchedBrowser:
         self.plan = plan
         self.url = url
         self.profile: Path | None = None
-        self.process: subprocess.Popen[bytes] | None = None
+        self.process: subprocess.Popen[bytes] | ProcessContainer | None = None
         self.session: AndroidSession | None = None
         self._exit_future: asyncio.Future[None] | None = None
         self._exit_observed = False
@@ -386,7 +387,14 @@ class LaunchedBrowser:
 
         return self
 
-    def _start(self, profile: Path) -> subprocess.Popen[bytes]:
+    @property
+    def launcher_pid(self) -> int | None:
+        """The launched browser or its launcher, without the ownership bootstrap."""
+        if isinstance(self.process, ProcessContainer):
+            return self.process.tool_pid
+        return self.process.pid if self.process is not None else None
+
+    def _start(self, profile: Path) -> subprocess.Popen[bytes] | ProcessContainer:
         if self.plan.browser == "firefox":
             (profile / "user.js").write_text(
                 firefox_user_js(self.plan.firefox_preferences), encoding="utf-8"
@@ -402,9 +410,26 @@ class LaunchedBrowser:
             headless=self.plan.headless,
             extra=self.plan.extra_arguments,
         )
-        options: dict[str, object] = {}
-        if sys.platform != "win32":
-            options["start_new_session"] = True
+        if sys.platform == "win32":
+            try:
+                process = ProcessContainer(
+                    [str(self.plan.executable), *arguments],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    confirm_start=True,
+                )
+            except BaseException as error:
+                # Construction may retain an owner whose native cleanup failed.
+                # Keep it available to _cleanup before considering profile removal.
+                owner = getattr(error, "container", None)
+                if isinstance(owner, ProcessContainer):
+                    self.process = owner
+                raise
+            # Own the gated process before releasing it; start can also fail.
+            self.process = process
+            process.start()
+            return process
+        options: dict[str, object] = {"start_new_session": True}
         return subprocess.Popen(
             [str(self.plan.executable), *arguments],
             stdin=subprocess.DEVNULL,
@@ -541,11 +566,13 @@ async def exit_browser(browser: LaunchedBrowser, *details: object) -> None:
 async def enter_browser(browser: LaunchedBrowser) -> LaunchedBrowser:
     """Launch `browser` from a coroutine without stalling its event loop.
 
-    Android commands and Firefox's launch-lock wait run in a worker thread.
-    The loopback server keeps answering while either launch waits. Other
-    desktop launches only spawn a process and stay on the loop.
+    Android commands, Windows launch acknowledgement and Firefox's launch-lock
+    wait run in a worker thread. The loopback server keeps answering while
+    these launches wait. Other desktop launches only spawn a process.
     """
-    if not (browser.plan.android or browser.plan.takes_turns):
+    if not (
+        sys.platform == "win32" or browser.plan.android or browser.plan.takes_turns
+    ):
         return browser.__enter__()
     guard = threading.Lock()
     state = {"entered": False, "abandoned": False}
@@ -636,7 +663,9 @@ def unlock_file(descriptor: int) -> None:
         fcntl.flock(descriptor, fcntl.LOCK_UN)
 
 
-def wait_for_firefox_start(profile: Path, process: subprocess.Popen[bytes]) -> None:
+def wait_for_firefox_start(
+    profile: Path, process: subprocess.Popen[bytes] | ProcessContainer
+) -> None:
     """Wait until Firefox records that it restored its first window.
 
     Firefox writes the checkpoint to `sessionCheckpoints.json` in the profile
@@ -654,7 +683,13 @@ def wait_for_firefox_start(profile: Path, process: subprocess.Popen[bytes]) -> N
         time.sleep(0.05)
 
 
-def terminate_process_tree(process: subprocess.Popen[bytes]) -> None:
+def terminate_process_tree(
+    process: subprocess.Popen[bytes] | ProcessContainer,
+) -> None:
+    if isinstance(process, ProcessContainer):
+        # Its original job members remain owned even after the launcher exits.
+        process.close()
+        return
     if process.poll() is not None:
         return
     if sys.platform == "win32":

@@ -3567,9 +3567,12 @@ Chrome's failed `non-ascii-id` and `reconnect-404` rows and interrupted
 
 These files have independent raw-evidence reviews. They have not been
 replayed against Phantom and establish no reconnect timing parity. The
-retained composition uses `sse_multiplexed.py` with exact source and runner
-manifest hashes recorded in the capture-delivery receipt. Those modes are
-not available through the baseline tracked `sse_reconnect.py` command.
+retained composition used `sse_multiplexed.py` with exact source and runner
+manifest hashes recorded in the capture-delivery receipt. The tracked
+`sse_reconnect.py --protocol h2|h3` modes and manifest runner now expose
+those transports; [capture instructions](../../scripts/capture/README.md#eventsource-reconnects)
+use fresh work and output directories. Fresh integration tests of the
+composed tools remain pending.
 Mac, physical Android and additional Linux captures remain outside this set.
 
 ### Cookie crumb evidence
@@ -6596,10 +6599,13 @@ callback history. The independent review approved the raw observations
 with those diagnostics retained.
 
 Reproduction inputs are the retained `tunnelled_websocket.py` composition,
-its source hashes and its per-row manifests. The baseline tracked capture
-CLI does not yet expose these modes. These captures establish browser wire
-evidence only: no Phantom comparison, proxy authentication coverage, H3
-WebSocket use, MASQUE behavior or other-platform parity is claimed.
+its source hashes and its per-row manifests. The tracked
+[`tunnelled_websocket` capture tool](../../scripts/capture/README.md#tunnelled-websocket-openings)
+and manifest runner now expose these modes. New experiments use fresh paths;
+the historical manifests are not rerun. Fresh integration tests of the
+composed tools remain pending. These captures establish browser wire evidence
+only: no Phantom comparison, proxy authentication coverage, H3 WebSocket use,
+MASQUE behavior or other-platform parity is claimed.
 
 ### Proxy route browser evidence
 

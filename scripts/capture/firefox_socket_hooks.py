@@ -1293,9 +1293,8 @@ class _FirefoxNative:
             pid = browser_process(listing)
             if pid is None:
                 raise RuntimeError("no Firefox parent process for the capture profile")
-            self.launcher = (
-                self.browser.process is not None and pid != self.browser.process.pid
-            )
+            launcher_pid = self.browser.launcher_pid
+            self.launcher = launcher_pid is not None and pid != launcher_pid
             self.hooks = Hooks(pid, self.config)
             self.hooks.attach()
             if not self.hooks.ready.wait(ATTACH_LIMIT_SECONDS):

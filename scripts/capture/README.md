@@ -190,7 +190,8 @@ Android as an arm64 build only; run it on an arm64 emulator.
 | Firefox's TCP or QUIC ClientHellos to `127.0.0.1` or `[::1]`, with an optional ECH GREASE size | [`ip_literal_client_hello.py`](#clienthellos-to-ip-literals) | `fixtures/tls/firefox/` |
 | Client hints, default and after `Accept-CH` | [`client_hints.py`](#client-hints) | `fixtures/client-hints/` |
 | WebSocket openings over HTTP/2 and HTTP/1.1 | [`http2_websocket.py`](#websocket-openings) | `fixtures/websocket/` |
-| EventSource reconnects | [`sse_reconnect.py`](#eventsource-reconnects) | `fixtures/sse/` |
+| EventSource reconnects over HTTP/1.1, HTTP/2 or HTTP/3 | [`sse_reconnect.py`](#eventsource-reconnects) | `fixtures/sse/` |
+| Decrypted `wss://` openings through HTTP, HTTPS or SOCKS5 proxies | [`tunnelled_websocket.py`](#tunnelled-websocket-openings) | `fixtures/tunnelled-websocket/` |
 | Alt-Svc racing between QUIC and TCP | [`alt_svc_race.py`](#alt-svc-racing) | `fixtures/alt-svc/` |
 | Plaintext requests and `ws://` openings through HTTP proxies | [`proxy_route.py`](#proxy-routes) | `fixtures/proxy/` |
 | ClientHellos with Encrypted Client Hello from an HTTPS record | [`chrome_ech.py`](#encrypted-client-hello) | `fixtures/tls/` |
@@ -295,7 +296,8 @@ support, an unknown scenario, or two jobs that would write the same file.
 | `cookie_crumbs` | `crumbs-<scenario>.txt` | All five | By default: the fixtures keep connections and the order of QPACK encoder-stream inserts |
 | `http2_websocket` | `<scenario>.txt` | All five | By default: the fixtures keep retries, connection counts, and frame order |
 | `proxy_route` | `<scenario>.txt` | All five | By default: the fixtures keep connection and tunnel counts, and browsers retry failed tunnels |
-| `sse_reconnect` | `<scenario>.txt` | All five | By default: the fixtures keep reconnect delays |
+| `sse_reconnect` | `<scenario>.txt`; use separate output directories for each `--protocol` | All five | By default: the fixtures keep reconnect delays |
+| `tunnelled_websocket` | `<proxy>-<origin-alpn>-<scenario>.txt` | All five | By default: the fixtures keep tunnel counts, retries, and frame order |
 | `alt_svc_race` | `<scenario>.txt` | Chrome, Edge | Always: it binds UDP and TCP ports drawn from the fixed range 20000-39999, and the fixtures keep race delays |
 | `startup_capture` | For run `n`: `client-hello-<n>.txt` (`tls`), `client-startup-<n>.txt` (`http2`), or `client-startup-<n>.txt` and `quic-client-hello-<n>.txt` (`http3`) | Chromium browsers | No |
 | `snapshot` | `snapshot-<n>.txt` for run `n`; omit `scenarios` | All five | No |
@@ -756,9 +758,23 @@ Limits:
 ## EventSource reconnects
 
 `sse_reconnect.py` records how a browser's `EventSource` reconnects after a
-server-sent events stream ends. It serves plaintext HTTP/1.1 to one
-`new EventSource(...)` page per run and writes one
+server-sent events stream ends. Its default `--protocol h1` serves plaintext
+HTTP/1.1 to one `new EventSource(...)` page per run and writes one
 `format=phantom-sse-reconnect-v1` fixture per scenario.
+
+Desktop browsers also accept `--protocol h2` or `--protocol h3` with the
+packages pinned in `scripts/requirements.txt`. These modes serve HTTPS and
+require the requested protocol on every recorded connection. Their
+`phantom-sse-reconnect-v2` fixtures retain ordered decoded headers and stream
+identities, resets and closes. They do not retain compressed HPACK or QPACK
+representations. Ending a stream replaces the H1 FIN stimulus; resetting a
+stream replaces the H1 reset stimulus.
+
+Pass `args: ["--protocol", "h3"]` in a `sse_reconnect` manifest entry. The
+runner appends the protocol to its job ID. Files still use `<scenario>.txt`,
+so give each protocol a separate output directory. Use fresh work and output
+directories for new experiments; historical capture manifests and outputs
+remain evidence, not resume targets.
 
 Use finite positive run timeouts and single-line printable ASCII metadata.
 Cleanup attempts to collect accepted response workers within a five-second
@@ -1543,6 +1559,61 @@ connections.
 
 Loopback adds no latency, so delays that depend on round-trip time appear
 only as the values Chrome logged.
+
+## Tunnelled WebSocket openings
+
+`tunnelled_websocket.py` records decrypted `wss://` openings through an
+explicit loopback proxy. Select `--proxy http`, `https` or `socks5` and
+`--origin-alpn h1` or `negotiate` (the default). The HTTPS proxy offers H1
+only; the origin negotiates separately. SOCKS5 uses no authentication.
+
+The tool uses the secure scenarios and five echo messages of
+[WebSocket openings](#websocket-openings). It records the CONNECT or SOCKS
+exchange separately from the origin's TLS and ordered WebSocket headers.
+The `phantom-tunnelled-websocket-v1` fixture includes the actual origin ALPN,
+response, echo results and cleanup outcomes. It rejects credentials and
+cookies before publication. A mixed ALPN offer does not itself prove an H2
+WebSocket; inspect the decoded origin events.
+
+For desktop captures, save a new manifest such as this one. Replace the
+browser path, installed version and scratch paths for the capture host:
+
+```json
+{
+  "operating_system": "Windows 11 Home 10.0.26200 x64",
+  "repeat": 1,
+  "browsers": {
+    "chrome": {
+      "path": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+      "version": "<installed-version>"
+    }
+  },
+  "captures": [
+    {
+      "tool": "tunnelled_websocket",
+      "browsers": ["chrome"],
+      "scenarios": ["accept"],
+      "args": ["--proxy", "https", "--origin-alpn", "negotiate"],
+      "output_dir": "<scratch-directory>/tunnel-https-negotiate"
+    }
+  ]
+}
+```
+
+Use full, unique `--proxy` and `--origin-alpn` option names. The runner adds
+both values to the job ID and writes `<proxy>-<origin-alpn>-<scenario>.txt`.
+Check the manifest first, then remove `--dry-run` to capture:
+
+```sh
+uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt \
+  python -m scripts.capture.run_matrix <new-manifest>.json --dry-run \
+  --jobs 1 --retries 0 --work-dir <scratch-directory>/work \
+  --results <scratch-directory>/results.json
+```
+
+Each run uses a fresh browser profile. The tool supports desktop Chromium
+browsers and Firefox; it adds no Android, proxy authentication, H3 WebSocket
+or MASQUE mode. Keep failed attempts and cleanup diagnostics with the results.
 
 ## Proxy routes
 

@@ -286,8 +286,15 @@ class RecordedRequest:
     after_stimulus: float | None = None
     stimulus: str | None = None
     extra: bool = False
+    stream_id: int | None = None
+    decoded_headers: list[tuple[bytes, bytes]] = field(default_factory=list)
+    client_reset: float | None = None
+    client_reset_code: int | None = None
 
     def header(self, name: bytes) -> bytes | None:
+        for key, value in self.decoded_headers:
+            if key == name:
+                return value
         for line in self.header_lines:
             key, _, value = line.partition(b":")
             if key.strip().lower() == name:
@@ -296,6 +303,8 @@ class RecordedRequest:
 
     @property
     def target(self) -> bytes:
+        if self.decoded_headers:
+            return self.header(b":path") or b""
         parts = self.request_line.split(b" ")
         return parts[1] if len(parts) == 3 else b""
 
@@ -305,6 +314,11 @@ class RecordedConnection:
     accepted: float
     request_count: int = 0
     client_eof: float | None = None
+    protocol: str | None = None
+    closed: float | None = None
+    close_code: int | None = None
+    peer_reset: float | None = None
+    peer_reset_winerror: int | None = None
 
 
 @dataclass
@@ -322,6 +336,7 @@ class ScenarioRun:
     terminated: float | None = None
     done: asyncio.Event = field(default_factory=asyncio.Event)
     observation: asyncio.TimerHandle | None = None
+    udp_cleanup_disconnects: list[tuple[float, int]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.started = self.clock()
@@ -441,6 +456,9 @@ class ReconnectServer:
         self.failures.clear()
         raise_capture_failures(self, None, failures)
 
+    async def wait_writer_closed(self, writer: asyncio.StreamWriter) -> None:
+        await writer.wait_closed()
+
     async def collect_connections(self) -> None:
         deadline = asyncio.get_running_loop().time() + CONNECTION_CLEANUP_SECONDS
         while self.tasks or self.writers:
@@ -463,7 +481,7 @@ class ReconnectServer:
                         failed_closures = True
                     else:
                         self.writer_tasks[writer] = asyncio.create_task(
-                            writer.wait_closed()
+                            self.wait_writer_closed(writer)
                         )
 
             pending_workers = set()
@@ -726,6 +744,9 @@ class CaptureMetadata:
     listen_address: str
     launch_mode: str
     launch_arguments: str
+    protocol: str = "h1"
+    firefox_preferences: str = "none"
+    profile_files: str = "none"
 
     def __post_init__(self) -> None:
         for name in (
@@ -735,14 +756,18 @@ class CaptureMetadata:
             "listen_address",
             "launch_mode",
             "launch_arguments",
+            "protocol",
+            "firefox_preferences",
+            "profile_files",
         ):
             validate_metadata(name, getattr(self, name))
 
 
 def validate_retained_headers(run: ScenarioRun) -> None:
     for request in run.requests:
-        for line in request.header_lines:
-            name, _, value = line.partition(b":")
+        fields = [line.partition(b":")[::2] for line in request.header_lines]
+        fields.extend(request.decoded_headers)
+        for name, value in fields:
             name = name.strip().lower()
             if name in SENSITIVE_HEADERS:
                 raise ValueError(
@@ -763,8 +788,13 @@ def fixture(
 ) -> str:
     for run in runs:
         validate_retained_headers(run)
+    secure = any(
+        connection.protocol is not None
+        for run in runs
+        for connection in run.connections
+    )
     lines = [
-        f"format={FORMAT}",
+        f"format={'phantom-sse-reconnect-v2' if secure else FORMAT}",
         f"captured_at_unix={int(time.time())}",
         f"client={metadata.client}",
         f"client_version={metadata.client_version}",
@@ -807,6 +837,61 @@ def fixture(
                 f"{key}_header_{header_index}={line.hex()}"
                 for header_index, line in enumerate(request.header_lines)
             )
+    if secure:
+        from .sse_multiplexed import library_versions
+
+        lines.extend(
+            [
+                f"requested_protocol={metadata.protocol}",
+                f"firefox_preferences={metadata.firefox_preferences}",
+                f"profile_files={metadata.profile_files}",
+                f"transport_libraries={library_versions(metadata.protocol)}",
+                "header_encoding=ordered-decoded-name-value-bytes",
+                "close_stimulus=end-stream",
+                "reset_stimulus=stream-reset",
+            ]
+        )
+        for run_index, run in enumerate(runs):
+            lines.append(
+                f"run_{run_index}_udp_cleanup_disconnect_count={len(run.udp_cleanup_disconnects)}"
+            )
+            lines.extend(
+                f"run_{run_index}_udp_cleanup_disconnect_{index}=received_ms:{milliseconds(received)},winerror:{code}"
+                for index, (received, code) in enumerate(run.udp_cleanup_disconnects)
+            )
+            for index, connection in enumerate(run.connections):
+                if (
+                    connection.protocol not in {"h2", "h3"}
+                    or connection.protocol != metadata.protocol
+                ):
+                    raise ValueError("secure SSE connection has no verified protocol")
+                lines.append(
+                    f"run_{run_index}_connection_{index}_alpn={connection.protocol}"
+                )
+                lines.append(
+                    f"run_{run_index}_connection_{index}_closed_ms={milliseconds(connection.closed)}"
+                )
+                lines.append(
+                    f"run_{run_index}_connection_{index}_close_code={connection.close_code if connection.close_code is not None else 'none'}"
+                )
+                if connection.peer_reset is not None:
+                    lines.append(
+                        f"run_{run_index}_connection_{index}_peer_reset=received_ms:{milliseconds(connection.peer_reset)},winerror:{connection.peer_reset_winerror}"
+                    )
+            for index, request in enumerate(run.requests):
+                key = f"run_{run_index}_request_{index}"
+                lines.append(f"{key}_stream_id={request.stream_id}")
+                lines.append(
+                    f"{key}_client_reset_ms={milliseconds(request.client_reset)}"
+                )
+                lines.append(
+                    f"{key}_client_reset_code={request.client_reset_code if request.client_reset_code is not None else 'none'}"
+                )
+                lines.append(f"{key}_field_count={len(request.decoded_headers)}")
+                lines.extend(
+                    f"{key}_field_{i}={name.hex()}:{value.hex()}"
+                    for i, (name, value) in enumerate(request.decoded_headers)
+                )
     lines.extend(delay_lines(scenario, runs))
     return "\n".join(lines) + "\n"
 
@@ -893,11 +978,21 @@ async def run(args: argparse.Namespace) -> None:
         executable=args.browser_path,
         headless=not args.headful,
     )
-    server = ReconnectServer()
+    protocol = getattr(args, "protocol", "h1")
+    if protocol != "h1" and args.browser.endswith("-android"):
+        raise ValueError("secure SSE modes require a desktop browser")
+    if protocol == "h1":
+        server = ReconnectServer()
+    else:
+        from .sse_multiplexed import secure_server
+
+        server = secure_server(protocol)
     await server.start(address.host, address.port)
     primary = None
     try:
         listen = ListenAddress(*server.address).authority
+        if protocol != "h1":
+            plan = server.launch_plan(args)
         names = list(SCENARIOS) if args.scenario == ["all"] else args.scenario
         args.output_dir.mkdir(parents=True, exist_ok=True)
         for name in names:
@@ -909,14 +1004,22 @@ async def run(args: argparse.Namespace) -> None:
                 run_timeout=args.run_timeout,
                 drive=lambda url: BrowserDriver(plan, url),
             )
+            from .browser_launch import render_preferences
+
             metadata = CaptureMetadata(
                 client=args.client or plan.client_name,
                 client_version=args.client_version,
                 operating_system=args.operating_system,
                 listen_address=listen,
+                protocol=protocol,
+                firefox_preferences=render_preferences(plan.firefox_preferences)
+                if plan.firefox_preferences
+                else "none",
+                profile_files=",".join(name for name, _ in plan.profile_files)
+                or "none",
                 launch_mode=plan.launch_mode,
                 launch_arguments=plan.recorded_arguments(
-                    f"http://{listen}/run/<token>"
+                    server.url(ScenarioRun(SCENARIOS[names[0]], "<token>"))
                 ),
             )
             write_text_fixture(
@@ -943,6 +1046,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("--client-version", required=True)
     parser.add_argument("--operating-system", default=platform.platform())
     parser.add_argument("--listen", default="127.0.0.1:0")
+    parser.add_argument("--protocol", choices=("h1", "h2", "h3"), default="h1")
     parser.add_argument("--scenario", nargs="+", default=["all"])
     parser.add_argument("--repeat", type=int, default=10)
     parser.add_argument("--run-timeout", type=float, default=120.0)

@@ -127,6 +127,40 @@ def ech_outputs(
     return (f"ech-{quic}{scenario}.txt",)
 
 
+def tunnelled_websocket_options(args: Sequence[str]) -> tuple[str, str]:
+    for argument in args:
+        option = argument.split("=", 1)[0]
+        if option.startswith("--") and any(
+            name.startswith(option) and name != option
+            for name in ("--proxy", "--origin-alpn")
+        ):
+            raise ManifestError(
+                "tunnelled_websocket requires full --proxy and --origin-alpn names"
+            )
+    values = []
+    for name, allowed, default in (
+        ("--proxy", ("http", "https", "socks5"), None),
+        ("--origin-alpn", ("h1", "negotiate"), "negotiate"),
+    ):
+        occurrences = sum(argument.split("=", 1)[0] == name for argument in args)
+        if occurrences > 1:
+            raise ManifestError(f"tunnelled_websocket repeats {name}")
+        value = option_value(args, name) if occurrences else default
+        if value not in allowed:
+            raise ManifestError(
+                f"tunnelled_websocket {name} must be one of {', '.join(allowed)}"
+            )
+        values.append(value)
+    return values[0], values[1]
+
+
+def tunnelled_websocket_outputs(
+    scenario: str | None, _repeat: int, args: Sequence[str]
+) -> tuple[str, ...]:
+    proxy, origin = tunnelled_websocket_options(args)
+    return (f"{proxy}-{origin}-{scenario}.txt",)
+
+
 TOOLS = {
     tool.name: tool
     for tool in (
@@ -173,6 +207,14 @@ TOOLS = {
             scenario_file("{scenario}.txt"),
             run_seconds=8,
             timing="its fixtures keep retries, connection counts, and frame order",
+        ),
+        Tool(
+            "tunnelled_websocket",
+            "scripts.capture.tunnelled_websocket",
+            DESKTOP_BROWSERS,
+            tunnelled_websocket_outputs,
+            run_seconds=30,
+            timing="its fixtures keep tunnel counts, retries, and frame order",
         ),
         Tool(
             "proxy_route",
@@ -485,6 +527,11 @@ def expand_capture(
             job_id = "/".join(
                 part for part in (tool.name, browser.name, scenario) if part
             )
+            if tool.name == "tunnelled_websocket":
+                proxy, origin = tunnelled_websocket_options(extra)
+                job_id += f"/{proxy}/{origin}"
+            if tool.name == "sse_reconnect" and option_value(extra, "--protocol"):
+                job_id += "/" + str(option_value(extra, "--protocol"))
             if option_value(extra, "--fixture-prefix"):
                 job_id += "/" + str(option_value(extra, "--fixture-prefix"))
             jobs.append(
