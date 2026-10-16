@@ -3,9 +3,11 @@
 import asyncio
 import errno
 import ssl
+import traceback
 import unittest
 
 from scripts.capture.http2_session import (
+    CaptureFailures,
     ConnectionRecord,
     PlainChannel,
     TlsChannel,
@@ -13,6 +15,33 @@ from scripts.capture.http2_session import (
     raise_capture_failures,
     server_context,
 )
+
+
+class CaptureFailureReportingTests(unittest.TestCase):
+    def test_traceback_reports_each_nested_cleanup_cause(self):
+        primary = ValueError("incomplete origin record")
+        descriptor = OSError(errno.EBADF, "proxy writer descriptor")
+        nested = CaptureFailures(primary, (descriptor,))
+        pending = asyncio.TimeoutError("pending proxy writer")
+
+        with self.assertRaises(CaptureFailures) as caught:
+            raise_capture_failures(None, (nested, pending))
+
+        rendered = "".join(
+            traceback.format_exception(type(caught.exception), caught.exception, None)
+        )
+        for detail in (
+            "ValueError",
+            "incomplete origin record",
+            "OSError",
+            "proxy writer descriptor",
+            "pending proxy writer",
+        ):
+            self.assertIn(detail, rendered)
+        self.assertIs(caught.exception.cleanup[0], nested)
+        self.assertIs(nested.primary, primary)
+        self.assertIs(nested.cleanup[0], descriptor)
+        self.assertIs(caught.exception.cleanup[1], pending)
 
 
 class ChannelFailuresTests(unittest.IsolatedAsyncioTestCase):

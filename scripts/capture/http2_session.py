@@ -980,7 +980,14 @@ class CaptureFailures(Exception):
         self.previous_context = primary.__context__ if primary is not None else None
         self.interruption_cause: BaseException | None = None
         self.interruption_context: BaseException | None = None
-        super().__init__("websocket capture cleanup failed")
+        details = ["websocket capture cleanup failed"]
+        if primary is not None:
+            details.append(f"primary {type(primary).__name__}: {primary}")
+        details.extend(
+            f"cleanup[{index}] {type(error).__name__}: {error}"
+            for index, error in enumerate(cleanup, start=1)
+        )
+        super().__init__("\n".join(details))
 
 
 def raise_capture_failures(
