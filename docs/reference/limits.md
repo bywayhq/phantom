@@ -239,14 +239,18 @@ proxy backups close. Exact H2 keeps its existing single setup per key; a
 quiet backup becomes claimable after primary failure or cancellation.
 Neither path sends speculative CONNECT or origin TLS on a quiet spare.
 H2 in these paths is the inner origin protocol. Physical selection for an
-outer H2 proxy connection is separate. Its pooled setup uses the configured
-TCP selection, progresses a retained raw backup through proxy TLS, and closes
-it after verified H2 negotiation, before authentication or CONNECT. The backup
-sends no TLS or application bytes. The bounded pool route remembers the
+outer H2 proxy connection is separate. Its setup uses the configured TCP
+selection, progresses a retained raw backup through proxy TLS, and closes it
+at verified H2 negotiation, before authentication or CONNECT. The backup sends
+no TLS or application bytes. The bounded ordinary pool route remembers the
 physical proxy family per endpoint, server name, credentials, connector
 settings and runtime. That memory survives slot retirement because forwarding
 handles can outlive slots. Route eviction gives a new route fresh memory,
-even while an old caller-owned connection survives.
+even while an old caller-owned connection survives. Shared CONNECT-UDP H2
+setup keeps family memory in its existing bounded outer entry, across
+session replacement, authentication retries and pool clears; entry eviction
+resets it. Dedicated ordinary and extended H2 calls remember family only
+within one operation, including authentication redials.
 
 Exact and profile-policy `wss://` openings use quiet spares through
 plaintext CONNECT or an HTTPS proxy using outer H1. H1 Upgrade shares its
@@ -272,8 +276,8 @@ outer TLS. Connections keep their existing origin, route, runtime and
 credential bounds. Family memory remains per origin and route. Firefox can
 share a forwarding connection between origins on one proxy; Phantom keeps
 those origins separate. Other proxy WebSocket backups and proxy early-data
-setup remain outside these additions. Dedicated nonpooled outer H2 and CONNECT-UDP
-setup keep their existing behavior. These CONNECT paths do not add ECH.
+setup remain outside these additions. These CONNECT paths do not add ECH.
+Applying TCP backup policy to CONNECT-UDP does not claim Firefox MASQUE parity.
 Failed-address history follows the locally cached DNS record, independently
 of CONNECT setup.
 

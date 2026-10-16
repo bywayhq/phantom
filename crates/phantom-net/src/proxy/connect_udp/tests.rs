@@ -242,3 +242,5 @@ fn upgrade_tokens_match_case_insensitively_within_connection_lists() -> TestResu
     assert!(!parse_upgrade_response(doubled, false)?.valid_upgrade);
     Ok(())
 }
+
+mod outer_h2;

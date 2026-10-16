@@ -2079,8 +2079,26 @@ credentials, connector settings and runtime. It keeps that memory through
 slot retirement because caller-owned forwarding handles can outlive slots.
 A route recreated after LRU eviction starts fresh even if an old caller-owned
 connection survives. This conservative lifetime does not reproduce an earlier
-Firefox connection-entry reset. Dedicated nonpooled H2 and CONNECT-UDP setup
-are unchanged.
+Firefox connection-entry reset.
+
+The source extension for dedicated ordinary H2 and dedicated or shared
+CONNECT-UDP H2 uses that same verified-TLS retirement boundary. Dedicated
+operations keep family memory through their authentication redials only.
+Shared extended CONNECT takes a clone from the actual bounded pool entry,
+after validating its prepared connector. Clearing or retiring its session
+does not reset that entry; eviction does. Ordinary and extended CONNECT keep
+their existing distinct builders and pseudo-header ordering. The Firefox
+source above supports physical TCP selection and H2 activation, not Firefox
+RFC 9298 or MASQUE behavior.
+
+Eleven new source controls are uncompiled. They cover actual dedicated dials,
+ordinary versus extended request identity, shared and operation-local
+challenge redials, prepared-cache invalidation, family isolation and eviction.
+A scripted slower attempt uses a real loopback socket to check its closure
+before server SETTINGS or CONNECT. It does not reproduce an operating-system
+race. The five existing TLS, ALPN, certificate and cancellation controls now
+exercise the common TLS boundary; their assertions and deadlines are unchanged.
+These additions still require focused execution and the integration gate.
 
 All 29 selected controls passed on Windows: 11 new controls and 18 existing
 pool controls. Strict Clippy passed too. The controls use loopback sockets

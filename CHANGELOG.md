@@ -2776,6 +2776,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Apply configured TCP backup ownership to dedicated ordinary H2 and
+  CONNECT-UDP H2 proxy setup. Raw backups close at verified H2 activation,
+  before proxy authentication or CONNECT.
+
 - Observe multiplexing fixtures' own listener destruction independently of
   TCP port reuse. Keep their task and relay cleanup checks.
 

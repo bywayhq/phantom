@@ -287,3 +287,5 @@ async fn certificate_rejection_preserves_its_tls_cause_and_retires_the_backup() 
     .await
     .map_err(|_| "proxy certificate rejection exceeded its deadline")?
 }
+
+mod dedicated;

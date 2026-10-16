@@ -3,7 +3,7 @@ use std::{
     future::Future,
     io,
     pin::{Pin, pin},
-    sync::{Mutex, PoisonError},
+    sync::{Mutex, OnceLock, PoisonError},
     task::{Context, Poll},
 };
 
@@ -405,6 +405,7 @@ impl HttpsProxyConnector {
             host: proxy_host,
             port: proxy_port,
             server_name: proxy_server_name,
+            family: OnceLock::new(),
             credentials,
         };
         // The pool counts tunnels only; forwarded requests are short.
@@ -474,6 +475,7 @@ impl HttpsProxyConnector {
                         host: proxy_host,
                         port: proxy_port,
                         server_name: proxy_server_name,
+                        family: OnceLock::new(),
                         credentials: None,
                     };
                     let rejected = self.http2_rejected;
@@ -560,6 +562,7 @@ impl HttpsProxyConnector {
                             host: proxy_host,
                             port: proxy_port,
                             server_name: proxy_server_name,
+                            family: OnceLock::new(),
                             credentials: Some(HttpProxyAuthentication::Digest(credentials))
                         },
                         authority,
@@ -707,6 +710,7 @@ impl HttpsProxyConnector {
                         host: proxy_host,
                         port: proxy_port,
                         server_name: proxy_server_name,
+                        family: OnceLock::new(),
                         credentials: Some(HttpProxyAuthentication::Basic(credentials)),
                     };
                     self.http2_basic_auth_exchange(&plan, &requests, &target)
@@ -835,7 +839,12 @@ impl HttpsProxyConnector {
                 .map(TunnelConnection::Pooled)
             }
             None => self
-                .connect_http2_proxy(target.host, target.port, target.server_name)
+                .connect_http2_proxy(
+                    target.host,
+                    target.port,
+                    target.server_name,
+                    target.family.get_or_init(Default::default).clone(),
+                )
                 .await
                 .map(TunnelConnection::Dedicated),
         }
@@ -1066,27 +1075,10 @@ impl HttpsProxyConnector {
         proxy_host: &str,
         proxy_port: u16,
         proxy_server_name: &str,
+        family: crate::tcp::AddressFamilyMemory,
     ) -> Result<Http2Connection, HttpConnectError> {
-        let client = self.http2_builder()?;
-        let stream = self
-            .connect_proxy_tls(proxy_host, proxy_port, proxy_server_name)
-            .await?;
-        match stream.negotiated_alpn() {
-            Some(b"h2") => {}
-            Some(selected) => {
-                return Err(HttpConnectError::UnsupportedAlpn {
-                    selected: selected.into(),
-                });
-            }
-            None => return Err(HttpConnectError::MissingNegotiatedAlpn),
-        }
-        // The proxy connection carries HTTP/2, which turns its keepalive off.
-        if let Some(keepalive) = crate::tcp::TcpKeepaliveSource::tcp_keepalive(&stream) {
-            keepalive.http2_negotiated();
-        }
-        connect_selected(stream, client)
+        self.connect_pooled_http2_proxy(proxy_host, proxy_port, proxy_server_name, family)
             .await
-            .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(error)))
     }
 
     async fn connect_pooled_http2_proxy(
@@ -1115,10 +1107,24 @@ impl HttpsProxyConnector {
     async fn finish_pooled_http2_proxy(
         &self,
         stream: crate::tcp::ProfileTcpStream,
-        mut slower: Option<crate::tcp::SlowerAttempt>,
+        slower: Option<crate::tcp::SlowerAttempt>,
         server_name: &str,
         client: Http2Builder,
     ) -> Result<Http2Connection, HttpConnectError> {
+        let stream = self
+            .finish_http2_proxy_tls(stream, slower, server_name)
+            .await?;
+        connect_selected(stream, client)
+            .await
+            .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(error)))
+    }
+
+    async fn finish_http2_proxy_tls(
+        &self,
+        stream: crate::tcp::ProfileTcpStream,
+        mut slower: Option<crate::tcp::SlowerAttempt>,
+        server_name: &str,
+    ) -> Result<TlsStream<crate::tcp::ProfileTcpStream>, HttpConnectError> {
         let handshake = self.tls.connect(server_name, stream);
         let stream = match slower.as_mut() {
             Some(attempt) => attempt.alongside(handshake).await,
@@ -1141,9 +1147,7 @@ impl HttpsProxyConnector {
         if let Some(keepalive) = crate::tcp::TcpKeepaliveSource::tcp_keepalive(&stream) {
             keepalive.http2_negotiated();
         }
-        connect_selected(stream, client)
-            .await
-            .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(error)))
+        Ok(stream)
     }
 
     /// Opens one dedicated HTTP/2 connection to the proxy for exact extended
@@ -1153,24 +1157,23 @@ impl HttpsProxyConnector {
         proxy_host: &str,
         proxy_port: u16,
         proxy_server_name: &str,
+        family: &crate::tcp::AddressFamilyMemory,
     ) -> Result<Http2Connection, HttpConnectError> {
         let client = self.http2_extended_builder()?;
+        let (stream, slower) = crate::direct::connect_tcp_keeping_slower(
+            proxy_host,
+            proxy_port,
+            self.dialer(),
+            Some(family),
+        )
+        .await
+        .map_err(|error| match error {
+            DirectConnectError::RuntimeUnavailable => HttpConnectError::RuntimeUnavailable,
+            DirectConnectError::Connect(error) => HttpConnectError::Connect(error),
+        })?;
         let stream = self
-            .connect_proxy_tls(proxy_host, proxy_port, proxy_server_name)
+            .finish_http2_proxy_tls(stream, slower, proxy_server_name)
             .await?;
-        match stream.negotiated_alpn() {
-            Some(b"h2") => {}
-            Some(selected) => {
-                return Err(HttpConnectError::UnsupportedAlpn {
-                    selected: selected.into(),
-                });
-            }
-            None => return Err(HttpConnectError::MissingNegotiatedAlpn),
-        }
-        // The proxy connection carries HTTP/2, which turns its keepalive off.
-        if let Some(keepalive) = crate::tcp::TcpKeepaliveSource::tcp_keepalive(&stream) {
-            keepalive.http2_negotiated();
-        }
         connect_selected_extended(stream, client)
             .await
             .map_err(|error| HttpConnectError::ProxyHttp2(Box::new(error)))
@@ -1212,6 +1215,8 @@ struct ProxyTarget<'a> {
     port: u16,
     server_name: &'a str,
     credentials: Option<HttpProxyAuthentication<'a>>,
+    // Only dedicated connections need operation-local family memory.
+    family: OnceLock<crate::tcp::AddressFamilyMemory>,
 }
 
 /// The HTTP/2 proxy connection one tunnel uses.

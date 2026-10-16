@@ -187,13 +187,16 @@ Supported:
   credentials. Family memory stays per origin and route. Connection ownership
   keeps its origin, route, runtime and credential bounds.
 
-- Pooled outer HTTP/2 connections to HTTPS proxies use the configured TCP
-  selection and remember the physical proxy family within their bounded route.
+- Outer HTTP/2 connections to HTTPS proxies use the configured TCP selection.
   A retained raw backup progresses during proxy TLS, sends no TLS or application
   bytes, and closes after verified H2 negotiation, before authentication or
-  CONNECT. Family memory survives slot retirement; a route recreated after
-  eviction starts fresh. Dedicated nonpooled H2 and CONNECT-UDP setup are
-  unchanged.
+  CONNECT. Ordinary pooled connections remember the physical proxy family
+  within their bounded route, across slot retirement. Shared CONNECT-UDP H2
+  connections keep it in their bounded outer entry, across authentication
+  retries and pool clears. Eviction starts fresh; dedicated operations retain
+  family only through their own authentication retries. Ordinary and extended
+  CONNECT keep their separate framing. This applies the transport policy to
+  CONNECT-UDP; it does not establish Firefox MASQUE behavior.
 - Ordinary H1 and exact or negotiated H2 requests through SOCKS4/4a and
   SOCKS5 retain a complete-negotiation backup. Local target family memory
   starts after SOCKS succeeds; remote DNS supplies no local target family.

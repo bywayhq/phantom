@@ -4,6 +4,8 @@
 //! Both legs carry the Capsule Protocol on the request's byte stream
 //! (RFC 9297 section 3.2). HTTP/3 legs live in `http3::connect_udp`.
 
+use std::sync::OnceLock;
+
 use bytes::Bytes;
 use http::{
     HeaderMap, HeaderValue, StatusCode,
@@ -208,6 +210,9 @@ impl HttpsProxyConnector {
         request: PreparedConnectUdp,
         span: &Span,
     ) -> Result<HttpsProxyTunnel, HttpConnectError> {
+        // One dedicated operation owns all of its authentication redials.
+        // HTTP/1.1 never initializes this TCP backup memory.
+        let family = OnceLock::new();
         let PreparedConnectUdp {
             anonymous,
             authenticated,
@@ -218,6 +223,7 @@ impl HttpsProxyConnector {
                     proxy_host,
                     proxy_port,
                     proxy_server_name,
+                    &family,
                     anonymous,
                     false,
                     span,
@@ -234,6 +240,7 @@ impl HttpsProxyConnector {
                 proxy_host,
                 proxy_port,
                 proxy_server_name,
+                &family,
                 anonymous,
                 true,
                 span,
@@ -248,6 +255,7 @@ impl HttpsProxyConnector {
                         proxy_host,
                         proxy_port,
                         proxy_server_name,
+                        &family,
                         authenticated,
                         false,
                         span,
@@ -349,10 +357,11 @@ impl HttpsProxyConnector {
                         Some(prepared) => setup.prepared_http2(prepared)?,
                         None => setup.http2_connector(self)?,
                     };
+                    let family = setup.family()?;
                     let mut established = None;
                     let result = async {
                         let mut connection = connector
-                            .connect_http2_extended_proxy(host, port, host)
+                            .connect_http2_extended_proxy(host, port, host, &family)
                             .await
                             .map_err(ConnectUdpError::proxy_leg)?;
                         established = Some(connection.clone());
@@ -381,7 +390,7 @@ impl HttpsProxyConnector {
                                 drop(connection);
                                 established = None;
                                 connection = connector
-                                    .connect_http2_extended_proxy(host, port, host)
+                                    .connect_http2_extended_proxy(host, port, host, &family)
                                     .await
                                     .map_err(ConnectUdpError::proxy_leg)?;
                                 established = Some(connection.clone());
@@ -439,11 +448,13 @@ impl HttpsProxyConnector {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn connect_udp_leg(
         &self,
         proxy_host: &str,
         proxy_port: u16,
         proxy_server_name: &str,
+        family: &OnceLock<crate::tcp::AddressFamilyMemory>,
         request: PreparedLeg,
         inspect_challenge: bool,
         span: &Span,
@@ -466,7 +477,12 @@ impl HttpsProxyConnector {
                 // The connection lease moves into the accepted stream, so the
                 // tunnel owns its dedicated proxy connection.
                 let connection = self
-                    .connect_http2_extended_proxy(proxy_host, proxy_port, proxy_server_name)
+                    .connect_http2_extended_proxy(
+                        proxy_host,
+                        proxy_port,
+                        proxy_server_name,
+                        family.get_or_init(Default::default),
+                    )
                     .await?;
                 match http2_exchange(&connection, request, inspect_challenge, span).await? {
                     Http2Outcome::Tunnel(stream) => Ok(LegOutcome::Tunnel(Box::new(

@@ -13,6 +13,7 @@ use crate::{
     http2::Http2Connection,
     http3::{ConnectUdpError, ConnectUdpErrorKind, Http3Connection, Http3Connector},
     request::RequestHeader,
+    tcp::AddressFamilyMemory,
 };
 
 pub(crate) mod http3;
@@ -155,6 +156,7 @@ impl ConnectUdpProxyPool {
         }
         let entry = Arc::new(Entry {
             key,
+            family: AddressFamilyMemory::default(),
             state: Mutex::new(SessionState::default()),
         });
         entries.push(Arc::clone(&entry));
@@ -356,6 +358,8 @@ impl PoolKey {
 
 struct Entry {
     key: PoolKey,
+    // Physical proxy selection survives session retirement and pool clear.
+    family: AddressFamilyMemory,
     state: Mutex<SessionState>,
 }
 
@@ -449,6 +453,13 @@ pub(crate) struct SetupLease {
 }
 
 impl SetupLease {
+    pub(crate) fn family(&self) -> Result<AddressFamilyMemory, ConnectUdpError> {
+        self.lease
+            .as_ref()
+            .map(|lease| lease.entry.family.clone())
+            .ok_or_else(setup_stopped)
+    }
+
     pub(crate) fn http3_connector(
         &self,
         base: &Http3Connector,
