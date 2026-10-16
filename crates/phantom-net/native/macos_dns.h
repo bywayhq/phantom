@@ -35,9 +35,12 @@ struct phantom_dns_settings {
 
 /* detail contains only an errno/notify status, never configuration data. */
 uint32_t phantom_macos_dns_read(struct phantom_dns_settings *out, uint32_t *detail);
-/* Adopt every non-NULL owner, including descriptor-setup failure. */
-uint32_t phantom_macos_dns_watch_start(void **out, uint32_t *detail);
-/* event: 0=control EOF (stop), 1=native invalidation, 2=one control byte. */
+/* Copies bounded absolute hosts_path; retains no caller pointer. Adopt every
+ * non-NULL owner, including partial registration/descriptor-setup failure. */
+uint32_t phantom_macos_dns_watch_start(const char *hosts_path, void **out,
+                                     uint32_t *detail);
+/* event: 0=control EOF, 1=native invalidation, 2=one control byte,
+ * 3=value-sampling tick. No path/content is returned. */
 uint32_t phantom_macos_dns_watch_wait(void *owner, int control, uint32_t *event,
                                     uint32_t *detail);
 uint32_t phantom_macos_dns_watch_check(void *owner, uint32_t *changed,

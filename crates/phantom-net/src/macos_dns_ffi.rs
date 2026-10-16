@@ -7,7 +7,7 @@
 pub(crate) mod configuration;
 pub(crate) mod configuration_watch;
 
-use std::ffi::c_void;
+use std::ffi::{c_char, c_void};
 
 const OK: u32 = 0;
 const UNAVAILABLE: u32 = 1;
@@ -62,7 +62,11 @@ const _: () = assert!(std::mem::size_of::<RawSettings>() == 1664);
 
 unsafe extern "C" {
     fn phantom_macos_dns_read(out: *mut RawSettings, detail: *mut u32) -> u32;
-    fn phantom_macos_dns_watch_start(out: *mut *mut c_void, detail: *mut u32) -> u32;
+    fn phantom_macos_dns_watch_start(
+        hosts_path: *const c_char,
+        out: *mut *mut c_void,
+        detail: *mut u32,
+    ) -> u32;
     fn phantom_macos_dns_watch_wait(
         owner: *mut c_void,
         control: i32,

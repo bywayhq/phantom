@@ -1,15 +1,23 @@
 //! One owned native notification thread. Start/check/shutdown are blocking.
 //! Observer clones contain only invalidation state, never a native owner.
+//! Hosts path/content and DNS/hostname notifications share this generation.
+//! Checks sample actual hostname bytes; direct kernel hostname changes also
+//! have a one-second idle sampling backup. Blocking native work may delay it;
+//! neither synchronous OS delivery nor finite shutdown latency is promised.
 
 use super::{
     OK, UNAVAILABLE, phantom_macos_dns_watch_check, phantom_macos_dns_watch_close,
     phantom_macos_dns_watch_start, phantom_macos_dns_watch_wait,
 };
 use std::{
-    ffi::c_void,
+    ffi::{CStr, CString, c_void},
     fmt,
     io::Write,
-    os::{fd::AsRawFd, unix::net::UnixStream},
+    os::{
+        fd::AsRawFd,
+        unix::{ffi::OsStrExt, net::UnixStream},
+    },
+    path::Path,
     ptr::{self, NonNull},
     sync::{
         Arc, Mutex,
@@ -31,6 +39,7 @@ pub(crate) enum WatchCause {
     ThreadStart,
     ControlIo,
     InvalidControl,
+    InvalidHostsPath,
     WorkerPanicked,
     StatePoisoned,
     GenerationExhausted,
@@ -39,7 +48,7 @@ pub(crate) enum WatchCause {
 }
 
 /// Fixed operation names/status codes only. A cancellation error may retain
-/// at most this owner's one native registration/descriptor until process exit.
+/// at most this owner's two native registrations/descriptors until process exit.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct WatchError {
     pub(crate) cause: WatchCause,
@@ -223,8 +232,24 @@ impl fmt::Debug for ConfigurationWatch {
     }
 }
 impl ConfigurationWatch {
-    /// Returns only after registration and initial notify_check priming.
+    /// Returns after DNS/hostname registration, hosts watches and checked baseline.
+    /// The conventional path is resolved by the native owner, including symlinks.
     pub(crate) fn start() -> Result<Self, WatchError> {
+        Self::start_path(Path::new("/etc/hosts"))
+    }
+
+    #[cfg(test)]
+    pub(super) fn start_with_hosts(path: &Path) -> Result<Self, WatchError> {
+        Self::start_path(path)
+    }
+
+    fn start_path(path: &Path) -> Result<Self, WatchError> {
+        let bytes = path.as_os_str().as_bytes();
+        if !path.is_absolute() || bytes.last() == Some(&b'/') || bytes.len() >= 1024 {
+            return Err(WatchError::cause(WatchCause::InvalidHostsPath));
+        }
+        let hosts_path =
+            CString::new(bytes).map_err(|_| WatchError::cause(WatchCause::InvalidHostsPath))?;
         let (control, receiver) =
             UnixStream::pair().map_err(|_| WatchError::cause(WatchCause::ControlIo))?;
         let dirty = Arc::new(Dirty::new());
@@ -233,7 +258,7 @@ impl ConfigurationWatch {
         let thread_dirty = Arc::clone(&dirty);
         let worker = thread::Builder::new()
             .name("phantom-macos-dns-watch".into())
-            .spawn(move || run(receiver, request_rx, &thread_dirty, ready_tx))
+            .spawn(move || run(receiver, request_rx, &thread_dirty, ready_tx, &hosts_path))
             .map_err(|_| WatchError::cause(WatchCause::ThreadStart))?;
         let mut watch = Self {
             dirty,
@@ -321,12 +346,14 @@ impl Drop for ConfigurationWatch {
 
 struct NativeWatch(Option<NonNull<c_void>>);
 impl NativeWatch {
-    fn start(out: &mut Option<Self>) -> Result<(), WatchError> {
+    fn start(out: &mut Option<Self>, hosts_path: &CStr) -> Result<(), WatchError> {
         let mut owner = ptr::null_mut();
         let mut code = 0;
         // SAFETY: writable output slots; every non-null allocation is adopted
-        // before inspecting status, including descriptor-setup failure.
-        let status = unsafe { phantom_macos_dns_watch_start(&mut owner, &mut code) };
+        // before inspecting status, including descriptor-setup failure. The
+        // NUL-terminated path lives for this call; C copies it before returning.
+        let status =
+            unsafe { phantom_macos_dns_watch_start(hosts_path.as_ptr(), &mut owner, &mut code) };
         let watch = Self(NonNull::new(owner));
         let has_owner = watch.0.is_some();
         // The caller keeps this slot outside its caught body. Setup failure
@@ -336,7 +363,7 @@ impl NativeWatch {
             return Err(WatchError::cause(WatchCause::WitnessUnavailable));
         }
         if status != OK {
-            return Err(WatchError::native("notify_register/setup", status, code));
+            return Err(WatchError::native("watch_register/setup", status, code));
         }
         if !has_owner {
             return Err(WatchError::cause(WatchCause::InvalidControl));
@@ -358,7 +385,7 @@ impl NativeWatch {
         // live for the synchronous call; C retains none of their pointers.
         let status = unsafe { phantom_macos_dns_watch_check(owner, &mut changed, &mut code) };
         if status != OK {
-            return Err(WatchError::native("notify_check", status, code));
+            return Err(WatchError::native("watch_check", status, code));
         }
         match changed {
             0 => Ok(false),
@@ -379,7 +406,7 @@ impl NativeWatch {
         if status == OK {
             Ok(event)
         } else {
-            Err(WatchError::native("notify_wait", status, code))
+            Err(WatchError::native("watch_wait", status, code))
         }
     }
 
@@ -395,7 +422,7 @@ impl NativeWatch {
         if status == OK {
             Ok(())
         } else {
-            let mut error = WatchError::native("notify_cancel", status, code);
+            let mut error = WatchError::native("watch_close", status, code);
             error.cancellation = Some((status, code));
             Err(error)
         }
@@ -412,6 +439,7 @@ fn run(
     requests: mpsc::Receiver<Reply>,
     dirty: &Arc<Dirty>,
     ready: mpsc::SyncSender<Result<(), WatchError>>,
+    hosts_path: &CStr,
 ) -> Result<(), WatchError> {
     // Retain native ownership OUTSIDE the caught body: a setup/wait panic must
     // publish terminal invalidation before native cancellation can block.
@@ -419,7 +447,7 @@ fn run(
     let mut ready = Some(ready);
     let mut pending_reply = None;
     let body = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        NativeWatch::start(&mut native)?;
+        NativeWatch::start(&mut native, hosts_path)?;
         let watch = native
             .as_ref()
             .ok_or_else(|| WatchError::cause(WatchCause::InvalidControl))?;
@@ -447,6 +475,11 @@ fn run(
                     }
                     if let Some(reply) = pending_reply.take() {
                         let _ = reply.send(dirty.observed());
+                    }
+                }
+                3 => {
+                    if watch.check()? {
+                        dirty.mark();
                     }
                 }
                 _ => return Err(WatchError::cause(WatchCause::InvalidControl)),
