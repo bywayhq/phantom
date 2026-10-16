@@ -77,6 +77,103 @@ pub struct Http2TlsConnector {
 }
 
 impl Http2TlsConnector {
+    /// Opens a quiet complete SOCKS tunnel and its already-started backup.
+    ///
+    /// Adopt the backup before the winner starts origin TLS. Only Backup
+    /// policies without TCP early data are supported; no route is substituted.
+    ///
+    /// # Errors
+    ///
+    /// Rejects other routes and direct-only setup before I/O, and returns the
+    /// existing typed SOCKS setup errors.
+    pub async fn open_socks_retaining(
+        &self,
+        origin: OriginRoute<'_>,
+        family: &crate::tcp::AddressFamilyMemory,
+    ) -> Result<
+        (
+            super::Http2SocksOpening,
+            Option<SlowerConnection<super::Http2SocksOpening>>,
+        ),
+        Http2TlsError,
+    > {
+        origin
+            .validate(false, true)
+            .map_err(Http2TlsError::Connect)?;
+        let OriginRoute::Tls {
+            tcp,
+            server_name,
+            setup: DirectTlsSetup::Default,
+        } = origin
+        else {
+            return Err(invalid_route("quiet SOCKS requires ordinary origin TLS"));
+        };
+        if !matches!(tcp, TcpRoute::Socks4 { .. } | TcpRoute::Socks5 { .. }) {
+            return Err(invalid_route("quiet SOCKS requires a SOCKS route"));
+        }
+        let Some(phantom_profile::TcpAddressSelection::Backup(backup)) =
+            self.tcp.map(|s| s.address_selection)
+        else {
+            return Err(invalid_route("quiet SOCKS requires a backup policy"));
+        };
+        if self.tls.offers_early_data() {
+            return Err(invalid_route("quiet SOCKS does not offer early data"));
+        }
+        translate_settings(&self.http2).map_err(Http2TlsError::from)?;
+        let name = Box::<str>::from(server_name);
+        let (stream, slower) =
+            crate::proxy::socks_connection::connect_retaining(self.dialer(), tcp, family, backup)
+                .await
+                .map_err(|e| Http2TlsError::from(e.into_leg()))?;
+        let slower = slower.map(|attempt| {
+            let connector = self.clone();
+            let name = name.clone();
+            SlowerConnection::new(attempt.progress(), async move {
+                Some(super::Http2SocksOpening::new(
+                    attempt.finish().await?,
+                    connector,
+                    name,
+                ))
+            })
+        });
+        Ok((
+            super::Http2SocksOpening::new(stream, self.clone(), name),
+            slower,
+        ))
+    }
+
+    pub(super) async fn finish_socks_opening(
+        &self,
+        stream: crate::tcp::ProfileTcpStream,
+        server_name: &str,
+    ) -> Result<Http2Connection, Http2TlsError> {
+        let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
+        let stream = self.tls.connect(server_name, stream).await?;
+        let keepalive = stream.tcp_keepalive();
+        connect_over_tls(stream, client, false, keepalive).await
+    }
+
+    pub(crate) async fn finish_socks_extended_connect(
+        &self,
+        stream: crate::tcp::ProfileTcpStream,
+        server_name: &str,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http2ExtendedConnectOpening, Http2TlsError> {
+        let client = self.prepare_extended_connect(authority, &target, &headers)?;
+        let stream = self.tls.connect(server_name, stream).await?;
+        let keepalive = stream.tcp_keepalive();
+        let connection = connect_over_tls(stream, client, true, keepalive).await?;
+        Ok(Http2ExtendedConnectOpening::new(
+            connection,
+            self.http2.clone(),
+            authority.to_owned(),
+            target,
+            headers,
+        ))
+    }
+
     /// Opens exact HTTP/2 over SOCKS, retaining only completed SOCKS backups.
     ///
     /// Backup address policies race complete SOCKS negotiations. Once HTTP/2
@@ -449,6 +546,12 @@ impl Http2TlsConnector {
             host_resolver,
             proxy_credentials,
         }
+    }
+
+    /// Whether this connector offers TLS early data on TCP.
+    #[must_use]
+    pub fn offers_early_data(&self) -> bool {
+        self.tls.offers_early_data()
     }
 
     /// Returns the TCP socket options applied to new connections, if any.

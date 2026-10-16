@@ -74,6 +74,119 @@ pub struct Http1TlsConnector {
 }
 
 impl Http1TlsConnector {
+    /// Opens a quiet SOCKS origin and returns its already-started backup.
+    ///
+    /// Adopt the backup before finishing origin TLS on the winner. Neither
+    /// opening sends origin TLS or a request until its claimant finishes it.
+    /// Only Backup policies without TCP early data enter this operation.
+    ///
+    /// # Errors
+    ///
+    /// Rejects other routes or direct-only setup before I/O, and returns the
+    /// existing SOCKS connection errors without a route fallback.
+    pub async fn open_socks_retaining(
+        &self,
+        origin: OriginRoute<'_>,
+        family: &crate::tcp::AddressFamilyMemory,
+    ) -> Result<
+        (
+            super::Http1SocksOpening,
+            Option<SlowerConnection<super::Http1SocksOpening>>,
+        ),
+        Http1TlsError,
+    > {
+        origin
+            .validate(true, false)
+            .map_err(Http1TlsError::Connect)?;
+        let (tcp, name) = match origin {
+            OriginRoute::Plaintext { tcp, family: None } => (tcp, None),
+            OriginRoute::Tls {
+                tcp,
+                server_name,
+                setup: DirectTlsSetup::Default,
+            } => (tcp, Some(Box::<str>::from(server_name))),
+            _ => return Err(invalid_route("quiet SOCKS requires ordinary origin setup")),
+        };
+        if !matches!(tcp, TcpRoute::Socks4 { .. } | TcpRoute::Socks5 { .. }) {
+            return Err(invalid_route("quiet SOCKS requires a SOCKS route"));
+        }
+        let Some(phantom_profile::TcpAddressSelection::Backup(backup)) =
+            self.tcp.map(|s| s.address_selection)
+        else {
+            return Err(invalid_route("quiet SOCKS requires a backup policy"));
+        };
+        if self.tls.offers_early_data() {
+            return Err(invalid_route("quiet SOCKS does not offer early data"));
+        }
+        let (stream, slower) =
+            crate::proxy::socks_connection::connect_retaining(self.dialer(), tcp, family, backup)
+                .await
+                .map_err(|e| Http1TlsError::from(e.into_leg()))?;
+        let slower = slower.map(|attempt| {
+            let connector = self.clone();
+            let name = name.clone();
+            SlowerConnection::new(attempt.progress(), async move {
+                Some(super::Http1SocksOpening::new(
+                    attempt.finish().await?,
+                    connector,
+                    name,
+                ))
+            })
+        });
+        Ok((
+            super::Http1SocksOpening::new(stream, self.clone(), name),
+            slower,
+        ))
+    }
+
+    pub(super) async fn finish_socks_opening(
+        &self,
+        stream: crate::tcp::ProfileTcpStream,
+        server_name: Option<&str>,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        match server_name {
+            Some(name) => {
+                if let Some(keepalive) = stream.tcp_keepalive() {
+                    keepalive.request_dispatched();
+                }
+                connect_over_tls(self.tls.connect(name, stream).await?).await
+            }
+            None => connect_plaintext(stream).await.map_err(Into::into),
+        }
+    }
+
+    pub(crate) async fn finish_socks_upgrade(
+        &self,
+        stream: crate::tcp::ProfileTcpStream,
+        server_name: Option<&str>,
+        target: crate::request::OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<Http1UpgradeOpening, Http1TlsError> {
+        let prepared = PreparedGet::new(target, headers)?;
+        let span = debug_span!("http1_upgrade", route = "socks");
+        let outcome = OperationOutcome::new(&span);
+        let result = async {
+            match server_name {
+                Some(name) => {
+                    let stream = self.tls.connect(name, stream).await?;
+                    require_http1_selected(&stream)?;
+                    Ok(super::upgrade_opening::OpeningStream::Tls(stream))
+                }
+                None => Ok(super::upgrade_opening::OpeningStream::Plaintext(stream)),
+            }
+        }
+        .instrument(span.clone())
+        .await;
+        let classified = connection_outcome(&result);
+        match result {
+            Ok(stream) => Ok(Http1UpgradeOpening::new(stream, prepared, span, outcome)),
+            Err(error) => {
+                outcome.finish(classified);
+                Err(error)
+            }
+        }
+    }
+
     /// Opens an exact HTTP/1 origin over SOCKS, keeping a completed backup.
     ///
     /// Backup profiles race complete SOCKS connections, including authentication.
@@ -587,6 +700,12 @@ impl Http1TlsConnector {
     pub fn with_proxy_credential_cache(mut self, cache: ProxyCredentialCache) -> Self {
         self.proxy_credentials = Some(cache);
         self
+    }
+
+    /// Whether this connector offers TLS early data on TCP.
+    #[must_use]
+    pub fn offers_early_data(&self) -> bool {
+        self.tls.offers_early_data()
     }
 
     /// Returns the TCP socket options applied to new connections, if any.

@@ -42,6 +42,7 @@ pub use error::{Http2Error, Http2ErrorKind, Http2ProtocolError, Http2ProtocolErr
 pub use opening::Http2ExtendedConnectOpening;
 pub use proxy_opening::Http2ProxyOpening;
 pub(crate) use request::{prepare_classic_connect, prepare_connect_udp};
+pub use socks_opening::Http2SocksOpening;
 pub(crate) use tunnel::{Http2ClassicConnectOutcome, Http2ConnectStream, Http2RejectedStream};
 pub use tunnel::{Http2ExtendedConnectOutcome, Http2ExtendedConnectStream};
 
@@ -749,6 +750,7 @@ mod limits;
 mod opening;
 mod proxy_opening;
 mod request;
+mod socks_opening;
 mod tls;
 mod tunnel;
 

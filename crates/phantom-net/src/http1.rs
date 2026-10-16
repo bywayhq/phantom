@@ -23,6 +23,7 @@ use crate::request::{RequestBody, RequestBodyMetadata};
 pub use body::Http1Body;
 pub use connection::Http1Connection;
 pub use proxy_opening::Http1ProxyOpening;
+pub use socks_opening::Http1SocksOpening;
 pub use upgrade::{Http1Upgrade, Http1UpgradeOutcome};
 pub use upgrade_opening::Http1UpgradeOpening;
 
@@ -632,6 +633,7 @@ mod limits;
 mod proxy_opening;
 mod request;
 mod response_head;
+mod socks_opening;
 mod tls;
 mod upgrade;
 mod upgrade_opening;

@@ -1189,6 +1189,11 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Retain complete SOCKS4/4a and SOCKS5 backups for exact and profile-policy
+  WebSocket openings. H1 shares quiet tunnels with its request pool. H2
+  retires redundant tunnels before WebSocket HEADERS. Origin TLS and
+  application bytes wait for a claimant, which supplies current fields.
+
 - Retain Firefox backup connections for `wss://` H1 Upgrade and inner H2
   extended CONNECT through plaintext CONNECT and HTTPS proxies using outer
   H1. Claims use current authentication and WebSocket fields; verified

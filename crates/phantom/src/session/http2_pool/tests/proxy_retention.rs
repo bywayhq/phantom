@@ -138,7 +138,7 @@ async fn exact_h2_unpolled_claim_returns_original_idle_age_for_pruning() -> Test
         let reservation = reserve(&entry);
         drop(ProxyClaim {
             reservation: Some(reservation),
-            opening: Some(opening),
+            opening: Some(super::super::QuietOpening::Http(opening)),
             since,
         });
         assert_eq!(entry.lock().spares[0].idle_since, Some(since));

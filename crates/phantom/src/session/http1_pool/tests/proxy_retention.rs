@@ -174,7 +174,7 @@ async fn ready(connections: &Arc<EntryConnections>) -> TestResult<(Http1ProxyOpe
 fn put(connections: &EntryConnections, opening: Http1ProxyOpening, since: Instant) {
     let progress = SlowerProgress::new();
     progress.mark_connected();
-    connections.keep_proxy_ready(opening, progress, since);
+    connections.keep_proxy_ready(super::super::QuietOpening::Http(opening), progress, since);
 }
 
 #[tokio::test]

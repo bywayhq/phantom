@@ -365,6 +365,140 @@ async fn upgrade_proxy(
     Ok((opening, owner))
 }
 
+fn retains_socks(connector: &Http1TlsConnector, route: &Route) -> bool {
+    matches!(route, Route::Socks4(_) | Route::Socks5(_))
+        && !connector.offers_early_data()
+        && connector.tcp_settings().is_some_and(|settings| {
+            matches!(
+                settings.address_selection,
+                phantom_profile::TcpAddressSelection::Backup(_)
+            )
+        })
+}
+
+async fn upgrade_socks(
+    client: &Client,
+    selection: Http1UpgradeConnector,
+    endpoint: &Endpoint,
+    route: &Route,
+    plaintext: bool,
+    target: OriginForm,
+    headers: Vec<RequestHeader>,
+) -> Result<(Http1UpgradeOpening, OpeningOwner), WebSocketError> {
+    let connectors = client.inner.connectors_for(endpoint);
+    let owner = if !plaintext
+        && matches!(selection, Http1UpgradeConnector::PolicyAlpn)
+        && connectors.http1_or_2.is_some()
+    {
+        OpeningOwner::Negotiated(
+            client
+                .state
+                .http1_or_2
+                .proxy_upgrade_opening(endpoint, route)
+                .await,
+        )
+    } else {
+        OpeningOwner::Exact(
+            client
+                .state
+                .http1
+                .socks_upgrade_opening(endpoint, route, plaintext)
+                .await,
+        )
+    };
+    let destination = phantom_net::route::Endpoint {
+        host: endpoint.host(),
+        port: endpoint.port(),
+    };
+    let tcp = match route {
+        Route::Socks4(proxy) => proxy.tcp_route(destination).map_err(|source| {
+            WebSocketError::request(RequestError::http1_connection_setup(source.into()))
+        })?,
+        Route::Socks5(proxy) => TcpRoute::Socks5 {
+            proxy: phantom_net::route::Endpoint {
+                host: proxy.host(),
+                port: proxy.port(),
+            },
+            target: match proxy.dns_mode() {
+                crate::Socks5DnsMode::Local => Socks5Target::LocalDns(destination),
+                crate::Socks5DnsMode::Remote => Socks5Target::RemoteDns(destination),
+            },
+            auth: proxy.auth(),
+        },
+        _ => {
+            return Err(WebSocketError::request(RequestError::unsupported_route(
+                HttpProtocol::Http1,
+            )));
+        }
+    };
+    let origin = if plaintext {
+        OriginRoute::Plaintext { tcp, family: None }
+    } else {
+        OriginRoute::Tls {
+            tcp,
+            server_name: endpoint.host(),
+            setup: DirectTlsSetup::Default,
+        }
+    };
+    let websocket = client
+        .inner
+        .websocket
+        .as_ref()
+        .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?;
+    let opening = match &owner {
+        OpeningOwner::Exact(owner) => {
+            let connector = if plaintext {
+                match selection {
+                    Http1UpgradeConnector::Profile => connectors.http1,
+                    Http1UpgradeConnector::PolicyAlpn => connectors.websocket_http1,
+                }
+                .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?
+                .clone()
+            } else {
+                owner
+                    .proxy_origin_connector(
+                        connectors.http1.ok_or_else(|| {
+                            WebSocketError::protocol_unavailable(HttpProtocol::Http1)
+                        })?,
+                        endpoint,
+                        route,
+                    )
+                    .map_err(WebSocketError::request)?
+            };
+            let protocols = if matches!(selection, Http1UpgradeConnector::PolicyAlpn) {
+                websocket.connection.http1_alpn_protocols.clone()
+            } else {
+                connector.alpn_protocols()
+            };
+            crate::session::box_send(
+                owner.open_socks_upgrade(&connector, origin, &protocols, target, headers),
+            )
+            .await
+        }
+        OpeningOwner::Negotiated(owner) => {
+            let connector = owner
+                .proxy_origin_connector(
+                    connectors
+                        .http1_or_2
+                        .ok_or_else(|| WebSocketError::protocol_unavailable(HttpProtocol::Http1))?,
+                    endpoint,
+                    route,
+                )
+                .map_err(WebSocketError::request)?;
+            crate::session::box_send(owner.open_socks_upgrade(
+                &connector,
+                origin,
+                &websocket.connection.http1_alpn_protocols,
+                target,
+                headers,
+            ))
+            .await
+        }
+    }
+    .map_err(WebSocketError::request)?;
+    Ok((opening, owner))
+}
+
 impl WebSocketRequestBuilder {
     pub(super) async fn connect_http1(
         self,
@@ -492,6 +626,19 @@ impl WebSocketRequestBuilder {
                 }
                 Err(error) => Err(error),
             }
+        } else if retains_socks(connector, route) {
+            let (opening, owner) = upgrade_socks(
+                &client,
+                upgrade_connector,
+                &request.endpoint,
+                route,
+                request.transport == WebSocketTransport::Plaintext,
+                request.target,
+                prepared.headers,
+            )
+            .await?;
+            opening_owner = Some(owner);
+            opening.send().await
         } else if retain_proxy {
             let (opening, owner) = upgrade_proxy(
                 &client,

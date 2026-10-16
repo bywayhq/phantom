@@ -791,6 +791,10 @@ impl PoolEntry {
         endpoint: &Endpoint,
         route: &Route,
     ) -> Result<ConnectionLease, RequestError> {
+        #[cfg(feature = "websocket")]
+        if matches!(route, Route::Socks4(_) | Route::Socks5(_)) {
+            return claim.finish_socks().await;
+        }
         let Some(proxy) = route.as_http_proxy() else {
             return Err(RequestError::unsupported_route(HttpProtocol::Http2));
         };
@@ -823,6 +827,22 @@ impl PoolEntry {
     }
 
     fn adopt_proxy(self: &Arc<Self>, slower: SlowerConnection<Http2ProxyOpening>) {
+        self.adopt_quiet(SlowerConnection::new(slower.progress(), async move {
+            slower.finish().await.map(QuietOpening::Http)
+        }));
+    }
+
+    #[cfg(feature = "websocket")]
+    fn adopt_socks(
+        self: &Arc<Self>,
+        slower: SlowerConnection<phantom_net::http2::Http2SocksOpening>,
+    ) {
+        self.adopt_quiet(SlowerConnection::new(slower.progress(), async move {
+            slower.finish().await.map(QuietOpening::Socks)
+        }));
+    }
+
+    fn adopt_quiet(self: &Arc<Self>, slower: SlowerConnection<QuietOpening>) {
         let Ok(runtime) = tokio::runtime::Handle::try_current() else {
             return;
         };
@@ -856,7 +876,7 @@ impl PoolEntry {
         }
     }
 
-    fn proxy_spare_finished(&self, id: u64, opening: Option<Http2ProxyOpening>) {
+    fn proxy_spare_finished(&self, id: u64, opening: Option<QuietOpening>) {
         let mut state = self.lock();
         let retired = if let Some(opening) = opening {
             if let Some(spare) = state.spares.iter_mut().find(|spare| spare.id == id) {
@@ -1303,7 +1323,7 @@ impl OriginHttp2Opening {
                 if let Some(slower) = slower {
                     self.entry.adopt_proxy(slower);
                 }
-                opening
+                QuietOpening::Http(opening)
             }
         };
         opening
@@ -1312,7 +1332,34 @@ impl OriginHttp2Opening {
             .map_err(RequestError::http2_connection_setup)
     }
 
-    async fn take_proxy_opening(&self) -> Option<Http2ProxyOpening> {
+    pub(crate) async fn open_socks_extended_connect(
+        &self,
+        connector: &Http2TlsConnector,
+        origin: phantom_net::route::OriginRoute<'_>,
+        endpoint: &Endpoint,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<phantom_net::http2::Http2ExtendedConnectOpening, RequestError> {
+        let opening = match self.take_proxy_opening().await {
+            Some(opening) => opening,
+            None => {
+                let (opening, slower) = connector
+                    .open_socks_retaining(origin, &self.entry.family)
+                    .await
+                    .map_err(RequestError::http2_connection_setup)?;
+                if let Some(slower) = slower {
+                    self.entry.adopt_socks(slower);
+                }
+                QuietOpening::Socks(opening)
+            }
+        };
+        opening
+            .finish_socks_extended_connect(endpoint.authority().as_str(), target, headers)
+            .await
+            .map_err(RequestError::http2_connection_setup)
+    }
+
+    async fn take_proxy_opening(&self) -> Option<QuietOpening> {
         loop {
             let mut notified = pin!(self.entry.setup_done.notified());
             notified.as_mut().enable();
@@ -1420,7 +1467,7 @@ struct Spare {
     id: u64,
     task: Option<AbortHandle>,
     proxy: bool,
-    ready: Option<Http2ProxyOpening>,
+    ready: Option<QuietOpening>,
     idle_since: Option<Instant>,
 }
 
@@ -1430,7 +1477,7 @@ struct ProxySpareReport {
 }
 
 impl ProxySpareReport {
-    fn finish(mut self, opening: Option<Http2ProxyOpening>) {
+    fn finish(mut self, opening: Option<QuietOpening>) {
         if let Some(entry) = self.entry.take().and_then(|entry| entry.upgrade()) {
             entry.proxy_spare_finished(self.id, opening);
         }
@@ -1445,9 +1492,87 @@ impl Drop for ProxySpareReport {
     }
 }
 
+enum QuietOpening {
+    Http(Http2ProxyOpening),
+    #[cfg(feature = "websocket")]
+    Socks(phantom_net::http2::Http2SocksOpening),
+}
+impl QuietOpening {
+    async fn finish(
+        self,
+        route: phantom_net::route::HttpConnectRoute<'_>,
+    ) -> Result<Http2Connection, Http2TlsError> {
+        match self {
+            Self::Http(opening) => opening.finish(route).await,
+            #[cfg(feature = "websocket")]
+            Self::Socks(_) => Err(quiet_route_error()),
+        }
+    }
+    #[cfg(feature = "websocket")]
+    async fn finish_socks(self) -> Result<Http2Connection, Http2TlsError> {
+        match self {
+            Self::Socks(opening) => opening.finish().await,
+            Self::Http(_) => Err(quiet_route_error()),
+        }
+    }
+    #[cfg(feature = "websocket")]
+    async fn finish_extended_connect(
+        self,
+        route: phantom_net::route::HttpConnectRoute<'_>,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<phantom_net::http2::Http2ExtendedConnectOpening, phantom_net::http2::Http2TlsError>
+    {
+        match self {
+            Self::Http(opening) => {
+                opening
+                    .finish_extended_connect(route, authority, target, headers)
+                    .await
+            }
+            #[cfg(feature = "websocket")]
+            Self::Socks(_) => Err(phantom_net::http2::Http2TlsError::Connect(
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "quiet opening route does not match",
+                ),
+            )),
+        }
+    }
+    #[cfg(feature = "websocket")]
+    async fn finish_socks_extended_connect(
+        self,
+        authority: &str,
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<phantom_net::http2::Http2ExtendedConnectOpening, phantom_net::http2::Http2TlsError>
+    {
+        match self {
+            Self::Socks(opening) => {
+                opening
+                    .finish_extended_connect(authority, target, headers)
+                    .await
+            }
+            Self::Http(_) => Err(phantom_net::http2::Http2TlsError::Connect(
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "quiet opening route does not match",
+                ),
+            )),
+        }
+    }
+}
+#[cfg(feature = "websocket")]
+fn quiet_route_error() -> Http2TlsError {
+    Http2TlsError::Connect(std::io::Error::new(
+        std::io::ErrorKind::InvalidInput,
+        "quiet opening route does not match",
+    ))
+}
+
 struct ProxyClaim<'a> {
     reservation: Option<SetupReservation<'a>>,
-    opening: Option<Http2ProxyOpening>,
+    opening: Option<QuietOpening>,
     since: Instant,
 }
 
@@ -1462,6 +1587,23 @@ impl ProxyClaim<'_> {
             .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
         let connection = opening
             .finish(route)
+            .await
+            .map_err(RequestError::http2_connection_setup)?;
+        let reservation = self
+            .reservation
+            .take()
+            .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
+        Ok(reservation.finish(connection, None))
+    }
+
+    #[cfg(feature = "websocket")]
+    async fn finish_socks(mut self) -> Result<ConnectionLease, RequestError> {
+        let opening = self
+            .opening
+            .take()
+            .ok_or_else(|| RequestError::unsupported_route(HttpProtocol::Http2))?;
+        let connection = opening
+            .finish_socks()
             .await
             .map_err(RequestError::http2_connection_setup)?;
         let reservation = self

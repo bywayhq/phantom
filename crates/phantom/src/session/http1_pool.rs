@@ -442,6 +442,27 @@ impl Http1Pool {
         OriginOpening { entry }
     }
 
+    #[cfg(feature = "websocket")]
+    pub(crate) async fn socks_upgrade_opening(
+        &self,
+        endpoint: &Endpoint,
+        route: &Route,
+        plaintext: bool,
+    ) -> OriginOpening {
+        let mode = if plaintext {
+            Http1ConnectionMode::PlaintextOrigin
+        } else {
+            Http1ConnectionMode::TlsOrigin
+        };
+        let entry = self.entry(PoolKey::new(endpoint, route, mode)).await;
+        {
+            let mut state = entry.connections.lock();
+            entry.connections.family.mark_active();
+            state.openings += 1;
+        }
+        OriginOpening { entry }
+    }
+
     async fn entry(&self, key: PoolKey) -> Arc<PoolEntry> {
         let mut state = self.state.lock().await;
         if let Some(position) = state
@@ -681,6 +702,43 @@ impl OriginOpening {
         }
         opening
             .finish_upgrade(route, protocols, target, headers)
+            .await
+            .map_err(RequestError::http1_connection_setup)
+    }
+    pub(crate) async fn open_socks_upgrade(
+        &self,
+        connector: &Http1TlsConnector,
+        origin: OriginRoute<'_>,
+        protocols: &[Box<[u8]>],
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<phantom_net::http1::Http1UpgradeOpening, RequestError> {
+        let claim = match self.entry.connections.checkout(false) {
+            Checkout::Proxy(claim) => Some(claim),
+            Checkout::Spare(claim) => match claim.wait_delivery().await {
+                Some(SpareDelivery::Proxy(claim)) => Some(claim),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some(mut claim) = claim
+            && let Some(opening) = claim.opening.take()
+        {
+            drop(claim);
+            return opening
+                .finish_socks_upgrade(protocols, target, headers)
+                .await
+                .map_err(RequestError::http1_connection_setup);
+        }
+        let (opening, slower) = connector
+            .open_socks_retaining(origin, self.family())
+            .await
+            .map_err(RequestError::http1_connection_setup)?;
+        if let Some(slower) = slower {
+            self.entry.connections.adopt_socks(slower);
+        }
+        opening
+            .finish_upgrade(protocols, target, headers)
             .await
             .map_err(RequestError::http1_connection_setup)
     }
@@ -933,6 +991,13 @@ impl PoolEntry {
         route: &Route,
         mode: Http1ConnectionMode,
     ) -> Result<ConnectionLease, RequestError> {
+        #[cfg(feature = "websocket")]
+        if matches!(route, Route::Socks4(_) | Route::Socks5(_)) {
+            return claim
+                .finish_socks()
+                .await
+                .map_err(RequestError::http1_connection_setup);
+        }
         let Some(proxy) = route.as_http_proxy() else {
             return Err(RequestError::unsupported_route(HttpProtocol::Http1));
         };
@@ -1230,7 +1295,7 @@ struct Spare {
     id: u64,
     progress: SlowerProgress,
     claim: Option<oneshot::Sender<SpareDelivery>>,
-    ready: Option<Http1ProxyOpening>,
+    ready: Option<QuietOpening>,
     idle_since: Option<Instant>,
     /// The task finishing the attempt, once it is spawned.
     task: Option<AbortHandle>,
@@ -1334,7 +1399,7 @@ impl SpareClaim {
 
 enum SpareConnection {
     Ready(Http1Connection),
-    Proxy(Http1ProxyOpening),
+    Proxy(QuietOpening),
 }
 
 enum SpareDelivery {
@@ -1342,10 +1407,92 @@ enum SpareDelivery {
     Proxy(ProxyClaim),
 }
 
-/// A claim can return a still-quiet socket until its finish future is polled.
+/// A quiet HTTP proxy socket or a complete SOCKS tunnel, before origin setup.
+enum QuietOpening {
+    Http(Http1ProxyOpening),
+    #[cfg(feature = "websocket")]
+    Socks(phantom_net::http1::Http1SocksOpening),
+}
+impl QuietOpening {
+    async fn finish(
+        self,
+        route: phantom_net::route::HttpConnectRoute<'_>,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        match self {
+            Self::Http(opening) => opening.finish(route).await,
+            #[cfg(feature = "websocket")]
+            Self::Socks(_) => Err(quiet_route_error()),
+        }
+    }
+    #[cfg(feature = "websocket")]
+    async fn finish_socks(self) -> Result<Http1Connection, Http1TlsError> {
+        match self {
+            Self::Socks(opening) => opening.finish().await,
+            Self::Http(_) => Err(quiet_route_error()),
+        }
+    }
+    #[cfg(feature = "websocket")]
+    async fn finish_upgrade(
+        self,
+        route: HttpConnectRoute<'_>,
+        protocols: &[Box<[u8]>],
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<phantom_net::http1::Http1UpgradeOpening, phantom_net::http1::Http1TlsError> {
+        match self {
+            Self::Http(opening) => {
+                opening
+                    .finish_upgrade(route, protocols, target, headers)
+                    .await
+            }
+            #[cfg(feature = "websocket")]
+            Self::Socks(_) => Err(phantom_net::http1::Http1TlsError::Connect(
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "quiet opening route does not match",
+                ),
+            )),
+        }
+    }
+    #[cfg(feature = "websocket")]
+    async fn finish_socks_upgrade(
+        self,
+        protocols: &[Box<[u8]>],
+        target: OriginForm,
+        headers: Vec<RequestHeader>,
+    ) -> Result<phantom_net::http1::Http1UpgradeOpening, phantom_net::http1::Http1TlsError> {
+        match self {
+            Self::Socks(opening) => opening.finish_upgrade(protocols, target, headers).await,
+            Self::Http(_) => Err(phantom_net::http1::Http1TlsError::Connect(
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "quiet opening route does not match",
+                ),
+            )),
+        }
+    }
+    async fn finish_forward(
+        self,
+        transport: ProxyTransport<'_>,
+    ) -> Result<Http1Connection, Http1TlsError> {
+        match self {
+            Self::Http(opening) => opening.finish_forward(transport).await,
+            #[cfg(feature = "websocket")]
+            Self::Socks(_) => Err(quiet_route_error()),
+        }
+    }
+}
+#[cfg(feature = "websocket")]
+fn quiet_route_error() -> Http1TlsError {
+    Http1TlsError::Connect(std::io::Error::new(
+        std::io::ErrorKind::InvalidInput,
+        "quiet opening route does not match",
+    ))
+}
+
 struct ProxyClaim {
     reservation: Reservation,
-    opening: Option<Http1ProxyOpening>,
+    opening: Option<QuietOpening>,
     progress: SlowerProgress,
     since: Instant,
 }
@@ -1382,6 +1529,24 @@ impl ProxyClaim {
         };
         // Taking the opening commits this claim: cancellation closes the socket.
         let connection = opening.finish(route).await?;
+        self.reservation.released = true;
+        Ok(Reservation {
+            connections: Arc::clone(&self.reservation.connections),
+            released: false,
+        }
+        .into_lease(connection))
+    }
+
+    #[cfg(feature = "websocket")]
+    async fn finish_socks(mut self) -> Result<ConnectionLease, Http1TlsError> {
+        let Some(opening) = self.opening.take() else {
+            return Err(Http1TlsError::Connect(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "proxy opening was already consumed",
+            )));
+        };
+        // Taking the opening commits this claim: cancellation closes the socket.
+        let connection = opening.finish_socks().await?;
         self.reservation.released = true;
         Ok(Reservation {
             connections: Arc::clone(&self.reservation.connections),
@@ -1459,6 +1624,22 @@ impl EntryConnections {
     }
 
     fn adopt_proxy(self: &Arc<Self>, slower: SlowerConnection<Http1ProxyOpening>) {
+        self.adopt_quiet(SlowerConnection::new(slower.progress(), async move {
+            slower.finish().await.map(QuietOpening::Http)
+        }));
+    }
+
+    #[cfg(feature = "websocket")]
+    fn adopt_socks(
+        self: &Arc<Self>,
+        slower: SlowerConnection<phantom_net::http1::Http1SocksOpening>,
+    ) {
+        self.adopt_quiet(SlowerConnection::new(slower.progress(), async move {
+            slower.finish().await.map(QuietOpening::Socks)
+        }));
+    }
+
+    fn adopt_quiet(self: &Arc<Self>, slower: SlowerConnection<QuietOpening>) {
         self.adopt_spare(SlowerConnection::new(slower.progress(), async move {
             slower.finish().await.map(SpareConnection::Proxy)
         }));
@@ -1564,12 +1745,7 @@ impl EntryConnections {
         }
     }
 
-    fn keep_proxy_ready(
-        &self,
-        opening: Http1ProxyOpening,
-        progress: SlowerProgress,
-        since: Instant,
-    ) {
+    fn keep_proxy_ready(&self, opening: QuietOpening, progress: SlowerProgress, since: Instant) {
         let mut set = self.lock();
         let id = set.next_spare;
         set.next_spare = set.next_spare.wrapping_add(1);

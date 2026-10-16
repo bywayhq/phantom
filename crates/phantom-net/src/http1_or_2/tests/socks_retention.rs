@@ -214,3 +214,5 @@ async fn enabled_tcp_early_data_keeps_both_connectors_on_the_original_single_soc
     }
     Ok(())
 }
+
+mod quiet_opening;

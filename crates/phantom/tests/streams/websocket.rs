@@ -596,3 +596,5 @@ async fn caller_timeout_keeps_elapsed_and_the_original_completed_peer_failure() 
     assert!(peer.is_finished());
     Ok(())
 }
+
+mod socks_retention;

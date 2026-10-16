@@ -31,7 +31,9 @@ use crate::{
 use crate::tls::EchFailure;
 
 pub use proxy_opening::Http1Or2ProxyOpening;
+pub use socks_opening::Http1Or2SocksOpening;
 mod proxy_opening;
+mod socks_opening;
 
 /// An established connection selected from one TLS ALPN negotiation.
 #[derive(Debug)]
@@ -258,6 +260,89 @@ pub struct Http1Or2TlsConnector {
 }
 
 impl Http1Or2TlsConnector {
+    /// Opens a quiet complete SOCKS tunnel and its already-started backup.
+    ///
+    /// Adopt the backup before the winner starts origin TLS. Only Backup
+    /// policies without TCP early data are supported; no route is substituted.
+    ///
+    /// # Errors
+    ///
+    /// Rejects other routes and direct-only setup before I/O, and returns the
+    /// existing typed SOCKS setup errors.
+    pub async fn open_socks_retaining(
+        &self,
+        origin: OriginRoute<'_>,
+        family: &crate::tcp::AddressFamilyMemory,
+    ) -> Result<
+        (
+            Http1Or2SocksOpening,
+            Option<SlowerConnection<Http1Or2SocksOpening>>,
+        ),
+        Http1Or2TlsError,
+    > {
+        origin
+            .validate(false, true)
+            .map_err(|e| Http1Or2TlsError::from_direct(DirectConnectError::Connect(e)))?;
+        let OriginRoute::Tls {
+            tcp,
+            server_name,
+            setup: DirectTlsSetup::Default,
+        } = origin
+        else {
+            return Err(quiet_socks_invalid_route(
+                "quiet SOCKS requires ordinary origin TLS",
+            ));
+        };
+        if !matches!(tcp, TcpRoute::Socks4 { .. } | TcpRoute::Socks5 { .. }) {
+            return Err(quiet_socks_invalid_route(
+                "quiet SOCKS requires a SOCKS route",
+            ));
+        }
+        let Some(phantom_profile::TcpAddressSelection::Backup(backup)) =
+            self.tcp.map(|s| s.address_selection)
+        else {
+            return Err(quiet_socks_invalid_route(
+                "quiet SOCKS requires a backup policy",
+            ));
+        };
+        if self.tls.offers_early_data() {
+            return Err(quiet_socks_invalid_route(
+                "quiet SOCKS does not offer early data",
+            ));
+        }
+        translate_settings(&self.http2).map_err(Http2TlsError::from)?;
+        let name = Box::<str>::from(server_name);
+        let (stream, slower) =
+            crate::proxy::socks_connection::connect_retaining(self.dialer(), tcp, family, backup)
+                .await
+                .map_err(|e| Http1Or2TlsError::from(e.into_leg()))?;
+        let slower = slower.map(|attempt| {
+            let connector = self.clone();
+            let name = name.clone();
+            SlowerConnection::new(attempt.progress(), async move {
+                Some(Http1Or2SocksOpening::new(
+                    attempt.finish().await?,
+                    connector,
+                    name,
+                ))
+            })
+        });
+        Ok((
+            Http1Or2SocksOpening::new(stream, self.clone(), name),
+            slower,
+        ))
+    }
+
+    pub(super) async fn finish_socks_opening(
+        &self,
+        stream: crate::tcp::ProfileTcpStream,
+        server_name: &str,
+    ) -> Result<Http1Or2Connection, Http1Or2TlsError> {
+        let client = translate_settings(&self.http2).map_err(Http2TlsError::from)?;
+        let stream = self.tls.connect(server_name, stream).await?;
+        select_connection(stream, client).await
+    }
+
     /// Opens origin TLS over SOCKS, retaining an eligible complete backup.
     ///
     /// Backup address policies race complete SOCKS negotiations. HTTP/1.1 can
@@ -1107,6 +1192,13 @@ impl Drop for ConnectOutcome {
             self.span.record("outcome", outcome);
         }
     }
+}
+
+fn quiet_socks_invalid_route(message: &'static str) -> Http1Or2TlsError {
+    Http1Or2TlsError::from_direct(DirectConnectError::Connect(std::io::Error::new(
+        std::io::ErrorKind::InvalidInput,
+        message,
+    )))
 }
 
 #[cfg(test)]

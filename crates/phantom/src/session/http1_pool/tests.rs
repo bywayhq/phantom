@@ -373,3 +373,6 @@ mod proxy_retention;
 mod forward_retention;
 
 mod socks_retention;
+
+#[cfg(feature = "websocket")]
+mod quiet_socks;
