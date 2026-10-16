@@ -3652,6 +3652,13 @@ without a full post-terminal observation. Both external owners completed
 cleanup. The continuation ran only the seven previously unattempted cells,
 with no harness retry or suppression of the first failure.
 
+The same six H3 cells each completed once with CPython 3.12.10 and peer
+source `616f498f`. They retained 3.080–3.130 seconds after the terminal
+response without extra requests, with clean driver exits and no owned
+cleanup failures. The binary is still the retained `41483d5a` build.
+Independent review approved these bounded results. The old failures remain
+retained; this follow-up does not establish their unique historical cause.
+
 The eight Firefox H2 SSE openings match the normalized ordered browser
 headers. Firefox empty-ID handling agrees: no ID, `phantom-1`, then no ID.
 Exact-origin H3 omits the browser's `Alt-Used`; its absence remains a
@@ -3678,10 +3685,12 @@ The retained composition used `sse_multiplexed.py` with exact source and runner
 manifest hashes recorded in the capture-delivery receipt. The tracked
 `sse_reconnect.py --protocol h2|h3` modes and manifest runner now expose
 those transports; [capture instructions](../../scripts/capture/README.md#eventsource-reconnects)
-use fresh work and output directories. Fresh integration tests of the
-composed tools remain pending.
-Mac and physical Android captures remain unavailable. The bounded Ubuntu
-WSL sample below is separate from the Windows matrix.
+use fresh work and output directories. The runtime compatibility revision
+passed the full Windows/Linux gate, including 1,158 capture tests with four
+skips. Headed Chrome HTTP/1.1 observations on hosted Intel and ARM Macs are
+recorded separately in the capture comparison record. Safari session
+creation failed before navigation. Physical Android remains unavailable.
+The bounded Ubuntu WSL sample below is separate from the Windows matrix.
 
 ### Firefox 157 Ubuntu WSL capture sample
 

@@ -37,7 +37,8 @@ archive SHA256 is
 All five selected jobs ran once without a harness retry on Ubuntu 24.04.4
 WSL2 x86_64, headless with WSLg available and UID 0. Exact host metadata is
 inside each fixture. The files do not establish native hardware or headful
-behavior. No Mac or physical Android device was available.
+behavior. Physical Android hardware is unavailable. Hosted Mac observations
+are recorded separately below.
 
 ## Hosted macOS observations
 
@@ -67,6 +68,15 @@ certificate capability, then the adapter rejected the returned name
 for that attempt. Both drivers exited with no recorded cleanup failures.
 Neither attempt produced a browser request fixture. The HTTP/1 timeout's
 cause remains unresolved; the HTTP/2 result demonstrates an adapter bug.
+
+The [follow-up Safari run](https://github.com/bywayhq/phantom/actions/runs/38889713811)
+used the corrected adapter at `616f498f`. Both protocols timed out at
+`POST /session`, before returned capabilities or navigation. Both drivers
+exited successfully with no recorded cleanup failures. The retained traces
+locate the timeout in session creation but do not distinguish an unreturned
+response from an incomplete response. Neither attempt establishes browser
+traffic, a Safari recipe or TLS/HTTP2 support. Further Safari capture needs
+a working WebDriver session on an available Mac.
 
 ## Public SSE observations
 
@@ -104,6 +114,19 @@ reset the initial H3 redirect stream with code 268, absent at that point
 in the browser records. The six failed trials do not establish the full
 three-second post-terminal observation. Callback-time ownership and endpoint
 provenance are insufficient to attribute the Win1234 cause.
+
+The six original H3 cells each ran once again with Windows CPython 3.12.10
+and peer source `616f498f`. All six completed with clean driver exits,
+no primary or cleanup failures and zero remaining owned tasks, writers or
+protocols. Each retained a 3.080–3.130-second post-terminal window with no
+extra request. The actual Rust binary remains the retained `41483d5a`
+build, not a newly built library. All 139 native input identities agreed
+before and after. The earlier six failures remain retained separately.
+
+These results establish clean completion on the selected runtime. They do
+not attribute every historical Win1234 error. The original ordered-field,
+`Alt-Used`, redirect-path, stream-reset and timing differences remain in the
+new comparison too. No browser-parity or new-build result follows.
 
 ## Public tunnelled WebSocket observations
 

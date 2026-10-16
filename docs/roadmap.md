@@ -14,8 +14,9 @@ The [transport and profile campaign](internals/transport-and-profile-campaign.md
 tracks the next timing investigations, corpus management, and named feature
 and browser-coverage additions. Its five catalog tasks and eight client
 features are delivered. Firefox address-selection work is delivered through
-PR #252. Capture integration, Linux/macOS DNS configuration and the original
-timing causes remain open. Its completion criteria are separate from the
+PR #252. Windows/Linux DNS and the first capture set are delivered. macOS
+DNS integration, final consumer checks, missing browser layers and the
+original timing causes remain open. Its completion criteria are separate from the
 completed phase scopes below.
 
 > For builders planning around Phantom and contributors choosing work.
@@ -341,10 +342,12 @@ completed phase scope.
   Apple silicon Mac, with one resumed TCP ClientHello per browser, three H2
   page loads per browser, and one QUIC and H3 startup each for Chrome, Edge,
   and Opera, replayed against the Windows recipes
-  ([Validation](explanation/validation.md#macos-recipes)). Remaining: a
-  literal Chromium-family `User-Agent`, which needs a headful capture; Intel
-  Macs and other macOS versions. Blocker: a headful launch on the capture
-  host and an Intel Mac.
+  ([Validation](explanation/validation.md#macos-recipes)). Headed Chrome
+  151/155 plaintext H1 SSE captures now retain literal `User-Agent` bytes
+  on hosted macOS 15.7.9 Intel and macOS 26.6.2 ARM. These observations do
+  not establish complete recipes for those builds. Remaining: TLS/H2/H3 and
+  full-profile comparisons on the added hosts. Safari WebDriver session
+  creation timed out on both hosted follow-up protocols before navigation.
 - Firefox for Android beyond TLS and TCP. Delivered: the TLS recipe and
   source-backed `firefox::v156_android_tcp` in the Android profile.
   Blocker: trusting a test certificate on Android, such as a user CA with

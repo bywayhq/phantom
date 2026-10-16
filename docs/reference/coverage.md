@@ -114,7 +114,7 @@ combinations and limits listed here.
 | QUIC | BoringSSL-backed Quinn with captured transport parameters | Generic non-H3 connection API |
 | HTTP/3 | Exact H3 over direct, SOCKS5, or CONNECT-UDP, to the origin, or to a caller-pinned alternative directly or through CONNECT-UDP; opt-in Alt-Svc upgrade and racing over direct and SOCKS5; client-local RTT racing on direct routes; opt-in H2 fallback for exact H3 | Browser timing evidence for RTT racing |
 | Routes | Direct, HTTP forward and CONNECT, SOCKS4/4a, SOCKS5, CONNECT-UDP | NTLM and Negotiate authentication |
-| SSE and WebSocket | Finite reconnects, message limits, Chrome/Firefox WebSocket recipes, H2/H3 SSE and decrypted tunnel captures | macOS/Safari SSE, browser lifecycle and framing differences |
+| SSE and WebSocket | Finite reconnects, message limits, Chrome/Firefox WebSocket recipes, H2/H3 SSE, headed Mac H1 SSE and decrypted tunnel captures | Safari SSE, browser lifecycle and framing differences |
 
 The [route matrix](route-matrix.md) lists every combination of scheme,
 protocol, and [route](glossary.md#route). H1, H2, and H3 mean HTTP/1.1,
@@ -938,8 +938,9 @@ Not supported or not captured:
 - Firefox-style transaction restarts on fresh connections. Chrome's single
   resend, after a reused H1 connection closes before a response, is already
   available as opt-in reused-connection replay.
-- SSE on macOS and in Safari remains uncaptured. The retained H2/H3 samples
-  cover the named Windows builds and headless Firefox on Ubuntu WSL.
+- Safari SSE remains uncaptured. Mac observations cover headed Chrome
+  151/155 over plaintext H1 on hosted Intel and ARM Macs. The retained H2/H3
+  samples cover the named Windows builds and headless Firefox on Ubuntu WSL.
 - SSE reconnects use the original request URL after redirects. Chromium
   EventSource retains the followed URL after a successful temporary redirect;
   the current API does not select that browser lifecycle policy.
@@ -1161,8 +1162,10 @@ Recipe evidence is specific to these builds and platforms:
   plaintext trust. Edge
   153 for Android (153.0.4234.49) recipes come from an arm64 Android 17
   emulator.
-- SSE browser captures include Windows 11 (10.0.26200) and a headless
-  Firefox 157 Ubuntu WSL sample. Decrypted tunnelled WebSocket captures cover
+- SSE browser captures include Windows 11 (10.0.26200), a headless
+  Firefox 157 Ubuntu WSL sample, and headed Chrome 151/155 on hosted
+  macOS 15.7.9 Intel and macOS 26.6.2 ARM, respectively. The Mac files cover
+  plaintext H1 only. Decrypted tunnelled WebSocket captures cover
   the named Windows builds and two Firefox Ubuntu WSL cases. Other WebSocket
   captures include Android emulators. The macOS WebSocket captures back
   request fields only. SSE and WebSocket macOS parity remains unverified.
