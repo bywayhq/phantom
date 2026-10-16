@@ -1189,6 +1189,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Retain a headless Firefox 157 Ubuntu WSL sample covering H2/H3 requests,
+  SSE reconnects and decrypted HTTPS-proxy WebSocket openings.
+
 - Retain complete SOCKS4/4a and SOCKS5 backups for exact and profile-policy
   WebSocket openings. H1 shares quiet tunnels with its request pool. H2
   retires redundant tunnels before WebSocket HEADERS. Origin TLS and

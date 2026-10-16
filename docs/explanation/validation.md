@@ -3575,6 +3575,36 @@ use fresh work and output directories. Fresh integration tests of the
 composed tools remain pending.
 Mac, physical Android and additional Linux captures remain outside this set.
 
+### Firefox 157 Ubuntu WSL capture sample
+
+On 2026-10-16, five selected jobs produced seven headless Firefox 157.0 runs
+on Ubuntu 24.04.4 LTS under WSL2. The host used kernel
+`6.6.114.1-microsoft-standard-WSL2` on x86_64, with WSLg available and UID 0.
+These are headless observations, not headful or native Linux hardware results.
+
+| Fixture directory | Files | Runs | Observation |
+| --- | ---: | ---: | --- |
+| `fixtures/http3/firefox/157.0/ubuntu-24.04.4-wsl2-x86_64/` | 1 | 1 | H2 start/fetch, H3 next/fetch, plain H1 completion |
+| `fixtures/sse/firefox/157.0/ubuntu-24.04.4-wsl2-x86_64/` | 2 | 4 | H2 and H3 reconnect, terminal 204 |
+| `fixtures/tunnelled-websocket/firefox/157.0/ubuntu-24.04.4-wsl2-x86_64/` | 2 | 2 | HTTPS proxy, inner H1 and negotiated H2 |
+
+Each selected matrix job ran once, with no harness retries. The SSE jobs
+used two fresh profiles each. A `retry: 200` stimulus preceded reconnects
+at 510.476/511.388 milliseconds over H2 and 502.865/510.889 over H3. This
+scenario sends no event ID and does not test `Last-Event-ID`. One terminal
+H3 stream reset with code 268 remains recorded. The two tunnel openings
+echoed all five messages and closed with code 1000. Their 49 and 48 proxy
+connections include 47 rejected empty openings in each file; those records
+remain intact and their cause is not attributed.
+
+The ordered SSE H3 and tunnel header names match the corresponding Windows
+Firefox files after accounting for each tool's port, token and WebSocket
+key. User-agent values differ by platform. There is no retained Windows H2
+`reconnect-204` comparator. The original package, source manifests, runtime
+identities and cleanup receipts are retained with the independent reviews.
+No Phantom replay, platform-independent recipe, macOS or physical Android
+coverage follows from this sample.
+
 ### Cookie crumb evidence
 
 Over HTTP/2, the Chromium and Firefox recipes split the `cookie` field into
