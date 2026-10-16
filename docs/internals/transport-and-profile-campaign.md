@@ -63,13 +63,16 @@ current PR checks. All eight applicable main push workflows passed. PR #252 then
 fast-forwarded main to `41483d5a` on 2026-10-16 at 06:14:21 UTC after
 independent review, all 23 Windows/Linux gate steps, 5,721 runtime passes
 with three skips, and all 43 current PR checks. All eight applicable main
-push workflows passed.
+push workflows passed. PR #253 fast-forwarded main to `61685a6d` on
+2026-10-16 at 08:29:36 UTC after independent review, all 23 Windows/Linux
+gate steps and all 29 current PR checks, including both platform jobs.
+Main push CI is running.
 
 | Task | Owner lane | State and next check |
 | --- | --- | --- |
 | T1 | `h3-drain-diagnosis` | Readiness repair merged in PR #213 with gate and platform CI. A rebuilt historical-source test passed once under current contention and the debugger, observing shutdown, GOAWAY and replacement in order. This does not attribute the original failure; its cause remains OPEN. |
 | T2 | `tls-done-diagnosis` | Repair merged in PR #212. The 2026-10-16 single original test passed with the complete /done response, native EOF wait and same retirement timer observed. Its 12-ms dispatch delay does not explain the historical 17.579-second pause. The earlier address-in-use attempt remains retained; original cause OPEN. |
-| P1â€“P4 | `profile-catalog` | Catalog composition merged in PR #223 at `8754e971` after independent review, all 22 gate steps, 4,708 Rust tests and 43 green PR checks. Provenance and coverage are recorded per component, with explicit reuse and absent layers. |
+| P1–P4 | `profile-catalog` | Catalog composition merged in PR #223 at `8754e971` after independent review, all 22 gate steps, 4,708 Rust tests and 43 green PR checks. Provenance and coverage are recorded per component, with explicit reuse and absent layers. |
 | P5 | `profile-catalog` | Edge 153 Windows and corpus measurements merged in PR #225 at `b0a40765` after independent review, all 22 gate steps, 4,828 Rust tests and 43 green PR checks. All eight applicable main push workflows passed. Synthetic growth measurements cover 11 through 1,035 records without changing existing definitions. |
 | F1 | `ticket-transfer` | TCP snapshots merged in PR #231, QUIC primitives in PR #234, and mixed transactions in PR #235. All nine main push workflows passed for PR #235. Final client transfer merged in PR #236 at `b132f446` after independent review, all 23 gate steps, 5,270 Rust tests and 43 green PR checks. Focused Linux runtime and all eight applicable main push workflows passed. |
 | F2 | `fingerprint-import` | Bounded JSON import merged in PR #226 at `8b13da48` after independent review, all 22 gate steps, 4,851 Rust tests and 41 green PR checks. All six applicable main push workflows passed. Import controls cover all 11 profiles and 22 templates. |
@@ -79,7 +82,7 @@ push workflows passed.
 | F6 | `connect-udp-sharing` | Merged in PR #229 at `0f404ab2` after independent review, all 22 gate steps, 4,982 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. Both named peer implementations passed their explicit controls. |
 | F7 | `rtt-racing` | Merged in PR #228 at `3973d41c` after independent review, all 22 gate steps, 4,943 Rust tests and 43 green PR checks, including macOS and Windows. All eight applicable main push workflows passed. No browser timing parity or performance benefit is claimed. |
 | F8 | `http3-debug-auth` | Origin opt-in merged in PR #219 after independent review, all 22 gate steps, 4,643 Rust tests, and 43 green PR checks at `6f6426f4`. |
-| B1 | `firefox-forward-proxy-retention` | Direct ECH, direct H1/H2 WebSocket and exact H2 retention are merged through PR #243. Plaintext CONNECT retention merged in PR #245 with green main CI. H1 proxy retention merged in PR #248 at `5c11188a` after independent review, all 23 gate steps, 5,435 runtime passes with two skips, and 43 current PR checks. All eight applicable main push workflows passed. Remaining named proxy paths and failed-address feedback are delivered through PRs #249â€“#252. |
+| B1 | `firefox-forward-proxy-retention` | Direct ECH, direct H1/H2 WebSocket and exact H2 retention are merged through PR #243. Plaintext CONNECT retention merged in PR #245 with green main CI. H1 proxy retention merged in PR #248 at `5c11188a` after independent review, all 23 gate steps, 5,435 runtime passes with two skips, and 43 current PR checks. All eight applicable main push workflows passed. Remaining named proxy paths and failed-address feedback are delivered through PRs #249–#252. |
 | B1 CONNECT | `firefox-h2-connect` | Merged in PR #249 at `8e22f319` after the exact-head full gate, 5,456 runtime passes with two skips, and 43 current PR checks. The unchanged future-size limits passed. All eight applicable main push workflows passed. |
 | B1 outer H2 | `firefox-h2-proxy-owner` | Merged in PR #250 at `c934f82a` after independent review, all 23 Windows/Linux gate steps, 5,585 runtime passes with three skips, and 43 current PR checks. All nine applicable main push workflows passed. Raw backup progress ends at verified outer H2 activation, before authentication or CONNECT. |
 | B1 dedicated outer H2 | `firefox-dedicated-h2-owner` | Delivered in PR #252 after the exact-head gate and current platform checks. Configured physical backup ownership covers dedicated ordinary H2 and dedicated/shared CONNECT-UDP H2 setup. This is transport-policy consistency, not Firefox MASQUE evidence. |
@@ -106,10 +109,11 @@ Its actual API outputs match the installed inventories. The 150 selected
 controls each passed once. The independent B1 acceptance review closes the
 named engineering paths while retaining the documented proxy limitations.
 
-The capture branch now includes five Linux files from seven headless WSL
-runs. Its 72 Windows files and five Linux files retain exact raw bytes and
-independent reviews. Tool composition and documentation need their own final
-rebased-head gate before delivery. The
+PR #253 delivers five Linux files from seven headless WSL runs and 72
+Windows files. All 77 files retain exact raw bytes and independent reviews.
+The exact `61685a6d` gate passed 5,721 Rust tests with three skips and
+1,135 capture tests with four skips. The prior Windows socket resource
+failure remains retained with its cause unresolved. The
 [capture comparison record](transport-profile-evidence/capture-expansion.md)
 binds these observations and their limits.
 
