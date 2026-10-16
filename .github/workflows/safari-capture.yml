@@ -1,0 +1,44 @@
+name: Safari loopback capture
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safari-capture-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out capture source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.10"
+
+      - name: Test the Safari driver adapter
+        run: python -m unittest scripts.capture.tests.test_safari_webdriver
+
+      # HTTP mode uses only the standard library. No trust or hosts changes.
+      - name: Attempt one Safari HTTP SSE reconnect capture
+        run: python -m scripts.capture.safari_webdriver --output-dir target/safari-capture
+
+      - name: Retain capture and failures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: safari-http-sse-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            target/safari-capture/result.json
+            target/safari-capture/reconnect-204.txt
+          if-no-files-found: warn
+          retention-days: 14
