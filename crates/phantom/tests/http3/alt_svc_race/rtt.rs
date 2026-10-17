@@ -13,7 +13,7 @@ use crate::support::tunnel_proxy::connection_peer::{ConnectionPeer, finish_with_
 use phantom::{AltSvcRttDelay, ServerAuthentication};
 
 #[derive(Clone, Default)]
-struct DelayObservation(Arc<Mutex<Vec<String>>>);
+struct DelayObservation(Arc<Mutex<Vec<String>>>, Arc<AtomicUsize>);
 
 impl DelayObservation {
     fn dispatch(&self) -> Dispatch {
@@ -48,9 +48,15 @@ impl Subscriber for DelayObservation {
     fn enter(&self, _: &Id) {}
     fn exit(&self, _: &Id) {}
     fn event(&self, event: &Event<'_>) {
-        let mut visitor = DelayVisitor(None);
+        let mut visitor = DelayVisitor {
+            delay: None,
+            broken: false,
+        };
         event.record(&mut visitor);
-        if let Some(value) = visitor.0 {
+        if visitor.broken {
+            self.1.fetch_add(1, Ordering::SeqCst);
+        }
+        if let Some(value) = visitor.delay {
             match self.0.lock() {
                 Ok(mut values) => values.push(value),
                 Err(poisoned) => poisoned.into_inner().push(value),
@@ -59,11 +65,20 @@ impl Subscriber for DelayObservation {
     }
 }
 
-struct DelayVisitor(Option<String>);
+struct DelayVisitor {
+    delay: Option<String>,
+    broken: bool,
+}
 impl Visit for DelayVisitor {
+    fn record_str(&mut self, field: &Field, value: &str) {
+        if field.name() == "outcome" && value == "broken" {
+            self.broken = true;
+        }
+    }
+
     fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
         if field.name() == "alt_svc_origin_delay" {
-            self.0 = Some(format!("{value:?}"));
+            self.delay = Some(format!("{value:?}"));
         }
     }
 }
@@ -79,13 +94,21 @@ fn policy() -> AltSvcPolicy {
     )
 }
 
-async fn fixture(identity: &TestIdentity) -> TestResult<Http3UpgradeFixture> {
+async fn fixture(
+    identity: &TestIdentity,
+    next_alternative: u16,
+) -> TestResult<Http3UpgradeFixture> {
     Http3UpgradeFixture::spawn(
         identity,
         ORIGIN_NAME,
         UpgradeScript::new(
             [
-                PlannedResponse::new(StatusCode::OK).body("origin"),
+                PlannedResponse::new(StatusCode::OK)
+                    .header(
+                        "alt-svc",
+                        format!("h3=\"{ALTERNATIVE_HOST}:{next_alternative}\"; ma=3600").parse()?,
+                    )
+                    .body("origin"),
                 PlannedResponse::new(StatusCode::OK).body("pooled"),
             ],
             AlternativeBehavior::responses([]),
@@ -109,14 +132,16 @@ enum Seed {
 
 async fn decision(seed: Seed, authentication: ServerAuthentication) -> TestResult<()> {
     let identity = identity()?;
-    let fixture = fixture(&identity).await?;
     let socket = phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?;
     let port = socket.local_addr()?.port();
+    let next_socket = phantom_testkit::udp::bind_tokio((Ipv4Addr::LOCALHOST, 0).into())?;
+    let fixture = fixture(&identity, next_socket.local_addr()?.port()).await?;
     let (stop, mut stopped) = oneshot::channel();
     let packets = Arc::new(AtomicUsize::new(0));
     let observed_packets = Arc::clone(&packets);
     let blackhole = ConnectionPeer::spawn(async move {
         let mut bytes = vec![0; 65_535];
+        let mut next_bytes = vec![0; 65_535];
         loop {
             tokio::select! {
                 biased;
@@ -124,6 +149,9 @@ async fn decision(seed: Seed, authentication: ServerAuthentication) -> TestResul
                 packet = socket.recv_from(&mut bytes) => {
                     packet?;
                     observed_packets.fetch_add(1, Ordering::SeqCst);
+                }
+                packet = next_socket.recv_from(&mut next_bytes) => {
+                    packet?;
                 }
             }
         }
@@ -177,6 +205,14 @@ async fn decision(seed: Seed, authentication: ServerAuthentication) -> TestResul
             }
             tokio::task::yield_now().await;
         }
+        // Expiry must not hide the pooled-origin decision. The first response
+        // advertises a fresh location, preserving this client's RTT history.
+        timeout(TEST_TIMEOUT, async {
+            while observation.1.load(Ordering::SeqCst) == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await?;
         let pooled = client
             .get_negotiated(&fixture.origin_url("/pooled"))?
             .send()
