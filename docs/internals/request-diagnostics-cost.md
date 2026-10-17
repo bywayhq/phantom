@@ -110,6 +110,29 @@ An extra ten-trial cold control reproduced the same teardown abort on
 unchanged main. It had one failed peer control while all requests completed.
 That reproduction does not turn either candidate failure into a passing trial.
 
+## Snapshot attribution follow-up
+
+A subsequent bounded comparison uses one binary at `a4b95ee4`, with a tool-only
+option to skip snapshot copying. Five shuffled repetitions compare disabled,
+collection-only and collection-plus-snapshot settings. Both processes use two
+workers. H2 uses 32 concurrent requests, with 150,000 1 KiB responses or
+30,000 64 KiB responses per trial. Warmup is 128 requests. Native compiler
+logs again verify `/O2` without `/Od` across 282 TLS compiler commands.
+
+All 30 trials pass, completing 2,700,000 requests. The table shows medians of
+within-repetition throughput ratios and their full ranges.
+
+| Workload | Collection/off | Snapshot/off | Snapshot/collection range |
+| --- | --- | --- | --- |
+| Warm H2 | 0.983 (0.961–1.245) | 0.965 (0.868–1.189) | 0.893–1.167 |
+| Stream H2 | 0.890 (0.804–1.123) | 0.973 (0.930–1.020) | 0.867–1.229 |
+
+Snapshot copying does not consistently explain the earlier streamed-body
+result. Variation changes the direction of snapshot/collection comparisons.
+This experiment supports neither a snapshot speedup nor a fixed 18% streaming
+regression. No production optimization was adopted from this comparison.
+These measurements precede the connection-metadata addition.
+
 ## Next
 
 - [Measurement method](client-performance.md): controls and broader coverage.

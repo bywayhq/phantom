@@ -1,0 +1,129 @@
+//! Connection metadata from actual handshakes and pooled dispatches.
+
+use std::{net::Ipv4Addr, num::NonZeroUsize, sync::Arc, time::Duration};
+
+use phantom::{
+    ConnectionEndpointScope, HttpProtocol, RequestConnection, RequestTimingPhase,
+    TlsConnectionInfo, TlsConnectionState,
+};
+use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
+
+use crate::support::{
+    h2,
+    tls::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, client_builder, read_head},
+    tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
+};
+
+fn established(state: &TlsConnectionState) -> TestResult<&Arc<TlsConnectionInfo>> {
+    match state {
+        TlsConnectionState::Established(info) => Ok(info),
+        _ => Err(format!("expected completed TLS, got {state:?}").into()),
+    }
+}
+
+fn connection(trace: &phantom::RequestDiagnostics) -> TestResult<Arc<RequestConnection>> {
+    let snapshot = trace.snapshot();
+    let event = snapshot
+        .events
+        .iter()
+        .find(|event| event.phase == RequestTimingPhase::ConnectionUse)
+        .ok_or("missing connection use")?;
+    assert_eq!(event.admission, Some(1));
+    Ok(Arc::clone(
+        event
+            .connection
+            .as_ref()
+            .ok_or("missing connection facts")?,
+    ))
+}
+
+async fn tcp_reuse(protocol: HttpProtocol, observe_first: bool) -> TestResult<()> {
+    timeout(Duration::from_secs(10), async {
+        let h2 = protocol == HttpProtocol::Http2;
+        let identity = TestIdentity::generate()?;
+        let acceptor = identity.acceptor(if h2 { H2_ALPN } else { H1_ALPN })?;
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
+        let address = listener.local_addr()?;
+        let url = format!("https://{address}/");
+        let peer = ConnectionPeer::spawn(async move {
+            let mut socket = accept_tls(listener, acceptor).await?;
+            if h2 {
+                h2::accept_client_preface(&mut socket).await?;
+            }
+            for index in 0..3 {
+                if h2 {
+                    let stream = 1 + index * 2;
+                    h2::read_request_headers(&mut socket, stream).await?;
+                    h2::write_frame(&mut socket, 1, 5, stream, &[0x88]).await?;
+                } else {
+                    read_head(&mut socket).await?;
+                    socket
+                        .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n")
+                        .await?;
+                }
+                socket.flush().await?;
+            }
+            Ok(())
+        });
+        let caller = async {
+            let client = client_builder(&identity, h2).build()?;
+            let mut previous = None;
+            for index in 0..3 {
+                let mut request = client.get(protocol, &url)?;
+                let diagnostics = (observe_first || index != 0)
+                    .then(|| request.diagnostics(NonZeroUsize::MIN.saturating_add(63)));
+                let response = request.send().await?;
+                assert_eq!(response.status(), 200);
+                assert!(response.into_body().collect_with_limit(0).await?.is_empty());
+                if let Some(trace) = diagnostics {
+                    let used = connection(&trace)?;
+                    assert_eq!(used.reused, index != 0);
+                    assert_eq!(used.endpoint_scope, ConnectionEndpointScope::TcpSocket);
+                    assert_eq!(used.peer_address, Some(address));
+                    assert_eq!(
+                        used.local_address.ok_or("missing socket address")?.ip(),
+                        Ipv4Addr::LOCALHOST
+                    );
+                    assert!(matches!(used.proxy_tls, TlsConnectionState::NotUsed));
+                    let tls = established(&used.origin_tls)?;
+                    assert!(tls.peer_verified);
+                    assert!(!tls.session_resumed);
+                    assert_eq!(tls.version, Some(phantom::profile::TlsVersion::Tls12));
+                    assert_eq!(
+                        tls.alpn.as_deref(),
+                        Some(if h2 { &b"h2"[..] } else { &b"http/1.1"[..] })
+                    );
+                    let chain = tls
+                        .peer_certificates
+                        .as_ref()
+                        .ok_or("missing certificates")?;
+                    assert!(!chain.is_empty());
+                    btls::x509::X509::from_der(&chain[0])?;
+                    if let Some(previous) = previous {
+                        assert!(Arc::ptr_eq(&previous, tls));
+                    }
+                    previous = Some(Arc::clone(tls));
+                }
+            }
+            Ok(())
+        };
+        finish_with_cleanup(caller.await, peer.stop().await)
+    })
+    .await?
+}
+
+#[tokio::test]
+async fn tcp_metadata_distinguishes_fresh_and_reused_http_connections() -> TestResult<()> {
+    for protocol in [HttpProtocol::Http1, HttpProtocol::Http2] {
+        tcp_reuse(protocol, true).await?;
+    }
+    Ok(())
+}
+
+#[tokio::test]
+async fn pooled_tcp_metadata_survives_an_unobserved_handshake() -> TestResult<()> {
+    for protocol in [HttpProtocol::Http1, HttpProtocol::Http2] {
+        tcp_reuse(protocol, false).await?;
+    }
+    Ok(())
+}

@@ -30,6 +30,7 @@ mod accept_ch;
 pub mod address_cache;
 mod attempt_budget;
 mod authorization;
+mod connection_diagnostics;
 mod connection_leg;
 mod direct;
 #[cfg(feature = "https-records")]
@@ -78,6 +79,9 @@ mod udp;
 
 pub use attempt_budget::{HttpAttemptBudget, HttpAttemptBudgetExhausted};
 pub use authorization::{InvalidAuthorization, InvalidAuthorizationKind};
+pub use connection_diagnostics::{
+    ConnectionEndpointScope, RequestConnection, TlsConnectionInfo, TlsConnectionState,
+};
 #[cfg(feature = "keylog")]
 pub use phantom_quic_btls::{NssKeyLogReceiver, NssKeyLogSender, nss_key_log_channel};
 pub use phantom_quic_btls::{QuicSessionRecordMetadata, QuicSessionStoreHeader};

@@ -41,6 +41,7 @@ struct Config {
     speculative_tls: bool,
     proxy_delay_ms: u64,
     diagnostic_events: usize,
+    diagnostic_snapshot: bool,
 }
 
 impl Default for Config {
@@ -68,6 +69,7 @@ impl Default for Config {
             speculative_tls: false,
             proxy_delay_ms: 0,
             diagnostic_events: 0,
+            diagnostic_snapshot: true,
         }
     }
 }

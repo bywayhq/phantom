@@ -163,6 +163,18 @@ impl TcpKeepaliveSource for ProfileTcpStream {
     }
 }
 
+impl crate::connection_diagnostics::ConnectionMetadataSource for ProfileTcpStream {
+    fn connection_metadata(&self) -> crate::connection_diagnostics::ConnectionMetadata {
+        crate::connection_diagnostics::ConnectionMetadata {
+            scope: crate::ConnectionEndpointScope::TcpSocket,
+            local: self.stream.local_addr().ok(),
+            peer: self.stream.peer_addr().ok(),
+            layers_known: true,
+            ..Default::default()
+        }
+    }
+}
+
 #[cfg(windows)]
 impl std::os::windows::io::AsSocket for ProfileTcpStream {
     fn as_socket(&self) -> std::os::windows::io::BorrowedSocket<'_> {

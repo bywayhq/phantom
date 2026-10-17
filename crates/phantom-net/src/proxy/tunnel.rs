@@ -21,6 +21,14 @@ impl<S: crate::tcp::TcpKeepaliveSource> crate::tcp::TcpKeepaliveSource for Tunne
     }
 }
 
+impl<S: crate::connection_diagnostics::ConnectionMetadataSource>
+    crate::connection_diagnostics::ConnectionMetadataSource for TunnelStream<S>
+{
+    fn connection_metadata(&self) -> crate::connection_diagnostics::ConnectionMetadata {
+        self.inner.connection_metadata()
+    }
+}
+
 impl<S> fmt::Debug for TunnelStream<S> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter

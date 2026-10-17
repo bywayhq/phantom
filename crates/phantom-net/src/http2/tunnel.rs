@@ -176,6 +176,12 @@ pub(crate) struct Http2ConnectStream {
     lease: ConnectionLease,
 }
 
+impl crate::connection_diagnostics::ConnectionMetadataSource for Http2ConnectStream {
+    fn connection_metadata(&self) -> crate::connection_diagnostics::ConnectionMetadata {
+        self.lease.connection_metadata()
+    }
+}
+
 impl Http2ConnectStream {
     pub(super) fn new(
         receive: RecvStream,

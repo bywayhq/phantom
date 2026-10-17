@@ -596,11 +596,24 @@ pub struct HandshakeData {
     protocol: Vec<u8>,
     peer_application_settings: Option<Vec<u8>>,
     session_resumed: bool,
+    cipher_suite: Option<u16>,
+    peer_verified: bool,
     ech_accepted: bool,
     peer_initial_max_streams_bidi: Option<u64>,
 }
 
 impl HandshakeData {
+    /// Returns the negotiated TLS cipher suite's IANA identifier, when known.
+    #[must_use]
+    pub const fn cipher_suite(&self) -> Option<u16> {
+        self.cipher_suite
+    }
+
+    /// Whether this completed handshake verified the peer's chain and name.
+    #[must_use]
+    pub const fn peer_verified(&self) -> bool {
+        self.peer_verified
+    }
     /// Returns the negotiated ALPN protocol.
     #[must_use]
     pub fn protocol(&self) -> &[u8] {
@@ -655,6 +668,8 @@ impl fmt::Debug for HandshakeData {
                 &self.peer_application_settings.as_ref().map(Vec::len),
             )
             .field("session_resumed", &self.session_resumed)
+            .field("cipher_suite", &self.cipher_suite)
+            .field("peer_verified", &self.peer_verified)
             .field("ech_accepted", &self.ech_accepted)
             .field(
                 "peer_initial_max_streams_bidi",
@@ -1290,6 +1305,8 @@ impl SessionState {
                 protocol,
                 peer_application_settings: self.backend.peer_application_settings()?,
                 session_resumed: self.backend.session_reused(),
+                cipher_suite: self.backend.negotiated_cipher_suite(),
+                peer_verified: self.backend.peer_verified(),
                 ech_accepted: self.backend.ech_accepted(),
                 peer_initial_max_streams_bidi: self
                     .peer_transport_parameters

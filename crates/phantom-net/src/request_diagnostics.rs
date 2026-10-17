@@ -89,6 +89,8 @@ pub struct RequestTiming {
     pub finished: Option<Duration>,
     /// How the observed operation ended.
     pub outcome: RequestTimingOutcome,
+    /// Connection facts for a `ConnectionUse` event, absent for other phases.
+    pub connection: Option<Arc<crate::RequestConnection>>,
 }
 
 /// Boundaries observed by request diagnostics.
@@ -101,6 +103,8 @@ pub enum RequestTimingPhase {
     PoolAdmission,
     /// Acquiring a connection: shared waits, new setup and protocol readiness.
     ConnectionAcquisition,
+    /// Dispatch on an HTTP connection. This does not prove bytes were sent.
+    ConnectionUse,
     /// Waiting for local address resolution, including caches and overrides.
     /// This is not the execution time of a shared or background DNS query.
     ResolutionWait,
@@ -333,6 +337,18 @@ pub struct PhaseObservation {
 }
 
 impl PhaseObservation {
+    pub(crate) fn connection(
+        protocol: Version,
+        details: impl FnOnce() -> crate::RequestConnection,
+    ) {
+        let mut phase = Self::begin(RequestTimingPhase::ConnectionUse, Some(protocol));
+        if let Some((diagnostics, index)) = &phase.event {
+            let details = Arc::new(details());
+            diagnostics.lock().events[*index].connection = Some(details);
+        }
+        phase.finish(RequestTimingOutcome::Completed);
+    }
+
     #[must_use]
     pub fn is_retained(&self) -> bool {
         self.event.is_some()
@@ -372,6 +388,7 @@ impl PhaseObservation {
             started,
             finished: None,
             outcome: RequestTimingOutcome::Pending,
+            connection: None,
         });
         drop(state);
         Self {

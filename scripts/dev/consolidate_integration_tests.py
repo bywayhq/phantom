@@ -58,6 +58,7 @@ GROUPS: dict[str, dict[str, tuple[str, list[str]]]] = {
                 "request_conveniences",
                 "request_templates",
                 "request_timeline",
+                "request_connections",
                 "response_conveniences",
                 "send_futures",
                 "source_binding",

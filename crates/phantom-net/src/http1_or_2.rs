@@ -1089,8 +1089,16 @@ async fn select_connection<S>(
     client: Http2Builder,
 ) -> Result<Http1Or2Connection, Http1Or2TlsError>
 where
-    S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
+    S: AsyncRead
+        + AsyncWrite
+        + Unpin
+        + Send
+        + TcpKeepaliveSource
+        + crate::connection_diagnostics::ConnectionMetadataSource
+        + 'static,
 {
+    use crate::connection_diagnostics::ConnectionMetadataSource;
+    let metadata = stream.connection_metadata();
     let keepalive = stream.tcp_keepalive();
     let negotiated = stream.negotiated_alpn();
     Span::current().record("negotiated_alpn", trace_alpn(negotiated));
@@ -1112,6 +1120,7 @@ where
             let early_data = stream.early_data_wait();
             Http1Connection::connect_with_early_data(stream, early_data, keepalive)
                 .await
+                .map(|connection| connection.with_connection_metadata(metadata))
                 .map(Http1Or2Connection::Http1)
                 .map_err(Into::into)
         }

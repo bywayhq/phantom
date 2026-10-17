@@ -425,6 +425,7 @@ async fn connect(
         Some((race, observed)) => (Some(race), Some(observed)),
         None => (None, None),
     };
+    let proxy_tls_unavailable = socket.is_some();
     let endpoint = endpoint_with_socket(remote, crypto, options, socket, path_mtu, server_name)?;
 
     debug!("QUIC connection started");
@@ -640,6 +641,7 @@ async fn connect(
         }
         None => (None, None, None),
     };
+    let local_address = endpoint.local_addr().ok();
     let driver = DriverTask::spawn(
         h3_driver,
         endpoint,
@@ -691,6 +693,8 @@ async fn connect(
         accept_ch,
         early_data,
         remembered_settings.is_some(),
+        local_address,
+        proxy_tls_unavailable,
     ))
 }
 

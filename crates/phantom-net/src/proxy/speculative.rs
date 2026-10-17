@@ -170,6 +170,17 @@ impl<S: crate::tcp::TcpKeepaliveSource> crate::tcp::TcpKeepaliveSource for Specu
     }
 }
 
+impl<S: crate::connection_diagnostics::ConnectionMetadataSource>
+    crate::connection_diagnostics::ConnectionMetadataSource for SpeculativeConnect<S>
+{
+    fn connection_metadata(&self) -> crate::connection_diagnostics::ConnectionMetadata {
+        self.inner
+            .as_ref()
+            .map(S::connection_metadata)
+            .unwrap_or_default()
+    }
+}
+
 impl<S: AsyncRead + AsyncWrite + Unpin> AsyncRead for SpeculativeConnect<S> {
     fn poll_read(
         self: Pin<&mut Self>,

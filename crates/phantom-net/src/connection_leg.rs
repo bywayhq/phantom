@@ -328,6 +328,18 @@ impl TcpKeepaliveSource for ConnectionLeg {
     }
 }
 
+impl crate::connection_diagnostics::ConnectionMetadataSource for ConnectionLeg {
+    fn connection_metadata(&self) -> crate::connection_diagnostics::ConnectionMetadata {
+        match self {
+            Self::Tcp(stream) => stream.connection_metadata(),
+            Self::Speculative(stream) => stream.connection_metadata(),
+            Self::HttpConnect(stream) => stream.connection_metadata(),
+            Self::HttpsConnect(stream) => stream.connection_metadata(),
+            Self::Connected(_) => Default::default(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

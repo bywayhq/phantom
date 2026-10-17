@@ -1693,13 +1693,22 @@ impl Http1TlsError {
 /// Starts HTTP/1.1 over an established TLS stream on a profile connection.
 async fn connect_over_tls<S>(stream: TlsStream<S>) -> Result<Http1Connection, Http1TlsError>
 where
-    S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
+    S: AsyncRead
+        + AsyncWrite
+        + Unpin
+        + Send
+        + TcpKeepaliveSource
+        + crate::connection_diagnostics::ConnectionMetadataSource
+        + 'static,
 {
+    use crate::connection_diagnostics::ConnectionMetadataSource;
     require_http1_selected(&stream)?;
     let keepalive = stream.tcp_keepalive();
     let early_data = stream.early_data_wait();
+    let metadata = stream.connection_metadata();
     Http1Connection::connect_with_early_data(stream, early_data, keepalive)
         .await
+        .map(|connection| connection.with_connection_metadata(metadata))
         .map_err(Into::into)
 }
 
@@ -1719,10 +1728,19 @@ pub(crate) fn slower_plaintext(attempt: SlowerAttempt) -> SlowerConnection<Http1
 /// Starts plaintext HTTP/1.1 on a profile connection.
 pub(super) async fn connect_plaintext<S>(stream: S) -> Result<Http1Connection, Http1Error>
 where
-    S: AsyncRead + AsyncWrite + Unpin + Send + TcpKeepaliveSource + 'static,
+    S: AsyncRead
+        + AsyncWrite
+        + Unpin
+        + Send
+        + TcpKeepaliveSource
+        + crate::connection_diagnostics::ConnectionMetadataSource
+        + 'static,
 {
     let keepalive = stream.tcp_keepalive();
-    Http1Connection::connect_with_early_data(stream, None, keepalive).await
+    let metadata = stream.connection_metadata();
+    Http1Connection::connect_with_early_data(stream, None, keepalive)
+        .await
+        .map(|connection| connection.with_connection_metadata(metadata))
 }
 
 /// Sends a prepared Upgrade GET on a profile connection, which switches its

@@ -102,10 +102,14 @@ fn public_metadata_is_owned_and_debug_does_not_emit_certificates() {
         protocol: H3_PROTOCOL.to_vec(),
         peer_application_settings: Some(b"private ALPS payload".to_vec()),
         session_resumed: false,
+        cipher_suite: Some(0x1301),
+        peer_verified: true,
         ech_accepted: false,
         peer_initial_max_streams_bidi: Some(100),
     };
     assert_eq!(handshake.protocol(), H3_PROTOCOL);
+    assert_eq!(handshake.cipher_suite(), Some(0x1301));
+    assert!(handshake.peer_verified());
     assert_eq!(handshake.peer_initial_max_streams_bidi(), Some(100));
     assert_eq!(
         handshake.peer_application_settings(),

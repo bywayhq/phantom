@@ -47,6 +47,13 @@ pub struct Http2Connection {
 }
 
 impl Http2Connection {
+    pub(crate) fn with_connection_metadata(
+        self,
+        metadata: crate::connection_diagnostics::ConnectionMetadata,
+    ) -> Self {
+        self.inner.diagnostics.set(metadata);
+        self
+    }
     /// Establishes HTTP/2 over an already-connected byte stream.
     ///
     /// The settings are validated before the stream is touched.
@@ -420,6 +427,7 @@ impl Http2Connection {
                 return Err(Http2Error::ExtendedConnectProtocolDisabled);
             }
             let mut sender = sender.ready().await.map_err(Http2Error::before_send)?;
+            self.inner.diagnostics.mark_used();
             let (response, send) = sender
                 .send_request(request, false)
                 .map_err(Http2Error::before_send)?;
@@ -523,6 +531,7 @@ impl Http2Connection {
                 .ready()
                 .await
                 .map_err(Http2Error::before_send)?;
+            self.inner.diagnostics.mark_used();
             let (response, send) = sender
                 .send_request(request, false)
                 .map_err(Http2Error::before_send)?;
@@ -929,6 +938,7 @@ impl Http2Connection {
                 first_stream_id,
                 early_data,
                 idle: ReadIdle::new(idle_timeout),
+                diagnostics: Default::default(),
             }),
         })
     }
@@ -980,6 +990,7 @@ impl Http2Connection {
                 .await
                 .map_err(Http2Error::before_send)?;
             let end_of_stream = body.is_none() && trailers.is_none();
+            self.inner.diagnostics.observe(http::Version::HTTP_2);
             let continue_signal = body.as_mut().and_then(RequestBody::arm_continue);
             let (response, reset) = sender
                 .send_request(request, end_of_stream)
@@ -1157,6 +1168,9 @@ pub(super) struct ConnectionLease {
 }
 
 impl ConnectionLease {
+    pub(super) fn connection_metadata(&self) -> crate::connection_diagnostics::ConnectionMetadata {
+        self._inner.diagnostics.metadata()
+    }
     /// Returns whether the connection driver has stopped.
     pub(super) fn is_closed(&self) -> bool {
         self._inner.driver.is_finished()
@@ -1170,6 +1184,7 @@ impl ConnectionLease {
 }
 
 struct ConnectionInner {
+    diagnostics: crate::connection_diagnostics::ConnectionRecord,
     // Option lets Drop close the final sender before supervising the driver.
     sender: Option<client::SendRequest<Bytes>>,
     driver: DriverTask,

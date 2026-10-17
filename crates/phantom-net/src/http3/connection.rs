@@ -95,6 +95,10 @@ fn lock_state(state: &std::sync::Mutex<PeerSettings>) -> std::sync::MutexGuard<'
 }
 
 struct ConnectionInner {
+    diagnostics: crate::connection_diagnostics::ConnectionRecord,
+    local_address: Option<std::net::SocketAddr>,
+    tls_diagnostics: OnceLock<Arc<crate::TlsConnectionInfo>>,
+    proxy_tls_unavailable: bool,
     session: Arc<Session>,
     driver: DriverTask,
     datagrams: Option<DatagramRouter>,
@@ -110,6 +114,66 @@ struct ConnectionInner {
 }
 
 impl Http3Connection {
+    fn observe_connection(&self) {
+        self.inner
+            .diagnostics
+            .observe_with(http::Version::HTTP_3, |reused| {
+                let origin_tls = match self.inner.tls_diagnostics.get() {
+                    Some(info) => crate::TlsConnectionState::Established(Arc::clone(info)),
+                    None => match self
+                        .inner
+                        .quinn
+                        .handshake_data()
+                        .and_then(|data| data.downcast::<phantom_quic_btls::HandshakeData>().ok())
+                    {
+                        Some(data) => {
+                            let info = self.inner.tls_diagnostics.get_or_init(|| {
+                                let chain = self
+                                    .inner
+                                    .quinn
+                                    .peer_identity()
+                                    .and_then(|identity| {
+                                        identity.downcast::<phantom_quic_btls::PeerIdentity>().ok()
+                                    })
+                                    .map(|identity| {
+                                        identity
+                                            .certificates()
+                                            .iter()
+                                            .map(|der| Arc::from(der.as_slice()))
+                                            .collect::<Vec<_>>()
+                                            .into()
+                                    });
+                                Arc::new(crate::TlsConnectionInfo {
+                                    peer_verified: data.peer_verified(),
+                                    version: Some(phantom_profile::TlsVersion::Tls13),
+                                    cipher_suite: data
+                                        .cipher_suite()
+                                        .and_then(phantom_profile::CipherSuite::from_iana_id),
+                                    alpn: Some(Arc::from(data.protocol())),
+                                    session_resumed: data.session_resumed(),
+                                    peer_certificates: chain,
+                                })
+                            });
+                            crate::TlsConnectionState::Established(Arc::clone(info))
+                        }
+                        None => crate::TlsConnectionState::Pending,
+                    },
+                };
+                crate::RequestConnection {
+                    reused,
+                    endpoint_scope: crate::ConnectionEndpointScope::QuicEndpoint,
+                    local_address: self.inner.local_address,
+                    peer_address: Some(self.inner.quinn.remote_address()),
+                    origin_tls,
+                    proxy_tls: if self.inner.proxy_tls_unavailable {
+                        crate::TlsConnectionState::Unavailable
+                    } else {
+                        crate::TlsConnectionState::NotUsed
+                    },
+                }
+            });
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         session: Arc<Session>,
@@ -120,9 +184,15 @@ impl Http3Connection {
         accept_ch: Arc<OnceLock<AcceptCh>>,
         early_data: Option<EarlyData>,
         remembered_settings: bool,
+        local_address: Option<std::net::SocketAddr>,
+        proxy_tls_unavailable: bool,
     ) -> Self {
         Self {
             inner: Arc::new(ConnectionInner {
+                diagnostics: Default::default(),
+                local_address,
+                tls_diagnostics: OnceLock::new(),
+                proxy_tls_unavailable,
                 session,
                 driver,
                 datagrams,
@@ -429,6 +499,7 @@ impl Http3Connection {
                 let (mut sender, pending) = self.lock_sender().await;
                 sent_before_answer = pending;
                 let sender = sender.as_mut().ok_or_else(driver_unavailable)?;
+                self.observe_connection();
                 let stream = sender
                     .send_request(request)
                     .await
@@ -551,6 +622,7 @@ impl Http3Connection {
             let (stream, mut datagrams) = {
                 let mut sender = self.inner.session.sender.lock().await;
                 let sender = sender.as_mut().ok_or_else(driver_unavailable)?;
+                self.inner.diagnostics.mark_used();
                 let stream = sender
                     .send_request(request)
                     .await
@@ -693,6 +765,7 @@ impl Http3Connection {
         let (stream, flow) = {
             let mut sender = self.inner.session.sender.lock().await;
             let sender = sender.as_mut().ok_or_else(driver_unavailable)?;
+            self.inner.diagnostics.mark_used();
             let stream = sender
                 .send_request(request)
                 .await

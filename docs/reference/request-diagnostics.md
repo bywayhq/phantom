@@ -35,6 +35,7 @@ Diagnostics does not enable TLS secret logging or QUIC qlog output.
 | `AttemptAdmission` | Conservative origin HTTP admission |
 | `PoolAdmission` | Waiting for request or stream allowance |
 | `ConnectionAcquisition` | Pool lookup, shared setup wait and connection readiness |
+| `ConnectionUse` | Dispatch on one HTTP connection, with connection facts |
 | `ResolutionWait` | Awaiting the local resolver, including cache and overrides |
 | `TcpConnect` | One operating-system TCP connect |
 | `TlsHandshake` | Initial TLS handshake future |
@@ -55,11 +56,57 @@ connection reuse. A reused connection normally has acquisition observations
 without another TCP or TLS handshake. Shared DNS work and detached drivers
 are not a request's DNS execution time. The resolver wait measures the caller's
 wait instead. Setup retained in a background task keeps its original context.
-Proxy setup can contribute TCP or TLS events; endpoint and hop identities are
-not available in this slice.
+Proxy setup can contribute TCP or TLS events. Setup phases do not identify
+which proxy leg they belong to. Connection-use records distinguish origin
+TLS from outer proxy TLS when the transport exposes both.
 
 `EarlyData` means the initial handshake future returned for early data. It does
 not establish handshake confirmation, resumption or early-data acceptance.
+
+## Connection facts
+
+`ConnectionUse` records have `connection` metadata. Other phases have `None`.
+These records share the event capacity and carry their hop and admission.
+They describe facts at dispatch, including attempts that fail before writing.
+TCP's internal rejected-early-data resend records admission separately without
+another HTTP dispatch or connection-use record.
+
+`reused` means an earlier HTTP request was dispatched on the same HTTP
+connection, including CONNECT or a request that later failed. It is separate
+from TLS session resumption. A new HTTP connection inside a reused proxy
+tunnel still has `reused: false`.
+
+| Endpoint scope | Meaning |
+| --- | --- |
+| `TcpSocket` | Local socket address and connected peer, possibly the proxy |
+| `QuicEndpoint` | Inner QUIC endpoint addresses, possibly on a virtual tunnel |
+| `Unavailable` | Underlying endpoints not exposed |
+
+A QUIC local bind can have an unspecified IP address. Endpoint metadata does
+not identify the proxy's chosen origin address or the machine's public IP.
+
+| TLS state | Meaning |
+| --- | --- |
+| `NotUsed` | This layer uses no TLS |
+| `Unavailable` | The transport does not expose this layer's metadata |
+| `Pending` | Early-data handshake incomplete at dispatch |
+| `Established` | Negotiated settings, resumption and verification state |
+
+Origin and proxy TLS have separate states. Tunneled QUIC leaves outer proxy
+TLS unavailable. Opaque caller-owned streams can leave their layers
+unavailable too. Pending records remain pending in later snapshots because
+they describe the handshake at dispatch.
+
+Established details include the TLS version, cipher suite, ALPN, resumption
+and whether peer chain and server name verification were enabled. Available
+certificates are leaf-first DER bytes. They describe the peer's supplied or
+resumed chain, rather than a newly constructed trust chain. An unavailable
+chain has `None`. Certificate presence alone does not establish trust.
+
+Connections retain certificate references and encode DER lazily, once needed.
+Snapshots share those bytes. Connections opened without diagnostics retain
+the same facts for later observed requests. Debug output omits certificate
+bytes. Endpoint addresses remain visible in diagnostic records.
 
 ## Attempts and completion
 
@@ -83,9 +130,8 @@ report `Completed` without distinguishing its answer source.
 
 ## Current limits
 
-Connection endpoints, certificate details and explicit reuse/resumption
-identities are not included yet. WebSocket opening diagnostics are separate
-from this request-builder API. Records have no serialized export format.
+WebSocket opening diagnostics are separate from this request-builder API.
+Records have no serialized export format.
 
 Collection and snapshots use additional CPU and memory. The
 [local cost measurements](../internals/request-diagnostics-cost.md) include

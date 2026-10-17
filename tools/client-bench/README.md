@@ -72,6 +72,11 @@ copying and verification. Compare both settings with the same binary, seeded
 trial order and workload. Keep disabled runs against the previous revision
 separate from this enabled/disabled comparison.
 
+Set `diagnostic_snapshot: false` to collect events without copying or checking
+a snapshot. The default is true. Compare off, collection only, and collection
+plus snapshots to distinguish their costs. Payload, protocol and peer checks
+remain enabled in every setting.
+
 ## Measure allocations separately
 
 Keep a copy of the uninstrumented executable and its symbols before building

@@ -45,6 +45,13 @@ pub struct Http1Connection {
 }
 
 impl Http1Connection {
+    pub(crate) fn with_connection_metadata(
+        self,
+        metadata: crate::connection_diagnostics::ConnectionMetadata,
+    ) -> Self {
+        self.inner.diagnostics.set(metadata);
+        self
+    }
     /// Establishes HTTP/1.1 over an already-connected byte stream.
     ///
     /// # Errors
@@ -93,6 +100,7 @@ impl Http1Connection {
                 delivered_response: AtomicBool::new(false),
                 early_data,
                 keepalive,
+                diagnostics: Default::default(),
             }),
         })
     }
@@ -360,6 +368,7 @@ impl Http1Connection {
             if !self.is_reusable() {
                 return Err(Http1Error::ConnectionClosed);
             }
+            self.inner.diagnostics.observe(http::Version::HTTP_11);
             if let Some(keepalive) = &self.inner.keepalive {
                 keepalive.request_dispatched();
             }
@@ -528,6 +537,7 @@ impl ConnectionLease {
 }
 
 struct ConnectionInner {
+    diagnostics: crate::connection_diagnostics::ConnectionRecord,
     sender: Mutex<http1::SendRequest<Http1RequestBody>>,
     request_permit: Arc<Semaphore>,
     observer: ResponseHeadObserver,

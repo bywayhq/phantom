@@ -31,6 +31,7 @@ mod plaintext_templates;
 mod prepared_bodies;
 mod query_authorization;
 mod redirects;
+mod request_connections;
 mod request_conveniences;
 mod request_templates;
 mod request_timeline;

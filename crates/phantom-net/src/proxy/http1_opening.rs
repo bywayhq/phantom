@@ -365,6 +365,15 @@ impl crate::tcp::TcpKeepaliveSource for ProxyStream {
     }
 }
 
+impl crate::connection_diagnostics::ConnectionMetadataSource for ProxyStream {
+    fn connection_metadata(&self) -> crate::connection_diagnostics::ConnectionMetadata {
+        match self {
+            Self::Tcp(stream) | Self::HttpsPending(stream) => stream.connection_metadata(),
+            Self::HttpsReady(stream) => stream.connection_metadata(),
+        }
+    }
+}
+
 pub(crate) fn binding_error() -> ProxyOpeningError {
     ProxyOpeningError::Binding(io::Error::new(
         io::ErrorKind::InvalidInput,

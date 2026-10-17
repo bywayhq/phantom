@@ -1196,7 +1196,12 @@ pub(crate) async fn connect_selected<S>(
     client: Http2Builder,
 ) -> Result<Http2Connection, Http2TlsError>
 where
-    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    S: AsyncRead
+        + AsyncWrite
+        + Unpin
+        + Send
+        + crate::connection_diagnostics::ConnectionMetadataSource
+        + 'static,
 {
     connect_selected_kind(stream, client, false).await
 }
@@ -1208,7 +1213,12 @@ pub(crate) async fn connect_selected_extended<S>(
     client: Http2Builder,
 ) -> Result<Http2Connection, Http2TlsError>
 where
-    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    S: AsyncRead
+        + AsyncWrite
+        + Unpin
+        + Send
+        + crate::connection_diagnostics::ConnectionMetadataSource
+        + 'static,
 {
     connect_selected_kind(stream, client, true).await
 }
@@ -1219,7 +1229,12 @@ async fn connect_selected_kind<S>(
     extended_connect: bool,
 ) -> Result<Http2Connection, Http2TlsError>
 where
-    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    S: AsyncRead
+        + AsyncWrite
+        + Unpin
+        + Send
+        + crate::connection_diagnostics::ConnectionMetadataSource
+        + 'static,
 {
     let peer_settings = alps::decode(stream.peer_application_settings()).map_err(|error| {
         debug!(
@@ -1245,9 +1260,11 @@ where
     if let Some(settings) = initial_settings {
         client.client.initial_peer_settings(settings);
     }
+    use crate::connection_diagnostics::ConnectionMetadataSource;
+    let metadata = stream.connection_metadata();
     let early_data = stream.early_data_wait();
-    if early_data.is_some() {
-        return Http2Connection::connect_with_early_data(
+    let connection = if early_data.is_some() {
+        Http2Connection::connect_with_early_data(
             stream,
             client,
             accept_ch,
@@ -1255,18 +1272,17 @@ where
             early_data,
         )
         .await
-        .map_err(Into::into);
-    }
-
-    if extended_connect {
+        .map_err(Http2TlsError::from)
+    } else if extended_connect {
         Http2Connection::connect_extended_with_builder_and_accept_ch(stream, client, accept_ch)
             .await
-            .map_err(Into::into)
+            .map_err(Http2TlsError::from)
     } else {
         Http2Connection::connect_with_builder_and_accept_ch(stream, client, accept_ch)
             .await
-            .map_err(Into::into)
-    }
+            .map_err(Http2TlsError::from)
+    }?;
+    Ok(connection.with_connection_metadata(metadata))
 }
 
 fn connection_outcome<T>(result: &Result<T, Http2TlsError>) -> &'static str {
@@ -1301,7 +1317,12 @@ async fn connect_over_tls<S>(
     keepalive: Option<TcpKeepaliveControl>,
 ) -> Result<Http2Connection, Http2TlsError>
 where
-    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    S: AsyncRead
+        + AsyncWrite
+        + Unpin
+        + Send
+        + crate::connection_diagnostics::ConnectionMetadataSource
+        + 'static,
 {
     let negotiated = stream.negotiated_alpn();
     Span::current().record("negotiated_alpn", trace_alpn(negotiated));

@@ -137,7 +137,7 @@ impl HttpsProxyConnector {
 
     fn from_tls(tls: TlsConnector, settings: &TlsSettings) -> Self {
         Self {
-            tls,
+            tls: tls.with_peer_role(crate::connection_diagnostics::TlsPeerRole::Proxy),
             offers_h2: settings
                 .alpn_protocols
                 .iter()
@@ -1294,6 +1294,15 @@ impl crate::tcp::TcpKeepaliveSource for HttpsProxyTunnel {
         match &self.inner {
             TunnelInner::Http1(stream) => crate::tcp::TcpKeepaliveSource::tcp_keepalive(stream),
             TunnelInner::Http2(_) => None,
+        }
+    }
+}
+
+impl crate::connection_diagnostics::ConnectionMetadataSource for HttpsProxyTunnel {
+    fn connection_metadata(&self) -> crate::connection_diagnostics::ConnectionMetadata {
+        match &self.inner {
+            TunnelInner::Http1(stream) => stream.connection_metadata(),
+            TunnelInner::Http2(stream) => stream.connection_metadata(),
         }
     }
 }

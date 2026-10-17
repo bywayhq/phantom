@@ -513,6 +513,17 @@ impl ClientSession {
         self.handshake_complete && unsafe { ffi::SSL_session_reused(self.ssl.as_ptr()) } != 0
     }
 
+    pub(super) fn negotiated_cipher_suite(&self) -> Option<u16> {
+        // SAFETY: the SSL is live and this immutable borrow cannot overlap
+        // a mutable operation on the session.
+        let ssl = unsafe { SslRef::from_ptr(self.ssl.as_ptr()) };
+        ssl.current_cipher().map(|cipher| cipher.protocol_id())
+    }
+
+    pub(super) const fn peer_verified(&self) -> bool {
+        self.handshake_complete && self.verify_peer
+    }
+
     /// Returns whether the peer accepted the 0-RTT data this client offered.
     pub(super) fn early_data_accepted(&self) -> bool {
         // SAFETY: the SSL is live; the query reads handshake state only.

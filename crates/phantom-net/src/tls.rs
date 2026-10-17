@@ -178,6 +178,7 @@ impl ServerAuthentication {
 pub(crate) struct TlsConnector {
     backend: BoringConnector,
     server_authentication: ServerAuthentication,
+    peer_role: crate::connection_diagnostics::TlsPeerRole,
     alpn_wire: Box<[u8]>,
     alps: Option<AlpsSettings>,
     tls13_key_shares: Option<Box<[NamedGroup]>>,
@@ -228,6 +229,13 @@ impl fmt::Debug for TlsConnector {
 }
 
 impl TlsConnector {
+    pub(crate) fn with_peer_role(
+        mut self,
+        role: crate::connection_diagnostics::TlsPeerRole,
+    ) -> Self {
+        self.peer_role = role;
+        self
+    }
     /// Builds a connector, rejecting invalid or unsupported settings immediately.
     pub(crate) fn new(settings: &TlsSettings) -> Result<Self, TlsError> {
         Self::build_with_roots(
@@ -580,6 +588,7 @@ impl TlsConnector {
             early_data,
             session_cache: None,
             client_certificate: None,
+            peer_role: crate::connection_diagnostics::TlsPeerRole::Origin,
             #[cfg(feature = "keylog")]
             key_log,
         })
@@ -887,6 +896,13 @@ impl TlsConnector {
                 early_data_offered = in_early_data,
                 "TLS handshake completed"
             );
+            let metadata = crate::connection_diagnostics::TlsMetadata::new(
+                self.peer_role,
+                self.server_authentication.verifies(),
+            );
+            if !in_early_data {
+                metadata.complete(stream.ssl());
+            }
             Ok(TlsStream {
                 inner: stream,
                 ech_accepted,
@@ -897,6 +913,7 @@ impl TlsConnector {
                 session_reused,
                 early_data,
                 close_notify: self.close_notify,
+                metadata,
             })
         }
         .instrument(span.clone())
@@ -977,6 +994,7 @@ pub(crate) struct TlsStream<S> {
     negotiated_tls_version: Option<TlsVersion>,
     negotiated_cipher_suite: Option<CipherSuite>,
     session_reused: bool,
+    metadata: Arc<crate::connection_diagnostics::TlsMetadata>,
     /// Present while the server has not yet answered the early data.
     /// Keep this transient replay state out of every stream's inline size.
     early_data: Option<Box<EarlyData>>,
@@ -988,6 +1006,23 @@ pub(crate) struct TlsStream<S> {
 impl<S: crate::tcp::TcpKeepaliveSource> crate::tcp::TcpKeepaliveSource for TlsStream<S> {
     fn tcp_keepalive(&self) -> Option<crate::tcp::TcpKeepaliveControl> {
         crate::tcp::TcpKeepaliveSource::tcp_keepalive(self.inner.get_ref())
+    }
+}
+
+impl<S: crate::connection_diagnostics::ConnectionMetadataSource>
+    crate::connection_diagnostics::ConnectionMetadataSource for TlsStream<S>
+{
+    fn connection_metadata(&self) -> crate::connection_diagnostics::ConnectionMetadata {
+        let mut metadata = self.inner.get_ref().connection_metadata();
+        match self.metadata.role {
+            crate::connection_diagnostics::TlsPeerRole::Origin => {
+                metadata.origin_tls = Some(Arc::clone(&self.metadata))
+            }
+            crate::connection_diagnostics::TlsPeerRole::Proxy => {
+                metadata.proxy_tls = Some(Arc::clone(&self.metadata))
+            }
+        }
+        metadata
     }
 }
 
@@ -1010,6 +1045,7 @@ impl<S> TlsStream<S> {
             .current_cipher()
             .and_then(|cipher| CipherSuite::from_iana_id(cipher.protocol_id()));
         self.session_reused = ssl.session_reused();
+        self.metadata.complete(ssl);
     }
 
     /// Returns the ALPN protocol selected by the server, if any.
@@ -1066,7 +1102,7 @@ impl<S> fmt::Debug for TlsStream<S> {
     }
 }
 
-fn negotiated_tls_version(version: Option<SslVersion>) -> Option<TlsVersion> {
+pub(crate) fn negotiated_tls_version(version: Option<SslVersion>) -> Option<TlsVersion> {
     match version? {
         SslVersion::TLS1 => Some(TlsVersion::Tls10),
         SslVersion::TLS1_1 => Some(TlsVersion::Tls11),

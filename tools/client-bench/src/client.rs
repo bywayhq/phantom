@@ -131,7 +131,7 @@ async fn request(
     if sample.bytes != config.bytes {
         return Err("incorrect response length".into());
     }
-    if let Some(diagnostics) = diagnostics {
+    if let Some(diagnostics) = diagnostics.filter(|_| config.diagnostic_snapshot) {
         let timeline = diagnostics.snapshot();
         let body = timeline
             .events
