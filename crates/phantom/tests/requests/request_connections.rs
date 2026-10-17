@@ -10,7 +10,7 @@ use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
 use crate::support::{
     h2, h3 as h3_support,
-    tls::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, client_builder, read_head},
+    tls::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, read_head, tls_settings},
     tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
 
@@ -35,6 +35,24 @@ fn connection(trace: &phantom::RequestDiagnostics) -> TestResult<Arc<RequestConn
             .as_ref()
             .ok_or("missing connection facts")?,
     ))
+}
+
+fn build_client(
+    builder: phantom::ClientBuilder,
+    identity: &TestIdentity,
+    verify: bool,
+) -> TestResult<phantom::Client> {
+    if verify {
+        return Ok(builder
+            .add_root_certificate_der(identity.root_der.clone())
+            .build()?);
+    }
+    #[cfg(feature = "danger-disable-verification")]
+    return Ok(builder
+        .server_authentication(phantom::ServerAuthentication::DangerDisabled)
+        .build()?);
+    #[cfg(not(feature = "danger-disable-verification"))]
+    Err("disabled-verification test requires its feature".into())
 }
 
 async fn tcp_reuse(protocol: HttpProtocol, observe_first: bool, verify: bool) -> TestResult<()> {
@@ -66,13 +84,15 @@ async fn tcp_reuse(protocol: HttpProtocol, observe_first: bool, verify: bool) ->
             Ok(())
         });
         let caller = async {
-            let builder = client_builder(&identity, h2);
-            let client = if verify {
-                builder
-            } else {
-                builder.server_authentication(phantom::ServerAuthentication::DangerDisabled)
+            let mut tls = tls_settings();
+            if !h2 {
+                tls.alpn_protocols = vec![Box::from(&b"http/1.1"[..])];
             }
-            .build()?;
+            let mut profile = phantom::profile::ClientProfile::new(tls);
+            if h2 {
+                profile = profile.with_http2(phantom::profile::browser::chrome::v154_http2());
+            }
+            let client = build_client(phantom::Client::builder(profile), &identity, verify)?;
             let mut previous = None;
             for index in 0..3 {
                 let mut request = client.get(protocol, &url)?;
@@ -139,6 +159,7 @@ async fn quic_metadata_survives_pooling_and_an_unobserved_handshake() -> TestRes
     quic_reuse(true).await
 }
 
+#[cfg(feature = "danger-disable-verification")]
 #[tokio::test]
 async fn certificates_do_not_imply_peer_verification() -> TestResult<()> {
     for protocol in [HttpProtocol::Http1, HttpProtocol::Http2] {
@@ -170,12 +191,7 @@ async fn quic_reuse(verify: bool) -> TestResult<()> {
                 phantom::profile::ClientProfile::new(h3_support::client_tls_settings())
                     .with_http3(h3_support::client_settings()),
             );
-            let client = if verify {
-                builder.add_root_certificate_der(identity.root_der.clone())
-            } else {
-                builder.server_authentication(phantom::ServerAuthentication::DangerDisabled)
-            }
-            .build()?;
+            let client = build_client(builder, &identity, verify)?;
             let mut previous = None;
             for index in 0..3 {
                 let mut request =
