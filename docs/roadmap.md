@@ -27,6 +27,176 @@ phase, and the [standing rules](#standing-rules) apply to all of them.
 Counts in the later phases come from a read-only review of `main` at
 438f8de6 (2026-10-02) and change as work lands.
 
+## Expansion priorities
+
+The October 17 backlog has 31 original items plus shared attempt budgeting
+(#35). The numbers below retain the original IDs; that list did not include
+20 through 22. These delivery waves order the new work without reopening the
+completed Phase 1, Phase 2 or audit scopes.
+They are priorities, not a requirement to finish a whole wave before starting
+an independent task in the next one.
+
+Prioritize the shared attempt budget (#35) for downstream integration.
+Profile authoring (#3) and request diagnostics (#9) can proceed independently.
+They give downstream users inspectable configuration and measurements for
+bug reports.
+Extend the existing comparison harness (#1) and performance baseline (#34)
+alongside them. Each change should deliver a usable part in a separate PR.
+Do not wait for every diagnostic field or performance experiment to finish
+before shipping other work.
+
+Release preparation (#6) and browser captures (#2, #33) run alongside these
+waves. Release gates concern the features included in that release; the whole
+expansion backlog is not a release blocker. A concrete downstream need can
+raise a later task's priority while preserving its dependencies.
+
+### Wave A: Shared limits, authoring and measurement
+
+| ID | Work | Completion criteria |
+| --- | --- | --- |
+| 35 | Caller-supplied shared HTTP attempt budget | One optional allowance spans requests, concurrent requests and cloned handles. Initial origin attempts and resends consume it, including redirects, enabled retries, GOAWAY/PING replays and client-hint negotiation. Exhaustion prevents another attempt and returns a distinguishable typed error. |
+| 3 | Profile describe, export and registry | Editable export/import round trips preserve supported settings and ordering. A named custom registry builds on the strict importer and existing catalog. Unsupported combinations have precise errors. |
+| 9 | Request diagnostics | Actual events record pool wait, DNS, connect, TLS, response head and body completion, endpoints, certificates, reuse, resumption and per-hop attempts. Reused, unavailable and incomplete phases remain distinct. Streaming completion is separate from response-head timing. |
+| 1 | Four-library comparison harness | Reconcile the existing harness and identify and pin the intended four libraries first. Shared peers cover cold/warm connections, uploads, redirects, proxy authentication, streaming and cancellation. Retain versions, configuration, traces and failures. |
+| 34 | Measured performance improvements | Extend the public-client baseline. Paired equivalent workloads compare completed requests/s, CPU/request, memory, queueing, head/body latency and tails. Retain wire and cancellation checks; adopt only demonstrated improvements. |
+
+Profile authoring and diagnostics can proceed independently. Diagnostics
+improve comparisons and profiling, but existing measurements remain useful
+while instrumentation grows. Keep optimization experiments bounded and record
+rejected candidates rather than making optimization an open-ended gate.
+
+#### Shared origin HTTP attempt budget (#35)
+
+The current retry cap covers caller-enabled retries. Redirects and automatic
+browser replays have separate limits. It is not an allowance shared across
+independent requests. Add an optional caller-supplied handle for that purpose.
+Callers that do not supply it retain their existing behavior.
+
+Byway creates the allowance per job. Playground attaches the same handle to
+each request and reuses it for any resend Playground initiates. Concurrent
+requests and cloned handles must not overspend it. Define one admission owner
+per origin attempt so an external resend is neither missed nor charged twice.
+
+Admit each initial origin attempt and every origin resend before sending it.
+Include redirects, caller-enabled retries, GOAWAY/PING replays and origin
+requests repeated for client-hint negotiation. Audit lower-level replay paths,
+including rejected early data, for uncounted origin resends. Exhaustion must
+return a distinguishable typed error that cannot trigger another automatic
+attempt. An available allowance does not override existing replay-safety rules.
+
+A conservative admission count is acceptable. Document that an admitted
+attempt can fail before sending bytes. DNS, TCP/TLS setup, proxy CONNECT and
+SOCKS negotiation are separate from origin HTTP attempts. Keep their own
+limits and deadlines; do not charge each setup step as another origin attempt.
+
+Acceptance tests must cover concurrent spending, cloned handles, initial
+attempts, redirects, enabled retries, internal replays and client-hint resends.
+Use peer-observed sends to prove exhaustion prevents another attempt. Cover
+independent-budget isolation and unchanged behavior without a supplied budget.
+Downstream tests must also cover Playground-initiated resends with that handle.
+
+#### Downstream integration responsibilities
+
+| Owner | Work |
+| --- | --- |
+| Phantom | Shared origin attempt budget and typed exhaustion. Verify existing total deadlines, bounded decoded-body collection, cancellation, custom DNS and hostname/address overrides. |
+| Playground | Async `LiveTransport`, browser-metadata serialization and passing the existing controls and shared budget through every request and resend. |
+| Byway | Vendor permissions, SSRF policy, per-job allowance creation and job accounting. |
+
+Verify existing controls through the downstream path rather than replacing
+their APIs. Test cancellation during setup, upload and response-body reads.
+Preserve unrelated multiplexed streams when one request is cancelled. These
+are integration checks; the existing controls are not new missing features.
+
+### Wave B: Request and connection controls
+
+| ID | Work | Completion criteria |
+| --- | --- | --- |
+| 11 | SPKI pinning and verification extension points | Policies cover direct/proxied TCP and QUIC, resumed sessions and pooled connections. Trust changes cannot reuse incompatible connections or session state. |
+| 12 | Structured request, response and error hooks | Define execution order and logical-request versus per-attempt behavior. Preserve template ordering, replay rules, credential stripping and body ownership. Extend the existing caller-header hooks. |
+| 13 | Redirect policy extensions | Per-request overrides, callbacks, history and optional destination restrictions cover every hop and resolved destination. Shared deadlines and retry budgets remain intact; stripped credentials cannot return. |
+| 23 | Capped retry backoff and jitter | Extend existing retry eligibility and scheduling within total deadlines and replay-safety rules. Deterministic tests cover cancellation and exhausted budgets. |
+| 10 | Byte counters and transfer limits | Distinguish payload, encoded content, retries and transport overhead. Upload/download throttling supports cancellation and multiplexing. Counters alone do not complete the task. |
+| 15 | Connection lifecycle controls | Close-idle, refresh and graceful draining distinguish idle from active connections across origin and proxy pools. Refresh can deliberately retain tickets. |
+| 14 | Streaming multipart and file helpers | Ordered fields, duplicate names, files/readers, bounded memory, cancellation and explicit replayability work. Automatic browser boundaries require captures. |
+
+Set hook execution rules before adding redirect callbacks. Extend retry
+scheduling against those rules and the shared attempt budget without changing
+which requests are safe to replay. Establish trust isolation and pool lifecycle
+controls before sharing
+state between independent clients. Multipart streaming can proceed separately;
+captured browser boundaries are an additional acceptance requirement.
+
+### Wave C: Profile distribution and reusable sessions
+
+| ID | Work | Completion criteria |
+| --- | --- | --- |
+| 4 | Capture-assisted and compact imports | ClientHello, JA3, Akamai and QUIC descriptions identify missing information. Require explicit supplements or documented defaults. A compact fingerprint never silently becomes an exact browser profile. |
+| 5 | Independently versioned profile bundles | Users can inspect, pin, install, roll back and use bundles offline. Preserve provenance. Updating a bundle never silently changes an existing client. |
+| 19 | Captured resource request contexts | Script, stylesheet, image, font and other contexts have retained observations for headers, fetch metadata, priorities and ordering. |
+| 16 | Independent clients with selected shared state | Forked clients have independent pools and explicitly selected cookies, tickets or caches. Ordinary cloning keeps its existing semantics. |
+| 17 | Unified session snapshots | Compose existing persistence into a versioned snapshot for supported cookies, tickets, discovery state and configuration. Preserve expiry and profile, route and trust isolation. |
+| 18 | Pluggable persistent state backends | Ticket/ECH storage has bounded asynchronous operations and explicit failure behavior. An application backend interface does not require a bundled Redis implementation. |
+
+Profile imports and bundles depend on #3 and can start while Wave B proceeds.
+Keep the existing compiled catalog and its provenance checks. Separate custom
+profiles from claims of captured browser fidelity.
+
+The session sequence is #11 and #15, then #16, then #17 and #18. Define state
+ownership and compatibility before adding a combined snapshot or backend.
+Do not replace the existing cookie, ticket or discovery facilities wholesale.
+
+### Wave D: Tools and language support
+
+| ID | Work | Completion criteria |
+| --- | --- | --- |
+| 8 | CLI | Requests, uploads/downloads, profile inspection/update, proxy configuration and diagnostics use the public library. Output supports scripts and reproducible bug reports. |
+| 7 | Supported language bindings | Python sync/async comes first. Requests, streams, cookies, proxies, cancellation, errors and shutdown have defined ownership without resource leaks. Sync wrappers sit above the async Rust core. Add Node, .NET and Android according to demand. |
+| 28 | Session selection conveniences | Explicit default-route changes and profile selection/rotation create or select isolated clients. Existing connections retain their fingerprint and identity. |
+| 27 | Optional response and interoperability adapters | Charset-aware text, XML, bounded dumps, raw-request import and selected adapters have documented semantics and compiling examples. Raw import promises parsing and reserialization, not byte-identical replay. |
+
+Build the CLI as a small public-library consumer, then reuse the stable
+contracts for Python. Basic CLI requests need not wait for all bundle or
+diagnostic features. Selection conveniences follow named profiles and session
+isolation. Add adapters independently when a downstream workflow needs them.
+
+### Wave E: Specialized routes and integrations
+
+| ID | Work | Completion criteria |
+| --- | --- | --- |
+| 24 | DNS-over-TLS | Verified endpoint identity, bootstrap addresses, bounded lookup work, cancellation and explicit routing. |
+| 25 | Cleartext HTTP/2 | Prior-knowledge h2c works against independent peers and rejects incompatible routes clearly. Browser recipes never enable it implicitly. |
+| 26 | Unix sockets and custom TCP connectors | Preserve identity, deadlines, cancellation and pool isolation. Reject unsupported route combinations explicitly. |
+| 31 | Enterprise authentication audit | Establish NTLM/Negotiate and remaining origin-auth backend/platform feasibility first. Any implementation needs independent challenge, connection-affinity and credential-isolation tests. libcurl constants do not establish support. |
+| 29 | Additional TCP/IP controls | Evaluate TTL/hop limit, MSS, receive buffers/window clamp and DF per OS. Packet captures show actual effects, kernel limits and proxy boundaries. Do not promise arbitrary window-scale emulation. |
+| 32 | Optional local forwarding proxy | Session/upstream selection has explicit routing and authentication semantics. Ordinary HTTPS CONNECT passes through the caller's TLS. |
+
+Promote a specialized route when a real consumer requires it. The enterprise
+authentication feasibility audit can happen earlier without committing to a
+backend. TCP/IP evaluation may establish a documented platform limitation.
+Keep the forwarding proxy behind the client, routing and session contracts it
+will consume.
+
+### Parallel tracks and delivered work
+
+| ID | Work | Priority and completion criteria |
+| --- | --- | --- |
+| 6 | Release and installation | Start preparation now using the existing crates.io plan below. Resolve native dependency packaging and licenses, then verify clean downstream installs on the supported platform matrix. Provide CLI binaries or binding packages as those products exist. Document compatibility limits. Ask before `cargo publish`. |
+| 2 | Complete browser profiles | Prioritize Safari/macOS and Safari/iOS, then missing macOS/Linux and Android layers. Historical and OkHttp/app profiles follow demand. Every named profile identifies its actual build/platform and retains comparisons for every claimed layer. |
+| 33 | Existing fidelity follow-ups | Reconcile each remaining macOS/Android, Firefox speculative/coalescing, DNS and ECH/early-data item against its existing acceptance criteria. Retain completed campaign work and close only the remaining gaps. |
+| 30 | Speculative CONNECT plus TLS | Delivered as an explicit opt-in with bounded route support. Retain authentication, partial-write, rejection, cancellation and replay checks. Broader proxy/WAN measurements can extend its evidence without reopening implementation. |
+
+For #6, the git-sourced native TLS dependency remains a packaging blocker.
+First release readiness does not depend on completing every new API, binding
+or browser profile. Binary and wheel distribution follow their respective
+tools; the Rust library itself does not need a standalone executable.
+
+Capture work has a separate schedule. No local Mac or physical Android device
+is available. Hosted macOS Chrome captures exist, but Safari session creation
+has not succeeded. Use suitable capture access when available and retain
+precise per-layer limits meanwhile. Platform labels and source readings do
+not replace the retained comparisons required for a complete profile.
+
 ## Phase 1: Functionality
 
 The agreed Phase 1 exit work is complete. Additional browser coverage and
