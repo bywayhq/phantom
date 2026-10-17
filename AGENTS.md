@@ -18,9 +18,7 @@ An agent that uses Phantom as a library, rather than changing it, should read
 - Check each touched vendored package with `scripts/ci/check-vendor.sh
   <package>`; on Windows use the Git settings under
   [Windows hosts](#windows-hosts).
-- Documentation follows
-  [Writing the documentation](docs/internals/documentation.md); check it with
-  `python scripts/docs/check_docs.py`.
+- Check documentation with `python scripts/docs/check_docs.py`.
 - The integration owner runs the full gate with `scripts/dev/gate.sh`; a
   lane may run `scripts/dev/gate.sh --quick` before handoff. See
   [Verification and handoff](#verification-and-handoff).
@@ -74,8 +72,7 @@ Use a sibling worktree only when independent work can proceed concurrently.
   `system_dns_ffi`, Linux-only `linux_dns_ffi` and macOS-only
   `macos_dns_ffi` modules of `phantom-net`.
   Each documents every unsafe block.
-  See [Design](docs/explanation/design.md#unsafe-code), which also holds the
-  `phantom-net` module's audit. `scripts/ci/check-unsafe-boundaries.sh`
+  `scripts/ci/check-unsafe-boundaries.sh`
   fails when unsafe code is allowed anywhere else. Adding unsafe code
   anywhere else requires a new documented and audited FFI boundary.
 - Change a vendored crate only through its `patches/series`, as its
@@ -106,9 +103,7 @@ Use a sibling worktree only when independent work can proceed concurrently.
 - Add a `CHANGELOG.md` entry under `Unreleased` for every user-visible change.
   A breaking change also needs a "Migrate:" note that names the old and new
   API. Mark a breaking commit with `!` in its subject.
-- Write documentation to
-  [Writing the documentation](docs/internals/documentation.md): one reader and
-  one job per page, and no stock phrases or other machine-written tells.
+- Write documentation for one reader and one job per page, in plain language.
 
 ## Commits
 

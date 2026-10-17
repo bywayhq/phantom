@@ -1,8 +1,6 @@
 //! Sends an address-bar navigation and then a same-origin `fetch` GET, each
 //! with the request fields Chrome 154 sends, in Chrome's order.
 //!
-//! This mirrors "Apply a captured request template" in
-//! `docs/guides/request-templates.md`.
 //! It needs no feature:
 //!
 //! ```console
@@ -11,12 +9,13 @@
 //!
 //! The first argument is the page URL (default `https://example.com/`). The
 //! second is a same-origin path to fetch from that page (default: the page URL).
+//! Both requests require HTTP/2; neither falls back to another protocol.
 
 use std::env;
 
 use phantom::{
     Client, HttpProtocol, PreparedRequestTemplate, RequestHeader, StatusCode,
-    profile::{ClientProfile, browser::chrome},
+    profile::browser::chrome,
 };
 use url::Url;
 
@@ -32,17 +31,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let target = args.next();
     let (page_url, fetch_url) = request_urls(&page_url, target.as_deref())?;
 
-    let profile = ClientProfile::new(chrome::v154_tcp_tls())
-        .with_http2(chrome::v154_http2())
-        .with_client_hints(chrome::v154_windows_client_hints());
+    let profile =
+        chrome::v154_windows().with_request_template(chrome::v154_windows_navigation_template());
     let client = Client::builder(profile).build()?;
-    // Prepare each template once and reuse it for every request.
-    let navigation = PreparedRequestTemplate::new(chrome::v154_windows_navigation_template())?;
+    // The client prepares its default navigation template. Prepare the fetch
+    // override once and reuse it for requests from the page.
     let fetch = PreparedRequestTemplate::new(chrome::v154_windows_fetch_no_store_template())?;
 
     let page = client
         .get(HttpProtocol::Http2, page_url.as_str())?
-        .template(&navigation)
         .send()
         .await?;
     println!(
@@ -60,6 +57,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .send()
         .await?;
     println!("{}", request_diagnostic("fetch", &fetch_url, data.status()));
+    let body = data.into_body().collect_with_limit(BODY_LIMIT).await?;
+    println!("fetch body: {} bytes", body.len());
     Ok(())
 }
 

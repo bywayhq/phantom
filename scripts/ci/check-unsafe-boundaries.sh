@@ -2,8 +2,7 @@
 # Check that unsafe code stays inside the audited FFI modules.
 #
 # The workspace forbids `unsafe_code`. phantom-quic-btls and phantom-net deny
-# it instead and allow it on their audited private module declarations,
-# described in docs/explanation/design.md#unsafe-code. This
+# it instead and allow it on their audited private module declarations. This
 # check fails when an `allow(unsafe_code` or `expect(unsafe_code` attribute
 # appears anywhere else in tracked Rust code, when an audited declaration
 # is missing, or when a manifest relaxes the `unsafe_code` lint further.

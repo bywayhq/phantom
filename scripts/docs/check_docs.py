@@ -1,9 +1,8 @@
-"""Check Phantom's Markdown against the documentation contract.
+"""Check Phantom's Markdown for broken links, page shape, and prose.
 
-The rules come from docs/internals/documentation.md: relative links and
-anchors resolve, pages under docs/ open and close in the standard shape, and
-prose avoids the words and marks that page bans. Each finding prints as
-`path:line: rule: message`; any error exits with status 1.
+Relative links and anchors resolve, pages under docs/ open and close in the
+standard shape, and prose avoids the terms and marks listed in this module.
+Each finding prints as `path:line: rule: message`; any error exits with status 1.
 """
 
 from __future__ import annotations
@@ -19,8 +18,7 @@ from urllib.parse import unquote
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-# The "Do not write these" list in docs/internals/documentation.md, less the
-# words it bans only in some senses ("navigate", "ecosystem"). A single word
+# Terms rejected in prose. A single word
 # also matches its inflections ("leverages", "robustly", not "robustness"); a
 # phrase matches as written, across a line break.
 BANNED_TERMS = (
@@ -560,7 +558,7 @@ def _exists_exact_case(root: Path, parts: Sequence[str]) -> bool:
 
 
 def default_files(root: Path) -> list[str]:
-    """The documentation set: top-level pages, docs/, and script READMEs."""
+    """Entry points, crate documentation, and script READMEs."""
     files = [
         name
         for name in ("README.md", "CONTRIBUTING.md", "llms.txt")
@@ -569,6 +567,12 @@ def default_files(root: Path) -> list[str]:
     files += sorted(
         p.relative_to(root).as_posix() for p in (root / "docs").rglob("*.md")
     )
+    for pattern in (
+        "crates/*/README.md",
+        "crates/*/examples/README.md",
+        "crates/*/src/docs/**/*.md",
+    ):
+        files += sorted(p.relative_to(root).as_posix() for p in root.glob(pattern))
     files += sorted(
         p.relative_to(root).as_posix() for p in root.glob("scripts/*/README.md")
     )

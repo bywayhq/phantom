@@ -1,0 +1,174 @@
+# Use a proxy
+
+Set a route when you build a client to send its requests through a proxy.
+You need a reachable proxy and its URL; the example below assumes an HTTP
+proxy listening on `127.0.0.1:8080`. Proxy support needs no Cargo feature.
+For installation and runtime setup, see [Getting started](crate::guide::getting_started).
+
+```no_run
+use phantom::profile::browser::chrome;
+use phantom::{Client, ContentDecoding, HttpProxy, Route, response_text};
+
+# #[tokio::main(flavor = "current_thread")]
+# async fn main() -> Result<(), Box<dyn std::error::Error>> {
+let profile = chrome::v154_windows()
+    .with_request_template(chrome::v154_windows_navigation_template());
+let proxy = HttpProxy::new("http://127.0.0.1:8080")?;
+let client = Client::builder(profile)
+    .route(Route::http_proxy(proxy))
+    .build()?;
+
+let response = client
+    .get_negotiated("https://example.com/")?
+    .content_decoding(ContentDecoding::advertised(1 << 20))
+    .send()
+    .await?;
+let response = response_text(response, 1 << 20).await?;
+println!("{}\n{}", response.status(), response.body());
+# Ok(())
+# }
+```
+
+Reuse the client for subsequent requests. Connections are pooled by route;
+requests through different routes do not share a connection. A proxy failure
+returns an error instead of sending the request directly.
+
+## Choose the proxy connection
+
+The proxy URL describes the connection **to the proxy**. An `http://` proxy
+can carry an `https://` request: Phantom first opens a CONNECT tunnel, then
+performs the origin's TLS handshake inside it. Use an `https://` proxy URL
+when the proxy itself accepts TLS.
+
+For an `http://` destination, an HTTP proxy forwards the plaintext request.
+For an `https://` destination, it tunnels the connection. The destination
+URL determines this choice; changing the proxy URL to `https://` does not
+encrypt a plaintext destination request from the proxy to the destination.
+
+An HTTPS proxy uses HTTP/1.1 by default. If your proxy requires HTTP/2 on the
+proxy connection, select [`HttpProxy::with_http2_transport`](crate::HttpProxy::with_http2_transport).
+This setting controls the proxy connection independently of the protocol
+inside a CONNECT tunnel.
+
+To override the route for one request, call [`RequestBuilder::route`](crate::RequestBuilder::route):
+
+```no_run
+use phantom::{Client, Route};
+
+# async fn example(client: &Client) -> Result<(), Box<dyn std::error::Error>> {
+let response = client
+    .get_negotiated("https://example.com/")?
+    .route(Route::direct())
+    .send()
+    .await?;
+let _body = response.into_body().collect_with_limit(1 << 20).await?;
+# Ok(())
+# }
+```
+
+## Authenticate to the proxy
+
+Pass credentials through the proxy configuration. [`HttpProxy::new`](crate::HttpProxy::new)
+rejects URLs containing a username or password.
+
+```no_run
+use phantom::HttpProxy;
+
+# fn example() -> Result<(), Box<dyn std::error::Error>> {
+let username = std::env::var("PROXY_USERNAME")?;
+let password = std::env::var("PROXY_PASSWORD")?;
+let proxy = HttpProxy::new("https://proxy.example:8443")?
+    .with_basic_auth(username, password)?;
+# drop(proxy);
+# Ok(())
+# }
+```
+
+With ordinary setup, Basic authentication waits for the proxy's `407`
+challenge. After credentials succeed, the client can send them on the first
+attempt of later requests through that proxy. See
+[`preemptive_proxy_authentication`](crate::ClientBuilder::preemptive_proxy_authentication)
+to change that behavior, or [`with_digest_auth`](crate::HttpProxy::with_digest_auth)
+for Digest authentication.
+
+Keep passwords out of source code, command-line arguments, logs, and origin
+headers. Configure proxy authentication on the route rather than adding
+`Proxy-Authorization` to a request. Basic credentials sent to an `http://`
+proxy are unencrypted on that connection, even when the destination uses
+HTTPS; use a trusted HTTPS proxy when credentials need transport protection.
+
+## Choose where SOCKS resolves names
+
+For SOCKS5, choose the DNS behavior in the proxy URL:
+
+- `socks5://127.0.0.1:1080` resolves destination names on your machine.
+- `socks5h://127.0.0.1:1080` sends destination names to the proxy to resolve.
+
+```no_run
+use phantom::{Route, Socks5Proxy};
+
+# fn example() -> Result<(), Box<dyn std::error::Error>> {
+let route = Route::socks5(Socks5Proxy::new("socks5h://127.0.0.1:1080")?);
+# drop(route);
+# Ok(())
+# }
+```
+
+Pass this route to the same client builder used above. The proxy's own
+hostname still needs local resolution. For authentication, use
+[`Socks5Proxy::with_username_password`](crate::Socks5Proxy::with_username_password);
+the constructor rejects credentials in the URL. SOCKS5 does not encrypt its
+username/password exchange. [`Socks4Proxy`](crate::Socks4Proxy) also supports
+local DNS or SOCKS4a proxy DNS, but carries only TCP and cannot target IPv6.
+
+## Opt in to environment settings
+
+Phantom connects directly by default and does not read operating-system
+proxy settings. To read proxy environment variables once for a client:
+
+```no_run
+use phantom::profile::browser::chrome;
+use phantom::{Client, EnvironmentProxies};
+
+# fn example() -> Result<(), Box<dyn std::error::Error>> {
+let client = Client::builder(chrome::v154_windows())
+    .environment_proxies(EnvironmentProxies::from_env()?)
+    .build()?;
+# drop(client);
+# Ok(())
+# }
+```
+
+The snapshot recognizes `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, and
+`NO_PROXY`, plus their lowercase forms. Lowercase values take precedence.
+Without an explicit route, a matching `NO_PROXY` rule selects a direct
+connection; otherwise the destination's scheme setting wins over `ALL_PROXY`.
+An explicit client route overrides the snapshot, and a request route
+overrides both, including when you choose [`Route::direct`](crate::Route::direct).
+Setter order does not change this precedence.
+
+Environment URLs may include encoded credentials, unlike the proxy
+constructors above. Protect these values as secrets. For exact matching,
+validation, and CGI rules, see [`EnvironmentProxies`](crate::EnvironmentProxies).
+
+## Use HTTP/3 through a proxy
+
+An ordinary HTTP CONNECT tunnel carries TCP, so an HTTP proxy cannot carry
+HTTP/3. SOCKS5 can carry it when the proxy supports UDP ASSOCIATE. A
+[`ConnectUdpProxy`](crate::ConnectUdpProxy) carries exact HTTP/3 requests
+through a MASQUE proxy; it rejects negotiated HTTP/1.1-or-HTTP/2 requests.
+Use [`Route::connect_udp`](crate::Route::connect_udp) with
+[`HttpProtocol::Http3`](crate::HttpProtocol::Http3) and the URI template
+provided by your proxy operator. The proxy connection defaults to HTTP/3;
+the reference documents explicit HTTP/2 and HTTP/1.1 alternatives.
+
+Proxy and origin certificate trust are separate. For a private proxy CA,
+add its DER certificate with
+[`add_proxy_root_certificate_der`](crate::ClientBuilder::add_proxy_root_certificate_der).
+This also applies to CONNECT-UDP. Origin certificates keep their own trust
+checks inside the tunnel. Unsupported route/protocol combinations fail
+before network I/O; Phantom does not switch to a direct route.
+
+Continue with [Requests and responses](crate::guide::requests_and_responses)
+for response handling and request policies, or
+[Browser profiles](crate::guide::browser_profiles) for profile and header choices.

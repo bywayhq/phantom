@@ -40,7 +40,5 @@ to types that provide them.
 
 ## Next
 
-- [Profiles guide](https://github.com/bywayhq/phantom/blob/main/docs/guides/profiles.md):
-  choose and change a profile.
 - [Phantom README](https://github.com/bywayhq/phantom/blob/main/README.md):
   send requests with the client.

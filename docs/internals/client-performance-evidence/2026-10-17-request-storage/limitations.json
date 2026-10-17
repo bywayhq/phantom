@@ -1,9 +1,0 @@
-{
-  "rejected_v1": "Name counting preceded byte validation. The 42 heap trials are diagnostic only. No v1 timing or adoption claim. Source was corrected and both binaries rebuilt before v2 comparisons.",
-  "environment_failure": "42 controller invocations failed importing psutil before any client/peer workload. Kept in heap-environment-failure logs and order. Corrected invocation pins psutil==7.2.2; no measured failures were retried.",
-  "rejected_v2": "Allocation reductions did not justify adoption: Firefox H3 slower and higher CPU in all three timing pairs. All Rust changes restored to HEAD; candidate gate is not a fresh gate on restored production.",
-  "restoration_check": "First byte-identity check found CRLF conversion in one restored test file. Restored its exact HEAD bytes and reran successfully. Original failed check retained.",
-  "host": "Shared Windows host and loopback peers. Own builds/gate excluded from ordinary timing, but unrelated host activity remains.",
-  "memory": "DHAT excludes pre-existing and native allocations. Live peak, cumulative allocation and sampled process memory are different metrics. Instrumented timing is excluded.",
-  "platform": "Windows local gate; no new Linux runtime or remote CI results."
-}

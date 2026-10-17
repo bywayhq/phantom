@@ -178,5 +178,4 @@ in the other cases.
 
 ## Next
 
-- [Method and decisions](../../docs/internals/client-performance.md).
 - [Transport benchmarks](../../crates/phantom-net/benches/transport.rs).

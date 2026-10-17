@@ -27,6 +27,9 @@ const MAXIMUM_DECODING_PUMPS: usize = 8;
 
 /// Read a response body frame by frame or collect it with a byte limit.
 ///
+/// See [Requests and responses](crate::guide::requests_and_responses) for
+/// examples of reading bytes, text, JSON, and streaming data.
+///
 /// `ResponseBody` implements [`http_body::Body`] with [`RequestError`] as its
 /// error. Use [`Self::collect_with_limit`] to collect the data into a buffer.
 /// Dropping an incomplete body follows the protocol's cancellation rules
