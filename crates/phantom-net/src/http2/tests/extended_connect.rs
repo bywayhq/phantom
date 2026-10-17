@@ -13,6 +13,66 @@ use super::super::{
     priority_overrides, translate_extended_connect_settings, translate_settings,
 };
 
+#[tokio::test]
+async fn request_after_unobserved_connect_reports_connection_reuse() -> super::TestResult<()> {
+    super::bounded_peer_test(async {
+        let (io, peer) = tokio::io::duplex(65536);
+        let settings = v157_http2();
+        let connection = super::super::Http2Connection::connect_extended(io, &settings).await?;
+        let diagnostics = crate::RequestDiagnostics::new(std::num::NonZeroUsize::MIN);
+        let (done, completed) = tokio::sync::oneshot::channel();
+        let caller = async {
+            let opening = connection
+                .send_extended_connect("example.test", OriginForm::parse("/socket")?, Vec::new())
+                .await?;
+            assert!(matches!(
+                opening,
+                super::super::Http2ExtendedConnectOutcome::Accepted { .. }
+            ));
+            let response = diagnostics
+                .observe(connection.send_get(
+                    "example.test",
+                    OriginForm::parse("/page")?,
+                    Vec::new(),
+                ))
+                .await?;
+            assert_eq!(response.status(), 200);
+            let snapshot = diagnostics.snapshot();
+            let details = snapshot
+                .events
+                .iter()
+                .find_map(|event| event.connection.as_ref())
+                .ok_or("missing connection metadata")?;
+            assert!(details.reused);
+            done.send(())
+                .map_err(|_| "peer ended before reuse assertion")?;
+            super::TestResult::Ok(())
+        };
+        let server = async {
+            let mut builder = ::http2::server::Builder::new();
+            builder.enable_connect_protocol();
+            let mut peer = builder.handshake::<_, bytes::Bytes>(peer).await?;
+            let (connect, mut respond) = peer.accept().await.ok_or("missing CONNECT")??;
+            assert_eq!(connect.method(), Method::CONNECT);
+            let tunnel = respond.send_response(http::Response::new(()), false)?;
+            let (get, mut respond) = peer.accept().await.ok_or("missing GET")??;
+            assert_eq!(get.method(), Method::GET);
+            respond.send_response(http::Response::new(()), true)?;
+            tokio::select! {
+                result = completed => result?,
+                extra = peer.accept() => {
+                    return Err(format!("unexpected request or disconnect: {extra:?}").into());
+                }
+            }
+            drop(tunnel);
+            super::TestResult::Ok(())
+        };
+        tokio::try_join!(caller, server)?;
+        Ok(())
+    })
+    .await
+}
+
 #[test]
 fn prepares_websocket_extended_connect_with_ordered_fields()
 -> Result<(), Box<dyn std::error::Error>> {
