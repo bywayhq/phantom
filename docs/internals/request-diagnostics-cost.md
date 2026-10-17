@@ -133,6 +133,59 @@ This experiment supports neither a snapshot speedup nor a fixed 18% streaming
 regression. No production optimization was adopted from this comparison.
 These measurements precede the connection-metadata addition.
 
+## Connection details follow-up
+
+The next comparison adds endpoints, certificate details, HTTP connection reuse
+and TLS resumption. Its control is `a4b95ee4`. Production changes are confined
+to `b872661b`; subsequent measured checkpoints change tests and documentation.
+Both binaries use the existing workload tool with equivalent settings.
+
+Separate DHAT builds run two repetitions of each protocol, connection regime
+and diagnostics setting. Warm trials complete 2,000 requests at concurrency
+16 after 64 warmup requests. Cold trials complete 100 requests sequentially
+after four warmup requests. Every response contains 1 KiB. Both processes use
+two runtime workers. All 48 trials pass their peer controls and complete
+50,400 measured requests.
+
+The table gives median Rust allocation bytes per completed request. Native
+TLS allocations are excluded. Other builds ran during allocation trials, so
+their instrumented times and sampled RSS are not performance comparisons.
+
+| Workload | Before off | After off | Before on | After on |
+| --- | --- | --- | --- | --- |
+| Warm H1 | 38,202 | 38,202 | 39,602 | 39,938 |
+| Warm H2 | 23,629 | 23,630 | 25,042 | 25,351 |
+| Warm H3 | 46,464 | 46,477 | 47,897 | 48,224 |
+| Cold H1 | 146,283 | 146,536 | 147,946 | 150,735 |
+| Cold H2 | 152,597 | 153,373 | 154,262 | 157,562 |
+| Cold H3 | 330,375 | 330,483 | 332,032 | 333,491 |
+
+Warm disabled differences are about 0–14 bytes per request. Enabled warm
+differences are about 309–336 bytes. New connections retain backend TLS facts;
+retained observations encode certificates once and share them across requests.
+Enabled cold differences are about 1.5–3.3 KiB per request in these workloads.
+Cold trials also include client construction and teardown.
+
+The ordinary before/after timing matrix did not run. Its controller waited
+five minutes for a five-second window without compiler processes; other
+projects continued building throughout that wait. This leaves latency,
+throughput and process-memory differences unmeasured for connection details.
+The allocation results do not establish timing equivalence.
+
+The [measurements](client-performance-evidence/2026-10-17-connection-diagnostics/measurements.json)
+and [allocation rows](client-performance-evidence/2026-10-17-connection-diagnostics/allocations.csv)
+retain the comparison. The
+[archive receipt](client-performance-evidence/2026-10-17-connection-diagnostics/archive.json)
+identifies the local raw packet. It includes pinned binaries and symbols, both DHAT runs,
+the snapshot attribution comparison, source hashes, native compiler receipts
+and the unavailable timing-window record. One ordinary-baseline crypto command
+log changed during a later build. Its original hash and verification receipt
+remain; the other native command logs match their recorded hashes.
+
+The first heap launch passed relative controller paths to child processes
+with a changed working directory. Those peers exited before startup and no
+workload ran. The failed launch remains separate from the 48 passing trials.
+
 ## Next
 
 - [Measurement method](client-performance.md): controls and broader coverage.
