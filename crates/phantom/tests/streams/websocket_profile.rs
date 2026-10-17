@@ -926,6 +926,32 @@ fn websocket_policy_needs_an_extended_connect_order() -> TestResult<()> {
     Ok(())
 }
 
+#[tokio::test]
+async fn close_idle_preserves_pooled_http2_websocket_and_following_request() -> TestResult<()> {
+    let capture = Capture::parse(FIREFOX_ACCEPT)?;
+    for negotiated in [false, true] {
+        let identity = Arc::new(TestIdentity::generate()?);
+        let mut server = TestServer::start(Arc::clone(&identity), Behavior::ACCEPT).await?;
+        let caller = bounded(async {
+            let http2 = firefox::v157_http2();
+            let settings = firefox::v157_websocket();
+            let client = profile_client(&identity, http2.clone(), settings.clone())?;
+            let authority = server.address.to_string();
+            let session = PooledSession {
+                authority: &authority,
+                negotiated,
+            };
+            assert_websocket_joins_the_session(
+                &client, &server, session, &capture, &http2, &settings,
+            )
+            .await
+        })
+        .await;
+        server.finish(caller).await?;
+    }
+    Ok(())
+}
+
 async fn assert_reuses_session(
     capture: &Capture,
     http2: Http2Settings,
@@ -983,6 +1009,7 @@ async fn assert_websocket_joins_the_session(
 
     pooled_get_at(client, session.authority, session.negotiated).await?;
     let socket = connect_like(client, session.authority, &connect, settings).await?;
+    client.close_idle_connections().await;
     assert_eq!(socket.handshake_response().version(), Version::HTTP_2);
     // The session still serves ordinary requests with their own shape
     // while the WebSocket stream is open.
