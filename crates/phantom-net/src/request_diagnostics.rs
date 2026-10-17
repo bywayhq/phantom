@@ -89,7 +89,8 @@ pub struct RequestTiming {
     pub finished: Option<Duration>,
     /// How the observed operation ended.
     pub outcome: RequestTimingOutcome,
-    /// Connection facts for a `ConnectionUse` event, absent for other phases.
+    /// Connection facts for a completed `ConnectionUse` event. Absent for other
+    /// phases and possibly while that event's metadata is still being collected.
     pub connection: Option<Arc<crate::RequestConnection>>,
 }
 

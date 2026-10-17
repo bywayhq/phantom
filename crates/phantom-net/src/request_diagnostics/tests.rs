@@ -10,6 +10,22 @@ fn diagnostics(capacity: usize) -> RequestDiagnostics {
 }
 
 #[tokio::test]
+async fn disabled_and_truncated_connection_events_do_not_build_metadata() -> TestResult {
+    let details = || panic!("unretained event built connection metadata");
+    PhaseObservation::connection(Version::HTTP_2, details);
+    let trace = diagnostics(1);
+    trace
+        .observe(async {
+            Observation::admit(Some(Version::HTTP_2));
+            PhaseObservation::connection(Version::HTTP_2, details);
+            Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
+        })
+        .await?;
+    assert_eq!(trace.snapshot().dropped_events, 1);
+    Ok(())
+}
+
+#[tokio::test]
 async fn snapshots_keep_pending_failure_and_cancelled_work_distinct() -> TestResult {
     let trace = diagnostics(8);
     assert_eq!(trace.snapshot().outcome, RequestTimelineOutcome::NotStarted);

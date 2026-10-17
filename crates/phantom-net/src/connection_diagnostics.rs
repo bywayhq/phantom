@@ -225,7 +225,7 @@ impl ConnectionRecord {
         self.used.store(true, Ordering::Relaxed);
     }
     pub(crate) fn set(&self, metadata: ConnectionMetadata) {
-        let _ = self.metadata.set(metadata);
+        self.metadata.get_or_init(|| metadata);
     }
 
     pub(crate) fn metadata(&self) -> ConnectionMetadata {
@@ -250,5 +250,44 @@ impl ConnectionRecord {
         // Count unobserved dispatches too, so later diagnostics reports reuse.
         let reused = self.used.swap(true, Ordering::Relaxed);
         crate::request_diagnostics::PhaseObservation::connection(protocol, || details(reused));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unknown_absent_and_incomplete_tls_are_distinct() {
+        let unknown = ConnectionMetadata::default().snapshot(false);
+        assert!(matches!(
+            unknown.origin_tls,
+            TlsConnectionState::Unavailable
+        ));
+        assert!(matches!(unknown.proxy_tls, TlsConnectionState::Unavailable));
+        let plain = ConnectionMetadata {
+            layers_known: true,
+            ..Default::default()
+        }
+        .snapshot(false);
+        assert!(matches!(plain.origin_tls, TlsConnectionState::NotUsed));
+        let tls = TlsMetadata::new(TlsPeerRole::Origin, true);
+        assert!(matches!(tls.snapshot(), TlsConnectionState::Pending));
+    }
+
+    #[test]
+    fn debug_omits_certificate_bytes() {
+        let tls = TlsConnectionInfo {
+            peer_verified: false,
+            version: None,
+            cipher_suite: None,
+            alpn: None,
+            session_resumed: false,
+            peer_certificates: Some(Arc::from([Arc::from(&b"secret-certificate"[..])])),
+        };
+        let debug = format!("{tls:?}");
+        assert!(debug.contains("certificate_count: Some(1)"));
+        assert!(!debug.contains("secret-certificate"));
+        assert!(!debug.contains("115, 101, 99"));
     }
 }

@@ -111,14 +111,26 @@ async fn key_log_holds_the_proxy_and_origin_handshakes_of_an_https_proxy_route()
         ))?))
         .key_log(NonZeroUsize::new(16).ok_or("16 is nonzero")?)
         .build()?;
-    let response = timeout(
-        TEST_TIMEOUT,
-        client
-            .get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?
-            .send(),
-    )
-    .await??;
+    let mut request = client.get(HttpProtocol::Http1, &format!("https://{origin_address}/"))?;
+    let trace = request.diagnostics(NonZeroUsize::MIN.saturating_add(63));
+    let response = timeout(TEST_TIMEOUT, request.send()).await??;
     assert_eq!(response.status(), StatusCode::NO_CONTENT);
+    let snapshot = trace.snapshot();
+    let connection = snapshot
+        .events
+        .iter()
+        .find(|event| event.phase == phantom::RequestTimingPhase::ConnectionUse)
+        .and_then(|event| event.connection.as_ref())
+        .ok_or("missing proxied connection metadata")?;
+    assert_eq!(connection.peer_address, Some(proxy_address));
+    let phantom::TlsConnectionState::Established(origin_tls) = &connection.origin_tls else {
+        return Err("missing origin TLS".into());
+    };
+    let phantom::TlsConnectionState::Established(proxy_tls) = &connection.proxy_tls else {
+        return Err("missing proxy TLS".into());
+    };
+    assert!(origin_tls.peer_verified && proxy_tls.peer_verified);
+    assert_ne!(origin_tls.peer_certificates, proxy_tls.peer_certificates);
     let tunnel = timeout(TEST_TIMEOUT, proxy).await???;
     let served: TestResult<()> = async {
         timeout(TEST_TIMEOUT, origin).await???;

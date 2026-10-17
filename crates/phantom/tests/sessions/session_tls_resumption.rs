@@ -63,14 +63,20 @@ async fn tls13_resumption_is_scoped_to_one_client() -> TestResult<()> {
         }));
 
         let session = tls13_client(&identity)?;
-        send(&session, HttpProtocol::Http2, format!("https://{address}/")).await?;
+        assert_resumption(
+            send(&session, HttpProtocol::Http2, format!("https://{address}/")).await?,
+            false,
+        );
         wait_for_first_close.await?;
-        send(
-            &session,
-            HttpProtocol::Http2,
-            format!("https://{address}/.well-known/phantom/resume"),
-        )
-        .await?;
+        assert_resumption(
+            send(
+                &session,
+                HttpProtocol::Http2,
+                format!("https://{address}/.well-known/phantom/resume"),
+            )
+            .await?,
+            true,
+        );
         drop(session);
         send(
             &tls13_client(&identity)?,
@@ -114,13 +120,19 @@ async fn tls12_resumption_survives_http1_connection_close() -> TestResult<()> {
         }));
 
         let session = tls_support::test_client(&identity, false)?;
-        send(&session, HttpProtocol::Http1, format!("https://{address}/")).await?;
-        send(
-            &session,
-            HttpProtocol::Http1,
-            format!("https://{address}/resumed"),
-        )
-        .await?;
+        assert_resumption(
+            send(&session, HttpProtocol::Http1, format!("https://{address}/")).await?,
+            false,
+        );
+        assert_resumption(
+            send(
+                &session,
+                HttpProtocol::Http1,
+                format!("https://{address}/resumed"),
+            )
+            .await?,
+            true,
+        );
         drop(session);
         send(
             &tls_support::test_client(&identity, false)?,
@@ -275,11 +287,40 @@ async fn serve_http1(mut stream: SslStream<TcpStream>, expected_path: &str) -> T
     Ok(())
 }
 
-async fn send(session: &phantom::Client, protocol: HttpProtocol, uri: String) -> TestResult<()> {
-    let response = session.get(protocol, &uri)?.send().await?;
+async fn send(
+    session: &phantom::Client,
+    protocol: HttpProtocol,
+    uri: String,
+) -> TestResult<Arc<phantom::RequestConnection>> {
+    let mut request = session.get(protocol, &uri)?;
+    let trace = request.diagnostics(std::num::NonZeroUsize::MIN.saturating_add(63));
+    let response = request.send().await?;
     assert_eq!(response.status(), StatusCode::OK);
     response.into_body().collect().await?;
-    Ok(())
+    trace
+        .snapshot()
+        .events
+        .iter()
+        .find(|event| event.phase == phantom::RequestTimingPhase::ConnectionUse)
+        .and_then(|event| event.connection.clone())
+        .ok_or_else(|| "missing connection metadata".into())
+}
+
+fn assert_resumption(connection: Arc<phantom::RequestConnection>, expected: bool) {
+    assert!(
+        !connection.reused,
+        "new HTTP connection must remain distinct from resumed TLS"
+    );
+    let phantom::TlsConnectionState::Established(tls) = &connection.origin_tls else {
+        panic!("missing completed TLS: {connection:?}")
+    };
+    assert_eq!(tls.session_resumed, expected);
+    assert!(tls.peer_verified);
+    assert!(
+        tls.peer_certificates
+            .as_ref()
+            .is_some_and(|chain| !chain.is_empty())
+    );
 }
 
 async fn bounded<T, F>(future: F) -> TestResult<T>

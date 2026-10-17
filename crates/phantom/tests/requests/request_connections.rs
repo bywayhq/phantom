@@ -9,7 +9,7 @@ use phantom::{
 use tokio::{io::AsyncWriteExt, net::TcpListener, time::timeout};
 
 use crate::support::{
-    h2,
+    h2, h3 as h3_support,
     tls::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, accept_tls, client_builder, read_head},
     tunnel_proxy::{ConnectionPeer, finish_with_cleanup},
 };
@@ -126,4 +126,75 @@ async fn pooled_tcp_metadata_survives_an_unobserved_handshake() -> TestResult<()
         tcp_reuse(protocol, false).await?;
     }
     Ok(())
+}
+
+#[tokio::test]
+async fn quic_metadata_survives_pooling_and_an_unobserved_handshake() -> TestResult<()> {
+    timeout(Duration::from_secs(10), async {
+        let identity = TestIdentity::generate()?;
+        let (address, endpoint) = h3_support::server_endpoint(&identity)?;
+        let peer = ConnectionPeer::spawn(async move {
+            let incoming = endpoint.accept().await.ok_or("endpoint closed")?;
+            let connection = incoming.await?;
+            let mut connection =
+                h3::server::Connection::new(h3_quinn::Connection::new(connection)).await?;
+            for _ in 0..3 {
+                let resolver = connection.accept().await?.ok_or("connection closed")?;
+                let (_, mut stream) = resolver.resolve_request().await?;
+                stream.send_response(http::Response::new(())).await?;
+                stream.finish().await?;
+            }
+            endpoint.wait_idle().await;
+            Ok(())
+        });
+        let caller = async {
+            let client = phantom::Client::builder(
+                phantom::profile::ClientProfile::new(h3_support::client_tls_settings())
+                    .with_http3(h3_support::client_settings()),
+            )
+            .add_root_certificate_der(identity.root_der.clone())
+            .build()?;
+            let mut previous = None;
+            for index in 0..3 {
+                let mut request =
+                    client.get(HttpProtocol::Http3, &format!("https://{address}/"))?;
+                let trace =
+                    (index != 0).then(|| request.diagnostics(NonZeroUsize::MIN.saturating_add(63)));
+                let response = request.send().await?;
+                assert_eq!(response.status(), 200);
+                response.into_body().collect_with_limit(0).await?;
+                if let Some(trace) = trace {
+                    let used = connection(&trace)?;
+                    assert!(used.reused);
+                    assert_eq!(used.endpoint_scope, ConnectionEndpointScope::QuicEndpoint);
+                    assert_eq!(used.peer_address, Some(address));
+                    assert!(used.local_address.is_some());
+                    assert!(matches!(used.proxy_tls, TlsConnectionState::NotUsed));
+                    let tls = established(&used.origin_tls)?;
+                    assert!(tls.peer_verified);
+                    assert!(!tls.session_resumed);
+                    assert_eq!(tls.version, Some(phantom::profile::TlsVersion::Tls13));
+                    assert_eq!(
+                        tls.cipher_suite,
+                        Some(phantom::profile::CipherSuite::Aes128GcmSha256)
+                    );
+                    assert_eq!(tls.alpn.as_deref(), Some(&b"h3"[..]));
+                    let chain = tls
+                        .peer_certificates
+                        .as_ref()
+                        .ok_or("missing QUIC certificates")?;
+                    assert!(!chain.is_empty());
+                    btls::x509::X509::from_der(&chain[0])?;
+                    if let Some(previous) = previous {
+                        assert!(Arc::ptr_eq(&previous, tls));
+                    }
+                    previous = Some(Arc::clone(tls));
+                }
+            }
+            drop(client);
+            Ok(())
+        };
+        finish_with_cleanup(caller.await, peer.stop().await)
+    })
+    .await?
 }

@@ -241,6 +241,21 @@ async fn firefox_without_a_session_opens_a_new_http2_connection() -> TestResult<
         assert_eq!(socket.handshake_response().version(), Version::HTTP_2);
         exchange(socket).await?;
 
+        let mut request = client.get(
+            phantom::HttpProtocol::Http2,
+            &format!("https://{}/page", server.address),
+        )?;
+        let diagnostics = request.diagnostics(NonZeroUsize::MIN.saturating_add(31));
+        request.send().await?.into_body().collect().await?;
+        let snapshot = diagnostics.snapshot();
+        let used = snapshot
+            .events
+            .iter()
+            .find(|event| event.phase == phantom::RequestTimingPhase::ConnectionUse)
+            .and_then(|event| event.connection.as_ref())
+            .ok_or("missing connection metadata after WebSocket")?;
+        assert!(used.reused);
+
         let connections = server.connections()?;
         assert_eq!(connections.len(), 1);
         let connection = &connections[0];
@@ -250,7 +265,7 @@ async fn firefox_without_a_session_opens_a_new_http2_connection() -> TestResult<
         );
         assert_eq!(connection.protocol.as_deref(), Some("h2"));
         assert!(connection.h1.is_empty());
-        assert_eq!(methods(connection), ["CONNECT"]);
+        assert_eq!(methods(connection), ["CONNECT", "GET"]);
         assert_connect_matches(&connection.h2[0], &connect)?;
         Ok(())
     })
