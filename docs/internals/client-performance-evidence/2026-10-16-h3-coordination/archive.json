@@ -1,0 +1,16 @@
+{
+  "path": "C:\\code\\phantom\\target\\client-profiling\\evidence-h3-coordination-2026-10-16.zip",
+  "bytes": 505721682,
+  "sha256": "c044861f9cc28a92e6c7890e0959e31531abc0648077aac460f51ae2ca23dcac",
+  "entries": 1854,
+  "uncompressed_bytes": 2449469874,
+  "crc_verified": true,
+  "contents": [
+    "Both experiments, all ordinary and allocation trials, raw samples and heap profiles",
+    "Six binaries, symbols, original source/native receipts and candidate patches",
+    "Reproduction scripts, workload/order files, prototype checks and prior baseline gate logs"
+  ],
+  "limits": [
+    "Local archive retained on this host; not uploaded"
+  ]
+}

@@ -2271,6 +2271,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Record two HTTP/3 body-coordination experiments and their paired timing
+  and allocation measurements. Keep the current implementation after mixed
+  results; neither prototype is adopted.
+
 - Reduce shared-state work when reusing an HTTP/2 connection. The pool skips
   stream-placement probes when it allows one connection and reads each peer
   limit once when choosing among several.

@@ -513,6 +513,85 @@ million measured requests without request failures. These local, reused
 single-connection workloads do not establish production capacity. H3's
 worker scaling remains unresolved; no H3 optimization was made in this pass.
 
+## HTTP/3 body coordination experiments
+
+Neither experiment below was adopted. Both saved a small amount of Rust
+allocation traffic, but neither established a useful overall improvement.
+The final Rust sources match the previously gated `6559a70c` baseline.
+
+The first experiment replaced the body's demand queue with a notification.
+The second restored that queue and replaced its cancellation channel with
+a one-time signal. Each changed only `http3/body/task.rs`. The worker still
+owned stream cleanup, upload monitoring and retained cleanup guards.
+Independent source review found no correctness blocker in either prototype.
+
+Each experiment ran three adjacent control/candidate pairs for six ordinary
+workloads, alternating their order. Case order used seed `20261026`.
+Workloads covered Chrome H3 at concurrency 1 and 128, two and eight client
+workers, Firefox H3, 64 KiB streaming and an unchanged H2 reference.
+The peer kept two workers.
+Allocation profiling used separate binaries and four smaller workloads.
+All 120 trials passed their controls: 72 ordinary trials completed
+9,540,000 requests, and 48 instrumented trials completed another 3,072.
+Instrumented timings are excluded from speed comparisons.
+
+Both experiments used the same control library and optimized native TLS.
+The ordinary control receipt predates the baseline commit and records its
+patch separately. Its then-untracked counter module is retained separately
+with the earlier run-identity reconciliation. The
+[build comparison](client-performance-evidence/2026-10-16-h3-coordination/builds.json)
+records these limits, binary hashes and source differences. Request counts
+differ between experiments; their speeds are not a head-to-head comparison.
+
+### Notification for body demand
+
+Cumulative allocation bytes fell by 1.02–1.03% for tiny Chrome responses and
+1.22–1.24% for Firefox. Bulk savings ranged from 0.29% to 0.69%.
+These are allocation bytes, not RSS reductions. Bulk CPU/request changed by
++14.5%, -4.4% and +6.0%; throughput changed by -12.0%, +4.2% and -6.4%.
+Bulk p95 rose in two pairs. The unchanged H2 reference also varied widely:
+CPU/request changed from -18.2% to +41.9% across pairs.
+
+Set this prototype aside. The small allocation saving does not justify
+adoption under mixed speed results. This does not prove that notifications
+cause a slowdown. The [ordinary results](client-performance-evidence/2026-10-16-h3-coordination/notify-timing-summary.json)
+and [allocation results](client-performance-evidence/2026-10-16-h3-coordination/notify-heap-summary.json)
+retain every pair, including absolute values and memory measurements.
+
+### One-time body cancellation
+
+Cumulative allocation bytes fell by 0.58–0.59% for tiny Chrome responses and
+0.68–0.69% for Firefox. Bulk allocation changes ranged from -0.64% to +0.29%.
+The peak of newly tracked live allocations rose in all three Firefox pairs
+by 0.7–2.2%. Bulk live-heap changes ranged from -22.0% to +18.9%.
+H2 allocation totals and live peaks were identical in all pairs.
+
+Ranges below describe individual paired percentage changes. They are not
+confidence intervals or pooled percentiles.
+
+| Workload | Requests/s change | CPU/request change | Request p99 change | Peak RSS change |
+| --- | ---: | ---: | ---: | ---: |
+| H3, concurrency 1 | -16.8% to +71.4% | -41.2% to +13.6% | -17.9% to -1.4% | -1.4% to +0.4% |
+| H3, two workers | -26.0% to +53.0% | -18.6% to +12.8% | -66.7% to +150.8% | -1.0% to +1.5% |
+| H3, eight workers | -10.1% to +11.2% | -7.8% to +7.8% | -7.5% to +4.7% | -0.6% to +0.6% |
+| Firefox H3 | -15.8% to +44.1% | -10.3% to +19.4% | -90.9% to +19.8% | -2.6% to +0.6% |
+| H3, 64 KiB streaming | -1.2% to +14.2% | -10.0% to +4.0% | -10.4% to +1.0% | -2.6% to -0.7% |
+| Unchanged H2 reference | -7.5% to +8.1% | -17.1% to +3.2% | -21.9% to +20.2% | -3.6% to +2.5% |
+
+Set this prototype aside too. The small allocation saving and mixed timings
+do not establish a reliable overall benefit. Whole-process memory did not
+improve consistently. Two-worker p95 changes were -48.7%, -75.8% and +57.9%.
+The [ordinary results](client-performance-evidence/2026-10-16-h3-coordination/oneshot-timing-summary.json)
+retain every measurement, including private memory and worker counters.
+The [allocation results](client-performance-evidence/2026-10-16-h3-coordination/oneshot-heap-summary.json)
+retain individual heap totals, allocation stacks and profile hashes.
+
+The host remained shared. Observed busy fractions ranged from 34% to 100%
+in the notification comparison and 45% to 100% in the cancellation comparison.
+Neither comparison establishes a general speed ranking or production limit.
+H3's scheduler overhead remains open; changing these channels alone did not
+resolve it within this measurement scope.
+
 ## Verification and retained evidence
 
 The earlier remediation gate passed all 22 steps, including 5,738 passing tests
@@ -545,6 +624,18 @@ retain commands, step results and log hashes. The
 identifies all raw trials, CPU samples, binaries, symbols and build receipts.
 Candidate verification was local to Windows. Linux sampling used the
 baseline library; no new remote CI result is claimed.
+
+The rejected H3 notification prototype passed 633 focused tests; the rejected
+cancellation prototype passed 263. Final source reconciliation confirms that
+every tracked Rust file matches the control, with the counter-module
+supplement described above. This docs-and-evidence delivery reuses the prior
+baseline gate result and runs the docs checker and diff checks separately.
+It does not claim a fresh full gate or cross-platform candidate verification.
+The [coordination checks](client-performance-evidence/2026-10-16-h3-coordination/verification.json)
+retain prototype test counts, source scope and log hashes. The
+[coordination archive receipt](client-performance-evidence/2026-10-16-h3-coordination/archive.json)
+identifies the checked local archive of raw trials, heap profiles, binaries,
+symbols, prototypes and baseline gate logs.
 
 ## Remaining investigations
 

@@ -1,0 +1,254 @@
+[
+  {
+    "repetition": 0,
+    "variant": "h2-selection-candidate",
+    "name": "heldout-h2",
+    "output": "timing-0-heldout-h2-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "h3-cancel-oneshot",
+    "name": "heldout-h2",
+    "output": "timing-0-heldout-h2-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "h2-selection-candidate",
+    "name": "h3-c1",
+    "output": "timing-0-h3-c1-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "h3-cancel-oneshot",
+    "name": "h3-c1",
+    "output": "timing-0-h3-c1-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "h2-selection-candidate",
+    "name": "firefox-h3",
+    "output": "timing-0-firefox-h3-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "h3-cancel-oneshot",
+    "name": "firefox-h3",
+    "output": "timing-0-firefox-h3-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "h2-selection-candidate",
+    "name": "stream-h3",
+    "output": "timing-0-stream-h3-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "h3-cancel-oneshot",
+    "name": "stream-h3",
+    "output": "timing-0-stream-h3-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "h2-selection-candidate",
+    "name": "h3-workers2",
+    "output": "timing-0-h3-workers2-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "h3-cancel-oneshot",
+    "name": "h3-workers2",
+    "output": "timing-0-h3-workers2-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "h2-selection-candidate",
+    "name": "h3-workers8",
+    "output": "timing-0-h3-workers8-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 0,
+    "variant": "h3-cancel-oneshot",
+    "name": "h3-workers8",
+    "output": "timing-0-h3-workers8-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "h3-cancel-oneshot",
+    "name": "firefox-h3",
+    "output": "timing-1-firefox-h3-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "h2-selection-candidate",
+    "name": "firefox-h3",
+    "output": "timing-1-firefox-h3-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "h3-cancel-oneshot",
+    "name": "h3-c1",
+    "output": "timing-1-h3-c1-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "h2-selection-candidate",
+    "name": "h3-c1",
+    "output": "timing-1-h3-c1-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "h3-cancel-oneshot",
+    "name": "h3-workers2",
+    "output": "timing-1-h3-workers2-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "h2-selection-candidate",
+    "name": "h3-workers2",
+    "output": "timing-1-h3-workers2-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "h3-cancel-oneshot",
+    "name": "heldout-h2",
+    "output": "timing-1-heldout-h2-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "h2-selection-candidate",
+    "name": "heldout-h2",
+    "output": "timing-1-heldout-h2-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "h3-cancel-oneshot",
+    "name": "h3-workers8",
+    "output": "timing-1-h3-workers8-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "h2-selection-candidate",
+    "name": "h3-workers8",
+    "output": "timing-1-h3-workers8-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "h3-cancel-oneshot",
+    "name": "stream-h3",
+    "output": "timing-1-stream-h3-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 1,
+    "variant": "h2-selection-candidate",
+    "name": "stream-h3",
+    "output": "timing-1-stream-h3-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "h2-selection-candidate",
+    "name": "h3-workers8",
+    "output": "timing-2-h3-workers8-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "h3-cancel-oneshot",
+    "name": "h3-workers8",
+    "output": "timing-2-h3-workers8-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "h2-selection-candidate",
+    "name": "firefox-h3",
+    "output": "timing-2-firefox-h3-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "h3-cancel-oneshot",
+    "name": "firefox-h3",
+    "output": "timing-2-firefox-h3-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "h2-selection-candidate",
+    "name": "stream-h3",
+    "output": "timing-2-stream-h3-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "h3-cancel-oneshot",
+    "name": "stream-h3",
+    "output": "timing-2-stream-h3-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "h2-selection-candidate",
+    "name": "h3-workers2",
+    "output": "timing-2-h3-workers2-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "h3-cancel-oneshot",
+    "name": "h3-workers2",
+    "output": "timing-2-h3-workers2-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "h2-selection-candidate",
+    "name": "heldout-h2",
+    "output": "timing-2-heldout-h2-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "h3-cancel-oneshot",
+    "name": "heldout-h2",
+    "output": "timing-2-heldout-h2-h3-cancel-oneshot",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "h2-selection-candidate",
+    "name": "h3-c1",
+    "output": "timing-2-h3-c1-h2-selection-candidate",
+    "exit": 0
+  },
+  {
+    "repetition": 2,
+    "variant": "h3-cancel-oneshot",
+    "name": "h3-c1",
+    "output": "timing-2-h3-c1-h3-cancel-oneshot",
+    "exit": 0
+  }
+]

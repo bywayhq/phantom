@@ -1,0 +1,3812 @@
+{
+  "firefox-h3": [
+    {
+      "repetition": 0,
+      "control": {
+        "successes": 100000,
+        "failures": 0,
+        "completed_requests_s": 35182.368510823224,
+        "client_cpu_us_per_success": 48.59375,
+        "peer_cpu_s": 3.828125,
+        "sampled_peak_rss_bytes": 30687232,
+        "sampled_peak_private_bytes": 23875584,
+        "start_rss_bytes": 28946432,
+        "end_rss_bytes": 30687232,
+        "observer_storage_bytes": 10400000,
+        "directory": "timing-0-firefox-h3-h2-selection-candidate\\000-firefox-h3-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "firefox-h3",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "firefox",
+          "protocol": "h3",
+          "requests": 100000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 1482900,
+        "p99_ns": 1760300,
+        "host_busy_percent": 67.14212939378503,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 34806000,
+              "index": 0,
+              "park_unpark_transitions": 111,
+              "parks": 56
+            },
+            {
+              "busy_ns": 35586500,
+              "index": 1,
+              "park_unpark_transitions": 101,
+              "parks": 51
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2820892700,
+              "index": 0,
+              "park_unpark_transitions": 6815,
+              "parks": 3408
+            },
+            {
+              "busy_ns": 2820295200,
+              "index": 1,
+              "park_unpark_transitions": 6841,
+              "parks": 3421
+            }
+          ]
+        },
+        "repetition": 0,
+        "variant": "h2-selection-candidate",
+        "name": "firefox-h3"
+      },
+      "candidate": {
+        "successes": 100000,
+        "failures": 0,
+        "completed_requests_s": 38228.42593118233,
+        "client_cpu_us_per_success": 43.59375,
+        "peer_cpu_s": 3.578125,
+        "sampled_peak_rss_bytes": 30674944,
+        "sampled_peak_private_bytes": 23920640,
+        "start_rss_bytes": 29175808,
+        "end_rss_bytes": 30674944,
+        "observer_storage_bytes": 10400000,
+        "directory": "timing-0-firefox-h3-h3-cancel-oneshot\\000-firefox-h3-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "firefox-h3",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "firefox",
+          "protocol": "h3",
+          "requests": 100000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 1309900,
+        "p99_ns": 1541700,
+        "host_busy_percent": 69.28699284009546,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 28891900,
+              "index": 0,
+              "park_unpark_transitions": 87,
+              "parks": 44
+            },
+            {
+              "busy_ns": 29493400,
+              "index": 1,
+              "park_unpark_transitions": 99,
+              "parks": 50
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2588604300,
+              "index": 0,
+              "park_unpark_transitions": 7109,
+              "parks": 3555
+            },
+            {
+              "busy_ns": 2589353000,
+              "index": 1,
+              "park_unpark_transitions": 6903,
+              "parks": 3452
+            }
+          ]
+        },
+        "repetition": 0,
+        "variant": "h3-cancel-oneshot",
+        "name": "firefox-h3"
+      },
+      "percent_change": {
+        "completed_requests_s": 8.65790891657008,
+        "client_cpu_us_per_success": -10.289389067524112,
+        "p95_ns": -11.666329489513794,
+        "p99_ns": -12.41833778333239,
+        "sampled_peak_rss_bytes": -0.04004271222637357,
+        "sampled_peak_private_bytes": 0.18871161434208528
+      }
+    },
+    {
+      "repetition": 1,
+      "control": {
+        "successes": 100000,
+        "failures": 0,
+        "completed_requests_s": 20591.85691723511,
+        "client_cpu_us_per_success": 55.15625,
+        "peer_cpu_s": 4.359375,
+        "sampled_peak_rss_bytes": 30658560,
+        "sampled_peak_private_bytes": 23834624,
+        "start_rss_bytes": 29519872,
+        "end_rss_bytes": 30658560,
+        "observer_storage_bytes": 10400000,
+        "directory": "timing-1-firefox-h3-h2-selection-candidate\\000-firefox-h3-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "firefox-h3",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "firefox",
+          "protocol": "h3",
+          "requests": 100000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 1983800,
+        "p99_ns": 20917600,
+        "host_busy_percent": 100.0,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 78655300,
+              "index": 0,
+              "park_unpark_transitions": 107,
+              "parks": 54
+            },
+            {
+              "busy_ns": 58669900,
+              "index": 1,
+              "park_unpark_transitions": 91,
+              "parks": 46
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 4518619500,
+              "index": 0,
+              "park_unpark_transitions": 6907,
+              "parks": 3454
+            },
+            {
+              "busy_ns": 4489766000,
+              "index": 1,
+              "park_unpark_transitions": 6361,
+              "parks": 3181
+            }
+          ]
+        },
+        "repetition": 1,
+        "variant": "h2-selection-candidate",
+        "name": "firefox-h3"
+      },
+      "candidate": {
+        "successes": 100000,
+        "failures": 0,
+        "completed_requests_s": 29680.05494371771,
+        "client_cpu_us_per_success": 50.0,
+        "peer_cpu_s": 4.109375,
+        "sampled_peak_rss_bytes": 30826496,
+        "sampled_peak_private_bytes": 24051712,
+        "start_rss_bytes": 29102080,
+        "end_rss_bytes": 30826496,
+        "observer_storage_bytes": 10400000,
+        "directory": "timing-1-firefox-h3-h3-cancel-oneshot\\000-firefox-h3-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "firefox-h3",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "firefox",
+          "protocol": "h3",
+          "requests": 100000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 1498700,
+        "p99_ns": 1913500,
+        "host_busy_percent": 100.0,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 105020800,
+              "index": 0,
+              "park_unpark_transitions": 91,
+              "parks": 46
+            },
+            {
+              "busy_ns": 38616900,
+              "index": 1,
+              "park_unpark_transitions": 167,
+              "parks": 84
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3368406900,
+              "index": 0,
+              "park_unpark_transitions": 5785,
+              "parks": 2893
+            },
+            {
+              "busy_ns": 3237579400,
+              "index": 1,
+              "park_unpark_transitions": 9213,
+              "parks": 4607
+            }
+          ]
+        },
+        "repetition": 1,
+        "variant": "h3-cancel-oneshot",
+        "name": "firefox-h3"
+      },
+      "percent_change": {
+        "completed_requests_s": 44.13491247054995,
+        "client_cpu_us_per_success": -9.348441926345608,
+        "p95_ns": -24.4530698659139,
+        "p99_ns": -90.85220101732511,
+        "sampled_peak_rss_bytes": 0.5477621910487729,
+        "sampled_peak_private_bytes": 0.9108094174256731
+      }
+    },
+    {
+      "repetition": 2,
+      "control": {
+        "successes": 100000,
+        "failures": 0,
+        "completed_requests_s": 33773.20227439552,
+        "client_cpu_us_per_success": 49.21875,
+        "peer_cpu_s": 3.765625,
+        "sampled_peak_rss_bytes": 31436800,
+        "sampled_peak_private_bytes": 24649728,
+        "start_rss_bytes": 29937664,
+        "end_rss_bytes": 29925376,
+        "observer_storage_bytes": 10400000,
+        "directory": "timing-2-firefox-h3-h2-selection-candidate\\000-firefox-h3-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "firefox-h3",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "firefox",
+          "protocol": "h3",
+          "requests": 100000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 1491800,
+        "p99_ns": 1769200,
+        "host_busy_percent": 63.776178010471206,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 55788500,
+              "index": 0,
+              "park_unpark_transitions": 91,
+              "parks": 46
+            },
+            {
+              "busy_ns": 54745000,
+              "index": 1,
+              "park_unpark_transitions": 89,
+              "parks": 45
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2957066700,
+              "index": 0,
+              "park_unpark_transitions": 7133,
+              "parks": 3567
+            },
+            {
+              "busy_ns": 2955821500,
+              "index": 1,
+              "park_unpark_transitions": 7041,
+              "parks": 3521
+            }
+          ]
+        },
+        "repetition": 2,
+        "variant": "h2-selection-candidate",
+        "name": "firefox-h3"
+      },
+      "candidate": {
+        "successes": 100000,
+        "failures": 0,
+        "completed_requests_s": 28424.13066572867,
+        "client_cpu_us_per_success": 58.75,
+        "peer_cpu_s": 4.71875,
+        "sampled_peak_rss_bytes": 30633984,
+        "sampled_peak_private_bytes": 23871488,
+        "start_rss_bytes": 28930048,
+        "end_rss_bytes": 30633984,
+        "observer_storage_bytes": 10400000,
+        "directory": "timing-2-firefox-h3-h3-cancel-oneshot\\000-firefox-h3-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "firefox-h3",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "firefox",
+          "protocol": "h3",
+          "requests": 100000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 1776500,
+        "p99_ns": 2119500,
+        "host_busy_percent": 82.11348684210526,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 39348300,
+              "index": 0,
+              "park_unpark_transitions": 89,
+              "parks": 45
+            },
+            {
+              "busy_ns": 40524400,
+              "index": 1,
+              "park_unpark_transitions": 71,
+              "parks": 36
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 3488172500,
+              "index": 0,
+              "park_unpark_transitions": 6505,
+              "parks": 3253
+            },
+            {
+              "busy_ns": 3485587000,
+              "index": 1,
+              "park_unpark_transitions": 6786,
+              "parks": 3393
+            }
+          ]
+        },
+        "repetition": 2,
+        "variant": "h3-cancel-oneshot",
+        "name": "firefox-h3"
+      },
+      "percent_change": {
+        "completed_requests_s": -15.838212690663745,
+        "client_cpu_us_per_success": 19.365079365079364,
+        "p95_ns": 19.084327657862985,
+        "p99_ns": 19.79990956364459,
+        "sampled_peak_rss_bytes": -2.5537459283387576,
+        "sampled_peak_private_bytes": -3.1571950814224037
+      }
+    }
+  ],
+  "h3-c1": [
+    {
+      "repetition": 0,
+      "control": {
+        "successes": 20000,
+        "failures": 0,
+        "completed_requests_s": 3903.1997865886483,
+        "client_cpu_us_per_success": 203.125,
+        "peer_cpu_s": 2.71875,
+        "sampled_peak_rss_bytes": 20066304,
+        "sampled_peak_private_bytes": 9056256,
+        "start_rss_bytes": 19865600,
+        "end_rss_bytes": 20066304,
+        "observer_storage_bytes": 2080000,
+        "directory": "timing-0-h3-c1-h2-selection-candidate\\000-h3-c1-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-c1",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 20000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 321100,
+        "p99_ns": 361100,
+        "host_busy_percent": 99.54545454545455,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 92649000,
+              "index": 0,
+              "park_unpark_transitions": 4389,
+              "parks": 2195
+            },
+            {
+              "busy_ns": 110061700,
+              "index": 1,
+              "park_unpark_transitions": 4283,
+              "parks": 2142
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 1926642400,
+              "index": 0,
+              "park_unpark_transitions": 90253,
+              "parks": 45127
+            },
+            {
+              "busy_ns": 1944372800,
+              "index": 1,
+              "park_unpark_transitions": 89705,
+              "parks": 44853
+            }
+          ]
+        },
+        "repetition": 0,
+        "variant": "h2-selection-candidate",
+        "name": "h3-c1"
+      },
+      "candidate": {
+        "successes": 20000,
+        "failures": 0,
+        "completed_requests_s": 6689.54647651051,
+        "client_cpu_us_per_success": 119.53125,
+        "peer_cpu_s": 1.96875,
+        "sampled_peak_rss_bytes": 20152320,
+        "sampled_peak_private_bytes": 9244672,
+        "start_rss_bytes": 19922944,
+        "end_rss_bytes": 20152320,
+        "observer_storage_bytes": 2080000,
+        "directory": "timing-0-h3-c1-h3-cancel-oneshot\\000-h3-c1-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-c1",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 20000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 250900,
+        "p99_ns": 296600,
+        "host_busy_percent": 45.14248704663213,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 75677000,
+              "index": 0,
+              "park_unpark_transitions": 4027,
+              "parks": 2014
+            },
+            {
+              "busy_ns": 67226200,
+              "index": 1,
+              "park_unpark_transitions": 4633,
+              "parks": 2317
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 1274973000,
+              "index": 0,
+              "park_unpark_transitions": 88995,
+              "parks": 44498
+            },
+            {
+              "busy_ns": 1213598600,
+              "index": 1,
+              "park_unpark_transitions": 92477,
+              "parks": 46239
+            }
+          ]
+        },
+        "repetition": 0,
+        "variant": "h3-cancel-oneshot",
+        "name": "h3-c1"
+      },
+      "percent_change": {
+        "completed_requests_s": 71.38621752070489,
+        "client_cpu_us_per_success": -41.15384615384615,
+        "p95_ns": -21.862348178137648,
+        "p99_ns": -17.862088064248127,
+        "sampled_peak_rss_bytes": 0.42865890998162737,
+        "sampled_peak_private_bytes": 2.080506558118489
+      }
+    },
+    {
+      "repetition": 1,
+      "control": {
+        "successes": 20000,
+        "failures": 0,
+        "completed_requests_s": 4599.300966044074,
+        "client_cpu_us_per_success": 178.125,
+        "peer_cpu_s": 2.890625,
+        "sampled_peak_rss_bytes": 20160512,
+        "sampled_peak_private_bytes": 9162752,
+        "start_rss_bytes": 19955712,
+        "end_rss_bytes": 20160512,
+        "observer_storage_bytes": 2080000,
+        "directory": "timing-1-h3-c1-h2-selection-candidate\\000-h3-c1-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-c1",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 20000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 319600,
+        "p99_ns": 395700,
+        "host_busy_percent": 93.09932623342752,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 103071700,
+              "index": 0,
+              "park_unpark_transitions": 4127,
+              "parks": 2064
+            },
+            {
+              "busy_ns": 87174400,
+              "index": 1,
+              "park_unpark_transitions": 4969,
+              "parks": 2485
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 1876391200,
+              "index": 0,
+              "park_unpark_transitions": 91981,
+              "parks": 45991
+            },
+            {
+              "busy_ns": 1812297700,
+              "index": 1,
+              "park_unpark_transitions": 93887,
+              "parks": 46944
+            }
+          ]
+        },
+        "repetition": 1,
+        "variant": "h2-selection-candidate",
+        "name": "h3-c1"
+      },
+      "candidate": {
+        "successes": 20000,
+        "failures": 0,
+        "completed_requests_s": 3827.2305463210864,
+        "client_cpu_us_per_success": 202.34375,
+        "peer_cpu_s": 3.09375,
+        "sampled_peak_rss_bytes": 20049920,
+        "sampled_peak_private_bytes": 9150464,
+        "start_rss_bytes": 19845120,
+        "end_rss_bytes": 20049920,
+        "observer_storage_bytes": 2080000,
+        "directory": "timing-1-h3-c1-h3-cancel-oneshot\\000-h3-c1-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-c1",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 20000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 347100,
+        "p99_ns": 390000,
+        "host_busy_percent": 95.99406528189911,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 97310500,
+              "index": 0,
+              "park_unpark_transitions": 5577,
+              "parks": 2789
+            },
+            {
+              "busy_ns": 123711300,
+              "index": 1,
+              "park_unpark_transitions": 4361,
+              "parks": 2181
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2115120500,
+              "index": 0,
+              "park_unpark_transitions": 97313,
+              "parks": 48657
+            },
+            {
+              "busy_ns": 2229581500,
+              "index": 1,
+              "park_unpark_transitions": 93513,
+              "parks": 46757
+            }
+          ]
+        },
+        "repetition": 1,
+        "variant": "h3-cancel-oneshot",
+        "name": "h3-c1"
+      },
+      "percent_change": {
+        "completed_requests_s": -16.786690530214564,
+        "client_cpu_us_per_success": 13.596491228070185,
+        "p95_ns": 8.604505632040048,
+        "p99_ns": -1.4404852160727843,
+        "sampled_peak_rss_bytes": -0.548557496952462,
+        "sampled_peak_private_bytes": -0.13410818059901297
+      }
+    },
+    {
+      "repetition": 2,
+      "control": {
+        "successes": 20000,
+        "failures": 0,
+        "completed_requests_s": 4131.084602216624,
+        "client_cpu_us_per_success": 209.375,
+        "peer_cpu_s": 2.890625,
+        "sampled_peak_rss_bytes": 20197376,
+        "sampled_peak_private_bytes": 9211904,
+        "start_rss_bytes": 19972096,
+        "end_rss_bytes": 20197376,
+        "observer_storage_bytes": 2080000,
+        "directory": "timing-2-h3-c1-h2-selection-candidate\\000-h3-c1-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-c1",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 20000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 327400,
+        "p99_ns": 373200,
+        "host_busy_percent": 76.32515822755337,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 106026600,
+              "index": 0,
+              "park_unpark_transitions": 4805,
+              "parks": 2403
+            },
+            {
+              "busy_ns": 97844600,
+              "index": 1,
+              "park_unpark_transitions": 5211,
+              "parks": 2606
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 2018767200,
+              "index": 0,
+              "park_unpark_transitions": 91835,
+              "parks": 45918
+            },
+            {
+              "busy_ns": 2015566100,
+              "index": 1,
+              "park_unpark_transitions": 92493,
+              "parks": 46247
+            }
+          ]
+        },
+        "repetition": 2,
+        "variant": "h2-selection-candidate",
+        "name": "h3-c1"
+      },
+      "candidate": {
+        "successes": 20000,
+        "failures": 0,
+        "completed_requests_s": 5680.742875290396,
+        "client_cpu_us_per_success": 139.84375,
+        "peer_cpu_s": 1.96875,
+        "sampled_peak_rss_bytes": 19914752,
+        "sampled_peak_private_bytes": 8990720,
+        "start_rss_bytes": 19693568,
+        "end_rss_bytes": 19914752,
+        "observer_storage_bytes": 2080000,
+        "directory": "timing-2-h3-c1-h3-cancel-oneshot\\000-h3-c1-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 1,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-c1",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 20000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 251800,
+        "p99_ns": 320400,
+        "host_busy_percent": 100.0,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 70521200,
+              "index": 0,
+              "park_unpark_transitions": 4857,
+              "parks": 2429
+            },
+            {
+              "busy_ns": 78102100,
+              "index": 1,
+              "park_unpark_transitions": 4765,
+              "parks": 2383
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 1429810200,
+              "index": 0,
+              "park_unpark_transitions": 90741,
+              "parks": 45371
+            },
+            {
+              "busy_ns": 1424482400,
+              "index": 1,
+              "park_unpark_transitions": 91031,
+              "parks": 45516
+            }
+          ]
+        },
+        "repetition": 2,
+        "variant": "h3-cancel-oneshot",
+        "name": "h3-c1"
+      },
+      "percent_change": {
+        "completed_requests_s": 37.51214081266379,
+        "client_cpu_us_per_success": -33.2089552238806,
+        "p95_ns": -23.091020158827124,
+        "p99_ns": -14.147909967845662,
+        "sampled_peak_rss_bytes": -1.3993104846887094,
+        "sampled_peak_private_bytes": -2.4010671409515294
+      }
+    }
+  ],
+  "h3-workers2": [
+    {
+      "repetition": 0,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 20751.24637432926,
+        "client_cpu_us_per_success": 69.453125,
+        "peer_cpu_s": 11.09375,
+        "sampled_peak_rss_bytes": 47140864,
+        "sampled_peak_private_bytes": 36261888,
+        "start_rss_bytes": 39448576,
+        "end_rss_bytes": 42131456,
+        "observer_storage_bytes": 20800000,
+        "directory": "timing-0-h3-workers2-h2-selection-candidate\\000-h3-workers2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-workers2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 11674700,
+        "p99_ns": 20414500,
+        "host_busy_percent": 100.0,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 63871000,
+              "index": 0,
+              "park_unpark_transitions": 87,
+              "parks": 44
+            },
+            {
+              "busy_ns": 49021600,
+              "index": 1,
+              "park_unpark_transitions": 125,
+              "parks": 63
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 9307149400,
+              "index": 0,
+              "park_unpark_transitions": 8836,
+              "parks": 4418
+            },
+            {
+              "busy_ns": 9313070100,
+              "index": 1,
+              "park_unpark_transitions": 9509,
+              "parks": 4755
+            }
+          ]
+        },
+        "repetition": 0,
+        "variant": "h2-selection-candidate",
+        "name": "h3-workers2"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 30448.70567652327,
+        "client_cpu_us_per_success": 56.5625,
+        "peer_cpu_s": 8.9375,
+        "sampled_peak_rss_bytes": 46678016,
+        "sampled_peak_private_bytes": 35717120,
+        "start_rss_bytes": 39661568,
+        "end_rss_bytes": 41340928,
+        "observer_storage_bytes": 20800000,
+        "directory": "timing-0-h3-workers2-h3-cancel-oneshot\\000-h3-workers2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-workers2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 5989700,
+        "p99_ns": 6796200,
+        "host_busy_percent": 70.05023640683956,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 51945400,
+              "index": 0,
+              "park_unpark_transitions": 101,
+              "parks": 51
+            },
+            {
+              "busy_ns": 53165600,
+              "index": 1,
+              "park_unpark_transitions": 87,
+              "parks": 44
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 6508591600,
+              "index": 0,
+              "park_unpark_transitions": 9469,
+              "parks": 4735
+            },
+            {
+              "busy_ns": 6508222500,
+              "index": 1,
+              "park_unpark_transitions": 9153,
+              "parks": 4577
+            }
+          ]
+        },
+        "repetition": 0,
+        "variant": "h3-cancel-oneshot",
+        "name": "h3-workers2"
+      },
+      "percent_change": {
+        "completed_requests_s": 46.73193661365056,
+        "client_cpu_us_per_success": -18.560179977502813,
+        "p95_ns": -48.69504141434041,
+        "p99_ns": -66.70895686889222,
+        "sampled_peak_rss_bytes": -0.9818402988965191,
+        "sampled_peak_private_bytes": -1.502315599231896
+      }
+    },
+    {
+      "repetition": 1,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 13662.297129318431,
+        "client_cpu_us_per_success": 58.671875,
+        "peer_cpu_s": 9.28125,
+        "sampled_peak_rss_bytes": 47190016,
+        "sampled_peak_private_bytes": 36175872,
+        "start_rss_bytes": 39346176,
+        "end_rss_bytes": 41103360,
+        "observer_storage_bytes": 20800000,
+        "directory": "timing-1-h3-workers2-h2-selection-candidate\\000-h3-workers2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-workers2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 49177200,
+        "p99_ns": 87031500,
+        "host_busy_percent": 100.0,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 60657900,
+              "index": 0,
+              "park_unpark_transitions": 37,
+              "parks": 19
+            },
+            {
+              "busy_ns": 45222600,
+              "index": 1,
+              "park_unpark_transitions": 47,
+              "parks": 24
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 12118005200,
+              "index": 0,
+              "park_unpark_transitions": 9773,
+              "parks": 4887
+            },
+            {
+              "busy_ns": 12190712900,
+              "index": 1,
+              "park_unpark_transitions": 9837,
+              "parks": 4919
+            }
+          ]
+        },
+        "repetition": 1,
+        "variant": "h2-selection-candidate",
+        "name": "h3-workers2"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 20899.63721469239,
+        "client_cpu_us_per_success": 66.171875,
+        "peer_cpu_s": 10.171875,
+        "sampled_peak_rss_bytes": 47341568,
+        "sampled_peak_private_bytes": 36528128,
+        "start_rss_bytes": 39993344,
+        "end_rss_bytes": 42278912,
+        "observer_storage_bytes": 20800000,
+        "directory": "timing-1-h3-workers2-h3-cancel-oneshot\\000-h3-workers2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-workers2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 11920600,
+        "p99_ns": 34480100,
+        "host_busy_percent": 90.37366032634932,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 60258500,
+              "index": 0,
+              "park_unpark_transitions": 89,
+              "parks": 45
+            },
+            {
+              "busy_ns": 60529900,
+              "index": 1,
+              "park_unpark_transitions": 73,
+              "parks": 37
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 9155138900,
+              "index": 0,
+              "park_unpark_transitions": 8723,
+              "parks": 4362
+            },
+            {
+              "busy_ns": 9107353100,
+              "index": 1,
+              "park_unpark_transitions": 8357,
+              "parks": 4179
+            }
+          ]
+        },
+        "repetition": 1,
+        "variant": "h3-cancel-oneshot",
+        "name": "h3-workers2"
+      },
+      "percent_change": {
+        "completed_requests_s": 52.9730836393763,
+        "client_cpu_us_per_success": 12.782956058588546,
+        "p95_ns": -75.75990499662446,
+        "p99_ns": -60.382045581197616,
+        "sampled_peak_rss_bytes": 0.32115267771894995,
+        "sampled_peak_private_bytes": 0.9737318840579601
+      }
+    },
+    {
+      "repetition": 2,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 26991.239925604044,
+        "client_cpu_us_per_success": 61.5625,
+        "peer_cpu_s": 9.40625,
+        "sampled_peak_rss_bytes": 46530560,
+        "sampled_peak_private_bytes": 35610624,
+        "start_rss_bytes": 39673856,
+        "end_rss_bytes": 40964096,
+        "observer_storage_bytes": 20800000,
+        "directory": "timing-2-h3-workers2-h2-selection-candidate\\000-h3-workers2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-workers2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 6289600,
+        "p99_ns": 7091800,
+        "host_busy_percent": 99.104768083036,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 52198200,
+              "index": 0,
+              "park_unpark_transitions": 65,
+              "parks": 33
+            },
+            {
+              "busy_ns": 53390100,
+              "index": 1,
+              "park_unpark_transitions": 55,
+              "parks": 28
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 7353854400,
+              "index": 0,
+              "park_unpark_transitions": 9239,
+              "parks": 4620
+            },
+            {
+              "busy_ns": 7353028300,
+              "index": 1,
+              "park_unpark_transitions": 9221,
+              "parks": 4611
+            }
+          ]
+        },
+        "repetition": 2,
+        "variant": "h2-selection-candidate",
+        "name": "h3-workers2"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 19963.60953399705,
+        "client_cpu_us_per_success": 58.828125,
+        "peer_cpu_s": 8.4375,
+        "sampled_peak_rss_bytes": 47218688,
+        "sampled_peak_private_bytes": 36253696,
+        "start_rss_bytes": 40062976,
+        "end_rss_bytes": 42287104,
+        "observer_storage_bytes": 20800000,
+        "directory": "timing-2-h3-workers2-h3-cancel-oneshot\\000-h3-workers2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-workers2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 9930800,
+        "p99_ns": 17785800,
+        "host_busy_percent": 99.33755760368474,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 67711200,
+              "index": 0,
+              "park_unpark_transitions": 45,
+              "parks": 23
+            },
+            {
+              "busy_ns": 65392700,
+              "index": 1,
+              "park_unpark_transitions": 25,
+              "parks": 13
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 9535500900,
+              "index": 0,
+              "park_unpark_transitions": 12045,
+              "parks": 6023
+            },
+            {
+              "busy_ns": 9462619000,
+              "index": 1,
+              "park_unpark_transitions": 12439,
+              "parks": 6220
+            }
+          ]
+        },
+        "repetition": 2,
+        "variant": "h3-cancel-oneshot",
+        "name": "h3-workers2"
+      },
+      "percent_change": {
+        "completed_requests_s": -26.036708246739515,
+        "client_cpu_us_per_success": -4.441624365482233,
+        "p95_ns": 57.89239379292801,
+        "p99_ns": 150.79387461575342,
+        "sampled_peak_rss_bytes": 1.4788732394366289,
+        "sampled_peak_private_bytes": 1.8058431101909411
+      }
+    }
+  ],
+  "h3-workers8": [
+    {
+      "repetition": 0,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 10860.182963674426,
+        "client_cpu_us_per_success": 242.96875,
+        "peer_cpu_s": 23.28125,
+        "sampled_peak_rss_bytes": 47714304,
+        "sampled_peak_private_bytes": 36827136,
+        "start_rss_bytes": 42360832,
+        "end_rss_bytes": 43323392,
+        "observer_storage_bytes": 20800000,
+        "directory": "timing-0-h3-workers8-h2-selection-candidate\\000-h3-workers8-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-workers8",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "p95_ns": 13418100,
+        "p99_ns": 14370700,
+        "host_busy_percent": 88.13022715881876,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 35470800,
+              "index": 0,
+              "park_unpark_transitions": 1465,
+              "parks": 733
+            },
+            {
+              "busy_ns": 44059000,
+              "index": 1,
+              "park_unpark_transitions": 1711,
+              "parks": 856
+            },
+            {
+              "busy_ns": 45279000,
+              "index": 2,
+              "park_unpark_transitions": 1729,
+              "parks": 865
+            },
+            {
+              "busy_ns": 46944700,
+              "index": 3,
+              "park_unpark_transitions": 1703,
+              "parks": 852
+            },
+            {
+              "busy_ns": 44794500,
+              "index": 4,
+              "park_unpark_transitions": 1829,
+              "parks": 915
+            },
+            {
+              "busy_ns": 46235400,
+              "index": 5,
+              "park_unpark_transitions": 1583,
+              "parks": 792
+            },
+            {
+              "busy_ns": 40534100,
+              "index": 6,
+              "park_unpark_transitions": 1679,
+              "parks": 840
+            },
+            {
+              "busy_ns": 41717000,
+              "index": 7,
+              "park_unpark_transitions": 1569,
+              "parks": 785
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 7543981500,
+              "index": 0,
+              "park_unpark_transitions": 338175,
+              "parks": 169088
+            },
+            {
+              "busy_ns": 7484433300,
+              "index": 1,
+              "park_unpark_transitions": 334037,
+              "parks": 167019
+            },
+            {
+              "busy_ns": 7427299600,
+              "index": 2,
+              "park_unpark_transitions": 331721,
+              "parks": 165861
+            },
+            {
+              "busy_ns": 7710420300,
+              "index": 3,
+              "park_unpark_transitions": 329541,
+              "parks": 164771
+            },
+            {
+              "busy_ns": 7616888300,
+              "index": 4,
+              "park_unpark_transitions": 332793,
+              "parks": 166397
+            },
+            {
+              "busy_ns": 7629643500,
+              "index": 5,
+              "park_unpark_transitions": 340141,
+              "parks": 170071
+            },
+            {
+              "busy_ns": 7689003100,
+              "index": 6,
+              "park_unpark_transitions": 340087,
+              "parks": 170044
+            },
+            {
+              "busy_ns": 7448820700,
+              "index": 7,
+              "park_unpark_transitions": 334671,
+              "parks": 167336
+            }
+          ]
+        },
+        "repetition": 0,
+        "variant": "h2-selection-candidate",
+        "name": "h3-workers8"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 9758.898221952166,
+        "client_cpu_us_per_success": 261.796875,
+        "peer_cpu_s": 24.421875,
+        "sampled_peak_rss_bytes": 47751168,
+        "sampled_peak_private_bytes": 37355520,
+        "start_rss_bytes": 42287104,
+        "end_rss_bytes": 43302912,
+        "observer_storage_bytes": 20800000,
+        "directory": "timing-0-h3-workers8-h3-cancel-oneshot\\000-h3-workers8-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-workers8",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "p95_ns": 13952800,
+        "p99_ns": 14294000,
+        "host_busy_percent": 100.0,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 53554500,
+              "index": 0,
+              "park_unpark_transitions": 2165,
+              "parks": 1083
+            },
+            {
+              "busy_ns": 50424800,
+              "index": 1,
+              "park_unpark_transitions": 1677,
+              "parks": 839
+            },
+            {
+              "busy_ns": 44720200,
+              "index": 2,
+              "park_unpark_transitions": 1621,
+              "parks": 811
+            },
+            {
+              "busy_ns": 46144400,
+              "index": 3,
+              "park_unpark_transitions": 1675,
+              "parks": 838
+            },
+            {
+              "busy_ns": 41374600,
+              "index": 4,
+              "park_unpark_transitions": 1709,
+              "parks": 855
+            },
+            {
+              "busy_ns": 40562800,
+              "index": 5,
+              "park_unpark_transitions": 1751,
+              "parks": 876
+            },
+            {
+              "busy_ns": 40762600,
+              "index": 6,
+              "park_unpark_transitions": 1511,
+              "parks": 756
+            },
+            {
+              "busy_ns": 45146900,
+              "index": 7,
+              "park_unpark_transitions": 1833,
+              "parks": 917
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 8220821500,
+              "index": 0,
+              "park_unpark_transitions": 345543,
+              "parks": 172772
+            },
+            {
+              "busy_ns": 8184244200,
+              "index": 1,
+              "park_unpark_transitions": 340947,
+              "parks": 170474
+            },
+            {
+              "busy_ns": 8723656900,
+              "index": 2,
+              "park_unpark_transitions": 328201,
+              "parks": 164101
+            },
+            {
+              "busy_ns": 8691997100,
+              "index": 3,
+              "park_unpark_transitions": 328479,
+              "parks": 164240
+            },
+            {
+              "busy_ns": 7885689900,
+              "index": 4,
+              "park_unpark_transitions": 354795,
+              "parks": 177398
+            },
+            {
+              "busy_ns": 7912103600,
+              "index": 5,
+              "park_unpark_transitions": 359519,
+              "parks": 179760
+            },
+            {
+              "busy_ns": 8523464500,
+              "index": 6,
+              "park_unpark_transitions": 342503,
+              "parks": 171252
+            },
+            {
+              "busy_ns": 8374201600,
+              "index": 7,
+              "park_unpark_transitions": 336457,
+              "parks": 168229
+            }
+          ]
+        },
+        "repetition": 0,
+        "variant": "h3-cancel-oneshot",
+        "name": "h3-workers8"
+      },
+      "percent_change": {
+        "completed_requests_s": -10.140572634972001,
+        "client_cpu_us_per_success": 7.749196141479109,
+        "p95_ns": 3.9849158971836607,
+        "p99_ns": -0.5337248707439457,
+        "sampled_peak_rss_bytes": 0.07725985063096186,
+        "sampled_peak_private_bytes": 1.434768101434769
+      }
+    },
+    {
+      "repetition": 1,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 9823.06812481927,
+        "client_cpu_us_per_success": 261.953125,
+        "peer_cpu_s": 23.921875,
+        "sampled_peak_rss_bytes": 47861760,
+        "sampled_peak_private_bytes": 37249024,
+        "start_rss_bytes": 41828352,
+        "end_rss_bytes": 43294720,
+        "observer_storage_bytes": 20800000,
+        "directory": "timing-1-h3-workers8-h2-selection-candidate\\000-h3-workers8-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-workers8",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "p95_ns": 13929200,
+        "p99_ns": 14192100,
+        "host_busy_percent": 97.38604956199934,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 44690500,
+              "index": 0,
+              "park_unpark_transitions": 1683,
+              "parks": 842
+            },
+            {
+              "busy_ns": 46495500,
+              "index": 1,
+              "park_unpark_transitions": 1743,
+              "parks": 872
+            },
+            {
+              "busy_ns": 41409900,
+              "index": 2,
+              "park_unpark_transitions": 1781,
+              "parks": 891
+            },
+            {
+              "busy_ns": 37399400,
+              "index": 3,
+              "park_unpark_transitions": 1517,
+              "parks": 759
+            },
+            {
+              "busy_ns": 44574000,
+              "index": 4,
+              "park_unpark_transitions": 1581,
+              "parks": 791
+            },
+            {
+              "busy_ns": 37414700,
+              "index": 5,
+              "park_unpark_transitions": 1429,
+              "parks": 715
+            },
+            {
+              "busy_ns": 36382300,
+              "index": 6,
+              "park_unpark_transitions": 1489,
+              "parks": 745
+            },
+            {
+              "busy_ns": 42477600,
+              "index": 7,
+              "park_unpark_transitions": 1555,
+              "parks": 778
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 7838021200,
+              "index": 0,
+              "park_unpark_transitions": 353005,
+              "parks": 176503
+            },
+            {
+              "busy_ns": 8465711000,
+              "index": 1,
+              "park_unpark_transitions": 345353,
+              "parks": 172677
+            },
+            {
+              "busy_ns": 8373664200,
+              "index": 2,
+              "park_unpark_transitions": 340943,
+              "parks": 170472
+            },
+            {
+              "busy_ns": 8454972800,
+              "index": 3,
+              "park_unpark_transitions": 337925,
+              "parks": 168963
+            },
+            {
+              "busy_ns": 8483628700,
+              "index": 4,
+              "park_unpark_transitions": 335397,
+              "parks": 167699
+            },
+            {
+              "busy_ns": 8514980700,
+              "index": 5,
+              "park_unpark_transitions": 342227,
+              "parks": 171114
+            },
+            {
+              "busy_ns": 8540772300,
+              "index": 6,
+              "park_unpark_transitions": 344773,
+              "parks": 172387
+            },
+            {
+              "busy_ns": 7796376600,
+              "index": 7,
+              "park_unpark_transitions": 346455,
+              "parks": 173228
+            }
+          ]
+        },
+        "repetition": 1,
+        "variant": "h2-selection-candidate",
+        "name": "h3-workers8"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 10923.79425671467,
+        "client_cpu_us_per_success": 241.640625,
+        "peer_cpu_s": 22.34375,
+        "sampled_peak_rss_bytes": 47583232,
+        "sampled_peak_private_bytes": 36900864,
+        "start_rss_bytes": 42184704,
+        "end_rss_bytes": 43155456,
+        "observer_storage_bytes": 20800000,
+        "directory": "timing-1-h3-workers8-h3-cancel-oneshot\\000-h3-workers8-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-workers8",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "p95_ns": 14200500,
+        "p99_ns": 14863200,
+        "host_busy_percent": 81.00490196078431,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 53275500,
+              "index": 0,
+              "park_unpark_transitions": 2181,
+              "parks": 1091
+            },
+            {
+              "busy_ns": 186297000,
+              "index": 1,
+              "park_unpark_transitions": 1869,
+              "parks": 935
+            },
+            {
+              "busy_ns": 43229300,
+              "index": 2,
+              "park_unpark_transitions": 1623,
+              "parks": 812
+            },
+            {
+              "busy_ns": 43046900,
+              "index": 3,
+              "park_unpark_transitions": 1543,
+              "parks": 772
+            },
+            {
+              "busy_ns": 46346100,
+              "index": 4,
+              "park_unpark_transitions": 1767,
+              "parks": 884
+            },
+            {
+              "busy_ns": 45517400,
+              "index": 5,
+              "park_unpark_transitions": 2107,
+              "parks": 1054
+            },
+            {
+              "busy_ns": 48107400,
+              "index": 6,
+              "park_unpark_transitions": 1941,
+              "parks": 971
+            },
+            {
+              "busy_ns": 38898500,
+              "index": 7,
+              "park_unpark_transitions": 1295,
+              "parks": 648
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 7409673500,
+              "index": 0,
+              "park_unpark_transitions": 324885,
+              "parks": 162443
+            },
+            {
+              "busy_ns": 7566020000,
+              "index": 1,
+              "park_unpark_transitions": 325707,
+              "parks": 162854
+            },
+            {
+              "busy_ns": 7433229500,
+              "index": 2,
+              "park_unpark_transitions": 326909,
+              "parks": 163455
+            },
+            {
+              "busy_ns": 7515686600,
+              "index": 3,
+              "park_unpark_transitions": 328483,
+              "parks": 164242
+            },
+            {
+              "busy_ns": 7531737100,
+              "index": 4,
+              "park_unpark_transitions": 330965,
+              "parks": 165483
+            },
+            {
+              "busy_ns": 7357277400,
+              "index": 5,
+              "park_unpark_transitions": 323689,
+              "parks": 161845
+            },
+            {
+              "busy_ns": 7444876000,
+              "index": 6,
+              "park_unpark_transitions": 328435,
+              "parks": 164218
+            },
+            {
+              "busy_ns": 7425531300,
+              "index": 7,
+              "park_unpark_transitions": 328357,
+              "parks": 164179
+            }
+          ]
+        },
+        "repetition": 1,
+        "variant": "h3-cancel-oneshot",
+        "name": "h3-workers8"
+      },
+      "percent_change": {
+        "completed_requests_s": 11.205522733923324,
+        "client_cpu_us_per_success": -7.754249925439904,
+        "p95_ns": 1.9477069752749543,
+        "p99_ns": 4.72868708647769,
+        "sampled_peak_rss_bytes": -0.5819426615318757,
+        "sampled_peak_private_bytes": -0.9346822080492645
+      }
+    },
+    {
+      "repetition": 2,
+      "control": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 11450.35058425786,
+        "client_cpu_us_per_success": 224.921875,
+        "peer_cpu_s": 21.625,
+        "sampled_peak_rss_bytes": 47906816,
+        "sampled_peak_private_bytes": 37146624,
+        "start_rss_bytes": 41889792,
+        "end_rss_bytes": 43405312,
+        "observer_storage_bytes": 20800000,
+        "directory": "timing-2-h3-workers8-h2-selection-candidate\\000-h3-workers8-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-workers8",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "p95_ns": 13494100,
+        "p99_ns": 15097700,
+        "host_busy_percent": 78.38842058554292,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 32573900,
+              "index": 0,
+              "park_unpark_transitions": 1341,
+              "parks": 671
+            },
+            {
+              "busy_ns": 40447500,
+              "index": 1,
+              "park_unpark_transitions": 1773,
+              "parks": 887
+            },
+            {
+              "busy_ns": 42356700,
+              "index": 2,
+              "park_unpark_transitions": 1983,
+              "parks": 992
+            },
+            {
+              "busy_ns": 46745400,
+              "index": 3,
+              "park_unpark_transitions": 1955,
+              "parks": 978
+            },
+            {
+              "busy_ns": 42732700,
+              "index": 4,
+              "park_unpark_transitions": 1915,
+              "parks": 958
+            },
+            {
+              "busy_ns": 46865100,
+              "index": 5,
+              "park_unpark_transitions": 1925,
+              "parks": 963
+            },
+            {
+              "busy_ns": 44673500,
+              "index": 6,
+              "park_unpark_transitions": 1547,
+              "parks": 774
+            },
+            {
+              "busy_ns": 44135000,
+              "index": 7,
+              "park_unpark_transitions": 1673,
+              "parks": 837
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 7151668700,
+              "index": 0,
+              "park_unpark_transitions": 320357,
+              "parks": 160179
+            },
+            {
+              "busy_ns": 7202133500,
+              "index": 1,
+              "park_unpark_transitions": 325079,
+              "parks": 162540
+            },
+            {
+              "busy_ns": 7035048000,
+              "index": 2,
+              "park_unpark_transitions": 325205,
+              "parks": 162603
+            },
+            {
+              "busy_ns": 7100945100,
+              "index": 3,
+              "park_unpark_transitions": 325545,
+              "parks": 162773
+            },
+            {
+              "busy_ns": 7197664900,
+              "index": 4,
+              "park_unpark_transitions": 315165,
+              "parks": 157583
+            },
+            {
+              "busy_ns": 7175125600,
+              "index": 5,
+              "park_unpark_transitions": 314961,
+              "parks": 157481
+            },
+            {
+              "busy_ns": 7204323200,
+              "index": 6,
+              "park_unpark_transitions": 323017,
+              "parks": 161509
+            },
+            {
+              "busy_ns": 7152608000,
+              "index": 7,
+              "park_unpark_transitions": 319677,
+              "parks": 159839
+            }
+          ]
+        },
+        "repetition": 2,
+        "variant": "h2-selection-candidate",
+        "name": "h3-workers8"
+      },
+      "candidate": {
+        "successes": 200000,
+        "failures": 0,
+        "completed_requests_s": 12285.603397613106,
+        "client_cpu_us_per_success": 213.59375,
+        "peer_cpu_s": 19.875,
+        "sampled_peak_rss_bytes": 48173056,
+        "sampled_peak_private_bytes": 37376000,
+        "start_rss_bytes": 42151936,
+        "end_rss_bytes": 43728896,
+        "observer_storage_bytes": 20800000,
+        "directory": "timing-2-h3-workers8-h3-cancel-oneshot\\000-h3-workers8-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "h3-workers8",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 200000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "p95_ns": 12438700,
+        "p99_ns": 13960800,
+        "host_busy_percent": 65.43642241385477,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 39966700,
+              "index": 0,
+              "park_unpark_transitions": 1631,
+              "parks": 816
+            },
+            {
+              "busy_ns": 38564500,
+              "index": 1,
+              "park_unpark_transitions": 1595,
+              "parks": 798
+            },
+            {
+              "busy_ns": 36826500,
+              "index": 2,
+              "park_unpark_transitions": 1709,
+              "parks": 855
+            },
+            {
+              "busy_ns": 31648500,
+              "index": 3,
+              "park_unpark_transitions": 1413,
+              "parks": 707
+            },
+            {
+              "busy_ns": 41769700,
+              "index": 4,
+              "park_unpark_transitions": 1575,
+              "parks": 788
+            },
+            {
+              "busy_ns": 40949400,
+              "index": 5,
+              "park_unpark_transitions": 1615,
+              "parks": 808
+            },
+            {
+              "busy_ns": 41109100,
+              "index": 6,
+              "park_unpark_transitions": 1777,
+              "parks": 889
+            },
+            {
+              "busy_ns": 41957900,
+              "index": 7,
+              "park_unpark_transitions": 1757,
+              "parks": 879
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 6644980800,
+              "index": 0,
+              "park_unpark_transitions": 308839,
+              "parks": 154420
+            },
+            {
+              "busy_ns": 6633037600,
+              "index": 1,
+              "park_unpark_transitions": 308299,
+              "parks": 154150
+            },
+            {
+              "busy_ns": 6645006400,
+              "index": 2,
+              "park_unpark_transitions": 310459,
+              "parks": 155230
+            },
+            {
+              "busy_ns": 6570072800,
+              "index": 3,
+              "park_unpark_transitions": 305583,
+              "parks": 152792
+            },
+            {
+              "busy_ns": 6543608000,
+              "index": 4,
+              "park_unpark_transitions": 306617,
+              "parks": 153309
+            },
+            {
+              "busy_ns": 6560090800,
+              "index": 5,
+              "park_unpark_transitions": 306421,
+              "parks": 153211
+            },
+            {
+              "busy_ns": 6518097200,
+              "index": 6,
+              "park_unpark_transitions": 305031,
+              "parks": 152516
+            },
+            {
+              "busy_ns": 6646456400,
+              "index": 7,
+              "park_unpark_transitions": 309891,
+              "parks": 154946
+            }
+          ]
+        },
+        "repetition": 2,
+        "variant": "h3-cancel-oneshot",
+        "name": "h3-workers8"
+      },
+      "percent_change": {
+        "completed_requests_s": 7.294561046048376,
+        "client_cpu_us_per_success": -5.036470996873909,
+        "p95_ns": -7.821195930073143,
+        "p99_ns": -7.530286070063652,
+        "sampled_peak_rss_bytes": 0.5557455540355694,
+        "sampled_peak_private_bytes": 0.6174881464328985
+      }
+    }
+  ],
+  "heldout-h2": [
+    {
+      "repetition": 0,
+      "control": {
+        "successes": 100000,
+        "failures": 0,
+        "completed_requests_s": 47736.66166068208,
+        "client_cpu_us_per_success": 88.59375,
+        "peer_cpu_s": 1.859375,
+        "sampled_peak_rss_bytes": 32870400,
+        "sampled_peak_private_bytes": 23744512,
+        "start_rss_bytes": 30171136,
+        "end_rss_bytes": 31588352,
+        "observer_storage_bytes": 10400000,
+        "directory": "timing-0-heldout-h2-h2-selection-candidate\\000-heldout-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "heldout-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 100000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "p95_ns": 3504400,
+        "p99_ns": 4979100,
+        "host_busy_percent": 100.0,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 24501400,
+              "index": 0,
+              "park_unpark_transitions": 167,
+              "parks": 84
+            },
+            {
+              "busy_ns": 527215900,
+              "index": 1,
+              "park_unpark_transitions": 165,
+              "parks": 83
+            },
+            {
+              "busy_ns": 21922100,
+              "index": 2,
+              "park_unpark_transitions": 207,
+              "parks": 104
+            },
+            {
+              "busy_ns": 22393800,
+              "index": 3,
+              "park_unpark_transitions": 203,
+              "parks": 102
+            },
+            {
+              "busy_ns": 22930500,
+              "index": 4,
+              "park_unpark_transitions": 165,
+              "parks": 83
+            },
+            {
+              "busy_ns": 21362000,
+              "index": 5,
+              "park_unpark_transitions": 157,
+              "parks": 79
+            },
+            {
+              "busy_ns": 20890100,
+              "index": 6,
+              "park_unpark_transitions": 199,
+              "parks": 100
+            },
+            {
+              "busy_ns": 20736300,
+              "index": 7,
+              "park_unpark_transitions": 221,
+              "parks": 111
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 1624410000,
+              "index": 0,
+              "park_unpark_transitions": 21093,
+              "parks": 10547
+            },
+            {
+              "busy_ns": 2131858900,
+              "index": 1,
+              "park_unpark_transitions": 21191,
+              "parks": 10596
+            },
+            {
+              "busy_ns": 1626329600,
+              "index": 2,
+              "park_unpark_transitions": 20737,
+              "parks": 10369
+            },
+            {
+              "busy_ns": 1633691200,
+              "index": 3,
+              "park_unpark_transitions": 20695,
+              "parks": 10348
+            },
+            {
+              "busy_ns": 1621239800,
+              "index": 4,
+              "park_unpark_transitions": 21479,
+              "parks": 10740
+            },
+            {
+              "busy_ns": 1629346100,
+              "index": 5,
+              "park_unpark_transitions": 21519,
+              "parks": 10760
+            },
+            {
+              "busy_ns": 1630238500,
+              "index": 6,
+              "park_unpark_transitions": 20933,
+              "parks": 10467
+            },
+            {
+              "busy_ns": 1642942600,
+              "index": 7,
+              "park_unpark_transitions": 20229,
+              "parks": 10115
+            }
+          ]
+        },
+        "repetition": 0,
+        "variant": "h2-selection-candidate",
+        "name": "heldout-h2"
+      },
+      "candidate": {
+        "successes": 100000,
+        "failures": 0,
+        "completed_requests_s": 44955.27826440617,
+        "client_cpu_us_per_success": 91.40625,
+        "peer_cpu_s": 2.4375,
+        "sampled_peak_rss_bytes": 33259520,
+        "sampled_peak_private_bytes": 23654400,
+        "start_rss_bytes": 29446144,
+        "end_rss_bytes": 31744000,
+        "observer_storage_bytes": 10400000,
+        "directory": "timing-0-heldout-h2-h3-cancel-oneshot\\000-heldout-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "heldout-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 100000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "p95_ns": 3545100,
+        "p99_ns": 3889900,
+        "host_busy_percent": 100.0,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 21403300,
+              "index": 0,
+              "park_unpark_transitions": 221,
+              "parks": 111
+            },
+            {
+              "busy_ns": 25576000,
+              "index": 1,
+              "park_unpark_transitions": 175,
+              "parks": 88
+            },
+            {
+              "busy_ns": 23507900,
+              "index": 2,
+              "park_unpark_transitions": 207,
+              "parks": 104
+            },
+            {
+              "busy_ns": 23413700,
+              "index": 3,
+              "park_unpark_transitions": 191,
+              "parks": 96
+            },
+            {
+              "busy_ns": 23735700,
+              "index": 4,
+              "park_unpark_transitions": 165,
+              "parks": 83
+            },
+            {
+              "busy_ns": 22259400,
+              "index": 5,
+              "park_unpark_transitions": 203,
+              "parks": 102
+            },
+            {
+              "busy_ns": 23119100,
+              "index": 6,
+              "park_unpark_transitions": 155,
+              "parks": 78
+            },
+            {
+              "busy_ns": 23187900,
+              "index": 7,
+              "park_unpark_transitions": 189,
+              "parks": 95
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 1796295100,
+              "index": 0,
+              "park_unpark_transitions": 19967,
+              "parks": 9984
+            },
+            {
+              "busy_ns": 1805186100,
+              "index": 1,
+              "park_unpark_transitions": 19747,
+              "parks": 9874
+            },
+            {
+              "busy_ns": 1838572200,
+              "index": 2,
+              "park_unpark_transitions": 19605,
+              "parks": 9803
+            },
+            {
+              "busy_ns": 1804721700,
+              "index": 3,
+              "park_unpark_transitions": 19461,
+              "parks": 9731
+            },
+            {
+              "busy_ns": 1813275200,
+              "index": 4,
+              "park_unpark_transitions": 19321,
+              "parks": 9661
+            },
+            {
+              "busy_ns": 1780492600,
+              "index": 5,
+              "park_unpark_transitions": 20411,
+              "parks": 10206
+            },
+            {
+              "busy_ns": 1786620700,
+              "index": 6,
+              "park_unpark_transitions": 20131,
+              "parks": 10066
+            },
+            {
+              "busy_ns": 1800234900,
+              "index": 7,
+              "park_unpark_transitions": 19751,
+              "parks": 9876
+            }
+          ]
+        },
+        "repetition": 0,
+        "variant": "h3-cancel-oneshot",
+        "name": "heldout-h2"
+      },
+      "percent_change": {
+        "completed_requests_s": -5.826514254487081,
+        "client_cpu_us_per_success": 3.1746031746031855,
+        "p95_ns": 1.1613971007875756,
+        "p99_ns": -21.87543933642626,
+        "sampled_peak_rss_bytes": 1.1838006230529663,
+        "sampled_peak_private_bytes": -0.3795066413662229
+      }
+    },
+    {
+      "repetition": 1,
+      "control": {
+        "successes": 100000,
+        "failures": 0,
+        "completed_requests_s": 43654.57029082107,
+        "client_cpu_us_per_success": 96.71875,
+        "peer_cpu_s": 2.578125,
+        "sampled_peak_rss_bytes": 33779712,
+        "sampled_peak_private_bytes": 24182784,
+        "start_rss_bytes": 29601792,
+        "end_rss_bytes": 30965760,
+        "observer_storage_bytes": 10400000,
+        "directory": "timing-1-heldout-h2-h2-selection-candidate\\000-heldout-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "heldout-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 100000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "p95_ns": 3876200,
+        "p99_ns": 4809900,
+        "host_busy_percent": 100.0,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 24158900,
+              "index": 0,
+              "park_unpark_transitions": 93,
+              "parks": 47
+            },
+            {
+              "busy_ns": 8037800,
+              "index": 1,
+              "park_unpark_transitions": 77,
+              "parks": 39
+            },
+            {
+              "busy_ns": 7210500,
+              "index": 2,
+              "park_unpark_transitions": 91,
+              "parks": 46
+            },
+            {
+              "busy_ns": 7016400,
+              "index": 3,
+              "park_unpark_transitions": 101,
+              "parks": 51
+            },
+            {
+              "busy_ns": 7723700,
+              "index": 4,
+              "park_unpark_transitions": 73,
+              "parks": 37
+            },
+            {
+              "busy_ns": 8907900,
+              "index": 5,
+              "park_unpark_transitions": 53,
+              "parks": 27
+            },
+            {
+              "busy_ns": 10405400,
+              "index": 6,
+              "park_unpark_transitions": 57,
+              "parks": 29
+            },
+            {
+              "busy_ns": 8203800,
+              "index": 7,
+              "park_unpark_transitions": 73,
+              "parks": 37
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 1764854000,
+              "index": 0,
+              "park_unpark_transitions": 21455,
+              "parks": 10728
+            },
+            {
+              "busy_ns": 1742496900,
+              "index": 1,
+              "park_unpark_transitions": 22237,
+              "parks": 11119
+            },
+            {
+              "busy_ns": 1721340200,
+              "index": 2,
+              "park_unpark_transitions": 22731,
+              "parks": 11366
+            },
+            {
+              "busy_ns": 1735178400,
+              "index": 3,
+              "park_unpark_transitions": 22935,
+              "parks": 11468
+            },
+            {
+              "busy_ns": 1743460300,
+              "index": 4,
+              "park_unpark_transitions": 21709,
+              "parks": 10855
+            },
+            {
+              "busy_ns": 1733269600,
+              "index": 5,
+              "park_unpark_transitions": 21675,
+              "parks": 10838
+            },
+            {
+              "busy_ns": 1744517800,
+              "index": 6,
+              "park_unpark_transitions": 21895,
+              "parks": 10948
+            },
+            {
+              "busy_ns": 1748643700,
+              "index": 7,
+              "park_unpark_transitions": 21949,
+              "parks": 10975
+            }
+          ]
+        },
+        "repetition": 1,
+        "variant": "h2-selection-candidate",
+        "name": "heldout-h2"
+      },
+      "candidate": {
+        "successes": 100000,
+        "failures": 0,
+        "completed_requests_s": 47205.26871221573,
+        "client_cpu_us_per_success": 80.15625,
+        "peer_cpu_s": 2.34375,
+        "sampled_peak_rss_bytes": 32563200,
+        "sampled_peak_private_bytes": 23142400,
+        "start_rss_bytes": 29736960,
+        "end_rss_bytes": 30289920,
+        "observer_storage_bytes": 10400000,
+        "directory": "timing-1-heldout-h2-h3-cancel-oneshot\\000-heldout-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "heldout-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 100000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "p95_ns": 3595100,
+        "p99_ns": 4111500,
+        "host_busy_percent": 100.0,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 22260100,
+              "index": 0,
+              "park_unpark_transitions": 255,
+              "parks": 128
+            },
+            {
+              "busy_ns": 21931800,
+              "index": 1,
+              "park_unpark_transitions": 289,
+              "parks": 145
+            },
+            {
+              "busy_ns": 549091600,
+              "index": 2,
+              "park_unpark_transitions": 247,
+              "parks": 124
+            },
+            {
+              "busy_ns": 22866800,
+              "index": 3,
+              "park_unpark_transitions": 213,
+              "parks": 107
+            },
+            {
+              "busy_ns": 23026900,
+              "index": 4,
+              "park_unpark_transitions": 323,
+              "parks": 162
+            },
+            {
+              "busy_ns": 20811900,
+              "index": 5,
+              "park_unpark_transitions": 183,
+              "parks": 92
+            },
+            {
+              "busy_ns": 22067200,
+              "index": 6,
+              "park_unpark_transitions": 231,
+              "parks": 116
+            },
+            {
+              "busy_ns": 22436000,
+              "index": 7,
+              "park_unpark_transitions": 177,
+              "parks": 89
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 1712104800,
+              "index": 0,
+              "park_unpark_transitions": 18787,
+              "parks": 9394
+            },
+            {
+              "busy_ns": 1714039400,
+              "index": 1,
+              "park_unpark_transitions": 19065,
+              "parks": 9533
+            },
+            {
+              "busy_ns": 2218863500,
+              "index": 2,
+              "park_unpark_transitions": 20109,
+              "parks": 10055
+            },
+            {
+              "busy_ns": 1704647500,
+              "index": 3,
+              "park_unpark_transitions": 19497,
+              "parks": 9749
+            },
+            {
+              "busy_ns": 1718102100,
+              "index": 4,
+              "park_unpark_transitions": 19397,
+              "parks": 9699
+            },
+            {
+              "busy_ns": 1707446300,
+              "index": 5,
+              "park_unpark_transitions": 19293,
+              "parks": 9647
+            },
+            {
+              "busy_ns": 1719645700,
+              "index": 6,
+              "park_unpark_transitions": 18805,
+              "parks": 9403
+            },
+            {
+              "busy_ns": 1727077500,
+              "index": 7,
+              "park_unpark_transitions": 18283,
+              "parks": 9142
+            }
+          ]
+        },
+        "repetition": 1,
+        "variant": "h3-cancel-oneshot",
+        "name": "heldout-h2"
+      },
+      "percent_change": {
+        "completed_requests_s": 8.133623576501536,
+        "client_cpu_us_per_success": -17.12439418416801,
+        "p95_ns": -7.251947783912083,
+        "p99_ns": -14.520052391941618,
+        "sampled_peak_rss_bytes": -3.6013095671153184,
+        "sampled_peak_private_bytes": -4.302168021680219
+      }
+    },
+    {
+      "repetition": 2,
+      "control": {
+        "successes": 100000,
+        "failures": 0,
+        "completed_requests_s": 61484.76358370585,
+        "client_cpu_us_per_success": 65.9375,
+        "peer_cpu_s": 1.8125,
+        "sampled_peak_rss_bytes": 32813056,
+        "sampled_peak_private_bytes": 23367680,
+        "start_rss_bytes": 29761536,
+        "end_rss_bytes": 30887936,
+        "observer_storage_bytes": 10400000,
+        "directory": "timing-2-heldout-h2-h2-selection-candidate\\000-heldout-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "heldout-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 100000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "p95_ns": 2819600,
+        "p99_ns": 3213800,
+        "host_busy_percent": 98.01897321428571,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 13682100,
+              "index": 0,
+              "park_unpark_transitions": 209,
+              "parks": 105
+            },
+            {
+              "busy_ns": 17547300,
+              "index": 1,
+              "park_unpark_transitions": 233,
+              "parks": 117
+            },
+            {
+              "busy_ns": 15898800,
+              "index": 2,
+              "park_unpark_transitions": 233,
+              "parks": 117
+            },
+            {
+              "busy_ns": 16020200,
+              "index": 3,
+              "park_unpark_transitions": 225,
+              "parks": 113
+            },
+            {
+              "busy_ns": 15209600,
+              "index": 4,
+              "park_unpark_transitions": 263,
+              "parks": 132
+            },
+            {
+              "busy_ns": 14914200,
+              "index": 5,
+              "park_unpark_transitions": 245,
+              "parks": 123
+            },
+            {
+              "busy_ns": 15214100,
+              "index": 6,
+              "park_unpark_transitions": 263,
+              "parks": 132
+            },
+            {
+              "busy_ns": 15723800,
+              "index": 7,
+              "park_unpark_transitions": 235,
+              "parks": 118
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 1260117700,
+              "index": 0,
+              "park_unpark_transitions": 20735,
+              "parks": 10368
+            },
+            {
+              "busy_ns": 1269303900,
+              "index": 1,
+              "park_unpark_transitions": 20787,
+              "parks": 10394
+            },
+            {
+              "busy_ns": 1249057000,
+              "index": 2,
+              "park_unpark_transitions": 21197,
+              "parks": 10599
+            },
+            {
+              "busy_ns": 1263903400,
+              "index": 3,
+              "park_unpark_transitions": 20901,
+              "parks": 10451
+            },
+            {
+              "busy_ns": 1264583200,
+              "index": 4,
+              "park_unpark_transitions": 21347,
+              "parks": 10674
+            },
+            {
+              "busy_ns": 1264434600,
+              "index": 5,
+              "park_unpark_transitions": 20633,
+              "parks": 10317
+            },
+            {
+              "busy_ns": 1276692100,
+              "index": 6,
+              "park_unpark_transitions": 19753,
+              "parks": 9877
+            },
+            {
+              "busy_ns": 1281371200,
+              "index": 7,
+              "park_unpark_transitions": 19801,
+              "parks": 9901
+            }
+          ]
+        },
+        "repetition": 2,
+        "variant": "h2-selection-candidate",
+        "name": "heldout-h2"
+      },
+      "candidate": {
+        "successes": 100000,
+        "failures": 0,
+        "completed_requests_s": 56844.19449673163,
+        "client_cpu_us_per_success": 62.34375,
+        "peer_cpu_s": 1.90625,
+        "sampled_peak_rss_bytes": 33624064,
+        "sampled_peak_private_bytes": 24305664,
+        "start_rss_bytes": 29761536,
+        "end_rss_bytes": 31211520,
+        "observer_storage_bytes": 10400000,
+        "directory": "timing-2-heldout-h2-h3-cancel-oneshot\\000-heldout-h2-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 1024,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 128,
+          "consume": "stream",
+          "gzip": false,
+          "name": "heldout-h2",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h2",
+          "requests": 100000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 8
+        },
+        "p95_ns": 3028100,
+        "p99_ns": 3863300,
+        "host_busy_percent": 98.84696016771488,
+        "runtime_start": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 15779200,
+              "index": 0,
+              "park_unpark_transitions": 89,
+              "parks": 45
+            },
+            {
+              "busy_ns": 18189800,
+              "index": 1,
+              "park_unpark_transitions": 47,
+              "parks": 24
+            },
+            {
+              "busy_ns": 14705500,
+              "index": 2,
+              "park_unpark_transitions": 33,
+              "parks": 17
+            },
+            {
+              "busy_ns": 23122800,
+              "index": 3,
+              "park_unpark_transitions": 39,
+              "parks": 20
+            },
+            {
+              "busy_ns": 23429800,
+              "index": 4,
+              "park_unpark_transitions": 37,
+              "parks": 19
+            },
+            {
+              "busy_ns": 18657200,
+              "index": 5,
+              "park_unpark_transitions": 45,
+              "parks": 23
+            },
+            {
+              "busy_ns": 20783600,
+              "index": 6,
+              "park_unpark_transitions": 27,
+              "parks": 14
+            },
+            {
+              "busy_ns": 19395500,
+              "index": 7,
+              "park_unpark_transitions": 11,
+              "parks": 6
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 1,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 1335701600,
+              "index": 0,
+              "park_unpark_transitions": 17517,
+              "parks": 8759
+            },
+            {
+              "busy_ns": 1344247100,
+              "index": 1,
+              "park_unpark_transitions": 17357,
+              "parks": 8679
+            },
+            {
+              "busy_ns": 1292562600,
+              "index": 2,
+              "park_unpark_transitions": 18815,
+              "parks": 9408
+            },
+            {
+              "busy_ns": 1298094500,
+              "index": 3,
+              "park_unpark_transitions": 18825,
+              "parks": 9413
+            },
+            {
+              "busy_ns": 1334099000,
+              "index": 4,
+              "park_unpark_transitions": 16985,
+              "parks": 8493
+            },
+            {
+              "busy_ns": 1317408500,
+              "index": 5,
+              "park_unpark_transitions": 17605,
+              "parks": 8803
+            },
+            {
+              "busy_ns": 1368713100,
+              "index": 6,
+              "park_unpark_transitions": 15909,
+              "parks": 7955
+            },
+            {
+              "busy_ns": 1344578300,
+              "index": 7,
+              "park_unpark_transitions": 16717,
+              "parks": 8359
+            }
+          ]
+        },
+        "repetition": 2,
+        "variant": "h3-cancel-oneshot",
+        "name": "heldout-h2"
+      },
+      "percent_change": {
+        "completed_requests_s": -7.547510661981338,
+        "client_cpu_us_per_success": -5.45023696682464,
+        "p95_ns": 7.3946659100581735,
+        "p99_ns": 20.209720579998745,
+        "sampled_peak_rss_bytes": 2.4716015478716713,
+        "sampled_peak_private_bytes": 4.014022787028915
+      }
+    }
+  ],
+  "stream-h3": [
+    {
+      "repetition": 0,
+      "control": {
+        "successes": 50000,
+        "failures": 0,
+        "completed_requests_s": 3304.70054855848,
+        "client_cpu_us_per_success": 436.5625,
+        "peer_cpu_s": 17.875,
+        "sampled_peak_rss_bytes": 25726976,
+        "sampled_peak_private_bytes": 15052800,
+        "start_rss_bytes": 24272896,
+        "end_rss_bytes": 24633344,
+        "observer_storage_bytes": 5200000,
+        "directory": "timing-0-stream-h3-h2-selection-candidate\\000-stream-h3-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 65536,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "stream-h3",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 50000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 11372500,
+        "p99_ns": 11925300,
+        "host_busy_percent": 100.00000000004418,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 274711400,
+              "index": 0,
+              "park_unpark_transitions": 4255,
+              "parks": 2128
+            },
+            {
+              "busy_ns": 276361300,
+              "index": 1,
+              "park_unpark_transitions": 4237,
+              "parks": 2119
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 11410419800,
+              "index": 0,
+              "park_unpark_transitions": 240049,
+              "parks": 120025
+            },
+            {
+              "busy_ns": 11419444000,
+              "index": 1,
+              "park_unpark_transitions": 240479,
+              "parks": 120240
+            }
+          ]
+        },
+        "repetition": 0,
+        "variant": "h2-selection-candidate",
+        "name": "stream-h3"
+      },
+      "candidate": {
+        "successes": 50000,
+        "failures": 0,
+        "completed_requests_s": 3774.6968031413326,
+        "client_cpu_us_per_success": 392.8125,
+        "peer_cpu_s": 15.65625,
+        "sampled_peak_rss_bytes": 25546752,
+        "sampled_peak_private_bytes": 14671872,
+        "start_rss_bytes": 23633920,
+        "end_rss_bytes": 23965696,
+        "observer_storage_bytes": 5200000,
+        "directory": "timing-0-stream-h3-h3-cancel-oneshot\\000-stream-h3-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 65536,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "stream-h3",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 50000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 9970800,
+        "p99_ns": 10680300,
+        "host_busy_percent": 100.0,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 243908600,
+              "index": 0,
+              "park_unpark_transitions": 6429,
+              "parks": 3215
+            },
+            {
+              "busy_ns": 262593100,
+              "index": 1,
+              "park_unpark_transitions": 6191,
+              "parks": 3096
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 9732003000,
+              "index": 0,
+              "park_unpark_transitions": 261389,
+              "parks": 130695
+            },
+            {
+              "busy_ns": 10075953000,
+              "index": 1,
+              "park_unpark_transitions": 262969,
+              "parks": 131485
+            }
+          ]
+        },
+        "repetition": 0,
+        "variant": "h3-cancel-oneshot",
+        "name": "stream-h3"
+      },
+      "percent_change": {
+        "completed_requests_s": 14.222052729947542,
+        "client_cpu_us_per_success": -10.021474588403724,
+        "p95_ns": -12.325346229940648,
+        "p99_ns": -10.439988931096078,
+        "sampled_peak_rss_bytes": -0.7005253940455369,
+        "sampled_peak_private_bytes": -2.530612244897956
+      }
+    },
+    {
+      "repetition": 1,
+      "control": {
+        "successes": 50000,
+        "failures": 0,
+        "completed_requests_s": 3423.5293640769555,
+        "client_cpu_us_per_success": 427.1875,
+        "peer_cpu_s": 16.828125,
+        "sampled_peak_rss_bytes": 25706496,
+        "sampled_peak_private_bytes": 14598144,
+        "start_rss_bytes": 23728128,
+        "end_rss_bytes": 24539136,
+        "observer_storage_bytes": 5200000,
+        "directory": "timing-1-stream-h3-h2-selection-candidate\\000-stream-h3-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 65536,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "stream-h3",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 50000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 11060500,
+        "p99_ns": 11551200,
+        "host_busy_percent": 100.0,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 271126600,
+              "index": 0,
+              "park_unpark_transitions": 6067,
+              "parks": 3034
+            },
+            {
+              "busy_ns": 277208000,
+              "index": 1,
+              "park_unpark_transitions": 5651,
+              "parks": 2826
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 11024773600,
+              "index": 0,
+              "park_unpark_transitions": 252725,
+              "parks": 126363
+            },
+            {
+              "busy_ns": 10955631200,
+              "index": 1,
+              "park_unpark_transitions": 253053,
+              "parks": 126527
+            }
+          ]
+        },
+        "repetition": 1,
+        "variant": "h2-selection-candidate",
+        "name": "stream-h3"
+      },
+      "candidate": {
+        "successes": 50000,
+        "failures": 0,
+        "completed_requests_s": 3619.1069186314962,
+        "client_cpu_us_per_success": 401.875,
+        "peer_cpu_s": 16.234375,
+        "sampled_peak_rss_bytes": 25313280,
+        "sampled_peak_private_bytes": 14438400,
+        "start_rss_bytes": 23629824,
+        "end_rss_bytes": 24309760,
+        "observer_storage_bytes": 5200000,
+        "directory": "timing-1-stream-h3-h3-cancel-oneshot\\000-stream-h3-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 65536,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "stream-h3",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 50000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 10360800,
+        "p99_ns": 11376800,
+        "host_busy_percent": 100.0,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 253343200,
+              "index": 0,
+              "park_unpark_transitions": 5761,
+              "parks": 2881
+            },
+            {
+              "busy_ns": 250770600,
+              "index": 1,
+              "park_unpark_transitions": 5887,
+              "parks": 2944
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 10481237700,
+              "index": 0,
+              "park_unpark_transitions": 268545,
+              "parks": 134273
+            },
+            {
+              "busy_ns": 10019798500,
+              "index": 1,
+              "park_unpark_transitions": 266315,
+              "parks": 133158
+            }
+          ]
+        },
+        "repetition": 1,
+        "variant": "h3-cancel-oneshot",
+        "name": "stream-h3"
+      },
+      "percent_change": {
+        "completed_requests_s": 5.712746518453526,
+        "client_cpu_us_per_success": -5.925384052670079,
+        "p95_ns": -6.326115455901626,
+        "p99_ns": -1.509799847634874,
+        "sampled_peak_rss_bytes": -1.5296367112810683,
+        "sampled_peak_private_bytes": -1.094276094276092
+      }
+    },
+    {
+      "repetition": 2,
+      "control": {
+        "successes": 50000,
+        "failures": 0,
+        "completed_requests_s": 4234.759696951788,
+        "client_cpu_us_per_success": 348.75,
+        "peer_cpu_s": 13.875,
+        "sampled_peak_rss_bytes": 26390528,
+        "sampled_peak_private_bytes": 15335424,
+        "start_rss_bytes": 24637440,
+        "end_rss_bytes": 25124864,
+        "observer_storage_bytes": 5200000,
+        "directory": "timing-2-stream-h3-h2-selection-candidate\\000-stream-h3-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 65536,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "stream-h3",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 50000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 9188200,
+        "p99_ns": 9921800,
+        "host_busy_percent": 56.4442791005291,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 208354400,
+              "index": 0,
+              "park_unpark_transitions": 3913,
+              "parks": 1957
+            },
+            {
+              "busy_ns": 208177800,
+              "index": 1,
+              "park_unpark_transitions": 3837,
+              "parks": 1919
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 9154595800,
+              "index": 0,
+              "park_unpark_transitions": 219175,
+              "parks": 109588
+            },
+            {
+              "busy_ns": 9186956000,
+              "index": 1,
+              "park_unpark_transitions": 218411,
+              "parks": 109206
+            }
+          ]
+        },
+        "repetition": 2,
+        "variant": "h2-selection-candidate",
+        "name": "stream-h3"
+      },
+      "candidate": {
+        "successes": 50000,
+        "failures": 0,
+        "completed_requests_s": 4185.755315444631,
+        "client_cpu_us_per_success": 362.8125,
+        "peer_cpu_s": 13.984375,
+        "sampled_peak_rss_bytes": 25702400,
+        "sampled_peak_private_bytes": 14761984,
+        "start_rss_bytes": 23998464,
+        "end_rss_bytes": 24600576,
+        "observer_storage_bytes": 5200000,
+        "directory": "timing-2-stream-h3-h3-cancel-oneshot\\000-stream-h3-r0",
+        "config": {
+          "arrival_interval_us": 0,
+          "bytes": 65536,
+          "chunk_bytes": 16384,
+          "chunk_delay_ms": 0,
+          "cold": false,
+          "concurrency": 32,
+          "consume": "stream",
+          "gzip": false,
+          "name": "stream-h3",
+          "origins": 1,
+          "peer_workers": 2,
+          "profile": "chrome",
+          "protocol": "h3",
+          "requests": 50000,
+          "route": "direct",
+          "server_delay_ms": 0,
+          "template": false,
+          "warmup": 1024,
+          "workers": 2
+        },
+        "p95_ns": 9252700,
+        "p99_ns": 10022800,
+        "host_busy_percent": 60.347216562067,
+        "runtime_start": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 222943400,
+              "index": 0,
+              "park_unpark_transitions": 4243,
+              "parks": 2122
+            },
+            {
+              "busy_ns": 223362200,
+              "index": 1,
+              "park_unpark_transitions": 3979,
+              "parks": 1990
+            }
+          ]
+        },
+        "runtime_end": {
+          "alive_tasks": 5,
+          "global_queue_depth": 0,
+          "workers": [
+            {
+              "busy_ns": 9294223400,
+              "index": 0,
+              "park_unpark_transitions": 222927,
+              "parks": 111464
+            },
+            {
+              "busy_ns": 9284867300,
+              "index": 1,
+              "park_unpark_transitions": 222387,
+              "parks": 111194
+            }
+          ]
+        },
+        "repetition": 2,
+        "variant": "h3-cancel-oneshot",
+        "name": "stream-h3"
+      },
+      "percent_change": {
+        "completed_requests_s": -1.157193914507837,
+        "client_cpu_us_per_success": 4.0322580645161255,
+        "p95_ns": 0.7019873315774472,
+        "p99_ns": 1.0179604507246642,
+        "sampled_peak_rss_bytes": -2.607480987117805,
+        "sampled_peak_private_bytes": -3.739316239316237
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "notify": {
+    "timing": {
+      "accepted_trials": 36,
+      "measured_requests": 5520000
+    },
+    "heap": {
+      "accepted_trials": 24,
+      "measured_requests": 1536
+    }
+  },
+  "oneshot": {
+    "timing": {
+      "accepted_trials": 36,
+      "measured_requests": 4020000
+    },
+    "heap": {
+      "accepted_trials": 24,
+      "measured_requests": 1536
+    }
+  }
+}
