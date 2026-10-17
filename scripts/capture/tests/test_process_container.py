@@ -16,12 +16,17 @@ from scripts.capture import process_container
 from scripts.capture.process_container import ProcessContainer, _bootstrap_command
 
 
-def wait_for_file(path: Path) -> None:
+def wait_for_file(path: Path) -> str:
     deadline = time.monotonic() + 30
-    while not path.exists():
-        if time.monotonic() >= deadline:
-            raise AssertionError("owned process did not publish its checkpoint")
-        time.sleep(0.01)
+    while True:
+        try:
+            return path.read_text()
+        except (FileNotFoundError, PermissionError) as error:
+            if time.monotonic() >= deadline:
+                raise AssertionError(
+                    "owned process did not publish a readable checkpoint"
+                ) from error
+            time.sleep(0.01)
 
 
 class OwnedWindowsProcess:
@@ -75,6 +80,12 @@ class OwnedWindowsProcess:
 
 
 class ProcessContainerTests(unittest.TestCase):
+    def test_checkpoint_waits_until_the_published_file_is_readable(self) -> None:
+        path = mock.Mock()
+        path.read_text.side_effect = [FileNotFoundError(), PermissionError(), "[1, 2]"]
+        with mock.patch.object(time, "sleep"):
+            self.assertEqual(wait_for_file(path), "[1, 2]")
+
     def test_release_failure_retains_failed_owners_and_original_causes(self) -> None:
         process = mock.Mock()
         process.poll.return_value = 0
@@ -386,10 +397,11 @@ class ProcessContainerTests(unittest.TestCase):
             ):
                 container = ProcessContainer([sys.executable, "-c", "pass"])
             cleanup.callback(container.close)
-            bootstrap = OwnedWindowsProcess(int(marker.read_text()))
+            bootstrap_pid = int(wait_for_file(marker))
+            bootstrap = OwnedWindowsProcess(bootstrap_pid)
             cleanup.callback(bootstrap.close)
             self.assertTrue(bootstrap.in_job(container.job))
-            self.assertEqual(int(marker.read_text()), container.pid)
+            self.assertEqual(bootstrap_pid, container.pid)
             container.start()
             self.assertEqual(container.wait(timeout=30), 0)
 
@@ -526,9 +538,9 @@ class ProcessContainerTests(unittest.TestCase):
             container = ProcessContainer(command)
             cleanup.callback(container.close)
             container.start()
-            wait_for_file(marker)
+            checkpoint = wait_for_file(marker)
             processes = []
-            for pid in json.loads(marker.read_text()):
+            for pid in json.loads(checkpoint):
                 process = OwnedWindowsProcess(pid)
                 processes.append(process)
                 cleanup.callback(process.close)
@@ -724,8 +736,7 @@ class ProcessContainerTests(unittest.TestCase):
                     else None
                 )
             )
-            wait_for_file(marker)
-            bootstrap = OwnedWindowsProcess(int(marker.read_text()))
+            bootstrap = OwnedWindowsProcess(int(wait_for_file(marker)))
             cleanup.callback(bootstrap.close)
             runner.kill()
             runner.wait(timeout=30)
@@ -758,9 +769,9 @@ class ProcessContainerTests(unittest.TestCase):
                     else None
                 )
             )
-            wait_for_file(marker)
+            checkpoint = wait_for_file(marker)
             processes = []
-            for pid in json.loads(marker.read_text()):
+            for pid in json.loads(checkpoint):
                 process = OwnedWindowsProcess(pid)
                 processes.append(process)
                 cleanup.callback(process.close)

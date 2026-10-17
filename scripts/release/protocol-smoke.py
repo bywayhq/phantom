@@ -87,14 +87,16 @@ def check(binary, output):
                         expect(client_events, "phase_end")
                         send(peer, "snapshot")
                         expect(peer_events, "snapshotted")
-                        send(client, "save")
-                        expect(client_events, "saved")
-                        if client.wait(timeout=10):
-                            raise RuntimeError(f"client failed: {scenario}")
+                        # Finish the peer before client process exit tears down
+                        # its runtime and can reset an otherwise idle TCP socket.
                         send(peer, "stop")
                         expect(peer_events, "stopped")
                         if peer.wait(timeout=10):
                             raise RuntimeError(f"peer failed: {scenario}")
+                        send(client, "save")
+                        expect(client_events, "saved")
+                        if client.wait(timeout=10):
+                            raise RuntimeError(f"client failed: {scenario}")
                     samples = json.loads(
                         (scenario / "client.json").read_text(encoding="utf-8")
                     )["samples"]
