@@ -4,8 +4,7 @@
 //! `phantom-pixel7` Android 17 x86_64 emulator on the Windows 11 capture host.
 //! A Magisk module sets the emulator's build properties to those of a Pixel 7
 //! on build `CP3A.260905.009`: model, build fingerprint, and security patch
-//! level. `docs/explanation/validation.md`, under "Chrome for Android 154
-//! recipes", describes the emulator.
+//! level.
 //!
 //! Where a layer equals the desktop Chrome recipe on every compared field, the
 //! function here returns the [`chrome`] recipe, and a test replays the
@@ -60,8 +59,7 @@ AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Mobile Safari/537.36";
 /// Google publishes Android 17 for the Pixel 7: its factory image list for
 /// `panther` has 17.0.0 builds `CP2A.260605.012` (Jun 2026),
 /// `CP2A.260705.006` (Jul 2026), and `CP3A.260905.009` (Sep 2026), the build
-/// the capture emulator reports. `docs/explanation/validation.md` quotes the
-/// list under "Chrome for Android 154 recipes".
+/// the capture emulator reports.
 ///
 /// For another phone, use [`v154_android_client_hints_for_model`].
 #[must_use]

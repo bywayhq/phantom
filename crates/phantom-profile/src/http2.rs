@@ -263,8 +263,7 @@ pub enum Http2SensitiveProxyAuthorization {
     /// `Debug` output. Under the Chromium and Firefox recipes the field enters
     /// the dynamic table on first use on a proxy connection and is sent as an
     /// index afterwards, as both browsers send it. An indexed credential is
-    /// open to the RFC 7541 section 7.1.3 compression side channel; see
-    /// `docs/explanation/design.md#cookie-crumbs-and-compression`.
+    /// open to the RFC 7541 section 7.1.3 compression side channel.
     FieldIndexing,
 }
 

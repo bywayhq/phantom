@@ -1,121 +1,66 @@
 # Phantom
 
-Phantom is a Rust HTTP client that connects the way a real browser does.
+A Rust HTTP client with browser connection settings and ordered request headers.
 
-Servers can tell which program is talking to them without reading the
-`User-Agent` header. The TLS handshake, the HTTP/2 settings, the order of
-headers and the HTTP/3 parameters all differ between Chrome, Firefox, curl
-and a typical Rust library, and copying Chrome's headers changes none of
-them. Phantom sends all of these the way the browser you pick does.
-[How servers recognize a client](docs/fingerprinting.md) explains the
-signals.
+Choose a Chrome, Firefox, Edge, Brave, or Opera profile, then send requests over
+HTTP/1.1, HTTP/2, or HTTP/3. Phantom gives you control over the TLS handshake,
+protocol settings, and header order without running a browser. It does not
+execute JavaScript or render pages.
 
-> Phantom is pre-1.0. The API can change between minor releases. Commit your
-> lockfile and read the changelog when upgrading.
+## Try it
 
-## Browsers
-
-Phantom includes the network settings of desktop Chrome 154, Edge 154,
-Brave 154, Opera 136 and Firefox 157. Each set is called a *recipe*. A
-recipe matches the browser's:
-
-- TLS handshake;
-- HTTP/2 and HTTP/3 settings;
-- headers for a page load and a `fetch`, in the browser's order;
-- client hints (Chromium-based browsers; Firefox sends none);
-- WebSocket handshake.
-
-There are also Android recipes for Chrome, Edge, Brave, Opera and Firefox,
-which cover fewer layers. [Coverage](docs/reference/coverage.md#at-a-glance)
-lists the supported versions, layers, and known gaps.
-
-## Example
+Use Rust 1.88 or newer. The native TLS build needs Git, CMake, Clang, and a C++
+toolchain. Windows also needs NASM and the Visual C++ build tools. See
+[Getting started](https://docs.rs/phantom-http/latest/phantom/guide/getting_started/index.html)
+for setup details.
 
 ```toml
 [dependencies]
 phantom = { package = "phantom-http", version = "0.1" }
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["macros", "rt", "net", "time"] }
 ```
 
 ```rust,no_run
-use phantom::profile::{ClientProfile, browser::chrome};
-use phantom::{Client, HttpProtocol};
+use phantom::{profile::browser::chrome, Client, HttpProtocol};
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let profile = ClientProfile::new(chrome::v154_tcp_tls())
-        .with_http2(chrome::v154_http2())
-        .with_client_hints(chrome::v154_windows_client_hints());
-    let client = Client::builder(profile).build()?;
-
+    let client = Client::builder(chrome::v154_windows()).build()?;
     let response = client
         .get(HttpProtocol::Http2, "https://example.com/")?
         .send()
         .await?;
+
     println!("{}", response.status());
+    let body = response.into_body().collect_with_limit(1 << 20).await?;
+    println!("{} bytes", body.len());
     Ok(())
 }
 ```
 
-This prints `200 OK`, and the server sees Chrome 154's TLS handshake,
-HTTP/2 settings and client hints. You pick the protocol for each request;
-`get_negotiated` lets the server choose between HTTP/1.1 and HTTP/2.
+This request selects HTTP/2 explicitly. The profile configures the connection;
+[request templates](https://docs.rs/phantom-http/latest/phantom/guide/browser_profiles/index.html)
+add headers for a navigation or fetch request. Reuse the client across requests
+so it can reuse connections and session state.
 
-To compare Phantom with your browser yourself, request
-`https://tls.peet.ws/api/all` (a third-party service) from both and diff the
-results.
+## Learn more
 
-## What else it does
+- [Getting started](https://docs.rs/phantom-http/latest/phantom/guide/getting_started/index.html)
+- [Browser profiles and request templates](https://docs.rs/phantom-http/latest/phantom/guide/browser_profiles/index.html)
+- [Requests and responses](https://docs.rs/phantom-http/latest/phantom/guide/requests_and_responses/index.html)
+- [Proxies](https://docs.rs/phantom-http/latest/phantom/guide/proxies/index.html)
+- [API reference](https://docs.rs/phantom-http/latest/phantom/) and
+  [runnable examples](crates/phantom/examples/README.md)
 
-- HTTP/1.1, HTTP/2 and HTTP/3.
-- Proxies: HTTP, SOCKS5, and CONNECT-UDP for HTTP/3.
-- Connection pooling and TLS session reuse.
-- Optional redirects, timeouts, cookies, decompression, and extra retries.
-- Server-sent events and WebSocket.
-
-## Install
-
-Use Rust 1.88 or newer. Phantom builds
-BoringSSL from source, so you also need Git, CMake, Clang and a C++
-compiler ([Prerequisites](docs/getting-started.md#prerequisites)).
-
-No feature is on by default:
-
-| Feature | Adds |
-| --- | --- |
-| `cookies` | A cookie jar |
-| `https-records` | Finding HTTP/3 servers and ECH keys through DNS |
-| `sse` | Server-sent events |
-| `websocket` | WebSocket |
-| `websocket-deflate` | WebSocket compression |
-| `serde` | Saving and loading cookie jars |
-| `json` | Reading typed JSON responses with a byte limit |
-| `fingerprint-import` | Importing complete custom profiles from bounded JSON |
-| `full` | All of the above |
-| `diagnostics` | TLS key logs and QUIC qlog files for debugging; not in `full` |
-| `danger-disable-verification` | Turning off certificate checks, for testing only; not in `full` |
-
-## What Phantom is not
-
-Phantom only shapes network traffic. It does not run JavaScript or render
-pages. [Why Phantom](docs/why-phantom.md#when-not-to-use-phantom) lists the
-cases where another tool fits better.
-
-## Where to go next
-
-- Learn more: [Why Phantom](docs/why-phantom.md).
-- Start building: [Getting started](docs/getting-started.md), then the
-  [documentation index](docs/README.md).
-- Contribute: [CONTRIBUTING.md](CONTRIBUTING.md) and the
-  [roadmap](docs/roadmap.md).
-
-Coding agents should read [`llms.txt`](llms.txt) first.
+Phantom is pre-1.0. Commit your lockfile and read the [changelog](CHANGELOG.md)
+when upgrading. For a Git or path dependency, build the docs from that checkout:
+`cargo doc -p phantom-http --features full --no-deps --open`.
 
 ## Contributing and security
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) before you open a pull request. Report
-a suspected vulnerability privately as described in [SECURITY.md](SECURITY.md),
-not in a public issue.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) to work on Phantom, or
+[llms.txt](llms.txt) to use it from a coding agent. Report suspected
+vulnerabilities through [SECURITY.md](SECURITY.md).
 
 ## License
 

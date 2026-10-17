@@ -1,90 +1,4 @@
-//! Send HTTP requests with a browser's connection settings and header order.
-//!
-//! Choose the settings with [`profile::ClientProfile`], then build a [`Client`].
-//! The client keeps connections and state for later requests. You can choose
-//! an exact protocol or let a negotiated request select one. Negotiated
-//! requests can use HTTP/3 alternatives learned through discovery.
-//! An exact HTTP/3 request can fall back to HTTP/2 when you enable
-//! [`RetryPolicy::with_http2_fallback`]. Requests keep the route you selected.
-//!
-//! # Quick start
-//!
-//! ```no_run
-//! use phantom::profile::browser::chrome;
-//! use phantom::{Client, HttpProtocol, RequestHeader};
-//!
-//! # #[tokio::main(flavor = "current_thread")]
-//! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let profile = chrome::v154_windows();
-//! let client = Client::builder(profile).build()?;
-//!
-//! let response = client
-//!     .get(HttpProtocol::Http2, "https://example.com/")?
-//!     .header(RequestHeader::new("accept", "*/*"))
-//!     .send()
-//!     .await?;
-//! println!("{}", response.status());
-//! let body = response.into_body().collect_with_limit(1 << 20).await?;
-//! println!("{} bytes", body.len());
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! Run requests in a Tokio runtime with I/O enabled. Enable timers for
-//! timeouts and operations that wait on timers, such as HTTP/3 setup.
-//! [`Client::get_negotiated`] lets a TLS handshake choose HTTP/1.1 or HTTP/2.
-//! Composed browser profiles include HTTP/3 when their recipes support it.
-//! Custom profiles add it through [`profile::Http3ClientSettings`].
-//!
-//! # Cargo features
-//!
-//! | Feature | Adds |
-//! | --- | --- |
-//! | `cookies` | `CookieJar` and client-owned cookie handling |
-//! | `https-records` | HTTPS DNS lookups, HTTP/3 discovery, Encrypted Client Hello, and DNS queries with record TTLs |
-//! | `sse` | Server-sent event streams and bounded reconnects |
-//! | `websocket` | WebSocket over HTTP/1.1 Upgrade, or HTTP/2 or HTTP/3 extended CONNECT |
-//! | `websocket-deflate` | Opt-in `permessage-deflate`; implies `websocket` |
-//! | `serde` | `Serialize` and `Deserialize` for `CookieSnapshot` (with `cookies`) |
-//! | `json` | Bounded typed-JSON requests and response reading |
-//! | `fingerprint-import` | Complete custom profiles from bounded JSON |
-//! | `full` | `cookies`, `https-records`, `json`, `fingerprint-import`, `serde`, `sse`, and `websocket-deflate` |
-//! | `diagnostics` | TLS key logging and QUIC qlog files for debugging your own connections |
-//! | `danger-disable-verification` | `ServerAuthentication::DangerDisabled`, which accepts any server certificate, for conformance testing |
-//!
-//! No feature is enabled by default. `full` leaves out `diagnostics`, because
-//! a key log holds secrets that decrypt the client's traffic, and
-//! `danger-disable-verification`, because it lets anyone on the path read and
-//! change the connection.
-//!
-//! With `https-records`, `ClientBuilder::https_record_discovery` discovers
-//! HTTP/3 endpoints. Profiles with `EchSettings::HttpsRecords` can use Encrypted
-//! Client Hello from those records. Direct handshakes wait up to 50 ms for
-//! that lookup. `AddressResolver::system_nameservers` sends DNS queries
-//! that report record TTLs, the time each result can stay cached.
-//!
-//! # Public dependencies
-//!
-//! The client API uses `bytes` buffers, `http` request and response types,
-//! and `http-body` streaming traits. SSE implements `futures-core::Stream`;
-//! WebSocket implements that trait and `futures-sink::Sink`. The optional
-//! JSON and cookie snapshot APIs use `serde` traits.
-//!
-//! Re-exported settings and transport types come from `phantom-profile` and
-//! `phantom-net`. HTTP engine and TLS backend types stay behind those types
-//! and their error source chains. Run the client in Tokio with I/O and the
-//! timers its operations require.
-//!
-//! # Further reading
-//!
-//! Start with the [documentation index](https://github.com/bywayhq/phantom/blob/main/docs/README.md)
-//! or [request fingerprinting](https://github.com/bywayhq/phantom/blob/main/docs/fingerprinting.md).
-//! [Coverage](https://github.com/bywayhq/phantom/blob/main/docs/reference/coverage.md)
-//! describes the supported layers and their limits.
-//!
-//! Coding agents that use this crate should read `llms.txt` at the
-//! repository root. A git dependency checks out the whole repository, so the
-//! file matches the revision being built.
+#![doc = include_str!("docs/overview.md")]
 
 /// Shared byte buffer used for request and response bodies.
 pub use bytes::Bytes;
@@ -185,109 +99,10 @@ pub use websocket::{
     WebSocketLimits, WebSocketMessage, WebSocketRequestBuilder, WebSocketRetryPolicy,
 };
 
-// Compile-check the Rust examples in the repository guides as doctests.
+// Compile-check the README Rust example as a doctest.
 #[cfg(doctest)]
 #[doc = include_str!("../../../README.md")]
 struct ReadmeDoctests;
-
-#[cfg(doctest)]
-#[doc = include_str!("../../../docs/getting-started.md")]
-struct GettingStartedDoctests;
-
-#[cfg(doctest)]
-#[doc = include_str!("../../../docs/guides/client.md")]
-struct ClientGuideDoctests;
-
-#[cfg(doctest)]
-#[doc = include_str!("../../../docs/guides/request-customization.md")]
-struct RequestCustomizationGuideDoctests;
-
-#[cfg(doctest)]
-#[doc = include_str!("../../../docs/guides/responses.md")]
-struct ResponsesGuideDoctests;
-
-#[cfg(doctest)]
-#[doc = include_str!("../../../docs/guides/profiles.md")]
-struct ProfilesGuideDoctests;
-
-#[cfg(doctest)]
-#[doc = include_str!("../../../docs/guides/request-templates.md")]
-struct RequestTemplatesGuideDoctests;
-
-#[cfg(doctest)]
-#[doc = include_str!("../../../docs/guides/request-bodies.md")]
-struct RequestBodiesGuideDoctests;
-
-#[cfg(doctest)]
-#[doc = include_str!("../../../docs/guides/routes-and-proxies.md")]
-struct RoutesGuideDoctests;
-
-#[cfg(doctest)]
-#[doc = include_str!("../../../docs/guides/socks-and-connect-udp.md")]
-struct SocksGuideDoctests;
-
-#[cfg(doctest)]
-#[doc = include_str!("../../../docs/guides/retries.md")]
-struct RetriesGuideDoctests;
-
-#[cfg(doctest)]
-#[doc = include_str!("../../../docs/guides/http3.md")]
-struct Http3GuideDoctests;
-
-// The guide's HTTPS-record example needs the `https-records` feature.
-#[cfg(all(doctest, feature = "https-records"))]
-#[doc = include_str!("../../../docs/guides/http3-discovery.md")]
-struct Http3DiscoveryGuideDoctests;
-
-#[cfg(doctest)]
-#[doc = include_str!("../../../docs/guides/content-decoding.md")]
-struct ContentDecodingGuideDoctests;
-
-#[cfg(all(doctest, feature = "cookies"))]
-#[doc = include_str!("../../../docs/guides/connections-and-state.md")]
-struct ConnectionsGuideDoctests;
-
-// The guide's own-queries example needs the `https-records` feature.
-#[cfg(all(doctest, feature = "https-records"))]
-#[doc = include_str!("../../../docs/guides/name-resolution.md")]
-struct NameResolutionGuideDoctests;
-
-#[cfg(all(doctest, feature = "cookies"))]
-#[doc = include_str!("../../../docs/guides/cookies.md")]
-struct CookiesGuideDoctests;
-
-#[cfg(doctest)]
-#[doc = include_str!("../../../docs/guides/redirects.md")]
-struct RedirectsGuideDoctests;
-
-#[cfg(all(doctest, feature = "cookies"))]
-#[doc = include_str!("../../../docs/guides/coming-from-reqwest.md")]
-struct ComingFromReqwestGuideDoctests;
-
-#[cfg(doctest)]
-#[doc = include_str!("../../../docs/guides/troubleshooting.md")]
-struct TroubleshootingGuideDoctests;
-
-#[cfg(doctest)]
-#[doc = include_str!("../../../docs/guides/request-diagnostics.md")]
-struct RequestDiagnosticsGuideDoctests;
-
-#[cfg(doctest)]
-#[doc = include_str!("../../../docs/guides/performance.md")]
-struct PerformanceGuideDoctests;
-
-#[cfg(all(doctest, feature = "sse"))]
-#[doc = include_str!("../../../docs/guides/sse.md")]
-struct SseGuideDoctests;
-
-#[cfg(all(doctest, feature = "websocket"))]
-#[doc = include_str!("../../../docs/guides/websocket.md")]
-struct WebSocketGuideDoctests;
-
-// The guide includes a compression example.
-#[cfg(all(doctest, feature = "websocket-deflate"))]
-#[doc = include_str!("../../../docs/guides/websocket-fields.md")]
-struct WebSocketFieldsGuideDoctests;
 
 #[cfg(feature = "https-records")]
 mod alt_svc_https_policy;
@@ -318,7 +133,12 @@ mod timeout;
 #[cfg(feature = "websocket")]
 mod websocket;
 
+pub mod guide;
+
 /// Client-profile types used to configure observable wire behavior.
+///
+/// See [Browser profiles](crate::guide::browser_profiles) to choose connection
+/// settings and request templates.
 pub mod profile {
     pub use phantom_profile::{
         AlpsSettings, CertificateCompression, CipherSuite, ClientHelloExtension,
@@ -381,10 +201,5 @@ pub mod dns {
 #[cfg(feature = "fingerprint-import")]
 /// Inspect, export, import and name complete custom profiles.
 ///
-/// See the [document format](https://github.com/bywayhq/phantom/blob/main/docs/reference/fingerprint-import.md).
 /// Imported settings carry no catalog identity or browser validation claim.
 pub mod fingerprint;
-
-#[cfg(all(doctest, feature = "fingerprint-import"))]
-#[doc = include_str!("../../../docs/reference/fingerprint-import.md")]
-struct FingerprintImportDoctests;

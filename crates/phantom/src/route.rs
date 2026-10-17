@@ -25,6 +25,8 @@ mod socks5;
 
 /// Route used to establish one origin connection.
 ///
+/// Follow [Proxies](crate::guide::proxies) for setup, credentials, and proxy DNS.
+///
 /// The default is [`Route::Direct`]. Set a client-wide route with
 /// [`ClientBuilder::route`](crate::ClientBuilder::route) and override it for
 /// one request with [`RequestBuilder::route`](crate::RequestBuilder::route).

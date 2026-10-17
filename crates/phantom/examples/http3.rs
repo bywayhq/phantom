@@ -1,8 +1,7 @@
 //! Sends one exact HTTP/3 GET with Chrome 154's QUIC transport parameters,
 //! HTTP/3 settings, and H3 TLS handshake.
 //!
-//! This mirrors "Send a request over HTTP/3" in `docs/guides/http3.md`. It
-//! needs no feature:
+//! This example needs no feature:
 //!
 //! ```console
 //! cargo run -p phantom-http --example http3 -- https://example.com/

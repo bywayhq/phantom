@@ -1,103 +1,29 @@
 # Phantom
 
-> Rust HTTP client that connects the way a chosen browser does. Phantom sends the TCP socket options, TLS handshake, HTTP/1.1 and HTTP/2 behavior, QUIC and HTTP/3 parameters, client hints, request headers, and WebSocket handshake of a browser. The catalog holds versioned desktop and Android definitions for Chrome, Edge, Brave, Opera, and Firefox. Not every version covers every layer. Firefox sends no client hints. Firefox's QUIC and HTTP/3 recipes ([known differences](docs/explanation/validation.md#firefox-157-http3-recipe)) and its TCP recipe ([known differences](docs/explanation/validation.md#firefox-socket-hook-evidence)) don't match the browser in every detail. TCP recipe coverage varies by platform. Edge 153 for Android has emulator-backed H1/H2 WebSocket recipes. Opera for Android has TLS and client hints, and Firefox for Android has TLS and a source-backed TCP policy. [Coverage](docs/reference/coverage.md#at-a-glance) lists each version and its layers. Phantom never switches route on its own, and switches protocol only when you opt in. Package `phantom-http`, library crate `phantom`. Pre-1.0. Depend on `phantom-http` version `0.1` and commit the lockfile.
+> Rust HTTP client with browser connection settings and ordered request headers.
+> Package `phantom-http`, library crate `phantom`.
 
-For registry dependencies, read the [published API documentation](https://docs.rs/phantom-http/0.1.0/phantom/) and the [guides for v0.1.0](https://github.com/bywayhq/phantom/tree/v0.1.0/docs). For Git dependencies, Cargo checks out the pinned revision under `~/.cargo/git/checkouts/`; read its matching `docs/` directory. Use documentation for the version you build against.
-
-## Rules
-
-- Build a `ClientProfile` from the recipes of one browser version, as the examples show. Edge 154, Brave 154, and Opera 136 use the Chromium 154 HTTP/2, WebSocket, QUIC, and HTTP/3 recipes. That pairing is correct.
-- The Edge, Brave, and Opera request templates need your `User-Agent` header. Brave's templates also need your `Accept-Language`: pick one of `en-US,en;q=0.5` to `en-US,en;q=0.9` and keep it for the session.
-- Don't hand-write TLS, HTTP/2, QUIC, or HTTP/3 settings to imitate a browser. Use the recipe functions in `phantom::profile::browser::{brave, chrome, edge, firefox, opera}`.
-- Edge 153 for Android has H1/H2 WebSocket recipes backed by emulator captures. Opera for Android has TLS and client hints. Firefox for Android has TLS and a source-backed TCP policy. Missing catalog layers remain unsupported.
-- The Chrome, Edge, and Opera for Android client hints send the model `"Pixel 7"`. Use the `_for_model` function to send another model.
-- For an Android browser, take the TLS recipe, client hints, and templates with `_android_` in their names from its brand module. Don't mix them with the desktop ones.
-- Pick the protocol on every request: `HttpProtocol::Http1`, `Http2`, or `Http3` with `get` or `request`. Use `get_negotiated` to let TLS ALPN choose between HTTP/1.1 and HTTP/2.
-- Phantom never falls back on its own. An unsupported protocol, route, or proxy returns a typed error. Handle the error; don't retry with a different protocol. The one opt-in exception is `RetryPolicy::with_http2_fallback`: it sends an HTTP/3 request over HTTP/2 when no QUIC connection can be set up.
-- Redirects, timeouts, cookies, Alt-Svc, content decoding, and `RetryPolicy` retries are off until you turn them on in the `ClientBuilder` or on the request.
-- Attach the same `HttpAttemptBudget` with `RequestBuilder::attempt_budget` to bound initial origin attempts and resends across requests. Clones share its allowance. `AttemptBudgetExhausted` is terminal. Admission is conservative and never refunded; DNS, TCP/TLS, CONNECT and SOCKS setup keep their own limits. Reuse the handle for application-initiated resends.
-- A few resends are on by default ([Retries and replays](docs/guides/retries.md)):
-  - A bodyless HTTP/2 GET refused by `GOAWAY(NO_ERROR)` is sent once more.
-  - With a Chromium HTTP/2 profile, a request whose connection closed after an unanswered PING is sent again, any method, up to twice per redirect hop. Set `Http2Settings::ping_failure_retries` to 0 to turn this off.
-  - A profile with client hints repeats a safe request once for `Critical-CH`.
-  - `chrome::v154_websocket` reopens a refused extended CONNECT stream once.
-- Connection counts and waits default to browser values: one HTTP/2 or HTTP/3 connection per origin and route, and the profile's HTTP/1.1 limit. A server can see it when you raise them (`max_http2_connections_per_origin`, `max_http3_connections_per_origin`, `negotiated_setup_wait_limit`, and the others in the performance guide).
-- Phantom doesn't pace or rate-limit requests. Schedule them yourself.
-- Phantom adds no browser headers by itself. Prepare a `RequestTemplate` once with `PreparedRequestTemplate::new` and pass it to `RequestBuilder::template`. It sends `User-Agent`, `Accept`, `Sec-Fetch-*`, and the rest in browser order.
-- To an `http://` origin that isn't loopback or `localhost`, a template leaves out `Sec-Fetch-*` and client hints and sends `Accept-Encoding: gzip, deflate`, as browsers do. The built-in WebSocket recipes do the same for `ws://`: `Accept-Encoding: gzip, deflate` to a named origin, and Firefox's `Sec-Fetch-*` headers only to a trustworthy one.
-- Phantom doesn't check that your `User-Agent`, client hints, and template name the same browser. Keep them from one browser and version.
-- Header order is part of the fingerprint. Add headers in the order you want them sent. Don't sort or deduplicate them.
-- `RequestErrorKind` and `BuildErrorKind` are non-exhaustive. Every `match` needs a fallback arm.
-- Requests need a Tokio runtime with I/O and time enabled.
-- Cargo features, all off by default:
-  - `cookies`: a cookie jar.
-  - `https-records`: HTTP/3 discovery from HTTPS DNS records. For the desktop Chrome, Edge, Brave, and Opera recipes it also enables Encrypted Client Hello from those records, which can delay a direct TLS handshake by up to 50 ms.
-  - `sse`, `websocket`, `websocket-deflate`.
-  - `json`: JSON request bodies and bounded, typed JSON response reads.
-  - `fingerprint-import`: complete custom profiles from bounded JSON descriptions.
-  - `serde`: cookie-jar snapshots, with `cookies`.
-  - `full`: all of the above.
-  - `diagnostics`: TLS key log and QUIC qlog files. Not in `full`, because a key log decrypts the client's traffic.
-  - `danger-disable-verification`: `ServerAuthentication::DangerDisabled`, which accepts any server certificate. Not in `full`.
-- A snapshot from `Client::export_cookies` holds cookie values, which are credentials. `Client::import_cookies` rejects the whole snapshot if one entry is invalid. It never replaces a cookie the jar already holds.
-- The Chromium HTTP/2 and HTTP/3 recipes and the Firefox HTTP/2 recipe split every `cookie` header, yours included, into one header per cookie and choose how each is compressed. `RequestHeader::sensitive` on a `cookie` header then only hides it from `Debug` output.
-- Read a response body to the end, or with `collect_with_limit`, if you want the connection reused.
+Use documentation for the version being built. Published versions are on
+[docs.rs](https://docs.rs/phantom-http/). For Git or path dependencies, read
+these files in the matching checkout or run
+`cargo doc -p phantom-http --features full --no-deps --open`.
 
 ## Start
 
-- [README](README.md): what Phantom matches, install, and a first request
-- [How servers recognize a client](docs/fingerprinting.md): the layers a server can fingerprint
-- [Getting started](docs/getting-started.md): build Phantom and send a request
+- [Overview](crates/phantom/src/docs/overview.md): entry point and Cargo features.
+- [Getting started](crates/phantom/src/docs/getting-started.md): build and first request.
+- [Browser profiles](crates/phantom/src/docs/browser-profiles.md): connection settings and request templates.
+- [Requests and responses](crates/phantom/src/docs/requests-and-responses.md): bodies, status codes, and errors.
+- [Proxies](crates/phantom/src/docs/proxies.md): routes, proxy credentials, and DNS.
+- [Examples](crates/phantom/examples/README.md): programs and run commands.
 
-## Guides
+## When writing code
 
-- [Using the client](docs/guides/client.md): client policies, protocols, headers, bodies, trailers, timeouts, `ClientBuilder::client_certificate` and `ClientBuilder::client_certificate_for`
-- [Responses and errors](docs/guides/responses.md): ordered response headers, `ResponseInfo`, bounded bodies, error kinds
-- [Browser profiles](docs/guides/profiles.md): choose a built-in profile or build a custom one
-- [Request templates and client hints](docs/guides/request-templates.md): a browser's request headers in its order, and client hints
-- [Request bodies](docs/guides/request-bodies.md): bounded form, JSON, and multipart uploads with declared header positions
-- [Base URLs and header hooks](docs/guides/request-customization.md): relative URLs and ordered caller-header customization
-- [Routes and proxies](docs/guides/routes-and-proxies.md): routes, HTTP proxies, proxy authentication, trust roots
-- [SOCKS5 and CONNECT-UDP proxies](docs/guides/socks-and-connect-udp.md): SOCKS5 tunnels and UDP ASSOCIATE, and HTTP/3 through CONNECT-UDP
-- [Retries and replays](docs/guides/retries.md): when Phantom sends a request again
-- [Connections and client state](docs/guides/connections-and-state.md): pools, sessions, `ClientBuilder::local_address` and `interface`, clearing learned state
-- [Resolve host names](docs/guides/name-resolution.md): the address cache, `ClientBuilder::resolve` overrides, `ClientBuilder::dns_resolver` with an `AddressResolver` such as `AddressResolver::system_nameservers` (`https-records` feature); targets a proxy resolves don't use them
-- [Redirects](docs/guides/redirects.md): opt-in redirects with a limit
-- [Cookies](docs/guides/cookies.md): the `cookies` feature, snapshots, and where the cookie header goes
-- [HTTP/3 and Alt-Svc](docs/guides/http3.md): HTTP/3 requests, early data, and opt-in Alt-Svc upgrade
-- [HTTP/3 discovery](docs/guides/http3-discovery.md): Alt-Svc racing, HTTPS DNS records, and Alt-Svc snapshots
-- [Content decoding](docs/guides/content-decoding.md): opt-in decompression
-- [Tune throughput and latency](docs/guides/performance.md): concurrency limits, extra HTTP/2 connections per origin, wait limits, and what each one shows a server
-- [Server-sent events](docs/guides/sse.md): the `sse` feature
-- [WebSocket](docs/guides/websocket.md): the `websocket` feature over HTTP/1.1 and HTTP/2
-- [WebSocket fields and compression](docs/guides/websocket-fields.md): caller-ordered handshake headers, HTTP/3 WebSocket to your own server (no recipe), and the `websocket-deflate` feature
-- [Adding Phantom to a project](docs/guides/downstream.md): git and path dependencies
-- [Coming from reqwest](docs/guides/coming-from-reqwest.md): reqwest concepts in Phantom, and what behaves differently
-- [Request timings](docs/guides/request-diagnostics.md): bounded request timelines
-- [Troubleshooting](docs/guides/troubleshooting.md): error kinds, causes, and fixes
-- [Examples](crates/phantom/examples/README.md): runnable programs, one per guide task
-- [Changelog](CHANGELOG.md): breaking changes between commits, each with a migration note
+Check API signatures and feature requirements in this checkout. Reuse a client
+for shared pools and session state. Built-in profile constructors leave ordinary
+request templates unset; attach one when browser headers are needed. Preserve
+header order, select a protocol deliberately, and use bounded body readers.
+Do not claim complete browser behavior or guaranteed server acceptance.
 
-## Reference
-
-- [Coverage](docs/reference/coverage.md): what each browser recipe covers, layer by layer; anything not listed is unsupported
-- [Profile reference](docs/reference/profiles.md): recipe functions, platforms, and templates
-- [Custom profile import](docs/reference/fingerprint-import.md): complete JSON format, errors, and resource bounds
-- [Route matrix](docs/reference/route-matrix.md): every scheme, protocol, and route combination
-- [Environment proxies](docs/reference/environment-proxies.md): opt-in snapshots, explicit route precedence, and NO_PROXY grammar
-- [Request diagnostics](docs/reference/request-diagnostics.md): opt-in timelines, attempts and body completion
-- [Tracing](docs/reference/tracing.md): facade spans and fields, outcome boundaries, and source privacy
-- [Defaults and limits](docs/reference/limits.md): default limits and off-by-default policies
-- [WebSocket reference](docs/reference/websocket.md): WebSocket routes, templates, response checks, recipes, and compression
-- [Cookie jar rules](docs/reference/cookies.md): what the cookie jar stores, sends, rejects, and evicts, and how snapshots import
-- [Glossary](docs/reference/glossary.md): terms used across the documentation
-- API: `cargo doc -p phantom-http --all-features --no-deps --open`
-
-## Optional
-
-- [Design](docs/explanation/design.md): why Phantom behaves this way
-- [Validation](docs/explanation/validation.md): how each recipe is tested against the browser
-- [Contributing](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md): only for changing Phantom itself
-
-- [Capture comparison record](docs/internals/transport-profile-evidence/capture-expansion.md): retained campaign observations
-- [Consumer check record](docs/internals/transport-profile-evidence/consumer-checks.md): isolated downstream verification
+For changes to Phantom itself, read [CONTRIBUTING.md](CONTRIBUTING.md) and
+[AGENTS.md](AGENTS.md). Read [CHANGELOG.md](CHANGELOG.md) before upgrading.

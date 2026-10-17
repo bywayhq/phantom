@@ -1,0 +1,231 @@
+# Making requests and handling responses
+
+Use the [`Client`](crate::Client) from [Getting started](crate::guide::getting_started)
+for the examples below. Keep it for later requests so they can share connections.
+
+## Add query parameters and headers
+
+[`query_pairs`](crate::RequestBuilder::query_pairs) encodes names and values and
+appends them to the URL's query. Repeated names keep their order.
+
+```no_run
+# async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
+use phantom::{HttpProtocol, RequestHeader};
+
+let response = client
+    .get(HttpProtocol::Http2, "https://example.com/search")?
+    .query_pairs([("q", "rust http"), ("tag", "client"), ("tag", "async")])?
+    .header(RequestHeader::new("accept", "application/json"))
+    .send()
+    .await?;
+let response = phantom::response_bytes(response, 1 << 20).await?;
+println!("{}: {} bytes", response.status(), response.body().len());
+# Ok(())
+# }
+```
+
+Without a request template, headers keep the order in which you add them.
+Supply application headers here;
+use [Browser profiles](crate::guide::browser_profiles) for browser templates and
+client hints. Phantom derives `Host` from the URL, so do not add it yourself.
+
+## Send a body
+
+Use [`Client::request`](crate::Client::request) to select a method other than GET.
+For form data, prepare bounded bytes and place their `Content-Type` header:
+
+```no_run
+# async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
+use phantom::{HttpProtocol, Method, PreparedRequestBody, RequestHeader};
+
+let body = PreparedRequestBody::form([("name", "Ada"), ("topic", "Rust")], 4096)?;
+let response = client
+    .request(HttpProtocol::Http2, Method::POST, "https://example.com/messages")?
+    .header(RequestHeader::new("content-type", body.content_type()))
+    .prepared_body(body)
+    .send()
+    .await?;
+let response = phantom::response_bytes(response, 1 << 20).await?;
+println!("{}", response.status());
+# Ok(())
+# }
+```
+
+With the `json` feature, `PreparedRequestBody::json(&value, maximum_bytes)`
+prepares a JSON upload in the same way. The value must implement
+`serde::Serialize`. Keep the matching `Content-Type` header in your chosen
+position; a prepared body does not insert it at an arbitrary position.
+
+For existing bytes, use [`RequestBuilder::body`](crate::RequestBuilder::body) and
+set their content type yourself. For multipart uploads or large streaming bodies,
+see [`PreparedRequestBody`](crate::PreparedRequestBody) and
+[`RequestBuilder::streaming_body`](crate::RequestBuilder::streaming_body).
+
+## Check the status
+
+A completed request can return `404` or `500`. These are HTTP responses, so
+[`send`](crate::RequestBuilder::send) returns them as `Ok(response)`. A connection
+failure, timeout, or unsupported route returns a [`RequestError`](crate::RequestError).
+
+Inspect `response.status()` and `response.headers()` before consuming the body.
+To treat 4xx and 5xx responses as errors, pass the response through
+[`error_for_status`](crate::error_for_status). Its [`StatusError`](crate::StatusError)
+retains the unread response, so you can recover it with `into_response()` and
+read a bounded error body.
+
+## Read bytes, text, or JSON
+
+[`response_bytes`](crate::response_bytes) collects a bounded body while retaining
+its status, headers, and other metadata. [`response_text`](crate::response_text)
+does the same and requires valid UTF-8; it does not select a charset from headers.
+
+```no_run
+# async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
+let response = client
+    .get(phantom::HttpProtocol::Http2, "https://example.com/")?
+    .send().await?;
+let response = phantom::error_for_status(response)?;
+let response = phantom::response_text(response, 1 << 20).await?;
+println!("{}", response.body());
+# Ok(())
+# }
+```
+
+Enable `json` in your dependency to read a typed response:
+
+```toml
+phantom = { package = "phantom-http", version = "0.1", features = ["json"] }
+```
+
+For an endpoint that accepts and returns a JSON array of strings:
+
+```no_run
+# #[cfg(feature = "json")]
+# async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
+use phantom::{HttpProtocol, Method, PreparedRequestBody, RequestHeader};
+
+let body = PreparedRequestBody::json(&["Ada", "Grace"], 4096)?;
+let response = client
+    .request(HttpProtocol::Http2, Method::POST, "https://example.com/names")?
+    .header(RequestHeader::new("content-type", body.content_type()))
+    .prepared_body(body)
+    .send().await?;
+let response = phantom::error_for_status(response)?;
+let response = phantom::response_json::<Vec<String>>(response, 1 << 20).await?;
+println!("{} names", response.body().len());
+# Ok(())
+# }
+```
+
+Choose an output type that implements `serde::de::DeserializeOwned`; add `serde` with its
+`derive` feature to your own dependencies when defining a response struct.
+The byte limit bounds the JSON input, not allocations made by deserialization.
+Body, UTF-8, and JSON failures return a [`ResponseReadError`](crate::ResponseReadError)
+with the original response metadata. Read errors can occur after headers arrive.
+
+Content decoding is off by default. To read a compressed response, advertise its
+codings with `Accept-Encoding` and enable
+[`ContentDecoding::advertised`](crate::ContentDecoding::advertised). Collection
+limits then count decoded bytes. The decoder also has its own decoded-byte cap.
+
+## Stream a response
+
+For a large download, process data frames as they arrive. Add
+`http-body-util = "0.1"` to your dependencies for its `BodyExt` extension trait.
+This example processes data frames without collecting the entire response and stops if
+the data exceeds 8 MiB:
+
+```no_run
+# async fn example(client: &phantom::Client) -> Result<(), Box<dyn std::error::Error>> {
+use http_body_util::BodyExt;
+
+let response = client
+    .get(phantom::HttpProtocol::Http2, "https://example.com/download")?
+    .send().await?;
+let mut body = phantom::error_for_status(response)?.into_body();
+let mut remaining = 8 * 1024 * 1024;
+while let Some(frame) = body.frame().await {
+    if let Ok(data) = frame?.into_data() {
+        if data.len() > remaining {
+            return Err("download exceeded 8 MiB".into());
+        }
+        remaining -= data.len();
+        println!("received {} bytes", data.len());
+    }
+}
+# Ok(())
+# }
+```
+
+A body is consumed once. After streaming it, you cannot collect or decode it
+again. Reading to the end helps connection reuse; stopping early drops the body
+and lets the protocol cancel the remaining transfer.
+
+## Set policies for your application
+
+Request timeouts are off by default. Set a total deadline when building the
+client; it includes attempts, retry delays, and the final body read:
+
+```no_run
+use std::time::Duration;
+use phantom::{Client, RequestTimeouts, profile::browser::chrome};
+
+# fn example() -> Result<(), phantom::BuildError> {
+let client = Client::builder(chrome::v154_windows())
+    .request_timeouts(RequestTimeouts::new().total(Duration::from_secs(30)))
+    .build()?;
+# let _ = client;
+# Ok(())
+# }
+```
+
+[`RequestTimeouts`](crate::RequestTimeouts) also provides phase limits. A timeout
+is a `RequestError` with kind [`Timeout`](crate::RequestErrorKind::Timeout);
+[`timeout_phase`](crate::RequestError::timeout_phase) tells you which limit expired.
+Use [`RequestBuilder::timeouts`](crate::RequestBuilder::timeouts) for overrides.
+Response read helpers wrap a body timeout in `ResponseReadError`; use
+[`request_error`](crate::ResponseReadError::request_error) to inspect its
+underlying request error and timeout phase.
+Dropping a pending send or body-read future cancels that operation; it cannot
+undo a request the server already received.
+
+Enable only the behavior you need:
+
+- **Redirects:** [`ClientBuilder::redirect_policy`](crate::ClientBuilder::redirect_policy)
+  with [`RedirectPolicy::limited`](crate::RedirectPolicy::limited).
+- **Cookies:** enable the `cookies` feature and call `ClientBuilder::cookies()`.
+  The jar is shared by requests and client clones.
+- **Extra retries:** [`ClientBuilder::retry_policy`](crate::ClientBuilder::retry_policy).
+  Read [`RetryPolicy`](crate::RetryPolicy) before retrying operations with side effects;
+  some protocol-driven replays can occur even without an extra retry policy.
+- **Proxy routes:** follow [Using proxies](crate::guide::proxies).
+
+## Inspect a request timeline
+
+Call [`RequestBuilder::diagnostics`](crate::RequestBuilder::diagnostics) before
+`send` to collect a bounded timeline. This API needs no optional feature.
+Keep its [`RequestDiagnostics`](crate::RequestDiagnostics) handle to inspect
+failures, cancellation, and body completion:
+
+```no_run
+# async fn example(client: &phantom::Client) -> Result<(), phantom::RequestError> {
+use std::num::NonZeroUsize;
+
+let mut request = client.get(phantom::HttpProtocol::Http2, "https://example.com/")?;
+let diagnostics = request.diagnostics(NonZeroUsize::new(128).unwrap());
+let response = request.send().await?;
+println!("{:?}", diagnostics.snapshot());
+response.into_body().collect_with_limit(1 << 20).await?;
+println!("{:?}", diagnostics.snapshot());
+# Ok(())
+# }
+```
+
+[`RequestTimeline`](crate::RequestTimeline) reports omitted events when its
+capacity is reached. Intervals can overlap; missing phases mean they were not
+observed. Body duration includes delays before and between your reads.
+See [`RequestTimingPhase`](crate::RequestTimingPhase) for phase meanings and
+[`RequestConnection`](crate::RequestConnection) for connection reuse, endpoints,
+and TLS details. A [`TlsConnectionState::Pending`](crate::TlsConnectionState::Pending)
+value records the state at dispatch; that event does not update after the
+handshake. Early-data completion alone does not prove acceptance or resumption.

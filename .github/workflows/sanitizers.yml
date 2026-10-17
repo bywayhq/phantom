@@ -9,7 +9,7 @@ name: Sanitizers
 #
 # It covers the paths the tests already reach. One callback-failure path has no
 # test, so this job says nothing about it: a panic across a real BoringSSL call
-# edge. See docs/explanation/validation.md.
+# edge.
 #
 # `vendor/**` rather than the QUIC forks by name: an enumerated list silently
 # drops a fork that is renamed or added. The fuzzing workflow does the same.

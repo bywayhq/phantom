@@ -1,7 +1,6 @@
 # Documentation checker
 
-`check_docs.py` checks the Markdown in this repository against
-[Writing the documentation](../../docs/internals/documentation.md). CI runs it
+`check_docs.py` checks Markdown links, page shape, and prose. CI runs it
 on every change.
 
 > For contributors who edit documentation.
@@ -13,7 +12,7 @@ standard library:
 
 ```sh
 python scripts/docs/check_docs.py
-python scripts/docs/check_docs.py --only links docs/guides/client.md
+python scripts/docs/check_docs.py --only links README.md
 python -m unittest discover -s scripts/docs/tests -p 'test_*.py'
 ```
 
@@ -24,7 +23,7 @@ status 1; a warning does not.
 
 | Group | Files | Rules |
 | --- | --- | --- |
-| `links` | `README.md`, `CONTRIBUTING.md`, `llms.txt`, `docs/`, `scripts/*/README.md` | `link`: a relative link names a file that exists, with the same letter case. `anchor`: a fragment names a heading slug, a numbered duplicate such as `#limits-1`, or an HTML `id` in the target page. |
+| `links` | Root entry points, crate READMEs, crate `src/docs/`, `docs/`, and script READMEs | `link`: a relative link names a file that exists, with the same letter case. `anchor`: a fragment names a heading slug, a numbered duplicate such as `#limits-1`, or an HTML `id` in the target page. Rustdoc resolves `crate::` API links during `cargo doc`. |
 | `shape` | `docs/` except `roadmap.md` and `README.md` | `h1`: one H1, first. `heading-level`: no skipped levels. `next`: the last section is `## Next`. `guide-length`: a warning for a guide over 200 lines. |
 | `prose` | The link set, except `llms.txt` and `docs/roadmap.md` | `word`: the banned terms in `BANNED_TERMS`. `em-dash`, `emoji`, `exclamation`, `heading-question`, and `link-text` (the text "here", "this", "click here", or "link"). |
 
@@ -47,5 +46,5 @@ and the next one; `allow-begin` covers every line up to `allow-end`:
 
 ## Next
 
-- [Writing the documentation](../../docs/internals/documentation.md): the
-  rules this tool enforces, and the ones it cannot.
+- [Contributing](../../CONTRIBUTING.md#write-documentation): documentation checks
+  and changelog requirements.

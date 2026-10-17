@@ -39,9 +39,7 @@ inventory uses the Windows name.
 The QUIC snapshots confirm the nine retired packet-crypto exports are
 absent in all four feature rows. Its intended public dependencies are
 `btls`, `quinn-proto`, and `phantom-profile`, plus `zeroize` with `keylog`.
-The provider README describes the boundary. The
-[roadmap](../../docs/roadmap.md#phase-2-ergonomics)
-summarizes the completed API work.
+The provider README describes the boundary.
 
 Settings have one public path at `phantom_profile`'s root. Shared request
 types use `phantom_net::request`. Source bindings and shared TLS errors use
@@ -62,11 +60,9 @@ compile checks verify those paths.
 
 The client runs in Tokio. Backend error causes remain reachable through
 `std::error::Error::source`; their concrete types are not part of the
-client's signatures. See
-[downstream build limits](../../docs/guides/downstream.md#limits) for the
-BoringSSL linking restriction.
+client's signatures.
 
 ## Next
 
-- [Migration notes](../../CHANGELOG.md#breaking): changes to public APIs.
+- [Changelog](../../CHANGELOG.md): current release notes.
 - [Provider API](../../crates/phantom-quic-btls/README.md#api-boundary): QUIC types.

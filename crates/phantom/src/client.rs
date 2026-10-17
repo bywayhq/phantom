@@ -61,6 +61,9 @@ impl HttpProtocol {
 
 /// Send requests and share connections by cloning this client.
 ///
+/// Start with [Getting started](crate::guide::getting_started), or see
+/// [Requests and responses](crate::guide::requests_and_responses) for common tasks.
+///
 /// Clones share connection pools, cookies when enabled, redirect policy, TLS
 /// sessions, negotiated client-hint state, optional Alt-Svc state, and the
 /// address cache. Host overrides and the address resolver are settings.
@@ -694,6 +697,9 @@ impl Client {
 }
 
 /// Builds an immutable [`Client`].
+///
+/// [Getting started](crate::guide::getting_started) shows the basic setup;
+/// [Proxies](crate::guide::proxies) explains route and proxy configuration.
 ///
 /// Each method states the value used when it is not called. Pool bounds take
 /// any nonzero value. Settings are validated only by [`Self::build`].

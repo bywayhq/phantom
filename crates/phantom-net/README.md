@@ -36,5 +36,3 @@ still supports direct TCP only.
 
 - [Phantom README](https://github.com/bywayhq/phantom/blob/main/README.md):
   use the client API.
-- [Design](https://github.com/bywayhq/phantom/blob/main/docs/explanation/design.md):
-  see how the crates fit together.

@@ -99,8 +99,7 @@ pub fn v153_android_http3_request() -> Http3RequestSettings {
 /// Google publishes Android 17 for the Pixel 7: its factory image list for
 /// `panther` has 17.0.0 builds `CP2A.260605.012` (Jun 2026),
 /// `CP2A.260705.006` (Jul 2026), and `CP3A.260905.009` (Sep 2026), the build
-/// the capture emulator reports. `docs/explanation/validation.md` quotes the
-/// list under "Chrome for Android 154 recipes".
+/// the capture emulator reports.
 ///
 /// For another phone, use [`v153_android_client_hints_for_model`].
 #[must_use]

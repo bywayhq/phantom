@@ -1,7 +1,6 @@
 //! Opens a WebSocket over an HTTP/1.1 Upgrade, sends one text message, prints
 //! the first message the server returns, and closes the connection.
 //!
-//! This mirrors "Open a WebSocket over HTTP/1.1" in `docs/guides/websocket.md`.
 //! It needs the `websocket` feature and a `ws://` or `wss://` server, such as
 //! an echo server:
 //!

@@ -5,13 +5,11 @@ fixture under [`fixtures/`](../../fixtures/). For a new browser version,
 start with a [quick fingerprint snapshot](#quick-fingerprint-snapshot), then
 see [Which tool to run](#which-tool-to-run).
 
-> For contributors recording browser evidence. Read
-> [Add a browser recipe](../../docs/internals/browser-recipes.md) first when
-> the capture is for a new recipe.
+> For contributors recording browser evidence.
 
 A fixture is raw evidence recorded on the capture machine, not a report from a
-third-party fingerprinting service. Why each retained capture exists, and what
-it proves, belongs in [Validation](../../docs/explanation/validation.md).
+third-party fingerprinting service. Keep capture provenance and reproduction
+commands with the fixture.
 Run every command from the repository root; the Python tools need Python
 3.10 or later. Windows SSE captures over HTTP/3 require CPython 3.12.3 or
 later. Every listener refuses a non-loopback address.
@@ -133,8 +131,7 @@ Take a snapshot first for every new browser version. The other tools record
 a changed layer for a recipe, and they are the only way to record behavior
 across connections: resumption and 0-RTT, Alt-Svc racing, retries, broken
 alternatives, EventSource reconnects, proxies, WebSocket openings, cookie
-crumbs, and ECH. [Fingerprint snapshot evidence](../../docs/explanation/validation.md#fingerprint-snapshot-evidence)
-has the runs that checked the tool against the retained fixtures.
+crumbs, and ECH.
 
 ### Snapshots on Android
 
@@ -207,10 +204,7 @@ Android as an arm64 build only; run it on an arm64 emulator.
 | Several of these tools for several desktop browsers in one command | [`run_matrix.py`](#run-captures-from-a-manifest) | The manifest's `output_dir` |
 
 The two Cargo examples are Rust programs, not scripts in this directory.
-[Capture commands and launches](../../docs/explanation/validation.md#capture-commands-and-launches)
-has their arguments and the browser launch flags used with them.
-`quic_packet_diff.py` and `compare_quic_flights.py` compare QUIC captures; see
-[HTTP/3 internals](../../docs/internals/http3.md#capture-workflow).
+`quic_packet_diff.py` and `compare_quic_flights.py` compare QUIC captures.
 
 ## Run captures from a manifest
 
@@ -1154,10 +1148,7 @@ removed after the run unless `--netlog` names a path for it.
 
 `chrome_http3.py` records one browser HTTP/3 connection against an aioquic
 server, through the first request.
-[Validation](../../docs/explanation/validation.md#capture-commands-and-launches)
-lists its retained fixtures and launch commands, and
-[HTTP/3 internals](../../docs/internals/http3.md#capture-workflow) describes
-what it retains. Pass `--client-hello <path>` to also write the QUIC
+Pass `--client-hello <path>` to also write the QUIC
 ClientHello.
 
 With `--listen 127.0.0.1:0` the server binds a port the operating system
@@ -1209,8 +1200,7 @@ uv run --no-project --python 3.10 --with-requirements scripts/requirements.txt  
 Use `--layer http3` for the QUIC ClientHello and HTTP/3 startup, and
 `--layer tls` for the TCP ClientHello. Run `n` writes `client-hello-<n>.txt`
 for TLS, `client-startup-<n>.txt` for HTTP/2, and `client-startup-<n>.txt`
-with `quic-client-hello-<n>.txt` for HTTP/3; retain a run under the names in
-[Validation](../../docs/explanation/validation.md#brave-154-and-opera-136-recipes).
+with `quic-client-hello-<n>.txt` for HTTP/3.
 Each listener prints a line starting with `listening on <address>` on
 standard error once it has bound, and the tool launches the browser when it
 reads that line. It gives up after `--server-start` seconds (default 30).
@@ -1466,8 +1456,7 @@ The version probe buffers process output during its finite wait.
 The fixture keeps `client_version`, `url`, a `prefs=` line naming every
 preference the run set, `datagrams=` for QUIC, and `client_hello_<n>_hex`
 lines. The `tcp-*-sweep-<label>.txt` fixtures come from an earlier version of
-the script that recorded neither the preference nor its value; see
-[Validation](../../docs/explanation/validation.md#firefox-ech-grease-payload-evidence).
+the script that recorded neither the preference nor its value.
 
 ## Alt-Svc racing
 
@@ -2195,7 +2184,4 @@ keep all four hashes. Fresh header tests check the current sources separately.
 
 ## Next
 
-- [Validation](../../docs/explanation/validation.md#browser-recipes): record
-  what a new capture shows and how the browser was launched.
-- [Add a browser recipe](../../docs/internals/browser-recipes.md): turn
-  retained captures into recipe functions and replay tests.
+- [Contributing](../../CONTRIBUTING.md#tests-and-evidence): tests and retained evidence.

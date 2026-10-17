@@ -318,42 +318,6 @@ const TEMPLATES: &[(&str, RequestTemplateKind, &str)] = &[
     ),
 ];
 
-fn check_reference_example(page: &str) -> TestResult {
-    // Documentation can be checked out with CRLF. Normalize its line endings,
-    // leaving JSON string escapes and imported field bytes untouched.
-    let page = page.replace("\r\n", "\n");
-    let json = page
-        .split_once("```json\n")
-        .ok_or("JSON example absent")?
-        .1
-        .split_once("\n```")
-        .ok_or("JSON example end absent")?
-        .0;
-    let imported = import_profile_json(json.as_bytes())?;
-    assert_eq!(
-        imported.tls().versions,
-        phantom_profile::TlsVersionRange::only(phantom_profile::TlsVersion::Tls12)
-    );
-    assert!(imported.http3().is_none());
-    assert!(imported.request_template().is_none());
-    Ok(())
-}
-
-#[test]
-fn reference_document_complete_json_example_passes_native_validation() -> TestResult {
-    check_reference_example(include_str!(
-        "../../../../../docs/reference/fingerprint-import.md"
-    ))
-}
-
-#[test]
-fn reference_document_crlf_example_passes_native_validation() -> TestResult {
-    let page = include_str!("../../../../../docs/reference/fingerprint-import.md");
-    let crlf = page.replace("\r\n", "\n").replace('\n', "\r\n");
-    assert!(crlf.contains("```json\r\n"));
-    check_reference_example(&crlf)
-}
-
 #[test]
 fn stream_window_target_import_preserves_absence_and_rejects_invalid_credit() -> TestResult {
     let mut value = document(0)?;

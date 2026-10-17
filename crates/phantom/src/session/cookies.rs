@@ -666,8 +666,7 @@ fn validate_policy(cookie: &RawCookie<'_>, url: &Url) -> Result<(), CookieError>
     // `kHost` goes to `HasValidHostPrefixAttributes` (`net/cookies/cookie_util.cc`
     // lines 120-137), which adds `Path=/` and an empty `Domain` to the same
     // secure-prefix test. Chromium also admits a `Domain` equal to an
-    // IP-literal host, which Phantom does not; see the cookie jar's "Not
-    // modeled" entries in `docs/reference/coverage.md`.
+    // IP-literal host, which Phantom does not.
     if has_ascii_prefix(cookie.name(), "__Host-")
         && (!secure || !trustworthy || cookie.path() != Some("/") || cookie.domain().is_some())
     {
