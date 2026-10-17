@@ -37,7 +37,7 @@ fn connection(trace: &phantom::RequestDiagnostics) -> TestResult<Arc<RequestConn
     ))
 }
 
-async fn tcp_reuse(protocol: HttpProtocol, observe_first: bool) -> TestResult<()> {
+async fn tcp_reuse(protocol: HttpProtocol, observe_first: bool, verify: bool) -> TestResult<()> {
     timeout(Duration::from_secs(10), async {
         let h2 = protocol == HttpProtocol::Http2;
         let identity = TestIdentity::generate()?;
@@ -66,7 +66,13 @@ async fn tcp_reuse(protocol: HttpProtocol, observe_first: bool) -> TestResult<()
             Ok(())
         });
         let caller = async {
-            let client = client_builder(&identity, h2).build()?;
+            let builder = client_builder(&identity, h2);
+            let client = if verify {
+                builder
+            } else {
+                builder.server_authentication(phantom::ServerAuthentication::DangerDisabled)
+            }
+            .build()?;
             let mut previous = None;
             for index in 0..3 {
                 let mut request = client.get(protocol, &url)?;
@@ -86,7 +92,7 @@ async fn tcp_reuse(protocol: HttpProtocol, observe_first: bool) -> TestResult<()
                     );
                     assert!(matches!(used.proxy_tls, TlsConnectionState::NotUsed));
                     let tls = established(&used.origin_tls)?;
-                    assert!(tls.peer_verified);
+                    assert_eq!(tls.peer_verified, verify);
                     assert!(!tls.session_resumed);
                     assert_eq!(tls.version, Some(phantom::profile::TlsVersion::Tls12));
                     assert_eq!(
@@ -115,7 +121,7 @@ async fn tcp_reuse(protocol: HttpProtocol, observe_first: bool) -> TestResult<()
 #[tokio::test]
 async fn tcp_metadata_distinguishes_fresh_and_reused_http_connections() -> TestResult<()> {
     for protocol in [HttpProtocol::Http1, HttpProtocol::Http2] {
-        tcp_reuse(protocol, true).await?;
+        tcp_reuse(protocol, true, true).await?;
     }
     Ok(())
 }
@@ -123,13 +129,25 @@ async fn tcp_metadata_distinguishes_fresh_and_reused_http_connections() -> TestR
 #[tokio::test]
 async fn pooled_tcp_metadata_survives_an_unobserved_handshake() -> TestResult<()> {
     for protocol in [HttpProtocol::Http1, HttpProtocol::Http2] {
-        tcp_reuse(protocol, false).await?;
+        tcp_reuse(protocol, false, true).await?;
     }
     Ok(())
 }
 
 #[tokio::test]
 async fn quic_metadata_survives_pooling_and_an_unobserved_handshake() -> TestResult<()> {
+    quic_reuse(true).await
+}
+
+#[tokio::test]
+async fn certificates_do_not_imply_peer_verification() -> TestResult<()> {
+    for protocol in [HttpProtocol::Http1, HttpProtocol::Http2] {
+        tcp_reuse(protocol, true, false).await?;
+    }
+    quic_reuse(false).await
+}
+
+async fn quic_reuse(verify: bool) -> TestResult<()> {
     timeout(Duration::from_secs(10), async {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = h3_support::server_endpoint(&identity)?;
@@ -148,11 +166,15 @@ async fn quic_metadata_survives_pooling_and_an_unobserved_handshake() -> TestRes
             Ok(())
         });
         let caller = async {
-            let client = phantom::Client::builder(
+            let builder = phantom::Client::builder(
                 phantom::profile::ClientProfile::new(h3_support::client_tls_settings())
                     .with_http3(h3_support::client_settings()),
-            )
-            .add_root_certificate_der(identity.root_der.clone())
+            );
+            let client = if verify {
+                builder.add_root_certificate_der(identity.root_der.clone())
+            } else {
+                builder.server_authentication(phantom::ServerAuthentication::DangerDisabled)
+            }
             .build()?;
             let mut previous = None;
             for index in 0..3 {
@@ -171,7 +193,7 @@ async fn quic_metadata_survives_pooling_and_an_unobserved_handshake() -> TestRes
                     assert!(used.local_address.is_some());
                     assert!(matches!(used.proxy_tls, TlsConnectionState::NotUsed));
                     let tls = established(&used.origin_tls)?;
-                    assert!(tls.peer_verified);
+                    assert_eq!(tls.peer_verified, verify);
                     assert!(!tls.session_resumed);
                     assert_eq!(tls.version, Some(phantom::profile::TlsVersion::Tls13));
                     assert_eq!(
