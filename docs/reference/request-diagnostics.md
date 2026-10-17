@@ -87,6 +87,10 @@ Connection endpoints, certificate details and explicit reuse/resumption
 identities are not included yet. WebSocket opening diagnostics are separate
 from this request-builder API. Records have no serialized export format.
 
+Collection and snapshots use additional CPU and memory. The
+[local cost measurements](../internals/request-diagnostics-cost.md) include
+disabled collection, enabled collection and separate allocation profiles.
+
 ## Next
 
 - [Request timings](../guides/request-diagnostics.md): inspect a live timeline.

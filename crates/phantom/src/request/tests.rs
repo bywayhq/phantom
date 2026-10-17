@@ -530,7 +530,7 @@ fn redirect_url_retains_the_same_canonical_endpoint() -> Result<(), Box<dyn std:
 /// build's poll frames grow with them; see `phantom_testkit::future_size`.
 ///
 /// With all features, the largest, `RequestBuilder::send_inner`, is
-/// 14,264 bytes as measured on Windows (x86-64, Rust 1.99.0); other
+/// 15,264 bytes as measured on Windows (x86-64, Rust 1.99.0); other
 /// platforms may differ. When this fails, for example after a toolchain
 /// upgrade, run it with `--nocapture` to see every size, then box the
 /// largest cold branch with `Box::pin`. Raise `FUTURE_BUDGET` only with the measurements

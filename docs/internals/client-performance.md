@@ -240,6 +240,10 @@ This is a source-level candidate; its runtime benefit remains unmeasured.
 
 ## Follow-up coverage
 
+The [request diagnostics measurements](request-diagnostics-cost.md) compare
+disabled and enabled collection against the preceding main branch. They
+include separate allocation profiles and retain failed cold teardown controls.
+
 The first matrix is a baseline, not completion of the full profiling phase.
 Add uploads, cancellation, cookies, SSE, WebSockets and long idle/recovery
 workloads next where the measurements or downstream demand justify them.
