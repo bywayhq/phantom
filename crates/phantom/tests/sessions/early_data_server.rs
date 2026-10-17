@@ -149,10 +149,19 @@ pub(super) async fn accept(
     acceptor: &SslAcceptor,
     delay: Duration,
 ) -> TestResult<Server> {
+    accept_with_early_data(listener, acceptor, delay, true).await
+}
+
+pub(super) async fn accept_with_early_data(
+    listener: &TcpListener,
+    acceptor: &SslAcceptor,
+    delay: Duration,
+    enabled: bool,
+) -> TestResult<Server> {
     let (tcp, _) = listener.accept().await?;
     tokio::time::sleep(delay).await;
     let mut ssl = Ssl::new(acceptor.context())?;
-    ssl.set_early_data_enabled(true);
+    ssl.set_early_data_enabled(enabled);
     let mut stream = SslStream::new(ssl, tcp)?;
     Pin::new(&mut stream).accept().await?;
     Ok(Server {

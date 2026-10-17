@@ -80,6 +80,7 @@ pub struct RequestBuilder {
     route: Option<Route>,
     timeouts: Option<RequestTimeoutOverrides>,
     retry_policy: Option<RetryPolicy>,
+    attempt_budget: Option<crate::HttpAttemptBudget>,
     content_decoding: ContentDecoding,
     response_body_timeouts: bool,
     body_declares_alt_used_trailer: bool,
@@ -103,6 +104,7 @@ impl fmt::Debug for RequestBuilder {
             .field("route_override", &self.route.is_some())
             .field("timeout_override", &self.timeouts.is_some())
             .field("retry_policy_override", &self.retry_policy.is_some())
+            .field("attempt_budget", &self.attempt_budget)
             .field("content_decoding", &self.content_decoding)
             .field("pinned_alternative", &self.alternative.is_some())
             .finish_non_exhaustive()
@@ -173,6 +175,7 @@ impl RequestBuilder {
             route: None,
             timeouts: None,
             retry_policy: None,
+            attempt_budget: None,
             content_decoding: ContentDecoding::none(),
             response_body_timeouts: true,
             body_declares_alt_used_trailer: false,
@@ -691,6 +694,36 @@ impl RequestBuilder {
         self
     }
 
+    /// Shares an origin HTTP attempt allowance with other requests.
+    ///
+    /// Initial attempts and resends consume the same allowance, including
+    /// redirects, enabled retries, GOAWAY/PING replays, client-hint negotiation
+    /// and rejected early data. Cloned handles cannot overspend concurrently.
+    /// Exhaustion returns [`RequestErrorKind::AttemptBudgetExhausted`](crate::RequestErrorKind::AttemptBudgetExhausted)
+    /// before another attempt sends. Existing replay-safety rules still apply.
+    ///
+    /// Admission is conservative: an admitted attempt can fail before sending
+    /// bytes and is not refunded. DNS, TCP/TLS, proxy CONNECT and SOCKS setup
+    /// retain their own limits and are not separately charged as HTTP attempts.
+    /// Requests have no shared allowance unless you attach one. Attach a clone
+    /// of this same handle when your application initiates a resend.
+    ///
+    /// ```no_run
+    /// # async fn example(client: &phantom::Client) -> Result<(), phantom::RequestError> {
+    /// let budget = phantom::HttpAttemptBudget::new(20);
+    /// for url in ["https://example.com/", "https://example.com/about"] {
+    ///     let response = client.get(phantom::HttpProtocol::Http2, url)?
+    ///         .attempt_budget(budget.clone()).send().await?;
+    ///     drop(response);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn attempt_budget(mut self, budget: crate::HttpAttemptBudget) -> Self {
+        self.attempt_budget = Some(budget);
+        self
+    }
+
     /// Sends the request through its client and selected route.
     ///
     /// The client may reuse compatible HTTP/1.1, HTTP/2, and HTTP/3
@@ -736,6 +769,8 @@ impl RequestBuilder {
     ///
     /// These kinds are returned during the exchange:
     ///
+    /// - [`AttemptBudgetExhausted`](crate::RequestErrorKind::AttemptBudgetExhausted)
+    ///   when the supplied shared attempt allowance is exhausted;
     /// - [`RuntimeUnavailable`](crate::RequestErrorKind::RuntimeUnavailable)
     ///   without a current Tokio runtime with I/O enabled, or with time
     ///   enabled when a timeout is set;
@@ -1022,6 +1057,7 @@ impl RequestBuilder {
             route,
             timeouts: _,
             retry_policy: _,
+            attempt_budget,
             content_decoding: _,
             response_body_timeouts,
             body_declares_alt_used_trailer: _,
@@ -1038,6 +1074,7 @@ impl RequestBuilder {
         );
         let route = &selected_route;
         let mut retries = ConnectionSetupRetryState::new(retry_policy, request_span.clone());
+        retries.set_attempt_budget(attempt_budget);
         let mut replays = ReplayState::new(client.inner.http2_ping_failure_retries);
         ensure_request_supported(selection, route, &request)?;
         if request.alternative.is_none() {

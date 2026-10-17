@@ -57,6 +57,13 @@ pub(super) async fn send_once(
     route: &Route,
     lifecycle: AttemptLifecycle<'_>,
 ) -> Result<AttemptOutcome, RequestError> {
+    lifecycle
+        .retries
+        .ensure_http_attempt_available(match selection {
+            ProtocolSelection::Exact(protocol) => Some(protocol),
+            ProtocolSelection::Http1Or2 => None,
+        })
+        .map_err(|error| error.with_origin(request.origin()))?;
     lifecycle.replays.start_hop();
     let connect_route = if route.forwards(&request.uri) {
         None
@@ -337,6 +344,7 @@ async fn send_once_exact(
             begin_status_retry(&response, &method, body, timeout_budget, retries, replays)
         {
             drop(response);
+            retries.ensure_http_attempt_available(Some(protocol))?;
             timeout_budget.delay(delay, Some(protocol)).await?;
             continue;
         }
@@ -518,6 +526,7 @@ pub(super) async fn send_once_origin(
             begin_status_retry(&response, &method, body, timeout_budget, retries, replays)
         {
             drop(response);
+            retries.ensure_http_attempt_available(Some(protocol))?;
             timeout_budget.delay(delay, Some(protocol)).await?;
             continue;
         }

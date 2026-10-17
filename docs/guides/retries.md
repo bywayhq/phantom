@@ -147,6 +147,31 @@ them. Each kind also keeps its own limit. `Some(0)` stops these retries;
 Browser-required replays, such as proxy authentication, missing client
 hints, and profile PING resends, keep their separate limits.
 
+## Share an attempt allowance across requests
+
+Attach the same budget to requests belonging to one job:
+
+```rust
+use phantom::{Client, HttpAttemptBudget, HttpProtocol, RequestError};
+
+async fn fetch(client: &Client, urls: &[&str]) -> Result<(), RequestError> {
+    let budget = HttpAttemptBudget::new(20);
+    for url in urls {
+        let response = client.get(HttpProtocol::Http2, url)?
+            .attempt_budget(budget.clone()).send().await?;
+        drop(response);
+    }
+    Ok(())
+}
+```
+
+Initial requests, redirects and resends spend this allowance, including browser
+replays. Clones share it across concurrent requests and independent clients.
+Reuse that handle when your application initiates another request or resend.
+Exhaustion returns `RequestErrorKind::AttemptBudgetExhausted` before another
+attempt sends. Admission can precede setup; cancellation or failure does not
+refund it. Detailed boundaries are in [Defaults and limits](../reference/limits.md#shared-http-attempt-budgets).
+
 ## Limits
 
 - `RequestBuilder::retry_policy` replaces the client's whole policy for one

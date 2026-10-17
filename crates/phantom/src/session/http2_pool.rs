@@ -231,6 +231,7 @@ impl Http2Pool {
         let mut retried_graceful_goaway = false;
 
         loop {
+            retries.admit_http_attempt(Some(HttpProtocol::Http2))?;
             let lease =
                 acquire_with_retries(HttpProtocol::Http2, timeout_budget, retries, || async {
                     entry
@@ -249,6 +250,11 @@ impl Http2Pool {
                 drop(lease);
                 drop(permit);
                 return Ok(Dispatched::Restart(AcceptChRestart { hints, body }));
+            }
+            if phantom_net::request::is_replay_safe(&method, body.is_some(), !trailers.is_empty())
+                && let Some(budget) = retries.attempt_budget()
+            {
+                lease.connection.register_early_data_attempt(budget);
             }
             let response_timeout =
                 timeout_budget.phase(TimeoutPhase::ResponseHead, Some(HttpProtocol::Http2))?;

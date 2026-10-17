@@ -15,6 +15,7 @@ When you use Phantom as a dependency, Cargo checks out the pinned revision under
 - Pick the protocol on every request: `HttpProtocol::Http1`, `Http2`, or `Http3` with `get` or `request`. Use `get_negotiated` to let TLS ALPN choose between HTTP/1.1 and HTTP/2.
 - Phantom never falls back on its own. An unsupported protocol, route, or proxy returns a typed error. Handle the error; don't retry with a different protocol. The one opt-in exception is `RetryPolicy::with_http2_fallback`: it sends an HTTP/3 request over HTTP/2 when no QUIC connection can be set up.
 - Redirects, timeouts, cookies, Alt-Svc, content decoding, and `RetryPolicy` retries are off until you turn them on in the `ClientBuilder` or on the request.
+- Attach the same `HttpAttemptBudget` with `RequestBuilder::attempt_budget` to bound initial origin attempts and resends across requests. Clones share its allowance. `AttemptBudgetExhausted` is terminal. Admission is conservative and never refunded; DNS, TCP/TLS, CONNECT and SOCKS setup keep their own limits. Reuse the handle for application-initiated resends.
 - A few resends are on by default ([Retries and replays](docs/guides/retries.md)):
   - A bodyless HTTP/2 GET refused by `GOAWAY(NO_ERROR)` is sent once more.
   - With a Chromium HTTP/2 profile, a request whose connection closed after an unanswered PING is sent again, any method, up to twice per redirect hop. Set `Http2Settings::ping_failure_retries` to 0 to turn this off.

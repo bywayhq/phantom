@@ -75,6 +75,11 @@ mod retry_after;
 /// independently of this policy. Address attempts, background discovery and
 /// connector-managed ECH retries do not consume the shared caller cap.
 ///
+/// [`RequestBuilder::attempt_budget`](crate::RequestBuilder::attempt_budget)
+/// adds an optional allowance shared across requests. It counts initial origin
+/// attempts and automatic resends too, including the policy-independent replays
+/// above. Exhaustion stops another attempt without enabling any retry class.
+///
 /// A delay or `Retry-After` limit must be small enough to add to the runtime
 /// clock. A client policy that exceeds it makes
 /// [`ClientBuilder::build`](crate::ClientBuilder::build) fail with
@@ -570,6 +575,7 @@ pub(crate) struct ConnectionSetupRetryState {
     status_retries: usize,
     http2_fallbacks: usize,
     request_span: Span,
+    attempt_budget: Option<crate::HttpAttemptBudget>,
 }
 
 impl ConnectionSetupRetryState {
@@ -583,7 +589,45 @@ impl ConnectionSetupRetryState {
             status_retries: 0,
             http2_fallbacks: 0,
             request_span,
+            attempt_budget: None,
         }
+    }
+
+    pub(crate) fn set_attempt_budget(&mut self, budget: Option<crate::HttpAttemptBudget>) {
+        self.attempt_budget = budget;
+    }
+
+    pub(crate) fn attempt_budget(&self) -> Option<&crate::HttpAttemptBudget> {
+        self.attempt_budget.as_ref()
+    }
+
+    pub(crate) fn ensure_http_attempt_available(
+        &self,
+        protocol: Option<HttpProtocol>,
+    ) -> Result<(), RequestError> {
+        if self
+            .attempt_budget
+            .as_ref()
+            .is_some_and(|budget| budget.remaining() == 0)
+        {
+            return Err(RequestError::attempt_budget_exhausted(
+                protocol,
+                crate::HttpAttemptBudgetExhausted,
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn admit_http_attempt(
+        &self,
+        protocol: Option<HttpProtocol>,
+    ) -> Result<(), RequestError> {
+        if let Some(budget) = &self.attempt_budget {
+            budget
+                .try_admit()
+                .map_err(|source| RequestError::attempt_budget_exhausted(protocol, source))?;
+        }
+        Ok(())
     }
 
     pub(crate) fn caller_retry_available(&self) -> bool {
@@ -602,10 +646,12 @@ impl ConnectionSetupRetryState {
     /// a connection that refused a request when unprocessed replay is on.
     /// Replays are counted by the request's own state, not by this one.
     pub(crate) fn for_alternative_setup(&self) -> Self {
-        Self::new(
+        let mut state = Self::new(
             RetryPolicy::none().with_unprocessed_replay(self.policy.unprocessed_replays),
             self.request_span.clone(),
-        )
+        );
+        state.attempt_budget = self.attempt_budget.clone();
+        state
     }
 
     /// Returns whether unprocessed-request replay is enabled, so a pool

@@ -480,6 +480,15 @@ async fn misdirected_alternative_ignores_conflicting_alt_svc_and_evicts_state() 
 
 #[tokio::test]
 async fn critical_ch_replay_keeps_one_stable_alt_used_field() -> TestResult<()> {
+    critical_ch_replay(None).await
+}
+
+#[tokio::test]
+async fn shared_attempt_budget_stops_a_learned_alternative_client_hint_resend() -> TestResult<()> {
+    critical_ch_replay(Some(1)).await
+}
+
+async fn critical_ch_replay(maximum: Option<usize>) -> TestResult<()> {
     bounded(async {
         let identity = TestIdentity::generate()?;
         let fixture = Http3UpgradeFixture::spawn(
@@ -522,17 +531,34 @@ async fn critical_ch_replay_keeps_one_stable_alt_used_field() -> TestResult<()> 
                 .await?,
         )
         .await?;
-        let response = client
+        let request = client
             .get_negotiated(&fixture.origin_url("/critical"))?
-            .header(RequestHeader::new("x-stable", "caller"))
-            .send()
-            .await?;
-        assert_eq!(response.status(), StatusCode::NO_CONTENT);
-        drain(response).await?;
+            .header(RequestHeader::new("x-stable", "caller"));
+        let budget = maximum.map(phantom::HttpAttemptBudget::new);
+        let request = match &budget {
+            Some(budget) => request.attempt_budget(budget.clone()),
+            None => request,
+        };
+        let result = request.send().await;
+        if let Some(budget) = &budget {
+            let error = result
+                .err()
+                .ok_or("learned alternative exceeded its allowance")?;
+            assert_eq!(error.kind(), RequestErrorKind::AttemptBudgetExhausted);
+            assert_eq!(budget.remaining(), 0);
+        } else {
+            let response = result?;
+            assert_eq!(response.status(), StatusCode::NO_CONTENT);
+            drain(response).await?;
+        }
 
         drop(client);
         let observed = fixture.finish().await?;
-        assert_eq!(observed.alternative_requests.len(), 2);
+        assert_eq!(observed.origin_request_count, 1);
+        assert_eq!(
+            observed.alternative_requests.len(),
+            if budget.is_some() { 1 } else { 2 }
+        );
         assert_eq!(
             field_pairs(&observed.alternative_requests[0]),
             [
@@ -540,14 +566,16 @@ async fn critical_ch_replay_keeps_one_stable_alt_used_field() -> TestResult<()> 
                 ("alt-used", expected.as_bytes()),
             ]
         );
-        assert_eq!(
-            field_pairs(&observed.alternative_requests[1]),
-            [
-                ("sec-ch-ua-arch", b"\"arm\"".as_slice()),
-                ("x-stable", b"caller".as_slice()),
-                ("alt-used", expected.as_bytes()),
-            ]
-        );
+        if budget.is_none() {
+            assert_eq!(
+                field_pairs(&observed.alternative_requests[1]),
+                [
+                    ("sec-ch-ua-arch", b"\"arm\"".as_slice()),
+                    ("x-stable", b"caller".as_slice()),
+                    ("alt-used", expected.as_bytes()),
+                ]
+            );
+        }
         Ok(())
     })
     .await

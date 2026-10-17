@@ -19,7 +19,7 @@ use std::{
     error::Error as StdError,
     fmt, io,
     pin::Pin,
-    sync::Arc,
+    sync::{Arc, Mutex},
     task::{Context, Poll, ready},
 };
 
@@ -44,6 +44,31 @@ pub(super) struct EarlyData {
     /// Tickets issued on this connection, held until the handshake completes.
     session_capture: Option<TlsSessionCapture>,
     answer: watch::Sender<Answer>,
+    attempts: Arc<Mutex<ReplayAttempts>>,
+}
+
+#[derive(Debug, Default)]
+struct ReplayAttempts {
+    closed: bool,
+    budgets: Vec<crate::HttpAttemptBudget>,
+}
+
+impl ReplayAttempts {
+    fn admit(&mut self) -> Result<(), crate::HttpAttemptBudgetExhausted> {
+        self.closed = true;
+        // Admission may conservatively spend some allowances even when another
+        // request blocks replay of the connection's shared early-data buffer.
+        let budgets = std::mem::take(&mut self.budgets);
+        for budget in budgets {
+            budget.try_admit()?;
+        }
+        Ok(())
+    }
+
+    fn clear(&mut self) {
+        self.closed = true;
+        self.budgets.clear();
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -126,11 +151,15 @@ impl EarlyData {
             alpn,
             session_capture,
             answer: watch::Sender::new(Answer::Unanswered),
+            attempts: Arc::new(Mutex::new(ReplayAttempts::default())),
         }
     }
 
     pub(super) fn wait(&self) -> EarlyDataWait {
-        EarlyDataWait(self.answer.subscribe())
+        EarlyDataWait {
+            answer: self.answer.subscribe(),
+            attempts: Arc::clone(&self.attempts),
+        }
     }
 }
 
@@ -140,9 +169,22 @@ impl EarlyData {
 /// waits for [`Self::answered`] before it is written, as Firefox holds such a
 /// request until the handshake completes.
 #[derive(Clone, Debug)]
-pub(crate) struct EarlyDataWait(watch::Receiver<Answer>);
+pub(crate) struct EarlyDataWait {
+    answer: watch::Receiver<Answer>,
+    attempts: Arc<Mutex<ReplayAttempts>>,
+}
 
 impl EarlyDataWait {
+    pub(crate) fn register_attempt(&self, budget: &crate::HttpAttemptBudget) {
+        let mut attempts = self
+            .attempts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if !attempts.closed {
+            attempts.budgets.push(budget.clone());
+        }
+    }
+
     /// Waits until the handshake completes and any rejected early data has
     /// been sent again.
     ///
@@ -150,7 +192,7 @@ impl EarlyDataWait {
     ///
     /// Fails when the handshake fails or the connection is dropped first.
     pub(crate) async fn answered(&self) -> io::Result<()> {
-        let mut receiver = self.0.clone();
+        let mut receiver = self.answer.clone();
         let answer = receiver
             .wait_for(|answer| !matches!(answer, Answer::Unanswered))
             .await
@@ -167,13 +209,13 @@ impl EarlyDataWait {
     /// Returns whether the server has not answered the early data yet and the
     /// connection is still open.
     pub(crate) fn is_pending(&self) -> bool {
-        matches!(*self.0.borrow(), Answer::Unanswered) && self.0.has_changed().is_ok()
+        matches!(*self.answer.borrow(), Answer::Unanswered) && self.answer.has_changed().is_ok()
     }
 
     /// Returns why the connection failed before its handshake completed, if
     /// it did.
     pub(crate) fn failure(&self) -> Option<EarlyDataFailure> {
-        match &*self.0.borrow() {
+        match &*self.answer.borrow() {
             Answer::Failed(failure) => failure.clone(),
             Answer::Unanswered | Answer::Settled => None,
         }
@@ -184,7 +226,7 @@ impl EarlyDataWait {
     /// processed none of its requests.
     pub(crate) fn alpn_changed(&self) -> bool {
         matches!(
-            *self.0.borrow(),
+            *self.answer.borrow(),
             Answer::Failed(Some(EarlyDataFailure::AlpnChanged { .. }))
         )
     }
@@ -298,6 +340,14 @@ where
                         let failure = EarlyDataFailure::AlpnChanged { negotiated };
                         return Poll::Ready(Err(self.fail_with(error, Some(failure))));
                     }
+                    let admitted = early
+                        .attempts
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .admit();
+                    if let Err(error) = admitted {
+                        return Poll::Ready(Err(self.fail_handshake(io::Error::other(error))));
+                    }
                     early.phase = Phase::Resending { written: 0 };
                 }
                 Phase::Resending { written } if written == early.sent.len() => self.settle(),
@@ -340,6 +390,13 @@ where
             "TLS early data rejected; completing the handshake to send it again"
         );
         early.phase = Phase::Restarting;
+        // Requests registered from now on will wait behind the TLS replay and
+        // send only after the handshake, rather than joining the early buffer.
+        early
+            .attempts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .closed = true;
         true
     }
 
@@ -365,6 +422,11 @@ where
             return;
         };
         let accepted = self.inner.ssl().early_data_accepted();
+        early
+            .attempts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
         self.refresh_negotiated();
         if let Some(capture) = &early.session_capture {
             // Portable proof requires native completion; local caching is independent.
@@ -398,6 +460,11 @@ where
 
     fn fail_with(&mut self, error: io::Error, failure: Option<EarlyDataFailure>) -> io::Error {
         if let Some(early) = self.early_data.take() {
+            early
+                .attempts
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clear();
             early.answer.send_replace(Answer::Failed(failure));
         }
         error
@@ -409,4 +476,99 @@ fn is_rejection(error: &io::Error) -> bool {
         .get_ref()
         .and_then(|source| source.downcast_ref::<btls::ssl::Error>())
         .is_some_and(|error| error.code() == ErrorCode::EARLY_DATA_REJECTED)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::HttpAttemptBudget;
+
+    #[tokio::test]
+    async fn dropping_the_producer_releases_retained_early_data_waiters() -> io::Result<()> {
+        let early = EarlyData::new(None, None);
+        let waiter = early.wait();
+        assert!(waiter.is_pending());
+        drop(early);
+        assert!(!waiter.is_pending());
+        let error = tokio::time::timeout(std::time::Duration::from_secs(1), waiter.answered())
+            .await
+            .map_err(io::Error::other)?
+            .err()
+            .ok_or_else(|| io::Error::other("dropped producer reported success"))?;
+        assert_eq!(error.kind(), io::ErrorKind::ConnectionAborted);
+        Ok(())
+    }
+
+    #[test]
+    fn mixed_early_requests_need_separate_replay_admissions() {
+        let first = HttpAttemptBudget::new(1);
+        let second = HttpAttemptBudget::new(0);
+        let early = EarlyData::new(None, None);
+        let waiter = early.wait();
+        waiter.register_attempt(&first);
+        waiter.register_attempt(&second);
+        let mut attempts = early
+            .attempts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        assert!(attempts.admit().is_err());
+        assert_eq!(first.remaining(), 0);
+        assert_eq!(second.remaining(), 0);
+        assert!(attempts.budgets.is_empty());
+        assert!(attempts.closed);
+    }
+
+    #[test]
+    fn replay_admission_is_once_and_does_not_leak_to_later_pooled_requests()
+    -> Result<(), crate::HttpAttemptBudgetExhausted> {
+        let original = HttpAttemptBudget::new(2);
+        let later = HttpAttemptBudget::new(1);
+        let early = EarlyData::new(None, None);
+        let waiter = early.wait();
+        waiter.register_attempt(&original);
+        {
+            let mut attempts = early
+                .attempts
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            attempts.admit()?;
+            // Further partial-write polls cannot charge this registration again.
+            attempts.admit()?;
+        }
+        waiter.register_attempt(&later);
+        assert_eq!(original.remaining(), 1);
+        assert_eq!(later.remaining(), 1);
+        assert!(
+            early
+                .attempts
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .budgets
+                .is_empty()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn accepted_early_data_clears_registrations_without_spending() {
+        let budget = HttpAttemptBudget::new(1);
+        let early = EarlyData::new(None, None);
+        let waiter = early.wait();
+        waiter.register_attempt(&budget);
+        early
+            .attempts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
+        waiter.register_attempt(&budget);
+        assert!(
+            early
+                .attempts
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .budgets
+                .is_empty()
+        );
+        assert_eq!(budget.remaining(), 1);
+    }
 }

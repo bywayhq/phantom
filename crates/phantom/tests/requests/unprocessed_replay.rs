@@ -65,6 +65,47 @@ const MAX_REPLAY_TASKS: usize = 8;
 const MAX_REQUEST_BODY_BYTES: usize = b"payload".len();
 const MAX_GOAWAY_FRAMES: usize = 8;
 
+#[tokio::test]
+async fn shared_attempt_budget_stops_hidden_graceful_goaway_replays() -> TestResult {
+    for negotiated in [false, true] {
+        let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+        let result = bounded(async {
+            let identity = TestIdentity::generate()?;
+            let server = ScriptedHttp2Server::start(
+                &identity,
+                vec![Script::GoAway {
+                    last_stream_id: 0,
+                    code: NO_ERROR,
+                }],
+                connections.spawner(),
+            )
+            .await?;
+            let client = http2_client(&identity)?;
+            let budget = phantom::HttpAttemptBudget::new(1);
+            let url = server.url("/limited");
+            let request = if negotiated {
+                client.get_negotiated(&url)?
+            } else {
+                client.get(HttpProtocol::Http2, &url)?
+            };
+            let error = request
+                .attempt_budget(budget.clone())
+                .send()
+                .await
+                .err()
+                .ok_or("GOAWAY replay exceeded allowance")?;
+            assert_eq!(error.kind(), RequestErrorKind::AttemptBudgetExhausted);
+            assert_eq!(budget.remaining(), 0);
+            drop(client);
+            assert!(server.finish().await?.is_empty());
+            Ok(())
+        })
+        .await;
+        connections.finish(result).await?;
+    }
+    Ok(())
+}
+
 fn replay_policy(maximum: usize) -> TestResult<RetryPolicy> {
     let maximum = NonZeroUsize::new(maximum).ok_or("replay budget must be non-zero")?;
     Ok(RetryPolicy::none().with_unprocessed_replay(Some(maximum)))

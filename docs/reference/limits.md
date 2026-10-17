@@ -14,6 +14,7 @@ explains how Phantom limits the state a client keeps.
 | Environment proxies | Ignored | `ClientBuilder::environment_proxies(EnvironmentProxies::from_env()?)` |
 | Redirects | Not followed | `RedirectPolicy::limited` |
 | Connection-setup retries | None | `RetryPolicy::connection_failures` |
+| Shared origin HTTP attempt allowance | None | `RequestBuilder::attempt_budget(HttpAttemptBudget)` |
 | Reused-connection, unprocessed-request, and status retries | None | See [Retries and replays](../guides/retries.md) |
 | HTTP/2 fallback of an exact HTTP/3 request | None | `RetryPolicy::with_http2_fallback` |
 | Sending a streaming request body again | Never | `RequestBuilder::buffered_streaming_body`, which keeps up to the bytes you set until `send` returns |
@@ -46,7 +47,7 @@ between checks; they cannot interrupt a codec call already running.
 
 Some requests are sent again by default.
 [Retries and replays](../guides/retries.md) lists each case. A bodyless HTTP/2
-GET refused by `GOAWAY(NO_ERROR)` is always
+GET refused by `GOAWAY(NO_ERROR)` is normally
 sent once more. With a Chromium-family HTTP/2 recipe, a request whose
 connection closed on an unanswered PING is sent again, any method, up to
 twice per redirect hop, unless its body cannot be sent again; set
@@ -56,6 +57,36 @@ names a hint it lacked. Chromium-family WebSocket recipes restart a
 refused extended CONNECT opening through profile selection at most twice.
 The original handshake timeout covers all attempts
 ([WebSocket recipes](websocket.md#browser-recipes)).
+
+## Shared HTTP attempt budgets
+
+`HttpAttemptBudget::new(maximum)` creates a caller-owned allowance. Clones
+share one counter across requests, clients and threads. Attach it with
+`RequestBuilder::attempt_budget`; zero rejects every attempt. Existing callers
+have no shared allowance unless they supply one.
+
+Initial origin attempts, redirects, enabled retries, GOAWAY/PING replays,
+client-hint resends and rejected early-data resends consume it. Each existing
+retry or replay policy still determines eligibility and keeps its own bound.
+Exhaustion returns `RequestErrorKind::AttemptBudgetExhausted`, with no automatic
+retry, before another origin attempt sends.
+
+Admission is conservative and never refunded. Setup, queueing, header
+negotiation or cancellation can prevent an admitted attempt from sending
+bytes. DNS, TCP/TLS setup, CONNECT and SOCKS negotiation are not separate
+origin attempts. They keep their own limits and deadlines. Transport packet
+retransmissions are not HTTP resends.
+
+Rejected TCP early data can contain multiple HTTP/2 requests in one TLS
+buffer. Every registered request needs another admission before that buffer
+is resent. If one allowance is exhausted, the connection fails without
+rewriting the buffer. Other requests on that connection can fail too, and
+admissions already spent for them remain spent. Accepted early data and later
+requests on the pooled connection retain no replay registrations.
+
+`remaining()` is a snapshot, not admission permission. Public client requests
+admit themselves. Use `try_admit()` only to account for HTTP attempts sent
+outside the public client; do not manually charge an attached request too.
 
 ## Timeouts
 

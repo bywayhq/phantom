@@ -53,6 +53,7 @@ fn is_reconnectable(error: &RequestError) -> bool {
         | RequestErrorKind::InvalidTimeout
         | RequestErrorKind::RequestBody
         | RequestErrorKind::ResponseBodyLimit
+        | RequestErrorKind::AttemptBudgetExhausted
         | RequestErrorKind::ContentDecoding => false,
     }
 }

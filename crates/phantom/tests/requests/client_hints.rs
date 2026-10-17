@@ -38,6 +38,7 @@ use h2_support::{accept_client_preface, read_request_headers, write_frame};
 use h3_support::{accept_request, client_settings, quic_server, server_endpoint};
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity, TestResult, read_head, tls_settings};
 
+mod attempt_budget;
 mod deadline_contract;
 mod hint_values;
 mod quiet_contract;

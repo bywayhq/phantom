@@ -231,6 +231,7 @@ impl Http1Or2Pool {
         let mut restart_connector: Option<Http1Or2TlsConnector> = None;
 
         loop {
+            retries.admit_http_attempt(None)?;
             let connector = restart_connector.as_ref().unwrap_or(connector);
             // Finishing a TLS handshake that returned early for early data
             // belongs to the connect phase of the attempt that opened the
@@ -293,6 +294,9 @@ impl Http1Or2Pool {
             }
             if let Some(error) = early_data.failure() {
                 return Err(error);
+            }
+            if replay_safe && let Some(budget) = retries.attempt_budget() {
+                early_data.register_attempt(budget);
             }
             // Only an HTTP/2 stream can be refused by a graceful GOAWAY.
             let replays_graceful_goaway = graceful_goaway_replayable
@@ -3205,6 +3209,13 @@ enum EarlyDataConnection {
 }
 
 impl EarlyDataConnection {
+    fn register_attempt(&self, budget: &crate::HttpAttemptBudget) {
+        match self {
+            Self::Http1(connection) => connection.register_early_data_attempt(budget),
+            Self::Http2(connection) => connection.register_early_data_attempt(budget),
+        }
+    }
+
     fn of(lease: &ConnectionLease) -> Self {
         match lease {
             ConnectionLease::Http1(lease) => Self::Http1(lease.connection.clone()),

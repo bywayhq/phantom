@@ -846,8 +846,12 @@ impl TlsConnector {
             // the server on this connection yet; its tickets wait until it has.
             let in_early_data = stream.ssl().in_early_data();
             span.record("early_data_offered", in_early_data);
-            let early_data = in_early_data
-                .then(|| EarlyData::new(negotiated_alpn.clone(), session_capture.take()));
+            let early_data = in_early_data.then(|| {
+                Box::new(EarlyData::new(
+                    negotiated_alpn.clone(),
+                    session_capture.take(),
+                ))
+            });
             if session_capture.is_some() && !in_early_data {
                 // Custom verification may retain local sessions without portable proof.
                 let _ = stream.ssl().authenticate_scoped_session_publication();
@@ -965,7 +969,8 @@ pub(crate) struct TlsStream<S> {
     negotiated_cipher_suite: Option<CipherSuite>,
     session_reused: bool,
     /// Present while the server has not yet answered the early data.
-    early_data: Option<EarlyData>,
+    /// Keep this transient replay state out of every stream's inline size.
+    early_data: Option<Box<EarlyData>>,
     /// `TlsSettings::close_notify`: whether a shutdown sends the alert before
     /// the transport's own shutdown.
     close_notify: bool,
@@ -981,7 +986,7 @@ impl<S> TlsStream<S> {
     /// Returns a handle that tells when the server answers this stream's early
     /// data, or `None` when the handshake completed without offering any.
     pub(crate) fn early_data_wait(&self) -> Option<EarlyDataWait> {
-        self.early_data.as_ref().map(EarlyData::wait)
+        self.early_data.as_deref().map(EarlyData::wait)
     }
 
     /// Rereads the handshake results once the server has answered early data,

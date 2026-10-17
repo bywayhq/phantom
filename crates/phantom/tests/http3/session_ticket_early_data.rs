@@ -93,6 +93,21 @@ async fn cold_imported_quic_ticket_replays_rejected_early_data_once_on_the_same_
 }
 
 async fn imported_early_data(accept: bool) -> TestResult<()> {
+    imported_with_budget(accept, None).await
+}
+
+#[tokio::test]
+async fn shared_attempt_budget_counts_accepted_and_rejected_quic_early_data() -> TestResult<()> {
+    for accepted in [false, true] {
+        for maximum in [1, 2] {
+            imported_with_budget(accepted, Some(maximum)).await?;
+        }
+    }
+    Ok(())
+}
+
+async fn imported_with_budget(accept: bool, maximum: Option<usize>) -> TestResult<()> {
+    let denied = !accept && maximum == Some(1);
     let identity = TestIdentity::generate()?;
     let sessions = SessionStore::new();
     let endpoint = h3_support::quic_server(
@@ -110,6 +125,7 @@ async fn imported_early_data(accept: bool) -> TestResult<()> {
         arrived_tx,
         read,
         closed_tx,
+        denied,
     ));
     let outcome = AssertUnwindSafe(timeout(DEADLINE, async {
         let source = client(&identity)?;
@@ -142,7 +158,9 @@ async fn imported_early_data(accept: bool) -> TestResult<()> {
         recipient.import_session_tickets(&snapshot, &key, &[])?;
         gate.send_replace(false);
         let trace = OutcomeSubscriber::default();
-        let request = send(&recipient, address, "/imported").with_subscriber(trace.dispatch());
+        let budget = maximum.map(phantom::HttpAttemptBudget::new);
+        let request = send_budgeted(&recipient, address, "/imported", budget.clone())
+            .with_subscriber(trace.dispatch());
         tokio::pin!(request);
 
         if accept {
@@ -174,10 +192,33 @@ async fn imported_early_data(accept: bool) -> TestResult<()> {
         }
         assert_eq!(trace.early_data_for("http3.response_head"), ["sent"]);
         gate.send_replace(true);
-        request.await?;
-        if accept {
+        let result = request.await;
+        if denied {
+            let error = result
+                .err()
+                .ok_or("rejected QUIC early data exceeded allowance")?;
+            let error = error
+                .downcast_ref::<phantom::RequestError>()
+                .ok_or("missing typed request error")?;
+            assert_eq!(
+                error.kind(),
+                phantom::RequestErrorKind::AttemptBudgetExhausted
+            );
+            assert!(arrived.try_recv().is_err(), "peer received a denied resend");
             assert_eq!(trace.early_data_for("http3.response_head"), ["sent"]);
         } else {
+            result?;
+        }
+        if let Some(budget) = budget {
+            let spent = if accept || denied { 1 } else { 2 };
+            assert_eq!(
+                budget.remaining(),
+                maximum.ok_or("missing maximum")? - spent
+            );
+        }
+        if accept {
+            assert_eq!(trace.early_data_for("http3.response_head"), ["sent"]);
+        } else if !denied {
             assert_eq!(
                 arrived.recv().await,
                 Some((1, "/imported".to_owned(), true))
@@ -239,10 +280,20 @@ async fn export_one_ticket(
 }
 
 async fn send(client: &Client, address: SocketAddr, path: &str) -> TestResult<()> {
-    let response = client
-        .get(HttpProtocol::Http3, &format!("https://{address}{path}"))?
-        .send()
-        .await?;
+    send_budgeted(client, address, path, None).await
+}
+
+async fn send_budgeted(
+    client: &Client,
+    address: SocketAddr,
+    path: &str,
+    budget: Option<phantom::HttpAttemptBudget>,
+) -> TestResult<()> {
+    let mut request = client.get(HttpProtocol::Http3, &format!("https://{address}{path}"))?;
+    if let Some(budget) = budget {
+        request = request.attempt_budget(budget);
+    }
+    let response = request.send().await?;
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(response.version(), Version::HTTP_3);
     assert_eq!(
@@ -258,6 +309,7 @@ async fn serve(
     arrived: mpsc::Sender<(usize, String, bool)>,
     mut read: mpsc::Receiver<()>,
     closed: mpsc::Sender<usize>,
+    denied: bool,
 ) -> TestResult<()> {
     for index in 0..2 {
         let mut connecting = endpoint.accept().await.ok_or("endpoint closed")?.accept()?;
@@ -269,6 +321,22 @@ async fn serve(
         let mut connection =
             h3::server::Connection::<_, Bytes>::new(h3_quinn::Connection::new(quic.clone()))
                 .await?;
+        if denied && index == 1 {
+            read.recv()
+                .await
+                .ok_or("client stopped before acknowledgement")?;
+            match timeout(Duration::from_millis(300), connection.accept()).await {
+                Ok(Ok(Some(_))) => return Err("peer received budget-denied QUIC replay".into()),
+                Ok(Ok(None)) | Err(_) => {}
+                Ok(Err(error)) if error.is_h3_no_error() => {}
+                Ok(Err(error)) => return Err(error.into()),
+            }
+            quic.close(0u32.into(), b"budget checked");
+            drop(connection);
+            endpoint.wait_idle().await;
+            closed.send(index).await?;
+            continue;
+        }
         let resolver = connection.accept().await?.ok_or("missing H3 request")?;
         let (request, mut stream) = resolver.resolve_request().await?;
         assert_eq!(request.method(), Method::GET);

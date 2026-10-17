@@ -54,6 +54,8 @@ pub enum WebSocketErrorKind {
     InvalidHandshake,
     /// A frame, message, or write buffer exceeded its configured bound.
     Capacity,
+    /// A shared HTTP attempt allowance prevented replay of the TLS connection.
+    AttemptBudgetExhausted,
     /// A WebSocket framing rule was violated.
     Protocol,
     /// Text or a close reason was not valid UTF-8.
@@ -154,6 +156,7 @@ impl WebSocketError {
             RequestErrorKind::Proxy => WebSocketErrorKind::Proxy,
             RequestErrorKind::RuntimeUnavailable => WebSocketErrorKind::RuntimeUnavailable,
             RequestErrorKind::Capacity => WebSocketErrorKind::Capacity,
+            RequestErrorKind::AttemptBudgetExhausted => WebSocketErrorKind::AttemptBudgetExhausted,
             RequestErrorKind::Tls => WebSocketErrorKind::Tls,
             RequestErrorKind::SessionTickets => WebSocketErrorKind::SessionTickets,
             RequestErrorKind::Http1 => WebSocketErrorKind::Http1,

@@ -281,6 +281,15 @@ impl Http1Connection {
             .is_some_and(EarlyDataWait::is_pending)
     }
 
+    /// Registers this request's allowance before dispatch on a connection
+    /// whose TLS early data may be resent. Registration spends nothing; the
+    /// TLS stream admits resends before writing any rejected early bytes.
+    pub fn register_early_data_attempt(&self, budget: &crate::HttpAttemptBudget) {
+        if let Some(early) = &self.inner.early_data {
+            early.register_attempt(budget);
+        }
+    }
+
     /// Returns the error a fresh connection reports when this connection's
     /// handshake failed after it sent TLS early data.
     ///

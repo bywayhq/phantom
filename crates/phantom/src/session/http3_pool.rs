@@ -1575,6 +1575,7 @@ async fn dispatch(
     timeout_budget: TimeoutBudget,
     retries: &ConnectionSetupRetryState,
 ) -> Result<Dispatched<Http3Response>, RequestError> {
+    retries.admit_http_attempt(Some(HttpProtocol::Http3))?;
     let Http3Lease {
         entry,
         lease,

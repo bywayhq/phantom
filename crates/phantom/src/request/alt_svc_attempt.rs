@@ -563,6 +563,12 @@ async fn send_after_early_win(
         &mut responded,
     )
     .await;
+    if result
+        .as_ref()
+        .is_err_and(|error| error.kind() == crate::RequestErrorKind::AttemptBudgetExhausted)
+    {
+        return result;
+    }
     // A response head arrives only after the handshake completed, so
     // the answer is settled for a response; after a failure it is
     // usually settled too. The wait stays within the request's
@@ -608,6 +614,7 @@ async fn send_after_early_win(
         .into_iter()
         .map(AlternativeTarget::without_early_data)
         .collect();
+    retries.ensure_http_attempt_available(Some(HttpProtocol::Http3))?;
     Box::pin(send_once_raced(
         client,
         request,
@@ -973,6 +980,7 @@ async fn send_on_alternative(
             replays,
         ) {
             drop(response);
+            request_retries.ensure_http_attempt_available(Some(HttpProtocol::Http3))?;
             timeout_budget
                 .delay(delay, Some(HttpProtocol::Http3))
                 .await?;

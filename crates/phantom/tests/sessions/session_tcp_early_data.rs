@@ -30,6 +30,8 @@ use crate::support::{
 };
 use tls_support::{H1_ALPN, H2_ALPN, TestIdentity};
 
+mod attempt_budget;
+
 /// What one ClientHello offered.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct Offer {

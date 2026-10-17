@@ -419,6 +419,32 @@ async fn a_ping_failure_sends_the_request_again_on_a_new_connection() -> TestRes
     connections.finish(result).await
 }
 
+#[tokio::test]
+async fn shared_attempt_budget_stops_browser_required_ping_replay() -> TestResult {
+    let mut connections = ReplayConnections::new(MAX_REPLAY_TASKS);
+    let result = bounded(async {
+        let identity = TestIdentity::generate()?;
+        let server = Server::start(&identity, false, connections.spawner()).await?;
+        let client = short_ping_timeout_client(&identity)?;
+        let budget = phantom::HttpAttemptBudget::new(1);
+        let request = client
+            .get(HttpProtocol::Http2, &server.url("/b"))?
+            .attempt_budget(budget.clone())
+            .send();
+        let error = after_an_idle_connection(&client, &server, request)
+            .await?
+            .err()
+            .ok_or("PING replay exceeded allowance")?;
+        assert_eq!(error.kind(), RequestErrorKind::AttemptBudgetExhausted);
+        assert_eq!(budget.remaining(), 0);
+        drop(client);
+        assert_eq!(server.finish().await?, None);
+        Ok(())
+    })
+    .await;
+    connections.finish(result).await
+}
+
 /// Chromium resends after a PING failure whatever the method, with the same
 /// body.
 #[tokio::test]

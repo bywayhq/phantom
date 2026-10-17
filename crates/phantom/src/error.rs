@@ -383,6 +383,8 @@ pub enum RequestErrorKind {
     RuntimeUnavailable,
     /// The connection or stream pool has no space for another waiting request.
     Capacity,
+    /// The caller-supplied shared origin HTTP attempt allowance is exhausted.
+    AttemptBudgetExhausted,
     /// A configured timeout cannot be represented by the runtime clock.
     InvalidTimeout,
     /// A request phase or the whole request reached its time limit.
@@ -479,6 +481,18 @@ enum RequestRetryability {
 }
 
 impl RequestError {
+    pub(crate) fn attempt_budget_exhausted(
+        protocol: Option<HttpProtocol>,
+        source: crate::HttpAttemptBudgetExhausted,
+    ) -> Self {
+        Self::with_source(
+            RequestErrorKind::AttemptBudgetExhausted,
+            protocol,
+            "shared HTTP attempt budget exhausted",
+            source,
+        )
+    }
+
     pub(crate) fn session_tickets(source: impl StdError + Send + Sync + 'static) -> Self {
         Self::with_source(
             RequestErrorKind::SessionTickets,
@@ -1260,6 +1274,15 @@ impl RequestError {
         message: &'static str,
         source: impl StdError + Send + Sync + 'static,
     ) -> Self {
+        let (kind, message) = if error_chain_contains::<crate::HttpAttemptBudgetExhausted>(&source)
+        {
+            (
+                RequestErrorKind::AttemptBudgetExhausted,
+                "shared HTTP attempt budget exhausted",
+            )
+        } else {
+            (kind, message)
+        };
         Self {
             kind,
             protocol,
@@ -1570,12 +1593,22 @@ pub(crate) fn is_unprocessed_http2(error: &Http2Error) -> bool {
 }
 
 fn error_chain_contains_request_body(error: &(dyn StdError + 'static)) -> bool {
+    error_chain_contains::<RequestBodyError>(error)
+}
+
+fn error_chain_contains<T: StdError + 'static>(error: &(dyn StdError + 'static)) -> bool {
     let mut current = Some(error);
     while let Some(error) = current {
-        if error.is::<RequestBodyError>() {
+        if error.is::<T>() {
             return true;
         }
-        current = error.source();
+        current = match error
+            .downcast_ref::<std::io::Error>()
+            .and_then(std::io::Error::get_ref)
+        {
+            Some(inner) => Some(inner as &(dyn StdError + 'static)),
+            None => error.source(),
+        };
     }
     false
 }

@@ -682,6 +682,8 @@ Supported:
   caller-set wait ends, and withholds it when a final response comes first.
 - Default and per-request connection retry policies for exact H1/H2/H3 setup
   and for TCP setup of negotiated requests before ALPN.
+- Optional shared origin HTTP attempt budgets across requests and cloned
+  handles, including initial attempts, redirects and automatic replays.
 - Opt-in status retry for idempotent requests on the 408, 425, 429, 500,
   502, 503, and 504 statuses that the caller lists, with an optional capped
   `Retry-After` and a budget for the whole request.

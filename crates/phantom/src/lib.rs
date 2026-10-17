@@ -116,6 +116,7 @@ pub use phantom_net::request::RequestTrailerName;
 /// A TLS client certificate for [`ClientBuilder::client_certificate`] and
 /// [`ClientBuilder::client_certificate_for`].
 pub use phantom_net::{ClientCertificate, ClientCertificateError, ClientCertificateErrorKind};
+pub use phantom_net::{HttpAttemptBudget, HttpAttemptBudgetExhausted};
 pub use phantom_net::{InvalidAuthorization, InvalidAuthorizationKind};
 /// Lossless ordinary response-field order attached to each response.
 pub use phantom_net::{OrderedResponseHeaders, ResponseHeader};

@@ -212,6 +212,7 @@ impl Http1Pool {
         if route.as_http_proxy().is_some_and(|proxy| proxy.uses_tls()) && https_proxy.is_none() {
             return Err(RequestError::unsupported_route(HttpProtocol::Http1));
         }
+        retries.admit_http_attempt(Some(HttpProtocol::Http1))?;
         let held = challenged
             .as_mut()
             .and_then(|slot| slot.held.take())
@@ -248,6 +249,11 @@ impl Http1Pool {
                 .await?;
             (lease, permit)
         };
+        if phantom_net::request::is_replay_safe(&method, body.is_some(), !trailers.is_empty())
+            && let Some(budget) = retries.attempt_budget()
+        {
+            lease.connection.register_early_data_attempt(budget);
+        }
         let result = timeout_budget
             .run(
                 TimeoutPhase::ResponseHead,

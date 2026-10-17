@@ -1207,6 +1207,13 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Share an optional `HttpAttemptBudget` across requests and cloned handles
+  with `RequestBuilder::attempt_budget`. Initial origin attempts, redirects,
+  enabled retries and browser replays spend the same concurrent allowance.
+  Exhaustion returns `RequestErrorKind::AttemptBudgetExhausted` before another
+  attempt sends. Admission is conservative and never refunded; connection
+  setup steps keep their own limits.
+
 - Record the request-map reservation experiment and further protocol
   optimization targets. Keep current storage after slower Firefox H3 timing
   despite lower cumulative Rust allocations.

@@ -36,7 +36,7 @@ completed Phase 1, Phase 2 or audit scopes.
 They are priorities, not a requirement to finish a whole wave before starting
 an independent task in the next one.
 
-Prioritize the shared attempt budget (#35) for downstream integration.
+The shared attempt budget (#35) is implemented for downstream integration.
 Profile authoring (#3) and request diagnostics (#9) can proceed independently.
 They give downstream users inspectable configuration and measurements for
 bug reports.
@@ -67,33 +67,32 @@ rejected candidates rather than making optimization an open-ended gate.
 
 #### Shared origin HTTP attempt budget (#35)
 
-The current retry cap covers caller-enabled retries. Redirects and automatic
-browser replays have separate limits. It is not an allowance shared across
-independent requests. Add an optional caller-supplied handle for that purpose.
-Callers that do not supply it retain their existing behavior.
+`HttpAttemptBudget` supplies an optional allowance shared across independent
+requests through `RequestBuilder::attempt_budget`. It also caps redirects and
+automatic browser replays. The existing retry cap still covers caller-enabled
+retries separately. Callers without a shared budget retain their behavior.
 
 Byway creates the allowance per job. Playground attaches the same handle to
 each request and reuses it for any resend Playground initiates. Concurrent
 requests and cloned handles must not overspend it. Define one admission owner
 per origin attempt so an external resend is neither missed nor charged twice.
 
-Admit each initial origin attempt and every origin resend before sending it.
-Include redirects, caller-enabled retries, GOAWAY/PING replays and origin
-requests repeated for client-hint negotiation. Audit lower-level replay paths,
-including rejected early data, for uncounted origin resends. Exhaustion must
-return a distinguishable typed error that cannot trigger another automatic
-attempt. An available allowance does not override existing replay-safety rules.
+Initial origin attempts and resends spend the allowance, including redirects,
+caller-enabled retries, GOAWAY/PING replays, client-hint negotiation and rejected
+TCP or QUIC early data. Exhaustion returns
+`RequestErrorKind::AttemptBudgetExhausted` before another send. An available
+allowance does not override replay-safety rules. See
+[Retries](guides/retries.md#share-an-attempt-allowance-across-requests).
 
-A conservative admission count is acceptable. Document that an admitted
-attempt can fail before sending bytes. DNS, TCP/TLS setup, proxy CONNECT and
-SOCKS negotiation are separate from origin HTTP attempts. Keep their own
-limits and deadlines; do not charge each setup step as another origin attempt.
+Admission is conservative: an admitted attempt can fail before sending bytes.
+DNS, TCP/TLS setup, proxy CONNECT and SOCKS negotiation keep their own limits
+and deadlines. Each setup step is not a separate origin attempt.
 
-Acceptance tests must cover concurrent spending, cloned handles, initial
-attempts, redirects, enabled retries, internal replays and client-hint resends.
-Use peer-observed sends to prove exhaustion prevents another attempt. Cover
-independent-budget isolation and unchanged behavior without a supplied budget.
-Downstream tests must also cover Playground-initiated resends with that handle.
+Public-client tests cover concurrent spending, cloned handles, initial attempts,
+redirects, enabled retries, internal replays and client-hint resends. Controlled
+peers verify that exhaustion prevents another send. Separate tests cover budget
+isolation and requests without a budget. Playground integration still needs to
+pass this handle through its own resends and verify the controls below.
 
 #### Downstream integration responsibilities
 

@@ -15,6 +15,23 @@ fn refused_connection() -> RequestError {
     )))
 }
 
+#[test]
+fn alternative_dispatch_shares_the_original_attempt_allowance() -> Result<(), RequestError> {
+    let budget = crate::HttpAttemptBudget::new(2);
+    let mut retries = ConnectionSetupRetryState::new(RetryPolicy::none(), Span::none());
+    retries.set_attempt_budget(Some(budget.clone()));
+    let alternative = retries.for_alternative_setup();
+    alternative.admit_http_attempt(Some(HttpProtocol::Http3))?;
+    retries.admit_http_attempt(Some(HttpProtocol::Http2))?;
+    assert_eq!(budget.remaining(), 0);
+    let error = alternative
+        .admit_http_attempt(Some(HttpProtocol::Http3))
+        .err()
+        .ok_or_else(|| RequestError::unsupported_protocol(HttpProtocol::Http3))?;
+    assert_eq!(error.kind(), RequestErrorKind::AttemptBudgetExhausted);
+    Ok(())
+}
+
 #[tokio::test(start_paused = true)]
 async fn setup_and_status_retries_share_one_cap() -> Result<(), Box<dyn std::error::Error>> {
     let policy = RetryPolicy::connection_failures(NonZeroUsize::MIN, Duration::ZERO)
