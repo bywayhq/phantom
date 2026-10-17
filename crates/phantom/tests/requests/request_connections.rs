@@ -136,7 +136,7 @@ async fn quic_metadata_survives_pooling_and_an_unobserved_handshake() -> TestRes
         let peer = ConnectionPeer::spawn(async move {
             let incoming = endpoint.accept().await.ok_or("endpoint closed")?;
             let connection = incoming.await?;
-            let mut connection =
+            let mut connection: h3::server::Connection<_, bytes::Bytes> =
                 h3::server::Connection::new(h3_quinn::Connection::new(connection)).await?;
             for _ in 0..3 {
                 let resolver = connection.accept().await?.ok_or("connection closed")?;
