@@ -407,14 +407,6 @@ impl Http3UpgradeFixture {
     pub(crate) async fn finish(mut self) -> TestResult<UpgradeObservations> {
         // A closed channel needs no additional shutdown notification.
         let _ = self.shutdown.send(true);
-        self.alternative_endpoint
-            .close(VarInt::from_u32(0), b"test complete");
-        if let Some(service) = &self.origin_http3 {
-            for endpoint in &service.endpoints {
-                endpoint.close(VarInt::from_u32(0), b"test complete");
-            }
-        }
-
         let mut failures = Vec::new();
         if let Err(error) = finish_owner_task(&mut self.origin_task).await {
             failures.push(error);
@@ -427,6 +419,16 @@ impl Http3UpgradeFixture {
                 if let Err(error) = finish_owner_task(task).await {
                     failures.push(error);
                 }
+            }
+        }
+
+        // Closing an endpoint while workers still run can turn shutdown into
+        // a LocallyClosed connection error. Join them before forcing closure.
+        self.alternative_endpoint
+            .close(VarInt::from_u32(0), b"test complete");
+        if let Some(service) = &self.origin_http3 {
+            for endpoint in &service.endpoints {
+                endpoint.close(VarInt::from_u32(0), b"test complete");
             }
         }
 
@@ -714,10 +716,10 @@ async fn run_alternative_connections(
         }
     }
 
-    endpoint.close(VarInt::from_u32(0), b"alternative worker stopped");
     if let Err(error) = stop_alternative_connections(connections).await {
         failures.push(error);
     }
+    endpoint.close(VarInt::from_u32(0), b"alternative worker stopped");
 
     owner_failures("alternative worker failed", failures)
 }

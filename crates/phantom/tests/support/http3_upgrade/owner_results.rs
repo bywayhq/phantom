@@ -439,7 +439,21 @@ async fn assert_sibling_stopped_before_return(failed: FailedOwner) -> TestResult
             .await?
         }
     };
-    let retained_endpoint = fixture.alternative_endpoint.clone();
+    let retained_endpoints: Vec<_> = std::iter::once(fixture.alternative_endpoint.clone())
+        .chain(
+            fixture
+                .origin_http3
+                .iter()
+                .flat_map(|service| service.endpoints.iter().cloned()),
+        )
+        .collect();
+    let accepts_pending = |endpoint: &Endpoint| {
+        let mut incoming = std::pin::pin!(endpoint.accept());
+        incoming
+            .as_mut()
+            .poll(&mut std::task::Context::from_waker(std::task::Waker::noop()))
+            .is_pending()
+    };
     let finish = async {
         let result = fixture.finish().await;
         let stopped_before_return = stopped.load(Ordering::SeqCst);
@@ -447,25 +461,38 @@ async fn assert_sibling_stopped_before_return(failed: FailedOwner) -> TestResult
     };
     let controller = async {
         shutdown_observed.await?;
+        let endpoints_were_open = retained_endpoints.iter().all(accepts_pending);
         release
             .send(())
             .map_err(|_| "controlled sibling ended before release")?;
         destruction.await?;
         let mut byte = [0_u8; 1];
         assert_eq!(client.read(&mut byte).await?, 0);
-        Ok::<_, Box<dyn Error + Send + Sync>>(())
+        Ok::<_, Box<dyn Error + Send + Sync>>(endpoints_were_open)
     };
 
     // Poll the real finish path before releasing its already-driven sibling.
     let ((result, stopped_before_return), controlled) = tokio::join!(biased; finish, controller);
-    controlled?;
+    let endpoints_were_open = controlled?;
     let error = result.err().ok_or("failed owner was accepted")?;
     assert!(find_source::<OriginFailure>(error.as_ref()).is_some());
     assert!(
         stopped_before_return,
         "finish returned before its driven sibling stopped"
     );
-    drop(retained_endpoint);
+    assert!(
+        endpoints_were_open,
+        "finish closed an endpoint before joining its worker"
+    );
+    for endpoint in retained_endpoints {
+        let mut incoming = std::pin::pin!(endpoint.accept());
+        assert!(matches!(
+            incoming
+                .as_mut()
+                .poll(&mut std::task::Context::from_waker(std::task::Waker::noop())),
+            std::task::Poll::Ready(None)
+        ));
+    }
     Ok(())
 }
 

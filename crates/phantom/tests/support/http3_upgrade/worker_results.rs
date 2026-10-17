@@ -38,6 +38,9 @@ use crate::support::{
 
 const CONTROL_TIMEOUT: Duration = Duration::from_secs(5);
 
+#[path = "worker_results/shutdown_order.rs"]
+mod shutdown_order;
+
 #[tokio::test]
 async fn completed_h3_request_accepts_clean_client_close_and_joins_its_peer() -> TestResult<()> {
     timeout(CONTROL_TIMEOUT, assert_completed_h3_close(None)).await?
