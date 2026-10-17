@@ -1,0 +1,35 @@
+{
+  "binary_sha256": "2a1dc5a718e0eaee9aca700d55dcb747b0dba9a900a753e43d9d8413494e14e3",
+  "pdb_sha256": "2769f393296292b7e161d580fefb82769cfeca42c092dcfd1398cc47afafc2e0",
+  "native_optimization_verified": true,
+  "native_effective_commands": 282,
+  "native_files_sha256": {
+    "C:\\code\\phantom\\target\\client-profiling\\build\\release\\build\\btls-sys-4317253710ecebd9\\output": "92a1b45e30cbb9f096c1f43f80707efbd91b4e56bdfe794f3dd2d50ec6c0d1de",
+    "C:\\code\\phantom\\target\\client-profiling\\build\\release\\build\\btls-sys-4317253710ecebd9\\stderr": "0126af7ce10221c5a9593b86d9affe77913a014caf1d3e81c8edf3455795567c",
+    "C:\\code\\phantom\\target\\client-profiling\\build\\release\\build\\btls-sys-4317253710ecebd9\\out\\build\\CMakeCache.txt": "413b1f7c723a9cd1a567110833bf97b193e8e70f3728892462ab9465b6eb80b3",
+    "C:\\code\\phantom\\tools\\client-bench\\msvc.cmake": "e293b9a3ddc6aa46b2e2498afdba5d0eb3ae26c881a71de4fa677564a704c6e5",
+    "C:\\code\\phantom\\target\\client-profiling\\build\\release\\build\\btls-sys-4317253710ecebd9\\out\\build\\CMakeFiles\\3.31.6-msvc6\\CMakeCCompiler.cmake": "dc1f31f86f7d10f66fb6da7eb3f538fddd66754cb1641452538b6eb00c9a55e3",
+    "C:\\code\\phantom\\target\\client-profiling\\build\\release\\build\\btls-sys-4317253710ecebd9\\out\\build\\CMakeFiles\\3.31.6-msvc6\\CMakeCXXCompiler.cmake": "99924aa4e797a797622b141e0be97d2e866d0f19b31a9f92eaf4fd9a03e7f357",
+    "C:\\code\\phantom\\target\\client-profiling\\build\\release\\build\\btls-sys-4317253710ecebd9\\out\\build\\crypto.dir\\RelWithDebInfo\\crypto.tlog\\CL.command.1.tlog": "f9df7b52573b4cb66182590c9441983b81ef1f5eefeebcf79a3a9596943bf2d2",
+    "C:\\code\\phantom\\target\\client-profiling\\build\\release\\build\\btls-sys-4317253710ecebd9\\out\\build\\ssl.dir\\RelWithDebInfo\\ssl.tlog\\CL.command.1.tlog": "fd0e29144e7f7b47d325181d6902ac2456af315b8d8af613a4d85307f8217f66",
+    "C:\\code\\phantom\\target\\client-profiling\\build\\release\\build\\btls-sys-4317253710ecebd9\\out\\build\\fipsmodule.dir\\RelWithDebInfo\\fipsmodule.tlog\\CL.command.1.tlog": "8676c093b23529ef2ea04437f6044c8fe61f38655892f32f27079bde1e1d3c3c",
+    "C:\\code\\phantom\\target\\client-profiling\\build\\release\\build\\btls-sys-4317253710ecebd9\\out\\build\\RelWithDebInfo\\crypto.lib": "5e72b36abd8d9d7d4100510ca1df7c6d6d59076b9d396916695637061d159623",
+    "C:\\code\\phantom\\target\\client-profiling\\build\\release\\build\\btls-sys-4317253710ecebd9\\out\\build\\RelWithDebInfo\\ssl.lib": "93187b6c0384660ac71619a3da2d73a62dfe14d33eefdc48c3b84e439394618a",
+    "C:\\code\\phantom\\target\\client-profiling\\build\\release\\build\\btls-sys-4317253710ecebd9\\out\\build\\RelWithDebInfo\\crypto.pdb": "74b2c42f850a51cb71df695fc790a0f23c125d1521a55395640152da16714a16",
+    "C:\\code\\phantom\\target\\client-profiling\\build\\release\\build\\btls-sys-4317253710ecebd9\\out\\build\\RelWithDebInfo\\ssl.pdb": "2dd454cf34fd415f78f2409e43bd78dbb6ad938be35b3e32bc5fc39da14709be"
+  },
+  "rust": "cargo build --release --locked; profile.release debug=1; portable x86_64-pc-windows-msvc",
+  "environment": {
+    "CFLAGS": "-O2 -Zi",
+    "CXXFLAGS": "-O2 -Zi",
+    "DEBUG_x86_64_pc_windows_msvc": "true",
+    "CMAKE_TOOLCHAIN_FILE": "C:/code/phantom/tools/client-bench/msvc.cmake",
+    "CARGO_BUILD_JOBS": "2",
+    "CMAKE_BUILD_PARALLEL_LEVEL": "2"
+  },
+  "features": [
+    "heap"
+  ],
+  "build_log": "target/client-profiling/build-heap.log",
+  "note": "DHAT allocation profiler enabled. Timing and process footprint include instrumentation; use allocation counts and stacks for diagnosis only."
+}

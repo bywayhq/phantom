@@ -1,0 +1,17 @@
+{
+  "cpu": {
+    "Name": "AMD Ryzen 9 9950X3D2 16-Core Processor         ",
+    "NumberOfCores": 16,
+    "NumberOfLogicalProcessors": 32
+  },
+  "host_busy_percent_including_benchmark": {
+    "median": 80.08341965112731,
+    "min": 37.76299504950495,
+    "max": 100.0,
+    "duration_weighted": 79.25903218334783
+  },
+  "sampling_interval_s": {
+    "median": 0.040900199994212016,
+    "max": 8.209279500006232
+  }
+}

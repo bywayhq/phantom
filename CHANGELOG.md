@@ -1195,6 +1195,9 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Add an isolated public-client benchmark tool for protocol, concurrency,
+  proxy, body and allocation measurements with retained raw results.
+
 - Add `dns::chromium_macos_resolvers` for paired address and HTTPS lookups
   from watched native macOS settings. DNS, hosts-file and observed hostname
   changes invalidate both resolvers. Unsupported configurations use OS

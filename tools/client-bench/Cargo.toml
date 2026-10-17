@@ -1,0 +1,42 @@
+[package]
+name = "phantom-client-bench"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+
+# Keep profiling dependencies and allocator instrumentation out of the library.
+[workspace]
+
+[features]
+heap = ["dep:dhat"]
+
+[dependencies]
+bytes = "=1.12.1"
+dhat = { version = "=0.3.3", optional = true }
+flate2 = "=1.1.10"
+h3 = { package = "phantom-h3", path = "../../vendor/h3/h3", features = ["i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }
+h3-quinn = { package = "phantom-h3-quinn", path = "../../vendor/h3/h3-quinn" }
+http = "=1.5.0"
+http-body-util = "=0.1.5"
+http2 = { package = "phantom-http2", path = "../../vendor/http2" }
+phantom = { package = "phantom-http", path = "../../crates/phantom" }
+phantom-testkit = { path = "../../crates/phantom-testkit" }
+quinn = { package = "phantom-quinn", path = "../../vendor/quinn", default-features = false, features = ["runtime-tokio", "rustls-ring"] }
+rcgen = "=0.14.10"
+rustls = { version = "=0.23.46", default-features = false, features = ["ring", "std"] }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"
+tokio = { version = "=1.53.1", features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+tokio-rustls = { version = "=0.26.4", default-features = false, features = ["ring"] }
+
+[profile.release]
+debug = 1
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+dbg_macro = "deny"
+unwrap_used = "deny"
+expect_used = "deny"

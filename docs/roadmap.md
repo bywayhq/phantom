@@ -677,6 +677,9 @@ remains separate from the completed source reviews.
 
 ## Phase 4: Profiling and optimization
 
+The [client measurement method](internals/client-performance.md) defines the
+first public-client baseline and separates it from later optimization work.
+
 - Measure the cold cost of building a client for each supported profile.
 - Profile cold and warm connections, proxy routes, multiplexing, streaming
   bodies, SSE, and WebSocket workloads.

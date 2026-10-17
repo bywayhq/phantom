@@ -1,0 +1,13 @@
+{
+  "seed": 20261016,
+  "repeats": 1,
+  "base": {"protocol": "h2", "requests": 32, "warmup": 4, "concurrency": 4, "bytes": 1024},
+  "cases": [
+    {"name": "heap-construct-chrome", "protocol": "construct", "requests": 2, "warmup": 0, "concurrency": 1},
+    {"name": "heap-construct-firefox", "protocol": "construct", "profile": "firefox", "requests": 2, "warmup": 0, "concurrency": 1},
+    {"name": "heap-h2-tiny", "concurrency": 1},
+    {"name": "heap-h2-stream-1m", "bytes": 1048576},
+    {"name": "heap-h2-collect-1m", "bytes": 1048576, "consume": "collect"},
+    {"name": "heap-h3-tiny", "protocol": "h3", "concurrency": 1}
+  ]
+}
