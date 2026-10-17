@@ -68,7 +68,9 @@ class UpstreamReportTests(unittest.TestCase):
                 env={**os.environ, "GITHUB_OUTPUT": str(outputs)},
                 capture_output=True,
                 text=True,
-                timeout=45,
+                # Git Bash starts many short-lived tools for this report.
+                # Allow for their Windows startup cost on a busy host.
+                timeout=120 if os.name == "nt" else 45,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             report = json.loads((root / "target/report/report.json").read_text())
