@@ -1,0 +1,44 @@
+{
+  "h2-template": [
+    {
+      "control": 17998.0,
+      "candidate": 14062.0
+    },
+    {
+      "control": 17998.0,
+      "candidate": 14062.0
+    },
+    {
+      "control": 17998.0,
+      "candidate": 14062.0
+    }
+  ],
+  "h3-template": [
+    {
+      "control": 16912.0,
+      "candidate": 12976.0
+    },
+    {
+      "control": 16912.0,
+      "candidate": 12976.0
+    },
+    {
+      "control": 16912.0,
+      "candidate": 12976.0
+    }
+  ],
+  "firefox-h3-template": [
+    {
+      "control": 8474.0,
+      "candidate": 7162.0
+    },
+    {
+      "control": 8474.0,
+      "candidate": 7162.0
+    },
+    {
+      "control": 8474.0,
+      "candidate": 7162.0
+    }
+  ]
+}

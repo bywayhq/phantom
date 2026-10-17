@@ -188,6 +188,56 @@ opt-in configurations. Use bounded userspace delay only as a mechanism
 check. Real network, proxy-vendor and cross-platform results remain separate.
 Keep allocation profiles apart from timing and retain rejected prototypes.
 
+## Request preparation follow-up
+
+The rejected comparison reserved semantic header-map storage from the
+validated input's distinct names. Counting followed the existing field and
+byte checks and preceded cookie expansion. Repeated cookie values did not
+reserve thousands of name buckets. Generated content-length and expect fields
+were included. Wire settings and header order stayed intact.
+
+This follows the pinned HTTP crate's
+[fallible reservation API](https://docs.rs/http/1.5.0/http/header/struct.HeaderMap.html#method.try_reserve).
+Reservation is best effort: duplicate values use separate storage and can
+still cause growth. The matrix covered templates, minimal fields, Firefox,
+higher worker counts, streaming and an unchanged H1 path. Allocation bytes
+fell, but Firefox H3 was slower in all three timing pairs. Keep the current
+implementation; the [results](client-performance-results.md#prepared-request-storage)
+retain the tradeoff and shared-host limits.
+
+Research leaves these candidates separate from that comparison:
+
+| Candidate | Why investigate | Required control |
+| --- | --- | --- |
+| Preflight request preparation | Builds and discards a request before dispatch rebuilds it | Errors before I/O, hint restarts, retries, body ownership |
+| Client-hint placement | Copies owned fields and builds temporary lists | Caller overrides, duplicate positions, hint restarts |
+| H2 decoder reservation | Earlier profiles show buffer allocation churn | Fragmentation, held frames, EOF, backpressure |
+| HPACK literal prefixes | Long coded literals are shifted to insert their length | Exact bytes, length boundaries, every Huffman policy |
+| H3 worker coordination | Higher worker counts raise CPU and parking | Attribute a specific lock or wakeup path first |
+| Single-frame collection | Could avoid one response copy | Retained backing memory while callers hold results |
+
+Quinn's [chunk reads](https://docs.rs/quinn/0.11.12/quinn/struct.RecvStream.html#method.read_chunk)
+already feed the H3 adapter. They avoid copying, but do not make retention
+free. Hyper's
+[buffered transport](https://github.com/hyperium/hyper/blob/master/src/proto/h1/io.rs)
+also distinguishes queued and flattened writes. A vectored-write experiment
+must use the actual TLS writer and check record boundaries.
+
+Larger flow-control windows and different ACK, QPACK or connection policies
+remain explicit profile or pool experiments. HTTP/2's
+[flow-control rules](https://www.rfc-editor.org/rfc/rfc9113.html#section-5.2)
+and HTTP/3's
+[cookie compression rules](https://www.rfc-editor.org/rfc/rfc9114.html#section-4.2.1)
+constrain those changes. Peer implementations provide hypotheses, not a
+speed estimate for Phantom.
+
+The local HPACK encoder computes coded length under the conditional Huffman
+policies, then shifts long literals to insert the length prefix. Test reusing
+that known length before adding a cache. Preserve the profile's compression
+choices and dynamic table updates. Follow the
+[HPACK literal format](https://www.rfc-editor.org/rfc/rfc7541.html#section-5.2).
+This is a source-level candidate; its runtime benefit remains unmeasured.
+
 ## Follow-up coverage
 
 The first matrix is a baseline, not completion of the full profiling phase.

@@ -721,6 +721,82 @@ is excluded too. The
 [heap results](client-performance-evidence/2026-10-16-protocol-work/speculative-heap-summary.json)
 retain absolute totals and profile hashes.
 
+## Prepared request storage
+
+An experiment reserved H2 and H3 semantic header-map storage using distinct
+validated names. The count included generated fields and preceded cookie
+expansion. Header order, duplicate values and sensitivity stayed intact.
+Reservation was best effort; duplicate-value storage could still grow.
+The experiment is rejected. Production Rust remains at `1e7c628e`.
+
+The comparison reuses the previous final control binaries. Their production
+Rust matches `1e7c628e`; two test-only formatting differences are recorded.
+The corrected candidate and its heap build have matching Rust source hashes.
+Each workload has three adjacent pairs in AB, BA, AB order, with shuffled
+case order. Native build receipts verify 282 optimized compilation commands.
+The [build identities](client-performance-evidence/2026-10-17-request-storage/builds.json)
+separate measured source from later documentation edits.
+
+An earlier candidate counted names before byte validation. Review found
+that oversized input could make the comparison work excessive. That candidate's
+42 heap trials are diagnostic only. The corrected candidate counts after
+validation bounds both field count and bytes. Both executables were rebuilt
+before measuring it. One controller launch also lacked its pinned Python
+dependency; it failed before starting any workload. Those logs are retained.
+
+The corrected build passed 42 heap trials with 5,376 measured requests and
+zero failures. Cumulative Rust allocations changed as follows:
+
+| Workload | Allocated bytes | Allocated blocks | Newly tracked live peak |
+| --- | ---: | ---: | ---: |
+| H2 template | -9.23% to -8.96% | -2.85% to -2.84% | 0.00% to +1.00% |
+| H3 template | -5.49% to -5.47% | -1.73% to -1.70% | -1.17% to +1.18% |
+| Firefox H3 template | -2.35% to -2.32% | -1.12% to -1.07% | -0.45% to -0.09% |
+| H2 minimal | -3.93% to -1.74% | -0.05% to +0.05% | -0.21% to +0.40% |
+| H3 minimal | -1.45% to -1.40% | -0.09% to +0.05% | -0.57% to -0.14% |
+| H2 streamed 64 KiB | -0.57% to -0.54% | -0.01% to 0.00% | -1.34% to -0.08% |
+| Unchanged H1 | -0.27% to +0.27% | -0.01% to +0.01% | +4.24% to +12.67% |
+
+Allocation stacks attribute 3,936 fewer bytes per Chromium template request
+and 1,312 fewer per Firefox H3 template request to request preparation.
+Those attributed differences repeat in all three pairs. Live peaks depend
+on overlapping tasks, including on unchanged H1. Keeping raw fields until
+validation finishes also extends their lifetime. This result supports less
+allocation churn, not a general peak-memory reduction. Native and existing
+allocations remain outside DHAT's interval. The
+[heap pairs](client-performance-evidence/2026-10-17-request-storage/heap-summary.json)
+retain absolute totals, per-pair changes and profile hashes.
+
+The uninstrumented matrix completed 42 accepted trials with 5,250,000
+measured requests and zero failures. Our builds and gate had finished before
+timing began. Unrelated host activity continued; host busy fractions ranged
+from 19.8% to 66.3%. Each range covers all three adjacent pairs:
+
+| Workload | Requests/s | CPU/request | Request p95 | Peak RSS |
+| --- | ---: | ---: | ---: | ---: |
+| H2 template | -10.77% to +5.06% | -7.57% to +12.74% | -9.02% to +11.53% | -0.20% to +0.90% |
+| H3 template | -10.23% to +13.97% | -8.17% to +12.12% | -22.19% to +18.10% | -0.47% to +2.94% |
+| Firefox H3 template | -7.60% to -5.23% | +2.79% to +8.69% | +1.39% to +8.14% | +0.26% to +1.73% |
+| H2 minimal | +7.10% to +12.16% | -11.96% to -6.11% | -13.54% to -9.46% | -0.37% to +1.25% |
+| H3, eight workers | -14.12% to +1.20% | -0.64% to +18.89% | -4.42% to +14.50% | -1.08% to -0.01% |
+| H2 streamed 64 KiB | -0.06% to +19.22% | -10.89% to +12.25% | -72.03% to +5.01% | -0.69% to +1.71% |
+| Unchanged H1 | -15.73% to +4.61% | -5.03% to +13.73% | -5.32% to +23.52% | -0.66% to +0.75% |
+
+Firefox H3 was slower and used more CPU in all three pairs. Its p99 rose
+1.41–13.39%. Other workloads were mixed, including unchanged H1. These
+shared-host results cannot isolate every timing difference, but they do not
+justify enabling reservation across H2 and H3. The allocation reduction does
+not outweigh the observed Firefox tradeoff. No candidate is adopted, and
+no further timing reruns are used to replace these pairs. The
+[timing pairs](client-performance-evidence/2026-10-17-request-storage/timing-summary.json)
+also retain private memory, p99, host load and runtime counters.
+
+The rejected source patch, both corrected binaries, the earlier diagnostic
+variant, raw trials and build receipts remain in the local evidence archive.
+Follow-up priorities are preflight preparation reuse, client-hint field moves,
+H2 receive buffers and HPACK literal-prefix work. Each needs its own bounded
+comparison; none is implemented by this experiment.
+
 ## Verification and retained evidence
 
 The earlier remediation gate passed all 22 steps, including 5,738 passing tests
@@ -778,6 +854,16 @@ identifies the checked local archive of raw trials, rejected attempts,
 heap profiles, eight binaries, symbols, source patches and native build
 receipts. Checks were local to Windows, without new Linux or remote CI
 results.
+
+The rejected request-storage candidate passed all 22 gate steps in 609 seconds,
+including 5,758 Rust tests and three skips. Independent review checked its
+source, heap profiles and build identities. All Rust changes were then
+restored to `1e7c628e`; only the two prior test-formatting differences remain
+against the reused control's receipt. This documentation delivery reuses
+the preceding production gate, with separate docs and diff checks. The
+candidate gate is not a new full gate on restored production. Compact
+results and the local archive receipt retain the rejected patch and all
+measurements, including the slower Firefox pairs.
 
 ## Remaining investigations
 

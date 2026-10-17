@@ -1207,6 +1207,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Added
 
+- Record the request-map reservation experiment and further protocol
+  optimization targets. Keep current storage after slower Firefox H3 timing
+  despite lower cumulative Rust allocations.
+
 - Record per-worker busy time and park/unpark counters in client benchmark
   results, alongside process CPU and memory measurements.
 
