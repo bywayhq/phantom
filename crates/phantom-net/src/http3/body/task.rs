@@ -112,7 +112,11 @@ impl BodyTask {
             }
         }
 
-        match Pin::new(&mut self.events).poll_recv(context) {
+        let event = Pin::new(&mut self.events).poll_recv(context);
+        if event.is_ready() {
+            self.pending = false;
+        }
+        match event {
             Poll::Ready(None) => self.poll_worker(context),
             event => event,
         }
@@ -412,4 +416,64 @@ fn finish(
 
 async fn send_error(events: &mpsc::Sender<BodyEvent>, error: Http3Error) {
     let _ = events.send(BodyEvent::Error(error)).await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{
+        sync::Arc,
+        task::{Context, Wake, Waker},
+    };
+
+    struct RespondOnDemand(mpsc::Sender<BodyEvent>);
+
+    impl Wake for RespondOnDemand {
+        fn wake(self: Arc<Self>) {
+            self.wake_by_ref();
+        }
+
+        fn wake_by_ref(self: &Arc<Self>) {
+            assert!(
+                self.0
+                    .try_send(BodyEvent::Frame(Frame::data(Bytes::from_static(b"body"))))
+                    .is_ok()
+            );
+        }
+    }
+
+    #[test]
+    fn frame_arriving_during_demand_submission_allows_the_next_demand() {
+        let (demand, mut demands) = mpsc::channel(BODY_DEMAND_CAPACITY);
+        let (events, receiver) = mpsc::channel(BODY_EVENT_CAPACITY);
+        let (cancel, _) = watch::channel(());
+        let (cleanup_guards, _retained) = mpsc::unbounded_channel();
+        let mut task = BodyTask {
+            demand,
+            events: receiver,
+            _cancel: cancel,
+            cleanup_guards,
+            worker: None,
+            pending: false,
+        };
+        // Sending a demand wakes this receiver, which synchronously supplies a
+        // frame before poll_event reaches its second events.poll_recv call.
+        let responder = Waker::from(Arc::new(RespondOnDemand(events)));
+        assert!(
+            demands
+                .poll_recv(&mut Context::from_waker(&responder))
+                .is_pending()
+        );
+        let mut context = Context::from_waker(Waker::noop());
+        assert!(matches!(
+            task.poll_event(&mut context),
+            Poll::Ready(Some(BodyEvent::Frame(_)))
+        ));
+        assert!(demands.try_recv().is_ok());
+        assert!(task.poll_event(&mut context).is_pending());
+        assert!(
+            demands.try_recv().is_ok(),
+            "the next body poll must request another frame"
+        );
+    }
 }

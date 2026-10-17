@@ -2815,6 +2815,12 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Fixed
 
+- Keep requesting HTTP/3 body frames when data arrives during demand
+  submission, avoiding a response-body stall and eventual timeout.
+
+- Allow concurrent TLS setup without spurious session-policy contention.
+  Session transfer and policy mutation retain exclusive guards.
+
 - Replace a stopped Windows SSE HTTP/3 listener after a synchronous receive
   reset during completed-run cleanup. Record the actual Windows error code;
   active-run errors and unrelated failures still stop the capture.

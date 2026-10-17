@@ -3,7 +3,10 @@
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError, TryLockError};
+use std::sync::{
+    Arc, Mutex, MutexGuard, OnceLock, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard,
+    TryLockError,
+};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use foreign_types::ForeignTypeRef;
@@ -181,14 +184,14 @@ impl SessionTransferPolicy {
     }
 }
 
-pub(super) struct ContextEpoch(Mutex<Option<Arc<AtomicBool>>>);
+pub(super) struct ContextEpoch(RwLock<OnceLock<Arc<AtomicBool>>>);
 
 impl ContextEpoch {
     pub(super) fn new() -> Self {
-        Self(Mutex::new(None))
+        Self(RwLock::new(OnceLock::new()))
     }
-    pub(super) fn mutate(&self) -> MutexGuard<'_, Option<Arc<AtomicBool>>> {
-        let mut state = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+    pub(super) fn mutate(&self) -> RwLockWriteGuard<'_, OnceLock<Arc<AtomicBool>>> {
+        let mut state = self.0.write().unwrap_or_else(PoisonError::into_inner);
         if let Some(epoch) = state.take() {
             epoch.store(false, Ordering::Release);
         }
@@ -196,15 +199,23 @@ impl ContextEpoch {
     }
     pub(super) fn freeze(
         &self,
-    ) -> Result<MutexGuard<'_, Option<Arc<AtomicBool>>>, SessionTransferError> {
-        try_policy_lock(&self.0)
+    ) -> Result<RwLockWriteGuard<'_, OnceLock<Arc<AtomicBool>>>, SessionTransferError> {
+        self.0.try_write().map_err(policy_lock_error)
+    }
+
+    // Connections share immutable policy; mutations and store transactions
+    // remain exclusive, with nonblocking admission to avoid lock inversion.
+    pub(super) fn configure(
+        &self,
+    ) -> Result<RwLockReadGuard<'_, OnceLock<Arc<AtomicBool>>>, SessionTransferError> {
+        self.0.try_read().map_err(policy_lock_error)
     }
 }
 
 /// A context-owned mutable borrow that keeps policy freezing excluded until dropped.
 pub struct SessionPolicyMutation<'a, T: ?Sized> {
     pub(super) value: &'a mut T,
-    pub(super) _guard: Option<MutexGuard<'a, Option<Arc<AtomicBool>>>>,
+    pub(super) _guard: Option<RwLockWriteGuard<'a, OnceLock<Arc<AtomicBool>>>>,
 }
 
 impl<T: ?Sized> Deref for SessionPolicyMutation<'_, T> {
@@ -259,7 +270,7 @@ pub struct PreparedSessionPolicyFreeze<'a> {
     contexts: Vec<&'a ContextEpoch>,
     scopes: Vec<&'a ScopeState>,
     scope_guards: Vec<MutexGuard<'a, Option<Arc<InstalledPolicy>>>>,
-    context_guards: Vec<MutexGuard<'a, Option<Arc<AtomicBool>>>>,
+    context_guards: Vec<RwLockWriteGuard<'a, OnceLock<Arc<AtomicBool>>>>,
 }
 
 /// Native context and scope guards for one owner-managed store transaction.
@@ -276,6 +287,13 @@ fn reserved<T>(capacity: usize) -> Result<Vec<T>, SessionTransferError> {
         .try_reserve_exact(capacity)
         .map_err(|_| SessionTransferError::Allocation)?;
     Ok(values)
+}
+
+fn policy_lock_error<T>(error: TryLockError<T>) -> SessionTransferError {
+    match error {
+        TryLockError::WouldBlock => SessionTransferError::Busy,
+        TryLockError::Poisoned(_) => SessionTransferError::Policy,
+    }
 }
 
 fn try_policy_lock<T>(mutex: &Mutex<T>) -> Result<MutexGuard<'_, T>, SessionTransferError> {
@@ -366,7 +384,7 @@ impl FrozenSessionPolicies<'_> {
             .position(|owner| std::ptr::eq(*owner, binding.scope.0.as_ref()))
             .ok_or(SessionTransferError::Policy)?;
         if !self.0.context_guards[context_index]
-            .as_ref()
+            .get()
             .is_some_and(|current| Arc::ptr_eq(current, &binding.installed.context_epoch))
             || !self.0.scope_guards[scope_index]
                 .as_ref()
@@ -442,7 +460,7 @@ impl SslSessionScope {
         let epoch = context
             .transfer_context_epoch()
             .ok_or(SessionTransferError::Policy)?;
-        let mut context_state = epoch.freeze()?;
+        let context_state = epoch.configure()?;
         let keep_early_data = match context.scoped_client_session_mode() {
             ScopedClientSessionMode::Scoped => false,
             ScopedClientSessionMode::ScopedWithEarlyData => true,
@@ -501,7 +519,7 @@ impl SslSessionScope {
             return Err(SessionTransferError::Policy);
         }
         let context_epoch = context_state
-            .get_or_insert_with(|| Arc::new(AtomicBool::new(true)))
+            .get_or_init(|| Arc::new(AtomicBool::new(true)))
             .clone();
         let mut name = String::new();
         name.try_reserve_exact(server_name.len())
@@ -549,9 +567,6 @@ pub(super) struct ConnectionPolicy {
     live: AtomicBool,
 }
 impl ConnectionPolicy {
-    pub(super) fn context_epoch_owner(&self) -> Arc<ContextEpoch> {
-        Arc::clone(&self.binding.installed.epoch_owner)
-    }
     pub(super) fn revoke(&self) {
         self.live.store(false, Ordering::Release);
     }
@@ -563,8 +578,8 @@ impl ConnectionPolicy {
 impl SessionPolicyBinding {
     pub(super) fn configuration_guard(
         &self,
-    ) -> Result<MutexGuard<'_, Option<Arc<AtomicBool>>>, SessionTransferError> {
-        self.installed.epoch_owner.freeze()
+    ) -> Result<RwLockReadGuard<'_, OnceLock<Arc<AtomicBool>>>, SessionTransferError> {
+        self.installed.epoch_owner.configure()
     }
     fn valid(&self) -> bool {
         self.scope.0.live.load(Ordering::Acquire)
@@ -826,7 +841,7 @@ impl SessionImportPermit {
             .context
             .transfer_context_epoch()
             .ok_or(SessionTransferError::Policy)?;
-        let _context_guard = epoch.freeze()?;
+        let _context_guard = epoch.configure()?;
         let _scope_guard = self
             .recipient
             .scope

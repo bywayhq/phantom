@@ -481,13 +481,10 @@ impl ConnectConfiguration {
         if self.transfer_policy.is_some() {
             return Ok(None);
         }
-        let import_guard_owner = session
-            .filter(|session| session.imported)
-            .and_then(|session| session.transfer.as_ref())
-            .map(|token| token.context_epoch_owner());
-        let _import_guard = match import_guard_owner
+        let context_epoch = self.ssl.ssl_context().transfer_context_epoch();
+        let _context_guard = match context_epoch
             .as_ref()
-            .map(|owner| owner.freeze())
+            .map(|owner| owner.configure())
             .transpose()
         {
             Ok(guard) => guard,

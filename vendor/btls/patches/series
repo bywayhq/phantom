@@ -23,4 +23,5 @@ session-transfer-record-size.patch
 session-transfer-cold-custody.patch
 session-transfer-dependency.patch
 session-transfer-selected-custody.patch
+concurrent-session-configuration.patch
 publish-identity.patch

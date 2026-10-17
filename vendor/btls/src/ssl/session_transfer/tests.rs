@@ -278,7 +278,7 @@ fn transfer_freeze_poisoned_context_is_policy_failure_and_releases_prior_guard()
     let earlier = prepared.contexts[0];
     let later = prepared.contexts[1];
     let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        let _guard = later.0.lock().unwrap();
+        let _guard = later.0.write().unwrap();
         panic!("synthetic Rust mutex poison");
     }));
     assert!(panic.is_err());
@@ -327,12 +327,12 @@ fn transfer_freeze_checks_guarded_epoch_and_installed_identity() {
         .try_freeze()
         .unwrap();
     frozen.validate_binding(&binding, "example.test").unwrap();
-    *frozen.0.context_guards[0] = Some(Arc::new(AtomicBool::new(true)));
+    *frozen.0.context_guards[0] = OnceLock::from(Arc::new(AtomicBool::new(true)));
     assert!(matches!(
         frozen.validate_binding(&binding, "example.test"),
         Err(SessionTransferError::Policy)
     ));
-    *frozen.0.context_guards[0] = Some(Arc::clone(&binding.installed.context_epoch));
+    *frozen.0.context_guards[0] = OnceLock::from(Arc::clone(&binding.installed.context_epoch));
     *frozen.0.scope_guards[0] = Some(Arc::clone(&other.installed));
     assert!(matches!(
         frozen.validate_binding(&binding, "example.test"),
@@ -360,4 +360,80 @@ fn transfer_freeze_empty_plan_and_input_bound_are_explicit() {
         PreparedSessionPolicyFreeze::new(&vec![&binding; MAX_RECORDS + 1]),
         Err(SessionTransferError::TooLarge)
     ));
+}
+
+#[test]
+fn connection_finalization_shares_context_with_other_connection_configuration() {
+    let client = freeze_client();
+    let scope = SslSessionScope::default();
+    let binding = freeze_binding(&client, &scope);
+    let _other_configuration = binding.configuration_guard().unwrap();
+    let mut configuration = client.configure().unwrap();
+    configuration.set_session_transfer_policy(&binding).unwrap();
+    assert!(configuration
+        .into_ssl_with_session_transfer("example.test", &scope, None, |_| {})
+        .unwrap()
+        .is_some());
+    assert!(matches!(
+        PreparedSessionPolicyFreeze::new(&[&binding])
+            .unwrap()
+            .try_freeze(),
+        Err(SessionTransferError::Busy)
+    ));
+}
+
+#[test]
+fn new_scope_binding_shares_context_with_connection_configuration() {
+    let client = freeze_client();
+    let first = freeze_binding(&client, &SslSessionScope::default());
+    let _configuration = first.configuration_guard().unwrap();
+    let second = freeze_binding(&client, &SslSessionScope::default());
+    assert!(Arc::ptr_eq(
+        &first.installed.context_epoch,
+        &second.installed.context_epoch
+    ));
+}
+
+#[test]
+fn frozen_store_rejects_connection_configuration_without_waiting() {
+    let client = freeze_client();
+    let binding = freeze_binding(&client, &SslSessionScope::default());
+    let _frozen = PreparedSessionPolicyFreeze::new(&[&binding])
+        .unwrap()
+        .try_freeze()
+        .unwrap();
+    assert!(matches!(
+        binding.configuration_guard(),
+        Err(SessionTransferError::Busy)
+    ));
+}
+
+#[test]
+fn first_scope_binding_initializes_epoch_under_shared_admission() {
+    let client = freeze_client();
+    let epoch = client.context().transfer_context_epoch().unwrap();
+    let guard = epoch.configure().unwrap();
+    assert!(guard.get().is_none());
+    let binding = freeze_binding(&client, &SslSessionScope::default());
+    assert!(Arc::ptr_eq(
+        guard.get().unwrap(),
+        &binding.installed.context_epoch
+    ));
+}
+
+#[test]
+fn frozen_store_rejects_unresumed_connection_before_scope_lock() {
+    let client = freeze_client();
+    let scope = SslSessionScope::default();
+    let binding = freeze_binding(&client, &scope);
+    let _frozen = PreparedSessionPolicyFreeze::new(&[&binding])
+        .unwrap()
+        .try_freeze()
+        .unwrap();
+    let mut configuration = client.configure().unwrap();
+    configuration.set_session_transfer_policy(&binding).unwrap();
+    assert!(configuration
+        .into_ssl_with_session_transfer("example.test", &scope, None, |_| {})
+        .unwrap()
+        .is_none());
 }

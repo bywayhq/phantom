@@ -1,0 +1,266 @@
+--- a/src/ssl/session_transfer.rs
++++ b/src/ssl/session_transfer.rs
+@@ -3,7 +3,10 @@
+ use std::fmt;
+ use std::ops::{Deref, DerefMut};
+ use std::sync::atomic::{AtomicBool, Ordering};
+-use std::sync::{Arc, Mutex, MutexGuard, PoisonError, TryLockError};
++use std::sync::{
++    Arc, Mutex, MutexGuard, OnceLock, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard,
++    TryLockError,
++};
+ use std::time::{SystemTime, UNIX_EPOCH};
+ 
+ use foreign_types::ForeignTypeRef;
+@@ -181,14 +184,14 @@
+     }
+ }
+ 
+-pub(super) struct ContextEpoch(Mutex<Option<Arc<AtomicBool>>>);
++pub(super) struct ContextEpoch(RwLock<OnceLock<Arc<AtomicBool>>>);
+ 
+ impl ContextEpoch {
+     pub(super) fn new() -> Self {
+-        Self(Mutex::new(None))
+-    }
+-    pub(super) fn mutate(&self) -> MutexGuard<'_, Option<Arc<AtomicBool>>> {
+-        let mut state = self.0.lock().unwrap_or_else(PoisonError::into_inner);
++        Self(RwLock::new(OnceLock::new()))
++    }
++    pub(super) fn mutate(&self) -> RwLockWriteGuard<'_, OnceLock<Arc<AtomicBool>>> {
++        let mut state = self.0.write().unwrap_or_else(PoisonError::into_inner);
+         if let Some(epoch) = state.take() {
+             epoch.store(false, Ordering::Release);
+         }
+@@ -196,15 +199,23 @@
+     }
+     pub(super) fn freeze(
+         &self,
+-    ) -> Result<MutexGuard<'_, Option<Arc<AtomicBool>>>, SessionTransferError> {
+-        try_policy_lock(&self.0)
++    ) -> Result<RwLockWriteGuard<'_, OnceLock<Arc<AtomicBool>>>, SessionTransferError> {
++        self.0.try_write().map_err(policy_lock_error)
++    }
++
++    // Connections share immutable policy; mutations and store transactions
++    // remain exclusive, with nonblocking admission to avoid lock inversion.
++    pub(super) fn configure(
++        &self,
++    ) -> Result<RwLockReadGuard<'_, OnceLock<Arc<AtomicBool>>>, SessionTransferError> {
++        self.0.try_read().map_err(policy_lock_error)
+     }
+ }
+ 
+ /// A context-owned mutable borrow that keeps policy freezing excluded until dropped.
+ pub struct SessionPolicyMutation<'a, T: ?Sized> {
+     pub(super) value: &'a mut T,
+-    pub(super) _guard: Option<MutexGuard<'a, Option<Arc<AtomicBool>>>>,
++    pub(super) _guard: Option<RwLockWriteGuard<'a, OnceLock<Arc<AtomicBool>>>>,
+ }
+ 
+ impl<T: ?Sized> Deref for SessionPolicyMutation<'_, T> {
+@@ -259,7 +270,7 @@
+     contexts: Vec<&'a ContextEpoch>,
+     scopes: Vec<&'a ScopeState>,
+     scope_guards: Vec<MutexGuard<'a, Option<Arc<InstalledPolicy>>>>,
+-    context_guards: Vec<MutexGuard<'a, Option<Arc<AtomicBool>>>>,
++    context_guards: Vec<RwLockWriteGuard<'a, OnceLock<Arc<AtomicBool>>>>,
+ }
+ 
+ /// Native context and scope guards for one owner-managed store transaction.
+@@ -276,6 +287,13 @@
+         .try_reserve_exact(capacity)
+         .map_err(|_| SessionTransferError::Allocation)?;
+     Ok(values)
++}
++
++fn policy_lock_error<T>(error: TryLockError<T>) -> SessionTransferError {
++    match error {
++        TryLockError::WouldBlock => SessionTransferError::Busy,
++        TryLockError::Poisoned(_) => SessionTransferError::Policy,
++    }
+ }
+ 
+ fn try_policy_lock<T>(mutex: &Mutex<T>) -> Result<MutexGuard<'_, T>, SessionTransferError> {
+@@ -366,7 +384,7 @@
+             .position(|owner| std::ptr::eq(*owner, binding.scope.0.as_ref()))
+             .ok_or(SessionTransferError::Policy)?;
+         if !self.0.context_guards[context_index]
+-            .as_ref()
++            .get()
+             .is_some_and(|current| Arc::ptr_eq(current, &binding.installed.context_epoch))
+             || !self.0.scope_guards[scope_index]
+                 .as_ref()
+@@ -442,7 +460,7 @@
+         let epoch = context
+             .transfer_context_epoch()
+             .ok_or(SessionTransferError::Policy)?;
+-        let mut context_state = epoch.freeze()?;
++        let context_state = epoch.configure()?;
+         let keep_early_data = match context.scoped_client_session_mode() {
+             ScopedClientSessionMode::Scoped => false,
+             ScopedClientSessionMode::ScopedWithEarlyData => true,
+@@ -501,7 +519,7 @@
+             return Err(SessionTransferError::Policy);
+         }
+         let context_epoch = context_state
+-            .get_or_insert_with(|| Arc::new(AtomicBool::new(true)))
++            .get_or_init(|| Arc::new(AtomicBool::new(true)))
+             .clone();
+         let mut name = String::new();
+         name.try_reserve_exact(server_name.len())
+@@ -549,9 +567,6 @@
+     live: AtomicBool,
+ }
+ impl ConnectionPolicy {
+-    pub(super) fn context_epoch_owner(&self) -> Arc<ContextEpoch> {
+-        Arc::clone(&self.binding.installed.epoch_owner)
+-    }
+     pub(super) fn revoke(&self) {
+         self.live.store(false, Ordering::Release);
+     }
+@@ -563,8 +578,8 @@
+ impl SessionPolicyBinding {
+     pub(super) fn configuration_guard(
+         &self,
+-    ) -> Result<MutexGuard<'_, Option<Arc<AtomicBool>>>, SessionTransferError> {
+-        self.installed.epoch_owner.freeze()
++    ) -> Result<RwLockReadGuard<'_, OnceLock<Arc<AtomicBool>>>, SessionTransferError> {
++        self.installed.epoch_owner.configure()
+     }
+     fn valid(&self) -> bool {
+         self.scope.0.live.load(Ordering::Acquire)
+@@ -826,7 +841,7 @@
+             .context
+             .transfer_context_epoch()
+             .ok_or(SessionTransferError::Policy)?;
+-        let _context_guard = epoch.freeze()?;
++        let _context_guard = epoch.configure()?;
+         let _scope_guard = self
+             .recipient
+             .scope
+--- a/src/ssl/connector.rs
++++ b/src/ssl/connector.rs
+@@ -481,13 +481,10 @@
+         if self.transfer_policy.is_some() {
+             return Ok(None);
+         }
+-        let import_guard_owner = session
+-            .filter(|session| session.imported)
+-            .and_then(|session| session.transfer.as_ref())
+-            .map(|token| token.context_epoch_owner());
+-        let _import_guard = match import_guard_owner
++        let context_epoch = self.ssl.ssl_context().transfer_context_epoch();
++        let _context_guard = match context_epoch
+             .as_ref()
+-            .map(|owner| owner.freeze())
++            .map(|owner| owner.configure())
+             .transpose()
+         {
+             Ok(guard) => guard,
+--- a/src/ssl/session_transfer/tests.rs
++++ b/src/ssl/session_transfer/tests.rs
+@@ -278,7 +278,7 @@
+     let earlier = prepared.contexts[0];
+     let later = prepared.contexts[1];
+     let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+-        let _guard = later.0.lock().unwrap();
++        let _guard = later.0.write().unwrap();
+         panic!("synthetic Rust mutex poison");
+     }));
+     assert!(panic.is_err());
+@@ -327,12 +327,12 @@
+         .try_freeze()
+         .unwrap();
+     frozen.validate_binding(&binding, "example.test").unwrap();
+-    *frozen.0.context_guards[0] = Some(Arc::new(AtomicBool::new(true)));
++    *frozen.0.context_guards[0] = OnceLock::from(Arc::new(AtomicBool::new(true)));
+     assert!(matches!(
+         frozen.validate_binding(&binding, "example.test"),
+         Err(SessionTransferError::Policy)
+     ));
+-    *frozen.0.context_guards[0] = Some(Arc::clone(&binding.installed.context_epoch));
++    *frozen.0.context_guards[0] = OnceLock::from(Arc::clone(&binding.installed.context_epoch));
+     *frozen.0.scope_guards[0] = Some(Arc::clone(&other.installed));
+     assert!(matches!(
+         frozen.validate_binding(&binding, "example.test"),
+@@ -361,3 +361,79 @@
+         Err(SessionTransferError::TooLarge)
+     ));
+ }
++
++#[test]
++fn connection_finalization_shares_context_with_other_connection_configuration() {
++    let client = freeze_client();
++    let scope = SslSessionScope::default();
++    let binding = freeze_binding(&client, &scope);
++    let _other_configuration = binding.configuration_guard().unwrap();
++    let mut configuration = client.configure().unwrap();
++    configuration.set_session_transfer_policy(&binding).unwrap();
++    assert!(configuration
++        .into_ssl_with_session_transfer("example.test", &scope, None, |_| {})
++        .unwrap()
++        .is_some());
++    assert!(matches!(
++        PreparedSessionPolicyFreeze::new(&[&binding])
++            .unwrap()
++            .try_freeze(),
++        Err(SessionTransferError::Busy)
++    ));
++}
++
++#[test]
++fn new_scope_binding_shares_context_with_connection_configuration() {
++    let client = freeze_client();
++    let first = freeze_binding(&client, &SslSessionScope::default());
++    let _configuration = first.configuration_guard().unwrap();
++    let second = freeze_binding(&client, &SslSessionScope::default());
++    assert!(Arc::ptr_eq(
++        &first.installed.context_epoch,
++        &second.installed.context_epoch
++    ));
++}
++
++#[test]
++fn frozen_store_rejects_connection_configuration_without_waiting() {
++    let client = freeze_client();
++    let binding = freeze_binding(&client, &SslSessionScope::default());
++    let _frozen = PreparedSessionPolicyFreeze::new(&[&binding])
++        .unwrap()
++        .try_freeze()
++        .unwrap();
++    assert!(matches!(
++        binding.configuration_guard(),
++        Err(SessionTransferError::Busy)
++    ));
++}
++
++#[test]
++fn first_scope_binding_initializes_epoch_under_shared_admission() {
++    let client = freeze_client();
++    let epoch = client.context().transfer_context_epoch().unwrap();
++    let guard = epoch.configure().unwrap();
++    assert!(guard.get().is_none());
++    let binding = freeze_binding(&client, &SslSessionScope::default());
++    assert!(Arc::ptr_eq(
++        guard.get().unwrap(),
++        &binding.installed.context_epoch
++    ));
++}
++
++#[test]
++fn frozen_store_rejects_unresumed_connection_before_scope_lock() {
++    let client = freeze_client();
++    let scope = SslSessionScope::default();
++    let binding = freeze_binding(&client, &scope);
++    let _frozen = PreparedSessionPolicyFreeze::new(&[&binding])
++        .unwrap()
++        .try_freeze()
++        .unwrap();
++    let mut configuration = client.configure().unwrap();
++    configuration.set_session_transfer_policy(&binding).unwrap();
++    assert!(configuration
++        .into_ssl_with_session_transfer("example.test", &scope, None, |_| {})
++        .unwrap()
++        .is_none());
++}

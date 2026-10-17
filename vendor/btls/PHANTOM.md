@@ -37,7 +37,7 @@ size limit, and delegated-credential patches.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.14`), keeps
+renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.15`), keeps
 the upstream library name so source, tests, and examples are unchanged, and
 points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
@@ -54,6 +54,14 @@ content changes without an upstream version change, and update the exact pins
 in the root `Cargo.toml` and in every renamed dependent.
 
 ## Why this patch exists
+
+`concurrent-session-configuration.patch` admits ordinary policy binding and
+connection setup through shared context guards. Context mutation stays
+exclusive, and store freezing still tries exclusive guards without waiting.
+A context initializes its epoch once under shared admission. Scoped connection
+setup checks context admission before taking the scope lock, including when
+no session is offered. This avoids both ordinary-setup contention and waiting
+on a scope already held by a same-thread store transaction.
 
 `session-transfer-selected-custody.patch` rekeys explicitly selected opaque
 records without consuming their source slots. An owner being replaced may be
