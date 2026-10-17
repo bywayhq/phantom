@@ -293,8 +293,8 @@ impl Observation {
         })
     }
 
-    pub async fn scope<F: Future>(observer: Option<Self>, future: F) -> F::Output {
-        CURRENT.scope(observer, future).await
+    pub fn scope<F: Future>(observer: Option<Self>, future: F) -> impl Future<Output = F::Output> {
+        CURRENT.scope(observer, future)
     }
 
     pub fn admit(protocol: Option<Version>) {

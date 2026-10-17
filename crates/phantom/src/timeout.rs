@@ -509,25 +509,18 @@ where
 {
     use crate::RequestTimingPhase;
     use phantom_net::request_diagnostics::PhaseObservation;
-    match phase {
-        TimeoutPhase::PoolAdmission => {
-            PhaseObservation::run(
-                RequestTimingPhase::PoolAdmission,
-                protocol.map(HttpProtocol::version),
-                operation,
-            )
-            .await
-        }
-        TimeoutPhase::Connect => {
-            PhaseObservation::run(
-                RequestTimingPhase::ConnectionAcquisition,
-                protocol.map(HttpProtocol::version),
-                operation,
-            )
-            .await
-        }
-        _ => operation.await,
+    let observed = match phase {
+        TimeoutPhase::PoolAdmission => Some(RequestTimingPhase::PoolAdmission),
+        TimeoutPhase::Connect => Some(RequestTimingPhase::ConnectionAcquisition),
+        _ => None,
+    };
+    let mut observation =
+        observed.map(|phase| PhaseObservation::begin(phase, protocol.map(HttpProtocol::version)));
+    let result = operation.await;
+    if let Some(observation) = &mut observation {
+        observation.result(&result);
     }
+    result
 }
 
 #[derive(Clone, Copy)]
