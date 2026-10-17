@@ -675,39 +675,32 @@ Publishing follows Phase 2 completion. Hardening remains in Phase 3.
 
 ## Release to crates.io
 
-Publish once Phase 2 has settled the public API, so the first releases do
-not carry its renames. Until then, depend on a pinned git revision
-([Adding Phantom to a project](guides/downstream.md)).
+The first release is being prepared at version `0.1.0`. The remaining
+feature backlog does not block this library release. Until publication,
+depend on a pinned revision ([Adding Phantom to a project](guides/downstream.md)).
 
-- Publish `btls-sys` under a Phantom name. Crates.io rejects the git
-  dependency in the workspace manifest and in the vendored `btls` manifest,
-  and the release script refuses to publish while either remains. Upstream
-  already publishes `btls-sys` with the BoringSSL sources and every native
-  patch at about 4.9 MiB, inside the 10 MiB limit.
-  - Keep every native patch. Two have no upstream equivalent, and dropping
-    any changes the wire.
-  - Bundling BoringSSL makes Phantom a redistributor: carry the third-party
-    licenses and declare a license expression that covers Apache-2.0.
-  - Renaming the package does not let Phantom and a stock `boring` or `btls`
-    share a dependency graph outside Linux, because symbol prefixing is
-    skipped elsewhere and both ask for the same static archive names. Do not
-    promise coexistence beyond Linux.
-- Publish `phantom-testkit` before the crates that use it for tests. Their
-  development dependencies pin its exact version. Its packaged fixtures
-  keep tests independent of the repository checkout.
-- Measure the public API with `cargo public-api`, and check each release
-  against the previous one with `cargo semver-checks`.
-- Check the vendored forks against security advisories before the first
-  publish. RustSec and `cargo deny` match advisories by registry crate
-  name, so none reaches the nine renamed `phantom-*` forks of h2, h3,
-  quinn, quinn-proto, tungstenite, btls, and the others; the http2 fork's
-  RUSTSEC-2026-0258 fix was found and backported by hand
-  ([`vendor/http2/PHANTOM.md`](../vendor/http2/PHANTOM.md)). Look up each
-  fork's upstream name and version in the weekly freshness job, fail on an
-  unaddressed advisory, and record the handled ones in its `PHANTOM.md`.
-- Turn the further-reading paths in the `phantom` crate docs into absolute
-  repository links. They are code spans today, which a docs.rs reader
-  cannot follow.
+- Native source packaging: `phantom-btls-sys` bundles the exact BoringSSL
+  revision and retained patches, with license files and a separate `links`
+  identity. No compatibility with another native BoringSSL is implied.
+- Archive verification: build all seventeen packages and install them through
+  a temporary registry. Check minimal and full features, current Rust and
+  1.88, on Windows, macOS, and Linux. Retain checksums and logs.
+- Security: check the resolved graph under upstream package identities.
+  Record exact-version backports and their patch evidence. Review warnings
+  and native-library advisories before publishing.
+- API: retain the first public API listing. Compare later releases against
+  their previous published versions with `cargo semver-checks`.
+- Integration: land the reviewed client improvements and shared attempt
+  budget, then release preparation, after their gates and platform CI pass.
+- Ownership: all packages require `github:bywayhq:staff` as a verified
+  crates.io owner. Repository metadata alone does not establish ownership.
+- Publication: finalize versions and changelog, obtain approval, publish in
+  dependency order, verify a registry-only install, and tag the exact commit.
+  An interrupted publication remains incomplete until ownership is verified
+  for every package.
+
+[The release runbook](../scripts/release/README.md) contains the commands,
+prerequisites, and restart rules.
 
 ## Phase 3: Hardening
 

@@ -1,0 +1,1086 @@
+From 216e421c373b85804c4fc910b7bac6ee51b2fba7 Mon Sep 17 00:00:00 2001
+From: Arya Alikhani <alexanderaryaalikhani@gmail.com>
+Date: Fri, 2 Oct 2026 10:21:56 -0700
+Subject: [PATCH 17/17] boringssl: size ECH GREASE payloads from the
+ ClientHello
+
+Firefox's GREASE encrypted_client_hello payload depends on the
+ClientHello that carries it: every retained Firefox 156 and 157
+capture has 240 bytes on a fresh connection and 368 bytes on a resumed
+one, over TCP and QUIC. Patch 0011 can only fix one length per
+connection.
+
+NSS 3.128 sizes the payload in tls13_MaybeGreaseEch, after the other
+extensions, including pre_shared_key with placeholder binders, are
+built and before padding. It builds the EncodedClientHelloInner that a
+real ECH offer would encrypt: server_name and pre_shared_key in full,
+supported_versions with TLS 1.3 and any GREASE version, no extension
+that NSS supports but does not know in TLS 1.3 (ec_point_formats,
+extended_master_secret, session_ticket, renegotiation_info), and every
+other extension compressed into ech_outer_extensions. tls13_PadChInner
+then adds the maximum name length minus the length of the URL host
+(strlen(ss->url)), rounds to a multiple of 32, and NSS adds a 16-byte
+tag. The maximum name length is NSS's default of 100; Firefox applies
+security.tls.ech.grease_size, also 100, over TCP only.
+
+NSS sends no server_name for an IP literal but still pads by its text.
+Firefox 157, pointed at https://127.0.0.1:<port>/ and
+https://[::1]:<port>/, sends GREASE ECH without server_name (240 bytes
+over TCP, 208 over QUIC for IPv4). Over TCP, setting grease_size so
+that one byte of host length crosses a 32-byte boundary showed it pads
+by 9 for 127.0.0.1 and 3 for ::1, the host without brackets. QUIC
+ignores grease_size, and its fresh payload cannot tell those lengths
+apart.
+
+Add SSL_set_ech_grease_payload_from_client_hello, which takes the
+maximum name length and the host text NSS pads by; without a host it
+uses the server_name host name, or no name. setup_ech_grease runs once
+per handshake, after PSKs, key shares, the extension order, and the
+early-data decision are known, so it writes the unencrypted ClientHello
+without its ECH extension, padding, and binders, and applies the rule;
+a HelloRetryRequest reuses the extension. The last call between this
+function and SSL_set_ech_grease_payload_length wins. DTLS is rejected,
+as NSS does not GREASE ECH there.
+
+ssl_test checks fixed vectors shaped like each Firefox 157 ClientHello
+(240 and 368 bytes over TCP and QUIC, and the IP-literal captures at
+the boundary grease sizes), and compares fresh, resumed, IP-literal,
+HelloRetryRequest, and QUIC ClientHellos against an independent model
+of the NSS rule, because the resumed length depends on the ticket.
+Outside the patch, the rule reproduced the payload length of all 171
+retained Firefox 156.0, 156.0.1, and 157.0 ClientHellos.
+---
+ include/openssl/prefix_symbols.h |   2 +
+ include/openssl/ssl.h            |  35 +-
+ ssl/encrypted_client_hello.cc    | 182 ++++++++-
+ ssl/extensions.cc                |  48 +++
+ ssl/internal.h                   |  36 ++
+ ssl/ssl_test.cc                  | 616 +++++++++++++++++++++++++++++++
+ 6 files changed, 914 insertions(+), 5 deletions(-)
+
+diff --git a/include/openssl/prefix_symbols.h b/include/openssl/prefix_symbols.h
+index 3b7ee038e..73ffa2dc8 100644
+--- a/include/openssl/prefix_symbols.h
++++ b/include/openssl/prefix_symbols.h
+@@ -2389,6 +2389,7 @@
+ #pragma redefine_extname SSL_set_connect_state BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_connect_state)
+ #pragma redefine_extname SSL_set_custom_verify BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_custom_verify)
+ #pragma redefine_extname SSL_set_early_data_enabled BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_early_data_enabled)
++#pragma redefine_extname SSL_set_ech_grease_payload_from_client_hello BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_ech_grease_payload_from_client_hello)
+ #pragma redefine_extname SSL_set_ech_grease_payload_length BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_ech_grease_payload_length)
+ #pragma redefine_extname SSL_set_enable_ech_grease BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_enable_ech_grease)
+ #pragma redefine_extname SSL_set_ex_data BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_ex_data)
+@@ -5545,6 +5546,7 @@
+ #define SSL_set_connect_state BORINGSSL_ADD_PREFIX(SSL_set_connect_state)
+ #define SSL_set_custom_verify BORINGSSL_ADD_PREFIX(SSL_set_custom_verify)
+ #define SSL_set_early_data_enabled BORINGSSL_ADD_PREFIX(SSL_set_early_data_enabled)
++#define SSL_set_ech_grease_payload_from_client_hello BORINGSSL_ADD_PREFIX(SSL_set_ech_grease_payload_from_client_hello)
+ #define SSL_set_ech_grease_payload_length BORINGSSL_ADD_PREFIX(SSL_set_ech_grease_payload_length)
+ #define SSL_set_enable_ech_grease BORINGSSL_ADD_PREFIX(SSL_set_enable_ech_grease)
+ #define SSL_set_ex_data BORINGSSL_ADD_PREFIX(SSL_set_ex_data)
+diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
+index 678df4be7..7b0c7a553 100644
+--- a/include/openssl/ssl.h
++++ b/include/openssl/ssl.h
+@@ -4699,10 +4699,43 @@ OPENSSL_EXPORT void SSL_set_enable_ech_grease(SSL *ssl, int enable);
+ // SSL_set_ech_grease_payload_length configures the exact payload length of a
+ // GREASE ECH extension. This does not enable ECH GREASE. The configured
+ // payload must be non-empty and, together with the ECHClientHelloOuter framing,
+-// must fit in a TLS extension body. It returns one on success and zero on error.
++// must fit in a TLS extension body. It replaces a configuration from
++// |SSL_set_ech_grease_payload_from_client_hello|. It returns one on success and
++// zero on error.
+ OPENSSL_EXPORT int SSL_set_ech_grease_payload_length(SSL *ssl,
+                                                      size_t payload_length);
+ 
++// SSL_set_ech_grease_payload_from_client_hello configures |ssl| to size the
++// payload of a GREASE ECH extension from the ClientHello that carries it, as
++// NSS does. The payload is as long as the encrypted EncodedClientHelloInner a
++// real ECH offer of that ClientHello would carry, padded as in RFC 9849,
++// section 6.1.3, for an ECHConfig whose maximum_name_length is
++// |maximum_name_length|. NSS's default is 100. Firefox keeps it over QUIC and
++// applies its security.tls.ech.grease_size preference, also 100, over TCP.
++//
++// NSS pads by the length of the host it connects to, which is also its
++// server_name unless the host is an IP literal, for which it sends no
++// server_name. |host| and |host_len| give that host as the URL names it, with
++// an IPv6 literal written without brackets, such as "127.0.0.1" or "::1".
++// Only its length is used. If |host| is NULL, the server_name host name is
++// used, and without server_name, all of |maximum_name_length| is padding.
++//
++// The EncodedClientHelloInner follows NSS 3.128. It copies server_name and
++// pre_shared_key in full, offers only TLS 1.3 and any GREASE version in
++// supported_versions, omits ec_point_formats, extended_master_secret,
++// session_ticket, and renegotiation_info, and compresses every other
++// extension into ech_outer_extensions. The length therefore depends on the
++// ClientHello, including any session ticket, so it can change between
++// connections. The second ClientHello after a HelloRetryRequest repeats the
++// first one's extension.
++//
++// This does not enable ECH GREASE. It replaces a length set by
++// |SSL_set_ech_grease_payload_length|. It returns one on success and zero if
++// |host| is NULL with a non-zero |host_len|, or if |ssl| uses DTLS or its
++// handshake configuration has been shed.
++OPENSSL_EXPORT int SSL_set_ech_grease_payload_from_client_hello(
++    SSL *ssl, uint8_t maximum_name_length, const char *host, size_t host_len);
++
+ // SSL_set1_ech_grease_aeads configures the HPKE AEAD identifiers from which a
+ // GREASE ECH extension selects its cipher suite. Each handshake selects one
+ // entry uniformly at random, and a HelloRetryRequest reuses that selection.
+diff --git a/ssl/encrypted_client_hello.cc b/ssl/encrypted_client_hello.cc
+index 371b3d33c..cf5271f57 100644
+--- a/ssl/encrypted_client_hello.cc
++++ b/ssl/encrypted_client_hello.cc
+@@ -763,6 +763,134 @@ static size_t random_index(size_t n) {
+   return value % n;
+ }
+ 
++// NSS sizes a GREASE ECH payload from the ClientHello it is sent in.
++// tls13_MaybeGreaseEch runs after every other extension, including
++// pre_shared_key with placeholder binders, is built, and before padding. It
++// builds the EncodedClientHelloInner that a real ECH offer would encrypt
++// (tls13_ConstructInnerExtensionsFromOuter with compression and
++// tls13_EncodeClientHelloInner), pads it with tls13_PadChInner, and adds a
++// 16-byte AEAD tag. The functions below follow NSS 3.128, which Firefox 156
++// and 157 ship, with Firefox's defaults: enableEchXtnCompression on and
++// callExtensionWriterOnEchInner off.
++
++// nss_omits_from_client_hello_inner returns whether NSS supports `type` but
++// does not know it in TLS 1.3, so it leaves it out of ClientHelloInner
++// (ssl_supported_extensions in ssl3ext.c against KnownExtensions in
++// tls13con.c).
++static bool nss_omits_from_client_hello_inner(uint16_t type) {
++  switch (type) {
++    case TLSEXT_TYPE_ec_point_formats:
++    case TLSEXT_TYPE_extended_master_secret:
++    case TLSEXT_TYPE_session_ticket:
++    case 46:  // ticket_early_data_info, from a TLS 1.3 draft.
++    case TLSEXT_TYPE_renegotiate:
++      return true;
++  }
++  return false;
++}
++
++static bool is_grease_value(uint16_t value) {
++  return (value & 0x0f0f) == 0x0a0a;
++}
++
++bool ssl_ech_grease_payload_len_from_client_hello(
++    Span<const uint8_t> client_hello, uint8_t maximum_name_length,
++    std::optional<size_t> host_len, size_t aead_overhead, size_t *out_len) {
++  CBS cbs(client_hello), session_id, cipher_suites, compression_methods,
++      extensions;
++  uint16_t legacy_version;
++  if (!CBS_get_u16(&cbs, &legacy_version) ||
++      !CBS_skip(&cbs, SSL3_RANDOM_SIZE) ||
++      !CBS_get_u8_length_prefixed(&cbs, &session_id) ||
++      !CBS_get_u16_length_prefixed(&cbs, &cipher_suites) ||
++      !CBS_get_u8_length_prefixed(&cbs, &compression_methods) ||
++      !CBS_get_u16_length_prefixed(&cbs, &extensions) || CBS_len(&cbs) != 0) {
++    return false;
++  }
++
++  // legacy_version, random, an empty legacy_session_id, the outer
++  // cipher_suites and legacy_compression_methods, and the extensions length.
++  size_t len = 2 + SSL3_RANDOM_SIZE + 1 + 2 + CBS_len(&cipher_suites) + 1 +
++               CBS_len(&compression_methods) + 2;
++  // The inner encrypted_client_hello extension.
++  len += 4 + 1;
++  size_t num_compressed = 0, name_len = 0;
++  while (CBS_len(&extensions) != 0) {
++    uint16_t type;
++    CBS body;
++    if (!CBS_get_u16(&extensions, &type) ||
++        !CBS_get_u16_length_prefixed(&extensions, &body)) {
++      return false;
++    }
++    switch (type) {
++      case TLSEXT_TYPE_encrypted_client_hello:
++      case TLSEXT_TYPE_padding:
++        // NSS sizes the payload before it adds either extension.
++        break;
++
++      case TLSEXT_TYPE_server_name: {
++        // ClientHelloInner carries the server name in full.
++        CBS copy = body, server_name_list, host_name;
++        uint8_t name_type;
++        if (!CBS_get_u16_length_prefixed(&copy, &server_name_list) ||
++            !CBS_get_u8(&server_name_list, &name_type) ||
++            !CBS_get_u16_length_prefixed(&server_name_list, &host_name)) {
++          return false;
++        }
++        name_len = CBS_len(&host_name);
++        len += 4 + CBS_len(&body);
++        break;
++      }
++
++      case TLSEXT_TYPE_supported_versions: {
++        // ClientHelloInner offers TLS 1.3, and a GREASE version if NSS
++        // GREASEs, which puts a GREASE version in the outer list.
++        CBS versions;
++        if (!CBS_get_u8_length_prefixed(&body, &versions)) {
++          return false;
++        }
++        bool grease = false;
++        while (CBS_len(&versions) != 0) {
++          uint16_t version;
++          if (!CBS_get_u16(&versions, &version)) {
++            return false;
++          }
++          grease = grease || is_grease_value(version);
++        }
++        len += 4 + 1 + 2 + (grease ? 2 : 0);
++        break;
++      }
++
++      case TLSEXT_TYPE_pre_shared_key:
++        // A GREASE payload copies pre_shared_key in full.
++        len += 4 + CBS_len(&body);
++        break;
++
++      default:
++        if (!nss_omits_from_client_hello_inner(type)) {
++          num_compressed++;
++        }
++        break;
++    }
++  }
++  if (num_compressed != 0) {
++    // ech_outer_extensions lists each compressed extension's type.
++    len += 4 + 1 + 2 * num_compressed;
++  }
++
++  // Pad as RFC 9849, section 6.1.3 describes, by the host length NSS takes
++  // from its URL (strlen(ss->url)). NSS omits server_name for an IP literal but
++  // still pads by its text, so `host_len` takes precedence.
++  if (host_len) {
++    name_len = *host_len;
++  }
++  size_t padding =
++      name_len < maximum_name_length ? maximum_name_length - name_len : 0;
++  padding += 31 - ((len + padding - 1) % 32);
++  *out_len = len + padding + aead_overhead;
++  return true;
++}
++
+ static bool setup_ech_grease(SSL_HANDSHAKE *hs) {
+   assert(!hs->selected_ech_config);
+   if (hs->max_version < TLS1_3_VERSION || !hs->config->ech_grease_enabled) {
+@@ -806,10 +934,31 @@ static bool setup_ech_grease(SSL_HANDSHAKE *hs) {
+   // The server_name extension has an overhead of 9 bytes. For now, arbitrarily
+   // estimate maximum_name_length to be between 32 and 100 bytes. Then round up
+   // to a multiple of 32, to match RFC 9849, section 6.1.3.
+-  const size_t payload_len = hs->config->ech_grease_payload_length
+-                                 ? *hs->config->ech_grease_payload_length
+-                                 : 32 * random_size(128 / 32, 224 / 32) +
+-                                       aead_overhead(aead);
++  size_t payload_len;
++  if (hs->config->ech_grease_payload_length) {
++    payload_len = *hs->config->ech_grease_payload_length;
++  } else if (hs->config->ech_grease_maximum_name_length) {
++    // Every ClientHello input is known here: PSKs, key shares, the extension
++    // order, and whether early data is offered. A HelloRetryRequest reuses
++    // `hs->ech_client_outer`, so this runs once per handshake.
++    bssl::ScopedCBB client_hello;
++    if (!CBB_init(client_hello.get(), 512) ||
++        !ssl_write_client_hello_for_ech_grease(hs, client_hello.get()) ||
++        !ssl_ech_grease_payload_len_from_client_hello(
++            Span(CBB_data(client_hello.get()), CBB_len(client_hello.get())),
++            *hs->config->ech_grease_maximum_name_length,
++            hs->config->ech_grease_host_len, aead_overhead(aead),
++            &payload_len)) {
++      OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
++      return false;
++    }
++    if (payload_len > UINT16_MAX - kEchGreaseExtensionOverhead) {
++      OPENSSL_PUT_ERROR(SSL, ERR_R_OVERFLOW);
++      return false;
++    }
++  } else {
++    payload_len = 32 * random_size(128 / 32, 224 / 32) + aead_overhead(aead);
++  }
+   bssl::ScopedCBB cbb;
+   CBB enc_cbb, payload_cbb;
+   uint8_t *payload;
+@@ -961,6 +1110,31 @@ int SSL_set_ech_grease_payload_length(SSL *ssl, size_t payload_length) {
+   }
+   ssl_impl->config->ech_grease_payload_length =
+       static_cast<uint16_t>(payload_length);
++  ssl_impl->config->ech_grease_maximum_name_length.reset();
++  ssl_impl->config->ech_grease_host_len.reset();
++  return 1;
++}
++
++int SSL_set_ech_grease_payload_from_client_hello(SSL *ssl,
++                                                 uint8_t maximum_name_length,
++                                                 const char *host,
++                                                 size_t host_len) {
++  auto *ssl_impl = FromOpaque(ssl);
++  if (!ssl_impl->config || SSL_is_dtls(ssl_impl)) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
++    return 0;
++  }
++  if (host == nullptr && host_len != 0) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_PASSED_NULL_PARAMETER);
++    return 0;
++  }
++  ssl_impl->config->ech_grease_maximum_name_length = maximum_name_length;
++  if (host != nullptr) {
++    ssl_impl->config->ech_grease_host_len = host_len;
++  } else {
++    ssl_impl->config->ech_grease_host_len.reset();
++  }
++  ssl_impl->config->ech_grease_payload_length.reset();
+   return 1;
+ }
+ 
+diff --git a/ssl/extensions.cc b/ssl/extensions.cc
+index 623d182bd..7c011b520 100644
+--- a/ssl/extensions.cc
++++ b/ssl/extensions.cc
+@@ -4838,6 +4838,54 @@ static bool ssl_add_clienthello_tlsext_inner(SSL_HANDSHAKE *hs, CBB *out,
+   return true;
+ }
+ 
++bool ssl_write_client_hello_for_ech_grease(const SSL_HANDSHAKE *hs, CBB *out) {
++  const SSLImpl *const ssl = hs->ssl;
++  // `psk` stays linked to `extensions` until `out` is flushed, so it must live
++  // as long as `extensions`.
++  CBB extensions, psk;
++  if (!ssl_write_client_hello_without_extensions(
++          hs, out, ssl_client_hello_unencrypted, /*empty_session_id=*/false) ||
++      !CBB_add_u16_length_prefixed(out, &extensions)) {
++    return false;
++  }
++
++  // The GREASE ECH payload length only depends on which extensions are sent
++  // and on their lengths, so this ignores `hs->extension_permutation`.
++  // `hs->ech_client_outer` is still empty, so encrypted_client_hello writes
++  // nothing.
++  if (ssl->ctx->grease_enabled &&
++      !add_padding_extension(
++          &extensions, ssl_get_grease_value(hs, ssl_grease_extension1), 0)) {
++    return false;
++  }
++  for (size_t i = 0; i < kNumExtensions; i++) {
++    if (!kExtensions[i].add_clienthello(hs, &extensions, &extensions,
++                                        ssl_client_hello_unencrypted)) {
++      OPENSSL_PUT_ERROR(SSL, SSL_R_ERROR_ADDING_EXTENSION);
++      ERR_add_error_dataf("extension %u", (unsigned)kExtensions[i].value);
++      return false;
++    }
++  }
++  if (ssl->ctx->grease_enabled &&
++      !add_padding_extension(
++          &extensions, ssl_get_grease_value(hs, ssl_grease_extension2), 1)) {
++    return false;
++  }
++
++  // Writing pre_shared_key would compute binders over this ClientHello. Only
++  // its length matters here, and that does not depend on the binders.
++  size_t psk_len =
++      ext_pre_shared_key_clienthello_length(hs, ssl_client_hello_unencrypted);
++  if (psk_len != 0) {
++    if (!CBB_add_u16(&extensions, TLSEXT_TYPE_pre_shared_key) ||
++        !CBB_add_u16_length_prefixed(&extensions, &psk) ||
++        !CBB_add_zeros(&psk, psk_len - 4)) {
++      return false;
++    }
++  }
++  return CBB_flush(out);
++}
++
+ bool ssl_add_clienthello_tlsext(SSL_HANDSHAKE *hs, CBB *out, CBB *out_encoded,
+                                 ssl_client_hello_type_t type) {
+   // `out` must contain the start of a ClientHello, which means it must begin
+diff --git a/ssl/internal.h b/ssl/internal.h
+index ad058d38c..90d67319b 100644
+--- a/ssl/internal.h
++++ b/ssl/internal.h
+@@ -2298,6 +2298,31 @@ bool tls13_process_new_session_ticket(SSLImpl *ssl, const SSLMessage &msg);
+ UniquePtr<SSL_SESSION> tls13_create_session_with_ticket(SSLImpl *ssl,
+                                                         CBS *body);
+ 
++// ssl_write_client_hello_for_ech_grease writes to `out` the body of the
++// unencrypted ClientHello that `hs` is about to send, as it stands before its
++// ECH GREASE extension is chosen: the encrypted_client_hello extension and
++// padding are absent, and pre_shared_key, if offered, has its final length but
++// zero contents. Extensions are written in the default order. It returns true
++// on success and false on error.
++//
++// The extension callbacks write no handshake state, except that the
++// delegated_credentials callback sets `hs->delegated_credential_sent`. The
++// ClientHello that follows sets the same flag under the same conditions.
++bool ssl_write_client_hello_for_ech_grease(const SSL_HANDSHAKE *hs, CBB *out);
++
++// ssl_ech_grease_payload_len_from_client_hello sets `*out_len` to the payload
++// length NSS 3.128 gives a GREASE encrypted_client_hello extension added to
++// `client_hello`, a ClientHello body from legacy_version through the
++// extensions, for a maximum name length of `maximum_name_length` and an AEAD
++// that adds `aead_overhead` bytes. NSS pads by the length of the host it
++// connects to, `host_len`. If `host_len` is absent, it is the length of the
++// host name in server_name, or zero without server_name. Any
++// encrypted_client_hello and padding extensions in `client_hello` are ignored.
++// It returns true on success and false if `client_hello` does not parse.
++OPENSSL_EXPORT bool ssl_ech_grease_payload_len_from_client_hello(
++    Span<const uint8_t> client_hello, uint8_t maximum_name_length,
++    std::optional<size_t> host_len, size_t aead_overhead, size_t *out_len);
++
+ // ssl_setup_extension_order builds the configured extension prefix, the
+ // remaining extensions, and the configured tail. The remaining extensions are
+ // shuffled when a prefix is configured or permutation is enabled. With no
+@@ -3592,6 +3617,17 @@ struct SSL_CONFIG {
+   // is selected using BoringSSL's default randomized policy.
+   std::optional<uint16_t> ech_grease_payload_length;
+ 
++  // ech_grease_maximum_name_length, if present, makes a GREASE
++  // ECHClientHelloOuter size its payload from the ClientHello, as NSS does,
++  // with this maximum name length. At most one of it and
++  // `ech_grease_payload_length` is present.
++  std::optional<uint8_t> ech_grease_maximum_name_length;
++
++  // ech_grease_host_len, if present, is the length of the host that
++  // `ech_grease_maximum_name_length` pads against. Otherwise the server_name
++  // host name is used.
++  std::optional<size_t> ech_grease_host_len;
++
+   // ech_grease_aeads, if non-empty, contains the distinct HPKE AEAD identifiers
+   // from which a GREASE ECHClientHelloOuter selects its cipher suite. Otherwise
+   // the AEAD is selected from the AES hardware policy.
+diff --git a/ssl/ssl_test.cc b/ssl/ssl_test.cc
+index 782c17437..8bd65e2b3 100644
+--- a/ssl/ssl_test.cc
++++ b/ssl/ssl_test.cc
+@@ -3904,6 +3904,542 @@ TEST(SSLTest, ECHGreaseAEADSurvivesHelloRetryRequest) {
+   EXPECT_EQ(seen, std::set<uint16_t>(std::begin(kAEADs), std::end(kAEADs)));
+ }
+ 
++// NSSGreaseECHPayloadLength is a model of NSS's GREASE ECH payload length,
++// written independently of `ssl_ech_grease_payload_len_from_client_hello`.
++// `body` is a ClientHello body, from legacy_version through the extensions,
++// that may already carry the GREASE extension and padding. NSS pads by the
++// length of its URL host, `host_len`, or the server_name host name if absent.
++static size_t NSSGreaseECHPayloadLength(
++    SSL *ssl, Span<const uint8_t> body, size_t maximum_name_length,
++    std::optional<size_t> host_len = std::nullopt) {
++  SSL_CLIENT_HELLO parsed;
++  if (!SSL_parse_client_hello(ssl, &parsed, body.data(), body.size())) {
++    ADD_FAILURE() << "Could not parse ClientHello";
++    return 0;
++  }
++  // EncodedClientHelloInner: version and random, an empty session ID, the
++  // outer cipher suites and compression methods, the extensions length, and
++  // the inner encrypted_client_hello extension.
++  size_t len = 2 + 32 + 1 + 2 + parsed.cipher_suites_len + 1 +
++               parsed.compression_methods_len + 2 + 5;
++  size_t compressed = 0, name_len = 0;
++  CBS extensions(Span(parsed.extensions, parsed.extensions_len));
++  while (CBS_len(&extensions) != 0) {
++    uint16_t type;
++    CBS ext_body;
++    if (!CBS_get_u16(&extensions, &type) ||
++        !CBS_get_u16_length_prefixed(&extensions, &ext_body)) {
++      ADD_FAILURE() << "Could not parse ClientHello extensions";
++      return 0;
++    }
++    const size_t ext_len = CBS_len(&ext_body);
++    if (type == TLSEXT_TYPE_encrypted_client_hello ||
++        type == TLSEXT_TYPE_padding ||
++        // NSS drops these TLS 1.2 extensions from ClientHelloInner.
++        type == TLSEXT_TYPE_ec_point_formats ||
++        type == TLSEXT_TYPE_extended_master_secret ||
++        type == TLSEXT_TYPE_session_ticket || type == TLSEXT_TYPE_renegotiate) {
++      continue;
++    }
++    if (type == TLSEXT_TYPE_server_name) {
++      // list length (2), name type (1), name length (2), then the name.
++      len += 4 + ext_len;
++      name_len = ext_len - 5;
++    } else if (type == TLSEXT_TYPE_supported_versions) {
++      bool grease = false;
++      for (size_t i = 1; i + 1 < ext_len; i += 2) {
++        uint16_t version =
++            (CBS_data(&ext_body)[i] << 8) | CBS_data(&ext_body)[i + 1];
++        grease = grease || (version & 0x0f0f) == 0x0a0a;
++      }
++      len += 4 + 1 + 2 + (grease ? 2 : 0);
++    } else if (type == TLSEXT_TYPE_pre_shared_key) {
++      len += 4 + ext_len;
++    } else {
++      compressed++;
++    }
++  }
++  if (compressed > 0) {
++    len += 4 + 1 + 2 * compressed;
++  }
++  if (host_len) {
++    name_len = *host_len;
++  }
++  len += name_len < maximum_name_length ? maximum_name_length - name_len : 0;
++  len = (len + 31) / 32 * 32;
++  return len + 16;  // AES-GCM and ChaCha20-Poly1305 tags
++}
++
++// GreaseECHPayloadLength returns the payload length of the GREASE
++// encrypted_client_hello extension in ClientHello body `body`, or zero if it
++// has none.
++static size_t GreaseECHPayloadLength(SSL *ssl, Span<const uint8_t> body) {
++  SSL_CLIENT_HELLO parsed;
++  const uint8_t *ech;
++  size_t ech_len;
++  if (!SSL_parse_client_hello(ssl, &parsed, body.data(), body.size()) ||
++      !SSL_early_callback_ctx_extension_get(
++          &parsed, TLSEXT_TYPE_encrypted_client_hello, &ech, &ech_len)) {
++    return 0;
++  }
++  // ECHClientHelloType, cipher suite, config_id, the length-prefixed X25519
++  // enc, and the payload's length prefix.
++  constexpr size_t kECHGreaseOverhead = 1 + 4 + 1 + 2 + 32 + 2;
++  return ech_len < kECHGreaseOverhead ? 0 : ech_len - kECHGreaseOverhead;
++}
++
++// RecordClientHelloBody saves the ClientHello body the server reads in the
++// vector pointed to by the server context's app data.
++static ssl_select_cert_result_t RecordClientHelloBody(
++    const SSL_CLIENT_HELLO *client_hello) {
++  auto *out = static_cast<std::vector<std::vector<uint8_t>> *>(
++      SSL_CTX_get_app_data(SSL_get_SSL_CTX(client_hello->ssl)));
++  out->emplace_back(
++      client_hello->client_hello,
++      client_hello->client_hello + client_hello->client_hello_len);
++  return ssl_select_cert_success;
++}
++
++struct ClientHelloShape {
++  size_t session_id_len;
++  const char *cipher_suites_hex;
++  // Space-separated "type:length" pairs, with the type in hexadecimal.
++  const char *extensions;
++};
++
++// MakeClientHelloBody returns a ClientHello body with the given session ID
++// length, cipher suites, and extension types and body lengths, for the server
++// name "server.phantom.test". Other extension bodies are zero.
++static std::vector<uint8_t> MakeClientHelloBody(const ClientHelloShape &shape) {
++  static const char kServerName[] = "server.phantom.test";
++  std::vector<uint8_t> cipher_suites;
++  EXPECT_TRUE(DecodeHex(&cipher_suites, shape.cipher_suites_hex));
++  std::vector<std::pair<uint16_t, size_t>> shape_extensions;
++  for (const char *p = shape.extensions; *p != '\0';) {
++    char *end;
++    unsigned long type = strtoul(p, &end, 16);
++    EXPECT_EQ(':', *end);
++    size_t len = strtoul(end + 1, &end, 10);
++    shape_extensions.emplace_back(static_cast<uint16_t>(type), len);
++    p = *end == ' ' ? end + 1 : end;
++  }
++  bssl::ScopedCBB cbb;
++  // Every child stays linked to its parent until the parent is flushed, so
++  // all of them live as long as `cbb`.
++  CBB child, extensions, ext, list, name, versions;
++  EXPECT_TRUE(CBB_init(cbb.get(), 0));
++  EXPECT_TRUE(CBB_add_u16(cbb.get(), TLS1_2_VERSION));
++  EXPECT_TRUE(CBB_add_zeros(cbb.get(), SSL3_RANDOM_SIZE));
++  EXPECT_TRUE(CBB_add_u8_length_prefixed(cbb.get(), &child));
++  EXPECT_TRUE(CBB_add_zeros(&child, shape.session_id_len));
++  EXPECT_TRUE(CBB_add_u16_length_prefixed(cbb.get(), &child));
++  EXPECT_TRUE(
++      CBB_add_bytes(&child, cipher_suites.data(), cipher_suites.size()));
++  EXPECT_TRUE(CBB_add_u8_length_prefixed(cbb.get(), &child));
++  EXPECT_TRUE(CBB_add_u8(&child, 0));
++  EXPECT_TRUE(CBB_add_u16_length_prefixed(cbb.get(), &extensions));
++  for (const auto &[type, len] : shape_extensions) {
++    EXPECT_TRUE(CBB_add_u16(&extensions, type));
++    EXPECT_TRUE(CBB_add_u16_length_prefixed(&extensions, &ext));
++    if (type == TLSEXT_TYPE_server_name) {
++      EXPECT_TRUE(CBB_add_u16_length_prefixed(&ext, &list));
++      EXPECT_TRUE(CBB_add_u8(&list, TLSEXT_NAMETYPE_host_name));
++      EXPECT_TRUE(CBB_add_u16_length_prefixed(&list, &name));
++      EXPECT_TRUE(CBB_add_bytes(&name,
++                                reinterpret_cast<const uint8_t *>(kServerName),
++                                strlen(kServerName)));
++    } else if (type == TLSEXT_TYPE_supported_versions) {
++      EXPECT_TRUE(CBB_add_u8_length_prefixed(&ext, &versions));
++      EXPECT_TRUE(CBB_add_u16(&versions, TLS1_3_VERSION));
++      if (len == 5) {
++        EXPECT_TRUE(CBB_add_u16(&versions, TLS1_2_VERSION));
++      }
++    } else {
++      EXPECT_TRUE(CBB_add_zeros(&ext, len));
++    }
++    EXPECT_TRUE(CBB_flush(&ext));
++    EXPECT_EQ(len, CBB_len(&ext));
++    EXPECT_TRUE(CBB_flush(&extensions));
++  }
++  EXPECT_TRUE(CBB_flush(cbb.get()));
++  return std::vector<uint8_t>(CBB_data(cbb.get()),
++                              CBB_data(cbb.get()) + CBB_len(cbb.get()));
++}
++
++// The extension types and lengths, cipher suites, and server name of Firefox
++// 157 ClientHellos captured on Windows 11 (fixtures/tls and fixtures/http3 in
++// Phantom), with their GREASE ECH payload lengths.
++TEST(SSLTest, ECHGreasePayloadFromClientHelloMatchesFirefox) {
++  static const char kTCPCiphers[] =
++      "130113031302c02bc02fcca9cca8c02cc030c013c014009c009d002f0035";
++  static const char kQUICCiphers[] = "130113031302";
++  const struct {
++    const char *name;
++    ClientHelloShape shape;
++    size_t payload_len;
++  } kCases[] = {
++      {"TCP fresh",
++       {32, kTCPCiphers,
++        "0000:24 0017:0 ff01:1 000a:12 000b:2 0023:0 0010:14 0005:5 0022:10 "
++        "0012:0 0033:1327 002b:5 000d:24 002d:2 001c:2 001b:7 fe0d:282"},
++       240},
++      {"TCP resumed",
++       {32, kTCPCiphers,
++        "0000:24 0017:0 ff01:1 000a:12 000b:2 0010:14 0005:5 0022:10 0012:0 "
++        "0033:1327 002a:0 002b:5 000d:24 002d:2 001c:2 001b:7 fe0d:410 "
++        "0029:107"},
++       368},
++      {"QUIC fresh",
++       {0, kQUICCiphers,
++        "0010:5 002b:3 0017:0 0033:1327 0022:10 000d:24 0005:5 001c:2 001b:7 "
++        "000a:12 002d:2 0000:24 ff01:1 0039:86 fe0d:282"},
++       240},
++      {"QUIC resumed",
++       {0, kQUICCiphers,
++        "0033:1327 0022:10 0010:5 0017:0 002d:2 0005:5 0000:24 000d:24 001c:2 "
++        "ff01:1 001b:7 002a:0 002b:3 000a:12 0039:86 fe0d:410 0029:123"},
++       368},
++  };
++  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++  ASSERT_TRUE(ctx);
++  bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
++  ASSERT_TRUE(ssl);
++  for (const auto &c : kCases) {
++    SCOPED_TRACE(c.name);
++    std::vector<uint8_t> body = MakeClientHelloBody(c.shape);
++    size_t payload_len;
++    ASSERT_TRUE(ssl_ech_grease_payload_len_from_client_hello(
++        body, /*maximum_name_length=*/100, /*host_len=*/std::nullopt,
++        /*aead_overhead=*/16, &payload_len));
++    EXPECT_EQ(c.payload_len, payload_len);
++    EXPECT_EQ(c.payload_len, NSSGreaseECHPayloadLength(ssl.get(), body, 100));
++    // The captured extension carries the same payload length.
++    EXPECT_EQ(c.payload_len, GreaseECHPayloadLength(ssl.get(), body));
++  }
++
++  // A ClientHello that does not parse is an error.
++  size_t payload_len;
++  std::vector<uint8_t> body = MakeClientHelloBody(kCases[0].shape);
++  body.push_back(0);
++  EXPECT_FALSE(ssl_ech_grease_payload_len_from_client_hello(
++      body, 100, std::nullopt, 16, &payload_len));
++}
++
++// Firefox 157 sends GREASE ECH to IP literals without server_name, and pads by
++// the host text, "127.0.0.1" or "::1" without brackets. The TCP cases set
++// security.tls.ech.grease_size so that one more byte of host length moves the
++// payload across a 32-byte boundary, which pins the length Firefox pads with.
++// QUIC ignores that preference and uses 100.
++TEST(SSLTest, ECHGreasePayloadFromClientHelloMatchesFirefoxIPLiterals) {
++  static const char kTCPCiphers[] =
++      "130113031302c02bc02fcca9cca8c02cc030c013c014009c009d002f0035";
++  static const char kTCPExtensions[] =
++      "0017:0 ff01:1 000a:12 000b:2 0023:0 0010:14 0005:5 0022:10 0012:0 "
++      "0033:1327 002b:5 000d:24 002d:2 001c:2 001b:7 fe0d:282";
++  const struct {
++    const char *name;
++    ClientHelloShape shape;
++    const char *host;
++    uint8_t maximum_name_length;
++    size_t payload_len;
++  } kCases[] = {
++      {"TCP IPv4", {32, kTCPCiphers, kTCPExtensions}, "127.0.0.1", 100, 240},
++      {"TCP IPv4", {32, kTCPCiphers, kTCPExtensions}, "127.0.0.1", 93, 208},
++      {"TCP IPv4", {32, kTCPCiphers, kTCPExtensions}, "127.0.0.1", 94, 240},
++      {"TCP IPv6", {32, kTCPCiphers, kTCPExtensions}, "::1", 100, 240},
++      {"TCP IPv6", {32, kTCPCiphers, kTCPExtensions}, "::1", 87, 208},
++      {"TCP IPv6", {32, kTCPCiphers, kTCPExtensions}, "::1", 88, 240},
++      {"QUIC IPv4",
++       {0, "130113031302",
++        "000a:12 ff01:1 002d:2 0017:0 0033:1327 001c:2 001b:7 002b:3 0010:5 "
++        "000d:24 0005:5 0022:10 0039:86 fe0d:250"},
++       "127.0.0.1",
++       100,
++       208},
++  };
++  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++  ASSERT_TRUE(ctx);
++  bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
++  ASSERT_TRUE(ssl);
++  for (const auto &c : kCases) {
++    SCOPED_TRACE(c.name);
++    SCOPED_TRACE(static_cast<int>(c.maximum_name_length));
++    std::vector<uint8_t> body = MakeClientHelloBody(c.shape);
++    size_t payload_len;
++    ASSERT_TRUE(ssl_ech_grease_payload_len_from_client_hello(
++        body, c.maximum_name_length, strlen(c.host), /*aead_overhead=*/16,
++        &payload_len));
++    EXPECT_EQ(c.payload_len, payload_len);
++    EXPECT_EQ(c.payload_len,
++              NSSGreaseECHPayloadLength(ssl.get(), body, c.maximum_name_length,
++                                        strlen(c.host)));
++  }
++}
++
++// GetGreaseClientHelloBody sets `*out` to the body of the first ClientHello
++// that a new client of `ctx` sends with ECH GREASE, after `configure` runs.
++template <typename Configure>
++static bool GetGreaseClientHelloBody(SSL_CTX *ctx, Configure configure,
++                                     std::vector<uint8_t> *out) {
++  bssl::UniquePtr<SSL> ssl(SSL_new(ctx));
++  if (!ssl || !configure(ssl.get())) {
++    return false;
++  }
++  SSL_set_enable_ech_grease(ssl.get(), 1);
++  SSL_set_connect_state(ssl.get());
++  std::vector<uint8_t> client_hello;
++  if (!GetClientHello(ssl.get(), &client_hello)) {
++    return false;
++  }
++  out->assign(
++      client_hello.begin() + SSL3_RT_HEADER_LENGTH + SSL3_HM_HEADER_LENGTH,
++      client_hello.end());
++  return true;
++}
++
++TEST(SSLTest, ECHGreasePayloadFromClientHello) {
++  const std::string kLongName(120, 'a');
++  for (bool grease : {false, true}) {
++    SCOPED_TRACE(grease);
++    bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++    ASSERT_TRUE(ctx);
++    SSL_CTX_set_grease_enabled(ctx.get(), grease);
++    for (const char *name :
++         {"server.phantom.test", static_cast<const char *>(nullptr),
++          kLongName.c_str()}) {
++      SCOPED_TRACE(name == nullptr ? "(none)" : name);
++      for (uint8_t maximum_name_length : {0, 100, 255}) {
++        SCOPED_TRACE(maximum_name_length);
++        std::vector<uint8_t> body;
++        ASSERT_TRUE(GetGreaseClientHelloBody(
++            ctx.get(),
++            [&](SSL *ssl) {
++              return (name == nullptr || SSL_set_tlsext_host_name(ssl, name)) &&
++                     SSL_set_ech_grease_payload_from_client_hello(
++                         ssl, maximum_name_length, nullptr, 0);
++            },
++            &body));
++        bssl::UniquePtr<SSL> parser(SSL_new(ctx.get()));
++        ASSERT_TRUE(parser);
++        const size_t payload_len = GreaseECHPayloadLength(parser.get(), body);
++        EXPECT_EQ(
++            NSSGreaseECHPayloadLength(parser.get(), body, maximum_name_length),
++            payload_len);
++        EXPECT_EQ(0u, (payload_len - 16) % 32);
++      }
++    }
++  }
++
++  // The last call between this and SSL_set_ech_grease_payload_length wins.
++  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++  ASSERT_TRUE(ctx);
++  bssl::UniquePtr<SSL> parser(SSL_new(ctx.get()));
++  ASSERT_TRUE(parser);
++  std::vector<uint8_t> body;
++  ASSERT_TRUE(GetGreaseClientHelloBody(
++      ctx.get(),
++      [](SSL *ssl) {
++        return SSL_set_ech_grease_payload_from_client_hello(ssl, 100, nullptr,
++                                                            0) &&
++               SSL_set_ech_grease_payload_length(ssl, 239);
++      },
++      &body));
++  EXPECT_EQ(239u, GreaseECHPayloadLength(parser.get(), body));
++  ASSERT_TRUE(GetGreaseClientHelloBody(
++      ctx.get(),
++      [](SSL *ssl) {
++        return SSL_set_ech_grease_payload_length(ssl, 239) &&
++               SSL_set_ech_grease_payload_from_client_hello(ssl, 100, nullptr,
++                                                            0) &&
++               SSL_set_tlsext_host_name(ssl, "server.phantom.test");
++      },
++      &body));
++  EXPECT_EQ(NSSGreaseECHPayloadLength(parser.get(), body, 100),
++            GreaseECHPayloadLength(parser.get(), body));
++
++  // DTLS and a shed configuration are rejected.
++  bssl::UniquePtr<SSL_CTX> dtls_ctx(SSL_CTX_new(DTLS_method()));
++  ASSERT_TRUE(dtls_ctx);
++  bssl::UniquePtr<SSL> dtls(SSL_new(dtls_ctx.get()));
++  ASSERT_TRUE(dtls);
++  EXPECT_FALSE(SSL_set_ech_grease_payload_from_client_hello(dtls.get(), 100,
++                                                            nullptr, 0));
++  EXPECT_TRUE(
++      ErrorsAreAndClear({{ERR_LIB_SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED}}));
++  bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
++  ASSERT_TRUE(ssl);
++  FromOpaque(ssl.get())->config.reset();
++  EXPECT_FALSE(
++      SSL_set_ech_grease_payload_from_client_hello(ssl.get(), 100, nullptr, 0));
++  EXPECT_TRUE(
++      ErrorsAreAndClear({{ERR_LIB_SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED}}));
++}
++
++// An IP-literal host sends no server_name, but the payload still pads by the
++// host text the caller passes.
++TEST(SSLTest, ECHGreasePayloadFromClientHelloPadsByHost) {
++  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++  ASSERT_TRUE(ctx);
++  bssl::UniquePtr<SSL> parser(SSL_new(ctx.get()));
++  ASSERT_TRUE(parser);
++  for (const char *host : {"127.0.0.1", "::1", "192.168.100.200",
++                           "2001:db8:85a3::8a2e:370:7334"}) {
++    SCOPED_TRACE(host);
++    // Within any 32 consecutive maximum name lengths, the host length moves
++    // the payload across a 32-byte boundary at least once.
++    bool host_changed_payload = false;
++    for (uint8_t maximum_name_length = 100; maximum_name_length < 132;
++         maximum_name_length++) {
++      std::vector<uint8_t> body;
++      ASSERT_TRUE(GetGreaseClientHelloBody(
++          ctx.get(),
++          [&](SSL *ssl) {
++            return SSL_set_ech_grease_payload_from_client_hello(
++                ssl, maximum_name_length, host, strlen(host));
++          },
++          &body));
++      SSL_CLIENT_HELLO parsed;
++      const uint8_t *unused;
++      size_t unused_len;
++      ASSERT_TRUE(SSL_parse_client_hello(parser.get(), &parsed, body.data(),
++                                         body.size()));
++      EXPECT_FALSE(SSL_early_callback_ctx_extension_get(
++          &parsed, TLSEXT_TYPE_server_name, &unused, &unused_len));
++      const size_t payload_len = GreaseECHPayloadLength(parser.get(), body);
++      EXPECT_EQ(NSSGreaseECHPayloadLength(parser.get(), body,
++                                          maximum_name_length, strlen(host)),
++                payload_len);
++      if (payload_len !=
++          NSSGreaseECHPayloadLength(parser.get(), body, maximum_name_length)) {
++        host_changed_payload = true;
++      }
++    }
++    EXPECT_TRUE(host_changed_payload);
++  }
++
++  // A host replaces the server_name host name, and a NULL host with a length
++  // is rejected.
++  std::vector<uint8_t> body;
++  ASSERT_TRUE(GetGreaseClientHelloBody(
++      ctx.get(),
++      [](SSL *ssl) {
++        return SSL_set_tlsext_host_name(ssl, "server.phantom.test") &&
++               SSL_set_ech_grease_payload_from_client_hello(ssl, 120, "a", 1);
++      },
++      &body));
++  EXPECT_EQ(NSSGreaseECHPayloadLength(parser.get(), body, 120, 1),
++            GreaseECHPayloadLength(parser.get(), body));
++  bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
++  ASSERT_TRUE(ssl);
++  EXPECT_FALSE(
++      SSL_set_ech_grease_payload_from_client_hello(ssl.get(), 100, nullptr, 3));
++  EXPECT_TRUE(ErrorsAreAndClear({{ERR_LIB_SSL, ERR_R_PASSED_NULL_PARAMETER}}));
++}
++
++// A resumed ClientHello carries pre_shared_key and early_data, so its payload
++// depends on the ticket. The expected value is computed, not pinned.
++TEST(SSLTest, ECHGreasePayloadFromResumedClientHello) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureVersion(client_ctx.get(), TLS1_3_VERSION);
++  SSL_CTX_set_session_cache_mode(client_ctx.get(), SSL_SESS_CACHE_BOTH);
++  SSL_CTX_set_early_data_enabled(client_ctx.get(), 1);
++  SSL_CTX_set_early_data_enabled(server_ctx.get(), 1);
++  bssl::UniquePtr<SSL_SESSION> session =
++      CreateClientSession(client_ctx.get(), server_ctx.get());
++  ASSERT_TRUE(session);
++  ASSERT_TRUE(SSL_SESSION_early_data_capable(session.get()));
++
++  std::vector<std::vector<uint8_t>> bodies;
++  ASSERT_TRUE(SSL_CTX_set_app_data(server_ctx.get(), &bodies));
++  SSL_CTX_set_select_certificate_cb(server_ctx.get(), RecordClientHelloBody);
++  for (bool resume : {false, true}) {
++    bssl::UniquePtr<SSL> client, server;
++    ASSERT_TRUE(CreateClientAndServer(&client, &server, client_ctx.get(),
++                                      server_ctx.get()));
++    ASSERT_TRUE(SSL_set_tlsext_host_name(client.get(), "server.phantom.test"));
++    SSL_set_enable_ech_grease(client.get(), 1);
++    ASSERT_TRUE(SSL_set_ech_grease_payload_from_client_hello(client.get(), 100,
++                                                             nullptr, 0));
++    if (resume) {
++      SSL_set_session(client.get(), session.get());
++    }
++    ASSERT_TRUE(CompleteHandshakes(client.get(), server.get()));
++  }
++  ASSERT_EQ(2u, bodies.size());
++
++  bssl::UniquePtr<SSL> parser(SSL_new(client_ctx.get()));
++  ASSERT_TRUE(parser);
++  SSL_CLIENT_HELLO resumed;
++  ASSERT_TRUE(SSL_parse_client_hello(parser.get(), &resumed, bodies[1].data(),
++                                     bodies[1].size()));
++  const uint8_t *unused;
++  size_t unused_len;
++  ASSERT_TRUE(SSL_early_callback_ctx_extension_get(
++      &resumed, TLSEXT_TYPE_pre_shared_key, &unused, &unused_len));
++  ASSERT_TRUE(SSL_early_callback_ctx_extension_get(
++      &resumed, TLSEXT_TYPE_early_data, &unused, &unused_len));
++  for (const auto &body : bodies) {
++    EXPECT_EQ(NSSGreaseECHPayloadLength(parser.get(), body, 100),
++              GreaseECHPayloadLength(parser.get(), body));
++  }
++  // The ticket makes the resumed payload larger.
++  EXPECT_GT(GreaseECHPayloadLength(parser.get(), bodies[1]),
++            GreaseECHPayloadLength(parser.get(), bodies[0]));
++}
++
++// The second ClientHello after a HelloRetryRequest repeats the first one's
++// extension, sized from the first ClientHello.
++TEST(SSLTest, ECHGreasePayloadFromClientHelloSurvivesHelloRetryRequest) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureVersion(client_ctx.get(), TLS1_3_VERSION);
++  ConfigureVersion(server_ctx.get(), TLS1_3_VERSION);
++  const uint16_t kClientGroups[] = {SSL_GROUP_X25519, SSL_GROUP_SECP256R1};
++  const uint16_t kServerGroups[] = {SSL_GROUP_SECP256R1};
++  ASSERT_TRUE(SSL_CTX_set1_group_ids(client_ctx.get(), kClientGroups,
++                                     std::size(kClientGroups)));
++  ASSERT_TRUE(SSL_CTX_set1_group_ids(server_ctx.get(), kServerGroups,
++                                     std::size(kServerGroups)));
++
++  bssl::UniquePtr<SSL> client, server;
++  ASSERT_TRUE(CreateClientAndServer(&client, &server, client_ctx.get(),
++                                    server_ctx.get()));
++  ASSERT_TRUE(SSL_set_tlsext_host_name(client.get(), "server.phantom.test"));
++  SSL_set_enable_ech_grease(client.get(), 1);
++  ASSERT_TRUE(SSL_set_ech_grease_payload_from_client_hello(client.get(), 100,
++                                                           nullptr, 0));
++  std::vector<std::vector<uint8_t>> client_hellos;
++  SSL_set_msg_callback(client.get(), RecordClientHellos);
++  SSL_set_msg_callback_arg(client.get(), &client_hellos);
++  ASSERT_TRUE(CompleteHandshakes(client.get(), server.get()));
++  ASSERT_TRUE(SSL_used_hello_retry_request(client.get()));
++  ASSERT_EQ(2u, client_hellos.size());
++
++  auto first = Span(client_hellos[0]).subspan(SSL3_HM_HEADER_LENGTH);
++  auto second = Span(client_hellos[1]).subspan(SSL3_HM_HEADER_LENGTH);
++  EXPECT_EQ(NSSGreaseECHPayloadLength(client.get(), first, 100),
++            GreaseECHPayloadLength(client.get(), first));
++  SSL_CLIENT_HELLO parsed1, parsed2;
++  const uint8_t *ech1, *ech2;
++  size_t ech1_len, ech2_len;
++  ASSERT_TRUE(SSL_parse_client_hello(client.get(), &parsed1, first.data(),
++                                     first.size()));
++  ASSERT_TRUE(SSL_parse_client_hello(client.get(), &parsed2, second.data(),
++                                     second.size()));
++  ASSERT_TRUE(SSL_early_callback_ctx_extension_get(
++      &parsed1, TLSEXT_TYPE_encrypted_client_hello, &ech1, &ech1_len));
++  ASSERT_TRUE(SSL_early_callback_ctx_extension_get(
++      &parsed2, TLSEXT_TYPE_encrypted_client_hello, &ech2, &ech2_len));
++  EXPECT_EQ(Bytes(ech1, ech1_len), Bytes(ech2, ech2_len));
++}
++
+ TEST(SSLTest, ECHPadding) {
+   bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
+   ASSERT_TRUE(ctx);
+@@ -12019,6 +12555,86 @@ TEST_F(QUICMethodTest, ExtensionOrderTail) {
+       EndsWith(orders[0], {kTail[0], kTail[1], TLSEXT_TYPE_pre_shared_key}));
+ }
+ 
++// A QUIC client configured like Firefox's HTTP/3 ClientHello sizes its GREASE
++// ECH payload from fresh and resumed ClientHellos, keeps the
++// quic_transport_parameters and encrypted_client_hello tail, and sends
++// record_size_limit, extended_master_secret, and renegotiation_info.
++TEST_F(QUICMethodTest, ECHGreasePayloadFromClientHello) {
++  const SSL_QUIC_METHOD quic_method = DefaultQUICMethod();
++  ASSERT_TRUE(SSL_CTX_set_quic_method(client_ctx_.get(), &quic_method));
++  ASSERT_TRUE(SSL_CTX_set_quic_method(server_ctx_.get(), &quic_method));
++  SSL_CTX_set_session_cache_mode(client_ctx_.get(), SSL_SESS_CACHE_BOTH);
++  SSL_CTX_set_early_data_enabled(client_ctx_.get(), 1);
++  SSL_CTX_set_early_data_enabled(server_ctx_.get(), 1);
++  SSL_CTX_set_permute_extensions(client_ctx_.get(), 1);
++  static const uint16_t kTail[] = {TLSEXT_TYPE_quic_transport_parameters,
++                                   TLSEXT_TYPE_encrypted_client_hello};
++  ASSERT_TRUE(SSL_CTX_set_extension_order_tail(client_ctx_.get(), kTail,
++                                               std::size(kTail)));
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx_.get(), 16385));
++  SSL_CTX_set_tls12_extensions_in_tls13_client_hello(client_ctx_.get(), 1);
++
++  bssl::UniquePtr<SSL_SESSION> session = CreateClientSessionForQUIC();
++  ASSERT_TRUE(session);
++  ASSERT_TRUE(SSL_SESSION_early_data_capable(session.get()));
++
++  std::vector<std::vector<uint8_t>> bodies;
++  ASSERT_TRUE(SSL_CTX_set_app_data(server_ctx_.get(), &bodies));
++  SSL_CTX_set_select_certificate_cb(server_ctx_.get(), RecordClientHelloBody);
++  for (bool resume : {false, true}) {
++    SCOPED_TRACE(resume);
++    ASSERT_TRUE(CreateClientAndServer());
++    ASSERT_TRUE(SSL_set_tlsext_host_name(client_.get(), "server.phantom.test"));
++    SSL_set_enable_ech_grease(client_.get(), 1);
++    ASSERT_TRUE(SSL_set_ech_grease_payload_from_client_hello(client_.get(), 100,
++                                                             nullptr, 0));
++    if (resume) {
++      SSL_set_session(client_.get(), session.get());
++      // The client enters early data and the server accepts it.
++      ASSERT_EQ(SSL_do_handshake(client_.get()), 1);
++      EXPECT_TRUE(SSL_in_early_data(client_.get()));
++      ASSERT_TRUE(ProvideHandshakeData(server_.get()));
++      ASSERT_EQ(SSL_do_handshake(server_.get()), 1);
++    }
++    ASSERT_TRUE(CompleteHandshakesForQUIC());
++    ExpectHandshakeSuccess();
++    EXPECT_EQ(resume, SSL_early_data_accepted(client_.get()));
++
++    ASSERT_EQ(1u, bodies.size());
++    const std::vector<uint8_t> body = std::move(bodies[0]);
++    bodies.clear();
++    SSL_CLIENT_HELLO parsed;
++    ASSERT_TRUE(SSL_parse_client_hello(client_.get(), &parsed, body.data(),
++                                       body.size()));
++    std::vector<uint16_t> order;
++    CBS extensions(Span(parsed.extensions, parsed.extensions_len));
++    while (CBS_len(&extensions) != 0) {
++      uint16_t type;
++      CBS unused;
++      ASSERT_TRUE(CBS_get_u16(&extensions, &type));
++      ASSERT_TRUE(CBS_get_u16_length_prefixed(&extensions, &unused));
++      order.push_back(type);
++    }
++    std::vector<uint16_t> expected_tail(std::begin(kTail), std::end(kTail));
++    if (resume) {
++      expected_tail.push_back(TLSEXT_TYPE_pre_shared_key);
++    }
++    EXPECT_TRUE(EndsWith(order, expected_tail));
++    for (uint16_t type :
++         {TLSEXT_TYPE_record_size_limit, TLSEXT_TYPE_extended_master_secret,
++          TLSEXT_TYPE_renegotiate}) {
++      EXPECT_NE(order.end(), std::find(order.begin(), order.end(), type))
++          << type;
++    }
++    EXPECT_EQ(resume, std::find(order.begin(), order.end(),
++                                TLSEXT_TYPE_early_data) != order.end());
++
++    const size_t payload_len = GreaseECHPayloadLength(client_.get(), body);
++    EXPECT_EQ(NSSGreaseECHPayloadLength(client_.get(), body, 100), payload_len);
++    EXPECT_EQ(0u, (payload_len - 16) % 32);
++  }
++}
++
+ TEST(SSLTest, HostMatching) {
+   static const char kCertPEM[] = R"(
+ -----BEGIN CERTIFICATE-----
+-- 
+2.54.0.windows.1
+

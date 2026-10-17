@@ -174,17 +174,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "btls-sys"
-version = "0.5.6"
-source = "git+https://github.com/bywayhq/btls?rev=f478ea16a4b2f6ebbd221ce7cafdec10a32028eb#f478ea16a4b2f6ebbd221ce7cafdec10a32028eb"
-dependencies = [
- "bindgen",
- "cmake",
- "fs_extra",
- "fslock",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -917,14 +906,24 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 
 [[package]]
 name = "phantom-btls"
-version = "0.5.6-phantom.15"
+version = "0.5.6-phantom.16"
 dependencies = [
  "bitflags",
- "btls-sys",
  "foreign-types",
  "libc",
  "openssl-macros",
+ "phantom-btls-sys",
  "zeroize",
+]
+
+[[package]]
+name = "phantom-btls-sys"
+version = "0.5.6-phantom.1"
+dependencies = [
+ "bindgen",
+ "cmake",
+ "fs_extra",
+ "fslock",
 ]
 
 [[package]]
@@ -952,7 +951,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-h3"
-version = "0.0.8-phantom.15"
+version = "0.0.8-phantom.16"
 dependencies = [
  "bytes",
  "fastrand",
@@ -965,7 +964,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-h3-datagram"
-version = "0.0.2-phantom.15"
+version = "0.0.2-phantom.16"
 dependencies = [
  "bytes",
  "phantom-h3",
@@ -974,7 +973,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-h3-quinn"
-version = "0.0.10-phantom.15"
+version = "0.0.10-phantom.16"
 dependencies = [
  "bytes",
  "futures-util",
@@ -1065,10 +1064,10 @@ version = "0.1.0"
 name = "phantom-quic-btls"
 version = "0.1.0"
 dependencies = [
- "btls-sys",
  "bytes",
  "foreign-types",
  "phantom-btls",
+ "phantom-btls-sys",
  "phantom-profile",
  "phantom-quinn-proto",
  "rustls-pki-types",
@@ -1123,7 +1122,7 @@ dependencies = [
 
 [[package]]
 name = "phantom-tokio-btls"
-version = "0.5.6-phantom.15"
+version = "0.5.6-phantom.16"
 dependencies = [
  "phantom-btls",
  "tokio",
@@ -2006,9 +2005,9 @@ dependencies = [
 
 [[package]]
 name = "yoke-derive"
-version = "0.8.3"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33811428bee40dbceb6d545e95754741d17a6aef9a4849f0fd62e2ba4f412a78"
+checksum = "ec8ebde2db3681e8c9980cc27822030e68752690ddfa9473e739aeb4dbde6d71"
 dependencies = [
  "proc-macro2",
  "quote",

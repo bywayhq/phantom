@@ -1,0 +1,271 @@
+From a9b508d7fe453b616d7219eab276439f2a6323cb Mon Sep 17 00:00:00 2001
+From: Christopher Patton <cpatton@cloudflare.com>
+Date: Wed, 27 May 2026 12:03:19 -0700
+Subject: [PATCH] Add additional methods for RPK (RFC 7250)
+
+The new methods match the Rust bindings present in boring <= 5:
+
+1. Add a method for creating an initially empty an RPK credential. The
+   user sets the private key and the SPKI separately.
+
+2. Add methods for fetching the accepted certificate types list
+   configured on an SSL or SSL_CTX.
+
+3. Add a method for fetching the peer's public key that for all
+   certificate types (X.509 and RPK).
+---
+ include/openssl/ssl.h | 55 +++++++++++++++++++++++++++++++++++++++++++
+ include/openssl/prefix_symbols.h | 10 ++++++++++
+ ssl/ssl_credential.cc | 48 +++++++++++++++++++++++++++++++++++++
+ ssl/ssl_lib.cc        | 30 ++++++++++++++++++++++++
+ 4 files changed, 143 insertions(+)
+
+diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
+index 055b3e025..9bfb82215 100644
+--- a/include/openssl/ssl.h
++++ b/include/openssl/ssl.h
+@@ -4027,6 +4027,61 @@ OPENSSL_EXPORT int SSL_get_peer_cert_type(const SSL *ssl);
+ OPENSSL_EXPORT EVP_PKEY *SSL_get0_peer_rpk(const SSL *ssl);
+ 
+ 
++// Cloudflare-internal APIs for Raw Public Keys (RFC 7250).
++
++// SSL_CREDENTIAL_new_raw_public_key_empty returns a new, empty raw public key
++// credential, or NULL on error. Callers should release the result with
++// |SSL_CREDENTIAL_free| when done.
++//
++// Callers should configure the credential with |SSL_CREDENTIAL_set1_spki| and
++// either |SSL_CREDENTIAL_set1_private_key| or
++// |SSL_CREDENTIAL_set_private_key_method|, then add it with
++// |SSL_CTX_add1_credential|.
++//
++// Unlike |SSL_CREDENTIAL_new_raw_public_key|, this two-step constructor allows
++// the caller to set the public key later (e.g., to use with a private key
++// method or to configure the public key from an SPKI).
++OPENSSL_EXPORT SSL_CREDENTIAL *SSL_CREDENTIAL_new_raw_public_key_empty(void);
++
++// SSL_CREDENTIAL_set1_spki sets |cred|'s raw public key from |spki|. If |spki|
++// is NULL, the public key is extracted from |cred|'s private key. |cred| must
++// have been returned by |SSL_CREDENTIAL_new_raw_public_key_empty|. It returns
++// one on success and zero on error, including if |cred| is not a raw public
++// key credential, if |spki| is malformed, if |spki| is NULL and |cred| has no
++// private key, or if |cred| has a private key that does not match the public
++// key parsed from |spki|. |spki| should be a SubjectPublicKeyInfo structure,
++// as described in RFC 5280.
++OPENSSL_EXPORT int SSL_CREDENTIAL_set1_spki(SSL_CREDENTIAL *cred,
++                                            CRYPTO_BUFFER *spki);
++
++// SSL_get0_peer_pubkey returns the peer's public key during the current
++// handshake, or NULL if unavailable. This returns the public key extracted
++// from the peer's leaf certificate for X.509 credentials, or the peer's raw
++// public key for RPK credentials. The returned pointer is only valid for the
++// duration of the handshake (e.g., from within a custom verify callback); it
++// returns NULL once the handshake has completed. The caller does not take
++// ownership of the result.
++OPENSSL_EXPORT const EVP_PKEY *SSL_get0_peer_pubkey(const SSL *ssl);
++
++// SSL_CTX_get0_accepted_peer_cert_types returns the list of certificate types
++// that |ctx| is willing to accept from the peer, in preference order. By
++// default, this contains only |TLSEXT_cert_type_x509|. The list can be
++// configured via |SSL_CTX_set1_accepted_peer_cert_types|. The returned pointer
++// is owned by |ctx|.
++OPENSSL_EXPORT void SSL_CTX_get0_accepted_peer_cert_types(
++    const SSL_CTX *ctx, const uint8_t **types, size_t *types_len);
++
++// SSL_get0_accepted_peer_cert_types returns the list of certificate types
++// that |ssl| is willing to accept from the peer, in preference order. The
++// initial value is inherited from the |SSL_CTX| at the time |ssl| was
++// created; it can be overridden via |SSL_set1_accepted_peer_cert_types|. If
++// |ssl|'s configuration has been released (e.g., after the handshake has
++// completed), |*types| is set to NULL and |*types_len| to zero. The returned
++// pointer is owned by |ssl|.
++OPENSSL_EXPORT void SSL_get0_accepted_peer_cert_types(const SSL *ssl,
++                                                      const uint8_t **types,
++                                                      size_t *types_len);
++
+ // Password Authenticated Key Exchange (PAKE).
+ //
+ // Password Authenticated Key Exchange protocols allow client and server to
+diff --git a/ssl/ssl_credential.cc b/ssl/ssl_credential.cc
+index b1090a212..5e2b2e17a 100644
+--- a/ssl/ssl_credential.cc
++++ b/ssl/ssl_credential.cc
+@@ -403,6 +403,54 @@ SSL_CREDENTIAL *SSL_CREDENTIAL_new_raw_public_key_custom(
+   return cred.release();
+ }
+ 
++SSL_CREDENTIAL *SSL_CREDENTIAL_new_raw_public_key_empty(void) {
++  UniquePtr<SSLCredential> cred =
++      MakeUnique<SSLCredential>(SSLCredentialType::kRawPublicKey);
++  if (cred == nullptr) {
++    return nullptr;
++  }
++  return cred.release();
++}
++
++int SSL_CREDENTIAL_set1_spki(SSL_CREDENTIAL *cred, CRYPTO_BUFFER *spki) {
++  auto *cred_impl = FromOpaque(cred);
++  if (cred_impl->type != SSLCredentialType::kRawPublicKey) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
++    return 0;
++  }
++
++  ScopedCBB cbb;
++  CBS cbs;
++  if (spki == nullptr) {
++    if (cred_impl->privkey == nullptr) {
++      OPENSSL_PUT_ERROR(SSL, SSL_R_NO_PRIVATE_KEY_ASSIGNED);
++      return 0;
++    }
++
++    if (!CBB_init(cbb.get(), /*initial_capacity=*/512) ||
++        !EVP_marshal_public_key(cbb.get(), cred_impl->privkey.get())) {
++      return 0;
++    }
++    CBS_init(&cbs, CBB_data(cbb.get()), CBB_len(cbb.get()));
++  } else {
++    CRYPTO_BUFFER_init_CBS(spki, &cbs);
++  }
++
++  UniquePtr<EVP_PKEY> pubkey = ssl_parse_peer_subject_public_key_info(cbs);
++  if (pubkey == nullptr) {
++    return 0;
++  }
++
++  if (cred_impl->privkey != nullptr &&
++      !ssl_compare_public_and_private_key(pubkey.get(),
++                                          cred_impl->privkey.get())) {
++    return 0;
++  }
++
++  cred_impl->pubkey = std::move(pubkey);
++  return 1;
++}
++
+ void SSL_CREDENTIAL_up_ref(SSL_CREDENTIAL *cred) {
+   FromOpaque(cred)->UpRefInternal();
+ }
+diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
+index 07e6ff069..3d3ab28ec 100644
+--- a/ssl/ssl_lib.cc
++++ b/ssl/ssl_lib.cc
+@@ -3958,3 +3958,33 @@ void SSL_set_server_padding_enabled(SSL *ssl, int enabled) {
+ int SSL_server_sent_requested_padding(const SSL *ssl) {
+   return FromOpaque(ssl)->s3->server_sent_requested_padding;
+ }
++
++// The following functions are compatibility shims for the Rust bindings in
++// boring-sys. They are not part of upstream BoringSSL.
++
++const EVP_PKEY *SSL_get0_peer_pubkey(const SSL *ssl) {
++  const auto *ssl_impl = FromOpaque(ssl);
++  if (ssl_impl->s3->hs == nullptr) {
++    return nullptr;
++  }
++  return ssl_impl->s3->hs->peer_pubkey.get();
++}
++
++void SSL_CTX_get0_accepted_peer_cert_types(const SSL_CTX *ctx,
++                                           const uint8_t **types,
++                                           size_t *types_len) {
++  *types = FromOpaque(ctx)->accepted_peer_cert_types.data();
++  *types_len = FromOpaque(ctx)->accepted_peer_cert_types.size();
++}
++
++void SSL_get0_accepted_peer_cert_types(const SSL *ssl, const uint8_t **types,
++                                       size_t *types_len) {
++  const auto *ssl_impl = FromOpaque(ssl);
++  if (ssl_impl->config == nullptr) {
++    *types = nullptr;
++    *types_len = 0;
++    return;
++  }
++  *types = ssl_impl->config->accepted_peer_cert_types.data();
++  *types_len = ssl_impl->config->accepted_peer_cert_types.size();
++}
+diff --git a/include/openssl/prefix_symbols.h b/include/openssl/prefix_symbols.h
+index 66d415d93..08d761239 100644
+--- a/include/openssl/prefix_symbols.h
++++ b/include/openssl/prefix_symbols.h
+@@ -1902,6 +1902,7 @@
+ #pragma redefine_extname SSL_CREDENTIAL_new_pre_shared_key BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CREDENTIAL_new_pre_shared_key)
+ #pragma redefine_extname SSL_CREDENTIAL_new_raw_public_key BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CREDENTIAL_new_raw_public_key)
+ #pragma redefine_extname SSL_CREDENTIAL_new_raw_public_key_custom BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CREDENTIAL_new_raw_public_key_custom)
++#pragma redefine_extname SSL_CREDENTIAL_new_raw_public_key_empty BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CREDENTIAL_new_raw_public_key_empty)
+ #pragma redefine_extname SSL_CREDENTIAL_new_spake2plusv1_client BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CREDENTIAL_new_spake2plusv1_client)
+ #pragma redefine_extname SSL_CREDENTIAL_new_spake2plusv1_server BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CREDENTIAL_new_spake2plusv1_server)
+ #pragma redefine_extname SSL_CREDENTIAL_new_x509 BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CREDENTIAL_new_x509)
+@@ -1912,6 +1913,7 @@
+ #pragma redefine_extname SSL_CREDENTIAL_set1_private_key BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CREDENTIAL_set1_private_key)
+ #pragma redefine_extname SSL_CREDENTIAL_set1_signed_cert_timestamp_list BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CREDENTIAL_set1_signed_cert_timestamp_list)
+ #pragma redefine_extname SSL_CREDENTIAL_set1_signing_algorithm_prefs BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CREDENTIAL_set1_signing_algorithm_prefs)
++#pragma redefine_extname SSL_CREDENTIAL_set1_spki BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CREDENTIAL_set1_spki)
+ #pragma redefine_extname SSL_CREDENTIAL_set1_trust_anchor_id BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CREDENTIAL_set1_trust_anchor_id)
+ #pragma redefine_extname SSL_CREDENTIAL_set_ex_data BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CREDENTIAL_set_ex_data)
+ #pragma redefine_extname SSL_CREDENTIAL_set_must_match_issuer BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CREDENTIAL_set_must_match_issuer)
+@@ -1935,6 +1937,7 @@
+ #pragma redefine_extname SSL_CTX_enable_tls_channel_id BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_enable_tls_channel_id)
+ #pragma redefine_extname SSL_CTX_flush_sessions BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_flush_sessions)
+ #pragma redefine_extname SSL_CTX_free BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_free)
++#pragma redefine_extname SSL_CTX_get0_accepted_peer_cert_types BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_get0_accepted_peer_cert_types)
+ #pragma redefine_extname SSL_CTX_get0_certificate BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_get0_certificate)
+ #pragma redefine_extname SSL_CTX_get0_chain BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_get0_chain)
+ #pragma redefine_extname SSL_CTX_get0_chain_certs BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_get0_chain_certs)
+@@ -2181,6 +2184,7 @@
+ #pragma redefine_extname SSL_export_keying_material BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_export_keying_material)
+ #pragma redefine_extname SSL_free BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_free)
+ #pragma redefine_extname SSL_generate_key_block BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_generate_key_block)
++#pragma redefine_extname SSL_get0_accepted_peer_cert_types BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_get0_accepted_peer_cert_types)
+ #pragma redefine_extname SSL_get0_alpn_selected BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_get0_alpn_selected)
+ #pragma redefine_extname SSL_get0_certificate_types BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_get0_certificate_types)
+ #pragma redefine_extname SSL_get0_chain BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_get0_chain)
+@@ -2194,6 +2198,7 @@
+ #pragma redefine_extname SSL_get0_peer_available_trust_anchors BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_get0_peer_available_trust_anchors)
+ #pragma redefine_extname SSL_get0_peer_certificates BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_get0_peer_certificates)
+ #pragma redefine_extname SSL_get0_peer_delegation_algorithms BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_get0_peer_delegation_algorithms)
++#pragma redefine_extname SSL_get0_peer_pubkey BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_get0_peer_pubkey)
+ #pragma redefine_extname SSL_get0_peer_rpk BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_get0_peer_rpk)
+ #pragma redefine_extname SSL_get0_peer_verify_algorithms BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_get0_peer_verify_algorithms)
+ #pragma redefine_extname SSL_get0_selected_credential BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_get0_selected_credential)
+@@ -5038,6 +5043,7 @@
+ #define SSL_CREDENTIAL_new_pre_shared_key BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_pre_shared_key)
+ #define SSL_CREDENTIAL_new_raw_public_key BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_raw_public_key)
+ #define SSL_CREDENTIAL_new_raw_public_key_custom BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_raw_public_key_custom)
++#define SSL_CREDENTIAL_new_raw_public_key_empty BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_raw_public_key_empty)
+ #define SSL_CREDENTIAL_new_spake2plusv1_client BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_spake2plusv1_client)
+ #define SSL_CREDENTIAL_new_spake2plusv1_server BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_spake2plusv1_server)
+ #define SSL_CREDENTIAL_new_x509 BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_new_x509)
+@@ -5048,6 +5054,7 @@
+ #define SSL_CREDENTIAL_set1_private_key BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_set1_private_key)
+ #define SSL_CREDENTIAL_set1_signed_cert_timestamp_list BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_set1_signed_cert_timestamp_list)
+ #define SSL_CREDENTIAL_set1_signing_algorithm_prefs BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_set1_signing_algorithm_prefs)
++#define SSL_CREDENTIAL_set1_spki BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_set1_spki)
+ #define SSL_CREDENTIAL_set1_trust_anchor_id BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_set1_trust_anchor_id)
+ #define SSL_CREDENTIAL_set_ex_data BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_set_ex_data)
+ #define SSL_CREDENTIAL_set_must_match_issuer BORINGSSL_ADD_PREFIX(SSL_CREDENTIAL_set_must_match_issuer)
+@@ -5071,6 +5078,7 @@
+ #define SSL_CTX_enable_tls_channel_id BORINGSSL_ADD_PREFIX(SSL_CTX_enable_tls_channel_id)
+ #define SSL_CTX_flush_sessions BORINGSSL_ADD_PREFIX(SSL_CTX_flush_sessions)
+ #define SSL_CTX_free BORINGSSL_ADD_PREFIX(SSL_CTX_free)
++#define SSL_CTX_get0_accepted_peer_cert_types BORINGSSL_ADD_PREFIX(SSL_CTX_get0_accepted_peer_cert_types)
+ #define SSL_CTX_get0_certificate BORINGSSL_ADD_PREFIX(SSL_CTX_get0_certificate)
+ #define SSL_CTX_get0_chain BORINGSSL_ADD_PREFIX(SSL_CTX_get0_chain)
+ #define SSL_CTX_get0_chain_certs BORINGSSL_ADD_PREFIX(SSL_CTX_get0_chain_certs)
+@@ -5317,6 +5325,7 @@
+ #define SSL_export_keying_material BORINGSSL_ADD_PREFIX(SSL_export_keying_material)
+ #define SSL_free BORINGSSL_ADD_PREFIX(SSL_free)
+ #define SSL_generate_key_block BORINGSSL_ADD_PREFIX(SSL_generate_key_block)
++#define SSL_get0_accepted_peer_cert_types BORINGSSL_ADD_PREFIX(SSL_get0_accepted_peer_cert_types)
+ #define SSL_get0_alpn_selected BORINGSSL_ADD_PREFIX(SSL_get0_alpn_selected)
+ #define SSL_get0_certificate_types BORINGSSL_ADD_PREFIX(SSL_get0_certificate_types)
+ #define SSL_get0_chain BORINGSSL_ADD_PREFIX(SSL_get0_chain)
+@@ -5330,6 +5339,7 @@
+ #define SSL_get0_peer_available_trust_anchors BORINGSSL_ADD_PREFIX(SSL_get0_peer_available_trust_anchors)
+ #define SSL_get0_peer_certificates BORINGSSL_ADD_PREFIX(SSL_get0_peer_certificates)
+ #define SSL_get0_peer_delegation_algorithms BORINGSSL_ADD_PREFIX(SSL_get0_peer_delegation_algorithms)
++#define SSL_get0_peer_pubkey BORINGSSL_ADD_PREFIX(SSL_get0_peer_pubkey)
+ #define SSL_get0_peer_rpk BORINGSSL_ADD_PREFIX(SSL_get0_peer_rpk)
+ #define SSL_get0_peer_verify_algorithms BORINGSSL_ADD_PREFIX(SSL_get0_peer_verify_algorithms)
+ #define SSL_get0_selected_credential BORINGSSL_ADD_PREFIX(SSL_get0_selected_credential)
+-- 
+2.50.1 (Apple Git-155)

@@ -36,9 +36,9 @@ engine minimum or proof that every isolated core feature needs Rust 1.88.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.15`,
-`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.15`, `h3-quinn`
-becomes `phantom-h3-quinn` at `0.0.10-phantom.15`), keeps the upstream library
+renames the package (`h3` becomes `phantom-h3` at `0.0.8-phantom.16`,
+`h3-datagram` becomes `phantom-h3-datagram` at `0.0.2-phantom.16`, `h3-quinn`
+becomes `phantom-h3-quinn` at `0.0.10-phantom.16`), keeps the upstream library
 name so source, tests, and examples are unchanged, and points the repository
 metadata at Phantom. It removes the upstream documentation link, keeps Cargo's
 reserved archive files out of the packaged crate, and records the upstream
@@ -46,7 +46,10 @@ package, version, and source archive under `[package.metadata.phantom]`.
 Internal `h3`, `h3-datagram`, `quinn`, and `quinn-proto` dependencies,
 including those of the unpublished `h3-webtransport` and `examples` members and
 `h3`'s test dependencies, point at the renamed packages so the standalone
-workspace exercises the same QUIC stack as Phantom. It changes no Rust source.
+workspace exercises the same QUIC stack as Phantom. The core package keeps
+its h3-datagram test dependency path-only, so publication has no dependency
+cycle. Cargo omits that development dependency from its archive manifest.
+It changes no Rust source.
 
 Phantom depends on this package only through the renamed package with an exact
 version and a path, so the stock package cannot be selected in its place and no

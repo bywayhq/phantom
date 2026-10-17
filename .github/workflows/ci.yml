@@ -135,8 +135,8 @@ jobs:
 
       - name: Lint Python tooling
         run: |
-          ruff check scripts/capture scripts/conformance scripts/dev scripts/docs
-          ruff format --check scripts/capture scripts/conformance scripts/dev scripts/docs
+          ruff check scripts/capture scripts/conformance scripts/dev scripts/docs scripts/release
+          ruff format --check scripts/capture scripts/conformance scripts/dev scripts/docs scripts/release
 
       - name: Test protocol tooling
         run: |
@@ -306,6 +306,7 @@ jobs:
       matrix:
         package:
           - btls
+          - btls-sys
           - h3
           - http2
           - quinn

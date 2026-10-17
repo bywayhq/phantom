@@ -1,13 +1,21 @@
 name: Release
 
-# Manual only. The package job lists every crate's contents; the publish job
-# runs only when a maintainer disables the dry run, and only after the
-# `crates-io` environment's required reviewers approve it.
 on:
+  pull_request:
+    paths:
+      - scripts/release/**
+      - vendor/**
+      - crates/**
+      - tools/client-bench/**
+      - tests/downstream/**
+      - scripts/ci/**
+      - Cargo.toml
+      - Cargo.lock
+      - .github/workflows/release.yml
   workflow_dispatch:
     inputs:
       dry_run:
-        description: List package contents without publishing
+        description: Verify release archives without publishing
         type: boolean
         default: true
 
@@ -15,7 +23,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: release
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -24,9 +32,14 @@ env:
 
 jobs:
   package:
-    name: Package
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    name: Packages (${{ matrix.runner }}, ${{ matrix.toolchain }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, macos-latest, windows-latest]
+        toolchain: [current, 1.88.0]
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -36,13 +49,84 @@ jobs:
       - name: Install project toolchain
         run: rustc --version
 
-      - name: List package contents
-        run: scripts/release/publish-crates.sh --list
+      - name: Install minimum supported Rust
+        if: matrix.toolchain != 'current'
+        run: rustup toolchain install 1.88.0 --profile minimal
+
+      - name: Install release tooling Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Check release helpers
+        run: python -m unittest discover -s scripts/release/tests
+
+      - name: Verify packaged downstream installs
+        shell: bash
+        env:
+          RELEASE_TOOLCHAIN: ${{ matrix.toolchain }}
+        run: |
+          args=()
+          if [[ "$RELEASE_TOOLCHAIN" != current ]]; then
+            args+=(--toolchain "$RELEASE_TOOLCHAIN")
+          fi
+          scripts/release/publish-crates.sh --verify --output target/release-check "${args[@]}"
+
+      - name: Retain package identities and logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-${{ matrix.runner }}-${{ matrix.toolchain }}
+          path: |
+            target/release-check/archives.json
+            target/release-check/logs/
+            target/release-check/metadata.json
+            target/release-check/consumer/Cargo.lock
+            target/release-check/registry/
+            target/release-check/protocol-results/
+            target/release-check/protocol-consumer/Cargo.lock
+            target/release-check/protocol-consumer/Cargo.toml
+            target/release-check/protocol-consumer/src/
+          if-no-files-found: error
+
+  advisories:
+    name: Upstream dependency advisories
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install project toolchain
+        run: rustc --version
+
+      - name: Install release tooling Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@83ac0ad63c0167e6f06796fab0fce28db1bf3db0 # v2.87.22
+        with:
+          tool: cargo-audit@0.22.2
+
+      - name: Check upstream identities of renamed dependencies
+        run: scripts/dev/with-cargo-lock.sh python3 scripts/release/check-advisories.py --output target/release-advisories
+
+      - name: Retain advisory report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-advisories
+          path: target/release-advisories/
+          if-no-files-found: error
 
   publish:
-    name: Publish
-    needs: package
-    if: ${{ !inputs.dry_run }}
+    name: Publish and verify Byway ownership
+    needs: [package, advisories]
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     environment: crates-io
@@ -55,13 +139,18 @@ jobs:
       - name: Install project toolchain
         run: rustc --version
 
-      - name: Check native build prerequisites
-        run: |
-          for tool in git cmake clang c++; do
-            command -v "$tool"
-          done
+      - name: Install release tooling Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
 
-      - name: Publish crates
+      - name: Check names and existing ownership
+        run: scripts/release/publish-crates.sh --preflight
+
+      - name: Publish packages and establish Byway team ownership
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: scripts/release/publish-crates.sh --publish
+
+      - name: Verify registry-only installation
+        run: scripts/dev/with-cargo-lock.sh scripts/ci/check-downstream.sh registry 0.1.0

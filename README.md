@@ -10,8 +10,8 @@ them. Phantom sends all of these the way the browser you pick does.
 [How servers recognize a client](docs/fingerprinting.md) explains the
 signals.
 
-> Phantom is pre-1.0 and not on crates.io yet. The API can change between
-> commits, so pin a git revision.
+> Phantom is pre-1.0. The API can change between minor releases. Commit your
+> lockfile and read the changelog when upgrading.
 
 ## Browsers
 
@@ -33,7 +33,7 @@ lists the supported versions, layers, and known gaps.
 
 ```toml
 [dependencies]
-phantom = { package = "phantom-http", git = "https://github.com/bywayhq/phantom", rev = "<commit>" }
+phantom = { package = "phantom-http", version = "0.1" }
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -75,7 +75,7 @@ results.
 
 ## Install
 
-Use commit `be02e93` or later, and Rust 1.88 or newer. Phantom builds
+Use Rust 1.88 or newer. Phantom builds
 BoringSSL from source, so you also need Git, CMake, Clang and a C++
 compiler ([Prerequisites](docs/getting-started.md#prerequisites)).
 

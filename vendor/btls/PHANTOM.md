@@ -10,8 +10,8 @@ unrecorded edit to the vendored wrapper.
 
 This directory is the `btls` wrapper package from the exact upstream commit
 recorded below plus the canonical wrapper patches recorded here. It deliberately
-does not vendor the `btls-sys` package or BoringSSL submodule. Those resolve from
-the reviewed dependency-fork commit, which retains the upstream wrapper base and
+keeps the native `btls-sys` package in the sibling `vendor/btls-sys`.
+That package bundles BoringSSL from the reviewed dependency-fork commit, which retains the upstream wrapper base and
 the exact BoringSSL submodule revision while applying the native ECH, record
 size limit, and delegated-credential patches.
 
@@ -37,14 +37,14 @@ size limit, and delegated-credential patches.
 ## Publish identity
 
 `publish-identity.patch` is always the last entry in `patches/series`. It
-renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.15`), keeps
+renames the package (`btls` becomes `phantom-btls` at `0.5.6-phantom.16`), keeps
 the upstream library name so source, tests, and examples are unchanged, and
 points the repository metadata at Phantom. It removes the upstream
 documentation link, keeps Cargo's reserved archive files out of the packaged
 crate, and records the upstream package, version, and source archive under
-`[package.metadata.phantom]`. The `btls-sys` dependency still resolves from the
-reviewed fork revision by git; publishing it under a Phantom name, with its own
-`links` key, is a later release step. It changes no Rust source.
+`[package.metadata.phantom]`. The native dependency resolves to the exact
+`phantom-btls-sys` sibling version, whose archive includes BoringSSL. It changes
+no Rust source.
 
 Phantom depends on this package only through the renamed package with an exact
 version and a path, so the stock package cannot be selected in its place and no

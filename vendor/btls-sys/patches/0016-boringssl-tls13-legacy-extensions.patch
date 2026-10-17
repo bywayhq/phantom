@@ -1,0 +1,410 @@
+From 4d389976660d5044905db20e675b07685e03e986 Mon Sep 17 00:00:00 2001
+From: Arya Alikhani <alexanderaryaalikhani@gmail.com>
+Date: Fri, 2 Oct 2026 10:13:44 -0700
+Subject: [PATCH 16/17] boringssl: optionally send EMS and RI in TLS 1.3-only
+ hellos
+
+Firefox's QUIC ClientHello carries an empty extended_master_secret and
+renegotiation_info with an empty renegotiated_connection, although
+QUIC only negotiates TLS 1.3. NSS sends both whenever they are enabled,
+whatever its version range (ssl3_SendExtendedMasterSecretXtn,
+ssl3_SendRenegotiationInfoXtn), and Firefox enables both. BoringSSL
+omits both when the client's minimum version is TLS 1.3.
+
+Add SSL_CTX_set_tls12_extensions_in_tls13_client_hello and its SSL
+variant. When enabled, a client whose minimum version is TLS 1.3 sends
+both extensions as a TLS 1.2-capable client would, over TLS and QUIC.
+One switch covers both because NSS sends them together. The default is
+unchanged.
+
+ClientHelloInner still omits them. It cannot negotiate TLS 1.2, and
+NSS drops extensions that are unknown to TLS 1.3 when it builds the
+inner hello (tls13_ConstructInnerExtensionsFromOuter), so with real
+ECH only ClientHelloOuter carries them. SSL_OP_NO_RENEGOTIATION still
+omits renegotiation_info. A server that echoes either extension in
+TLS 1.3 is still rejected, as NSS does; ssl_test checks this for an
+echoed extended_master_secret. BoringSSL servers ignore both at
+TLS 1.3.
+---
+ include/openssl/prefix_symbols.h |   4 +
+ include/openssl/ssl.h            |  17 +++
+ ssl/extensions.cc                |  13 ++-
+ ssl/internal.h                   |  10 ++
+ ssl/ssl_lib.cc                   |  17 +++
+ ssl/ssl_test.cc                  | 181 +++++++++++++++++++++++++++++++
+ 6 files changed, 238 insertions(+), 4 deletions(-)
+
+diff --git a/include/openssl/prefix_symbols.h b/include/openssl/prefix_symbols.h
+index 544c5cbea..3b7ee038e 100644
+--- a/include/openssl/prefix_symbols.h
++++ b/include/openssl/prefix_symbols.h
+@@ -2081,6 +2081,7 @@
+ #pragma redefine_extname SSL_CTX_set_strict_cipher_list BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_strict_cipher_list)
+ #pragma redefine_extname SSL_CTX_set_ticket_aead_method BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_ticket_aead_method)
+ #pragma redefine_extname SSL_CTX_set_timeout BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_timeout)
++#pragma redefine_extname SSL_CTX_set_tls12_extensions_in_tls13_client_hello BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_tls12_extensions_in_tls13_client_hello)
+ #pragma redefine_extname SSL_CTX_set_tls_channel_id_enabled BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_tls_channel_id_enabled)
+ #pragma redefine_extname SSL_CTX_set_tlsext_servername_arg BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_tlsext_servername_arg)
+ #pragma redefine_extname SSL_CTX_set_tlsext_servername_callback BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_tlsext_servername_callback)
+@@ -2434,6 +2435,7 @@
+ #pragma redefine_extname SSL_set_srtp_profiles BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_srtp_profiles)
+ #pragma redefine_extname SSL_set_state BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_state)
+ #pragma redefine_extname SSL_set_strict_cipher_list BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_strict_cipher_list)
++#pragma redefine_extname SSL_set_tls12_extensions_in_tls13_client_hello BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_tls12_extensions_in_tls13_client_hello)
+ #pragma redefine_extname SSL_set_tls_channel_id_enabled BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_tls_channel_id_enabled)
+ #pragma redefine_extname SSL_set_tlsext_host_name BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_tlsext_host_name)
+ #pragma redefine_extname SSL_set_tlsext_status_ocsp_resp BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_tlsext_status_ocsp_resp)
+@@ -5235,6 +5237,7 @@
+ #define SSL_CTX_set_strict_cipher_list BORINGSSL_ADD_PREFIX(SSL_CTX_set_strict_cipher_list)
+ #define SSL_CTX_set_ticket_aead_method BORINGSSL_ADD_PREFIX(SSL_CTX_set_ticket_aead_method)
+ #define SSL_CTX_set_timeout BORINGSSL_ADD_PREFIX(SSL_CTX_set_timeout)
++#define SSL_CTX_set_tls12_extensions_in_tls13_client_hello BORINGSSL_ADD_PREFIX(SSL_CTX_set_tls12_extensions_in_tls13_client_hello)
+ #define SSL_CTX_set_tls_channel_id_enabled BORINGSSL_ADD_PREFIX(SSL_CTX_set_tls_channel_id_enabled)
+ #define SSL_CTX_set_tlsext_servername_arg BORINGSSL_ADD_PREFIX(SSL_CTX_set_tlsext_servername_arg)
+ #define SSL_CTX_set_tlsext_servername_callback BORINGSSL_ADD_PREFIX(SSL_CTX_set_tlsext_servername_callback)
+@@ -5588,6 +5591,7 @@
+ #define SSL_set_srtp_profiles BORINGSSL_ADD_PREFIX(SSL_set_srtp_profiles)
+ #define SSL_set_state BORINGSSL_ADD_PREFIX(SSL_set_state)
+ #define SSL_set_strict_cipher_list BORINGSSL_ADD_PREFIX(SSL_set_strict_cipher_list)
++#define SSL_set_tls12_extensions_in_tls13_client_hello BORINGSSL_ADD_PREFIX(SSL_set_tls12_extensions_in_tls13_client_hello)
+ #define SSL_set_tls_channel_id_enabled BORINGSSL_ADD_PREFIX(SSL_set_tls_channel_id_enabled)
+ #define SSL_set_tlsext_host_name BORINGSSL_ADD_PREFIX(SSL_set_tlsext_host_name)
+ #define SSL_set_tlsext_status_ocsp_resp BORINGSSL_ADD_PREFIX(SSL_set_tlsext_status_ocsp_resp)
+diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
+index ec2d00e25..678df4be7 100644
+--- a/include/openssl/ssl.h
++++ b/include/openssl/ssl.h
+@@ -5676,6 +5676,23 @@ OPENSSL_EXPORT void SSL_CTX_set_permute_extensions(SSL_CTX *ctx, int enabled);
+ // permute extensions. For now, this is only implemented for the ClientHello.
+ OPENSSL_EXPORT void SSL_set_permute_extensions(SSL *ssl, int enabled);
+ 
++// SSL_CTX_set_tls12_extensions_in_tls13_client_hello configures whether
++// clients created from |ctx| send the extended_master_secret and
++// renegotiation_info extensions when their minimum version is TLS 1.3, as NSS
++// does. Both only affect TLS 1.2 and earlier, and are omitted from such a
++// ClientHello by default. A ClientHelloInner never carries them, and
++// |SSL_OP_NO_RENEGOTIATION| still omits renegotiation_info. A server that
++// echoes either extension in TLS 1.3 is still rejected. This applies to TLS
++// and QUIC.
++OPENSSL_EXPORT void SSL_CTX_set_tls12_extensions_in_tls13_client_hello(
++    SSL_CTX *ctx, int enabled);
++
++// SSL_set_tls12_extensions_in_tls13_client_hello configures whether `ssl`
++// sends extended_master_secret and renegotiation_info when its minimum version
++// is TLS 1.3. See |SSL_CTX_set_tls12_extensions_in_tls13_client_hello|.
++OPENSSL_EXPORT void SSL_set_tls12_extensions_in_tls13_client_hello(SSL *ssl,
++                                                                   int enabled);
++
+ // SSL_CTX_set_extension_order sets the ClientHello extension order for
+ // connections created from |ctx|. Known IDs keep their given order. Unknown
+ // and duplicate IDs are ignored, and unlisted extensions are appended in
+diff --git a/ssl/extensions.cc b/ssl/extensions.cc
+index cda4e23a8..623d182bd 100644
+--- a/ssl/extensions.cc
++++ b/ssl/extensions.cc
+@@ -704,8 +704,10 @@ static bool ext_ri_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
+                                    CBB *out_compressible,
+                                    ssl_client_hello_type_t type) {
+   const SSLImpl *const ssl = hs->ssl;
+-  // Renegotiation indication is not necessary in TLS 1.3.
+-  if (hs->min_version >= TLS1_3_VERSION ||  //
++  // Renegotiation indication is not necessary in TLS 1.3, but some clients,
++  // such as NSS, send it anyway. ClientHelloInner cannot negotiate TLS 1.2.
++  if ((hs->min_version >= TLS1_3_VERSION &&
++       !hs->config->tls12_extensions_in_tls13_client_hello) ||
+       type == ssl_client_hello_inner ||
+       (ssl->options & SSL_OP_NO_RENEGOTIATION)) {
+     return true;
+@@ -869,8 +871,11 @@ static bool ext_ri_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
+ static bool ext_ems_add_clienthello(const SSL_HANDSHAKE *hs, CBB *out,
+                                     CBB *out_compressible,
+                                     ssl_client_hello_type_t type) {
+-  // Extended master secret is not necessary in TLS 1.3.
+-  if (hs->min_version >= TLS1_3_VERSION || type == ssl_client_hello_inner) {
++  // Extended master secret is not necessary in TLS 1.3, but some clients, such
++  // as NSS, send it anyway. ClientHelloInner cannot negotiate TLS 1.2.
++  if ((hs->min_version >= TLS1_3_VERSION &&
++       !hs->config->tls12_extensions_in_tls13_client_hello) ||
++      type == ssl_client_hello_inner) {
+     return true;
+   }
+ 
+diff --git a/ssl/internal.h b/ssl/internal.h
+index 35a0b3884..ad058d38c 100644
+--- a/ssl/internal.h
++++ b/ssl/internal.h
+@@ -3634,6 +3634,11 @@ struct SSL_CONFIG {
+   // permute_extensions is whether to permute extensions when sending messages.
+   bool permute_extensions : 1;
+ 
++  // tls12_extensions_in_tls13_client_hello is whether a client whose minimum
++  // version is TLS 1.3 still sends extended_master_secret and
++  // renegotiation_info.
++  bool tls12_extensions_in_tls13_client_hello : 1;
++
+   // As a client by default we will send a non post-quantum share and
+   // a post-quantum share if available. If disable_second_keyshare is set,
+   // we will only send the most preferred keyshare.
+@@ -4303,6 +4308,11 @@ class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
+   // permute_extensions is whether to permute extensions when sending messages.
+   bool permute_extensions : 1;
+ 
++  // tls12_extensions_in_tls13_client_hello is whether a client whose minimum
++  // version is TLS 1.3 still sends extended_master_secret and
++  // renegotiation_info.
++  bool tls12_extensions_in_tls13_client_hello : 1;
++
+   // As a client by default we will send a non post-quantum share and
+   // a post-quantum share if available. If disable_second_keyshare is set,
+   // we will only send the most preferred keyshare.
+diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
+index 523f4275a..367f7276e 100644
+--- a/ssl/ssl_lib.cc
++++ b/ssl/ssl_lib.cc
+@@ -394,6 +394,7 @@ bssl::SSLContext::SSLContext(const SSL_METHOD *ssl_method)
+       grease_enabled(false),
+       grease_sigalgs_enabled(false),
+       permute_extensions(false),
++      tls12_extensions_in_tls13_client_hello(false),
+       disable_second_keyshare(false),
+       allow_unknown_alpn_protos(false),
+       false_start_allowed_without_alpn(false),
+@@ -529,6 +530,8 @@ SSL *SSL_new(SSL_CTX *ctx) {
+   ssl->config->retain_only_sha256_of_client_certs =
+       ctx_impl->retain_only_sha256_of_client_certs;
+   ssl->config->permute_extensions = ctx_impl->permute_extensions;
++  ssl->config->tls12_extensions_in_tls13_client_hello =
++      ctx_impl->tls12_extensions_in_tls13_client_hello;
+   ssl->config->disable_second_keyshare = ctx_impl->disable_second_keyshare;
+   ssl->config->aes_hw_override = ctx_impl->aes_hw_override;
+   ssl->config->aes_hw_override_value = ctx_impl->aes_hw_override_value;
+@@ -608,6 +611,7 @@ SSL_CONFIG::SSL_CONFIG(SSLImpl *ssl_arg)
+       jdk11_workaround(false),
+       quic_use_legacy_codepoint(false),
+       permute_extensions(false),
++      tls12_extensions_in_tls13_client_hello(false),
+       disable_second_keyshare(false),
+       alps_use_new_codepoint(true),
+       preserve_tls13_cipher_list(false),
+@@ -3399,6 +3403,19 @@ void SSL_set_permute_extensions(SSL *ssl, int enabled) {
+   ssl_impl->config->permute_extensions = !!enabled;
+ }
+ 
++void SSL_CTX_set_tls12_extensions_in_tls13_client_hello(SSL_CTX *ctx,
++                                                        int enabled) {
++  FromOpaque(ctx)->tls12_extensions_in_tls13_client_hello = !!enabled;
++}
++
++void SSL_set_tls12_extensions_in_tls13_client_hello(SSL *ssl, int enabled) {
++  auto *ssl_impl = FromOpaque(ssl);
++  if (!ssl_impl->config) {
++    return;
++  }
++  ssl_impl->config->tls12_extensions_in_tls13_client_hello = !!enabled;
++}
++
+ // extension_orders_overlap returns whether an ID appears in both `a` and `b`.
+ static bool extension_orders_overlap(Span<const uint16_t> a,
+                                      Span<const uint16_t> b) {
+diff --git a/ssl/ssl_test.cc b/ssl/ssl_test.cc
+index 949f2f640..782c17437 100644
+--- a/ssl/ssl_test.cc
++++ b/ssl/ssl_test.cc
+@@ -9554,6 +9554,48 @@ TEST_F(QUICMethodTest, RecordSizeLimitAdmitsZeroRTT) {
+   EXPECT_EQ(limits.echoed, 64);
+ }
+ 
++// QUIC is TLS 1.3-only, so a QUIC client sends extended_master_secret and
++// renegotiation_info only when configured to, and the handshake completes.
++TEST_F(QUICMethodTest, TLS12ExtensionsInTLS13ClientHello) {
++  const SSL_QUIC_METHOD quic_method = DefaultQUICMethod();
++  ASSERT_TRUE(SSL_CTX_set_quic_method(client_ctx_.get(), &quic_method));
++  ASSERT_TRUE(SSL_CTX_set_quic_method(server_ctx_.get(), &quic_method));
++
++  struct Seen {
++    bool ems = false;
++    bool ri = false;
++  };
++  for (bool enabled : {false, true}) {
++    SCOPED_TRACE(enabled);
++    SSL_CTX_set_tls12_extensions_in_tls13_client_hello(client_ctx_.get(),
++                                                       enabled);
++    Seen seen;
++    ASSERT_TRUE(SSL_CTX_set_app_data(server_ctx_.get(), &seen));
++    SSL_CTX_set_select_certificate_cb(
++        server_ctx_.get(),
++        [](const SSL_CLIENT_HELLO *client_hello) -> ssl_select_cert_result_t {
++          auto *out = static_cast<Seen *>(
++              SSL_CTX_get_app_data(SSL_get_SSL_CTX(client_hello->ssl)));
++          const uint8_t *data;
++          size_t len;
++          out->ems = SSL_early_callback_ctx_extension_get(
++                         client_hello, TLSEXT_TYPE_extended_master_secret,
++                         &data, &len) &&
++                     len == 0;
++          out->ri = SSL_early_callback_ctx_extension_get(
++                        client_hello, TLSEXT_TYPE_renegotiate, &data, &len) &&
++                    len == 1 && data[0] == 0;
++          return ssl_select_cert_success;
++        });
++
++    ASSERT_TRUE(CreateClientAndServer());
++    ASSERT_TRUE(CompleteHandshakesForQUIC());
++    ExpectHandshakeSuccess();
++    EXPECT_EQ(enabled, seen.ems);
++    EXPECT_EQ(enabled, seen.ri);
++  }
++}
++
+ TEST_F(QUICMethodTest, ZeroRTTRejectMismatchedParameters) {
+   const SSL_QUIC_METHOD quic_method = DefaultQUICMethod();
+ 
+@@ -11770,6 +11812,145 @@ TEST(SSLTest, ExtensionOrderTailSurvivesHelloRetryRequest) {
+   EXPECT_GT(orders.size(), 1u) << "The middle part was not shuffled";
+ }
+ 
++// GetFirstClientHelloExtension sets `*out` to the body of extension `type` in
++// the first ClientHello `ssl` sends, or to std::nullopt if it is absent.
++static bool GetFirstClientHelloExtension(
++    SSL *ssl, uint16_t type, std::optional<std::vector<uint8_t>> *out) {
++  std::vector<uint8_t> client_hello;
++  SSL_CLIENT_HELLO parsed;
++  if (!GetClientHello(ssl, &client_hello)) {
++    return false;
++  }
++  auto body =
++      Span(client_hello).subspan(SSL3_RT_HEADER_LENGTH + SSL3_HM_HEADER_LENGTH);
++  if (!SSL_parse_client_hello(ssl, &parsed, body.data(), body.size())) {
++    return false;
++  }
++  const uint8_t *data;
++  size_t len;
++  if (SSL_early_callback_ctx_extension_get(&parsed, type, &data, &len)) {
++    *out = std::vector<uint8_t>(data, data + len);
++  } else {
++    *out = std::nullopt;
++  }
++  return true;
++}
++
++// A client whose minimum version is TLS 1.3 omits extended_master_secret and
++// renegotiation_info unless configured to send them. Either way, a TLS 1.3
++// handshake completes.
++TEST(SSLTest, TLS12ExtensionsInTLS13ClientHello) {
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(server_ctx);
++  for (bool enabled : {false, true}) {
++    SCOPED_TRACE(enabled);
++    bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++    ASSERT_TRUE(ctx);
++    ConfigureVersion(ctx.get(), TLS1_3_VERSION);
++    SSL_CTX_set_tls12_extensions_in_tls13_client_hello(ctx.get(), enabled);
++
++    bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
++    ASSERT_TRUE(ssl);
++    SSL_set_connect_state(ssl.get());
++    std::optional<std::vector<uint8_t>> ems, ri;
++    ASSERT_TRUE(GetFirstClientHelloExtension(
++        ssl.get(), TLSEXT_TYPE_extended_master_secret, &ems));
++    ssl.reset(SSL_new(ctx.get()));
++    ASSERT_TRUE(ssl);
++    SSL_set_connect_state(ssl.get());
++    ASSERT_TRUE(
++        GetFirstClientHelloExtension(ssl.get(), TLSEXT_TYPE_renegotiate, &ri));
++    if (enabled) {
++      EXPECT_EQ(ems, std::vector<uint8_t>{});
++      // An empty renegotiated_connection.
++      EXPECT_EQ(ri, std::vector<uint8_t>{0});
++    } else {
++      EXPECT_FALSE(ems);
++      EXPECT_FALSE(ri);
++    }
++
++    bssl::UniquePtr<SSL> client, server;
++    ASSERT_TRUE(
++        ConnectClientAndServer(&client, &server, ctx.get(), server_ctx.get()));
++    EXPECT_EQ(TLS1_3_VERSION, SSL_version(client.get()));
++  }
++
++  // The connection setting overrides the context, and SSL_OP_NO_RENEGOTIATION
++  // still omits renegotiation_info.
++  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++  ASSERT_TRUE(ctx);
++  ConfigureVersion(ctx.get(), TLS1_3_VERSION);
++  SSL_CTX_set_tls12_extensions_in_tls13_client_hello(ctx.get(), 1);
++  bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
++  ASSERT_TRUE(ssl);
++  SSL_set_tls12_extensions_in_tls13_client_hello(ssl.get(), 0);
++  SSL_set_connect_state(ssl.get());
++  std::optional<std::vector<uint8_t>> ems, ri;
++  ASSERT_TRUE(GetFirstClientHelloExtension(
++      ssl.get(), TLSEXT_TYPE_extended_master_secret, &ems));
++  EXPECT_FALSE(ems);
++  ssl.reset(SSL_new(ctx.get()));
++  ASSERT_TRUE(ssl);
++  SSL_set_options(ssl.get(), SSL_OP_NO_RENEGOTIATION);
++  SSL_set_connect_state(ssl.get());
++  ASSERT_TRUE(
++      GetFirstClientHelloExtension(ssl.get(), TLSEXT_TYPE_renegotiate, &ri));
++  EXPECT_FALSE(ri);
++}
++
++// With ECH, only ClientHelloOuter carries the extensions, as in NSS, because
++// ClientHelloInner cannot negotiate TLS 1.2.
++TEST(SSLTest, TLS12ExtensionsInTLS13ClientHelloOuterOnly) {
++  bssl::UniquePtr<SSL_ECH_KEYS> keys = MakeTestECHKeys();
++  ASSERT_TRUE(keys);
++  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++  ASSERT_TRUE(ctx);
++  ConfigureVersion(ctx.get(), TLS1_3_VERSION);
++  SSL_CTX_set_tls12_extensions_in_tls13_client_hello(ctx.get(), 1);
++  const auto contains = [](const std::vector<uint16_t> &order, uint16_t type) {
++    return std::find(order.begin(), order.end(), type) != order.end();
++  };
++
++  std::vector<uint16_t> outer, inner;
++  ASSERT_TRUE(
++      GetExtensionOrder(ctx.get(), &outer, keys.get(), /*decrypt_ech=*/false));
++  EXPECT_TRUE(contains(outer, TLSEXT_TYPE_extended_master_secret));
++  EXPECT_TRUE(contains(outer, TLSEXT_TYPE_renegotiate));
++  ASSERT_TRUE(
++      GetExtensionOrder(ctx.get(), &inner, keys.get(), /*decrypt_ech=*/true));
++  EXPECT_FALSE(contains(inner, TLSEXT_TYPE_extended_master_secret));
++  EXPECT_FALSE(contains(inner, TLSEXT_TYPE_renegotiate));
++}
++
++// Sending extended_master_secret in a TLS 1.3 ClientHello does not make a TLS
++// 1.3 echo acceptable: the client still rejects it in EncryptedExtensions.
++TEST(SSLTest, TLS12ExtensionsInTLS13ClientHelloRejectEchoedEMS) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureVersion(client_ctx.get(), TLS1_3_VERSION);
++  SSL_CTX_set_tls12_extensions_in_tls13_client_hello(client_ctx.get(), 1);
++  // A TLS 1.3 server ignores the extension. Mark it negotiated after the
++  // server parses the ClientHello, so EncryptedExtensions echoes it.
++  SSL_CTX_set_cert_cb(
++      server_ctx.get(),
++      [](SSL *ssl, void *) -> int {
++        FromOpaque(ssl)->s3->hs->extended_master_secret = true;
++        return 1;
++      },
++      nullptr);
++
++  bssl::UniquePtr<SSL> client, server;
++  ASSERT_TRUE(CreateClientAndServer(&client, &server, client_ctx.get(),
++                                    server_ctx.get()));
++  EXPECT_FALSE(CompleteHandshakes(client.get(), server.get()));
++  EXPECT_EQ(ERR_GET_REASON(ERR_peek_error()), SSL_R_ERROR_PARSING_EXTENSION);
++  ERR_clear_error();
++}
++
+ // QUIC sends quic_transport_parameters, so a QUIC client can end its fresh and
+ // resumed ClientHellos with quic_transport_parameters and
+ // encrypted_client_hello, followed only by pre_shared_key.
+-- 
+2.54.0.windows.1
+

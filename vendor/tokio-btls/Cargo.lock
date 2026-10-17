@@ -42,17 +42,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06"
 
 [[package]]
-name = "btls-sys"
-version = "0.5.6"
-source = "git+https://github.com/bywayhq/btls?rev=f478ea16a4b2f6ebbd221ce7cafdec10a32028eb#f478ea16a4b2f6ebbd221ce7cafdec10a32028eb"
-dependencies = [
- "bindgen",
- "cmake",
- "fs_extra",
- "fslock",
-]
-
-[[package]]
 name = "bytes"
 version = "1.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -365,19 +354,29 @@ dependencies = [
 
 [[package]]
 name = "phantom-btls"
-version = "0.5.6-phantom.15"
+version = "0.5.6-phantom.16"
 dependencies = [
  "bitflags",
- "btls-sys",
  "foreign-types",
  "libc",
  "openssl-macros",
+ "phantom-btls-sys",
  "zeroize",
 ]
 
 [[package]]
+name = "phantom-btls-sys"
+version = "0.5.6-phantom.1"
+dependencies = [
+ "bindgen",
+ "cmake",
+ "fs_extra",
+ "fslock",
+]
+
+[[package]]
 name = "phantom-tokio-btls"
-version = "0.5.6-phantom.15"
+version = "0.5.6-phantom.16"
 dependencies = [
  "anyhow",
  "futures",

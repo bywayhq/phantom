@@ -1,0 +1,14 @@
+Phantom packages the btls-sys bindings from
+https://github.com/bywayhq/btls at f478ea16a4b2f6ebbd221ce7cafdec10a32028eb.
+The original MIT notice is in LICENSE-MIT.
+
+BoringSSL source revision: f1f2556a5dfa59e147d9d47279cc3f7f8a18b433.
+Its Apache-2.0 license and BSD support-code notice are in
+deps/boringssl/LICENSE. Additional bundled notices are retained at:
+  deps/boringssl/third_party/benchmark/LICENSE
+  deps/boringssl/third_party/fiat/LICENSE
+  deps/boringssl/third_party/googletest/LICENSE
+  deps/boringssl/third_party/wycheproof_testvectors/LICENSE
+
+Phantom packaging changes only Cargo metadata. Native build patches are
+retained from the reviewed fork; see PHANTOM.md and patches/.

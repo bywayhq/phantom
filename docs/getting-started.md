@@ -12,8 +12,7 @@ Plan on about fifteen minutes. Most of that is the first build.
 
 ## Distribution status
 
-Phantom is pre-1.0 and not on crates.io, so you depend on an exact git
-revision. The package is named `phantom-http` and the library crate is
+The package is named `phantom-http` and the library crate is
 `phantom`. [Adding Phantom to a project](guides/downstream.md) explains why
 one dependency line is enough.
 
@@ -32,13 +31,11 @@ cargo new phantom-hello
 cd phantom-hello
 ```
 
-Add Phantom and Tokio to `Cargo.toml`. Replace `<commit>` with a commit hash
-from the repository, `be02e93` or later. Earlier commits don't have the
-Chrome 154 recipes this tutorial uses.
+Add Phantom and Tokio to `Cargo.toml`.
 
 ```toml
 [dependencies]
-phantom = { package = "phantom-http", git = "https://github.com/bywayhq/phantom", rev = "<commit>" }
+phantom = { package = "phantom-http", version = "0.1" }
 tokio = { version = "1", features = ["macros", "rt"] }
 ```
 

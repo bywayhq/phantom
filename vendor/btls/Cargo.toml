@@ -1,6 +1,6 @@
 [package]
 name = "phantom-btls"
-version = "0.5.6-phantom.15"
+version = "0.5.6-phantom.16"
 authors = ["0x676e67 <gngppz@gmail.com>", "Steven Fackler <sfackler@gmail.com>", "Ivan Nikulin <ifaaan@gmail.com>"]
 license = "Apache-2.0"
 description = "Phantom fork of btls 0.5.6; not a general-purpose replacement"
@@ -76,7 +76,7 @@ foreign-types = "0.5"
 zeroize = "=1.9.0"
 openssl-macros = "0.1.1"
 libc = "0.2.185"
-btls-sys = { version = "0.5.6", git = "https://github.com/bywayhq/btls", rev = "f478ea16a4b2f6ebbd221ce7cafdec10a32028eb" }
+btls-sys = { package = "phantom-btls-sys", version = "=0.5.6-phantom.1", path = "../btls-sys" }
 
 [dev-dependencies]
 hex = "0.4"

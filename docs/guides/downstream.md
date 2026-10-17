@@ -1,12 +1,21 @@
 # Adding Phantom to a project
 
-Add Phantom to your `Cargo.toml`. Phantom isn't on crates.io yet, so you
-depend on an exact git commit or on a copy inside your repository. Either
-way it's one dependency line.
+Add Phantom to your `Cargo.toml`. You can use a registry release, pin a git
+commit, or keep a copy inside your repository.
 
 The package is named `phantom-http`, because `phantom` was taken on
 crates.io. The dependency key `phantom` in the examples below keeps
 `use phantom::...` working.
+
+## Depend on a registry release
+
+```toml
+[dependencies]
+phantom = { package = "phantom-http", version = "0.1", features = ["full"] }
+```
+
+Commit your `Cargo.lock`. Before upgrading, read
+[CHANGELOG.md](../../CHANGELOG.md) for changes and migration notes.
 
 ## Depend on a pinned git revision
 
@@ -66,12 +75,22 @@ cargo metadata --all-features --locked --format-version 1 > /dev/null
 cargo check --all-features --locked
 ```
 
+## Native build requirements
+
+Use Rust 1.88 or later, Git, CMake, libclang, and a C/C++ compiler. Windows
+builds use Visual Studio C++ tools and NASM. On macOS, install Xcode's command
+line tools. Linux builds also need `nm` and `objcopy` for symbol prefixing.
+Git applies bundled source patches during the build. BoringSSL is included
+in `phantom-btls-sys`; installation needs no native source checkout.
+
+The original native license files ship with that package. Retain them when
+redistributing native binaries.
+
 ## Limits
 
-- Phantom builds BoringSSL through `btls-sys`, from the fork
-  `https://github.com/bywayhq/btls` at a pinned revision.
-- `btls-sys` declares `links = "boringssl"`. Cargo refuses a build that has
-  another crate with that key, such as `boring-sys`.
+- Phantom's native package uses `links = "phantom_boringssl"`. This separate
+  Cargo identity does not guarantee it can share a process with stock
+  BoringSSL libraries. Symbol prefixing has Windows and Apple restrictions.
 
 ## Next
 

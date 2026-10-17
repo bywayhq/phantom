@@ -13,6 +13,7 @@ multiple-versions = "allow"
 wildcards = "allow"
 deny = [
     { crate = "btls", reason = "use the phantom-btls fork" },
+    { crate = "btls-sys", reason = "use the phantom-btls-sys fork" },
     { crate = "h3", reason = "use the phantom-h3 fork" },
     { crate = "h3-datagram", reason = "use the phantom-h3-datagram fork" },
     { crate = "h3-quinn", reason = "use the phantom-h3-quinn fork" },
@@ -45,22 +46,9 @@ allow = [
     "Zlib",
 ]
 
-# btls-sys declares only the MIT license of its bindings, but it also ships and
-# builds BoringSSL, which is Apache-2.0 (deps/boringssl/LICENSE). The Go-licensed
-# test code that the same file names is not compiled into the library.
-[[licenses.clarify]]
-crate = "btls-sys"
-expression = "MIT AND Apache-2.0"
-license-files = [
-    { path = "LICENSE-MIT", hash = 0xdbbdae6a },
-    { path = "deps/boringssl/LICENSE", hash = 0x3c85d46d },
-]
-
-# btls-sys comes from the pinned BoringSSL bindings repository, which is not
-# published at the revision Phantom builds. Every other crate comes from
-# crates.io or a path under `vendor/`.
+# Every dependency comes from crates.io or a path under vendor/.
 [sources]
-allow-git = ["https://github.com/bywayhq/btls"]
+allow-git = []
 
 # Advisories checked by `cargo deny check advisories` in CI. An ignore must name
 # why the advisory cannot reach Phantom users, be mirrored in `osv-scanner.toml`

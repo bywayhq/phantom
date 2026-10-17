@@ -274,6 +274,15 @@ check_tungstenite_patch_replay() {
 }
 
 case "${1:-}" in
+  btls-sys)
+    native_staging=$(mktemp -d "${TMPDIR:-/tmp}/phantom-native-replay.XXXXXX")
+    trap 'rm -rf "$native_staging"' EXIT
+    scripts/ci/stage-btls-sys.sh "$native_staging/btls-sys"
+    diff -qr --exclude=Cargo.lock --exclude=PHANTOM.md --exclude=NOTICE \
+      --exclude=publish-identity.patch --exclude=series --exclude=target \
+      "$native_staging/btls-sys" vendor/btls-sys
+    cargo check --manifest-path vendor/btls-sys/Cargo.toml --locked
+    ;;
   btls)
     check_btls_patch_replay
     case "$(uname -s)" in
@@ -431,7 +440,7 @@ case "${1:-}" in
       --lib --all-features --locked
     ;;
   *)
-    echo "usage: $0 {btls|h3|http2|quinn|quinn-proto|tokio-btls|tokio-tungstenite|tungstenite|wreq-proto}" >&2
+    echo "usage: $0 {btls|btls-sys|h3|http2|quinn|quinn-proto|tokio-btls|tokio-tungstenite|tungstenite|wreq-proto}" >&2
     exit 2
     ;;
 esac

@@ -1,0 +1,1067 @@
+From a78c6cde05084b32bc59af0fe9598740f9877f00 Mon Sep 17 00:00:00 2001
+From: ARYA <AryaAlikhani@icloud.com>
+Date: Tue, 15 Sep 2026 13:57:44 -0700
+Subject: [PATCH 05/11] boringssl: implement RFC 8449 record size limits
+
+Negotiate directional TLS record limits, stage them by traffic-key epoch,
+fragment protected records, enforce inbound bounds, and decline unsupported
+0-RTT/DTLS/QUIC/handoff combinations.
+
+Copyright (c) 2025-2026 0x676e67 <gngppz@gmail.com>
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+---
+ include/openssl/ssl.h   |  15 ++
+ include/openssl/prefix_symbols.h | 4 +
+ include/openssl/tls1.h  |   3 +
+ ssl/extensions.cc       | 135 ++++++++++++++++
+ ssl/handshake_client.cc |  18 +++
+ ssl/handshake_server.cc |   6 +
+ ssl/internal.h          |  34 ++++
+ ssl/s3_both.cc          |   9 +-
+ ssl/s3_pkt.cc           |   4 +-
+ ssl/ssl_lib.cc          |  47 ++++++
+ ssl/ssl_test.cc         | 342 ++++++++++++++++++++++++++++++++++++++++
+ ssl/tls13_client.cc     |   7 +
+ ssl/tls13_server.cc     |  25 ++-
+ ssl/tls_method.cc       |  15 ++
+ ssl/tls_record.cc       |  53 +++++++
+ 15 files changed, 713 insertions(+), 4 deletions(-)
+
+diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
+index b5c5993e7..034d7d6ff 100644
+--- a/include/openssl/ssl.h
++++ b/include/openssl/ssl.h
+@@ -5600,6 +5600,21 @@ OPENSSL_EXPORT void SSL_set_permute_extensions(SSL *ssl, int enabled);
+ OPENSSL_EXPORT int SSL_CTX_set_extension_order(SSL_CTX *ctx,
+                                                const uint16_t *ids, int num);
+ 
++// SSL_set_record_size_limit configures the maximum protected TLS record
++// plaintext |ssl| is willing to receive, as specified by RFC 8449. |limit|
++// must be zero (to disable the extension) or between 64 and 16385 inclusive.
++// It returns one on success and zero if |limit| is invalid, the handshake
++// configuration has been shed, or |ssl| uses DTLS, QUIC, or handoff.
++OPENSSL_EXPORT int SSL_set_record_size_limit(SSL *ssl, uint16_t limit);
++
++// SSL_CTX_set_record_size_limit configures the default RFC 8449 receive limit
++// for new TLS connections from |ctx|. |limit| has the same range as
++// SSL_set_record_size_limit. DTLS contexts reject non-zero limits. QUIC rejects
++// conflicting configuration when either option is set. Handoff rejects the
++// limit when it is set after handoff mode and otherwise rejects the connection
++// when the handshake begins.
++OPENSSL_EXPORT int SSL_CTX_set_record_size_limit(SSL_CTX *ctx, uint16_t limit);
++
+ // SSL_max_seal_overhead returns the maximum overhead, in bytes, of sealing a
+ // record with `ssl`.
+ OPENSSL_EXPORT size_t SSL_max_seal_overhead(const SSL *ssl);
+diff --git a/include/openssl/tls1.h b/include/openssl/tls1.h
+index 0a01b2456..49ccf29c2 100644
+--- a/include/openssl/tls1.h
++++ b/include/openssl/tls1.h
+@@ -48,6 +48,9 @@ extern "C" {
+ #define TLS1_AD_NO_APPLICATION_PROTOCOL 120
+ #define TLS1_AD_ECH_REQUIRED 121
+ 
++// ExtensionType value from RFC 8449.
++#define TLSEXT_TYPE_record_size_limit 28
++
+ // ExtensionType values from RFC 6066
+ #define TLSEXT_TYPE_server_name 0
+ #define TLSEXT_TYPE_status_request 5
+diff --git a/ssl/extensions.cc b/ssl/extensions.cc
+index 9ad7527ec..577b2d840 100644
+--- a/ssl/extensions.cc
++++ b/ssl/extensions.cc
+@@ -3876,6 +3876,134 @@ bool ssl_negotiate_alps(SSL_HANDSHAKE *hs, uint8_t *out_alert,
+   return true;
+ }
+ 
++// RFC 8449 expresses the TLS 1.3 limit over TLSInnerPlaintext, including the
++// content type and padding. Earlier versions cap TLSPlaintext at 2^14 bytes.
++static uint16_t record_size_limit_for_version(const SSLImpl *ssl,
++                                              uint16_t limit) {
++  const uint16_t protocol_limit =
++      ssl_protocol_version(ssl) >= TLS1_3_VERSION
++          ? SSL3_RT_MAX_PLAIN_LENGTH + 1
++          : SSL3_RT_MAX_PLAIN_LENGTH;
++  return std::min(limit, protocol_limit);
++}
++
++static bool record_size_limit_add_clienthello(
++    const SSL_HANDSHAKE *hs, CBB *out, CBB *, ssl_client_hello_type_t) {
++  if (hs->record_size_limit == 0 || SSL_is_dtls(hs->ssl) ||
++      SSL_is_quic(hs->ssl)) {
++    return true;
++  }
++
++  CBB contents;
++  return CBB_add_u16(out, TLSEXT_TYPE_record_size_limit) &&
++         CBB_add_u16_length_prefixed(out, &contents) &&
++         CBB_add_u16(&contents, hs->record_size_limit) && CBB_flush(out);
++}
++
++static bool record_size_limit_parse_serverhello(SSL_HANDSHAKE *hs,
++                                                uint8_t *out_alert,
++                                                CBS *contents) {
++  if (contents == nullptr) {
++    hs->record_size_limit_negotiated = false;
++    hs->peer_record_size_limit = 0;
++    hs->record_size_limit_exceeded = false;
++    return true;
++  }
++
++  uint16_t peer_limit;
++  const uint16_t protocol_limit =
++      ssl_protocol_version(hs->ssl) >= TLS1_3_VERSION
++          ? SSL3_RT_MAX_PLAIN_LENGTH + 1
++          : SSL3_RT_MAX_PLAIN_LENGTH;
++  if (!CBS_get_u16(contents, &peer_limit) || CBS_len(contents) != 0) {
++    *out_alert = SSL_AD_DECODE_ERROR;
++    return false;
++  }
++  if (peer_limit < 64 || peer_limit > protocol_limit) {
++    *out_alert = SSL_AD_ILLEGAL_PARAMETER;
++    OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_LENGTH);
++    return false;
++  }
++
++  hs->peer_record_size_limit = peer_limit;
++  hs->record_size_limit =
++      record_size_limit_for_version(hs->ssl, hs->record_size_limit);
++  hs->record_size_limit_negotiated = true;
++  if (hs->record_size_limit_exceeded) {
++    *out_alert = SSL_AD_RECORD_OVERFLOW;
++    OPENSSL_PUT_ERROR(SSL, SSL_R_DATA_LENGTH_TOO_LONG);
++    return false;
++  }
++  if (ssl_protocol_version(hs->ssl) >= TLS1_3_VERSION) {
++    // EncryptedExtensions is parsed under the handshake read key. Apply the
++    // negotiated limits to that epoch immediately after parsing it.
++    hs->ssl->s3->read_record_size_limit = hs->record_size_limit;
++    hs->ssl->s3->write_record_size_limit = peer_limit;
++  }
++  return true;
++}
++
++static bool record_size_limit_parse_clienthello(SSL_HANDSHAKE *hs,
++                                                uint8_t *out_alert,
++                                                CBS *contents) {
++  if (hs->ssl->s3->used_hello_retry_request) {
++    uint16_t second_limit;
++    if (contents == nullptr || !CBS_get_u16(contents, &second_limit) ||
++        CBS_len(contents) != 0 || second_limit != hs->peer_record_size_limit) {
++      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
++      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_LENGTH);
++      return false;
++    }
++    return true;
++  }
++
++  hs->record_size_limit_negotiated = false;
++  hs->peer_record_size_limit = 0;
++  if (contents == nullptr) {
++    return true;
++  }
++
++  uint16_t peer_limit;
++  if (!CBS_get_u16(contents, &peer_limit) || CBS_len(contents) != 0) {
++    *out_alert = SSL_AD_DECODE_ERROR;
++    return false;
++  }
++  if (peer_limit < 64) {
++    *out_alert = SSL_AD_ILLEGAL_PARAMETER;
++    OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_LENGTH);
++    return false;
++  }
++
++  hs->peer_record_size_limit = peer_limit;
++  hs->record_size_limit =
++      record_size_limit_for_version(hs->ssl, hs->record_size_limit);
++  hs->record_size_limit_negotiated = hs->record_size_limit != 0;
++  return true;
++}
++
++static bool record_size_limit_add_serverhello(SSL_HANDSHAKE *hs, CBB *out) {
++  if (!hs->record_size_limit_negotiated) {
++    return true;
++  }
++
++  const uint16_t peer_limit =
++      record_size_limit_for_version(hs->ssl, hs->peer_record_size_limit);
++  CBB contents;
++  if (!CBB_add_u16(out, TLSEXT_TYPE_record_size_limit) ||
++      !CBB_add_u16_length_prefixed(out, &contents) ||
++      !CBB_add_u16(&contents, hs->record_size_limit) || !CBB_flush(out)) {
++    return false;
++  }
++
++  if (ssl_protocol_version(hs->ssl) >= TLS1_3_VERSION) {
++    // The TLS 1.3 handshake write key is installed before
++    // EncryptedExtensions is constructed.
++    hs->ssl->s3->read_record_size_limit = hs->record_size_limit;
++    hs->ssl->s3->write_record_size_limit = peer_limit;
++  }
++  return true;
++}
++
+ // Client certificate type & Server certificate type
+ //
+ // https://www.rfc-editor.org/rfc/rfc7250.html#section-3
+@@ -4323,6 +4451,13 @@ static const struct tls_extension kExtensions[] = {
+         ext_trust_anchors_parse_clienthello,
+         ext_trust_anchors_add_serverhello,
+     },
++    {
++        TLSEXT_TYPE_record_size_limit,
++        record_size_limit_add_clienthello,
++        record_size_limit_parse_serverhello,
++        record_size_limit_parse_clienthello,
++        record_size_limit_add_serverhello,
++    },
+     {
+         TLSEXT_TYPE_client_cert_type,
+         ext_client_cert_type_add_clienthello,
+diff --git a/ssl/handshake_client.cc b/ssl/handshake_client.cc
+index 298f04f9c..a77f3e9aa 100644
+--- a/ssl/handshake_client.cc
++++ b/ssl/handshake_client.cc
+@@ -282,6 +282,13 @@ static ssl_early_data_reason_t should_offer_early_data(
+     return ssl_early_data_disabled;
+   }
+ 
++  // Record size limits are negotiated afresh and are intentionally not stored
++  // in sessions. Do not send early application records under incomplete record
++  // layer state.
++  if (hs->config->record_size_limit != 0) {
++    return ssl_early_data_disabled;
++  }
++
+   if (hs->max_version < TLS1_3_VERSION || SSL_is_dtls(ssl)) {
+     // We discard inapplicable sessions, so this is redundant with the session
+     // checks below, but reporting that TLS 1.3 was disabled is more useful.
+@@ -371,6 +378,17 @@ static enum ssl_hs_wait_t do_start_connect(SSL_HANDSHAKE *hs) {
+     return ssl_hs_error;
+   }
+ 
++  if (hs->config->record_size_limit != 0 &&
++      (SSL_is_dtls(ssl) || SSL_is_quic(ssl) || hs->config->handoff)) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
++    return ssl_hs_error;
++  }
++  hs->record_size_limit = hs->config->record_size_limit;
++  if (hs->max_version < TLS1_3_VERSION &&
++      hs->record_size_limit > SSL3_RT_MAX_PLAIN_LENGTH) {
++    hs->record_size_limit = SSL3_RT_MAX_PLAIN_LENGTH;
++  }
++
+   uint8_t ech_enc[EVP_HPKE_MAX_ENC_LENGTH];
+   size_t ech_enc_len;
+   if (!ssl_select_ech_config(hs, ech_enc, &ech_enc_len)) {
+diff --git a/ssl/handshake_server.cc b/ssl/handshake_server.cc
+index 64ea061e8..fff3ed51b 100644
+--- a/ssl/handshake_server.cc
++++ b/ssl/handshake_server.cc
+@@ -294,6 +294,12 @@ static TLS12ServerParams choose_params(SSL_HANDSHAKE *hs,
+ }
+ 
+ static enum ssl_hs_wait_t do_start_accept(SSL_HANDSHAKE *hs) {
++  if (hs->config->record_size_limit != 0 &&
++      (SSL_is_dtls(hs->ssl) || SSL_is_quic(hs->ssl) || hs->config->handoff)) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
++    return ssl_hs_error;
++  }
++  hs->record_size_limit = hs->config->record_size_limit;
+   ssl_do_info_callback(hs->ssl, SSL_CB_HANDSHAKE_START, 1);
+   hs->state = state12_read_client_hello;
+   return ssl_hs_ok;
+diff --git a/ssl/internal.h b/ssl/internal.h
+index 506775b90..682f3b3da 100644
+--- a/ssl/internal.h
++++ b/ssl/internal.h
+@@ -771,6 +771,12 @@ enum ssl_open_record_t dtls_open_record(SSLImpl *ssl, uint8_t *out_type,
+ // state needs record-splitting and zero otherwise.
+ bool ssl_needs_record_splitting(const SSLImpl *ssl);
+ 
++// tls_record_max_write_plaintext returns the maximum plaintext bytes which may
++// be placed in one protected TLS record under the active RFC 8449 limit. It
++// returns SSL3_RT_MAX_PLAIN_LENGTH when no smaller limit is active. In TLS 1.3,
++// the returned length reserves one byte for the inner content type.
++size_t tls_record_max_write_plaintext(const SSLImpl *ssl);
++
+ // tls_seal_record seals a new record of type `type` and body `in` and writes it
+ // to `out`. At most `max_out` bytes will be written. It returns true on success
+ // and false on error. If enabled, `tls_seal_record` implements TLS 1.0 CBC
+@@ -1815,6 +1821,20 @@ struct SSL_HANDSHAKE {
+   // `SSL_OP_NO_*` and `SSL_CTX_set_max_proto_version` APIs.
+   uint16_t max_version = 0;
+ 
++  // record_size_limit is the receive limit this endpoint offered for this
++  // handshake. peer_record_size_limit is the corresponding peer limit. These
++  // values are frozen per handshake and become active with newly-installed
++  // traffic keys only when record_size_limit_negotiated is true.
++  uint16_t record_size_limit = 0;
++  uint16_t peer_record_size_limit = 0;
++  bool record_size_limit_negotiated = false;
++
++  // TLS 1.3 encrypts EncryptedExtensions in the first protected server flight,
++  // so the client cannot know whether the extension was negotiated before
++  // opening that record. This records a violation of the offered receive limit
++  // until EncryptedExtensions confirms or declines the extension.
++  bool record_size_limit_exceeded = false;
++
+   InplaceVector<uint8_t, SSL_MAX_MD_SIZE> secret;
+   InplaceVector<uint8_t, SSL_MAX_MD_SIZE> early_traffic_secret;
+   InplaceVector<uint8_t, SSL_MAX_MD_SIZE> client_handshake_secret;
+@@ -2995,6 +3015,13 @@ struct SSL3_STATE {
+   // aead_write_ctx is the current write cipher state.
+   UniquePtr<SSLAEADContext> aead_write_ctx;
+ 
++  // read_record_size_limit and write_record_size_limit are the negotiated
++  // protected-record plaintext limits for the active read and write epochs.
++  // They use the RFC 8449 wire convention: TLS 1.3 includes the inner content
++  // type and padding. Zero means the extension was not negotiated.
++  uint16_t read_record_size_limit = 0;
++  uint16_t write_record_size_limit = 0;
++
+   // hs is the handshake state for the current handshake or NULL if there isn't
+   // one.
+   UniquePtr<SSL_HANDSHAKE> hs;
+@@ -3572,6 +3599,10 @@ struct SSL_CONFIG {
+   // to negotiate and convey application settings.
+   bool alps_use_new_codepoint : 1;
+ 
++  // record_size_limit is the maximum protected plaintext record this endpoint
++  // is willing to receive. Zero disables RFC 8449.
++  uint16_t record_size_limit = 0;
++
+   // server_padding_enabled is true iff the server is willing to send additional
+   // padding to clients that request it through the server padding extension.
+   bool server_padding_enabled : 1;
+@@ -4244,6 +4275,9 @@ class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
+   // signal its sessions may be resumed across names in the server certificate.
+   bool resumption_across_names_enabled : 1;
+ 
++  // record_size_limit is copied to each new SSL_CONFIG. Zero disables RFC 8449.
++  uint16_t record_size_limit = 0;
++
+   // extension_order stores wire extension IDs in the order requested by
+   // SSL_CTX_set_extension_order. An empty array leaves the order unset.
+   bssl::Array<uint16_t> extension_order;
+diff --git a/ssl/s3_both.cc b/ssl/s3_both.cc
+index d885da981..d6c3bc8d2 100644
+--- a/ssl/s3_both.cc
++++ b/ssl/s3_both.cc
+@@ -110,10 +110,15 @@ bool tls_add_message(SSLImpl *ssl, Array<uint8_t> msg) {
+       }
+     }
+   } else {
++    const size_t max_send_fragment =
++        SSL_is_quic(ssl)
++            ? size_t{ssl->max_send_fragment}
++            : std::min(size_t{ssl->max_send_fragment},
++                       tls_record_max_write_plaintext(ssl));
+     while (!rest.empty()) {
+       // Flush if `pending_hs_data` is full.
+       if (ssl->s3->pending_hs_data &&
+-          ssl->s3->pending_hs_data->length >= ssl->max_send_fragment &&
++          ssl->s3->pending_hs_data->length >= max_send_fragment &&
+           !tls_flush_pending_hs_data(ssl)) {
+         return false;
+       }
+@@ -121,7 +126,7 @@ bool tls_add_message(SSLImpl *ssl, Array<uint8_t> msg) {
+       size_t pending_len =
+           ssl->s3->pending_hs_data ? ssl->s3->pending_hs_data->length : 0;
+       Span<const uint8_t> chunk = rest.first(
+-          std::min(ssl->max_send_fragment - pending_len, rest.size()));
++          std::min(max_send_fragment - pending_len, rest.size()));
+       assert(!chunk.empty());
+       rest = rest.subspan(chunk.size());
+ 
+diff --git a/ssl/s3_pkt.cc b/ssl/s3_pkt.cc
+index 2724e327e..dbcb72717 100644
+--- a/ssl/s3_pkt.cc
++++ b/ssl/s3_pkt.cc
+@@ -64,7 +64,9 @@ int tls_write_app_data(SSLImpl *ssl, bool *out_needs_handshake,
+   const bool is_early_data_write =
+       !ssl->server && SSL_in_early_data(ssl) && ssl->s3->hs->can_early_write;
+   for (;;) {
+-    size_t max_send_fragment = ssl->max_send_fragment;
++    size_t max_send_fragment =
++        std::min(size_t{ssl->max_send_fragment},
++                 tls_record_max_write_plaintext(ssl));
+     if (is_early_data_write) {
+       SSL_HANDSHAKE *hs = ssl->s3->hs.get();
+       if (hs->early_data_written >= hs->early_session->ticket_max_early_data) {
+diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
+index 7a1a0cf2d..5e4f401c6 100644
+--- a/ssl/ssl_lib.cc
++++ b/ssl/ssl_lib.cc
+@@ -572,6 +572,7 @@ SSL *SSL_new(SSL_CTX *ctx) {
+       ctx_impl->signed_cert_timestamps_enabled;
+   ssl->config->ocsp_stapling_enabled = ctx_impl->ocsp_stapling_enabled;
+   ssl->config->handoff = ctx_impl->handoff;
++  ssl->config->record_size_limit = ctx_impl->record_size_limit;
+   ssl->quic_method = ctx_impl->quic_method;
+ 
+   if (!ssl->method->ssl_new(ssl.get()) ||
+@@ -2316,6 +2317,43 @@ void SSL_enable_ocsp_stapling(SSL *ssl) {
+   ssl_impl->config->ocsp_stapling_enabled = true;
+ }
+ 
++static bool record_size_limit_is_valid(uint16_t limit) {
++  return limit == 0 || (limit >= 64 && limit <= 16385);
++}
++
++int SSL_set_record_size_limit(SSL *ssl, uint16_t limit) {
++  auto *ssl_impl = FromOpaque(ssl);
++  if (!record_size_limit_is_valid(limit)) {
++    OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_LENGTH);
++    return 0;
++  }
++  if (ssl_impl->config == nullptr ||
++      (limit != 0 &&
++       (SSL_is_dtls(ssl_impl) || SSL_is_quic(ssl_impl) ||
++        ssl_impl->config->handoff))) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
++    return 0;
++  }
++  ssl_impl->config->record_size_limit = limit;
++  return 1;
++}
++
++int SSL_CTX_set_record_size_limit(SSL_CTX *ctx, uint16_t limit) {
++  auto *ctx_impl = FromOpaque(ctx);
++  if (!record_size_limit_is_valid(limit)) {
++    OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_LENGTH);
++    return 0;
++  }
++  if (limit != 0 &&
++      (ctx_impl->method->is_dtls || ctx_impl->quic_method != nullptr ||
++       ctx_impl->handoff)) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
++    return 0;
++  }
++  ctx_impl->record_size_limit = limit;
++  return 1;
++}
++
+ void SSL_get0_signed_cert_timestamp_list(const SSL *ssl, const uint8_t **out,
+                                          size_t *out_len) {
+   SSL_SESSION *session = SSL_get_session(ssl);
+@@ -2786,6 +2824,10 @@ int SSL_get_shared_sigalgs(SSL *ssl, int idx, int *psign, int *phash,
+ 
+ int SSL_CTX_set_quic_method(SSL_CTX *ctx, const SSL_QUIC_METHOD *quic_method) {
+   auto *ctx_impl = FromOpaque(ctx);
++  if (quic_method != nullptr && ctx_impl->record_size_limit != 0) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
++    return 0;
++  }
+   if (ctx_impl->method->is_dtls) {
+     return 0;
+   }
+@@ -2795,6 +2837,11 @@ int SSL_CTX_set_quic_method(SSL_CTX *ctx, const SSL_QUIC_METHOD *quic_method) {
+ 
+ int SSL_set_quic_method(SSL *ssl, const SSL_QUIC_METHOD *quic_method) {
+   auto *ssl_impl = FromOpaque(ssl);
++  if (quic_method != nullptr && ssl_impl->config != nullptr &&
++      ssl_impl->config->record_size_limit != 0) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
++    return 0;
++  }
+   if (ssl_impl->method->is_dtls) {
+     return 0;
+   }
+diff --git a/ssl/ssl_test.cc b/ssl/ssl_test.cc
+index 7f35da040..4d8f6a6f2 100644
+--- a/ssl/ssl_test.cc
++++ b/ssl/ssl_test.cc
+@@ -2221,6 +2221,348 @@ static bssl::UniquePtr<SSL_SESSION> CreateClientSession(
+   return std::move(g_last_session);
+ }
+ 
++static void ConfigureVersion(SSL_CTX *ctx, uint16_t version) {
++  ASSERT_TRUE(SSL_CTX_set_min_proto_version(ctx, version));
++  ASSERT_TRUE(SSL_CTX_set_max_proto_version(ctx, version));
++}
++
++struct RecordSizeLimitCallbackState {
++  bool make_first_protected_flight_oversized = false;
++  bool peer_limit_changed = false;
++  // The first entry is the TLS 1.3 record containing EncryptedExtensions.
++  std::vector<uint16_t> protected_record_lengths;
++};
++
++static void RecordSizeLimitMsgCallback(int is_write, int /*cb_version*/,
++                                       int cb_type, const void *buf, size_t len,
++                                       SSL *ssl, void *arg) {
++  if (!is_write) {
++    return;
++  }
++
++  auto *state = static_cast<RecordSizeLimitCallbackState *>(arg);
++  const auto bytes = Span(static_cast<const uint8_t *>(buf), len);
++  if (state->make_first_protected_flight_oversized &&
++      cb_type == SSL3_RT_HANDSHAKE && !bytes.empty() &&
++      bytes[0] == SSL3_MT_SERVER_HELLO) {
++    // The ServerHello callback runs after ClientHello parsing and before the
++    // handshake write key is installed. Ignore the client's limit while still
++    // sending record_size_limit in EncryptedExtensions.
++    FromOpaque(ssl)->s3->hs->peer_record_size_limit =
++        SSL3_RT_MAX_PLAIN_LENGTH + 1;
++    state->peer_limit_changed = true;
++  }
++
++  if (cb_type == SSL3_RT_HEADER && bytes.size() == SSL3_RT_HEADER_LENGTH &&
++      bytes[0] == SSL3_RT_APPLICATION_DATA) {
++    state->protected_record_lengths.push_back(
++        static_cast<uint16_t>((bytes[3] << 8) | bytes[4]));
++  }
++}
++
++TEST(SSLTest, RecordSizeLimitSetterValidation) {
++  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++  ASSERT_TRUE(ctx);
++  EXPECT_FALSE(SSL_CTX_set_record_size_limit(ctx.get(), 1));
++  EXPECT_FALSE(SSL_CTX_set_record_size_limit(ctx.get(), 63));
++  EXPECT_TRUE(SSL_CTX_set_record_size_limit(ctx.get(), 64));
++  EXPECT_TRUE(SSL_CTX_set_record_size_limit(ctx.get(), 16385));
++  EXPECT_FALSE(SSL_CTX_set_record_size_limit(ctx.get(), 16386));
++  EXPECT_TRUE(SSL_CTX_set_record_size_limit(ctx.get(), 0));
++
++  bssl::UniquePtr<SSL> ssl(SSL_new(ctx.get()));
++  ASSERT_TRUE(ssl);
++  EXPECT_FALSE(SSL_set_record_size_limit(ssl.get(), 63));
++  EXPECT_TRUE(SSL_set_record_size_limit(ssl.get(), 64));
++  EXPECT_TRUE(SSL_set_record_size_limit(ssl.get(), 0));
++
++  bssl::UniquePtr<SSL_CTX> dtls_ctx(SSL_CTX_new(DTLS_method()));
++  ASSERT_TRUE(dtls_ctx);
++  EXPECT_FALSE(SSL_CTX_set_record_size_limit(dtls_ctx.get(), 64));
++
++  SSL_CTX_set_handoff_mode(ctx.get(), true);
++  EXPECT_FALSE(SSL_CTX_set_record_size_limit(ctx.get(), 64));
++
++  bssl::UniquePtr<SSL_CTX> handoff_ctx(SSL_CTX_new(TLS_method()));
++  ASSERT_TRUE(handoff_ctx);
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(handoff_ctx.get(), 64));
++  SSL_CTX_set_handoff_mode(handoff_ctx.get(), true);
++  bssl::UniquePtr<SSL> handoff_ssl(SSL_new(handoff_ctx.get()));
++  ASSERT_TRUE(handoff_ssl);
++  SSL_set_accept_state(handoff_ssl.get());
++  ERR_clear_error();
++  EXPECT_LT(SSL_do_handshake(handoff_ssl.get()), 0);
++  EXPECT_EQ(ERR_GET_REASON(ERR_peek_error()), ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
++}
++
++TEST(SSLTest, RecordSizeLimitNegotiatesAsymmetrically) {
++  for (uint16_t version : {TLS1_2_VERSION, TLS1_3_VERSION}) {
++    SCOPED_TRACE(version);
++    bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++    bssl::UniquePtr<SSL_CTX> server_ctx =
++        CreateContextWithTestCertificate(TLS_method());
++    ASSERT_TRUE(client_ctx);
++    ASSERT_TRUE(server_ctx);
++    ConfigureVersion(client_ctx.get(), version);
++    ConfigureVersion(server_ctx.get(), version);
++    ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx.get(), 512));
++    ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 1024));
++
++    bssl::UniquePtr<SSL> client, server;
++    ASSERT_TRUE(ConnectClientAndServer(&client, &server, client_ctx.get(),
++                                       server_ctx.get()));
++    EXPECT_EQ(FromOpaque(client.get())->s3->read_record_size_limit, 512);
++    EXPECT_EQ(FromOpaque(client.get())->s3->write_record_size_limit, 1024);
++    EXPECT_EQ(FromOpaque(server.get())->s3->read_record_size_limit, 1024);
++    EXPECT_EQ(FromOpaque(server.get())->s3->write_record_size_limit, 512);
++  }
++}
++
++TEST(SSLTest, RecordSizeLimitCapsTls12FutureValue) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureVersion(client_ctx.get(), TLS1_2_VERSION);
++  ConfigureVersion(server_ctx.get(), TLS1_2_VERSION);
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx.get(), 16385));
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 16385));
++
++  bssl::UniquePtr<SSL> client, server;
++  ASSERT_TRUE(ConnectClientAndServer(&client, &server, client_ctx.get(),
++                                     server_ctx.get()));
++  EXPECT_EQ(FromOpaque(client.get())->s3->read_record_size_limit,
++            SSL3_RT_MAX_PLAIN_LENGTH);
++  EXPECT_EQ(FromOpaque(client.get())->s3->write_record_size_limit,
++            SSL3_RT_MAX_PLAIN_LENGTH);
++}
++
++TEST(SSLTest, RecordSizeLimitRequiresBothEndpoints) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureVersion(client_ctx.get(), TLS1_3_VERSION);
++  ConfigureVersion(server_ctx.get(), TLS1_3_VERSION);
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx.get(), 64));
++
++  RecordSizeLimitCallbackState callback_state;
++  SSL_CTX_set_msg_callback(server_ctx.get(), RecordSizeLimitMsgCallback);
++  SSL_CTX_set_msg_callback_arg(server_ctx.get(), &callback_state);
++
++  bssl::UniquePtr<SSL> client, server;
++  ASSERT_TRUE(ConnectClientAndServer(&client, &server, client_ctx.get(),
++                                     server_ctx.get()));
++  EXPECT_EQ(FromOpaque(client.get())->s3->read_record_size_limit, 0);
++  EXPECT_EQ(FromOpaque(client.get())->s3->write_record_size_limit, 0);
++  EXPECT_EQ(FromOpaque(server.get())->s3->read_record_size_limit, 0);
++  EXPECT_EQ(FromOpaque(server.get())->s3->write_record_size_limit, 0);
++  size_t max_ciphertext_len;
++  ASSERT_TRUE(FromOpaque(server.get())->s3->aead_write_ctx->CiphertextLen(
++      &max_ciphertext_len, 63, 1));
++  ASSERT_FALSE(callback_state.protected_record_lengths.empty());
++  EXPECT_GT(callback_state.protected_record_lengths.front(),
++            max_ciphertext_len);
++}
++
++TEST(SSLTest, RecordSizeLimitFragmentsProtectedHandshakeAndApplicationData) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureVersion(client_ctx.get(), TLS1_3_VERSION);
++  ConfigureVersion(server_ctx.get(), TLS1_3_VERSION);
++  SSL_CTX_set_options(server_ctx.get(), SSL_OP_NO_TICKET);
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx.get(), 64));
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 512));
++
++  RecordSizeLimitCallbackState callback_state;
++  SSL_CTX_set_msg_callback(server_ctx.get(), RecordSizeLimitMsgCallback);
++  SSL_CTX_set_msg_callback_arg(server_ctx.get(), &callback_state);
++
++  bssl::UniquePtr<SSL> client, server;
++  ASSERT_TRUE(ConnectClientAndServer(&client, &server, client_ctx.get(),
++                                     server_ctx.get()));
++
++  size_t max_ciphertext_len;
++  ASSERT_TRUE(FromOpaque(server.get())->s3->aead_write_ctx->CiphertextLen(
++      &max_ciphertext_len, 63, 1));
++  ASSERT_GT(callback_state.protected_record_lengths.size(), 1u);
++  for (uint16_t length : callback_state.protected_record_lengths) {
++    EXPECT_LE(length, max_ciphertext_len);
++  }
++
++  const uint64_t sequence_before = FromOpaque(server.get())->s3->write_sequence;
++  uint8_t data[200] = {0};
++  ASSERT_EQ(SSL_write(server.get(), data, sizeof(data)),
++            static_cast<int>(sizeof(data)));
++  EXPECT_EQ(FromOpaque(server.get())->s3->write_sequence - sequence_before, 4u);
++
++  uint8_t received[sizeof(data)];
++  size_t offset = 0;
++  while (offset < sizeof(received)) {
++    int ret = SSL_read(client.get(), received + offset,
++                       static_cast<int>(sizeof(received) - offset));
++    ASSERT_GT(ret, 0);
++    offset += ret;
++  }
++  EXPECT_EQ(OPENSSL_memcmp(data, received, sizeof(data)), 0);
++}
++
++TEST(SSLTest, RecordSizeLimitRejectsOversizedFirstProtectedFlight) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureVersion(client_ctx.get(), TLS1_3_VERSION);
++  ConfigureVersion(server_ctx.get(), TLS1_3_VERSION);
++  SSL_CTX_set_options(server_ctx.get(), SSL_OP_NO_TICKET);
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx.get(), 64));
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 512));
++
++  RecordSizeLimitCallbackState callback_state;
++  callback_state.make_first_protected_flight_oversized = true;
++  SSL_CTX_set_msg_callback(server_ctx.get(), RecordSizeLimitMsgCallback);
++  SSL_CTX_set_msg_callback_arg(server_ctx.get(), &callback_state);
++
++  bssl::UniquePtr<SSL> client, server;
++  ASSERT_TRUE(CreateClientAndServer(&client, &server, client_ctx.get(),
++                                    server_ctx.get()));
++  int client_ret = 0;
++  int client_err = SSL_ERROR_NONE;
++  for (size_t i = 0; i < 10 && client_err != SSL_ERROR_SSL; i++) {
++    client_ret = SSL_do_handshake(client.get());
++    client_err = SSL_get_error(client.get(), client_ret);
++    ASSERT_TRUE(client_err == SSL_ERROR_NONE ||
++                client_err == SSL_ERROR_WANT_READ ||
++                client_err == SSL_ERROR_WANT_WRITE ||
++                client_err == SSL_ERROR_SSL);
++    if (client_err == SSL_ERROR_SSL) {
++      break;
++    }
++
++    const int server_ret = SSL_do_handshake(server.get());
++    const int server_err = SSL_get_error(server.get(), server_ret);
++    ASSERT_TRUE(server_err == SSL_ERROR_NONE ||
++                server_err == SSL_ERROR_WANT_READ ||
++                server_err == SSL_ERROR_WANT_WRITE);
++  }
++
++  ASSERT_TRUE(callback_state.peer_limit_changed);
++  size_t max_ciphertext_len;
++  ASSERT_TRUE(FromOpaque(server.get())->s3->aead_write_ctx->CiphertextLen(
++      &max_ciphertext_len, 63, 1));
++  ASSERT_FALSE(callback_state.protected_record_lengths.empty());
++  EXPECT_GT(callback_state.protected_record_lengths.front(),
++            max_ciphertext_len);
++  EXPECT_EQ(client_err, SSL_ERROR_SSL);
++  EXPECT_EQ(FromOpaque(client.get())->s3->send_alert[1],
++            SSL_AD_RECORD_OVERFLOW);
++
++  ERR_clear_error();
++  const int server_ret = SSL_do_handshake(server.get());
++  EXPECT_EQ(SSL_get_error(server.get(), server_ret), SSL_ERROR_SSL);
++  EXPECT_EQ(ERR_GET_REASON(ERR_peek_error()),
++            SSL_R_TLSV1_ALERT_RECORD_OVERFLOW);
++}
++
++TEST(SSLTest, RecordSizeLimitRejectsOversizedProtectedRecord) {
++  for (uint16_t version : {TLS1_2_VERSION, TLS1_3_VERSION}) {
++    SCOPED_TRACE(version);
++    bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++    bssl::UniquePtr<SSL_CTX> server_ctx =
++        CreateContextWithTestCertificate(TLS_method());
++    ASSERT_TRUE(client_ctx);
++    ASSERT_TRUE(server_ctx);
++    ConfigureVersion(client_ctx.get(), version);
++    ConfigureVersion(server_ctx.get(), version);
++    ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx.get(), 512));
++    ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 512));
++
++    bssl::UniquePtr<SSL> client, server;
++    ASSERT_TRUE(ConnectClientAndServer(&client, &server, client_ctx.get(),
++                                       server_ctx.get()));
++    FromOpaque(server.get())->s3->write_record_size_limit = 0;
++    const size_t oversized = version == TLS1_3_VERSION ? 512 : 513;
++    std::vector<uint8_t> data(oversized);
++    ASSERT_EQ(SSL_write(server.get(), data.data(), data.size()),
++              static_cast<int>(data.size()));
++
++    uint8_t byte;
++    ERR_clear_error();
++    EXPECT_LT(SSL_read(client.get(), &byte, 1), 0);
++    EXPECT_EQ(ERR_GET_REASON(ERR_peek_error()),
++              SSL_R_ENCRYPTED_LENGTH_TOO_LONG);
++    EXPECT_EQ(FromOpaque(client.get())->s3->send_alert[1],
++              SSL_AD_RECORD_OVERFLOW);
++  }
++}
++
++TEST(SSLTest, RecordSizeLimitSurvivesHelloRetryRequest) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureVersion(client_ctx.get(), TLS1_3_VERSION);
++  ConfigureVersion(server_ctx.get(), TLS1_3_VERSION);
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx.get(), 512));
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 1024));
++
++  bssl::UniquePtr<SSL> client, server;
++  ASSERT_TRUE(CreateClientAndServer(&client, &server, client_ctx.get(),
++                                    server_ctx.get()));
++  const uint16_t client_groups[] = {SSL_GROUP_X25519, SSL_GROUP_SECP256R1};
++  const uint16_t client_key_shares[] = {SSL_GROUP_X25519};
++  const uint16_t server_groups[] = {SSL_GROUP_SECP256R1};
++  ASSERT_TRUE(SSL_set1_group_ids(client.get(), client_groups,
++                                 std::size(client_groups)));
++  ASSERT_TRUE(SSL_set1_client_key_shares(client.get(), client_key_shares,
++                                         std::size(client_key_shares)));
++  ASSERT_TRUE(SSL_set1_group_ids(server.get(), server_groups,
++                                 std::size(server_groups)));
++  ASSERT_TRUE(CompleteHandshakes(client.get(), server.get()));
++  EXPECT_TRUE(SSL_used_hello_retry_request(client.get()));
++  EXPECT_EQ(FromOpaque(client.get())->s3->read_record_size_limit, 512);
++  EXPECT_EQ(FromOpaque(client.get())->s3->write_record_size_limit, 1024);
++}
++
++TEST(SSLTest, RecordSizeLimitDisablesEarlyDataButAllowsResumption) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureVersion(client_ctx.get(), TLS1_3_VERSION);
++  ConfigureVersion(server_ctx.get(), TLS1_3_VERSION);
++  SSL_CTX_set_early_data_enabled(client_ctx.get(), 1);
++  SSL_CTX_set_early_data_enabled(server_ctx.get(), 1);
++  SSL_CTX_set_session_cache_mode(client_ctx.get(), SSL_SESS_CACHE_BOTH);
++  SSL_CTX_set_session_cache_mode(server_ctx.get(), SSL_SESS_CACHE_BOTH);
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx.get(), 512));
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 1024));
++
++  bssl::UniquePtr<SSL_SESSION> session =
++      CreateClientSession(client_ctx.get(), server_ctx.get());
++  ASSERT_TRUE(session);
++  EXPECT_FALSE(SSL_SESSION_early_data_capable(session.get()));
++
++  ClientConfig config;
++  config.session = session.get();
++  config.early_data = true;
++  bssl::UniquePtr<SSL> client, server;
++  ASSERT_TRUE(ConnectClientAndServer(&client, &server, client_ctx.get(),
++                                     server_ctx.get(), config));
++  EXPECT_TRUE(SSL_session_reused(client.get()));
++  EXPECT_FALSE(SSL_in_early_data(client.get()));
++  EXPECT_EQ(FromOpaque(client.get())->s3->read_record_size_limit, 512);
++  EXPECT_EQ(FromOpaque(client.get())->s3->write_record_size_limit, 1024);
++}
++
+ static void SetUpExpectedNewCodePoint(SSL_CTX *ctx) {
+   SSL_CTX_set_select_certificate_cb(
+       ctx,
+diff --git a/ssl/tls13_client.cc b/ssl/tls13_client.cc
+index f134ebb57..fd9c65488 100644
+--- a/ssl/tls13_client.cc
++++ b/ssl/tls13_client.cc
+@@ -1300,6 +1300,13 @@ UniquePtr<SSL_SESSION> tls13_create_session_with_ticket(SSLImpl *ssl,
+       return nullptr;
+     }
+   }
++  if (ssl->s3->read_record_size_limit != 0 ||
++      ssl->s3->write_record_size_limit != 0) {
++    // Record size limits are renegotiated on resumption and are not part of
++    // SSL_SESSION. Prevent this ticket from enabling 0-RTT on a later
++    // connection with incomplete record-layer state.
++    session->ticket_max_early_data = 0;
++  }
+ 
+   if (flags.present) {
+     SSLFlags parsed;
+diff --git a/ssl/tls13_server.cc b/ssl/tls13_server.cc
+index 94de72d98..010f5d8f2 100644
+--- a/ssl/tls13_server.cc
++++ b/ssl/tls13_server.cc
+@@ -188,7 +188,7 @@ static bool add_new_session_tickets(SSL_HANDSHAKE *hs, bool *out_sent_tickets) {
+     bool enable_early_data =
+         ssl->enable_early_data &&
+         (!SSL_is_quic(ssl) || !ssl->config->quic_early_data_context.empty()) &&
+-        !SSL_is_dtls(ssl);
++        !SSL_is_dtls(ssl) && !hs->record_size_limit_negotiated;
+     if (enable_early_data) {
+       // QUIC does not use the max_early_data_size parameter and always sets it
+       // to a fixed value. See RFC 9001, section 4.6.1.
+@@ -694,6 +694,10 @@ static enum ssl_hs_wait_t do_select_session(SSL_HANDSHAKE *hs) {
+   // Determine if we're negotiating 0-RTT.
+   if (!ssl->enable_early_data) {
+     ssl->s3->early_data_reason = ssl_early_data_disabled;
++  } else if (hs->record_size_limit_negotiated) {
++    // RFC 8449 state is not serialized in sessions. Decline 0-RTT rather than
++    // accept records before this handshake's limits are active.
++    ssl->s3->early_data_reason = ssl_early_data_disabled;
+   } else if (!offered_ticket) {
+     ssl->s3->early_data_reason = ssl_early_data_no_session_offered;
+   } else if (!session) {
+@@ -965,6 +969,25 @@ static enum ssl_hs_wait_t do_read_second_client_hello(SSL_HANDSHAKE *hs) {
+   // a tricky computation, so we enforce the peer handled it correctly. It is
+   // also necessary to search the PSK list from the second ClientHello because
+   // PSK indices may have changed (RFC 8446 section 4.1.4).
++  CBS record_size_limit;
++  const bool has_record_size_limit = ssl_client_hello_get_extension(
++      &client_hello, &record_size_limit, TLSEXT_TYPE_record_size_limit);
++  if (has_record_size_limit != (hs->peer_record_size_limit != 0)) {
++    OPENSSL_PUT_ERROR(SSL, SSL_R_UNEXPECTED_EXTENSION);
++    ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_ILLEGAL_PARAMETER);
++    return ssl_hs_error;
++  }
++  if (has_record_size_limit) {
++    uint16_t second_limit;
++    if (!CBS_get_u16(&record_size_limit, &second_limit) ||
++        CBS_len(&record_size_limit) != 0 ||
++        second_limit != hs->peer_record_size_limit) {
++      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_LENGTH);
++      ssl_send_alert(ssl, SSL3_AL_FATAL, SSL_AD_ILLEGAL_PARAMETER);
++      return ssl_hs_error;
++    }
++  }
++
+   if (hs->pre_shared_key) {
+     uint8_t alert = SSL_AD_DECODE_ERROR;
+     if (!ssl_verify_psk_binder(hs, &alert, *hs->pre_shared_key, client_hello)) {
+diff --git a/ssl/tls_method.cc b/ssl/tls_method.cc
+index a2e4dcf58..793a3b20f 100644
+--- a/ssl/tls_method.cc
++++ b/ssl/tls_method.cc
+@@ -69,6 +69,11 @@ static bool tls_set_read_state(SSLImpl *ssl, ssl_encryption_level_t level,
+ 
+   ssl->s3->read_sequence = 0;
+   ssl->s3->aead_read_ctx = std::move(aead_ctx);
++  if (ssl->s3->hs != nullptr && level != ssl_encryption_early_data) {
++    SSL_HANDSHAKE *hs = ssl->s3->hs.get();
++    ssl->s3->read_record_size_limit =
++        hs->record_size_limit_negotiated ? hs->record_size_limit : 0;
++  }
+   return true;
+ }
+ 
+@@ -98,6 +103,16 @@ static bool tls_set_write_state(SSLImpl *ssl, ssl_encryption_level_t level,
+ 
+   ssl->s3->write_sequence = 0;
+   ssl->s3->aead_write_ctx = std::move(aead_ctx);
++  if (ssl->s3->hs != nullptr && level != ssl_encryption_early_data) {
++    SSL_HANDSHAKE *hs = ssl->s3->hs.get();
++    uint16_t peer_limit = hs->peer_record_size_limit;
++    if (ssl_protocol_version(ssl) < TLS1_3_VERSION &&
++        peer_limit > SSL3_RT_MAX_PLAIN_LENGTH) {
++      peer_limit = SSL3_RT_MAX_PLAIN_LENGTH;
++    }
++    ssl->s3->write_record_size_limit =
++        hs->record_size_limit_negotiated ? peer_limit : 0;
++  }
+   return true;
+ }
+ 
+diff --git a/ssl/tls_record.cc b/ssl/tls_record.cc
+index f77d84bfa..1c6f34b6b 100644
+--- a/ssl/tls_record.cc
++++ b/ssl/tls_record.cc
+@@ -135,6 +135,25 @@ ssl_open_record_t tls_open_record(SSLImpl *ssl, uint8_t *out_type,
+     *out_alert = SSL_AD_RECORD_OVERFLOW;
+     return ssl_open_record_error;
+   }
++  if (!ssl->s3->aead_read_ctx->is_null_cipher() &&
++      ssl->s3->read_record_size_limit != 0) {
++    const bool is_tls13 = ssl_protocol_version(ssl) >= TLS1_3_VERSION;
++    const size_t extra_in_len = is_tls13 ? 1 : 0;
++    const size_t plaintext_len =
++        ssl->s3->read_record_size_limit - extra_in_len;
++    size_t max_ciphertext_len;
++    if (!ssl->s3->aead_read_ctx->CiphertextLen(
++            &max_ciphertext_len, plaintext_len, extra_in_len)) {
++      OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
++      *out_alert = SSL_AD_INTERNAL_ERROR;
++      return ssl_open_record_error;
++    }
++    if (ciphertext_len > max_ciphertext_len) {
++      OPENSSL_PUT_ERROR(SSL, SSL_R_ENCRYPTED_LENGTH_TOO_LONG);
++      *out_alert = SSL_AD_RECORD_OVERFLOW;
++      return ssl_open_record_error;
++    }
++  }
+ 
+   // Extract the body.
+   CBS body;
+@@ -203,12 +222,28 @@ ssl_open_record_t tls_open_record(SSLImpl *ssl, uint8_t *out_type,
+   // extra room for the inner content type.
+   size_t plaintext_limit =
+       has_padding ? SSL3_RT_MAX_PLAIN_LENGTH + 1 : SSL3_RT_MAX_PLAIN_LENGTH;
++  if (!ssl->s3->aead_read_ctx->is_null_cipher() &&
++      ssl->s3->read_record_size_limit != 0) {
++    plaintext_limit = ssl->s3->read_record_size_limit;
++  }
+   if (out->size() > plaintext_limit) {
+     OPENSSL_PUT_ERROR(SSL, SSL_R_DATA_LENGTH_TOO_LONG);
+     *out_alert = SSL_AD_RECORD_OVERFLOW;
+     return ssl_open_record_error;
+   }
+ 
++  // On a TLS 1.3 client, the first protected server record contains
++  // EncryptedExtensions, so the active limit cannot yet reflect whether the
++  // extension was negotiated. Remember violations of the offered limit and
++  // report them if EncryptedExtensions confirms the extension. If the server
++  // omits it, the offer is not negotiated and the record remains valid.
++  if (has_padding && !ssl->server && ssl->s3->hs != nullptr &&
++      ssl->s3->hs->record_size_limit != 0 &&
++      !ssl->s3->hs->record_size_limit_negotiated &&
++      out->size() > ssl->s3->hs->record_size_limit) {
++    ssl->s3->hs->record_size_limit_exceeded = true;
++  }
++
+   if (has_padding) {
+     // The outer record type is always application_data.
+     if (type != SSL3_RT_APPLICATION_DATA) {
+@@ -275,6 +310,12 @@ static bool do_seal_record(SSLImpl *ssl, uint8_t *out_prefix, uint8_t *out,
+     extra_in_len = 1;
+   }
+ 
++  if (!aead->is_null_cipher() && ssl->s3->write_record_size_limit != 0 &&
++      in_len + extra_in_len > ssl->s3->write_record_size_limit) {
++    OPENSSL_PUT_ERROR(SSL, SSL_R_RECORD_TOO_LARGE);
++    return false;
++  }
++
+   size_t suffix_len, ciphertext_len;
+   if (!aead->SuffixLen(&suffix_len, in_len, extra_in_len) ||
+       !aead->CiphertextLen(&ciphertext_len, in_len, extra_in_len)) {
+@@ -316,6 +357,18 @@ static bool do_seal_record(SSLImpl *ssl, uint8_t *out_prefix, uint8_t *out,
+   return true;
+ }
+ 
++size_t tls_record_max_write_plaintext(const SSLImpl *ssl) {
++  size_t limit = SSL3_RT_MAX_PLAIN_LENGTH;
++  if (!ssl->s3->aead_write_ctx->is_null_cipher() &&
++      ssl->s3->write_record_size_limit != 0) {
++    limit = ssl->s3->write_record_size_limit;
++    if (ssl_protocol_version(ssl) >= TLS1_3_VERSION) {
++      limit--;
++    }
++  }
++  return std::min(limit, size_t{SSL3_RT_MAX_PLAIN_LENGTH});
++}
++
+ static size_t tls_seal_scatter_prefix_len(const SSLImpl *ssl, uint8_t type,
+                                           size_t in_len) {
+   size_t ret = SSL3_RT_HEADER_LENGTH;
+diff --git a/include/openssl/prefix_symbols.h b/include/openssl/prefix_symbols.h
+index 6ca87a1bb..9e54191cb 100644
+--- a/include/openssl/prefix_symbols.h
++++ b/include/openssl/prefix_symbols.h
+@@ -2060,6 +2060,7 @@
+ #pragma redefine_extname SSL_CTX_set_quiet_shutdown BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_quiet_shutdown)
+ #pragma redefine_extname SSL_CTX_set_read_ahead BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_read_ahead)
+ #pragma redefine_extname SSL_CTX_set_record_protocol_version BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_record_protocol_version)
++#pragma redefine_extname SSL_CTX_set_record_size_limit BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_record_size_limit)
+ #pragma redefine_extname SSL_CTX_set_resumption_across_names_enabled BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_resumption_across_names_enabled)
+ #pragma redefine_extname SSL_CTX_set_retain_only_sha256_of_client_certs BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_retain_only_sha256_of_client_certs)
+ #pragma redefine_extname SSL_CTX_set_reverify_on_resume BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_reverify_on_resume)
+@@ -2404,6 +2405,7 @@
+ #pragma redefine_extname SSL_set_quic_use_legacy_codepoint BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_quic_use_legacy_codepoint)
+ #pragma redefine_extname SSL_set_quiet_shutdown BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_quiet_shutdown)
+ #pragma redefine_extname SSL_set_read_ahead BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_read_ahead)
++#pragma redefine_extname SSL_set_record_size_limit BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_record_size_limit)
+ #pragma redefine_extname SSL_set_renegotiate_mode BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_renegotiate_mode)
+ #pragma redefine_extname SSL_set_resumption_across_names_enabled BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_resumption_across_names_enabled)
+ #pragma redefine_extname SSL_set_retain_only_sha256_of_client_certs BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_retain_only_sha256_of_client_certs)
+@@ -5199,6 +5201,7 @@
+ #define SSL_CTX_set_quiet_shutdown BORINGSSL_ADD_PREFIX(SSL_CTX_set_quiet_shutdown)
+ #define SSL_CTX_set_read_ahead BORINGSSL_ADD_PREFIX(SSL_CTX_set_read_ahead)
+ #define SSL_CTX_set_record_protocol_version BORINGSSL_ADD_PREFIX(SSL_CTX_set_record_protocol_version)
++#define SSL_CTX_set_record_size_limit BORINGSSL_ADD_PREFIX(SSL_CTX_set_record_size_limit)
+ #define SSL_CTX_set_resumption_across_names_enabled BORINGSSL_ADD_PREFIX(SSL_CTX_set_resumption_across_names_enabled)
+ #define SSL_CTX_set_retain_only_sha256_of_client_certs BORINGSSL_ADD_PREFIX(SSL_CTX_set_retain_only_sha256_of_client_certs)
+ #define SSL_CTX_set_reverify_on_resume BORINGSSL_ADD_PREFIX(SSL_CTX_set_reverify_on_resume)
+@@ -5543,6 +5546,7 @@
+ #define SSL_set_quic_use_legacy_codepoint BORINGSSL_ADD_PREFIX(SSL_set_quic_use_legacy_codepoint)
+ #define SSL_set_quiet_shutdown BORINGSSL_ADD_PREFIX(SSL_set_quiet_shutdown)
+ #define SSL_set_read_ahead BORINGSSL_ADD_PREFIX(SSL_set_read_ahead)
++#define SSL_set_record_size_limit BORINGSSL_ADD_PREFIX(SSL_set_record_size_limit)
+ #define SSL_set_renegotiate_mode BORINGSSL_ADD_PREFIX(SSL_set_renegotiate_mode)
+ #define SSL_set_resumption_across_names_enabled BORINGSSL_ADD_PREFIX(SSL_set_resumption_across_names_enabled)
+ #define SSL_set_retain_only_sha256_of_client_certs BORINGSSL_ADD_PREFIX(SSL_set_retain_only_sha256_of_client_certs)
+-- 
+2.50.0

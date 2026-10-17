@@ -201,7 +201,7 @@ mkdir -p "$stage_tmp"
 TMPDIR="$stage_tmp" PHANTOM_BTLS_REPOSITORY="$candidate_repo" \
   scripts/ci/stage-btls-candidate.sh "$candidate_revision" "$staged_wrapper"
 cmp "$candidate_repo/README.md" "$staged_wrapper/README.md"
-grep -F -q 'rev = "f478ea16a4b2f6ebbd221ce7cafdec10a32028eb"' \
+grep -F -q 'package = "phantom-btls-sys"' \
   "$staged_wrapper/Cargo.toml"
 grep -F -q 'pub fn peer_application_settings' "$staged_wrapper/src/ssl/mod.rs"
 grep -F -q 'pub fn set_ech_grease_payload_length' \
@@ -309,6 +309,8 @@ mkdir -p \
 cp Cargo.toml Cargo.lock "$probe_checkout/"
 cp crates/phantom-net/Cargo.toml "$probe_checkout/crates/phantom-net/"
 copy_vendor_fixture vendor/btls "$probe_checkout/vendor/btls"
+mkdir -p "$probe_checkout/vendor/btls-sys"
+cp vendor/btls-sys/Cargo.toml "$probe_checkout/vendor/btls-sys/"
 cp scripts/ci/probe-upstream-candidate.sh \
   scripts/ci/stage-btls-candidate.sh "$probe_checkout/scripts/ci/"
 git -C "$probe_checkout" init --quiet

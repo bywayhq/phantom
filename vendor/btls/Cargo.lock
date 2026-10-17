@@ -72,17 +72,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "btls-sys"
-version = "0.5.6"
-source = "git+https://github.com/bywayhq/btls?rev=f478ea16a4b2f6ebbd221ce7cafdec10a32028eb#f478ea16a4b2f6ebbd221ce7cafdec10a32028eb"
-dependencies = [
- "bindgen",
- "cmake",
- "fs_extra",
- "fslock",
-]
-
-[[package]]
 name = "cc"
 version = "1.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -254,16 +243,26 @@ dependencies = [
 
 [[package]]
 name = "phantom-btls"
-version = "0.5.6-phantom.15"
+version = "0.5.6-phantom.16"
 dependencies = [
  "bitflags",
  "brotli",
- "btls-sys",
  "foreign-types",
  "hex",
  "libc",
  "openssl-macros",
+ "phantom-btls-sys",
  "zeroize",
+]
+
+[[package]]
+name = "phantom-btls-sys"
+version = "0.5.6-phantom.1"
+dependencies = [
+ "bindgen",
+ "cmake",
+ "fs_extra",
+ "fslock",
 ]
 
 [[package]]

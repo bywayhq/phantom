@@ -1,0 +1,192 @@
+From 0da0561fa7b2ba444f67dbfeab47a0cbf5707b7d Mon Sep 17 00:00:00 2001
+From: ARYA <AryaAlikhani@icloud.com>
+Date: Tue, 15 Sep 2026 15:00:04 -0700
+Subject: [PATCH 11/11] boringssl: preserve ECH GREASE payload length
+
+---
+ include/openssl/ssl.h         |  7 +++++
+ include/openssl/prefix_symbols.h | 2 ++
+ ssl/encrypted_client_hello.cc | 33 +++++++++++++++++++--
+ ssl/internal.h                |  5 ++++
+ ssl/ssl_test.cc               | 54 +++++++++++++++++++++++++++++++++++
+ 5 files changed, 99 insertions(+), 2 deletions(-)
+
+diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
+index 610b30552..1db38ab12 100644
+--- a/include/openssl/ssl.h
++++ b/include/openssl/ssl.h
+@@ -4641,6 +4641,13 @@ OPENSSL_EXPORT const char *SSL_early_data_reason_string(
+ // ECH extension when no supported ECHConfig is available.
+ OPENSSL_EXPORT void SSL_set_enable_ech_grease(SSL *ssl, int enable);
+ 
++// SSL_set_ech_grease_payload_length configures the exact payload length of a
++// GREASE ECH extension. This does not enable ECH GREASE. The configured
++// payload must be non-empty and, together with the ECHClientHelloOuter framing,
++// must fit in a TLS extension body. It returns one on success and zero on error.
++OPENSSL_EXPORT int SSL_set_ech_grease_payload_length(SSL *ssl,
++                                                     size_t payload_length);
++
+ // SSL_set1_ech_config_list configures `ssl` to, as a client, offer ECH with the
+ // specified configuration. `ech_config_list` should contain a serialized
+ // ECHConfigList structure. It returns one on success and zero on error.
+diff --git a/ssl/encrypted_client_hello.cc b/ssl/encrypted_client_hello.cc
+index 46ba196f1..27f161255 100644
+--- a/ssl/encrypted_client_hello.cc
++++ b/ssl/encrypted_client_hello.cc
+@@ -729,6 +729,14 @@ static size_t random_size(size_t min, size_t max) {
+   return value % (max - min + 1) + min;
+ }
+ 
++// The ECH extension body contains an ECHClientHelloType byte followed by the
++// ECHClientHelloOuter cipher suite, config ID, X25519 encapsulated key, and
++// length-prefixed payload.
++static constexpr size_t kEchGreaseExtensionOverhead =
++    1 + 2 + 2 + 1 + 2 + X25519_PUBLIC_VALUE_LEN + 2;
++static_assert(kEchGreaseExtensionOverhead == 42,
++              "unexpected ECHClientHelloOuter overhead");
++
+ static bool setup_ech_grease(SSL_HANDSHAKE *hs) {
+   assert(!hs->selected_ech_config);
+   if (hs->max_version < TLS1_3_VERSION || !hs->config->ech_grease_enabled) {
+@@ -764,8 +772,10 @@ static bool setup_ech_grease(SSL_HANDSHAKE *hs) {
+   // The server_name extension has an overhead of 9 bytes. For now, arbitrarily
+   // estimate maximum_name_length to be between 32 and 100 bytes. Then round up
+   // to a multiple of 32, to match RFC 9849, section 6.1.3.
+-  const size_t payload_len =
+-      32 * random_size(128 / 32, 224 / 32) + aead_overhead(aead);
++  const size_t payload_len = hs->config->ech_grease_payload_length
++                                 ? *hs->config->ech_grease_payload_length
++                                 : 32 * random_size(128 / 32, 224 / 32) +
++                                       aead_overhead(aead);
+   bssl::ScopedCBB cbb;
+   CBB enc_cbb, payload_cbb;
+   uint8_t *payload;
+@@ -901,6 +911,25 @@ void SSL_set_enable_ech_grease(SSL *ssl, int enable) {
+   ssl_impl->config->ech_grease_enabled = !!enable;
+ }
+ 
++int SSL_set_ech_grease_payload_length(SSL *ssl, size_t payload_length) {
++  auto *ssl_impl = FromOpaque(ssl);
++  if (!ssl_impl->config) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
++    return 0;
++  }
++  if (payload_length == 0) {
++    OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_LENGTH);
++    return 0;
++  }
++  if (payload_length > UINT16_MAX - kEchGreaseExtensionOverhead) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_OVERFLOW);
++    return 0;
++  }
++  ssl_impl->config->ech_grease_payload_length =
++      static_cast<uint16_t>(payload_length);
++  return 1;
++}
++
+ int SSL_set1_ech_config_list(SSL *ssl, const uint8_t *ech_config_list,
+                              size_t ech_config_list_len) {
+   auto *ssl_impl = FromOpaque(ssl);
+diff --git a/ssl/internal.h b/ssl/internal.h
+index 0f9c8a040..b7096c768 100644
+--- a/ssl/internal.h
++++ b/ssl/internal.h
+@@ -3577,6 +3577,11 @@ struct SSL_CONFIG {
+   // ClientHello.
+   bool ech_grease_enabled : 1;
+ 
++  // ech_grease_payload_length, if present, is the exact length of the random
++  // payload sent in a GREASE ECHClientHelloOuter. Otherwise the payload length
++  // is selected using BoringSSL's default randomized policy.
++  std::optional<uint16_t> ech_grease_payload_length;
++
+   // Enable signed certificate time stamps. Currently client only.
+   bool signed_cert_timestamps_enabled : 1;
+ 
+diff --git a/ssl/ssl_test.cc b/ssl/ssl_test.cc
+index 3bf56d91d..d89c2487a 100644
+--- a/ssl/ssl_test.cc
++++ b/ssl/ssl_test.cc
+@@ -3176,6 +3176,60 @@ static bool GetECHLength(SSL_CTX *ctx, size_t *out_client_hello_len,
+   return true;
+ }
+ 
++static bool GetECHGreaseLength(std::optional<size_t> payload_length,
++                               size_t *out_ech_len) {
++  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL> ssl(ctx ? SSL_new(ctx.get()) : nullptr);
++  if (!ssl) {
++    return false;
++  }
++  SSL_set_enable_ech_grease(ssl.get(), 1);
++  if (payload_length &&
++      !SSL_set_ech_grease_payload_length(ssl.get(), *payload_length)) {
++    return false;
++  }
++  SSL_set_connect_state(ssl.get());
++
++  std::vector<uint8_t> client_hello;
++  SSL_CLIENT_HELLO parsed;
++  const uint8_t *unused;
++  if (!GetClientHello(ssl.get(), &client_hello)) {
++    return false;
++  }
++  auto body =
++      Span(client_hello).subspan(SSL3_RT_HEADER_LENGTH + SSL3_HM_HEADER_LENGTH);
++  return SSL_parse_client_hello(ssl.get(), &parsed, body.data(), body.size()) &&
++         SSL_early_callback_ctx_extension_get(
++             &parsed, TLSEXT_TYPE_encrypted_client_hello, &unused, out_ech_len);
++}
++
++TEST(SSLTest, ECHGreasePayloadLength) {
++  size_t ech_len;
++  ASSERT_TRUE(GetECHGreaseLength(239, &ech_len));
++  EXPECT_EQ(281u, ech_len);
++
++  ASSERT_TRUE(GetECHGreaseLength(std::nullopt, &ech_len));
++  EXPECT_TRUE(ech_len == 186 || ech_len == 218 || ech_len == 250 ||
++              ech_len == 282)
++      << ech_len;
++
++  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL> ssl(ctx ? SSL_new(ctx.get()) : nullptr);
++  ASSERT_TRUE(ssl);
++  EXPECT_FALSE(SSL_set_ech_grease_payload_length(ssl.get(), 0));
++  EXPECT_TRUE(ErrorsAreAndClear({{ERR_LIB_SSL, SSL_R_BAD_LENGTH}}));
++
++  constexpr size_t kECHGreaseExtensionOverheadForTest = 42;
++  EXPECT_FALSE(SSL_set_ech_grease_payload_length(
++      ssl.get(), UINT16_MAX - kECHGreaseExtensionOverheadForTest + 1));
++  EXPECT_TRUE(ErrorsAreAndClear({{ERR_LIB_SSL, ERR_R_OVERFLOW}}));
++
++  FromOpaque(ssl.get())->config.reset();
++  EXPECT_FALSE(SSL_set_ech_grease_payload_length(ssl.get(), 239));
++  EXPECT_TRUE(ErrorsAreAndClear(
++      {{ERR_LIB_SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED}}));
++}
++
+ TEST(SSLTest, ECHPadding) {
+   bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
+   ASSERT_TRUE(ctx);
+diff --git a/include/openssl/prefix_symbols.h b/include/openssl/prefix_symbols.h
+index 229537b71..db37c83a4 100644
+--- a/include/openssl/prefix_symbols.h
++++ b/include/openssl/prefix_symbols.h
+@@ -2381,6 +2381,7 @@
+ #pragma redefine_extname SSL_set_connect_state BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_connect_state)
+ #pragma redefine_extname SSL_set_custom_verify BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_custom_verify)
+ #pragma redefine_extname SSL_set_early_data_enabled BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_early_data_enabled)
++#pragma redefine_extname SSL_set_ech_grease_payload_length BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_ech_grease_payload_length)
+ #pragma redefine_extname SSL_set_enable_ech_grease BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_enable_ech_grease)
+ #pragma redefine_extname SSL_set_ex_data BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_ex_data)
+ #pragma redefine_extname SSL_set_fd BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set_fd)
+@@ -5527,6 +5528,7 @@
+ #define SSL_set_connect_state BORINGSSL_ADD_PREFIX(SSL_set_connect_state)
+ #define SSL_set_custom_verify BORINGSSL_ADD_PREFIX(SSL_set_custom_verify)
+ #define SSL_set_early_data_enabled BORINGSSL_ADD_PREFIX(SSL_set_early_data_enabled)
++#define SSL_set_ech_grease_payload_length BORINGSSL_ADD_PREFIX(SSL_set_ech_grease_payload_length)
+ #define SSL_set_enable_ech_grease BORINGSSL_ADD_PREFIX(SSL_set_enable_ech_grease)
+ #define SSL_set_ex_data BORINGSSL_ADD_PREFIX(SSL_set_ex_data)
+ #define SSL_set_fd BORINGSSL_ADD_PREFIX(SSL_set_fd)
+-- 
+2.50.0

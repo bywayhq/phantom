@@ -77,10 +77,10 @@
 //!
 //! # Further reading
 //!
-//! The repository's `docs/` directory holds the documentation;
-//! `docs/README.md` is its index. New to request fingerprinting? Start with
-//! `docs/fingerprinting.md`. `docs/reference/coverage.md` is the detailed
-//! support contract.
+//! Start with the [documentation index](https://github.com/bywayhq/phantom/blob/main/docs/README.md)
+//! or [request fingerprinting](https://github.com/bywayhq/phantom/blob/main/docs/fingerprinting.md).
+//! [Coverage](https://github.com/bywayhq/phantom/blob/main/docs/reference/coverage.md)
+//! describes the supported layers and their limits.
 //!
 //! Coding agents that use this crate should read `llms.txt` at the
 //! repository root. A git dependency checks out the whole repository, so the
@@ -370,5 +370,12 @@ pub mod dns {
 }
 
 #[cfg(feature = "fingerprint-import")]
-#[doc = include_str!("../../../docs/reference/fingerprint-import.md")]
+/// Import complete custom connection settings and request fields from JSON.
+///
+/// See the [document format](https://github.com/bywayhq/phantom/blob/main/docs/reference/fingerprint-import.md).
+/// Imported settings carry no catalog identity or browser validation claim.
 pub mod fingerprint;
+
+#[cfg(all(doctest, feature = "fingerprint-import"))]
+#[doc = include_str!("../../../docs/reference/fingerprint-import.md")]
+struct FingerprintImportDoctests;

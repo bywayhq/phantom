@@ -1,0 +1,825 @@
+From e77f282c8b73e988bd1f6aff803cfd93c97c3659 Mon Sep 17 00:00:00 2001
+From: Arya Alikhani <alexanderaryaalikhani@gmail.com>
+Date: Thu, 1 Oct 2026 20:28:23 -0700
+Subject: [PATCH 13/13] boringssl: allow early data with record size limits
+
+Patch 0005 disabled TLS 1.3 early data whenever RFC 8449 record size
+limits were configured or negotiated. RFC 8449 section 4 says records are
+subject to the limits set in the handshake that produced their keys. A
+client sends 0-RTT before EncryptedExtensions carries the server's limit,
+so early data records can only be bounded by the protocol maximum of
+2^14+1 bytes of TLSInnerPlaintext.
+
+Let a client that sends record_size_limit offer early data, and keep the
+early-data capability of tickets from connections that negotiated a
+limit. As in NSS, the whole 0-RTT write epoch, including EndOfEarlyData,
+uses the protocol maximum; the server's limit applies from the handshake
+write keys. A 0-RTT record still pending when that limit takes effect is
+finished on the next write instead of failing with BAD_WRITE_RETRY.
+
+A server that negotiates a limit below the protocol maximum cannot accept
+such records without exceeding the limit it advertised, so it issues no
+early-data tickets and declines 0-RTT with ssl_early_data_disabled, after
+the HelloRetryRequest check. A server at the maximum accepts early data.
+When a server declines 0-RTT, it skips undecryptable early records
+without checking them against its negotiated limit; decrypted records
+still face the plaintext limit.
+---
+ include/openssl/ssl.h   |   6 +
+ ssl/extensions.cc       |   7 +-
+ ssl/handshake_client.cc |   7 -
+ ssl/internal.h          |   7 +-
+ ssl/s3_pkt.cc           |   9 +-
+ ssl/ssl_test.cc         | 525 +++++++++++++++++++++++++++++++++++++++-
+ ssl/tls13_client.cc     |   7 -
+ ssl/tls13_server.cc     |  18 +-
+ ssl/tls_method.cc       |  19 +-
+ ssl/tls_record.cc       |   6 +-
+ 10 files changed, 570 insertions(+), 41 deletions(-)
+
+diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
+index cadab48c1..c47d60864 100644
+--- a/include/openssl/ssl.h
++++ b/include/openssl/ssl.h
+@@ -5688,6 +5688,12 @@ OPENSSL_EXPORT int SSL_CTX_set_extension_order(SSL_CTX *ctx,
+ // must be zero (to disable the extension) or between 64 and 16385 inclusive.
+ // It returns one on success and zero if |limit| is invalid, the handshake
+ // configuration has been shed, or |ssl| uses DTLS, QUIC, or handoff.
++//
++// A TLS 1.3 client sends early data before it learns the server's limit, so
++// 0-RTT records may carry the protocol maximum of 2^14+1 bytes of
++// TLSInnerPlaintext for the whole 0-RTT epoch. A server that negotiates a
++// smaller limit therefore neither issues early-data tickets nor accepts early
++// data, and `SSL_get_early_data_reason` reports `ssl_early_data_disabled`.
+ OPENSSL_EXPORT int SSL_set_record_size_limit(SSL *ssl, uint16_t limit);
+ 
+ // SSL_CTX_set_record_size_limit configures the default RFC 8449 receive limit
+diff --git a/ssl/extensions.cc b/ssl/extensions.cc
+index 44cbb6155..dc8132070 100644
+--- a/ssl/extensions.cc
++++ b/ssl/extensions.cc
+@@ -3970,7 +3970,12 @@ static bool record_size_limit_parse_serverhello(SSL_HANDSHAKE *hs,
+     // EncryptedExtensions is parsed under the handshake read key. Apply the
+     // negotiated limits to that epoch immediately after parsing it.
+     hs->ssl->s3->read_record_size_limit = hs->record_size_limit;
+-    hs->ssl->s3->write_record_size_limit = peer_limit;
++    // A client still writing 0-RTT keeps the protocol maximum for the rest of
++    // that epoch, as NSS does. `close_early_data` installs the handshake write
++    // keys, which apply the peer limit.
++    if (!hs->in_early_data || SSL_is_quic(hs->ssl)) {
++      hs->ssl->s3->write_record_size_limit = peer_limit;
++    }
+   }
+   return true;
+ }
+diff --git a/ssl/handshake_client.cc b/ssl/handshake_client.cc
+index 04506f7fb..fe4720a20 100644
+--- a/ssl/handshake_client.cc
++++ b/ssl/handshake_client.cc
+@@ -299,13 +299,6 @@ static ssl_early_data_reason_t should_offer_early_data(
+     return ssl_early_data_disabled;
+   }
+ 
+-  // Record size limits are negotiated afresh and are intentionally not stored
+-  // in sessions. Do not send early application records under incomplete record
+-  // layer state.
+-  if (hs->config->record_size_limit != 0) {
+-    return ssl_early_data_disabled;
+-  }
+-
+   if (hs->max_version < TLS1_3_VERSION || SSL_is_dtls(ssl)) {
+     // We discard inapplicable sessions, so this is redundant with the session
+     // checks below, but reporting that TLS 1.3 was disabled is more useful.
+diff --git a/ssl/internal.h b/ssl/internal.h
+index dc745768e..95f8e577f 100644
+--- a/ssl/internal.h
++++ b/ssl/internal.h
+@@ -1834,7 +1834,8 @@ struct SSL_HANDSHAKE {
+   // record_size_limit is the receive limit this endpoint offered for this
+   // handshake. peer_record_size_limit is the corresponding peer limit. These
+   // values are frozen per handshake and become active with newly-installed
+-  // traffic keys only when record_size_limit_negotiated is true.
++  // traffic keys only when record_size_limit_negotiated is true. TLS 1.3 0-RTT
++  // keys never take them: early data is limited only by the protocol maximum.
+   uint16_t record_size_limit = 0;
+   uint16_t peer_record_size_limit = 0;
+   bool record_size_limit_negotiated = false;
+@@ -3047,7 +3048,9 @@ struct SSL3_STATE {
+   // read_record_size_limit and write_record_size_limit are the negotiated
+   // protected-record plaintext limits for the active read and write epochs.
+   // They use the RFC 8449 wire convention: TLS 1.3 includes the inner content
+-  // type and padding. Zero means the extension was not negotiated.
++  // type and padding. Zero means no limit beyond the protocol maximum: the
++  // extension was not negotiated, or the active epoch carries TLS 1.3 0-RTT
++  // data, which the client sends before it learns the server's limit.
+   uint16_t read_record_size_limit = 0;
+   uint16_t write_record_size_limit = 0;
+ 
+diff --git a/ssl/s3_pkt.cc b/ssl/s3_pkt.cc
+index dbcb72717..ed9cc6e33 100644
+--- a/ssl/s3_pkt.cc
++++ b/ssl/s3_pkt.cc
+@@ -80,7 +80,14 @@ int tls_write_app_data(SSLImpl *ssl, bool *out_needs_handshake,
+                                     hs->early_data_written});
+     }
+ 
+-    const size_t to_write = std::min(max_send_fragment, in.size());
++    size_t to_write = std::min(max_send_fragment, in.size());
++    // A pending record was sealed under the limit of an earlier attempt, such
++    // as a 0-RTT record retried after the handshake installs RFC 8449 limits.
++    // Finish writing it rather than failing the retry.
++    if (!ssl->s3->pending_write.empty()) {
++      to_write = std::max(to_write,
++                          std::min(ssl->s3->pending_write.size(), in.size()));
++    }
+     size_t bytes_written;
+     int ret = do_tls_write(ssl, &bytes_written, SSL3_RT_APPLICATION_DATA,
+                            in.subspan(0, to_write));
+diff --git a/ssl/ssl_test.cc b/ssl/ssl_test.cc
+index 9b7208833..70f077d7f 100644
+--- a/ssl/ssl_test.cc
++++ b/ssl/ssl_test.cc
+@@ -2532,26 +2532,520 @@ TEST(SSLTest, RecordSizeLimitSurvivesHelloRetryRequest) {
+   EXPECT_EQ(FromOpaque(client.get())->s3->write_record_size_limit, 1024);
+ }
+ 
+-TEST(SSLTest, RecordSizeLimitDisablesEarlyDataButAllowsResumption) {
++static void ConfigureRecordSizeLimitEarlyData(SSL_CTX *client_ctx,
++                                              SSL_CTX *server_ctx) {
++  ConfigureVersion(client_ctx, TLS1_3_VERSION);
++  ConfigureVersion(server_ctx, TLS1_3_VERSION);
++  SSL_CTX_set_early_data_enabled(client_ctx, 1);
++  SSL_CTX_set_early_data_enabled(server_ctx, 1);
++  SSL_CTX_set_session_cache_mode(client_ctx, SSL_SESS_CACHE_BOTH);
++  SSL_CTX_set_session_cache_mode(server_ctx, SSL_SESS_CACHE_BOTH);
++}
++
++// ReadFully reads exactly `out.size()` bytes from `ssl`.
++static bool ReadFully(SSL *ssl, Span<uint8_t> out) {
++  while (!out.empty()) {
++    int ret = SSL_read(ssl, out.data(), static_cast<int>(out.size()));
++    if (ret <= 0) {
++      return false;
++    }
++    out = out.subspan(static_cast<size_t>(ret));
++  }
++  return true;
++}
++
++TEST(SSLTest, RecordSizeLimitAdmitsEarlyDataUnlessServerLimitIsSmaller) {
++  // A server that negotiates a limit below the protocol maximum cannot receive
++  // 0-RTT records, which the client sizes before it learns that limit. Every
++  // other combination issues early-data tickets and accepts early data.
++  for (uint16_t client_limit : {0, 64, 16385}) {
++    for (uint16_t server_limit : {0, 512, 16385}) {
++      SCOPED_TRACE(client_limit);
++      SCOPED_TRACE(server_limit);
++      const bool negotiated = client_limit != 0 && server_limit != 0;
++      const bool early_data = !negotiated || server_limit == 16385;
++
++      bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++      bssl::UniquePtr<SSL_CTX> server_ctx =
++          CreateContextWithTestCertificate(TLS_method());
++      ASSERT_TRUE(client_ctx);
++      ASSERT_TRUE(server_ctx);
++      ConfigureRecordSizeLimitEarlyData(client_ctx.get(), server_ctx.get());
++      ASSERT_TRUE(
++          SSL_CTX_set_record_size_limit(client_ctx.get(), client_limit));
++      ASSERT_TRUE(
++          SSL_CTX_set_record_size_limit(server_ctx.get(), server_limit));
++
++      bssl::UniquePtr<SSL_SESSION> session =
++          CreateClientSession(client_ctx.get(), server_ctx.get());
++      ASSERT_TRUE(session);
++      EXPECT_EQ(SSL_SESSION_early_data_capable(session.get()), early_data);
++
++      RecordSizeLimitCallbackState callback_state;
++      SSL_CTX_set_msg_callback(client_ctx.get(), RecordSizeLimitMsgCallback);
++      SSL_CTX_set_msg_callback_arg(client_ctx.get(), &callback_state);
++
++      bssl::UniquePtr<SSL> client, server;
++      ASSERT_TRUE(CreateClientAndServer(&client, &server, client_ctx.get(),
++                                        server_ctx.get()));
++      SSL_set_session(client.get(), session.get());
++
++      if (early_data) {
++        ASSERT_EQ(1, SSL_do_handshake(client.get()));
++        ASSERT_TRUE(SSL_in_early_data(client.get()));
++
++        // The client's own limit governs only what it receives, and the
++        // server's limit for this handshake is not yet known, so 1000 bytes of
++        // early data fit in one record.
++        std::vector<uint8_t> early(1000, 'E');
++        callback_state.protected_record_lengths.clear();
++        ASSERT_EQ(static_cast<int>(early.size()),
++                  SSL_write(client.get(), early.data(), early.size()));
++        size_t early_ciphertext_len;
++        ASSERT_TRUE(
++            FromOpaque(client.get())
++                ->s3->aead_write_ctx->CiphertextLen(&early_ciphertext_len,
++                                                    early.size(), 1));
++        ASSERT_EQ(callback_state.protected_record_lengths.size(), 1u);
++        EXPECT_EQ(callback_state.protected_record_lengths[0],
++                  early_ciphertext_len);
++
++        // The server reads the early data before the handshake completes.
++        ASSERT_EQ(1, SSL_do_handshake(server.get()));
++        ASSERT_TRUE(SSL_in_early_data(server.get()));
++        std::vector<uint8_t> received(early.size());
++        ASSERT_TRUE(ReadFully(server.get(), Span(received)));
++        EXPECT_EQ(Bytes(received), Bytes(early));
++
++        // Finish the client handshake. The server consumes EndOfEarlyData and
++        // Finished from `SSL_read`.
++        ASSERT_EQ(1, SSL_do_handshake(client.get()));
++        uint8_t byte;
++        ASSERT_EQ(-1, SSL_read(server.get(), &byte, 1));
++        ASSERT_EQ(SSL_ERROR_WANT_READ, SSL_get_error(server.get(), -1));
++      } else {
++        ASSERT_TRUE(CompleteHandshakes(client.get(), server.get()));
++      }
++
++      EXPECT_FALSE(SSL_in_init(client.get()));
++      EXPECT_FALSE(SSL_in_init(server.get()));
++      EXPECT_TRUE(SSL_session_reused(client.get()));
++      EXPECT_EQ(SSL_early_data_accepted(client.get()), early_data);
++      EXPECT_EQ(SSL_early_data_accepted(server.get()), early_data);
++      EXPECT_EQ(SSL_get_early_data_reason(server.get()),
++                early_data ? ssl_early_data_accepted
++                           : ssl_early_data_unsupported_for_session);
++      EXPECT_EQ(FromOpaque(client.get())->s3->read_record_size_limit,
++                negotiated ? client_limit : 0);
++      EXPECT_EQ(FromOpaque(client.get())->s3->write_record_size_limit,
++                negotiated ? server_limit : 0);
++      EXPECT_EQ(FromOpaque(server.get())->s3->read_record_size_limit,
++                negotiated ? server_limit : 0);
++      EXPECT_EQ(FromOpaque(server.get())->s3->write_record_size_limit,
++                negotiated ? client_limit : 0);
++
++      static const uint8_t kMessage[] = {'h', 'e', 'l', 'l', 'o'};
++      ASSERT_EQ(static_cast<int>(sizeof(kMessage)),
++                SSL_write(server.get(), kMessage, sizeof(kMessage)));
++      uint8_t message[sizeof(kMessage)];
++      ASSERT_TRUE(ReadFully(client.get(), Span(message)));
++      EXPECT_EQ(Bytes(message), Bytes(kMessage));
++    }
++  }
++}
++
++TEST(SSLTest, RecordSizeLimitEarlyDataUsesProtocolMaximum) {
+   bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
+   bssl::UniquePtr<SSL_CTX> server_ctx =
+       CreateContextWithTestCertificate(TLS_method());
+   ASSERT_TRUE(client_ctx);
+   ASSERT_TRUE(server_ctx);
+-  ConfigureVersion(client_ctx.get(), TLS1_3_VERSION);
+-  ConfigureVersion(server_ctx.get(), TLS1_3_VERSION);
+-  SSL_CTX_set_early_data_enabled(client_ctx.get(), 1);
+-  SSL_CTX_set_early_data_enabled(server_ctx.get(), 1);
+-  SSL_CTX_set_session_cache_mode(client_ctx.get(), SSL_SESS_CACHE_BOTH);
+-  SSL_CTX_set_session_cache_mode(server_ctx.get(), SSL_SESS_CACHE_BOTH);
+-  ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx.get(), 512));
+-  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 1024));
++  ConfigureRecordSizeLimitEarlyData(client_ctx.get(), server_ctx.get());
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx.get(), 64));
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 16385));
+ 
+   bssl::UniquePtr<SSL_SESSION> session =
+       CreateClientSession(client_ctx.get(), server_ctx.get());
+   ASSERT_TRUE(session);
+-  EXPECT_FALSE(SSL_SESSION_early_data_capable(session.get()));
++  ASSERT_TRUE(SSL_SESSION_early_data_capable(session.get()));
++  // Permit more early data than one record holds. The server never reads it.
++  session->ticket_max_early_data = 20000;
+ 
++  RecordSizeLimitCallbackState callback_state;
++  SSL_CTX_set_msg_callback(client_ctx.get(), RecordSizeLimitMsgCallback);
++  SSL_CTX_set_msg_callback_arg(client_ctx.get(), &callback_state);
++
++  bssl::UniquePtr<SSL> client, server;
++  ASSERT_TRUE(CreateClientAndServer(&client, &server, client_ctx.get(),
++                                    server_ctx.get()));
++  SSL_set_session(client.get(), session.get());
++  ASSERT_EQ(1, SSL_do_handshake(client.get()));
++  ASSERT_TRUE(SSL_in_early_data(client.get()));
++  EXPECT_EQ(FromOpaque(client.get())->s3->write_record_size_limit, 0);
++
++  bssl::UniquePtr<BIO> mem(BIO_new(BIO_s_mem()));
++  ASSERT_TRUE(mem);
++  SSL_set0_wbio(client.get(), bssl::UpRef(mem).release());
++  callback_state.protected_record_lengths.clear();
++  std::vector<uint8_t> early(20000, 'E');
++  ASSERT_EQ(static_cast<int>(early.size()),
++            SSL_write(client.get(), early.data(), early.size()));
++
++  // 0-RTT records carry at most 2^14 bytes of data plus the content type, the
++  // TLS 1.3 maximum of 2^14+1 that RFC 8449 permits.
++  size_t full_len, rest_len;
++  ASSERT_TRUE(FromOpaque(client.get())->s3->aead_write_ctx->CiphertextLen(
++      &full_len, SSL3_RT_MAX_PLAIN_LENGTH, 1));
++  ASSERT_TRUE(FromOpaque(client.get())->s3->aead_write_ctx->CiphertextLen(
++      &rest_len, early.size() - SSL3_RT_MAX_PLAIN_LENGTH, 1));
++  EXPECT_EQ(callback_state.protected_record_lengths,
++            (std::vector<uint16_t>{static_cast<uint16_t>(full_len),
++                                   static_cast<uint16_t>(rest_len)}));
++}
++
++TEST(SSLTest, RecordSizeLimitServerRejectsLargeEarlyData) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureRecordSizeLimitEarlyData(client_ctx.get(), server_ctx.get());
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx.get(), 16385));
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 16385));
++
++  bssl::UniquePtr<SSL_SESSION> session =
++      CreateClientSession(client_ctx.get(), server_ctx.get());
++  ASSERT_TRUE(session);
++  ASSERT_TRUE(SSL_SESSION_early_data_capable(session.get()));
++
++  // The server now advertises a limit below the size of the 0-RTT record.
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 512));
++  bssl::UniquePtr<SSL> client, server;
++  ASSERT_TRUE(CreateClientAndServer(&client, &server, client_ctx.get(),
++                                    server_ctx.get()));
++  SSL_set_session(client.get(), session.get());
++  ASSERT_EQ(1, SSL_do_handshake(client.get()));
++  ASSERT_TRUE(SSL_in_early_data(client.get()));
++  std::vector<uint8_t> early(2000, 'E');
++  ASSERT_EQ(static_cast<int>(early.size()),
++            SSL_write(client.get(), early.data(), early.size()));
++
++  // The server declines 0-RTT and skips the oversized early record without a
++  // record_overflow alert.
++  ASSERT_EQ(-1, SSL_do_handshake(server.get()));
++  ASSERT_EQ(SSL_ERROR_WANT_READ, SSL_get_error(server.get(), -1));
++  EXPECT_EQ(SSL_get_early_data_reason(server.get()), ssl_early_data_disabled);
++  ASSERT_EQ(-1, SSL_do_handshake(client.get()));
++  ASSERT_EQ(SSL_ERROR_EARLY_DATA_REJECTED, SSL_get_error(client.get(), -1));
++  SSL_reset_early_data_reject(client.get());
++  ASSERT_TRUE(CompleteHandshakes(client.get(), server.get()));
++  EXPECT_TRUE(SSL_session_reused(client.get()));
++  EXPECT_FALSE(SSL_early_data_accepted(client.get()));
++  EXPECT_FALSE(SSL_early_data_accepted(server.get()));
++  EXPECT_EQ(FromOpaque(client.get())->s3->write_record_size_limit, 512);
++  EXPECT_EQ(FromOpaque(server.get())->s3->read_record_size_limit, 512);
++
++  // The resent data follows the negotiated limit.
++  const uint64_t sequence_before = FromOpaque(client.get())->s3->write_sequence;
++  ASSERT_EQ(static_cast<int>(early.size()),
++            SSL_write(client.get(), early.data(), early.size()));
++  EXPECT_EQ(FromOpaque(client.get())->s3->write_sequence - sequence_before, 4u);
++  std::vector<uint8_t> received(early.size());
++  ASSERT_TRUE(ReadFully(server.get(), Span(received)));
++  EXPECT_EQ(Bytes(received), Bytes(early));
++}
++
++struct EarlyDataRecordSizeLimitState {
++  // If non-zero, the server advertises this limit after accepting 0-RTT, as a
++  // server that ignores the protocol maximum might.
++  uint16_t forced_server_limit = 0;
++  // The client's write limit when it queues EndOfEarlyData and Finished.
++  int limit_at_end_of_early_data = -1;
++  int limit_at_finished = -1;
++};
++
++static void EarlyDataRecordSizeLimitMsgCallback(int is_write,
++                                                int /*cb_version*/,
++                                                int cb_type, const void *buf,
++                                                size_t len, SSL *ssl,
++                                                void *arg) {
++  auto *state = static_cast<EarlyDataRecordSizeLimitState *>(arg);
++  const auto bytes = Span(static_cast<const uint8_t *>(buf), len);
++  if (!is_write || cb_type != SSL3_RT_HANDSHAKE || bytes.empty()) {
++    return;
++  }
++  SSLImpl *impl = FromOpaque(ssl);
++  if (impl->server) {
++    // ServerHello is written after the 0-RTT decision and before
++    // EncryptedExtensions.
++    if (state->forced_server_limit != 0 && bytes[0] == SSL3_MT_SERVER_HELLO) {
++      impl->s3->hs->record_size_limit = state->forced_server_limit;
++    }
++    return;
++  }
++  if (bytes[0] == SSL3_MT_END_OF_EARLY_DATA) {
++    state->limit_at_end_of_early_data = impl->s3->write_record_size_limit;
++  } else if (bytes[0] == SSL3_MT_FINISHED) {
++    state->limit_at_finished = impl->s3->write_record_size_limit;
++  }
++}
++
++TEST(SSLTest, RecordSizeLimitKeepsProtocolMaximumForWholeEarlyEpoch) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureRecordSizeLimitEarlyData(client_ctx.get(), server_ctx.get());
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx.get(), 16385));
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 16385));
++
++  bssl::UniquePtr<SSL_SESSION> session =
++      CreateClientSession(client_ctx.get(), server_ctx.get());
++  ASSERT_TRUE(session);
++  ASSERT_TRUE(SSL_SESSION_early_data_capable(session.get()));
++
++  // The server accepts 0-RTT and then advertises 1024 in EncryptedExtensions.
++  EarlyDataRecordSizeLimitState state;
++  state.forced_server_limit = 1024;
++  SSL_CTX_set_msg_callback(client_ctx.get(),
++                           EarlyDataRecordSizeLimitMsgCallback);
++  SSL_CTX_set_msg_callback_arg(client_ctx.get(), &state);
++  SSL_CTX_set_msg_callback(server_ctx.get(),
++                           EarlyDataRecordSizeLimitMsgCallback);
++  SSL_CTX_set_msg_callback_arg(server_ctx.get(), &state);
++
++  bssl::UniquePtr<SSL> client, server;
++  ASSERT_TRUE(CreateClientAndServer(&client, &server, client_ctx.get(),
++                                    server_ctx.get()));
++  SSL_set_session(client.get(), session.get());
++  ASSERT_EQ(1, SSL_do_handshake(client.get()));
++  ASSERT_TRUE(SSL_in_early_data(client.get()));
++  ASSERT_EQ(1, SSL_do_handshake(server.get()));
++  ASSERT_TRUE(SSL_in_early_data(server.get()));
++  ASSERT_EQ(1, SSL_do_handshake(client.get()));
++  EXPECT_TRUE(SSL_early_data_accepted(client.get()));
++
++  // After EncryptedExtensions, the rest of the 0-RTT epoch, including
++  // EndOfEarlyData, keeps the protocol maximum. The server's limit applies from
++  // the handshake write keys, starting with Finished.
++  EXPECT_EQ(state.limit_at_end_of_early_data, 0);
++  EXPECT_EQ(state.limit_at_finished, 1024);
++  EXPECT_EQ(FromOpaque(client.get())->s3->write_record_size_limit, 1024);
++}
++
++TEST(SSLTest, RecordSizeLimitRetriesPendingEarlyRecordAfterHandshake) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureRecordSizeLimitEarlyData(client_ctx.get(), server_ctx.get());
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx.get(), 16385));
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 16385));
++
++  bssl::UniquePtr<SSL_SESSION> session =
++      CreateClientSession(client_ctx.get(), server_ctx.get());
++  ASSERT_TRUE(session);
++  ASSERT_TRUE(SSL_SESSION_early_data_capable(session.get()));
++
++  EarlyDataRecordSizeLimitState state;
++  state.forced_server_limit = 1024;
++  SSL_CTX_set_msg_callback(server_ctx.get(),
++                           EarlyDataRecordSizeLimitMsgCallback);
++  SSL_CTX_set_msg_callback_arg(server_ctx.get(), &state);
++
++  bssl::UniquePtr<SSL> client(SSL_new(client_ctx.get()));
++  bssl::UniquePtr<SSL> server(SSL_new(server_ctx.get()));
++  ASSERT_TRUE(client);
++  ASSERT_TRUE(server);
++  SSL_set_connect_state(client.get());
++  SSL_set_accept_state(server.get());
++  // The client's transport holds 4096 bytes, less than one 0-RTT record.
++  BIO *client_bio, *server_bio;
++  ASSERT_TRUE(BIO_new_bio_pair(&client_bio, 4096, &server_bio, 0));
++  SSL_set_bio(client.get(), client_bio, client_bio);
++  SSL_set_bio(server.get(), server_bio, server_bio);
++  SSL_set_session(client.get(), session.get());
++
++  ASSERT_EQ(1, SSL_do_handshake(client.get()));
++  ASSERT_TRUE(SSL_in_early_data(client.get()));
++  std::vector<uint8_t> data(20000);
++  for (size_t i = 0; i < data.size(); i++) {
++    data[i] = static_cast<uint8_t>(i);
++  }
++  ASSERT_EQ(-1, SSL_write(client.get(), data.data(), data.size()));
++  ASSERT_EQ(SSL_ERROR_WANT_WRITE, SSL_get_error(client.get(), -1));
++
++  std::vector<uint8_t> received;
++  auto drain_server = [&]() -> bool {
++    uint8_t buf[4096];
++    for (;;) {
++      int ret = SSL_read(server.get(), buf, sizeof(buf));
++      if (ret > 0) {
++        received.insert(received.end(), buf, buf + ret);
++        continue;
++      }
++      return SSL_get_error(server.get(), ret) == SSL_ERROR_WANT_READ;
++    }
++  };
++
++  // Complete the handshake while the 0-RTT record is still pending. The
++  // server's 1024-byte limit then applies to the write keys.
++  for (int i = 0; i < 64 && SSL_in_init(client.get()); i++) {
++    int ret = SSL_do_handshake(client.get());
++    int err = SSL_get_error(client.get(), ret);
++    ASSERT_TRUE(ret == 1 || err == SSL_ERROR_WANT_READ ||
++                err == SSL_ERROR_WANT_WRITE)
++        << err;
++    ASSERT_TRUE(drain_server());
++  }
++  ASSERT_FALSE(SSL_in_init(client.get()));
++  EXPECT_TRUE(SSL_early_data_accepted(client.get()));
++  EXPECT_EQ(FromOpaque(client.get())->s3->write_record_size_limit, 1024);
++
++  // Retrying the write finishes the pending 0-RTT record although it exceeds
++  // the limit now in effect, then writes the rest under that limit.
++  int written = -1;
++  for (int i = 0; i < 64; i++) {
++    written = SSL_write(client.get(), data.data(), data.size());
++    if (written > 0) {
++      break;
++    }
++    ASSERT_EQ(SSL_ERROR_WANT_WRITE, SSL_get_error(client.get(), written));
++    ASSERT_TRUE(drain_server());
++  }
++  ASSERT_EQ(written, static_cast<int>(data.size()));
++  ASSERT_TRUE(drain_server());
++  EXPECT_EQ(Bytes(received), Bytes(data));
++}
++
++TEST(SSLTest, RecordSizeLimitChecksDecryptedRecordsWhileSkippingEarlyData) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureRecordSizeLimitEarlyData(client_ctx.get(), server_ctx.get());
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx.get(), 16385));
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 16385));
++
++  bssl::UniquePtr<SSL_SESSION> session =
++      CreateClientSession(client_ctx.get(), server_ctx.get());
++  ASSERT_TRUE(session);
++  ASSERT_TRUE(SSL_SESSION_early_data_capable(session.get()));
++
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 512));
++  bssl::UniquePtr<SSL> client, server;
++  ASSERT_TRUE(CreateClientAndServer(&client, &server, client_ctx.get(),
++                                    server_ctx.get()));
++  SSL_set_session(client.get(), session.get());
++  ASSERT_EQ(1, SSL_do_handshake(client.get()));
++  std::vector<uint8_t> early(2000, 'E');
++  ASSERT_EQ(static_cast<int>(early.size()),
++            SSL_write(client.get(), early.data(), early.size()));
++
++  // The server declines 0-RTT and skips the early record.
++  ASSERT_EQ(-1, SSL_do_handshake(server.get()));
++  ASSERT_EQ(SSL_ERROR_WANT_READ, SSL_get_error(server.get(), -1));
++  ASSERT_TRUE(FromOpaque(server.get())->s3->skip_early_data);
++  ASSERT_EQ(FromOpaque(server.get())->s3->read_record_size_limit, 512);
++
++  // Shrink the server's limit below the client's Finished record. That record
++  // decrypts while early data is still being skipped and must be rejected.
++  FromOpaque(server.get())->s3->read_record_size_limit = 32;
++  ASSERT_EQ(-1, SSL_do_handshake(client.get()));
++  ASSERT_EQ(SSL_ERROR_EARLY_DATA_REJECTED, SSL_get_error(client.get(), -1));
++  SSL_reset_early_data_reject(client.get());
++  ASSERT_EQ(1, SSL_do_handshake(client.get()));
++
++  ERR_clear_error();
++  EXPECT_EQ(-1, SSL_do_handshake(server.get()));
++  EXPECT_EQ(SSL_ERROR_SSL, SSL_get_error(server.get(), -1));
++  EXPECT_EQ(ERR_GET_REASON(ERR_peek_error()), SSL_R_DATA_LENGTH_TOO_LONG);
++  EXPECT_EQ(FromOpaque(server.get())->s3->send_alert[1],
++            SSL_AD_RECORD_OVERFLOW);
++}
++
++TEST(SSLTest, RecordSizeLimitHelloRetryRequestRejectsEarlyData) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureRecordSizeLimitEarlyData(client_ctx.get(), server_ctx.get());
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx.get(), 16385));
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 16385));
++
++  bssl::UniquePtr<SSL_SESSION> session =
++      CreateClientSession(client_ctx.get(), server_ctx.get());
++  ASSERT_TRUE(session);
++  ASSERT_TRUE(SSL_SESSION_early_data_capable(session.get()));
++
++  // The server would also decline 0-RTT for its limit, but HelloRetryRequest
++  // is reported first.
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 512));
++  bssl::UniquePtr<SSL> client, server;
++  ASSERT_TRUE(CreateClientAndServer(&client, &server, client_ctx.get(),
++                                    server_ctx.get()));
++  const uint16_t client_groups[] = {SSL_GROUP_X25519, SSL_GROUP_SECP256R1};
++  const uint16_t client_key_shares[] = {SSL_GROUP_X25519};
++  const uint16_t server_groups[] = {SSL_GROUP_SECP256R1};
++  ASSERT_TRUE(SSL_set1_group_ids(client.get(), client_groups,
++                                 std::size(client_groups)));
++  ASSERT_TRUE(SSL_set1_client_key_shares(client.get(), client_key_shares,
++                                         std::size(client_key_shares)));
++  ASSERT_TRUE(SSL_set1_group_ids(server.get(), server_groups,
++                                 std::size(server_groups)));
++  SSL_set_session(client.get(), session.get());
++  ASSERT_EQ(1, SSL_do_handshake(client.get()));
++  ASSERT_TRUE(SSL_in_early_data(client.get()));
++  std::vector<uint8_t> early(2000, 'E');
++  ASSERT_EQ(static_cast<int>(early.size()),
++            SSL_write(client.get(), early.data(), early.size()));
++
++  // The server sends HelloRetryRequest and skips the early record, larger than
++  // its limit, under the null cipher.
++  ASSERT_EQ(-1, SSL_do_handshake(server.get()));
++  ASSERT_EQ(SSL_ERROR_WANT_READ, SSL_get_error(server.get(), -1));
++  EXPECT_EQ(SSL_get_early_data_reason(server.get()),
++            ssl_early_data_hello_retry_request);
++
++  // The client rewinds to the null cipher with no record size limit.
++  ASSERT_EQ(-1, SSL_do_handshake(client.get()));
++  ASSERT_EQ(SSL_ERROR_EARLY_DATA_REJECTED, SSL_get_error(client.get(), -1));
++  EXPECT_TRUE(FromOpaque(client.get())->s3->aead_write_ctx->is_null_cipher());
++  EXPECT_EQ(FromOpaque(client.get())->s3->write_record_size_limit, 0);
++  SSL_reset_early_data_reject(client.get());
++
++  ASSERT_TRUE(CompleteHandshakes(client.get(), server.get()));
++  EXPECT_TRUE(SSL_used_hello_retry_request(client.get()));
++  EXPECT_TRUE(SSL_session_reused(client.get()));
++  EXPECT_EQ(SSL_get_early_data_reason(client.get()),
++            ssl_early_data_hello_retry_request);
++  EXPECT_EQ(FromOpaque(client.get())->s3->write_record_size_limit, 512);
++  EXPECT_EQ(FromOpaque(server.get())->s3->read_record_size_limit, 512);
++}
++
++TEST(SSLTest, RecordSizeLimitTicketKeepsIssuedEarlyDataCapability) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureRecordSizeLimitEarlyData(client_ctx.get(), server_ctx.get());
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(client_ctx.get(), 16385));
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 512));
++
++  bssl::UniquePtr<SSL_SESSION> session =
++      CreateClientSession(client_ctx.get(), server_ctx.get());
++  ASSERT_TRUE(session);
++  ASSERT_FALSE(SSL_SESSION_early_data_capable(session.get()));
++
++  // Early-data capability is fixed when the ticket is issued. Raising the
++  // server's limit afterwards does not make this ticket usable for 0-RTT, but
++  // the resumed connection issues early-data tickets.
++  ASSERT_TRUE(SSL_CTX_set_record_size_limit(server_ctx.get(), 16385));
+   ClientConfig config;
+   config.session = session.get();
+   config.early_data = true;
+@@ -2559,9 +3053,14 @@ TEST(SSLTest, RecordSizeLimitDisablesEarlyDataButAllowsResumption) {
+   ASSERT_TRUE(ConnectClientAndServer(&client, &server, client_ctx.get(),
+                                      server_ctx.get(), config));
+   EXPECT_TRUE(SSL_session_reused(client.get()));
+-  EXPECT_FALSE(SSL_in_early_data(client.get()));
+-  EXPECT_EQ(FromOpaque(client.get())->s3->read_record_size_limit, 512);
+-  EXPECT_EQ(FromOpaque(client.get())->s3->write_record_size_limit, 1024);
++  EXPECT_FALSE(SSL_early_data_accepted(client.get()));
++  EXPECT_EQ(SSL_get_early_data_reason(server.get()),
++            ssl_early_data_unsupported_for_session);
++
++  bssl::UniquePtr<SSL_SESSION> new_session =
++      CreateClientSession(client_ctx.get(), server_ctx.get(), config);
++  ASSERT_TRUE(new_session);
++  EXPECT_TRUE(SSL_SESSION_early_data_capable(new_session.get()));
+ }
+ 
+ static void SetUpExpectedNewCodePoint(SSL_CTX *ctx) {
+diff --git a/ssl/tls13_client.cc b/ssl/tls13_client.cc
+index fd9c65488..f134ebb57 100644
+--- a/ssl/tls13_client.cc
++++ b/ssl/tls13_client.cc
+@@ -1300,13 +1300,6 @@ UniquePtr<SSL_SESSION> tls13_create_session_with_ticket(SSLImpl *ssl,
+       return nullptr;
+     }
+   }
+-  if (ssl->s3->read_record_size_limit != 0 ||
+-      ssl->s3->write_record_size_limit != 0) {
+-    // Record size limits are renegotiated on resumption and are not part of
+-    // SSL_SESSION. Prevent this ticket from enabling 0-RTT on a later
+-    // connection with incomplete record-layer state.
+-    session->ticket_max_early_data = 0;
+-  }
+ 
+   if (flags.present) {
+     SSLFlags parsed;
+diff --git a/ssl/tls13_server.cc b/ssl/tls13_server.cc
+index 010f5d8f2..95d1b7576 100644
+--- a/ssl/tls13_server.cc
++++ b/ssl/tls13_server.cc
+@@ -151,6 +151,16 @@ static const SSL_CIPHER *choose_tls13_cipher(
+                                  version, ssl->config->compliance_policy);
+ }
+ 
++// record_size_limit_admits_early_data returns whether this server's RFC 8449
++// limit permits 0-RTT. A client sends early data before EncryptedExtensions
++// carries the server's limit, so early data records may use the protocol
++// maximum. A server that negotiated a smaller limit neither offers nor accepts
++// 0-RTT rather than receive records larger than the limit it advertised.
++static bool record_size_limit_admits_early_data(const SSL_HANDSHAKE *hs) {
++  return !hs->record_size_limit_negotiated ||
++         hs->record_size_limit >= SSL3_RT_MAX_PLAIN_LENGTH + 1;
++}
++
+ static bool add_new_session_tickets(SSL_HANDSHAKE *hs, bool *out_sent_tickets) {
+   SSLImpl *const ssl = hs->ssl;
+   if (  // If the client doesn't accept resumption with PSK_DHE_KE, don't send a
+@@ -188,7 +198,7 @@ static bool add_new_session_tickets(SSL_HANDSHAKE *hs, bool *out_sent_tickets) {
+     bool enable_early_data =
+         ssl->enable_early_data &&
+         (!SSL_is_quic(ssl) || !ssl->config->quic_early_data_context.empty()) &&
+-        !SSL_is_dtls(ssl) && !hs->record_size_limit_negotiated;
++        !SSL_is_dtls(ssl) && record_size_limit_admits_early_data(hs);
+     if (enable_early_data) {
+       // QUIC does not use the max_early_data_size parameter and always sets it
+       // to a fixed value. See RFC 9001, section 4.6.1.
+@@ -694,10 +704,6 @@ static enum ssl_hs_wait_t do_select_session(SSL_HANDSHAKE *hs) {
+   // Determine if we're negotiating 0-RTT.
+   if (!ssl->enable_early_data) {
+     ssl->s3->early_data_reason = ssl_early_data_disabled;
+-  } else if (hs->record_size_limit_negotiated) {
+-    // RFC 8449 state is not serialized in sessions. Decline 0-RTT rather than
+-    // accept records before this handshake's limits are active.
+-    ssl->s3->early_data_reason = ssl_early_data_disabled;
+   } else if (!offered_ticket) {
+     ssl->s3->early_data_reason = ssl_early_data_no_session_offered;
+   } else if (!session) {
+@@ -724,6 +730,8 @@ static enum ssl_hs_wait_t do_select_session(SSL_HANDSHAKE *hs) {
+     ssl->s3->early_data_reason = ssl_early_data_quic_parameter_mismatch;
+   } else if (need_hrr) {
+     ssl->s3->early_data_reason = ssl_early_data_hello_retry_request;
++  } else if (!record_size_limit_admits_early_data(hs)) {
++    ssl->s3->early_data_reason = ssl_early_data_disabled;
+   } else {
+     // `ssl_session_is_resumable` forbids cross-cipher resumptions even if the
+     // PRF hashes match.
+diff --git a/ssl/tls_method.cc b/ssl/tls_method.cc
+index 793a3b20f..745eca8f3 100644
+--- a/ssl/tls_method.cc
++++ b/ssl/tls_method.cc
+@@ -69,10 +69,16 @@ static bool tls_set_read_state(SSLImpl *ssl, ssl_encryption_level_t level,
+ 
+   ssl->s3->read_sequence = 0;
+   ssl->s3->aead_read_ctx = std::move(aead_ctx);
+-  if (ssl->s3->hs != nullptr && level != ssl_encryption_early_data) {
++  if (ssl->s3->hs != nullptr) {
+     SSL_HANDSHAKE *hs = ssl->s3->hs.get();
++    // RFC 8449 limits records by the handshake that produced their keys. The
++    // client sends 0-RTT before EncryptedExtensions tells it the server's
++    // limit, so early data records are bounded only by the protocol maximum.
++    // The server accepts 0-RTT only when its own limit admits that maximum.
+     ssl->s3->read_record_size_limit =
+-        hs->record_size_limit_negotiated ? hs->record_size_limit : 0;
++        level != ssl_encryption_early_data && hs->record_size_limit_negotiated
++            ? hs->record_size_limit
++            : 0;
+   }
+   return true;
+ }
+@@ -103,15 +109,20 @@ static bool tls_set_write_state(SSLImpl *ssl, ssl_encryption_level_t level,
+ 
+   ssl->s3->write_sequence = 0;
+   ssl->s3->aead_write_ctx = std::move(aead_ctx);
+-  if (ssl->s3->hs != nullptr && level != ssl_encryption_early_data) {
++  if (ssl->s3->hs != nullptr) {
+     SSL_HANDSHAKE *hs = ssl->s3->hs.get();
+     uint16_t peer_limit = hs->peer_record_size_limit;
+     if (ssl_protocol_version(ssl) < TLS1_3_VERSION &&
+         peer_limit > SSL3_RT_MAX_PLAIN_LENGTH) {
+       peer_limit = SSL3_RT_MAX_PLAIN_LENGTH;
+     }
++    // A client installs 0-RTT keys before it can know the server's limit, so
++    // the whole 0-RTT epoch uses the protocol maximum, as in NSS. The limit
++    // applies from the handshake write keys onward.
+     ssl->s3->write_record_size_limit =
+-        hs->record_size_limit_negotiated ? peer_limit : 0;
++        level != ssl_encryption_early_data && hs->record_size_limit_negotiated
++            ? peer_limit
++            : 0;
+   }
+   return true;
+ }
+diff --git a/ssl/tls_record.cc b/ssl/tls_record.cc
+index 1c6f34b6b..3958b1750 100644
+--- a/ssl/tls_record.cc
++++ b/ssl/tls_record.cc
+@@ -135,8 +135,12 @@ ssl_open_record_t tls_open_record(SSLImpl *ssl, uint8_t *out_type,
+     *out_alert = SSL_AD_RECORD_OVERFLOW;
+     return ssl_open_record_error;
+   }
++  // A server that rejected 0-RTT skips early data records it cannot decrypt.
++  // Those were sent under the protocol maximum before the client knew this
++  // limit, so check them only after decryption, when a record that opens is
++  // handshake traffic subject to the plaintext limit below.
+   if (!ssl->s3->aead_read_ctx->is_null_cipher() &&
+-      ssl->s3->read_record_size_limit != 0) {
++      ssl->s3->read_record_size_limit != 0 && !ssl->s3->skip_early_data) {
+     const bool is_tls13 = ssl_protocol_version(ssl) >= TLS1_3_VERSION;
+     const size_t extra_in_len = is_tls13 ? 1 : 0;
+     const size_t plaintext_len =
+-- 
+2.54.0.windows.1
+

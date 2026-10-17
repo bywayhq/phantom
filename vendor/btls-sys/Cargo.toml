@@ -1,0 +1,106 @@
+[package]
+name = "phantom-btls-sys"
+version = "0.5.6-phantom.1"
+authors = ["0x676e67 <gngppz@gmail.com>",
+            "Alex Crichton <alex@alexcrichton.com>",
+            "Steven Fackler <sfackler@gmail.com>",
+            "Ivan Nikulin <ifaaan@gmail.com>"]
+license = "MIT AND Apache-2.0 AND BSD-3-Clause"
+description = "FFI bindings to BoringSSL"
+repository = "https://github.com/bywayhq/phantom"
+links = "phantom_boringssl"
+build = "build/main.rs"
+readme = "README.md"
+categories = ["cryptography", "external-ffi-bindings"]
+keywords = ["tls", "boringssl", "openssl", "fips", "ml-kem"]
+edition = "2021"
+rust-version = "1.85"
+include = [
+    "/*.md",
+    "/*.toml",
+    "/LICENSE-MIT",
+    "/cmake/*.cmake",
+    "/deps/boringssl/**/*.[chS]",
+    "/deps/boringssl/**/*.inc",
+    "/deps/boringssl/**/*.asm",
+    "/deps/boringssl/**/*.pl",
+    "/deps/boringssl/**/*.go",
+    "/deps/boringssl/**/*.cmake",
+    "/deps/boringssl/**/go.mod",
+    "/deps/boringssl/**/go.sum",
+    "/deps/boringssl/crypto/obj/obj_mac.num",
+    "/deps/boringssl/crypto/obj/objects.txt",
+    "/deps/boringssl/crypto/err/*.errordata",
+    "/deps/boringssl/**/*.bzl",
+    "/deps/boringssl/**/*.cc",
+    "/deps/boringssl/**/*.cpp",
+    "/deps/boringssl/**/*.in",
+    "/deps/boringssl/**/CMakeLists.txt",
+    "/deps/boringssl/**/sources.cmake",
+    "/deps/boringssl/**/util/go_tests.txt",
+    "/deps/boringssl/**/LICENSE*",
+    "/deps/boringssl/**/NOTICE*",
+    "/NOTICE",
+    "/build/*",
+    "/src",
+    "/patches",
+]
+
+[package.metadata.docs.rs]
+features = ["rpk", "underscore-wildcards", "mlkem"]
+rustdoc-args = ["--cfg", "docsrs"]
+
+[features]
+# Compile boringssl using the FIPS build flag if building boringssl from
+# scratch.
+#
+# See
+# https://boringssl.googlesource.com/boringssl/+/master/crypto/fipsmodule/FIPS.md
+# for instructions and more details on the boringssl FIPS flag.
+fips = []
+
+# Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
+rpk = []
+
+# Require mlkem.h
+mlkem = []
+
+# Violate RFC 5280 5.1.2.1 and allow certs with CRL extensions in X.509 version 1.
+# This feature is not guaranteed to be supported in future minor releases.
+allow-crl-extensions-bad-version = []
+
+# Applies a patch (`patches/underscore-wildcards.patch`) to enable
+# `ffi::X509_CHECK_FLAG_UNDERSCORE_WILDCARDS`. This feature is necessary in
+# order to compile the bindings for the default branch of boringSSL
+# (`deps/boringssl`). Alternatively, a version of boringSSL that implements the
+# same feature set can be provided by setting
+# `BORING_BSSL{,_FIPS}_SOURCE_PATH`.
+underscore-wildcards = []
+
+# Add a prefix to all symbols in libcrypto and libssl to prevent conflicts
+# with OpenSSL versions that might be linked in the same process.
+prefix-symbols = []
+
+# Restores the historical pre-TLS 1.3 client behaviour for RSA leaf certificates
+# whose keyUsage does not match the negotiated cipher suite. Enabling this
+# feature applies a build-time patch that makes those RSA mismatches non-fatal.
+# Non-RSA certificates, server validation, and TLS 1.3 are unaffected.
+relax-cert-validation = []
+
+[build-dependencies]
+bindgen = { version = "0.72.0", default-features = false, features = ["runtime"] }
+cmake = "0.1.58"
+fs_extra = "1.3.0"
+fslock = "0.2"
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(const_fn)'] }
+
+[lib]
+name = "btls_sys"
+
+[package.metadata.phantom]
+upstream-package = "btls-sys"
+upstream-version = "0.5.6"
+upstream-source = "https://codeload.github.com/bywayhq/btls/tar.gz/f478ea16a4b2f6ebbd221ce7cafdec10a32028eb"
+boringssl-revision = "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433"

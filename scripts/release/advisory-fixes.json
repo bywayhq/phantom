@@ -1,0 +1,7 @@
+{
+  "RUSTSEC-2026-0258": {
+    "package": "http2",
+    "version": "0.5.20",
+    "evidence": "vendor/http2/PHANTOM.md; patches/empty-data-frame-budget.patch"
+  }
+}

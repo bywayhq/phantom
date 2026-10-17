@@ -1,0 +1,66 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -1,21 +1,20 @@
+ [package]
+-name = "btls-sys"
+-version = { workspace = true }
++name = "phantom-btls-sys"
++version = "0.5.6-phantom.1"
+ authors = ["0x676e67 <gngppz@gmail.com>",
+             "Alex Crichton <alex@alexcrichton.com>",
+             "Steven Fackler <sfackler@gmail.com>",
+             "Ivan Nikulin <ifaaan@gmail.com>"]
+-license = "MIT"
++license = "MIT AND Apache-2.0 AND BSD-3-Clause"
+ description = "FFI bindings to BoringSSL"
+-repository = { workspace = true }
+-documentation = "https://docs.rs/btls-sys"
+-links = "boringssl"
++repository = "https://github.com/bywayhq/phantom"
++links = "phantom_boringssl"
+ build = "build/main.rs"
+ readme = "README.md"
+ categories = ["cryptography", "external-ffi-bindings"]
+ keywords = ["tls", "boringssl", "openssl", "fips", "ml-kem"]
+-edition = { workspace = true }
+-rust-version = { workspace = true }
++edition = "2021"
++rust-version = "1.85"
+ include = [
+     "/*.md",
+     "/*.toml",
+@@ -39,7 +38,9 @@
+     "/deps/boringssl/**/CMakeLists.txt",
+     "/deps/boringssl/**/sources.cmake",
+     "/deps/boringssl/**/util/go_tests.txt",
+-    "/deps/boringssl/LICENSE",
++    "/deps/boringssl/**/LICENSE*",
++    "/deps/boringssl/**/NOTICE*",
++    "/NOTICE",
+     "/build/*",
+     "/src",
+     "/patches",
+@@ -87,10 +88,19 @@
+ relax-cert-validation = []
+ 
+ [build-dependencies]
+-bindgen = { workspace = true }
+-cmake = { workspace = true }
+-fs_extra = { workspace = true }
+-fslock = { workspace = true }
++bindgen = { version = "0.72.0", default-features = false, features = ["runtime"] }
++cmake = "0.1.58"
++fs_extra = "1.3.0"
++fslock = "0.2"
+ 
+ [lints.rust]
+ unexpected_cfgs = { level = "allow", check-cfg = ['cfg(const_fn)'] }
++
++[lib]
++name = "btls_sys"
++
++[package.metadata.phantom]
++upstream-package = "btls-sys"
++upstream-version = "0.5.6"
++upstream-source = "https://codeload.github.com/bywayhq/btls/tar.gz/f478ea16a4b2f6ebbd221ce7cafdec10a32028eb"
++boringssl-revision = "f1f2556a5dfa59e147d9d47279cc3f7f8a18b433"

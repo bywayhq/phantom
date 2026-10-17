@@ -1,0 +1,339 @@
+From b31058c3369b5c231f54b480e6a87a665168e2b1 Mon Sep 17 00:00:00 2001
+From: Arya Alikhani <alexanderaryaalikhani@gmail.com>
+Date: Mon, 21 Sep 2026 15:10:16 -0700
+Subject: [PATCH 12/12] boringssl: select ECH GREASE AEAD from a configured
+ list
+
+---
+ include/openssl/prefix_symbols.h |   2 +
+ include/openssl/ssl.h            |  12 +++
+ ssl/encrypted_client_hello.cc    |  62 ++++++++++++
+ ssl/internal.h                   |   5 +
+ ssl/ssl_test.cc                  | 158 +++++++++++++++++++++++++++++++
+ 5 files changed, 239 insertions(+)
+
+diff --git a/include/openssl/prefix_symbols.h b/include/openssl/prefix_symbols.h
+index 6434eb180..805a03870 100644
+--- a/include/openssl/prefix_symbols.h
++++ b/include/openssl/prefix_symbols.h
+@@ -2360,6 +2360,7 @@
+ #pragma redefine_extname SSL_set1_curves BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set1_curves)
+ #pragma redefine_extname SSL_set1_curves_list BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set1_curves_list)
+ #pragma redefine_extname SSL_set1_ech_config_list BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set1_ech_config_list)
++#pragma redefine_extname SSL_set1_ech_grease_aeads BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set1_ech_grease_aeads)
+ #pragma redefine_extname SSL_set1_group_ids BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set1_group_ids)
+ #pragma redefine_extname SSL_set1_group_ids_with_flags BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set1_group_ids_with_flags)
+ #pragma redefine_extname SSL_set1_groups BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_set1_groups)
+@@ -5512,6 +5513,7 @@
+ #define SSL_set1_curves BORINGSSL_ADD_PREFIX(SSL_set1_curves)
+ #define SSL_set1_curves_list BORINGSSL_ADD_PREFIX(SSL_set1_curves_list)
+ #define SSL_set1_ech_config_list BORINGSSL_ADD_PREFIX(SSL_set1_ech_config_list)
++#define SSL_set1_ech_grease_aeads BORINGSSL_ADD_PREFIX(SSL_set1_ech_grease_aeads)
+ #define SSL_set1_group_ids BORINGSSL_ADD_PREFIX(SSL_set1_group_ids)
+ #define SSL_set1_group_ids_with_flags BORINGSSL_ADD_PREFIX(SSL_set1_group_ids_with_flags)
+ #define SSL_set1_groups BORINGSSL_ADD_PREFIX(SSL_set1_groups)
+diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
+index d57f5b555..cadab48c1 100644
+--- a/include/openssl/ssl.h
++++ b/include/openssl/ssl.h
+@@ -4703,6 +4703,18 @@ OPENSSL_EXPORT void SSL_set_enable_ech_grease(SSL *ssl, int enable);
+ OPENSSL_EXPORT int SSL_set_ech_grease_payload_length(SSL *ssl,
+                                                      size_t payload_length);
+ 
++// SSL_set1_ech_grease_aeads configures the HPKE AEAD identifiers from which a
++// GREASE ECH extension selects its cipher suite. Each handshake selects one
++// entry uniformly at random, and a HelloRetryRequest reuses that selection.
++// This does not enable ECH GREASE. Each identifier must be one of
++// `EVP_HPKE_AES_128_GCM`, `EVP_HPKE_AES_256_GCM`, or
++// `EVP_HPKE_CHACHA20_POLY1305` and may appear at most once. An empty list
++// restores the default, which selects AES-128-GCM when AES hardware is available
++// and ChaCha20-Poly1305 otherwise. It returns one on success and zero on error,
++// leaving the previous configuration unchanged.
++OPENSSL_EXPORT int SSL_set1_ech_grease_aeads(SSL *ssl, const uint16_t *aead_ids,
++                                             size_t num_aead_ids);
++
+ // SSL_set1_ech_config_list configures `ssl` to, as a client, offer ECH with the
+ // specified configuration. `ech_config_list` should contain a serialized
+ // ECHConfigList structure. It returns one on success and zero on error.
+diff --git a/ssl/encrypted_client_hello.cc b/ssl/encrypted_client_hello.cc
+index 27f161255..371b3d33c 100644
+--- a/ssl/encrypted_client_hello.cc
++++ b/ssl/encrypted_client_hello.cc
+@@ -737,6 +737,32 @@ static constexpr size_t kEchGreaseExtensionOverhead =
+ static_assert(kEchGreaseExtensionOverhead == 42,
+               "unexpected ECHClientHelloOuter overhead");
+ 
++// ech_grease_aead_from_id returns the GREASE-eligible HPKE AEAD for `aead_id`,
++// or nullptr if the identifier is not supported.
++static const EVP_HPKE_AEAD *ech_grease_aead_from_id(uint16_t aead_id) {
++  switch (aead_id) {
++    case EVP_HPKE_AES_128_GCM:
++      return EVP_hpke_aes_128_gcm();
++    case EVP_HPKE_AES_256_GCM:
++      return EVP_hpke_aes_256_gcm();
++    case EVP_HPKE_CHACHA20_POLY1305:
++      return EVP_hpke_chacha20_poly1305();
++  }
++  return nullptr;
++}
++
++// random_index returns a uniformly random value in [0, `n`). Rejection sampling
++// avoids modulo bias for counts that do not divide 256.
++static size_t random_index(size_t n) {
++  assert(n > 0 && n <= 256);
++  const unsigned limit = 256 - 256 % n;
++  uint8_t value;
++  do {
++    RAND_bytes(&value, 1);
++  } while (value >= limit);
++  return value % n;
++}
++
+ static bool setup_ech_grease(SSL_HANDSHAKE *hs) {
+   assert(!hs->selected_ech_config);
+   if (hs->max_version < TLS1_3_VERSION || !hs->config->ech_grease_enabled) {
+@@ -749,6 +775,14 @@ static bool setup_ech_grease(SSL_HANDSHAKE *hs) {
+                               : EVP_has_aes_hardware();
+   const EVP_HPKE_AEAD *aead =
+       has_aes_hw ? EVP_hpke_aes_128_gcm() : EVP_hpke_chacha20_poly1305();
++  // GREASE is set up once per handshake. The second ClientHello after a
++  // HelloRetryRequest reuses `hs->ech_client_outer`, so this choice is fixed.
++  const auto &grease_aeads = hs->config->ech_grease_aeads;
++  if (!grease_aeads.empty()) {
++    aead = ech_grease_aead_from_id(
++        grease_aeads[random_index(grease_aeads.size())]);
++    assert(aead != nullptr);
++  }
+   static_assert(ssl_grease_ech_config_id < sizeof(hs->grease_seed),
+                 "hs->grease_seed is too small");
+   uint8_t config_id = hs->grease_seed[ssl_grease_ech_config_id];
+@@ -930,6 +964,34 @@ int SSL_set_ech_grease_payload_length(SSL *ssl, size_t payload_length) {
+   return 1;
+ }
+ 
++int SSL_set1_ech_grease_aeads(SSL *ssl, const uint16_t *aead_ids,
++                              size_t num_aead_ids) {
++  auto *ssl_impl = FromOpaque(ssl);
++  if (!ssl_impl->config) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
++    return 0;
++  }
++  InplaceVector<uint16_t, 3> aeads;
++  if (num_aead_ids > aeads.capacity()) {
++    OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_LENGTH);
++    return 0;
++  }
++  if (num_aead_ids != 0 && aead_ids == nullptr) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_PASSED_NULL_PARAMETER);
++    return 0;
++  }
++  for (uint16_t aead_id : Span(aead_ids, num_aead_ids)) {
++    if (ech_grease_aead_from_id(aead_id) == nullptr ||
++        std::find(aeads.begin(), aeads.end(), aead_id) != aeads.end()) {
++      OPENSSL_PUT_ERROR(SSL, SSL_R_UNSUPPORTED_CIPHER);
++      return 0;
++    }
++    aeads.PushBack(aead_id);
++  }
++  ssl_impl->config->ech_grease_aeads = aeads;
++  return 1;
++}
++
+ int SSL_set1_ech_config_list(SSL *ssl, const uint8_t *ech_config_list,
+                              size_t ech_config_list_len) {
+   auto *ssl_impl = FromOpaque(ssl);
+diff --git a/ssl/internal.h b/ssl/internal.h
+index b7096c768..dc745768e 100644
+--- a/ssl/internal.h
++++ b/ssl/internal.h
+@@ -3582,6 +3582,11 @@ struct SSL_CONFIG {
+   // is selected using BoringSSL's default randomized policy.
+   std::optional<uint16_t> ech_grease_payload_length;
+ 
++  // ech_grease_aeads, if non-empty, contains the distinct HPKE AEAD identifiers
++  // from which a GREASE ECHClientHelloOuter selects its cipher suite. Otherwise
++  // the AEAD is selected from the AES hardware policy.
++  InplaceVector<uint16_t, 3> ech_grease_aeads;
++
+   // Enable signed certificate time stamps. Currently client only.
+   bool signed_cert_timestamps_enabled : 1;
+ 
+diff --git a/ssl/ssl_test.cc b/ssl/ssl_test.cc
+index d89c2487a..9b7208833 100644
+--- a/ssl/ssl_test.cc
++++ b/ssl/ssl_test.cc
+@@ -22,6 +22,7 @@
+ #include <iterator>
+ #include <limits>
+ #include <optional>
++#include <set>
+ #include <string>
+ #include <utility>
+ #include <vector>
+@@ -3230,6 +3231,163 @@ TEST(SSLTest, ECHGreasePayloadLength) {
+       {{ERR_LIB_SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED}}));
+ }
+ 
++// GetECHGreaseAEAD returns the HPKE AEAD identifier of the ECH GREASE
++// extension in `client_hello`, a complete handshake message.
++static bool GetECHGreaseAEAD(SSL *ssl, Span<const uint8_t> client_hello,
++                             uint16_t *out_aead_id) {
++  SSL_CLIENT_HELLO parsed;
++  const uint8_t *ech;
++  size_t ech_len;
++  auto body = client_hello.subspan(SSL3_HM_HEADER_LENGTH);
++  if (!SSL_parse_client_hello(ssl, &parsed, body.data(), body.size()) ||
++      !SSL_early_callback_ctx_extension_get(
++          &parsed, TLSEXT_TYPE_encrypted_client_hello, &ech, &ech_len)) {
++    return false;
++  }
++  // ECHClientHelloType (outer), then the KDF and AEAD identifiers.
++  CBS cbs(Span(ech, ech_len));
++  uint8_t type;
++  uint16_t kdf_id;
++  return CBS_get_u8(&cbs, &type) && type == 0 &&
++         CBS_get_u16(&cbs, &kdf_id) && kdf_id == EVP_HPKE_HKDF_SHA256 &&
++         CBS_get_u16(&cbs, out_aead_id);
++}
++
++static bool GetECHGreaseAEADFromFirstFlight(Span<const uint16_t> aead_ids,
++                                            uint16_t *out_aead_id) {
++  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL> ssl(ctx ? SSL_new(ctx.get()) : nullptr);
++  if (!ssl) {
++    return false;
++  }
++  SSL_set_enable_ech_grease(ssl.get(), 1);
++  if (!SSL_set1_ech_grease_aeads(ssl.get(), aead_ids.data(),
++                                 aead_ids.size())) {
++    return false;
++  }
++  SSL_set_connect_state(ssl.get());
++  std::vector<uint8_t> client_hello;
++  return GetClientHello(ssl.get(), &client_hello) &&
++         GetECHGreaseAEAD(ssl.get(),
++                          Span(client_hello).subspan(SSL3_RT_HEADER_LENGTH),
++                          out_aead_id);
++}
++
++TEST(SSLTest, ECHGreaseAEADs) {
++  uint16_t aead_id;
++  for (uint16_t id : {EVP_HPKE_AES_128_GCM, EVP_HPKE_AES_256_GCM,
++                      EVP_HPKE_CHACHA20_POLY1305}) {
++    ASSERT_TRUE(GetECHGreaseAEADFromFirstFlight({&id, 1}, &aead_id));
++    EXPECT_EQ(id, aead_id);
++  }
++
++  // Every configured AEAD is eventually selected, and nothing else is. The
++  // chance of missing one in 64 fair draws is 2^-63.
++  const uint16_t kTwo[] = {EVP_HPKE_AES_128_GCM, EVP_HPKE_CHACHA20_POLY1305};
++  std::set<uint16_t> seen;
++  for (int i = 0; i < 64; i++) {
++    ASSERT_TRUE(GetECHGreaseAEADFromFirstFlight(kTwo, &aead_id));
++    seen.insert(aead_id);
++  }
++  EXPECT_EQ(seen, std::set<uint16_t>(std::begin(kTwo), std::end(kTwo)));
++
++  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL> ssl(ctx ? SSL_new(ctx.get()) : nullptr);
++  ASSERT_TRUE(ssl);
++  const uint16_t kTooMany[] = {EVP_HPKE_AES_128_GCM, EVP_HPKE_AES_256_GCM,
++                               EVP_HPKE_CHACHA20_POLY1305,
++                               EVP_HPKE_AES_128_GCM};
++  EXPECT_FALSE(SSL_set1_ech_grease_aeads(ssl.get(), kTooMany,
++                                         std::size(kTooMany)));
++  EXPECT_TRUE(ErrorsAreAndClear({{ERR_LIB_SSL, SSL_R_BAD_LENGTH}}));
++  const uint16_t kUnknown[] = {EVP_HPKE_AES_128_GCM, 0x0004};
++  EXPECT_FALSE(SSL_set1_ech_grease_aeads(ssl.get(), kUnknown,
++                                         std::size(kUnknown)));
++  EXPECT_TRUE(ErrorsAreAndClear({{ERR_LIB_SSL, SSL_R_UNSUPPORTED_CIPHER}}));
++  const uint16_t kDuplicate[] = {EVP_HPKE_CHACHA20_POLY1305,
++                                 EVP_HPKE_CHACHA20_POLY1305};
++  EXPECT_FALSE(SSL_set1_ech_grease_aeads(ssl.get(), kDuplicate,
++                                         std::size(kDuplicate)));
++  EXPECT_TRUE(ErrorsAreAndClear({{ERR_LIB_SSL, SSL_R_UNSUPPORTED_CIPHER}}));
++  EXPECT_FALSE(SSL_set1_ech_grease_aeads(ssl.get(), nullptr, 1));
++  EXPECT_TRUE(ErrorsAreAndClear({{ERR_LIB_SSL, ERR_R_PASSED_NULL_PARAMETER}}));
++  // Rejected lists leave the configuration unchanged.
++  EXPECT_TRUE(FromOpaque(ssl.get())->config->ech_grease_aeads.empty());
++
++  // An empty list restores the AES hardware policy.
++  const uint16_t kChaCha = EVP_HPKE_CHACHA20_POLY1305;
++  ASSERT_TRUE(SSL_set1_ech_grease_aeads(ssl.get(), &kChaCha, 1));
++  ASSERT_TRUE(SSL_set1_ech_grease_aeads(ssl.get(), nullptr, 0));
++  SSL_set_aes_hw_override_for_testing(ssl.get(), 1);
++  SSL_set_enable_ech_grease(ssl.get(), 1);
++  SSL_set_connect_state(ssl.get());
++  std::vector<uint8_t> client_hello;
++  ASSERT_TRUE(GetClientHello(ssl.get(), &client_hello));
++  ASSERT_TRUE(GetECHGreaseAEAD(
++      ssl.get(), Span(client_hello).subspan(SSL3_RT_HEADER_LENGTH), &aead_id));
++  EXPECT_EQ(EVP_HPKE_AES_128_GCM, aead_id);
++
++  FromOpaque(ssl.get())->config.reset();
++  EXPECT_FALSE(SSL_set1_ech_grease_aeads(ssl.get(), &kChaCha, 1));
++  EXPECT_TRUE(ErrorsAreAndClear(
++      {{ERR_LIB_SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED}}));
++}
++
++static void RecordClientHellos(int is_write, int version, int content_type,
++                               const void *buf, size_t len, SSL *ssl,
++                               void *arg) {
++  const auto *msg = static_cast<const uint8_t *>(buf);
++  if (is_write && content_type == SSL3_RT_HANDSHAKE && len > 0 &&
++      msg[0] == SSL3_MT_CLIENT_HELLO) {
++    static_cast<std::vector<std::vector<uint8_t>> *>(arg)->emplace_back(
++        msg, msg + len);
++  }
++}
++
++// A HelloRetryRequest must not draw a new GREASE AEAD.
++TEST(SSLTest, ECHGreaseAEADSurvivesHelloRetryRequest) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureVersion(client_ctx.get(), TLS1_3_VERSION);
++  ConfigureVersion(server_ctx.get(), TLS1_3_VERSION);
++  // The client predicts X25519 only, so a P-256-only server sends a
++  // HelloRetryRequest.
++  const uint16_t kClientGroups[] = {SSL_GROUP_X25519, SSL_GROUP_SECP256R1};
++  const uint16_t kServerGroups[] = {SSL_GROUP_SECP256R1};
++  ASSERT_TRUE(SSL_CTX_set1_group_ids(client_ctx.get(), kClientGroups,
++                                     std::size(kClientGroups)));
++  ASSERT_TRUE(SSL_CTX_set1_group_ids(server_ctx.get(), kServerGroups,
++                                     std::size(kServerGroups)));
++
++  const uint16_t kAEADs[] = {EVP_HPKE_AES_128_GCM,
++                             EVP_HPKE_CHACHA20_POLY1305};
++  std::set<uint16_t> seen;
++  for (int i = 0; i < 32; i++) {
++    bssl::UniquePtr<SSL> client, server;
++    ASSERT_TRUE(CreateClientAndServer(&client, &server, client_ctx.get(),
++                                      server_ctx.get()));
++    SSL_set_enable_ech_grease(client.get(), 1);
++    ASSERT_TRUE(SSL_set1_ech_grease_aeads(client.get(), kAEADs,
++                                          std::size(kAEADs)));
++    std::vector<std::vector<uint8_t>> client_hellos;
++    SSL_set_msg_callback(client.get(), RecordClientHellos);
++    SSL_set_msg_callback_arg(client.get(), &client_hellos);
++    ASSERT_TRUE(CompleteHandshakes(client.get(), server.get()));
++    ASSERT_TRUE(SSL_used_hello_retry_request(client.get()));
++    ASSERT_EQ(2u, client_hellos.size());
++
++    uint16_t first, second;
++    ASSERT_TRUE(GetECHGreaseAEAD(client.get(), client_hellos[0], &first));
++    ASSERT_TRUE(GetECHGreaseAEAD(client.get(), client_hellos[1], &second));
++    EXPECT_EQ(first, second);
++    seen.insert(first);
++  }
++  EXPECT_EQ(seen, std::set<uint16_t>(std::begin(kAEADs), std::end(kAEADs)));
++}
++
+ TEST(SSLTest, ECHPadding) {
+   bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
+   ASSERT_TRUE(ctx);
+-- 
+2.54.0.windows.1
+

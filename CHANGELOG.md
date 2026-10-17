@@ -1,13 +1,19 @@
 # Changelog
 
-Phantom has no releases or tags yet, so this file groups changes by commit
-range instead of by version. Downstream projects pin an exact commit with
-`rev`. Breaking entries include a `Migrate:` note for moving past them.
+Changes are grouped by version. Before 0.1.0, downstream projects pinned
+an exact commit with `rev`. Breaking entries include a `Migrate:` note.
 
 To move `rev`, follow [Adding Phantom to a project](docs/guides/downstream.md).
 The format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
+
+## [0.1.0] - 2026-10-17
+
+- Prepare registry packages with bundled native TLS sources and licenses,
+  archive-based downstream checks, and verified Byway team ownership.
+- Fix packaged builds with `fingerprint-import` enabled by keeping the
+  repository-only documentation include out of ordinary library compilation.
 
 Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 

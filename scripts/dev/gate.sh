@@ -314,7 +314,7 @@ shared_boringssl() {
     return
   fi
   sources=$(for manifest in Cargo.lock fuzz/Cargo.lock; do
-    tr -d '\r' <"$manifest" | grep -A2 '^name = "btls-sys"$' | sed -n 's/^source = //p'
+    tr -d '\r' <"$manifest" | grep -A1 '^name = "phantom-btls-sys"$' | sed -n 's/^version = //p'
   done | sort -u)
   if [[ -z $sources || $sources == *$'\n'* ]]; then
     echo "gate: Cargo.lock and fuzz/Cargo.lock do not pin one btls-sys; each directory builds BoringSSL" >&2
@@ -322,17 +322,17 @@ shared_boringssl() {
   fi
   for manifest in Cargo.toml fuzz/Cargo.toml; do
     if ! features=$("$lock" cargo tree --manifest-path "$manifest" --workspace --all-features \
-      --locked -i btls-sys -e features --prefix none); then
+      --locked -i phantom-btls-sys -e features --prefix none); then
       echo "gate: cargo tree failed for $manifest; each directory builds BoringSSL" >&2
       return
     fi
-    if grep -v '^btls-sys feature "default"' <<<"$features" | grep -q '^btls-sys feature'; then
+    if grep -v '^phantom-btls-sys feature "default"' <<<"$features" | grep -q '^phantom-btls-sys feature'; then
       echo "gate: $manifest enables a btls-sys feature; each directory builds BoringSSL" >&2
       return
     fi
   done
   steps+=(boringssl)
-  run_step boringssl boringssl cargo check -j "$jobs" -p btls-sys --locked \
+  run_step boringssl boringssl cargo check -j "$jobs" -p phantom-btls-sys --locked \
     --message-format=json-render-diagnostics
   out=$(grep '"reason":"build-script-executed"' "$log" | grep '"package_id":"[^"]*btls-sys' |
     sed -n 's/.*"out_dir":"\([^"]*\)".*/\1/p' | sed 's|\\\\|/|g')
@@ -422,7 +422,7 @@ chain_linux() {
   run_step linux-msrv - "$lock" "$wsl_cargo" --target-name msrv     "+$msrv" check -j "$jobs" --workspace --all-targets --locked
 }
 chain_python() {
-  local ruff=(uvx ruff@0.16.9) paths=(scripts/capture scripts/conformance scripts/dev scripts/docs)
+  local ruff=(uvx ruff@0.16.9) paths=(scripts/capture scripts/conformance scripts/dev scripts/docs scripts/release)
   run_step ruff-check - "${ruff[@]}" check "${paths[@]}"
   run_step ruff-format - "${ruff[@]}" format --check "${paths[@]}"
   run_step capture-tests - "${capture_python[@]}" --with aioquic==1.3.0 --with h2==4.4.1 \

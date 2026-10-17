@@ -86,6 +86,7 @@ metadata_path, expected_source = sys.argv[1], sys.argv[2]
 # transitively. None of them may appear in a consumer graph.
 stock = {
     "btls",
+    "btls-sys",
     "h3",
     "h3-datagram",
     "h3-quinn",
@@ -98,11 +99,6 @@ stock = {
     "wreq-proto",
 }
 forks = {f"phantom-{name}" for name in stock}
-btls_sys_source = (
-    "git+https://github.com/bywayhq/btls"
-    "?rev=f478ea16a4b2f6ebbd221ce7cafdec10a32028eb"
-    "#f478ea16a4b2f6ebbd221ce7cafdec10a32028eb"
-)
 
 with open(metadata_path, encoding="utf-8") as metadata_file:
     packages = json.load(metadata_file)["packages"]
@@ -133,10 +129,6 @@ for name in sorted(forks):
     kind = source_kind(resolved[0]["source"])
     if kind != expected_source:
         failures.append(f"{name} resolved from {kind}, expected {expected_source}")
-
-btls_sys = by_name.get("btls-sys", [])
-if [package["source"] for package in btls_sys] != [btls_sys_source]:
-    failures.append(f"btls-sys did not resolve only from the reviewed fork: {btls_sys}")
 
 for failure in failures:
     print(failure, file=sys.stderr)

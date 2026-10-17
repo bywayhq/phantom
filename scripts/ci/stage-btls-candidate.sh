@@ -161,3 +161,11 @@ while IFS= read -r patch_name; do
   fi
   git -C "$destination" apply "$patch_file"
 done < "$series_file"
+
+# Standalone candidates need the publishable native sibling outside the diff.
+native_destination=$(dirname "$destination")/btls-sys
+if [[ ! -e "$native_destination" ]]; then
+  mkdir -p "$native_destination"
+  tar -C "$(dirname "$patch_dir")/../btls-sys" --exclude=./target -cf - . |
+    tar -C "$native_destination" -xf -
+fi

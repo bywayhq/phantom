@@ -1,0 +1,736 @@
+From b1aea569d0f6196c56f7d72d4a9a040a16447f3c Mon Sep 17 00:00:00 2001
+From: Arya Alikhani <alexanderaryaalikhani@gmail.com>
+Date: Fri, 2 Oct 2026 10:09:28 -0700
+Subject: [PATCH 14/17] boringssl: write a fixed extension tail after the
+ shuffled middle
+
+Firefox shuffles its built-in ClientHello extensions on every connection
+and then appends extensions that are not part of that permutation. Over
+QUIC, every Firefox 156 and 157 ClientHello ends with
+quic_transport_parameters and encrypted_client_hello, followed by
+pre_shared_key when it resumes. Patch 0004 can fix a prefix and shuffle
+the remainder, but cannot keep a tail fixed after a shuffled middle.
+
+Add SSL_CTX_set_extension_order_tail. Known IDs in the tail are written
+after every other extension, in the given order; only padding and
+pre_shared_key follow them. The extensions between a configured prefix
+and the tail are shuffled when a prefix is set or permutation is
+enabled, and keep the default order otherwise. An ID may not appear in
+both the prefix and the tail; each setter rejects an overlap with
+SSL_R_DUPLICATE_EXTENSION. Unknown and duplicate IDs are ignored, as in
+the prefix.
+
+The permutation is computed once per handshake, so the second
+ClientHello after a HelloRetryRequest keeps the order. With GREASE, the
+trailing GREASE extension now precedes the tail in both ClientHelloOuter
+and the compressed part of ClientHelloInner, which keeps
+ech_outer_extensions in the outer order. Without a tail, the writers
+produce the same bytes as before.
+---
+ include/openssl/prefix_symbols.h |   2 +
+ include/openssl/ssl.h            |  24 ++-
+ ssl/extensions.cc                | 115 ++++++++---
+ ssl/internal.h                   |  17 +-
+ ssl/ssl_lib.cc                   |  37 +++-
+ ssl/ssl_test.cc                  | 339 +++++++++++++++++++++++++++++++
+ 6 files changed, 499 insertions(+), 35 deletions(-)
+
+diff --git a/include/openssl/prefix_symbols.h b/include/openssl/prefix_symbols.h
+index 805a03870..544c5cbea 100644
+--- a/include/openssl/prefix_symbols.h
++++ b/include/openssl/prefix_symbols.h
+@@ -2039,6 +2039,7 @@
+ #pragma redefine_extname SSL_CTX_set_early_data_enabled BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_early_data_enabled)
+ #pragma redefine_extname SSL_CTX_set_ex_data BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_ex_data)
+ #pragma redefine_extname SSL_CTX_set_extension_order BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_extension_order)
++#pragma redefine_extname SSL_CTX_set_extension_order_tail BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_extension_order_tail)
+ #pragma redefine_extname SSL_CTX_set_false_start_allowed_without_alpn BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_false_start_allowed_without_alpn)
+ #pragma redefine_extname SSL_CTX_set_grease_enabled BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_grease_enabled)
+ #pragma redefine_extname SSL_CTX_set_grease_sigalgs_enabled BORINGSSL_ADD_USER_LABEL_AND_PREFIX(SSL_CTX_set_grease_sigalgs_enabled)
+@@ -5192,6 +5193,7 @@
+ #define SSL_CTX_set_early_data_enabled BORINGSSL_ADD_PREFIX(SSL_CTX_set_early_data_enabled)
+ #define SSL_CTX_set_ex_data BORINGSSL_ADD_PREFIX(SSL_CTX_set_ex_data)
+ #define SSL_CTX_set_extension_order BORINGSSL_ADD_PREFIX(SSL_CTX_set_extension_order)
++#define SSL_CTX_set_extension_order_tail BORINGSSL_ADD_PREFIX(SSL_CTX_set_extension_order_tail)
+ #define SSL_CTX_set_false_start_allowed_without_alpn BORINGSSL_ADD_PREFIX(SSL_CTX_set_false_start_allowed_without_alpn)
+ #define SSL_CTX_set_grease_enabled BORINGSSL_ADD_PREFIX(SSL_CTX_set_grease_enabled)
+ #define SSL_CTX_set_grease_sigalgs_enabled BORINGSSL_ADD_PREFIX(SSL_CTX_set_grease_sigalgs_enabled)
+diff --git a/include/openssl/ssl.h b/include/openssl/ssl.h
+index c47d60864..455e03ee4 100644
+--- a/include/openssl/ssl.h
++++ b/include/openssl/ssl.h
+@@ -5679,10 +5679,32 @@ OPENSSL_EXPORT void SSL_set_permute_extensions(SSL *ssl, int enabled);
+ // SSL_CTX_set_extension_order sets the ClientHello extension order for
+ // connections created from |ctx|. Known IDs keep their given order. Unknown
+ // and duplicate IDs are ignored, and unlisted extensions are appended in
+-// random order. Passing an empty list clears the configured order.
++// random order, before any tail set by |SSL_CTX_set_extension_order_tail|.
++// Passing an empty list clears the configured order. It returns one on success
++// and zero on allocation failure or if an ID is also in the tail.
+ OPENSSL_EXPORT int SSL_CTX_set_extension_order(SSL_CTX *ctx,
+                                                const uint16_t *ids, int num);
+ 
++// SSL_CTX_set_extension_order_tail sets ClientHello extensions that
++// connections created from |ctx| write after all others, in the given order.
++// Only the padding and pre_shared_key extensions follow them. If GREASE is
++// enabled, the trailing GREASE extension precedes them. Unknown and duplicate
++// IDs are ignored, and a listed extension is written only when the connection
++// would send it anyway.
++//
++// The extensions between the order set by |SSL_CTX_set_extension_order| and
++// the tail are shuffled if that order is set or extension permutation is
++// enabled, and keep the default order otherwise. The second ClientHello after
++// a HelloRetryRequest keeps the order. ClientHelloInner applies it as it does
++// the permutation of |SSL_CTX_set_permute_extensions|.
++//
++// Passing an empty list clears the tail. It returns one on success and zero on
++// allocation failure or if an ID is also in the order set by
++// |SSL_CTX_set_extension_order|.
++OPENSSL_EXPORT int SSL_CTX_set_extension_order_tail(SSL_CTX *ctx,
++                                                    const uint16_t *ids,
++                                                    size_t num);
++
+ // SSL_set_record_size_limit configures the maximum protected TLS record
+ // plaintext |ssl| is willing to receive, as specified by RFC 8449. |limit|
+ // must be zero (to disable the extension) or between 64 and 16385 inclusive.
+diff --git a/ssl/extensions.cc b/ssl/extensions.cc
+index dc8132070..d9221c5ae 100644
+--- a/ssl/extensions.cc
++++ b/ssl/extensions.cc
+@@ -4564,12 +4564,27 @@ static bool ssl_shuffle_extension_order_suffix(Span<uint8_t> suffix) {
+   return true;
+ }
+ 
+-// Put configured extensions first, then append every extension not listed in
+-// the configuration. Unknown IDs and duplicates do not take a slot. The first
+-// part stays in order; ssl_shuffle_extension_order_suffix randomizes the rest.
++// extension_index returns the kExtensions index of wire ID `id`, or
++// kNumExtensions if the table does not contain it.
++static size_t extension_index(uint16_t id) {
++  for (size_t i = 0; i < kNumExtensions; i++) {
++    if (kExtensions[i].value == id) {
++      return i;
++    }
++  }
++  return kNumExtensions;
++}
++
++// Put the configured prefix first, then every extension listed in neither the
++// prefix nor the tail, then the configured tail. Unknown IDs and duplicates do
++// not take a slot. The prefix and tail stay in order. The middle part is
++// shuffled by ssl_shuffle_extension_order_suffix when a prefix is configured
++// or permutation is enabled.
+ bool ssl_setup_extension_order(SSL_HANDSHAKE *hs) {
+   SSLImpl *const ssl = hs->ssl;
+-  if (ssl->ctx->extension_order.empty()) {
++  hs->extension_order_tail_len = 0;
++  if (ssl->ctx->extension_order.empty() &&
++      ssl->ctx->extension_order_tail.empty()) {
+     return ssl_setup_extension_permutation(hs);
+   }
+ 
+@@ -4584,12 +4599,7 @@ bool ssl_setup_extension_order(SSL_HANDSHAKE *hs) {
+   // extension_order contains wire IDs, but the ClientHello writer reads
+   // indexes into kExtensions. Add each known index once.
+   for (uint16_t id : ssl->ctx->extension_order) {
+-    size_t j;
+-    for (j = 0; j < kNumExtensions; j++) {
+-      if (kExtensions[j].value == id) {
+-        break;
+-      }
+-    }
++    size_t j = extension_index(id);
+     if (j == kNumExtensions || seen[j]) {
+       continue;
+     }
+@@ -4601,9 +4611,23 @@ bool ssl_setup_extension_order(SSL_HANDSHAKE *hs) {
+     permutation[permutation_len++] = static_cast<uint8_t>(j);
+   }
+ 
+-  // Everything appended after this point belongs to the random suffix. The
+-  // helper receives a subspan, so its indexes start at zero.
+-  const size_t suffix_offset = permutation_len;
++  // Collect the tail before the middle part so the middle part can skip it.
++  // The setters keep the prefix and tail disjoint, and `seen` drops anything
++  // already placed.
++  uint8_t tail[kNumExtensions];
++  size_t tail_len = 0;
++  for (uint16_t id : ssl->ctx->extension_order_tail) {
++    size_t j = extension_index(id);
++    if (j == kNumExtensions || seen[j]) {
++      continue;
++    }
++    seen[j] = true;
++    tail[tail_len++] = static_cast<uint8_t>(j);
++  }
++
++  // Everything appended after this point, up to the tail, belongs to the
++  // middle part. The helper receives a subspan, so its indexes start at zero.
++  const size_t middle_offset = permutation_len;
+   for (size_t i = 0; i < kNumExtensions; i++) {
+     if (seen[i]) {
+       continue;
+@@ -4614,6 +4638,15 @@ bool ssl_setup_extension_order(SSL_HANDSHAKE *hs) {
+     }
+     permutation[permutation_len++] = static_cast<uint8_t>(i);
+   }
++  const size_t middle_len = permutation_len - middle_offset;
++
++  for (size_t i = 0; i < tail_len; i++) {
++    if (permutation_len >= permutation.size()) {
++      OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
++      return false;
++    }
++    permutation[permutation_len++] = tail[i];
++  }
+ 
+   // Every kExtensions index must have been written once before the
+   // ClientHello writer uses the permutation.
+@@ -4621,12 +4654,14 @@ bool ssl_setup_extension_order(SSL_HANDSHAKE *hs) {
+     OPENSSL_PUT_ERROR(SSL, ERR_R_INTERNAL_ERROR);
+     return false;
+   }
+-  if (!ssl_shuffle_extension_order_suffix(
+-          Span(permutation).subspan(suffix_offset))) {
++  if ((!ssl->ctx->extension_order.empty() || hs->config->permute_extensions) &&
++      !ssl_shuffle_extension_order_suffix(
++          Span(permutation).subspan(middle_offset, middle_len))) {
+     return false;
+   }
+ 
+   hs->extension_permutation = std::move(permutation);
++  hs->extension_order_tail_len = static_cast<uint8_t>(tail_len);
+   return true;
+ }
+ 
+@@ -4708,7 +4743,23 @@ static bool ssl_add_clienthello_tlsext_inner(SSL_HANDSHAKE *hs, CBB *out,
+     }
+   }
+ 
++  // Add a fake non-empty extension. See RFC 8701. This always matches
++  // `ssl_add_clienthello_tlsext`, so compress it. It precedes any configured
++  // extension order tail.
++  auto add_grease_extension2 = [&]() -> bool {
++    if (!ssl->ctx->grease_enabled) {
++      return true;
++    }
++    uint16_t grease_ext = ssl_get_grease_value(hs, ssl_grease_extension2);
++    return add_padding_extension(compressed.get(), grease_ext, 1) &&
++           CBB_add_u16(outer_extensions.get(), grease_ext);
++  };
++
++  const size_t tail_start = kNumExtensions - hs->extension_order_tail_len;
+   for (size_t unpermuted = 0; unpermuted < kNumExtensions; unpermuted++) {
++    if (unpermuted == tail_start && !add_grease_extension2()) {
++      return false;
++    }
+     size_t i = hs->extension_permutation.empty()
+                    ? unpermuted
+                    : hs->extension_permutation[unpermuted];
+@@ -4736,14 +4787,8 @@ static bool ssl_add_clienthello_tlsext_inner(SSL_HANDSHAKE *hs, CBB *out,
+     }
+   }
+ 
+-  if (ssl->ctx->grease_enabled) {
+-    // Add a fake non-empty extension. See RFC 8701. This always matches
+-    // `ssl_add_clienthello_tlsext`, so compress it.
+-    uint16_t grease_ext = ssl_get_grease_value(hs, ssl_grease_extension2);
+-    if (!add_padding_extension(compressed.get(), grease_ext, 1) ||
+-        !CBB_add_u16(outer_extensions.get(), grease_ext)) {
+-      return false;
+-    }
++  if (tail_start == kNumExtensions && !add_grease_extension2()) {
++    return false;
+   }
+ 
+   // Uncompressed extensions are encoded as-is.
+@@ -4821,7 +4866,22 @@ bool ssl_add_clienthello_tlsext(SSL_HANDSHAKE *hs, CBB *out, CBB *out_encoded,
+   }
+ 
+   bool last_was_empty = false;
++  // Add a fake non-empty extension. See RFC 8701. It precedes any configured
++  // extension order tail.
++  auto add_grease_extension2 = [&]() -> bool {
++    if (!ssl->ctx->grease_enabled) {
++      return true;
++    }
++    last_was_empty = false;
++    return add_padding_extension(
++        &extensions, ssl_get_grease_value(hs, ssl_grease_extension2), 1);
++  };
++
++  const size_t tail_start = kNumExtensions - hs->extension_order_tail_len;
+   for (size_t unpermuted = 0; unpermuted < kNumExtensions; unpermuted++) {
++    if (unpermuted == tail_start && !add_grease_extension2()) {
++      return false;
++    }
+     size_t i = hs->extension_permutation.empty()
+                    ? unpermuted
+                    : hs->extension_permutation[unpermuted];
+@@ -4841,13 +4901,8 @@ bool ssl_add_clienthello_tlsext(SSL_HANDSHAKE *hs, CBB *out, CBB *out_encoded,
+     last_was_empty = (bytes_written == 4);
+   }
+ 
+-  if (ssl->ctx->grease_enabled) {
+-    // Add a fake non-empty extension. See RFC 8701.
+-    if (!add_padding_extension(
+-            &extensions, ssl_get_grease_value(hs, ssl_grease_extension2), 1)) {
+-      return false;
+-    }
+-    last_was_empty = false;
++  if (tail_start == kNumExtensions && !add_grease_extension2()) {
++    return false;
+   }
+ 
+   // In cleartext ClientHellos, we add the padding extension to work around
+diff --git a/ssl/internal.h b/ssl/internal.h
+index 95f8e577f..35a0b3884 100644
+--- a/ssl/internal.h
++++ b/ssl/internal.h
+@@ -1964,6 +1964,12 @@ struct SSL_HANDSHAKE {
+   // indices.
+   Array<uint8_t> extension_permutation;
+ 
++  // extension_order_tail_len is the number of entries at the end of
++  // `extension_permutation` that form the tail configured by
++  // SSL_CTX_set_extension_order_tail. The trailing GREASE extension is
++  // written before them.
++  uint8_t extension_order_tail_len = 0;
++
+   // cert_compression_alg_id, for a server, contains the negotiated certificate
+   // compression algorithm for this client. It is only valid if
+   // `cert_compression_negotiated` is true.
+@@ -2292,9 +2298,10 @@ bool tls13_process_new_session_ticket(SSLImpl *ssl, const SSLMessage &msg);
+ UniquePtr<SSL_SESSION> tls13_create_session_with_ticket(SSLImpl *ssl,
+                                                         CBS *body);
+ 
+-// ssl_setup_extension_order builds the configured extension prefix and
+-// shuffles the remaining extensions. With no configured order, it uses the
+-// normal permutation setting.
++// ssl_setup_extension_order builds the configured extension prefix, the
++// remaining extensions, and the configured tail. The remaining extensions are
++// shuffled when a prefix is configured or permutation is enabled. With no
++// configured prefix or tail, it uses the normal permutation setting.
+ bool ssl_setup_extension_order(SSL_HANDSHAKE *hs);
+ 
+ // ssl_setup_extension_permutation computes a ClientHello extension permutation
+@@ -4341,6 +4348,10 @@ class SSLContext : public ssl_ctx_st, public RefCounted<SSLContext> {
+   // SSL_CTX_set_extension_order. An empty array leaves the order unset.
+   bssl::Array<uint16_t> extension_order;
+ 
++  // extension_order_tail stores wire extension IDs in the order requested by
++  // SSL_CTX_set_extension_order_tail. An empty array leaves the tail unset.
++  bssl::Array<uint16_t> extension_order_tail;
++
+   // preserve_tls13_cipher_list indicates that the TLS 1.3 cipher list order
+   // should be preserved, potentially preferring ChaCha20-Poly1305 over AES-GCM
+   // ciphers. It is only effective on the client side.
+diff --git a/ssl/ssl_lib.cc b/ssl/ssl_lib.cc
+index 004942bd0..0554fdee9 100644
+--- a/ssl/ssl_lib.cc
++++ b/ssl/ssl_lib.cc
+@@ -3412,7 +3412,19 @@ void SSL_set_permute_extensions(SSL *ssl, int enabled) {
+   ssl_impl->config->permute_extensions = !!enabled;
+ }
+ 
++// extension_orders_overlap returns whether an ID appears in both `a` and `b`.
++static bool extension_orders_overlap(Span<const uint16_t> a,
++                                     Span<const uint16_t> b) {
++  for (uint16_t id : a) {
++    if (std::find(b.begin(), b.end(), id) != b.end()) {
++      return true;
++    }
++  }
++  return false;
++}
++
+ int SSL_CTX_set_extension_order(SSL_CTX *ctx, const uint16_t *ids, int num) {
++  auto *ctx_impl = FromOpaque(ctx);
+   Array<uint16_t> order;
+   if (num > 0) {
+     if (!order.Init(num)) {
+@@ -3422,7 +3434,30 @@ int SSL_CTX_set_extension_order(SSL_CTX *ctx, const uint16_t *ids, int num) {
+       order[i] = ids[i];
+     }
+   }
+-  FromOpaque(ctx)->extension_order = std::move(order);
++  if (extension_orders_overlap(order, ctx_impl->extension_order_tail)) {
++    OPENSSL_PUT_ERROR(SSL, SSL_R_DUPLICATE_EXTENSION);
++    return 0;
++  }
++  ctx_impl->extension_order = std::move(order);
++  return 1;
++}
++
++int SSL_CTX_set_extension_order_tail(SSL_CTX *ctx, const uint16_t *ids,
++                                     size_t num) {
++  auto *ctx_impl = FromOpaque(ctx);
++  if (num != 0 && ids == nullptr) {
++    OPENSSL_PUT_ERROR(SSL, ERR_R_PASSED_NULL_PARAMETER);
++    return 0;
++  }
++  Array<uint16_t> tail;
++  if (!tail.CopyFrom(Span(ids, num))) {
++    return 0;
++  }
++  if (extension_orders_overlap(tail, ctx_impl->extension_order)) {
++    OPENSSL_PUT_ERROR(SSL, SSL_R_DUPLICATE_EXTENSION);
++    return 0;
++  }
++  ctx_impl->extension_order_tail = std::move(tail);
+   return 1;
+ }
+ 
+diff --git a/ssl/ssl_test.cc b/ssl/ssl_test.cc
+index 70f077d7f..1f081b159 100644
+--- a/ssl/ssl_test.cc
++++ b/ssl/ssl_test.cc
+@@ -11343,6 +11343,345 @@ TEST(SSLTest, ExtensionOrderPreservesPrefixAndShufflesRemainder) {
+   EXPECT_TRUE(suffix_changed) << "Unlisted extensions were not shuffled";
+ }
+ 
++// ExtensionTypesOf returns the extension types of `client_hello`, a complete
++// ClientHello handshake message, in wire order.
++static std::vector<uint16_t> ExtensionTypesOf(
++    SSL *ssl, Span<const uint8_t> client_hello) {
++  std::vector<uint16_t> types;
++  SSL_CLIENT_HELLO parsed;
++  auto body = client_hello.subspan(SSL3_HM_HEADER_LENGTH);
++  if (!SSL_parse_client_hello(ssl, &parsed, body.data(), body.size())) {
++    ADD_FAILURE() << "Could not parse ClientHello";
++    return types;
++  }
++  CBS extensions(Span(parsed.extensions, parsed.extensions_len));
++  while (CBS_len(&extensions) != 0) {
++    uint16_t type;
++    CBS unused;
++    if (!CBS_get_u16(&extensions, &type) ||
++        !CBS_get_u16_length_prefixed(&extensions, &unused)) {
++      ADD_FAILURE() << "Could not parse ClientHello extensions";
++      return types;
++    }
++    types.push_back(type);
++  }
++  return types;
++}
++
++// WithoutPadding returns `order` without the padding extension, which the
++// ClientHello writer adds after any configured tail.
++static std::vector<uint16_t> WithoutPadding(std::vector<uint16_t> order) {
++  order.erase(std::remove(order.begin(), order.end(), TLSEXT_TYPE_padding),
++              order.end());
++  return order;
++}
++
++static bool EndsWith(const std::vector<uint16_t> &order,
++                     const std::vector<uint16_t> &suffix) {
++  return order.size() >= suffix.size() &&
++         std::equal(suffix.begin(), suffix.end(), order.end() - suffix.size());
++}
++
++static bool IsGreaseExtension(uint16_t type) {
++  return (type & 0x0f0f) == 0x0a0a;
++}
++
++// The tail follows a shuffled middle part, both with and without ECH. The
++// ClientHello writer only adds padding after it.
++TEST(SSLTest, ExtensionOrderTailFollowsShuffledMiddle) {
++  bssl::UniquePtr<SSL_ECH_KEYS> keys = MakeTestECHKeys();
++  ASSERT_TRUE(keys);
++  static const uint16_t kTail[] = {
++      TLSEXT_TYPE_key_share,
++      0xffff,
++      TLSEXT_TYPE_key_share,
++      TLSEXT_TYPE_encrypted_client_hello,
++  };
++  for (bool offer_ech : {false, true}) {
++    SCOPED_TRACE(offer_ech);
++    bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++    ASSERT_TRUE(ctx);
++    SSL_CTX_set_permute_extensions(ctx.get(), 1);
++    ASSERT_TRUE(
++        SSL_CTX_set_extension_order_tail(ctx.get(), kTail, std::size(kTail)));
++    const std::vector<uint16_t> expected_tail =
++        offer_ech ? std::vector<uint16_t>{TLSEXT_TYPE_key_share,
++                                          TLSEXT_TYPE_encrypted_client_hello}
++                  : std::vector<uint16_t>{TLSEXT_TYPE_key_share};
++
++    std::vector<uint16_t> first_order;
++    ASSERT_TRUE(GetExtensionOrder(ctx.get(), &first_order,
++                                  offer_ech ? keys.get() : nullptr,
++                                  /*decrypt_ech=*/false));
++    first_order = WithoutPadding(first_order);
++    ASSERT_TRUE(EndsWith(first_order, expected_tail));
++    ASSERT_GE(first_order.size(), 5u);
++
++    // See PermuteExtensions for the iteration count.
++    static const int kNumIterations = 14;
++    bool middle_changed = false;
++    for (int i = 0; i < kNumIterations; i++) {
++      std::vector<uint16_t> order;
++      ASSERT_TRUE(GetExtensionOrder(ctx.get(), &order,
++                                    offer_ech ? keys.get() : nullptr,
++                                    /*decrypt_ech=*/false));
++      order = WithoutPadding(order);
++      ASSERT_TRUE(EndsWith(order, expected_tail));
++      if (order != first_order) {
++        middle_changed = true;
++        break;
++      }
++    }
++    EXPECT_TRUE(middle_changed) << "The middle part was not shuffled";
++  }
++}
++
++// Without permutation or a prefix, the middle part keeps the default order.
++TEST(SSLTest, ExtensionOrderTailKeepsDefaultMiddleOrder) {
++  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++  ASSERT_TRUE(ctx);
++  std::vector<uint16_t> default_order;
++  ASSERT_TRUE(GetExtensionOrder(ctx.get(), &default_order,
++                                /*ech_keys=*/nullptr, /*decrypt_ech=*/false));
++  default_order = WithoutPadding(default_order);
++
++  static const uint16_t kTail[] = {TLSEXT_TYPE_supported_versions};
++  ASSERT_TRUE(
++      SSL_CTX_set_extension_order_tail(ctx.get(), kTail, std::size(kTail)));
++  std::vector<uint16_t> expected = default_order;
++  expected.erase(std::remove(expected.begin(), expected.end(),
++                             TLSEXT_TYPE_supported_versions),
++                 expected.end());
++  ASSERT_EQ(expected.size() + 1, default_order.size());
++  expected.push_back(TLSEXT_TYPE_supported_versions);
++  for (int i = 0; i < 2; i++) {
++    std::vector<uint16_t> order;
++    ASSERT_TRUE(GetExtensionOrder(ctx.get(), &order, /*ech_keys=*/nullptr,
++                                  /*decrypt_ech=*/false));
++    EXPECT_EQ(expected, WithoutPadding(order));
++  }
++
++  // An empty list clears the tail.
++  ASSERT_TRUE(SSL_CTX_set_extension_order_tail(ctx.get(), nullptr, 0));
++  std::vector<uint16_t> order;
++  ASSERT_TRUE(GetExtensionOrder(ctx.get(), &order, /*ech_keys=*/nullptr,
++                                /*decrypt_ech=*/false));
++  EXPECT_EQ(default_order, WithoutPadding(order));
++}
++
++TEST(SSLTest, ExtensionOrderPrefixAndTailSurroundShuffledMiddle) {
++  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++  ASSERT_TRUE(ctx);
++  static const uint16_t kPrefix[] = {TLSEXT_TYPE_supported_versions};
++  static const uint16_t kTail[] = {TLSEXT_TYPE_supported_groups,
++                                   TLSEXT_TYPE_key_share};
++  ASSERT_TRUE(SSL_CTX_set_extension_order(
++      ctx.get(), kPrefix, static_cast<int>(std::size(kPrefix))));
++  ASSERT_TRUE(
++      SSL_CTX_set_extension_order_tail(ctx.get(), kTail, std::size(kTail)));
++
++  std::vector<uint16_t> first_order;
++  ASSERT_TRUE(GetExtensionOrder(ctx.get(), &first_order, /*ech_keys=*/nullptr,
++                                /*decrypt_ech=*/false));
++  first_order = WithoutPadding(first_order);
++  ASSERT_GE(first_order.size(), 5u);
++  EXPECT_EQ(TLSEXT_TYPE_supported_versions, first_order.front());
++  EXPECT_TRUE(EndsWith(first_order, {kTail[0], kTail[1]}));
++
++  static const int kNumIterations = 14;
++  bool middle_changed = false;
++  for (int i = 0; i < kNumIterations; i++) {
++    std::vector<uint16_t> order;
++    ASSERT_TRUE(GetExtensionOrder(ctx.get(), &order, /*ech_keys=*/nullptr,
++                                  /*decrypt_ech=*/false));
++    order = WithoutPadding(order);
++    ASSERT_EQ(TLSEXT_TYPE_supported_versions, order.front());
++    ASSERT_TRUE(EndsWith(order, {kTail[0], kTail[1]}));
++    if (order != first_order) {
++      middle_changed = true;
++      break;
++    }
++  }
++  EXPECT_TRUE(middle_changed) << "The middle part was not shuffled";
++}
++
++TEST(SSLTest, ExtensionOrderTailRejectsPrefixOverlap) {
++  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++  ASSERT_TRUE(ctx);
++  static const uint16_t kPrefix[] = {TLSEXT_TYPE_supported_versions,
++                                     TLSEXT_TYPE_key_share};
++  static const uint16_t kTail[] = {TLSEXT_TYPE_supported_groups,
++                                   TLSEXT_TYPE_key_share};
++  ASSERT_TRUE(SSL_CTX_set_extension_order(
++      ctx.get(), kPrefix, static_cast<int>(std::size(kPrefix))));
++  EXPECT_FALSE(
++      SSL_CTX_set_extension_order_tail(ctx.get(), kTail, std::size(kTail)));
++  EXPECT_TRUE(ErrorsAreAndClear({{ERR_LIB_SSL, SSL_R_DUPLICATE_EXTENSION}}));
++  EXPECT_TRUE(FromOpaque(ctx.get())->extension_order_tail.empty());
++  EXPECT_FALSE(SSL_CTX_set_extension_order_tail(ctx.get(), nullptr, 1));
++  EXPECT_TRUE(ErrorsAreAndClear({{ERR_LIB_SSL, ERR_R_PASSED_NULL_PARAMETER}}));
++
++  // The prefix setter checks the other direction.
++  ASSERT_TRUE(SSL_CTX_set_extension_order(ctx.get(), nullptr, 0));
++  ASSERT_TRUE(
++      SSL_CTX_set_extension_order_tail(ctx.get(), kTail, std::size(kTail)));
++  EXPECT_FALSE(SSL_CTX_set_extension_order(
++      ctx.get(), kPrefix, static_cast<int>(std::size(kPrefix))));
++  EXPECT_TRUE(ErrorsAreAndClear({{ERR_LIB_SSL, SSL_R_DUPLICATE_EXTENSION}}));
++  EXPECT_TRUE(FromOpaque(ctx.get())->extension_order.empty());
++}
++
++// The trailing GREASE extension precedes the tail. A compressed tail extension
++// keeps its relative order in ech_outer_extensions, so the server decodes
++// ClientHelloInner.
++TEST(SSLTest, ExtensionOrderTailFollowsGreaseAndSurvivesECH) {
++  bssl::UniquePtr<SSL_ECH_KEYS> keys = MakeTestECHKeys();
++  ASSERT_TRUE(keys);
++  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
++  ASSERT_TRUE(ctx);
++  SSL_CTX_set_grease_enabled(ctx.get(), 1);
++  SSL_CTX_set_permute_extensions(ctx.get(), 1);
++  static const uint16_t kTail[] = {TLSEXT_TYPE_key_share,
++                                   TLSEXT_TYPE_encrypted_client_hello};
++  ASSERT_TRUE(
++      SSL_CTX_set_extension_order_tail(ctx.get(), kTail, std::size(kTail)));
++
++  for (int i = 0; i < 4; i++) {
++    std::vector<uint16_t> outer, inner;
++    ASSERT_TRUE(GetExtensionOrder(ctx.get(), &outer, keys.get(),
++                                  /*decrypt_ech=*/false));
++    outer = WithoutPadding(outer);
++    ASSERT_GE(outer.size(), 3u);
++    EXPECT_TRUE(EndsWith(outer, {kTail[0], kTail[1]}));
++    EXPECT_TRUE(IsGreaseExtension(outer[outer.size() - 3]));
++
++    // ClientHelloInner writes compressed extensions last, so key_share, the
++    // compressed tail extension, ends it and follows the trailing GREASE.
++    ASSERT_TRUE(GetExtensionOrder(ctx.get(), &inner, keys.get(),
++                                  /*decrypt_ech=*/true));
++    ASSERT_GE(inner.size(), 2u);
++    EXPECT_EQ(TLSEXT_TYPE_key_share, inner.back());
++    EXPECT_TRUE(IsGreaseExtension(inner[inner.size() - 2]));
++  }
++}
++
++// The second ClientHello after a HelloRetryRequest keeps the first one's order.
++TEST(SSLTest, ExtensionOrderTailSurvivesHelloRetryRequest) {
++  bssl::UniquePtr<SSL_CTX> client_ctx(SSL_CTX_new(TLS_method()));
++  bssl::UniquePtr<SSL_CTX> server_ctx =
++      CreateContextWithTestCertificate(TLS_method());
++  ASSERT_TRUE(client_ctx);
++  ASSERT_TRUE(server_ctx);
++  ConfigureVersion(client_ctx.get(), TLS1_3_VERSION);
++  ConfigureVersion(server_ctx.get(), TLS1_3_VERSION);
++  // The client predicts X25519 only, so a P-256-only server sends a
++  // HelloRetryRequest.
++  const uint16_t kClientGroups[] = {SSL_GROUP_X25519, SSL_GROUP_SECP256R1};
++  const uint16_t kServerGroups[] = {SSL_GROUP_SECP256R1};
++  ASSERT_TRUE(SSL_CTX_set1_group_ids(client_ctx.get(), kClientGroups,
++                                     std::size(kClientGroups)));
++  ASSERT_TRUE(SSL_CTX_set1_group_ids(server_ctx.get(), kServerGroups,
++                                     std::size(kServerGroups)));
++  SSL_CTX_set_permute_extensions(client_ctx.get(), 1);
++  static const uint16_t kTail[] = {TLSEXT_TYPE_key_share,
++                                   TLSEXT_TYPE_encrypted_client_hello};
++  ASSERT_TRUE(SSL_CTX_set_extension_order_tail(client_ctx.get(), kTail,
++                                               std::size(kTail)));
++
++  std::set<std::vector<uint16_t>> orders;
++  for (int i = 0; i < 8; i++) {
++    bssl::UniquePtr<SSL> client, server;
++    ASSERT_TRUE(CreateClientAndServer(&client, &server, client_ctx.get(),
++                                      server_ctx.get()));
++    SSL_set_enable_ech_grease(client.get(), 1);
++    std::vector<std::vector<uint8_t>> client_hellos;
++    SSL_set_msg_callback(client.get(), RecordClientHellos);
++    SSL_set_msg_callback_arg(client.get(), &client_hellos);
++    ASSERT_TRUE(CompleteHandshakes(client.get(), server.get()));
++    ASSERT_TRUE(SSL_used_hello_retry_request(client.get()));
++    ASSERT_EQ(2u, client_hellos.size());
++
++    std::vector<uint16_t> first =
++        WithoutPadding(ExtensionTypesOf(client.get(), client_hellos[0]));
++    std::vector<uint16_t> second =
++        WithoutPadding(ExtensionTypesOf(client.get(), client_hellos[1]));
++    EXPECT_TRUE(EndsWith(first, {kTail[0], kTail[1]}));
++    EXPECT_EQ(first, second);
++    orders.insert(first);
++  }
++  // Eight equal permutations of at least five extensions have probability at
++  // most 120^-7.
++  EXPECT_GT(orders.size(), 1u) << "The middle part was not shuffled";
++}
++
++// QUIC sends quic_transport_parameters, so a QUIC client can end its fresh and
++// resumed ClientHellos with quic_transport_parameters and
++// encrypted_client_hello, followed only by pre_shared_key.
++TEST_F(QUICMethodTest, ExtensionOrderTail) {
++  const SSL_QUIC_METHOD quic_method = DefaultQUICMethod();
++  ASSERT_TRUE(SSL_CTX_set_quic_method(client_ctx_.get(), &quic_method));
++  ASSERT_TRUE(SSL_CTX_set_quic_method(server_ctx_.get(), &quic_method));
++  SSL_CTX_set_session_cache_mode(client_ctx_.get(), SSL_SESS_CACHE_BOTH);
++  SSL_CTX_set_permute_extensions(client_ctx_.get(), 1);
++  static const uint16_t kTail[] = {
++      TLSEXT_TYPE_quic_transport_parameters,
++      TLSEXT_TYPE_encrypted_client_hello,
++  };
++  ASSERT_TRUE(SSL_CTX_set_extension_order_tail(client_ctx_.get(), kTail,
++                                               std::size(kTail)));
++  std::vector<std::vector<uint16_t>> orders;
++  ASSERT_TRUE(SSL_CTX_set_app_data(server_ctx_.get(), &orders));
++  SSL_CTX_set_select_certificate_cb(
++      server_ctx_.get(),
++      [](const SSL_CLIENT_HELLO *client_hello) -> ssl_select_cert_result_t {
++        auto *out = static_cast<std::vector<std::vector<uint16_t>> *>(
++            SSL_CTX_get_app_data(SSL_get_SSL_CTX(client_hello->ssl)));
++        std::vector<uint16_t> types;
++        CBS extensions(
++            Span(client_hello->extensions, client_hello->extensions_len));
++        while (CBS_len(&extensions) != 0) {
++          uint16_t type;
++          CBS unused;
++          if (!CBS_get_u16(&extensions, &type) ||
++              !CBS_get_u16_length_prefixed(&extensions, &unused)) {
++            return ssl_select_cert_error;
++          }
++          types.push_back(type);
++        }
++        out->push_back(std::move(types));
++        return ssl_select_cert_success;
++      });
++
++  static const int kNumIterations = 8;
++  for (int i = 0; i < kNumIterations; i++) {
++    ASSERT_TRUE(CreateClientAndServer());
++    SSL_set_enable_ech_grease(client_.get(), 1);
++    ASSERT_TRUE(CompleteHandshakesForQUIC());
++    ExpectHandshakeSuccess();
++  }
++  ASSERT_EQ(static_cast<size_t>(kNumIterations), orders.size());
++  std::set<std::vector<uint16_t>> distinct;
++  for (const auto &order : orders) {
++    EXPECT_TRUE(EndsWith(order, {kTail[0], kTail[1]}));
++    distinct.insert(order);
++  }
++  EXPECT_GT(distinct.size(), 1u) << "The middle part was not shuffled";
++
++  // A resumed ClientHello adds pre_shared_key after the tail.
++  bssl::UniquePtr<SSL_SESSION> session = CreateClientSessionForQUIC();
++  ASSERT_TRUE(session);
++  orders.clear();
++  ASSERT_TRUE(CreateClientAndServer());
++  SSL_set_enable_ech_grease(client_.get(), 1);
++  SSL_set_session(client_.get(), session.get());
++  ASSERT_TRUE(CompleteHandshakesForQUIC());
++  ExpectHandshakeSuccess();
++  EXPECT_TRUE(SSL_session_reused(client_.get()));
++  ASSERT_EQ(1u, orders.size());
++  EXPECT_TRUE(
++      EndsWith(orders[0], {kTail[0], kTail[1], TLSEXT_TYPE_pre_shared_key}));
++}
++
+ TEST(SSLTest, HostMatching) {
+   static const char kCertPEM[] = R"(
+ -----BEGIN CERTIFICATE-----
+-- 
+2.54.0.windows.1
+

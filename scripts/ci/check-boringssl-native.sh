@@ -18,9 +18,9 @@ locked_btls_sys_source() {
   local lock_file=$1
   awk '
     $0 == "[[package]]" { in_package = 0 }
-    $0 == "name = \"btls-sys\"" { in_package = 1 }
-    in_package && /^source = / {
-      sub(/^source = \"/, "")
+    $0 == "name = \"phantom-btls-sys\"" { in_package = 1 }
+    in_package && /^version = / {
+      sub(/^version = \"/, "")
       sub(/\"$/, "")
       print
       exit
@@ -44,7 +44,7 @@ caches=()
 while IFS= read -r -d '' cache; do
   caches+=("$cache")
 done < <(find "$native_target" -type f \
-  -path '*/build/btls-sys-*/out/build/CMakeCache.txt' -print0)
+  -path '*/build/phantom-btls-sys-*/out/build/CMakeCache.txt' -print0)
 
 if [[ ${#caches[@]} -ne 1 ]]; then
   echo "expected one btls-sys CMake cache, found ${#caches[@]}" >&2

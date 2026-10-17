@@ -273,10 +273,12 @@ case "$dependency" in
     repin_fork "$btls_current_pin" "$(package_version vendor/btls/Cargo.toml)"
     cargo update -p phantom-btls
 
-    expected_source="git+$btls_sys_repository?rev=$btls_sys_revision#$btls_sys_revision"
-    actual_source=$(locked_git_source btls-sys)
-    [[ "$actual_source" == "$expected_source" ]] \
-      || die "btls-sys lock source is '$actual_source', expected reviewed native patch $btls_sys_revision"
+    [[ "$btls_sys_repository" == https://github.com/bywayhq/btls && \
+       "$btls_sys_revision" == f478ea16a4b2f6ebbd221ce7cafdec10a32028eb ]] \
+      || die "refresh vendor/btls-sys before changing its native source revision"
+    grep -F -q "upstream-source = \"https://codeload.github.com/bywayhq/btls/tar.gz/$btls_sys_revision\"" \
+      vendor/btls-sys/Cargo.toml || die "native source provenance differs from reviewed revision"
+    cargo tree -i phantom-btls-sys --locked
 
     cargo fmt --manifest-path vendor/btls/Cargo.toml --all --check
     btls_prefix_symbols=true
