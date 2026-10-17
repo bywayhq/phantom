@@ -21,6 +21,7 @@ async fn close_idle_replaces_http3_connections() -> TestResult<()> {
         let identity = TestIdentity::generate()?;
         let (address, endpoint) = h3_support::server_endpoint(&identity)?;
         let (done, finished) = oneshot::channel();
+        let (retired, mut retirement) = oneshot::channel();
         peer = Some(Peer::spawn(async move {
             let mut first = accept_connection(&endpoint).await?;
             let mut stream = accept_stream(&mut first).await?;
@@ -29,16 +30,16 @@ async fn close_idle_replaces_http3_connections() -> TestResult<()> {
                 .await?;
             stream.finish().await?;
             drop(stream);
-            // Continue driving the first connection while requiring a new one.
-            let second = tokio::select! {
-                incoming = endpoint.accept() => incoming.ok_or("endpoint stopped")?.await?,
-                result = first.accept() => {
-                    if result?.is_some() {
-                        return Err("idle connection carried another request".into());
-                    }
-                    endpoint.accept().await.ok_or("endpoint stopped")?.await?
-                }
-            };
+            // Observe retirement before the caller starts its replacement.
+            // HTTP/3 reports a normal application close as a typed error too.
+            match first.accept().await {
+                Ok(None) => {}
+                Err(error) if error.is_h3_no_error() => {}
+                Ok(Some(_)) => return Err("idle connection carried another request".into()),
+                Err(error) => return Err(error.into()),
+            }
+            retired.send(()).map_err(|_| "caller stopped")?;
+            let second = endpoint.accept().await.ok_or("endpoint stopped")?.await?;
             let mut second = Connection::new(h3_quinn::Connection::new(second)).await?;
             let mut stream = accept_stream(&mut second).await?;
             stream
@@ -59,6 +60,7 @@ async fn close_idle_replaces_http3_connections() -> TestResult<()> {
             if round == 0 {
                 client.clone().close_idle_connections().await;
                 client.close_idle_connections().await;
+                (&mut retirement).await?;
             }
         }
         done.send(()).map_err(|_| "peer stopped")?;
