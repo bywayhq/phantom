@@ -48,11 +48,15 @@ fn build_client(
             .build()?);
     }
     #[cfg(feature = "danger-disable-verification")]
-    return Ok(builder
-        .server_authentication(phantom::ServerAuthentication::DangerDisabled)
-        .build()?);
+    {
+        Ok(builder
+            .server_authentication(phantom::ServerAuthentication::DangerDisabled)
+            .build()?)
+    }
     #[cfg(not(feature = "danger-disable-verification"))]
-    Err("disabled-verification test requires its feature".into())
+    {
+        Err("disabled-verification test requires its feature".into())
+    }
 }
 
 async fn tcp_reuse(protocol: HttpProtocol, observe_first: bool, verify: bool) -> TestResult<()> {
