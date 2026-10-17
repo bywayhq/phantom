@@ -1,0 +1,24 @@
+{
+  "seed": 20261021,
+  "repeats": 3,
+  "base": {
+    "protocol": "h3",
+    "requests": 100000,
+    "warmup": 512,
+    "bytes": 1024,
+    "concurrency": 128,
+    "workers": 2,
+    "peer_workers": 2
+  },
+  "cases": [
+    {"name": "h3-client1-peer2", "workers": 1},
+    {"name": "h3-client2-peer2"},
+    {"name": "h3-client8-peer2", "workers": 8},
+    {"name": "h3-client2-peer8", "peer_workers": 8},
+    {"name": "h3-client8-peer8", "workers": 8, "peer_workers": 8},
+    {"name": "h2-client2-peer2", "protocol": "h2"},
+    {"name": "h2-client8-peer2", "protocol": "h2", "workers": 8},
+    {"name": "h2-client2-peer8", "protocol": "h2", "peer_workers": 8},
+    {"name": "h2-client8-peer8", "protocol": "h2", "workers": 8, "peer_workers": 8}
+  ]
+}

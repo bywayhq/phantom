@@ -120,7 +120,8 @@ and binaries unchanged. Each step retains its own results and failed trials.
   [results](client-performance-results.md#allocation-experiments-after-the-fixes).
 
 This pass owns TLS policy synchronization, HTTP/3 body demand, response
-collection and the profiling tool and evidence. It does not alter browser
+collection, timeout-future storage and the profiling tool and evidence.
+It does not alter browser
 wire settings, route fallback or pool limits. Historical capture-timing
 investigations remain separate unless a reproduction establishes a link.
 
@@ -135,13 +136,15 @@ intended-arrival latency visible when the client falls behind.
 - [x] Compare offered and completed rates with queueing and latency tails.
 - [x] Sample post-burst memory with the client and pools alive.
 - [x] Obtain CPU stacks with separate client and peer reports.
-- [ ] Vary client and peer workers independently and attribute contention.
+- [x] Vary client and peer workers independently.
+- [ ] Attribute the client cost at the slower worker settings.
 - [ ] Repeat burst and recovery cycles across more origins.
 - [ ] Validate with a separate load generator and downstream traffic.
-- [ ] Use the measured bottleneck to select the next bounded change.
+- [x] Compare a bounded change to request-future storage.
 
-Record client and peer CPU separately. Changing the worker count changes both
-processes in this tool. A plateau can come from either process, the runtime
+Record client and peer CPU separately. Set `peer_workers` to hold the peer
+fixed while `workers` changes the client. Without that override, `workers`
+changes both processes. A plateau can come from either process, the runtime
 or the loopback stack. Inspect observation-buffer size and host load before
 interpreting memory growth or a throughput ceiling. These local runs do not
 establish production capacity under network delay and packet loss.

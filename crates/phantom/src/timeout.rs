@@ -512,44 +512,98 @@ impl PhaseTimeout {
     }
 }
 
-/// Runs `operation` until `deadline`, when there is one.
-///
-/// The `run` methods return this future instead of awaiting it: an async
-/// function holds a future it takes and awaits twice, as the argument and as
-/// the awaited value, so each async layer between a request and its
-/// operation would add another copy of the operation to the request's
-/// future.
-async fn run_until<Output, Operation>(
+/// Stores the operation once and initializes its timer on the first poll.
+fn run_until<Output, Operation>(
     deadline: Result<Option<Deadline>, RequestError>,
     protocol: Option<HttpProtocol>,
     operation: Operation,
-) -> Result<Output, RequestError>
+) -> impl Future<Output = Result<Output, RequestError>>
 where
     Operation: Future<Output = Result<Output, RequestError>>,
 {
-    let Some(deadline) = deadline? else {
-        return operation.await;
-    };
-    let mut timer = DeadlineTimer::new(deadline.at)?;
-    let mut operation = std::pin::pin!(operation);
-    poll_fn(|context| {
-        if let Poll::Ready(result) = operation.as_mut().poll(context) {
-            return Poll::Ready(result);
+    PhaseOperation {
+        operation: Some(operation),
+        timer: PhaseTimer::New(deadline),
+        protocol,
+    }
+}
+
+pin_project_lite::pin_project! {
+    // Projecting the stored future avoids copying it into another async state.
+    struct PhaseOperation<Operation> {
+        #[pin]
+        operation: Option<Operation>,
+        timer: PhaseTimer,
+        protocol: Option<HttpProtocol>,
+    }
+}
+
+enum PhaseTimer {
+    New(Result<Option<Deadline>, RequestError>),
+    Active(Option<(Deadline, DeadlineTimer)>),
+}
+
+impl PhaseTimer {
+    fn initialize(&mut self) -> Result<(), RequestError> {
+        if let Self::New(deadline) = self {
+            let deadline = std::mem::replace(deadline, Ok(None))?;
+            *self = Self::Active(
+                deadline
+                    .map(|deadline| DeadlineTimer::new(deadline.at).map(|timer| (deadline, timer)))
+                    .transpose()?,
+            );
         }
-        match timer.poll_expired(context) {
-            Poll::Ready(Ok(())) => {
-                tracing::debug!(
-                    timeout_phase = deadline.phase.trace_name(),
-                    protocol = protocol.map(HttpProtocol::trace_name),
-                    "request phase timed out"
-                );
-                Poll::Ready(Err(RequestError::timeout(deadline.phase, protocol)))
+        Ok(())
+    }
+}
+
+impl<Output, Operation> Future for PhaseOperation<Operation>
+where
+    Operation: Future<Output = Result<Output, RequestError>>,
+{
+    type Output = Result<Output, RequestError>;
+
+    fn poll(self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut this = self.project();
+        let result = match this.timer.initialize() {
+            Err(error) => Poll::Ready(Err(error)),
+            Ok(()) => {
+                let Some(operation) = this.operation.as_mut().as_pin_mut() else {
+                    return Poll::Pending;
+                };
+                match operation.poll(context) {
+                    Poll::Ready(result) => Poll::Ready(result),
+                    Poll::Pending => match this.timer {
+                        PhaseTimer::Active(Some((deadline, timer))) => {
+                            match timer.poll_expired(context) {
+                                Poll::Ready(Ok(())) => {
+                                    tracing::debug!(
+                                        timeout_phase = deadline.phase.trace_name(),
+                                        protocol = this.protocol.map(HttpProtocol::trace_name),
+                                        "request phase timed out"
+                                    );
+                                    Poll::Ready(Err(RequestError::timeout(
+                                        deadline.phase,
+                                        *this.protocol,
+                                    )))
+                                }
+                                Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
+                                Poll::Pending => Poll::Pending,
+                            }
+                        }
+                        _ => Poll::Pending,
+                    },
+                }
             }
-            Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
-            Poll::Pending => Poll::Pending,
+        };
+        if result.is_ready() {
+            // Match async completion: cancel owned work before returning Ready,
+            // even when the caller retains this completed wrapper.
+            this.operation.set(None);
+            *this.timer = PhaseTimer::Active(None);
         }
-    })
-    .await
+        result
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -727,12 +781,27 @@ fn time_driver_missing() -> bool {
 
 #[cfg(test)]
 mod tests {
-    use std::{future::pending, time::Duration};
+    use std::{
+        future::{Future, pending, poll_fn},
+        sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering},
+        },
+        time::Duration,
+    };
 
     use super::{
         RequestTimeoutOverrides, RequestTimeouts, TimeoutBudget, TimeoutOverride, TimeoutPhase,
     };
     use crate::RequestErrorKind;
+
+    struct Released(Arc<AtomicUsize>);
+
+    impl Drop for Released {
+        fn drop(&mut self) {
+            self.0.fetch_add(1, Ordering::SeqCst);
+        }
+    }
 
     #[test]
     fn each_override_resolves_without_changing_other_phases() {
@@ -852,6 +921,31 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
+    async fn cancelling_timed_and_untimed_operations_releases_their_owned_state()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for policy in [
+            RequestTimeouts::new(),
+            RequestTimeouts::new().total(Duration::from_secs(1)),
+        ] {
+            let releases = Arc::new(AtomicUsize::new(0));
+            let owned = Released(releases.clone());
+            {
+                let operation =
+                    TimeoutBudget::new(policy)?.run(TimeoutPhase::ResponseHead, None, async move {
+                        let _owned = owned;
+                        pending::<()>().await;
+                        Ok(())
+                    });
+                let mut operation = std::pin::pin!(operation);
+                assert!(futures_util::poll!(operation.as_mut()).is_pending());
+                assert_eq!(releases.load(Ordering::SeqCst), 0);
+            }
+            assert_eq!(releases.load(Ordering::SeqCst), 1);
+        }
+        Ok(())
+    }
+
+    #[tokio::test(start_paused = true)]
     async fn remaining_total_counts_down_to_zero() -> Result<(), Box<dyn std::error::Error>> {
         let unlimited = TimeoutBudget::new(RequestTimeouts::new())?;
         assert_eq!(unlimited.remaining_total(), None);
@@ -862,6 +956,43 @@ mod tests {
         assert_eq!(budget.remaining_total(), Some(Duration::from_secs(3)));
         tokio::time::advance(Duration::from_secs(4)).await;
         assert_eq!(budget.remaining_total(), Some(Duration::ZERO));
+        Ok(())
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn phase_completion_releases_owned_work_before_the_wrapper_is_dropped()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for invalid in [false, true] {
+            let releases = Arc::new(AtomicUsize::new(0));
+            let owned = Released(releases.clone());
+            let deadline = if invalid {
+                Err(crate::RequestError::invalid_timeout())
+            } else {
+                Ok(Some(super::Deadline {
+                    at: tokio::time::Instant::now(),
+                    phase: TimeoutPhase::ResponseHead,
+                }))
+            };
+            let operation = super::run_until(deadline, None, async move {
+                let _owned = owned;
+                pending::<()>().await;
+                Ok(())
+            });
+            let mut operation = std::pin::pin!(operation);
+            let error = poll_fn(|context| operation.as_mut().poll(context))
+                .await
+                .err()
+                .ok_or("pending operation unexpectedly completed")?;
+            assert_eq!(
+                error.kind(),
+                if invalid {
+                    RequestErrorKind::InvalidTimeout
+                } else {
+                    RequestErrorKind::Timeout
+                }
+            );
+            assert_eq!(releases.load(Ordering::SeqCst), 1);
+        }
         Ok(())
     }
 

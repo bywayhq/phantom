@@ -1,0 +1,1349 @@
+{
+  "variants": [
+    "independent-workers",
+    "timeout-owned-operation"
+  ],
+  "accepted_trials": 42,
+  "requests": 3603072,
+  "order": [
+    {
+      "rep": 0,
+      "variant": "independent-workers",
+      "packet": "timing-0-independent-workers",
+      "exit": 0
+    },
+    {
+      "rep": 0,
+      "variant": "timeout-owned-operation",
+      "packet": "timing-0-timeout-owned-operation",
+      "exit": 0
+    },
+    {
+      "rep": 1,
+      "variant": "timeout-owned-operation",
+      "packet": "timing-1-timeout-owned-operation",
+      "exit": 0
+    },
+    {
+      "rep": 1,
+      "variant": "independent-workers",
+      "packet": "timing-1-independent-workers",
+      "exit": 0
+    },
+    {
+      "rep": 2,
+      "variant": "independent-workers",
+      "packet": "timing-2-independent-workers",
+      "exit": 0
+    },
+    {
+      "rep": 2,
+      "variant": "timeout-owned-operation",
+      "packet": "timing-2-timeout-owned-operation",
+      "exit": 0
+    }
+  ],
+  "rows": [
+    {
+      "name": "firefox-h3-c128",
+      "trials": {
+        "independent-workers": [
+          {
+            "rep": 0,
+            "folder": "timing-0-independent-workers\\005-firefox-h3-c128-r0",
+            "requests": 100000,
+            "rps": 35810.08023678198,
+            "cpu_us": 49.6875,
+            "p50_ms": 3.5338,
+            "p95_ms": 4.7721,
+            "p99_ms": 5.4971,
+            "rss_mib": 33.0,
+            "private_mib": 26.6015625,
+            "client_cores": 1.7793133617651047,
+            "peer_cores": 1.2701387833983608,
+            "host_busy_percent": 50.81710709318498,
+            "summary_sha256": "6041a492a9932531aa383ce8959c3be9c8253efb5f4ee689b1992b0b237a5f65",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 1,
+            "folder": "timing-1-independent-workers\\006-firefox-h3-c128-r0",
+            "requests": 100000,
+            "rps": 36264.10392595914,
+            "cpu_us": 47.8125,
+            "p50_ms": 3.4741,
+            "p95_ms": 4.7132,
+            "p99_ms": 5.3605,
+            "rss_mib": 32.921875,
+            "private_mib": 26.515625,
+            "client_cores": 1.7338774689599215,
+            "peer_cores": 1.2295797737395522,
+            "host_busy_percent": 51.0107224468272,
+            "summary_sha256": "fdd6b26b89ba880ba2d7d169276006763fa38409726e966c116985e35407c8b6",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 2,
+            "folder": "timing-2-independent-workers\\003-firefox-h3-c128-r0",
+            "requests": 100000,
+            "rps": 35240.109898397124,
+            "cpu_us": 49.21875,
+            "p50_ms": 3.5565,
+            "p95_ms": 4.9855,
+            "p99_ms": 5.8558,
+            "rss_mib": 32.953125,
+            "private_mib": 26.5703125,
+            "client_cores": 1.7344741590617336,
+            "peer_cores": 1.288466518160145,
+            "host_busy_percent": 53.56898907103825,
+            "summary_sha256": "b4b6fce63ccdb99be0d91ebaee4b83888c7ab280d3b6449a28aa5ba391c8c2f5",
+            "observer_storage_bytes": 10400000
+          }
+        ],
+        "timeout-owned-operation": [
+          {
+            "rep": 0,
+            "folder": "timing-0-timeout-owned-operation\\005-firefox-h3-c128-r0",
+            "requests": 100000,
+            "rps": 42173.80847076969,
+            "cpu_us": 40.9375,
+            "p50_ms": 3.0325,
+            "p95_ms": 3.9575,
+            "p99_ms": 4.4209,
+            "rss_mib": 33.7265625,
+            "private_mib": 27.34765625,
+            "client_cores": 1.7264902842721341,
+            "peer_cores": 1.4167763783149192,
+            "host_busy_percent": 33.705357142857146,
+            "summary_sha256": "d4281dbdb734a1d12883bda6fb23e5ae9189fce417951d75922991602339d652",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 1,
+            "folder": "timing-1-timeout-owned-operation\\006-firefox-h3-c128-r0",
+            "requests": 100000,
+            "rps": 42883.06260541193,
+            "cpu_us": 40.625,
+            "p50_ms": 2.9734,
+            "p95_ms": 4.0145,
+            "p99_ms": 4.5226,
+            "rss_mib": 33.91015625,
+            "private_mib": 27.53515625,
+            "client_cores": 1.7421244183448594,
+            "peer_cores": 1.3534966634833139,
+            "host_busy_percent": 34.847861842717975,
+            "summary_sha256": "f9bd18eda60bac300d390eaf21f439eaf9970d386ce364f24a300d3b3449f42f",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 2,
+            "folder": "timing-2-timeout-owned-operation\\003-firefox-h3-c128-r0",
+            "requests": 100000,
+            "rps": 31849.242502393707,
+            "cpu_us": 54.6875,
+            "p50_ms": 4.0008,
+            "p95_ms": 5.2514,
+            "p99_ms": 5.8313,
+            "rss_mib": 34.0078125,
+            "private_mib": 27.67578125,
+            "client_cores": 1.7417554493496559,
+            "peer_cores": 1.3287105856467374,
+            "host_busy_percent": 68.16705336426914,
+            "summary_sha256": "845e0e2a2e4e7bf7a96aa2a4d50bd098758afeae3aaa0a071103889c66480897",
+            "observer_storage_bytes": 10400000
+          }
+        ]
+      },
+      "median": {
+        "independent-workers": {
+          "rps": 35810.08023678198,
+          "cpu_us": 49.21875,
+          "p50_ms": 3.5338,
+          "p95_ms": 4.7721,
+          "p99_ms": 5.4971,
+          "rss_mib": 32.953125,
+          "private_mib": 26.5703125,
+          "host_busy_percent": 51.0107224468272
+        },
+        "timeout-owned-operation": {
+          "rps": 42173.80847076969,
+          "cpu_us": 40.9375,
+          "p50_ms": 3.0325,
+          "p95_ms": 4.0145,
+          "p99_ms": 4.5226,
+          "rss_mib": 33.91015625,
+          "private_mib": 27.53515625,
+          "host_busy_percent": 34.847861842717975
+        }
+      },
+      "paired_percent_change": {
+        "rps": [
+          17.770773457947374,
+          18.252094944815944,
+          -9.62218167247444
+        ],
+        "cpu_us": [
+          -17.610062893081757,
+          -15.032679738562093,
+          11.111111111111116
+        ],
+        "p50_ms": [
+          -14.185862244609194,
+          -14.412365792579374,
+          12.492619148038786
+        ],
+        "p95_ms": [
+          -17.07005301649169,
+          -14.824323177459043,
+          5.333467054457941
+        ],
+        "p99_ms": [
+          -19.577595459424057,
+          -15.631004570469177,
+          -0.4183886061682518
+        ],
+        "rss_mib": [
+          2.2017045454545414,
+          3.0018984337921273,
+          3.200568990042685
+        ],
+        "private_mib": [
+          2.8046989720998505,
+          3.845020624631701,
+          4.160541017347841
+        ],
+        "host_busy_percent": [
+          -33.67320756561263,
+          -31.685221907917782,
+          27.25096095032198
+        ]
+      },
+      "median_paired_percent_change": {
+        "rps": 17.770773457947374,
+        "cpu_us": -15.032679738562093,
+        "p50_ms": -14.185862244609194,
+        "p95_ms": -14.824323177459043,
+        "p99_ms": -15.631004570469177,
+        "rss_mib": 3.0018984337921273,
+        "private_mib": 3.845020624631701,
+        "host_busy_percent": -31.685221907917782
+      }
+    },
+    {
+      "name": "h2-c128",
+      "trials": {
+        "independent-workers": [
+          {
+            "rep": 0,
+            "folder": "timing-0-independent-workers\\002-h2-c128-r0",
+            "requests": 100000,
+            "rps": 73720.34202995007,
+            "cpu_us": 23.59375,
+            "p50_ms": 1.7081,
+            "p95_ms": 2.4011,
+            "p99_ms": 2.7363,
+            "rss_mib": 29.9296875,
+            "private_mib": 20.46875,
+            "client_cores": 1.7393393197691345,
+            "peer_cores": 1.0827675235648917,
+            "host_busy_percent": 42.39052404881551,
+            "summary_sha256": "0eaaa60813c1d2b107f05c10bd31409fe6fed4f3b574e20136d4e01bc2b218bc",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 1,
+            "folder": "timing-1-independent-workers\\002-h2-c128-r0",
+            "requests": 100000,
+            "rps": 68614.90925129331,
+            "cpu_us": 26.09375,
+            "p50_ms": 1.8264,
+            "p95_ms": 2.5283,
+            "p99_ms": 2.9031,
+            "rss_mib": 29.83203125,
+            "private_mib": 20.34765625,
+            "client_cores": 1.790420288275935,
+            "peer_cores": 1.0077814796283706,
+            "host_busy_percent": 47.63157894736842,
+            "summary_sha256": "db6e03f26162eb0a9f78f7ad0cc7053e93a8545701c5d0c65788094d9364c087",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 2,
+            "folder": "timing-2-independent-workers\\004-h2-c128-r0",
+            "requests": 100000,
+            "rps": 58769.057409552806,
+            "cpu_us": 31.09375,
+            "p50_ms": 2.1491,
+            "p95_ms": 2.8898,
+            "p99_ms": 3.2827,
+            "rss_mib": 30.109375,
+            "private_mib": 20.7109375,
+            "client_cores": 1.8273503788282826,
+            "peer_cores": 1.1570158177505707,
+            "host_busy_percent": 77.0089285722601,
+            "summary_sha256": "50c03086c7f73aaa420720ef61098e0f6fd3bd57651c4096cbb4a1d7a597b3b0",
+            "observer_storage_bytes": 10400000
+          }
+        ],
+        "timeout-owned-operation": [
+          {
+            "rep": 0,
+            "folder": "timing-0-timeout-owned-operation\\002-h2-c128-r0",
+            "requests": 100000,
+            "rps": 74615.623213189,
+            "cpu_us": 24.6875,
+            "p50_ms": 1.6957,
+            "p95_ms": 2.2498,
+            "p99_ms": 2.5171,
+            "rss_mib": 30.97265625,
+            "private_mib": 21.75,
+            "client_cores": 1.8420731980756033,
+            "peer_cores": 1.0376235103084095,
+            "host_busy_percent": 39.68023255813954,
+            "summary_sha256": "f92a7d84b6c05e05229f701876d62cb17ed738cd6ed8d996a22eff00da4d7bef",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 1,
+            "folder": "timing-1-timeout-owned-operation\\002-h2-c128-r0",
+            "requests": 100000,
+            "rps": 78451.42534864403,
+            "cpu_us": 23.4375,
+            "p50_ms": 1.6044,
+            "p95_ms": 2.1767,
+            "p99_ms": 2.439,
+            "rss_mib": 31.2109375,
+            "private_mib": 21.94140625,
+            "client_cores": 1.8387052816088443,
+            "peer_cores": 1.1032231689653065,
+            "host_busy_percent": 34.8122866894198,
+            "summary_sha256": "673520731e94f84b41923df72d6911bc870176f9f19195e5d440571f1382ed4f",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 2,
+            "folder": "timing-2-timeout-owned-operation\\004-h2-c128-r0",
+            "requests": 100000,
+            "rps": 62756.863843712315,
+            "cpu_us": 28.90625,
+            "p50_ms": 2.0197,
+            "p95_ms": 2.6814,
+            "p99_ms": 2.9786,
+            "rss_mib": 30.87890625,
+            "private_mib": 21.58984375,
+            "client_cores": 1.814065595482309,
+            "peer_cores": 1.0590220773626453,
+            "host_busy_percent": 64.17192666065525,
+            "summary_sha256": "1c5996f43b528dbea98c09c87fcdc2496b003fb8465506207fd44c1aa675e595",
+            "observer_storage_bytes": 10400000
+          }
+        ]
+      },
+      "median": {
+        "independent-workers": {
+          "rps": 68614.90925129331,
+          "cpu_us": 26.09375,
+          "p50_ms": 1.8264,
+          "p95_ms": 2.5283,
+          "p99_ms": 2.9031,
+          "rss_mib": 29.9296875,
+          "private_mib": 20.46875,
+          "host_busy_percent": 47.63157894736842
+        },
+        "timeout-owned-operation": {
+          "rps": 74615.623213189,
+          "cpu_us": 24.6875,
+          "p50_ms": 1.6957,
+          "p95_ms": 2.2498,
+          "p99_ms": 2.5171,
+          "rss_mib": 30.97265625,
+          "private_mib": 21.75,
+          "host_busy_percent": 39.68023255813954
+        }
+      },
+      "paired_percent_change": {
+        "rps": [
+          1.2144289602932234,
+          14.335829056227034,
+          6.785554524669468
+        ],
+        "cpu_us": [
+          4.635761589403975,
+          -10.179640718562876,
+          -7.0351758793969825
+        ],
+        "p50_ms": [
+          -0.7259528130671433,
+          -12.155059132720103,
+          -6.021125122144156
+        ],
+        "p95_ms": [
+          -6.301278580650537,
+          -13.906577542222054,
+          -7.211571735068178
+        ],
+        "p99_ms": [
+          -8.010817527317904,
+          -15.986359408907713,
+          -9.263715843665278
+        ],
+        "rss_mib": [
+          3.4847298355520806,
+          4.62223386146392,
+          2.555786196159837
+        ],
+        "private_mib": [
+          6.259541984732819,
+          7.8325974275292864,
+          4.243681629573737
+        ],
+        "host_busy_percent": [
+          -6.393625819664061,
+          -26.91343125978163,
+          -16.66949813430979
+        ]
+      },
+      "median_paired_percent_change": {
+        "rps": 6.785554524669468,
+        "cpu_us": -7.0351758793969825,
+        "p50_ms": -6.021125122144156,
+        "p95_ms": -7.211571735068178,
+        "p99_ms": -9.263715843665278,
+        "rss_mib": 3.4847298355520806,
+        "private_mib": 6.259541984732819,
+        "host_busy_percent": -16.66949813430979
+      }
+    },
+    {
+      "name": "h2-collect-1m",
+      "trials": {
+        "independent-workers": [
+          {
+            "rep": 0,
+            "folder": "timing-0-independent-workers\\006-h2-collect-1m-r0",
+            "requests": 512,
+            "rps": 230.6457472775806,
+            "cpu_us": 1068.115234375,
+            "p50_ms": 15.1068,
+            "p95_ms": 47.0563,
+            "p99_ms": 55.8882,
+            "rss_mib": 19.796875,
+            "private_mib": 11.89453125,
+            "client_cores": 0.24635623641099003,
+            "peer_cores": 0.09854249456439601,
+            "host_busy_percent": 38.97569444444444,
+            "summary_sha256": "b34a29efdae6399474ba69af2afa072a32153f4e476c607663d9107c2d83cbfc",
+            "observer_storage_bytes": 53248
+          },
+          {
+            "rep": 1,
+            "folder": "timing-1-independent-workers\\003-h2-collect-1m-r0",
+            "requests": 512,
+            "rps": 229.87227990829172,
+            "cpu_us": 1068.115234375,
+            "p50_ms": 16.0546,
+            "p95_ms": 45.2611,
+            "p99_ms": 57.1225,
+            "rss_mib": 19.30078125,
+            "private_mib": 11.16015625,
+            "client_cores": 0.2455300841305606,
+            "peer_cores": 0.09119688839135108,
+            "host_busy_percent": 43.25086805555556,
+            "summary_sha256": "2f7dbd43cd9b27f9fd9c0324c04fc0de50a5e4a2c11a16a193b6a75400f70326",
+            "observer_storage_bytes": 53248
+          },
+          {
+            "rep": 2,
+            "folder": "timing-2-independent-workers\\000-h2-collect-1m-r0",
+            "requests": 512,
+            "rps": 231.75329789016683,
+            "cpu_us": 1312.255859375,
+            "p50_ms": 14.8959,
+            "p95_ms": 45.8671,
+            "p99_ms": 52.5741,
+            "rss_mib": 19.71875,
+            "private_mib": 10.97265625,
+            "client_cores": 0.3041196230858513,
+            "peer_cores": 0.09194314186316434,
+            "host_busy_percent": 37.911611785095324,
+            "summary_sha256": "455b36a5750743b5c0ac1b289f8ffe2715142c960e8c2fbdaed51e09b3b5b148",
+            "observer_storage_bytes": 53248
+          }
+        ],
+        "timeout-owned-operation": [
+          {
+            "rep": 0,
+            "folder": "timing-0-timeout-owned-operation\\006-h2-collect-1m-r0",
+            "requests": 512,
+            "rps": 239.95226824489023,
+            "cpu_us": 1525.87890625,
+            "p50_ms": 15.0102,
+            "p95_ms": 41.5255,
+            "p99_ms": 52.4537,
+            "rss_mib": 18.95703125,
+            "private_mib": 10.87109375,
+            "client_cores": 0.36613810462171975,
+            "peer_cores": 0.1611007660335567,
+            "host_busy_percent": 37.13469567128104,
+            "summary_sha256": "52734faf33ceab572e5bd3ce26b79344ef66c2a548ac28f35c8a1d506d5995a7",
+            "observer_storage_bytes": 53248
+          },
+          {
+            "rep": 1,
+            "folder": "timing-1-timeout-owned-operation\\003-h2-collect-1m-r0",
+            "requests": 512,
+            "rps": 272.01205778449895,
+            "cpu_us": 1068.115234375,
+            "p50_ms": 12.4888,
+            "p95_ms": 39.4643,
+            "p99_ms": 51.7502,
+            "rss_mib": 19.2109375,
+            "private_mib": 11.07421875,
+            "client_cores": 0.29054022285331615,
+            "peer_cores": 0.11621608914132646,
+            "host_busy_percent": 37.5,
+            "summary_sha256": "33993daa64d1639fc804e06fa6030b9a73baa6da61d88ea7392250ffe9c68dca",
+            "observer_storage_bytes": 53248
+          },
+          {
+            "rep": 2,
+            "folder": "timing-2-timeout-owned-operation\\000-h2-collect-1m-r0",
+            "requests": 512,
+            "rps": 196.56163032515977,
+            "cpu_us": 885.009765625,
+            "p50_ms": 17.633,
+            "p95_ms": 45.0177,
+            "p99_ms": 53.8199,
+            "rss_mib": 19.40234375,
+            "private_mib": 10.91796875,
+            "client_cores": 0.17395896238493755,
+            "peer_cores": 0.08398018873755606,
+            "host_busy_percent": 84.39360119047619,
+            "summary_sha256": "19878d1f8cc166aa21afdeaf092fd738dd137966ddb30d20ef480b6ea73bbd36",
+            "observer_storage_bytes": 53248
+          }
+        ]
+      },
+      "median": {
+        "independent-workers": {
+          "rps": 230.6457472775806,
+          "cpu_us": 1068.115234375,
+          "p50_ms": 15.1068,
+          "p95_ms": 45.8671,
+          "p99_ms": 55.8882,
+          "rss_mib": 19.71875,
+          "private_mib": 11.16015625,
+          "host_busy_percent": 38.97569444444444
+        },
+        "timeout-owned-operation": {
+          "rps": 239.95226824489023,
+          "cpu_us": 1068.115234375,
+          "p50_ms": 15.0102,
+          "p95_ms": 41.5255,
+          "p99_ms": 52.4537,
+          "rss_mib": 19.2109375,
+          "private_mib": 10.91796875,
+          "host_busy_percent": 37.5
+        }
+      },
+      "paired_percent_change": {
+        "rps": [
+          4.034984853247403,
+          18.33182230281052,
+          -15.18496948495861
+        ],
+        "cpu_us": [
+          42.85714285714286,
+          0.0,
+          -32.55813953488372
+        ],
+        "p50_ms": [
+          -0.6394471363889154,
+          -22.21045681611501,
+          18.37485482582455
+        ],
+        "p95_ms": [
+          -11.753580285742826,
+          -12.80746601386179,
+          -1.8518720389996357
+        ],
+        "p99_ms": [
+          -6.145304375521132,
+          -9.404875486892205,
+          2.369607848731592
+        ],
+        "rss_mib": [
+          -4.242304656669294,
+          -0.4654928152195925,
+          -1.6045958795562587
+        ],
+        "private_mib": [
+          -8.604269293924471,
+          -0.7700385019250966,
+          -0.49839800640797405
+        ],
+        "host_busy_percent": [
+          -4.723453422459345,
+          -13.296537882589066,
+          122.60620748299318
+        ]
+      },
+      "median_paired_percent_change": {
+        "rps": 4.034984853247403,
+        "cpu_us": 0.0,
+        "p50_ms": -0.6394471363889154,
+        "p95_ms": -11.753580285742826,
+        "p99_ms": -6.145304375521132,
+        "rss_mib": -1.6045958795562587,
+        "private_mib": -0.7700385019250966,
+        "host_busy_percent": -4.723453422459345
+      }
+    },
+    {
+      "name": "h3-c128",
+      "trials": {
+        "independent-workers": [
+          {
+            "rep": 0,
+            "folder": "timing-0-independent-workers\\000-h3-c128-r0",
+            "requests": 100000,
+            "rps": 35328.13781252198,
+            "cpu_us": 51.5625,
+            "p50_ms": 3.5998,
+            "p95_ms": 4.8165,
+            "p99_ms": 5.4428,
+            "rss_mib": 33.4765625,
+            "private_mib": 22.97265625,
+            "client_cores": 1.8216071059581647,
+            "peer_cores": 1.2861650172371284,
+            "host_busy_percent": 34.2032967032967,
+            "summary_sha256": "06df8c2a42001d979009b15fa4c95191db16181307a45a9a530061b312d55da3",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 1,
+            "folder": "timing-1-independent-workers\\004-h3-c128-r0",
+            "requests": 100000,
+            "rps": 29664.75533681556,
+            "cpu_us": 58.59375,
+            "p50_ms": 4.1064,
+            "p95_ms": 6.7005,
+            "p99_ms": 8.0006,
+            "rss_mib": 33.46484375,
+            "private_mib": 22.9609375,
+            "client_cores": 1.7381692580165367,
+            "peer_cores": 1.2422116297291514,
+            "host_busy_percent": 50.645068807339456,
+            "summary_sha256": "b373d795664c648c7c239bf814b9c16497e6e2bc8ae77fb15bd3ba569937b6cb",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 2,
+            "folder": "timing-2-independent-workers\\005-h3-c128-r0",
+            "requests": 100000,
+            "rps": 23001.106123193465,
+            "cpu_us": 75.625,
+            "p50_ms": 5.5759,
+            "p95_ms": 6.9778,
+            "p99_ms": 7.6584,
+            "rss_mib": 33.30078125,
+            "private_mib": 22.80078125,
+            "client_cores": 1.739458650566506,
+            "peer_cores": 1.3477210619058673,
+            "host_busy_percent": 84.13732200022078,
+            "summary_sha256": "522e3f22d4a949ad77245ce9ae3e5013dda3ceafba1da43e23d406b07aad629d",
+            "observer_storage_bytes": 10400000
+          }
+        ],
+        "timeout-owned-operation": [
+          {
+            "rep": 0,
+            "folder": "timing-0-timeout-owned-operation\\000-h3-c128-r0",
+            "requests": 100000,
+            "rps": 35599.81451072647,
+            "cpu_us": 50.78125,
+            "p50_ms": 3.5546,
+            "p95_ms": 4.716,
+            "p99_ms": 5.7785,
+            "rss_mib": 35.0625,
+            "private_mib": 24.73828125,
+            "client_cores": 1.8078030806228287,
+            "peer_cores": 1.3016182180484368,
+            "host_busy_percent": 37.489162476157446,
+            "summary_sha256": "2c2958b75035896662aa5605bffed2b7485414d541522b8281243fa9d426b941",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 1,
+            "folder": "timing-1-timeout-owned-operation\\004-h3-c128-r0",
+            "requests": 100000,
+            "rps": 34063.44930575284,
+            "cpu_us": 53.125,
+            "p50_ms": 3.7512,
+            "p95_ms": 4.7997,
+            "p99_ms": 5.4384,
+            "rss_mib": 33.953125,
+            "private_mib": 23.5234375,
+            "client_cores": 1.8096207443681196,
+            "peer_cores": 1.389150042000233,
+            "host_busy_percent": 38.94736842105263,
+            "summary_sha256": "05bc885a48310eac56937604966f41b8006d5f026b4fd2af426297a602d37324",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 2,
+            "folder": "timing-2-timeout-owned-operation\\005-h3-c128-r0",
+            "requests": 100000,
+            "rps": 28002.80442485754,
+            "cpu_us": 61.875,
+            "p50_ms": 4.4517,
+            "p95_ms": 6.3412,
+            "p99_ms": 7.3686,
+            "rss_mib": 34.08984375,
+            "private_mib": 23.66796875,
+            "client_cores": 1.7326735237880604,
+            "peer_cores": 1.3563858393290371,
+            "host_busy_percent": 61.98369565217391,
+            "summary_sha256": "de13725989691cf74a032f0b1172d3b3622525df76116668dd0a18d4d2bd2137",
+            "observer_storage_bytes": 10400000
+          }
+        ]
+      },
+      "median": {
+        "independent-workers": {
+          "rps": 29664.75533681556,
+          "cpu_us": 58.59375,
+          "p50_ms": 4.1064,
+          "p95_ms": 6.7005,
+          "p99_ms": 7.6584,
+          "rss_mib": 33.46484375,
+          "private_mib": 22.9609375,
+          "host_busy_percent": 50.645068807339456
+        },
+        "timeout-owned-operation": {
+          "rps": 34063.44930575284,
+          "cpu_us": 53.125,
+          "p50_ms": 3.7512,
+          "p95_ms": 4.7997,
+          "p99_ms": 5.7785,
+          "rss_mib": 34.08984375,
+          "private_mib": 23.66796875,
+          "host_busy_percent": 38.94736842105263
+        }
+      },
+      "paired_percent_change": {
+        "rps": [
+          0.7690093931534525,
+          14.82801364445525,
+          21.745468565185845
+        ],
+        "cpu_us": [
+          -1.5151515151515138,
+          -9.333333333333337,
+          -18.181818181818176
+        ],
+        "p50_ms": [
+          -1.255625312517361,
+          -8.649912331969611,
+          -20.161767607023084
+        ],
+        "p95_ms": [
+          -2.0865773902211004,
+          -28.368032236400275,
+          -9.123219352804613
+        ],
+        "p99_ms": [
+          6.167781289042407,
+          -32.02509811764118,
+          -3.7840802256346007
+        ],
+        "rss_mib": [
+          4.7374562427071165,
+          1.4590871950507678,
+          2.3695014662756586
+        ],
+        "private_mib": [
+          7.68576772657712,
+          2.4498128615175307,
+          3.8033236251499014
+        ],
+        "host_busy_percent": [
+          9.60686860499045,
+          -23.09741236760172,
+          -26.33032026855898
+        ]
+      },
+      "median_paired_percent_change": {
+        "rps": 14.82801364445525,
+        "cpu_us": -9.333333333333337,
+        "p50_ms": -8.649912331969611,
+        "p95_ms": -9.123219352804613,
+        "p99_ms": -3.7840802256346007,
+        "rss_mib": 2.3695014662756586,
+        "private_mib": 3.8033236251499014,
+        "host_busy_percent": -23.09741236760172
+      }
+    },
+    {
+      "name": "heldout-h1",
+      "trials": {
+        "independent-workers": [
+          {
+            "rep": 0,
+            "folder": "timing-0-independent-workers\\004-heldout-h1-r0",
+            "requests": 100000,
+            "rps": 43014.628629977626,
+            "cpu_us": 45.15625,
+            "p50_ms": 0.7501,
+            "p95_ms": 0.9663,
+            "p99_ms": 1.0862,
+            "rss_mib": 27.63671875,
+            "private_mib": 18.44921875,
+            "client_cores": 1.942379324072427,
+            "peer_cores": 1.3912543947508387,
+            "host_busy_percent": 45.072164948453604,
+            "summary_sha256": "50857445b715b450d2a4e908a43bff000fecf933f24cea75b1d409524ad151ac",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 1,
+            "folder": "timing-1-independent-workers\\001-heldout-h1-r0",
+            "requests": 100000,
+            "rps": 40860.16364904143,
+            "cpu_us": 46.09375,
+            "p50_ms": 0.7813,
+            "p95_ms": 1.0104,
+            "p99_ms": 1.131,
+            "rss_mib": 27.43359375,
+            "private_mib": 18.15234375,
+            "client_cores": 1.8833981681980034,
+            "peer_cores": 1.4811809322777518,
+            "host_busy_percent": 49.221674876847295,
+            "summary_sha256": "e29013cad3a3320381181e2ad853e69ce1a8ba71213bfa8d1c90007d6c35c2f3",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 2,
+            "folder": "timing-2-independent-workers\\006-heldout-h1-r0",
+            "requests": 100000,
+            "rps": 31116.423998492224,
+            "cpu_us": 60.9375,
+            "p50_ms": 1.0286,
+            "p95_ms": 1.3082,
+            "p99_ms": 1.422,
+            "rss_mib": 27.6875,
+            "private_mib": 18.7109375,
+            "client_cores": 1.89615708740812,
+            "peer_cores": 1.317586078686155,
+            "host_busy_percent": 84.97886473443468,
+            "summary_sha256": "2954afa77a6ad3c1b0a8487ff3368f3657a7c431dff4a4076c9237796ec52d55",
+            "observer_storage_bytes": 10400000
+          }
+        ],
+        "timeout-owned-operation": [
+          {
+            "rep": 0,
+            "folder": "timing-0-timeout-owned-operation\\004-heldout-h1-r0",
+            "requests": 100000,
+            "rps": 46100.118947526906,
+            "cpu_us": 41.09375,
+            "p50_ms": 0.7028,
+            "p95_ms": 0.8961,
+            "p99_ms": 0.9944,
+            "rss_mib": 27.5625,
+            "private_mib": 18.27734375,
+            "client_cores": 1.8944267629999338,
+            "peer_cores": 1.4046129991824605,
+            "host_busy_percent": 36.08363309352518,
+            "summary_sha256": "c294df3d7beb0aa533bfa19bb07a34dc5cd09b1cccca8898c3477a85ca3abb9d",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 1,
+            "folder": "timing-1-timeout-owned-operation\\001-heldout-h1-r0",
+            "requests": 100000,
+            "rps": 44916.47063621665,
+            "cpu_us": 42.65625,
+            "p50_ms": 0.7179,
+            "p95_ms": 0.8982,
+            "p99_ms": 0.98,
+            "rss_mib": 28.3359375,
+            "private_mib": 19.03125,
+            "client_cores": 1.9159682005761165,
+            "peer_cores": 1.4808398912877676,
+            "host_busy_percent": 36.0616587060356,
+            "summary_sha256": "3d2a21b95cddffd61950382bbe1e5b564e059a0f128c573e6233a720e3698cda",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 2,
+            "folder": "timing-2-timeout-owned-operation\\006-heldout-h1-r0",
+            "requests": 100000,
+            "rps": 39318.84813861624,
+            "cpu_us": 47.34375,
+            "p50_ms": 0.8048,
+            "p95_ms": 1.0699,
+            "p99_ms": 1.1948,
+            "rss_mib": 27.97265625,
+            "private_mib": 18.8671875,
+            "client_cores": 1.8615017165626127,
+            "peer_cores": 1.4990310852847442,
+            "host_busy_percent": 59.375,
+            "summary_sha256": "a98319a3d81933e497a9501dc6d907d056684f4b2f16964317a696d75cd16798",
+            "observer_storage_bytes": 10400000
+          }
+        ]
+      },
+      "median": {
+        "independent-workers": {
+          "rps": 40860.16364904143,
+          "cpu_us": 46.09375,
+          "p50_ms": 0.7813,
+          "p95_ms": 1.0104,
+          "p99_ms": 1.131,
+          "rss_mib": 27.63671875,
+          "private_mib": 18.44921875,
+          "host_busy_percent": 49.221674876847295
+        },
+        "timeout-owned-operation": {
+          "rps": 44916.47063621665,
+          "cpu_us": 42.65625,
+          "p50_ms": 0.7179,
+          "p95_ms": 0.8982,
+          "p99_ms": 0.9944,
+          "rss_mib": 27.97265625,
+          "private_mib": 18.8671875,
+          "host_busy_percent": 36.08363309352518
+        }
+      },
+      "paired_percent_change": {
+        "rps": [
+          7.1731185780805395,
+          9.927290115663489,
+          26.36043312856731
+        ],
+        "cpu_us": [
+          -8.996539792387548,
+          -7.457627118644073,
+          -22.307692307692307
+        ],
+        "p50_ms": [
+          -6.305825889881356,
+          -8.114680660437735,
+          -21.757728951973554
+        ],
+        "p95_ms": [
+          -7.264824588637076,
+          -11.104513064133014,
+          -18.21586913316007
+        ],
+        "p99_ms": [
+          -8.451482231633223,
+          -13.351016799292658,
+          -15.977496483825593
+        ],
+        "rss_mib": [
+          -0.26855123674911496,
+          3.289192652712525,
+          1.0299097065462837
+        ],
+        "private_mib": [
+          -0.931611264027099,
+          4.841833440929633,
+          0.8350730688935215
+        ],
+        "host_busy_percent": [
+          -19.942534078866814,
+          -26.736221804191086,
+          -30.129685557048425
+        ]
+      },
+      "median_paired_percent_change": {
+        "rps": 9.927290115663489,
+        "cpu_us": -8.996539792387548,
+        "p50_ms": -8.114680660437735,
+        "p95_ms": -11.104513064133014,
+        "p99_ms": -13.351016799292658,
+        "rss_mib": 1.0299097065462837,
+        "private_mib": 0.8350730688935215,
+        "host_busy_percent": -26.736221804191086
+      }
+    },
+    {
+      "name": "heldout-h2-connect",
+      "trials": {
+        "independent-workers": [
+          {
+            "rep": 0,
+            "folder": "timing-0-independent-workers\\001-heldout-h2-connect-r0",
+            "requests": 100000,
+            "rps": 52008.17880619906,
+            "cpu_us": 30.78125,
+            "p50_ms": 0.5939,
+            "p95_ms": 0.95,
+            "p99_ms": 1.121,
+            "rss_mib": 27.5,
+            "private_mib": 17.8828125,
+            "client_cores": 1.6008767538783149,
+            "peer_cores": 1.2839519142780393,
+            "host_busy_percent": 33.89616935483871,
+            "summary_sha256": "a77753fbed68d96be73849a3357aaea95d10c2cfea3ecfa3a876dd97342e5e72",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 1,
+            "folder": "timing-1-independent-workers\\000-heldout-h2-connect-r0",
+            "requests": 100000,
+            "rps": 45755.79537184705,
+            "cpu_us": 33.90625,
+            "p50_ms": 0.6803,
+            "p95_ms": 1.0562,
+            "p99_ms": 1.2519,
+            "rss_mib": 27.44921875,
+            "private_mib": 17.8203125,
+            "client_cores": 1.551407436826689,
+            "peer_cores": 1.208238971537836,
+            "host_busy_percent": 47.18902169101372,
+            "summary_sha256": "0aaa90e6b708095c1a47af23ebc18be636062c01d4de927667258cfe291898df",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 2,
+            "folder": "timing-2-independent-workers\\002-heldout-h2-connect-r0",
+            "requests": 100000,
+            "rps": 46129.98488689435,
+            "cpu_us": 34.84375,
+            "p50_ms": 0.6737,
+            "p95_ms": 1.0254,
+            "p99_ms": 1.2158,
+            "rss_mib": 27.484375,
+            "private_mib": 17.88671875,
+            "client_cores": 1.6073416609027251,
+            "peer_cores": 1.3118214452210581,
+            "host_busy_percent": 40.732419680970565,
+            "summary_sha256": "8efca50bce26a198a2323c83f6577efa76c810542d1626fdbdde1451eca2aa7d",
+            "observer_storage_bytes": 10400000
+          }
+        ],
+        "timeout-owned-operation": [
+          {
+            "rep": 0,
+            "folder": "timing-0-timeout-owned-operation\\001-heldout-h2-connect-r0",
+            "requests": 100000,
+            "rps": 49648.28164318336,
+            "cpu_us": 30.15625,
+            "p50_ms": 0.6246,
+            "p95_ms": 0.9664,
+            "p99_ms": 1.1408,
+            "rss_mib": 27.71875,
+            "private_mib": 18.12890625,
+            "client_cores": 1.4972059933022481,
+            "peer_cores": 1.4816909052887535,
+            "host_busy_percent": 39.2548076930241,
+            "summary_sha256": "a1236a37db68d1ffc8f7992fcc1dab62ac3baf0637457fe6769944dc4c6add89",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 1,
+            "folder": "timing-1-timeout-owned-operation\\000-heldout-h2-connect-r0",
+            "requests": 100000,
+            "rps": 43820.775482241064,
+            "cpu_us": 36.875,
+            "p50_ms": 0.6939,
+            "p95_ms": 1.1713,
+            "p99_ms": 1.4834,
+            "rss_mib": 27.71875,
+            "private_mib": 18.1640625,
+            "client_cores": 1.6158910959076391,
+            "peer_cores": 1.2666942912835306,
+            "host_busy_percent": 52.32263513513513,
+            "summary_sha256": "c365beb213e5c52e04f97e14a8911138141b23279785a805152d03016533a362",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 2,
+            "folder": "timing-2-timeout-owned-operation\\002-heldout-h2-connect-r0",
+            "requests": 100000,
+            "rps": 38018.507333332855,
+            "cpu_us": 44.53125,
+            "p50_ms": 0.8199,
+            "p95_ms": 1.248,
+            "p99_ms": 1.4662,
+            "rss_mib": 27.7578125,
+            "private_mib": 18.17578125,
+            "client_cores": 1.6930116546874785,
+            "peer_cores": 1.4138132414583156,
+            "host_busy_percent": 78.58455882352942,
+            "summary_sha256": "eb1c54963f76d103bf408ab81b5b1ae18d8ec1f7514e551da43d5f40ac9b7745",
+            "observer_storage_bytes": 10400000
+          }
+        ]
+      },
+      "median": {
+        "independent-workers": {
+          "rps": 46129.98488689435,
+          "cpu_us": 33.90625,
+          "p50_ms": 0.6737,
+          "p95_ms": 1.0254,
+          "p99_ms": 1.2158,
+          "rss_mib": 27.484375,
+          "private_mib": 17.8828125,
+          "host_busy_percent": 40.732419680970565
+        },
+        "timeout-owned-operation": {
+          "rps": 43820.775482241064,
+          "cpu_us": 36.875,
+          "p50_ms": 0.6939,
+          "p95_ms": 1.1713,
+          "p99_ms": 1.4662,
+          "rss_mib": 27.71875,
+          "private_mib": 18.1640625,
+          "host_busy_percent": 52.32263513513513
+        }
+      },
+      "paired_percent_change": {
+        "rps": [
+          -4.537550087668918,
+          -4.229015961542181,
+          -17.583958835993442
+        ],
+        "cpu_us": [
+          -2.030456852791873,
+          8.75576036866359,
+          27.802690582959634
+        ],
+        "p50_ms": [
+          5.169220407476027,
+          1.9991180361605076,
+          21.701053881549658
+        ],
+        "p95_ms": [
+          1.726315789473687,
+          10.897557280818027,
+          21.70860152135752
+        ],
+        "p99_ms": [
+          1.766280107047291,
+          18.491892323668036,
+          20.595492679717054
+        ],
+        "rss_mib": [
+          0.7954545454545547,
+          0.9819268535648185,
+          0.9948834565093767
+        ],
+        "private_mib": [
+          1.3761467889908285,
+          1.9289785181937802,
+          1.6160733784669201
+        ],
+        "host_busy_percent": [
+          15.808979127077771,
+          10.878829990872664,
+          92.92877624022586
+        ]
+      },
+      "median_paired_percent_change": {
+        "rps": -4.537550087668918,
+        "cpu_us": 8.75576036866359,
+        "p50_ms": 5.169220407476027,
+        "p95_ms": 10.897557280818027,
+        "p99_ms": 18.491892323668036,
+        "rss_mib": 0.9819268535648185,
+        "private_mib": 1.6160733784669201,
+        "host_busy_percent": 15.808979127077771
+      }
+    },
+    {
+      "name": "heldout-h3-workers8",
+      "trials": {
+        "independent-workers": [
+          {
+            "rep": 0,
+            "folder": "timing-0-independent-workers\\003-heldout-h3-workers8-r0",
+            "requests": 100000,
+            "rps": 13251.472099409788,
+            "cpu_us": 213.125,
+            "p50_ms": 9.4876,
+            "p95_ms": 12.0227,
+            "p99_ms": 12.9083,
+            "rss_mib": 34.23828125,
+            "private_mib": 23.921875,
+            "client_cores": 2.824219991186711,
+            "peer_cores": 1.2816658171147903,
+            "host_busy_percent": 40.993026859731216,
+            "summary_sha256": "fe0e3546b851daa757d1209439d0b0c42fd850f6de9f8d162d7cd270e23c1800",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 1,
+            "folder": "timing-1-independent-workers\\005-heldout-h3-workers8-r0",
+            "requests": 100000,
+            "rps": 12799.675277358085,
+            "cpu_us": 206.5625,
+            "p50_ms": 9.8657,
+            "p95_ms": 12.1916,
+            "p99_ms": 13.4205,
+            "rss_mib": 34.3359375,
+            "private_mib": 24.0,
+            "client_cores": 2.6439329244792793,
+            "peer_cores": 1.2639679336391108,
+            "host_busy_percent": 49.51486503277804,
+            "summary_sha256": "1839f0738c6b542dbe10e8b4bceab6929dab85404a23439fdeceb11dc06d7e74",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 2,
+            "folder": "timing-2-independent-workers\\001-heldout-h3-workers8-r0",
+            "requests": 100000,
+            "rps": 12858.629424921202,
+            "cpu_us": 207.8125,
+            "p50_ms": 9.6692,
+            "p95_ms": 12.5401,
+            "p99_ms": 14.6079,
+            "rss_mib": 34.3046875,
+            "private_mib": 23.97265625,
+            "client_cores": 2.6721839273664374,
+            "peer_cores": 1.1994690260434309,
+            "host_busy_percent": 46.471546753372365,
+            "summary_sha256": "9769dea346ce720a8f42579cf3e9b94d5e9f30792a5f2616ab18ff488f0f2d4f",
+            "observer_storage_bytes": 10400000
+          }
+        ],
+        "timeout-owned-operation": [
+          {
+            "rep": 0,
+            "folder": "timing-0-timeout-owned-operation\\003-heldout-h3-workers8-r0",
+            "requests": 100000,
+            "rps": 14151.331423063973,
+            "cpu_us": 192.34375,
+            "p50_ms": 8.8907,
+            "p95_ms": 10.8222,
+            "p99_ms": 11.7421,
+            "rss_mib": 36.08203125,
+            "private_mib": 26.03515625,
+            "client_cores": 2.721920153404961,
+            "peer_cores": 1.2559306637969276,
+            "host_busy_percent": 40.69231298602987,
+            "summary_sha256": "5e9bfa329f71dcd75ff46194b46d7cf67a49bab446e697ab36c92ec258c918f6",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 1,
+            "folder": "timing-1-timeout-owned-operation\\005-heldout-h3-workers8-r0",
+            "requests": 100000,
+            "rps": 12083.016461261226,
+            "cpu_us": 222.5,
+            "p50_ms": 10.483,
+            "p95_ms": 12.4148,
+            "p99_ms": 13.1019,
+            "rss_mib": 35.5078125,
+            "private_mib": 25.265625,
+            "client_cores": 2.688471162630623,
+            "peer_cores": 1.2177415027364829,
+            "host_busy_percent": 43.53813559322034,
+            "summary_sha256": "6bd173f048af08831a3809e7312968b9c26e37f88d542eef139130d9dd942053",
+            "observer_storage_bytes": 10400000
+          },
+          {
+            "rep": 2,
+            "folder": "timing-2-timeout-owned-operation\\001-heldout-h3-workers8-r0",
+            "requests": 100000,
+            "rps": 10655.66683599942,
+            "cpu_us": 243.4375,
+            "p50_ms": 12.0876,
+            "p95_ms": 13.4902,
+            "p99_ms": 14.0836,
+            "rss_mib": 35.8203125,
+            "private_mib": 25.52734375,
+            "client_cores": 2.5939888953886086,
+            "peer_cores": 1.2070872587655592,
+            "host_busy_percent": 97.3391089108911,
+            "summary_sha256": "f12f0ae334bbfca57d328961800cbdf5c99dd3de05895af85874978828b4c35f",
+            "observer_storage_bytes": 10400000
+          }
+        ]
+      },
+      "median": {
+        "independent-workers": {
+          "rps": 12858.629424921202,
+          "cpu_us": 207.8125,
+          "p50_ms": 9.6692,
+          "p95_ms": 12.1916,
+          "p99_ms": 13.4205,
+          "rss_mib": 34.3046875,
+          "private_mib": 23.97265625,
+          "host_busy_percent": 46.471546753372365
+        },
+        "timeout-owned-operation": {
+          "rps": 12083.016461261226,
+          "cpu_us": 222.5,
+          "p50_ms": 10.483,
+          "p95_ms": 12.4148,
+          "p99_ms": 13.1019,
+          "rss_mib": 35.8203125,
+          "private_mib": 25.52734375,
+          "host_busy_percent": 43.53813559322034
+        }
+      },
+      "paired_percent_change": {
+        "rps": [
+          6.790636669674344,
+          -5.599039042534059,
+          -17.13217261438641
+        ],
+        "cpu_us": [
+          -9.750733137829915,
+          7.715582450832081,
+          17.14285714285715
+        ],
+        "p50_ms": [
+          -6.2913697879337205,
+          6.257031938939961,
+          25.011376328962065
+        ],
+        "p95_ms": [
+          -9.985277849401552,
+          1.8307687260080696,
+          7.576494605306161
+        ],
+        "p99_ms": [
+          -9.034497183982392,
+          -2.373980105063145,
+          -3.589153814032131
+        ],
+        "rss_mib": [
+          5.385054192812322,
+          3.412969283276457,
+          4.418127989068554
+        ],
+        "private_mib": [
+          8.834095362508165,
+          5.2734375,
+          6.48525338113084
+        ],
+        "host_busy_percent": [
+          -0.7335732360782332,
+          -12.070576049437276,
+          109.45958486700759
+        ]
+      },
+      "median_paired_percent_change": {
+        "rps": -5.599039042534059,
+        "cpu_us": 7.715582450832081,
+        "p50_ms": 6.257031938939961,
+        "p95_ms": 1.8307687260080696,
+        "p99_ms": -3.589153814032131,
+        "rss_mib": 4.418127989068554,
+        "private_mib": 6.48525338113084,
+        "host_busy_percent": -0.7335732360782332
+      }
+    }
+  ],
+  "limits": [
+    "3 matched fresh-process pairs, alternating AB/BA; no instrumented timings",
+    "Shared Windows host and loopback peer; no production capacity claim",
+    "Peak RSS includes each case's fixed observation buffer",
+    "Independent trial results retained; short bulk-body tails have few observations"
+  ]
+}

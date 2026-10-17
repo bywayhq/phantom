@@ -1400,6 +1400,7 @@ dependencies = [
  "phantom-tokio-btls",
  "phantom-tokio-tungstenite",
  "phantom-tungstenite",
+ "pin-project-lite",
  "psl",
  "rcgen",
  "rustls",

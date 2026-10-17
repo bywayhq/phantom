@@ -65,8 +65,10 @@ its size is recorded separately.
 
 Use `scalability.json` for a longer H2/H3 sweep: 32, 128 and 192 concurrent
 requests, two to eight runtime workers, and planned rates of 10,000 and
-40,000 requests/s. The worker setting applies to both client and peer. Inspect
-their CPU separately before attributing a throughput plateau to the client.
+40,000 requests/s. `workers` applies to both processes unless `peer_workers`
+overrides the peer. Both settings accept 1–16. Use `worker-isolation.json`
+to vary each process independently. Inspect their CPU separately before
+attributing a throughput plateau to the client.
 These are exploratory settings, not capacity promises or acceptance targets.
 The default per-origin bounds allow 100 active and 100 waiting requests.
 Keep a probe beyond those bounds separate from a successful-throughput sweep.

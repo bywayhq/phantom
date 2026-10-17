@@ -36,6 +36,7 @@ struct Config {
     template: bool,
     arrival_interval_us: u64,
     workers: usize,
+    peer_workers: Option<usize>,
 }
 
 impl Default for Config {
@@ -59,6 +60,7 @@ impl Default for Config {
             template: false,
             arrival_interval_us: 0,
             workers: 2,
+            peer_workers: None,
         }
     }
 }
@@ -76,6 +78,9 @@ impl Config {
             || self.bytes > 16 * 1024 * 1024
             || !(1..=65536).contains(&self.chunk_bytes)
             || !(1..=16).contains(&self.workers)
+            || self
+                .peer_workers
+                .is_some_and(|workers| !(1..=16).contains(&workers))
             || self.server_delay_ms > 1000
             || self.chunk_delay_ms > 1000
             || self.arrival_interval_us > 1_000_000
@@ -90,6 +95,14 @@ impl Config {
             return Err("construction runs are sequential".into());
         }
         Ok(())
+    }
+
+    fn runtime_workers(&self, peer: bool) -> usize {
+        if peer {
+            self.peer_workers.unwrap_or(self.workers)
+        } else {
+            self.workers
+        }
     }
 }
 
@@ -140,7 +153,7 @@ fn main() -> Result<()> {
     let config: Config = serde_json::from_slice(&std::fs::read(&args[2])?)?;
     config.validate()?;
     let runtime = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(config.workers)
+        .worker_threads(config.runtime_workers(args[1] == "serve"))
         .enable_all()
         .build()?;
     if args[1] == "serve" {
@@ -152,5 +165,27 @@ fn main() -> Result<()> {
     } else {
         let ready: Ready = serde_json::from_slice(&std::fs::read(&args[3])?)?;
         runtime.block_on(client::run(config, ready, Path::new(&args[4])))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Config;
+
+    #[test]
+    fn peer_workers_can_be_held_fixed_while_client_workers_change() {
+        let mut config = Config::default();
+        assert_eq!(config.runtime_workers(true), 2);
+        config.workers = 8;
+        assert_eq!(config.runtime_workers(false), 8);
+        assert_eq!(config.runtime_workers(true), 8);
+        config.peer_workers = Some(2);
+        assert_eq!(config.runtime_workers(false), 8);
+        assert_eq!(config.runtime_workers(true), 2);
+        assert!(config.validate().is_ok());
+        config.peer_workers = Some(0);
+        assert!(config.validate().is_err());
+        config.peer_workers = Some(17);
+        assert!(config.validate().is_err());
     }
 }

@@ -1115,6 +1115,7 @@ dependencies = [
  "phantom-btls",
  "phantom-net",
  "phantom-profile",
+ "pin-project-lite",
  "psl",
  "sfv",
  "tokio",

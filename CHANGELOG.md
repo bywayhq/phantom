@@ -2268,6 +2268,10 @@ Changes since `a84e73c` (2026-09-21), the first commit with a license grant.
 
 ### Changed
 
+- Reduce request-future allocation sizes by storing each timed operation
+  once. Keep deadline ordering and prompt cancellation of owned work.
+  Add independent client and peer worker controls to the profiling tool.
+
 - Update the rustls test-peer dependency to 0.23.46, which fixes four
   published security advisories. Phantom clients continue to use BoringSSL.
 

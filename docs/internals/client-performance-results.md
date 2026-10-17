@@ -276,9 +276,8 @@ scheduled p99 was 17.8 ms for H2 and 18.4 ms for H3. Windows timer bursts
 contribute to scheduled waiting even when average throughput keeps up.
 
 More workers increased client CPU/request and reduced throughput in both
-protocols. The peer changes worker count too. This establishes a repeated
-workload regression, not its cause. Profile client and peer contention before
-changing the runtime or connection pool.
+protocols. That sweep changed the peer's worker count too. The independent
+worker comparison below separates those changes.
 
 Host busy time ranged from 54% to 98%. The median sampling gap was 57 ms and
 the worst was 785 ms. Sampled client RSS medians ranged from 37 to 46 MiB,
@@ -317,9 +316,121 @@ retain the observations and controls. Memory remained above the warm start.
 One burst cannot distinguish retained capacity from long-term growth.
 Repeated cycles and attribution of live allocations remain necessary.
 
+## Independent client and peer workers
+
+The tool now accepts `peer_workers`, leaving `workers` to select the client
+runtime. The original coupled behavior remains the default. Three repeats
+of nine settings completed all 2.7 million measured requests. Each used
+100,000 1 KiB responses, concurrency 128 and one reused connection.
+
+| Protocol | Client / peer workers | Requests/s | CPU microseconds/request | Request p99 ms |
+| --- | ---: | ---: | ---: | ---: |
+| H2 | 2 / 2 | 68,120 | 26.4 | 2.95 |
+| H2 | 8 / 2 | 40,784 | 84.8 | 4.62 |
+| H2 | 2 / 8 | 59,963 | 28.0 | 3.10 |
+| H3 | 1 / 2 | 32,146 | 29.7 | 6.05 |
+| H3 | 2 / 2 | 33,676 | 54.4 | 5.70 |
+| H3 | 8 / 2 | 13,627 | 197.0 | 13.71 |
+| H3 | 2 / 8 | 29,849 | 58.6 | 6.96 |
+
+Values are medians. Raising client workers still reduces throughput and
+raises CPU/request with the peer fixed. This locates part of the cost in
+the client process; it does not distinguish scheduling, wakeups, locks or
+transport work. The earlier two-worker Linux samples cannot establish the
+cause of this Windows eight-worker result.
+
+Median host busy time ranged from 44% to 50%. The fixed observation buffer
+was 9.9 MiB, half the earlier sweep's buffer. Its lower absolute RSS is not
+a library improvement. The
+[worker comparison](client-performance-evidence/2026-10-16-timeout-storage/workers-summary.json)
+retains all nine settings, individual trials, peer CPU and host load.
+
+## Smaller timeout operation storage
+
+The timeout wrapper now stores its operation directly in a pinned field.
+This avoids storing the same large future in the argument and suspended
+states of an async function. The first attempt only moved the pinning point
+inside that async function; it produced no allocation benefit and was dropped.
+
+Review caught delayed destruction in the first direct wrapper. A regression
+failed while the completed wrapper retained owned work. The corrected version
+clears the operation before returning completion, including timeout and
+initial-validation errors. Its ten focused tests pass, covering deadline
+priority, missing timers and cancellation as well.
+
+Matched DHAT builds ran three profiles of 32 requests per case. Each passed
+the response, protocol and peer controls. These are cumulative Rust allocation
+bytes during measured requests, including the harness's request future.
+
+| Workload | Before bytes | After bytes | Reduction |
+| --- | ---: | ---: | ---: |
+| H2, 1 KiB, concurrency 1 | 834,334 | 726,558 | 12.9% |
+| H3, 1 KiB, concurrency 1 | 1,855,066 | 1,546,570 | 16.6% |
+| H1, 1 KiB, concurrency 4 | 1,346,409 | 1,238,633 | 8.0% |
+| Firefox H3, 1 KiB, concurrency 4 | 1,630,666 | 1,321,176 | 19.0% |
+
+Values are medians. The harness's boxed outer request future shrank from
+18,152 to 14,784 bytes. The inner H3 request allocation shrank from 16,600
+to 10,320 bytes. The field layout is private and compiler-dependent.
+Allocation counts stayed close; the benefit is fewer bytes per allocation.
+
+Large H2 bodies reduced cumulative bytes by only 0.1% for collection and
+0.2% for streaming. Their traced live peaks increased: collection medians
+rose from 3.97 to 4.93 MB and streaming from 0.74 to 1.48 MB. At the streaming
+peak, HTTP/2 frame buffers account for most of the difference. Instrumented
+buffer overlap and whole-process memory need separate assessment; the
+smaller future is not evidence that every workload uses less live memory.
+The [allocation comparison](client-performance-evidence/2026-10-16-timeout-storage/heap-comparison.json)
+retains the three profiles, live peaks and allocation stacks for every case.
+
+Three fresh-process timing pairs then completed 3,603,072 measured requests
+in 42 accepted trials. Client and peer each used two workers, except for the
+held-out eight-client-worker case. Paired changes below use the median of
+each pair's percentage change, not a ratio of pooled requests.
+
+| Workload | Requests/s change | CPU/request change | Request p99 change |
+| --- | ---: | ---: | ---: |
+| H2, concurrency 128 | +6.8% | -7.0% | -9.3% |
+| H3, concurrency 128 | +14.8% | -9.3% | -3.8% |
+| Firefox H3, concurrency 128 | +17.8% | -15.0% | -15.6% |
+| H1, concurrency 32 | +9.9% | -9.0% | -13.4% |
+| H2 through CONNECT, concurrency 32 | -4.5% | +8.8% | +18.5% |
+| H3, eight client workers | -5.6% | +7.7% | -3.6% |
+
+Host load varied sharply. The last eight-worker candidate trial reached
+97% busy time. No builds or report processing overlapped benchmark timing.
+These numbers do not establish a general speedup. The
+[timing comparison](client-performance-evidence/2026-10-16-timeout-storage/timing-comparison.json)
+retains all trial values and host observations, including the lower results.
+
+The three lower CONNECT results triggered a closer check: four alternating
+pairs of 500,000 requests, totaling four million completed requests. The
+candidate was faster in three pairs and slower in one. Paired throughput
+changes ranged from -7.3% to +17.2%; CPU/request ranged from -12.5% to +8.4%.
+That does not reproduce a consistent CONNECT regression. Host busy time
+still ranged from 52% to nearly 100%. The
+[proxy follow-up](client-performance-evidence/2026-10-16-timeout-storage/proxy-comparison.json)
+retains both execution orders and every result.
+
+Six ordinary H2 streaming trials completed another 3,072 requests with
+1 MiB bodies. Candidate RSS medians were 16.61 versus 16.47 MiB; paired RSS
+increases ranged from 0.5% to 2.3%. Throughput changes ranged from -7.5% to
++4.8%. Request p99 fell in all three pairs, while p95 rose by 9.8% to 16.2%
+in every pair. With only 512 observations per trial, bulk-body tails remain
+exploratory. The
+[streaming follow-up](client-performance-evidence/2026-10-16-timeout-storage/stream-comparison.json)
+keeps those observations separate from the allocation-instrumented runs.
+
+Keep the storage change for its repeatable reduction in allocation bytes
+and smaller request futures. Whole-process memory did not improve across
+the small-response trials: paired RSS increased by roughly 0% to 5.4%.
+The bulk-body live-heap tradeoff and noisy speed comparisons remain visible.
+Further work must measure allocator retention and client worker overhead
+separately. This pass does not establish a memory or throughput optimum.
+
 ## Verification and retained evidence
 
-The full integration gate passed all 22 steps, including 5,738 passing tests
+The earlier remediation gate passed all 22 steps, including 5,738 passing tests
 and three skips. Touched vendor checks, benchmark Clippy and tests, controller
 tests, ShellCheck and the documentation checker passed separately.
 The [verification record](client-performance-evidence/2026-10-16-remediation/verification.json)
@@ -328,13 +439,26 @@ lists commands, results and log hashes. The
 identifies the local archive of raw trials, profiles, binaries and logs.
 These are local checks; no remote CI or production-capacity claim follows.
 
+After the timeout-storage change, the full gate passed all 22 steps in
+428 seconds: 5,740 tests passed and three were skipped. Benchmark Clippy
+and its five tests passed separately. Independent source and evidence review
+found no remaining blocker after the cleanup regression and reporting fixes.
+The [follow-up verification record](client-performance-evidence/2026-10-16-timeout-storage/verification.json)
+retains exact commands and log hashes. Its
+[archive receipt](client-performance-evidence/2026-10-16-timeout-storage/archive.json)
+identifies the raw trials, rejected prototypes, binaries, symbols and native
+build receipts. This follow-up has Windows local checks, without new Linux
+or remote CI results.
+
 ## Remaining investigations
 
-- Separate client and peer worker counts, then profile the slower settings.
+- Profile scheduling, wakeups and contention at the slower client-worker
+  settings.
 - Repeat bursts and idle intervals across more origins. The earlier 64-origin
   peer aborts remain unresolved and rejected.
-- Validate the held allocation experiment on a quieter host. Use a separate
-  load generator and downstream traffic before claiming production capacity.
+- Validate the earlier held response-head pinning experiment on a quieter
+  host. Use a separate load generator and downstream traffic before claiming
+  production capacity.
 
 ## Next
 

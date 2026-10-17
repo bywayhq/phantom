@@ -1,0 +1,471 @@
+{
+  "accepted_trials": 27,
+  "requests": 2700000,
+  "matrix": "tools/client-bench/worker-isolation.json",
+  "rows": [
+    {
+      "name": "h2-client2-peer2",
+      "trials": [
+        {
+          "folder": "001-h2-client2-peer2-r0",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 67438.80046875362,
+          "cpu_us": 26.40625,
+          "p99_ms": 3.063,
+          "rss_mib": 29.859375,
+          "client_cores": 1.7808058248780252,
+          "peer_cores": 1.022119319604547,
+          "host_busy_percent": 52.750809061488674
+        },
+        {
+          "folder": "012-h2-client2-peer2-r1",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 68119.55690680536,
+          "cpu_us": 27.34375,
+          "p99_ms": 2.9452,
+          "rss_mib": 29.8203125,
+          "client_cores": 1.8626441341704592,
+          "peer_cores": 1.043080715135457,
+          "host_busy_percent": 48.444863336475024
+        },
+        {
+          "folder": "022-h2-client2-peer2-r2",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 74500.83139202792,
+          "cpu_us": 24.21875,
+          "p99_ms": 2.5665,
+          "rss_mib": 29.9453125,
+          "client_cores": 1.804317010275676,
+          "peer_cores": 1.09423096107041,
+          "host_busy_percent": 43.28835227272727
+        }
+      ],
+      "median": {
+        "requests": 100000,
+        "rps": 68119.55690680536,
+        "cpu_us": 26.40625,
+        "p99_ms": 2.9452,
+        "rss_mib": 29.859375,
+        "client_cores": 1.804317010275676,
+        "peer_cores": 1.043080715135457,
+        "host_busy_percent": 48.444863336475024
+      }
+    },
+    {
+      "name": "h2-client2-peer8",
+      "trials": [
+        {
+          "folder": "003-h2-client2-peer8-r0",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 64723.13868388733,
+          "cpu_us": 26.25,
+          "p99_ms": 2.7977,
+          "rss_mib": 29.85546875,
+          "client_cores": 1.6989823904520425,
+          "peer_cores": 1.4158186587100354,
+          "host_busy_percent": 41.55321782178218
+        },
+        {
+          "folder": "017-h2-client2-peer8-r1",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 58589.47479926074,
+          "cpu_us": 29.21875,
+          "p99_ms": 3.6063,
+          "rss_mib": 29.8671875,
+          "client_cores": 1.7119112167908996,
+          "peer_cores": 1.4922006862936719,
+          "host_busy_percent": 47.663288288288285
+        },
+        {
+          "folder": "025-h2-client2-peer8-r2",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 59963.36598118745,
+          "cpu_us": 27.96875,
+          "p99_ms": 3.0951,
+          "rss_mib": 29.83203125,
+          "client_cores": 1.6771003922863366,
+          "peer_cores": 1.2648522511656728,
+          "host_busy_percent": 48.88449590511155
+        }
+      ],
+      "median": {
+        "requests": 100000,
+        "rps": 59963.36598118745,
+        "cpu_us": 27.96875,
+        "p99_ms": 3.0951,
+        "rss_mib": 29.85546875,
+        "client_cores": 1.6989823904520425,
+        "peer_cores": 1.4158186587100354,
+        "host_busy_percent": 47.663288288288285
+      }
+    },
+    {
+      "name": "h2-client8-peer2",
+      "trials": [
+        {
+          "folder": "007-h2-client8-peer2-r0",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 36907.877237166365,
+          "cpu_us": 90.3125,
+          "p99_ms": 4.904,
+          "rss_mib": 31.00390625,
+          "client_cores": 3.3332426629815877,
+          "peer_cores": 1.0957026054783765,
+          "host_busy_percent": 58.209483368719035
+        },
+        {
+          "folder": "016-h2-client8-peer2-r1",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 40784.42811381564,
+          "cpu_us": 84.84375,
+          "p99_ms": 4.6173,
+          "rss_mib": 30.30859375,
+          "client_cores": 3.4603038227815457,
+          "peer_cores": 1.2299054103072529,
+          "host_busy_percent": 49.90110759493671
+        },
+        {
+          "folder": "020-h2-client8-peer2-r2",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 43528.44917145991,
+          "cpu_us": 80.3125,
+          "p99_ms": 4.2895,
+          "rss_mib": 31.33203125,
+          "client_cores": 3.4958785740828744,
+          "peer_cores": 1.1834297118490664,
+          "host_busy_percent": 47.33628132238366
+        }
+      ],
+      "median": {
+        "requests": 100000,
+        "rps": 40784.42811381564,
+        "cpu_us": 84.84375,
+        "p99_ms": 4.6173,
+        "rss_mib": 31.00390625,
+        "client_cores": 3.4603038227815457,
+        "peer_cores": 1.1834297118490664,
+        "host_busy_percent": 49.90110759493671
+      }
+    },
+    {
+      "name": "h2-client8-peer8",
+      "trials": [
+        {
+          "folder": "008-h2-client8-peer8-r0",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 40409.09358160142,
+          "cpu_us": 78.59375,
+          "p99_ms": 4.9389,
+          "rss_mib": 30.33984375,
+          "client_cores": 3.1759021986789864,
+          "peer_cores": 1.338551224890547,
+          "host_busy_percent": 43.36180124223603
+        },
+        {
+          "folder": "011-h2-client8-peer8-r1",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 45061.93515145925,
+          "cpu_us": 75.15625,
+          "p99_ms": 4.138,
+          "rss_mib": 31.08984375,
+          "client_cores": 3.386686063726859,
+          "peer_cores": 1.4222673282179326,
+          "host_busy_percent": 50.954861111111114
+        },
+        {
+          "folder": "019-h2-client8-peer8-r2",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 55366.61390966582,
+          "cpu_us": 74.21875,
+          "p99_ms": 3.1355,
+          "rss_mib": 31.31640625,
+          "client_cores": 4.109240876108011,
+          "peer_cores": 1.3495612140481046,
+          "host_busy_percent": 49.43910256410256
+        }
+      ],
+      "median": {
+        "requests": 100000,
+        "rps": 45061.93515145925,
+        "cpu_us": 75.15625,
+        "p99_ms": 4.138,
+        "rss_mib": 31.08984375,
+        "client_cores": 3.386686063726859,
+        "peer_cores": 1.3495612140481046,
+        "host_busy_percent": 49.43910256410256
+      }
+    },
+    {
+      "name": "h3-client1-peer2",
+      "trials": [
+        {
+          "folder": "005-h3-client1-peer2-r0",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 34324.231565407725,
+          "cpu_us": 29.0625,
+          "p99_ms": 6.0545,
+          "rss_mib": 32.87109375,
+          "client_cores": 0.997547979869662,
+          "peer_cores": 1.24425339424603,
+          "host_busy_percent": 42.12197159565581
+        },
+        {
+          "folder": "014-h3-client1-peer2-r1",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 30794.743029417452,
+          "cpu_us": 32.34375,
+          "p99_ms": 7.3673,
+          "rss_mib": 32.921875,
+          "client_cores": 0.9960174698577207,
+          "peer_cores": 1.2654714713651234,
+          "host_busy_percent": 51.738027748769206
+        },
+        {
+          "folder": "023-h3-client1-peer2-r2",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 32145.628440446155,
+          "cpu_us": 29.6875,
+          "p99_ms": 5.9402,
+          "rss_mib": 32.78125,
+          "client_cores": 0.9543233443257452,
+          "peer_cores": 1.2456431020672885,
+          "host_busy_percent": 44.24751243827429
+        }
+      ],
+      "median": {
+        "requests": 100000,
+        "rps": 32145.628440446155,
+        "cpu_us": 29.6875,
+        "p99_ms": 6.0545,
+        "rss_mib": 32.87109375,
+        "client_cores": 0.9960174698577207,
+        "peer_cores": 1.2456431020672885,
+        "host_busy_percent": 44.24751243827429
+      }
+    },
+    {
+      "name": "h3-client2-peer2",
+      "trials": [
+        {
+          "folder": "002-h3-client2-peer2-r0",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 33675.63380321058,
+          "cpu_us": 54.84375,
+          "p99_ms": 5.6973,
+          "rss_mib": 33.50390625,
+          "client_cores": 1.8468980413948302,
+          "peer_cores": 1.347025352128423,
+          "host_busy_percent": 48.13603662524526
+        },
+        {
+          "folder": "013-h3-client2-peer2-r1",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 32604.239503179208,
+          "cpu_us": 54.375,
+          "p99_ms": 6.52,
+          "rss_mib": 33.34765625,
+          "client_cores": 1.7728555229853693,
+          "peer_cores": 1.3398304670837704,
+          "host_busy_percent": 49.510732323232325
+        },
+        {
+          "folder": "026-h3-client2-peer2-r2",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 33976.479781871,
+          "cpu_us": 52.34375,
+          "p99_ms": 5.2987,
+          "rss_mib": 33.56640625,
+          "client_cores": 1.77845636358231,
+          "peer_cores": 1.295353291683832,
+          "host_busy_percent": 43.36734693877551
+        }
+      ],
+      "median": {
+        "requests": 100000,
+        "rps": 33675.63380321058,
+        "cpu_us": 54.375,
+        "p99_ms": 5.6973,
+        "rss_mib": 33.50390625,
+        "client_cores": 1.77845636358231,
+        "peer_cores": 1.3398304670837704,
+        "host_busy_percent": 48.13603662524526
+      }
+    },
+    {
+      "name": "h3-client2-peer8",
+      "trials": [
+        {
+          "folder": "004-h3-client2-peer8-r0",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 31610.669840209328,
+          "cpu_us": 56.09375,
+          "p99_ms": 5.7429,
+          "rss_mib": 33.49609375,
+          "client_cores": 1.773161011349242,
+          "peer_cores": 2.281895229090111,
+          "host_busy_percent": 42.841748768472904
+        },
+        {
+          "folder": "015-h3-client2-peer8-r1",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 29848.742393383796,
+          "cpu_us": 58.59375,
+          "p99_ms": 6.9606,
+          "rss_mib": 33.50390625,
+          "client_cores": 1.7489497496123318,
+          "peer_cores": 2.1407144935254943,
+          "host_busy_percent": 48.828125
+        },
+        {
+          "folder": "024-h3-client2-peer8-r2",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 27446.097031888494,
+          "cpu_us": 62.96875,
+          "p99_ms": 8.5433,
+          "rss_mib": 33.57421875,
+          "client_cores": 1.7282464224767287,
+          "peer_cores": 2.1099187093264278,
+          "host_busy_percent": 59.639830508474574
+        }
+      ],
+      "median": {
+        "requests": 100000,
+        "rps": 29848.742393383796,
+        "cpu_us": 58.59375,
+        "p99_ms": 6.9606,
+        "rss_mib": 33.50390625,
+        "client_cores": 1.7489497496123318,
+        "peer_cores": 2.1407144935254943,
+        "host_busy_percent": 48.828125
+      }
+    },
+    {
+      "name": "h3-client8-peer2",
+      "trials": [
+        {
+          "folder": "000-h3-client8-peer2-r0",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 13627.130821641447,
+          "cpu_us": 197.03125,
+          "p99_ms": 12.6762,
+          "rss_mib": 34.0234375,
+          "client_cores": 2.6849706197015415,
+          "peer_cores": 1.2349587307112562,
+          "host_busy_percent": 45.15957446806593
+        },
+        {
+          "folder": "010-h3-client8-peer2-r1",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 13998.660944088731,
+          "cpu_us": 194.375,
+          "p99_ms": 14.7531,
+          "rss_mib": 34.15234375,
+          "client_cores": 2.720989721007247,
+          "peer_cores": 1.192073471020056,
+          "host_busy_percent": 42.70152505466913
+        },
+        {
+          "folder": "021-h3-client8-peer2-r2",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 12553.237338057903,
+          "cpu_us": 212.96875,
+          "p99_ms": 13.7089,
+          "rss_mib": 34.2734375,
+          "client_cores": 2.673447264339519,
+          "peer_cores": 1.2141334237902877,
+          "host_busy_percent": 54.054549902152644
+        }
+      ],
+      "median": {
+        "requests": 100000,
+        "rps": 13627.130821641447,
+        "cpu_us": 197.03125,
+        "p99_ms": 13.7089,
+        "rss_mib": 34.15234375,
+        "client_cores": 2.6849706197015415,
+        "peer_cores": 1.2141334237902877,
+        "host_busy_percent": 45.15957446806593
+      }
+    },
+    {
+      "name": "h3-client8-peer8",
+      "trials": [
+        {
+          "folder": "006-h3-client8-peer8-r0",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 13319.485863050671,
+          "cpu_us": 199.375,
+          "p99_ms": 14.5766,
+          "rss_mib": 34.29296875,
+          "client_cores": 2.6555724939457277,
+          "peer_cores": 1.546309061913539,
+          "host_busy_percent": 47.49092323652422
+        },
+        {
+          "folder": "009-h3-client8-peer8-r1",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 14044.093284687591,
+          "cpu_us": 192.03125,
+          "p99_ms": 12.4135,
+          "rss_mib": 34.1328125,
+          "client_cores": 2.696904788575164,
+          "peer_cores": 1.6830968045867785,
+          "host_busy_percent": 46.35530634573304
+        },
+        {
+          "folder": "018-h3-client8-peer8-r2",
+          "accepted": true,
+          "requests": 100000,
+          "rps": 13071.99743767935,
+          "cpu_us": 220.9375,
+          "p99_ms": 16.4804,
+          "rss_mib": 34.32421875,
+          "client_cores": 2.8880944338872814,
+          "peer_cores": 1.6217446821120944,
+          "host_busy_percent": 48.975175047357
+        }
+      ],
+      "median": {
+        "requests": 100000,
+        "rps": 13319.485863050671,
+        "cpu_us": 199.375,
+        "p99_ms": 14.5766,
+        "rss_mib": 34.29296875,
+        "client_cores": 2.696904788575164,
+        "peer_cores": 1.6217446821120944,
+        "host_busy_percent": 47.49092323652422
+      }
+    }
+  ],
+  "limits": [
+    "Shared Windows loopback host; three repeats per case",
+    "One origin, one connection, 1 KiB bodies, concurrency 128",
+    "Separate processes; no library worker default or admission change"
+  ]
+}
