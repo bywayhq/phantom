@@ -8,13 +8,20 @@ Keep the diagnostics handle to inspect a request after headers or failure.
 
 ```no_run
 use std::num::NonZeroUsize;
-use phantom::{Client, HttpProtocol, RequestError};
+use phantom::{Client, HttpProtocol, RequestError, TlsConnectionState};
 
 async fn inspect(client: &Client) -> Result<(), RequestError> {
     let mut request = client.get(HttpProtocol::Http2, "https://example.com/")?;
     let diagnostics = request.diagnostics(NonZeroUsize::new(128).unwrap());
     let response = request.send().await?;
-    println!("{:?}", diagnostics.snapshot());
+    for event in diagnostics.snapshot().events {
+        if let Some(connection) = event.connection {
+            println!("peer: {:?}, reused: {}", connection.peer_address, connection.reused);
+            if let TlsConnectionState::Established(tls) = &connection.origin_tls {
+                println!("verified: {}, resumed: {}", tls.peer_verified, tls.session_resumed);
+            }
+        }
+    }
     response.into_body().collect_with_limit(1 << 20).await?;
     println!("{:?}", diagnostics.snapshot());
     Ok(())

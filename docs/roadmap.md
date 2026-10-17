@@ -38,10 +38,11 @@ an independent task in the next one.
 
 The shared attempt budget (#35) is implemented for downstream integration.
 Profile authoring (#3) is delivered in PR #265: describe/export, editable
-round trips and a caller-owned custom registry. Request diagnostics (#9) is
-in progress. Its first slice adds bounded request timelines, including
-response-body completion and failed or cancelled setup. Endpoints, certificate
-details and explicit reuse/resumption identities remain a separate slice.
+round trips and a caller-owned custom registry. Request diagnostics (#9)
+records bounded timelines, response-body completion and failed or cancelled
+setup. Connection-use events add exposed endpoints, certificate details,
+HTTP connection reuse and TLS resumption. Opaque proxy layers and incomplete
+early-data handshakes retain explicit unavailable or pending states.
 Extend the existing comparison harness (#1) and performance baseline (#34)
 alongside them. Each change should deliver a usable part in a separate PR.
 Do not wait for every diagnostic field or performance experiment to finish

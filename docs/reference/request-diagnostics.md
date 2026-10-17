@@ -65,7 +65,8 @@ not establish handshake confirmation, resumption or early-data acceptance.
 
 ## Connection facts
 
-`ConnectionUse` records have `connection` metadata. Other phases have `None`.
+Completed `ConnectionUse` records have `connection` metadata. Other phases
+have `None`. A live snapshot can catch metadata collection before it completes.
 These records share the event capacity and carry their hop and admission.
 They describe facts at dispatch, including attempts that fail before writing.
 TCP's internal rejected-early-data resend records admission separately without
