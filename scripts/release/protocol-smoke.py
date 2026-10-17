@@ -36,14 +36,18 @@ def check(binary, output):
                 scenario = output / f"{protocol}-{profile}-{'cold' if cold else 'warm'}"
                 scenario.mkdir(parents=True)
                 config, ready = scenario / "config.json", scenario / "ready.json"
+                requests, warmup = (1, 0) if cold else (4, 1)
                 config.write_text(
                     json.dumps(
                         {
                             "protocol": protocol,
                             "profile": profile,
-                            "cold": cold,
-                            "requests": 4,
-                            "warmup": 1,
+                            # Each scenario starts a new process. One request
+                            # without warmup tests a cold connection while
+                            # retaining its client until controlled shutdown.
+                            "cold": False,
+                            "requests": requests,
+                            "warmup": warmup,
                             "bytes": 1024,
                         }
                     ),
@@ -103,11 +107,15 @@ def check(binary, output):
                     peer_result = json.loads(
                         (scenario / "peer.json").read_text(encoding="utf-8")
                     )
-                    if len(samples) != 4 or any(
+                    if len(samples) != requests or any(
                         row["error"] or row["bytes"] != 1024 for row in samples
                     ):
                         raise RuntimeError(f"incomplete request or body: {scenario}")
-                    if peer_result["requests"] != 5 or peer_result["failures"]:
+                    if (
+                        peer_result["requests"] != requests + warmup
+                        or peer_result["connections"] != 1
+                        or peer_result["failures"]
+                    ):
                         raise RuntimeError(
                             f"peer count or failure: {scenario}: {peer_result}"
                         )
